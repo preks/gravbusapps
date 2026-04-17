@@ -8,24 +8,31 @@ import { parseNumber, formatNumber, isValidPhoneNumber, getCountryCallingCode } 
 import { FormHeader } from './components/FormHeader'
 import { ChannelTypeField } from './components/ChannelTypeField'
 import { TypeField } from './components/TypeField'
-import { PurposeField } from './components/PurposeField'
 import { ValueField } from './components/ValueField'
 import { useCommunicationFormState } from './hooks/useCommunicationFormState'
 import { useCommunicationValidation } from './hooks/useCommunicationValidation'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../apps/employee-record/_i18n'
+import { DeleteLayout } from '@/components/delete-layout/DeleteLayout'
 
 const prefixDataTestId = 'ChangePrivateCommunicationScreen'
+
+function getInitialParams(context: BusinessAppContextProps) {
+  return (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters ?? {}
+}
 
 const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = context => {
   const { channels, types, communications, employee, loading } = useCommunicationLookups(context)
   const { t } = useTranslation(translations)
+  const initialParams = getInitialParams(context)
+  const isDeleteMode = initialParams.mode === 'delete'
 
   const formState = useCommunicationFormState({
     channels,
     types,
     communications,
-    loading
+    loading,
+    initialCommunicationId: initialParams.communicationId
   })
 
   const validation = useCommunicationValidation({
@@ -56,21 +63,20 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
     return (
       formState.channelType !== formState.baseline.channelRef ||
       formState.valueType !== formState.baseline.typeRefId ||
-      currentValue !== (formState.baseline.value || '') ||
-      formState.purpose !== (formState.baseline.purpose || 'PRIVATE')
+      currentValue !== (formState.baseline.value || '')
     )
   }, [
     formState.baseline,
     formState.channelType,
     formState.valueType,
     formState.value,
-    formState.purpose,
     formState.isPhoneType,
     formState.selectedCountryCode,
     formState.phoneNumber
   ])
 
   const validateForm = () => {
+    if (isDeleteMode) return null
     const errors: string[] = []
     if (!formState.channelType) errors.push(validation.channelRequiredMessage)
     if (!formState.valueType) errors.push(validation.typeRequiredMessage)
@@ -79,6 +85,26 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
   }
 
   const handlePreSubmit = async () => {
+    const employeeId = initialParams.employeeId || context.userInfo?.employeeDetails?.employeeId
+
+    if (isDeleteMode) {
+      return {
+        employeeId,
+        event: 'pse_submit',
+        mode: 'delete',
+        employeeCommunication: {
+          id: initialParams.communicationId,
+          version: initialParams.version,
+          employeeId,
+          isDeleted: true
+        },
+        completeNotification: {
+          type: 'success',
+          message: t('notification-communication-deleted-success')
+        }
+      }
+    }
+
     let formattedValue = formState.value.trim()
 
     if (formState.isPhoneType) {
@@ -100,17 +126,13 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
       }
     }
 
-    const employeeId =
-      (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
-      context.userInfo?.employeeDetails?.employeeId
-
     return {
       employeeId,
       event: 'pse_submit',
       employeeCommunication: {
         channelRef: formState.channelType,
         typeRef: formState.valueType,
-        purpose: formState.purpose,
+        purpose: 'PRIVATE',
         value: formattedValue,
         employeeId,
         ...(typeof formState.baseline?.version === 'number' ? { version: formState.baseline?.version } : {}),
@@ -121,6 +143,46 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
         message: t('notification-communication-updated-success')
       }
     }
+  }
+
+  if (isDeleteMode) {
+    return (
+      <AppActionForm
+        processType="delete"
+        formData={{}}
+        onSubmit={data => data}
+        validateForm={validateForm}
+        handlePreSubmit={handlePreSubmit}
+        submitEventType="pse_submit"
+        cancelEventType="pse_abort"
+        submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
+        cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+        submitButtonVariant="destructive"
+        submitButtonTestId="flw_changeCommunication_btnDelete"
+        cancelButtonTestId="flw_changeCommunication_btnCancel"
+        data-testid={formatDataTestId(prefixDataTestId, 'DeleteContainer')}
+      >
+        <div className="gba:bg-white gba:max-w-xl gba:w-full gba:p-6">
+          <FormHeader
+            employee={
+              employee
+                ? {
+                    firstName: employee.firstName,
+                    lastName: employee.lastName,
+                    pictureThumbnail: employee.pictureThumbnail,
+                    jobTitle: employee.jobTitle
+                  }
+                : undefined
+            }
+          />
+          <DeleteLayout
+            itemType={t('details-private-communication')}
+            itemTitle={initialParams.value || ''}
+            data-testid={formatDataTestId(prefixDataTestId, 'delete-layout')}
+          />
+        </div>
+      </AppActionForm>
+    )
   }
 
   return (
@@ -173,8 +235,6 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
             secondaryTypeId={formState.secondaryTypeId}
             hasPrimaryForSelection={formState.hasPrimaryForSelection}
           />
-
-          <PurposeField value={formState.purpose} onChange={formState.setPurpose} />
 
           <ValueField
             value={formState.value}

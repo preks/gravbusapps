@@ -1,4 +1,3 @@
-import DOMPurify from 'dompurify'
 import type { OfficeClient } from '@/common/network/office/OfficeClient'
 import type {
   Comment,
@@ -32,13 +31,22 @@ export interface PaginatedResponse<T> {
 type RecordData = Record<string, unknown>
 
 function sanitizeDocumentHtml(html: string): string {
-  return (
-    DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(html || ''), {
-      USE_PROFILES: { html: true },
-      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-      ALLOW_DATA_ATTR: true
-    }) || ''
-  )
+  return sanitizeDocumentHtmlForEditor(html || '')
+}
+
+function getApprovalStatusFromMetadata(doc: RecordData): DocumentSummary['approvalStatus'] {
+  const settings = (doc.settings as RecordData | undefined) ?? {}
+  const approvalMetadata = (settings.approvalMetadata as RecordData | undefined) ?? {}
+
+  if (approvalMetadata.hasOpenApproval) {
+    return 'pending'
+  }
+
+  if (approvalMetadata.currentApprovedVersion) {
+    return 'approved'
+  }
+
+  return undefined
 }
 
 export function mapApiDocumentToDocument(apiDoc: RecordData): Document {
@@ -74,6 +82,8 @@ export function mapApiDocumentToDocument(apiDoc: RecordData): Document {
     createdAt: apiDoc.createdAt as string,
     updatedAt: apiDoc.updatedAt as string,
     createdBy: apiDoc.ownerId as string,
+    spaceId: (apiDoc.spaceId as string | null | undefined) ?? null,
+    trashedAt: (apiDoc.trashedAt as string | null | undefined) ?? null,
     version: (apiDoc.currentVersion as number) || 1,
     versionHistory: [],
     formatting: apiDoc.formatting as Document['formatting'],
@@ -114,14 +124,10 @@ export function mapApiDocToSummary(doc: RecordData): DocumentSummary {
     createdAt: doc.createdAt as string,
     updatedAt: doc.updatedAt as string,
     createdBy: doc.ownerId as string,
+    spaceId: (doc.spaceId as string | null | undefined) ?? null,
+    trashedAt: (doc.trashedAt as string | null | undefined) ?? null,
     wordCount: (doc.wordCount as number) || 0,
-    approvalStatus: (doc.status === 'pending_approval'
-      ? 'pending'
-      : doc.status === 'approved'
-        ? 'approved'
-        : doc.status === 'rejected'
-          ? 'rejected'
-          : undefined) as DocumentSummary['approvalStatus'],
+    approvalStatus: getApprovalStatusFromMetadata(doc),
     isShared: doc.isShared as boolean | undefined,
     sharedBy: doc.sharedBy as string | undefined,
     permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission'],
@@ -463,6 +469,19 @@ export async function getDocumentById(
   }
 }
 
+export async function getDocumentForOpenById(
+  officeClient: OfficeClient,
+  id: string,
+  options?: { fresh?: boolean }
+): Promise<Document | null> {
+  try {
+    const document = await officeClient.documents.getTrashedPreview<RecordData>(id)
+    return mapApiDocumentToDocument(document)
+  } catch {
+    return getDocumentById(officeClient, id, options)
+  }
+}
+
 export function buildDocumentLock(lockResponse: RecordData): FileLock | null {
   if (!lockResponse.isLocked) {
     return null
@@ -520,7 +539,10 @@ export function buildDocumentApprovalRequest(
       respondedAt: step.respondedAt as string | undefined,
       comments: step.comments as string | undefined
     })),
-    message: latest.message as string | undefined
+    message: latest.message as string | undefined,
+    dueDate: latest.dueDate as string | undefined,
+    versionAtRequest: latest.versionAtRequest as number | undefined,
+    entityUrl: latest.entityUrl as string | undefined
   }
 }
 

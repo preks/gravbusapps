@@ -1,4 +1,5 @@
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { getSpreadsheetApiBasePath } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import { createSafeObjectUrl, sanitizeDownloadFilename } from '@/common/utils/safeUrlUtils'
 import type {
   DriveFolder,
@@ -11,10 +12,12 @@ import type {
   DriveSortBy,
   DriveShortcut,
   ShareInfo,
-  ShareLinkInfo
+  ShareLinkInfo,
+  TrashedDriveItemDetail
 } from '../types/drive.types'
 
 const API_URL = getDocumentServiceApiUrl()
+const SPREADSHEET_API_BASE_PATH = getSpreadsheetApiBasePath()
 
 let currentAccessToken: string | null = null
 
@@ -61,7 +64,32 @@ export class DriveApiService {
     return apiRequest<DriveListResult>(`/drive?${qs.toString()}`)
   }
 
-  static async listFolders(parentId?: string): Promise<DriveFolder[]> {
+  static async listFolders(parentId?: string, spaceId?: string): Promise<DriveFolder[]> {
+    if (spaceId) {
+      const spaceFolders = await apiRequest<
+        Array<{
+          id: string
+          spaceId: string
+          parentId?: string | null
+          name: string
+          position: number
+          createdBy: string
+          createdAt: string
+          updatedAt: string
+        }>
+      >(`/spaces/${spaceId}/folders`)
+      return spaceFolders
+        .filter(f => (parentId ? f.parentId === parentId : !f.parentId))
+        .map(f => ({
+          id: f.id,
+          name: f.name,
+          parentId: f.parentId ?? null,
+          ownerId: f.createdBy,
+          position: f.position,
+          createdAt: f.createdAt,
+          updatedAt: f.updatedAt
+        }))
+    }
     const qs = parentId ? `?parentId=${parentId}` : ''
     return apiRequest<DriveFolder[]>(`/drive/folders${qs}`)
   }
@@ -70,25 +98,93 @@ export class DriveApiService {
     return apiRequest<DriveFolder>(`/drive/folders/${id}`)
   }
 
-  static async getBreadcrumbs(folderId: string): Promise<{ breadcrumbs: DriveBreadcrumb[]; isShared: boolean }> {
+  static async getBreadcrumbs(
+    folderId: string,
+    spaceId?: string
+  ): Promise<{ breadcrumbs: DriveBreadcrumb[]; isShared: boolean }> {
+    if (spaceId) {
+      const allFolders = await apiRequest<Array<{ id: string; parentId?: string | null; name: string }>>(
+        `/spaces/${spaceId}/folders`
+      )
+      const folderMap = new Map(allFolders.map(f => [f.id, f]))
+      const breadcrumbs: DriveBreadcrumb[] = []
+      let currentId: string | null = folderId
+      while (currentId) {
+        const folder = folderMap.get(currentId)
+        if (!folder) break
+        breadcrumbs.unshift({ id: folder.id, name: folder.name, parentId: folder.parentId ?? null })
+        currentId = folder.parentId ?? null
+      }
+      return { breadcrumbs, isShared: false }
+    }
     return apiRequest<{ breadcrumbs: DriveBreadcrumb[]; isShared: boolean }>(`/drive/folders/${folderId}/breadcrumbs`)
   }
 
-  static async createFolder(name: string, parentId?: string): Promise<DriveFolder> {
+  static async createFolder(name: string, parentId?: string, spaceId?: string): Promise<DriveFolder> {
+    if (spaceId) {
+      const sf = await apiRequest<{
+        id: string
+        spaceId: string
+        parentId?: string | null
+        name: string
+        position: number
+        createdBy: string
+        createdAt: string
+        updatedAt: string
+      }>(`/spaces/${spaceId}/folders`, { method: 'POST', body: JSON.stringify({ name, parentId }) })
+      return {
+        id: sf.id,
+        name: sf.name,
+        parentId: sf.parentId ?? null,
+        ownerId: sf.createdBy,
+        position: sf.position,
+        createdAt: sf.createdAt,
+        updatedAt: sf.updatedAt
+      }
+    }
     return apiRequest<DriveFolder>('/drive/folders', {
       method: 'POST',
       body: JSON.stringify({ name, parentId })
     })
   }
 
-  static async updateFolder(id: string, updates: { name?: string; parentId?: string | null }): Promise<DriveFolder> {
+  static async updateFolder(
+    id: string,
+    updates: { name?: string; parentId?: string | null },
+    spaceId?: string
+  ): Promise<DriveFolder> {
+    if (spaceId) {
+      const sf = await apiRequest<{
+        id: string
+        spaceId: string
+        parentId?: string | null
+        name: string
+        position: number
+        createdBy: string
+        createdAt: string
+        updatedAt: string
+      }>(`/spaces/${spaceId}/folders/${id}`, { method: 'PATCH', body: JSON.stringify(updates) })
+      return {
+        id: sf.id,
+        name: sf.name,
+        parentId: sf.parentId ?? null,
+        ownerId: sf.createdBy,
+        position: sf.position,
+        createdAt: sf.createdAt,
+        updatedAt: sf.updatedAt
+      }
+    }
     return apiRequest<DriveFolder>(`/drive/folders/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(updates)
     })
   }
 
-  static async deleteFolder(id: string): Promise<void> {
+  static async deleteFolder(id: string, spaceId?: string): Promise<void> {
+    if (spaceId) {
+      await apiRequest<void>(`/spaces/${spaceId}/folders/${id}`, { method: 'DELETE' })
+      return
+    }
     await apiRequest<void>(`/drive/folders/${id}`, { method: 'DELETE' })
   }
 
@@ -109,22 +205,42 @@ export class DriveApiService {
 
   static async moveItems(
     items: Array<{ entityType: string; entityId: string }>,
-    folderId?: string | null
+    folderId?: string | null,
+    spaceId?: string,
+    spaceFolderId?: string | null
   ): Promise<void> {
+    const payload: Record<string, unknown> = { items, folderId }
+    if (spaceId) payload.spaceId = spaceId
+    if (spaceFolderId !== undefined) payload.spaceFolderId = spaceFolderId
     await apiRequest<void>('/drive/move', {
       method: 'POST',
-      body: JSON.stringify({ items, folderId })
+      body: JSON.stringify(payload)
+    })
+  }
+
+  static async moveSpaceContent(
+    spaceId: string,
+    entityType: string,
+    entityId: string,
+    folderId?: string | null
+  ): Promise<void> {
+    const payload: Record<string, unknown> = { entityType, entityId }
+    if (folderId) payload.folderId = folderId
+    await apiRequest<void>(`/spaces/${spaceId}/content`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
     })
   }
 
   static async createShortcut(
     targetEntityType: string,
     targetEntityId: string,
-    folderId?: string | null
+    folderId?: string | null,
+    spaceId?: string
   ): Promise<DriveShortcut> {
     return apiRequest<DriveShortcut>('/drive/shortcuts', {
       method: 'POST',
-      body: JSON.stringify({ targetEntityType, targetEntityId, folderId })
+      body: JSON.stringify({ targetEntityType, targetEntityId, folderId, ...(spaceId ? { spaceId } : {}) })
     })
   }
 
@@ -157,10 +273,23 @@ export class DriveApiService {
     return apiRequest<{ deleted: number }>('/drive/trash', { method: 'DELETE' })
   }
 
-  static async search(query: string, contentTypes?: string[], limit?: number): Promise<DriveSearchResult[]> {
+  static async getTrashedItem(entityType: string, entityId: string): Promise<TrashedDriveItemDetail> {
+    return apiRequest<TrashedDriveItemDetail>(`/drive/trash/${entityType}/${entityId}`)
+  }
+
+  static async deleteTrashedItem(entityType: string, entityId: string): Promise<void> {
+    await apiRequest<void>(`/drive/trash/${entityType}/${entityId}`, { method: 'DELETE' })
+  }
+
+  static async search(
+    query: string,
+    contentTypes?: string[],
+    limit?: number,
+    spaceId?: string
+  ): Promise<DriveSearchResult[]> {
     return apiRequest<DriveSearchResult[]>('/drive/search', {
       method: 'POST',
-      body: JSON.stringify({ query, contentTypes, limit })
+      body: JSON.stringify({ query, contentTypes, limit, ...(spaceId ? { spaceId } : {}) })
     })
   }
 
@@ -207,15 +336,43 @@ export class DriveApiService {
     name: string
     sheets?: Array<{ id: string; name: string; columns: unknown[]; position: number }>
   }> {
-    return apiRequest(`/spreadsheets/${id}`)
+    return apiRequest(`${SPREADSHEET_API_BASE_PATH}/${id}`)
   }
 
   static async fetchSpreadsheetRows(appId: string, sheetId: string): Promise<Array<{ data: Record<string, unknown> }>> {
-    return apiRequest(`/spreadsheets/${appId}/sheets/${sheetId}/rows`)
+    return apiRequest(`${SPREADSHEET_API_BASE_PATH}/${appId}/sheets/${sheetId}/rows`)
   }
 
   static async fetchSlide(id: string): Promise<{ id: string; title: string; content?: string; contentJson?: unknown }> {
     return apiRequest(`/slides/${id}`)
+  }
+
+  static async renameDocument(documentId: string, title: string): Promise<{ id: string; title: string }> {
+    return apiRequest<{ id: string; title: string }>(`/documents/${documentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title })
+    })
+  }
+
+  static async renameNote(noteId: string, title: string): Promise<{ id: string; title?: string }> {
+    return apiRequest<{ id: string; title?: string }>(`/notes/${noteId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title })
+    })
+  }
+
+  static async renameSpreadsheetApp(spreadsheetId: string, name: string): Promise<{ id: string; name: string }> {
+    return apiRequest<{ id: string; name: string }>(`/spreadsheets/${spreadsheetId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name })
+    })
+  }
+
+  static async renameSlide(slideId: string, title: string): Promise<{ id: string; title: string }> {
+    return apiRequest<{ id: string; title: string }>(`/slides/${slideId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title })
+    })
   }
 
   static async renameFile(fileId: string, name: string): Promise<DriveItem> {
@@ -274,12 +431,14 @@ export class DriveApiService {
 
   static async uploadFile(
     file: File,
-    folderId?: string
+    folderId?: string,
+    spaceId?: string
   ): Promise<DriveItem | { entityType: string; entityId: string; name: string }> {
     const token = currentAccessToken
     const formData = new FormData()
     formData.append('file', file)
     if (folderId) formData.append('folderId', folderId)
+    if (spaceId) formData.append('spaceId', spaceId)
 
     const response = await fetch(`${API_URL}/drive/files/upload`, {
       method: 'POST',

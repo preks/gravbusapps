@@ -21,6 +21,7 @@ update_asset = Update Asset
 allocate_asset = Allocate Asset
 retrieve_asset = Retrieve Asset
 retire_asset = Retire Asset
+delete_asset = Delete Asset
 
 # Asset report PDF
 assets_report = Assets Report
@@ -52,3 +53,18 @@ return_condition = Return condition
 expected_return = Expected return
 period = Period
 asset = Asset
+cancel-button = Cancel
+asset-management-empty = No assets have been registered yet.
+asset-filter-sheet-title = Filter assets
+asset-filter-sheet-description = Narrow the asset list by status, category, location, employee, and date ranges.
+asset-employee-filter-search-placeholder = Search employees
+asset-employee-filter-empty = No employees found
+asset-employee-filter-loading = Loading employees...
+delete-asset-title = Delete Asset
+delete-asset-description = Delete this asset. It will be removed from the list.
+delete-asset-notes-label = Notes
+delete-asset-notes-placeholder = Add a short reason for deleting this asset.
+delete-asset-note-required = Add a note to continue.
+delete-asset-note-change-required = Update the existing note to continue.
+delete-asset-confirm-button = Delete Asset
+deleting-asset-button = Deleting...

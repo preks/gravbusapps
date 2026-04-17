@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { toast } from '@newwork/nw-design-system'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
+import { buildCatalogTranslations, isSystemCatalogEntry } from '@/business-apps/hr/core/utils/catalogEntryHelpers'
 import type { AbsenceCatalogEntryPayload } from './useAbsenceCatalogEntries'
 import { useAbsenceSetupCatalogData } from './useAbsenceSetupCatalogData'
 import type { AbsenceEntitlementModalValues } from '../modals/AbsenceEntitlementModal'
@@ -11,7 +12,7 @@ import type { AbsenceTypeModalValues } from '../modals/AbsenceTypeModal'
 import { getAbsenceTypeTitle, type AbsenceTypeVersionFormValues } from '../utils/absenceSetup'
 import { buildAbsenceTypeVersionPayload } from '../utils/absenceTypeVersionObjectValue'
 import { buildAbsenceSetupSectionCards, type AbsenceSetupSectionCardConfig } from '../utils/absenceSetupSectionCards'
-type GenericCatalogKey = 'AbsenceGroup' | 'AbsencePolicy' | 'AbsenceReason'
+type GenericCatalogKey = 'AbsenceGroup' | 'AbsencePolicy'
 type TranslateFn = (key: string, values?: Record<string, string>) => string
 
 interface ErrorListItem {
@@ -88,21 +89,6 @@ const getErrorDetail = (error: unknown, fallback: string): string => {
   return fallback
 }
 
-const upsertEnglishTranslation = (
-  translations: { localeCode?: string; value?: string }[] | undefined,
-  value: string
-) => {
-  const nextTranslations = [...(translations || [])]
-  const existingIndex = nextTranslations.findIndex(item => item.localeCode === 'en-US')
-
-  if (existingIndex >= 0) {
-    nextTranslations[existingIndex] = { ...nextTranslations[existingIndex], localeCode: 'en-US', value }
-    return nextTranslations
-  }
-
-  return [...nextTranslations, { localeCode: 'en-US', value }]
-}
-
 interface PendingDeleteState {
   entityLabel: string
   name: string
@@ -159,7 +145,6 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
 
   const closeAbsenceTypeVersionModal = () => {
     setIsAbsenceTypeVersionModalOpen(false)
-    setSelectedVersionEntry(null)
   }
 
   const closeAbsenceEntitlementModal = () => {
@@ -182,18 +167,18 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
       if (selectedAbsenceType?.id) {
         await updateAbsenceType(selectedAbsenceType.id, {
           code: selectedAbsenceType.code,
-          value: formValues.name,
+          value: formValues.translations.enUS,
           parentEntryId: formValues.parentEntryId,
           localeCode: selectedAbsenceType.localeCode || 'en-US',
-          translations: upsertEnglishTranslation(selectedAbsenceType.translations, formValues.name)
+          translations: buildCatalogTranslations(formValues.translations)
         })
       } else {
         await createAbsenceType({
           code: formValues.code,
-          value: formValues.name,
+          value: formValues.translations.enUS,
           parentEntryId: formValues.parentEntryId,
           localeCode: 'en-US',
-          translations: [{ localeCode: 'en-US', value: formValues.name }]
+          translations: buildCatalogTranslations(formValues.translations)
         })
       }
       toast.success(t('save-absence-type-success'))
@@ -207,21 +192,19 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
   }
 
   const handleSaveAbsenceTypeVersion = async (formValues: AbsenceTypeVersionFormValues) => {
-    const payload = buildAbsenceTypeVersionPayload(formValues, absenceTypes)
+    const payload = buildAbsenceTypeVersionPayload(formValues, absenceTypes, Boolean(selectedVersionEntry?.id))
 
     try {
       if (selectedVersionEntry?.id) {
-        await absenceTypeVersionsCatalog.updateEntry(selectedVersionEntry.id, {
-          id: selectedVersionEntry.id,
-          code: selectedVersionEntry.code,
+        const updatedEntry = await absenceTypeVersionsCatalog.updateEntry(selectedVersionEntry.id, {
           value: payload.value,
-          type: selectedVersionEntry.type,
           objectValue: payload.objectValue,
-          localeCode: selectedVersionEntry.localeCode || 'en-US',
-          translations: selectedVersionEntry.translations || payload.translations
+          translations: payload.translations
         })
+        setSelectedVersionEntry(updatedEntry)
       } else {
-        await absenceTypeVersionsCatalog.createEntry(payload)
+        const createdEntry = await absenceTypeVersionsCatalog.createEntry(payload)
+        setSelectedVersionEntry(createdEntry)
       }
       toast.success(t('save-catalog-entry-success', { entity: t('absence-type-version-entity-label') }))
       closeAbsenceTypeVersionModal()
@@ -236,14 +219,26 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
     }
   }
 
+  const handleSelectAbsenceTypeVersion = async (entry: CatalogEntry) => {
+    try {
+      await absenceTypeVersionsCatalog.getEntryById(entry.id)
+    } catch (loadError) {
+      const message =
+        loadError instanceof Error
+          ? loadError.message
+          : t('save-catalog-entry-error', { entity: t('absence-type-version-entity-label') })
+      console.error('Error loading absence type version details:', message)
+    }
+  }
+
   const handleSaveAbsenceEntitlement = async (formValues: AbsenceEntitlementModalValues) => {
     const normalizedCode = formValues.code.trim()
     const payload: AbsenceCatalogEntryPayload = {
       code: normalizedCode,
-      value: formValues.name,
+      value: formValues.translations.enUS,
       objectValue: formValues.objectValue,
       localeCode: 'en-US',
-      translations: []
+      translations: buildCatalogTranslations(formValues.translations)
     }
 
     try {
@@ -264,7 +259,7 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
           type: selectedEntitlement.type,
           objectValue: payload.objectValue,
           localeCode: selectedEntitlement.localeCode || 'en-US',
-          translations: selectedEntitlement.translations || payload.translations
+          translations: payload.translations
         })
       } else {
         await absenceEntitlementsCatalog.createEntry(payload)
@@ -285,10 +280,10 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
   const handleSaveAbsencePolicy = async (formValues: AbsencePolicyModalValues) => {
     const payload: AbsenceCatalogEntryPayload = {
       code: formValues.code,
-      value: formValues.name,
+      value: formValues.translations.enUS,
       objectValue: formValues.objectValue,
       localeCode: 'en-US',
-      translations: []
+      translations: buildCatalogTranslations(formValues.translations)
     }
 
     try {
@@ -300,7 +295,7 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
           type: selectedPolicy.type,
           objectValue: payload.objectValue,
           localeCode: selectedPolicy.localeCode || 'en-US',
-          translations: selectedPolicy.translations || payload.translations
+          translations: payload.translations
         })
       } else {
         await absencePoliciesCatalog.createEntry(payload)
@@ -330,15 +325,20 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
         await activeCatalog.hook.updateEntry(selectedGenericEntry.id, {
           id: selectedGenericEntry.id,
           code: selectedGenericEntry.code,
-          value: formValues.value,
+          value: formValues.translations.enUS,
           type: selectedGenericEntry.type,
           parentEntryId: selectedGenericEntry.parentEntryId,
           objectValue: selectedGenericEntry.objectValue,
           localeCode: selectedGenericEntry.localeCode || 'en-US',
-          translations: selectedGenericEntry.translations || []
+          translations: buildCatalogTranslations(formValues.translations)
         })
       } else {
-        await activeCatalog.hook.createEntry({ ...formValues, localeCode: 'en-US', translations: [] })
+        await activeCatalog.hook.createEntry({
+          code: formValues.code,
+          value: formValues.translations.enUS,
+          localeCode: 'en-US',
+          translations: buildCatalogTranslations(formValues.translations)
+        })
       }
       toast.success(t('save-catalog-entry-success', { entity: activeCatalog.entityLabel }))
       closeGenericCatalogModal()
@@ -402,6 +402,20 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
     },
     onDeleteAbsenceType: entry => {
       const absenceTypeName = getAbsenceTypeTitle(entry, t('untitled-absence-type'))
+      const isSystemType = isSystemCatalogEntry({
+        type: entry.type,
+        objectValue: entry.objectValue
+      })
+
+      if (isSystemType) {
+        openDeleteDialog(
+          t('absence-type-entity-label'),
+          absenceTypeName,
+          async () => Promise.resolve(),
+          t('delete-system-entry-blocked', { entity: t('absence-type-entity-label') })
+        )
+        return
+      }
 
       openDeleteDialog(t('absence-type-entity-label'), absenceTypeName, () => deleteAbsenceType(entry.id))
     },
@@ -409,8 +423,20 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
       setSelectedVersionEntry(null)
       setIsAbsenceTypeVersionModalOpen(true)
     },
-    onEditAbsenceTypeVersion: entry => {
-      setSelectedVersionEntry(entry)
+    onSelectAbsenceTypeVersion: handleSelectAbsenceTypeVersion,
+    onEditAbsenceTypeVersion: async entry => {
+      try {
+        const latestEntry = await absenceTypeVersionsCatalog.getEntryById(entry.id)
+        setSelectedVersionEntry(latestEntry)
+      } catch (loadError) {
+        const message =
+          loadError instanceof Error
+            ? loadError.message
+            : t('save-catalog-entry-error', { entity: t('absence-type-version-entity-label') })
+        console.error('Error loading absence type version entry:', message)
+        setSelectedVersionEntry(entry)
+      }
+
       setIsAbsenceTypeVersionModalOpen(true)
     },
     onDeleteAbsenceTypeVersion: entry => {
@@ -432,6 +458,11 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
       )
     },
     onAddGenericCatalog: catalogKey => {
+      if (catalogKey === 'AbsenceGroup') {
+        const config = genericCatalogConfigs[catalogKey]
+        toast.error(t('catalog-readonly-message', { entity: config.entityLabel }))
+        return
+      }
       if (catalogKey === 'AbsencePolicy') {
         setSelectedPolicy(null)
         setIsAbsencePolicyModalOpen(true)
@@ -451,6 +482,15 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
     },
     onDeleteGenericCatalog: (catalogKey, entry) => {
       const config = genericCatalogConfigs[catalogKey]
+      if (catalogKey === 'AbsenceGroup') {
+        openDeleteDialog(
+          config.entityLabel,
+          entry.value || entry.code,
+          async () => Promise.resolve(),
+          t('delete-system-entry-blocked', { entity: config.entityLabel })
+        )
+        return
+      }
       openDeleteDialog(config.entityLabel, entry.value || entry.code, () => config.hook.deleteEntry(entry.id))
     }
   })

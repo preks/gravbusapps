@@ -57,7 +57,7 @@ export const GET_EMPLOYEE_REGION_ID = `query GetEmployeeRegionId($employeeId: uu
 `
 
 export const GET_REGION_COUNTRY_ID = `query GetRegionCountryId($regionId: String!) {
-  CatalogEntry(where: { id: { _eq: $regionId } }) {
+  CatalogEntry(where: { id: { _eq: $regionId }, isDeleted: { _eq: false } }) {
     id
     additionalValue3
   }
@@ -65,7 +65,7 @@ export const GET_REGION_COUNTRY_ID = `query GetRegionCountryId($regionId: String
 `
 
 export const GET_COUNTRY_OBJECT_VALUE = `query GetCountryObjectValue($id: String!) {
-  CatalogEntry(where: { id: { _eq: $id } }) {
+  CatalogEntry(where: { id: { _eq: $id }, isDeleted: { _eq: false } }) {
     id
     objectValue
   }

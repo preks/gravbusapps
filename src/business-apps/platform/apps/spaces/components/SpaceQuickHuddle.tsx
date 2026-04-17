@@ -6,11 +6,12 @@
  */
 
 import React, { useCallback, useState } from 'react'
-import { Button, Spinner } from '@newwork/nw-design-system'
+import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { VideoCamera } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { LinkedConversation } from '../types/space.types'
 import type { SpaceMember } from '../types/space.types'
+import translations from '../_i18n'
 
 export interface SpaceQuickHuddleProps {
   /** The linked group conversation */
@@ -31,6 +32,7 @@ export const SpaceQuickHuddle: React.FC<SpaceQuickHuddleProps> = ({
   disabled = false,
   'data-testid': testId = 'space-quick-huddle'
 }) => {
+  const { t } = useTranslation(translations)
   const [isStarting, setIsStarting] = useState(false)
 
   const handleStartHuddle = useCallback(() => {
@@ -44,7 +46,7 @@ export const SpaceQuickHuddle: React.FC<SpaceQuickHuddleProps> = ({
       .map(m => ({
         id: m.userId,
         odId: m.userId,
-        odName: m.userName || 'Team Member',
+        odName: m.userName || t('common-team-member'),
         avatarUrl: m.userAvatar
       }))
 
@@ -94,7 +96,7 @@ export const SpaceQuickHuddle: React.FC<SpaceQuickHuddleProps> = ({
         navigateTo(buildPlatformUrl(`${chatPath}?${params.toString()}`))
       }
     })
-  }, [conversation, members, currentUserId, isStarting])
+  }, [conversation, currentUserId, isStarting, members, t])
 
   const canStartHuddle = !!conversation && members.length > 0 && !disabled
 
@@ -108,7 +110,7 @@ export const SpaceQuickHuddle: React.FC<SpaceQuickHuddleProps> = ({
       data-testid={testId}
     >
       {isStarting ? <Spinner size="sm" /> : <VideoCamera className="gba:w-4 gba:h-4" weight="fill" />}
-      Quick Huddle
+      {t('quick-huddle')}
     </Button>
   )
 }

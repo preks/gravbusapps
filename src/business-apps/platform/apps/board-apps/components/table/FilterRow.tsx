@@ -4,11 +4,21 @@
  */
 
 import React, { useMemo, useState } from 'react'
-import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import {
+  Button,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { X, Pin } from 'lucide-react'
 import type { BoardColumn, BoardQuickFilter, ViewFilter, ViewFilterOperator } from '../../types'
 import { getOperatorsForType, getOperatorDef } from '../../utils/filterOperators'
 import { SaveQuickFilterDialog } from './SaveQuickFilterDialog'
+import translations from '../../_i18n'
 
 interface FilterRowProps {
   filter: ViewFilter
@@ -29,14 +39,18 @@ export const FilterRow: React.FC<FilterRowProps> = ({
   connectorLabel,
   'data-testid': testId = 'filter-row'
 }) => {
+  const { t } = useTranslation(translations)
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const col = useMemo(() => columns.find(c => c.name === filter.column), [columns, filter.column])
-  const operators = useMemo(() => (col ? getOperatorsForType(col.type) : []), [col])
-  const opDef = useMemo(() => (col ? getOperatorDef(col.type, filter.operator) : undefined), [col, filter.operator])
+  const operators = useMemo(() => (col ? getOperatorsForType(t, col.type) : []), [col, t])
+  const opDef = useMemo(
+    () => (col ? getOperatorDef(t, col.type, filter.operator) : undefined),
+    [col, filter.operator, t]
+  )
 
   const handleColumnChange = (colName: string) => {
     const newCol = columns.find(c => c.name === colName)
-    const newOps = newCol ? getOperatorsForType(newCol.type) : []
+    const newOps = newCol ? getOperatorsForType(t, newCol.type) : []
     const firstOp = newOps[0]?.value || 'contains'
     onUpdate(filter.id, { column: colName, operator: firstOp, value: '', secondValue: undefined })
   }
@@ -51,7 +65,7 @@ export const FilterRow: React.FC<FilterRowProps> = ({
 
       <Select value={filter.column} onValueChange={handleColumnChange}>
         <SelectTrigger className="gba:h-7 gba:text-xs gba:w-32 gba:flex-shrink-0" data-testid={`${testId}-col`}>
-          <SelectValue placeholder="Column" />
+          <SelectValue placeholder={t('table-filter-column-placeholder')} />
         </SelectTrigger>
         <SelectContent>
           {columns.map(c => (
@@ -89,7 +103,7 @@ export const FilterRow: React.FC<FilterRowProps> = ({
 
       {opDef?.needsSecondValue && (
         <>
-          <span className="gba:text-xs gba:text-muted-foreground">and</span>
+          <span className="gba:text-xs gba:text-muted-foreground">{t('table-filter-and')}</span>
           <FilterValueInput
             column={col}
             value={filter.secondValue}
@@ -105,7 +119,7 @@ export const FilterRow: React.FC<FilterRowProps> = ({
           size="icon"
           className="gba:h-6 gba:w-6 gba:flex-shrink-0 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity"
           onClick={() => setSaveDialogOpen(true)}
-          title="Save as quick filter"
+          title={t('table-save-quick-filter')}
           data-testid={`${testId}-save-quick`}
         >
           <Pin className="gba:w-3 gba:h-3" />
@@ -154,7 +168,7 @@ function FilterValueInput({
     return (
       <Select value={strVal} onValueChange={v => onChange(v)}>
         <SelectTrigger className="gba:h-7 gba:text-xs gba:w-36" data-testid={testId}>
-          <SelectValue placeholder="Value" />
+          <SelectValue placeholder={t('table-filter-value-placeholder')} />
         </SelectTrigger>
         <SelectContent>
           {column.selectOptions.map(opt => (
@@ -225,7 +239,7 @@ function FilterValueInput({
       type="text"
       value={String(value || '')}
       onChange={e => onChange(e.target.value)}
-      placeholder="Value..."
+      placeholder={t('table-filter-value-placeholder')}
       className="gba:h-7 gba:text-xs gba:w-36"
       data-testid={testId}
     />

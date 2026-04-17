@@ -1,7 +1,7 @@
 import { useCallback, useMemo, type MutableRefObject } from 'react'
 import { useEditor, type Editor as TiptapEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Collaboration from '@tiptap/extension-collaboration'
+import { StarterKit } from '@tiptap/starter-kit'
+import { Collaboration } from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { Underline } from '@tiptap/extension-underline'
@@ -40,6 +40,20 @@ const COLLABORATION_EDITOR_SEED_HTML = '<p></p>'
 
 type TranslateFn = (key: string) => string
 
+export function createDocumentImageExtension(accessToken: string) {
+  return DocumentImage.configure({
+    inline: true,
+    allowBase64: true,
+    getAccessToken: () => accessToken,
+    isProtectedSrc: isDocumentImageProtectedSrc,
+    resolveProtectedSrc: resolveProtectedDocumentImageSrc,
+    minSize: 40,
+    HTMLAttributes: {
+      class: 'editor-image'
+    }
+  })
+}
+
 function createSharedDocumentExtensions(accessToken: string): any[] {
   return [
     TextAlign.configure({
@@ -63,16 +77,7 @@ function createSharedDocumentExtensions(accessToken: string): any[] {
       },
       isAllowedUri: (url, ctx) => !!ctx.defaultValidate(url) && isAllowedHref(url)
     }),
-    DocumentImage.configure({
-      inline: true,
-      getAccessToken: () => accessToken,
-      isProtectedSrc: isDocumentImageProtectedSrc,
-      resolveProtectedSrc: resolveProtectedDocumentImageSrc,
-      minSize: 40,
-      HTMLAttributes: {
-        class: 'editor-image'
-      }
-    }),
+    createDocumentImageExtension(accessToken),
     Signature,
     Table.configure({
       resizable: true,
@@ -114,8 +119,11 @@ function createStarterKitExtension(isCollaborationMode: boolean) {
 export interface UsePagedDocumentEditorInstanceParams {
   accessToken: string
   documentId?: string
+  collaborationEnabled?: boolean
   documentTitle?: string
   initialTitle?: string
+  collaborationBindingSeed?: number
+  onCollaborationFirstRender?: () => void
   editorContent: string
   editorEditable: boolean
   ydoc: import('yjs').Doc
@@ -140,8 +148,11 @@ export interface UsePagedDocumentEditorInstanceParams {
 export function usePagedDocumentEditorInstance({
   accessToken,
   documentId,
+  collaborationEnabled = true,
   documentTitle,
   initialTitle,
+  collaborationBindingSeed = 0,
+  onCollaborationFirstRender,
   editorContent,
   editorEditable,
   ydoc,
@@ -162,15 +173,21 @@ export function usePagedDocumentEditorInstance({
   clearAutocompleteSuggestion,
   scheduleAutocompleteRef
 }: UsePagedDocumentEditorInstanceParams): TiptapEditor | null {
-  const isCollaborationMode = Boolean(documentId)
+  const isCollaborationMode = Boolean(documentId) && collaborationEnabled
 
   const collaborationExtension = useMemo(
-    () => (documentId ? Collaboration.configure({ document: ydoc }) : null),
-    [documentId, ydoc]
+    () =>
+      isCollaborationMode
+        ? Collaboration.configure({
+            document: ydoc,
+            onFirstRender: onCollaborationFirstRender
+          })
+        : null,
+    [isCollaborationMode, collaborationBindingSeed, onCollaborationFirstRender, ydoc]
   )
   const yjsCursorExtension = useMemo(
-    () => (documentId ? createYjsCursorExtension(awareness) : null),
-    [documentId, awareness]
+    () => (isCollaborationMode ? createYjsCursorExtension(awareness) : null),
+    [isCollaborationMode, collaborationBindingSeed, awareness]
   )
 
   const headerFooterExtensions = useMemo(
@@ -321,7 +338,9 @@ export function usePagedDocumentEditorInstance({
     },
     isCollaborationMode
       ? [
+          isCollaborationMode,
           documentId,
+          collaborationBindingSeed,
           editorEditable,
           extensions,
           handlePaste,
@@ -334,6 +353,7 @@ export function usePagedDocumentEditorInstance({
           scheduleAutocompleteRef
         ]
       : [
+          isCollaborationMode,
           documentId,
           editorContent,
           editorEditable,

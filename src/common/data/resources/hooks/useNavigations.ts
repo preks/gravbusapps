@@ -73,7 +73,7 @@ export const useNavigations = (
         const fetchParams = {
           ...restParams,
           offset: append ? currentOffsetRef.current : 0,
-          limit: currentParams.limit || 20
+          limit: currentParams.limit ?? 25
         }
 
         const result = await resourceClient.navigation.getNavigations(fetchParams)

@@ -1,11 +1,75 @@
 # Chat Translations - German
 
 # Main Component - ChatWithCalendar
+chat-tab-dashboard = Übersicht
 chat-fullscreen-button = Im Vollbildmodus öffnen
 chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Kalender
 chat-tab-reminders = Erinnerungen
+chat-shell-disabled-title = Chat nicht verfügbar
+chat-shell-disabled-description = Dieses Panel ist für Ihren Workspace derzeit deaktiviert.
+
+# Dashboard
+dashboard-error-loadData = Dashboard-Daten konnten nicht geladen werden
+dashboard-hero-goodMorning = Guten Morgen
+dashboard-hero-goodAfternoon = Guten Tag
+dashboard-hero-goodEvening = Guten Abend
+dashboard-hero-goodNight = Gute Nacht
+dashboard-hero-tagline = Ihre Kommunikationszentrale. Vernetzen Sie sich, arbeiten Sie zusammen und bleiben Sie mit Ihrem Team synchron.
+dashboard-common-you = Sie
+dashboard-personalStats-title = Ihre Aktivität
+dashboard-personalStats-messagesSent = Gesendete Nachrichten
+dashboard-personalStats-conversations = Unterhaltungen
+dashboard-personalStats-callMinutes = Gesprächsminuten
+dashboard-personalStats-avgPerDay = Durchschnitt pro Tag
+dashboard-personalStats-memberDays = Mitgliedstage
+dashboard-personalStats-active = Aktiv
+dashboard-personalStats-longTimeMember = Langjähriges Mitglied
+dashboard-globalStats-title = Aktivität im Unternehmen
+dashboard-globalStats-activeNow = Jetzt aktiv
+dashboard-globalStats-live = Live
+dashboard-globalStats-messagesToday = Nachrichten heute
+dashboard-globalStats-totalUsers = Nutzer insgesamt
+dashboard-globalStats-totalCallTime = Gesamte Gesprächszeit
+dashboard-globalStats-totalPlatformMessages = Nachrichten auf der Plattform insgesamt
+dashboard-globalStats-todayDelta = +{$count} heute
+dashboard-globalStats-allTime = Gesamte Zeit auf der Plattform
+dashboard-globalStats-topReactions = Top-Reaktionen
+dashboard-globalStats-noReactions = Noch keine Reaktionen
+dashboard-topContacts-title = Meine Kontakte
+dashboard-topContacts-online = Online
+dashboard-topContacts-mostContacted = Am häufigsten kontaktiert
+dashboard-topContacts-maybeReachOut = Vielleicht kontaktieren
+dashboard-topContacts-emptyTitle = Noch keine Kontakte
+dashboard-topContacts-emptyDescription = Beginnen Sie mit Kollegen zu chatten, damit Ihre Kontakte hier angezeigt werden.
+dashboard-topContacts-noSuggestions = Keine Vorschläge
+dashboard-topContacts-contactMeta = {$messageCount} Nachr. · {$relativeTime}
+dashboard-topContacts-today = Heute
+dashboard-topContacts-yesterday = Gestern
+dashboard-topContacts-daysAgo = vor {$count} Tagen
+dashboard-topContacts-weeksAgo = vor {$count} Wochen
+dashboard-topContacts-monthsAgo = vor {$count} Monaten
+dashboard-upcomingMeetings-title = Bevorstehende Termine
+dashboard-upcomingMeetings-next7Days = Nächste 7 Tage
+dashboard-upcomingMeetings-emptyTitle = Keine bevorstehenden Termine
+dashboard-upcomingMeetings-emptyDescription = Ihr Kalender ist frei
+dashboard-upcomingMeetings-error = Termine konnten nicht geladen werden
+dashboard-upcomingMeetings-open = Öffnen
+dashboard-upcomingMeetings-join = Beitreten
+dashboard-upcomingMeetings-now = Jetzt
+dashboard-upcomingMeetings-started = Begonnen
+dashboard-upcomingMeetings-startingNow = Startet jetzt
+dashboard-upcomingMeetings-inMinutes = In {$minutes} Min.
+dashboard-upcomingMeetings-inHours = In {$hours} Std.
+dashboard-upcomingMeetings-tomorrow = Morgen
+dashboard-upcomingMeetings-agendaItems = {$count ->
+  [one] {$count} Tagesordnungspunkt
+ *[other] {$count} Tagesordnungspunkte
+}
+dashboard-upcomingMeetings-showMore = {$count} weitere anzeigen
+dashboard-upcomingMeetings-showMoreWithTotal = {$count} weitere anzeigen ({$total} insgesamt)
+dashboard-upcomingMeetings-showLess = Weniger anzeigen
 
 # Chat Main
 chat-appHeader = Chat
@@ -459,10 +523,23 @@ notifications-retry = Erneut versuchen
 # Reminders
 reminders-myReminders = Meine Erinnerungen
 reminders-noUpcoming = Keine bevorstehenden Erinnerungen
-reminders-goToEveryAI = Gehen Sie zur EveryAI-Registerkarte und bitten Sie darum, eine Erinnerung zu setzen
+reminders-goToEveryAI = Erstellen Sie eine Erinnerung mit der +-Schaltfläche oben
 reminders-loadingReminders = Erinnerungen werden geladen...
 reminders-failedToLoad = Erinnerungen konnten nicht geladen werden
 reminders-tryAgain = Erneut versuchen
+reminders-newReminder = Neue Erinnerung
+reminders-title = Titel
+reminders-titlePlaceholder = Woran sollen Sie erinnert werden?
+reminders-message = Nachricht (optional)
+reminders-messagePlaceholder = Zusätzliche Details...
+reminders-dateTime = Datum & Uhrzeit
+reminders-create = Erinnerung erstellen
+reminders-creating = Wird erstellt...
+reminders-cancel = Abbrechen
+reminders-created = Erinnerung erstellt!
+reminders-createFailed = Erinnerung konnte nicht erstellt werden
+reminders-titleRequired = Bitte geben Sie einen Titel ein
+reminders-dateTimeRequired = Bitte wählen Sie ein Datum und eine Uhrzeit
 
 # Calendar
 calendar-title = Kalender
@@ -470,7 +547,78 @@ calendar-today = Heute
 calendar-viewDay = Tag
 calendar-viewWeek = Woche
 calendar-viewMonth = Monat
+calendar-threeDay = Drei Tage
+calendar-workWeek = Arbeitswoche
+calendar-layout-list = Liste
+calendar-view-menu-aria = Kalenderansicht und Layout
+calendar-list-no-events = Keine Termine
 calendar-refresh = Kalender aktualisieren
+calendar-sidebar-title = Kalender
+calendar-sidebar-description = Sichtbarkeit festlegen und gemeinsame Kalender verwalten
+calendar-sidebar-selectAll = Alle
+calendar-sidebar-clearAll = Keine
+calendar-sidebar-myCalendars = Meine Kalender
+calendar-sidebar-personal = Persönlich
+calendar-sidebar-myCalendar = Mein Kalender
+calendar-sidebar-myCalendarDescription = Termine und Einladungen, die mit Ihnen verknüpft sind
+calendar-sidebar-shared = Geteilt
+calendar-sidebar-external = Extern
+calendar-mini-previousMonth = Vorheriger Monat
+calendar-mini-nextMonth = Nächster Monat
+calendar-sidebar-noSharedCalendars = Noch keine gemeinsamen Kalender
+calendar-sidebar-noExternalCalendars = Keine externen Kalender verbunden
+calendar-sidebar-createFirstSharedCalendar = Ersten gemeinsamen Kalender erstellen
+calendar-sidebar-newSharedCalendar = Neuer gemeinsamer Kalender
+calendar-sidebar-newSharedCalendarDescription = Erstellen Sie einen internen Kalender, der in der gemeinsamen Kalenderansicht ausgewählt werden kann.
+calendar-sidebar-editCalendar = Kalender bearbeiten
+calendar-sidebar-editCalendarDescription = Aktualisieren Sie Namen, Beschreibung und Farbe des Kalenders.
+calendar-sidebar-manageAccess = Zugriff verwalten
+calendar-sidebar-manageAccessDescription = Legen Sie fest, wer auf {$name} zugreifen kann und was erlaubt ist.
+calendar-sidebar-archiveCalendar = Kalender archivieren
+calendar-sidebar-archiveCalendarDescription = Archivieren Sie {$name} und entfernen Sie ihn aus der aktiven Seitenleiste.
+calendar-sidebar-archiveConfirm = Kalender archivieren
+calendar-sidebar-calendarName = Name
+calendar-sidebar-calendarNamePlaceholder = z. B. Produktteam-Kalender
+calendar-sidebar-calendarDescriptionPlaceholder = Optionaler Kontext dazu, wer diesen Kalender nutzt
+calendar-sidebar-createCalendar = Kalender erstellen
+calendar-sidebar-addPeople = Personen hinzufügen
+calendar-sidebar-members = Mitglieder
+calendar-sidebar-noMembers = Noch keine Mitglieder
+calendar-sidebar-membersLoadError = Kalendermitglieder konnten nicht geladen werden
+calendar-sidebar-owner = Besitzer
+calendar-sidebar-sharedCalendar = Gemeinsamer Kalender
+calendar-sidebar-spaceCalendar = Space-Kalender
+calendar-sidebar-busy = Belegt
+calendar-sidebar-memberCount = {$count ->
+  [one] {$count} Mitglied
+ *[other] {$count} Mitglieder
+}
+calendar-sidebar-permission-owner = Besitzer
+calendar-sidebar-permission-editor = Bearbeiter
+calendar-sidebar-permission-viewer = Leser
+calendar-sidebar-permission-free_busy = Frei/Belegt
+calendar-sidebar-calendarCreatedSuccess = Gemeinsamer Kalender erstellt
+calendar-sidebar-calendarCreatedError = Gemeinsamer Kalender konnte nicht erstellt werden
+calendar-sidebar-calendarUpdatedSuccess = Kalender aktualisiert
+calendar-sidebar-calendarUpdatedError = Kalender konnte nicht aktualisiert werden
+calendar-sidebar-accessUpdatedSuccess = Kalenderzugriff aktualisiert
+calendar-sidebar-accessUpdatedError = Kalenderzugriff konnte nicht aktualisiert werden
+calendar-sidebar-calendarArchivedSuccess = Kalender archiviert
+calendar-sidebar-calendarArchivedError = Kalender konnte nicht archiviert werden
+calendar-sidebar-personalColorSaveError = Die Farbe von Mein Kalender konnte nicht aktualisiert werden
+calendar-sidebar-calendarColorSaveError = Die Kalenderfarbe konnte nicht aktualisiert werden
+calendar-sidebar-resetToDefault = Standardfarbe verwenden
+calendar-sidebar-openColorPicker = Farbe für {$name} ändern
+calendar-sidebar-createManually = Manuell erstellen
+calendar-sidebar-createByGroup = Nach Gruppe
+calendar-sidebar-createCalendarByDimension = Kalender nach Organisation erstellen
+calendar-sidebar-dimensionDescription = Erstellen Sie einen gemeinsamen Kalender für eine Organisationsgruppe und geben Sie deren Mitgliedern Leserechte.
+calendar-sidebar-dimensionViewerAccess = {$count ->
+  [one] 1 Mitglied erhält Leserechte
+ *[other] {$count} Mitglieder erhalten Leserechte
+}
+calendar-sidebar-membersPreview = Mitglieder
+calendar-sidebar-calendarExistsInfo = Für diese Gruppe existiert bereits ein gemeinsamer Kalender. Der vorhandene Kalender wurde ausgewählt.
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Termin planen
@@ -481,6 +629,9 @@ calendar-meetingTitlePlaceholder = Besprechungstitel
 calendar-date = Datum
 calendar-dateRequired = Datum *
 calendar-allDay = Ganztägig
+calendar-allDay-more-count = +{$count}
+calendar-allDay-expand-aria = {$count} weitere ganztägige Termine anzeigen
+calendar-allDay-collapse-aria = Weniger ganztägige Termine anzeigen
 calendar-start = Beginn
 calendar-end = Ende
 calendar-location = Ort
@@ -504,6 +655,8 @@ calendar-monthly = Monatlich
 calendar-endDate = Enddatum
 calendar-reminders = Erinnerungen
 calendar-color = Farbe
+calendar-aiTranscription = KI-Besprechungstranskription
+calendar-aiTranscriptionDescription = Besprechungsgespräche automatisch transkribieren und für alle Teilnehmer speichern
 calendar-cancel = Abbrechen
 calendar-createMeeting = Termin erstellen
 calendar-saveChanges = Änderungen speichern
@@ -522,6 +675,7 @@ calendar-reminder1Day = 1 Tag vorher
 calendar-allDayEvent = Ganztägig
 calendar-videoCallAvailable = Videoanruf
 calendar-joinLinkAvailable = Beitrittslink verfügbar
+calendar-sourceCalendar = Kalender
 calendar-viewProfile = Profil anzeigen
 calendar-youOrganizer = Sie (Organisator)
 calendar-organizer = Organisator

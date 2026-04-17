@@ -6,7 +6,7 @@ import SearchInput from '../../components/shared/SearchInput'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDocumentNavigation } from '../../hooks/useDocumentNavigation'
 import { useDocumentAreas, useFolderContents } from '../../hooks/useDocumentData'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -289,7 +289,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
             {!areasLoading && !areasError && areas.length > 0 && (
               <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-6">
                 {areas.map(area => {
-                  const entityType = getEntityTypeFromContentGroup(area.contentGroupRef)
+                  const entityType = getEntityTypeFromContentGroup(area.contentGroup)
                   return (
                     <Card
                       key={area.id}

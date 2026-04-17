@@ -86,6 +86,10 @@ export const CUSTOM_FLOW_ENGINE_API_URL = normalizeCustomFlowEngineApiBaseUrl(
     apiPath: '/api'
   })
 )
+export const CONTENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_CONTENT_API_URL', {
+  servicePath: '/processes/content',
+  apiPath: ''
+})
 export const CUSTOMER_RELATIONS_API_URL = resolveServiceUrl('NEXT_PUBLIC_CUSTOMER_RELATIONS_API_URL', {
   servicePath: '/processes/customer-relations',
   apiPath: ''
@@ -94,7 +98,7 @@ export const DOCUMENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_API_URL'
   servicePath: '/document',
   apiPath: '/api/v1'
 })
-export const OFFICE_WEB_SOCKET_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL', {
+export const DOCUMENT_WEB_SOCKET_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL', {
   servicePath: '/document',
   apiPath: ''
 })
@@ -165,6 +169,11 @@ export const AUTHORIZATION_API_URL = resolveServiceUrl('NEXT_PUBLIC_AUTHORIZATIO
 })
 export const PROMPT_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC_PROMPT_MANAGER_API_URL', {
   servicePath: '/prompt-manager',
+  apiPath: '/api/v1'
+})
+/** Spreadsheet AI menu (formula / analyze / review / insights) → Flowbot-embedded Prompt Manager. */
+export const SPREADSHEET_PROMPT_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC_SPREADSHEET_PROMPT_MANAGER_API_URL', {
+  servicePath: '/flowbot/prompt-manager',
   apiPath: '/api/v1'
 })
 /** Processes base (base + /processes). No env override; for FlowClient / useKogitoProcess only. */

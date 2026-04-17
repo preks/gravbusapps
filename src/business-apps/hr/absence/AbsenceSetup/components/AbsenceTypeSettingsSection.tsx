@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -5,16 +6,18 @@ import {
   CardTitle,
   Checkbox,
   Combobox,
+  Icon,
   Input,
   Label,
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from '../_i18n'
+import { type AbsenceTypeObjectSettings } from '../utils/absenceTypeObjectValue'
 import {
-  ABSENCE_TYPE_ACCESS_BY_OPTIONS,
-  type AbsenceTypeAccessByOption,
-  type AbsenceTypeObjectSettings
-} from '../utils/absenceTypeObjectValue'
+  ABSENCE_TYPE_SETUP_ICON_KEYS,
+  absenceTypeSetupIconMap,
+  type AbsenceTypeSetupIconKey
+} from '../utils/absenceTypeSetupIcons'
 
 interface AbsenceTypeSettingsSectionProps {
   settings: AbsenceTypeObjectSettings
@@ -23,13 +26,13 @@ interface AbsenceTypeSettingsSectionProps {
 
 type BooleanFieldKey =
   | 'display'
-  | 'enableReason'
   | 'enableApproval'
   | 'enableHalfDays'
-  | 'enableRelative'
   | 'checkEntitlement'
   | 'enableSubstitute'
   | 'enableAttachement'
+  | 'requiresAttachment'
+  | 'countsAsWorkingTime'
 
 const measurementLabelKeys = {
   WorkingDays: 'measurement-working-days',
@@ -37,45 +40,27 @@ const measurementLabelKeys = {
   Hours: 'measurement-hours'
 } as const
 
-const accessByLabelKeys = {
-  Employee: 'access-by-employee',
-  Manager: 'access-by-manager',
-  Assistant: 'access-by-assistant',
-  HR: 'access-by-hr'
-} as const
-
 const booleanFieldLabelKeys: Record<BooleanFieldKey, string> = {
-  display: 'toggle-display',
-  enableReason: 'toggle-enable-reason',
-  enableApproval: 'toggle-enable-approval',
-  enableHalfDays: 'toggle-half-days',
-  enableRelative: 'toggle-relative',
-  checkEntitlement: 'toggle-check-entitlement',
-  enableSubstitute: 'toggle-substitute',
-  enableAttachement: 'toggle-attachment'
+  display: 'toggle-display-balance',
+  enableApproval: 'toggle-requires-approval',
+  enableHalfDays: 'toggle-allow-half-days',
+  checkEntitlement: 'toggle-requires-entitlement',
+  enableSubstitute: 'toggle-show-substitute-selection',
+  enableAttachement: 'toggle-show-document-upload',
+  requiresAttachment: 'toggle-requires-attachment',
+  countsAsWorkingTime: 'toggle-counts-as-working-time'
 }
 
 const booleanFieldKeys: BooleanFieldKey[] = [
   'display',
-  'enableReason',
   'enableApproval',
   'enableHalfDays',
-  'enableRelative',
   'checkEntitlement',
   'enableSubstitute',
-  'enableAttachement'
+  'enableAttachement',
+  'requiresAttachment',
+  'countsAsWorkingTime'
 ]
-
-const toggleAccessBy =
-  (
-    accessBy: AbsenceTypeObjectSettings['accessBy'],
-    onFieldChange: AbsenceTypeSettingsSectionProps['onFieldChange'],
-    option: AbsenceTypeAccessByOption
-  ) =>
-  (checked: boolean) => {
-    const nextValue = checked ? [...accessBy, option] : accessBy.filter(item => item !== option)
-    onFieldChange('accessBy', nextValue)
-  }
 
 export function AbsenceTypeSettingsSection({ settings, onFieldChange }: Readonly<AbsenceTypeSettingsSectionProps>) {
   const { t } = useTranslation(translations)
@@ -84,6 +69,43 @@ export function AbsenceTypeSettingsSection({ settings, onFieldChange }: Readonly
     value,
     label: t(labelKey)
   }))
+
+  const defaultIconOptions = useMemo(
+    () =>
+      ABSENCE_TYPE_SETUP_ICON_KEYS.map(key => {
+        const IconGlyph = absenceTypeSetupIconMap[key]
+        return {
+          value: key,
+          label: (
+            <span className="gba:flex gba:items-center gba:gap-2">
+              <Icon icon={IconGlyph} size="sm" decorative />
+              <span>{key}</span>
+            </span>
+          )
+        }
+      }),
+    []
+  )
+
+  const iconComboboxOptions = useMemo(() => {
+    const trimmedIcon = settings.icon.trim()
+    if (!trimmedIcon) {
+      return defaultIconOptions
+    }
+
+    const isKnownKey = ABSENCE_TYPE_SETUP_ICON_KEYS.includes(trimmedIcon as AbsenceTypeSetupIconKey)
+    if (isKnownKey) {
+      return defaultIconOptions
+    }
+
+    return [
+      ...defaultIconOptions,
+      {
+        value: trimmedIcon,
+        label: <span className="gba:pl-1 gba:text-sm">{trimmedIcon}</span>
+      }
+    ]
+  }, [defaultIconOptions, settings.icon])
 
   return (
     <Card data-testid="absence-type-settings-section" className="gba:border gba:border-border gba:bg-muted/10">
@@ -95,25 +117,39 @@ export function AbsenceTypeSettingsSection({ settings, onFieldChange }: Readonly
 
         <div className="gba:grid gba:gap-4 gba:md:grid-cols-2">
           <div className="gba:space-y-2">
-            <Label htmlFor="absence-type-icon-input">{t('field-icon-label')}</Label>
-            <Input
-              id="absence-type-icon-input"
+            <Label htmlFor="absence-type-icon-select">{t('field-icon-label')}</Label>
+            <Combobox
+              id="absence-type-icon-select"
               value={settings.icon}
-              onChange={event => onFieldChange('icon', event.target.value)}
+              onValueChange={value => onFieldChange('icon', String(value || ''))}
+              options={iconComboboxOptions}
               placeholder={t('icon-placeholder')}
+              searchPlaceholder={t('icon-placeholder')}
+              emptyText={t('icon-placeholder')}
               data-testid="absence-type-icon-input"
+              title={t('icon-field-tooltip')}
             />
           </div>
 
           <div className="gba:space-y-2">
             <Label htmlFor="absence-type-color-input">{t('field-color-label')}</Label>
-            <Input
-              id="absence-type-color-input"
-              value={settings.color}
-              onChange={event => onFieldChange('color', event.target.value)}
-              placeholder={t('color-placeholder')}
-              data-testid="absence-type-color-input"
-            />
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <Input
+                id="absence-type-color-picker"
+                type="color"
+                value={settings.color || '#000000'}
+                onChange={event => onFieldChange('color', event.target.value.toUpperCase())}
+                data-testid="absence-type-color-picker"
+                className="gba:h-10 gba:w-16 gba:p-1"
+              />
+              <Input
+                id="absence-type-color-input"
+                value={settings.color}
+                onChange={event => onFieldChange('color', event.target.value)}
+                placeholder={t('color-placeholder')}
+                data-testid="absence-type-color-input"
+              />
+            </div>
           </div>
 
           <div className="gba:space-y-2">
@@ -137,22 +173,6 @@ export function AbsenceTypeSettingsSection({ settings, onFieldChange }: Readonly
               placeholder={t('field-measurement-label')}
               data-testid="absence-type-measurement-select"
             />
-          </div>
-        </div>
-
-        <div className="gba:space-y-3 gba:rounded-xl gba:border gba:border-border gba:bg-background gba:p-3">
-          <Label>{t('field-access-by-label')}</Label>
-          <div className="gba:grid gba:gap-2 gba:sm:grid-cols-2 gba:lg:grid-cols-4">
-            {ABSENCE_TYPE_ACCESS_BY_OPTIONS.map(option => (
-              <label key={option} className="gba:flex gba:items-center gba:gap-2">
-                <Checkbox
-                  checked={settings.accessBy.includes(option)}
-                  onCheckedChange={toggleAccessBy(settings.accessBy, onFieldChange, option)}
-                  data-testid={`absence-type-access-by-${option.toLowerCase()}-checkbox`}
-                />
-                <span>{t(accessByLabelKeys[option])}</span>
-              </label>
-            ))}
           </div>
         </div>
 

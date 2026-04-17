@@ -5,10 +5,10 @@
  * Includes team collaboration features (chat, calls, calendar) for dimension-based spaces.
  */
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { Tabs, TabsContent, TabsList, TabsTrigger, toast } from '@newwork/nw-design-system'
+import { Tabs, TabsContent, TabsList, TabsTrigger, toast, useTranslation } from '@newwork/nw-design-system'
 
 // Components
 import {
@@ -16,7 +16,6 @@ import {
   SpaceStats,
   SpacePinned,
   SpaceActivity,
-  SpaceDriveView,
   SpaceMembersTab,
   AddContentDialog,
   SpaceCalendar,
@@ -25,9 +24,11 @@ import {
   SpaceTeamChatPanel,
   SpaceTeamPresence
 } from './components'
+import { SpaceDrivePanel } from './components/SpaceDrivePanel'
 import { InviteMemberDialog } from './components/InviteMemberDialog'
 import { MoveContentDialog } from './components/MoveContentDialog'
 import { SpaceSettingsDialog } from './components/SpaceSettingsDialog'
+import type { DriveItem } from '@/business-apps/core/office/apps/drive/types/drive.types'
 
 // Hooks
 import { useSpace } from './hooks/useSpace'
@@ -44,6 +45,7 @@ import type {
   UpdateSpaceInput
 } from './types/space.types'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import translations from './_i18n'
 
 export interface SpaceDetailProps extends BusinessAppContextProps {
   spaceId: string
@@ -59,6 +61,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   onNavigateToHub,
   'data-testid': testId = 'space-detail'
 }) => {
+  const { t } = useTranslation(translations)
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [addContentDialogOpen, setAddContentDialogOpen] = useState(false)
@@ -85,13 +88,17 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     spreadsheets,
     slides,
     allContent,
-    isLoading: contentLoading,
     moveContent,
-    removeContent,
     addItemsToLocalState,
     refresh: refreshContent
   } = useSpaceContent(spaceId, accessToken, space, refreshSpace)
-  const { activities, isLoading: activityLoading } = useSpaceActivity(spaceId, accessToken, 20)
+  const {
+    activities,
+    isLoading: activityLoading,
+    refresh: refreshActivity
+  } = useSpaceActivity(spaceId, accessToken, 20)
+
+  const drivePanelRefreshRef = useRef<(() => void) | null>(null)
 
   // Add activity user IDs to lookup when activities load
   useEffect(() => {
@@ -250,13 +257,13 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   const handleDeleteSpace = useCallback(async (): Promise<boolean> => {
     const ok = await spaceData.deleteSpace()
     if (ok) {
-      toast.success('Space deleted')
+      toast.success(t('detail-toast-space-deleted'))
       handleBack()
     } else {
-      toast.error('Could not delete space. Only the owner can delete a space.')
+      toast.error(t('detail-toast-space-delete-failed'))
     }
     return ok
-  }, [spaceData.deleteSpace, handleBack])
+  }, [handleBack, spaceData.deleteSpace, t])
 
   const handleShare = useCallback(() => {
     setInviteDialogOpen(true)
@@ -310,6 +317,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         case 'slide':
           url = `/platform/every-office/slides?slideId=${item.id}&view=editor`
           break
+        case 'whiteboard':
+          url = `/platform/every-office/whiteboards?whiteboardId=${item.id}`
+          break
       }
 
       // Include spaceId parameter
@@ -319,25 +329,48 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     [spaceId]
   )
 
+  const handleDriveItemClick = useCallback(
+    (item: DriveItem) => {
+      const spaceParam = `spaceId=${encodeURIComponent(spaceId)}`
+      const currentSpaceUrl = `/platform/every-office/spaces?spaceId=${encodeURIComponent(spaceId)}`
+      try {
+        sessionStorage.setItem('space_return_url', currentSpaceUrl)
+      } catch {
+        /* noop */
+      }
+
+      let url: string | undefined
+      switch (item.type) {
+        case 'document':
+          url = `/platform/every-office/documents?docId=${item.id}&view=editor`
+          break
+        case 'note':
+          url = `/platform/every-office/notes?noteId=${item.id}&view=editor`
+          break
+        case 'spreadsheet_app':
+          url = `/platform/every-office/spreadsheets?appId=${item.id}&view=viewer`
+          break
+        case 'slide':
+          url = `/platform/every-office/slides?slideId=${item.id}&view=editor`
+          break
+        case 'drive_file':
+          url = `/platform/every-office/drive?fileId=${item.id}&from=space`
+          break
+      }
+
+      if (url) {
+        const urlWithParams = url.includes('?') ? `${url}&${spaceParam}` : `${url}?${spaceParam}`
+        navigateTo(buildPlatformUrl(urlWithParams))
+      }
+    },
+    [spaceId]
+  )
+
   const handleMoveContent = useCallback(
     async (input: MoveContentInput) => {
       await moveContent({ contentType: input.contentType, entityId: input.entityId })
     },
     [moveContent]
-  )
-
-  const handleRemoveContent = useCallback(
-    async (item: SpaceContentItem) => {
-      const entityType = item.type === 'spreadsheet' ? 'spreadsheet_app' : item.type
-      const confirmed = confirm(`Remove "${item.title}" from this space?`)
-      if (!confirmed) return
-
-      const success = await removeContent(entityType, item.id)
-      if (success) {
-        // Content is already removed from local state by the hook
-      }
-    },
-    [removeContent]
   )
 
   const handleAddContent = useCallback(
@@ -367,8 +400,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         })
 
         if (response.ok) {
-          // Fetch full data in background to get accurate info
           await refreshContent()
+          drivePanelRefreshRef.current?.()
+          refreshActivity()
           return
         }
 
@@ -376,15 +410,19 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         for (const item of items) {
           await moveContent({ contentType: item.type, entityId: item.id })
         }
+        drivePanelRefreshRef.current?.()
+        refreshActivity()
       } catch (error) {
         console.error('Failed to add content:', error)
         // Fallback to individual calls
         for (const item of items) {
           await moveContent({ contentType: item.type, entityId: item.id })
         }
+        drivePanelRefreshRef.current?.()
+        refreshActivity()
       }
     },
-    [spaceId, accessToken, moveContent, addItemsToLocalState, refreshContent]
+    [spaceId, accessToken, moveContent, addItemsToLocalState, refreshContent, refreshActivity]
   )
 
   // Loading state
@@ -393,7 +431,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
       <div className="gba:min-h-screen gba:bg-background gba:flex gba:items-center gba:justify-center">
         <div className="gba:text-center">
           <div className="gba:w-16 gba:h-16 gba:border-4 gba:border-primary gba:border-t-transparent gba:rounded-full gba:animate-spin gba:mx-auto gba:mb-4" />
-          <p className="gba:text-muted-foreground">Loading space...</p>
+          <p className="gba:text-muted-foreground">{t('detail-loading-space')}</p>
         </div>
       </div>
     )
@@ -404,8 +442,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     return (
       <div className="gba:min-h-screen gba:bg-background gba:flex gba:items-center gba:justify-center">
         <div className="gba:text-center">
-          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">Space not found</h2>
-          <p className="gba:text-muted-foreground">This space may have been deleted or you do not have access</p>
+          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">{t('detail-not-found-title')}</h2>
+          <p className="gba:text-muted-foreground">{t('detail-not-found-description')}</p>
         </div>
       </div>
     )
@@ -436,13 +474,13 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         >
           <TabsList className="gba:w-fit" data-testid={`${testId}-tabs`}>
             <TabsTrigger value="overview" data-testid={`${testId}-tab-overview`}>
-              Overview
+              {t('detail-tab-overview')}
             </TabsTrigger>
             <TabsTrigger value="drive" data-testid={`${testId}-tab-drive`}>
-              Drive
+              {t('detail-tab-drive')}
             </TabsTrigger>
             <TabsTrigger value="members" data-testid={`${testId}-tab-members`}>
-              Members ({space.members?.length || 0})
+              {t('detail-tab-members', { count: space.members?.length || 0 })}
             </TabsTrigger>
           </TabsList>
 
@@ -462,7 +500,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
               <section data-testid={`${testId}-team-collaboration`} className="gba:space-y-4">
                 {/* Header with Schedule Meeting */}
                 <div className="gba:flex gba:items-center gba:justify-between">
-                  <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">Team Collaboration</h2>
+                  <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
+                    {t('detail-team-collaboration')}
+                  </h2>
                   <ScheduleMeetingButton
                     spaceId={spaceId}
                     spaceName={space.name}
@@ -519,14 +559,16 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
             {/* Pinned Content */}
             {pinnedItems.length > 0 && (
               <section>
-                <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Pinned</h2>
+                <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">{t('detail-pinned')}</h2>
                 <SpacePinned items={pinnedItems} onItemClick={handleItemClick} data-testid={`${testId}-pinned`} />
               </section>
             )}
 
             {/* Activity Feed - Full Width */}
             <section>
-              <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Recent Activity</h2>
+              <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
+                {t('detail-recent-activity')}
+              </h2>
               <div className="gba:rounded-lg gba:bg-card gba:p-4">
                 <SpaceActivity
                   activities={activities}
@@ -540,18 +582,14 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
           </TabsContent>
 
           <TabsContent value="drive" data-testid={`${testId}-tab-content-drive`}>
-            <SpaceDriveView
+            <SpaceDrivePanel
               spaceId={spaceId}
               accessToken={accessToken}
-              space={space}
-              items={allContent}
-              isLoading={contentLoading}
+              userInfo={userInfo}
               canEdit={canEdit}
-              onItemClick={handleItemClick}
-              onMoveItemToFolder={async (item, folderId) => {
-                await moveContent({ contentType: item.type, entityId: item.id, folderId })
-              }}
-              onRemoveContent={handleRemoveContent}
+              onItemClick={handleDriveItemClick}
+              onRefreshRef={drivePanelRefreshRef}
+              onActivityChange={refreshActivity}
               data-testid={`${testId}-drive`}
             />
           </TabsContent>

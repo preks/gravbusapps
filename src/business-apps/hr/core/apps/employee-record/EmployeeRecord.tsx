@@ -204,6 +204,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const servicesFeatureFlag = useFeature('services.enabled')
   const attendanceFeatureFlag = useFeature('human-resources.attendance.enabled')
   const compensationFeatureFlagRaw = useFeature<boolean>(Feature.HCM.Compensation.Key)
+  const hrDevelopmentFeatureFlag = useFeature<boolean>(Feature.HCM.HRDevelopment.Key)
 
   // Handle undefined as true (enabled by default until FeatureHub loads)
   const compensationFeatureFlag = compensationFeatureFlagRaw !== false
@@ -504,25 +505,29 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           )
         })()
       },
-      {
-        value: TAB_KEYS.hrGrowth,
-        label: t('employee-record-tab-hr-growth'),
-        icon: <ChartBarIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
-        content: (
-          <div className="gba:col-span-full">
-            <HrGrowthTab
-              employee={employee}
-              employeeId={employeeIdToShow}
-              accessToken={accessToken}
-              userInfo={userInfo}
-              isSelfView={isSelfView}
-              devFeatureFlag={devFeatureFlag as boolean}
-              employeePerformanceGoals={performanceGoals}
-              feedback={feedback}
-            />
-          </div>
-        )
-      },
+      ...(hrDevelopmentFeatureFlag
+        ? [
+            {
+              value: TAB_KEYS.hrGrowth,
+              label: t('employee-record-tab-hr-growth'),
+              icon: <ChartBarIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
+              content: (
+                <div className="gba:col-span-full">
+                  <HrGrowthTab
+                    employee={employee}
+                    employeeId={employeeIdToShow}
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    isSelfView={isSelfView}
+                    devFeatureFlag={devFeatureFlag as boolean}
+                    employeePerformanceGoals={performanceGoals}
+                    feedback={feedback}
+                  />
+                </div>
+              )
+            }
+          ]
+        : []),
       ...(compensationFeatureFlag
         ? [
             {

@@ -18,7 +18,11 @@ export interface PagedDocumentEditorDialogHostProps {
   versionUserDisplayMap: ComponentProps<typeof VersionHistory>['userDisplayMap']
   versionLoading: boolean
   currentVersion: ComponentProps<typeof VersionHistory>['currentVersion']
+  versionHistoryMessages?: ComponentProps<typeof VersionHistory>['messages']
+  versionHistoryLocale?: ComponentProps<typeof VersionHistory>['locale']
+  approvalDetailsByVersion?: ComponentProps<typeof VersionHistory>['approvalDetailsByVersion']
   onRestoreVersion: ComponentProps<typeof VersionHistory>['onRestore']
+  onOpenApprovalReview?: ComponentProps<typeof VersionHistory>['onOpenApprovalReview']
   onCloseVersionHistory: () => void
   showCheckpointDialog: boolean
   onCloseCheckpointDialog: () => void
@@ -50,6 +54,7 @@ export interface PagedDocumentEditorDialogHostProps {
   pageNumbersDialogOpen: boolean
   setPageNumbersDialogOpen: Dispatch<SetStateAction<boolean>>
   onApplyPageNumbers: ComponentProps<typeof PageNumbersDialog>['onApply']
+  pageNumbersLockedPosition: ComponentProps<typeof PageNumbersDialog>['lockedPosition']
   showLinkDialog: boolean
   setShowLinkDialog: Dispatch<SetStateAction<boolean>>
   linkDialogMode: ComponentProps<typeof LinkDialog>['mode']
@@ -65,7 +70,11 @@ export function PagedDocumentEditorDialogHost({
   versionUserDisplayMap,
   versionLoading,
   currentVersion,
+  versionHistoryMessages,
+  versionHistoryLocale,
+  approvalDetailsByVersion,
   onRestoreVersion,
+  onOpenApprovalReview,
   onCloseVersionHistory,
   showCheckpointDialog,
   onCloseCheckpointDialog,
@@ -97,6 +106,7 @@ export function PagedDocumentEditorDialogHost({
   pageNumbersDialogOpen,
   setPageNumbersDialogOpen,
   onApplyPageNumbers,
+  pageNumbersLockedPosition,
   showLinkDialog,
   setShowLinkDialog,
   linkDialogMode,
@@ -111,9 +121,13 @@ export function PagedDocumentEditorDialogHost({
           versions={versions}
           isLoading={versionLoading}
           userDisplayMap={versionUserDisplayMap}
+          approvalDetailsByVersion={approvalDetailsByVersion}
           onRestore={onRestoreVersion}
+          onOpenApprovalReview={onOpenApprovalReview}
           onClose={onCloseVersionHistory}
           currentVersion={currentVersion}
+          messages={versionHistoryMessages}
+          locale={versionHistoryLocale}
           showAutoSaves={false}
           data-testid="document-version-history"
         />
@@ -169,6 +183,7 @@ export function PagedDocumentEditorDialogHost({
           open={showInsertTableDialog}
           onOpenChange={setShowInsertTableDialog}
           editor={activeEditor}
+          paginationConfig={paginationConfig}
           data-testid="document-insert-table-dialog"
         />
       )}
@@ -190,6 +205,7 @@ export function PagedDocumentEditorDialogHost({
           onOpenChange={setPageNumbersDialogOpen}
           pages={layoutFormatting.pages}
           onApply={onApplyPageNumbers}
+          lockedPosition={pageNumbersLockedPosition}
           data-testid="document-page-numbers-dialog"
         />
       )}

@@ -35,13 +35,25 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers
   }
-  const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers })
+  const url = `${API_URL}${endpoint}`
+  const response = await fetch(url, { ...options, headers })
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }))
     throw new Error(error.message || `API Error: ${response.status}`)
   }
+  const contentType = response.headers.get('content-type') || ''
+  if (contentType.includes('text/html')) {
+    console.warn(`[SlidesApi] Endpoint returned HTML instead of JSON: ${endpoint}`)
+    throw new Error(`API endpoint not available: ${endpoint}`)
+  }
   const text = await response.text()
-  return text ? JSON.parse(text) : null
+  if (!text) return null as T
+  try {
+    return JSON.parse(text)
+  } catch {
+    console.warn(`[SlidesApi] Invalid JSON from ${endpoint}:`, text.slice(0, 200))
+    throw new Error(`Invalid response from API: ${endpoint}`)
+  }
 }
 
 interface PaginatedResponse<T> {
@@ -72,7 +84,29 @@ function mapApiSlideToSlide(api: Record<string, unknown>): Slide {
     status: api.status as SlideStatus | undefined,
     permission: mapPermission((api.permission as string) || 'view'),
     isShared: api.isShared as boolean | undefined,
-    sharedBy: api.sharedBy as string | undefined
+    sharedBy: api.sharedBy as string | undefined,
+    isOwner: api.isOwner as boolean | undefined,
+    spaceId: (api.spaceId as string | null | undefined) ?? null,
+    trashedAt: (api.trashedAt as string | null | undefined) ?? null
+  }
+}
+
+function mapApiSlideToSummary(api: Record<string, unknown>): SlideSummary {
+  return {
+    id: api.id as string,
+    title: api.title as string,
+    description: api.description as string | undefined,
+    createdAt: api.createdAt as string,
+    updatedAt: api.updatedAt as string,
+    createdBy: api.ownerId as string,
+    currentVersion: (api.currentVersion as number) || 1,
+    status: api.status as SlideStatus | undefined,
+    isShared: api.isShared as boolean | undefined,
+    sharedBy: api.sharedBy as string | undefined,
+    permission: mapPermission((api.permission as string) || 'view'),
+    isOwner: api.isOwner as boolean | undefined,
+    spaceId: (api.spaceId as string | null | undefined) ?? null,
+    trashedAt: (api.trashedAt as string | null | undefined) ?? null
   }
 }
 
@@ -97,25 +131,21 @@ export const SlidesApiService = {
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(
       `/slides${queryString ? `?${queryString}` : ''}`
     )
-    return response.items.map(item => ({
-      id: item.id as string,
-      title: item.title as string,
-      description: item.description as string | undefined,
-      createdAt: item.createdAt as string,
-      updatedAt: item.updatedAt as string,
-      createdBy: item.ownerId as string,
-      currentVersion: (item.currentVersion as number) || 1,
-      status: item.status as SlideStatus | undefined,
-      isShared: item.isShared as boolean | undefined,
-      sharedBy: item.sharedBy as string | undefined,
-      permission: mapPermission((item.permission as string) || 'view'),
-      isOwner: item.isOwner as boolean | undefined
-    }))
+    return response.items.map(mapApiSlideToSummary)
   },
 
   async getSlide(id: string): Promise<Slide | null> {
     try {
       const api = await apiRequest<Record<string, unknown>>(`/slides/${id}`)
+      return mapApiSlideToSlide(api)
+    } catch {
+      return null
+    }
+  },
+
+  async getTrashedPreview(id: string): Promise<Slide | null> {
+    try {
+      const api = await apiRequest<Record<string, unknown>>(`/slides/${id}/trashed-preview`)
       return mapApiSlideToSlide(api)
     } catch {
       return null

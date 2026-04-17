@@ -1030,7 +1030,7 @@ describe('calculatePageCount', () => {
     expect(getSelectionBottom(view)).toBe(190)
   })
 
-  it('skips document-tail probing when the last content element already provides the bottom', () => {
+  it('still probes the document tail when a last content element exists so it can catch deeper content', () => {
     const editorDom = document.createElement('div')
     const firstParagraph = document.createElement('p')
     const secondParagraph = document.createElement('p')
@@ -1108,8 +1108,8 @@ describe('calculatePageCount', () => {
       )
     ).toBe(3)
 
-    expect(coordsAtPos).not.toHaveBeenCalledWith(10)
-    expect(coordsAtPos).not.toHaveBeenCalledWith(9)
+    expect(coordsAtPos).toHaveBeenCalledWith(10)
+    expect(coordsAtPos).toHaveBeenCalledWith(9)
   })
 
   it('measures overflow against the last page body instead of the last breaker', () => {
@@ -1185,6 +1185,228 @@ describe('calculatePageCount', () => {
         0
       )
     ).toBe(1)
+  })
+
+  it('uses the true document bottom when the visible last content element undercounts in paginated mode', () => {
+    const editorDom = document.createElement('div')
+    const paginationElement = document.createElement('div')
+    const pageBreak = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const paragraph = document.createElement('p')
+    const textNode = document.createTextNode('body')
+
+    paginationElement.dataset.rmPagination = 'true'
+    pageBreak.className = 'rm-page-break'
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    paragraph.appendChild(textNode)
+    pageBreak.appendChild(bodyLayer)
+    paginationElement.appendChild(pageBreak)
+    editorDom.append(paginationElement, paragraph)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 320 })
+    setRect(bodyLayer, { top: 0, bottom: 100 })
+    setRect(paragraph, { top: 60, bottom: 100 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    Object.defineProperty(paragraph, 'offsetHeight', { configurable: true, value: 40 })
+    Object.defineProperty(paragraph, 'clientHeight', { configurable: true, value: 40 })
+    Object.defineProperty(paragraph, 'scrollHeight', { configurable: true, value: 40 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 2,
+          firstChild: { type: { name: 'paragraph' }, childCount: 1, textContent: 'body' },
+          content: {
+            size: 8
+          }
+        },
+        selection: {
+          from: 1,
+          to: 1
+        }
+      },
+      coordsAtPos: () => ({
+        top: 184,
+        bottom: 208,
+        left: 12,
+        right: 12
+      }),
+      domAtPos: () => ({
+        node: textNode,
+        offset: 0
+      })
+    } as never
+
+    expect(
+      calculatePageCount(
+        view,
+        {
+          width: 100,
+          height: 100,
+          margins: {
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0
+          }
+        },
+        0
+      )
+    ).toBe(3)
+  })
+
+  it('keeps the page count stable when the document end still fits inside the expected last page body', () => {
+    const editorDom = document.createElement('div')
+    const paginationElement = document.createElement('div')
+    const pageBreak = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const breaker = document.createElement('div')
+    const paragraph = document.createElement('p')
+    const textNode = document.createTextNode('body')
+
+    paginationElement.dataset.rmPagination = 'true'
+    pageBreak.className = 'rm-page-break'
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    breaker.className = 'breaker'
+    paragraph.appendChild(textNode)
+    pageBreak.append(bodyLayer, breaker)
+    paginationElement.appendChild(pageBreak)
+    editorDom.append(paginationElement, paragraph)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 320 })
+    setRect(bodyLayer, { top: 0, bottom: 150 })
+    setRect(breaker, { top: 150, bottom: 160 })
+    setRect(paragraph, { top: 60, bottom: 100 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    Object.defineProperty(paragraph, 'offsetHeight', { configurable: true, value: 40 })
+    Object.defineProperty(paragraph, 'clientHeight', { configurable: true, value: 40 })
+    Object.defineProperty(paragraph, 'scrollHeight', { configurable: true, value: 40 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 2,
+          firstChild: { type: { name: 'paragraph' }, childCount: 1, textContent: 'body' },
+          content: {
+            size: 8
+          }
+        },
+        selection: {
+          from: 1,
+          to: 1
+        }
+      },
+      coordsAtPos: () => ({
+        top: 84,
+        bottom: 96,
+        left: 12,
+        right: 12
+      }),
+      domAtPos: () => ({
+        node: textNode,
+        offset: 0
+      })
+    } as never
+
+    expect(
+      calculatePageCount(
+        view,
+        {
+          width: 100,
+          height: 120,
+          margins: {
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0
+          }
+        },
+        0
+      )
+    ).toBe(1)
+  })
+
+  it('adds only one recovery page when a stretched last page hides document-end overflow', () => {
+    const editorDom = document.createElement('div')
+    const paginationElement = document.createElement('div')
+    const pageBreak = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const breaker = document.createElement('div')
+    const paragraph = document.createElement('p')
+    const textNode = document.createTextNode('body')
+
+    paginationElement.dataset.rmPagination = 'true'
+    pageBreak.className = 'rm-page-break'
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    breaker.className = 'breaker'
+    paragraph.appendChild(textNode)
+    pageBreak.append(bodyLayer, breaker)
+    paginationElement.appendChild(pageBreak)
+    editorDom.append(paginationElement, paragraph)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 420 })
+    setRect(bodyLayer, { top: 0, bottom: 360 })
+    setRect(breaker, { top: 360, bottom: 370 })
+    setRect(paragraph, { top: 320, bottom: 360 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    Object.defineProperty(paragraph, 'offsetHeight', { configurable: true, value: 40 })
+    Object.defineProperty(paragraph, 'clientHeight', { configurable: true, value: 40 })
+    Object.defineProperty(paragraph, 'scrollHeight', { configurable: true, value: 40 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 2,
+          firstChild: { type: { name: 'paragraph' }, childCount: 1, textContent: 'body' },
+          content: {
+            size: 8
+          }
+        },
+        selection: {
+          from: 1,
+          to: 1
+        }
+      },
+      coordsAtPos: () => ({
+        top: 334,
+        bottom: 346,
+        left: 12,
+        right: 12
+      }),
+      domAtPos: () => ({
+        node: textNode,
+        offset: 0
+      })
+    } as never
+
+    expect(
+      calculatePageCount(
+        view,
+        {
+          width: 100,
+          height: 120,
+          margins: {
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0
+          }
+        },
+        0
+      )
+    ).toBe(2)
   })
 
   it('reads the pagination root only once during page-count calculation', () => {
@@ -1419,6 +1641,67 @@ describe('measureHeaderFooterContentHeights', () => {
 
     expect(measured.headerHeights.get(1)).toBe(20)
     expect(measured.footerHeights.get(1)).toBe(24)
+  })
+
+  it('treats empty mounted header and footer chrome as zero reserved content height', () => {
+    const editorDom = document.createElement('div')
+    const headerRegion = document.createElement('div')
+    const footerRegion = document.createElement('div')
+    const headerShell = document.createElement('div')
+    const footerShell = document.createElement('div')
+    const headerLayout = document.createElement('div')
+    const footerLayout = document.createElement('div')
+    const headerContent = document.createElement('div')
+    const footerContent = document.createElement('div')
+
+    headerRegion.dataset.rmEditorType = 'header'
+    headerRegion.dataset.rmPageNumber = '1'
+    headerRegion.dataset.rmHasVisibleContent = 'false'
+    footerRegion.dataset.rmEditorType = 'footer'
+    footerRegion.dataset.rmPageNumber = '1'
+    footerRegion.dataset.rmHasVisibleContent = 'false'
+    headerShell.className = 'rm-page-header'
+    footerShell.className = 'rm-page-footer'
+    headerLayout.className = 'rm-page-region-layout'
+    footerLayout.className = 'rm-page-region-layout'
+    headerContent.dataset.rmPageNumberBody = 'true'
+    headerContent.dataset.rmEmpty = 'true'
+    footerContent.dataset.rmPageNumberBody = 'true'
+    footerContent.dataset.rmEmpty = 'true'
+
+    setMeasuredHeight(headerLayout, 40)
+    setMeasuredHeight(footerLayout, 36)
+
+    headerLayout.appendChild(headerContent)
+    footerLayout.appendChild(footerContent)
+    headerShell.appendChild(headerLayout)
+    footerShell.appendChild(footerLayout)
+    headerRegion.appendChild(headerShell)
+    footerRegion.appendChild(footerShell)
+    editorDom.append(headerRegion, footerRegion)
+    document.body.appendChild(editorDom)
+
+    const measured = measureHeaderFooterContentHeights(
+      editorDom,
+      1,
+      {
+        width: 800,
+        height: 1000,
+        margins: {
+          top: 96,
+          right: 96,
+          bottom: 96,
+          left: 96
+        }
+      },
+      {
+        headerTopMargin: 48,
+        footerBottomMargin: 48
+      }
+    )
+
+    expect(measured.headerHeights.get(1)).toBe(0)
+    expect(measured.footerHeights.get(1)).toBe(0)
   })
 
   it('falls back to placeholder breaker height hints when off-window regions are not mounted', () => {

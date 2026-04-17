@@ -1,6 +1,23 @@
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
 import { RestClient } from '@/common/network/rest/RestClient'
+import type {
+  AgentRegistryEntry,
+  Connection,
+  ConnectionAnalytics,
+  ConnectionConfig,
+  ConnectionCreateRequest,
+  ExecutionAnalytics,
+  ExecutionListItem,
+  ExecutionLog,
+  ExecutionTrace,
+  AlertRule,
+  AlertRuleCreateRequest,
+  ActiveAlert,
+  MeshSession,
+  SessionMessage,
+  SessionCommEvent
+} from '@/business-apps/platform/apps/agent-mesh/types/agentMesh'
 
 // --- Types (minimal, aligned with prompt-manager.openapi.json) ---
 export interface Paging {
@@ -577,10 +594,24 @@ export interface AIServicePage {
   paging: Paging
 }
 
+export interface MeshLayoutPosition {
+  agent_id: string
+  x: number
+  y: number
+}
+
+export interface MeshLayoutResponse {
+  positions: MeshLayoutPosition[]
+}
+
 // --- Client ---
 export class PromptManagerClient extends RestClient {
-  constructor() {
-    super(PROMPT_MANAGER_API_URL, {})
+  /**
+   * @param baseUrl - API base including `/api/v1` (defaults to global Prompt Manager URL).
+   *                  Use a dedicated base for feature-scoped routing (e.g. spreadsheet AI → Flowbot mount).
+   */
+  constructor(baseUrl: string = PROMPT_MANAGER_API_URL) {
+    super(baseUrl, {})
   }
 
   private hasHttpStatus(error: unknown, status: number): boolean {
@@ -992,6 +1023,133 @@ export class PromptManagerClient extends RestClient {
     return this.get<ExternalConnectionHealthResponse>(
       `/external-connections/${encodeURIComponent(connectionId)}/health`
     )
+  }
+
+  // --- Agent Mesh ---
+  async getAgentRegistry(params?: {
+    workspaceId?: string
+    agentType?: string
+    division?: string
+  }): Promise<AgentRegistryEntry[]> {
+    return this.get<AgentRegistryEntry[]>('/agents/registry', { params: params as Record<string, string> })
+  }
+
+  async getAgentDetail(agentId: string): Promise<AgentRegistryEntry> {
+    return this.get<AgentRegistryEntry>(`/agents/registry/${encodeURIComponent(agentId)}`)
+  }
+
+  async updateAgentCard(
+    agentId: string,
+    body: { division?: string; data_domains?: string[]; capabilities?: string[]; access_policy?: string }
+  ): Promise<unknown> {
+    return this.patch(`/agents/registry/${encodeURIComponent(agentId)}/card`, body)
+  }
+
+  async getMeshConnections(params?: { status?: string; callerId?: string; calleeId?: string }): Promise<Connection[]> {
+    return this.get<Connection[]>('/connections/', { params: params as Record<string, string> }).catch(() =>
+      this.get<Connection[]>('/connections', { params: params as Record<string, string> })
+    )
+  }
+
+  async getMeshConnection(connectionId: string): Promise<Connection> {
+    return this.get<Connection>(`/connections/${encodeURIComponent(connectionId)}`)
+  }
+
+  async createMeshConnection(body: ConnectionCreateRequest): Promise<Connection> {
+    return this.post<Connection>('/connections/', body).catch(() => this.post<Connection>('/connections', body))
+  }
+
+  async updateMeshConnection(
+    connectionId: string,
+    body: { config?: ConnectionConfig; status?: string }
+  ): Promise<Connection> {
+    return this.put<Connection>(`/connections/${encodeURIComponent(connectionId)}`, body)
+  }
+
+  async deleteMeshConnection(connectionId: string): Promise<void> {
+    await this.delete<void>(`/connections/${encodeURIComponent(connectionId)}`)
+  }
+
+  async getMeshConnectionAnalytics(connectionId: string, days?: number): Promise<ConnectionAnalytics> {
+    return this.get<ConnectionAnalytics>(`/connections/${encodeURIComponent(connectionId)}/analytics`, {
+      params: days ? { days } : undefined
+    })
+  }
+
+  async getMeshExecutions(params?: Record<string, string | number>): Promise<ExecutionListItem[]> {
+    return this.get<ExecutionListItem[]>('/executions/', { params })
+  }
+
+  async getMeshExecutionDetail(executionId: string): Promise<ExecutionLog> {
+    return this.get<ExecutionLog>(`/executions/${encodeURIComponent(executionId)}`)
+  }
+
+  async getMeshExecutionTrace(correlationId: string): Promise<ExecutionTrace> {
+    return this.get<ExecutionTrace>(`/executions/${encodeURIComponent(correlationId)}/trace`)
+  }
+
+  async getMeshExecutionAnalytics(params?: {
+    days?: number
+    promptId?: string
+    connectionId?: string
+  }): Promise<ExecutionAnalytics> {
+    return this.get<ExecutionAnalytics>('/executions/analytics', { params: params as Record<string, string> })
+  }
+
+  async getAlertRules(params?: { status?: string; agentId?: string }): Promise<AlertRule[]> {
+    return this.get<AlertRule[]>('/alerts/rules', { params: params as Record<string, string> })
+  }
+
+  async createAlertRule(body: AlertRuleCreateRequest): Promise<AlertRule> {
+    return this.post<AlertRule>('/alerts/rules', body)
+  }
+
+  async updateAlertRule(ruleId: string, body: Partial<AlertRule>): Promise<AlertRule> {
+    return this.put<AlertRule>(`/alerts/rules/${encodeURIComponent(ruleId)}`, body)
+  }
+
+  async deleteAlertRule(ruleId: string): Promise<void> {
+    await this.delete<void>(`/alerts/rules/${encodeURIComponent(ruleId)}`)
+  }
+
+  async getActiveAlerts(): Promise<ActiveAlert[]> {
+    return this.get<ActiveAlert[]>('/alerts/active')
+  }
+
+  async getMeshLayout(): Promise<MeshLayoutResponse> {
+    return this.get<MeshLayoutResponse>('/agents/layout')
+  }
+
+  async saveMeshLayout(positions: MeshLayoutPosition[]): Promise<unknown> {
+    return this.put('/agents/layout', { positions })
+  }
+
+  async getMeshSessions(params?: { userId?: string }): Promise<MeshSession[]> {
+    return this.get<MeshSession[]>('/mesh-sessions/', { params: params as Record<string, string> })
+  }
+
+  async createMeshSession(data: {
+    user_id: string
+    agent_id: string
+    agent_name: string
+    title?: string
+  }): Promise<MeshSession> {
+    return this.post<MeshSession>('/mesh-sessions/', data)
+  }
+
+  async getMeshSession(sessionId: string): Promise<MeshSession> {
+    return this.get<MeshSession>(`/mesh-sessions/${encodeURIComponent(sessionId)}`)
+  }
+
+  async updateMeshSession(
+    sessionId: string,
+    data: { messages?: SessionMessage[]; comm_events?: SessionCommEvent[]; result?: string; title?: string }
+  ): Promise<MeshSession> {
+    return this.put<MeshSession>(`/mesh-sessions/${encodeURIComponent(sessionId)}`, data)
+  }
+
+  async deleteMeshSession(sessionId: string): Promise<void> {
+    await this.delete<void>(`/mesh-sessions/${encodeURIComponent(sessionId)}`)
   }
 
   // --- Every Experts (EveryAI Agents) ---

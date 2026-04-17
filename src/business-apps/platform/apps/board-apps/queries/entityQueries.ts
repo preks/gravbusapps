@@ -9,6 +9,8 @@ import { ENTITY_REGISTRY_CORE } from './entityRegistry'
 import { ENTITY_REGISTRY_ORG } from './entityRegistryOrg'
 import { ENTITY_REGISTRY_CRM } from './entityRegistryCrm'
 
+type TranslateFn = (key: string, args?: Record<string, unknown>) => string
+
 export const ENTITY_REGISTRY: Record<string, EntityQueryDef> = {
   ...ENTITY_REGISTRY_CORE,
   ...ENTITY_REGISTRY_ORG,
@@ -17,14 +19,17 @@ export const ENTITY_REGISTRY: Record<string, EntityQueryDef> = {
 
 export type EntityCategory = 'hr' | 'recruiting' | 'organization' | 'crm' | 'finance' | 'other'
 
-export const ENTITY_CATEGORY_LABELS: Record<EntityCategory, string> = {
-  hr: 'HR & People',
-  recruiting: 'Recruiting',
-  organization: 'Organization',
-  crm: 'CRM & Sales',
-  finance: 'Finance',
-  other: 'Knowledge & Assets'
+export const ENTITY_CATEGORY_LABEL_KEYS: Record<EntityCategory, string> = {
+  hr: 'entity-category-hr',
+  recruiting: 'entity-category-recruiting',
+  organization: 'entity-category-organization',
+  crm: 'entity-category-crm',
+  finance: 'entity-category-finance',
+  other: 'entity-category-other'
 }
+
+// Backward-compatible alias for older callers that still import this symbol.
+export const ENTITY_CATEGORY_LABELS = ENTITY_CATEGORY_LABEL_KEYS
 
 export const ENTITY_CATEGORY_ORDER: EntityCategory[] = ['hr', 'recruiting', 'organization', 'crm', 'finance', 'other']
 
@@ -154,7 +159,7 @@ export function getEntityTypes(): string[] {
 }
 
 /** Returns entities grouped by category, ordered by ENTITY_CATEGORY_ORDER */
-export function getEntitiesByCategory(): Array<{
+export function getEntitiesByCategory(t: TranslateFn): Array<{
   category: EntityCategory
   label: string
   entities: Array<{ key: string; def: EntityQueryDef }>
@@ -167,7 +172,7 @@ export function getEntitiesByCategory(): Array<{
   }
   return ENTITY_CATEGORY_ORDER.filter(cat => grouped.has(cat)).map(cat => ({
     category: cat,
-    label: ENTITY_CATEGORY_LABELS[cat],
+    label: t(ENTITY_CATEGORY_LABEL_KEYS[cat]),
     entities: grouped.get(cat)!
   }))
 }

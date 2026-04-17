@@ -164,10 +164,13 @@ export const useTeamCapacity = (
   }, [graphqlClient, memberIds.join(','), currentMonth, canUseSharedAttendance])
 
   useEffect(() => {
-    if (accessToken && memberIds.length > 0) {
-      fetchCapacity()
+    if (!accessToken) {
+      setIsLoading(false)
+      return
     }
-  }, [accessToken, memberIds.join(','), fetchCapacity])
+
+    fetchCapacity()
+  }, [accessToken, fetchCapacity])
 
   const prevMonth = useCallback(() => {
     setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))

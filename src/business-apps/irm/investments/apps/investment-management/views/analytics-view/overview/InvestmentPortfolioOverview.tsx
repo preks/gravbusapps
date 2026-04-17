@@ -27,6 +27,7 @@ import { Button, Badge } from '@newwork/nw-design-system'
 import { WidgetGroup } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { calculateTrend } from '@/common/utils/trendUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useInvestmentPortfolioIntegration } from './hooks'
@@ -48,15 +49,6 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
   const isActive = props.isActive ?? true
   const [activeTab, setActiveTab] = useState('distribution')
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
-
-  const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
-    if (previous === 0) return { value: t('data-not-available'), positive: true }
-    const change = ((current - previous) / previous) * 100
-    return {
-      value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
-      positive: change >= 0
-    }
-  }
 
   const { kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(
     props,
@@ -154,11 +146,11 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
               description: t('kpi-description-total-capital'),
-              trend: {
-                value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
-                positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: t('trend-vs-last-quarter')
-              }
+              trend: calculateTrend(
+                kpis.totalAmountInvested,
+                previousKpis.totalAmountInvested,
+                t('trend-vs-last-quarter')
+              )
             },
             {
               key: 'total-investments',
@@ -168,11 +160,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               color: 'var(--nw-color-success-500)',
               span: { xs: 24, sm: 12, lg: 6 },
               description: t('kpi-description-investment-count'),
-              trend: {
-                value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
-                positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: t('trend-vs-last-quarter')
-              }
+              trend: calculateTrend(kpis.totalInvestments, previousKpis.totalInvestments, t('trend-vs-last-quarter'))
             },
             {
               key: 'avg-investment-amount',
@@ -190,11 +178,11 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
               description: t('kpi-description-per-investment'),
-              trend: {
-                value: calculateChange(kpis.averageInvestmentValue, previousKpis.averageInvestmentValue).value,
-                positive: calculateChange(kpis.averageInvestmentValue, previousKpis.averageInvestmentValue).positive,
-                description: t('trend-vs-last-quarter')
-              }
+              trend: calculateTrend(
+                kpis.averageInvestmentValue,
+                previousKpis.averageInvestmentValue,
+                t('trend-vs-last-quarter')
+              )
             },
             {
               key: 'active-investments',
@@ -204,11 +192,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               color: 'var(--nw-color-purple-500)',
               span: { xs: 24, sm: 12, lg: 6 },
               description: t('kpi-description-active-positions'),
-              trend: {
-                value: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).value,
-                positive: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).positive,
-                description: t('trend-vs-last-quarter')
-              }
+              trend: calculateTrend(kpis.activeInvestments, previousKpis.activeInvestments, t('trend-vs-last-quarter'))
             }
           ]}
           isLoading={isLoading}

@@ -1,6 +1,10 @@
-import React, { useEffect } from 'react'
+import React, { useCallback, useEffect, useMemo } from 'react'
 import { TaskTemplateSettings } from '@/common/components/common-relations/setting-pages/task-template'
+import type { TaskTemplateEntitySelectBindings } from '@/common/components/common-relations/setting-pages/task-template/types'
+import { CRM_TASK_TEMPLATE_ENTITY_OPTIONS } from '@/common/components/common-relations/setting-pages/task-template/taskTemplateEntityOptions'
+import type { TaskTemplateHydratableEntityType } from '@/common/components/common-relations/setting-pages/task-template/taskTemplateEntityTypeMap'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCustomerRelatedEntities } from '@/common/data/customer/hooks/useCustomerRelatedEntities'
 import { useSalesTaskTemplateSettings } from './hooks/useSalesTaskTemplateSettings'
 
 // NOTE: These enums differ from Investment domain
@@ -35,7 +39,43 @@ const TaskTemplateDataPage: React.FC<TaskTemplateDataPageProps> = ({
   const { templates, isLoading, error, fetchTemplates, createTemplate, updateTemplate, deleteTemplate, retry } =
     useSalesTaskTemplateSettings(context)
 
-  // Fetch templates on mount
+  const {
+    entities,
+    loading: entitiesLoading,
+    searchEntities,
+    hasMore: entitiesHasMore,
+    loadMore: loadMoreEntities,
+    hydrateEntityById: hydrateCustomerEntityById
+  } = useCustomerRelatedEntities(context)
+
+  const hydrateEntityById = useCallback(
+    (type: TaskTemplateHydratableEntityType, id: string) => {
+      if (type === 'investment') return
+      void hydrateCustomerEntityById(type, id)
+    },
+    [hydrateCustomerEntityById]
+  )
+
+  const entitySelect = useMemo<TaskTemplateEntitySelectBindings | undefined>(() => {
+    if (!context.accessToken) return undefined
+    return {
+      entities,
+      entitiesLoading,
+      hasMore: entitiesHasMore,
+      onEntitySearch: searchEntities,
+      onEntityLoadMore: loadMoreEntities,
+      hydrateEntityById
+    }
+  }, [
+    context.accessToken,
+    entities,
+    entitiesLoading,
+    entitiesHasMore,
+    searchEntities,
+    loadMoreEntities,
+    hydrateEntityById
+  ])
+
   useEffect(() => {
     fetchTemplates()
   }, [fetchTemplates])
@@ -62,6 +102,12 @@ const TaskTemplateDataPage: React.FC<TaskTemplateDataPageProps> = ({
         ]}
         taskTypeCatalogId="SalesTaskType"
         taskPriorityCatalogId="SalesTaskPriority"
+        templateEntityConfig={{
+          entityTypeOptions: CRM_TASK_TEMPLATE_ENTITY_OPTIONS,
+          showInvestmentEventFilters: false,
+          prefixDataTestId: prefixDataTestId,
+          entitySelect
+        }}
         assigneeTypes={SALES_ASSIGNEE_TYPES}
         holidayPolicies={SALES_HOLIDAY_POLICIES}
       />

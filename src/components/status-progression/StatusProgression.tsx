@@ -71,7 +71,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
     <div className="gba:mb-6">
       <div
         className={cn(
-          'gba:flex gba:items-center gba:h-12 gba:bg-muted gba:rounded-3xl gba:overflow-x-auto gba:min-w-0',
+          'gba:flex gba:items-center gba:h-12 gba:bg-muted gba:rounded-3xl gba:overflow-x-auto gba:overflow-y-hidden gba:min-w-0',
           'gba:border gba:border-border gba:p-1 gba:gap-0'
         )}
       >

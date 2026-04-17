@@ -7,7 +7,6 @@
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef } from 'react'
 import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
-import DOMPurify from 'dompurify'
 import { ChevronRight } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useOfficeClient } from '@/common/network/office/useOfficeClient'
@@ -51,8 +50,11 @@ import { usePagedDocumentEditorRuntimeEffects } from './hooks/usePagedDocumentEd
 import { usePagedDocumentExternalContentSync } from './hooks/usePagedDocumentExternalContentSync'
 import { usePagedDocumentShellControls } from './hooks/usePagedDocumentShellControls'
 import { usePagedDocumentInteractionDialogs, type RightSidebar } from './hooks/usePagedDocumentInteractionDialogs'
+import { buildVersionHistoryApprovalSummary, type DocumentApprovalHistoryRequest } from './versionHistoryApprovals'
+import type { Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import {
   CLOSED_TABLE_SIDEBAR,
+  getSelectedDocumentTocState,
   getSelectedImageState,
   usePagedDocumentSelectionSidebars
 } from './hooks/usePagedDocumentSelectionSidebars'
@@ -74,6 +76,10 @@ import {
   replyToDocumentComment,
   updateDocumentComment
 } from '../../utils/documentOfficeOperations'
+import {
+  incrementPaginationInstrumentationCounter,
+  recordPaginationInstrumentationEvent
+} from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationInstrumentation'
 
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
 const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
@@ -82,6 +88,19 @@ const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
 const DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY = 'document-editor:disable-pagination'
 const DOCUMENT_TABLE_DEBUG_STORAGE_KEY = 'document-editor:debug-table-doc-id'
 const PAGINATION_DEBUG_FLAG = '__RM_PAGINATION_DEBUG'
+const EMPTY_PAGES_EDITOR_STATE: ActivePagesEditorState = {
+  activeEditor: null,
+  activeEditorType: null,
+  activePageNumber: null
+}
+
+function isSamePagesEditorState(left: ActivePagesEditorState, right: ActivePagesEditorState): boolean {
+  return (
+    left.activeEditor === right.activeEditor &&
+    left.activeEditorType === right.activeEditorType &&
+    left.activePageNumber === right.activePageNumber
+  )
+}
 
 function readDocumentDebugFlag(searchParam: string, storageKey: string): boolean {
   if (globalThis.window === undefined) return false
@@ -162,11 +181,15 @@ export interface PagedDocumentEditorProps extends Partial<BusinessAppContextProp
   onPersistFormatting?: (formatting: DocumentFormatting) => Promise<void>
   onSaveAsTemplate?: (title: string, content: string) => void
   onSendForApproval?: () => void
+  onNavigateToReviewVersion?: (versionNumber: number) => void
   isReadOnly?: boolean
+  isTrashedDocument?: boolean
   /** Left panel (e.g. Insert field for templates); shown when editing a template */
   leftPanel?: React.ReactNode
   /** Extra content rendered below the title row (e.g. external-source badge) */
   headerExtra?: React.ReactNode
+  /** Review mode hides edit chrome while keeping read-only export and print actions. */
+  isReviewMode?: boolean
   'data-testid'?: string
 }
 
@@ -219,18 +242,24 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       onPersistFormatting,
       onSaveAsTemplate,
       onSendForApproval,
+      onNavigateToReviewVersion,
       isReadOnly = false,
+      isTrashedDocument = false,
       leftPanel,
       headerExtra,
+      isReviewMode = false,
       accessToken: accessTokenProp,
       'data-testid': testId = 'paged-document-editor'
     },
     ref
   ) {
-    const { t } = useTranslation(translations)
+    const { t, locale: currentLocale } = useTranslation(translations)
     const translateRef = useRef(t)
     translateRef.current = t
     const translateStable = useCallback((key: string) => translateRef.current(key), [])
+    const pagedDocumentEditorRenderCountRef = useRef(0)
+    pagedDocumentEditorRenderCountRef.current += 1
+    const pagedDocumentEditorRenderCount = pagedDocumentEditorRenderCountRef.current
     const officeClient = useOfficeClient(accessTokenProp)
     // Editor state
     const [title, setTitle] = useState(document?.title || initialTitle || t('title-untitled-document'))
@@ -242,11 +271,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const editorContainerRef = useRef<HTMLDivElement | null>(null)
     const editorChromeRef = useRef<HTMLDivElement | null>(null)
     const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-    const [pagesEditorState, setPagesEditorState] = useState<ActivePagesEditorState>({
-      activeEditor: null,
-      activeEditorType: null,
-      activePageNumber: null
-    })
+    const [pagesEditorState, setPagesEditorState] = useState<ActivePagesEditorState>(EMPTY_PAGES_EDITOR_STATE)
     const editorRef = useRef<any>(null) // Store editor instance
     const lastRemoteUpdateMsRef = useRef(0)
     const isApplyingRemoteContentRef = useRef(false)
@@ -262,7 +287,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [document?.id, document?.updatedAt])
 
     useEffect(() => {
-      if (!document?.id) return
+      if (!document?.id || isTrashedDocument) return
 
       type FlowbotDocumentStreamCompleteDetail = {
         documentId?: string
@@ -283,12 +308,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           const nextTitle = latest.title || title
           setTitle(nextTitle)
 
-          const latestHtml =
-            DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(latest.content || '<p></p>'), {
-              USE_PROFILES: { html: true },
-              FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-              ALLOW_DATA_ATTR: true
-            }) || '<p></p>'
+          const latestHtml = sanitizeDocumentHtmlForEditor(latest.content || '<p></p>')
           const currentHtml = editorRef.current.getHTML?.() || ''
           if (!isYjsSyncedRef.current && latestHtml && latestHtml !== currentHtml) {
             isApplyingRemoteContentRef.current = true
@@ -309,9 +329,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       return () => {
         globalThis.window.removeEventListener('flowbot:document-stream-complete', handleFlowbotDocumentStreamComplete)
       }
-    }, [document?.id, officeClient, title])
+    }, [document?.id, isTrashedDocument, officeClient, title])
 
     const isHeaderFooterEditing = pagesEditorState.activeEditorType !== null
+
+    const [headerFooterSettingsSessionOpen, setHeaderFooterSettingsSessionOpen] = useState(false)
+    const [headerFooterPanelFallback, setHeaderFooterPanelFallback] = useState<{
+      type: 'header' | 'footer'
+      pageNumber: number
+    } | null>(null)
     const paginationDebugDisabled = useMemo(() => isDocumentPaginationDisabled(), [])
     const targetDocumentTableDebugEnabled = useMemo(
       () => isTargetDocumentTableDebugEnabled(document?.id),
@@ -327,27 +353,35 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [targetDocumentTableDebugEnabled])
 
     useEffect(() => {
-      setPagesEditorState({
-        activeEditor: null,
-        activeEditorType: null,
-        activePageNumber: null
-      })
+      setPagesEditorState(prevState =>
+        isSamePagesEditorState(prevState, EMPTY_PAGES_EDITOR_STATE) ? prevState : EMPTY_PAGES_EDITOR_STATE
+      )
+      setHeaderFooterSettingsSessionOpen(false)
+      setHeaderFooterPanelFallback(null)
     }, [document?.id])
 
     const [showInsertTableDialog, setShowInsertTableDialog] = useState(false)
     const [showInsertSignatureDialog, setShowInsertSignatureDialog] = useState(false)
+    const replaceSignaturePosRef = useRef<number | null>(null)
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
     const [tocSidebarNodePos, setTocSidebarNodePos] = useState<number | null>(null)
+    const tocSidebarNodePosRef = useRef<number | null>(null)
+    const rightSidebarRef = useRef<RightSidebar>('closed')
     const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
     const [navigationPanelTab, setNavigationPanelTab] = useState<NavigationPanelTab>('headings')
     const suppressYjsSnapshotSaveRef = useRef(false)
+    const [collaborationBindingSeed, setCollaborationBindingSeed] = useState(0)
     const autocompleteRolloutEnabled = useMemo(() => isAutocompleteRolloutEnabled(), [])
+    const handleBootstrapEditorRebind = useCallback(() => {
+      setCollaborationBindingSeed(currentSeed => currentSeed + 1)
+    }, [])
 
     useEffect(() => {
       if (globalThis.window === undefined) return
       type TocOpenFormatEvent = CustomEvent<{ pos: number }>
       const handleOpenTocSidebar = (evt: Event) => {
+        if (isReviewMode) return
         const customEvent = evt as TocOpenFormatEvent
         const nextPos = customEvent.detail?.pos
         if (typeof nextPos !== 'number') return
@@ -357,7 +391,28 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
       globalThis.window.addEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
       return () => globalThis.window.removeEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
-    }, [])
+    }, [isReviewMode])
+
+    useEffect(() => {
+      incrementPaginationInstrumentationCounter('paged-document-editor-render-total')
+      recordPaginationInstrumentationEvent('paged-document-editor-render', {
+        activeEditorType: pagesEditorState.activeEditorType,
+        hasUnsavedChanges,
+        headerFooterSettingsSessionOpen,
+        navigationPanelOpen: showNavigationPanel,
+        renderCount: pagedDocumentEditorRenderCount,
+        rightSidebar,
+        tocSidebarOpen: tocSidebarNodePos !== null
+      })
+    })
+
+    useEffect(() => {
+      tocSidebarNodePosRef.current = tocSidebarNodePos
+    }, [tocSidebarNodePos])
+
+    useEffect(() => {
+      rightSidebarRef.current = rightSidebar
+    }, [rightSidebar])
 
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
@@ -484,11 +539,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [accessToken])
 
     const entityId = document?.id || ''
+    // Readonly sessions must stay out of live Yjs collaboration so they never attempt
+    // to persist snapshot state back to the editable document.
+    const collaborationEnabled = Boolean(document?.id) && !isTrashedDocument && !isReadOnly
 
     // Collaboration state
     const { participants: rawParticipants, socket: collaborationSocket } = useOfficeDocumentCollaboration({
       entityId,
-      enabled: !!document?.id,
+      enabled: collaborationEnabled,
       accessToken,
       onOperationReceived: onCollaborationOperationReceived,
       onError: onErrorCallback
@@ -524,12 +582,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
             await officeClient.documents.update(id, {
               title: snapshot.title as string,
-              content:
-                DOMPurify.sanitize(sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''), {
-                  USE_PROFILES: { html: true },
-                  FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-                  ALLOW_DATA_ATTR: true
-                }) || '',
+              content: sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''),
               description: snapshot.description as string | undefined,
               tags: snapshot.tags as string[] | undefined,
               category: snapshot.category as string | undefined,
@@ -652,8 +705,46 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       autoSaveInterval: 30000,
       onVersionCreated: () => {}
     })
+    const [versionHistoryApprovals, setVersionHistoryApprovals] = useState<DocumentApprovalHistoryRequest[]>([])
+    const [isLoadingVersionHistoryApprovals, setIsLoadingVersionHistoryApprovals] = useState(false)
 
-    const versionUserDisplayMap = useVersionUserDisplays(versioning.versions, accessToken)
+    const loadVersionHistoryApprovals = useCallback(async () => {
+      if (!document?.id || !accessToken || isReviewMode) {
+        setVersionHistoryApprovals([])
+        return
+      }
+
+      setIsLoadingVersionHistoryApprovals(true)
+      try {
+        const approvals = await officeClient.documents.getApprovalsForDocument<DocumentApprovalHistoryRequest[]>(
+          document.id
+        )
+        setVersionHistoryApprovals(Array.isArray(approvals) ? approvals : [])
+      } catch (error) {
+        console.error('[PagedDocumentEditor] Failed to load version history approvals:', error)
+      } finally {
+        setIsLoadingVersionHistoryApprovals(false)
+      }
+    }, [accessToken, document?.id, isReviewMode, officeClient])
+
+    useEffect(() => {
+      if (!document?.id || isReviewMode) {
+        setVersionHistoryApprovals([])
+        return
+      }
+
+      void loadVersionHistoryApprovals()
+    }, [document?.id, isReviewMode, loadVersionHistoryApprovals])
+
+    const versionHistoryApprovalSummary = useMemo(
+      () => buildVersionHistoryApprovalSummary(versionHistoryApprovals, currentUserId || undefined),
+      [currentUserId, versionHistoryApprovals]
+    )
+    const versionUserDisplayMap = useVersionUserDisplays(
+      versioning.versions,
+      accessToken,
+      versionHistoryApprovalSummary.approvalUserIds
+    )
 
     const comments = useComments({
       entityId,
@@ -699,7 +790,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       getPagesStorageSnapshot
     })
 
-    const { isYjsSynced } = useYjsDocumentSync({
+    const { isYjsSynced, onCollaborationFirstRender } = useYjsDocumentSync({
       accessToken,
       documentId: document?.id,
       collaborationSocket,
@@ -709,15 +800,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       suppressSnapshotSaveRef: suppressYjsSnapshotSaveRef,
       debugTablesEnabled: targetDocumentTableDebugEnabled,
       isReadOnly,
+      isTrashedDocument,
       title,
+      onBootstrapEditorRebind: handleBootstrapEditorRebind,
       getFormattingForSave: () => buildPersistedFormatting(layoutFormatting),
       setLastSaved,
       setHasUnsavedChanges
     })
+    const documentSessionIsYjsSynced = collaborationEnabled ? isYjsSynced : true
 
     useEffect(() => {
-      isYjsSyncedRef.current = isYjsSynced
-    }, [isYjsSynced])
+      isYjsSyncedRef.current = documentSessionIsYjsSynced
+    }, [documentSessionIsYjsSynced])
 
     const { persistFormatting } = useSyncPagedDocumentFormatting({
       documentId: document?.id,
@@ -734,7 +828,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     useEffect(() => {
       if (!ENABLE_DOCUMENT_LIVE_SYNC_POLL_FALLBACK) return
-      if (!document?.id || !isYjsSynced) return
+      if (!document?.id || !isYjsSynced || isTrashedDocument) return
 
       let cancelled = false
 
@@ -783,7 +877,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         cancelled = true
         globalThis.window.clearInterval(pollInterval)
       }
-    }, [document?.id, isYjsSynced, officeClient, title])
+    }, [document?.id, isTrashedDocument, isYjsSynced, officeClient, title])
+
+    useEffect(() => {
+      if (isTrashedDocument && rightSidebar !== 'closed') {
+        setRightSidebar('closed')
+      }
+    }, [isTrashedDocument, rightSidebar])
 
     useEffect(() => {
       return () => {
@@ -797,16 +897,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     // Seed collaborative title once synced (do not overwrite an existing value from the room).
     useEffect(() => {
       if (!document?.id) return
+      if (!collaborationEnabled) return
       if (!isYjsSynced) return
       if (metaYMap.get('title')) return
       const initial = (document?.title || '').trim()
       if (!initial) return
       metaYMap.set('title', initial)
-    }, [document?.id, document?.title, isYjsSynced, metaYMap])
+    }, [collaborationEnabled, document?.id, document?.title, isYjsSynced, metaYMap])
 
     // Apply title updates from other collaborators.
     useEffect(() => {
       if (!document?.id) return
+      if (!collaborationEnabled) return
 
       const applyFromYjs = () => {
         const next = metaYMap.get('title')
@@ -821,21 +923,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       const handler = () => applyFromYjs()
       metaYMap.observe(handler)
       return () => metaYMap.unobserve(handler)
-    }, [document?.id, metaYMap])
+    }, [collaborationEnabled, document?.id, metaYMap])
 
     const editorContent = React.useMemo(() => {
       const rawContent = document?.content || initialContent || '<p></p>'
-      return (
-        DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(rawContent), {
-          USE_PROFILES: { html: true },
-          FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-          ALLOW_DATA_ATTR: true
-        }) || '<p></p>'
-      )
+      return sanitizeDocumentHtmlForEditor(rawContent)
     }, [document?.content, initialContent])
     const editorEditable = React.useMemo(
-      () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
-      [isReadOnly, document?.id, isYjsSynced, fileLock.canEdit]
+      () => !isReadOnly && (!document?.id || (documentSessionIsYjsSynced && fileLock.canEdit)),
+      [isReadOnly, document?.id, documentSessionIsYjsSynced, fileLock.canEdit]
     )
     const autocompleteController = usePagedDocumentAutocompleteController({
       editorRef,
@@ -868,7 +964,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     // Layout snapshot drives page count/current page, while header/footer editor state can temporarily override page UI.
     const handlePagesActiveEditorChange = useCallback((state: ActivePagesEditorState) => {
-      setPagesEditorState(state)
+      setPagesEditorState(prevState => (isSamePagesEditorState(prevState, state) ? prevState : state))
     }, [])
     const handleOpenCommentThread = useCallback(
       (commentId: string) => {
@@ -885,8 +981,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const editor = usePagedDocumentEditorInstance({
       accessToken,
       documentId: document?.id,
+      collaborationEnabled,
       documentTitle: document?.title,
       initialTitle,
+      collaborationBindingSeed,
+      onCollaborationFirstRender,
       editorContent,
       editorEditable,
       ydoc,
@@ -916,25 +1015,48 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       title,
       documentTitle: document?.title,
       initialTitle,
-      isYjsSynced,
-      setPagesEditorState
+      isYjsSynced: documentSessionIsYjsSynced,
+      setPagesEditorState: handlePagesActiveEditorChange
     })
 
+    const handleCloseHeaderFooterSidebar = useCallback(() => {
+      setHeaderFooterSettingsSessionOpen(false)
+      setHeaderFooterPanelFallback(null)
+      closeHeaderFooterEditorsAndSidebar()
+    }, [closeHeaderFooterEditorsAndSidebar])
+
     const activeHeaderFooterEditor = pagesEditorState.activeEditor
+
+    useEffect(() => {
+      if (isHeaderFooterEditing && activeHeaderFooterEditor) {
+        setHeaderFooterSettingsSessionOpen(true)
+      }
+    }, [isHeaderFooterEditing, activeHeaderFooterEditor])
+
+    useEffect(() => {
+      if (pagesEditorState.activeEditorType && pagesEditorState.activePageNumber != null) {
+        setHeaderFooterPanelFallback({
+          type: pagesEditorState.activeEditorType,
+          pageNumber: pagesEditorState.activePageNumber
+        })
+      }
+    }, [pagesEditorState.activeEditorType, pagesEditorState.activePageNumber])
     const activeEditor = activeHeaderFooterEditor ?? editor
     const { currentPage, handleScroll, layoutSnapshot, layoutViewportModel, isInitialLayoutSettled } =
       usePagedDocumentLayoutState({
         editor,
         editorContainerRef,
         documentId: document?.id,
-        isYjsSynced,
+        isYjsSynced: documentSessionIsYjsSynced,
         layoutInputsKey
       })
 
-    const showDocumentOpeningIndicator = Boolean(document?.id) && (!isYjsSynced || !isInitialLayoutSettled)
+    const showDocumentOpeningIndicator =
+      Boolean(document?.id) && (!documentSessionIsYjsSynced || !isInitialLayoutSettled)
 
     useEffect(() => {
       setDocumentTocLayoutHints({
+        layoutVersion: layoutViewportModel.layoutVersion,
         pageBounds: layoutViewportModel.pageBounds,
         mountedPageBodyBounds: layoutViewportModel.mountedPageBodyBounds,
         pagePositionRanges: layoutViewportModel.pagePositionRanges,
@@ -960,10 +1082,44 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         insertPart: 'full' | 'initials'
       }) => {
         if (!activeEditor) return
-        const pageNum = pagesEditorState.activePageNumber ?? currentPage ?? 1
+        const replacePos = replaceSignaturePosRef.current
+        replaceSignaturePosRef.current = null
         const isInitials = sig.insertPart === 'initials'
         const width = isInitials ? 120 : 200
         const height = isInitials ? 64 : 80
+
+        if (replacePos != null) {
+          const node = activeEditor.state.doc.nodeAt(replacePos)
+          if (node?.type.name === 'signature') {
+            const pageNum = pagesEditorState.activePageNumber ?? currentPage ?? 1
+            activeEditor
+              .chain()
+              .focus()
+              .setNodeSelection(replacePos)
+              .updateAttributes('signature', {
+                signatureId: sig.id ?? null,
+                kind: sig.kind,
+                snapshotSvg: sig.snapshotSvg,
+                name: sig.name ?? null,
+                pageNumber: node.attrs.pageNumber ?? pageNum,
+                x: node.attrs.x,
+                y: node.attrs.y,
+                width,
+                height,
+                lockAspectRatio: true,
+                createdBy: node.attrs.createdBy,
+                cropTop: 0,
+                cropRight: 0,
+                cropBottom: 0,
+                cropLeft: 0,
+                rotation: 0
+              })
+              .run()
+            return
+          }
+        }
+
+        const pageNum = pagesEditorState.activePageNumber ?? currentPage ?? 1
         activeEditor
           .chain()
           .focus()
@@ -983,10 +1139,17 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       [activeEditor, pagesEditorState.activePageNumber, currentPage]
     )
 
+    useEffect(() => {
+      if (!showInsertSignatureDialog) {
+        replaceSignaturePosRef.current = null
+      }
+    }, [showInsertSignatureDialog])
+
     const {
       replaceImagePosRef,
       selectedImageSidebar,
       selectedTableSidebar,
+      selectedSignatureSidebar,
       showBodyWhileEditingHeaderFooter,
       setShowBodyWhileEditingHeaderFooter,
       documentRightPanelOffset,
@@ -994,19 +1157,169 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       documentEditorRightReservePx,
       imageSidebarContextSubtitleKey,
       tableSidebarContextSubtitleKey,
+      signatureSidebarContextSubtitleKey,
       setSelectedImageSidebarState,
       setSelectedTableSidebarState,
       closeImageSettingsSidebar,
       closeTableSettingsSidebar,
-      openTableSettingsSidebar
+      closeSignatureSettingsSidebar,
+      openTableSettingsSidebar,
+      activeSignatureUiState
     } = usePagedDocumentSelectionSidebars({
       editor,
       activeEditor,
       activeHeaderFooterEditor,
       activeHeaderFooterType: pagesEditorState.activeEditorType,
       isHeaderFooterEditing,
-      rightSidebar
+      headerFooterSettingsSessionOpen,
+      rightSidebar,
+      isReviewMode
     })
+
+    useEffect(() => {
+      if (!isReviewMode) {
+        return
+      }
+
+      if (rightSidebar !== 'closed') {
+        setRightSidebar('closed')
+      }
+
+      if (tocSidebarNodePos != null) {
+        setTocSidebarNodePos(null)
+      }
+
+      closeImageSettingsSidebar()
+      closeTableSettingsSidebar()
+      closeSignatureSettingsSidebar()
+    }, [
+      closeImageSettingsSidebar,
+      closeSignatureSettingsSidebar,
+      closeTableSettingsSidebar,
+      isReviewMode,
+      rightSidebar,
+      tocSidebarNodePos
+    ])
+
+    const resolvedHeaderFooterType = pagesEditorState.activeEditorType ?? headerFooterPanelFallback?.type ?? 'header'
+    const resolvedHeaderFooterPageNumber =
+      pagesEditorState.activePageNumber ?? headerFooterPanelFallback?.pageNumber ?? 1
+
+    const handleOpenReplaceSignatureDialog = useCallback(() => {
+      const pos = selectedSignatureSidebar.pos
+      if (pos == null) return
+      replaceSignaturePosRef.current = pos
+      setShowInsertSignatureDialog(true)
+    }, [selectedSignatureSidebar.pos])
+
+    useEffect(() => {
+      if (!editor && !activeEditor) return
+
+      const getPersistedTocAtPos = (ed: NonNullable<typeof editor>, pos: number | null) => {
+        if (pos == null) return null
+        const node = ed.state.doc.nodeAt(pos)
+        if (node?.type.name !== 'documentTableOfContents') return null
+        return pos
+      }
+
+      const editors: NonNullable<typeof editor>[] = []
+      if (activeEditor) editors.push(activeEditor)
+      if (editor && editor !== activeEditor) editors.push(editor)
+
+      const syncTocFromSelection = (sourceEditor?: NonNullable<typeof editor>) => {
+        if (isReviewMode) {
+          return
+        }
+
+        const candidates = sourceEditor ? [sourceEditor, ...editors.filter(e => e !== sourceEditor)] : editors
+        const match = candidates
+          .map(ed => ({ ed, toc: getSelectedDocumentTocState(ed) }))
+          .find(entry => entry.toc !== null)
+
+        if (match?.toc) {
+          setTocSidebarNodePos(match.toc.tocPos)
+          setRightSidebar('toc')
+          return
+        }
+
+        if (rightSidebarRef.current !== 'toc') return
+
+        const ed = sourceEditor ?? activeEditor ?? editor
+        if (!ed) {
+          setTocSidebarNodePos(null)
+          setRightSidebar('closed')
+          return
+        }
+
+        const persistedPos = getPersistedTocAtPos(ed, tocSidebarNodePosRef.current)
+        if (persistedPos != null) {
+          setTocSidebarNodePos(persistedPos)
+          return
+        }
+
+        setTocSidebarNodePos(null)
+        setRightSidebar('closed')
+      }
+
+      const subs: Array<{
+        ed: NonNullable<typeof editor>
+        selectionFn: () => void
+        transactionFn: (payload: { transaction: ProseMirrorTransaction }) => void
+      }> = []
+
+      for (const ed of editors) {
+        const selectionFn = () => syncTocFromSelection(ed)
+        const transactionFn = ({ transaction }: { transaction: ProseMirrorTransaction }) => {
+          if (transaction.selectionSet) {
+            syncTocFromSelection(ed)
+            return
+          }
+          if (!transaction.docChanged) return
+          if (rightSidebarRef.current !== 'toc') return
+          const pos = tocSidebarNodePosRef.current
+          if (pos == null) return
+          const mapped = transaction.mapping.mapResult(pos)
+          if (mapped.deleted) {
+            setRightSidebar('closed')
+            setTocSidebarNodePos(null)
+            return
+          }
+          if (mapped.pos !== pos) {
+            setTocSidebarNodePos(mapped.pos)
+          }
+        }
+        ed.on('selectionUpdate', selectionFn)
+        ed.on('transaction', transactionFn)
+        subs.push({ ed, selectionFn, transactionFn })
+      }
+
+      syncTocFromSelection()
+
+      return () => {
+        for (const { ed, selectionFn, transactionFn } of subs) {
+          ed.off('selectionUpdate', selectionFn)
+          ed.off('transaction', transactionFn)
+        }
+      }
+    }, [activeEditor, editor, isReviewMode])
+
+    useEffect(() => {
+      if (rightSidebar !== 'toc') return
+
+      const handlePointerDown = (event: PointerEvent) => {
+        const target = event.target
+        if (!(target instanceof HTMLElement)) return
+        if (target.closest('[data-testid="document-toc-settings-sidebar"]')) return
+        if (target.closest('[data-document-toc-sidebar-dropdown]')) return
+        if (target.closest('[data-testid="document-table-of-contents"]')) return
+        setRightSidebar('closed')
+        setTocSidebarNodePos(null)
+      }
+
+      globalThis.document.addEventListener('pointerdown', handlePointerDown, true)
+      return () => globalThis.document.removeEventListener('pointerdown', handlePointerDown, true)
+    }, [rightSidebar])
+
     const {
       showInsertImageDialog,
       setShowInsertImageDialog,
@@ -1075,6 +1388,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [document?.id, setSelectedTableSidebarState])
 
     const openImageSettingsSidebar = useCallback(() => {
+      if (isReviewMode) return
       if (!activeEditor) return
 
       const imageSelection = getSelectedImageState(activeEditor)
@@ -1087,7 +1401,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         nodeSize: imageSelection.nodeSize,
         attrs: imageSelection.attrs
       })
-    }, [activeEditor, setSelectedImageSidebarState])
+    }, [activeEditor, isReviewMode, setSelectedImageSidebarState])
 
     usePagedDocumentEditorRuntimeEffects({
       editor,
@@ -1100,7 +1414,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       currentUserId,
       currentUserName,
       currentUserAvatar,
-      isYjsSynced,
+      isYjsSynced: documentSessionIsYjsSynced,
       isReadOnly,
       editorEditable,
       translate: t
@@ -1123,8 +1437,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       persistPagesFromEditor
     } = usePagedDocumentPageNumberActions({
       editor,
-      editorRef,
       layoutFormattingRef,
+      getPersistedPagesFormatting,
       buildPersistedFormatting,
       persistFormatting,
       markUnsavedChanges: () => setHasUnsavedChanges(true)
@@ -1137,6 +1451,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       lastSavedTitleRef.current = title
     }, [document?.id])
     const getImageDataUrl = useImageDataUrlResolver(accessToken)
+    const documentTocExportLabels = useMemo(
+      () => ({
+        blockTitle: t('document-toc-block-title'),
+        emptyMessage: t('document-toc-empty'),
+        untitledHeading: t('title-untitled')
+      }),
+      [t]
+    )
     const {
       isSaving,
       isExporting,
@@ -1165,7 +1487,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       editor,
       documentId: document?.id,
       isReadOnly,
-      isYjsSynced,
+      isYjsSynced: documentSessionIsYjsSynced,
       metaYMap,
       lastSavedTitleRef,
       setLastSaved,
@@ -1174,8 +1496,67 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       buildPersistedFormatting,
       layoutFormatting,
       printStyleConfig,
-      getImageDataUrl: async src => (await getImageDataUrl(src)) ?? ''
+      getImageDataUrl,
+      documentTocExportLabels
     })
+
+    useEffect(() => {
+      if (!showVersionHistory || isReviewMode) {
+        return
+      }
+
+      void loadVersionHistoryApprovals()
+    }, [isReviewMode, loadVersionHistoryApprovals, showVersionHistory])
+
+    const versionHistoryMessages = useMemo(
+      () => ({
+        title: t('editor-version-history'),
+        loading: t('editor-version-history-loading'),
+        empty: t('editor-version-history-empty'),
+        current: t('editor-version-history-current'),
+        checkpoint: t('editor-version-history-checkpoint'),
+        autosave: t('editor-version-history-autosave'),
+        restoreTitle: t('editor-version-history-restore'),
+        restoreConfirm: (versionNumber: number) => t('editor-version-history-restore-confirm', { versionNumber }),
+        compareMode: t('editor-version-history-compare'),
+        cancelCompare: t('editor-version-history-cancel-compare'),
+        compareSelected: t('editor-version-history-compare-selected'),
+        compareHint: t('editor-version-history-compare-hint'),
+        unknownUser: t('editor-user-fallback'),
+        approvalPending: t('editor-approval-pending'),
+        approvalInReview: t('editor-version-history-in-review'),
+        approvalApproved: t('editor-approval-approved'),
+        approvalRejected: t('editor-approval-rejected'),
+        approvalSkipped: t('editor-version-history-skipped'),
+        approvalRequestedBy: t('editor-version-history-requested-by'),
+        approvalReviewers: t('editor-version-history-reviewers'),
+        approvalRejectedBy: t('editor-version-history-rejected-by'),
+        approvalApprovedBy: t('editor-version-history-approved-by'),
+        approvalOpenReview: t('editor-version-history-open-review'),
+        approvalOpenApprovedView: t('editor-version-history-view-approved-version'),
+        approvalNoApprovedReviewers: t('editor-version-history-no-approved-reviewers'),
+        approvalUnknownTime: t('editor-version-history-unknown-time'),
+        approvalCommentShowMore: t('editor-version-history-comment-show-more'),
+        approvalCommentShowLess: t('editor-version-history-comment-show-less'),
+        approvalReviewerCommentLabel: t('editor-version-history-review-comment'),
+        approvalFilterLabel: t('editor-version-history-approval-filter-label'),
+        approvalFilterAll: t('editor-version-history-approval-filter-all'),
+        approvalFilterInReview: t('editor-version-history-approval-filter-in-review'),
+        approvalFilterApproved: t('editor-version-history-approval-filter-approved'),
+        approvalFilterRejected: t('editor-version-history-approval-filter-rejected'),
+        approvalFilterEmpty: t('editor-version-history-approval-filter-empty'),
+        approvalPendingBadge: t('editor-version-history-reviewer-pending-badge')
+      }),
+      [t]
+    )
+    const handleOpenApprovalReview = useCallback(
+      (versionNumber: number) => {
+        setShowVersionHistory(false)
+        onNavigateToReviewVersion?.(versionNumber)
+      },
+      [onNavigateToReviewVersion, setShowVersionHistory]
+    )
+
     editorOnUpdateRef.current = () => {
       if (document?.id) {
         versioning.markAsChanged()
@@ -1206,11 +1587,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     })
 
     useDocumentEditorShortcuts({
-      onSave: () => {
-        void handleSave()
-      },
-      onAddInlineComment: handleAddInlineComment,
-      onAiEdit: openAiEditSidebar,
+      onSave: isReadOnly
+        ? () => {}
+        : () => {
+            void handleSave()
+          },
+      onAddInlineComment: isTrashedDocument ? () => {} : handleAddInlineComment,
+      onAiEdit: isTrashedDocument ? undefined : openAiEditSidebar,
       onOpenLinkDialog: openLinkDialog,
       editorContainerRef
     })
@@ -1302,7 +1685,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           >
             <Spinner size="sm" />
             <span className="gba:text-sm gba:text-muted-foreground">
-              {!isYjsSynced ? t('editor-opening-collaboration') : t('editor-opening-layout')}
+              {!documentSessionIsYjsSynced ? t('editor-opening-collaboration') : t('editor-opening-layout')}
             </span>
           </div>
         ) : null}
@@ -1312,12 +1695,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             paginationConfig={paginationConfig}
             title={title}
             isReadOnly={isReadOnly}
+            isReviewMode={isReviewMode}
+            isTrashedDocument={isTrashedDocument}
             isSaving={isSaving}
             isExporting={isExporting}
             hasUnsavedChanges={hasUnsavedChanges}
             lastSaved={lastSaved}
             participants={participants}
             unresolvedCommentCount={comments.unresolvedCount}
+            versionHistoryApprovedCount={versionHistoryApprovalSummary.approvedCount}
+            versionHistoryPendingCount={versionHistoryApprovalSummary.pendingCount}
             rightSidebar={rightSidebar}
             publishingStatus={publishing.metadata?.status || 'draft'}
             setHeaderChromeNode={setHeaderChromeNode}
@@ -1367,6 +1754,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                 editor={editor}
                 layoutViewportModel={layoutViewportModel}
                 requestedTab={navigationPanelTab}
+                isReviewMode={isReviewMode}
                 onClose={() => {
                   setShowNavigationPanel(false)
                   editor?.commands.clearSearchHighlights?.()
@@ -1399,6 +1787,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           <VirtualizedDocumentViewport
             editor={editor}
             activeEditor={activeEditor}
+            isReviewMode={isReviewMode}
+            editorRenderKey={collaborationBindingSeed}
             editorContainerRef={editorContainerRef}
             zoom={zoom}
             viewportBodyStateClass={viewportBodyStateClass}
@@ -1451,9 +1841,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           showVersionHistory={showVersionHistory}
           versions={versioning.versions}
           versionUserDisplayMap={versionUserDisplayMap}
-          versionLoading={versioning.isLoading}
+          versionLoading={versioning.isLoading || isLoadingVersionHistoryApprovals}
           currentVersion={versioning.currentVersion?.version}
+          versionHistoryMessages={versionHistoryMessages}
+          versionHistoryLocale={currentLocale}
+          approvalDetailsByVersion={versionHistoryApprovalSummary.approvalDetailsByVersion}
           onRestoreVersion={handleRestoreVersion}
+          onOpenApprovalReview={onNavigateToReviewVersion ? handleOpenApprovalReview : undefined}
           onCloseVersionHistory={() => setShowVersionHistory(false)}
           showCheckpointDialog={showCheckpointDialog}
           onCloseCheckpointDialog={() => setShowCheckpointDialog(false)}
@@ -1485,6 +1879,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           pageNumbersDialogOpen={pageNumbersDialogOpen}
           setPageNumbersDialogOpen={setPageNumbersDialogOpen}
           onApplyPageNumbers={handlePageNumbersApply}
+          pageNumbersLockedPosition={
+            pagesEditorState.activeEditorType === 'header' || pagesEditorState.activeEditorType === 'footer'
+              ? pagesEditorState.activeEditorType
+              : undefined
+          }
           showLinkDialog={showLinkDialog}
           setShowLinkDialog={setShowLinkDialog}
           linkDialogMode={linkDialogMode}
@@ -1493,61 +1892,77 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           onRemoveLink={linkDialogMode === 'edit' ? handleLinkRemove : undefined}
         />
 
-        <PagedDocumentEditorSidebarHost
-          documentId={document?.id}
-          editor={editor}
-          activeEditor={activeEditor}
-          title={title}
-          accessToken={accessToken}
-          currentUserId={currentUserId}
-          currentUserName={currentUserName}
-          currentUserAvatar={currentUserAvatar}
-          rightSidebar={rightSidebar}
-          setRightSidebar={setRightSidebar}
-          measuredHeaderHeight={measuredHeaderHeight}
-          documentRightPanelOffset={documentRightPanelOffset}
-          comments={comments.comments}
-          commentsUnresolvedCount={comments.unresolvedCount}
-          commentsIsLoading={comments.isLoading}
-          onCreateComment={handleCreateComment}
-          onUpdateComment={handleUpdateComment}
-          onResolveComment={handleResolveComment}
-          onDeleteComment={handleDeleteComment}
-          onCloseCommentsSidebar={closeCommentsSidebar}
-          onUnhighlightComment={handleUnhighlightComment}
-          onScrollToHighlight={handleScrollToHighlight}
-          showHeaderFooterSidebar={showHeaderFooterSidebar}
-          pagesEditorState={pagesEditorState}
-          differentFirstPage={pagesFormattingConfig.differentFirstPage}
-          differentOddEven={pagesFormattingConfig.differentOddEven}
-          headerTopMarginPx={headerTopMarginPx}
-          footerBottomMarginPx={footerBottomMarginPx}
-          marginUnit={resolvedLayout.marginUnit}
-          showDocumentBody={showBodyWhileEditingHeaderFooter}
-          onShowDocumentBodyChange={setShowBodyWhileEditingHeaderFooter}
-          onPersistPagesFromEditor={persistPagesFromEditor}
-          onOpenPageNumbers={handleOpenPageNumbersDialog}
-          onQuickPageNumberPlacement={handleQuickPageNumberPlacement}
-          onRemovePageNumber={handlePageNumbersRemove}
-          onCloseHeaderFooterSidebar={closeHeaderFooterEditorsAndSidebar}
-          selectedTableSidebar={selectedTableSidebar}
-          tableContextSubtitle={tableSidebarContextSubtitleKey ? t(tableSidebarContextSubtitleKey) : undefined}
-          onCloseTableSidebar={closeTableSettingsSidebar}
-          selectedImageSidebar={selectedImageSidebar}
-          imageContextSubtitle={imageSidebarContextSubtitleKey ? t(imageSidebarContextSubtitleKey) : undefined}
-          onCloseImageSidebar={closeImageSettingsSidebar}
-          onReplaceImage={openReplaceImageDialog}
-          tocSidebarNodePos={tocSidebarNodePos}
-          onCloseTocSidebar={() => {
-            setRightSidebar('closed')
-            setTocSidebarNodePos(null)
-          }}
-          showInlineCommentPopover={showInlineCommentPopover}
-          inlineCommentPosition={inlineCommentPosition}
-          onSubmitInlineComment={handleSubmitInlineComment}
-          onCloseInlineCommentPopover={handleCloseInlineCommentPopover}
-          translate={t}
-        />
+        {!isReviewMode && (
+          <PagedDocumentEditorSidebarHost
+            documentId={document?.id}
+            editor={editor}
+            activeEditor={activeEditor}
+            title={title}
+            accessToken={accessToken}
+            currentUserId={currentUserId}
+            currentUserName={currentUserName}
+            currentUserAvatar={currentUserAvatar}
+            rightSidebar={rightSidebar}
+            setRightSidebar={setRightSidebar}
+            measuredHeaderHeight={measuredHeaderHeight}
+            documentRightPanelOffset={documentRightPanelOffset}
+            comments={comments.comments}
+            commentsUnresolvedCount={comments.unresolvedCount}
+            commentsIsLoading={comments.isLoading}
+            onCreateComment={handleCreateComment}
+            onUpdateComment={handleUpdateComment}
+            onResolveComment={handleResolveComment}
+            onDeleteComment={handleDeleteComment}
+            onCloseCommentsSidebar={closeCommentsSidebar}
+            onUnhighlightComment={handleUnhighlightComment}
+            onScrollToHighlight={handleScrollToHighlight}
+            showHeaderFooterSidebar={showHeaderFooterSidebar}
+            headerFooterSettingsSessionOpen={headerFooterSettingsSessionOpen}
+            resolvedHeaderFooterType={resolvedHeaderFooterType}
+            resolvedHeaderFooterPageNumber={resolvedHeaderFooterPageNumber}
+            pagesEditorState={pagesEditorState}
+            differentFirstPage={pagesFormattingConfig.differentFirstPage}
+            differentOddEven={pagesFormattingConfig.differentOddEven}
+            headerTopMarginPx={headerTopMarginPx}
+            footerBottomMarginPx={footerBottomMarginPx}
+            marginUnit={resolvedLayout.marginUnit}
+            showDocumentBody={showBodyWhileEditingHeaderFooter}
+            onShowDocumentBodyChange={setShowBodyWhileEditingHeaderFooter}
+            onPersistPagesFromEditor={persistPagesFromEditor}
+            onOpenPageNumbers={handleOpenPageNumbersDialog}
+            onQuickPageNumberPlacement={handleQuickPageNumberPlacement}
+            onRemovePageNumber={handlePageNumbersRemove}
+            onCloseHeaderFooterSidebar={handleCloseHeaderFooterSidebar}
+            selectedTableSidebar={selectedTableSidebar}
+            tableContextSubtitle={tableSidebarContextSubtitleKey ? t(tableSidebarContextSubtitleKey) : undefined}
+            onCloseTableSidebar={closeTableSettingsSidebar}
+            selectedImageSidebar={selectedImageSidebar}
+            imageContextSubtitle={imageSidebarContextSubtitleKey ? t(imageSidebarContextSubtitleKey) : undefined}
+            onCloseImageSidebar={closeImageSettingsSidebar}
+            onReplaceImage={openReplaceImageDialog}
+            selectedSignatureSidebar={selectedSignatureSidebar}
+            signatureContextSubtitle={
+              signatureSidebarContextSubtitleKey ? t(signatureSidebarContextSubtitleKey) : undefined
+            }
+            onCloseSignatureSidebar={closeSignatureSettingsSidebar}
+            onReplaceSignature={handleOpenReplaceSignatureDialog}
+            signatureCropActive={
+              activeSignatureUiState.mode === 'crop' &&
+              activeSignatureUiState.pos != null &&
+              activeSignatureUiState.pos === selectedSignatureSidebar.pos
+            }
+            tocSidebarNodePos={tocSidebarNodePos}
+            onCloseTocSidebar={() => {
+              setRightSidebar('closed')
+              setTocSidebarNodePos(null)
+            }}
+            showInlineCommentPopover={showInlineCommentPopover}
+            inlineCommentPosition={inlineCommentPosition}
+            onSubmitInlineComment={handleSubmitInlineComment}
+            onCloseInlineCommentPopover={handleCloseInlineCommentPopover}
+            translate={t}
+          />
+        )}
       </div>
     )
   }

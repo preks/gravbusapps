@@ -11,9 +11,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator
+  DropdownMenuSeparator,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { FileSpreadsheet, History, Save, Lock, Unlock, Share2, Download, Zap, BarChart3, Settings } from 'lucide-react'
+import { FileSpreadsheet, History, Save, Lock, Unlock, Share2, Download, Zap, BarChart3 } from 'lucide-react'
+import { ArrowsClockwise } from '@phosphor-icons/react'
+import translations from '../_i18n'
+
+const COMING_SOON_LABEL = 'coming soon'
 
 export interface SpreadsheetActionsMenuProps {
   // Version/lock actions
@@ -28,6 +33,9 @@ export interface SpreadsheetActionsMenuProps {
   onShare?: () => void
   onOpenAnalytics: () => void
   onOpenAutomations: () => void
+  /** When provided with showCheckCollectionResponses, adds a menu entry to fetch collection completions */
+  onCheckCollectionResponses?: () => void | Promise<void>
+  showCheckCollectionResponses?: boolean
   onEdit?: () => void
   allowExport?: boolean
   onExport?: () => void
@@ -36,75 +44,85 @@ export interface SpreadsheetActionsMenuProps {
 }
 
 export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
-  onShowVersionHistory,
-  onShowCheckpointDialog,
   isLockedByMe,
   onAcquireLock,
   onReleaseLock,
   onShare,
   onOpenAnalytics,
   onOpenAutomations,
-  onEdit,
+  onCheckCollectionResponses,
+  showCheckCollectionResponses = false,
   allowExport,
   onExport,
   'data-testid': testId = 'spreadsheet-actions-menu'
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <div className="gba:flex gba:items-center gba:gap-1.5" data-testid={testId}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gba:h-8">
             <FileSpreadsheet className="gba:w-4 gba:h-4 gba:mr-2" />
-            Spreadsheet
+            {t('menu-spreadsheet')}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={onShowVersionHistory}>
+          <DropdownMenuItem disabled>
             <History className="gba:w-4 gba:h-4 gba:mr-2" />
-            Version History
+            <span className="gba:flex-1">{t('menu-version-history')}</span>
+            <span className="gba:ml-2 gba:rounded-full gba:bg-muted gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
+              {COMING_SOON_LABEL}
+            </span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={onShowCheckpointDialog}>
+          <DropdownMenuItem disabled>
             <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-            Save Checkpoint
+            <span className="gba:flex-1">{t('menu-save-checkpoint')}</span>
+            <span className="gba:ml-2 gba:rounded-full gba:bg-muted gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
+              {COMING_SOON_LABEL}
+            </span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {isLockedByMe ? (
             <DropdownMenuItem onClick={onReleaseLock}>
               <Unlock className="gba:w-4 gba:h-4 gba:mr-2" />
-              Unlock Spreadsheet
+              {t('menu-unlock-spreadsheet')}
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem onClick={onAcquireLock}>
               <Lock className="gba:w-4 gba:h-4 gba:mr-2" />
-              Lock Spreadsheet
+              {t('menu-lock-spreadsheet')}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           {onShare && (
             <DropdownMenuItem onClick={onShare}>
               <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-              Share
+              {t('menu-share')}
             </DropdownMenuItem>
           )}
           {allowExport && (
             <DropdownMenuItem onClick={onExport}>
               <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-              Export to Excel
+              {t('menu-export-to-excel')}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={onOpenAnalytics}>
             <BarChart3 className="gba:w-4 gba:h-4 gba:mr-2" />
-            AI Analytics
+            {t('menu-ai-analytics')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onOpenAutomations}>
             <Zap className="gba:w-4 gba:h-4 gba:mr-2" />
-            Automations
+            {t('menu-automations')}
           </DropdownMenuItem>
-          {onEdit && (
-            <DropdownMenuItem onClick={onEdit}>
-              <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-              Settings
+          {showCheckCollectionResponses && onCheckCollectionResponses && (
+            <DropdownMenuItem
+              onClick={() => void onCheckCollectionResponses()}
+              data-testid={`${testId}-check-collection-responses`}
+            >
+              <ArrowsClockwise className="gba:w-4 gba:h-4 gba:mr-2" aria-hidden />
+              {t('menu-check-collection-responses')}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>

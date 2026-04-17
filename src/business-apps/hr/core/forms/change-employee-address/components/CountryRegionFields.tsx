@@ -75,7 +75,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({
             <Select
               value={
                 field.value === null || field.value === undefined || field.value === ''
-                  ? undefined
+                  ? ''
                   : String(field.value)
               }
               onValueChange={v => {
@@ -175,7 +175,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({
                     <Select
                       value={
                         field.value === null || field.value === undefined || field.value === ''
-                          ? undefined
+                          ? ''
                           : String(field.value)
                       }
                       onValueChange={v => field.onChange(v || null)}

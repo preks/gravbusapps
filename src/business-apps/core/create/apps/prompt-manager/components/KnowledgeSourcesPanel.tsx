@@ -36,6 +36,7 @@ import { ContentEntrySelector } from './ContentEntrySelector'
 import { CatalogSelector } from './CatalogSelector'
 import { WorkspaceContentSelector } from './WorkspaceContentSelector'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { resolveContentTypeName } from '@/common/data/content/constants/contentConstants'
 
 interface KnowledgeSourcesPanelProps extends BusinessAppContextProps {
   promptId?: string // For reference only, not used for immediate saves
@@ -131,7 +132,13 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
   }, [urlInput, urlName, urlDescription, sources, onSourcesChange])
 
   const handleAddContentEntries = useCallback(
-    async (entries: Array<{ id: string; title: string; contentType?: { value: string } }>) => {
+    async (
+      entries: Array<{
+        id: string
+        title: string
+        contentType?: { id: string; name: string; nameI18n?: Record<string, string> }
+      }>
+    ) => {
       setIsUploading(true)
       setUploadError(null)
 
@@ -144,7 +151,7 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
             id: entry.id,
             type: 'content_entry',
             name: entry.title,
-            description: entry.contentType?.value || 'Internal Content',
+            description: resolveContentTypeName(entry.contentType) || 'Internal Content',
             contentEntryId: entry.id,
             lastUpdated: new Date().toISOString(),
             createdAt: new Date().toISOString()

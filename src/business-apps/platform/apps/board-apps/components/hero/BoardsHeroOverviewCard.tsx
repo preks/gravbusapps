@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react'
-import { Badge, Skeleton } from '@newwork/nw-design-system'
+import { Badge, Skeleton, useTranslation } from '@newwork/nw-design-system'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 import type { BoardStatsResponse, BoardSummary } from '../../types'
+import translations from '../../_i18n'
 
 interface BoardsHeroOverviewCardProps {
   stats: BoardStatsResponse | null
@@ -12,17 +13,17 @@ interface BoardsHeroOverviewCardProps {
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
-function computeGrowth(boards: BoardSummary[]) {
+function computeGrowth(boards: BoardSummary[], t: (key: string, args?: Record<string, unknown>) => string) {
   const now = Date.now()
   const thisWeek = boards.filter(b => now - new Date(b.createdAt).getTime() < WEEK_MS).length
   const lastWeek = boards.filter(b => {
     const age = now - new Date(b.createdAt).getTime()
     return age >= WEEK_MS && age < WEEK_MS * 2
   }).length
-  if (lastWeek === 0 && thisWeek === 0) return { label: 'Stable', pct: 0, positive: true }
-  if (lastWeek === 0) return { label: `+${thisWeek} new`, pct: 100, positive: true }
+  if (lastWeek === 0 && thisWeek === 0) return { label: t('hero-stable'), pct: 0, positive: true }
+  if (lastWeek === 0) return { label: t('hero-growth-new', { count: thisWeek }), pct: 100, positive: true }
   const pct = Math.round(((thisWeek - lastWeek) / lastWeek) * 100)
-  return { label: `${pct >= 0 ? '+' : ''}${pct}% WoW`, pct, positive: pct >= 0 }
+  return { label: t('hero-growth-wow', { pct: `${pct >= 0 ? '+' : ''}${pct}` }), pct, positive: pct >= 0 }
 }
 
 function buildSparkline(boards: BoardSummary[]) {
@@ -40,22 +41,26 @@ export const BoardsHeroOverviewCard: React.FC<BoardsHeroOverviewCardProps> = ({
   isLoading,
   'data-testid': testId = 'boards-hero-overview'
 }) => {
-  const growth = useMemo(() => computeGrowth(boards), [boards])
+  const { t } = useTranslation(translations)
+  const growth = useMemo(() => computeGrowth(boards, t), [boards, t])
   const sparkline = useMemo(() => buildSparkline(boards), [boards])
   const totalRows = stats?.totalRows ?? 0
 
   const kpiPairs: Array<[KpiDatum, KpiDatum]> = [
     [
-      { label: 'Total Rows', value: totalRows >= 1000 ? `${(totalRows / 1000).toFixed(1)}K` : String(totalRows) },
-      { label: 'Active This Week', value: String(stats?.activeThisWeek ?? 0) }
+      {
+        label: t('hero-total-rows'),
+        value: totalRows >= 1000 ? `${(totalRows / 1000).toFixed(1)}K` : String(totalRows)
+      },
+      { label: t('hero-active-this-week'), value: String(stats?.activeThisWeek ?? 0) }
     ],
     [
-      { label: 'Shared Boards', value: String(stats?.sharedBoards ?? 0) },
-      { label: 'Overdue Items', value: String(stats?.overdueItems ?? 0) }
+      { label: t('hero-shared-boards'), value: String(stats?.sharedBoards ?? 0) },
+      { label: t('hero-overdue-items'), value: String(stats?.overdueItems ?? 0) }
     ],
     [
-      { label: 'Draft', value: String(stats?.boardsByStatus?.draft ?? 0) },
-      { label: 'Promoted', value: String(stats?.boardsByStatus?.promoted ?? 0) }
+      { label: t('hero-draft'), value: String(stats?.boardsByStatus?.draft ?? 0) },
+      { label: t('hero-promoted'), value: String(stats?.boardsByStatus?.promoted ?? 0) }
     ]
   ]
 
@@ -85,14 +90,14 @@ export const BoardsHeroOverviewCard: React.FC<BoardsHeroOverviewCardProps> = ({
       className="gba:rounded-xl gba:bg-card-decorative gba:border gba:border-white/10 gba:p-5 gba:h-full"
       data-testid={testId}
     >
-      <h3 className="gba:text-sm gba:font-semibold gba:text-white gba:mb-4">Board Overview</h3>
+      <h3 className="gba:text-sm gba:font-semibold gba:text-white gba:mb-4">{t('hero-overview-title')}</h3>
 
       {/* Primary metric row */}
       <div className="gba:mb-1">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-          <span className="gba:text-xs gba:text-white/50">Total Boards</span>
+          <span className="gba:text-xs gba:text-white/50">{t('hero-total-boards')}</span>
           <Badge variant="outline" size="xs" className="gba:bg-white/10 gba:text-white/60 gba:border-white/15">
-            All time
+            {t('hero-all-time')}
           </Badge>
         </div>
         <p className="gba:text-4xl gba:font-bold gba:text-white gba:tracking-tight">{stats?.totalBoards ?? 0}</p>
@@ -122,8 +127,8 @@ export const BoardsHeroOverviewCard: React.FC<BoardsHeroOverviewCardProps> = ({
 
       <p className="gba:text-xs gba:text-white/40 gba:mt-4 gba:italic">
         {(stats?.overdueItems ?? 0) === 0
-          ? 'All boards performing on track'
-          : `${stats!.overdueItems} items need attention`}
+          ? t('hero-on-track')
+          : t('hero-needs-attention', { count: stats!.overdueItems })}
       </p>
     </div>
   )

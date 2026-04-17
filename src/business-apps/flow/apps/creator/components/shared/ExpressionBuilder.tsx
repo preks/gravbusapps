@@ -34,7 +34,7 @@ import { useCatalogDiscovery } from '../../hooks/useCatalogDiscovery'
 import { useEntitySchemas, clearEntitySchemasCache } from '../../hooks/useEntitySchemas'
 import { useDatasource } from '../../hooks/useDatasource'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 
 interface ExpressionBuilderProps {
   isOpen: boolean
@@ -230,7 +230,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
         }
 
         // Then call backend API for thorough validation
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+        const apiUrl = CUSTOM_FLOW_ENGINE_API_URL
 
         // Create a complete template with ALL steps for cross-step validation
         const testTemplate = {
@@ -250,7 +250,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
           )
         }
 
-        const response = await fetch(`${apiUrl}/api/templates/validate-expressions`, {
+        const response = await fetch(`${apiUrl}/templates/validate-expressions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

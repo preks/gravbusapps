@@ -21,6 +21,7 @@ update_asset = Gerät aktualisieren
 allocate_asset = Gerät zuweisen
 retrieve_asset = Gerät zurücknehmen
 retire_asset = Gerät außer Betrieb nehmen
+delete_asset = Gerät löschen
 
 # Asset report PDF
 assets_report = Gerätebericht
@@ -52,3 +53,18 @@ return_condition = Rückgabezustand
 expected_return = Voraussichtliche Rückgabe
 period = Zeitraum
 asset = Gerät
+cancel-button = Abbrechen
+asset-management-empty = Es wurden noch keine Geräte registriert.
+asset-filter-sheet-title = Geräte filtern
+asset-filter-sheet-description = Grenzen Sie die Geräteliste nach Status, Kategorie, Standort, Mitarbeiter und Datumsbereichen ein.
+asset-employee-filter-search-placeholder = Mitarbeiter suchen
+asset-employee-filter-empty = Keine Mitarbeiter gefunden
+asset-employee-filter-loading = Mitarbeiter werden geladen...
+delete-asset-title = Gerät löschen
+delete-asset-description = Löschen Sie dieses Gerät. Es wird aus der Liste entfernt.
+delete-asset-notes-label = Notizen
+delete-asset-notes-placeholder = Fügen Sie einen kurzen Grund für das Löschen dieses Geräts hinzu.
+delete-asset-note-required = Fügen Sie eine Notiz hinzu, um fortzufahren.
+delete-asset-note-change-required = Aktualisieren Sie die bestehende Notiz, um fortzufahren.
+delete-asset-confirm-button = Gerät löschen
+deleting-asset-button = Wird gelöscht...

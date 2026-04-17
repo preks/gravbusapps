@@ -5,14 +5,16 @@ type FilterGroup = NonNullable<FilterConfiguration['groups']>[number]
 type Filter = FilterGroup['filters'][number]
 
 /**
- * Maps catalog field type to filter type
+ * Maps catalog field type to filter type.
+ * Returns null for CATALOG_* and REF_* types — these require inIds-style handling
+ * which is already covered by the static INVESTMENT_REPORT_DESCRIPTORS.
  */
-const getFilterTypeFromCatalogType = (catalogType: string): Filter['type'] => {
-  if (catalogType === 'AMOUNT') return 'number'
+const getFilterTypeFromCatalogType = (catalogType: string): Filter['type'] | null => {
+  if (catalogType === 'AMOUNT' || catalogType === 'NUMBER') return 'number'
   if (catalogType === 'PERCENTAGE') return 'number'
   if (catalogType === 'DATE' || catalogType === 'DATETIME') return 'date'
   if (catalogType === 'TEXT' || catalogType === 'TEXTAREA') return 'text'
-  if (catalogType.startsWith('CATALOG_') || catalogType.startsWith('REF_')) return 'multi-select'
+  if (catalogType.startsWith('CATALOG_') || catalogType.startsWith('REF_')) return null
 
   // Default to text for unknown types
   return 'text'
@@ -23,6 +25,9 @@ const getFilterTypeFromCatalogType = (catalogType: string): Filter['type'] => {
  */
 const generateFilterConfig = (field: any, entityPrefix: string): Filter | null => {
   const filterType = getFilterTypeFromCatalogType(field.type)
+
+  // Skip catalog/ref types — handled separately via inIds descriptors
+  if (filterType === null) return null
 
   // Parse property path to generate filter ID
   // Examples:

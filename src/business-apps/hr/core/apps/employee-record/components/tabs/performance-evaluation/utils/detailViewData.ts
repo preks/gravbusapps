@@ -200,12 +200,6 @@ export const formatRatingForDisplay = (value: string): string => {
     const starsCount = Math.max(0, Math.min(Number.parseInt(starLabelMatch[1], 10), 10))
     return '★'.repeat(starsCount)
   }
-
-  const numericMatch = /^(\d+)$/.exec(trimmedValue)
-  if (numericMatch) {
-    const starsCount = Math.max(0, Math.min(Number.parseInt(numericMatch[1], 10), 10))
-    return '★'.repeat(starsCount)
-  }
   return value
 }
 
@@ -327,6 +321,20 @@ const getPerspectiveAverageScore = (item: Record<string, unknown>, matcher: (key
   return Number((total / scores.length).toFixed(2))
 }
 
+const hasAnyPerspectiveEntries = (items: Record<string, unknown>[], matcher: (key: string) => boolean): boolean =>
+  items.some(item => getPerspectiveEntries(item, matcher).length > 0)
+
+export const getActiveReviewerKeys = (
+  companyValueItems: Record<string, unknown>[],
+  skillItems: Record<string, unknown>[]
+): ReviewerKey[] => {
+  const allItems = [...companyValueItems, ...skillItems]
+  return REVIEWER_KEYS.filter(reviewer => {
+    const matcher = (key: string) => key.toLowerCase().includes(reviewer === 'peer' ? 'peer' : reviewer)
+    return hasAnyPerspectiveEntries(allItems, matcher)
+  })
+}
+
 const buildRadarData = (items: Record<string, unknown>[]): RadarDataPoint[] =>
   items.map(item => ({
     label: getItemTitle(item),
@@ -444,6 +452,7 @@ export const computeDetailViewData = (
 
   const companyValuesRadarData = buildRadarData(companyValueItems)
   const skillsRadarData = buildRadarData(skillItems)
+  const activeReviewerKeys = getActiveReviewerKeys(companyValueItems, skillItems)
   const companyValuesAverageScoreFallback = computeSectionAverageScore(companyValueItems)
   const skillsAverageScoreFallback = computeSectionAverageScore(skillItems)
   const companyValuesAverageNumeric =
@@ -475,7 +484,7 @@ export const computeDetailViewData = (
 
   const points = [...companyValuesRadarData, ...skillsRadarData]
   const maxValue = points.reduce((acc, point) => Math.max(acc, point.self, point.peer, point.manager), 0)
-  const radarMaxDomain = maxValue <= 5 ? 5 : Math.ceil(maxValue)
+  const radarMaxDomain = maxValue <= 5 ? 5 : Math.ceil(maxValue / 2) * 2
   const combinedCarouselEntries = buildCombinedCarouselEntries(companyValueItems, skillItems, t)
   const { selfReviewerFallback, managerReviewerFallback } = buildReviewerFallbacks(currentEmployee, evaluatorManager)
 
@@ -496,6 +505,7 @@ export const computeDetailViewData = (
     skillsChangeBadge,
     companyValuesRadarData,
     skillsRadarData,
+    activeReviewerKeys,
     combinedCarouselEntries,
     selfReviewerFallback,
     managerReviewerFallback

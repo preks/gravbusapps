@@ -21,6 +21,7 @@ import {
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildIrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
@@ -287,12 +288,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
 
     try {
       const result = await fetchInvestmentActivitiesByOpportunityId(opportunityId)
-      const sortedActivities = (result || []).sort((a, b) => {
-        const dateA = new Date(a.occurredAt || a.createdAt).getTime()
-        const dateB = new Date(b.occurredAt || b.createdAt).getTime()
-        return dateB - dateA
-      })
-      setActivities(sortedActivities)
+      setActivities(result || [])
     } catch (err) {
       setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities')
     } finally {
@@ -1101,7 +1097,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                     },
                     activityTypeCatalog: ACTIVITY_TYPE,
                     buildActivityPayload: buildInvestmentActivityPayload,
-                    preSubmit: activityPreSubmit
+                    preSubmit: activityPreSubmit,
+                    getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl
                   }
                 },
                 {
@@ -1143,23 +1140,23 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   }
 
   return (
-    <div className="gba:opportunity-details-container" data-testid="investment-opportunity-detail">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
-        headerOverline="OPPORTUNITY"
-        onBack={handleDealTypeBack}
-        headerTitle={opportunityData?.name || ''}
-        headerMeta={headerMeta}
-        headerActions={headerActions}
-        headerActionButton={headerActionButton}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        headerSlotAfter={headerContent}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="investment-opportunity-detail"
+      className="gba:opportunity-details-container"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
+      headerOverline="OPPORTUNITY"
+      onBack={handleDealTypeBack}
+      headerTitle={opportunityData?.name || ''}
+      headerMeta={headerMeta}
+      headerActions={headerActions}
+      headerActionButton={headerActionButton}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      headerSlotAfter={headerContent}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

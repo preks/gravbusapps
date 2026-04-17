@@ -68,6 +68,25 @@ const COST_CENTER_COLORS = [
   'var(--nw-status-pending)' // Yellow-500 - Development cost centers
 ]
 
+const formatSegmentLabel = (code: string | null | undefined, name: string | null | undefined): string => {
+  const normalizedCode = code?.trim()
+  const normalizedName = name?.trim()
+
+  if (normalizedCode && normalizedName) {
+    return `[${normalizedCode}] ${normalizedName}`
+  }
+
+  if (normalizedName) {
+    return normalizedName
+  }
+
+  if (normalizedCode) {
+    return normalizedCode
+  }
+
+  return 'Unknown'
+}
+
 // Hierarchy Level Colors - Using structured progression
 const LEVEL_COLORS = [
   'var(--nw-entity-strategy)', // Fuchsia-600 - C-Level/Executive
@@ -207,9 +226,10 @@ export const mapEmployeesToCompanies = (
   // Map employees to companies using direct CompanyEmployee relationships
   companyEmployees.forEach(companyEmp => {
     if (companyEmp.company) {
+      const companyLabel = formatSegmentLabel(companyEmp.company.code, companyEmp.company.name)
       employeeCompanyMap.set(companyEmp.employeeId, {
-        company: companyEmp.company.code || companyEmp.company.id,
-        companyName: companyEmp.company.name
+        company: companyLabel,
+        companyName: companyLabel
       })
     }
   })
@@ -240,11 +260,12 @@ export const mapEmployeesToCostCenters = (
         if (orgUnit.organizationalUnitEmployee && orgUnit.costCenterId) {
           const costCenter = costCenterMap.get(orgUnit.costCenterId)
           if (costCenter) {
+            const costCenterLabel = formatSegmentLabel(costCenter.code, costCenter.name)
             orgUnit.organizationalUnitEmployee.forEach(empOrg => {
               if (empOrg.employee) {
                 employeeCostCenterMap.set(empOrg.employeeId, {
-                  costCenter: costCenter.code || costCenter.id,
-                  costCenterName: costCenter.name
+                  costCenter: costCenterLabel,
+                  costCenterName: costCenterLabel
                 })
               }
             })
@@ -518,12 +539,11 @@ export const buildSunburstData = (
           let displayName: string
 
           if (viewMode === 'company') {
-            // For company mode, get company name from the node's company
-            displayName = node.company?.name || segmentKey
+            displayName = segmentKey
           } else if (viewMode === 'costcenter') {
             // For cost center mode, we need to find the cost center name
             // Since we're using the cost center code/id as key, use it as display name for now
-            displayName = segmentKey // This will be the cost center code or 'Unknown'
+            displayName = segmentKey
           } else {
             // For location mode, get country name from employees
             displayName = node.employees.find(emp => emp.country === segmentKey)?.countryName || segmentKey
@@ -799,9 +819,7 @@ export const generateTableData = (
             // For display name, use the segment key or try to find a better name
             let displayName = segmentKey
 
-            if (viewMode === 'company' && node.company?.name) {
-              displayName = node.company.name
-            } else if (viewMode === 'location') {
+            if (viewMode === 'location') {
               // Try to get country name from employees
               const employeeWithCountry = node.employees.find(emp => emp.country === segmentKey)
               displayName = employeeWithCountry?.countryName || segmentKey

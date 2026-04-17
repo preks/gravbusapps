@@ -34,10 +34,9 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
   const pipelineValue = form.watch(pipelineFieldName)
 
   // Keep track of previous pipeline value to detect changes
-  // Initialize with undefined to ensure the effect runs on mount
   const previousPipelineValueRef = React.useRef<typeof pipelineValue>(undefined)
 
-  // Check if stage is required (when pipeline has a value)
+  // Stage is required only when a pipeline is selected.
   const isStageRequired = Boolean(
     pipelineValue !== null &&
       pipelineValue !== undefined &&
@@ -46,18 +45,17 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
       pipelineValue.trim() !== ''
   )
 
-  // Clear stage when pipeline changes or is cleared
+  // Clear stage when pipeline is cleared
   useEffect(() => {
     const currentValue = pipelineValue
     const previousValue = previousPipelineValueRef.current
 
-    // If pipeline changed (including being cleared)
     if (currentValue !== previousValue) {
       previousPipelineValueRef.current = currentValue
 
-      // Clear stage whenever pipeline changes or is cleared
       if (!currentValue || (typeof currentValue === 'string' && currentValue.trim() === '')) {
-        form.setValue(stageFieldName, null, { shouldValidate: true, shouldDirty: true })
+        form.setValue(stageFieldName, '', { shouldValidate: false, shouldDirty: true })
+        form.clearErrors(stageFieldName)
       }
     }
   }, [pipelineValue, stageFieldName, form])
@@ -72,13 +70,13 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
           name={pipelineFieldName}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('opportunity-pipeline-label')}</FormLabel>
+              <FormLabel className="gba:text-foreground">{t('opportunity-pipeline-label')}</FormLabel>
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier={pipelineCatalogIdentifier}
                   variant="combobox"
                   value={field.value || ''}
-                  onValueChange={value => field.onChange(value || null)}
+                  onValueChange={value => field.onChange(value || '')}
                   allowClear
                   data-testid="opportunity-segment-pipeline-select"
                 />
@@ -94,7 +92,7 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
           name={stageFieldName}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
+              <FormLabel className="gba:text-foreground">
                 {t('opportunity-stage-label')}
                 {showDynamicStageRequired && isStageRequired && <span className="gba:text-destructive"> *</span>}
               </FormLabel>
@@ -102,10 +100,9 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
                 <CatalogSelect
                   catalogIdentifier={stageCatalogIdentifier}
                   parentField={pipelineFieldName}
-                  requireSourceForEnable={true}
                   variant="combobox"
                   value={field.value || ''}
-                  onValueChange={value => field.onChange(value || null)}
+                  onValueChange={value => field.onChange(value || '')}
                   allowClear
                   data-testid="opportunity-segment-stage-select"
                 />

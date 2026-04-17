@@ -1,11 +1,75 @@
 # Chat Translations - English
 
 # Main Component - ChatWithCalendar
+chat-tab-dashboard = Dashboard
 chat-fullscreen-button = Open in Fullscreen
 chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Calendar
 chat-tab-reminders = Reminders
+chat-shell-disabled-title = Chat unavailable
+chat-shell-disabled-description = This panel is currently disabled for your workspace.
+
+# Dashboard
+dashboard-error-loadData = Unable to load dashboard data
+dashboard-hero-goodMorning = Good morning
+dashboard-hero-goodAfternoon = Good afternoon
+dashboard-hero-goodEvening = Good evening
+dashboard-hero-goodNight = Good night
+dashboard-hero-tagline = Your communication hub. Connect, collaborate, and stay in sync with your team.
+dashboard-common-you = You
+dashboard-personalStats-title = Your activity
+dashboard-personalStats-messagesSent = Messages sent
+dashboard-personalStats-conversations = Conversations
+dashboard-personalStats-callMinutes = Call minutes
+dashboard-personalStats-avgPerDay = Avg per day
+dashboard-personalStats-memberDays = Member days
+dashboard-personalStats-active = Active
+dashboard-personalStats-longTimeMember = Long-time member
+dashboard-globalStats-title = Company activity
+dashboard-globalStats-activeNow = Active now
+dashboard-globalStats-live = Live
+dashboard-globalStats-messagesToday = Messages today
+dashboard-globalStats-totalUsers = Total users
+dashboard-globalStats-totalCallTime = Total call time
+dashboard-globalStats-totalPlatformMessages = Total platform messages
+dashboard-globalStats-todayDelta = +{$count} today
+dashboard-globalStats-allTime = All time across the platform
+dashboard-globalStats-topReactions = Top reactions
+dashboard-globalStats-noReactions = No reactions yet
+dashboard-topContacts-title = My people
+dashboard-topContacts-online = Online
+dashboard-topContacts-mostContacted = Most contacted
+dashboard-topContacts-maybeReachOut = Maybe reach out
+dashboard-topContacts-emptyTitle = No contacts yet
+dashboard-topContacts-emptyDescription = Start chatting with colleagues to see your contacts here.
+dashboard-topContacts-noSuggestions = No suggestions
+dashboard-topContacts-contactMeta = {$messageCount} msgs · {$relativeTime}
+dashboard-topContacts-today = Today
+dashboard-topContacts-yesterday = Yesterday
+dashboard-topContacts-daysAgo = {$count} days ago
+dashboard-topContacts-weeksAgo = {$count} weeks ago
+dashboard-topContacts-monthsAgo = {$count} months ago
+dashboard-upcomingMeetings-title = Upcoming meetings
+dashboard-upcomingMeetings-next7Days = Next 7 days
+dashboard-upcomingMeetings-emptyTitle = No upcoming meetings
+dashboard-upcomingMeetings-emptyDescription = Your schedule is clear
+dashboard-upcomingMeetings-error = Unable to load meetings
+dashboard-upcomingMeetings-open = Open
+dashboard-upcomingMeetings-join = Join
+dashboard-upcomingMeetings-now = Now
+dashboard-upcomingMeetings-started = Started
+dashboard-upcomingMeetings-startingNow = Starting now
+dashboard-upcomingMeetings-inMinutes = In {$minutes} min
+dashboard-upcomingMeetings-inHours = In {$hours}h
+dashboard-upcomingMeetings-tomorrow = Tomorrow
+dashboard-upcomingMeetings-agendaItems = {$count ->
+  [one] {$count} agenda item
+ *[other] {$count} agenda items
+}
+dashboard-upcomingMeetings-showMore = Show {$count} more
+dashboard-upcomingMeetings-showMoreWithTotal = Show {$count} more ({$total} total)
+dashboard-upcomingMeetings-showLess = Show less
 
 # Chat Main
 chat-appHeader = Chat
@@ -459,10 +523,23 @@ notifications-retry = Retry
 # Reminders
 reminders-myReminders = My Reminders
 reminders-noUpcoming = No upcoming reminders
-reminders-goToEveryAI = Go to the EveryAI tab and ask to set a reminder
+reminders-goToEveryAI = Create a reminder using the + button above
 reminders-loadingReminders = Loading reminders...
 reminders-failedToLoad = Failed to load reminders
 reminders-tryAgain = Try Again
+reminders-newReminder = New Reminder
+reminders-title = Title
+reminders-titlePlaceholder = What should you be reminded of?
+reminders-message = Message (optional)
+reminders-messagePlaceholder = Additional details...
+reminders-dateTime = Date & Time
+reminders-create = Create Reminder
+reminders-creating = Creating...
+reminders-cancel = Cancel
+reminders-created = Reminder created!
+reminders-createFailed = Failed to create reminder
+reminders-titleRequired = Please enter a title
+reminders-dateTimeRequired = Please select a date and time
 
 # Calendar
 calendar-title = Calendar
@@ -470,7 +547,78 @@ calendar-today = Today
 calendar-viewDay = Day
 calendar-viewWeek = Week
 calendar-viewMonth = Month
+calendar-threeDay = Three day
+calendar-workWeek = Work week
+calendar-layout-list = List
+calendar-view-menu-aria = Calendar view and layout
+calendar-list-no-events = No events
 calendar-refresh = Refresh calendar
+calendar-sidebar-title = Calendars
+calendar-sidebar-description = Choose what is visible and manage shared calendars
+calendar-sidebar-selectAll = All
+calendar-sidebar-clearAll = None
+calendar-sidebar-myCalendars = My calendars
+calendar-sidebar-personal = Personal
+calendar-sidebar-myCalendar = My calendar
+calendar-sidebar-myCalendarDescription = Meetings and invitations linked to you
+calendar-sidebar-shared = Shared
+calendar-sidebar-external = External
+calendar-mini-previousMonth = Previous month
+calendar-mini-nextMonth = Next month
+calendar-sidebar-noSharedCalendars = No shared calendars yet
+calendar-sidebar-noExternalCalendars = No external calendars connected
+calendar-sidebar-createFirstSharedCalendar = Create your first shared calendar
+calendar-sidebar-newSharedCalendar = New shared calendar
+calendar-sidebar-newSharedCalendarDescription = Create an internal calendar that can be selected in the shared calendar view.
+calendar-sidebar-editCalendar = Edit calendar
+calendar-sidebar-editCalendarDescription = Update the calendar name, description, and color.
+calendar-sidebar-manageAccess = Manage access
+calendar-sidebar-manageAccessDescription = Choose who can access {$name} and what they can do.
+calendar-sidebar-archiveCalendar = Archive calendar
+calendar-sidebar-archiveCalendarDescription = Archive {$name} and remove it from the active sidebar list.
+calendar-sidebar-archiveConfirm = Archive calendar
+calendar-sidebar-calendarName = Name
+calendar-sidebar-calendarNamePlaceholder = e.g., Product Team Calendar
+calendar-sidebar-calendarDescriptionPlaceholder = Optional context for who uses this calendar
+calendar-sidebar-createCalendar = Create calendar
+calendar-sidebar-addPeople = Add people
+calendar-sidebar-members = Members
+calendar-sidebar-noMembers = No members yet
+calendar-sidebar-membersLoadError = Could not load calendar members
+calendar-sidebar-owner = Owner
+calendar-sidebar-sharedCalendar = Shared calendar
+calendar-sidebar-spaceCalendar = Space calendar
+calendar-sidebar-busy = Busy
+calendar-sidebar-memberCount = {$count ->
+  [one] {$count} member
+ *[other] {$count} members
+}
+calendar-sidebar-permission-owner = Owner
+calendar-sidebar-permission-editor = Editor
+calendar-sidebar-permission-viewer = Viewer
+calendar-sidebar-permission-free_busy = Free/busy
+calendar-sidebar-calendarCreatedSuccess = Shared calendar created
+calendar-sidebar-calendarCreatedError = Could not create shared calendar
+calendar-sidebar-calendarUpdatedSuccess = Calendar updated
+calendar-sidebar-calendarUpdatedError = Could not update calendar
+calendar-sidebar-accessUpdatedSuccess = Calendar access updated
+calendar-sidebar-accessUpdatedError = Could not update calendar access
+calendar-sidebar-calendarArchivedSuccess = Calendar archived
+calendar-sidebar-calendarArchivedError = Could not archive calendar
+calendar-sidebar-personalColorSaveError = Could not update My calendar color
+calendar-sidebar-calendarColorSaveError = Could not update calendar color
+calendar-sidebar-resetToDefault = Use default color
+calendar-sidebar-openColorPicker = Change {$name} color
+calendar-sidebar-createManually = Create manually
+calendar-sidebar-createByGroup = By group
+calendar-sidebar-createCalendarByDimension = Create calendar by organization
+calendar-sidebar-dimensionDescription = Create a shared calendar for an organizational group and grant viewer access to its members.
+calendar-sidebar-dimensionViewerAccess = {$count ->
+  [one] 1 member will get viewer access
+ *[other] {$count} members will get viewer access
+}
+calendar-sidebar-membersPreview = Members
+calendar-sidebar-calendarExistsInfo = A shared calendar for this group already exists, so the existing calendar was selected.
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Schedule Meeting
@@ -481,6 +629,9 @@ calendar-meetingTitlePlaceholder = Meeting title
 calendar-date = Date
 calendar-dateRequired = Date *
 calendar-allDay = All day
+calendar-allDay-more-count = +{$count}
+calendar-allDay-expand-aria = Show {$count} more all-day events
+calendar-allDay-collapse-aria = Show fewer all-day events
 calendar-start = Start
 calendar-end = End
 calendar-location = Location
@@ -524,6 +675,7 @@ calendar-reminder1Day = 1 day before
 calendar-allDayEvent = All day
 calendar-videoCallAvailable = Video Call
 calendar-joinLinkAvailable = Join link available
+calendar-sourceCalendar = Calendar
 calendar-viewProfile = View profile
 calendar-youOrganizer = You (Organizer)
 calendar-organizer = Organizer

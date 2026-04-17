@@ -2,9 +2,9 @@
  * In-document table of contents (Word-style block): live heading list with optional page numbers.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import * as React from 'react'
 import type { NodeViewProps } from '@tiptap/react'
-import { NodeViewWrapper } from '@tiptap/react'
+import { NodeViewWrapper, useEditorState } from '@tiptap/react'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -14,12 +14,9 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { createSafePaginationSelection } from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationLayoutHelpers'
-import type { Node as PMNode } from '@tiptap/pm/model'
-import {
-  getHeadingsForDocumentTableOfContents,
-  resolvePageNumberForDocPosition
-} from '../../../utils/navigationPanelUtils'
-import { getDocumentTocLayoutHints, subscribeDocumentTocLayout } from '../../../utils/tocLayoutBridge'
+import { isDocumentTocStructurallyStale, parseDocumentTocSnapshot } from '../../../utils/documentTocSnapshot'
+import { buildDocumentTocTextStyleObject, parseDocumentTocStyles } from '../../../utils/documentTocStyleUtils'
+import { getDocumentTocLayoutHints } from '../../../utils/tocLayoutBridge'
 import { scrollEditorSelectionNodeIntoView } from '../commentSidebarNavigation'
 import translations from '../../../_i18n'
 
@@ -29,43 +26,9 @@ type DocumentTocOpenFormatEventDetail = {
   pos: number
 }
 
-function resolveSpansForPageNumbers() {
-  const hints = getDocumentTocLayoutHints()
-  if (!hints) return undefined
-  if (hints.pageSpans && hints.pageSpans.length > 0) {
-    return hints.pageSpans
-  }
-  if (hints.retainedPageSpans && hints.retainedPageSpans.length > 0) {
-    return hints.retainedPageSpans
-  }
-  return hints.pagePositionRanges
-}
-
-function resolveFallbackPageNumber(doc: PMNode, pos: number): number {
-  let pageNumber = 1
-  doc.descendants((node, nodePos) => {
-    if (nodePos >= pos) return false
-    if (node.type.name === 'pageBreak') {
-      pageNumber += 1
-    }
-    return true
-  })
-  return pageNumber
-}
-
 export function DocumentTableOfContentsView({ editor, node, getPos, selected }: Readonly<NodeViewProps>) {
+  const { useCallback, useMemo } = React
   const { t } = useTranslation(translations)
-  const [, setRenderTick] = useState(0)
-
-  useEffect(() => {
-    const bump = () => setRenderTick(n => n + 1)
-    editor.on('update', bump)
-    const unsubLayout = subscribeDocumentTocLayout(bump)
-    return () => {
-      editor.off('update', bump)
-      unsubLayout()
-    }
-  }, [editor])
 
   const tocBlockEnd = useMemo(() => {
     const pos = getPos()
@@ -73,20 +36,36 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
     return pos + node.nodeSize
   }, [getPos, node.nodeSize])
 
-  const headings = useMemo(
-    () => getHeadingsForDocumentTableOfContents(editor.state.doc, tocBlockEnd),
-    [editor.state.doc, tocBlockEnd]
+  const liveDoc = useEditorState({
+    editor,
+    selector: ({ editor: currentEditor }) => currentEditor?.state.doc ?? null
+  })
+  const doc = liveDoc ?? editor.state.doc
+  const snapshot = useMemo(
+    () => parseDocumentTocSnapshot(String(node.attrs.snapshotJson ?? '[]')),
+    [node.attrs.snapshotJson]
   )
-  const visibleHeadings = useMemo(() => {
-    const maxLevel = Math.max(1, Math.min(6, Number(node.attrs.maxHeadingLevel ?? 3)))
-    return headings.filter(h => h.level <= maxLevel)
-  }, [headings, node.attrs.maxHeadingLevel])
-
-  const spans = resolveSpansForPageNumbers()
-
+  const maxHeadingLevel = useMemo(
+    () => Math.max(1, Math.min(6, Number(node.attrs.maxHeadingLevel ?? 3))),
+    [node.attrs.maxHeadingLevel]
+  )
+  const tocStyles = useMemo(() => parseDocumentTocStyles(String(node.attrs.stylesJson ?? '')), [node.attrs.stylesJson])
+  const titleStyle = useMemo(() => buildDocumentTocTextStyleObject(tocStyles.title), [tocStyles.title])
+  const entryStyle = useMemo(() => buildDocumentTocTextStyleObject(tocStyles.entries), [tocStyles.entries])
+  const emptyStateStyle = useMemo(
+    () => ({
+      ...entryStyle,
+      color: tocStyles.entries.color ?? 'var(--nw-muted-foreground)'
+    }),
+    [entryStyle, tocStyles.entries.color]
+  )
+  const visibleEntries = useMemo(
+    () => snapshot.entries.filter(entry => entry.level <= maxHeadingLevel),
+    [maxHeadingLevel, snapshot.entries]
+  )
   const scrollToHeading = useCallback(
     (headingPos: number) => {
-      const doc = editor.state.doc
+      if (headingPos <= 0) return
       const selection = createSafePaginationSelection(doc, headingPos, 1)
       editor.view.dispatch(editor.state.tr.setSelection(selection))
       editor.view.focus()
@@ -108,7 +87,7 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
         'start'
       )
     },
-    [editor]
+    [doc, editor]
   )
 
   const editable = editor.isEditable
@@ -116,19 +95,37 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
   const rightAlignPageNumbers = node.attrs.rightAlignPageNumbers !== false
   const tabLeader = node.attrs.tabLeader === 'none' ? 'none' : 'dot'
   const headingLinks = node.attrs.headingLinks !== false
+  const structureStale = useMemo(
+    () =>
+      isDocumentTocStructurallyStale({
+        snapshot,
+        doc,
+        afterPos: tocBlockEnd,
+        maxHeadingLevel
+      }),
+    [doc, maxHeadingLevel, snapshot, tocBlockEnd]
+  )
+  const canFollowHeadingLinks = editable && headingLinks && !structureStale
 
   const openFormatSidebar = useCallback(() => {
     const pos = getPos()
     if (typeof pos !== 'number') return
+    editor.chain().focus().setNodeSelection(pos).run()
     globalThis.window.dispatchEvent(
       new CustomEvent<DocumentTocOpenFormatEventDetail>(DOCUMENT_TOC_OPEN_FORMAT_EVENT, { detail: { pos } })
     )
-  }, [getPos])
+  }, [editor, getPos])
 
   const updateTableOfContents = useCallback(() => {
     const pos = getPos()
     if (typeof pos !== 'number') return
-    editor.commands.updateDocumentTableOfContents(pos)
+    editor.commands.updateDocumentTableOfContentsEntireTable(pos)
+  }, [editor.commands, getPos])
+
+  const updatePageNumbersOnly = useCallback(() => {
+    const pos = getPos()
+    if (typeof pos !== 'number') return
+    editor.commands.updateDocumentTableOfContentsPageNumbers(pos)
   }, [editor.commands, getPos])
 
   const removeTableOfContents = useCallback(() => {
@@ -138,106 +135,129 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
   }, [editor.commands, getPos])
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <NodeViewWrapper
-          as="div"
-          className={`document-table-of-contents gba:my-3 gba:p-1 ${
-            selected ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2' : ''
-          }`}
-          data-document-toc=""
-          contentEditable={false}
-          data-testid="document-table-of-contents"
-        >
-          <div className="gba:mb-3 gba:text-base gba:font-semibold gba:text-foreground">
-            {t('document-toc-block-title')}
-          </div>
-          {visibleHeadings.length === 0 ? (
-            <p className="gba:m-0 gba:text-sm gba:text-muted-foreground">{t('document-toc-empty')}</p>
-          ) : (
-            <div className="gba:m-0 gba:space-y-1 gba:p-0">
-              {visibleHeadings.map((h, idx) => {
-                const pad =
-                  ['', 'gba:pl-2', 'gba:pl-4', 'gba:pl-6', 'gba:pl-8', 'gba:pl-10'][Math.min(h.level, 6)] ?? 'gba:pl-10'
-                const pageNum = resolvePageNumberForDocPosition(h.blockStart, spans)
-                const pageLabel =
-                  showPageNumbers && pageNum !== null
-                    ? String(pageNum)
-                    : showPageNumbers
-                      ? String(resolveFallbackPageNumber(editor.state.doc, h.blockStart))
-                      : ''
-                const titleNode =
-                  editable && headingLinks ? (
-                    <button
-                      type="button"
-                      onClick={() => scrollToHeading(h.pos)}
-                      className="gba:max-w-[55%] gba:shrink-0 gba:truncate gba:text-left gba:text-sm gba:text-foreground hover:gba:underline"
-                      data-testid={`document-toc-line-${idx}`}
-                    >
-                      {h.text || t('editor-heading-normal')}
-                    </button>
-                  ) : (
-                    <span
-                      className="gba:max-w-[55%] gba:shrink-0 gba:truncate gba:text-sm gba:text-foreground"
-                      data-testid={`document-toc-line-${idx}`}
-                    >
-                      {h.text || t('editor-heading-normal')}
-                    </span>
-                  )
+    <NodeViewWrapper
+      as="div"
+      className={`document-table-of-contents gba:my-3 gba:w-full gba:max-w-full ${
+        selected ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2' : ''
+      }`}
+      data-document-toc=""
+      contentEditable={false}
+      data-testid="document-table-of-contents"
+      onMouseDown={(event: MouseEvent) => {
+        const target = event.target
+        if (target instanceof HTMLElement && target.closest('button[data-testid^="document-toc-line"]')) {
+          return
+        }
+        const pos = getPos()
+        if (typeof pos !== 'number') return
+        editor.chain().focus().setNodeSelection(pos).run()
+      }}
+    >
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div className="gba:w-full">
+            <div className="gba:mb-3 gba:text-base gba:text-foreground" style={titleStyle}>
+              {t('document-toc-block-title')}
+            </div>
+            {visibleEntries.length === 0 ? (
+              <p className="gba:m-0 gba:text-sm" style={emptyStateStyle}>
+                {t('document-toc-empty')}
+              </p>
+            ) : (
+              <div className="gba:m-0 gba:space-y-1 gba:p-0">
+                {visibleEntries.map((entry, idx) => {
+                  const pad =
+                    ['', 'gba:pl-2', 'gba:pl-4', 'gba:pl-6', 'gba:pl-8', 'gba:pl-10'][Math.min(entry.level, 6)] ??
+                    'gba:pl-10'
+                  const pageLabel = showPageNumbers ? (entry.pageNumber ?? t('document-toc-page-unknown')) : ''
+                  const titleBaseClass =
+                    'gba:block gba:min-w-0 gba:w-full gba:bg-transparent gba:border-0 gba:p-0 gba:text-left gba:leading-snug gba:whitespace-normal gba:break-words gba:overflow-wrap-anywhere'
+                  const titleClass = titleBaseClass
+                  const titleNode =
+                    canFollowHeadingLinks && entry.pos > 0 ? (
+                      <button
+                        type="button"
+                        onMouseDown={event => event.stopPropagation()}
+                        onClick={() => scrollToHeading(entry.pos)}
+                        className={`${titleClass} gba:text-left hover:gba:underline`}
+                        style={entryStyle}
+                        data-testid={`document-toc-line-${idx}`}
+                      >
+                        {entry.text || t('title-untitled')}
+                      </button>
+                    ) : (
+                      <span className={titleClass} style={entryStyle} data-testid={`document-toc-line-${idx}`}>
+                        {entry.text || t('title-untitled')}
+                      </span>
+                    )
 
-                return (
-                  <div key={`${h.blockStart}-${idx}`} className={pad}>
-                    <div className="gba:flex gba:min-h-7 gba:items-end gba:gap-2 gba:w-full">
-                      {titleNode}
+                  return (
+                    <div key={`${entry.blockStart}-${entry.text}-${idx}`} className={pad}>
                       {rightAlignPageNumbers ? (
-                        <>
+                        <div className="gba:flex gba:w-full gba:min-w-0 gba:flex-nowrap gba:items-end gba:gap-x-2">
+                          <div className="gba:min-w-0 gba:w-fit gba:max-w-[calc(100%-4rem)] gba:shrink">
+                            {titleNode}
+                          </div>
                           {tabLeader === 'dot' ? (
                             <span
-                              className="gba:flex-1 gba:border-b gba:border-dotted gba:border-border gba:mb-1.5 gba:min-w-4"
+                              className="gba:mb-1.5 gba:min-h-[0.65rem] gba:min-w-2 gba:flex-1 gba:shrink-0 gba:self-end gba:border-b gba:border-dotted gba:border-border"
                               aria-hidden
                             />
                           ) : (
-                            <span className="gba:flex-1" aria-hidden />
+                            <span className="gba:min-w-8 gba:flex-1 gba:shrink-0" aria-hidden />
                           )}
                           {pageLabel !== '' ? (
-                            <span className="gba:shrink-0 gba:min-w-6 gba:text-right gba:text-sm gba:tabular-nums gba:text-foreground">
+                            <span
+                              className="gba:shrink-0 gba:min-w-8 gba:text-right gba:tabular-nums"
+                              style={entryStyle}
+                            >
                               {pageLabel}
                             </span>
-                          ) : null}
-                        </>
+                          ) : (
+                            <span className="gba:min-w-0" aria-hidden />
+                          )}
+                        </div>
                       ) : (
-                        <>
+                        <div className="gba:flex gba:min-h-7 gba:flex-wrap gba:items-end gba:gap-x-2 gba:gap-y-1">
+                          <div className="gba:min-w-0 gba:flex-1">{titleNode}</div>
                           {tabLeader === 'dot' && pageLabel !== '' ? (
                             <span
-                              className="gba:w-16 gba:border-b gba:border-dotted gba:border-border gba:mb-1.5"
+                              className="gba:mb-1.5 gba:inline-block gba:min-w-16 gba:border-b gba:border-dotted gba:border-border"
                               aria-hidden
                             />
                           ) : null}
                           {pageLabel !== '' ? (
-                            <span className="gba:text-sm gba:tabular-nums gba:text-foreground">{pageLabel}</span>
+                            <span className="gba:tabular-nums" style={entryStyle}>
+                              {pageLabel}
+                            </span>
                           ) : null}
-                        </>
+                        </div>
                       )}
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </NodeViewWrapper>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="gba:w-64" data-testid="document-toc-context-menu">
-        <ContextMenuItem onSelect={updateTableOfContents} data-testid="document-toc-context-update">
-          {t('document-toc-context-update')}
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={openFormatSidebar} data-testid="document-toc-context-format">
-          {t('document-toc-context-format')}
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onSelect={removeTableOfContents} data-testid="document-toc-context-remove">
-          {t('document-toc-context-remove')}
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="gba:w-64" data-testid="document-toc-context-menu">
+          {showPageNumbers ? (
+            <ContextMenuItem onSelect={updatePageNumbersOnly} data-testid="document-toc-context-update-page-numbers">
+              {t('document-toc-context-update-page-numbers')}
+            </ContextMenuItem>
+          ) : null}
+          <ContextMenuItem onSelect={updateTableOfContents} data-testid="document-toc-context-update-entire">
+            {t('document-toc-context-update-entire')}
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={openFormatSidebar} data-testid="document-toc-context-format">
+            {t('document-toc-context-format')}
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={removeTableOfContents} data-testid="document-toc-context-remove">
+            {t('document-toc-context-remove')}
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    </NodeViewWrapper>
   )
 }

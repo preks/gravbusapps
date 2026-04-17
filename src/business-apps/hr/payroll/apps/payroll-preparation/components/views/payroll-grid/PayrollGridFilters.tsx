@@ -25,7 +25,7 @@ export const PayrollGridFilters: React.FC<PayrollGridFiltersProps> = ({ filters,
   }
 
   return (
-    <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
+    <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap" data-testid="payroll-prep-grid-filters">
       <div className="gba:relative gba:flex-1 gba:min-w-[200px] gba:max-w-[320px]">
         <MagnifyingGlassIcon
           size={16}
@@ -36,6 +36,7 @@ export const PayrollGridFilters: React.FC<PayrollGridFiltersProps> = ({ filters,
           onChange={(val: string | number) => updateFilter('search', String(val))}
           placeholder={t('filter-search')}
           className="gba:pl-9"
+          data-testid="payroll-prep-grid-search-input"
         />
       </div>
 
@@ -49,7 +50,7 @@ export const PayrollGridFilters: React.FC<PayrollGridFiltersProps> = ({ filters,
         </span>
         <div className="gba:min-w-[150px]">
           <Select value={filters.readinessStatus} onValueChange={(val: string) => updateFilter('readinessStatus', val)}>
-            <SelectTrigger>
+            <SelectTrigger data-testid="payroll-prep-grid-readiness-select">
               <SelectValue placeholder={t('filter-readiness')} />
             </SelectTrigger>
             <SelectContent>
@@ -70,7 +71,7 @@ export const PayrollGridFilters: React.FC<PayrollGridFiltersProps> = ({ filters,
           </span>
           <div className="gba:min-w-[150px]">
             <Select value={filters.department} onValueChange={(val: string) => updateFilter('department', val)}>
-              <SelectTrigger>
+              <SelectTrigger data-testid="payroll-prep-grid-department-select">
                 <SelectValue placeholder={t('filter-department')} />
               </SelectTrigger>
               <SelectContent>
@@ -92,6 +93,7 @@ export const PayrollGridFilters: React.FC<PayrollGridFiltersProps> = ({ filters,
           checked={filters.changedOnly}
           onChange={e => updateFilter('changedOnly', e.target.checked)}
           className="gba:rounded gba:border-border"
+          data-testid="payroll-prep-grid-changed-only-checkbox"
         />
         {t('filter-changed-only')}
       </label>

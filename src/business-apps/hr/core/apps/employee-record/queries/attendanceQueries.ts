@@ -113,6 +113,7 @@ export const employmentRegionHolidaysQuery = `
       where: {
         catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegionHoliday" } }
         additionalValue2: { _eq:  $regionId }
+        isDeleted: { _eq: false }
       }
       orderBy: { value: ASC }
     ) {

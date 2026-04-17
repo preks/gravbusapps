@@ -51,12 +51,15 @@ import {
   Upload,
   SortAsc,
   SortDesc,
-  X,
-  Wand2
+  X
+  // Wand2 — re-enable when "Generate with AI" menu item is restored
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
+import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
+import { DriveApiService } from '@/business-apps/core/office/apps/drive/services/DriveApiService'
+import { OfficeTrashList } from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
 import { SlidesHero } from './components/SlidesHero'
 import type { SlideSection } from './components/SlidesHero'
 import { useSlides } from './hooks/useSlides'
@@ -69,7 +72,8 @@ import {
   PowerPointUploader,
   TemplateBrowserDialog,
   CastReceiver,
-  GeneratePresentationDialogChat
+  GeneratePresentationDialogChat,
+  TrashedSlideReadonlyDialog
 } from './components'
 import type { SlideData } from './components/slideElements'
 import { useHubPagination } from '../shared/hooks/useHubPagination'
@@ -84,7 +88,7 @@ export interface SlidesAppsHubProps extends BusinessAppContextProps {
 }
 
 type ViewMode = 'grid' | 'list'
-type HubView = 'list' | 'editor'
+type HubView = 'list' | 'editor' | 'trash'
 
 /** Get initials from a name */
 function getInitials(name: string): string {
@@ -148,6 +152,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<ViewMode>('list')
   const [searchQuery, setSearchQuery] = useState('')
+  const [trashSearchQuery, setTrashSearchQuery] = useState('')
   const [activeSection, setActiveSection] = useState<SlideHubSidebarSection>('my-slides')
 
   // Clear space return URL if not opened from a space
@@ -176,6 +181,10 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const [showImportDialog, setShowImportDialog] = useState(false)
   const [showTemplateBrowserDialog, setShowTemplateBrowserDialog] = useState(false)
   const [showGenerateDialogChat, setShowGenerateDialogChat] = useState(false)
+  const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
+  const [isMovingToTrash, setIsMovingToTrash] = useState(false)
+  const [isRestoringTrashedSlide, setIsRestoringTrashedSlide] = useState(false)
+  const [pendingTrashSlides, setPendingTrashSlides] = useState<Array<{ id: string; name: string }>>([])
   const [pendingTemplateSlides, setPendingTemplateSlides] = useState<{
     slides: SlideData[]
     themeId: string
@@ -190,6 +199,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     isLoading,
     error,
     loadSlide,
+    loadTrashedSlide,
     createSlide,
     importSlide,
     deleteSlide,
@@ -231,6 +241,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     currentSlideId: selectedSlideId,
     isLoadingSlide: isLoading,
     loadSlideById: loadSlide,
+    loadTrashedSlideById: loadTrashedSlide,
     setCurrentView,
     setSelectedSlideId,
     activeSection,
@@ -296,6 +307,21 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     [loadSlide, updateUrl]
   )
 
+  const handleOpenTrashedSlide = useCallback(
+    async (id: string) => {
+      const slide = await loadTrashedSlide(id)
+      if (!slide) {
+        return
+      }
+
+      setSelectedSlideId(id)
+      const nextView = slide.trashedAt ? 'trash' : 'editor'
+      setCurrentView(nextView)
+      updateUrl(id, nextView)
+    },
+    [loadTrashedSlide, updateUrl]
+  )
+
   /** Go back to list or return URL */
   const handleBack = useCallback(() => {
     // Check if there's a space return URL in sessionStorage (takes priority)
@@ -330,23 +356,88 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
 
   /** Delete slide */
   const handleDeleteSlide = useCallback(
-    async (id: string) => {
-      if (confirm(t('confirm-delete'))) {
-        const success = await deleteSlide(id)
-        if (success && selectedSlideId === id) {
+    (ids: string | string[], names?: string[]) => {
+      const idList = Array.isArray(ids) ? ids : [ids]
+      const slideNames = new Map(slides.map(slide => [slide.id, slide.title || t('title-untitled-slide')]))
+
+      setPendingTrashSlides(
+        idList.map((id, index) => ({
+          id,
+          name: names?.[index] || slideNames.get(id) || t('title-untitled-slide')
+        }))
+      )
+      setTrashConfirmOpen(true)
+    },
+    [slides, t]
+  )
+
+  const confirmMoveToTrash = useCallback(async () => {
+    if (pendingTrashSlides.length === 0) return
+
+    setIsMovingToTrash(true)
+    try {
+      for (const pendingSlide of pendingTrashSlides) {
+        const success = await deleteSlide(pendingSlide.id)
+        if (success && selectedSlideId === pendingSlide.id) {
           setSelectedSlideId(null)
           setCurrentView('list')
           updateUrl(null)
         }
-        setSelectedSlides(prev => {
-          const next = new Set(prev)
-          next.delete(id)
-          return next
-        })
+      }
+
+      setSelectedSlides(prev => {
+        const next = new Set(prev)
+        pendingTrashSlides.forEach(slide => next.delete(slide.id))
+        return next
+      })
+    } finally {
+      setIsMovingToTrash(false)
+      setPendingTrashSlides([])
+    }
+  }, [deleteSlide, pendingTrashSlides, selectedSlideId, updateUrl])
+
+  const handleTrashConfirmOpenChange = useCallback(
+    (open: boolean) => {
+      setTrashConfirmOpen(open)
+      if (!open && !isMovingToTrash) {
+        setPendingTrashSlides([])
       }
     },
-    [deleteSlide, selectedSlideId, updateUrl, t]
+    [isMovingToTrash]
   )
+
+  const isTrashedSlide = Boolean(currentSlide?.trashedAt)
+  const canRestoreTrashedSlide = Boolean(
+    isTrashedSlide && currentSlide?.permission === 'owner' && !currentSlide?.spaceId
+  )
+
+  const handleRestoreTrashedSlide = useCallback(async () => {
+    if (!currentSlide?.id || !canRestoreTrashedSlide) {
+      return
+    }
+
+    setIsRestoringTrashedSlide(true)
+    try {
+      DriveApiService.setAccessToken(accessToken ?? null)
+      await DriveApiService.restoreItems([{ entityType: 'slide', entityId: currentSlide.id }])
+      const restoredSlide = await loadSlide(currentSlide.id)
+      if (!restoredSlide) {
+        return
+      }
+
+      setSelectedSlideId(currentSlide.id)
+      setActiveSection('my-slides')
+      setCurrentView('editor')
+      updateUrl(currentSlide.id, 'editor', 'my-slides')
+      toast.success(t('toast-restored'))
+      await refreshSlides()
+    } catch (error) {
+      console.error('[SlidesAppsHub] Failed to restore trashed slide:', error)
+      toast.error(t('toast-restore-failed'))
+    } finally {
+      setIsRestoringTrashedSlide(false)
+    }
+  }, [accessToken, canRestoreTrashedSlide, currentSlide?.id, loadSlide, refreshSlides, t, updateUrl])
 
   /** Duplicate slide */
   const handleDuplicateSlide = useCallback(
@@ -495,19 +586,36 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     return <CastReceiver data-testid={`${testId}-cast-receiver`} />
   }
 
-  // Render editor view
-  if (currentView === 'editor' && selectedSlideId && currentSlide) {
+  const shouldRenderEditorView = Boolean(
+    selectedSlideId && currentSlide && (currentView === 'editor' || currentView === 'trash')
+  )
+
+  if (shouldRenderEditorView && selectedSlideId && currentSlide) {
     return (
-      <SlideEditor
-        slideId={selectedSlideId}
-        slide={currentSlide}
-        accessToken={accessToken}
-        userInfo={userInfo}
-        onBack={handleBack}
-        initialTemplate={pendingTemplateSlides ?? undefined}
-        onInitialTemplateApplied={handleInitialTemplateApplied}
-        data-testid={`${testId}-editor`}
-      />
+      <>
+        <SlideEditor
+          slideId={selectedSlideId}
+          slide={currentSlide}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          onBack={handleBack}
+          isReadOnly={isTrashedSlide}
+          isTrashedSlide={isTrashedSlide}
+          initialTemplate={isTrashedSlide ? undefined : (pendingTemplateSlides ?? undefined)}
+          onInitialTemplateApplied={handleInitialTemplateApplied}
+          data-testid={`${testId}-editor`}
+        />
+        {isTrashedSlide ? (
+          <TrashedSlideReadonlyDialog
+            slideTitle={currentSlide.title}
+            canRestore={canRestoreTrashedSlide}
+            isRestoring={isRestoringTrashedSlide}
+            onGoToSlidesHome={handleBack}
+            onRestore={handleRestoreTrashedSlide}
+            data-testid={`${testId}-trashed-slide-dialog`}
+          />
+        ) : null}
+      </>
     )
   }
 
@@ -531,6 +639,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-blank-description')}</div>
           </div>
         </DropdownMenuItem>
+        {/* TODO: Re-enable "Generate with AI" once the feature is stable
         <DropdownMenuItem onClick={() => setShowGenerateDialogChat(true)}>
           <Wand2 className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
           <div>
@@ -540,6 +649,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             </div>
           </div>
         </DropdownMenuItem>
+        */}
         <DropdownMenuItem onClick={() => setShowTemplateBrowserDialog(true)}>
           <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
           <div>
@@ -558,6 +668,75 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
       </DropdownMenuContent>
     </DropdownMenu>
   )
+
+  if (currentView === 'trash' && selectedSlideId) {
+    return (
+      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+        <SlidesHero
+          activeSection={activeSection as SlideSection}
+          onSectionChange={s => setActiveSection(s as SlideHubSidebarSection)}
+          newButton={heroNewButton}
+          t={t}
+          data-testid={`${testId}-hero`}
+        />
+        <main className="gba:flex-1 gba:flex gba:items-center gba:justify-center gba:p-6">
+          <Spinner data-testid={`${testId}-trashed-slide-loading`} />
+        </main>
+      </div>
+    )
+  }
+
+  if (currentView === 'list' && activeSection === 'trash') {
+    return (
+      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+        <SlidesHero
+          activeSection={activeSection as SlideSection}
+          onSectionChange={s => setActiveSection(s as SlideHubSidebarSection)}
+          newButton={heroNewButton}
+          t={t}
+          data-testid={`${testId}-hero`}
+        />
+        <main className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0 gba:overflow-hidden">
+          <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5 gba:pb-4 gba:border-b gba:border-border/50">
+            <div className="gba:relative">
+              <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
+              <Input
+                placeholder={t('slides-header-search-placeholder')}
+                value={trashSearchQuery}
+                onChange={event => setTrashSearchQuery(event.target.value)}
+                className="gba:h-12 gba:pl-11 gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm"
+                data-testid={`${testId}-trash-search`}
+              />
+            </div>
+          </div>
+          <div className="gba:flex-1 gba:overflow-auto gba:p-6">
+            <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+              <OfficeTrashList
+                accessToken={accessToken ?? ''}
+                entityType="slide"
+                emptyTitle={t('slides-empty-trash-title')}
+                emptyDescription={t('slides-empty-trash-description')}
+                layout="list"
+                searchQuery={trashSearchQuery}
+                listControls={{
+                  refreshLabel: t('slh-refresh'),
+                  sortNameLabel: t('sort-name'),
+                  sortTrashedOnLabel: t('sort-trashed'),
+                  trashedOnColumnLabel: t('table-trashed'),
+                  defaultSortBy: 'trashedAt',
+                  defaultSortOrder: 'desc'
+                }}
+                onOpenItem={item => handleOpenTrashedSlide(item.id)}
+                onItemsChanged={() => {
+                  void refreshSlides()
+                }}
+              />
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
@@ -579,7 +758,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
               <div className="gba:relative">
                 <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
                 <Input
-                  placeholder={t('header-search-placeholder')}
+                  placeholder={t('slides-header-search-placeholder')}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   className="gba:pl-12 gba:pr-4 gba:h-12 gba:text-base gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm hover:gba:shadow-md hover:gba:bg-muted/70 hover:gba:border-border gba:transition-all gba:duration-200"
@@ -601,7 +780,11 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                       size="sm"
                       className="gba:text-destructive"
                       onClick={() => {
-                        selectedSlides.forEach(id => handleDeleteSlide(id))
+                        const selectedIds = Array.from(selectedSlides)
+                        const selectedNames = selectedIds.map(
+                          id => slides.find(slide => slide.id === id)?.title || t('title-untitled-slide')
+                        )
+                        handleDeleteSlide(selectedIds, selectedNames)
                       }}
                     >
                       <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
@@ -698,21 +881,21 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                 </div>
                 <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
                   {activeSection === 'favorites'
-                    ? t('empty-favorites-title')
+                    ? t('slides-empty-favorites-title')
                     : activeSection === 'shared'
-                      ? t('empty-shared-title')
+                      ? t('slides-empty-shared-title')
                       : activeSection === 'archived'
                         ? t('empty-archived-title')
-                        : t('empty-default-title')}
+                        : t('slides-empty-default-title')}
                 </h3>
                 <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
                   {activeSection === 'favorites'
-                    ? t('empty-favorites-description')
+                    ? t('slides-empty-favorites-description')
                     : activeSection === 'shared'
-                      ? t('empty-shared-description')
+                      ? t('slides-empty-shared-description')
                       : activeSection === 'archived'
                         ? t('empty-archived-description')
-                        : t('empty-default-description')}
+                        : t('slides-empty-default-description')}
                 </p>
                 {activeSection !== 'favorites' && activeSection !== 'shared' && activeSection !== 'archived' && (
                   <Button onClick={handleCreateNew}>
@@ -932,7 +1115,9 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                               {isOwner && (
                                 <DropdownMenuItem
                                   className="gba:text-destructive"
-                                  onClick={() => handleDeleteSlide(slide.id)}
+                                  onClick={() =>
+                                    handleDeleteSlide(slide.id, [slide.title || t('title-untitled-slide')])
+                                  }
                                 >
                                   <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
                                   {t('menu-delete')}
@@ -1110,6 +1295,18 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         onOpenChange={setShowGenerateDialogChat}
         accessToken={accessToken || ''}
         data-testid={`${testId}-generate-dialog-chat`}
+      />
+
+      <DeleteConfirmDialog
+        open={trashConfirmOpen}
+        onOpenChange={handleTrashConfirmOpenChange}
+        itemNames={pendingTrashSlides.map(slide => slide.name)}
+        onConfirm={() => {
+          void confirmMoveToTrash()
+        }}
+        isDeleting={isMovingToTrash}
+        t={t}
+        data-testid={`${testId}-trash-confirm`}
       />
     </div>
   )

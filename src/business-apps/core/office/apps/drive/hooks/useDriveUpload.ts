@@ -6,6 +6,7 @@ interface UseDriveUploadOptions {
   accessToken: string | undefined
   currentFolderId: string | null
   onComplete: () => void
+  spaceId?: string
 }
 
 export interface UploadProgress {
@@ -14,7 +15,7 @@ export interface UploadProgress {
   currentFileName: string
 }
 
-export function useDriveUpload({ accessToken, currentFolderId, onComplete }: UseDriveUploadOptions) {
+export function useDriveUpload({ accessToken, currentFolderId, onComplete, spaceId }: UseDriveUploadOptions) {
   const [isUploading, setIsUploading] = useState(false)
   const [progress, setProgress] = useState<UploadProgress | null>(null)
 
@@ -28,7 +29,7 @@ export function useDriveUpload({ accessToken, currentFolderId, onComplete }: Use
       try {
         for (let i = 0; i < files.length; i++) {
           setProgress({ current: i, total: files.length, currentFileName: files[i].name })
-          await DriveApiService.uploadFile(files[i], currentFolderId ?? undefined)
+          await DriveApiService.uploadFile(files[i], currentFolderId ?? undefined, spaceId)
         }
       } finally {
         setIsUploading(false)
@@ -36,7 +37,7 @@ export function useDriveUpload({ accessToken, currentFolderId, onComplete }: Use
         onComplete()
       }
     },
-    [accessToken, currentFolderId, onComplete]
+    [accessToken, currentFolderId, onComplete, spaceId]
   )
 
   const uploadDroppedEntries = useCallback(
@@ -66,7 +67,7 @@ export function useDriveUpload({ accessToken, currentFolderId, onComplete }: Use
           const name = parts[parts.length - 1]
           const parentPath = parts.slice(0, -1).join('/')
           const parentId = parentPath ? pathToId.get(parentPath) : (currentFolderId ?? undefined)
-          const folder = await DriveApiService.createFolder(name, parentId)
+          const folder = await DriveApiService.createFolder(name, parentId, spaceId)
           pathToId.set(dir, folder.id)
         }
 
@@ -76,7 +77,7 @@ export function useDriveUpload({ accessToken, currentFolderId, onComplete }: Use
           const lastSlash = entry.relativePath.lastIndexOf('/')
           const dir = lastSlash > 0 ? entry.relativePath.substring(0, lastSlash) : ''
           const folderId = dir ? pathToId.get(dir) : (currentFolderId ?? undefined)
-          await DriveApiService.uploadFile(entry.file, folderId)
+          await DriveApiService.uploadFile(entry.file, folderId, spaceId)
         }
       } finally {
         setIsUploading(false)
@@ -84,7 +85,7 @@ export function useDriveUpload({ accessToken, currentFolderId, onComplete }: Use
         onComplete()
       }
     },
-    [accessToken, currentFolderId, onComplete]
+    [accessToken, currentFolderId, onComplete, spaceId]
   )
 
   return { isUploading, progress, uploadFiles, uploadDroppedEntries }

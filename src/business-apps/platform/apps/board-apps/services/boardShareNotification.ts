@@ -1,5 +1,7 @@
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import type { BoardPermission } from '../types'
+
+type TranslateFn = (key: string, args?: Record<string, unknown>) => string
 
 const createAssignmentTargets = (userIds: string[]) => ({
   users: userIds,
@@ -13,6 +15,7 @@ const createAssignmentTargets = (userIds: string[]) => ({
 
 export async function sendBoardShareNotification(
   accessToken: string,
+  t: TranslateFn,
   payload: {
     boardId: string
     boardTitle: string
@@ -23,7 +26,7 @@ export async function sendBoardShareNotification(
   }
 ): Promise<void> {
   try {
-    const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+    const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
     const timestamp = Date.now()
     const blinkGroupId = `board_share_${timestamp}_${payload.initiatorId}`
 
@@ -31,21 +34,37 @@ export async function sendBoardShareNotification(
 
     for (const recipient of payload.recipients) {
       const permissionLabel =
-        recipient.permission === 'edit' ? 'edit' : recipient.permission === 'comment' ? 'view and comment on' : 'view'
+        recipient.permission === 'edit'
+          ? t('notification-permission-edit')
+          : recipient.permission === 'comment'
+            ? t('notification-permission-comment')
+            : t('notification-permission-view')
 
-      const baseMessage = `${payload.initiatorName || 'Someone'} shared the board "${payload.boardTitle}" with you. You can ${permissionLabel} this board.`
-      const taskMessage = payload.message ? `${baseMessage}\n\nMessage: ${payload.message}` : baseMessage
+      const initiatorName = payload.initiatorName || t('notification-someone')
+      const baseMessage = t('notification-board-shared-body', {
+        initiatorName,
+        boardTitle: payload.boardTitle,
+        permissionLabel
+      })
+      const taskMessage = payload.message
+        ? t('notification-board-shared-body-with-message', {
+            initiatorName,
+            boardTitle: payload.boardTitle,
+            permissionLabel,
+            message: payload.message
+          })
+        : baseMessage
 
       const requestPayload = {
         templateDefinition: {
           type: 'TEMPLATE',
-          name: `Board Shared: ${payload.boardTitle}`,
-          description: 'Board sharing notification',
+          name: t('notification-board-shared-name', { boardTitle: payload.boardTitle }),
+          description: t('notification-board-shared-description'),
           version: 1,
           steps: [
             {
               type: 'TASK',
-              title: `Board Shared: ${payload.boardTitle}`,
+              title: t('notification-board-shared-name', { boardTitle: payload.boardTitle }),
               message: taskMessage,
               form: [],
               links: [
@@ -83,7 +102,7 @@ export async function sendBoardShareNotification(
         }
       }
 
-      const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
+      const response = await fetch(`${baseUrl}/templates/execute-dynamic`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(requestPayload)

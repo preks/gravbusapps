@@ -43,6 +43,7 @@ export const RealEstateOverviewContent: React.FC<OverviewContentProps> = ({
           accessToken={props.accessToken}
           userInfo={props.userInfo}
           investmentData={investment}
+          useDirectApi={true}
         />
       </div>
 

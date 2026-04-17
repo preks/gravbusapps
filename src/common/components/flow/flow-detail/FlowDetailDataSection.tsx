@@ -2,15 +2,21 @@ import React, { useEffect, useState } from 'react'
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { ChevronDown, ChevronRight, Database } from 'lucide-react'
 import { DataTab } from './tabs'
-import type { FlowDetailData, FlowStep } from './types'
+import type { FlowDetailData, FlowStep, StepAssignmentInfo } from './types'
 
 interface FlowDetailDataSectionProps {
   flowData: FlowDetailData
   flowSteps: FlowStep[]
+  stepAssignmentsByStepIndex: Record<number, StepAssignmentInfo>
   accessToken?: string
 }
 
-export const FlowDetailDataSection: React.FC<FlowDetailDataSectionProps> = ({ flowData, flowSteps, accessToken }) => {
+export const FlowDetailDataSection: React.FC<FlowDetailDataSectionProps> = ({
+  flowData,
+  flowSteps,
+  stepAssignmentsByStepIndex,
+  accessToken
+}) => {
   const [isOpen, setIsOpen] = useState(false)
   const [hasOpened, setHasOpened] = useState(false)
 
@@ -44,7 +50,12 @@ export const FlowDetailDataSection: React.FC<FlowDetailDataSectionProps> = ({ fl
 
       {hasOpened ? (
         <CardContent className={isOpen ? 'gba:pt-0' : 'gba:hidden'}>
-          <DataTab flowData={flowData} flowSteps={flowSteps} accessToken={accessToken} />
+          <DataTab
+            flowData={flowData}
+            flowSteps={flowSteps}
+            stepAssignmentsByStepIndex={stepAssignmentsByStepIndex}
+            accessToken={accessToken}
+          />
         </CardContent>
       ) : null}
     </Card>

@@ -53,6 +53,13 @@ export interface NoteSectionProps extends BusinessAppContextProps {
   noteActionProps?: Omit<AppActionCommonProps, 'accessToken'>
   noteEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
   'data-testid'?: string
+  /** Tab/section title in SectionWrapper (default: Notes). */
+  sectionTitle?: string
+  /** Empty state copy; defaults to translated notes-empty-* keys. */
+  emptyStateTitle?: string
+  emptyStateDescription?: string
+  /** Overrides collapsed quick-add button label (default: Quick Add Note). */
+  quickAddTriggerLabel?: string
   /** Optional payload builder; when set, quick-note submit passes built payload to executeAction instead of raw form shape. */
   buildNotePayload?: (note: Record<string, any>) => Record<string, any>
   accountId?: string
@@ -77,7 +84,10 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
     contactId,
     opportunityId,
     leadId,
-    investmentId
+    investmentId,
+    emptyStateTitle,
+    emptyStateDescription,
+    quickAddTriggerLabel
   } = props
   const [showQuickAdd, setShowQuickAdd] = useState(false)
 
@@ -181,6 +191,7 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
               <NoteInput
                 form={form}
                 schema={quickNoteSchema}
+                quickAddTriggerLabel={quickAddTriggerLabel}
                 onSubmit={async (data: any) => {
                   const flat = {
                     title: data.details.title,
@@ -215,8 +226,8 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
       {notes.length === 0 ? (
         <EmptyState
           type="no-data"
-          title="No Notes"
-          description="No notes yet. Create your first note."
+          title={emptyStateTitle ?? t('notes-empty-title')}
+          description={emptyStateDescription ?? t('notes-empty-description')}
           data-testid="note-section-empty-state"
         />
       ) : (
@@ -305,7 +316,7 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
 }
 
 // Static properties for SectionWrapper
-;(NoteSection as any).sectionTitle = 'Notes'
+;(NoteSection as any).sectionTitle = (noteSectionProps: NoteSectionProps) => noteSectionProps.sectionTitle ?? 'Notes'
 ;(NoteSection as any).getActionButtonConfig = (_pageData: any, _pageIndex: number, props: NoteSectionProps) => {
   const { accessToken, noteActionProps } = props
 

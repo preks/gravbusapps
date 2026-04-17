@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { LeadLayout, type LeadViewConfig } from '@/common/components/common-relations/view-layouts/lead-layout'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { type InvestmentLead, INVESTMENT_LEAD_DESCRIPTORS } from '@/common/data/investment/types/investmentLeadTypes'
 import {
   commonLeadColumns,
@@ -61,6 +62,9 @@ const copyLeadFilters = (
 export type LeadViewProps = BusinessAppContextProps
 
 export const LeadView: React.FC<LeadViewProps> = context => {
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('irm:investment-lead-preferences:v1')
+
   // Data Hooks
   const { fetchInvestmentLeads } = useInvestmentLeads(context)
   const leadStatistics = useInvestmentLeadStatistics(context)
@@ -79,10 +83,11 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         lead: 'Lead',
         firstName: 'First Name',
         lastName: 'Last Name',
-        status: 'Status',
-        rating: 'Rating',
-        source: 'Source',
-        industry: 'Industry',
+        address: 'Location',
+        leadStatus: 'Status',
+        leadRating: 'Rating',
+        leadSource: 'Source',
+        industryClass: 'Industry',
         ownerEmployee: 'Owner',
         createdAt: 'Created Date',
         updatedAt: 'Updated Date'
@@ -155,6 +160,12 @@ export const LeadView: React.FC<LeadViewProps> = context => {
       dataTestId="investment-lead-view"
       enableExport
       exportFilenamePrefix="leads"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
     />
   )
 }

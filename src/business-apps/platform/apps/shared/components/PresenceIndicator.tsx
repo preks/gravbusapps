@@ -47,12 +47,20 @@ function getInitials(name: string): string {
  * ```
  */
 export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
-  participants,
+  participants: rawParticipants,
   maxVisible = 3,
   size = 'md',
   showLabel = false,
   className = ''
 }) => {
+  const participants = React.useMemo(() => {
+    const seen = new Map<string, (typeof rawParticipants)[number]>()
+    for (const p of rawParticipants) {
+      if (p.userId && !seen.has(p.userId)) seen.set(p.userId, p)
+    }
+    return [...seen.values()]
+  }, [rawParticipants])
+
   const visibleParticipants = participants.slice(0, maxVisible)
   const remainingCount = Math.max(0, participants.length - maxVisible)
 
@@ -83,7 +91,7 @@ export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
 
       <div className="gba:flex gba:items-center gba:-space-x-2">
         {visibleParticipants.map(participant => (
-          <TooltipProvider key={participant.socketId}>
+          <TooltipProvider key={participant.userId}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="gba:inline-block">
@@ -133,7 +141,7 @@ export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
               <TooltipContent>
                 <div className="gba:flex gba:flex-col gba:gap-1">
                   {participants.slice(maxVisible).map(p => (
-                    <span key={p.socketId} className="gba:text-sm">
+                    <span key={p.userId} className="gba:text-sm">
                       {p.userName}
                     </span>
                   ))}
@@ -150,9 +158,12 @@ export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
 /**
  * Get relative time string (e.g., "just now", "2 minutes ago")
  */
-function getRelativeTime(date: Date): string {
+function getRelativeTime(date: Date | string | number | undefined): string {
+  if (!date) return 'just now'
+  const resolved = date instanceof Date ? date : new Date(date)
+  if (Number.isNaN(resolved.getTime())) return 'just now'
   const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
+  const diffMs = now.getTime() - resolved.getTime()
   const diffMinutes = Math.floor(diffMs / 60000)
 
   if (diffMinutes < 1) return 'just now'
@@ -163,7 +174,7 @@ function getRelativeTime(date: Date): string {
   if (diffHours === 1) return '1 hour ago'
   if (diffHours < 24) return `${diffHours} hours ago`
 
-  return date.toLocaleDateString()
+  return resolved.toLocaleDateString()
 }
 
 export default PresenceIndicator

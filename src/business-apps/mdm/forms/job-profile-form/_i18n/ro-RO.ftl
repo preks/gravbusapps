@@ -11,6 +11,7 @@ remove-button = Elimină
 
 # Job Description
 job-description-label = Descrierea postului (Opțional)
+job-description-loading-message = Se încarcă documentul...
 
 # Validation Errors
 validation-error-required = Competența trebuie să conțină cel puțin o literă

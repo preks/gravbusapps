@@ -4,12 +4,14 @@ import React from 'react'
 import dayjs from 'dayjs'
 import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
-import { formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
+import { getTranslatedValue } from '../../utils/formatters'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
 import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
+import CommunicationCard from './components/CommunicationCard'
+import RelationshipsCard from './components/RelationshipsCard'
 
 interface DetailsTabProps {
   employee: Employee
@@ -138,72 +140,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
   }
 
   const bankAccountData = getBankAccountData()
-
-  // Prepare private communication data
-  const getPrivateCommunication = () => {
-    // Safely extract private communication; it may be empty
-    const communications = employee.communication || []
-    const privateComms = communications.filter(comm => comm?.purpose === 'PRIVATE')
-
-    // Helper: pick latest by channel code and type (Primary/Secondary)
-    const lastByCodeAndType = (code: string, typeLabel: 'Primary' | 'Secondary') => {
-      for (let i = privateComms.length - 1; i >= 0; i--) {
-        const comm = privateComms[i]
-        if (comm?.channel?.code === code && comm?.type?.value === typeLabel) {
-          return comm
-        }
-      }
-      return undefined
-    }
-
-    const primaryPhone = lastByCodeAndType('Phone', 'Primary')
-    const secondaryPhone = lastByCodeAndType('Phone', 'Secondary')
-    const primaryMobile = lastByCodeAndType('Mobile', 'Primary')
-    const secondaryMobile = lastByCodeAndType('Mobile', 'Secondary')
-    const primaryEmail = lastByCodeAndType('e-mail', 'Primary')
-    const secondaryEmail = lastByCodeAndType('e-mail', 'Secondary')
-
-    const formatOrEmpty = (val?: string) => (val && val.trim() !== '' ? val : '')
-
-    return [
-      {
-        label: t('details-label-private-phone'),
-        value: primaryPhone?.value ? formatPhoneNumberWithCountryCode(primaryPhone.value) : '',
-        secondary: secondaryPhone?.value ? formatPhoneNumberWithCountryCode(secondaryPhone.value) : undefined
-      },
-      {
-        label: t('details-label-private-mobile'),
-        value: primaryMobile?.value ? formatPhoneNumberWithCountryCode(primaryMobile.value) : '',
-        secondary: secondaryMobile?.value ? formatPhoneNumberWithCountryCode(secondaryMobile.value) : undefined
-      },
-      {
-        label: t('details-label-private-email'),
-        value: formatOrEmpty(primaryEmail?.value),
-        secondary: formatOrEmpty(secondaryEmail?.value) || undefined
-      }
-    ]
-  }
-
-  const privateCommunicationData = getPrivateCommunication()
-
-  // Prepare emergency contact data
-
-  const getEmergencyContact = () => {
-    const emergencyContacts = employee.relationship?.filter(rel => rel.isEmergencyContact) || []
-
-    return emergencyContacts.map(contact => [
-      {
-        label: t('details-label-contact-name'),
-        value: `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || ''
-      },
-      {
-        label: t('details-label-phone-number'),
-        value: contact?.phoneNumber ? formatPhoneNumberWithCountryCode(contact.phoneNumber) : ''
-      }
-    ])
-  }
-
-  const emergencyContactData = getEmergencyContact()
 
   // Payroll data has been moved to EmploymentTab
 
@@ -336,61 +272,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           </CardContent>
         </Card>
 
-        {/* Private Communication Card - Always visible but values may be masked */}
-        <Card data-testid="details-section-communication">
-          <CardContent className="gba:p-4">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-lg gba:font-semibold">{t('details-private-communication')}</h3>
-              <AppAction
-                variant="update-secondary"
-                data-testid="private-communication-action-button"
-                contexts={[
-                  { context: FlowContextName.updateEmployeeCommunication, contextData: { employeeId: employee?.id } }
-                ]}
-                prefixDataTestId="private-communication-action"
-                accessToken={accessToken}
-                autoExecute={true}
-              />
-            </div>
-            {renderDataItems(
-              privateCommunicationData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.contactInfoPrivate }))
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Emergency Contact Card - Always visible but values may be masked */}
-        <Card data-testid="details-section-emergency">
-          <CardContent className="gba:p-4">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-lg gba:font-semibold">{t('details-emergency-contact')}</h3>
-              <AppAction
-                variant="update-secondary"
-                data-testid="emergency-contact-action-button"
-                contexts={[
-                  { context: FlowContextName.updateEmployeeRelationship, contextData: { employeeId: employee?.id } }
-                ]}
-                prefixDataTestId="emergency-contact-action"
-                accessToken={accessToken}
-                autoExecute={true}
-              />
-            </div>
-            <div className="gba:flex gba:flex-col gba:gap-2">
-              {emergencyContactData && emergencyContactData.length > 0 ? (
-                emergencyContactData.map(items => (
-                  <div key={`emergency-contact-${items.map(item => `${item.label}-${item.value}`).join('|')}`}>
-                    {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
-                  </div>
-                ))
-              ) : (
-                <div className="gba:text-muted-foreground gba:text-sm gba:py-4">
-                  {t('details-no-emergency-contact')}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Additional Attributes - moved from Summary tab */}
+        {/* Additional Attributes */}
         {(() => {
           const props = employee?.additionalProperties || {}
           const items = Object.entries(props)
@@ -424,6 +306,20 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
             </Card>
           )
         })()}
+
+        <CommunicationCard
+          employee={employee}
+          accessToken={accessToken}
+          isSelfView={isSelfView}
+          employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+        />
+
+        <RelationshipsCard
+          employee={employee}
+          accessToken={accessToken}
+          isSelfView={isSelfView}
+          employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+        />
 
         {/* Payroll Data Card has been moved to EmploymentTab */}
       </div>

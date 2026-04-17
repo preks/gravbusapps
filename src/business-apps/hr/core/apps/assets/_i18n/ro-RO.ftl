@@ -21,6 +21,7 @@ update_asset = Actualizează activ
 allocate_asset = Alocă activ
 retrieve_asset = Reia activul
 retire_asset = Retrage activul
+delete_asset = Șterge activul
 
 # Asset report PDF
 assets_report = Raport active
@@ -52,3 +53,18 @@ return_condition = Stare la returnare
 expected_return = Returnare așteptată
 period = Perioadă
 asset = Activ
+cancel-button = Anulează
+asset-management-empty = Nu au fost înregistrate încă active.
+asset-filter-sheet-title = Filtrează activele
+asset-filter-sheet-description = Restrânge lista activelor după status, categorie, locație, angajat și intervale de date.
+asset-employee-filter-search-placeholder = Caută angajați
+asset-employee-filter-empty = Nu au fost găsiți angajați
+asset-employee-filter-loading = Se încarcă angajații...
+delete-asset-title = Șterge activul
+delete-asset-description = Șterge acest activ. Va fi eliminat din listă.
+delete-asset-notes-label = Note
+delete-asset-notes-placeholder = Adaugă un motiv scurt pentru ștergerea acestui activ.
+delete-asset-note-required = Adaugă o notă pentru a continua.
+delete-asset-note-change-required = Actualizează nota existentă pentru a continua.
+delete-asset-confirm-button = Șterge activul
+deleting-asset-button = Se șterge...

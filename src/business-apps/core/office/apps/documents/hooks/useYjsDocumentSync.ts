@@ -6,7 +6,6 @@
  * Used by PagedDocumentEditor when editing an existing document with collaboration.
  */
 
-import DOMPurify from 'dompurify'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Socket } from 'socket.io-client'
 import * as Y from 'yjs'
@@ -188,7 +187,9 @@ export interface UseYjsDocumentSyncParams {
   suppressSnapshotSaveRef?: React.MutableRefObject<boolean>
   debugTablesEnabled?: boolean
   isReadOnly: boolean
+  isTrashedDocument?: boolean
   title: string
+  onBootstrapEditorRebind?: () => void
   getFormattingForSave?: () => DocumentFormatting | undefined
   setLastSaved: (date: Date | null) => void
   setHasUnsavedChanges: (value: boolean) => void
@@ -196,6 +197,7 @@ export interface UseYjsDocumentSyncParams {
 
 export interface UseYjsDocumentSyncResult {
   isYjsSynced: boolean
+  onCollaborationFirstRender: () => void
   scheduleSnapshotSaveRef: React.MutableRefObject<(editor: { getHTML?: () => string }) => void>
 }
 
@@ -209,7 +211,9 @@ export function useYjsDocumentSync({
   suppressSnapshotSaveRef,
   debugTablesEnabled = false,
   isReadOnly,
+  isTrashedDocument = false,
   title,
+  onBootstrapEditorRebind,
   getFormattingForSave,
   setLastSaved,
   setHasUnsavedChanges
@@ -222,6 +226,8 @@ export function useYjsDocumentSync({
   const readyStateInspectionCompletedRef = useRef(false)
   const recoveryAttemptedRef = useRef(false)
   const paginationRuntimeRecoveryAttemptedRef = useRef(false)
+  const collaborationFirstRenderCompletedRef = useRef(false)
+  const bootstrapEditorRebindRequestedRef = useRef(false)
   const pendingNormalizationRecoveryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const scheduleSnapshotSave = useCallback(
@@ -271,12 +277,18 @@ export function useYjsDocumentSync({
     scheduleSnapshotSaveRef.current = scheduleSnapshotSave
   }, [scheduleSnapshotSave])
 
+  const handleCollaborationFirstRender = useCallback(() => {
+    if (collaborationFirstRenderCompletedRef.current) return
+    collaborationFirstRenderCompletedRef.current = true
+  }, [])
+
   const getEditorReadyPromise = useCallback((): Promise<void> => {
     return new Promise(resolve => {
       const deadline = Date.now() + 5000
       const check = () => {
         const ed = editorRef.current as { view?: unknown } | null
-        if (ed?.view) {
+        const collaborationBindingReady = !documentId || collaborationFirstRenderCompletedRef.current
+        if (ed?.view && collaborationBindingReady) {
           resolve()
           return
         }
@@ -288,7 +300,7 @@ export function useYjsDocumentSync({
       }
       check()
     })
-  }, [editorRef])
+  }, [documentId, editorRef])
 
   const applyNormalizedContentToEditor = useCallback(
     async (html: string) => {
@@ -303,12 +315,7 @@ export function useYjsDocumentSync({
         throw new Error('Editor not ready for content apply')
       }
 
-      const normalizedHtml =
-        DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(html || '<p></p>'), {
-          USE_PROFILES: { html: true },
-          FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-          ALLOW_DATA_ATTR: true
-        }) || '<p></p>'
+      const normalizedHtml = sanitizeDocumentHtmlForEditor(html || '<p></p>')
 
       if (debugTablesEnabled) {
         logDocumentTableDebug(debugTablesEnabled, documentId, 'apply-normalized-content:before-set', {
@@ -318,6 +325,10 @@ export function useYjsDocumentSync({
           normalizedTableSummary: collectTableDebugSummaryFromHtml(normalizedHtml)
         })
       }
+
+      const collaborativeFragment = ydoc.getXmlFragment('default')
+      const shouldRebindEditorAfterApply =
+        collaborativeFragment.length === 0 && bootstrapEditorRebindRequestedRef.current === false
 
       try {
         if (suppressSnapshotSaveRef) {
@@ -335,6 +346,10 @@ export function useYjsDocumentSync({
             postApplyTableSummary: collectTableDebugSummaryFromHtml(postApplyHtml)
           })
         }
+        if (shouldRebindEditorAfterApply) {
+          bootstrapEditorRebindRequestedRef.current = true
+          onBootstrapEditorRebind?.()
+        }
       } finally {
         setTimeout(() => {
           if (suppressSnapshotSaveRef) {
@@ -343,7 +358,7 @@ export function useYjsDocumentSync({
         }, 1500)
       }
     },
-    [debugTablesEnabled, documentId, editorRef, suppressSnapshotSaveRef, ydoc]
+    [debugTablesEnabled, documentId, editorRef, onBootstrapEditorRebind, suppressSnapshotSaveRef, ydoc]
   )
 
   const getCurrentEditorHtmlSnapshot = useCallback(async (): Promise<string> => {
@@ -426,11 +441,13 @@ export function useYjsDocumentSync({
 
   // Drive Yjs sync over Socket.IO: create provider, start, cleanup
   useEffect(() => {
-    if (!documentId || !collaborationSocket) return
+    if (!documentId || !collaborationSocket || isTrashedDocument || isReadOnly) return
 
     readyStateInspectionCompletedRef.current = false
     recoveryAttemptedRef.current = false
     paginationRuntimeRecoveryAttemptedRef.current = false
+    collaborationFirstRenderCompletedRef.current = false
+    bootstrapEditorRebindRequestedRef.current = false
     if (pendingNormalizationRecoveryRef.current) {
       clearTimeout(pendingNormalizationRecoveryRef.current)
       pendingNormalizationRecoveryRef.current = null
@@ -475,7 +492,9 @@ export function useYjsDocumentSync({
     suppressSnapshotSaveRef,
     getEditorReadyPromise,
     applyNormalizedContentToEditor,
-    handleReadyStateApplied
+    handleReadyStateApplied,
+    isTrashedDocument,
+    isReadOnly
   ])
 
   // Cleanup snapshot timeout on unmount
@@ -490,5 +509,5 @@ export function useYjsDocumentSync({
     }
   }, [])
 
-  return { isYjsSynced, scheduleSnapshotSaveRef }
+  return { isYjsSynced, onCollaborationFirstRender: handleCollaborationFirstRender, scheduleSnapshotSaveRef }
 }

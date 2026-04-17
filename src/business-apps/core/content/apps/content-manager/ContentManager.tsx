@@ -1,14 +1,19 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { DataDisplay, DataTable, Button, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
+import { DataDisplay, DataTable, Button } from '@newwork/nw-design-system'
 import { useContentData } from './hooks/useContentData'
 import { createContentColumns, createContentSortableColumns } from './config/contentColumns'
 import { contentFilterConfigAll, contentFilterConfigSpecific } from './config/contentFilters'
+import { ContentDetailSheet } from './components/ContentDetailSheet'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { PlusIcon } from '@phosphor-icons/react'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { useContentFilterGroups } from '@/common/data/content/hooks/useContentFilterGroups'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
+import { CONTENT_ENTRY_DESCRIPTORS } from '@/common/data/content/types/contentEntryTypes'
+import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/utils/filterHelpers'
 
 type ContentManagerProps = BusinessAppContextProps
 
@@ -65,10 +70,29 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
     setSelectedContent(entry)
   }, [])
 
-  // Get filter configuration based on current section
-  const getFilterConfig = () => {
-    return currentSection === 'all' ? contentFilterConfigAll : contentFilterConfigSpecific
-  }
+  const activeContentGroup = useMemo(() => {
+    const groupMap: Record<'news' | 'knowledge' | 'policy' | 'document' | 'question', ContentGroup> = {
+      news: ContentGroup.NEWS,
+      knowledge: ContentGroup.KNOWLEDGE,
+      policy: ContentGroup.POLICY,
+      document: ContentGroup.DOCUMENT,
+      question: ContentGroup.QUESTION
+    }
+
+    return currentSection === 'all' ? undefined : groupMap[currentSection]
+  }, [currentSection])
+
+  const contentFilterGroups = useContentFilterGroups(context, activeContentGroup)
+
+  const currentFilterConfig = useMemo(() => {
+    const baseConfig = currentSection === 'all' ? contentFilterConfigAll : contentFilterConfigSpecific
+
+    if (contentFilterGroups.isLoading || Object.keys(contentFilterGroups.filterData || {}).length === 0) {
+      return baseConfig
+    }
+
+    return buildDynamicFilterConfig(baseConfig, CONTENT_ENTRY_DESCRIPTORS, contentFilterGroups)
+  }, [currentSection, contentFilterGroups])
 
   return (
     <div className="gba:p-6" data-testid="content-management">
@@ -166,7 +190,7 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
         onSearchChange={current.setSearch}
         // Filters
         filters={current.filters}
-        filterConfiguration={getFilterConfig()}
+        filterConfiguration={currentFilterConfig}
         onFilterChange={current.setFilters}
         enableLiveFiltering={true}
         filterSheetTitle="Filter Content"
@@ -226,59 +250,15 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
         />
       </DataDisplay>
 
-      {/* Content Details Sheet */}
-      <Sheet
+      <ContentDetailSheet
+        accessToken={accessToken}
         open={!!selectedContent}
+        selectedContent={selectedContent}
+        userId={context.userInfo?.id}
         onOpenChange={open => {
           if (!open) setSelectedContent(null)
         }}
-        title="Content Details"
-      >
-        <SheetContent className="gba:!w-[600px] gba:sm:!w-[600px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
-          <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
-              {selectedContent?.title || 'Content Details'}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:flex-1 gba:overflow-auto gba:px-6 gba:py-4">
-            {selectedContent ? (
-              <div className="gba:space-y-4">
-                <div>
-                  <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Preview</h3>
-                  <p className="gba:mt-1">{selectedContent.preview || 'No preview'}</p>
-                </div>
-                <div>
-                  <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Author</h3>
-                  <p className="gba:mt-1">
-                    {selectedContent.creatorEmployee?.displayName ||
-                      selectedContent.creatorEmployee?.firstName ||
-                      'Unknown'}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Created</h3>
-                  <p className="gba:mt-1">{new Date(selectedContent.createdAt).toLocaleString()}</p>
-                </div>
-                {selectedContent.contentEntryReactionCounts &&
-                  selectedContent.contentEntryReactionCounts.length > 0 && (
-                    <div>
-                      <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Engagement</h3>
-                      <p className="gba:mt-1">
-                        {selectedContent.contentEntryReactionCounts.reduce(
-                          (sum: number, item) => sum + (item.count || 0),
-                          0
-                        )}{' '}
-                        reactions, {selectedContent.descendantContentEntriesAggregate?.aggregate?.count || 0} comments
-                      </p>
-                    </div>
-                  )}
-              </div>
-            ) : (
-              <div className="gba:text-center gba:text-muted-foreground">No content selected</div>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+      />
     </div>
   )
 }

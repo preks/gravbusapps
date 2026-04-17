@@ -18,8 +18,8 @@ import {
   Button
 } from '@newwork/nw-design-system'
 import { Network, ExternalLink, UserPlus, Plus } from 'lucide-react'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { useAgentMeshClient } from '@/business-apps/platform/apps/agent-mesh/hooks/useAgentMeshClient'
 import { useMeshPreviewData } from './hooks/useMeshPreviewData'
 import { MeshPreviewCanvas } from './components/MeshPreviewCanvas'
 import { AddAgentToMeshModal } from './components/AddAgentToMeshModal'
@@ -57,7 +57,7 @@ export const AgentMeshPreview: React.FC<AgentMeshPreviewProps> = ({
     error,
     loadData
   } = useMeshPreviewData(accessToken, combinedAgentIds)
-  const api = useAgentMeshClient(accessToken)
+  const promptManagerClient = usePromptManagerClient(accessToken)
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const saveLayoutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const nodesRef = useRef(nodes)
@@ -94,11 +94,11 @@ export const AgentMeshPreview: React.FC<AgentMeshPreviewProps> = ({
             x: n.position.x,
             y: n.position.y
           }))
-          api.saveMeshLayout(positions).catch(() => {})
+          promptManagerClient.saveMeshLayout(positions).catch(() => {})
         }
       }, SAVE_LAYOUT_DEBOUNCE_MS)
     },
-    [onNodesChange, api]
+    [onNodesChange, promptManagerClient]
   )
 
   const handleConnect = useCallback(
@@ -110,7 +110,7 @@ export const AgentMeshPreview: React.FC<AgentMeshPreviewProps> = ({
       const targetAgent = agents.find(a => a.id === params.target)
       if (!sourceAgent || !targetAgent) return
       try {
-        await api.createConnection({
+        await promptManagerClient.createMeshConnection({
           caller_id: sourceAgent.id,
           caller_name: sourceAgent.name,
           callee_id: targetAgent.id,
@@ -121,7 +121,7 @@ export const AgentMeshPreview: React.FC<AgentMeshPreviewProps> = ({
         console.error('Failed to create connection:', err)
       }
     },
-    [agents, edges, api, loadData]
+    [agents, edges, promptManagerClient, loadData]
   )
 
   if (!agentIds.length && !addedAgentIds.length) {

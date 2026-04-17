@@ -23,7 +23,9 @@ export function getHeadingsFromDoc(doc: PMNode): HeadingItem[] {
   const items: HeadingItem[] = []
   doc.descendants((node: PMNode, pos: number) => {
     if (node.type.name === 'heading') {
-      const level = (node.attrs?.level as number) ?? 1
+      const rawLevel = (node.attrs?.level as number) ?? 1
+      const level = Math.max(1, Math.min(6, Number.isFinite(rawLevel) ? rawLevel : 1))
+      // Only real outline levels (1–6). Paragraph / “Normal” uses `paragraph`, not `heading`.
       // `pos` is the index before the heading node; cursor/text selection must be inside the block (pos + 1).
       // pos === 0 for the first doc child would resolve to parent `doc` and trigger PM TextSelection warnings.
       items.push({
@@ -38,10 +40,10 @@ export function getHeadingsFromDoc(doc: PMNode): HeadingItem[] {
 }
 
 /**
- * Headings whose block starts at or after `minBlockStart` (e.g. after a table-of-contents block).
+ * Word-style ToC scope defaults to the whole document, including headings before the ToC block.
  */
-export function getHeadingsForDocumentTableOfContents(doc: PMNode, minBlockStart: number): HeadingItem[] {
-  return getHeadingsFromDoc(doc).filter(h => h.blockStart >= minBlockStart)
+export function getHeadingsForDocumentTableOfContents(doc: PMNode): HeadingItem[] {
+  return getHeadingsFromDoc(doc)
 }
 
 /**

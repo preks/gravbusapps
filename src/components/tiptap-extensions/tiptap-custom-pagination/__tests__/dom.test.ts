@@ -12,7 +12,7 @@ import {
   resolveWindowedPaginationRendererState,
   renderHeaderFooterDisplayContent
 } from '../dom'
-import { createStorageFromOptions, resolvePageFormat, setStoredVariantContent } from '../utils'
+import { createStorageFromOptions, getPageLayoutHeights, resolvePageFormat, setStoredVariantContent } from '../utils'
 
 function createTestOptions() {
   return {
@@ -56,7 +56,7 @@ describe('ensurePagesStyles', () => {
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-header-content table[data-table-theme="blue"]')
     expect(style?.textContent).toContain('table[data-table-style-header-row="true"] > tbody > tr:first-child > td')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-header-region[contenteditable="true"]')
-    expect(style?.textContent).toContain('.rm-pages-root .rm-first-page-header > .rm-page-header')
+    expect(style?.textContent).toContain('.rm-pages-root .rm-first-page-header')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .tableWrapper')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .column-resize-handle')
     expect(style?.textContent).toContain('z-index: 20')
@@ -64,29 +64,53 @@ describe('ensurePagesStyles', () => {
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .selectedCell:after')
   })
 
-  it('keeps the standalone first page header shell behind overlapping body content', () => {
+  it('lifts body prose above behind-image overlays when editor root is .rm-pages-root.ProseMirror', () => {
     const targetDocument = document.implementation.createHTMLDocument('pagination-styles')
 
     ensurePagesStyles(targetDocument)
 
     const style = targetDocument.head.querySelector('style[data-rm-pages-style]')
 
-    expect(style?.textContent).toMatch(/\.rm-pages-root \.rm-first-page-header \{[\s\S]*?z-index: 1;/)
+    expect(style?.textContent).toContain(
+      '.rm-pages-root.ProseMirror:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) :where(p, ol, ul, li,'
+    )
   })
 
-  it('keeps the blank first-page header shell click-through while preserving visible header targets', () => {
+  it('stacks the first page header above page body and breaker chrome so it is not covered by overlapping layers', () => {
     const targetDocument = document.implementation.createHTMLDocument('pagination-styles')
 
     ensurePagesStyles(targetDocument)
 
     const style = targetDocument.head.querySelector('style[data-rm-pages-style]')
 
-    expect(style?.textContent).toMatch(
-      /\.rm-pages-root \.rm-first-page-header > \.rm-page-header \{[\s\S]*?pointer-events: none;/
-    )
-    expect(style?.textContent).toMatch(
-      /\.rm-pages-root \.rm-first-page-header \.rm-page-header-content,[\s\S]*?pointer-events: auto;/
-    )
+    expect(style?.textContent).toMatch(/\.rm-pages-root \.rm-first-page-header \{[\s\S]*?z-index: 3;/)
+  })
+
+  it('does not set pointer-events: none on the first-page header shell (same hit-testing model as rm-page-header-region)', () => {
+    const targetDocument = document.implementation.createHTMLDocument('pagination-styles')
+
+    ensurePagesStyles(targetDocument)
+
+    const style = targetDocument.head.querySelector('style[data-rm-pages-style]')
+    const text = style?.textContent ?? ''
+
+    expect(text).toContain('.rm-pages-root .rm-first-page-header')
+    expect(text).not.toMatch(/\.rm-pages-root \.rm-first-page-header \{[^}]*pointer-events:\s*none/m)
+    expect(text).not.toContain('.rm-pages-root .rm-first-page-header > .rm-page-header')
+  })
+
+  it('uses content-visibility for off-screen page shells and body layers', () => {
+    const targetDocument = document.implementation.createHTMLDocument('pagination-styles')
+
+    ensurePagesStyles(targetDocument)
+
+    const style = targetDocument.head.querySelector('style[data-rm-pages-style]')
+    const text = style?.textContent ?? ''
+
+    expect(text).toContain('.rm-pages-root .page[data-layout-window-active="false"]')
+    expect(text).toContain('content-visibility: auto')
+    expect(text).toContain('contain-intrinsic-size: var(--rm-page-width) var(--rm-page-body-intrinsic-height, 0px)')
+    expect(text).toContain('.rm-pages-root .rm-page-body-layer[data-layout-window-active="false"]')
   })
 })
 
@@ -384,6 +408,57 @@ describe('createPaginationWrapper', () => {
     expect(pageBreak.querySelector('.rm-page-image-overlay-layer[data-rm-image-layer="behind"]')).not.toBeNull()
     expect(pageBreak.querySelector('.rm-page-image-overlay-layer[data-rm-image-layer="floating"]')).not.toBeNull()
     expect(pageBreak.querySelector('.rm-page-image-overlay-layer[data-rm-image-layer="front"]')).not.toBeNull()
+  })
+
+  it('stores intrinsic body height markers on off-screen page shells', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    const pageBreak = createPageBreakElement({
+      pageNumber: 2,
+      totalPages: 3,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: [],
+      activeRange: { startPage: 1, endPage: 1 }
+    })
+
+    const page = pageBreak.querySelector('.page[data-rm-page-number="2"]') as HTMLElement
+    const bodyLayer = pageBreak.querySelector('.rm-page-body-layer[data-rm-page-number="2"]') as HTMLElement
+    const imageLayers = pageBreak.querySelectorAll('.rm-page-image-overlay-layer[data-rm-page-number="2"]')
+
+    expect(page.style.getPropertyValue('--rm-page-body-intrinsic-height')).toContain('--rm-page-body-2')
+    expect(bodyLayer.style.getPropertyValue('--rm-page-body-intrinsic-height')).toContain('--rm-page-body-2')
+    imageLayers.forEach(layer => {
+      expect((layer as HTMLElement).style.getPropertyValue('--rm-page-body-intrinsic-height')).toContain(
+        '--rm-page-body-2'
+      )
+    })
+  })
+
+  it('uses margin-only fallback heights for placeholder shells when header and footer are empty', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    const pageFormat = resolvePageFormat(options.pageFormat)
+    const pageBreak = createPageBreakElement({
+      pageNumber: 2,
+      totalPages: 3,
+      pageFormat,
+      options,
+      storage,
+      extensions: [],
+      activeRange: { startPage: 1, endPage: 1 }
+    })
+
+    const expectedLayout = getPageLayoutHeights(pageFormat, storage, 0, 0)
+    const breaker = pageBreak.querySelector('.breaker') as HTMLElement
+
+    expect(pageBreak.dataset.rmPageShellState).toBe('placeholder')
+    expect(breaker.dataset.rmBreakerPlaceholderHeight).toBe(
+      String(expectedLayout.footerReserved + storage.pageGap + expectedLayout.headerReserved)
+    )
+    expect(breaker.dataset.rmBreakerFooterHeight).toBe(String(expectedLayout.footerReserved))
+    expect(breaker.dataset.rmBreakerNextHeaderHeight).toBe(String(expectedLayout.headerReserved))
   })
 
   it('keeps all page shells mounted and only hydrates the requested middle window', () => {

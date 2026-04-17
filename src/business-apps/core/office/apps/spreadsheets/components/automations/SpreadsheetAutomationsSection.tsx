@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { Card, CardContent, Button, Input, Skeleton, useTranslation } from '@newwork/nw-design-system'
 import { Zap, Search, RefreshCw, XCircle } from 'lucide-react'
-import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { getSpreadsheetServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import translations from '../../_i18n'
 import type { AutomationWithRuns, SpreadsheetAutomationsSectionProps } from './automationSectionTypes'
 import { fetchAccessibleSpreadsheets, fetchAutomationsForApp, fetchRunsForAutomation } from './automationSectionUtils'
@@ -23,7 +23,7 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
   const [runningAutomations, setRunningAutomations] = useState<Set<string>>(new Set())
   const [stoppingRuns, setStoppingRuns] = useState<Set<string>>(new Set())
 
-  const docServiceUrl = getDocumentServiceApiUrl().replace(/\/+$/, '')
+  const docServiceUrl = getSpreadsheetServiceApiUrl().replace(/\/+$/, '')
 
   const fetchAutomations = useCallback(async () => {
     if (!accessToken) {
@@ -252,10 +252,19 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
           </Card>
           <Card>
             <CardContent className="gba:p-3">
-              <div className="gba:flex gba:items-center gba:justify-between">
-                <div className="gba:text-xs gba:text-muted-foreground">{t('sa-stat-collections')}</div>
-                <div className="gba:text-lg gba:font-bold gba:text-primary">
-                  {stats.byType['excel_collection'] || 0}
+              <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">{t('sa-stat-collection-breakdown')}</div>
+              <div className="gba:flex gba:flex-col gba:gap-2">
+                <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                  <span className="gba:text-xs gba:text-muted-foreground">{t('sa-stat-form-collections')}</span>
+                  <span className="gba:text-base gba:font-bold gba:text-foreground">
+                    {stats.byType['bulk_collection'] || 0}
+                  </span>
+                </div>
+                <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                  <span className="gba:text-xs gba:text-muted-foreground">{t('sa-stat-template-collections')}</span>
+                  <span className="gba:text-base gba:font-bold gba:text-primary">
+                    {stats.byType['excel_collection'] || 0}
+                  </span>
                 </div>
               </div>
             </CardContent>

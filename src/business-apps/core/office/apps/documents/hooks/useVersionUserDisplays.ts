@@ -14,11 +14,18 @@ export interface VersionUserDisplay {
   avatarUrl?: string
 }
 
-export function useVersionUserDisplays(versions: Version[], accessToken: string): Record<string, VersionUserDisplay> {
+export function useVersionUserDisplays(
+  versions: Version[],
+  accessToken: string,
+  additionalUserIds: string[] = []
+): Record<string, VersionUserDisplay> {
   const [userDisplayMap, setUserDisplayMap] = useState<Record<string, VersionUserDisplay>>({})
   const graphqlClient = useGraphQLClient(accessToken)
 
-  const userIds = useMemo(() => Array.from(new Set(versions.map(v => v.createdBy).filter(Boolean))), [versions])
+  const userIds = useMemo(
+    () => Array.from(new Set([...versions.map(v => v.createdBy), ...additionalUserIds].filter(Boolean))),
+    [additionalUserIds, versions]
+  )
 
   useEffect(() => {
     if (!userIds.length || !accessToken) {

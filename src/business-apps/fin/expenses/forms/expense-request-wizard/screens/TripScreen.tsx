@@ -35,15 +35,11 @@ import { EVENTS } from '../../../utils/constants'
 import { mergeUniqueById } from '../../../utils/functionUtils'
 import { toSortedCacheKey } from '../utils/cacheKeyUtils'
 import { getLatestRejectComment, setByExternalCustomComponent, setLocalitiesDefault } from '../utils/tripScreenUtils'
+import { tripLocationPointsEqual } from '../utils/tripLocationPointEquality'
+import expenseFormsTranslations from '../../_i18n'
 import expenseRequestWizardTranslations from '../_i18n'
+import { filterTravelRegionsByExpenseItemsCurrency } from '../../shared/utils/filterTravelRegionsByExpenseItemsCurrency'
 
-/**
- * Filters travel regions based on expense items' currency
- * @param items - Expense items with currency information
- * @param mainRule - Home region rule
- * @param otherRules - All available travel regions
- * @returns Filtered travel regions and flag indicating if all items use the same currency
- */
 /**
  * Returns trip data array from expense request (from request trip or from plan).
  * Reduces cognitive complexity in loadInitialTripData.
@@ -58,40 +54,11 @@ function getTripDataArrayFromRequest(expenseRequestData: any): any[] {
   return []
 }
 
-const filterRules = (items: any[], mainRule: any, otherRules: any[]) => {
-  if (!items || !items.length || !mainRule || !otherRules) {
-    return { sameRuleCurrency: false, valuesArray: otherRules || [] }
-  }
-
-  const ruleCurrency = mainRule.currency?.id
-  if (!ruleCurrency) {
-    return { sameRuleCurrency: false, valuesArray: otherRules || [] }
-  }
-
-  const allMatch = items.every(item => item.currencyId === ruleCurrency || item.currency === ruleCurrency)
-
-  if (allMatch) {
-    return {
-      sameRuleCurrency: true,
-      valuesArray: otherRules.filter(rule => rule.currency?.id === ruleCurrency)
-    }
-  }
-
-  return {
-    sameRuleCurrency: false,
-    valuesArray: otherRules.filter(rule =>
-      items.some(item => {
-        const itemCurrency = item.currencyId || item.currency
-        return itemCurrency === rule.currency?.id
-      })
-    )
-  }
-}
-
 export const TripScreen: React.FC<TripScreenProps> = props => {
   const { accessToken, additionalData } = props
   const [form] = Form.useForm()
   const { t: tWizard } = useTranslation(expenseRequestWizardTranslations)
+  const { t: tForms } = useTranslation(expenseFormsTranslations)
   const graphqlClient = useGraphqlClient(accessToken)
   const {
     expenseRequestData,
@@ -129,7 +96,8 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
 
     // Then filter by expense items currency if items exist
     if (expenseItems && expenseItems.length > 0 && expenseRulesData?.homeRegionRule?.length > 0) {
-      return filterRules(expenseItems, expenseRulesData.homeRegionRule[0], baseRegions).valuesArray
+      return filterTravelRegionsByExpenseItemsCurrency(expenseItems, expenseRulesData.homeRegionRule[0], baseRegions)
+        .valuesArray
     }
 
     return baseRegions
@@ -756,6 +724,21 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       }, {}),
     [startLocation, destinations, endLocation]
   )
+
+  const startEqualsFirstDestinationMessage = useMemo(() => {
+    if (destinations.length === 0) {
+      return null
+    }
+    const first = destinations[0]
+    if (!startLocation.location?.trim() || !first.location?.trim()) {
+      return null
+    }
+    if (!tripLocationPointsEqual(startLocation, first)) {
+      return null
+    }
+    return tForms('trip-start-equals-first-destination')
+  }, [destinations, startLocation, tForms])
+
   const toggleLocationCollapse = (setLocation: React.Dispatch<React.SetStateAction<LocationData>>) => {
     setLocation(prev => ({
       ...prev,
@@ -996,6 +979,18 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
     if (startLocationOverlap?.isError === true || endLocationOverlap?.isError === true) {
       updateTripFormValidation(false)
       return false
+    }
+
+    if (destinations.length > 0) {
+      const firstDest = destinations[0]
+      if (
+        startLocation.location?.trim() &&
+        firstDest.location?.trim() &&
+        tripLocationPointsEqual(startLocation, firstDest)
+      ) {
+        updateTripFormValidation(false)
+        return false
+      }
     }
 
     if (
@@ -1293,6 +1288,21 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
                   showDateTimeFields={index < destinations.length - 1}
                   dateTimeLimits={destinationLimits[destination.id] ?? {}}
                   travelRegions={getFilteredTravelRegions(destination.isAbroad)}
+                  errorMessage={index === 0 ? startEqualsFirstDestinationMessage : null}
+                  locationFormLabels={{
+                    inputFieldLabel: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.add_request_trip_details.destination_input_label',
+                      'Destination'
+                    ),
+                    dateFieldLabel: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.add_request_trip_details.departure_date',
+                      'Departure Date'
+                    ),
+                    timeFieldLabel: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.add_request_trip_details.departure_time',
+                      'Departure Time'
+                    )
+                  }}
                 />
               </LocationContainer>
             </div>

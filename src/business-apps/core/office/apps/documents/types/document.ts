@@ -131,6 +131,9 @@ export interface DocumentApprovalRequest {
   documentId: string
   requestedBy: string
   requestedAt: string
+  createdAt?: string
+  requestedByName?: string
+  requestedByPicture?: string
   approvers: Array<{
     userId: string
     userName?: string
@@ -145,6 +148,34 @@ export interface DocumentApprovalRequest {
   message?: string
   workflowId?: string // Legacy: first workflow ID
   workflowIds?: string[] // All workflow IDs (one per approver)
+  versionAtRequest?: number
+  entityUrl?: string
+}
+
+export interface DocumentApprovalMetadata {
+  pendingApprovalVersion?: number | null
+  currentApprovedVersion?: number | null
+  hasOpenApproval?: boolean
+  lastApprovalRequestId?: string | null
+  approvedAt?: string | null
+  approvedBy?: string | null
+}
+
+export interface DocumentReviewContext {
+  liveDocument: Document
+  reviewSnapshot: Record<string, unknown> | null
+  reviewVersion: {
+    versionNumber: number
+    createdAt: string
+    changedBy: string
+  } | null
+  reviewUrl: string
+  approvalRequest: DocumentApprovalRequest
+  approvalMetadata: DocumentApprovalMetadata
+  hasLiveChanges: boolean
+  canRespond: boolean
+  versionUnderReview: number
+  latestLiveVersion: number
 }
 
 /**
@@ -164,6 +195,8 @@ export interface Document {
   createdAt: string
   updatedAt: string
   createdBy: string
+  spaceId?: string | null
+  trashedAt?: string | null
   lastModifiedBy?: string
   filePath?: string // Storage path for shareable URLs
   sharedWith?: DocumentShare[]
@@ -186,6 +219,7 @@ export interface Document {
   settings?: {
     external?: import('./externalUnstructuredConnector').ExternalDocumentProvenance
     readOnly?: boolean
+    approvalMetadata?: DocumentApprovalMetadata
     [key: string]: unknown
   }
 }
@@ -214,9 +248,11 @@ export interface DocumentSummary {
   createdAt: string
   updatedAt: string
   createdBy: string
+  spaceId?: string | null
+  trashedAt?: string | null
   filePath?: string
   isOwner?: boolean
-  permission?: 'owner' | 'view' | 'edit' | 'comment'
+  permission?: 'owner' | 'view' | 'edit' | 'comment' | 'admin'
   sharedCount?: number
   sharedPreviewUserIds?: string[]
   sharedWithCount?: number
@@ -231,6 +267,7 @@ export interface DocumentSummary {
   settings?: {
     external?: import('./externalUnstructuredConnector').ExternalDocumentProvenance
     readOnly?: boolean
+    approvalMetadata?: DocumentApprovalMetadata
     [key: string]: unknown
   }
 }
@@ -317,6 +354,7 @@ export interface ParsedWordDocument {
   plainText: string // Plain text version
   messages: WordParserMessage[]
   images?: WordImage[]
+  formatting?: DocumentFormatting
 }
 
 /**

@@ -6,7 +6,7 @@
  */
 
 import DOMPurify from 'dompurify'
-import JSZip from 'jszip'
+import { ensurePagesStyles } from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationStyles'
 import { resolveWordLikeImageLayout } from '@/components/tiptap-extensions/tiptap-custom-image'
 import {
   CUSTOM_IMAGE_TAG,
@@ -21,6 +21,12 @@ import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-cu
 import { buildDocxBlob, sanitizeDocxFilename } from './docxExport'
 import { sanitizePaginationRuntimeHtml } from './documentContentUtils'
 import type { DocumentPrintStyleConfig } from './pageLayoutUtils'
+import {
+  computeSignatureUniformContainLayout,
+  ensureSvgRootHasExplicitPixelSize,
+  parseSvgIntrinsicSizeFromMarkup
+} from './signatureSvgIntrinsic'
+import { createJSZip } from './jsZipCompat'
 
 /**
  * Escape plain text for safe insertion into HTML text nodes / <title>
@@ -36,6 +42,48 @@ export function escapeHtmlText(text: string): string {
 
 /** Allowed block spacing CSS properties for export (line and paragraph spacing). */
 const BLOCK_SPACING_PROPS = new Set(['line-height', 'margin-top', 'margin-bottom'])
+/** Layout props kept on signature raster images so print/PDF preserve aspect ratio after sanitization. */
+const SIGNATURE_EXPORT_IMAGE_STYLE_PROPS = new Set([
+  'width',
+  'max-width',
+  'height',
+  'aspect-ratio',
+  'vertical-align',
+  'object-fit',
+  'box-sizing'
+])
+const VISUAL_EXPORT_STYLE_PROPS = new Set([
+  'background-color',
+  'border',
+  'border-top',
+  'border-right',
+  'border-bottom',
+  'border-left',
+  'border-color',
+  'border-style',
+  'border-width',
+  'border-radius',
+  'border-top-color',
+  'border-top-style',
+  'border-top-width',
+  'border-right-color',
+  'border-right-style',
+  'border-right-width',
+  'border-bottom-color',
+  'border-bottom-style',
+  'border-bottom-width',
+  'border-left-color',
+  'border-left-style',
+  'border-left-width',
+  'height',
+  'margin-left',
+  'margin-right',
+  'max-width',
+  'min-height',
+  'min-width',
+  'vertical-align',
+  'width'
+])
 const TEXT_FORMAT_PROPS = new Set([
   'background-color',
   'color',
@@ -60,7 +108,7 @@ function isSafeExportStyleValue(value: string): boolean {
 
 function filterStyleForExport(
   styleStr: string,
-  options: { preserveBlockSpacing: boolean; preserveTextStyles: boolean }
+  options: { preserveBlockSpacing: boolean; preserveTextStyles: boolean; preserveVisualStyles: boolean }
 ): string {
   const allowedProps = new Set<string>()
   if (options.preserveBlockSpacing) {
@@ -69,8 +117,31 @@ function filterStyleForExport(
   if (options.preserveTextStyles) {
     TEXT_FORMAT_PROPS.forEach(prop => allowedProps.add(prop))
   }
+  if (options.preserveVisualStyles) {
+    VISUAL_EXPORT_STYLE_PROPS.forEach(prop => allowedProps.add(prop))
+  }
   if (allowedProps.size === 0) return ''
 
+  const parts: string[] = []
+  for (const rawDecl of styleStr.split(';')) {
+    const decl = rawDecl.trim()
+    if (!decl) continue
+
+    const splitIdx = decl.indexOf(':')
+    if (splitIdx === -1) continue
+
+    const prop = decl.slice(0, splitIdx).trim().toLowerCase()
+    if (!allowedProps.has(prop)) continue
+
+    const value = decl.slice(splitIdx + 1).trim()
+    if (!value || !isSafeExportStyleValue(value)) continue
+
+    parts.push(`${prop}: ${value}`)
+  }
+  return parts.join('; ')
+}
+
+function filterStylePropsForExport(styleStr: string, allowedProps: Set<string>): string {
   const parts: string[] = []
   for (const rawDecl of styleStr.split(';')) {
     const decl = rawDecl.trim()
@@ -123,7 +194,16 @@ function applyCustomImageLayoutForExport(html: string): string {
     figure.style.boxSizing = 'border-box'
 
     switch (attrs.wrapMode) {
-      case 'square-left':
+      case 'square':
+        figure.style.cssFloat = layout.floatingSide ?? (attrs.align === 'right' ? 'right' : 'left')
+        figure.style.display = 'block'
+        figure.style.position = 'relative'
+        figure.style.width = `${layout.layoutWidth}px`
+        figure.style.minHeight = `${layout.layoutHeight}px`
+        if (typeof layout.wrapperStyle.shapeOutside === 'string' && layout.wrapperStyle.shapeOutside) {
+          figure.style.shapeOutside = layout.wrapperStyle.shapeOutside
+        }
+        break
       case 'tight':
       case 'through':
         figure.style.cssFloat = layout.floatingSide ?? 'left'
@@ -134,13 +214,6 @@ function applyCustomImageLayoutForExport(html: string): string {
         if (typeof layout.wrapperStyle.shapeOutside === 'string' && layout.wrapperStyle.shapeOutside) {
           figure.style.shapeOutside = layout.wrapperStyle.shapeOutside
         }
-        break
-      case 'square-right':
-        figure.style.cssFloat = layout.floatingSide ?? 'right'
-        figure.style.display = 'block'
-        figure.style.position = 'relative'
-        figure.style.width = `${layout.layoutWidth}px`
-        figure.style.minHeight = `${layout.layoutHeight}px`
         break
       case 'top-bottom':
         figure.style.display = 'block'
@@ -300,15 +373,21 @@ function stripEventHandlers(el: Element): void {
 
 function applyStyleSanitization(
   el: Element,
-  options: { preserveBlockSpacing: boolean; preserveTextStyles: boolean }
+  options: { preserveBlockSpacing: boolean; preserveTextStyles: boolean; preserveVisualStyles: boolean }
 ): void {
   const style = el.getAttribute('style')
   if (style == null) return
-  if (!options.preserveBlockSpacing && !options.preserveTextStyles) {
+  if (!options.preserveBlockSpacing && !options.preserveTextStyles && !options.preserveVisualStyles) {
     el.removeAttribute('style')
     return
   }
-  const filtered = filterStyleForExport(style, options)
+  let filtered = filterStyleForExport(style, options)
+  if (el.tagName.toLowerCase() === 'img' && el.classList.contains('signature-export-image')) {
+    const layout = filterStylePropsForExport(style, SIGNATURE_EXPORT_IMAGE_STYLE_PROPS)
+    if (layout) {
+      filtered = filtered ? `${filtered}; ${layout}` : layout
+    }
+  }
   if (filtered) el.setAttribute('style', filtered)
   else el.removeAttribute('style')
 }
@@ -341,7 +420,12 @@ function restoreAndCleanDataUriAttr(el: Element, options: { allowDataUriInImg: b
 
 function postProcessExportHtml(
   html: string,
-  options: { preserveBlockSpacing: boolean; preserveTextStyles: boolean; allowDataUriInImg: boolean }
+  options: {
+    preserveBlockSpacing: boolean
+    preserveTextStyles: boolean
+    preserveVisualStyles: boolean
+    allowDataUriInImg: boolean
+  }
 ): string {
   if (globalThis.DOMParser === undefined) return html
 
@@ -369,11 +453,17 @@ function postProcessExportHtml(
  */
 export function sanitizeHtmlForExport(
   html: string,
-  options?: { preserveBlockSpacing?: boolean; preserveTextStyles?: boolean; allowDataUriInImg?: boolean }
+  options?: {
+    preserveBlockSpacing?: boolean
+    preserveTextStyles?: boolean
+    preserveVisualStyles?: boolean
+    allowDataUriInImg?: boolean
+  }
 ): string {
   if (!html) return ''
   const preserveBlockSpacing = options?.preserveBlockSpacing === true
   const preserveTextStyles = options?.preserveTextStyles === true
+  const preserveVisualStyles = options?.preserveVisualStyles === true
   const allowDataUriInImg = options?.allowDataUriInImg === true
 
   if (globalThis.window === undefined || globalThis.DOMParser === undefined) {
@@ -383,14 +473,19 @@ export function sanitizeHtmlForExport(
   try {
     const config: Parameters<typeof DOMPurify.sanitize>[1] = {
       FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-      FORBID_ATTR: preserveBlockSpacing || preserveTextStyles ? [] : ['style'],
+      FORBID_ATTR: preserveBlockSpacing || preserveTextStyles || preserveVisualStyles ? [] : ['style'],
       ALLOW_DATA_ATTR: allowDataUriInImg
     }
 
     const input = allowDataUriInImg ? preserveDataUriImgsForPurify(html) : html
     const purified = DOMPurify.sanitize(input, config)
 
-    return postProcessExportHtml(purified, { preserveBlockSpacing, preserveTextStyles, allowDataUriInImg })
+    return postProcessExportHtml(purified, {
+      preserveBlockSpacing,
+      preserveTextStyles,
+      preserveVisualStyles,
+      allowDataUriInImg
+    })
   } catch {
     return stripTagsToText(html)
   }
@@ -452,6 +547,135 @@ function normalizePageBreakMarkupForExport(html: string): string {
   }
 }
 
+function buildEditorParityPrintOverrides(scopePrefix = ''): string {
+  const scope = (selector: string) =>
+    selector
+      .split(',')
+      .map(part => `${scopePrefix}${part.trim()}`)
+      .join(',\n      ')
+
+  return `
+      ${scope('img')} {
+        max-width: 100%;
+        height: auto;
+        margin: 0;
+        vertical-align: bottom;
+        border-radius: 4pt;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      ${scope("img[data-testid='document-editor-signature']")} {
+        max-width: none !important;
+        border-radius: 0;
+        background: transparent;
+      }
+      ${scope("figure[data-node-type='custom-image']")} {
+        max-width: 100%;
+      }
+      ${scope('.editor-image-caption')} {
+        margin-top: 4pt;
+        color: #6b7280;
+        font-size: 0.75rem;
+        line-height: 1.3;
+      }
+      ${scope('.tableWrapper')} {
+        position: relative;
+        overflow: visible;
+        margin: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+      }
+      ${scope('table')} {
+        border-collapse: collapse;
+        width: auto;
+        max-width: 100%;
+        table-layout: fixed;
+        margin: 0;
+        background: transparent;
+        break-inside: auto;
+        page-break-inside: auto;
+        position: relative;
+      }
+      ${scope("table[data-table-border-hidden='true']")} {
+        border: none !important;
+      }
+      ${scope('td, th')} {
+        box-sizing: border-box;
+        position: relative;
+        border: 1pt solid #333;
+        padding: 4pt 6pt;
+        text-align: start;
+        vertical-align: top;
+        font-size: 0.875rem;
+        line-height: 1.3;
+        min-width: 0;
+        overflow-wrap: break-word;
+        word-break: break-word;
+      }
+      ${scope('th')} {
+        background: #f5f5f5;
+        font-weight: bold;
+      }
+      ${scope("table[data-table-theme='blue']")} {
+        --editor-table-theme-solid: #2563eb;
+        --editor-table-theme-soft: #dbeafe;
+        --editor-table-theme-soft-alt: #eff6ff;
+      }
+      ${scope("table[data-table-theme='teal']")} {
+        --editor-table-theme-solid: #0f766e;
+        --editor-table-theme-soft: #ccfbf1;
+        --editor-table-theme-soft-alt: #f0fdfa;
+      }
+      ${scope("table[data-table-theme='green']")} {
+        --editor-table-theme-solid: #15803d;
+        --editor-table-theme-soft: #dcfce7;
+        --editor-table-theme-soft-alt: #f0fdf4;
+      }
+      ${scope("table[data-table-theme='orange']")} {
+        --editor-table-theme-solid: #c2410c;
+        --editor-table-theme-soft: #ffedd5;
+        --editor-table-theme-soft-alt: #fff7ed;
+      }
+      ${scope("table[data-table-theme='purple']")} {
+        --editor-table-theme-solid: #7c3aed;
+        --editor-table-theme-soft: #ede9fe;
+        --editor-table-theme-soft-alt: #f5f3ff;
+      }
+      ${scope("table[data-table-theme='gray']")} {
+        --editor-table-theme-solid: #4b5563;
+        --editor-table-theme-soft: #e5e7eb;
+        --editor-table-theme-soft-alt: #f3f4f6;
+      }
+      ${scope("table[data-table-style-header-row='true'] > tbody > tr:first-child > td, table[data-table-style-header-row='true'] > tbody > tr:first-child > th")} {
+        background: var(--editor-table-theme-solid, #2563eb);
+        color: #fff;
+        border-color: var(--editor-table-theme-solid, #2563eb);
+        font-weight: 600;
+      }
+      ${scope("table[data-table-style-first-column='true'] > tbody > tr > :first-child")} {
+        background: var(--editor-table-theme-soft, #dbeafe);
+        font-weight: 600;
+      }
+      ${scope("table[data-table-style-last-column='true'] > tbody > tr > :last-child")} {
+        background: var(--editor-table-theme-soft, #dbeafe);
+        font-weight: 600;
+      }
+      ${scope("table[data-table-style-banded-rows='true'] > tbody > tr:nth-child(even) > td, table[data-table-style-banded-rows='true'] > tbody > tr:nth-child(even) > th")} {
+        background: var(--editor-table-theme-soft-alt, #eff6ff);
+      }
+      ${scope("table[data-table-style-banded-columns='true'] > tbody > tr > :nth-child(even)")} {
+        background: var(--editor-table-theme-soft-alt, #eff6ff);
+      }
+      ${scope('.document-table-of-contents')} {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+    `
+}
+
 function buildPrintStylesheet(printStyleConfig?: DocumentPrintStyleConfig, extraCss = ''): string {
   const resolved = resolvePrintStyleConfig(printStyleConfig)
 
@@ -472,23 +696,36 @@ function buildPrintStylesheet(printStyleConfig?: DocumentPrintStyleConfig, extra
         font-weight: 700;
         margin: 0 0 16pt 0;
         line-height: 1.2;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-wrap: break-word;
+        word-break: break-word;
       }
       h2 {
         font-size: 1.5rem;
         font-weight: 600;
         margin: 20pt 0 12pt 0;
         line-height: 1.3;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-wrap: break-word;
       }
       h3 {
         font-size: 1.125rem;
         font-weight: 600;
         margin: 16pt 0 10pt 0;
         line-height: 1.4;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-wrap: break-word;
       }
       h4, h5, h6 {
         font-size: 1rem;
         font-weight: 600;
         margin: 14pt 0 8pt 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-wrap: break-word;
       }
       p { margin: 0; }
       ul, ol {
@@ -590,6 +827,161 @@ function buildPrintStylesheet(printStyleConfig?: DocumentPrintStyleConfig, extra
       .page-break-label {
         display: none;
       }
+      .document-table-of-contents {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        margin: 16pt 0;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+      }
+      .document-toc-print-inner {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+      .document-toc-print-title {
+        font-weight: 700;
+        font-size: 1rem;
+        margin: 0 0 12pt 0;
+        color: ${resolved.textColor};
+      }
+      .document-toc-print-empty {
+        margin: 0;
+        font-size: 0.875rem;
+        color: #6b7280;
+      }
+      .document-toc-print-row {
+        margin: 0 0 5pt 0;
+        font-size: 1rem;
+        line-height: 1.35;
+        color: ${resolved.textColor};
+      }
+      .document-toc-level-2 {
+        padding-inline-start: 8pt;
+      }
+      .document-toc-level-3 {
+        padding-inline-start: 16pt;
+      }
+      .document-toc-level-4 {
+        padding-inline-start: 24pt;
+      }
+      .document-toc-level-5 {
+        padding-inline-start: 32pt;
+      }
+      .document-toc-level-6 {
+        padding-inline-start: 40pt;
+      }
+      .document-toc-print-line.document-toc-print-line-flex {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: flex-end;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        gap: 8pt;
+        border: none;
+        margin: 0;
+        padding: 0;
+        background: transparent;
+      }
+      .document-toc-print-line-flex > .document-toc-print-title-cell,
+      .document-toc-print-line-flex > .document-toc-print-leader-cell,
+      .document-toc-print-line-flex > .document-toc-print-page-cell {
+        border: none;
+        font-size: inherit;
+        line-height: 1.35;
+        padding: 0 0 2pt 0;
+        min-width: 0;
+      }
+      .document-toc-print-line-flex > .document-toc-print-title-cell {
+        flex: 0 1 auto;
+        min-width: 0;
+        width: fit-content;
+        max-width: calc(100% - 4rem);
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+        white-space: normal;
+        hyphens: auto;
+        padding-right: 0;
+      }
+      .document-toc-print-line-flex > .document-toc-print-leader-cell {
+        flex: 1 0 0%;
+        min-width: 0.5rem;
+        padding-left: 0;
+        padding-right: 0;
+      }
+      .document-toc-print-line-flex > .document-toc-print-page-cell {
+        flex: 0 0 auto;
+      }
+      .document-toc-print-leader-fill {
+        display: block;
+        width: 100%;
+        min-height: 0.85em;
+        box-sizing: border-box;
+      }
+      .document-toc-print-leader-fill-dot {
+        border-bottom: 1pt dotted #d0d0d0;
+        margin-bottom: 0.15em;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .document-toc-print-leader-fill-gap {
+        min-height: 0.5em;
+      }
+      .document-toc-print-page-cell {
+        text-align: end;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+        padding-left: 8pt;
+      }
+      .document-toc-print-row-inline {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 6pt;
+      }
+      .document-toc-print-text-wrap {
+        flex: 1 1 auto;
+        min-width: 0;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+        white-space: normal;
+      }
+      .document-toc-print-leader-inline {
+        display: inline-block;
+        width: 48pt;
+        border-bottom: 1pt dotted #d0d0d0;
+        margin-bottom: 3pt;
+        height: 0;
+      }
+      .document-toc-print-page-inline {
+        font-variant-numeric: tabular-nums;
+      }
+      img.signature-export-image {
+        display: inline-block;
+        width: auto;
+        max-width: 100%;
+        height: auto;
+        vertical-align: baseline;
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        box-sizing: border-box;
+        background: transparent;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
       @media print {
         body, img {
           -webkit-print-color-adjust: exact;
@@ -602,6 +994,7 @@ function buildPrintStylesheet(printStyleConfig?: DocumentPrintStyleConfig, extra
           border: none;
         }
       }
+      ${buildEditorParityPrintOverrides()}
       ${extraCss}
     `
 }
@@ -613,34 +1006,287 @@ function prepareHtmlForPrintDocument(htmlContent: string): string {
     sanitizeHtmlForExport(normalizedContent, {
       preserveBlockSpacing: true,
       preserveTextStyles: true,
+      preserveVisualStyles: true,
       allowDataUriInImg: true
     })
   )
 }
 
+const SIGNATURE_EXPORT_MAX_PX = 2400
+/** Rasterize at this multiple of logical size, then downscale for sharper edges in print/PDF. */
+const SIGNATURE_RASTER_SUPERSAMPLE = 2
+/** Cap supersampled edge length to avoid very large canvases (logical max is SIGNATURE_EXPORT_MAX_PX). */
+const SIGNATURE_RASTER_MAX_HI_EDGE = SIGNATURE_EXPORT_MAX_PX * SIGNATURE_RASTER_SUPERSAMPLE
+
+function parseSignatureCrop(attr: string | null): number {
+  const v = parseFloat(attr || '0')
+  return Number.isFinite(v) ? Math.min(Math.max(v, 0), 0.95) : 0
+}
+
+function resolveSignatureSvgBitmapDimensions(
+  svg: string,
+  naturalW: number,
+  naturalH: number,
+  fallbackW: number,
+  fallbackH: number
+): { nw: number; nh: number } {
+  if (naturalW > 0 && naturalH > 0) {
+    return { nw: naturalW, nh: naturalH }
+  }
+  const parsed = parseSvgIntrinsicSizeFromMarkup(svg)
+  if (parsed) {
+    return { nw: parsed.width, nh: parsed.height }
+  }
+  return { nw: fallbackW, nh: fallbackH }
+}
+
+async function waitForFontsAndNextFrame(): Promise<void> {
+  try {
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      await document.fonts.ready
+    }
+  } catch {
+    // ignore
+  }
+  await new Promise<void>(resolve => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve())
+    })
+  })
+}
+
+function createSignatureHiResCanvas(
+  img: HTMLImageElement,
+  nw: number,
+  nh: number,
+  hiW: number,
+  hiH: number,
+  ct: number,
+  cr: number,
+  cb: number,
+  cl: number
+): HTMLCanvasElement | null {
+  const canvas = document.createElement('canvas')
+  canvas.width = hiW
+  canvas.height = hiH
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+
+  const noCrop = ct === 0 && cr === 0 && cb === 0 && cl === 0
+  if (noCrop) {
+    const fit = computeSignatureUniformContainLayout(hiW, hiH, nw, nh)
+    ctx.drawImage(img, 0, 0, nw, nh, fit.offsetX, fit.offsetY, fit.renderedWidth, fit.renderedHeight)
+  } else {
+    const srcX = nw * cl
+    const srcY = nh * ct
+    const srcW = nw * (1 - cl - cr)
+    const srcH = nh * (1 - ct - cb)
+    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, hiW, hiH)
+  }
+  return canvas
+}
+
+function rotateSignatureCanvas(source: HTMLCanvasElement, rotationDeg: number): HTMLCanvasElement | null {
+  if (rotationDeg === 0) return source
+  const w = source.width
+  const h = source.height
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.translate(w / 2, h / 2)
+  ctx.rotate((rotationDeg * Math.PI) / 180)
+  ctx.translate(-w / 2, -h / 2)
+  ctx.drawImage(source, 0, 0)
+  return canvas
+}
+
+function downscaleCanvasToLogicalSize(source: HTMLCanvasElement, outW: number, outH: number): HTMLCanvasElement | null {
+  const canvas = document.createElement('canvas')
+  canvas.width = outW
+  canvas.height = outH
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(source, 0, 0, source.width, source.height, 0, 0, outW, outH)
+  return canvas
+}
+
 /**
- * Converts div[data-signature-node] elements to img with data URL so export/print render the signature.
+ * Rasterizes signature SVG with crop and rotation baked in for reliable print/PDF output.
+ * Scales down large bitmaps with a **uniform** factor so aspect ratio is never distorted (unlike
+ * clamping width and height independently to SIGNATURE_EXPORT_MAX_PX).
  */
-function materializeSignatureNodesInHtml(html: string): string {
+function rasterizeSignatureSvgToPng(
+  svg: string,
+  displayWidth: number,
+  displayHeight: number,
+  ct: number,
+  cr: number,
+  cb: number,
+  cl: number,
+  rotationDeg: number
+): Promise<{ dataUrl: string; width: number; height: number } | null> {
+  if (typeof Image === 'undefined' || typeof document === 'undefined') {
+    return Promise.resolve(null)
+  }
+
+  const normalizedSvg = ensureSvgRootHasExplicitPixelSize(svg)
+  const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(normalizedSvg)))}`
+
+  return new Promise(resolve => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      void (async () => {
+        try {
+          await waitForFontsAndNextFrame()
+
+          const { nw, nh } = resolveSignatureSvgBitmapDimensions(
+            normalizedSvg,
+            img.naturalWidth,
+            img.naturalHeight,
+            displayWidth,
+            displayHeight
+          )
+
+          let outW = Math.max(1, Math.round(displayWidth))
+          let outH = Math.max(1, Math.round(displayHeight))
+          const maxOut = Math.max(outW, outH)
+          if (maxOut > SIGNATURE_EXPORT_MAX_PX) {
+            const scale = SIGNATURE_EXPORT_MAX_PX / maxOut
+            outW = Math.max(1, Math.round(outW * scale))
+            outH = Math.max(1, Math.round(outH * scale))
+          }
+
+          let hiW = Math.round(outW * SIGNATURE_RASTER_SUPERSAMPLE)
+          let hiH = Math.round(outH * SIGNATURE_RASTER_SUPERSAMPLE)
+          if (Math.max(hiW, hiH) > SIGNATURE_RASTER_MAX_HI_EDGE) {
+            const ratio = SIGNATURE_RASTER_MAX_HI_EDGE / Math.max(outW, outH)
+            hiW = Math.max(1, Math.round(outW * ratio))
+            hiH = Math.max(1, Math.round(outH * ratio))
+          }
+
+          const hiCanvas = createSignatureHiResCanvas(img, nw, nh, hiW, hiH, ct, cr, cb, cl)
+          if (!hiCanvas) {
+            resolve(null)
+            return
+          }
+
+          const rot = Number.isFinite(rotationDeg) ? rotationDeg : 0
+          const rotated = rotateSignatureCanvas(hiCanvas, rot)
+          if (!rotated) {
+            resolve(null)
+            return
+          }
+
+          const outCanvas = downscaleCanvasToLogicalSize(rotated, outW, outH)
+          if (!outCanvas) {
+            resolve(null)
+            return
+          }
+
+          resolve({
+            dataUrl: outCanvas.toDataURL('image/png'),
+            width: outW,
+            height: outH
+          })
+        } catch {
+          resolve(null)
+        }
+      })()
+    }
+    img.onerror = () => resolve(null)
+    img.src = dataUrl
+  })
+}
+
+function materializeSignatureNodesWithSvgFallback(div: HTMLDivElement, doc: Document): void {
+  const svg = div.getAttribute('data-snapshot-svg')
+  if (!svg) return
+  try {
+    const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
+    const img = doc.createElement('img')
+    img.setAttribute('src', dataUrl)
+    img.setAttribute('alt', div.getAttribute('data-name') || 'Signature')
+    img.className = 'signature-export-image'
+    const w = div.getAttribute('data-width')
+    const h = div.getAttribute('data-height')
+    if (w) img.setAttribute('width', w)
+    if (h) img.setAttribute('height', h)
+    const ct = parseSignatureCrop(div.getAttribute('data-crop-top'))
+    const cr = parseSignatureCrop(div.getAttribute('data-crop-right'))
+    const cb = parseSignatureCrop(div.getAttribute('data-crop-bottom'))
+    const cl = parseSignatureCrop(div.getAttribute('data-crop-left'))
+    const rot = parseFloat(div.getAttribute('data-rotation') || '0')
+    const rotationDeg = Number.isFinite(rot) ? rot : 0
+    const styleParts: string[] = []
+    if (ct > 0 || cr > 0 || cb > 0 || cl > 0) {
+      styleParts.push(`clip-path: inset(${ct * 100}% ${cr * 100}% ${cb * 100}% ${cl * 100}%)`)
+    }
+    if (rotationDeg !== 0) {
+      styleParts.push(`transform: rotate(${rotationDeg}deg)`)
+      styleParts.push('transform-origin: center center')
+    }
+    if (styleParts.length > 0) {
+      img.setAttribute('style', styleParts.join('; '))
+    }
+    div.replaceWith(img)
+  } catch {
+    // leave div in place if encoding fails
+  }
+}
+
+/**
+ * Converts div[data-signature-node] elements to img (PNG when possible) so export/print render the signature.
+ */
+async function materializeSignatureNodesInHtml(html: string): Promise<string> {
   if (typeof DOMParser === 'undefined') return html
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
-  const divs = doc.body.querySelectorAll('div[data-signature-node]')
-  for (const div of divs) {
-    const svg = div.getAttribute('data-snapshot-svg')
-    if (!svg) continue
-    try {
-      const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
-      const img = doc.createElement('img')
-      img.setAttribute('src', dataUrl)
-      img.setAttribute('alt', div.getAttribute('data-name') || 'Signature')
-      const w = div.getAttribute('data-width')
-      const h = div.getAttribute('data-height')
-      if (w) img.setAttribute('width', w)
-      if (h) img.setAttribute('height', h)
-      div.replaceWith(img)
-    } catch {
-      // leave div in place if encoding fails
+  const divs = Array.from(doc.body.querySelectorAll('div[data-signature-node]'))
+  const replacements = await Promise.all(
+    divs.map(async div => {
+      const el = div as HTMLDivElement
+      const svg = el.getAttribute('data-snapshot-svg')
+      if (!svg) return { el, node: null as HTMLElement | null }
+
+      const w = parseFloat(el.getAttribute('data-width') || '200')
+      const h = parseFloat(el.getAttribute('data-height') || '80')
+      const displayWidth = Number.isFinite(w) ? w : 200
+      const displayHeight = Number.isFinite(h) ? h : 80
+      const ct = parseSignatureCrop(el.getAttribute('data-crop-top'))
+      const cr = parseSignatureCrop(el.getAttribute('data-crop-right'))
+      const cb = parseSignatureCrop(el.getAttribute('data-crop-bottom'))
+      const cl = parseSignatureCrop(el.getAttribute('data-crop-left'))
+      const rot = parseFloat(el.getAttribute('data-rotation') || '0')
+      const rotationDeg = Number.isFinite(rot) ? rot : 0
+
+      const raster = await rasterizeSignatureSvgToPng(svg, displayWidth, displayHeight, ct, cr, cb, cl, rotationDeg)
+      if (raster) {
+        const img = doc.createElement('img')
+        img.setAttribute('src', raster.dataUrl)
+        img.setAttribute('alt', el.getAttribute('data-name') || 'Signature')
+        img.className = 'signature-export-image'
+        // Do not set width/height attributes or inline width/aspect-ratio: mixed with global
+        // `img { max-width:100%; height:auto }` and intrinsic PNG size, print engines can
+        // resolve a stretched box. Intrinsic canvas PNG dimensions are the single layout source.
+        return { el, node: img as HTMLElement }
+      }
+      return { el, node: null as HTMLElement | null }
+    })
+  )
+  for (const { el, node } of replacements) {
+    if (node) {
+      el.replaceWith(node)
+    } else if (el.getAttribute('data-snapshot-svg')) {
+      materializeSignatureNodesWithSvgFallback(el as HTMLDivElement, doc)
     }
   }
   return doc.body.innerHTML
@@ -648,11 +1294,11 @@ function materializeSignatureNodesInHtml(html: string): string {
 
 /**
  * Replaces each img src in html with the result of getImageDataUrl(src) when not null.
- * Also materializes signature nodes (div[data-signature-node]) to img with embedded SVG data URLs.
+ * Also materializes signature nodes (div[data-signature-node]) to raster or SVG img.
  * Use so exported Word/PDF contain embedded images instead of unreachable URLs.
  */
 export async function embedImagesInHtml(html: string, getImageDataUrl: GetImageDataUrlForExport): Promise<string> {
-  const content = materializeSignatureNodesInHtml(html)
+  const content = await materializeSignatureNodesInHtml(html)
   const imgRegex = /<img([^>]*?)src\s*=\s*["']([^"']+)["']([^>]*)>/gi
   let result = ''
   let lastIndex = 0
@@ -660,7 +1306,7 @@ export async function embedImagesInHtml(html: string, getImageDataUrl: GetImageD
   while ((m = imgRegex.exec(content)) !== null) {
     result += content.slice(lastIndex, m.index)
     const dataUrl = await getImageDataUrl(m[2])
-    if (dataUrl == null) {
+    if (dataUrl == null || dataUrl.trim() === '') {
       result += m[0]
     } else {
       result += `<img${m[1]}src="${dataUrl}"${m[3]}>`
@@ -679,6 +1325,12 @@ export interface PrintHtmlDocumentOptions {
   printStyleConfig?: DocumentPrintStyleConfig
   /** If provided (and not closed), use this window instead of opening a new one. Use when opening synchronously on user click to avoid popup blockers. */
   targetWindow?: Window | null
+}
+
+interface PaginatedPrintDocumentOptions {
+  title: string
+  paginatedEditorRoot: HTMLElement
+  printStyleConfig?: DocumentPrintStyleConfig
 }
 
 export function buildPrintHtmlDocument({
@@ -706,6 +1358,94 @@ ${buildPrintStylesheet(printStyleConfig, extraCss)}
   <body>
     ${titleHeading}
     ${safeBodyHtml}
+  </body>
+</html>`
+}
+
+function buildPaginatedPrintStylesheet(printStyleConfig?: DocumentPrintStyleConfig, paginationCss = ''): string {
+  const pageSizeCss = printStyleConfig?.pageSizeCss ?? 'auto'
+
+  return `
+      @page { size: ${pageSizeCss}; margin: 0; }
+      html, body { margin: 0; padding: 0; background: #fff; }
+      body { background: #fff; }
+      .rm-pages-root {
+        margin: 0 auto;
+        border: 0 !important;
+        box-shadow: none !important;
+      }
+      .rm-pages-root .rm-page-break {
+        break-after: page;
+        page-break-after: always;
+      }
+      .rm-pages-root .rm-page-break:last-child {
+        break-after: auto;
+        page-break-after: auto;
+      }
+      .rm-pages-root .rm-page-gap,
+      .rm-pages-root .rm-page-overlay,
+      .rm-pages-root .rm-page-inline-editor,
+      .rm-pages-root .ProseMirror-gapcursor,
+      .rm-pages-root .column-resize-handle {
+        display: none !important;
+      }
+      .rm-pages-root [data-layout-window-active="false"] {
+        content-visibility: visible !important;
+      }
+${paginationCss}
+${buildEditorParityPrintOverrides('.rm-pages-root ')}
+    `
+}
+
+function stripEditorOnlyPaginationState(root: HTMLElement): void {
+  root.querySelectorAll('[contenteditable]').forEach(element => {
+    element.removeAttribute('contenteditable')
+  })
+  root.querySelectorAll('[data-rm-overlay-active]').forEach(element => {
+    element.removeAttribute('data-rm-overlay-active')
+  })
+  root.querySelectorAll('[data-rm-editable]').forEach(element => {
+    element.removeAttribute('data-rm-editable')
+  })
+  root
+    .querySelectorAll('.rm-page-overlay, .rm-page-inline-editor, .ProseMirror-gapcursor, .column-resize-handle')
+    .forEach(element => {
+      element.remove()
+    })
+}
+
+function buildPaginatedPrintHtmlDocument({
+  title,
+  paginatedEditorRoot,
+  printStyleConfig
+}: PaginatedPrintDocumentOptions): string {
+  const safeTitle = escapeHtmlText(title || 'Document')
+  const clone = paginatedEditorRoot.cloneNode(true) as HTMLElement
+  stripEditorOnlyPaginationState(clone)
+
+  const styleDocument = document.implementation.createHTMLDocument('paged-export')
+  ensurePagesStyles(styleDocument)
+  const paginationCss =
+    (styleDocument.head.querySelector('style[data-rm-pages-style]') as HTMLStyleElement | null)?.textContent ?? ''
+  const sanitizedBody = DOMPurify.sanitize(clone.outerHTML, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+    FORBID_ATTR: [],
+    ALLOW_DATA_ATTR: true
+  })
+
+  return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="referrer" content="no-referrer">
+    <title>${safeTitle}</title>
+    <style>
+${buildPaginatedPrintStylesheet(printStyleConfig, paginationCss)}
+    </style>
+  </head>
+  <body>
+    ${sanitizedBody}
   </body>
 </html>`
 }
@@ -741,13 +1481,7 @@ function waitForImagesInDocument(doc: Document): Promise<void> {
  * Waits for images to load so pictures appear in print/PDF.
  * CWE-79: body content is sanitized with DOMPurify before building fullHtml so srcdoc/appendChild get safe input.
  */
-function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
-  const sanitizedBody = DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-    FORBID_ATTR: [],
-    ALLOW_DATA_ATTR: true
-  })
-  const fullHtml = buildPrintHtmlDocument({ ...options, htmlContent: sanitizedBody })
+function printFullHtmlDocumentViaIframe(fullHtml: string): void {
   const iframe = document.createElement('iframe')
   iframe.setAttribute('style', 'position:absolute;width:0;height:0;border:0;visibility:hidden')
   iframe.srcdoc = fullHtml
@@ -783,40 +1517,10 @@ function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
   setTimeout(run, 500)
 }
 
-function syncElementAttributes(target: Element, source: Element): void {
-  for (const attribute of Array.from(target.attributes)) {
-    target.removeAttribute(attribute.name)
-  }
-
-  for (const attribute of Array.from(source.attributes)) {
-    target.setAttribute(attribute.name, attribute.value)
-  }
-}
-
-function replaceDocumentHtml(doc: Document, html: string): void {
-  const parsed = new DOMParser().parseFromString(html, 'text/html')
-  doc.open()
-  syncElementAttributes(doc.documentElement, parsed.documentElement)
-  syncElementAttributes(doc.head, parsed.head)
-  syncElementAttributes(doc.body, parsed.body)
-  doc.head.replaceChildren(...Array.from(parsed.head.childNodes, node => doc.importNode(node, true)))
-  doc.body.replaceChildren(...Array.from(parsed.body.childNodes, node => doc.importNode(node, true)))
-  doc.title = parsed.title
-  doc.close()
-}
-
-export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
-  const { targetWindow } = options
+function printPreparedHtmlDocument(fullHtml: string, targetWindow?: Window | null): void {
   const useExistingWindow = targetWindow && !targetWindow.closed
 
   if (useExistingWindow) {
-    const sanitizedBody = DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
-      FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-      FORBID_ATTR: [],
-      ALLOW_DATA_ATTR: true
-    })
-    const fullHtml = buildPrintHtmlDocument({ ...options, htmlContent: sanitizedBody })
-
     try {
       const doc = targetWindow.document
       replaceDocumentHtml(doc, fullHtml)
@@ -852,7 +1556,39 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
     return
   }
 
-  printHtmlDocumentViaIframe(options)
+  printFullHtmlDocumentViaIframe(fullHtml)
+}
+
+function syncElementAttributes(target: Element, source: Element): void {
+  for (const attribute of Array.from(target.attributes)) {
+    target.removeAttribute(attribute.name)
+  }
+
+  for (const attribute of Array.from(source.attributes)) {
+    target.setAttribute(attribute.name, attribute.value)
+  }
+}
+
+function replaceDocumentHtml(doc: Document, html: string): void {
+  const parsed = new DOMParser().parseFromString(html, 'text/html')
+  doc.open()
+  syncElementAttributes(doc.documentElement, parsed.documentElement)
+  syncElementAttributes(doc.head, parsed.head)
+  syncElementAttributes(doc.body, parsed.body)
+  doc.head.replaceChildren(...Array.from(parsed.head.childNodes, node => doc.importNode(node, true)))
+  doc.body.replaceChildren(...Array.from(parsed.body.childNodes, node => doc.importNode(node, true)))
+  doc.title = parsed.title
+  doc.close()
+}
+
+export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
+  const sanitizedBody = DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+    FORBID_ATTR: [],
+    ALLOW_DATA_ATTR: true
+  })
+  const fullHtml = buildPrintHtmlDocument({ ...options, htmlContent: sanitizedBody })
+  printPreparedHtmlDocument(fullHtml, options.targetWindow)
 }
 
 export function printHtmlDocumentWithStyle(
@@ -984,6 +1720,8 @@ function htmlToWordML(html: string): string {
 export interface ExportImageOptions {
   getImageDataUrl?: GetImageDataUrlForExport
   printStyleConfig?: DocumentPrintStyleConfig
+  formatting?: import('../types').DocumentFormatting
+  paginatedEditorRoot?: HTMLElement | null
 }
 
 /**
@@ -999,7 +1737,7 @@ export async function exportToWord(title: string, htmlContent: string, options?:
     content = await embedImagesInHtml(content, options.getImageDataUrl)
   }
 
-  const blob = await buildDocxBlob(title, content)
+  const blob = await buildDocxBlob(title, content, options?.formatting)
   downloadBlob(blob, `${sanitizeDocxFilename(title)}.docx`)
 }
 
@@ -1016,6 +1754,16 @@ export async function exportToPDF(
   targetWindow?: Window | null,
   options?: ExportImageOptions
 ): Promise<void> {
+  if (options?.paginatedEditorRoot instanceof HTMLElement) {
+    const fullHtml = buildPaginatedPrintHtmlDocument({
+      title,
+      paginatedEditorRoot: options.paginatedEditorRoot,
+      printStyleConfig: options.printStyleConfig
+    })
+    printPreparedHtmlDocument(fullHtml, targetWindow)
+    return
+  }
+
   let content = htmlContent
   if (options?.getImageDataUrl) {
     content = await embedImagesInHtml(content, options.getImageDataUrl)
@@ -1227,7 +1975,7 @@ export async function exportToOdt(title: string, htmlContent: string): Promise<v
   const odfContent = htmlToOdfXml(safeHtml)
   const safeTitle = escapeHtmlText(title || 'Document')
 
-  const zip = new JSZip()
+  const zip = createJSZip()
 
   // mimetype MUST be first entry and uncompressed (ODF spec requirement)
   zip.file('mimetype', 'application/vnd.oasis.opendocument.text', { compression: 'STORE' })

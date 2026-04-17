@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 import React from 'react'
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
 import { ExpenseData } from '../../../../types'
-import { ExpenseDataTable } from '../../../../../../common/components/ExpenseDataTable'
-import { TableErrorState } from '../../../../../../common/components/TableErrorState'
+import { ExpenseDataTable } from '../../../../../../common/components/table/ExpenseDataTable'
+import { TableErrorState } from '../../../../../../common/components/table/TableErrorState'
 
 const DEFAULT_DATA_TEST_ID_PREFIX = 'expense-requests'
 

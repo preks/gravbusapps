@@ -76,7 +76,15 @@ export interface CreateLayoutProps {
   className?: string
 }
 
-const PANEL_CLASS = 'gba:flex gba:flex-col gba:min-h-0 gba:rounded-none'
+const ROOT_CLASS =
+  'gba:flex gba:flex-1 gba:h-full gba:min-h-0 gba:w-full gba:flex-col gba:overflow-hidden gba:bg-background'
+const PANEL_CLASS = 'gba:min-h-0 gba:min-w-0 gba:rounded-none'
+const CHAT_PANEL_CLASS = `${PANEL_CLASS}`
+const CANVAS_PANEL_CLASS = `${PANEL_CLASS}`
+const CHAT_CONTENT_CLASS =
+  'gba:flex gba:h-full gba:min-h-0 gba:min-w-0 gba:flex-col gba:overflow-hidden gba:bg-background gba:border-r gba:border-border'
+const CANVAS_CONTENT_CLASS =
+  'gba:flex gba:h-full gba:min-h-0 gba:min-w-0 gba:flex-col gba:overflow-hidden gba:bg-background'
 const CHAT_RAIL_WIDTH = '3.5rem'
 /** Panel size when fixed collapsed (0 = fully collapsed). */
 const CHAT_PANEL_MIN_SIZE_PERCENT = 0
@@ -160,15 +168,6 @@ export const CreateLayout: React.FC<CreateLayoutProps> = ({
   const useHero = hasHeroTitle && (heroVariant === 'overview' || (heroVariant === 'editor' && onBack != null))
   const chatContent = sidebarOpen && sidebar ? sidebar : chatPanel
 
-  const canvasWrapperClass =
-    'gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:overflow-hidden gba:min-w-0 gba:bg-background'
-
-  const chatPanelContent = (
-    <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:overflow-hidden gba:bg-background gba:border-r gba:border-border">
-      {chatContent}
-    </div>
-  )
-
   const panelGroupRef = useRef<React.ComponentRef<typeof ResizablePanelGroup> | null>(null)
 
   const chatSize = canCollapse && isCollapsed ? CHAT_PANEL_MIN_SIZE_PERCENT : chatDefaultSize
@@ -205,17 +204,17 @@ export const CreateLayout: React.FC<CreateLayoutProps> = ({
         ref={panelGroupRef}
         direction="horizontal"
         onLayout={onPanelLayout}
-        className="gba:flex-1 gba:min-h-0 gba:w-full"
+        className="gba:flex-1 gba:h-full gba:min-h-0 gba:w-full"
         data-testid={`${testId}-layout`}
       >
         <ResizablePanel
           defaultSize={chatSize}
           minSize={chatMin}
-          className={PANEL_CLASS}
+          className={CHAT_PANEL_CLASS}
           data-testid={`${testId}-chat-panel`}
           style={canCollapse && isCollapsed ? { minWidth: CHAT_RAIL_WIDTH } : undefined}
         >
-          {showIconOnly ? collapsedRail : chatPanelContent}
+          {showIconOnly ? collapsedRail : <aside className={CHAT_CONTENT_CLASS}>{chatContent}</aside>}
         </ResizablePanel>
         <ResizableHandle
           withHandle
@@ -228,10 +227,10 @@ export const CreateLayout: React.FC<CreateLayoutProps> = ({
         <ResizablePanel
           defaultSize={canvasSize}
           minSize={canvasMinSize}
-          className={PANEL_CLASS}
+          className={CANVAS_PANEL_CLASS}
           data-testid={`${testId}-canvas-panel`}
         >
-          <div className={canvasWrapperClass}>{canvasPanel}</div>
+          <div className={CANVAS_CONTENT_CLASS}>{canvasPanel}</div>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
@@ -239,7 +238,9 @@ export const CreateLayout: React.FC<CreateLayoutProps> = ({
 
   const overviewBodyContent = (
     <div className="gba:flex-1 gba:min-h-0 gba:w-full gba:overflow-auto" data-testid={`${testId}-body`}>
-      <main className="layout-content gba:flex gba:flex-col gba:w-full gba:pt-6 gba:pb-12">{canvasPanel}</main>
+      <main className="layout-content gba:flex gba:min-h-full gba:w-full gba:flex-col gba:pt-6 gba:pb-12">
+        {canvasPanel}
+      </main>
     </div>
   )
 
@@ -258,7 +259,7 @@ export const CreateLayout: React.FC<CreateLayoutProps> = ({
       <TabSwitch
         value={activeView}
         onValueChange={handleViewChange}
-        className="gba:w-full gba:[&_.nw\\:bg-foreground]:!bg-white"
+        className="gba:w-full gba:[&_[class*='nw:bg-foreground']]:!bg-white"
         data-testid={`${testId}-tabs`}
       >
         <div className="gba:-mx-4 gba:px-4 gba:overflow-x-auto gba:scrollbar-hide">
@@ -290,10 +291,7 @@ export const CreateLayout: React.FC<CreateLayoutProps> = ({
 
   if (!useHero) {
     return (
-      <div
-        className={`gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full gba:overflow-hidden gba:bg-background ${className}`.trim()}
-        data-testid={testId}
-      >
+      <div className={`${ROOT_CLASS} ${className}`.trim()} data-testid={testId}>
         {bodyContent}
       </div>
     )
@@ -468,10 +466,7 @@ export const CreateLayout: React.FC<CreateLayoutProps> = ({
     )
 
   return (
-    <div
-      className={`gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full gba:overflow-hidden gba:bg-background ${className}`.trim()}
-      data-testid={testId}
-    >
+    <div className={`${ROOT_CLASS} ${className}`.trim()} data-testid={testId}>
       {heroSection}
       {bodyContent}
     </div>

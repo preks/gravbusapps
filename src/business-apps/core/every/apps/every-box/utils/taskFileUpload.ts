@@ -64,7 +64,7 @@ async function uploadSingleFile(file: File, accessToken: string, folderPath: str
 
   return {
     fileId: info?.fileId || `unknown-${Date.now()}`,
-    fileName: info?.fileMetadata?.originalFileName || file.name,
+    fileName: file.name,
     downloadPath: info?.path || '',
     mimeType,
     fileSize: file.size

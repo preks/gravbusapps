@@ -17,13 +17,16 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Phone, VideoCamera, ChatCircle, ArrowRight, Users } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useChatClient } from '@/common/network/chat/useChatClient'
 import type { LinkedConversation } from '../types/space.types'
 import type { UserInfo } from '../hooks/useSpaceUserLookup'
+import translations from '../_i18n'
+import { formatCompactRelativeTime } from '../utils/spaceLocalization'
 
 export interface SpaceTeamChatPanelProps {
   /** The linked group conversation */
@@ -69,23 +72,6 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-// Format relative time
-function formatTime(dateString: string): string {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / (1000 * 60))
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
 export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
   conversation,
   isLoading = false,
@@ -99,6 +85,7 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
   onUserIdsNeeded,
   'data-testid': testId = 'space-team-chat-panel'
 }) => {
+  const { t, locale } = useTranslation(translations)
   const chatClient = useChatClient(accessToken)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [messagesLoading, setMessagesLoading] = useState(false)
@@ -166,7 +153,7 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
     (message: ChatMessage): { avatar?: string; name: string } => {
       // First check if message has avatar directly
       if (message.senderAvatar) {
-        return { avatar: message.senderAvatar, name: message.senderName || 'Unknown' }
+        return { avatar: message.senderAvatar, name: message.senderName || t('common-unknown') }
       }
 
       // Use the shared user lookup (same as hero)
@@ -177,9 +164,9 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
         }
       }
 
-      return { name: message.senderName || 'Unknown' }
+      return { name: message.senderName || t('common-unknown') }
     },
-    [getUserInfo]
+    [getUserInfo, t]
   )
 
   // Loading state
@@ -215,10 +202,8 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
         <CardContent className="gba:p-6">
           <div className="gba:text-center gba:py-8">
             <ChatCircle className="gba:w-10 gba:h-10 gba:mx-auto gba:text-muted-foreground/50 gba:mb-3" />
-            <p className="gba:text-sm gba:text-muted-foreground">No group chat linked to this space yet</p>
-            <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">
-              Create a group chat for this team to enable collaboration
-            </p>
+            <p className="gba:text-sm gba:text-muted-foreground">{t('chat-no-linked-title')}</p>
+            <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">{t('chat-no-linked-description')}</p>
           </div>
         </CardContent>
       </Card>
@@ -240,12 +225,12 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
               <CardTitle className="gba:text-base gba:font-semibold">{conversation.name}</CardTitle>
               <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
                 <Users className="gba:w-3 gba:h-3" />
-                {memberCount || conversation.participantCount || 0} members
+                {t('common-member-count', { count: memberCount || conversation.participantCount || 0 })}
               </p>
             </div>
           </div>
           <Button variant="ghost" size="sm" onClick={handleOpenChat} data-testid={`${testId}-open-chat`}>
-            Open Chat
+            {t('common-open-chat')}
             <ArrowRight className="gba:w-4 gba:h-4 gba:ml-1" />
           </Button>
         </div>
@@ -263,7 +248,7 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
             data-testid={`${testId}-audio-call`}
           >
             <Phone className="gba:w-4 gba:h-4" />
-            Audio Call
+            {t('common-audio-call')}
           </Button>
           <Button
             variant="outline"
@@ -274,7 +259,7 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
             data-testid={`${testId}-video-call`}
           >
             <VideoCamera className="gba:w-4 gba:h-4" />
-            Video Call
+            {t('common-video-call')}
           </Button>
         </div>
 
@@ -283,7 +268,9 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
 
         {/* Recent Messages */}
         <div>
-          <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-3">Recent Messages</h4>
+          <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-3">
+            {t('chat-recent-messages')}
+          </h4>
 
           {messagesLoading ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-6">
@@ -291,8 +278,8 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
             </div>
           ) : messages.length === 0 ? (
             <div className="gba:text-center gba:py-4">
-              <p className="gba:text-sm gba:text-muted-foreground">No messages yet</p>
-              <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">Start the conversation!</p>
+              <p className="gba:text-sm gba:text-muted-foreground">{t('chat-no-messages')}</p>
+              <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">{t('chat-start-conversation')}</p>
             </div>
           ) : (
             <div className="gba:space-y-3">
@@ -316,11 +303,11 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
                           {senderInfo.name}
                         </span>
                         <span className="gba:text-xs gba:text-muted-foreground gba:flex-shrink-0">
-                          {formatTime(message.createdAt)}
+                          {formatCompactRelativeTime(message.createdAt, locale, t)}
                         </span>
                       </div>
                       <p className="gba:text-sm gba:text-muted-foreground gba:mt-0.5 gba:line-clamp-2">
-                        {message.type === 'file' ? '📎 Shared a file' : message.content}
+                        {message.type === 'file' ? t('chat-shared-file') : message.content}
                       </p>
                     </div>
                   </div>

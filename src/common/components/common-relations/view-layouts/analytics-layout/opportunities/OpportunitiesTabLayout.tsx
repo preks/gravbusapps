@@ -1,12 +1,6 @@
 import React from 'react'
 import { WidgetGroup } from '@/components/widget-group'
-import {
-  CurrencyCircleDollarIcon,
-  TrophyIcon,
-  ClockIcon,
-  TrendUpIcon,
-  PercentIcon
-} from '@phosphor-icons/react'
+import { CurrencyCircleDollarIcon, TrophyIcon, ClockIcon, TrendUpIcon, PercentIcon } from '@phosphor-icons/react'
 import {
   OpportunityLifecycleChart,
   TimeFilter as OpportunityTimeFilter,
@@ -29,6 +23,7 @@ import {
 } from '@newwork/nw-design-system'
 import { OpportunitiesByStagePie } from './widgets/OpportunitiesByStagePie'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
+import { calculateTrend, TrendResult } from '@/common/utils/trendUtils'
 
 export interface OpportunitiesTrendData {
   totalOpportunitiesLastMonth: number
@@ -53,16 +48,14 @@ export interface OpportunityLifecyclePoint {
   opportunitiesWon: number
 }
 
-const calculatePercentChange = (current: number, previous: number): string => {
-  // Handle edge case where previous is 0
-  if (previous === 0) {
-    if (current === 0) {
-      return '0.0%'
-    } else {
-      return '100.0%'
-    }
+const TREND_DESCRIPTION = 'vs previous period (30 days ago)'
+
+const calculateAbsoluteDiffTrend = (current: number, previous: number, description: string): TrendResult => {
+  if (current === previous) {
+    return { value: '0.0%', positive: undefined, badgeVariant: 'offline', description }
   }
-  return `${(((current - previous) / previous) * 100).toFixed(1)}%`
+  const diff = Math.abs(current - previous)
+  return { value: `${diff.toFixed(1)}%`, positive: current > previous, description }
 }
 
 export interface OpportunitiesTabLayoutProps {
@@ -153,11 +146,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       description: 'All opportunities in pipeline',
       ...(trendData && !trendLoading
         ? {
-            trend: {
-              value: calculatePercentChange(totalOpportunities, trendData.totalOpportunitiesLastMonth || 0),
-              positive: totalOpportunities >= (trendData.totalOpportunitiesLastMonth || 0),
-              description: 'vs previous period (30 days ago)'
-            }
+            trend: calculateTrend(totalOpportunities, trendData.totalOpportunitiesLastMonth || 0, TREND_DESCRIPTION)
           }
         : {})
     },
@@ -170,11 +159,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       description: 'Combined value of all opportunities',
       ...(trendData && !trendLoading
         ? {
-            trend: {
-              value: calculatePercentChange(totalValue, trendData.previousPeriodPipelineValue || 0),
-              positive: totalValue >= (trendData.previousPeriodPipelineValue || 0),
-              description: 'vs previous period (30 days ago)'
-            }
+            trend: calculateTrend(totalValue, trendData.previousPeriodPipelineValue || 0, TREND_DESCRIPTION)
           }
         : {})
     },
@@ -187,11 +172,11 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       description: 'Percentage of won opportunities',
       ...(trendData && !trendLoading
         ? {
-            trend: {
-              value: `${Math.abs((trendData.actualWinRateThisMonth || winRate) - (trendData.actualWinRateLastMonth || 0)).toFixed(1)}%`,
-              positive: (trendData.actualWinRateThisMonth || winRate) >= (trendData.actualWinRateLastMonth || 0),
-              description: 'vs previous period (30 days ago)'
-            }
+            trend: calculateAbsoluteDiffTrend(
+              trendData.actualWinRateThisMonth || winRate,
+              trendData.actualWinRateLastMonth || 0,
+              TREND_DESCRIPTION
+            )
           }
         : {})
     },
@@ -210,15 +195,11 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       description: 'Average opportunity value',
       ...(trendData && !trendLoading
         ? {
-            trend: {
-              value: calculatePercentChange(
-                trendData.actualAvgDealSizeThisMonth || avgDealSize,
-                trendData.actualAvgDealSizeLastMonth || 0
-              ),
-              positive:
-                (trendData.actualAvgDealSizeThisMonth || avgDealSize) >= (trendData.actualAvgDealSizeLastMonth || 0),
-              description: 'vs previous period (30 days ago)'
-            }
+            trend: calculateTrend(
+              trendData.actualAvgDealSizeThisMonth || avgDealSize,
+              trendData.actualAvgDealSizeLastMonth || 0,
+              TREND_DESCRIPTION
+            )
           }
         : {})
     },
@@ -230,14 +211,11 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       description: 'Opportunities created in selected period',
       ...(trendData && !trendLoading
         ? {
-            trend: {
-              value: calculatePercentChange(
-                trendData.currentPeriodOpportunities || 0,
-                trendData.previousPeriodOpportunities || 0
-              ),
-              positive: (trendData.currentPeriodOpportunities || 0) >= (trendData.previousPeriodOpportunities || 0),
-              description: 'vs previous period (30 days ago)'
-            }
+            trend: calculateTrend(
+              trendData.currentPeriodOpportunities || 0,
+              trendData.previousPeriodOpportunities || 0,
+              TREND_DESCRIPTION
+            )
           }
         : {})
     },
@@ -250,11 +228,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       description: 'Average value per opportunity',
       ...(trendData && !trendLoading && trendData.actualAvgOpportunityValueLastMonth !== undefined
         ? {
-            trend: {
-              value: calculatePercentChange(avgSalesCycle, trendData.actualAvgOpportunityValueLastMonth || 0),
-              positive: avgSalesCycle >= (trendData.actualAvgOpportunityValueLastMonth || 0),
-              description: 'vs previous period (30 days ago)'
-            }
+            trend: calculateTrend(avgSalesCycle, trendData.actualAvgOpportunityValueLastMonth || 0, TREND_DESCRIPTION)
           }
         : {})
     },
@@ -267,12 +241,11 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       description: 'Leads converted to opportunities',
       ...(trendData && !trendLoading
         ? {
-            trend: {
-              value: `${Math.abs((trendData.actualConversionRateThisMonth || 0) - (trendData.actualConversionRateLastMonth || 0)).toFixed(1)}%`,
-              positive:
-                (trendData.actualConversionRateThisMonth || 0) >= (trendData.actualConversionRateLastMonth || 0),
-              description: 'vs previous period (30 days ago)'
-            }
+            trend: calculateAbsoluteDiffTrend(
+              trendData.actualConversionRateThisMonth || 0,
+              trendData.actualConversionRateLastMonth || 0,
+              TREND_DESCRIPTION
+            )
           }
         : {})
     },
@@ -285,14 +258,14 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       description: 'Average time in pipeline',
       ...(trendData && !trendLoading
         ? {
-            trend: {
-              value: calculatePercentChange(
+            trend: (() => {
+              const t = calculateTrend(
                 Number(_pipelineVelocity) || 0,
-                Number(trendData.actualPipelineVelocityLastMonth) || 0
-              ),
-              positive: (Number(_pipelineVelocity) || 0) <= (Number(trendData.actualPipelineVelocityLastMonth) || 0),
-              description: 'vs previous period (30 days ago)'
-            }
+                Number(trendData.actualPipelineVelocityLastMonth) || 0,
+                TREND_DESCRIPTION
+              )
+              return { ...t, positive: t.positive === undefined ? undefined : !t.positive }
+            })()
           }
         : {})
     }

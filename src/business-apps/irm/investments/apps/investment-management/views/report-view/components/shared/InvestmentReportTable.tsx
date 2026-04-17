@@ -2,7 +2,7 @@
 // Unified table for Equity, Real Estate, and Liquid Fund investment reports
 // Uses DataTable component for consistent pagination with Investment tab
 
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo } from 'react'
 import { DataTable, Alert, Button } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
@@ -11,6 +11,22 @@ import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { useInvestmentReportData } from './useInvestmentReportData'
 import { InvestmentReportTableConfig } from './types'
 import { INVESTMENT_REPORT_DESCRIPTORS } from '@/common/data/investment/types/investmentReportTypes'
+
+export interface ExportColumnDef {
+  key: string
+  title: string
+  getTextValue: (record: any) => string
+  isDate?: boolean
+}
+
+export interface InvestmentReportExportHelpers {
+  fetchAll: () => Promise<any[]>
+  totalCount: number
+  /** Optional transformer applied to raw reports before the export formatter runs (e.g. Liquid Fund analytics transformer). */
+  dataTransformer?: (reports: any[]) => any[]
+  /** Export-ready column definitions derived from the table's generated columns. */
+  exportColumns?: ExportColumnDef[]
+}
 
 interface InvestmentReportTableProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -21,6 +37,7 @@ interface InvestmentReportTableProps extends BusinessAppContextProps {
   catalogData: any
   visibleColumns?: string[]
   onCurrenciesChange?: (currencies: string[]) => void
+  onExportReady?: (helpers: InvestmentReportExportHelpers) => void
   enabled?: boolean
   dataTransformer?: (reports: any[]) => any[] // For Liquid Funds
   columnsOverride?: any[] // For Liquid Funds with custom column generation
@@ -41,6 +58,7 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
   catalogData,
   visibleColumns = ['investment', 'date'],
   onCurrenciesChange,
+  onExportReady,
   enabled = true,
   dataTransformer,
   columnsOverride,
@@ -49,19 +67,30 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
   onSortingChange
 }) => {
   // Use shared hook for data fetching
-  const { data, isLoading, error, initialLoadDone, refetch, page, pageSize, totalCount, setPage, setPageSize } =
-    useInvestmentReportData({
-      investmentGroup: config.investmentGroup,
-      filters,
-      investmentType,
-      accessToken,
-      userInfo,
-      onCurrenciesChange,
-      enabled,
-      dataTransformer,
-      sortField,
-      sortOrder
-    })
+  const {
+    data,
+    isLoading,
+    error,
+    initialLoadDone,
+    refetch,
+    fetchAll,
+    page,
+    pageSize,
+    totalCount,
+    setPage,
+    setPageSize
+  } = useInvestmentReportData({
+    investmentGroup: config.investmentGroup,
+    filters,
+    investmentType,
+    accessToken,
+    userInfo,
+    onCurrenciesChange,
+    enabled,
+    dataTransformer,
+    sortField,
+    sortOrder
+  })
 
   // Generate columns using config or use override (for liquid funds)
   const generatedColumns = useMemo(() => {
@@ -75,6 +104,26 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
       reports: data
     })
   }, [columnsOverride, config, investmentType, catalogData, accessToken, data])
+
+  // Derive export-ready column definitions from the generated table columns
+  const exportColumns = useMemo(() => {
+    if (columnsOverride) return undefined // Liquid Fund uses rawDynamicColumns instead
+    return generatedColumns
+      .filter((col: any) => col.key !== 'actions' && typeof col.getTextValue === 'function')
+      .map((col: any) => ({
+        key: col.key,
+        title: col.title,
+        getTextValue: col.getTextValue,
+        isDate: col.key === 'date'
+      }))
+  }, [generatedColumns, columnsOverride])
+
+  // Notify parent of export helpers whenever relevant values change
+  useEffect(() => {
+    if (onExportReady) {
+      onExportReady({ fetchAll, totalCount, dataTransformer, exportColumns })
+    }
+  }, [fetchAll, totalCount, dataTransformer, exportColumns, onExportReady])
 
   // Helper to check if a column is sortable
   const isColumnSortable = useCallback((columnKey: string): boolean => {

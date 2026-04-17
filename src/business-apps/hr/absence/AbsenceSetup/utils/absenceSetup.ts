@@ -1,13 +1,37 @@
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
+import type { CatalogTranslationValues } from '@/business-apps/hr/core/utils/catalogEntryHelpers'
 import type { AbsenceEntitlementObjectValue } from './absenceEntitlementObjectValue'
 import { defaultAbsenceTypeObjectSettings, type AbsenceTypeObjectSettings } from './absenceTypeObjectValue'
+import { getFirstDayOfCurrentMonthIso } from './absenceTypeVersionValidation'
+
+export interface SetupSectionHighlight {
+  label: string
+  value: string
+  display?: 'text' | 'icon' | 'color'
+}
+
+export interface SetupSectionSortOption {
+  id: string
+  label: string
+  direction?: 'asc' | 'desc'
+}
 
 export interface SetupSectionItem {
   id: string
   title: string
   description: string
+  highlights?: SetupSectionHighlight[]
   statusLabel?: string
+  statusValue?: 'active' | 'inactive'
   canEdit?: boolean
+  canDelete?: boolean
+  searchText?: string
+  sortText?: string
+  sortValues?: Record<string, string | number>
+  fields?: Array<{
+    label: string
+    value: string
+  }>
 }
 
 export interface MockEntitlementSummary {
@@ -24,6 +48,7 @@ export interface AbsenceTypeVersionFormValues {
   version: string
   validFrom: string
   validTo: string
+  translations: CatalogTranslationValues
   settings: AbsenceTypeObjectSettings
 }
 
@@ -117,13 +142,18 @@ export const mockEntitlementSummaries: MockEntitlementSummary[] = [
   }
 ]
 
-export const defaultAbsenceTypeVersionValues: AbsenceTypeVersionFormValues = {
+export const createDefaultAbsenceTypeVersionValues = (): AbsenceTypeVersionFormValues => ({
   code: '',
   version: '1.0',
-  validFrom: '2024-01-01',
-  validTo: '9999-12-31',
+  validFrom: getFirstDayOfCurrentMonthIso(),
+  validTo: '',
+  translations: {
+    enUS: '',
+    deDE: '',
+    roRO: ''
+  },
   settings: defaultAbsenceTypeObjectSettings
-}
+})
 
 export const defaultAbsenceEntitlementValues: AbsenceEntitlementFormValues = {
   code: '',

@@ -1,4 +1,3 @@
-import DOMPurify from 'dompurify'
 import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import type { Doc as YDoc } from 'yjs'
@@ -140,12 +139,7 @@ export async function applyLatestDocumentContent({
   const scrollContainer = editorContainerRef.current
   const scrollTopBefore = scrollContainer?.scrollTop ?? 0
   const normalizedHtml = sanitizeDocumentHtmlForEditor(html)
-  const safeHtml =
-    DOMPurify.sanitize(normalizedHtml, {
-      USE_PROFILES: { html: true },
-      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-      ALLOW_DATA_ATTR: true
-    }) || '<p></p>'
+  const safeHtml = normalizedHtml || '<p></p>'
 
   try {
     suppressYjsSnapshotSaveRef.current = true
@@ -205,13 +199,7 @@ export async function restoreVersionContent({
   }
 
   markNextPaginationHydrationDocChange(editor)
-  editor.commands.setContent(
-    DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(versionData.content), {
-      USE_PROFILES: { html: true },
-      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-      ALLOW_DATA_ATTR: true
-    }) || '<p></p>'
-  )
+  editor.commands.setContent(sanitizeDocumentHtmlForEditor(versionData.content) || '<p></p>')
   schedulePostHydrationPaginationRefresh(editor)
   setTitle(versionData.title)
   setHasUnsavedChanges(false)
@@ -261,12 +249,7 @@ export function usePagedDocumentExternalContentSync({
       const latest = await getDocumentById(officeClient, documentId, { fresh: true })
       if (!latest?.content) return false
 
-      const latestHtml =
-        DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(latest.content), {
-          USE_PROFILES: { html: true },
-          FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-          ALLOW_DATA_ATTR: true
-        }) || '<p></p>'
+      const latestHtml = sanitizeDocumentHtmlForEditor(latest.content) || '<p></p>'
       const currentHtml = sanitizePaginationRuntimeHtml(editor.getHTML())
       if (areHtmlSemanticallyEquivalent(latestHtml, currentHtml)) {
         return false

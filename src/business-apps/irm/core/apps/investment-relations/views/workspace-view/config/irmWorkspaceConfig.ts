@@ -6,6 +6,7 @@ import {
   useIrmTasksAdapter
 } from '../hooks/usePersonalWorkspaceAdapters'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildIrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { TargetIcon, BuildingsIcon, UsersIcon, ChartPieIcon, UserIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MyActivitiesTab } from '../components/MyActivitiesTab'
@@ -144,7 +145,10 @@ const buildIrmWorkspaceConfig = (
     flowContexts: {
       entityContext: FlowContextName.investmentActivityEntity,
       createContext: FlowContextName.investmentActivityCreate
-    }
+    },
+    rowActionsContextArray: [FlowContextName.investmentActivityEntity],
+    buildReferenceUrl: (entityType: string, entityId: string) =>
+      buildIrmRelatedEntityRecordUrl(entityType as Parameters<typeof buildIrmRelatedEntityRecordUrl>[0], entityId)
   } as any,
 
   myTasksConfig: {

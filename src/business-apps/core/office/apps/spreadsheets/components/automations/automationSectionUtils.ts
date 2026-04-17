@@ -19,8 +19,13 @@ import type {
   EmployeeLightResult
 } from './automationSectionTypes'
 import { getSpreadsheetBasePath, isAllowedSpreadsheetPath } from '../../utils/spreadsheetPaths'
+import { getSpreadsheetApiBasePath } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employeeQueries'
+
+function getSpreadsheetApiUrl(docServiceUrl: string, suffix = ''): string {
+  return `${docServiceUrl.replace(/\/+$/, '')}${getSpreadsheetApiBasePath()}${suffix}`
+}
 
 export function extractArray<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) return payload as T[]
@@ -142,7 +147,7 @@ async function fetchSheetPayload(
   sheetId: string
 ): Promise<Record<string, unknown> | null> {
   try {
-    const response = await fetch(`${docServiceUrl}/spreadsheets/${appId}/sheets/${sheetId}`, {
+    const response = await fetch(getSpreadsheetApiUrl(docServiceUrl, `/${appId}/sheets/${sheetId}`), {
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
     })
@@ -218,7 +223,7 @@ export async function fetchAutomationsForApp(
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
     }),
-    fetch(`${docServiceUrl}/spreadsheets/${app.id}`, {
+    fetch(getSpreadsheetApiUrl(docServiceUrl, `/${app.id}`), {
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
     })
@@ -242,9 +247,13 @@ export async function fetchAutomationsForApp(
 
   const seen = new Set<string>()
   const mergedAutomations: SpreadsheetAutomation[] = []
+  let dedupeFallback = 0
   for (const automation of [...fromAutomationEndpoint, ...fromSheetConfig]) {
-    const key = getAutomationIdentity(automation)
-    if (!key || seen.has(key)) continue
+    let key = getAutomationIdentity(automation)
+    if (!key) {
+      key = `__noid_${dedupeFallback++}`
+    }
+    if (seen.has(key)) continue
     seen.add(key)
     mergedAutomations.push(automation)
   }
@@ -254,6 +263,56 @@ export async function fetchAutomationsForApp(
     spreadsheetAppId: app.id,
     spreadsheetAppName: app.name
   }))
+}
+
+/**
+ * Same merge rules as {@link fetchAutomationsForApp}, but scoped to one sheet:
+ * - DB rows from GET /automations/app/:appId?sheetId=
+ * - Sheet JSON automations from GET /spreadsheets/:appId/sheets/:sheetId
+ *
+ * Used by the in-spreadsheet Automations panel to mirror the hub tab refresh behaviour.
+ */
+export async function fetchAutomationsForSingleSheet(
+  app: { id: string; name: string },
+  sheetId: string,
+  docServiceUrl: string,
+  accessToken: string
+): Promise<SpreadsheetAutomation[]> {
+  const [automationsResponse, sheetResponse] = await Promise.all([
+    fetch(`${docServiceUrl}/automations/app/${app.id}?sheetId=${encodeURIComponent(sheetId)}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
+    }),
+    fetch(`${docServiceUrl}/spreadsheets/${app.id}/sheets/${sheetId}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
+    })
+  ])
+
+  const fromEndpoint = automationsResponse.ok
+    ? extractAutomations(await automationsResponse.json()).map(normalizeAutomation)
+    : []
+
+  const fromSheet: SpreadsheetAutomation[] = []
+  if (sheetResponse.ok) {
+    const sheetPayload = unwrapObject(await sheetResponse.json())
+    appendNormalizedAutomations(fromSheet, extractAutomations(sheetPayload.automations))
+  }
+
+  const seen = new Set<string>()
+  const mergedAutomations: SpreadsheetAutomation[] = []
+  let dedupeFallback = 0
+  for (const automation of [...fromEndpoint, ...fromSheet]) {
+    let key = getAutomationIdentity(automation)
+    if (!key) {
+      key = `__noid_${dedupeFallback++}`
+    }
+    if (seen.has(key)) continue
+    seen.add(key)
+    mergedAutomations.push(automation)
+  }
+
+  return mergedAutomations
 }
 
 export async function fetchRunsForAutomation(
@@ -495,7 +554,7 @@ export async function fetchAccessibleSpreadsheets(
   const apps: Array<{ id: string; name: string }> = []
 
   while (hasMore) {
-    const response = await fetch(`${docServiceUrl}/spreadsheets?page=${page}&limit=${PAGE_SIZE}`, {
+    const response = await fetch(getSpreadsheetApiUrl(docServiceUrl, `?page=${page}&limit=${PAGE_SIZE}`), {
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
     })

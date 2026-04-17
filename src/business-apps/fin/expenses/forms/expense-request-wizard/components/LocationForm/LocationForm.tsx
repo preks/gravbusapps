@@ -227,6 +227,11 @@ const LocationForm: React.FC<LocationFormProps> = ({
           />
         </div>
       )}
+      {errorMessage && (
+        <div className="gba:flex gba:flex-col gba:w-full" data-testid={`${idPrefix}-error-row`}>
+          <Alert message={errorMessage} type="error" showIcon data-testid={`${idPrefix}-rule-error`} />
+        </div>
+      )}
       {showDateTimeFields && (
         <>
           <div className="gba:grid gba:grid-cols-2 gba:gap-4" data-testid={`${idPrefix}-date-time-container`}>
@@ -282,19 +287,6 @@ const LocationForm: React.FC<LocationFormProps> = ({
               />
             </div>
           </div>
-
-          {/* Warning messages display below date/time fields - only show if there's an actual message to display */}
-
-          {/* Show employee rule error if it exists - this has highest priority */}
-          {errorMessage && (
-            <div
-              className="gba:flex gba:flex-col gba:w-[100%]"
-              style={{ marginTop: '8px', marginBottom: '4px', gridColumn: '1 / -1' }}
-              data-testid={`${idPrefix}-error-row`}
-            >
-              <Alert message={errorMessage} type="error" showIcon data-testid={`${idPrefix}-rule-error`} />
-            </div>
-          )}
 
           {/* Only show warnings if we have a date selected and after delay to prevent flashing */}
           {departureDate && showWarnings && !errorMessage && (

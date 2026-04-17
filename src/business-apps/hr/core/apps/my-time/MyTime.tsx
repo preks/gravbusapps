@@ -7,14 +7,14 @@ import { MODULE_COLORS } from '@/common/constants/ui'
 import TimeTracking from './components/TimeTracking'
 import { useEmployeeData } from '../employee-record/hooks/useEmployeeData'
 import timeTrackingTranslations from './_i18n'
-import DailyLog from './components/DailyLog'
 import TimeHistory from './components/TimeHistory'
 import SmartBooking from '../employee-record/components/tabs/components/SmartBooking'
+import { InterventionsTable } from '../employee-record/components/tabs/components/InterventionsTable'
 
 enum MyTimeTabEnum {
   TimeTracking = 'time-tracking',
+  EveryAIAssistant = 'everyai-assistant',
   SmartBooking = 'smart-booking',
-  DailyLog = 'daily-log',
   History = 'history'
 }
 
@@ -43,19 +43,19 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
           items: [
             {
               value: MyTimeTabEnum.TimeTracking,
-              label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.title', 'Time Tracking')
+              label: t('tab_timesheet')
             },
             {
               value: MyTimeTabEnum.SmartBooking,
-              label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.title', 'Smart Booking')
-            },
-            {
-              value: MyTimeTabEnum.DailyLog,
-              label: t('daily_log')
+              label: t('tab_project_time')
             },
             {
               value: MyTimeTabEnum.History,
-              label: t('history')
+              label: t('tab_history')
+            },
+            {
+              value: MyTimeTabEnum.EveryAIAssistant,
+              label: t('tab_everyai_assistant')
             }
           ]
         }}
@@ -64,7 +64,24 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
       >
         {activeTab === MyTimeTabEnum.TimeTracking && (
           <div data-testid="my-time-timesheet-content" className="gba:mt-4">
-            <TimeTracking employee={employee} employeeId={employeeId} accessToken={accessToken} isSelfView={true} />
+            <TimeTracking
+              employee={employee}
+              employeeId={employeeId}
+              accessToken={accessToken}
+              isSelfView={true}
+              onNavigateToEveryAI={() => setActiveTab(MyTimeTabEnum.EveryAIAssistant)}
+            />
+          </div>
+        )}
+
+        {activeTab === MyTimeTabEnum.EveryAIAssistant && (
+          <div data-testid="my-time-everyai-content" className="gba:mt-4">
+            <InterventionsTable
+              employeeId={employeeId}
+              accessToken={accessToken}
+              workingHours={employee?.workingHours?.[0]}
+              defaultExpanded
+            />
           </div>
         )}
 
@@ -74,18 +91,13 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
           </div>
         )}
 
-        {activeTab === MyTimeTabEnum.DailyLog && (
-          <div data-testid="my-time-activity-content" className="gba:mt-4">
-            <DailyLog employee={employee} employeeId={employeeId} accessToken={accessToken} />
-          </div>
-        )}
-
         {activeTab === MyTimeTabEnum.History && (
           <div data-testid="my-time-history-content" className="gba:mt-4">
             <TimeHistory
               employeeId={employeeId}
               accessToken={accessToken}
               userId={userInfo?.id || ''}
+              employee={employee}
               employeeCode={employee?.code}
               employeeFirstName={employee?.firstName}
               employeeLastName={employee?.lastName}

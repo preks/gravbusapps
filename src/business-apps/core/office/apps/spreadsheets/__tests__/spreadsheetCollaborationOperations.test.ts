@@ -3,30 +3,28 @@
  * Verifies hypotheses about why cell edits may not show for the other user.
  */
 
-import { createUniverConversionContext } from '../utils/univerAdapter'
+import { createUniverConversionContext, overlaySparseRowIndexMappings } from '../utils/univerAdapter'
 import type { SpreadsheetColumn } from '../types/spreadsheet'
 
-// --- Operation format contract (sender → receiver) ---
+// --- Operation format contract (authoritative batch receiver) ---
 
-/** Shape sent by handleCellsChange (SpreadsheetAppViewer) */
-interface CellUpdateSendFormat {
-  type: 'cell_update'
+interface SpreadsheetBatchOperation {
+  type: 'set_range' | 'row_add' | 'row_delete'
   data: {
     sheetId: string
-    rowId: string
-    column: string
-    value: unknown
+    cells?: Array<{ rowId: string; columnName: string; value: unknown }>
+    rowIds?: string[]
   }
-  broadcastOnly?: boolean
+  version?: number
 }
 
-/** Shape expected by handleCollaborationOperation (receiver) */
-interface CellUpdateReceiveFormat {
-  sheetId?: string
-  rowId?: string
-  column?: string
-  columnId?: string
-  value?: unknown
+interface SpreadsheetBatchReceiveFormat {
+  type: 'batch_operations'
+  data: {
+    sheetId: string
+    operations: SpreadsheetBatchOperation[]
+  }
+  version: number
 }
 
 function applyRemoteColumnUpdate(
@@ -59,6 +57,78 @@ function rowMatchesRemoteId(row: Record<string, unknown>, remoteRowId: string): 
     .map(value => (value == null ? '' : String(value)))
     .filter(Boolean)
   return candidateIds.includes(remoteRowId)
+}
+
+function viewerRowId(row: Record<string, unknown>): string {
+  const id = row._id ?? row.id
+  if (id == null) return ''
+  return String(id)
+}
+
+function replaceClientRowsWithCreatedRows(
+  existingRows: Array<Record<string, unknown>>,
+  createdRows: Array<Record<string, unknown>>
+): Array<Record<string, unknown>> {
+  const createdRowByClientId = new Map<string, Record<string, unknown>>()
+  createdRows.forEach(row => {
+    const clientRowId = viewerRowId(row)
+    if (!clientRowId) return
+    createdRowByClientId.set(clientRowId, row)
+  })
+
+  const replacedClientRowIds = new Set<string>()
+  const nextRows = existingRows.map(row => {
+    const clientRowId = viewerRowId(row)
+    if (!clientRowId) return row
+    const createdRow = createdRowByClientId.get(clientRowId)
+    if (!createdRow) return row
+    replacedClientRowIds.add(clientRowId)
+    return createdRow
+  })
+
+  createdRows.forEach(row => {
+    const clientRowId = viewerRowId(row)
+    if (clientRowId && replacedClientRowIds.has(clientRowId)) return
+    nextRows.push(row)
+  })
+
+  return nextRows
+}
+
+function mapAddedRowsFromDeltaResult(result: Record<string, unknown>): Array<Record<string, unknown>> {
+  const rows = Array.isArray(result.rows) ? (result.rows as Array<Record<string, unknown>>) : []
+  return rows.map(entry => {
+    const rowData = ((entry.data as Record<string, unknown>) || {}) as Record<string, unknown>
+    const clientRowId = rowData._clientRowId
+    if (clientRowId) {
+      return {
+        ...rowData,
+        _id: clientRowId,
+        _rowUuid: (entry.id as string) || 'generated'
+      }
+    }
+    return {
+      ...rowData,
+      _id: (entry.id as string) || 'generated'
+    }
+  })
+}
+
+function applyRemoteRowAddPlaceholders(
+  rows: Array<Record<string, unknown>>,
+  payload: Record<string, unknown>
+): Array<Record<string, unknown>> {
+  const rowIds = Array.isArray(payload.rowIds) ? payload.rowIds.map(value => String(value || '')).filter(Boolean) : []
+  if (rowIds.length === 0) return rows
+  const nextRows = [...rows]
+  for (const rowId of rowIds) {
+    if (nextRows.some(row => rowMatchesRemoteId(row, rowId))) continue
+    nextRows.push({
+      _id: rowId,
+      _rowUuid: rowId
+    })
+  }
+  return nextRows
 }
 
 function applyColumnWidthsFromDimensions(
@@ -120,48 +190,54 @@ describe('spreadsheetCollaborationOperations', () => {
   ]
 
   describe('operation format contract', () => {
-    it('sender format is compatible with receiver expectations', () => {
-      const sent: CellUpdateSendFormat = {
-        type: 'cell_update',
+    it('authoritative batch format carries one version for all nested operations', () => {
+      const received: SpreadsheetBatchReceiveFormat = {
+        type: 'batch_operations',
         data: {
           sheetId: 'sheet-1',
-          rowId: 'uuid-row-1',
-          column: 'ColumnA',
-          value: 'updated'
+          operations: [
+            {
+              type: 'set_range',
+              data: {
+                sheetId: 'sheet-1',
+                cells: [{ rowId: 'uuid-row-1', columnName: 'ColumnA', value: 'updated' }]
+              }
+            }
+          ]
         },
-        broadcastOnly: true
+        version: 7
       }
 
-      const d = sent.data as unknown as CellUpdateReceiveFormat
-      expect(d.sheetId).toBe('sheet-1')
-      expect(d.rowId).toBe('uuid-row-1')
-      expect(d.column).toBe('ColumnA')
-      expect(d.column ?? d.columnId).toBe('ColumnA')
-      expect(d.value).toBe('updated')
+      expect(received.data.sheetId).toBe('sheet-1')
+      expect(received.version).toBe(7)
+      expect(received.data.operations).toHaveLength(1)
+      expect(received.data.operations[0]).toEqual({
+        type: 'set_range',
+        data: {
+          sheetId: 'sheet-1',
+          cells: [{ rowId: 'uuid-row-1', columnName: 'ColumnA', value: 'updated' }]
+        }
+      })
     })
 
-    it('receiver accepts columnId as fallback when column is missing', () => {
-      const receiveFormat: CellUpdateReceiveFormat = {
-        sheetId: 'sheet-1',
-        rowId: 'uuid-row-1',
-        columnId: 'col-a',
-        value: 42
+    it('nested set_range cells remain compatible with column fallback resolution', () => {
+      const operation: SpreadsheetBatchOperation = {
+        type: 'set_range',
+        data: {
+          sheetId: 'sheet-1',
+          cells: [{ rowId: 'uuid-row-1', columnName: 'col-a', value: 42 }]
+        }
       }
-      const columnKey = receiveFormat.column ?? receiveFormat.columnId
-      expect(columnKey).toBe('col-a')
+      expect(operation.data.cells?.[0]?.columnName).toBe('col-a')
     })
   })
 
   describe('createUniverConversionContext row/column resolution', () => {
-    it('resolves rowIndex by backend row id via fallback (rowIdToIndex uses _id, not _rowUuid)', () => {
+    it('maps backend row ids and local row ids to the same row index', () => {
       const ctx = createUniverConversionContext(mockColumns, mockDataWithBackendIds)
-      expect(ctx.rowIdToIndex.get('uuid-row-1')).toBeUndefined()
+      expect(ctx.rowIdToIndex.get('uuid-row-1')).toBe(0)
       expect(ctx.rowIdToIndex.get('row_0')).toBe(0)
-
-      const fallbackIndex = mockDataWithBackendIds.findIndex(
-        row => String((row as { _rowUuid?: string })._rowUuid || '') === 'uuid-row-1'
-      )
-      expect(fallbackIndex).toBe(0)
+      expect(ctx.rowIndexToId.get(0)).toBe('row_0')
     })
 
     it('resolves colIndex by column name or id', () => {
@@ -172,66 +248,135 @@ describe('spreadsheetCollaborationOperations', () => {
       const colIndexByName = mockColumns.findIndex(c => c.id === 'ColumnA' || c.name === 'ColumnA')
       expect(colIndexByName).toBe(0)
     })
+
+    it('can overlay sparse sheet row positions for newly created client rows', () => {
+      const ctx = createUniverConversionContext(mockColumns, mockDataWithBackendIds)
+      overlaySparseRowIndexMappings(ctx, [{ rowIndex: 6, rowId: 'client_row_6' }])
+
+      expect(ctx.rowIndexToId.get(6)).toBe('client_row_6')
+      expect(ctx.rowIdToIndex.get('client_row_6')).toBe(6)
+    })
   })
 
   describe('receiver validation conditions', () => {
-    const isValidForApply = (d: CellUpdateReceiveFormat, activeSheetId: string): boolean => {
-      if (!d?.sheetId || d.sheetId !== activeSheetId) return false
-      if (d.rowId == null) return false
-      if (d.value === undefined) return false
-      const columnKey = d.column ?? d.columnId
-      if (columnKey == null) return false
+    const isValidForApply = (d: SpreadsheetBatchReceiveFormat, activeSheetId: string): boolean => {
+      if (!d?.data?.sheetId || d.data.sheetId !== activeSheetId) return false
+      if (!Array.isArray(d.data.operations) || d.data.operations.length === 0) return false
+      const firstCell = d.data.operations[0]?.data.cells?.[0]
+      if (!firstCell?.rowId) return false
+      if (firstCell.value === undefined) return false
+      if (!firstCell.columnName) return false
       return true
     }
 
     it('rejects when sheetId does not match active sheet', () => {
-      expect(isValidForApply({ sheetId: 'other-sheet', rowId: 'r1', column: 'Col', value: 1 }, 'active-sheet')).toBe(
-        false
-      )
+      expect(
+        isValidForApply(
+          {
+            type: 'batch_operations',
+            data: {
+              sheetId: 'other-sheet',
+              operations: [
+                {
+                  type: 'set_range',
+                  data: { sheetId: 'other-sheet', cells: [{ rowId: 'r1', columnName: 'Col', value: 1 }] }
+                }
+              ]
+            },
+            version: 1
+          },
+          'active-sheet'
+        )
+      ).toBe(false)
     })
 
-    it('rejects when rowId is missing', () => {
-      expect(isValidForApply({ sheetId: 'active-sheet', column: 'Col', value: 1 }, 'active-sheet')).toBe(false)
+    it('rejects when no nested operations are present', () => {
+      expect(
+        isValidForApply(
+          { type: 'batch_operations', data: { sheetId: 'active-sheet', operations: [] }, version: 1 },
+          'active-sheet'
+        )
+      ).toBe(false)
     })
 
     it('rejects when value is undefined', () => {
       expect(
-        isValidForApply({ sheetId: 'active-sheet', rowId: 'r1', column: 'Col', value: undefined }, 'active-sheet')
+        isValidForApply(
+          {
+            type: 'batch_operations',
+            data: {
+              sheetId: 'active-sheet',
+              operations: [
+                {
+                  type: 'set_range',
+                  data: { sheetId: 'active-sheet', cells: [{ rowId: 'r1', columnName: 'Col', value: undefined }] }
+                }
+              ]
+            },
+            version: 1
+          },
+          'active-sheet'
+        )
       ).toBe(false)
     })
 
-    it('rejects when both column and columnId are missing', () => {
-      expect(isValidForApply({ sheetId: 'active-sheet', rowId: 'r1', value: 1 }, 'active-sheet')).toBe(false)
+    it('rejects when columnName is missing', () => {
+      expect(
+        isValidForApply(
+          {
+            type: 'batch_operations',
+            data: {
+              sheetId: 'active-sheet',
+              operations: [
+                {
+                  type: 'set_range',
+                  data: { sheetId: 'active-sheet', cells: [{ rowId: 'r1', columnName: '', value: 1 }] }
+                }
+              ]
+            },
+            version: 1
+          },
+          'active-sheet'
+        )
+      ).toBe(false)
     })
 
     it('accepts valid payload', () => {
-      expect(isValidForApply({ sheetId: 'active-sheet', rowId: 'r1', column: 'Col', value: 1 }, 'active-sheet')).toBe(
-        true
-      )
+      expect(
+        isValidForApply(
+          {
+            type: 'batch_operations',
+            data: {
+              sheetId: 'active-sheet',
+              operations: [
+                {
+                  type: 'set_range',
+                  data: { sheetId: 'active-sheet', cells: [{ rowId: 'r1', columnName: 'Col', value: 1 }] }
+                }
+              ]
+            },
+            version: 1
+          },
+          'active-sheet'
+        )
+      ).toBe(true)
     })
   })
 
-  describe('emit path: getBackendRowIdForUiRowId can skip emit', () => {
-    it('returns undefined for new rows without UUID (ops are dropped)', () => {
-      const getBackendRowId = (uiRowId: string, rows: Record<string, unknown>[]): string | undefined => {
-        const row = rows.find(r => (r._id ?? r.id) === uiRowId)
-        if (!row) return undefined
-        const uuid = String((row as { _rowUuid?: string })._rowUuid ?? '')
-        const id = String((row as { id?: string }).id ?? '')
-        const localId = String((row as { _id?: string })._id ?? '')
-        const isUuid = (s: string) =>
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)
-        if (isUuid(uuid)) return uuid
-        if (isUuid(id)) return id
-        if (isUuid(localId)) return localId
-        return undefined
+  describe('sender behavior under the one-stream model', () => {
+    it('keeps edits queued locally until persistence assigns backend ids', () => {
+      const pendingEdits: Array<{ rowId: string; columnName: string; value: unknown }> = []
+      const queuePendingEdit = (rowId: string, columnName: string, value: unknown) => {
+        pendingEdits.push({ rowId, columnName, value })
       }
 
-      const newRow = { _id: 'row_new_1', ColumnA: 'new' }
-      expect(getBackendRowId('row_new_1', [newRow])).toBeUndefined()
+      queuePendingEdit('row_new_1', 'ColumnA', 'new')
+      queuePendingEdit('row_0', 'ColumnA', 'persisted')
 
-      const persistedRow = { _id: 'row_0', _rowUuid: 'a1b2c3d4-e5f6-4789-abcd-ef0123456789', ColumnA: 'a' }
-      expect(getBackendRowId('row_0', [persistedRow])).toBe('a1b2c3d4-e5f6-4789-abcd-ef0123456789')
+      expect(pendingEdits).toEqual([
+        { rowId: 'row_new_1', columnName: 'ColumnA', value: 'new' },
+        { rowId: 'row_0', columnName: 'ColumnA', value: 'persisted' }
+      ])
     })
   })
 
@@ -340,6 +485,49 @@ describe('spreadsheetCollaborationOperations', () => {
       const row = { _id: 'row_0', _rowUuid: 'uuid-row-1', ColumnA: 'before' }
       expect(rowMatchesRemoteId(row, 'uuid-row-1')).toBe(true)
       expect(rowMatchesRemoteId(row, 'row_0')).toBe(true)
+    })
+
+    it('replaces a temporary client row instead of appending a duplicate persisted row', () => {
+      const existingRows = [
+        { _id: 'row_0', _rowUuid: 'uuid-row-0', ColumnA: 'existing' },
+        { _id: 'client_row_1', ColumnA: 'draft' }
+      ]
+
+      const createdRows = [{ _id: 'client_row_1', _rowUuid: 'uuid-row-1', ColumnA: 'draft' }]
+
+      expect(replaceClientRowsWithCreatedRows(existingRows, createdRows)).toEqual([
+        { _id: 'row_0', _rowUuid: 'uuid-row-0', ColumnA: 'existing' },
+        { _id: 'client_row_1', _rowUuid: 'uuid-row-1', ColumnA: 'draft' }
+      ])
+    })
+
+    it('replaces a temporary client row when add_rows delta arrives from remote recovery', () => {
+      const existingRows = [
+        { _id: 'row_0', _rowUuid: 'uuid-row-0', ColumnA: 'existing' },
+        { _id: 'client_row_1', ColumnA: 'draft' }
+      ]
+
+      const addedRows = mapAddedRowsFromDeltaResult({
+        rows: [{ id: 'uuid-row-1', data: { _clientRowId: 'client_row_1', ColumnA: 'draft' } }]
+      })
+
+      expect(replaceClientRowsWithCreatedRows(existingRows, addedRows)).toEqual([
+        { _id: 'row_0', _rowUuid: 'uuid-row-0', ColumnA: 'existing' },
+        { _id: 'client_row_1', _rowUuid: 'uuid-row-1', _clientRowId: 'client_row_1', ColumnA: 'draft' }
+      ])
+    })
+
+    it('adds placeholder rows for live row_add operations so later set_range can match them', () => {
+      const existingRows = [{ _id: 'row_0', _rowUuid: 'uuid-row-0', ColumnA: 'existing' }]
+
+      const withPlaceholders = applyRemoteRowAddPlaceholders(existingRows, {
+        rowIds: ['uuid-row-1']
+      })
+
+      expect(withPlaceholders).toEqual([
+        { _id: 'row_0', _rowUuid: 'uuid-row-0', ColumnA: 'existing' },
+        { _id: 'uuid-row-1', _rowUuid: 'uuid-row-1' }
+      ])
     })
   })
 })

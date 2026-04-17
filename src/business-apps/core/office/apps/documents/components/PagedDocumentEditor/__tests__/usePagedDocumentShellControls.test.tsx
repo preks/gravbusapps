@@ -28,11 +28,15 @@ jest.mock('dompurify', () => ({
 }))
 
 function createHookParams(overrides?: Partial<Parameters<typeof usePagedDocumentShellControls>[0]>) {
+  const editorDom = document.createElement('div')
   return {
     title: 'Document title',
     setTitle: jest.fn(),
     editor: {
-      getHTML: jest.fn(() => '<p>hello</p>')
+      getHTML: jest.fn(() => '<p>hello</p>'),
+      view: {
+        dom: editorDom
+      }
     } as unknown as TiptapEditor,
     documentId: 'doc-1',
     isReadOnly: false,
@@ -55,6 +59,11 @@ function createHookParams(overrides?: Partial<Parameters<typeof usePagedDocument
       pageHeightMm: 297
     } as never,
     getImageDataUrl: jest.fn(async () => 'data:image/png;base64,abc'),
+    documentTocExportLabels: {
+      blockTitle: 'Table of contents',
+      emptyMessage: 'No headings',
+      untitledHeading: 'Untitled'
+    },
     ...overrides
   }
 }
@@ -138,7 +147,9 @@ describe('usePagedDocumentShellControls', () => {
       await result.current.handlePrint()
     })
 
-    expect(exportToWord).toHaveBeenCalledWith('Document title', 'safe:embedded:<p>hello</p>')
+    expect(exportToWord).toHaveBeenCalledWith('Document title', 'safe:embedded:<p>hello</p>', {
+      formatting: params.layoutFormatting
+    })
     expect(printHtmlDocumentWithStyle).toHaveBeenCalledWith(
       {
         title: 'Document title',

@@ -25,7 +25,7 @@ export const GET_COMMUNICATION_LOOKUPS = `
       jobPosition { name }
       organizationalUnit { id name }
     }
-    commType: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "CommunicationType" } } }) {
+    commType: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "CommunicationType" } }, isDeleted: { _eq: false } }) {
       id
       value
       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
@@ -34,21 +34,22 @@ export const GET_COMMUNICATION_LOOKUPS = `
       }
       catalog { defaultLocale }
     }
-    commChannel: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "CommunicationChannel" } } }) {
+    commChannel: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "CommunicationChannel" } }, isDeleted: { _eq: false } }) {
       id
       value
+      objectValue
       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
         localeCode
         value
       }
       catalog { defaultLocale }
     }
-    documentGroup: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentGroup" } } }) {
+    documentGroup: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentGroup" } }, isDeleted: { _eq: false } }) {
       id
       value
       code
     }
-    documentType: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentType" } } }) {
+    documentType: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentType" } }, isDeleted: { _eq: false } }) {
       id
       value
       code
@@ -107,7 +108,10 @@ export const useCommunicationLookups = (context: BusinessAppContextProps) => {
         }))
       }
 
-      setChannels(mapEntries(res?.commChannel))
+      const hrChannels = res?.commChannel?.filter(
+        (e: any) => e.objectValue && typeof e.objectValue === 'object' && e.objectValue.hr === true
+      )
+      setChannels(mapEntries(hrChannels))
       setTypes(mapEntries(res?.commType))
       setCommunications(Array.isArray(res?.EmployeeByPk?.communication) ? res.EmployeeByPk.communication : [])
       setEmployee({

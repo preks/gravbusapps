@@ -28,13 +28,16 @@ const CoreFeature = {
   Collaboration: { Key: 'core.collaboration.mode', Values: CoreFeatureCollaborationValue },
   Intranet: { Key: 'core.intranet.mode', Values: CoreFeatureIntranetValue },
   AiAgent: { Key: 'core.aiagent.enabled' },
-  TeamChat: { Key: 'core.teamchat.enabled' }
+  TeamChat: { Key: 'core.teamchat.enabled' },
+  ChatTeam: { Key: 'core.chat.team.enabled' },
+  ChatAI: { Key: 'core.chat.ai.enabled' }
 }
 
 const HCMFeature = {
   EmployeeProfile: { Key: 'hcm.employee-profile.mode', Values: HCMFeatureEmployeeProfileValue },
   EmployeeAbsence: { Key: 'hcm.employee-absence.enabled' },
   EmployeeExpenses: { Key: 'hcm.employee-expenses.enabled' },
+  HRDevelopment: { Key: 'human-resources.performance.enabled' },
   Compensation: { Key: 'human-resources.compensation.enabled' },
   Recruiting: { Key: 'human-resources.recruiting.enabled' },
   Assets: { Key: 'assets.enabled' }

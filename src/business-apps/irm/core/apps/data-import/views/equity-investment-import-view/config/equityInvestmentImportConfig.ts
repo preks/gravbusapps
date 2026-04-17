@@ -24,5 +24,7 @@ export const equityInvestmentTargetFields: TargetFieldDefinition[] = [
 export const equityInvestmentImportConfig: ImportConfig = {
   entityType: 'equity-investment',
   domain: 'investment',
-  targetFields: equityInvestmentTargetFields
+  targetFields: equityInvestmentTargetFields,
+  investmentPayloadKey: 'equityInvestment',
+  investmentGroupCodeHint: 'EQUITY'
 }

@@ -162,7 +162,7 @@ export const generateReportingChainSummary = (chainData: ReportingChainData[]): 
     chainLengths.length > 0 ? chainLengths.reduce((sum, length) => sum + length, 0) / chainLengths.length : 0
 
   const maxChainLength = Math.max(...chainLengths, 0)
-  const minChainLength = Math.min(...chainLengths, 0)
+  const minChainLength = chainLengths.length > 0 ? Math.min(...chainLengths) : 0
 
   // Create chain distribution
   const distribution = new Map<number, number>()
@@ -383,7 +383,7 @@ export const calculateStructuralStatistics = (
 ): StructuralStatistics => {
   const totalEmployees = nodes.reduce((sum, node) => sum + node.employeeCount, 0)
   const totalManagers = spanData.length
-  const maxDepth = Math.max(...nodes.map(n => n.level)) + 1
+  const maxDepth = nodes.length > 0 ? Math.max(...nodes.map(n => n.level)) + 1 : 0
   const avgSpanOfControl =
     spanData.length > 0 ? spanData.reduce((sum, data) => sum + data.directReports, 0) / spanData.length : 0
 

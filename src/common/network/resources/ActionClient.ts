@@ -1,6 +1,7 @@
 import type { RequestOptions } from '../rest/RestClient'
 import { env } from '../../env/EnvUtils'
 import type { ResourceClient } from './ResourceClient'
+import { capLimit } from './paginationConstants'
 import type { ActionDTO, ActionPage, GetActionsParams } from '@/common/data/resources/types/action.types'
 import type { ContextDTO, ContextPage, GetContextsParams } from '@/common/data/resources/types/context.types'
 import type {
@@ -25,11 +26,10 @@ export class ActionClient {
   }
 
   public async getActions(params?: GetActionsParams, options: Omit<RequestOptions, 'body'> = {}): Promise<ActionPage> {
-    // Always set returnTotalRecords=true if not explicitly set
     const actionParams: GetActionsParams = {
       ...params,
       returnTotalRecords: params?.returnTotalRecords ?? true,
-      limit: params?.limit ?? 20,
+      limit: capLimit(params?.limit),
       offset: params?.offset ?? 0
     }
 
@@ -250,11 +250,10 @@ export class ActionClient {
     params?: GetActionAssignmentsParams,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ActionAssignmentPage> {
-    // Always set returnTotalRecords=true if not explicitly set
     const assignmentParams: GetActionAssignmentsParams = {
       ...params,
       returnTotalRecords: params?.returnTotalRecords ?? true,
-      limit: params?.limit ?? 20,
+      limit: capLimit(params?.limit),
       offset: params?.offset ?? 0
     }
 
@@ -273,7 +272,7 @@ export class ActionClient {
       return {
         data: response,
         paging: {
-          limit: assignmentParams.limit ?? 20,
+          limit: assignmentParams.limit,
           offset: assignmentParams.offset ?? 0,
           totalRecords: response.length
         }
