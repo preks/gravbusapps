@@ -32,8 +32,13 @@ const rowMatchesRemoteRowId = (row: ViewerRow, remoteRowId: string): boolean => 
 export interface CellsChangedCell {
   rowId: string
   column: string
-  value: unknown
+  /** When omitted, this payload is formatting-only (still applies {@link univerCell} on the grid). */
+  value?: unknown
   cellRef?: string
+  /** Serialized Univer {@link ICellData} for the cell (may include inline or ref style). */
+  univerCell?: Record<string, unknown>
+  /** Style definitions keyed by id when {@link univerCell} uses string style refs. Remotes call `addStyles` before `setValue`. */
+  univerStyles?: Record<string, unknown>
 }
 
 export interface CellsChangedPayload {
@@ -280,8 +285,8 @@ export class SpreadsheetCollaborationManager {
 
     for (const cell of d.cells) {
       if (!cell?.rowId) continue
-      if (!Object.prototype.hasOwnProperty.call(cell, 'value')) continue
       if (cell.column == null) continue
+      if (!Object.prototype.hasOwnProperty.call(cell, 'value')) continue
       const remoteRowId = String(cell.rowId)
       const targetColumnName = this.resolveColumnName(cell.column)
       const rowUpdates = updatesByRowId.get(remoteRowId) ?? {}
@@ -289,11 +294,20 @@ export class SpreadsheetCollaborationManager {
       updatesByRowId.set(remoteRowId, rowUpdates)
     }
 
-    if (updatesByRowId.size === 0) {
+    const cellQualifiesForGridApply = (cell: CellsChangedCell | undefined): boolean => {
+      if (!cell?.rowId || cell.column == null) return false
+      const hasValue = Object.prototype.hasOwnProperty.call(cell, 'value')
+      const hasRich = Boolean(cell.univerCell && typeof cell.univerCell === 'object')
+      return hasValue || hasRich
+    }
+
+    if (updatesByRowId.size === 0 && !d.cells.some(cellQualifiesForGridApply)) {
       this.collabDiag('collab_receive_skipped', { reason: 'no_valid_cell_payloads', wireCellCount: d.cells.length })
       return
     }
-    this.applyDataModelUpdates(updatesByRowId)
+    if (updatesByRowId.size > 0) {
+      this.applyDataModelUpdates(updatesByRowId)
+    }
 
     let withA1Applied = 0
     let withCoordsApplied = 0
@@ -302,17 +316,29 @@ export class SpreadsheetCollaborationManager {
 
     // Prefer A1 cellRef from the sender's Univer grid (same as cursor). Data-array row indices can drift
     // after row insert/delete so resolveCoordinates(rowId, column) may target the wrong sheet cell.
+    const richOptions = (cell: CellsChangedCell): ApplyRemoteCellUpdateOptions | undefined => {
+      if (!cell.univerCell && !cell.univerStyles) return undefined
+      return { univerCell: cell.univerCell, univerStyles: cell.univerStyles }
+    }
+
     for (const cell of d.cells) {
       if (!cell?.rowId) continue
-      if (!Object.prototype.hasOwnProperty.call(cell, 'value')) continue
       if (cell.column == null) continue
+      const hasValue = Object.prototype.hasOwnProperty.call(cell, 'value')
+      const hasRich = Boolean(cell.univerCell && typeof cell.univerCell === 'object')
+      if (!hasValue && !hasRich) continue
       const remoteRowId = String(cell.rowId)
       const targetColumnName = this.resolveColumnName(cell.column)
+      const wireValue = hasValue ? cell.value : undefined
+      const opts = richOptions(cell)
       const trimmedRef = typeof cell.cellRef === 'string' ? cell.cellRef.trim() : ''
       if (trimmedRef) {
         const a1 = parseA1Reference(trimmedRef)
         if (a1 && a1.row >= 0 && a1.col >= 0) {
-          this.callbacks.applyRemoteCellUpdate(a1.row, a1.col, cell.value, remoteRowId, { useSenderA1Row: true })
+          this.callbacks.applyRemoteCellUpdate(a1.row, a1.col, wireValue, remoteRowId, {
+            useSenderA1Row: true,
+            ...opts
+          })
           withA1Applied += 1
           continue
         }
@@ -320,7 +346,11 @@ export class SpreadsheetCollaborationManager {
       }
       const { rowIndex, colIndex } = this.resolveCoordinates(targetColumnName, remoteRowId)
       if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
-        this.callbacks.applyRemoteCellUpdate(rowIndex, colIndex, cell.value, remoteRowId)
+        if (opts) {
+          this.callbacks.applyRemoteCellUpdate(rowIndex, colIndex, wireValue, remoteRowId, opts)
+        } else {
+          this.callbacks.applyRemoteCellUpdate(rowIndex, colIndex, wireValue, remoteRowId)
+        }
         withCoordsApplied += 1
       } else {
         skippedApply += 1
@@ -617,9 +647,15 @@ export class SpreadsheetCollaborationManager {
           const column = String(cell.columnName ?? cell.column ?? '')
           if (!rowId || !column) continue
           const existing = updatesByRowId.get(rowId) ?? {}
-          existing[this.resolveColumnName(column)] = Object.prototype.hasOwnProperty.call(cell, 'value')
-            ? cell.value
-            : null
+          if (change.operationType === 'set_range') {
+            existing[this.resolveColumnName(column)] = Object.prototype.hasOwnProperty.call(cell, 'value')
+              ? cell.value
+              : null
+          } else if (Object.prototype.hasOwnProperty.call(cell, 'value')) {
+            existing[this.resolveColumnName(column)] = cell.value
+          } else {
+            continue
+          }
           updatesByRowId.set(rowId, existing)
         }
       }
