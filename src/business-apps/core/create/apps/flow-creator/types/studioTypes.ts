@@ -72,6 +72,14 @@ export interface TaskNodeConfig {
      * This is studio-only state and is intentionally not persisted to the saved flow template.
      */
     outputSchema?: unknown
+    /**
+     * UI-only intent: whether the user authored this step as a "Connector" step
+     * or a "Function" step. Under the hood both are FlowStepType.FUNCTION — this
+     * is purely a studio hint to drive the tile highlight, the FunctionSelector's
+     * default filter and the task header badge. Not persisted to the saved
+     * flow template.
+     */
+    categoryHint?: 'connectors' | 'functions'
   }
   agentConfig?: {
     promptId: string
