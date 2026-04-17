@@ -79,9 +79,9 @@ export const useGetAdvancePaymentStatistics = (
         currencyRef
       })
 
-      const currentCount = data?.Current?.aggregate?.count ?? 0
+      const currentCount = data?.TotalPaymentsCardCountCurrentMonth?.aggregate?.count ?? 0
+      const previousCount = data?.TotalPaymentsCardCountPreviousMonth?.aggregate?.count ?? 0
       const currentAmount = data?.Current?.aggregate?.sum?.amount ?? 0
-      const previousCount = data?.Previous?.aggregate?.count ?? 0
       const previousAmount = data?.Previous?.aggregate?.sum?.amount ?? 0
       const pendingCount = data?.PendingAdvancePayments?.aggregate?.count ?? 0
       const approvedCount = data?.ApprovedAdvancePayments?.aggregate?.count ?? 0

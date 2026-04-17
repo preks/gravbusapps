@@ -6,6 +6,10 @@ import {
   validateFilters,
   AdvancePaymentFilters
 } from '../../personal-expenses/utils/advancePaymentsQueryBuilder'
+import { TOTAL_PAYMENTS_CARD_STATUSES } from '../utils/totalPaymentsCardStatuses'
+
+/** GraphQL `_in` list for Total Payments card (must match TOTAL_PAYMENTS_CARD_STATUSES) */
+const GQL_IN_TOTAL_PAYMENTS_CARD_STATUSES = JSON.stringify(TOTAL_PAYMENTS_CARD_STATUSES)
 
 export const useAdvancePaymentsQuery = (filters: AdvancePaymentFilters) => {
   const query = buildAdvancePaymentsQuery(filters)
@@ -389,6 +393,32 @@ export const GET_ADVANCE_PAYMENT_STATISTICS_CONSOLIDATED = `
     $previousEnd: timestamptz!,
     $currencyRef: String!
   ) {
+    TotalPaymentsCardCountCurrentMonth: AdvancePaymentAggregate(
+      where: {
+        expensePlan: { employeeId: { _eq: $employeeId } },
+        isDeleted: { _eq: false },
+        createdAt: { _gte: $currentStart, _lte: $currentEnd },
+        status: { _in: ${GQL_IN_TOTAL_PAYMENTS_CARD_STATUSES} },
+        currencyRef: { _eq: $currencyRef }
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    TotalPaymentsCardCountPreviousMonth: AdvancePaymentAggregate(
+      where: {
+        expensePlan: { employeeId: { _eq: $employeeId } },
+        isDeleted: { _eq: false },
+        createdAt: { _gte: $previousStart, _lte: $previousEnd },
+        status: { _in: ${GQL_IN_TOTAL_PAYMENTS_CARD_STATUSES} },
+        currencyRef: { _eq: $currencyRef }
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
     Current: AdvancePaymentAggregate(
       where: {
         expensePlan: { employeeId: { _eq: $employeeId } },
@@ -399,7 +429,6 @@ export const GET_ADVANCE_PAYMENT_STATISTICS_CONSOLIDATED = `
       }
     ) {
       aggregate {
-        count
         sum { amount }
       }
     }
@@ -413,7 +442,6 @@ export const GET_ADVANCE_PAYMENT_STATISTICS_CONSOLIDATED = `
       }
     ) {
       aggregate {
-        count
         sum { amount }
       }
     }

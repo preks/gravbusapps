@@ -7,12 +7,12 @@ import { StartDateRangeFilter } from '../filters/StartDateRangeFilter'
 import { EndDateRangeFilter } from '../filters/EndDateRangeFilter'
 import RequestDateRangeFilter from '../filters/RequestDateRangeFilter'
 import { buildExpenseRequestWhereConditions } from '../utils/buildExpenseRequestWhereConditions'
-import {
+import { EXPENSE_REQUEST_FILTER_STATUSES } from '../utils/expenseRequestFilterConstants'
+
+export {
   EXPENSE_REQUEST_FILTER_STATUSES,
   LEGACY_EXPENSE_REQUEST_FILTER_IDS
 } from '../utils/expenseRequestFilterConstants'
-
-export { EXPENSE_REQUEST_FILTER_STATUSES, LEGACY_EXPENSE_REQUEST_FILTER_IDS }
 
 // Interface for request filter
 export interface ExpenseRequestFilter {
@@ -26,7 +26,14 @@ export interface ExpenseRequestFilter {
   requestType?: { value: string }
 }
 
-export type { ExpenseRequestWhereClause }
+export type { ExpenseRequestWhereClause } from '../utils/expenseRequestWhereClause.types'
+
+const EXPENSE_REQUEST_DATE_RANGE_FILTER_IDS = new Set<string>([
+  'requestDateRange',
+  'startDateRange',
+  'endDateRange',
+  'effectiveDateRange'
+])
 
 // Interface for the return type of useExpenseRequestFilters
 export interface UseExpenseRequestFiltersReturn {
@@ -325,24 +332,23 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     }
 
     // Separate date range filters from regular filters
-    const dateRangeFilters = ['requestDateRange', 'startDateRange', 'endDateRange', 'effectiveDateRange']
-    const regularFilters = filters.filter(f => !dateRangeFilters.includes(f))
-    const newDateRangeFilters = filters.filter(f => dateRangeFilters.includes(f))
+    const regularFilters = filters.filter(f => !EXPENSE_REQUEST_DATE_RANGE_FILTER_IDS.has(f))
+    const newDateRangeFilterIds = new Set(filters.filter(f => EXPENSE_REQUEST_DATE_RANGE_FILTER_IDS.has(f)))
 
     // Set regular filters
     setSelectedFilters(regularFilters)
 
     // Clear date ranges that are not in the new filter list
-    if (!newDateRangeFilters.includes('requestDateRange')) {
+    if (!newDateRangeFilterIds.has('requestDateRange')) {
       setRequestDateRange(null)
     }
-    if (!newDateRangeFilters.includes('startDateRange')) {
+    if (!newDateRangeFilterIds.has('startDateRange')) {
       setStartDateRange(null)
     }
-    if (!newDateRangeFilters.includes('endDateRange')) {
+    if (!newDateRangeFilterIds.has('endDateRange')) {
       setEndDateRange(null)
     }
-    if (!newDateRangeFilters.includes('effectiveDateRange')) {
+    if (!newDateRangeFilterIds.has('effectiveDateRange')) {
       setEffectiveDateRange(null)
     }
   }, [])
