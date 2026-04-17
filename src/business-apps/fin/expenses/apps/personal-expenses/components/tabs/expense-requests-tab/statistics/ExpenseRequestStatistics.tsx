@@ -1,10 +1,11 @@
 import React, { useMemo, useCallback } from 'react'
-import { FileTextIcon, CurrencyDollarIcon, CalendarIcon } from '@phosphor-icons/react'
+import { CurrencyDollarIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useGetExpenseRequestStatistics } from '../../../../hooks/useGetExpenseRequestStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../utils'
+import { kpiHeaderCurrencyLabel } from '../../../../utils/kpiHeaderCurrencyLabel'
 import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
 
 interface ExpenseRequestStatisticsProps extends BusinessAppContextProps {
@@ -172,7 +173,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         ' ' +
         currentMonthName,
       value: statistics.currentMonthTotal,
-      prefix: <FileTextIcon size={16} />,
+      prefix: kpiHeaderCurrencyLabel(effectiveCurrencyCode),
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 6 },
       description: getTranslationFromI18nKeyAndLabel(
@@ -212,7 +213,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         'Pending Approval'
       ),
       value: statistics.pendingApproval,
-      prefix: <CalendarIcon size={16} />,
+      prefix: kpiHeaderCurrencyLabel(effectiveCurrencyCode),
       color: '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
       footer: getTranslationFromI18nKeyAndLabel(
