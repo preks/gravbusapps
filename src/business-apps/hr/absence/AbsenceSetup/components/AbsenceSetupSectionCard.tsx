@@ -1,14 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  CalendarBlankIcon,
-  DesktopIcon,
-  FileTextIcon,
-  LightbulbIcon,
-  MagnifyingGlassIcon,
-  PaperPlaneTiltIcon,
-  UserIcon,
-  WarningIcon
-} from '@phosphor-icons/react'
+import { MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { Info, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -34,23 +25,14 @@ import {
 } from '@newwork/nw-design-system'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import type { SetupSectionHighlight, SetupSectionItem, SetupSectionSortOption } from '../utils/absenceSetup'
+import { absenceTypeSetupIconMap } from '../utils/absenceTypeSetupIcons'
 import translations from '../_i18n'
-
-const absenceTypeIconMap = {
-  vacation: CalendarBlankIcon,
-  sick: WarningIcon,
-  'home-office': DesktopIcon,
-  'business-trip': PaperPlaneTiltIcon,
-  training: LightbulbIcon,
-  'family-care': UserIcon,
-  'jury-duty': FileTextIcon
-} as const
 
 const isSupportedColorValue = (value: string) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(value.trim())
 
 const renderHighlightValue = (highlight: SetupSectionHighlight) => {
   if (highlight.display === 'icon') {
-    const Icon = absenceTypeIconMap[highlight.value as keyof typeof absenceTypeIconMap]
+    const Icon = absenceTypeSetupIconMap[highlight.value as keyof typeof absenceTypeSetupIconMap]
     if (!Icon) {
       return null
     }
@@ -285,18 +267,18 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
         {!isLoading && !errorMessage && items.length > 0 && (
           <div className="gba:space-y-4">
             <div className="gba:space-y-3">
-              <div className="gba:flex gba:flex-col gba:gap-3 gba:md:flex-row gba:md:items-end gba:md:justify-between">
+              <div className="gba:flex gba:flex-col gba:gap-3 gba:md:flex-row gba:md:items-end gba:md:gap-4">
                 <DebouncedInput
                   value={searchTerm}
                   onChange={setSearchTerm}
                   placeholder={t('section-search-placeholder', { entity: title })}
-                  containerClassName="gba:w-full gba:min-w-0 gba:md:w-1/2 gba:md:shrink-0"
+                  containerClassName="gba:w-full gba:min-w-0 gba:md:w-auto gba:md:max-w-xl gba:md:flex-1"
                   className="gba:w-full"
                   icon={<MagnifyingGlassIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
                   data-testid={`${cardTestId}-search-input`}
                 />
                 {sortOptions.length ? (
-                  <div className="gba:w-full gba:md:w-64 gba:md:shrink-0 gba:space-y-1">
+                  <div className="gba:w-full gba:md:w-64 gba:space-y-1">
                     <Label htmlFor={`${cardTestId}-sort-select`}>{t('sort-by-label')}</Label>
                     <Select value={activeSortOption?.id || ''} onValueChange={setActiveSortOptionId}>
                       <SelectTrigger id={`${cardTestId}-sort-select`} data-testid={`${cardTestId}-sort-select`}>
