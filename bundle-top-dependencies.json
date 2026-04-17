@@ -36265,20 +36265,20 @@
     ]
   },
   "hr/absence/apps/AbsenceSetup": {
-    "bitbucketBuildNumber": 10842,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10842/",
-    "chunkJsBytes": 301307,
+    "bitbucketBuildNumber": 10938,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10938/",
+    "chunkJsBytes": 301980,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 279832,
-        "gzip": 55615,
+        "rendered": 280728,
+        "gzip": 55849,
         "leaves": [
           {
             "name": "src/business-apps/hr/absence/AbsenceSetup/components/AbsenceEntitlementSettingsSection.tsx",
-            "rendered": 42935,
-            "gzip": 5093
+            "rendered": 42939,
+            "gzip": 5095
           },
           {
             "name": "src/business-apps/hr/absence/AbsenceSetup/modals/AbsencePolicyModal.tsx",
@@ -36290,8 +36290,8 @@
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 122779,
-        "gzip": 37398,
+        "rendered": 123806,
+        "gzip": 37948,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
@@ -36309,12 +36309,12 @@
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41471,
-        "gzip": 10116,
+        "gzip": 10118,
         "leaves": [
           {
             "name": "src/common/dev-report/DevReportDot.tsx",
             "rendered": 27287,
-            "gzip": 5039
+            "gzip": 5041
           },
           {
             "name": "src/common/dev-report/screenshot.ts",
@@ -36528,20 +36528,20 @@
     ]
   },
   "hr/absence/apps/absence-setup": {
-    "bitbucketBuildNumber": 10842,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10842/",
-    "chunkJsBytes": 301309,
+    "bitbucketBuildNumber": 10938,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10938/",
+    "chunkJsBytes": 301982,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 279830,
-        "gzip": 55613,
+        "rendered": 280726,
+        "gzip": 55847,
         "leaves": [
           {
             "name": "src/business-apps/hr/absence/AbsenceSetup/components/AbsenceEntitlementSettingsSection.tsx",
-            "rendered": 42935,
-            "gzip": 5093
+            "rendered": 42939,
+            "gzip": 5095
           },
           {
             "name": "src/business-apps/hr/absence/AbsenceSetup/modals/AbsencePolicyModal.tsx",
@@ -36553,8 +36553,8 @@
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 122779,
-        "gzip": 37398,
+        "rendered": 123806,
+        "gzip": 37948,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
@@ -36572,12 +36572,12 @@
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41471,
-        "gzip": 10116,
+        "gzip": 10118,
         "leaves": [
           {
             "name": "src/common/dev-report/DevReportDot.tsx",
             "rendered": 27287,
-            "gzip": 5039
+            "gzip": 5041
           },
           {
             "name": "src/common/dev-report/screenshot.ts",
@@ -87953,20 +87953,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10933,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10933/",
-    "chunkJsBytes": 1804789,
+    "bitbucketBuildNumber": 10938,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10938/",
+    "chunkJsBytes": 1805438,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1497920,
-        "gzip": 89898,
+        "rendered": 1498578,
+        "gzip": 90191,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1497920,
-            "gzip": 89898
+            "rendered": 1498578,
+            "gzip": 90191
           }
         ]
       },
@@ -101613,7 +101613,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-17T06:03:26.839Z",
+    "generatedAt": "2026-04-17T06:11:08.280Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
