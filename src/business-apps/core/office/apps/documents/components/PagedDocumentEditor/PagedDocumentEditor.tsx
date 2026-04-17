@@ -50,6 +50,7 @@ import { usePagedDocumentEditorRuntimeEffects } from './hooks/usePagedDocumentEd
 import { usePagedDocumentExternalContentSync } from './hooks/usePagedDocumentExternalContentSync'
 import { usePagedDocumentShellControls } from './hooks/usePagedDocumentShellControls'
 import { usePagedDocumentInteractionDialogs, type RightSidebar } from './hooks/usePagedDocumentInteractionDialogs'
+import { buildVersionHistoryApprovalSummary, type DocumentApprovalHistoryRequest } from './versionHistoryApprovals'
 import type { Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import {
   CLOSED_TABLE_SIDEBAR,
@@ -180,12 +181,15 @@ export interface PagedDocumentEditorProps extends Partial<BusinessAppContextProp
   onPersistFormatting?: (formatting: DocumentFormatting) => Promise<void>
   onSaveAsTemplate?: (title: string, content: string) => void
   onSendForApproval?: () => void
+  onNavigateToReviewVersion?: (versionNumber: number) => void
   isReadOnly?: boolean
   isTrashedDocument?: boolean
   /** Left panel (e.g. Insert field for templates); shown when editing a template */
   leftPanel?: React.ReactNode
   /** Extra content rendered below the title row (e.g. external-source badge) */
   headerExtra?: React.ReactNode
+  /** Review mode hides edit chrome while keeping read-only export and print actions. */
+  isReviewMode?: boolean
   'data-testid'?: string
 }
 
@@ -238,16 +242,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       onPersistFormatting,
       onSaveAsTemplate,
       onSendForApproval,
+      onNavigateToReviewVersion,
       isReadOnly = false,
       isTrashedDocument = false,
       leftPanel,
       headerExtra,
+      isReviewMode = false,
       accessToken: accessTokenProp,
       'data-testid': testId = 'paged-document-editor'
     },
     ref
   ) {
-    const { t } = useTranslation(translations)
+    const { t, locale: currentLocale } = useTranslation(translations)
     const translateRef = useRef(t)
     translateRef.current = t
     const translateStable = useCallback((key: string) => translateRef.current(key), [])
@@ -375,6 +381,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       if (globalThis.window === undefined) return
       type TocOpenFormatEvent = CustomEvent<{ pos: number }>
       const handleOpenTocSidebar = (evt: Event) => {
+        if (isReviewMode) return
         const customEvent = evt as TocOpenFormatEvent
         const nextPos = customEvent.detail?.pos
         if (typeof nextPos !== 'number') return
@@ -384,7 +391,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
       globalThis.window.addEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
       return () => globalThis.window.removeEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
-    }, [])
+    }, [isReviewMode])
 
     useEffect(() => {
       incrementPaginationInstrumentationCounter('paged-document-editor-render-total')
@@ -532,7 +539,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [accessToken])
 
     const entityId = document?.id || ''
-    const collaborationEnabled = Boolean(document?.id) && !isTrashedDocument
+    // Readonly sessions must stay out of live Yjs collaboration so they never attempt
+    // to persist snapshot state back to the editable document.
+    const collaborationEnabled = Boolean(document?.id) && !isTrashedDocument && !isReadOnly
 
     // Collaboration state
     const { participants: rawParticipants, socket: collaborationSocket } = useOfficeDocumentCollaboration({
@@ -696,8 +705,46 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       autoSaveInterval: 30000,
       onVersionCreated: () => {}
     })
+    const [versionHistoryApprovals, setVersionHistoryApprovals] = useState<DocumentApprovalHistoryRequest[]>([])
+    const [isLoadingVersionHistoryApprovals, setIsLoadingVersionHistoryApprovals] = useState(false)
 
-    const versionUserDisplayMap = useVersionUserDisplays(versioning.versions, accessToken)
+    const loadVersionHistoryApprovals = useCallback(async () => {
+      if (!document?.id || !accessToken || isReviewMode) {
+        setVersionHistoryApprovals([])
+        return
+      }
+
+      setIsLoadingVersionHistoryApprovals(true)
+      try {
+        const approvals = await officeClient.documents.getApprovalsForDocument<DocumentApprovalHistoryRequest[]>(
+          document.id
+        )
+        setVersionHistoryApprovals(Array.isArray(approvals) ? approvals : [])
+      } catch (error) {
+        console.error('[PagedDocumentEditor] Failed to load version history approvals:', error)
+      } finally {
+        setIsLoadingVersionHistoryApprovals(false)
+      }
+    }, [accessToken, document?.id, isReviewMode, officeClient])
+
+    useEffect(() => {
+      if (!document?.id || isReviewMode) {
+        setVersionHistoryApprovals([])
+        return
+      }
+
+      void loadVersionHistoryApprovals()
+    }, [document?.id, isReviewMode, loadVersionHistoryApprovals])
+
+    const versionHistoryApprovalSummary = useMemo(
+      () => buildVersionHistoryApprovalSummary(versionHistoryApprovals, currentUserId || undefined),
+      [currentUserId, versionHistoryApprovals]
+    )
+    const versionUserDisplayMap = useVersionUserDisplays(
+      versioning.versions,
+      accessToken,
+      versionHistoryApprovalSummary.approvalUserIds
+    )
 
     const comments = useComments({
       entityId,
@@ -1125,8 +1172,34 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       activeHeaderFooterType: pagesEditorState.activeEditorType,
       isHeaderFooterEditing,
       headerFooterSettingsSessionOpen,
-      rightSidebar
+      rightSidebar,
+      isReviewMode
     })
+
+    useEffect(() => {
+      if (!isReviewMode) {
+        return
+      }
+
+      if (rightSidebar !== 'closed') {
+        setRightSidebar('closed')
+      }
+
+      if (tocSidebarNodePos != null) {
+        setTocSidebarNodePos(null)
+      }
+
+      closeImageSettingsSidebar()
+      closeTableSettingsSidebar()
+      closeSignatureSettingsSidebar()
+    }, [
+      closeImageSettingsSidebar,
+      closeSignatureSettingsSidebar,
+      closeTableSettingsSidebar,
+      isReviewMode,
+      rightSidebar,
+      tocSidebarNodePos
+    ])
 
     const resolvedHeaderFooterType = pagesEditorState.activeEditorType ?? headerFooterPanelFallback?.type ?? 'header'
     const resolvedHeaderFooterPageNumber =
@@ -1154,6 +1227,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       if (editor && editor !== activeEditor) editors.push(editor)
 
       const syncTocFromSelection = (sourceEditor?: NonNullable<typeof editor>) => {
+        if (isReviewMode) {
+          return
+        }
+
         const candidates = sourceEditor ? [sourceEditor, ...editors.filter(e => e !== sourceEditor)] : editors
         const match = candidates
           .map(ed => ({ ed, toc: getSelectedDocumentTocState(ed) }))
@@ -1224,7 +1301,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           ed.off('transaction', transactionFn)
         }
       }
-    }, [editor, activeEditor])
+    }, [activeEditor, editor, isReviewMode])
 
     useEffect(() => {
       if (rightSidebar !== 'toc') return
@@ -1311,6 +1388,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [document?.id, setSelectedTableSidebarState])
 
     const openImageSettingsSidebar = useCallback(() => {
+      if (isReviewMode) return
       if (!activeEditor) return
 
       const imageSelection = getSelectedImageState(activeEditor)
@@ -1323,7 +1401,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         nodeSize: imageSelection.nodeSize,
         attrs: imageSelection.attrs
       })
-    }, [activeEditor, setSelectedImageSidebarState])
+    }, [activeEditor, isReviewMode, setSelectedImageSidebarState])
 
     usePagedDocumentEditorRuntimeEffects({
       editor,
@@ -1421,6 +1499,64 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       getImageDataUrl,
       documentTocExportLabels
     })
+
+    useEffect(() => {
+      if (!showVersionHistory || isReviewMode) {
+        return
+      }
+
+      void loadVersionHistoryApprovals()
+    }, [isReviewMode, loadVersionHistoryApprovals, showVersionHistory])
+
+    const versionHistoryMessages = useMemo(
+      () => ({
+        title: t('editor-version-history'),
+        loading: t('editor-version-history-loading'),
+        empty: t('editor-version-history-empty'),
+        current: t('editor-version-history-current'),
+        checkpoint: t('editor-version-history-checkpoint'),
+        autosave: t('editor-version-history-autosave'),
+        restoreTitle: t('editor-version-history-restore'),
+        restoreConfirm: (versionNumber: number) => t('editor-version-history-restore-confirm', { versionNumber }),
+        compareMode: t('editor-version-history-compare'),
+        cancelCompare: t('editor-version-history-cancel-compare'),
+        compareSelected: t('editor-version-history-compare-selected'),
+        compareHint: t('editor-version-history-compare-hint'),
+        unknownUser: t('editor-user-fallback'),
+        approvalPending: t('editor-approval-pending'),
+        approvalInReview: t('editor-version-history-in-review'),
+        approvalApproved: t('editor-approval-approved'),
+        approvalRejected: t('editor-approval-rejected'),
+        approvalSkipped: t('editor-version-history-skipped'),
+        approvalRequestedBy: t('editor-version-history-requested-by'),
+        approvalReviewers: t('editor-version-history-reviewers'),
+        approvalRejectedBy: t('editor-version-history-rejected-by'),
+        approvalApprovedBy: t('editor-version-history-approved-by'),
+        approvalOpenReview: t('editor-version-history-open-review'),
+        approvalOpenApprovedView: t('editor-version-history-view-approved-version'),
+        approvalNoApprovedReviewers: t('editor-version-history-no-approved-reviewers'),
+        approvalUnknownTime: t('editor-version-history-unknown-time'),
+        approvalCommentShowMore: t('editor-version-history-comment-show-more'),
+        approvalCommentShowLess: t('editor-version-history-comment-show-less'),
+        approvalReviewerCommentLabel: t('editor-version-history-review-comment'),
+        approvalFilterLabel: t('editor-version-history-approval-filter-label'),
+        approvalFilterAll: t('editor-version-history-approval-filter-all'),
+        approvalFilterInReview: t('editor-version-history-approval-filter-in-review'),
+        approvalFilterApproved: t('editor-version-history-approval-filter-approved'),
+        approvalFilterRejected: t('editor-version-history-approval-filter-rejected'),
+        approvalFilterEmpty: t('editor-version-history-approval-filter-empty'),
+        approvalPendingBadge: t('editor-version-history-reviewer-pending-badge')
+      }),
+      [t]
+    )
+    const handleOpenApprovalReview = useCallback(
+      (versionNumber: number) => {
+        setShowVersionHistory(false)
+        onNavigateToReviewVersion?.(versionNumber)
+      },
+      [onNavigateToReviewVersion, setShowVersionHistory]
+    )
+
     editorOnUpdateRef.current = () => {
       if (document?.id) {
         versioning.markAsChanged()
@@ -1559,6 +1695,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             paginationConfig={paginationConfig}
             title={title}
             isReadOnly={isReadOnly}
+            isReviewMode={isReviewMode}
             isTrashedDocument={isTrashedDocument}
             isSaving={isSaving}
             isExporting={isExporting}
@@ -1566,6 +1703,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             lastSaved={lastSaved}
             participants={participants}
             unresolvedCommentCount={comments.unresolvedCount}
+            versionHistoryApprovedCount={versionHistoryApprovalSummary.approvedCount}
+            versionHistoryPendingCount={versionHistoryApprovalSummary.pendingCount}
             rightSidebar={rightSidebar}
             publishingStatus={publishing.metadata?.status || 'draft'}
             setHeaderChromeNode={setHeaderChromeNode}
@@ -1615,6 +1754,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                 editor={editor}
                 layoutViewportModel={layoutViewportModel}
                 requestedTab={navigationPanelTab}
+                isReviewMode={isReviewMode}
                 onClose={() => {
                   setShowNavigationPanel(false)
                   editor?.commands.clearSearchHighlights?.()
@@ -1647,6 +1787,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           <VirtualizedDocumentViewport
             editor={editor}
             activeEditor={activeEditor}
+            isReviewMode={isReviewMode}
             editorRenderKey={collaborationBindingSeed}
             editorContainerRef={editorContainerRef}
             zoom={zoom}
@@ -1700,9 +1841,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           showVersionHistory={showVersionHistory}
           versions={versioning.versions}
           versionUserDisplayMap={versionUserDisplayMap}
-          versionLoading={versioning.isLoading}
+          versionLoading={versioning.isLoading || isLoadingVersionHistoryApprovals}
           currentVersion={versioning.currentVersion?.version}
+          versionHistoryMessages={versionHistoryMessages}
+          versionHistoryLocale={currentLocale}
+          approvalDetailsByVersion={versionHistoryApprovalSummary.approvalDetailsByVersion}
           onRestoreVersion={handleRestoreVersion}
+          onOpenApprovalReview={onNavigateToReviewVersion ? handleOpenApprovalReview : undefined}
           onCloseVersionHistory={() => setShowVersionHistory(false)}
           showCheckpointDialog={showCheckpointDialog}
           onCloseCheckpointDialog={() => setShowCheckpointDialog(false)}
@@ -1747,75 +1892,77 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           onRemoveLink={linkDialogMode === 'edit' ? handleLinkRemove : undefined}
         />
 
-        <PagedDocumentEditorSidebarHost
-          documentId={document?.id}
-          editor={editor}
-          activeEditor={activeEditor}
-          title={title}
-          accessToken={accessToken}
-          currentUserId={currentUserId}
-          currentUserName={currentUserName}
-          currentUserAvatar={currentUserAvatar}
-          rightSidebar={rightSidebar}
-          setRightSidebar={setRightSidebar}
-          measuredHeaderHeight={measuredHeaderHeight}
-          documentRightPanelOffset={documentRightPanelOffset}
-          comments={comments.comments}
-          commentsUnresolvedCount={comments.unresolvedCount}
-          commentsIsLoading={comments.isLoading}
-          onCreateComment={handleCreateComment}
-          onUpdateComment={handleUpdateComment}
-          onResolveComment={handleResolveComment}
-          onDeleteComment={handleDeleteComment}
-          onCloseCommentsSidebar={closeCommentsSidebar}
-          onUnhighlightComment={handleUnhighlightComment}
-          onScrollToHighlight={handleScrollToHighlight}
-          showHeaderFooterSidebar={showHeaderFooterSidebar}
-          headerFooterSettingsSessionOpen={headerFooterSettingsSessionOpen}
-          resolvedHeaderFooterType={resolvedHeaderFooterType}
-          resolvedHeaderFooterPageNumber={resolvedHeaderFooterPageNumber}
-          pagesEditorState={pagesEditorState}
-          differentFirstPage={pagesFormattingConfig.differentFirstPage}
-          differentOddEven={pagesFormattingConfig.differentOddEven}
-          headerTopMarginPx={headerTopMarginPx}
-          footerBottomMarginPx={footerBottomMarginPx}
-          marginUnit={resolvedLayout.marginUnit}
-          showDocumentBody={showBodyWhileEditingHeaderFooter}
-          onShowDocumentBodyChange={setShowBodyWhileEditingHeaderFooter}
-          onPersistPagesFromEditor={persistPagesFromEditor}
-          onOpenPageNumbers={handleOpenPageNumbersDialog}
-          onQuickPageNumberPlacement={handleQuickPageNumberPlacement}
-          onRemovePageNumber={handlePageNumbersRemove}
-          onCloseHeaderFooterSidebar={handleCloseHeaderFooterSidebar}
-          selectedTableSidebar={selectedTableSidebar}
-          tableContextSubtitle={tableSidebarContextSubtitleKey ? t(tableSidebarContextSubtitleKey) : undefined}
-          onCloseTableSidebar={closeTableSettingsSidebar}
-          selectedImageSidebar={selectedImageSidebar}
-          imageContextSubtitle={imageSidebarContextSubtitleKey ? t(imageSidebarContextSubtitleKey) : undefined}
-          onCloseImageSidebar={closeImageSettingsSidebar}
-          onReplaceImage={openReplaceImageDialog}
-          selectedSignatureSidebar={selectedSignatureSidebar}
-          signatureContextSubtitle={
-            signatureSidebarContextSubtitleKey ? t(signatureSidebarContextSubtitleKey) : undefined
-          }
-          onCloseSignatureSidebar={closeSignatureSettingsSidebar}
-          onReplaceSignature={handleOpenReplaceSignatureDialog}
-          signatureCropActive={
-            activeSignatureUiState.mode === 'crop' &&
-            activeSignatureUiState.pos != null &&
-            activeSignatureUiState.pos === selectedSignatureSidebar.pos
-          }
-          tocSidebarNodePos={tocSidebarNodePos}
-          onCloseTocSidebar={() => {
-            setRightSidebar('closed')
-            setTocSidebarNodePos(null)
-          }}
-          showInlineCommentPopover={showInlineCommentPopover}
-          inlineCommentPosition={inlineCommentPosition}
-          onSubmitInlineComment={handleSubmitInlineComment}
-          onCloseInlineCommentPopover={handleCloseInlineCommentPopover}
-          translate={t}
-        />
+        {!isReviewMode && (
+          <PagedDocumentEditorSidebarHost
+            documentId={document?.id}
+            editor={editor}
+            activeEditor={activeEditor}
+            title={title}
+            accessToken={accessToken}
+            currentUserId={currentUserId}
+            currentUserName={currentUserName}
+            currentUserAvatar={currentUserAvatar}
+            rightSidebar={rightSidebar}
+            setRightSidebar={setRightSidebar}
+            measuredHeaderHeight={measuredHeaderHeight}
+            documentRightPanelOffset={documentRightPanelOffset}
+            comments={comments.comments}
+            commentsUnresolvedCount={comments.unresolvedCount}
+            commentsIsLoading={comments.isLoading}
+            onCreateComment={handleCreateComment}
+            onUpdateComment={handleUpdateComment}
+            onResolveComment={handleResolveComment}
+            onDeleteComment={handleDeleteComment}
+            onCloseCommentsSidebar={closeCommentsSidebar}
+            onUnhighlightComment={handleUnhighlightComment}
+            onScrollToHighlight={handleScrollToHighlight}
+            showHeaderFooterSidebar={showHeaderFooterSidebar}
+            headerFooterSettingsSessionOpen={headerFooterSettingsSessionOpen}
+            resolvedHeaderFooterType={resolvedHeaderFooterType}
+            resolvedHeaderFooterPageNumber={resolvedHeaderFooterPageNumber}
+            pagesEditorState={pagesEditorState}
+            differentFirstPage={pagesFormattingConfig.differentFirstPage}
+            differentOddEven={pagesFormattingConfig.differentOddEven}
+            headerTopMarginPx={headerTopMarginPx}
+            footerBottomMarginPx={footerBottomMarginPx}
+            marginUnit={resolvedLayout.marginUnit}
+            showDocumentBody={showBodyWhileEditingHeaderFooter}
+            onShowDocumentBodyChange={setShowBodyWhileEditingHeaderFooter}
+            onPersistPagesFromEditor={persistPagesFromEditor}
+            onOpenPageNumbers={handleOpenPageNumbersDialog}
+            onQuickPageNumberPlacement={handleQuickPageNumberPlacement}
+            onRemovePageNumber={handlePageNumbersRemove}
+            onCloseHeaderFooterSidebar={handleCloseHeaderFooterSidebar}
+            selectedTableSidebar={selectedTableSidebar}
+            tableContextSubtitle={tableSidebarContextSubtitleKey ? t(tableSidebarContextSubtitleKey) : undefined}
+            onCloseTableSidebar={closeTableSettingsSidebar}
+            selectedImageSidebar={selectedImageSidebar}
+            imageContextSubtitle={imageSidebarContextSubtitleKey ? t(imageSidebarContextSubtitleKey) : undefined}
+            onCloseImageSidebar={closeImageSettingsSidebar}
+            onReplaceImage={openReplaceImageDialog}
+            selectedSignatureSidebar={selectedSignatureSidebar}
+            signatureContextSubtitle={
+              signatureSidebarContextSubtitleKey ? t(signatureSidebarContextSubtitleKey) : undefined
+            }
+            onCloseSignatureSidebar={closeSignatureSettingsSidebar}
+            onReplaceSignature={handleOpenReplaceSignatureDialog}
+            signatureCropActive={
+              activeSignatureUiState.mode === 'crop' &&
+              activeSignatureUiState.pos != null &&
+              activeSignatureUiState.pos === selectedSignatureSidebar.pos
+            }
+            tocSidebarNodePos={tocSidebarNodePos}
+            onCloseTocSidebar={() => {
+              setRightSidebar('closed')
+              setTocSidebarNodePos(null)
+            }}
+            showInlineCommentPopover={showInlineCommentPopover}
+            inlineCommentPosition={inlineCommentPosition}
+            onSubmitInlineComment={handleSubmitInlineComment}
+            onCloseInlineCommentPopover={handleCloseInlineCommentPopover}
+            translate={t}
+          />
+        )}
       </div>
     )
   }

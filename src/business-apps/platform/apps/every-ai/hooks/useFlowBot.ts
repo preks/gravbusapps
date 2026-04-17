@@ -5,6 +5,7 @@ import { getCurrentPageContext } from '../utils/pageContext'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { env } from '@/common/env/EnvUtils'
 
 const STORAGE_KEY = 'newwork_every_ai'
 const FLOWBOT_MODEL_KIND_DEFAULT = 'default'
@@ -41,7 +42,9 @@ function buildPrechatContextKey(context: CurrentPageContext): string {
 }
 
 function getPrechatStorageKey(cacheKey: string): string {
-  return `${PRECHAT_CACHE_PREFIX}:${cacheKey}`
+  const realm = getCurrentRealm()
+  const prefix = realm ? `${PRECHAT_CACHE_PREFIX}:${realm}` : PRECHAT_CACHE_PREFIX
+  return `${prefix}:${cacheKey}`
 }
 
 function readPrechatCache(cacheKey: string): PrechatCacheEntry | null {
@@ -212,10 +215,19 @@ function processSSEFrame(
   }
 }
 
+function getCurrentRealm(): string | undefined {
+  try {
+    return env('NEXT_PUBLIC_OIDC_REALM') || undefined
+  } catch {
+    return undefined
+  }
+}
+
 function saveState(state: ConversationState) {
   if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessionId: state.sessionId }))
+      const realm = getCurrentRealm()
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessionId: state.sessionId, realm }))
       if (state.sessionId) {
         console.log('[FlowBot] Saved session to localStorage:', state.sessionId)
       }
@@ -261,6 +273,14 @@ function getInitialSessionId(): string | null {
       return null
     }
     const parsed = JSON.parse(raw)
+
+    const currentRealm = getCurrentRealm()
+    if (currentRealm && parsed.realm && parsed.realm !== currentRealm) {
+      console.log('[FlowBot] Stored session belongs to different tenant, discarding')
+      localStorage.removeItem(STORAGE_KEY)
+      return null
+    }
+
     const sessionId = parsed.sessionId || null
     if (isValidSessionId(sessionId)) {
       console.log('[FlowBot] Restored session from localStorage:', sessionId)

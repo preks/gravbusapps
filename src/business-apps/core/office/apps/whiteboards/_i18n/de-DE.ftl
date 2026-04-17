@@ -86,8 +86,8 @@ delete-confirm-multi = { $count } Elemente werden in den Papierkorb verschoben. 
 delete-confirm-action = In den Papierkorb verschieben
 delete-confirm-cancel = Abbrechen
 
-empty-trash-title = Keine Whiteboards im Papierkorb
-empty-trash-description = In den Papierkorb verschobene Whiteboards erscheinen hier.
+whiteboards-empty-trash-title = Keine Whiteboards im Papierkorb
+whiteboards-empty-trash-description = In den Papierkorb verschobene Whiteboards erscheinen hier.
 trash-refresh = Aktualisieren
 sort-name = Name
 sort-trashed = In den Papierkorb verschoben am

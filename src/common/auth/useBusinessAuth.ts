@@ -9,6 +9,8 @@ import {
 import { NAVIGATION_BASE_PATH } from '@/common/utils/navigationUtils'
 
 const SESSION_KEY_KEYCLOAK_RETURN_PATH = 'keycloak_return_path'
+const MOBILE_TOKEN_KEY = 'com.newwork.mobile.accessToken'
+const MOBILE_TOKEN_UPDATED_EVENT = 'com.newwork.mobile.token.updated'
 
 /**
  * Check if current URL is a Microsoft OAuth callback
@@ -21,6 +23,32 @@ function isMicrosoftOAuthCallback(): boolean {
   const hasState = params.has('state')
   const hasMsOAuthState = sessionStorage.getItem('ms_oauth_state') !== null
   return hasCode && hasState && hasMsOAuthState
+}
+
+function isReactNativeWebView(): boolean {
+  if (typeof window === 'undefined') return false
+  return !!(window as any).ReactNativeWebView
+}
+
+function getMobileAccessToken(): string | undefined {
+  if (typeof window === 'undefined') return undefined
+  try {
+    return sessionStorage.getItem(MOBILE_TOKEN_KEY) || undefined
+  } catch {
+    return undefined
+  }
+}
+
+function decodeJwtPayload(token: string): KeycloakTokenParsed | undefined {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return undefined
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const decoded = atob(base64)
+    return JSON.parse(decoded) as KeycloakTokenParsed
+  } catch {
+    return undefined
+  }
 }
 
 export interface UseBusinessAuthResult {
@@ -55,6 +83,40 @@ export function useBusinessAuth(): UseBusinessAuthResult {
     if (isMsOAuthCallback) {
       setInitialized(true)
       return
+    }
+
+    // Mobile WebView bypass: use token provided by native app instead of Keycloak.
+    // Prevents Keycloak login-required redirect in WebViews after tenant switch.
+    if (isReactNativeWebView()) {
+      const mobileToken = getMobileAccessToken()
+      if (mobileToken) {
+        console.log('[BusinessAuth] Using mobile access token from native app')
+        setAccessToken(mobileToken)
+        setTokenParsed(decodeJwtPayload(mobileToken))
+        setInitialized(true)
+
+        const handleTokenUpdate = () => {
+          const updated = getMobileAccessToken()
+          if (updated) {
+            setAccessToken(updated)
+            setTokenParsed(decodeJwtPayload(updated))
+            try {
+              window.dispatchEvent(
+                new CustomEvent('com.newwork.token.shouldRefreshAuthorizationHeader', {
+                  detail: { accessToken: updated }
+                })
+              )
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        window.addEventListener(MOBILE_TOKEN_UPDATED_EVENT, handleTokenUpdate)
+        return () => {
+          window.removeEventListener(MOBILE_TOKEN_UPDATED_EVENT, handleTokenUpdate)
+        }
+      }
     }
 
     const kc = new Keycloak(keycloakConfig)
@@ -178,8 +240,6 @@ export function useBusinessAuth(): UseBusinessAuthResult {
   }, [kcInstance])
 
   const logout = useCallback(async () => {
-    if (!kcInstance) return
-
     try {
       window.localStorage.removeItem(STORAGE_KEY_USER_INFO)
       window.localStorage.removeItem(STORAGE_KEY_ACCESS_TOKEN)
@@ -192,6 +252,8 @@ export function useBusinessAuth(): UseBusinessAuthResult {
 
     setAccessToken(undefined)
     setTokenParsed(undefined)
+
+    if (!kcInstance) return
 
     const redirectUri = typeof window !== 'undefined' ? window.location.origin : undefined
     await kcInstance.logout({ redirectUri })

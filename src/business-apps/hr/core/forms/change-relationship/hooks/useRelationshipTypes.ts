@@ -7,6 +7,7 @@ export interface SelectOption {
   id: string
   label: string
   value: string
+  code: string
 }
 
 export interface EmployeeRelationship {
@@ -178,7 +179,8 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
         entries.map((e: any) => ({
           id: e.id,
           label: e.translations?.[0]?.value || e.value || e.code || '—',
-          value: e.id
+          value: e.id,
+          code: e.code || ''
         }))
       )
       setEmployee({

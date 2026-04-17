@@ -452,8 +452,8 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
               <OfficeTrashList
                 accessToken={accessToken}
                 entityType="whiteboard"
-                emptyTitle={t('empty-trash-title')}
-                emptyDescription={t('empty-trash-description')}
+                emptyTitle={t('whiteboards-empty-trash-title')}
+                emptyDescription={t('whiteboards-empty-trash-description')}
                 layout="list"
                 searchQuery={trashSearchQuery}
                 listControls={{

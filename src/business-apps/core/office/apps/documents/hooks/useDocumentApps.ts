@@ -15,7 +15,6 @@ import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import type { Document, DocumentSummary, ApprovalWorkflowConfig, DocumentApprovalRequest } from '../types'
 import translations from '../_i18n'
 import {
-  buildDocumentApprovalRequest,
   getDocumentById,
   getDocumentForOpenById,
   mapApiDocToSummary,
@@ -168,7 +167,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       try {
         const document = await getDocumentForOpenById(officeClient, id)
         if (document) {
-          const permission = document.permission || 'owner'
+          const permission = document.permission === 'admin' ? 'owner' : document.permission || 'owner'
           setState(prev => ({
             ...prev,
             currentDocument: document,
@@ -368,27 +367,18 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return null
 
       try {
-        await officeClient.documents.createApproval({
-          entityType: 'document',
-          entityId: config.documentId,
-          title: 'Document Approval',
+        const response = await officeClient.documents.submitForApproval<{
+          approvalRequest?: DocumentApprovalRequest
+        }>(config.documentId, {
+          approvers: config.approvers.map(userId => ({ userId })),
           message: config.message,
-          approvers: config.approvers.map(userId => ({ userId }))
+          dueDate: config.dueDate
         })
-        const success = true
 
-        if (success) {
-          await officeClient.documents.updateStatus(config.documentId, { status: 'pending_approval' })
-          toast.success(t('doc-apps-toast-sent-approval'))
-          await refreshDocuments()
+        toast.success(t('doc-apps-toast-sent-approval'))
+        await refreshDocuments()
 
-          const approvals = await officeClient.documents.getApprovalsForDocument<Record<string, unknown>[]>(
-            config.documentId
-          )
-          const approvalRequest = buildDocumentApprovalRequest(config.documentId, approvals)
-          return approvalRequest
-        }
-        return null
+        return response.approvalRequest ?? null
       } catch (error) {
         console.error('[useDocumentApps] Failed to send for approval:', error)
         toast.error(t('doc-apps-toast-send-approval-failed'))
@@ -407,14 +397,10 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         if (approvals.length > 0) {
           await officeClient.documents.deleteApproval(approvals[0].id)
         }
-        const success = true
 
-        if (success) {
-          await officeClient.documents.updateStatus(documentId, { status: 'draft' })
-          toast.success(t('doc-apps-toast-approval-cancelled'))
-          await refreshDocuments()
-        }
-        return success
+        toast.success(t('doc-apps-toast-approval-cancelled'))
+        await refreshDocuments()
+        return true
       } catch (error) {
         console.error('[useDocumentApps] Failed to cancel approval:', error)
         toast.error(t('doc-apps-toast-cancel-approval-failed'))

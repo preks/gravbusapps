@@ -59,8 +59,8 @@ export const REAL_ESTATE_SORTABLE_COLUMNS = [
   { id: 'realEstateInvestment_funding', label: 'Funding' },
   { id: 'realEstateInvestment_actualAnnualExpenses', label: 'Actual Annual Expenses' },
   { id: 'realEstateInvestment_targetAnnualExpenses', label: 'Target Annual Expenses' },
-  { id: 'realEstateInvestment_locality', label: 'Locality' },
-  { id: 'realEstateInvestment_postalCode', label: 'Postal Code' }
+  { id: 'realEstateLocality', label: 'Locality' },
+  { id: 'realEstatePostalCode', label: 'Postal Code' }
 ]
 
 /**

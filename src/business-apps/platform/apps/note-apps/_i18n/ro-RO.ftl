@@ -39,7 +39,7 @@ menu-new-template-title = Din șablon
 menu-new-template-description = Alegeți un șablon
 
 header-sort = Sortare
-header-search-placeholder = Căutare...
+notes-header-search-placeholder = Caută note...
 sort-name = Nume
 sort-modified = Modificat
 sort-created = Creat
@@ -47,14 +47,14 @@ table-owner = Proprietar
 
 empty-pinned-title = Nu există note fixate
 empty-pinned-description = Fixați notele importante pentru acces rapid.
-empty-shared-title = Nimic partajat cu dvs.
-empty-shared-description = Notele partajate vor apărea aici.
+notes-empty-shared-title = Nimic partajat cu dvs.
+notes-empty-shared-description = Notele partajate vor apărea aici.
 empty-archived-title = Nu există note în coșul de gunoi
 empty-archived-description = Notele mutate în coșul de gunoi vor apărea aici.
-empty-trash-title = Nu există note în coșul de gunoi
-empty-trash-description = Notele mutate în coșul de gunoi vor apărea aici.
-empty-default-title = Încă nu există note
-empty-default-description = Creați prima notă.
+notes-empty-trash-title = Nu există note în coșul de gunoi
+notes-empty-trash-description = Notele mutate în coșul de gunoi vor apărea aici.
+notes-empty-default-title = Încă nu există note
+notes-empty-default-description = Creați prima notă.
 empty-create-note = Creați notă
 loading-message = Se încarcă...
 

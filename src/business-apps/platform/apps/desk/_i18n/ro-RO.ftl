@@ -88,9 +88,9 @@ untitled = Fără titlu
 results-for-prefix = Rezultate pentru
 pick-up-where = Continuă de unde ai rămas
 empty-search-title = Niciun element nu corespunde căutării
-empty-default-title = Încă nu există elemente recente
+desk-empty-default-title = Încă nu există elemente recente
 empty-search-description = Încercați alt termen de căutare
-empty-default-description = Creați primul document, foaie de calcul sau notă pentru a începe
+desk-empty-default-description = Creați primul document, foaie de calcul sau notă pentru a începe
 
 # App card
 app-shared-count = { $count } partajat(e)
