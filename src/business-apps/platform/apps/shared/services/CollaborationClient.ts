@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { getSpreadsheetServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 
 // Client version for tracking
 const CLIENT_VERSION = '1'
@@ -29,6 +30,7 @@ export interface DocumentOperation {
   path?: string
   baseVersion?: number
   broadcastOnly?: boolean
+  version?: number
 }
 
 export interface CollaborationWebSocketOptions {
@@ -36,20 +38,29 @@ export interface CollaborationWebSocketOptions {
   reconnectionAttempts?: number
   reconnectionDelayMax?: number
   path?: string
+  namespace?: string
   enablePollingFallback?: boolean
+  serviceApiUrl?: string
+  debug?: boolean
+  onReconnectFailed?: () => void
 }
 
 export type CollaborationEventHandler = (data: any) => void
 
 export class CollaborationClient {
   private socket: Socket | null = null
+  private accessToken = ''
   private url: string
   private options: CollaborationWebSocketOptions
   private reconnectAttempts = 0
   private maxReconnectAttempts: number
+  private debug: boolean
+  private onReconnectFailed?: () => void
 
   constructor(url: string, options: CollaborationWebSocketOptions = {}) {
     this.url = url
+    this.debug = options.debug ?? false
+    this.onReconnectFailed = options.onReconnectFailed
     this.options = {
       connectionTimeout: options.connectionTimeout || 20000,
       reconnectionAttempts: options.reconnectionAttempts || 10,
@@ -60,20 +71,63 @@ export class CollaborationClient {
     this.maxReconnectAttempts = this.options.reconnectionAttempts || 10
   }
 
+  setAccessToken(token: string) {
+    if (!token || token === this.accessToken) {
+      return
+    }
+
+    this.accessToken = token
+    if (!this.socket) {
+      return
+    }
+
+    this.socket.auth = {
+      token,
+      clientVersion: CLIENT_VERSION
+    }
+
+    if (this.socket.connected) {
+      this.forceReconnect()
+    }
+  }
+
   connect(token: string) {
+    const nextToken = token || this.accessToken
+    if (!nextToken) {
+      throw new Error('[CollaborationClient] Access token required before connecting.')
+    }
+
+    if (this.socket) {
+      this.accessToken = nextToken
+      this.socket.auth = {
+        token: nextToken,
+        clientVersion: CLIENT_VERSION
+      }
+
+      if (this.socket.connected) {
+        return this.socket
+      }
+
+      this.socket.connect()
+      return this.socket
+    }
+
+    this.accessToken = nextToken
     // Build transports array based on configuration
     const transports = this.options.enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
 
-    console.log('[CollaborationClient] INITIATING CONNECTION')
-    console.log('[CollaborationClient] Client Version:', CLIENT_VERSION)
-    console.log('[CollaborationClient] URL:', this.url)
-    console.log('[CollaborationClient] Path:', this.options.path)
-    console.log('[CollaborationClient] Transports:', transports)
-    console.log('[CollaborationClient] Full connection URL:', `${this.url}${this.options.path}`)
+    if (this.debug) {
+      console.log('[CollaborationClient] INITIATING CONNECTION')
+      console.log('[CollaborationClient] Client Version:', CLIENT_VERSION)
+      console.log('[CollaborationClient] URL:', this.url)
+      console.log('[CollaborationClient] Path:', this.options.path)
+      console.log('[CollaborationClient] Transports:', transports)
+      console.log('[CollaborationClient] Full connection URL:', `${this.url}${this.options.path}`)
+    }
 
     this.socket = io(this.url, {
       auth: {
-        token,
+        token: nextToken,
         clientVersion: CLIENT_VERSION
       },
       transports,
@@ -97,11 +151,11 @@ export class CollaborationClient {
 
     // Log transport upgrade attempts
     this.socket.io.engine.on('upgrading', transport => {
-      console.log('[CollaborationClient] Upgrading transport to:', transport.name)
+      if (this.debug) console.log('[CollaborationClient] Upgrading transport to:', transport.name)
     })
 
     this.socket.io.engine.on('upgrade', transport => {
-      console.log('[CollaborationClient] Transport upgraded to:', transport.name)
+      if (this.debug) console.log('[CollaborationClient] Transport upgraded to:', transport.name)
     })
 
     this.socket.io.engine.on('upgradeError', error => {
@@ -110,9 +164,11 @@ export class CollaborationClient {
 
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0
-      console.log(
-        `[CollaborationClient] CONNECTED! Socket ID: ${this.socket?.id}, Transport: ${this.socket?.io?.engine?.transport?.name}`
-      )
+      if (this.debug) {
+        console.log(
+          `[CollaborationClient] CONNECTED! Socket ID: ${this.socket?.id}, Transport: ${this.socket?.io?.engine?.transport?.name}`
+        )
+      }
     })
 
     this.socket.on('disconnect', reason => {
@@ -144,11 +200,12 @@ export class CollaborationClient {
     })
 
     this.socket.io.on('reconnect', () => {
-      console.log('[CollaborationClient] Reconnected after disconnect, socketId:', this.socket?.id)
+      if (this.debug) console.log('[CollaborationClient] Reconnected after disconnect, socketId:', this.socket?.id)
     })
 
     this.socket.io.on('reconnect_failed', () => {
       console.error('[CollaborationClient] Reconnection failed after all attempts')
+      this.onReconnectFailed?.()
     })
 
     return this.socket
@@ -199,7 +256,7 @@ export class CollaborationClient {
    * Join a document, spreadsheet, or note for collaboration
    */
   joinDocument(
-    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
     entityId: string,
     onParticipantsReceived?: (participants: any[]) => void
   ) {
@@ -211,21 +268,25 @@ export class CollaborationClient {
       return
     }
 
-    console.log('[CollaborationClient] Joining document (emit):', { entityType, entityId, socketId: this.socket?.id })
+    if (this.debug) {
+      console.log('[CollaborationClient] Joining document (emit):', { entityType, entityId, socketId: this.socket?.id })
+    }
 
     let callbackFired = false
     this.socket.emit('join_document', { entityType, entityId }, (response: any) => {
       callbackFired = true
       const elapsed = Date.now() - joinStartedAt
-      console.log('[CollaborationClient] Join document response:', {
-        success: response?.success,
-        participantsCount: response?.participants?.length ?? 0,
-        elapsedMs: elapsed,
-        room
-      })
+      if (this.debug) {
+        console.log('[CollaborationClient] Join document response:', {
+          success: response?.success,
+          participantsCount: response?.participants?.length ?? 0,
+          elapsedMs: elapsed,
+          room
+        })
+      }
 
-      if (response?.success && response?.participants) {
-        onParticipantsReceived?.(response.participants)
+      if (response?.success === true) {
+        onParticipantsReceived?.(Array.isArray(response.participants) ? response.participants : [])
       } else if (response?.success === false) {
         console.warn('[CollaborationClient] join_document failed:', response?.error ?? 'unknown')
       } else if (!response) {
@@ -249,44 +310,99 @@ export class CollaborationClient {
   /**
    * Leave a document, spreadsheet, or note
    */
-  leaveDocument(entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard', entityId: string) {
-    console.log('[CollaborationClient] Leaving document:', { entityType, entityId })
+  leaveDocument(
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
+    entityId: string
+  ) {
+    if (this.debug) console.log('[CollaborationClient] Leaving document:', { entityType, entityId })
     this.socket?.emit('leave_document', { entityType, entityId })
   }
 
   /**
    * Send a document operation (edit, insert, delete, etc.)
+   * No retry logic — callers (e.g. SpreadsheetCollaborationManager) handle retries.
    */
   sendDocumentOperation(
-    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
     entityId: string,
-    operation: DocumentOperation
+    operation: DocumentOperation,
+    onAckFailure?: (operation: DocumentOperation) => void
   ) {
     if (!this.socket?.connected) {
-      console.error('[CollaborationClient] Cannot send operation: socket not connected')
-      return
+      console.warn('[CollaborationClient] Cannot send operation (socket not connected):', operation.type)
+      onAckFailure?.(operation)
+      return false
     }
 
-    this.socket.emit(
-      'document_operation',
-      {
-        entityType,
-        entityId,
-        operation
-      },
-      (response: any) => {
-        if (response?.success === false) {
-          console.warn('[CollaborationClient] document_operation failed:', response?.error ?? response)
-        }
+    let ackReceived = false
+    const ackTimeout = setTimeout(() => {
+      if (!ackReceived) {
+        ackReceived = true
+        console.warn('[CollaborationClient] document_operation ack timeout (5s):', operation.type)
+        onAckFailure?.(operation)
       }
-    )
+    }, 5000)
+
+    this.socket.emit('document_operation', { entityType, entityId, operation }, (response: any) => {
+      if (ackReceived) return
+      ackReceived = true
+      clearTimeout(ackTimeout)
+      if (response?.success === false) {
+        console.warn('[CollaborationClient] document_operation ack failure:', operation.type, response?.error)
+        onAckFailure?.(operation)
+      }
+    })
+    return true
+  }
+
+  /**
+   * Send document_operation and await ack (success + optional sheet version).
+   * Used when spreadsheet cell edits must be persisted via the collaboration gateway.
+   */
+  sendDocumentOperationAsync(
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
+    entityId: string,
+    operation: DocumentOperation,
+    timeoutMs = 15000
+  ): Promise<{ success: boolean; version?: number; error?: string }> {
+    return new Promise(resolve => {
+      if (!this.socket?.connected) {
+        resolve({ success: false, error: 'not_connected' })
+        return
+      }
+      let settled = false
+      const timer = setTimeout(() => {
+        if (settled) return
+        settled = true
+        resolve({ success: false, error: 'timeout' })
+      }, timeoutMs)
+      this.socket.emit('document_operation', { entityType, entityId, operation }, (response: unknown) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        if (response == null) {
+          resolve({ success: false, error: 'empty_ack' })
+          return
+        }
+        const r = response as { success?: boolean; version?: number; error?: string }
+        if (r.success === false) {
+          resolve({ success: false, error: String(r?.error ?? 'ack_failure') })
+          return
+        }
+        const v = r.version
+        resolve({
+          success: true,
+          version: typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.trunc(v) : undefined
+        })
+      })
+    })
   }
 
   /**
    * Send cursor position update
    */
   sendCursorMove(
-    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
     entityId: string,
     position: {
       line?: number
@@ -315,7 +431,7 @@ export class CollaborationClient {
    * Send selection change
    */
   sendSelectionChange(
-    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
     entityId: string,
     selection: {
       start: { line?: number; column?: number; offset?: number }
@@ -332,25 +448,57 @@ export class CollaborationClient {
   /**
    * Send typing start indicator
    */
-  sendTypingStart(entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard', entityId: string) {
+  sendTypingStart(
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
+    entityId: string
+  ) {
     this.socket?.emit('typing_start', { entityType, entityId })
   }
 
   /**
    * Send typing stop indicator
    */
-  sendTypingStop(entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard', entityId: string) {
+  sendTypingStop(
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
+    entityId: string
+  ) {
     this.socket?.emit('typing_stop', { entityType, entityId })
   }
 
   // Event listeners
 
+  on(event: string, handler: CollaborationEventHandler) {
+    this.socket?.on(event, handler)
+
+    return () => {
+      this.socket?.off(event, handler)
+    }
+  }
+
+  onConnect(handler: () => void) {
+    return this.on('connect', handler)
+  }
+
+  onDisconnect(handler: (reason: string) => void) {
+    return this.on('disconnect', handler)
+  }
+
+  onConnectError(handler: (error: Error) => void) {
+    return this.on('connect_error', handler)
+  }
+
   onUserJoined(handler: (data: { userId: string; userName: string; userColor: string; socketId: string }) => void) {
-    this.socket?.on('user_joined', handler)
+    return this.on('user_joined', handler)
   }
 
   onUserLeft(handler: (data: { userId: string; userName: string; socketId: string }) => void) {
-    this.socket?.on('user_left', handler)
+    return this.on('user_left', handler)
+  }
+
+  onParticipantsUpdated(
+    handler: (data: { entityType: 'document' | 'spreadsheet' | 'note'; entityId: string; participants: any[] }) => void
+  ) {
+    return this.on('participants_updated', handler)
   }
 
   onOperationApplied(
@@ -362,7 +510,7 @@ export class CollaborationClient {
       timestamp: number
     }) => void
   ) {
-    this.socket?.on('operation_applied', handler)
+    return this.on('operation_applied', handler)
   }
 
   onCursorUpdate(
@@ -378,7 +526,7 @@ export class CollaborationClient {
       }
     }) => void
   ) {
-    this.socket?.on('cursor_update', handler)
+    return this.on('cursor_update', handler)
   }
 
   onSelectionUpdate(
@@ -392,19 +540,19 @@ export class CollaborationClient {
       } | null
     }) => void
   ) {
-    this.socket?.on('selection_update', handler)
+    return this.on('selection_update', handler)
   }
 
   onUserTyping(handler: (data: { userId: string; userName: string; isTyping: boolean }) => void) {
-    this.socket?.on('user_typing', handler)
+    return this.on('user_typing', handler)
   }
 
   onDocumentSaved(handler: (data: { userId: string; version: number; timestamp: number }) => void) {
-    this.socket?.on('document_saved', handler)
+    return this.on('document_saved', handler)
   }
 
   onVersionCreated(handler: (data: { version: number; userId: string; timestamp: number }) => void) {
-    this.socket?.on('version_created', handler)
+    return this.on('version_created', handler)
   }
 
   // ============ Comment Events ============
@@ -422,21 +570,21 @@ export class CollaborationClient {
       timestamp: number
     }) => void
   ) {
-    this.socket?.on('comment:created', handler)
+    return this.on('comment:created', handler)
   }
 
   onCommentUpdated(
     handler: (data: { commentId: string; updates: Record<string, unknown>; timestamp: number }) => void
   ) {
-    this.socket?.on('comment:updated', handler)
+    return this.on('comment:updated', handler)
   }
 
   onCommentResolved(handler: (data: { commentId: string; resolvedBy: string; timestamp: number }) => void) {
-    this.socket?.on('comment:resolved', handler)
+    return this.on('comment:resolved', handler)
   }
 
   onCommentDeleted(handler: (data: { commentId: string; timestamp: number }) => void) {
-    this.socket?.on('comment:deleted', handler)
+    return this.on('comment:deleted', handler)
   }
 
   // ============ Lock Events ============
@@ -453,11 +601,11 @@ export class CollaborationClient {
       timestamp: number
     }) => void
   ) {
-    this.socket?.on('lock:acquired', handler)
+    return this.on('lock:acquired', handler)
   }
 
   onLockReleased(handler: (data: { unlockedBy: string; timestamp: number }) => void) {
-    this.socket?.on('lock:released', handler)
+    return this.on('lock:released', handler)
   }
 
   // ============ Publishing Events ============
@@ -473,7 +621,7 @@ export class CollaborationClient {
       timestamp: number
     }) => void
   ) {
-    this.socket?.on('publish:status_changed', handler)
+    return this.on('publish:status_changed', handler)
   }
 
   // Remove event listeners
@@ -491,7 +639,7 @@ export class CollaborationClient {
  * Automatically determines the WebSocket URL from the document service URL
  */
 export function createCollaborationClient(options?: CollaborationWebSocketOptions): CollaborationClient {
-  const apiUrl = getDocumentServiceApiUrl()
+  const apiUrl = options?.serviceApiUrl || getDocumentServiceApiUrl()
 
   // Remove /api/v1 suffix if present to get base service URL
   // e.g., 'https://newwork-dev.newwork.com/document/api/v1' -> 'https://newwork-dev.newwork.com/document'
@@ -501,26 +649,41 @@ export function createCollaborationClient(options?: CollaborationWebSocketOption
   // Resolve relative URLs (e.g., "/local-doc-api") against the current page origin
   const urlObj = new URL(serviceUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3005')
   const servicePath = urlObj.pathname // e.g., '/document'
+  const namespace = options?.namespace || '/collaboration'
 
   // For localhost, use simple path; for production use service path
   const isLocalhost = urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1'
 
   // Socket.io namespace URL is: origin + namespace (NOT service path)
   // The namespace on the server is '/collaboration'
-  const wsUrl = `${urlObj.origin}/collaboration`
+  const wsUrl = `${urlObj.origin}${namespace}`
 
   // Socket.io path: for localhost use default, for production include service path
   const socketPath = isLocalhost ? '/socket.io' : `${servicePath}/socket.io`
 
-  console.log('[CollaborationClient] Creating client:')
-  console.log('[CollaborationClient]   Service URL:', serviceUrl)
-  console.log('[CollaborationClient]   Is Localhost:', isLocalhost)
-  console.log('[CollaborationClient]   WebSocket URL (namespace):', wsUrl)
-  console.log('[CollaborationClient]   Socket.io Path:', socketPath)
+  const debugEnabled =
+    isLocalhost || (typeof localStorage !== 'undefined' && localStorage.getItem('nw-collab-debug') === 'true')
+
+  if (debugEnabled) {
+    console.log('[CollaborationClient] Creating client:')
+    console.log('[CollaborationClient]   Service URL:', serviceUrl)
+    console.log('[CollaborationClient]   Is Localhost:', isLocalhost)
+    console.log('[CollaborationClient]   WebSocket URL (namespace):', wsUrl)
+    console.log('[CollaborationClient]   Socket.io Path:', socketPath)
+  }
 
   return new CollaborationClient(wsUrl, {
     ...options,
-    path: socketPath
+    path: socketPath,
+    debug: debugEnabled
+  })
+}
+
+export function createSpreadsheetCollaborationClient(options?: CollaborationWebSocketOptions): CollaborationClient {
+  return createCollaborationClient({
+    ...options,
+    namespace: '/v2/spreadsheet-collaboration',
+    serviceApiUrl: getSpreadsheetServiceApiUrl()
   })
 }
 

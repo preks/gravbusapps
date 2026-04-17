@@ -119,8 +119,11 @@ function createStarterKitExtension(isCollaborationMode: boolean) {
 export interface UsePagedDocumentEditorInstanceParams {
   accessToken: string
   documentId?: string
+  collaborationEnabled?: boolean
   documentTitle?: string
   initialTitle?: string
+  collaborationBindingSeed?: number
+  onCollaborationFirstRender?: () => void
   editorContent: string
   editorEditable: boolean
   ydoc: import('yjs').Doc
@@ -145,8 +148,11 @@ export interface UsePagedDocumentEditorInstanceParams {
 export function usePagedDocumentEditorInstance({
   accessToken,
   documentId,
+  collaborationEnabled = true,
   documentTitle,
   initialTitle,
+  collaborationBindingSeed = 0,
+  onCollaborationFirstRender,
   editorContent,
   editorEditable,
   ydoc,
@@ -167,15 +173,21 @@ export function usePagedDocumentEditorInstance({
   clearAutocompleteSuggestion,
   scheduleAutocompleteRef
 }: UsePagedDocumentEditorInstanceParams): TiptapEditor | null {
-  const isCollaborationMode = Boolean(documentId)
+  const isCollaborationMode = Boolean(documentId) && collaborationEnabled
 
   const collaborationExtension = useMemo(
-    () => (documentId ? Collaboration.configure({ document: ydoc }) : null),
-    [documentId, ydoc]
+    () =>
+      isCollaborationMode
+        ? Collaboration.configure({
+            document: ydoc,
+            onFirstRender: onCollaborationFirstRender
+          })
+        : null,
+    [isCollaborationMode, collaborationBindingSeed, onCollaborationFirstRender, ydoc]
   )
   const yjsCursorExtension = useMemo(
-    () => (documentId ? createYjsCursorExtension(awareness) : null),
-    [documentId, awareness]
+    () => (isCollaborationMode ? createYjsCursorExtension(awareness) : null),
+    [isCollaborationMode, collaborationBindingSeed, awareness]
   )
 
   const headerFooterExtensions = useMemo(
@@ -326,7 +338,9 @@ export function usePagedDocumentEditorInstance({
     },
     isCollaborationMode
       ? [
+          isCollaborationMode,
           documentId,
+          collaborationBindingSeed,
           editorEditable,
           extensions,
           handlePaste,
@@ -339,6 +353,7 @@ export function usePagedDocumentEditorInstance({
           scheduleAutocompleteRef
         ]
       : [
+          isCollaborationMode,
           documentId,
           editorContent,
           editorEditable,

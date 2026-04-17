@@ -9,7 +9,7 @@
  */
 
 import { useState, useCallback, useEffect, useMemo, useImperativeHandle, forwardRef, useRef } from 'react'
-import { Spinner, toast } from '@newwork/nw-design-system'
+import { Spinner, toast, useTranslation } from '@newwork/nw-design-system'
 import type { Board, BoardSheet, BoardRow, BoardQuickFilter } from './types'
 import { RowPagePanel } from './components/RowPagePanel'
 import { BoardViewContent } from './components/BoardViewContent'
@@ -26,6 +26,7 @@ import { BoardAuditLogPanel } from './components/audit/BoardAuditLogPanel'
 import { useDashboardData } from './hooks/useDashboardData'
 import { usePeopleColumnOptions } from './hooks/usePeopleColumnOptions'
 import type { ServerFilterParams } from './hooks/useTableFilterSort'
+import translations from './_i18n'
 
 function readInitialServerFilters(): { filters?: string; filterConnector?: 'and' | 'or'; sorts?: string } {
   try {
@@ -144,6 +145,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   },
   ref
 ) {
+  const { t } = useTranslation(translations)
   const resolveInitSheet = () => {
     if (initialSheetId && board.sheets.some(s => s.id === initialSheetId)) return initialSheetId
     return board.sheets[0]?.id || ''
@@ -204,12 +206,12 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   const DEFAULT_TABLE_VIEW: import('./types').BoardView = useMemo(
     () => ({
       id: '_default_table',
-      name: 'Table',
+      name: t('common-table'),
       type: 'table' as const,
       isDefault: true,
       config: { type: 'table' as const, density: 'compact' as const }
     }),
-    []
+    [t]
   )
 
   const activeSheet = useMemo(() => {
@@ -834,7 +836,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                           await BoardApiService.reorderRow(board.id, activeSheet!.id, rowId, afterRowId, beforeRowId)
                         } catch {
                           setRowOverride(null)
-                          toast.error('Failed to reorder row')
+                          toast.error(t('board-failed-reorder-row'))
                         }
                       }
                     : undefined

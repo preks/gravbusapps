@@ -31,9 +31,7 @@ import translations from '../../_i18n'
 
 const companyBudgetSchema = z.object({
   salaryBudgetType: z.enum(['absolute', 'percentage']),
-  salaryBudgetValue: z.coerce.number().min(0),
-  bonusBudgetType: z.enum(['absolute', 'percentage']),
-  bonusBudgetValue: z.coerce.number().min(0)
+  salaryBudgetValue: z.coerce.number().min(0)
 })
 
 export type CompanyBudgetFormValues = z.infer<typeof companyBudgetSchema>
@@ -56,18 +54,13 @@ function toFormDefaults(row: CompensationBudgetPlanCompanyRow | null): CompanyBu
   if (!row) {
     return {
       salaryBudgetType: 'absolute',
-      salaryBudgetValue: 0,
-      bonusBudgetType: 'absolute',
-      bonusBudgetValue: 0
+      salaryBudgetValue: 0
     }
   }
   const salary = deriveTypeValue(row.salaryBudgetAmount, row.salaryBudgetPercent)
-  const bonus = deriveTypeValue(row.bonusBudgetAmount, row.bonusBudgetPercent)
   return {
     salaryBudgetType: salary.type,
-    salaryBudgetValue: salary.value,
-    bonusBudgetType: bonus.type,
-    bonusBudgetValue: bonus.value
+    salaryBudgetValue: salary.value
   }
 }
 
@@ -88,8 +81,6 @@ export const BudgetSetupCompanyBudgetSection: React.FC<BudgetSetupCompanyBudgetS
 
   const salaryType = form.watch('salaryBudgetType')
   const salaryValue = form.watch('salaryBudgetValue')
-  const bonusType = form.watch('bonusBudgetType')
-  const bonusValue = form.watch('bonusBudgetValue')
 
   useEffect(() => {
     if (loadingRow) return
@@ -107,8 +98,8 @@ export const BudgetSetupCompanyBudgetSection: React.FC<BudgetSetupCompanyBudgetS
     companyName: '',
     salaryBudgetType: salaryType,
     salaryBudgetValue: salaryValue,
-    bonusBudgetType: bonusType,
-    bonusBudgetValue: bonusValue,
+    bonusBudgetType: 'absolute',
+    bonusBudgetValue: 0,
     benefitsBudgetType: 'absolute',
     benefitsBudgetValue: 0,
     currency: currencyCode,
@@ -135,17 +126,6 @@ export const BudgetSetupCompanyBudgetSection: React.FC<BudgetSetupCompanyBudgetS
               currencyCode={currencyCode}
               typeName="salaryBudgetType"
               valueName="salaryBudgetValue"
-              form={form}
-            />
-            <BudgetCategoryBlock
-              t={t}
-              title={t('budget-setup-category-bonus')}
-              helper={t('budget-setup-category-bonus-helper')}
-              baselineLabel={t('budget-setup-baseline-salary-cost')}
-              baselineAmount={currentSalaryCost}
-              currencyCode={currencyCode}
-              typeName="bonusBudgetType"
-              valueName="bonusBudgetValue"
               form={form}
             />
 
@@ -238,6 +218,13 @@ function BudgetCategoryBlock({
                   type="number"
                   step="0.01"
                   min={0}
+                  onFocus={e => {
+                    field.onFocus?.(e)
+                    const n = typeof field.value === 'number' ? field.value : Number(field.value)
+                    if (n === 0 && !Number.isNaN(n)) {
+                      e.currentTarget.select()
+                    }
+                  }}
                   data-testid={`budget-setup-input-${String(valueName)}`}
                 />
               </FormControl>

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useCustomerTaskStatistics } from '@/common/data/customer/hooks/useCustomerTaskStatistics'
 import { TaskLayout, type TaskViewConfig } from '@/common/components/common-relations/view-layouts/task-layout'
@@ -94,6 +95,8 @@ const copyTaskFilters = (
 export type TaskViewProps = BusinessAppContextProps
 
 export const TaskView: React.FC<TaskViewProps> = context => {
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('crm:customer-task-preferences:v1')
   const { fetchCustomerTasks } = useCustomerTasks(context)
   const taskStatistics = useCustomerTaskStatistics(context)
 
@@ -226,6 +229,12 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       dataTestId="customer-task-view"
       enableExport
       exportFilenamePrefix="crm-tasks"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
     />
   )
 }

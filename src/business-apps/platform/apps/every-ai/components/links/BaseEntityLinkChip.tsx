@@ -9,6 +9,8 @@ export interface BaseEntityLinkChipProps {
   showBorder?: boolean
   className?: string
   onClick?: (e: React.MouseEvent) => void
+  /** When true, same-URL navigations still refresh (e.g. Flow Studio workflow already open). */
+  forceReload?: boolean
 }
 
 /**
@@ -22,7 +24,8 @@ export const BaseEntityLinkChip: React.FC<BaseEntityLinkChipProps> = ({
   variant = 'default',
   showBorder = false,
   className = '',
-  onClick
+  onClick,
+  forceReload = false
 }) => {
   const variantStyles = {
     default: 'gba:bg-muted hover:gba:bg-accent',
@@ -53,7 +56,7 @@ export const BaseEntityLinkChip: React.FC<BaseEntityLinkChipProps> = ({
       onClick(e)
     } else {
       e.preventDefault()
-      navigateTo(url)
+      navigateTo(url, forceReload ? { forceReload: true } : undefined)
     }
   }
 

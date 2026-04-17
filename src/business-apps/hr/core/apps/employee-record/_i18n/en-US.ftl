@@ -290,7 +290,7 @@ error-end-date-after-start-date = End date must be on or after the benefit start
 notification-address-updated-success = Address updates are done.
 notification-bank-account-updated-success = Bank account updates are done.
 notification-personal-data-updated-success = Personal data updates are sent for HR approval
-notification-communication-updated-success = Communication details updates are sent for HR approval
+notification-communication-updated-success = Communication details updated. HR has been notified.
 notification-profile-picture-updated-success = Profile picture updates are sent for HR approval
 notification-relationship-updated-success = Relationship status updates are sent for HR approval
 notification-expense-created-success = Expense created successfully
@@ -304,7 +304,8 @@ notification-working-hours-updated-success = Working hours updates are sent for 
 notification-address-updated-success = Address updates are done.
 notification-bank-account-updated-success = Bank account updates are done.
 notification-personal-data-updated-success = Personal data updates sent to be approved by the HR department.
-notification-communication-updated-success = Communication details updates sent to be approved by the HR department.
+notification-communication-updated-success = Communication details updated. HR has been notified.
+notification-communication-deleted-success = Communication entry deleted successfully.
 
 # Employee Record - Errors and states
 employee-record-error-title = Error
@@ -744,6 +745,11 @@ details-private-communication = Private Communication
 details-emergency-contact = Emergency Contact
 details-additional-attributes = Additional Attributes
 details-no-emergency-contact = No emergency contact information available
+details-communication-no-entries = No communication entries
+details-communication-add = Add communication
+delete-communication-confirm-title = Delete communication entry
+delete-communication-confirm-description = Are you sure you want to delete this communication entry? This action cannot be undone.
+delete-communication-confirm-button = Delete
 details-label-salutation = Salutation
 details-label-academic-titles = Academic Titles
 details-label-first-name = First Name
@@ -767,6 +773,17 @@ details-label-private-mobile = Private Mobile
 details-label-private-email = Private Email
 details-label-contact-name = Contact Name
 details-label-phone-number = Phone Number
+
+# Relationships Card
+details-relationships = Relationships
+details-relationships-no-entries = No relationships registered
+details-relationships-emergency = Emergency Contact
+details-label-relationship-type = Type
+details-label-relationship-birth-date = Date of Birth
+details-label-relationship-email = Email
+delete-relationship-confirm-title = Delete relationship
+delete-relationship-confirm-description = Are you sure you want to delete this relationship? This action cannot be undone.
+delete-relationship-confirm-button = Delete
 
 # Employment Tab
 employment-overview = Employment Data

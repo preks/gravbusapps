@@ -7,6 +7,7 @@ import {
   AccountQuickFilters,
   type QuickFilterType
 } from '@/common/components/common-relations/view-layouts/account-layout'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import type { Account } from '@/common/data/relations/types/accountTypes'
 import { CUSTOMER_ACCOUNT_DESCRIPTORS } from '@/common/data/customer/types/customerAccountTypes'
 import {
@@ -66,8 +67,16 @@ const copyNonDateFilters = (
 
 export type AccountViewProps = BusinessAppContextProps
 
+const deriveQuickFilter = (filters: Record<string, any>): QuickFilterType => {
+  if (filters.prospective === true) return 'prospect'
+  if (filters.prospective === false) return 'established'
+  return 'all'
+}
+
 export const AccountView: React.FC<AccountViewProps> = context => {
-  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>('all')
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('crm:customer-account-preferences:v1')
+  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>(deriveQuickFilter(initialFilters))
 
   const handleQuickFilterChange = useCallback(
     (
@@ -122,6 +131,8 @@ export const AccountView: React.FC<AccountViewProps> = context => {
       descriptors: CUSTOMER_ACCOUNT_DESCRIPTORS,
       columnLabels: {
         name: 'Account Name',
+        accountPriority: 'Priority',
+        addresses: 'Location',
         industryClass: 'Industry',
         legalForm: 'Legal Form',
         companySize: 'Size',
@@ -215,6 +226,12 @@ export const AccountView: React.FC<AccountViewProps> = context => {
       renderQuickFilters={renderQuickFilters}
       enableExport
       exportFilenamePrefix="accounts"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
     />
   )
 }

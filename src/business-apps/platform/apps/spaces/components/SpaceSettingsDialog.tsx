@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  useTranslation,
   Button,
   Input,
   Label,
@@ -25,6 +26,7 @@ import {
 } from '@newwork/nw-design-system'
 import { Globe, Lock, Loader2, Trash2 } from 'lucide-react'
 import type { Space, UpdateSpaceInput } from '../types/space.types'
+import translations from '../_i18n'
 
 export interface SpaceSettingsDialogProps {
   open: boolean
@@ -46,6 +48,7 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
   onDeleteSpace,
   'data-testid': testId = 'space-settings-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [isPublic, setIsPublic] = useState(false)
@@ -106,20 +109,20 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="gba:max-w-md gba:p-0 gba:overflow-hidden" data-testid={testId}>
           <DialogHeader className="gba:p-6 gba:pb-4">
-            <DialogTitle className="gba:text-lg gba:font-semibold">Space settings</DialogTitle>
+            <DialogTitle className="gba:text-lg gba:font-semibold">{t('settings-title')}</DialogTitle>
             <DialogDescription className="gba:text-sm gba:text-muted-foreground">
-              Change the name, description, and visibility of this space
+              {t('settings-description')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="gba:px-6 gba:pb-6 gba:space-y-5">
             <div className="gba:space-y-2">
               <Label htmlFor="space-settings-name" className="gba:text-sm gba:font-medium">
-                Name
+                {t('create-name-label')}
               </Label>
               <Input
                 id="space-settings-name"
-                placeholder="e.g., Marketing Team"
+                placeholder={t('create-name-placeholder')}
                 value={name}
                 onChange={e => setName(e.target.value)}
                 className="gba:h-10"
@@ -129,12 +132,12 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
 
             <div className="gba:space-y-2">
               <Label htmlFor="space-settings-description" className="gba:text-sm gba:font-medium">
-                Description
-                <span className="gba:text-muted-foreground gba:font-normal gba:ml-1">(optional)</span>
+                {t('create-description-label')}
+                <span className="gba:text-muted-foreground gba:font-normal gba:ml-1">{t('common-optional')}</span>
               </Label>
               <Textarea
                 id="space-settings-description"
-                placeholder="What is this space for?"
+                placeholder={t('create-description-placeholder')}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 rows={3}
@@ -151,9 +154,11 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
                   <Lock className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
                 )}
                 <div>
-                  <p className="gba:text-sm gba:font-medium gba:text-foreground">{isPublic ? 'Public' : 'Private'}</p>
+                  <p className="gba:text-sm gba:font-medium gba:text-foreground">
+                    {isPublic ? t('common-public') : t('common-private')}
+                  </p>
                   <p className="gba:text-xs gba:text-muted-foreground">
-                    {isPublic ? 'Discoverable by organization' : 'Only invited members'}
+                    {isPublic ? t('common-discoverable-by-organization') : t('common-only-invited-members')}
                   </p>
                 </div>
               </div>
@@ -168,7 +173,7 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
                 disabled={isLoading}
                 data-testid={`${testId}-cancel-button`}
               >
-                Cancel
+                {t('common-cancel')}
               </Button>
               <Button
                 className="gba:flex-1"
@@ -176,18 +181,15 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
                 disabled={!name.trim() || isLoading}
                 data-testid={`${testId}-save-button`}
               >
-                {isLoading ? <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" /> : 'Save'}
+                {isLoading ? <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" /> : t('common-save')}
               </Button>
             </div>
 
             {isOwner && onDeleteSpace && (
               <div className="gba:pt-4 gba:border-t gba:border-border gba:space-y-3">
                 <div>
-                  <p className="gba:text-sm gba:font-medium gba:text-destructive">Danger zone</p>
-                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                    Delete this space permanently. Documents, notes, boards, and slides stay in your library but are no
-                    longer linked to this space. Only the space owner can delete.
-                  </p>
+                  <p className="gba:text-sm gba:font-medium gba:text-destructive">{t('settings-danger-zone')}</p>
+                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('settings-danger-description')}</p>
                 </div>
                 <Button
                   variant="destructive"
@@ -198,7 +200,7 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
                   data-testid={`${testId}-delete-open-button`}
                 >
                   <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Delete space
+                  {t('settings-delete-button')}
                 </Button>
               </div>
             )}
@@ -209,20 +211,13 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
       <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
         <AlertDialogContent data-testid={`${testId}-delete-alert`}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this space?</AlertDialogTitle>
+            <AlertDialogTitle>{t('settings-delete-title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {space?.name ? (
-                <>
-                  &quot;{space.name}&quot; will be removed for everyone. Content you added stays in Every Office; it is
-                  only unlinked from this space.
-                </>
-              ) : (
-                'This space will be removed for everyone. Your content stays in Every Office; it is only unlinked from this space.'
-              )}
+              {space?.name ? t('settings-delete-with-name', { name: space.name }) : t('settings-delete-without-name')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{t('common-cancel')}</AlertDialogCancel>
             <AlertDialogAction
               disabled={isDeleting}
               onClick={() => void handleConfirmDelete()}
@@ -231,11 +226,11 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
             >
               {isDeleting ? (
                 <>
-                  <Loader2 className="gba:w-4 gba:h-4 gba:mr-2 gba:animate-spin gba:inline" /> Deleting...
+                  <Loader2 className="gba:w-4 gba:h-4 gba:mr-2 gba:animate-spin gba:inline" /> {t('common-deleting')}
                 </>
               ) : (
                 <>
-                  <Trash2 className="gba:w-4 gba:h-4 gba:mr-2 gba:inline" /> Delete space
+                  <Trash2 className="gba:w-4 gba:h-4 gba:mr-2 gba:inline" /> {t('settings-delete-button')}
                 </>
               )}
             </AlertDialogAction>

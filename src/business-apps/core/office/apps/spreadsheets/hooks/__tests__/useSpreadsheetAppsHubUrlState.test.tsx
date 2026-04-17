@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { useSpreadsheetAppsHubUrlState } from '../useSpreadsheetAppsHubUrlState'
 
 describe('useSpreadsheetAppsHubUrlState', () => {
@@ -66,5 +66,32 @@ describe('useSpreadsheetAppsHubUrlState', () => {
     )
 
     expect(setActiveSection).toHaveBeenCalledWith('tasks')
+  })
+
+  it('loads trashed app previews from URL when trash view is requested', async () => {
+    const loadAppById = jest.fn().mockResolvedValue({ id: 'app-1' })
+    const setSelectedAppId = jest.fn()
+    const setCurrentView = jest.fn()
+    window.history.pushState({}, '', '/platform/apps/spreadsheet-apps?appId=app-1&view=trash')
+
+    renderHook(() =>
+      useSpreadsheetAppsHubUrlState({
+        currentView: 'list',
+        currentAppId: null,
+        isLoadingApps: false,
+        loadAppById,
+        setSelectedAppId,
+        setCurrentView,
+        activeSection: 'trash',
+        setActiveSection: () => undefined
+      })
+    )
+
+    await waitFor(() => {
+      expect(loadAppById).toHaveBeenCalledWith('app-1', undefined, { allowTrashed: true })
+    })
+
+    expect(setSelectedAppId).toHaveBeenCalledWith('app-1')
+    expect(setCurrentView).toHaveBeenCalledWith('trash')
   })
 })

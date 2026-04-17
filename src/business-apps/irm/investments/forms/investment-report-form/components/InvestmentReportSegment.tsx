@@ -16,7 +16,7 @@ import {
 } from '@newwork/nw-design-system'
 import { UseFormReturn } from 'react-hook-form'
 import { InvestmentFormValues } from '@/common/components/investment/form-layouts/investment-layout'
-import { Investment } from '@/common/data/investment/types/investmentTypes.new'
+import { InvestmentSelectItem } from '@/common/data/investment/hooks/useInvestments'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import dayjs from 'dayjs'
 import translations from '../_i18n'
@@ -26,10 +26,12 @@ interface InvestmentReportSegmentProps {
   prefixDataTestId: string
   showInvestmentSelect?: boolean
   selectedInvestmentId?: string
-  investments?: Investment[]
+  investments?: InvestmentSelectItem[]
   isLoadingInvestments?: boolean
+  hasMore?: boolean
   onInvestmentChange?: (investmentId: string) => void
   onInvestmentSearch?: (searchTerm: string) => void
+  onLoadMore?: () => void
 }
 
 export const InvestmentReportSegment: React.FC<InvestmentReportSegmentProps> = ({
@@ -39,8 +41,10 @@ export const InvestmentReportSegment: React.FC<InvestmentReportSegmentProps> = (
   selectedInvestmentId,
   investments = [],
   isLoadingInvestments = false,
+  hasMore = false,
   onInvestmentChange,
-  onInvestmentSearch
+  onInvestmentSearch,
+  onLoadMore
 }) => {
   const { t } = useTranslation(translations)
 
@@ -55,18 +59,25 @@ export const InvestmentReportSegment: React.FC<InvestmentReportSegmentProps> = (
 
   // Format investment options for Combobox
   const investmentOptions = useMemo(() => {
-    return investments.map(investment => ({
-      value: investment.id || '',
-      label: (
-        <div className="gba:flex gba:flex-col gba:min-w-0 gba:w-full">
-          <div className="gba:text-sm gba:font-medium gba:truncate gba:text-left">{investment.name}</div>
-          {investment.code && (
-            <div className="gba:text-xs gba:text-muted-foreground gba:truncate gba:text-left">{investment.code}</div>
-          )}
-        </div>
-      ),
-      searchText: `${investment.name} ${investment.code || ''}`
-    }))
+    return investments
+      .filter(investment => investment.id)
+      .map(investment => {
+        const displayName = investment.name || investment.code || 'Untitled Investment'
+        return {
+          value: investment.id!,
+          label: (
+            <div className="gba:flex gba:flex-col gba:min-w-0 gba:w-full">
+              <div className="gba:text-sm gba:font-medium gba:truncate gba:text-left">{displayName}</div>
+              {investment.code && investment.name && (
+                <div className="gba:text-xs gba:text-muted-foreground gba:truncate gba:text-left">
+                  {investment.code}
+                </div>
+              )}
+            </div>
+          ),
+          searchText: `${displayName} ${investment.code || ''}`
+        }
+      })
   }, [investments])
 
   return (
@@ -88,6 +99,8 @@ export const InvestmentReportSegment: React.FC<InvestmentReportSegmentProps> = (
             loading={isLoadingInvestments}
             disabled={isLoadingInvestments}
             searchDebounce={300}
+            hasMore={hasMore}
+            onLoadMore={onLoadMore}
             data-testid={formatDataTestId(prefixDataTestId, 'InvestmentSelect')}
             align="start"
             className="gba:w-full"

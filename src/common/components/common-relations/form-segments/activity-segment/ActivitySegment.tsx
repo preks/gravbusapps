@@ -107,6 +107,9 @@ export interface ActivitySegmentProps {
   // Custom fields
   customFields?: React.ReactNode
 
+  /** Optional slot after "Related entity" (e.g. CRM association pickers) */
+  associationFields?: React.ReactNode
+
   ['data-testid']?: string
 }
 
@@ -128,6 +131,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   existingDocuments = [],
   onDocumentRemove,
   customFields,
+  associationFields,
   'data-testid': dataTestId = 'activity-segment'
 }) => {
   const form = useFormContext()
@@ -312,7 +316,6 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                   entities={entities}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
-                    field.onChange(v || '')
                     if (form) {
                       const handleEntityChange = createCommonEntitySelectHandler({
                         form,
@@ -321,6 +324,9 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                         onAdditionalEntityChange
                       })
                       handleEntityChange(v)
+                      field.onChange(form.getValues('relatedEntityId') ?? '')
+                    } else {
+                      field.onChange(v || '')
                     }
                   }}
                   placeholder="Search leads, contacts, accounts, or opportunities..."
@@ -337,6 +343,8 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
           )}
         />
       )}
+
+      {associationFields}
 
       {/* Description */}
       <FormField

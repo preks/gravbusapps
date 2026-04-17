@@ -187,10 +187,13 @@ export const useTeamOperationalStatus = (
   }, [graphqlClient, memberIds.join(',')])
 
   useEffect(() => {
-    if (accessToken && memberIds.length > 0) {
-      fetchStatus()
+    if (!accessToken) {
+      setIsLoading(false)
+      return
     }
-  }, [accessToken, memberIds.join(','), fetchStatus])
+
+    fetchStatus()
+  }, [accessToken, fetchStatus])
 
   return { status, todayAttendance, todayAbsences, monthAttendance, isLoading, error }
 }

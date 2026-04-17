@@ -6,7 +6,8 @@ nh-tab-my-notes = Notițele mele
 nh-tab-shared = Partajate
 nh-tab-pinned = Fixate
 nh-tab-recent = Recente
-nh-tab-archived = Arhivate
+nh-tab-archived = Coș de gunoi
+nh-tab-trash = Coș de gunoi
 nh-refresh = Reîmprospătează
 
 sidebar-back-to-desk = Înapoi la birou
@@ -22,7 +23,8 @@ sidebar-my-items = Notele mele
 sidebar-shared = Partajat cu mine
 sidebar-pinned = Fixate
 sidebar-recent = Recente
-sidebar-archived = Arhivate
+sidebar-archived = Coș de gunoi
+sidebar-trash = Coș de gunoi
 sidebar-storage = Depozitare
 sidebar-storage-cloud = Depozitare cloud
 sidebar-storage-notes = { $count } note
@@ -31,11 +33,13 @@ menu-new-text-title = Notă text
 menu-new-text-description = Tastați cu tastatura
 menu-new-handwriting-title = Notă manuscrisă
 menu-new-handwriting-description = Scrieți cu Apple Pencil
+menu-new-folder-title = Folder nou
+menu-new-folder-description = Organizați notițele în grupuri
 menu-new-template-title = Din șablon
 menu-new-template-description = Alegeți un șablon
 
 header-sort = Sortare
-header-search-placeholder = Căutare...
+notes-header-search-placeholder = Caută note...
 sort-name = Nume
 sort-modified = Modificat
 sort-created = Creat
@@ -43,13 +47,16 @@ table-owner = Proprietar
 
 empty-pinned-title = Nu există note fixate
 empty-pinned-description = Fixați notele importante pentru acces rapid.
-empty-shared-title = Nimic partajat cu dvs.
-empty-shared-description = Notele partajate vor apărea aici.
-empty-archived-title = Nu există note arhivate
-empty-archived-description = Notele arhivate vor apărea aici.
-empty-default-title = Încă nu există note
-empty-default-description = Creați prima notă.
+notes-empty-shared-title = Nimic partajat cu dvs.
+notes-empty-shared-description = Notele partajate vor apărea aici.
+empty-archived-title = Nu există note în coșul de gunoi
+empty-archived-description = Notele mutate în coșul de gunoi vor apărea aici.
+notes-empty-trash-title = Nu există note în coșul de gunoi
+notes-empty-trash-description = Notele mutate în coșul de gunoi vor apărea aici.
+notes-empty-default-title = Încă nu există note
+notes-empty-default-description = Creați prima notă.
 empty-create-note = Creați notă
+loading-message = Se încarcă...
 
 menu-open = Deschide
 menu-share = Partajare
@@ -59,8 +66,13 @@ menu-pin = Fixare
 menu-unpin = Defixare
 menu-remove-favorite = Eliminați din favorite
 menu-add-favorite = Adăugați la favorite
-menu-archive = Arhivare
-menu-delete = Ștergere
+menu-archive = Șterge
+menu-delete = Șterge
+delete-confirm-title = Mutați în coșul de gunoi?
+delete-confirm-single = "{$name}" va fi mutat în coșul de gunoi. Îl puteți restaura în decurs de 30 de zile.
+delete-confirm-multi = {$count} elemente vor fi mutate în coșul de gunoi. Le puteți restaura în decurs de 30 de zile.
+delete-confirm-cancel = Anulare
+delete-confirm-action = Mută în coșul de gunoi
 
 bulk-selected = {$count} selectate
 
@@ -75,15 +87,23 @@ shared-with-count = Partajat cu { $count } { $count ->
 }
 shared-click-manage = Apăsați pentru gestionare
 
-confirm-delete = Sunteți sigur că doriți să ștergeți această notă?
+confirm-delete = Sigur doriți să mutați această notă în coșul de gunoi?
 toast-note-duplicated = Notă duplicată
 toast-note-unpinned = Notă defixată
 toast-note-pinned = Notă fixată
-toast-note-archived = Notă arhivată
+toast-note-archived = Notă mutată în coșul de gunoi
+toast-note-restored = Notă restaurată
+toast-note-restore-failed = Restaurarea notei a eșuat
+toast-note-deleted-permanently = Notă ștearsă definitiv
+toast-note-delete-permanently-failed = Ștergerea definitivă a notei a eșuat
 toast-link-copied = Link copiat în clipboard
 toast-favorite-removed = Eliminat din favorite
 toast-favorite-added = Adăugat la favorite
 toast-text-note-created = Notă text creată
+toast-folder-created = Folder creat
+toast-note-moved = Notă mutată în folder
+toast-move-failed = Mutarea notei a eșuat
+folder-new-folder-name = Folder nou
 
 # Relative time
 time-just-now = Acum
@@ -96,13 +116,14 @@ time-days-ago-plural = acum { $count } zile
 # FolderTreeSidebar
 folder-add-note-inside = Adăugați notă aici
 folder-rename = Redenumire
+menu-rename = Redenumire
 folder-move-to = Mutați la...
 folder-folders = Foldere
 folder-new-note = Notă nouă
 folder-collapse-sidebar = Restrânge panoul lateral
 folder-all-notes = Toate notele
 folder-favorites = Favorite
-folder-archive = Arhivă
+folder-archive = Mută în coșul de gunoi
 folder-no-folders = Încă nu există foldere
 folder-create-to-start = Creați o notă pentru a începe
 folder-settings = Setări
@@ -192,8 +213,8 @@ search-new-folder = Folder nou
 search-new-folder-desc = Creați un folder nou
 search-go-pinned = Mergi la fixate
 search-go-pinned-desc = Vizualizați notele fixate
-search-go-archive = Mergi la arhivă
-search-go-archive-desc = Vizualizați notele arhivate
+search-go-archive = Mergi la coșul de gunoi
+search-go-archive-desc = Vizualizați notele din coșul de gunoi
 search-go-shared = Mergi la partajate
 search-go-shared-desc = Vizualizați notele partajate
 search-to-navigate = pentru navigare
@@ -380,8 +401,7 @@ editor-lock-note = Blocare notă
 editor-publish = Publicare…
 editor-duplicate = Duplicare
 editor-export = Exportă
-editor-archive = Arhivare
-editor-delete = Ștergere
+editor-archive = Mută în coșul de gunoi
 editor-toast-not-authenticated = Neautentificat
 editor-toast-no-text = Niciun text de transformat
 editor-toast-transform-failed = Transformare eșuată
@@ -465,6 +485,51 @@ translation-language-zh = Chineză
 translation-language-ja = Japoneză
 translation-language-ko = Coreeană
 translation-language-ar = Arabă
+
+# Quick Access
+qa-all-notes = Toate notițele
+qa-favorites = Favorite
+qa-pinned = Fixate
+qa-shared = Partajate cu mine
+qa-recent = Recente
+qa-archived = Coș de gunoi
+qa-trash = Coș de gunoi
+
+# Trash
+trash-list-refresh = Reîmprospătează
+trash-list-sort-name = Nume
+trash-list-sort-trashed-on = Data mutării în coș
+trash-list-trashed-on-column = În coș din
+trash-list-owner-badge = Nota mea
+trash-list-restore = Restaurează
+trash-list-restoring = Se restaurează...
+trash-list-delete = Șterge definitiv
+trash-list-load-failed = Coșul de gunoi nu a putut fi încărcat
+trash-list-item-restored = Notă restaurată
+trash-list-item-restore-failed = Restaurarea notei a eșuat
+trash-list-item-deleted = Notă ștearsă definitiv
+trash-list-item-delete-failed = Ștergerea definitivă a notei a eșuat
+trashed-readonly-title = Această notă este în coșul de gunoi
+trashed-readonly-description = „{ $title }” este în coșul de gunoi și se deschide în modul doar-citire până când este restaurată.
+trashed-readonly-owner-note = Pentru a edita din nou această notă, scoateți-o din coșul de gunoi.
+trashed-readonly-shared-note = Pentru a edita din nou această notă, cereți proprietarului să o scoată din coșul de gunoi.
+trashed-readonly-go-home = Mergeți la ecranul principal Notes
+trashed-readonly-restore = Scoate din coșul de gunoi
+trashed-readonly-restoring = Se restaurează...
+trashed-readonly-delete = Șterge definitiv
+trashed-readonly-deleting = Se șterge...
+
+# Tree sidebar
+tree-label = Note
+tree-empty = Nu există note în arbore
+tree-drag-hint = Trageți pentru a reordona sau grupa notițele
+tree-drop-inside = Plasează în interior
+tree-drop-after = Plasează după
+
+# Keyboard shortcuts
+shortcut-toggle-sidebar = Comută panoul lateral (⌘B)
+shortcut-new-note = Notă nouă (⌘N)
+shortcut-search = Căutare (⌘K)
 
 # useNoteTree
 note-tree-load-failed = Încărcarea arborelui de note a eșuat

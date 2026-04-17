@@ -15,6 +15,7 @@ export const EmailThreadComposeSurface: React.FC<ThreadComposeSurfaceProps> = ({
   onClose,
   mode,
   replyToMessage,
+  draftMessage,
   accounts,
   defaultAccountId,
   onSent,
@@ -29,6 +30,7 @@ export const EmailThreadComposeSurface: React.FC<ThreadComposeSurfaceProps> = ({
     isOpen,
     mode,
     replyToMessage,
+    draftMessage,
     accounts,
     defaultAccountId,
     onClose,
@@ -40,12 +42,15 @@ export const EmailThreadComposeSurface: React.FC<ThreadComposeSurfaceProps> = ({
 
   if (!isOpen) return null
 
-  const modeTitle = {
-    new: t('composer-mode-new'),
-    reply: t('composer-mode-reply'),
-    'reply-all': t('composer-mode-reply-all'),
-    forward: t('composer-mode-forward')
-  }[mode]
+  const modeTitle =
+    mode === 'new' && draftMessage
+      ? t('composer-mode-edit-draft')
+      : {
+          new: t('composer-mode-new'),
+          reply: t('composer-mode-reply'),
+          'reply-all': t('composer-mode-reply-all'),
+          forward: t('composer-mode-forward')
+        }[mode]
 
   return (
     <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0 gba:overflow-hidden" data-testid={testId}>

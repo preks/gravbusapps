@@ -176,6 +176,8 @@ export const buildCrmActivityConfig = (
           return buildPlatformUrl('/platform/crm/contact-record', { contactId: reference.id })
         case 'opportunity':
           return buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: reference.id })
+        case 'investment':
+          return ''
         default:
           return ''
       }

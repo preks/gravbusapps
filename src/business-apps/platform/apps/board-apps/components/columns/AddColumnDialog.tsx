@@ -12,13 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem
+  SelectItem,
+  useTranslation
 } from '@newwork/nw-design-system'
 import type { BoardColumn, BoardColumnType } from '../../types'
 import { ALL_CREATABLE_TYPES } from './columnTypeDefs'
 import { ColumnTypeIcon } from '../table/ColumnTypeIcon'
 import { BoardApiService } from '../../services/BoardApiService'
 import { RelationFields, MirrorFields, RollupFields } from './AddColumnConfigFields'
+import translations from '../../_i18n'
 
 export interface AddColumnDialogProps {
   open: boolean
@@ -75,6 +77,7 @@ export const AddColumnDialog: React.FC<AddColumnDialogProps> = ({
   onCreate,
   'data-testid': testId = 'add-column-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [label, setLabel] = useState('')
   const [type, setType] = useState<BoardColumnType>(preSelectedType || 'text')
 
@@ -311,11 +314,11 @@ export const AddColumnDialog: React.FC<AddColumnDialogProps> = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {ALL_CREATABLE_TYPES.map(t => (
-                  <SelectItem key={t.type} value={t.type}>
+                {ALL_CREATABLE_TYPES.map(typeDef => (
+                  <SelectItem key={typeDef.type} value={typeDef.type}>
                     <span className="gba:flex gba:items-center gba:gap-1.5">
-                      <ColumnTypeIcon type={t.type} />
-                      {t.label}
+                      <ColumnTypeIcon type={typeDef.type} />
+                      {t(typeDef.labelKey)}
                     </span>
                   </SelectItem>
                 ))}

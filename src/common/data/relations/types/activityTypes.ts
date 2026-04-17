@@ -5,6 +5,12 @@ import type { Contact } from './contactTypes'
 import type { Lead } from './leadTypes'
 import type { Opportunity } from './opportunityTypes'
 
+export interface ActivityReference {
+  type: 'account' | 'contact' | 'lead' | 'opportunity' | 'investment'
+  id: string
+  name: string
+}
+
 export interface Activity extends BaseEntity {
   account?: any // IRM | CRM
   accountId?: string // IRM | CRM

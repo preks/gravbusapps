@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, toast } from '@newwork/nw-design-system'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, toast, useTranslation } from '@newwork/nw-design-system'
 import { FileText } from 'lucide-react'
 import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import type {
@@ -12,6 +12,7 @@ import { UnstructuredPreview } from './UnstructuredPreview'
 import { UnstructuredImportConfig } from './UnstructuredImportConfig'
 import { UnstructuredSyncProgress } from './UnstructuredSyncProgress'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import translations from '../../_i18n'
 
 type Step = 'select' | 'preview' | 'config' | 'progress'
 
@@ -30,6 +31,7 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
   onAfterImport,
   'data-testid': testId = 'external-document-import-sheet'
 }) => {
+  const { t } = useTranslation(translations)
   const officeClient = useOfficeClient(accessToken)
   const promptManagerClient = usePromptManagerClient(accessToken)
   const [step, setStep] = useState<Step>('select')
@@ -106,11 +108,11 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
 
       setConnectors([...filtered, ...mcpAsConnectors])
     } catch {
-      setConnectorError('Failed to load connectors')
+      setConnectorError(t('external-import-error-load-connectors'))
     } finally {
       setIsLoadingConnectors(false)
     }
-  }, [])
+  }, [officeClient, t])
 
   useEffect(() => {
     if (open && step === 'select') {
@@ -159,13 +161,13 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
         }
       } catch {
         setSharedConnections([])
-        setSharedConnectionsError('Failed to load shared connections')
+        setSharedConnectionsError(t('external-import-error-load-shared-connections'))
       } finally {
         setIsLoadingSharedConnections(false)
       }
     }
     void loadSharedConnections()
-  }, [promptManagerClient, selectedConnector])
+  }, [promptManagerClient, selectedConnector, t])
 
   const handlePreview = useCallback(async () => {
     if (!selectedConnector) return
@@ -187,17 +189,17 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
         setPreviewItems(result.items)
         setEstimatedTotal(result.estimatedTotal)
       } else {
-        toast.error('Preview failed')
+        toast.error(t('external-import-error-preview'))
         setStep('select')
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Preview failed'
+      const message = err instanceof Error ? err.message : t('external-import-error-preview')
       setPreviewError(message)
       toast.error(message)
     } finally {
       setIsLoadingPreview(false)
     }
-  }, [selectedConnector, selectedConnectionId])
+  }, [officeClient, selectedConnector, selectedConnectionId, t])
 
   const pollRunStatus = useCallback(
     async (activeRunId: string) => {
@@ -219,12 +221,14 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
           pollingRef.current = null
         }
         if (status.status === 'completed') {
-          toast.success(`Imported ${status.totalImported.toLocaleString()} documents from external source`)
+          toast.success(
+            t('external-import-success-imported-documents', { count: status.totalImported.toLocaleString() })
+          )
           onAfterImport?.()
         }
       }
     },
-    [onAfterImport]
+    [officeClient, onAfterImport, t]
   )
 
   const startPolling = useCallback(
@@ -251,7 +255,7 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
         refreshMode: keepConnected ? refreshMode : undefined
       })
       if (!result) {
-        toast.error('Failed to start import')
+        toast.error(t('external-import-error-start'))
         return
       }
       setRunId(result.runId)
@@ -266,11 +270,11 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
       setStep('progress')
       startPolling(result.runId)
     } catch {
-      toast.error('Failed to start import')
+      toast.error(t('external-import-error-start'))
     } finally {
       setIsImporting(false)
     }
-  }, [selectedConnector, selectedConnectionId, limit, keepConnected, refreshMode, startPolling])
+  }, [officeClient, selectedConnector, selectedConnectionId, limit, keepConnected, refreshMode, startPolling, t])
 
   const handleCancel = useCallback(async () => {
     if (!runId) return
@@ -328,7 +332,7 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
         <SheetHeader>
           <SheetTitle className="gba:flex gba:items-center gba:gap-2">
             <FileText className="gba:w-4 gba:h-4" />
-            Import external documents
+            {t('external-import-documents-title')}
           </SheetTitle>
         </SheetHeader>
 

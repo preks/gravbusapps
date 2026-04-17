@@ -273,6 +273,7 @@ export interface SpreadsheetApp {
   updatedAt: string
   createdBy: string
   status: AppStatus
+  trashedAt?: string | null
   promotedEntityId?: string
   settings: AppSettings
   // Storage path (for shareable URLs)
@@ -498,6 +499,7 @@ export interface SpreadsheetAppViewerProps {
   onShare?: () => void
   onEdit?: () => void
   isEditing?: boolean
+  isTrashedApp?: boolean
   accessToken?: string
   userId?: string
   'data-testid'?: string
@@ -636,6 +638,7 @@ export interface SpreadsheetAppSummary {
   status: AppStatus
   createdAt: string
   updatedAt: string
+  trashedAt?: string | null
   createdBy?: string
   // File storage path (for sharing URLs)
   filePath?: string
@@ -643,6 +646,8 @@ export interface SpreadsheetAppSummary {
   isShared?: boolean
   isOwner?: boolean
   sharedWithCount?: number
+  /** Recipient user ids for hub avatars (from list API); full share rows load on demand */
+  sharedPreviewUserIds?: string[]
   // Permission info from backend
   permission?: AppPermission
   sharedBy?: string

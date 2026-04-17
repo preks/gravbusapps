@@ -400,6 +400,16 @@ function loadMigrations() {
   }
 }
 
+const LOCALHOST_REGEX = /^(http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?)(?:\/.*)?$/
+
+function applyLocalhostSuffix(value, suffix) {
+  const match = value.match(LOCALHOST_REGEX)
+  if (!match) return null
+  const normalized = match[1] + suffix
+  if (normalized === value) return null
+  return normalized
+}
+
 function runMigrations() {
   if (!fs.existsSync(ENV_FILE) || !fs.existsSync(ENV_EXAMPLE_FILE)) return
 
@@ -421,6 +431,14 @@ function runMigrations() {
     if (!exampleEntry) return line
 
     const { value: currentValue } = splitValueAndComment(assignment.rawValue)
+
+    if (migration.localhostSuffix) {
+      const migratedLocalhost = applyLocalhostSuffix(currentValue.trim(), migration.localhostSuffix)
+      if (migratedLocalhost && migratedLocalhost !== currentValue.trim()) {
+        migratedKeys.push(assignment.key)
+        return buildAssignmentLine(assignment.key, migratedLocalhost, exampleEntry.comment)
+      }
+    }
 
     if (!migration.values.includes(currentValue.trim())) return line
 

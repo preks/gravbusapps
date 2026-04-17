@@ -24,6 +24,7 @@ function createStandardColumnGenerator(
         key: 'investment',
         title: 'Investment',
         width: '200px',
+        getTextValue: (record: any) => record.investment?.name || '-',
         render: (record: any) => (
           <div className="gba:flex gba:items-center gba:gap-2 gba:h-8">
             <Icon {...iconProps} />

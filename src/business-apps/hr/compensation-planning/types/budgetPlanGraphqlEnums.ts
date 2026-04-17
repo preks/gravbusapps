@@ -32,6 +32,9 @@ export type BudgetDistributionMethodApi =
 
 export const DEFAULT_BUDGET_PLAN_STATUS_DRAFT: BudgetPlanStatusApi = 'BUDGET_PLAN_DRAFT'
 
+/** Level 1 (compensation cycle): HR creates cycles directly as approved — no draft workflow on the plan row. */
+export const DEFAULT_BUDGET_PLAN_STATUS_APPROVED: BudgetPlanStatusApi = 'BUDGET_PLAN_APPROVED'
+
 export const DEFAULT_BUDGET_DISTRIBUTION_METHOD: BudgetDistributionMethodApi = 'HEADSCOUNT_DISTRIBUTION'
 
 /** Values for distribution method selects (REST / GraphQL). */

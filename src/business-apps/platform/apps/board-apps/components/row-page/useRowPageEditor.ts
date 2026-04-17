@@ -1,5 +1,6 @@
 import { useCallback, useRef, useMemo, useEffect } from 'react'
 import { useEditor, type Editor } from '@tiptap/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import StarterKit from '@tiptap/starter-kit'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Underline } from '@tiptap/extension-underline'
@@ -15,6 +16,7 @@ import { DocumentImage } from '@/business-apps/core/office/apps/documents/compon
 import { uploadDocumentImage } from '@/business-apps/core/office/apps/documents/services/DocumentImageUploadService'
 import type * as Y from 'yjs'
 import type { Awareness } from 'y-protocols/awareness'
+import translations from '../../_i18n'
 
 export interface UseRowPageEditorOptions {
   accessToken: string
@@ -25,6 +27,7 @@ export interface UseRowPageEditorOptions {
 }
 
 export function useRowPageEditor({ accessToken, documentId, onDirty, ydoc, awareness }: UseRowPageEditorOptions) {
+  const { t } = useTranslation(translations)
   const isCollaborationMode = Boolean(ydoc && awareness)
   const isSettingContentRef = useRef(false)
   const editorRef = useRef<Editor | null>(null)
@@ -95,7 +98,7 @@ export function useRowPageEditor({ accessToken, documentId, onDirty, ydoc, aware
           link: false,
           underline: false
         } as any),
-        Placeholder.configure({ placeholder: 'Type / for commands...' }),
+        Placeholder.configure({ placeholder: t('board-editor-placeholder') }),
         Underline,
         TextAlign.configure({ types: ['heading', 'paragraph'] }),
         Link.configure({ openOnClick: false, autolink: true }),
@@ -142,7 +145,7 @@ export function useRowPageEditor({ accessToken, documentId, onDirty, ydoc, aware
         }
       }
     },
-    [isCollaborationMode, collaborationExtension, yjsCursorExtension]
+    [isCollaborationMode, collaborationExtension, yjsCursorExtension, t]
   )
 
   useEffect(() => {

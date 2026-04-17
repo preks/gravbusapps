@@ -13,7 +13,9 @@ content = Content
 content-placeholder = Start writing...
 content-image = Content Image
 content-group = Content Group
+select-group = Select group
 content-type = Content Type
+select-type = Select type
 author = Author
 display-author = Display Author
 allow-comments = Allow Comments
@@ -28,7 +30,6 @@ summary-placeholder = Brief summary for search and listings...
 header-image = Header Image
 short-description = Short Description
 short-description-placeholder = Brief summary shown in the document portal...
-optional = Optional
 
 # Question-specific fields
 question-title = Question Title

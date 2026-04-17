@@ -56,8 +56,7 @@ export function BudgetDistributionOrgUnitListAlerts({
             {totalSalaryCostAcrossOrgUnits <= 0
               ? t('budget-distribution-salary-cost-zero-total')
               : t('budget-distribution-salary-cost-basis-alert', {
-                  total: formatCurrency(totalSalaryCostAcrossOrgUnits, currencyCode),
-                  pool: formatPoolDisplay(distributionPool, currencyCode)
+                  total: formatCurrency(totalSalaryCostAcrossOrgUnits, currencyCode)
                 })}
           </AlertDescription>
         </Alert>

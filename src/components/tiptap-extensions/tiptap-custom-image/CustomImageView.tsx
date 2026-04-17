@@ -5,7 +5,11 @@ import { NodeViewWrapper } from '@tiptap/react'
 import { createPortal } from 'react-dom'
 import { CustomImageFigure, type ResizeDirection } from './CustomImageFigure'
 import { normalizeImageCrop } from './cropUtils'
-import { resolveImageOverlayFigureStyle, resolveImageOverlayMount } from './imageOverlayUtils'
+import {
+  areImageOverlayMountsEqual,
+  resolveImageOverlayFigureStyle,
+  resolveImageOverlayMount
+} from './imageOverlayUtils'
 import { DOCUMENT_IMAGE_UI_EVENT, type DocumentImageUiMode } from './pictureUiEvents'
 import { DEFAULT_IMAGE_SIZE_REFERENCE } from './sizeUtils'
 import { getFigureDataAttributes, normalizeNullableNumber } from './styleUtils'
@@ -16,7 +20,7 @@ import {
   type CustomImageAttributes,
   type CustomImageOptions
 } from './types'
-import { analyzeImageWrapContour, type ImageWrapContour } from './wrapContourUtils'
+import { analyzeImageWrapContour, areImageWrapContoursEqual, type ImageWrapContour } from './wrapContourUtils'
 import {
   getImageFlowShimAttributes,
   resolveImageAnchorGeometryElement,
@@ -104,6 +108,10 @@ function getEditorViewSafely(editor: Editor | null) {
 function getEditorDomSafely(editor: Editor | null) {
   const view = getEditorViewSafely(editor)
   return view?.dom instanceof HTMLElement ? view.dom : null
+}
+
+function isEditorEditable(editor: Editor | null) {
+  return Boolean(editor && !editor.isDestroyed && editor.isEditable)
 }
 
 export function CustomImageView({ node, editor, getPos, selected, options }: Readonly<CustomImageViewProps>) {
@@ -210,6 +218,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
   const displayHeight = layout.frameHeight
   const shouldRenderOverlayPortal = usesPageOverlayVisual && overlayMount !== null
   const imageNodePos = getPos()
+  const imageEditable = isEditorEditable(editor)
   const flowShimStyle = useMemo(() => resolveImageFlowShimStyle(layout, wrapContour), [layout, wrapContour])
   const anchorRuntimeAttributes = useMemo(
     () =>
@@ -254,6 +263,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
 
   const commitAttrs = useCallback(
     (nextAttrs: Partial<CustomImageAttributes>) => {
+      if (!isEditorEditable(editor)) return false
       if (!editor) return false
       const view = getEditorViewSafely(editor)
       if (!view) return false
@@ -306,6 +316,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
 
   const startResizeInteraction = useCallback(
     (direction: ResizeDirection, event: React.MouseEvent) => {
+      if (!isEditorEditable(editor)) return
       event.preventDefault()
       event.stopPropagation()
       if (!editor) return
@@ -422,6 +433,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
 
   const startRotateInteraction = useCallback(
     (event: React.MouseEvent) => {
+      if (!isEditorEditable(editor)) return
       event.preventDefault()
       event.stopPropagation()
       const frame = imageFrameRef.current
@@ -453,6 +465,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
 
   const startMoveInteraction = useCallback(
     (event: React.MouseEvent) => {
+      if (!isEditorEditable(editor)) return
       if (!selected) return
       if (!isFloatingImage || isCropMode) return
       if ((event.target as HTMLElement).closest('[data-image-handle="true"]')) return
@@ -615,12 +628,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
   )
 
   useEffect(() => {
-    if (interactiveAttributes.wrapMode !== 'tight' && interactiveAttributes.wrapMode !== 'through') {
-      setWrapContour(null)
-      return
-    }
-
-    setWrapContour(null)
+    setWrapContour(previousWrapContour => (previousWrapContour === null ? previousWrapContour : null))
   }, [
     displaySrc,
     interactiveAttributes.cropBottom,
@@ -692,9 +700,10 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
   }, [getPos])
 
   useEffect(() => {
-    if (!selected || !editor || !isFloatingImage) return
+    if (!selected || !editor || !isFloatingImage || !imageEditable) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isEditorEditable(editor)) return
       const editorDom = getEditorDomSafely(editor)
       if (!editorDom) return
       if (event.metaKey || event.ctrlKey || event.altKey) return
@@ -713,7 +722,15 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
 
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [commitAttrs, editor, interactiveAttributes.offsetX, interactiveAttributes.offsetY, isFloatingImage, selected])
+  }, [
+    commitAttrs,
+    editor,
+    imageEditable,
+    interactiveAttributes.offsetX,
+    interactiveAttributes.offsetY,
+    isFloatingImage,
+    selected
+  ])
 
   const handleImageLoad = useCallback(
     (event: React.SyntheticEvent<HTMLImageElement>) => {
@@ -724,9 +741,12 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       if (!editor || naturalWidth <= 0 || naturalHeight <= 0) return
 
       if (interactiveAttributes.wrapMode === 'tight' || interactiveAttributes.wrapMode === 'through') {
-        setWrapContour(analyzeImageWrapContour(img, interactiveAttributes))
+        const nextWrapContour = analyzeImageWrapContour(img, interactiveAttributes)
+        setWrapContour(previousWrapContour =>
+          areImageWrapContoursEqual(previousWrapContour, nextWrapContour) ? previousWrapContour : nextWrapContour
+        )
       } else {
-        setWrapContour(null)
+        setWrapContour(previousWrapContour => (previousWrapContour === null ? previousWrapContour : null))
       }
 
       const pos = getPos()
@@ -767,13 +787,14 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       return
     }
 
-    setOverlayMount(
-      resolveImageOverlayMount({
-        editorElement,
-        anchorElement,
-        wrapperElement: wrapper,
-        layout
-      })
+    const nextOverlayMount = resolveImageOverlayMount({
+      editorElement,
+      anchorElement,
+      wrapperElement: wrapper,
+      layout
+    })
+    setOverlayMount(previousOverlayMount =>
+      areImageOverlayMountsEqual(previousOverlayMount, nextOverlayMount) ? previousOverlayMount : nextOverlayMount
     )
   }, [editor, layout, usesPageOverlayVisual])
 
@@ -864,6 +885,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
         figureStyleOverride={figureStyleOverride}
         selectionAnchorAttributes={selectionAnchorAttributes}
         imageFrameRef={imageFrameRef}
+        isEditable={imageEditable}
         onSelect={handleSelectNode}
         onStartMove={startMoveInteraction}
         onStartResize={startResizeInteraction}

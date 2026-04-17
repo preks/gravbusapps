@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
-type HubView = 'list' | 'upload' | 'upload-pdf' | 'upload-odf' | 'editor' | 'templates'
-type SidebarSection = 'home' | 'my-documents' | 'shared' | 'templates' | 'favorites' | 'recent' | 'archived'
+type HubView = 'list' | 'upload' | 'upload-pdf' | 'upload-odf' | 'editor' | 'review' | 'templates' | 'trash'
+type SidebarSection = 'home' | 'my-documents' | 'shared' | 'templates' | 'favorites' | 'recent' | 'trash'
+
+interface HubUrlParams {
+  docId: string | null
+  view: HubView | null
+  version: string | null
+  section: SidebarSection | null
+}
 
 export interface UseDocumentAppsHubUrlStateParams {
   currentView: HubView
   currentDocumentId: string | null
   isLoadingDocument: boolean
-  loadDocumentById: (id: string) => Promise<unknown | null>
+  loadDocumentById: (id: string) => Promise<{ trashedAt?: string | null } | null>
   setCurrentView: (view: HubView) => void
   setSelectedDocumentId: (id: string | null) => void
   activeSection: SidebarSection
@@ -16,15 +23,72 @@ export interface UseDocumentAppsHubUrlStateParams {
 }
 
 export interface UseDocumentAppsHubUrlStateReturn {
-  updateUrl: (docId: string | null, view?: HubView) => void
+  updateUrl: (
+    docId: string | null,
+    view?: HubView,
+    sectionOverride?: SidebarSection | null,
+    reviewVersion?: string | null
+  ) => void
   resetLoadAttempt: () => void
 }
 
-function getUrlParams(): { docId: string | null; view: HubView | null; section: SidebarSection | null } {
+interface BuildDocumentAppsHubUrlOptions {
+  docId: string | null
+  view?: HubView
+  sectionOverride?: SidebarSection | null
+  reviewVersion?: string | null
+}
+
+export function buildDocumentAppsHubUrl(
+  pathname: string,
+  search: string,
+  options: BuildDocumentAppsHubUrlOptions
+): { newUrl: string; state: { docId: string | null; view?: HubView; section?: SidebarSection; version?: string } } {
+  const { docId, view, sectionOverride, reviewVersion } = options
+  const urlParams = new URLSearchParams(search)
+
+  if (docId) {
+    urlParams.set('docId', docId)
+    if (view) {
+      urlParams.set('view', view)
+    }
+
+    if (view === 'review' && reviewVersion) {
+      urlParams.set('version', reviewVersion)
+    } else {
+      urlParams.delete('version')
+    }
+  } else {
+    urlParams.delete('docId')
+    urlParams.delete('view')
+    urlParams.delete('version')
+  }
+
+  if (sectionOverride && sectionOverride !== 'my-documents') {
+    urlParams.set('section', sectionOverride)
+  } else {
+    urlParams.delete('section')
+  }
+
+  const nextSearch = urlParams.toString()
+
+  return {
+    newUrl: nextSearch ? `${pathname}?${nextSearch}` : pathname,
+    state: {
+      docId,
+      view,
+      ...(sectionOverride ? { section: sectionOverride } : {}),
+      ...(view === 'review' && reviewVersion ? { version: reviewVersion } : {})
+    }
+  }
+}
+
+function getUrlParams(): HubUrlParams {
   const urlParams = new URLSearchParams(window.location.search)
   return {
     docId: urlParams.get('docId'),
     view: (urlParams.get('view') as HubView | null) || null,
+    version: urlParams.get('version'),
     section: (urlParams.get('section') as SidebarSection | null) || null
   }
 }
@@ -44,31 +108,20 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
   const loadAttemptedRef = useRef<string | null>(null)
   const cameFromDeskRef = useRef(false)
   // Capture initial URL params at render time before any effects can clear them
-  const initialDocIdRef = useRef(getUrlParams().docId)
-  const initialViewRef = useRef(getUrlParams().view)
+  const initialUrlParamsRef = useRef(getUrlParams())
   // Track URL search params to detect changes
   const [urlSearch, setUrlSearch] = useState(window.location.search)
 
   const updateUrl = useCallback(
-    (docId: string | null, view?: HubView) => {
-      const urlParams = new URLSearchParams(window.location.search)
-      if (docId) {
-        urlParams.set('docId', docId)
-        if (view) urlParams.set('view', view)
-      } else {
-        urlParams.delete('docId')
-        urlParams.delete('view')
-      }
-      // Always preserve section in URL (even when no document is selected)
-      if (activeSection && activeSection !== 'my-documents') {
-        urlParams.set('section', activeSection)
-      } else {
-        urlParams.delete('section')
-      }
-      const newUrl = urlParams.toString()
-        ? `${window.location.pathname}?${urlParams.toString()}`
-        : window.location.pathname
-      window.history.pushState({ docId, view, section: activeSection }, '', newUrl)
+    (docId: string | null, view?: HubView, sectionOverride?: SidebarSection | null, reviewVersion?: string | null) => {
+      const nextSection = sectionOverride === undefined ? activeSection : sectionOverride
+      const { newUrl, state } = buildDocumentAppsHubUrl(window.location.pathname, window.location.search, {
+        docId,
+        view,
+        sectionOverride: nextSection,
+        reviewVersion
+      })
+      window.history.pushState(state, '', newUrl)
     },
     [activeSection]
   )
@@ -103,23 +156,55 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
   // before this effect runs (race condition with section-sync effect).
   useEffect(() => {
     const urlParams = getUrlParams()
-    const docId = urlParams.docId || initialDocIdRef.current
-    const view = urlParams.view || initialViewRef.current
+    const docId = urlParams.docId || initialUrlParamsRef.current.docId
+    const view = urlParams.view || initialUrlParamsRef.current.view
+    const version = urlParams.version || initialUrlParamsRef.current.version
     if (!docId) return
     if (currentDocumentId === docId) return
     if (isLoadingDocument) return
     if (loadAttemptedRef.current === docId) return
 
     loadAttemptedRef.current = docId
-    initialDocIdRef.current = null
-    initialViewRef.current = null
+    if (view === 'review' && version && urlParams.version !== version) {
+      const restoredUrlParams = new URLSearchParams(window.location.search)
+      restoredUrlParams.set('docId', docId)
+      restoredUrlParams.set('view', 'review')
+      restoredUrlParams.set('version', version)
+
+      if (!restoredUrlParams.get('section') && initialUrlParamsRef.current.section) {
+        restoredUrlParams.set('section', initialUrlParamsRef.current.section)
+      }
+
+      const restoredUrl = `${window.location.pathname}?${restoredUrlParams.toString()}`
+      window.history.replaceState(window.history.state, '', restoredUrl)
+      setUrlSearch(window.location.search)
+    }
+
+    initialUrlParamsRef.current = {
+      docId: null,
+      view: null,
+      version: null,
+      section: null
+    }
+    if (view === 'trash') {
+      loadDocumentById(docId).then(doc => {
+        if (!doc) {
+          loadAttemptedRef.current = null
+          return
+        }
+        setSelectedDocumentId(docId)
+        setCurrentView(doc.trashedAt ? 'trash' : 'editor')
+      })
+      return
+    }
+
     loadDocumentById(docId).then(doc => {
       if (!doc) {
         loadAttemptedRef.current = null
         return
       }
       setSelectedDocumentId(docId)
-      setCurrentView(view === 'editor' ? 'editor' : 'editor')
+      setCurrentView(view === 'review' ? 'review' : 'editor')
     })
   }, [urlSearch, currentDocumentId, isLoadingDocument, loadDocumentById, setCurrentView, setSelectedDocumentId])
 
@@ -187,10 +272,19 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
       }
 
       if (state?.docId) {
+        if (state.view === 'trash') {
+          loadDocumentById(state.docId).then(doc => {
+            if (!doc) return
+            setSelectedDocumentId(state.docId!)
+            setCurrentView(doc.trashedAt ? 'trash' : 'editor')
+          })
+          return
+        }
+
         loadDocumentById(state.docId).then(doc => {
           if (!doc) return
           setSelectedDocumentId(state.docId!)
-          setCurrentView(state.view || 'editor')
+          setCurrentView(state.view === 'review' ? 'review' : state.view || 'editor')
         })
         return
       }

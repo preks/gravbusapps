@@ -31,8 +31,19 @@ async function apiFetch<T>(endpoint: string, token: string, options: RequestInit
   }
   const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers })
   if (!response.ok) return (options.method === 'DELETE' ? null : []) as T
+  const contentType = response.headers.get('content-type') || ''
+  if (contentType.includes('text/html')) {
+    console.warn(`[DriveFavorites] Endpoint returned HTML instead of JSON: ${endpoint}`)
+    return (options.method === 'DELETE' ? null : []) as T
+  }
   const text = await response.text()
-  return (text ? JSON.parse(text) : null) as T
+  if (!text) return null as T
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    console.warn(`[DriveFavorites] Invalid JSON from ${endpoint}:`, text.slice(0, 200))
+    return (options.method === 'DELETE' ? null : []) as T
+  }
 }
 
 export function useDriveFavorites({ accessToken, entityType }: UseDriveFavoritesParams): UseDriveFavoritesReturn {

@@ -23,7 +23,7 @@ export interface UseSpreadsheetAppsState {
 export interface UseSpreadsheetAppsResult extends UseSpreadsheetAppsState {
   loadApps: () => Promise<void>
   refreshApps: () => Promise<void>
-  loadApp: (id: string, directFilePath?: string) => Promise<SpreadsheetApp | null>
+  loadApp: (id: string, directFilePath?: string, options?: { allowTrashed?: boolean }) => Promise<SpreadsheetApp | null>
   createApp: (app: Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'>) => Promise<SpreadsheetApp | null>
   updateApp: (id: string, updates: Partial<SpreadsheetApp>) => Promise<SpreadsheetApp | null>
   deleteApp: (id: string) => Promise<boolean>
@@ -137,15 +137,42 @@ function updateSheetRowsForRowDelete(sheets: SpreadsheetSheet[], sheetId: string
 
 async function fetchAllAppsPaginated(): Promise<Awaited<ReturnType<typeof SpreadsheetApiService.listApps>>> {
   const PAGE_SIZE = 100
+  const MAX_PAGES = 100
   const allApps: Awaited<ReturnType<typeof SpreadsheetApiService.listApps>> = []
+  const seenAppIds = new Set<string>()
+  const seenPageSignatures = new Set<string>()
   let page = 1
   let hasMore = true
 
-  while (hasMore) {
+  while (hasMore && page <= MAX_PAGES) {
     const pageItems = await SpreadsheetApiService.listApps({ limit: PAGE_SIZE, page })
-    allApps.push(...pageItems)
-    hasMore = pageItems.length === PAGE_SIZE
+    const pageSignature = pageItems.map(app => app.id).join(',')
+
+    if (pageItems.length > 0 && seenPageSignatures.has(pageSignature)) {
+      console.warn('[useSpreadsheetApps] Detected repeated list page; stopping pagination early', {
+        page,
+        pageSize: pageItems.length
+      })
+      break
+    }
+
+    seenPageSignatures.add(pageSignature)
+
+    const uniquePageItems = pageItems.filter(app => {
+      if (seenAppIds.has(app.id)) return false
+      seenAppIds.add(app.id)
+      return true
+    })
+
+    allApps.push(...uniquePageItems)
+    hasMore = pageItems.length === PAGE_SIZE && uniquePageItems.length > 0
     page++
+  }
+
+  if (hasMore) {
+    console.warn('[useSpreadsheetApps] Stopped list pagination after reaching safety page limit', {
+      maxPages: MAX_PAGES
+    })
   }
 
   return allApps
@@ -301,7 +328,11 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
    * Load a single app by ID
    */
   const loadApp = useCallback(
-    async (id: string): Promise<SpreadsheetApp | null> => {
+    async (
+      id: string,
+      _directFilePath?: string,
+      options?: { allowTrashed?: boolean }
+    ): Promise<SpreadsheetApp | null> => {
       if (!accessToken) {
         setState(prev => ({ ...prev, isLoading: false, error: 'Not authenticated' }))
         return null
@@ -310,7 +341,9 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       setState(prev => ({ ...prev, isLoading: true, error: null }))
 
       try {
-        const app = await SpreadsheetApiService.getApp(id)
+        const app = options?.allowTrashed
+          ? ((await SpreadsheetApiService.getTrashedPreview(id)) ?? (await SpreadsheetApiService.getApp(id)))
+          : await SpreadsheetApiService.getApp(id)
         if (!app) {
           setState(prev => ({
             ...prev,

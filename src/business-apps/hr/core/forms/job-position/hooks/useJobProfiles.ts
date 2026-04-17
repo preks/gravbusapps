@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { fetchJobProfileData, JobProfileItem, QueryVariablesJobProfile } from '../queries/JobProfileQueries'
 import { SelectOption } from '../types'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
@@ -8,12 +8,14 @@ const PROFILES_PER_PAGE = 20
 export interface UseJobProfilesProps {
   accessToken: string
   search?: string
-  enabled?: boolean // Lazy loading support
+  enabled?: boolean
+  /** Only list job profiles for this job function (required for job position form) */
+  jobFunctionId?: string
 }
 
 export interface UseJobProfilesReturn {
   jobProfiles: SelectOption[]
-  allJobProfiles: JobProfileItem[] // Full data for auto-filling other fields
+  allJobProfiles: JobProfileItem[]
   loading: boolean
   error: string | null
   hasMore: boolean
@@ -23,10 +25,12 @@ export interface UseJobProfilesReturn {
   retry: () => void
 }
 
-/**
- * Custom hook for fetching job profiles with infinite scroll and search functionality
- */
-export const useJobProfiles = ({ accessToken, search, enabled = true }: UseJobProfilesProps): UseJobProfilesReturn => {
+export const useJobProfiles = ({
+  accessToken,
+  search,
+  enabled = true,
+  jobFunctionId
+}: UseJobProfilesProps): UseJobProfilesReturn => {
   const client = useGraphqlClient(accessToken)
   const [jobProfiles, setJobProfiles] = useState<SelectOption[]>([])
   const [allJobProfiles, setAllJobProfiles] = useState<JobProfileItem[]>([])
@@ -37,20 +41,18 @@ export const useJobProfiles = ({ accessToken, search, enabled = true }: UseJobPr
   const [offset, setOffset] = useState(0)
   const [currentSearch, setCurrentSearch] = useState<string | undefined>(search)
 
-  // Convert JobProfileItem to SelectOption (exact format that works with gravity-ui-catalog Select)
   const convertToSelectOption = useCallback((profile: JobProfileItem): SelectOption => {
-    // Use the EXACT same format as working organizational units
     const displayName = profile.code ? `${profile.name} (${profile.code})` : profile.name
-    const option = {
+    return {
       id: profile.id,
-      name: displayName, // This is what gets displayed
-      label: displayName, // Keep label same as name
-      value: profile.id // This is what gets selected
+      name: displayName,
+      label: displayName,
+      value: profile.id
     }
-    return option
-  }, []) // No dependencies since the function only uses its parameter
+  }, [])
 
-  // Reset data when search changes
+  const prevJobFunctionIdRef = useRef<string | undefined>(undefined)
+
   useEffect(() => {
     if (currentSearch !== search) {
       setCurrentSearch(search)
@@ -63,11 +65,24 @@ export const useJobProfiles = ({ accessToken, search, enabled = true }: UseJobPr
     }
   }, [search, currentSearch])
 
-  // Load more job profiles
-  const loadMore = useCallback(async () => {
-    if (loading || !hasMore || !accessToken || !client) {
+  useEffect(() => {
+    if (prevJobFunctionIdRef.current === jobFunctionId) {
       return
     }
+    prevJobFunctionIdRef.current = jobFunctionId
+    setJobProfiles([])
+    setAllJobProfiles([])
+    setOffset(0)
+    setHasMore(Boolean(jobFunctionId))
+    setTotal(0)
+    setError(null)
+  }, [jobFunctionId])
+
+  const loadMore = useCallback(async () => {
+    if (loading || !hasMore || !accessToken || !client || !jobFunctionId) {
+      return
+    }
+
     setLoading(true)
     setError(null)
 
@@ -75,7 +90,8 @@ export const useJobProfiles = ({ accessToken, search, enabled = true }: UseJobPr
       const variables: QueryVariablesJobProfile = {
         offset,
         limit: PROFILES_PER_PAGE,
-        search: currentSearch
+        search: currentSearch,
+        jobFunctionId
       }
 
       const data = await fetchJobProfileData(client, variables)
@@ -83,7 +99,6 @@ export const useJobProfiles = ({ accessToken, search, enabled = true }: UseJobPr
       const newProfiles = data.JobProfile || []
       const newSelectOptions = newProfiles.map(convertToSelectOption)
 
-      // Append new data for infinite scroll - always create new array reference
       setJobProfiles(prev => {
         const updatedSelectOptions = offset === 0 ? [...newSelectOptions] : [...prev, ...newSelectOptions]
         return updatedSelectOptions
@@ -98,19 +113,22 @@ export const useJobProfiles = ({ accessToken, search, enabled = true }: UseJobPr
       setTotal(totalCount)
       setOffset(newOffset)
       setHasMore(hasMoreData)
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load job profiles'
       console.error('Error loading job profiles:', err)
-      setError(err.message || 'Failed to load job profiles')
+      setError(message)
       setHasMore(false)
     } finally {
       setLoading(false)
     }
-  }, [client, loading, hasMore, offset, currentSearch, accessToken])
+  }, [client, loading, hasMore, offset, currentSearch, accessToken, jobFunctionId, convertToSelectOption])
 
-  // Search profiles
   const searchProfiles = useCallback(
     (searchTerm?: string) => {
-      // Set loading FIRST, then reset state
+      if (!jobFunctionId) {
+        return
+      }
+
       setLoading(true)
       setCurrentSearch(searchTerm)
       setJobProfiles([])
@@ -120,59 +138,59 @@ export const useJobProfiles = ({ accessToken, search, enabled = true }: UseJobPr
       setTotal(0)
       setError(null)
 
-      // 🔥 IMMEDIATE FIX: Force load data right after state reset
-      // Use setTimeout to ensure state has been updated
-      setTimeout(() => {
-        if (accessToken && client) {
-          const variables: QueryVariablesJobProfile = {
-            offset: 0,
-            limit: PROFILES_PER_PAGE,
-            search: searchTerm
-          }
-
-          setLoading(true)
-          fetchJobProfileData(client, variables)
-            .then(data => {
-              const newProfiles = data.JobProfile || []
-              const newSelectOptions = newProfiles.map(convertToSelectOption)
-
-              // Always create new array references to trigger React updates
-              setJobProfiles([...newSelectOptions])
-              setAllJobProfiles([...newProfiles])
-              const totalCount = data.JobProfileAggregate.aggregate.count
-              const hasMoreData = newProfiles.length === PROFILES_PER_PAGE && PROFILES_PER_PAGE < totalCount
-
-              setTotal(totalCount)
-              setOffset(PROFILES_PER_PAGE)
-              setHasMore(hasMoreData)
-              setLoading(false)
-            })
-            .catch(err => {
-              console.error('❌ Direct search failed:', err)
-              setError(err.message || 'Search failed')
-              setLoading(false)
-            })
+      window.setTimeout(() => {
+        if (!accessToken || !client || !jobFunctionId) {
+          setLoading(false)
+          return
         }
+
+        setLoading(true)
+        const variables: QueryVariablesJobProfile = {
+          offset: 0,
+          limit: PROFILES_PER_PAGE,
+          search: searchTerm,
+          jobFunctionId
+        }
+
+        fetchJobProfileData(client, variables)
+          .then(data => {
+            const newProfiles = data.JobProfile || []
+            const newSelectOptions = newProfiles.map(convertToSelectOption)
+
+            setJobProfiles([...newSelectOptions])
+            setAllJobProfiles([...newProfiles])
+            const totalCount = data.JobProfileAggregate.aggregate.count
+            const hasMoreData = newProfiles.length === PROFILES_PER_PAGE && PROFILES_PER_PAGE < totalCount
+
+            setTotal(totalCount)
+            setOffset(PROFILES_PER_PAGE)
+            setHasMore(hasMoreData)
+            setLoading(false)
+          })
+          .catch(err => {
+            console.error('Job profile search failed:', err)
+            setError(err instanceof Error ? err.message : 'Search failed')
+            setLoading(false)
+          })
       }, 100)
     },
-    [accessToken, client, convertToSelectOption]
+    [accessToken, client, convertToSelectOption, jobFunctionId]
   )
 
-  // Retry loading
   const retry = useCallback(() => {
     setError(null)
     setHasMore(true)
     loadMore()
   }, [loadMore])
 
-  // 🔥 FIX: Auto-load data when needed (with lazy loading support)
   useEffect(() => {
-    const shouldLoad = enabled && accessToken && client && !loading && jobProfiles.length === 0 && hasMore
+    const shouldLoad =
+      enabled && Boolean(jobFunctionId) && accessToken && client && !loading && jobProfiles.length === 0 && hasMore
 
     if (shouldLoad) {
       loadMore()
     }
-  }, [enabled, currentSearch, accessToken, client, jobProfiles.length, loading, hasMore, offset, loadMore])
+  }, [enabled, jobFunctionId, accessToken, client, jobProfiles.length, loading, hasMore, loadMore])
 
   return {
     jobProfiles,

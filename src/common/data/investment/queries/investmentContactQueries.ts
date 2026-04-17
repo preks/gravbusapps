@@ -4,6 +4,7 @@
  * Extends Common Contact Queries with InvestmentContactFields (with overrides)
  */
 
+import { AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 import {
   buildContactQuery,
   buildContactByIdQuery,
@@ -40,6 +41,21 @@ import { InvestmentLeadFields } from '../types/investmentLeadTypes'
 import { InvestmentNoteFields } from '../types/investmentNoteTypes'
 import { InvestmentOpportunityFields } from '../types/investmentOpportunityTypes'
 import { InvestmentTaskFields } from '../types/investmentTaskTypes'
+
+/** Nested under account in accountContacts — investments linked to that account (IRM activity association). */
+export const INVESTMENT_ACCOUNT_NESTED_INVESTMENTS_FOR_ACTIVITY = `
+        investments(where: { isDeleted: { _eq: false } }) {
+          id
+          investmentId
+          investmentAccountId
+          investment {
+            id
+            name
+            code
+          }
+          ${AUDIT_FIELDS}
+        }
+`
 
 /**
  * Investment Contact Query Variables Interface
@@ -135,7 +151,14 @@ export const buildInvestmentContactByIdQuery = (
     ${fields.userId}
   `
 
-  return buildContactByIdQuery('InvestmentContact', fields, relationBuilders, relationFields, entityFields)
+  return buildContactByIdQuery(
+    'InvestmentContact',
+    fields,
+    relationBuilders,
+    relationFields,
+    entityFields,
+    INVESTMENT_ACCOUNT_NESTED_INVESTMENTS_FOR_ACTIVITY
+  )
 }
 
 /**

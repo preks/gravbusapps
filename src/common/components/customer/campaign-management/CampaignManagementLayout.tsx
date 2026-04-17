@@ -39,6 +39,20 @@ const CampaignRowActions: React.FC<{
 const getInitialVisibleColumns = () => ['name', 'type', 'startDate', 'endDate', 'status', 'createdAt']
 
 /**
+ * Helper: Check whether the layout's local sorting state differs from the parent's sort props.
+ * Extracted outside the component to keep its cognitive complexity within limits.
+ */
+const isSortOutOfSync = (
+  sorting: Array<{ id: string; desc: boolean }>,
+  sortField: string | undefined,
+  sortOrder: 'ASC' | 'DESC' | undefined
+): boolean => {
+  if (!sortField || !sortOrder) return false
+  const parentWantsDesc = sortOrder === 'DESC'
+  return sorting[0]?.id !== sortField || sorting[0]?.desc !== parentWantsDesc
+}
+
+/**
  * Shared Campaign Management Layout Component
  *
  * This component provides the UI/presentation layer for campaign management.
@@ -83,7 +97,12 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
     exportFilenamePrefix = 'campaigns',
     fetchCampaignsForExport,
     // Access token
-    accessToken
+    accessToken,
+    // Persistence — initial values from localStorage
+    initialFilters,
+    initialSorting,
+    initialVisibleColumns,
+    onSaveVisibleColumns
   } = props
 
   // Tab state for main view - initialize from URL parameter if present
@@ -98,10 +117,12 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
 
   // Table state for DataDisplay
   const [searchTerm, setSearchTerm] = useState(search || '')
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters ?? {})
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
+    initialSorting ?? [{ id: 'createdAt', desc: true }]
+  )
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(getInitialVisibleColumns())
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(initialVisibleColumns ?? getInitialVisibleColumns())
 
   // Analytics data fetched flag
   const [analyticsDataFetched, setAnalyticsDataFetched] = useState(false)
@@ -113,22 +134,11 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
     }
   }, [search, searchTerm])
 
-  // Sync sorting state with parent props
-  // This effect ensures local sorting state stays in sync with parent's sortField/sortOrder
-  // It only updates when parent props actually differ from local state to prevent loops
+  // Sync sorting state with parent props.
+  // Only runs when sortField/sortOrder props change; isSortOutOfSync guards against no-op updates.
   React.useEffect(() => {
-    if (!sortField || !sortOrder) return
-
-    const currentSortField = sorting[0]?.id
-    const currentSortDesc = sorting[0]?.desc
-    const parentWantsDesc = sortOrder === 'DESC'
-
-    // Only sync if parent's sorting is actually different from local state
-    const needsSync = currentSortField !== sortField || currentSortDesc !== parentWantsDesc
-
-    if (needsSync) {
-      setSorting([{ id: sortField, desc: parentWantsDesc }])
-    }
+    if (!isSortOutOfSync(sorting, sortField, sortOrder)) return
+    setSorting([{ id: sortField as string, desc: sortOrder === 'DESC' }])
   }, [sortField, sortOrder])
 
   // Fetch analytics data only when switching to Analytics tab
@@ -160,6 +170,15 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
       }
     },
     [onFilterChange]
+  )
+
+  // Handle visible column changes - update local state and persist
+  const handleVisibleColumnsChange = useCallback(
+    (columns: string[]) => {
+      setVisibleColumns(columns)
+      onSaveVisibleColumns?.(columns)
+    },
+    [onSaveVisibleColumns]
   )
 
   // Handle sorting changes - notify parent with sort field and order
@@ -328,7 +347,7 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
             : undefined
         }
         visibleColumns={mainActiveTab === 'overview' ? visibleColumns : undefined}
-        onVisibleColumnsChange={mainActiveTab === 'overview' ? setVisibleColumns : undefined}
+        onVisibleColumnsChange={mainActiveTab === 'overview' ? handleVisibleColumnsChange : undefined}
         primaryAction={
           onAddCampaign && mainActiveTab === 'overview' ? (
             <AppAction

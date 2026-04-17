@@ -11,6 +11,7 @@ import {
   normalizeTableWidth,
   normalizeTableWidthMode
 } from './styleUtils'
+import { readResolvedTableColumnWidths } from './tableColumnLayoutUtils'
 
 function resolveTableDomId(node: ProseMirrorNode): string {
   const fromId = typeof node.attrs.id === 'string' && node.attrs.id.length > 0 ? node.attrs.id : null
@@ -33,19 +34,21 @@ export class CustomTableView extends TiptapTableView {
   applyLayout(node: ProseMirrorNode) {
     this.applyIdentity(node)
 
-    const width = normalizeTableWidth(node.attrs.tableWidth) ?? '100%'
+    const explicitWidth = normalizeTableWidth(node.attrs.tableWidth)
     const align = normalizeTableAlign(node.attrs.tableAlign) ?? 'left'
     const mode = normalizeTableWidthMode(node.attrs.tableWidthMode) ?? 'manual'
     const surfaceStyle = getTableSurfaceStyle(getNormalizedTableSurfaceStyleAttributes(node.attrs))
+    const usesDerivedColumnWidth = mode === 'manual' && readResolvedTableColumnWidths(node) != null
+    const renderedWidth = usesDerivedColumnWidth ? null : (explicitWidth ?? '100%')
 
-    this.dom.style.cssText = getTableWrapperStyle(width, align, mode)
-    this.dom.dataset.tableWidth = width
+    this.dom.style.cssText = getTableWrapperStyle(renderedWidth, align, mode)
+    this.dom.dataset.tableWidth = explicitWidth ?? ''
     this.dom.dataset.tableAlign = align
     this.dom.dataset.tableWidthMode = mode
 
-    const tableStyle = [getTableStyle(width, align, mode), surfaceStyle].filter(Boolean).join('; ')
+    const tableStyle = [getTableStyle(renderedWidth, align, mode), surfaceStyle].filter(Boolean).join('; ')
     this.table.style.cssText = tableStyle
-    this.table.dataset.tableWidth = width
+    this.table.dataset.tableWidth = explicitWidth ?? ''
     this.table.dataset.tableAlign = align
     this.table.dataset.tableWidthMode = mode
     this.table.dataset.tableBorderHidden = node.attrs.tableBorderHidden === true ? 'true' : 'false'

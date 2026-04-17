@@ -4,9 +4,11 @@
 
 import type { BoardColumnType } from '../../types'
 
+type TranslateFn = (key: string, args?: Record<string, unknown>) => string
+
 export interface ColumnTypeDef {
   type: BoardColumnType
-  label: string
+  labelKey: string
   /** Types that need extra config (dialog) before creation. */
   needsConfig?: boolean
   /** Computed types whose type cannot be changed after creation. */
@@ -15,27 +17,27 @@ export interface ColumnTypeDef {
 
 /** Quick-add types shown in the popover (most common, ordered by frequency). */
 export const QUICK_ADD_TYPES: ColumnTypeDef[] = [
-  { type: 'text', label: 'Text' },
-  { type: 'number', label: 'Number' },
-  { type: 'status', label: 'Status' },
-  { type: 'priority', label: 'Priority' },
-  { type: 'date', label: 'Date' },
-  { type: 'datetime', label: 'Date & Time' },
-  { type: 'select', label: 'Select' },
-  { type: 'multiselect', label: 'Multi-Select' },
-  { type: 'boolean', label: 'Checkbox' },
-  { type: 'people', label: 'People' },
-  { type: 'currency', label: 'Currency' },
-  { type: 'percentage', label: 'Percentage' },
-  { type: 'rating', label: 'Rating' },
-  { type: 'progress', label: 'Progress' },
-  { type: 'email', label: 'Email' },
-  { type: 'phone', label: 'Phone' },
-  { type: 'url', label: 'URL' },
-  { type: 'tags', label: 'Tags' },
-  { type: 'relation', label: 'Relation', needsConfig: true },
-  { type: 'mirror', label: 'Mirror', needsConfig: true, isComputed: true },
-  { type: 'rollup', label: 'Rollup', needsConfig: true, isComputed: true }
+  { type: 'text', labelKey: 'column-type-text' },
+  { type: 'number', labelKey: 'column-type-number' },
+  { type: 'status', labelKey: 'column-type-status' },
+  { type: 'priority', labelKey: 'column-type-priority' },
+  { type: 'date', labelKey: 'column-type-date' },
+  { type: 'datetime', labelKey: 'column-type-datetime' },
+  { type: 'select', labelKey: 'column-type-select' },
+  { type: 'multiselect', labelKey: 'column-type-multiselect' },
+  { type: 'boolean', labelKey: 'column-type-boolean' },
+  { type: 'people', labelKey: 'column-type-people' },
+  { type: 'currency', labelKey: 'column-type-currency' },
+  { type: 'percentage', labelKey: 'column-type-percentage' },
+  { type: 'rating', labelKey: 'column-type-rating' },
+  { type: 'progress', labelKey: 'column-type-progress' },
+  { type: 'email', labelKey: 'column-type-email' },
+  { type: 'phone', labelKey: 'column-type-phone' },
+  { type: 'url', labelKey: 'column-type-url' },
+  { type: 'tags', labelKey: 'column-type-tags' },
+  { type: 'relation', labelKey: 'column-type-relation', needsConfig: true },
+  { type: 'mirror', labelKey: 'column-type-mirror', needsConfig: true, isComputed: true },
+  { type: 'rollup', labelKey: 'column-type-rollup', needsConfig: true, isComputed: true }
 ]
 
 /** All types available in the AddColumnDialog type selector. */
@@ -52,6 +54,7 @@ export const CONFIG_REQUIRED_TYPES: Set<BoardColumnType> = new Set(
   QUICK_ADD_TYPES.filter(t => t.needsConfig).map(t => t.type)
 )
 
-export function getTypeLabel(type: BoardColumnType): string {
-  return QUICK_ADD_TYPES.find(t => t.type === type)?.label || type
+export function getTypeLabel(t: TranslateFn, type: BoardColumnType): string {
+  const def = QUICK_ADD_TYPES.find(columnType => columnType.type === type)
+  return def ? t(def.labelKey) : type
 }

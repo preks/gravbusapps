@@ -14,10 +14,13 @@ import { PagedDocumentEditor } from './PagedDocumentEditor'
 import { PdfDocumentViewer } from './PdfDocumentViewer'
 import { TemplateFieldsPanel } from './TemplateFieldsPanel'
 import { ExternalDocumentSourceBadge } from './external-import/ExternalDocumentSourceBadge'
+import { TrashedDocumentReadonlyDialog } from './TrashedDocumentReadonlyDialog'
+import { DocumentApprovalReviewView } from './DocumentApprovalReviewView'
 import type { PagedDocumentEditorRef } from './PagedDocumentEditor'
 import type { Document, DocumentTemplate, DocumentFormatting, ParsedWordDocument } from '../types'
 
 export interface DocumentAppsHubEditorViewProps {
+  currentView: string
   templateBeingEdited: DocumentTemplate | null
   setTemplateBeingEdited: (t: DocumentTemplate | null) => void
   setSessionEntityContext: (c: string | null) => void
@@ -36,6 +39,7 @@ export interface DocumentAppsHubEditorViewProps {
     updates: { name?: string; content?: string; formatting?: DocumentFormatting }
   ) => Promise<DocumentTemplate | null>
   updateUrl: (docId: string | null, view?: string) => void
+  onNavigateToDocumentReview?: (versionNumber: number) => void
   setSelectedDocumentId: (id: string | null) => void
   setCurrentView: (v: string) => void
   setActiveSection: (s: string) => void
@@ -46,10 +50,17 @@ export interface DocumentAppsHubEditorViewProps {
   userInfo: unknown
   templateEditorRef: React.RefObject<PagedDocumentEditorRef | null>
   effectiveEntityContext: string
+  isTrashedDocument: boolean
+  canRestoreTrashedDocument: boolean
+  isRestoringTrashedDocument: boolean
+  onGoToDocsHome: () => void
+  onRestoreTrashedDocument: () => void
+  onApprovalResolved?: () => Promise<void> | void
   testId: string
 }
 
 export function DocumentAppsHubEditorView({
+  currentView,
   templateBeingEdited,
   setTemplateBeingEdited,
   setSessionEntityContext,
@@ -63,6 +74,7 @@ export function DocumentAppsHubEditorView({
   updateDocument,
   updateTemplate,
   updateUrl,
+  onNavigateToDocumentReview,
   setCurrentView,
   setActiveSection,
   handleBack,
@@ -72,6 +84,12 @@ export function DocumentAppsHubEditorView({
   userInfo,
   templateEditorRef,
   effectiveEntityContext,
+  isTrashedDocument,
+  canRestoreTrashedDocument,
+  isRestoringTrashedDocument,
+  onGoToDocsHome,
+  onRestoreTrashedDocument,
+  onApprovalResolved,
   testId
 }: DocumentAppsHubEditorViewProps): React.ReactElement {
   const { t } = useTranslation(translations)
@@ -122,6 +140,7 @@ export function DocumentAppsHubEditorView({
       <PagedDocumentEditor
         initialContent={parsedWordDocument.html}
         initialTitle={parsedWordDocument.fileName.replace(/\.(docx?|doc)$/i, '')}
+        initialFormatting={parsedWordDocument.formatting}
         onSave={async (title, content, formatting) => {
           const newDoc = await createDocument({
             title,
@@ -155,16 +174,42 @@ export function DocumentAppsHubEditorView({
   }
 
   if (currentDocument) {
+    if (currentView === 'review') {
+      return (
+        <DocumentApprovalReviewView
+          currentDocument={currentDocument}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          handleBack={handleBack}
+          loadDocument={loadDocument}
+          onApprovalResolved={onApprovalResolved}
+          testId={testId}
+        />
+      )
+    }
+
     const isPdfDocument = currentDocument.sourceFile?.mimeType === 'application/pdf'
     if (isPdfDocument) {
       return (
-        <PdfDocumentViewer
-          key={currentDocument.id}
-          document={currentDocument}
-          accessToken={accessToken}
-          onBack={handleBack}
-          data-testid={`${testId}-pdf-viewer`}
-        />
+        <>
+          <PdfDocumentViewer
+            key={currentDocument.id}
+            document={currentDocument}
+            accessToken={accessToken}
+            onBack={handleBack}
+            data-testid={`${testId}-pdf-viewer`}
+          />
+          {isTrashedDocument ? (
+            <TrashedDocumentReadonlyDialog
+              documentTitle={currentDocument.title}
+              canRestore={canRestoreTrashedDocument}
+              isRestoring={isRestoringTrashedDocument}
+              onGoToDocsHome={onGoToDocsHome}
+              onRestore={onRestoreTrashedDocument}
+              data-testid={`${testId}-trashed-document-dialog`}
+            />
+          ) : null}
+        </>
       )
     }
 
@@ -172,49 +217,63 @@ export function DocumentAppsHubEditorView({
     const isExternalReadOnly = !!externalProvenance || currentDocument.settings?.readOnly === true
 
     return (
-      <PagedDocumentEditor
-        key={currentDocument.id}
-        document={currentDocument}
-        onSave={async (title, content, formatting) => {
-          await updateDocument(currentDocument.id, {
-            title,
-            content,
-            formatting,
-            ...(isEffectivelyEmptyDocumentHtml(content) ? { contentJson: {} } : {})
-          })
-        }}
-        onPersistFormatting={async formatting => {
-          await updateDocument(currentDocument.id, { formatting })
-        }}
-        onBack={handleBack}
-        onSendForApproval={() => handleSendForApprovalClick(currentDocument.id)}
-        isReadOnly={!canEdit || isExternalReadOnly}
-        headerExtra={
-          externalProvenance ? (
-            <ExternalDocumentSourceBadge
-              provenance={externalProvenance}
-              onCreateEditableCopy={async () => {
-                const copy = await createDocument({
-                  title: `${currentDocument.title} (copy)`,
-                  content: currentDocument.content,
-                  formatting: currentDocument.formatting,
-                  status: 'draft',
-                  createdBy: currentUserId
-                })
-                if (copy) {
-                  setSelectedDocumentId(copy.id)
-                  await loadDocument(copy.id)
-                  updateUrl(copy.id, 'editor')
-                }
-              }}
-              data-testid={`${testId}-external-source-badge`}
-            />
-          ) : undefined
-        }
-        accessToken={accessToken}
-        userInfo={userInfo}
-        data-testid={`${testId}-editor`}
-      />
+      <>
+        <PagedDocumentEditor
+          key={currentDocument.id}
+          document={currentDocument}
+          onSave={async (title, content, formatting) => {
+            await updateDocument(currentDocument.id, {
+              title,
+              content,
+              formatting,
+              ...(isEffectivelyEmptyDocumentHtml(content) ? { contentJson: {} } : {})
+            })
+          }}
+          onPersistFormatting={async formatting => {
+            await updateDocument(currentDocument.id, { formatting })
+          }}
+          onBack={handleBack}
+          onSendForApproval={() => handleSendForApprovalClick(currentDocument.id)}
+          onNavigateToReviewVersion={onNavigateToDocumentReview}
+          isReadOnly={isTrashedDocument || !canEdit || isExternalReadOnly}
+          isTrashedDocument={isTrashedDocument}
+          headerExtra={
+            !isTrashedDocument && externalProvenance ? (
+              <ExternalDocumentSourceBadge
+                provenance={externalProvenance}
+                onCreateEditableCopy={async () => {
+                  const copy = await createDocument({
+                    title: `${currentDocument.title} (copy)`,
+                    content: currentDocument.content,
+                    formatting: currentDocument.formatting,
+                    status: 'draft',
+                    createdBy: currentUserId
+                  })
+                  if (copy) {
+                    setSelectedDocumentId(copy.id)
+                    await loadDocument(copy.id)
+                    updateUrl(copy.id, 'editor')
+                  }
+                }}
+                data-testid={`${testId}-external-source-badge`}
+              />
+            ) : undefined
+          }
+          accessToken={accessToken}
+          userInfo={userInfo}
+          data-testid={`${testId}-editor`}
+        />
+        {isTrashedDocument ? (
+          <TrashedDocumentReadonlyDialog
+            documentTitle={currentDocument.title}
+            canRestore={canRestoreTrashedDocument}
+            isRestoring={isRestoringTrashedDocument}
+            onGoToDocsHome={onGoToDocsHome}
+            onRestore={onRestoreTrashedDocument}
+            data-testid={`${testId}-trashed-document-dialog`}
+          />
+        ) : null}
+      </>
     )
   }
 

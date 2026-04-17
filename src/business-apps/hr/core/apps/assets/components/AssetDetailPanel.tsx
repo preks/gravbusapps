@@ -44,6 +44,7 @@ interface AssetDetailPanelProps {
   isOpen: boolean
   onClose: () => void
   accessToken: string
+  canDeleteAsset?: boolean
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
@@ -116,6 +117,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   isOpen,
   onClose,
   accessToken,
+  canDeleteAsset = false,
   onAllocateAsset,
   onUpdateAsset,
   onRetireAsset,
@@ -208,7 +210,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
       })
     }
 
-    if (onDeleteAsset) {
+    if (canDeleteAsset && onDeleteAsset) {
       actions.push({
         category: labels.actions,
         key: 'delete-asset',
@@ -241,6 +243,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
     onUpdateAsset,
     onRetireAsset,
     onRetrieveAsset,
+    canDeleteAsset,
     onDeleteAsset,
     onGenerateDocument
   ])

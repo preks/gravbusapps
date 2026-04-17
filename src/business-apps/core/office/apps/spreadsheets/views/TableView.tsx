@@ -20,6 +20,7 @@ export interface TableViewProps {
   data: Record<string, unknown>[]
   initialSnapshot?: Record<string, unknown> | null
   snapshotSeed?: string
+  authoritativeDataSyncToken?: number
   workbookRemountKey?: string
   multiSheetWorkbookMode?: boolean
   onActiveWorksheetChange?: (sheetId: string, sheetName: string) => void
@@ -61,6 +62,7 @@ export const TableView = memo<TableViewProps>(function TableView({
   data,
   initialSnapshot,
   snapshotSeed,
+  authoritativeDataSyncToken,
   workbookRemountKey,
   multiSheetWorkbookMode,
   onActiveWorksheetChange,
@@ -190,6 +192,7 @@ export const TableView = memo<TableViewProps>(function TableView({
         data={data}
         initialSnapshot={initialSnapshot}
         snapshotSeed={snapshotSeed}
+        authoritativeDataSyncToken={authoritativeDataSyncToken}
         workbookRemountKey={workbookRemountKey}
         multiSheetWorkbookMode={multiSheetWorkbookMode}
         onActiveWorksheetChange={onActiveWorksheetChange}

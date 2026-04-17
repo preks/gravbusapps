@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, toast, Spinner } from '@newwork/nw-design-system'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, toast, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { GitBranch } from 'lucide-react'
 import type { FlowEntityKind, FlowEngineTagFilter } from '../../services/flowEngine'
 import { BoardApiService } from '../../services/BoardApiService'
@@ -8,6 +8,7 @@ import { FlowEntityPicker } from './FlowEntityPicker'
 import { FlowTemplatePicker } from './FlowTemplatePicker'
 import { FlowScopeConfig } from './FlowScopeConfig'
 import { FlowFieldSelector } from './FlowFieldSelector'
+import translations from '../../_i18n'
 
 type Step = 'entity' | 'templates' | 'scope' | 'fields'
 
@@ -32,6 +33,7 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
   onSheetUpdate,
   'data-testid': testId = 'flow-engine-data-sheet'
 }) => {
+  const { t } = useTranslation(translations)
   const [step, setStep] = useState<Step>('entity')
   const [flowEntity, setFlowEntity] = useState<FlowEntityKind>('flows')
   const [templateIds, setTemplateIds] = useState<string[]>([])
@@ -77,7 +79,7 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
   )
 
   const handleScopeNext = useCallback(async () => {
-    setSelectedFieldKeys(getDefaultSelectedKeys(flowEntity))
+    setSelectedFieldKeys(getDefaultSelectedKeys(t, flowEntity))
     setIsFetchingPreview(true)
     try {
       const result = await BoardApiService.syncFromFlowEngine(boardId, sheetId, {
@@ -273,7 +275,7 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
               {step === 'fields' && (
                 <FlowFieldSelector
                   entityLabel={flowEntity === 'flows' ? 'flows' : 'tasks'}
-                  fields={getFlowFieldDefs(flowEntity)}
+                  fields={getFlowFieldDefs(t, flowEntity)}
                   selectedKeys={selectedFieldKeys}
                   onSelectedKeysChange={setSelectedFieldKeys}
                   previewRecords={previewRecords}

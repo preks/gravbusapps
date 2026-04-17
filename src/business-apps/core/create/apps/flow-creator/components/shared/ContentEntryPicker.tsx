@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Combobox } from '@newwork/nw-design-system'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
-import { ContentGroup, ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentGroup, ContentRole } from '@/common/data/content/constants/contentConstants'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 
 export type ContentEntryPickerMode = 'knowledge' | 'policy'
@@ -25,25 +25,8 @@ export interface ContentEntryPickerProps {
 
 const LIMIT = 20
 
-const normalize = (value?: string | null): string => (value || '').trim().toLowerCase()
-
 function isLikelyPolicy(entry: ContentEntry): boolean {
-  const ref = normalize((entry as any)?.contentTypeRef)
-  const typeValue = normalize((entry as any)?.contentType?.value)
-  const typeCode = normalize((entry as any)?.contentType?.code)
-  if (
-    ref.endsWith(':policy') ||
-    ref.endsWith(':policies') ||
-    ref === 'policy' ||
-    ref === 'policies' ||
-    ref.includes(':policies')
-  ) {
-    return true
-  }
-  const policyTokens = ['policy', 'policies']
-  return policyTokens.some(
-    token => typeValue === token || typeCode === token || typeValue.includes(token) || typeCode.includes(token)
-  )
+  return entry.contentGroup === ContentGroup.POLICY
 }
 
 function mergeUniqueById(prev: ContentEntry[], next: ContentEntry[]): ContentEntry[] {
@@ -78,7 +61,7 @@ export const ContentEntryPicker: React.FC<ContentEntryPickerProps> = ({
     if (mode === 'knowledge') {
       return {
         role: ContentRole.ROOT,
-        contentGroupRef: ContentGroup.KNOWLEDGE,
+        contentGroup: ContentGroup.KNOWLEDGE,
         search,
         limit: LIMIT,
         offset,
@@ -90,12 +73,11 @@ export const ContentEntryPicker: React.FC<ContentEntryPickerProps> = ({
     // Policy: query broadly and filter client-side to avoid tenant-specific categorization drift.
     return {
       role: ContentRole.ROOT,
-      contentGroupRefs: [
+      contentGroups: [
         ContentGroup.NEWS,
         ContentGroup.KNOWLEDGE,
         ContentGroup.DOCUMENT,
         ContentGroup.QUESTION,
-        ContentGroup.INTRANET,
         ContentGroup.GLOSSARY,
         ContentGroup.POLICY
       ],
@@ -108,7 +90,7 @@ export const ContentEntryPicker: React.FC<ContentEntryPickerProps> = ({
   }, [mode, offset, search])
 
   const { entries, isLoading, error, totalCount } = useContentEntries(queryParams as any, accessToken, {
-    fields: ['id', 'title', 'contentTypeRef', 'contentType', 'updatedAt'] as any,
+    fields: ['id', 'title', 'contentGroup', 'contentTypeId', 'contentType', 'updatedAt'] as any,
     relationLimit: 0,
     relationOffset: 0
   })

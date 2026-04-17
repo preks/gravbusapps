@@ -64,6 +64,11 @@ export interface ActivityLayoutProps<TActivity extends Activity = Activity, TQue
   readonly config: ActivityViewConfig<TActivity, TQueryVariables>
   readonly dataTestId?: string
   readonly initialFilters?: Record<string, any>
+  readonly onFilterChange?: (filters: Record<string, any>) => void
+  readonly initialSorting?: Array<{ id: string; desc: boolean }>
+  readonly onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
+  readonly initialVisibleColumns?: string[]
+  readonly onVisibleColumnsChange?: (columns: string[]) => void
   readonly hideFilters?: boolean
   readonly showOwnerEmployee?: boolean
   readonly secondaryActions?: React.ReactNode
@@ -89,6 +94,11 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
     config,
     dataTestId = 'activity-view',
     initialFilters = {},
+    onFilterChange,
+    initialSorting,
+    onSortingChange,
+    initialVisibleColumns,
+    onVisibleColumnsChange,
     hideFilters = false,
     showOwnerEmployee = false,
     secondaryActions,
@@ -103,9 +113,11 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
   // View State
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
+    () => initialSorting ?? [{ id: 'createdAt', desc: true }]
+  )
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => initialVisibleColumns ?? [])
   const [selectedActivity, setSelectedActivity] = useState<TActivity | null>(null)
 
   // Data State
@@ -193,8 +205,25 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
     (filters: Record<string, any>) => {
       setSelectedFilters(filters)
       setPagination({ pageIndex: 0, pageSize: pagination.pageSize })
+      onFilterChange?.(filters)
     },
-    [pagination.pageSize]
+    [pagination.pageSize, onFilterChange]
+  )
+
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      setSorting(newSorting)
+      onSortingChange?.(newSorting)
+    },
+    [onSortingChange]
+  )
+
+  const handleVisibleColumnsChange = useCallback(
+    (newColumns: string[]) => {
+      setVisibleColumns(newColumns)
+      onVisibleColumnsChange?.(newColumns)
+    },
+    [onVisibleColumnsChange]
   )
 
   // Handle activity click
@@ -315,10 +344,10 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
         onFilterChange={hideFilters ? undefined : handleFilterChange}
         sorting={sorting}
         sortableColumns={config.sortableColumns}
-        onSortingChange={setSorting}
+        onSortingChange={handleSortingChange}
         availableColumns={config.availableColumns}
         visibleColumns={visibleColumns}
-        onVisibleColumnsChange={setVisibleColumns}
+        onVisibleColumnsChange={handleVisibleColumnsChange}
         primaryAction={
           config.flowContexts.createContext ? (
             <AppAction
@@ -357,7 +386,7 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
           pagination={pagination}
           sorting={sorting}
           onPaginationChange={setPagination}
-          onSortingChange={setSorting}
+          onSortingChange={handleSortingChange}
           onRowClick={handleActivityClick}
           actions={rowActions}
           onRetry={loadActivities}
@@ -378,7 +407,6 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
           }
           return ''
         }}
-        businessAppContext={context}
         data-testid={`${dataTestId}-detail-sheet`}
         accessToken={context.accessToken}
         flowContext={config.rowActionsContextArray?.[0]}

@@ -43,6 +43,54 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         --default-cell-min-width: 25px;
       }
 
+      /*
+       * gravity-platform applies its primary font to every element, which gives nested editor
+       * tags their own Roboto family instead of inheriting the document's configured font.
+       * Re-enable inheritance only for text-bearing document elements so code/pre keep their
+       * explicit monospace stacks.
+       */
+      .paged-document-editor .ProseMirror :where(
+        p,
+        ol,
+        ul,
+        li,
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        blockquote,
+        table,
+        tbody,
+        thead,
+        tfoot,
+        tr,
+        td,
+        th,
+        span,
+        strong,
+        b,
+        em,
+        i,
+        u,
+        s,
+        sub,
+        sup,
+        a,
+        mark
+      ) {
+        font-family: inherit;
+      }
+
+      .paged-document-editor .ProseMirror :where(strong, b) {
+        font-weight: 700;
+      }
+
+      .paged-document-editor .ProseMirror :where(em, i) {
+        font-style: italic;
+      }
+
       .paged-document-editor .ProseMirror .document-table-of-contents {
         display: block;
         width: 100%;
@@ -275,11 +323,29 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
       }
 
       .paged-document-editor .ProseMirror .tableWrapper {
+        position: relative;
         overflow: visible;
         margin: 0;
         border: 0;
         border-radius: 0;
         background: transparent;
+      }
+
+      .paged-document-editor .ProseMirror .tableWrapper[data-linked-table-resize-active="true"] {
+        --linked-table-resize-handle-width: 4px;
+      }
+
+      .paged-document-editor .ProseMirror
+        .tableWrapper[data-linked-table-resize-active="true"]:not([data-linked-table-resize-source="true"]) > table::after {
+        position: absolute;
+        left: calc(var(--linked-table-resize-handle-left, 0px) - (var(--linked-table-resize-handle-width) / 2));
+        top: 0;
+        bottom: -2px;
+        width: var(--linked-table-resize-handle-width);
+        content: "";
+        pointer-events: none;
+        background-color: #adf;
+        z-index: 20;
       }
 
       .paged-document-editor .ProseMirror table {
@@ -288,6 +354,7 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         table-layout: fixed;
         break-inside: auto;
         page-break-inside: auto;
+        position: relative;
       }
 
       .paged-document-editor .ProseMirror td,

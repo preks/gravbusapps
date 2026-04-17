@@ -1,10 +1,10 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { useJobPositionContext } from '../context/JobPositionContext'
 import { Button, Input, Label, Combobox } from '@newwork/nw-design-system'
-import { CustomSelect } from './CustomSelect'
+import { JobFamilySelect } from './JobFamilySelect'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
-const toStringOrUndefined = (val: any): string | undefined =>
+const toStringOrUndefined = (val: unknown): string | undefined =>
   typeof val === 'string' && val.length > 0 ? val : undefined
 
 interface JobPositionFormProps {
@@ -33,37 +33,57 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
     submit,
     isEdit,
     structureId,
-    // Search functionality
     searchJobProfiles,
     loadMoreJobProfiles,
     hasMoreJobProfiles,
     jobProfilesError,
     jobProfilesLoading,
-    enableJobProfilesLoading
-    // Job functions loading
+    searchOrganizationalUnits,
+    loadMoreOrganizationalUnits,
+    hasMoreOrganizationalUnits,
+    organizationalUnitsLoading,
+    searchJobFamilies,
+    loadMoreJobFamilies,
+    hasMoreJobFamilies,
+    jobFamiliesLoading
   } = useJobPositionContext()
 
-  // Check if all mandatory fields are filled
   const isFormValid =
     toStringOrUndefined(formValues.organizationalUnitId) &&
     toStringOrUndefined(formValues.jobFamilyId) &&
     toStringOrUndefined(formValues.jobFunctionId) &&
     toStringOrUndefined(formValues.name)
 
-  // Handle job profile search - only search after 3+ characters
-  const handleJobProfileSearch = (searchTerm: string) => {
-    const trimmedTerm = searchTerm?.trim() || ''
+  const handleJobProfileSearch = useCallback(
+    (searchTerm: string) => {
+      const trimmed = searchTerm?.trim() ?? ''
+      searchJobProfiles(trimmed.length > 0 ? trimmed : undefined)
+    },
+    [searchJobProfiles]
+  )
 
-    // Only trigger search if user has entered at least 3 characters or cleared the search
-    if (trimmedTerm.length >= 3 || trimmedTerm.length === 0) {
-      searchJobProfiles(trimmedTerm || undefined)
+  const handleDepartmentSearch = useCallback(
+    (searchTerm: string) => {
+      const trimmed = searchTerm?.trim() ?? ''
+      searchOrganizationalUnits(trimmed.length > 0 ? trimmed : undefined)
+    },
+    [searchOrganizationalUnits]
+  )
+
+  const jobProfilePlaceholder = formValues.jobFunctionId ? 'Please Select...' : 'Please select job function first...'
+
+  const jobProfileEmptyText = (() => {
+    if (!formValues.jobFunctionId) {
+      return 'Please select a job function first'
     }
-    // If less than 3 characters, don't trigger search but don't clear existing results either
-  }
+    if (jobProfilesLoading) {
+      return 'Loading job profiles...'
+    }
+    return 'No job profiles found'
+  })()
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
-      {/* Form Title */}
       <div className="gba:mb-6">
         <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">
           {modalTitle || (isEdit ? 'Update Job Position' : 'Create Job Position')}
@@ -73,198 +93,131 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
       <form
         className="gba:h-full gba:flex gba:flex-col"
         onSubmit={e => {
-          // Prevent any form submission
           e.preventDefault()
           e.stopPropagation()
           return false
         }}
       >
-        {/* Form Fields Container - Takes up available space */}
-        <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6">
-          {/* Job Position Information Section */}
-          <div className="gba:space-y-4">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:border-b gba:border-border gba:pb-2">
-              Job Position Information
-            </h3>
-
-            {/* Organizational Unit - Mandatory */}
-            <div style={{ marginBottom: 'var(--nw-spacing-4)' }}>
-              <Label style={{ marginBottom: 'var(--nw-spacing-1)' }}>Department *</Label>
-              <Combobox
-                options={organizationalUnits.map(unit => ({ value: unit.value, label: unit.name }))}
-                value={toStringOrUndefined(formValues.organizationalUnitId)}
-                onValueChange={value => setFormValues({ organizationalUnitId: String(value || '') })}
-                placeholder="Please Select..."
-                searchPlaceholder="Search departments..."
-                emptyText="No departments found"
-                className="w-full"
-                disabled={isEdit} // Disabled in edit mode
-              />
-            </div>
-
-            {/* Job Family - Mandatory */}
-            <div style={{ marginBottom: 'var(--nw-spacing-4)' }}>
-              <Label style={{ marginBottom: 'var(--nw-spacing-1)' }}>Job Family *</Label>
-              <Combobox
-                options={jobFamilies.map(family => ({ value: family.value, label: family.name }))}
-                value={toStringOrUndefined(formValues.jobFamilyId)}
-                onValueChange={value => {
-                  const selectedFamilyId = String(value || '')
-                  setFormValues({
-                    jobFamilyId: selectedFamilyId,
-                    jobFunctionId: '', // Reset job function when family changes
-                    jobLevelGroupId: '', // Reset job level group
-                    jobLevelId: '' // Reset job level
-                  })
-                }}
-                placeholder="Please Select..."
-                searchPlaceholder="Search job families..."
-                emptyText="No job families found"
-                className="w-full"
-              />
-            </div>
-
-            {/* Job Function - Mandatory */}
-            <div style={{ marginBottom: 'var(--nw-spacing-4)' }}>
-              <Label style={{ marginBottom: 'var(--nw-spacing-1)' }}>Job Function *</Label>
-              <Combobox
-                options={jobFunctions.map(func => ({ value: func.value, label: func.name }))}
-                value={toStringOrUndefined(formValues.jobFunctionId)}
-                onValueChange={value => {
-                  const selectedFunctionId = String(value || '')
-                  setFormValues({
-                    jobFunctionId: selectedFunctionId,
-                    jobLevelGroupId: '', // Reset job level group
-                    jobLevelId: '' // Reset job level
-                  })
-
-                  // Auto-select job level group if job function has one
-                  if (selectedFunctionId) {
-                    const selectedFunction = allJobFunctions.find(jf => jf.id === selectedFunctionId)
-                    if (selectedFunction?.jobLevelGroup?.id) {
-                      setFormValues({
-                        jobFunctionId: selectedFunctionId,
-                        jobLevelGroupId: selectedFunction.jobLevelGroup.id
-                      })
-                    }
-                  }
-                }}
-                placeholder={!formValues.jobFamilyId ? 'Please select job family first...' : 'Please Select...'}
-                searchPlaceholder="Search job functions..."
-                emptyText="No job functions found"
-                className="w-full"
-                disabled={!formValues.jobFamilyId}
-              />
-              {!formValues.jobFamilyId && (
-                <div
-                  style={{
-                    marginTop: 'var(--nw-spacing-1)',
-                    fontSize: '0.875rem',
-                    color: 'var(--nw-color-muted-foreground)'
-                  }}
-                >
-                  Please select a job family first
-                </div>
-              )}
-            </div>
-
-            {/* Position Name - Mandatory */}
-            <div style={{ marginBottom: 'var(--nw-spacing-4)' }}>
-              <Label style={{ marginBottom: 'var(--nw-spacing-1)' }}>Position Name *</Label>
-              <Input
-                name="name"
-                value={formValues.name}
-                onChange={e => setFormValues({ name: e.target.value })}
-                placeholder="Please Enter..."
-                required
-                className="w-full"
-              />
-            </div>
+        <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:space-y-4">
+          {/* 1. Department */}
+          <div>
+            <Label className="gba:mb-1 gba:block">Department *</Label>
+            <Combobox
+              options={organizationalUnits.map(unit => ({ value: unit.value, label: unit.name }))}
+              value={toStringOrUndefined(formValues.organizationalUnitId)}
+              onValueChange={value => setFormValues({ organizationalUnitId: String(value || '') })}
+              placeholder="Please Select..."
+              searchPlaceholder="Search departments..."
+              emptyText={organizationalUnitsLoading ? 'Loading departments...' : 'No departments found'}
+              className="gba:w-full"
+              disabled={isEdit}
+              onSearch={handleDepartmentSearch}
+              searchDebounce={300}
+              loading={organizationalUnitsLoading}
+              hasMore={hasMoreOrganizationalUnits}
+              onLoadMore={loadMoreOrganizationalUnits}
+              data-testid="job-position-department-combobox"
+            />
           </div>
 
-          {/* Optional Information Section */}
-          <div className="gba:space-y-4">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:border-b gba:border-border gba:pb-2">
-              Additional Information
-            </h3>
-
-            {/* Job Profile - Optional */}
-            <div style={{ marginBottom: 'var(--nw-spacing-4)' }}>
-              <Label style={{ marginBottom: 'var(--nw-spacing-1)' }}>Job Profile (Optional)</Label>
-              <CustomSelect
-                name="jobProfileId"
-                value={toStringOrUndefined(formValues.jobProfileId)}
-                onChange={e => setFormValues({ jobProfileId: String(e.value || '') })}
-                data={jobProfiles}
-                placeholder="Type to search..."
-                showSearch={true}
-                onSearch={handleJobProfileSearch}
-                debounce={300}
-                loading={jobProfilesLoading}
-                disabled={jobProfilesLoading}
-                onPopupScrollEnd={loadMoreJobProfiles}
-                hasMore={hasMoreJobProfiles}
-                allowClear={true}
-                style={{ width: '100%' }}
-                data-testid="job-profile-select"
-                onFocus={enableJobProfilesLoading}
-              />
-              <div
-                style={{
-                  marginTop: 'var(--nw-spacing-1)',
-                  fontSize: '0.75rem',
-                  color: 'var(--nw-color-muted-foreground)'
-                }}
-              >
-                Type to search by job profile name or code
-              </div>
-
-              {jobProfilesError && (
-                <div
-                  style={{
-                    marginTop: 'var(--nw-spacing-1)',
-                    fontSize: '0.875rem',
-                    color: 'var(--nw-color-destructive)'
-                  }}
-                >
-                  {jobProfilesError}
-                </div>
-              )}
-            </div>
+          {/* 2. Position Name */}
+          <div>
+            <Label className="gba:mb-1 gba:block">Position Name *</Label>
+            <Input
+              name="name"
+              value={formValues.name}
+              onChange={e => setFormValues({ name: e.target.value })}
+              placeholder="Please Enter..."
+              required
+              className="gba:w-full"
+              data-testid="job-position-name-input"
+            />
           </div>
 
-          {/* Error Display */}
-          {error && (
-            <div
-              style={{
-                backgroundColor: 'var(--nw-color-destructive-50)',
-                border: '1px solid var(--nw-color-destructive-200)',
-                borderRadius: 'var(--nw-border-radius-md)',
-                padding: 'var(--nw-spacing-4)'
+          {/* 3. Job Family */}
+          <div>
+            <Label className="gba:mb-1 gba:block">Job Family *</Label>
+            <JobFamilySelect
+              jobFamilies={jobFamilies}
+              value={toStringOrUndefined(formValues.jobFamilyId)}
+              onValueChange={selectedFamilyId => {
+                setFormValues({
+                  jobFamilyId: selectedFamilyId,
+                  jobFunctionId: '',
+                  jobLevelGroupId: '',
+                  jobLevelId: ''
+                })
               }}
-            >
-              <div
-                style={{
-                  color: 'var(--nw-color-destructive-800)',
-                  fontSize: '0.875rem'
-                }}
-              >
-                {error}
-              </div>
+              loading={jobFamiliesLoading}
+              hasMore={hasMoreJobFamilies}
+              onSearch={searchJobFamilies}
+              onLoadMore={loadMoreJobFamilies}
+              placeholder="Please Select..."
+              searchPlaceholder="Search job families..."
+              emptyText={jobFamiliesLoading ? 'Loading job families...' : 'No job families found'}
+              data-testid="job-position-job-family-combobox"
+            />
+          </div>
+
+          {/* 4. Job Function */}
+          <div>
+            <Label className="gba:mb-1 gba:block">Job Function *</Label>
+            <Combobox
+              options={jobFunctions.map(func => ({ value: func.value, label: func.name }))}
+              value={toStringOrUndefined(formValues.jobFunctionId)}
+              onValueChange={value => {
+                const selectedFunctionId = String(value || '')
+                const selectedFunction = allJobFunctions.find(jf => jf.id === selectedFunctionId)
+                setFormValues({
+                  jobFunctionId: selectedFunctionId,
+                  jobLevelGroupId: selectedFunction?.jobLevelGroup?.id ?? '',
+                  jobLevelId: '',
+                  jobProfileId: undefined
+                })
+              }}
+              placeholder={!formValues.jobFamilyId ? 'Please select job family first...' : 'Please Select...'}
+              searchPlaceholder="Search job functions..."
+              emptyText="No job functions found"
+              className="gba:w-full"
+              disabled={!formValues.jobFamilyId}
+            />
+            {!formValues.jobFamilyId && (
+              <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">Please select a job family first</div>
+            )}
+          </div>
+
+          {/* 5. Job Profile */}
+          <div>
+            <Label className="gba:mb-1 gba:block">Job Profile</Label>
+            <Combobox
+              options={jobProfiles.map(p => ({ value: p.value, label: p.name }))}
+              value={toStringOrUndefined(formValues.jobProfileId)}
+              onValueChange={value => setFormValues({ jobProfileId: value ? String(value) : undefined })}
+              placeholder={jobProfilePlaceholder}
+              searchPlaceholder="Search job profiles..."
+              emptyText={jobProfileEmptyText}
+              className="gba:w-full"
+              disabled={!formValues.jobFunctionId}
+              onSearch={handleJobProfileSearch}
+              searchDebounce={300}
+              loading={jobProfilesLoading}
+              hasMore={hasMoreJobProfiles}
+              onLoadMore={loadMoreJobProfiles}
+              align="start"
+              data-testid="job-profile-select"
+            />
+
+            {jobProfilesError && <div className="gba:mt-1 gba:text-sm gba:text-destructive">{jobProfilesError}</div>}
+          </div>
+
+          {error && (
+            <div className="gba:rounded-md gba:border gba:border-destructive/30 gba:bg-destructive/10 gba:p-4">
+              <div className="gba:text-sm gba:text-destructive">{error}</div>
             </div>
           )}
         </div>
 
-        {/* Action Buttons - Fixed at bottom */}
-        <div
-          style={{
-            marginTop: 'var(--nw-spacing-6)',
-            paddingTop: 'var(--nw-spacing-4)',
-            borderTop: '1px solid var(--nw-color-border)',
-            display: 'flex',
-            justifyContent: 'flex-end'
-          }}
-        >
+        <div className="gba:mt-6 gba:flex gba:justify-end gba:border-t gba:border-border gba:pt-4">
           <Button
             type="button"
             disabled={loading || !isFormValid}
@@ -275,11 +228,22 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
               try {
                 await submit()
 
-                // Determine if this is an update or create operation
                 const isUpdate = isEdit && formValues.id
 
-                // Prepare the payload - only include the fields we actually collect
-                const payload: any = {
+                const payload: {
+                  jobPosition: {
+                    name: string
+                    jobFamily: string
+                    jobFunction: string
+                    jobProfile?: string
+                    jobLevelGroup?: string
+                    id?: string
+                    version?: number
+                  }
+                  organizationalUnitId: string
+                  structureId: string
+                  changeMode: 'UPDATE' | 'INSERT'
+                } = {
                   jobPosition: {
                     name: formValues.name,
                     jobFamily: formValues.jobFamilyId,
@@ -290,7 +254,6 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
                   changeMode: isUpdate ? 'UPDATE' : 'INSERT'
                 }
 
-                // Add optional fields if they exist
                 if (formValues.jobProfileId) {
                   payload.jobPosition.jobProfile = formValues.jobProfileId
                 }
@@ -298,7 +261,6 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
                   payload.jobPosition.jobLevelGroup = formValues.jobLevelGroupId
                 }
 
-                // For updates, include the job position ID and version
                 if (isUpdate) {
                   payload.jobPosition.id = formValues.id
                   if (formValues.version !== undefined) {
@@ -306,10 +268,8 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
                   }
                 }
 
-                // Dispatch process continue event on successful submission
                 dispatchProcessContinueEvent('job_position_submit', payload)
 
-                // Close modal if in modal mode
                 if (isModal && onClose) {
                   onClose()
                 }
