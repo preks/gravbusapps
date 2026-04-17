@@ -19,6 +19,11 @@ const PerformanceEvaluationFormScreen: React.FC<PerformanceEvaluationFormScreenP
   const isPeerEvaluation = taskName === 'peerEvaluation'
   const creatorUserId = taskPayload?.creatorUserId
 
+  if (isPeerEvaluation) {
+    console.log('[PeerEvaluation] additionalData:', JSON.stringify(additionalData, null, 2))
+    console.log('[PeerEvaluation] taskPayload:', JSON.stringify(taskPayload, null, 2))
+  }
+
   // For peer evaluation step: employee comes from creatorUserId (resolve to employeeId)
   const { employeeId: creatorEmployeeId } = useEmployeeByUserId({
     accessToken,
