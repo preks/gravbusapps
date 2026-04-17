@@ -236,6 +236,7 @@ export const SUPPORTED_PROTOCOLS = [
   'note',
   'slide',
   'document',
+  'spreadsheet',
   'chat_conversation'
 ] as const
 
