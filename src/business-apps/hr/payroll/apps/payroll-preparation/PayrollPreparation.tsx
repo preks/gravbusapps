@@ -40,6 +40,14 @@ const moduleColor = MODULE_COLORS.HR
 
 type ViewKey = 'overview' | 'grid' | 'exceptions' | 'changes' | 'country-checks' | 'export'
 
+const DEFAULT_GRID_FILTERS: FilterState = {
+  search: '',
+  readinessStatus: 'all',
+  changedOnly: false,
+  issueCategory: 'all',
+  department: 'all'
+}
+
 export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => {
   const { accessToken, userInfo } = context
   const { t } = useTranslation(translations)
@@ -173,13 +181,11 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
     }
   }, [refetchEmployees])
 
-  const [gridFilters, setGridFilters] = useState<FilterState>({
-    search: '',
-    readinessStatus: 'all',
-    changedOnly: false,
-    issueCategory: 'all',
-    department: 'all'
-  })
+  const [gridFilters, setGridFilters] = useState<FilterState>(DEFAULT_GRID_FILTERS)
+
+  useEffect(() => {
+    setGridFilters(DEFAULT_GRID_FILTERS)
+  }, [activeRun?.id])
 
   const filteredEmployees = useFilteredEmployees(employees, gridFilters)
 

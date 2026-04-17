@@ -186,6 +186,12 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     }
   }, [currentStatus])
 
+  useEffect(() => {
+    if (!gridFiltersActive) {
+      setApplyGridFilters(false)
+    }
+  }, [gridFiltersActive])
+
   const steps: StepDef[] = useMemo(
     () => [
       {
@@ -586,25 +592,25 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
                   {t('export-include-issues')}
                 </label>
 
-                <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={applyGridFilters}
-                    onChange={e => setApplyGridFilters(e.target.checked)}
-                    className="gba:rounded gba:border-border"
-                    data-testid="payroll-prep-export-apply-grid-filters-checkbox"
-                  />
-                  <span
-                    className={gridFiltersActive ? 'gba:text-foreground gba:font-medium' : 'gba:text-muted-foreground'}
-                  >
-                    {t('export-apply-grid-filters')}
-                  </span>
-                  {gridFiltersActive && <FunnelIcon size={14} weight="fill" className="gba:text-primary" />}
-                </label>
-                {applyGridFilters && gridFiltersActive && (
-                  <p className="gba:text-xs gba:text-muted-foreground gba:ml-6">
-                    {t('export-grid-filters-active', { count: filteredEmployees.length, total: employees.length })}
-                  </p>
+                {gridFiltersActive && (
+                  <>
+                    <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={applyGridFilters}
+                        onChange={e => setApplyGridFilters(e.target.checked)}
+                        className="gba:rounded gba:border-border"
+                        data-testid="payroll-prep-export-apply-grid-filters-checkbox"
+                      />
+                      <span className="gba:text-foreground gba:font-medium">{t('export-apply-grid-filters')}</span>
+                      <FunnelIcon size={14} weight="fill" className="gba:text-primary" />
+                    </label>
+                    {applyGridFilters && (
+                      <p className="gba:text-xs gba:text-muted-foreground gba:ml-6">
+                        {t('export-grid-filters-active', { count: filteredEmployees.length, total: employees.length })}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 

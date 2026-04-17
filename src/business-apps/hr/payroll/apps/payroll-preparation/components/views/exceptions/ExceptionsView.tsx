@@ -1,19 +1,9 @@
-import React, { useState, useMemo, useCallback } from 'react'
-import {
-  Button,
-  Card,
-  Checkbox,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@newwork/nw-design-system'
+import React, { useState, useMemo } from 'react'
+import { Button, Card, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { ArrowsClockwiseIcon, WarningCircleIcon, ShieldWarningIcon, InfoIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollIssue, IssueCategory, IssueSeverity } from '../../../types/payrollTypes'
 import { payrollIssueCodeTitle } from '../../../utils/payrollIssueCodeLabels'
 import { SeverityBadge } from '../../shared/StatusBadge'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface ExceptionsViewProps {
   employees: PayrollEmployee[]
@@ -55,20 +45,6 @@ interface IssueWithEmployee extends PayrollIssue {
 export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRefresh, refreshing, t }) => {
   const [severityFilter, setSeverityFilter] = useState<IssueSeverity | 'all'>('all')
   const [categoryFilter, setCategoryFilter] = useState<IssueCategory | 'all'>('all')
-  const [addressedIds, setAddressedIds] = useState<Set<string>>(new Set())
-  const [hideAddressed, setHideAddressed] = useState(false)
-
-  const toggleAddressed = useCallback((issueKey: string) => {
-    setAddressedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(issueKey)) {
-        next.delete(issueKey)
-      } else {
-        next.add(issueKey)
-      }
-      return next
-    })
-  }, [])
 
   const allIssues = useMemo(() => {
     const issues: IssueWithEmployee[] = []
@@ -93,11 +69,8 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
     if (categoryFilter !== 'all') {
       result = result.filter(i => i.category === categoryFilter)
     }
-    if (hideAddressed) {
-      result = result.filter(i => !addressedIds.has(`${i.employeeId}-${i.issueCode}`))
-    }
     return result
-  }, [allIssues, severityFilter, categoryFilter, hideAddressed, addressedIds])
+  }, [allIssues, severityFilter, categoryFilter])
 
   const { blockerCount, warningCount, infoCount, affectedEmployees } = useMemo(() => {
     let blockers = 0
@@ -112,34 +85,6 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
     }
     return { blockerCount: blockers, warningCount: warnings, infoCount: infos, affectedEmployees: employeeIds.size }
   }, [allIssues])
-
-  const handleNavigateForIssue = useCallback((employeeId: string, category: IssueCategory) => {
-    switch (category) {
-      case 'missing_personal_data':
-      case 'missing_bank_details':
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'details' }))
-        break
-      case 'missing_contract_salary':
-      case 'missing_tax_social':
-      case 'missing_country_specific':
-      case 'pending_final_payroll':
-      case 'invalid_effective_dates':
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'employment' }))
-        break
-      case 'missing_approvals':
-        navigateTo(buildPlatformUrl('/platform/task-manager', { view: 'inbox' }))
-        break
-      case 'missing_absence_data':
-      case 'overlapping_absences':
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'absences' }))
-        break
-      case 'retroactive_changes':
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'changeLog' }))
-        break
-      default:
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'details' }))
-    }
-  }, [])
 
   return (
     <div className="gba:space-y-6" data-testid="payroll-prep-exceptions-view">
@@ -216,18 +161,6 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
               </Select>
             </div>
           </div>
-          {addressedIds.size > 0 && (
-            <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-              <Checkbox
-                checked={hideAddressed}
-                onCheckedChange={checked => setHideAddressed(!!checked)}
-                data-testid="payroll-prep-exceptions-hide-addressed-checkbox"
-              />
-              <span className="gba:text-sm gba:text-muted-foreground">
-                {t('exceptions-hide-addressed')} ({addressedIds.size})
-              </span>
-            </label>
-          )}
         </div>
         <Button
           variant="outline"
@@ -255,39 +188,22 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
         ) : (
           filteredIssues.map(issue => {
             const issueKey = `${issue.employeeId}-${issue.issueCode}`
-            const isAddressed = addressedIds.has(issueKey)
             return (
               <Card
                 key={issueKey}
-                className={`gba:p-4 gba:transition-colors ${isAddressed ? 'gba:opacity-50' : 'gba:hover:bg-muted/50'}`}
+                className="gba:p-4"
                 data-issue-code={issue.issueCode}
                 data-testid={`payroll-prep-exception-card-${issueKey}`}
               >
                 <div className="gba:flex gba:items-start gba:gap-3">
-                  <Checkbox
-                    checked={isAddressed}
-                    onCheckedChange={() => toggleAddressed(issueKey)}
-                    aria-label={t('exceptions-mark-addressed')}
-                    className="gba:mt-1"
-                    data-testid={`payroll-prep-exception-addressed-checkbox-${issueKey}`}
-                  />
                   <div className="gba:mt-1">
                     <SeverityIcon severity={issue.severity} />
                   </div>
 
-                  <button
-                    type="button"
-                    className="gba:flex-1 gba:min-w-0 gba:cursor-pointer gba:text-left"
-                    onClick={() => handleNavigateForIssue(issue.employeeId, issue.category)}
-                    data-testid={`payroll-prep-exception-open-${issueKey}`}
-                  >
+                  <div className="gba:flex-1 gba:min-w-0">
                     <div className="gba:flex gba:items-center gba:justify-between gba:mb-1 gba:flex-wrap gba:gap-2">
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <span
-                          className={`gba:text-sm gba:font-semibold ${isAddressed ? 'gba:line-through gba:text-muted-foreground' : 'gba:text-foreground'}`}
-                        >
-                          {issue.employeeName}
-                        </span>
+                        <span className="gba:text-sm gba:font-semibold gba:text-foreground">{issue.employeeName}</span>
                         <span className="gba:text-xs gba:text-muted-foreground gba:font-mono">
                           {issue.employeeCode}
                         </span>
@@ -302,13 +218,9 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
                         <SeverityBadge severity={issue.severity} t={t} />
                       </div>
                     </div>
-                    <p
-                      className={`gba:text-sm gba:mb-1 ${isAddressed ? 'gba:line-through gba:text-muted-foreground' : 'gba:text-foreground'}`}
-                    >
-                      {issue.message}
-                    </p>
+                    <p className="gba:text-sm gba:mb-1 gba:text-foreground">{issue.message}</p>
                     <p className="gba:text-xs gba:text-primary">{issue.recommendedAction}</p>
-                  </button>
+                  </div>
                 </div>
               </Card>
             )

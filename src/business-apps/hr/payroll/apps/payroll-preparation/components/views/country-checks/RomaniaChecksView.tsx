@@ -30,7 +30,7 @@ export const RomaniaChecksView: React.FC<RomaniaChecksViewProps> = ({ employees,
   return (
     <div className="gba:space-y-6" data-testid="payroll-prep-country-checks-ro-view">
       <Card
-        className="gba:p-4 gba:flex gba:items-center gba:justify-between"
+        className="gba:p-4 gba:flex gba:items-start gba:justify-between"
         data-testid="payroll-prep-country-checks-ro-summary-card"
       >
         <div>

@@ -14,10 +14,8 @@ import {
   CheckCircleIcon,
   WarningIcon,
   XCircleIcon,
-  MinusCircleIcon,
   UsersIcon,
   ArrowsClockwiseIcon,
-  ShieldWarningIcon,
   WarningCircleIcon,
   PlusIcon,
   FolderOpenIcon
@@ -40,9 +38,9 @@ interface OverviewViewProps {
 type BadgeVariant = 'success' | 'warning' | 'destructive' | 'secondary' | 'outline'
 
 /** One place to tune KPI pictogram size (icon + box). */
-const KPI_ICON_SIZE_PX = 32
-const KPI_ICON_CLASS = 'gba:h-8 gba:w-8 gba:shrink-0'
-const KPI_ICON_BOX_CLASS = 'gba:h-12 gba:w-12'
+const KPI_ICON_SIZE_PX = 24
+const KPI_ICON_CLASS = 'gba:h-6 gba:w-6 gba:shrink-0'
+const KPI_ICON_BOX_CLASS = 'gba:h-10 gba:w-10'
 
 function KpiGlyph(props: Readonly<{ icon: React.ElementType; weight?: 'fill' | 'duotone' }>) {
   const { icon: Icon, weight = 'fill' } = props
@@ -82,8 +80,8 @@ interface ReadinessSegmentConfig {
 
 const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, variant }) => {
   return (
-    <Card className="gba:p-4">
-      <div className="gba:flex gba:flex-row gba:items-center gba:gap-4">
+    <Card className="gba:p-3">
+      <div className="gba:flex gba:flex-row gba:items-center gba:gap-3">
         <div
           className={`gba:flex ${KPI_ICON_BOX_CLASS} gba:shrink-0 gba:items-center gba:justify-center gba:rounded-xl ${kpiIconContainerClass(variant)}`}
           aria-hidden
@@ -91,7 +89,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, variant }) => {
           {icon}
         </div>
         <div className="gba:min-w-0">
-          <p className="gba:text-xl gba:font-bold gba:text-foreground gba:leading-tight">{value}</p>
+          <p className="gba:text-lg gba:font-bold gba:text-foreground gba:leading-tight">{value}</p>
           <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{label}</p>
         </div>
       </div>
@@ -249,18 +247,6 @@ function RunDashboardView({
         variant: 'destructive' as const
       },
       {
-        label: t('summary-excluded'),
-        value: summary.excludedCount,
-        icon: <KpiGlyph icon={MinusCircleIcon} />,
-        variant: 'secondary' as const
-      },
-      {
-        label: t('summary-blockers'),
-        value: summary.openBlockers,
-        icon: <KpiGlyph icon={ShieldWarningIcon} />,
-        variant: 'destructive' as const
-      },
-      {
         label: t('summary-changed'),
         value: summary.changedSinceLastPayroll,
         icon: <KpiGlyph icon={ArrowsClockwiseIcon} />,
@@ -292,13 +278,6 @@ function RunDashboardView({
         badgeVariant: 'destructive',
         barClassName: 'gba:bg-destructive',
         label: t('summary-blocked')
-      },
-      {
-        key: 'excluded',
-        count: summary.excludedCount,
-        badgeVariant: 'secondary',
-        barClassName: 'gba:bg-muted-foreground/30',
-        label: t('summary-excluded')
       }
     ],
     [summary, t]
@@ -351,7 +330,7 @@ function RunDashboardView({
         </div>
       </Card>
 
-      <div className="gba:grid gba:grid-cols-4 gba:gap-4" data-testid="payroll-prep-overview-kpi-grid">
+      <div className="gba:grid gba:grid-cols-5 gba:gap-3" data-testid="payroll-prep-overview-kpi-grid">
         {kpiCards.map(card => (
           <KpiCard key={card.label} label={card.label} value={card.value} icon={card.icon} variant={card.variant} />
         ))}

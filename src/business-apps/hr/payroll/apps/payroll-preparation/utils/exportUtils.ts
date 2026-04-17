@@ -1,9 +1,13 @@
 import ExcelJS from 'exceljs'
 import type { PayrollEmployee, ExportOptions, PayrollRun } from '../types/payrollTypes'
 
+function sanitizeExportText(value: string): string {
+  return value.replace(/[\u200e\u200f\u2066\u2067\u2068\u2069]/g, '')
+}
+
 function escapeCSVField(value: string | number | boolean | null | undefined): string {
   if (value == null) return ''
-  const str = String(value)
+  const str = sanitizeExportText(String(value))
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {
     return `"${str.replace(/"/g, '""')}"`
   }
@@ -68,7 +72,7 @@ function toOptionalStringValue(value: string | number | boolean | null | undefin
     return ''
   }
 
-  return String(value)
+  return sanitizeExportText(String(value))
 }
 
 function employeeToRow(employee: PayrollEmployee, includeIssues: boolean): string[] {
@@ -172,8 +176,8 @@ export function generateExceptionsCSV(employees: PayrollEmployee[]): string {
         issue.issueCode,
         issue.category,
         issue.severity,
-        issue.message,
-        issue.recommendedAction,
+        sanitizeExportText(issue.message),
+        sanitizeExportText(issue.recommendedAction),
         issue.status
       ])
     }
@@ -219,8 +223,8 @@ export async function generateExceptionsXLSX(employees: PayrollEmployee[]): Prom
         issue.issueCode,
         issue.category,
         issue.severity,
-        issue.message,
-        issue.recommendedAction,
+        sanitizeExportText(issue.message),
+        sanitizeExportText(issue.recommendedAction),
         issue.status
       ])
     }
@@ -292,5 +296,5 @@ export function downloadBlob(blob: Blob, filename: string): void {
 }
 
 export function downloadCSV(content: string, filename: string): void {
-  downloadBlob(new Blob([content], { type: 'text/csv;charset=utf-8;' }), filename)
+  downloadBlob(new Blob(['\uFEFF', content], { type: 'text/csv;charset=utf-8;' }), filename)
 }
