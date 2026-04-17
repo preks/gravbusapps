@@ -17,6 +17,8 @@ export interface TimeInterventionItem {
   workedMinutes: number
   reason: 'MISSING_HOURS' | 'NO_ATTENDANCE' | 'ABSENCE_WITH_ATTENDANCE'
   pendingCorrection?: boolean
+  timeEntryId?: string
+  timeEntryVersion?: number
 }
 
 export interface UseTimeInterventionsParams {
@@ -118,13 +120,17 @@ export const useTimeInterventions = ({ employeeId, accessToken, workingHours }: 
           }
         } catch {}
 
-        // Build day map of worked minutes
-        const workedByDay = attendanceRows.reduce<Record<string, number>>((acc, r) => {
+        // Build day map of worked minutes and keep track of attendance entry per date
+        const workedByDay: Record<string, number> = {}
+        const entryByDay: Record<string, { id: string; version?: number }> = {}
+        for (const r of attendanceRows) {
           const day = String(r.attendanceDate)
           const eff = parseDurationToMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)
-          acc[day] = (acc[day] || 0) + Math.max(0, eff)
-          return acc
-        }, {})
+          workedByDay[day] = (workedByDay[day] || 0) + Math.max(0, eff)
+          if (r.id && !entryByDay[day]) {
+            entryByDay[day] = { id: String(r.id), version: r.version }
+          }
+        }
 
         // Fetch approved absences to exclude days covered by non-work absences (vacation, sick, etc.)
         const nonWorkAbsenceDates = new Set<string>()
@@ -166,10 +172,25 @@ export const useTimeInterventions = ({ employeeId, accessToken, workingHours }: 
           const worked = workedByDay[key] || 0
 
           if (planned > 0) {
+            const entry = entryByDay[key]
             if (worked === 0) {
-              itemsAcc.push({ date: key, plannedMinutes: planned, workedMinutes: worked, reason: 'NO_ATTENDANCE' })
+              itemsAcc.push({
+                date: key,
+                plannedMinutes: planned,
+                workedMinutes: worked,
+                reason: 'NO_ATTENDANCE',
+                timeEntryId: entry?.id,
+                timeEntryVersion: entry?.version
+              })
             } else if (worked < planned) {
-              itemsAcc.push({ date: key, plannedMinutes: planned, workedMinutes: worked, reason: 'MISSING_HOURS' })
+              itemsAcc.push({
+                date: key,
+                plannedMinutes: planned,
+                workedMinutes: worked,
+                reason: 'MISSING_HOURS',
+                timeEntryId: entry?.id,
+                timeEntryVersion: entry?.version
+              })
             }
           }
           cursor.setDate(cursor.getDate() + 1)

@@ -271,7 +271,13 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({
                                       contextData: {
                                         employeeId,
                                         attendanceDateISO: new Date(item.date).toISOString().slice(0, 10),
-                                        reason: item.reason
+                                        reason: item.reason,
+                                        timeEntryId: item.timeEntryId,
+                                        timeEntryVersion: item.timeEntryVersion,
+                                        employeeAttendanceCorrectionRequest: {
+                                          timeEntryId: item.timeEntryId,
+                                          timeEntryVersion: item.timeEntryVersion
+                                        }
                                       }
                                     }
                                   ]}
