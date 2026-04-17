@@ -9,6 +9,7 @@ import {
   employmentRegionHolidaysQuery
 } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 import { parseDurationToMinutes } from '@/business-apps/hr/core/apps/my-time/utils/duration'
+import { GET_EMPLOYEE_ABSENCES } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 
 export interface TimeInterventionItem {
   date: string // YYYY-MM-DD
@@ -125,15 +126,43 @@ export const useTimeInterventions = ({ employeeId, accessToken, workingHours }: 
           return acc
         }, {})
 
-        // For now, treat absence detection as "planned 0 because holiday/weekend" only.
-        // Integrating full absence API can be added later.
+        // Fetch approved absences to exclude days covered by non-work absences (vacation, sick, etc.)
+        const nonWorkAbsenceDates = new Set<string>()
+        try {
+          const absRes = await graphqlClient.request<any>(GET_EMPLOYEE_ABSENCES, {
+            where: { employee: { id: { _eq: employeeId } }, isDeleted: { _eq: false } },
+            orderBy: [{ createdAt: 'DESC' }],
+            limit: 1000,
+            offset: 0,
+            activeUserLocale: locale
+          })
+          const absences: any[] = absRes?.EmployeeAbsence || []
+          const WORK_ABSENCE_GROUP = 'AbsenceGroup:v1:WORK'
+          for (const a of absences) {
+            if (String(a.status).toUpperCase() !== 'APPROVED') continue
+            const isWork = a.type?.parentEntryId === WORK_ABSENCE_GROUP
+            if (isWork || !a.startDate || !a.endDate) continue
+            const from = new Date(String(a.startDate))
+            const to = new Date(String(a.endDate))
+            const absCursor = new Date(from.getFullYear(), from.getMonth(), from.getDate())
+            const absEnd = new Date(to.getFullYear(), to.getMonth(), to.getDate())
+            while (absCursor <= absEnd) {
+              if (absCursor >= monthStart && absCursor <= monthEnd) {
+                nonWorkAbsenceDates.add(toKey(absCursor))
+              }
+              absCursor.setDate(absCursor.getDate() + 1)
+            }
+          }
+        } catch {
+          // If absence query fails, proceed without absence data
+        }
 
         const itemsAcc: TimeInterventionItem[] = []
         const cursor = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1)
         while (cursor <= monthEnd) {
           const key = toKey(cursor)
-          // Skip holidays
-          const planned = holidays.has(key) ? 0 : getPlannedMinutesForDate(cursor)
+          const isOff = holidays.has(key) || nonWorkAbsenceDates.has(key)
+          const planned = isOff ? 0 : getPlannedMinutesForDate(cursor)
           const worked = workedByDay[key] || 0
 
           if (planned > 0) {
