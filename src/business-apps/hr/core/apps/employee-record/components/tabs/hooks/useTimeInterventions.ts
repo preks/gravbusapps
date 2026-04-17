@@ -11,14 +11,26 @@ import {
 import { parseDurationToMinutes } from '@/business-apps/hr/core/apps/my-time/utils/duration'
 import { GET_EMPLOYEE_ABSENCES } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 
+export interface TimeInterventionEntry {
+  id: string
+  version?: number
+  startTime?: string
+  endTime?: string
+  recordedTime?: string
+  breakTime?: string
+  effectiveTime?: string
+  plannedTime?: string
+  differenceTime?: string
+  notes?: string
+}
+
 export interface TimeInterventionItem {
   date: string // YYYY-MM-DD
   plannedMinutes: number
   workedMinutes: number
   reason: 'MISSING_HOURS' | 'NO_ATTENDANCE' | 'ABSENCE_WITH_ATTENDANCE'
   pendingCorrection?: boolean
-  timeEntryId?: string
-  timeEntryVersion?: number
+  entry?: TimeInterventionEntry
 }
 
 export interface UseTimeInterventionsParams {
@@ -122,13 +134,24 @@ export const useTimeInterventions = ({ employeeId, accessToken, workingHours }: 
 
         // Build day map of worked minutes and keep track of attendance entry per date
         const workedByDay: Record<string, number> = {}
-        const entryByDay: Record<string, { id: string; version?: number }> = {}
+        const entryByDay: Record<string, TimeInterventionEntry> = {}
         for (const r of attendanceRows) {
           const day = String(r.attendanceDate)
           const eff = parseDurationToMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)
           workedByDay[day] = (workedByDay[day] || 0) + Math.max(0, eff)
           if (r.id && !entryByDay[day]) {
-            entryByDay[day] = { id: String(r.id), version: r.version }
+            entryByDay[day] = {
+              id: String(r.id),
+              version: r.version,
+              startTime: r.startTime ? String(r.startTime) : undefined,
+              endTime: r.endTime ? String(r.endTime) : undefined,
+              recordedTime: r.recordedTime ? String(r.recordedTime) : undefined,
+              breakTime: r.breakTime ? String(r.breakTime) : undefined,
+              effectiveTime: r.effectiveTime ? String(r.effectiveTime) : undefined,
+              plannedTime: r.plannedTime ? String(r.plannedTime) : undefined,
+              differenceTime: r.differenceTime ? String(r.differenceTime) : undefined,
+              notes: r.notes ? String(r.notes) : undefined
+            }
           }
         }
 
@@ -179,8 +202,7 @@ export const useTimeInterventions = ({ employeeId, accessToken, workingHours }: 
                 plannedMinutes: planned,
                 workedMinutes: worked,
                 reason: 'NO_ATTENDANCE',
-                timeEntryId: entry?.id,
-                timeEntryVersion: entry?.version
+                entry
               })
             } else if (worked < planned) {
               itemsAcc.push({
@@ -188,8 +210,7 @@ export const useTimeInterventions = ({ employeeId, accessToken, workingHours }: 
                 plannedMinutes: planned,
                 workedMinutes: worked,
                 reason: 'MISSING_HOURS',
-                timeEntryId: entry?.id,
-                timeEntryVersion: entry?.version
+                entry
               })
             }
           }
