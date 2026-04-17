@@ -9,7 +9,7 @@ import { FileText, ChevronRight, Layers } from 'lucide-react'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background/PremiumHeroBackground'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
-export type DocumentSection = 'home' | 'my-documents' | 'shared' | 'templates' | 'favorites' | 'recent' | 'archived'
+export type DocumentSection = 'home' | 'my-documents' | 'shared' | 'templates' | 'favorites' | 'recent' | 'trash'
 
 interface SectionTab {
   id: DocumentSection
@@ -22,7 +22,7 @@ const SECTION_TABS: SectionTab[] = [
   { id: 'templates', labelKey: 'dh-tab-templates' },
   { id: 'favorites', labelKey: 'dh-tab-favorites' },
   { id: 'recent', labelKey: 'dh-tab-recent' },
-  { id: 'archived', labelKey: 'dh-tab-archived' }
+  { id: 'trash', labelKey: 'dh-tab-trash' }
 ]
 
 export interface DocumentHeroProps {

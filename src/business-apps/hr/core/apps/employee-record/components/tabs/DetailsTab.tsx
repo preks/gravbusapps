@@ -4,13 +4,14 @@ import React from 'react'
 import dayjs from 'dayjs'
 import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
-import { formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
+import { getTranslatedValue } from '../../utils/formatters'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
 import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 import CommunicationCard from './components/CommunicationCard'
+import RelationshipsCard from './components/RelationshipsCard'
 
 interface DetailsTabProps {
   employee: Employee
@@ -139,25 +140,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
   }
 
   const bankAccountData = getBankAccountData()
-
-  // Prepare emergency contact data
-
-  const getEmergencyContact = () => {
-    const emergencyContacts = employee.relationship?.filter(rel => rel.isEmergencyContact) || []
-
-    return emergencyContacts.map(contact => [
-      {
-        label: t('details-label-contact-name'),
-        value: `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || ''
-      },
-      {
-        label: t('details-label-phone-number'),
-        value: contact?.phoneNumber ? formatPhoneNumberWithCountryCode(contact.phoneNumber) : ''
-      }
-    ])
-  }
-
-  const emergencyContactData = getEmergencyContact()
 
   // Payroll data has been moved to EmploymentTab
 
@@ -290,39 +272,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           </CardContent>
         </Card>
 
-        {/* Emergency Contact Card - Always visible but values may be masked */}
-        <Card data-testid="details-section-emergency">
-          <CardContent className="gba:p-4">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-lg gba:font-semibold">{t('details-emergency-contact')}</h3>
-              <AppAction
-                variant="update-secondary"
-                data-testid="emergency-contact-action-button"
-                contexts={[
-                  { context: FlowContextName.updateEmployeeRelationship, contextData: { employeeId: employee?.id } }
-                ]}
-                prefixDataTestId="emergency-contact-action"
-                accessToken={accessToken}
-                autoExecute={true}
-              />
-            </div>
-            <div className="gba:flex gba:flex-col gba:gap-2">
-              {emergencyContactData && emergencyContactData.length > 0 ? (
-                emergencyContactData.map(items => (
-                  <div key={`emergency-contact-${items.map(item => `${item.label}-${item.value}`).join('|')}`}>
-                    {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
-                  </div>
-                ))
-              ) : (
-                <div className="gba:text-muted-foreground gba:text-sm gba:py-4">
-                  {t('details-no-emergency-contact')}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Additional Attributes - moved from Summary tab */}
+        {/* Additional Attributes */}
         {(() => {
           const props = employee?.additionalProperties || {}
           const items = Object.entries(props)
@@ -358,6 +308,13 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         })()}
 
         <CommunicationCard
+          employee={employee}
+          accessToken={accessToken}
+          isSelfView={isSelfView}
+          employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+        />
+
+        <RelationshipsCard
           employee={employee}
           accessToken={accessToken}
           isSelfView={isSelfView}

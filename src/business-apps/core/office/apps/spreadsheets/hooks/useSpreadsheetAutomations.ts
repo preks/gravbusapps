@@ -23,7 +23,7 @@ import { buildSentRowTrackingValues, buildCompletedRowTrackingValues, isTracking
 import { getDefaultTrackingColumns } from '../components/automations/TrackingColumnsConfig'
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { fetchRecipientsData } from '../utils/fetchRecipientData'
-import { DOCUMENT_API_URL } from '@/common/utils/serviceResolver'
+import { getSpreadsheetServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import { SpreadsheetApiService } from '../services/SpreadsheetApiService'
 import { fetchAutomationsForSingleSheet } from '../components/automations/automationSectionUtils'
 
@@ -558,7 +558,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
       if (cached) return cached
 
       try {
-        const docBase = DOCUMENT_API_URL.replace(/\/+$/, '')
+        const docBase = getSpreadsheetServiceApiUrl().replace(/\/+$/, '')
         const response = await fetch(`${docBase}/automations/app/${spreadsheetId}`, {
           method: 'GET',
           headers: {

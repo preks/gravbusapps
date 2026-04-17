@@ -290,7 +290,7 @@ error-end-date-after-start-date = Data de încheiere trebuie să fie în sau dup
 notification-address-updated-success = Actualizările adresei sunt finalizate
 notification-bank-account-updated-success = Actualizările contului bancar sunt finalizate.
 notification-personal-data-updated-success = Actualizările datelor personale au fost trimise spre aprobare departamentului HR.
-notification-communication-updated-success = Actualizările detaliilor de comunicare au fost trimise spre aprobare departamentului HR.
+notification-communication-updated-success = Detaliile de comunicare au fost actualizate. HR a fost notificat.
 notification-profile-picture-updated-success = Actualizările fotografiei de profil au fost trimise spre aprobare departamentului HR.
 notification-relationship-updated-success = Actualizările statutului relației au fost trimise spre aprobare departamentului HR.
 notification-expense-created-success = Cheltuiala a fost creată cu succes
@@ -766,6 +766,17 @@ details-label-private-mobile = Mobil privat
 details-label-private-email = E-mail privat
 details-label-contact-name = Nume contact
 details-label-phone-number = Număr telefon
+
+# Relationships Card
+details-relationships = Relații
+details-relationships-no-entries = Nu există relații înregistrate
+details-relationships-emergency = Contact de urgență
+details-label-relationship-type = Tip
+details-label-relationship-birth-date = Data nașterii
+details-label-relationship-email = E-mail
+delete-relationship-confirm-title = Șterge relația
+delete-relationship-confirm-description = Sigur doriți să ștergeți această relație? Această acțiune nu poate fi anulată.
+delete-relationship-confirm-button = Șterge
 
 # Employment Tab
 employment-overview = Date angajare

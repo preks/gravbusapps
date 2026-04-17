@@ -88,9 +88,9 @@ untitled = Fără titlu
 results-for-prefix = Rezultate pentru
 pick-up-where = Continuă de unde ai rămas
 empty-search-title = Niciun element nu corespunde căutării
-empty-default-title = Încă nu există elemente recente
+desk-empty-default-title = Încă nu există elemente recente
 empty-search-description = Încercați alt termen de căutare
-empty-default-description = Creați primul document, foaie de calcul sau notă pentru a începe
+desk-empty-default-description = Creați primul document, foaie de calcul sau notă pentru a începe
 
 # App card
 app-shared-count = { $count } partajat(e)
@@ -99,7 +99,7 @@ app-open = Deschide
 # Nexus Teaser
 nexus-title = Nexus
 nexus-badge = Bazat pe AI
-nexus-description = Spațiul tău inteligent de conținut. Generează documente, analize și prezentări prin conversație.
+nexus-description = Spațiul tău inteligent de conținut. Generează documente și analize prin conversație.
 nexus-try = Încearcă Nexus
 
 # Activity visualization

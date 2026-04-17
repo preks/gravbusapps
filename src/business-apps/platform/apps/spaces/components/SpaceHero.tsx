@@ -5,10 +5,11 @@
  */
 
 import React from 'react'
-import { Button, Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { Button, Badge, Avatar, AvatarImage, AvatarFallback, useTranslation } from '@newwork/nw-design-system'
 import { ArrowLeft, Settings, Share2, Globe, Lock, Plus } from 'lucide-react'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import type { Space, SpaceMember } from '../types/space.types'
+import translations from '../_i18n'
 
 export interface EnrichedSpaceMember extends SpaceMember {
   userName?: string
@@ -59,6 +60,7 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
   onAddContent,
   'data-testid': testId = 'space-hero'
 }) => {
+  const { t } = useTranslation(translations)
   const displayMembers = members.slice(0, 4)
   const extraMembers = members.length - 4
 
@@ -78,7 +80,7 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
               data-testid={`${testId}-back-button`}
             >
               <ArrowLeft className="gba:w-4 gba:h-4" />
-              Back
+              {t('common-back')}
             </Button>
 
             <div className="gba:flex gba:gap-2">
@@ -101,7 +103,7 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
                 data-testid={`${testId}-share-button`}
               >
                 <Share2 className="gba:w-4 gba:h-4" />
-                Share
+                {t('common-share')}
               </Button>
               {canEdit && (
                 <Button
@@ -111,7 +113,7 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
                   data-testid={`${testId}-add-content-button`}
                 >
                   <Plus className="gba:w-4 gba:h-4" />
-                  Add Content
+                  {t('common-add-content')}
                 </Button>
               )}
             </div>
@@ -125,12 +127,12 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
                 {space.isPublic ? (
                   <>
                     <Globe className="gba:w-3 gba:h-3" />
-                    Public
+                    {t('common-public')}
                   </>
                 ) : (
                   <>
                     <Lock className="gba:w-3 gba:h-3" />
-                    Private
+                    {t('common-private')}
                   </>
                 )}
               </Badge>
@@ -159,7 +161,7 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
                   </Avatar>
                   <div>
                     <p className="gba:text-sm gba:font-medium gba:text-white">{ownerInfo.name}</p>
-                    <p className="gba:text-xs gba:text-white/60">Owner</p>
+                    <p className="gba:text-xs gba:text-white/60">{t('hero-owner-label')}</p>
                   </div>
                 </div>
               )}
@@ -178,7 +180,7 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
                         style={{ zIndex: 10 - i }}
                       >
                         {member.userAvatar ? (
-                          <AvatarImage src={member.userAvatar} alt={member.userName || 'Member'} />
+                          <AvatarImage src={member.userAvatar} alt={member.userName || t('common-unknown')} />
                         ) : null}
                         <AvatarFallback className="gba:bg-white/15 gba:text-white gba:text-xs gba:font-medium">
                           {getInitials(member.userName, member.userId)}
@@ -195,7 +197,7 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
                     )}
                   </div>
                   <span className="gba:text-sm gba:text-white/60">
-                    {members.length} member{members.length !== 1 ? 's' : ''}
+                    {t('common-member-count', { count: members.length })}
                   </span>
                 </div>
               )}

@@ -3,7 +3,7 @@ import { Typography, Table, Tag, List, Avatar } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts'
 import { UserIcon, SirenIcon } from '@phosphor-icons/react'
 import { ReportingChainData, ReportingChainSummary } from '../types/structuralTypes'
-import { useTranslation } from '@newwork/nw-design-system'
+import { useTranslation, SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Text } = Typography
@@ -20,14 +20,47 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
   prefixDataTestId = 'StructuralAnalysis'
 }) => {
   const { t } = useTranslation(hrTranslations)
+  const averageChainLength = Number.isFinite(summary.averageChainLength) ? summary.averageChainLength : 0
+  const maxChainLength = Number.isFinite(summary.maxChainLength) ? summary.maxChainLength : 0
+  const minChainLength = Number.isFinite(summary.minChainLength) ? summary.minChainLength : 0
+  const bottlenecksCount = Array.isArray(summary.bottlenecks) ? summary.bottlenecks.length : 0
+  const chainTotal = Array.isArray(chains) ? chains.length : 0
+  const bottleneckPercent = chainTotal > 0 ? Math.round((bottlenecksCount / chainTotal) * 100) : 0
+
+  const summaryCards: KpiCardData[] = [
+    {
+      id: 'reporting-chain-average',
+      title: t('hr-analytics-average-chain-length'),
+      value: averageChainLength.toFixed(1),
+      footer: t('hr-analytics-reporting-chain-summary')
+    },
+    {
+      id: 'reporting-chain-max',
+      title: t('hr-analytics-max-chain-length'),
+      value: maxChainLength,
+      footer: t('hr-analytics-levels-title')
+    },
+    {
+      id: 'reporting-chain-min',
+      title: t('hr-analytics-min-chain-length'),
+      value: minChainLength,
+      footer: t('hr-analytics-levels-title')
+    },
+    {
+      id: 'reporting-chain-bottlenecks',
+      title: t('hr-analytics-bottlenecks-identified'),
+      value: bottlenecksCount,
+      footer: `${bottleneckPercent}% ${t('hr-analytics-of')} ${t('hr-analytics-reporting-chains').toLowerCase()}`,
+      progress: {
+        label: `${t('hr-analytics-of')} ${t('hr-analytics-reporting-chains').toLowerCase()}`,
+        target: Math.max(chainTotal, 1),
+        value: bottleneckPercent
+      }
+    }
+  ]
+
   // Table columns for reporting chains
   const chainColumns = [
-    {
-      title: t('hr-analytics-chain-id'),
-      dataIndex: 'chainId',
-      key: 'chainId',
-      width: 120
-    },
     {
       title: t('hr-analytics-top-org-unit'),
       dataIndex: 'topManager',
@@ -54,24 +87,21 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
       }
     },
     {
-      title: t('hr-analytics-total-employees'),
-      dataIndex: 'totalEmployees',
-      key: 'totalEmployees',
-      width: 120,
-      align: 'center' as const,
-      render: (value: number) => (
-        <Text strong className="gba:text-base">
-          {value}
-        </Text>
-      )
-    },
-    {
-      title: t('hr-analytics-avg-span-of-control'),
-      dataIndex: 'averageSpanOfControl',
-      key: 'averageSpanOfControl',
-      width: 140,
-      align: 'center' as const,
-      render: (value: number) => value.toFixed(1)
+      title: t('hr-analytics-reporting-chains'),
+      dataIndex: 'chainPath',
+      key: 'chainPath',
+      width: 420,
+      render: (path?: string) => {
+        const displayPath = path?.trim() ?? ''
+        if (displayPath.length === 0) {
+          return <Text className="gba:text-muted-foreground">-</Text>
+        }
+        return (
+          <Text className="gba:text-xs gba:text-muted-foreground" title={displayPath}>
+            {displayPath}
+          </Text>
+        )
+      }
     },
     {
       title: t('hr-analytics-bottlenecks'),
@@ -128,28 +158,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
         <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
           {t('hr-analytics-reporting-chain-summary')}
         </h3>
-        <div className="gba:grid gba:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gba:gap-4">
-          <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
-            <div className="gba:text-2xl gba:font-bold gba:text-foreground">
-              {summary.averageChainLength.toFixed(1)}
-            </div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-average-chain-length')}</div>
-          </div>
-          <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
-            <div className="gba:text-2xl gba:font-bold gba:text-foreground">{summary.maxChainLength}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-max-chain-length')}</div>
-          </div>
-          <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
-            <div className="gba:text-2xl gba:font-bold gba:text-foreground">{summary.minChainLength}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-min-chain-length')}</div>
-          </div>
-          <div className="gba:text-center gba:p-4 gba:bg-warning-secondary/40 gba:rounded">
-            <div className="gba:text-2xl gba:font-bold gba:text-warning-secondary-foreground">
-              {summary.bottlenecks.length}
-            </div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-bottlenecks-identified')}</div>
-          </div>
-        </div>
+        <SectionKpiCards cards={summaryCards} />
       </div>
 
       {/* Chain Distribution Chart */}
@@ -170,10 +179,11 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
 
       {/* Bottlenecks Analysis */}
       <div>
-        <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
+        <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold gba:flex gba:items-center">
           <SirenIcon size={16} className="gba:mr-2 gba:text-warning" />
-          {t('hr-analytics-bottleneck-managers')}
+          {t('hr-analytics-bottlenecks')}
         </h3>
+        <p className="gba:mb-4 gba:text-sm gba:text-muted-foreground">{t('hr-analytics-bottlenecks-description')}</p>
         <List
           dataSource={summary.bottlenecks}
           renderItem={bottleneck => (
@@ -184,8 +194,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
                 description={
                   <div>
                     <Text>
-                      {bottleneck.chainsThroughManager} {t('hr-analytics-reporting-chains')}{' '}
-                      {t('hr-analytics-pass-through-this-manager')}
+                      {bottleneck.chainsThroughManager} {t('hr-analytics-reporting-chains')}
                     </Text>
                     <br />
                     <Tag color="var(--nw-warning)">

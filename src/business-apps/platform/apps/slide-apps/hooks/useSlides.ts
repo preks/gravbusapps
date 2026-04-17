@@ -26,6 +26,7 @@ export interface ImportSlideResult {
 
 interface UseSlidesResult extends UseSlidesState {
   loadSlide: (id: string) => Promise<Slide | null>
+  loadTrashedSlide: (id: string) => Promise<Slide | null>
   createSlide: (payload: {
     title: string
     description?: string
@@ -103,6 +104,25 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
         return slide
       } catch (err) {
         console.error('[useSlides] loadSlide:', err)
+        toast.error(t('slides-toast-load-failed'))
+        return null
+      }
+    },
+    [accessToken, t]
+  )
+
+  const loadTrashedSlide = useCallback(
+    async (id: string): Promise<Slide | null> => {
+      if (!accessToken) return null
+      try {
+        const slide = await SlidesApiService.getTrashedPreview(id)
+        const resolvedSlide = slide ?? (await SlidesApiService.getSlide(id))
+        if (resolvedSlide) {
+          setState(prev => ({ ...prev, currentSlide: resolvedSlide }))
+        }
+        return resolvedSlide
+      } catch (err) {
+        console.error('[useSlides] loadTrashedSlide:', err)
         toast.error(t('slides-toast-load-failed'))
         return null
       }
@@ -201,7 +221,7 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
             slides: prev.slides.filter(s => s.id !== id),
             currentSlide: prev.currentSlide?.id === id ? null : prev.currentSlide
           }))
-          toast.success(t('slides-toast-deleted'))
+          toast.success(t('slides-toast-moved-to-trash') || t('slides-toast-deleted'))
         }
         return ok
       } catch (err) {
@@ -255,6 +275,7 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
   return {
     ...state,
     loadSlide,
+    loadTrashedSlide,
     createSlide,
     importSlide,
     updateSlide,

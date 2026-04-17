@@ -6,8 +6,10 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { Space, SpaceContentItem, MoveContentInput } from '../types/space.types'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import translations from '../_i18n'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -40,6 +42,7 @@ export function useSpaceContent(
   onContentChange?: () => void,
   options?: { folderId?: string | null }
 ): UseSpaceContentResult {
+  const { t } = useTranslation(translations)
   const [documents, setDocuments] = useState<SpaceContentItem[]>([])
   const [notes, setNotes] = useState<SpaceContentItem[]>([])
   const [spreadsheets, setSpreadsheets] = useState<SpaceContentItem[]>([])
@@ -100,7 +103,7 @@ export function useSpaceContent(
         const contentItem: SpaceContentItem = {
           id: item.entityId || item.id,
           type,
-          title: item.title || item.name || 'Untitled',
+          title: item.title || item.name || t('common-untitled'),
           description: item.description,
           updatedAt: item.updatedAt || item.addedAt || new Date().toISOString(),
           createdAt: item.createdAt || item.addedAt || new Date().toISOString(),
@@ -136,11 +139,11 @@ export function useSpaceContent(
       setDriveFiles(driveFileItems)
     } catch (err) {
       console.error('[useSpaceContent] Fetch error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch content')
+      setError(err instanceof Error ? err.message : t('error-fetch-content'))
     } finally {
       setIsLoading(false)
     }
-  }, [spaceId, accessToken, options?.folderId])
+  }, [accessToken, options?.folderId, spaceId, t])
 
   // Fetch content when spaceId changes or space is updated
   useEffect(() => {
@@ -160,7 +163,7 @@ export function useSpaceContent(
   const moveContent = useCallback(
     async (input: Omit<MoveContentInput, 'targetSpaceId'>): Promise<boolean> => {
       if (!spaceId || !accessToken) {
-        setError('Not authenticated')
+        setError(t('error-not-authenticated'))
         return false
       }
 
@@ -186,7 +189,7 @@ export function useSpaceContent(
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.message || `Failed to move content: ${response.statusText}`)
+          throw new Error(errorData.message || t('error-move-content'))
         }
 
         // Update local state immediately without full refresh
@@ -203,19 +206,19 @@ export function useSpaceContent(
 
         return true
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to move content'
+        const message = err instanceof Error ? err.message : t('error-move-content')
         setError(message)
         console.error('[useSpaceContent] Move error:', err)
         return false
       }
     },
-    [spaceId, accessToken]
+    [accessToken, spaceId, t]
   )
 
   const removeContent = useCallback(
     async (entityType: string, entityId: string): Promise<boolean> => {
       if (!spaceId || !accessToken) {
-        setError('Not authenticated')
+        setError(t('error-not-authenticated'))
         return false
       }
 
@@ -232,7 +235,7 @@ export function useSpaceContent(
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to remove content: ${response.statusText}`)
+          throw new Error(t('error-remove-content'))
         }
 
         // Refresh content and space data
@@ -240,7 +243,7 @@ export function useSpaceContent(
         onContentChange?.()
         return true
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to remove content'
+        const message = err instanceof Error ? err.message : t('error-remove-content')
         setError(message)
         console.error('[useSpaceContent] Remove error:', err)
         return false
@@ -248,7 +251,7 @@ export function useSpaceContent(
         setIsLoading(false)
       }
     },
-    [spaceId, accessToken, fetchContent, onContentChange]
+    [accessToken, fetchContent, onContentChange, spaceId, t]
   )
 
   const addItemsToLocalState = useCallback(
@@ -259,7 +262,7 @@ export function useSpaceContent(
         const contentItem: SpaceContentItem = {
           id: item.id,
           type: item.type as 'document' | 'note' | 'spreadsheet' | 'slide' | 'drive_file',
-          title: item.title || item.name || 'Untitled',
+          title: item.title || item.name || t('common-untitled'),
           description: '',
           updatedAt: now,
           createdAt: now,
@@ -287,7 +290,7 @@ export function useSpaceContent(
         }
       })
     },
-    [spaceId]
+    [spaceId, t]
   )
 
   return {

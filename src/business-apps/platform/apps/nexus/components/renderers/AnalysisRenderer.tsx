@@ -22,6 +22,46 @@ interface AnalysisRendererProps {
   testId?: string
 }
 
+const toStableKeyPart = (value: unknown) => {
+  if (value == null || value === '') {
+    return 'empty'
+  }
+
+  const raw = typeof value === 'string' ? value : JSON.stringify(value)
+  return (
+    raw
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 80) || 'empty'
+  )
+}
+
+const buildStableKeys = <T,>(items: T[], getBaseKey: (item: T) => string) => {
+  const occurrences = new Map<string, number>()
+
+  return items.map(item => {
+    const baseKey = getBaseKey(item)
+    const nextOccurrence = (occurrences.get(baseKey) || 0) + 1
+    occurrences.set(baseKey, nextOccurrence)
+    return nextOccurrence === 1 ? baseKey : `${baseKey}-${nextOccurrence}`
+  })
+}
+
+const getKpiKey = (kpi: AnalysisContent['kpis'][number]) =>
+  ['kpi', kpi.label, kpi.value, kpi.unit, kpi.trend, kpi.trendValue].map(toStableKeyPart).join(':')
+
+const getChartKey = (chart: AnalysisContent['charts'][number]) =>
+  ['chart', chart.title, chart.type, chart.xKey, chart.yKey, chart.data.slice(0, 2)].map(toStableKeyPart).join(':')
+
+const getTableKey = (table: AnalysisContent['tables'][number]) =>
+  ['table', table.title, table.headers, table.rows.slice(0, 2)].map(toStableKeyPart).join(':')
+
+const getSectionKey = (section: AnalysisSection) =>
+  ['section', section.type, section.title, section.content?.slice(0, 120), section.chart?.title, section.table?.title]
+    .map(toStableKeyPart)
+    .join(':')
+
 export const AnalysisRenderer = ({
   content,
   title,
@@ -38,6 +78,10 @@ export const AnalysisRenderer = ({
   const hasContent =
     content.summary || content.kpis?.length > 0 || content.insights?.length > 0 || hasSections || hasLegacyContent
   const canEdit = editable && !isStreaming
+  const kpiKeys = buildStableKeys(content.kpis || [], getKpiKey)
+  const sectionKeys = buildStableKeys(content.sections || [], getSectionKey)
+  const chartKeys = buildStableKeys(content.charts || [], getChartKey)
+  const tableKeys = buildStableKeys(content.tables || [], getTableKey)
 
   if (!hasContent && isStreaming) {
     return (
@@ -154,7 +198,7 @@ export const AnalysisRenderer = ({
           </div>
           <div className="gba:grid gba:grid-cols-2 gba:lg:grid-cols-3 gba:xl:grid-cols-4 gba:gap-4">
             {content.kpis.map((kpi, i) => (
-              <AnalysisKpiCard key={i} kpi={kpi} testId={`${testId}-kpi-${i}`} />
+              <AnalysisKpiCard key={kpiKeys[i]} kpi={kpi} testId={`${testId}-kpi-${i}`} />
             ))}
           </div>
         </section>
@@ -166,7 +210,7 @@ export const AnalysisRenderer = ({
       {hasSections &&
         content.sections!.map((section, i) => (
           <AnalysisSectionRenderer
-            key={i}
+            key={sectionKeys[i]}
             section={section}
             index={i}
             accessToken={accessToken}
@@ -186,7 +230,7 @@ export const AnalysisRenderer = ({
               </h3>
               <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-4">
                 {content.charts.map((chart, i) => (
-                  <AnalysisChart key={i} chart={chart} testId={`${testId}-chart-${i}`} />
+                  <AnalysisChart key={chartKeys[i]} chart={chart} testId={`${testId}-chart-${i}`} />
                 ))}
               </div>
             </section>
@@ -198,7 +242,7 @@ export const AnalysisRenderer = ({
               </h3>
               <div className="gba:space-y-4">
                 {content.tables.map((table, i) => (
-                  <AnalysisTable key={i} table={table} testId={`${testId}-table-${i}`} />
+                  <AnalysisTable key={tableKeys[i]} table={table} testId={`${testId}-table-${i}`} />
                 ))}
               </div>
             </section>

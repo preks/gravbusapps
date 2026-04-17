@@ -7,11 +7,10 @@ import { AppActionForm } from '@/components/app-action-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { useInvestmentReport } from '@/common/data/investment/hooks/useInvestmentReport.new'
 import { useInvestment } from '@/common/data/investment/hooks/useInvestment.new'
-import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
+import { useInvestmentsList } from '@/common/data/investment/hooks/useInvestments'
 import { useInvestmentAccountsList } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import { useInvestmentTypes } from '@/common/data/investment/hooks/useInvestmentTypes'
 import { buildInvestmentReportPayload } from '@/common/data/investment/types/investmentReportTypes'
-import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import translations from './_i18n'
 import { InvestmentReportSegment } from './components/InvestmentReportSegment'
@@ -218,44 +217,17 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
     }
   }, [form, formResolver])
 
-  const [investments, setInvestments] = useState<Investment[]>([])
-  const [isLoadingInvestments, setIsLoadingInvestments] = useState(false)
-
-  const { fetchInvestments } = useGetInvestments({
-    accessToken,
-    userInfo,
-    additionalData
-  })
+  const {
+    investments,
+    loading: isLoadingInvestments,
+    hasMore: investmentsHasMore,
+    search: searchInvestments,
+    loadMore: loadMoreInvestments
+  } = useInvestmentsList({ accessToken, userInfo, additionalData }, 20)
 
   // Use fetchedInvestment from investmentId
   // Priority: 1) fetchedReport.investment, 2) fetchedInvestment (from investmentId)
   const currentFetchedInvestment = fetchedReport?.investment || fetchedInvestment
-
-  // Load investments list for select
-  const loadInvestments = useCallback(
-    async (searchTerm?: string) => {
-      if (!accessToken) return
-      try {
-        setIsLoadingInvestments(true)
-        const result = await fetchInvestments({
-          search: searchTerm,
-          limit: 20,
-          offset: 0
-        })
-        setInvestments(result?.Investment || [])
-      } catch (error) {
-        console.error('Error loading investments:', error)
-      } finally {
-        setIsLoadingInvestments(false)
-      }
-    },
-    [accessToken, fetchInvestments]
-  )
-
-  // Initial load of investments
-  useEffect(() => {
-    loadInvestments()
-  }, [loadInvestments])
 
   // Show investment select only if no initialInvestmentId was provided
   const showInvestmentSelect = !initialInvestmentId
@@ -368,8 +340,10 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
           selectedInvestmentId={investmentId}
           investments={investments}
           isLoadingInvestments={isLoadingInvestments}
+          hasMore={investmentsHasMore}
           onInvestmentChange={handleInvestmentChange}
-          onInvestmentSearch={loadInvestments}
+          onInvestmentSearch={searchInvestments}
+          onLoadMore={loadMoreInvestments}
         />
 
         {/* Investment Information + Dynamic Segment */}

@@ -1,4 +1,5 @@
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { getSpreadsheetApiBasePath } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import { createSafeObjectUrl, sanitizeDownloadFilename } from '@/common/utils/safeUrlUtils'
 import type {
   DriveFolder,
@@ -11,10 +12,12 @@ import type {
   DriveSortBy,
   DriveShortcut,
   ShareInfo,
-  ShareLinkInfo
+  ShareLinkInfo,
+  TrashedDriveItemDetail
 } from '../types/drive.types'
 
 const API_URL = getDocumentServiceApiUrl()
+const SPREADSHEET_API_BASE_PATH = getSpreadsheetApiBasePath()
 
 let currentAccessToken: string | null = null
 
@@ -270,6 +273,14 @@ export class DriveApiService {
     return apiRequest<{ deleted: number }>('/drive/trash', { method: 'DELETE' })
   }
 
+  static async getTrashedItem(entityType: string, entityId: string): Promise<TrashedDriveItemDetail> {
+    return apiRequest<TrashedDriveItemDetail>(`/drive/trash/${entityType}/${entityId}`)
+  }
+
+  static async deleteTrashedItem(entityType: string, entityId: string): Promise<void> {
+    await apiRequest<void>(`/drive/trash/${entityType}/${entityId}`, { method: 'DELETE' })
+  }
+
   static async search(
     query: string,
     contentTypes?: string[],
@@ -325,11 +336,11 @@ export class DriveApiService {
     name: string
     sheets?: Array<{ id: string; name: string; columns: unknown[]; position: number }>
   }> {
-    return apiRequest(`/spreadsheets/${id}`)
+    return apiRequest(`${SPREADSHEET_API_BASE_PATH}/${id}`)
   }
 
   static async fetchSpreadsheetRows(appId: string, sheetId: string): Promise<Array<{ data: Record<string, unknown> }>> {
-    return apiRequest(`/spreadsheets/${appId}/sheets/${sheetId}/rows`)
+    return apiRequest(`${SPREADSHEET_API_BASE_PATH}/${appId}/sheets/${sheetId}/rows`)
   }
 
   static async fetchSlide(id: string): Promise<{ id: string; title: string; content?: string; contentJson?: unknown }> {

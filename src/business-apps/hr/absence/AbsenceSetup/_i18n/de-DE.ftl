@@ -162,7 +162,6 @@ field-access-by-label = Zugriff durch
 code-placeholder = z. B. PTO
 icon-placeholder = z. B. vacation
 icon-field-tooltip = Gib einen semantischen Symbol-Schluessel ein, der in nachgelagerten Apps verwendet wird. Beispielwerte findest du in der Vorschlagsliste.
-icon-field-helper = Empfohlene Schluessel: vacation, sick, home-office, business-trip, training, family-care, jury-duty.
 color-placeholder = z. B. BE27F5
 group-placeholder = Gruppe auswaehlen
 validation-code-required = Code ist erforderlich.

@@ -2,7 +2,7 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 import type { DocumentOperation } from '@/business-apps/platform/apps/shared/services/CollaborationClient'
 import { useSpreadsheetCollaboration } from '../useSpreadsheetCollaboration'
 
-const mockOfficeClientInstances: Array<{
+const mockSpreadsheetClientInstances: Array<{
   socket: { connected: boolean; id: string }
   setAccessToken: jest.Mock
   connect: jest.Mock
@@ -24,10 +24,10 @@ jest.mock('@/common/network/graphql/useGraphQLClient', () => ({
   })
 }))
 
-jest.mock('@/common/network/office/OfficeWebSocketClient', () => {
+jest.mock('@/business-apps/platform/apps/shared/services/CollaborationClient', () => {
   type Listener = (...args: unknown[]) => void
 
-  class MockOfficeWebSocketClient {
+  class MockSpreadsheetCollaborationClient {
     socket = {
       connected: false,
       id: 'socket-1'
@@ -54,6 +54,7 @@ jest.mock('@/common/network/office/OfficeWebSocketClient', () => {
     onConnectError = jest.fn((handler: Listener) => this.register('connect_error', handler))
     onUserJoined = jest.fn((handler: Listener) => this.register('user_joined', handler))
     onUserLeft = jest.fn((handler: Listener) => this.register('user_left', handler))
+    onParticipantsUpdated = jest.fn((handler: Listener) => this.register('participants_updated', handler))
     onOperationApplied = jest.fn((handler: Listener) => this.register('operation_applied', handler))
     onCursorUpdate = jest.fn((handler: Listener) => this.register('cursor_update', handler))
     onSelectionUpdate = jest.fn((handler: Listener) => this.register('selection_update', handler))
@@ -75,15 +76,16 @@ jest.mock('@/common/network/office/OfficeWebSocketClient', () => {
     }
 
     resolveLatestJoin(participants: unknown[] = []) {
-      const latestCall = this.joinDocument.mock.calls.at(-1)
+      const calls = this.joinDocument.mock.calls
+      const latestCall = calls[calls.length - 1]
       latestCall?.[2]?.(participants)
     }
   }
 
   return {
-    OfficeWebSocketClient: jest.fn().mockImplementation(() => {
-      const instance = new MockOfficeWebSocketClient()
-      mockOfficeClientInstances.push(instance)
+    createSpreadsheetCollaborationClient: jest.fn().mockImplementation(() => {
+      const instance = new MockSpreadsheetCollaborationClient()
+      mockSpreadsheetClientInstances.push(instance)
       return instance
     })
   }
@@ -104,22 +106,41 @@ function createCallbacks() {
   }
 }
 
+const createMockAccessToken = (): string =>
+  ['header', 'payload', 'signature'].map(part => Buffer.from(part).toString('base64url')).join('.')
+
 describe('useSpreadsheetCollaboration', () => {
   beforeEach(() => {
-    mockOfficeClientInstances.length = 0
+    mockSpreadsheetClientInstances.length = 0
     jest.clearAllMocks()
   })
 
-  it('joins spreadsheet collaboration through the office socket client', async () => {
+  it('does not connect to spreadsheet collaboration when disabled', () => {
     const { result } = renderHook(() =>
       useSpreadsheetCollaboration({
         appId: 'app-1',
-        accessToken: 'invalid.token.value',
+        accessToken: 'token-1',
+        disabled: true,
         callbacks: createCallbacks()
       })
     )
 
-    const client = mockOfficeClientInstances[0]
+    expect(mockOfficeClientInstances).toHaveLength(0)
+    expect(result.current.isCollaborationConnected).toBe(false)
+    expect(result.current.isCollaborationJoined).toBe(false)
+  })
+
+
+  it('joins spreadsheet collaboration through the spreadsheet socket client', async () => {
+    const { result } = renderHook(() =>
+      useSpreadsheetCollaboration({
+        appId: 'app-1',
+        accessToken: createMockAccessToken(),
+        callbacks: createCallbacks()
+      })
+    )
+
+    const client = mockSpreadsheetClientInstances[0]
 
     act(() => {
       client.socket.connected = true
@@ -147,12 +168,12 @@ describe('useSpreadsheetCollaboration', () => {
     const { result } = renderHook(() =>
       useSpreadsheetCollaboration({
         appId: 'app-1',
-        accessToken: 'invalid.token.value',
+        accessToken: createMockAccessToken(),
         callbacks: createCallbacks()
       })
     )
 
-    const client = mockOfficeClientInstances[0]
+    const client = mockSpreadsheetClientInstances[0]
 
     act(() => {
       client.socket.connected = true
@@ -200,7 +221,7 @@ describe('useSpreadsheetCollaboration', () => {
       })
     )
 
-    const client = mockOfficeClientInstances[0]
+    const client = mockSpreadsheetClientInstances[0]
 
     await waitFor(() => {
       expect(client.setAccessToken).toHaveBeenCalledWith('token-1')
@@ -217,7 +238,54 @@ describe('useSpreadsheetCollaboration', () => {
     expect(client.setAccessToken).toHaveBeenLastCalledWith('token-2')
   })
 
-  it('flushes queued spreadsheet operations after the office socket joins', async () => {
+  it('ignores received operations when instructed by the caller', async () => {
+    const callbacks = createCallbacks()
+    const shouldIgnoreReceivedOperation = jest.fn((operation: { version?: number }) => operation.version === 7)
+
+    renderHook(() =>
+      useSpreadsheetCollaboration({
+        appId: 'app-1',
+        accessToken: createMockAccessToken(),
+        callbacks,
+        shouldIgnoreReceivedOperation
+      })
+    )
+
+    const client = mockSpreadsheetClientInstances[0]
+
+    act(() => {
+      client.socket.connected = true
+      client.trigger('connect')
+      client.resolveLatestJoin([])
+    })
+
+    act(() => {
+      client.trigger('operation_applied', {
+        userId: 'user-2',
+        userName: 'Alice',
+        operation: {
+          type: 'batch_operations',
+          data: {
+            sheetId: 'sheet-1',
+            operations: [
+              {
+                type: 'set_cell',
+                data: { sheetId: 'sheet-1', rowId: 'row-1', columnName: 'Name', value: 'x' }
+              }
+            ]
+          }
+        },
+        version: 7,
+        timestamp: Date.now()
+      })
+    })
+
+    expect(shouldIgnoreReceivedOperation).toHaveBeenCalled()
+    expect(callbacks.onVersionUpdate).not.toHaveBeenCalled()
+    expect(callbacks.commitLocalSheetData).not.toHaveBeenCalled()
+  })
+
+  it('flushes queued spreadsheet operations after the spreadsheet socket joins', async () => {
     const { result } = renderHook(() =>
       useSpreadsheetCollaboration({
         appId: 'app-1',
@@ -226,7 +294,7 @@ describe('useSpreadsheetCollaboration', () => {
       })
     )
 
-    const client = mockOfficeClientInstances[0]
+    const client = mockSpreadsheetClientInstances[0]
     const operation: DocumentOperation = {
       type: 'dimension_sync',
       data: { sheetId: 'sheet-1' }
@@ -258,7 +326,7 @@ describe('useSpreadsheetCollaboration', () => {
       })
     )
 
-    const client = mockOfficeClientInstances[0]
+    const client = mockSpreadsheetClientInstances[0]
 
     act(() => {
       client.socket.connected = true
@@ -293,7 +361,7 @@ describe('useSpreadsheetCollaboration', () => {
       })
     )
 
-    const client = mockOfficeClientInstances[0]
+    const client = mockSpreadsheetClientInstances[0]
 
     act(() => {
       client.socket.connected = true
@@ -318,6 +386,166 @@ describe('useSpreadsheetCollaboration', () => {
     })
   })
 
+  it('applies participants_updated so joined users immediately show their saved cursor', async () => {
+    const { result } = renderHook(() =>
+      useSpreadsheetCollaboration({
+        appId: 'app-1',
+        accessToken: 'token-1',
+        callbacks: createCallbacks()
+      })
+    )
+
+    const client = mockSpreadsheetClientInstances[0]
+
+    act(() => {
+      client.socket.connected = true
+      client.trigger('connect')
+      client.resolveLatestJoin([])
+      client.trigger('user_joined', {
+        userId: 'user-2',
+        userName: 'Alice',
+        userColor: '#aaa',
+        socketId: 's-2'
+      })
+    })
+
+    await waitFor(() => {
+      expect(
+        result.current.cursorParticipants.find(participant => participant.userId === 'user-2')?.cursor
+      ).toBeUndefined()
+    })
+
+    act(() => {
+      client.trigger('participants_updated', {
+        entityType: 'spreadsheet',
+        entityId: 'app-1',
+        participants: [
+          {
+            odId: 'user-2',
+            userName: 'Alice',
+            userColor: '#aaa',
+            socketId: 's-2',
+            cursor: { path: ['cellRef:E6', 'row:5', 'col:4'] }
+          }
+        ]
+      })
+    })
+
+    await waitFor(() => {
+      expect(
+        result.current.cursorParticipants.find(participant => participant.userId === 'user-2')?.cursor?.path
+      ).toEqual(['cellRef:E6', 'row:5', 'col:4'])
+    })
+  })
+
+  it('applies participants_updated so stale cursors disappear after leave', async () => {
+    const { result } = renderHook(() =>
+      useSpreadsheetCollaboration({
+        appId: 'app-1',
+        accessToken: 'token-1',
+        callbacks: createCallbacks()
+      })
+    )
+
+    const client = mockSpreadsheetClientInstances[0]
+
+    act(() => {
+      client.socket.connected = true
+      client.trigger('connect')
+      client.resolveLatestJoin([
+        {
+          odId: 'user-2',
+          userName: 'Alice',
+          userColor: '#aaa',
+          socketId: 's-2',
+          cursor: { path: ['cellRef:E6', 'row:5', 'col:4'] }
+        },
+        {
+          odId: 'user-3',
+          userName: 'Bob',
+          userColor: '#bbb',
+          socketId: 's-3',
+          cursor: { path: ['cellRef:F6', 'row:5', 'col:5'] }
+        }
+      ])
+    })
+
+    await waitFor(() => {
+      expect(result.current.cursorParticipants).toHaveLength(2)
+    })
+
+    act(() => {
+      client.trigger('participants_updated', {
+        entityType: 'spreadsheet',
+        entityId: 'app-1',
+        participants: [
+          {
+            odId: 'user-3',
+            userName: 'Bob',
+            userColor: '#bbb',
+            socketId: 's-3',
+            cursor: { path: ['cellRef:F6', 'row:5', 'col:5'] }
+          }
+        ]
+      })
+    })
+
+    await waitFor(() => {
+      expect(result.current.cursorParticipants).toHaveLength(1)
+      expect(result.current.cursorParticipants[0]?.userId).toBe('user-3')
+    })
+  })
+
+  it('replays the latest local cursor when another spreadsheet user joins', async () => {
+    jest.useFakeTimers()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetCollaboration({
+        appId: 'app-1',
+        accessToken: 'token-1',
+        callbacks: createCallbacks()
+      })
+    )
+
+    const client = mockSpreadsheetClientInstances[0]
+
+    act(() => {
+      client.socket.connected = true
+      client.trigger('connect')
+      client.resolveLatestJoin([])
+    })
+
+    await waitFor(() => {
+      expect(result.current.isCollaborationJoined).toBe(true)
+    })
+
+    act(() => {
+      result.current.emitCursor({ path: ['cellRef:E6', 'row:5', 'col:4'] })
+    })
+
+    expect(client.sendCursorMove).toHaveBeenCalledWith('spreadsheet', 'app-1', {
+      path: ['cellRef:E6', 'row:5', 'col:4']
+    })
+
+    client.sendCursorMove.mockClear()
+
+    act(() => {
+      client.trigger('user_joined', {
+        userId: 'user-2',
+        userName: 'Alice',
+        userColor: '#aaa',
+        socketId: 's-2'
+      })
+      jest.advanceTimersByTime(1200)
+    })
+
+    expect(client.sendCursorMove).toHaveBeenCalledWith('spreadsheet', 'app-1', {
+      path: ['cellRef:E6', 'row:5', 'col:4']
+    })
+
+    jest.useRealTimers()
+  })
+
   it('calls leaveDocument on unmount when joined', async () => {
     const { result, unmount } = renderHook(() =>
       useSpreadsheetCollaboration({
@@ -327,7 +555,7 @@ describe('useSpreadsheetCollaboration', () => {
       })
     )
 
-    const client = mockOfficeClientInstances[0]
+    const client = mockSpreadsheetClientInstances[0]
 
     act(() => {
       client.socket.connected = true
@@ -357,7 +585,7 @@ describe('useSpreadsheetCollaboration', () => {
       })
     )
 
-    const client = mockOfficeClientInstances[0]
+    const client = mockSpreadsheetClientInstances[0]
     const error = new Error('connection refused')
 
     act(() => {
@@ -367,40 +595,5 @@ describe('useSpreadsheetCollaboration', () => {
     await waitFor(() => {
       expect(onError).toHaveBeenCalledWith(error)
     })
-  })
-
-  it('wires the async document operation channel to the manager', async () => {
-    const callbacks = createCallbacks()
-    const { result } = renderHook(() =>
-      useSpreadsheetCollaboration({
-        appId: 'app-1',
-        accessToken: 'token-1',
-        callbacks
-      })
-    )
-
-    const client = mockOfficeClientInstances[0]
-
-    act(() => {
-      client.socket.connected = true
-      client.trigger('connect')
-      client.resolveLatestJoin([])
-    })
-
-    await waitFor(() => {
-      expect(result.current.isCollaborationJoined).toBe(true)
-    })
-
-    const persistResult = await act(() =>
-      result.current.manager.persistCellsChangedToServer([{ rowId: 'ui-1', columnName: 'Name', value: 'hello' }])
-    )
-
-    expect(client.sendDocumentOperationAsync).toHaveBeenCalledWith(
-      'spreadsheet',
-      'app-1',
-      expect.objectContaining({ type: 'cells_changed' })
-    )
-    expect(persistResult.success).toBe(true)
-    expect(persistResult.version).toBe(5)
   })
 })

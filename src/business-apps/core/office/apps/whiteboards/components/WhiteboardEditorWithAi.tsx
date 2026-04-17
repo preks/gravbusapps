@@ -11,12 +11,14 @@ import { WhiteboardEditor } from './WhiteboardEditor'
 
 interface WhiteboardEditorWithAiProps extends BusinessAppContextProps {
   whiteboardId: string
+  isReadOnly?: boolean
   onBack: () => void
   'data-testid'?: string
 }
 
 export const WhiteboardEditorWithAi: React.FC<WhiteboardEditorWithAiProps> = ({
   whiteboardId,
+  isReadOnly = false,
   accessToken,
   userInfo,
   onBack,
@@ -42,8 +44,14 @@ export const WhiteboardEditorWithAi: React.FC<WhiteboardEditorWithAiProps> = ({
   } = useWhiteboardAiSocket({
     whiteboardId,
     accessToken: accessToken ?? '',
-    enabled: chatVisible && !!accessToken
+    enabled: !isReadOnly && chatVisible && !!accessToken
   })
+
+  useEffect(() => {
+    if (isReadOnly) {
+      setChatVisible(false)
+    }
+  }, [isReadOnly])
 
   useEffect(() => {
     setOnToolCall(toolCall => {
@@ -120,6 +128,7 @@ export const WhiteboardEditorWithAi: React.FC<WhiteboardEditorWithAiProps> = ({
       canvasPanel={
         <WhiteboardEditor
           whiteboardId={whiteboardId}
+          isReadOnly={isReadOnly}
           accessToken={accessToken}
           userInfo={userInfo}
           onBack={onBack}

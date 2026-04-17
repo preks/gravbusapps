@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 
 interface UseWhiteboardHubUrlStateOptions {
-  currentView: 'list' | 'editor'
+  currentView: 'list' | 'editor' | 'trash'
   selectedWhiteboardId: string | null
 }
 
@@ -11,10 +11,12 @@ export function useWhiteboardHubUrlState(options: UseWhiteboardHubUrlStateOption
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    if (currentView === 'editor' && selectedWhiteboardId) {
+    if ((currentView === 'editor' || currentView === 'trash') && selectedWhiteboardId) {
       params.set('whiteboardId', selectedWhiteboardId)
+      params.set('view', currentView)
     } else {
       params.delete('whiteboardId')
+      params.delete('view')
     }
     const newUrl = `${window.location.pathname}?${params.toString()}`
     window.history.replaceState(null, '', newUrl)

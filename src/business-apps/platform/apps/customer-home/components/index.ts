@@ -1,0 +1,6 @@
+export { HeroSection } from './HeroSection'
+export { FeatureCard, type FeatureCardProps } from './FeatureCard'
+export { QuickSearch } from './QuickSearch'
+export { EveryOfficeSection } from './EveryOfficeSection'
+export { EveryOneSection } from './EveryOneSection'
+export { EveryAISection } from './EveryAISection'

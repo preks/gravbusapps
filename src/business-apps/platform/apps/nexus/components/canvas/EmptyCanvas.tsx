@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
-import { MessageSquare, FileText, BarChart3, Presentation, Database, ArrowRight, Sparkles } from 'lucide-react'
+import { MessageSquare, FileText, BarChart3, Database, ArrowRight, Sparkles } from 'lucide-react'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import translations from '../../_i18n'
 
@@ -32,12 +32,6 @@ const suggestionDefinitions = [
     prompt: 'Create an analysis dashboard with key metrics and trends from my data'
   },
   {
-    icon: Presentation,
-    titleKey: 'canvas-suggestion-presentation-title',
-    descriptionKey: 'canvas-suggestion-presentation-description',
-    prompt: 'Create a presentation about the main topics in my documents'
-  },
-  {
     icon: Database,
     titleKey: 'canvas-suggestion-data-title',
     descriptionKey: 'canvas-suggestion-data-description',
@@ -45,7 +39,7 @@ const suggestionDefinitions = [
   }
 ]
 
-/** Glass-style card for the 5 suggestion options */
+/** Glass-style card for the suggestion options */
 const GlassCard = ({
   suggestion,
   onClick,
@@ -126,7 +120,7 @@ export const EmptyCanvas = ({ onOpenChat, onSuggestionClick, testId = 'nexus-emp
             </p>
           </div>
 
-          {/* Cards — 3 on top, 3 on bottom */}
+          {/* Cards */}
           <div className="gba:grid gba:grid-cols-3 gba:gap-3">
             {/* 1st card: Open Chat — decorative blue */}
             <Card
@@ -152,7 +146,7 @@ export const EmptyCanvas = ({ onOpenChat, onSuggestionClick, testId = 'nexus-emp
               </CardContent>
             </Card>
 
-            {/* Remaining 5 glass-style cards */}
+            {/* Remaining glass-style cards */}
             {suggestions.map(suggestion => (
               <GlassCard
                 key={suggestion.title}

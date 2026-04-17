@@ -6,8 +6,10 @@
  */
 
 import React, { useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { ChevronRight, Home } from 'lucide-react'
 import type { SpaceFolder } from '../types/space.types'
+import translations from '../_i18n'
 
 export interface SpaceBreadcrumbsProps {
   folders: SpaceFolder[]
@@ -24,6 +26,7 @@ export const SpaceBreadcrumbs: React.FC<SpaceBreadcrumbsProps> = ({
   onSelectFolder,
   'data-testid': testId = 'space-breadcrumbs'
 }) => {
+  const { t } = useTranslation(translations)
   const path = useMemo(() => {
     if (!selectedFolderId) return []
     const byId = new Map(folders.map(f => [f.id, f]))
@@ -41,7 +44,7 @@ export const SpaceBreadcrumbs: React.FC<SpaceBreadcrumbsProps> = ({
   return (
     <nav
       className="gba:flex gba:items-center gba:gap-1 gba:text-sm gba:flex-wrap"
-      aria-label="Breadcrumb"
+      aria-label={t('common-breadcrumb')}
       data-testid={testId}
     >
       <button
@@ -55,7 +58,7 @@ export const SpaceBreadcrumbs: React.FC<SpaceBreadcrumbsProps> = ({
         data-testid={`${testId}-root`}
       >
         <Home className="gba:w-3.5 gba:h-3.5" />
-        <span>Root</span>
+        <span>{t('common-root')}</span>
       </button>
 
       {path.map((folder, index) => {

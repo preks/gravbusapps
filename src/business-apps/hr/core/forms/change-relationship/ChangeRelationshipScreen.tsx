@@ -69,7 +69,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const employeeId =
     (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId || userInfo?.employeeDetails?.employeeId
 
-  const initialPayload = useMemo(() => (additionalData as any) || {}, [additionalData])
+  const initialPayload = useMemo(
+    () => (additionalData as any)?.psi_taskPayload?.psi_initialParameters ?? (additionalData as any) ?? {},
+    [additionalData]
+  )
+  const isEditMode = Boolean(initialPayload?.relationship?.id)
   const [successOpen, setSuccessOpen] = useState(false)
   const preSubmitResolverRef = useRef<((payload: any) => void) | null>(null)
   const pendingPayloadRef = useRef<any>(null)
@@ -80,10 +84,15 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     return Boolean(requiredOk && phoneOk)
   }, [relationshipTypeId, firstName, lastName, isEmergencyContact, phoneNumber])
 
-  // Map for relationship type labels
   const relationshipTypeLabelById = useMemo(() => {
     const map: Record<string, string> = {}
     for (const opt of relationshipTypeOptions) map[opt.id] = opt.label
+    return map
+  }, [relationshipTypeOptions])
+
+  const relationshipTypeCodeById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const opt of relationshipTypeOptions) map[opt.id] = opt.code
     return map
   }, [relationshipTypeOptions])
 
@@ -228,19 +237,32 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       )
     : ''
 
-  // Initialize selection and fields if flow provided an existing relationship
+  // Initialize selection and fields if flow provided an existing relationship.
+  // Waits for `relationships` to load so the form can resolve the full record
+  // (including typeRef) from its own GraphQL data.
   useEffect(() => {
-    const rel = initialPayload?.relationship
-    if (rel && rel.id) {
-      setSelectedRelationshipId(rel.id)
-      setFirstName(rel.firstName || '')
-      setLastName(rel.lastName || '')
-      setRelationshipTypeId(rel.typeRef || '')
-      setBirthDate(rel.birthDate ? dayjs(rel.birthDate).format('YYYY-MM-DD') : '')
-      setPhoneNumber(rel.phoneNumber || '')
-      setIsEmergencyContact(Boolean(rel.isEmergencyContact))
+    const relPayload = initialPayload?.relationship
+    if (!relPayload?.id) return
+
+    const loaded = (relationships || []).find((r: any) => r.id === relPayload.id)
+    if (loaded) {
+      setSelectedRelationshipId(loaded.id)
+      setFirstName(loaded.firstName || '')
+      setLastName(loaded.lastName || '')
+      setRelationshipTypeId(loaded.typeRef || '')
+      setBirthDate(loaded.birthDate ? dayjs(loaded.birthDate).format('YYYY-MM-DD') : '')
+      setPhoneNumber(loaded.phoneNumber || '')
+      setIsEmergencyContact(Boolean(loaded.isEmergencyContact))
+    } else {
+      setSelectedRelationshipId(relPayload.id)
+      setFirstName(relPayload.firstName || '')
+      setLastName(relPayload.lastName || '')
+      setRelationshipTypeId(relPayload.typeRef || '')
+      setBirthDate(relPayload.birthDate ? dayjs(relPayload.birthDate).format('YYYY-MM-DD') : '')
+      setPhoneNumber(relPayload.phoneNumber || '')
+      setIsEmergencyContact(Boolean(relPayload.isEmergencyContact))
     }
-  }, [initialPayload])
+  }, [initialPayload, relationships])
 
   // When user changes the relationship selection, prefill the form
   const handleRelationshipSelection = (value: string) => {
@@ -333,10 +355,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       }
     }
 
-    // Only show modal for specific relationship types (Child or Marriage)
-    const idSelected = relationshipTypeId.toLowerCase()
+    // Only show congratulations modal when adding a new Child or Marriage relationship
+    const selectedCode = (relationshipTypeCodeById[relationshipTypeId] || '').toLowerCase()
     const shouldShowCongrats =
-      idSelected.includes('child') || idSelected.includes('marriage') || idSelected.includes('mariage')
+      !isEditMode &&
+      (selectedCode.includes('child') || selectedCode.includes('marriage') || selectedCode.includes('mariage'))
 
     if (shouldShowCongrats) {
       // Show Congratulations modal first and resolve payload after user confirms
@@ -390,7 +413,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.relationship', 'Relationship')}
             </Label>
             <div className="gba:mt-2">
-              <Select value={selectedRelationshipId} onValueChange={handleRelationshipSelection}>
+              <Select value={selectedRelationshipId} onValueChange={handleRelationshipSelection} disabled={!isEditMode}>
                 <SelectTrigger data-testid="flw_changeRelationship_selectRelationship">
                   <SelectValue
                     placeholder={getTranslationFromI18nKeyAndLabel(
@@ -403,14 +426,16 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                   <SelectItem value="new">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.add_new', 'Add New Relationship')}
                   </SelectItem>
-                  {(relationships || []).map((rel: any) => (
-                    <SelectItem key={rel.id} value={rel.id}>
-                      {`${rel.firstName || ''} ${rel.lastName || ''}`.trim() || '—'}
-                      {rel.typeRef && relationshipTypeLabelById[rel.typeRef]
-                        ? ` – ${relationshipTypeLabelById[rel.typeRef]}`
-                        : ''}
-                    </SelectItem>
-                  ))}
+                  {isEditMode
+                    ? (relationships || []).map((rel: any) => (
+                        <SelectItem key={rel.id} value={rel.id}>
+                          {`${rel.firstName || ''} ${rel.lastName || ''}`.trim() || '—'}
+                          {rel.typeRef && relationshipTypeLabelById[rel.typeRef]
+                            ? ` – ${relationshipTypeLabelById[rel.typeRef]}`
+                            : ''}
+                        </SelectItem>
+                      ))
+                    : null}
                 </SelectContent>
               </Select>
             </div>
