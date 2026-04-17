@@ -93,7 +93,9 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
               </div>
               <div>
                 <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{employee.fullName}</h3>
-                <p className="gba:text-xs gba:text-muted-foreground">{employee.code}</p>
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  {t('grid-employee-code')}: {employee.code}
+                </p>
               </div>
             </div>
             <div className="gba:flex gba:items-center gba:gap-1">

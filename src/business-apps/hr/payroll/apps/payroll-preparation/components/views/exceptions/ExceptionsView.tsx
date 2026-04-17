@@ -1,15 +1,32 @@
-import React, { useState, useMemo } from 'react'
-import { Button, Card, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { ArrowsClockwiseIcon, WarningCircleIcon, ShieldWarningIcon, InfoIcon } from '@phosphor-icons/react'
+import React, { useEffect, useMemo, useState } from 'react'
+import {
+  Button,
+  Card,
+  DebouncedInput,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
+import {
+  ArrowsClockwiseIcon,
+  WarningCircleIcon,
+  ShieldWarningIcon,
+  InfoIcon,
+  MagnifyingGlassIcon
+} from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollIssue, IssueCategory, IssueSeverity } from '../../../types/payrollTypes'
 import { payrollIssueCodeTitle } from '../../../utils/payrollIssueCodeLabels'
 import { SeverityBadge } from '../../shared/StatusBadge'
+import { ExceptionDetailDrawer } from './ExceptionDetailDrawer'
 
 interface ExceptionsViewProps {
   employees: PayrollEmployee[]
   onRefresh: () => Promise<void>
   refreshing: boolean
-  t: (key: string) => string
+  accessToken?: string
+  t: (key: string, values?: Record<string, string | number>) => string
 }
 
 const CATEGORY_KEYS: Record<IssueCategory, string> = {
@@ -38,13 +55,20 @@ const SeverityIcon: React.FC<{ severity: IssueSeverity }> = ({ severity }) => {
 }
 
 interface IssueWithEmployee extends PayrollIssue {
+  employee: PayrollEmployee
   employeeName: string
   employeeCode: string
 }
 
-export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRefresh, refreshing, t }) => {
+const EXCEPTIONS_PAGE_SIZE = 10
+
+export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRefresh, refreshing, accessToken, t }) => {
+  const tWithValues = t as (key: string, values?: Record<string, string | number>) => string
+  const [search, setSearch] = useState('')
   const [severityFilter, setSeverityFilter] = useState<IssueSeverity | 'all'>('all')
   const [categoryFilter, setCategoryFilter] = useState<IssueCategory | 'all'>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedIssue, setSelectedIssue] = useState<IssueWithEmployee | null>(null)
 
   const allIssues = useMemo(() => {
     const issues: IssueWithEmployee[] = []
@@ -53,6 +77,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
         if (issue.status !== 'open') continue
         issues.push({
           ...issue,
+          employee: emp,
           employeeName: emp.fullName,
           employeeCode: emp.code
         })
@@ -69,8 +94,37 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
     if (categoryFilter !== 'all') {
       result = result.filter(i => i.category === categoryFilter)
     }
+    const query = search.trim().toLowerCase()
+    if (query) {
+      result = result.filter(issue => {
+        const haystack = [issue.employeeName, issue.message, issue.recommendedAction].join(' ').toLowerCase()
+
+        return haystack.includes(query)
+      })
+    }
     return result
-  }, [allIssues, severityFilter, categoryFilter])
+  }, [allIssues, severityFilter, categoryFilter, search, t])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, severityFilter, categoryFilter])
+
+  useEffect(() => {
+    if (filteredIssues.length === 0) {
+      return
+    }
+
+    const maxPage = Math.max(1, Math.ceil(filteredIssues.length / EXCEPTIONS_PAGE_SIZE))
+    if (currentPage > maxPage) {
+      setCurrentPage(maxPage)
+    }
+  }, [currentPage, filteredIssues.length])
+
+  const totalPages = Math.ceil(filteredIssues.length / EXCEPTIONS_PAGE_SIZE)
+  const paginatedIssues = filteredIssues.slice(
+    (currentPage - 1) * EXCEPTIONS_PAGE_SIZE,
+    currentPage * EXCEPTIONS_PAGE_SIZE
+  )
 
   const { blockerCount, warningCount, infoCount, affectedEmployees } = useMemo(() => {
     let blockers = 0
@@ -116,7 +170,20 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
       </div>
 
       <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:flex-wrap">
-        <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
+        <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap gba:pl-2 gba:pt-1">
+          <div className="gba:relative gba:flex-1 gba:min-w-[240px] gba:max-w-[360px]">
+            <MagnifyingGlassIcon
+              size={16}
+              className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:text-muted-foreground"
+            />
+            <DebouncedInput
+              value={search}
+              onChange={(value: string | number) => setSearch(String(value))}
+              placeholder={t('exceptions-search-placeholder')}
+              className="gba:pl-9"
+              data-testid="payroll-prep-exceptions-search-input"
+            />
+          </div>
           <div className="gba:flex gba:items-center gba:gap-2">
             <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
               {t('label-severity')}
@@ -176,57 +243,104 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
 
       {/* Issues List */}
       <div className="gba:space-y-2">
-        {filteredIssues.length === 0 ? (
+        {paginatedIssues.length === 0 ? (
           <Card
             className="gba:p-8 gba:text-center gba:text-muted-foreground"
             data-testid="payroll-prep-exceptions-empty-state"
           >
-            {allIssues.length === 0
-              ? 'No exceptions found. All employees pass validation.'
-              : 'No issues match the selected filters.'}
+            {allIssues.length === 0 ? t('exceptions-empty') : t('exceptions-no-match')}
           </Card>
         ) : (
-          filteredIssues.map(issue => {
-            const issueKey = `${issue.employeeId}-${issue.issueCode}`
+          paginatedIssues.map(issue => {
+            const issueKey = `${issue.employeeId}-${issue.id}-${issue.issueCode}-${issue.createdAt}`
             return (
-              <Card
+              <button
                 key={issueKey}
-                className="gba:p-4"
+                type="button"
+                className="gba:block gba:w-full gba:text-left"
+                onClick={() => setSelectedIssue(issue)}
                 data-issue-code={issue.issueCode}
                 data-testid={`payroll-prep-exception-card-${issueKey}`}
               >
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <div className="gba:mt-1">
-                    <SeverityIcon severity={issue.severity} />
-                  </div>
-
-                  <div className="gba:flex-1 gba:min-w-0">
-                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-1 gba:flex-wrap gba:gap-2">
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <span className="gba:text-sm gba:font-semibold gba:text-foreground">{issue.employeeName}</span>
-                        <span className="gba:text-xs gba:text-muted-foreground gba:font-mono">
-                          {issue.employeeCode}
-                        </span>
-                      </div>
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
-                        <span
-                          className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate"
-                          title={issue.issueCode}
-                        >
-                          {payrollIssueCodeTitle(issue.issueCode, t)}
-                        </span>
-                        <SeverityBadge severity={issue.severity} t={t} />
-                      </div>
+                <Card className="gba:p-4 gba:transition-colors gba:hover:bg-muted/30">
+                  <div className="gba:flex gba:items-start gba:gap-3">
+                    <div className="gba:mt-1">
+                      <SeverityIcon severity={issue.severity} />
                     </div>
-                    <p className="gba:text-sm gba:mb-1 gba:text-foreground">{issue.message}</p>
-                    <p className="gba:text-xs gba:text-primary">{issue.recommendedAction}</p>
+
+                    <div className="gba:flex-1 gba:min-w-0">
+                      <div className="gba:flex gba:items-center gba:justify-between gba:mb-1 gba:flex-wrap gba:gap-2">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <span className="gba:text-sm gba:font-semibold gba:text-foreground">
+                            {issue.employeeName}
+                          </span>
+                          <span className="gba:text-xs gba:text-muted-foreground gba:font-mono">
+                            {issue.employeeCode}
+                          </span>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+                          <span
+                            className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate"
+                            title={issue.issueCode}
+                          >
+                            {payrollIssueCodeTitle(issue.issueCode, t)}
+                          </span>
+                          <SeverityBadge severity={issue.severity} t={t} />
+                        </div>
+                      </div>
+                      <p className="gba:text-sm gba:mb-1 gba:text-foreground">{issue.message}</p>
+                      <p className="gba:text-xs gba:text-primary">{issue.recommendedAction}</p>
+                    </div>
                   </div>
-                </div>
-              </Card>
+                </Card>
+              </button>
             )
           })
         )}
       </div>
+
+      {filteredIssues.length > 0 && (
+        <div className="gba:flex gba:items-center gba:justify-between gba:border-t gba:border-border gba:px-1 gba:pt-2 gba:text-sm gba:text-muted-foreground">
+          <span>
+            {tWithValues('exceptions-pagination-showing', {
+              start: (currentPage - 1) * EXCEPTIONS_PAGE_SIZE + 1,
+              end: Math.min(currentPage * EXCEPTIONS_PAGE_SIZE, filteredIssues.length),
+              total: filteredIssues.length
+            })}
+          </span>
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+              data-testid="payroll-prep-exceptions-pagination-prev-button"
+            >
+              {t('grid-pagination-prev')}
+            </Button>
+            <span className="gba:px-3">
+              {currentPage} / {totalPages || 1}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+              disabled={currentPage >= totalPages}
+              data-testid="payroll-prep-exceptions-pagination-next-button"
+            >
+              {t('grid-pagination-next')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <ExceptionDetailDrawer
+        issue={selectedIssue}
+        employee={selectedIssue?.employee || null}
+        accessToken={accessToken}
+        onClose={() => setSelectedIssue(null)}
+        t={t}
+      />
     </div>
   )
 }

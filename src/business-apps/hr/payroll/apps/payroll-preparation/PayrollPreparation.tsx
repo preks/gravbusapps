@@ -393,7 +393,15 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
           />
         )
       case 'exceptions':
-        return <ExceptionsView employees={employees} onRefresh={handleRefresh} refreshing={refreshing} t={t} />
+        return (
+          <ExceptionsView
+            employees={employees}
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
+            accessToken={accessToken}
+            t={t}
+          />
+        )
       case 'changes':
         return <ChangesView employees={employees} t={t} />
       case 'country-checks':
