@@ -62,8 +62,8 @@ function buildExpenseRequestTripEntity(
     tripDateTime: tripForDoc?.tripDateTime ?? '',
     tripOrder: tripForDoc?.tripOrder ?? '',
     tripDirection: tripForDoc?.tripDirection ?? '',
-    travelRegion: travelRegionValue != null ? { value: travelRegionValue } : { value: '' },
-    country: countryValue != null ? { value: countryValue } : { value: '' },
+    travelRegion: { value: travelRegionValue ?? '' },
+    country: { value: countryValue ?? '' },
     destinationCountry: destinationTrip ? (countryValue ?? '') : '',
     destinationAddress: destinationTrip ? (tripForDoc?.address ?? '') : ''
   }

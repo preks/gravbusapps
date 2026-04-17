@@ -57,35 +57,35 @@ const STATISTICS_PENDING_STATUSES: string[] = ['PENDING', 'PREPARED']
 const ADVANCE_PAYMENT_RANGE_FILTER_IDS = new Set<string>(['amountRange', 'advanceRange', 'cardCreatedAtRange'])
 
 export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
-  const [searchTerm, setSearchTermState] = useState<string>('')
+  const [searchTerm, setSearchTerm] = useState<string>('')
   // Active prefiltering: Start with PREPARED and PENDING statuses
   const [statusFilter, setStatusFilter] = useState<string[]>([ExpenseStatus.PREPARED, ExpenseStatus.PENDING])
-  const [amountRange, setAmountRangeState] = useState<{ min?: number; max?: number } | null>(null)
-  const [advanceRange, setAdvanceRangeState] = useState<{ min?: number; max?: number } | null>(null)
-  const [cardCreatedAtRange, setCardCreatedAtRangeState] = useState<{ gte: string; lte: string } | null>(null)
+  const [amountRange, setAmountRange] = useState<{ min?: number; max?: number } | null>(null)
+  const [advanceRange, setAdvanceRange] = useState<{ min?: number; max?: number } | null>(null)
+  const [cardCreatedAtRange, setCardCreatedAtRange] = useState<{ gte: string; lte: string } | null>(null)
   // Track currency filter tokens separately to avoid polluting statusFilter
   const [currencyTokens, setCurrencyTokens] = useState<string[]>([])
   // Version to signal any change to consumers (for refresh triggers)
   const [filtersVersion, setFiltersVersion] = useState<number>(0)
 
   // Wrapped setters to bump version
-  const setSearchTerm = useCallback((term: string) => {
-    setSearchTermState(term)
+  const commitSearchTerm = useCallback((term: string) => {
+    setSearchTerm(term)
     setFiltersVersion(v => v + 1)
   }, [])
 
-  const setAmountRange = useCallback((range: { min?: number; max?: number } | null) => {
-    setAmountRangeState(range)
+  const commitAmountRange = useCallback((range: { min?: number; max?: number } | null) => {
+    setAmountRange(range)
     setFiltersVersion(v => v + 1)
   }, [])
 
-  const setAdvanceRange = useCallback((range: { min?: number; max?: number } | null) => {
-    setAdvanceRangeState(range)
+  const commitAdvanceRange = useCallback((range: { min?: number; max?: number } | null) => {
+    setAdvanceRange(range)
     setFiltersVersion(v => v + 1)
   }, [])
 
-  const setCardCreatedAtRange = useCallback((range: { gte: string; lte: string } | null) => {
-    setCardCreatedAtRangeState(range)
+  const commitCardCreatedAtRange = useCallback((range: { gte: string; lte: string } | null) => {
+    setCardCreatedAtRange(range)
     setFiltersVersion(v => v + 1)
   }, [])
 
@@ -95,8 +95,8 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     if (widgetKey === null || widgetKey === '') {
       // Second card click: clear all filters except currency (currency is applied separately via setFilters in the tab)
       setStatusFilter([])
-      setCardCreatedAtRangeState(null)
-      setSearchTermState('')
+      setCardCreatedAtRange(null)
+      setSearchTerm('')
       setFiltersVersion(v => v + 1)
       return
     }
@@ -104,7 +104,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
       const gte = dayjs().startOf('month').toISOString()
       const lte = dayjs().endOf('month').toISOString()
       setStatusFilter([...TOTAL_PAYMENTS_CARD_STATUSES])
-      setCardCreatedAtRangeState({ gte, lte })
+      setCardCreatedAtRange({ gte, lte })
       setFiltersVersion(v => v + 1)
       return
     }
@@ -112,19 +112,19 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
       const gte = dayjs().startOf('month').toISOString()
       const lte = dayjs().endOf('month').toISOString()
       setStatusFilter([...STATISTICS_APPROVED_LIKE_STATUSES])
-      setCardCreatedAtRangeState({ gte, lte })
+      setCardCreatedAtRange({ gte, lte })
       setFiltersVersion(v => v + 1)
       return
     }
     if (widgetKey === 'pending-payments') {
       setStatusFilter([...STATISTICS_PENDING_STATUSES])
-      setCardCreatedAtRangeState(null)
+      setCardCreatedAtRange(null)
       setFiltersVersion(v => v + 1)
       return
     }
     if (widgetKey === 'approved-payments') {
       setStatusFilter([...STATISTICS_APPROVED_LIKE_STATUSES])
-      setCardCreatedAtRangeState(null)
+      setCardCreatedAtRange(null)
       setFiltersVersion(v => v + 1)
     }
   }, [])
@@ -132,7 +132,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
     // Determine which filter group this belongs to
     if (filterId.startsWith('status-')) {
-      setCardCreatedAtRangeState(null)
+      setCardCreatedAtRange(null)
       const status = filterId.replace('status-', '')
       setStatusFilter(prevFilter => {
         if (isSelected) {
@@ -219,10 +219,10 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     // If the filters array is empty, clear everything including ranges
     if (filters.length === 0) {
       setStatusFilter([])
-      setAmountRangeState(null)
-      setAdvanceRangeState(null)
-      setCardCreatedAtRangeState(null)
-      setSearchTermState('')
+      setAmountRange(null)
+      setAdvanceRange(null)
+      setCardCreatedAtRange(null)
+      setSearchTerm('')
       setCurrencyTokens([])
       setFiltersVersion(v => v + 1)
       return
@@ -231,7 +231,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     // Separate range filters, currency tokens and status filters
     const currencyFilterTokens = filters.filter(f => f.startsWith('currency:'))
     const statusFilters = filters.filter(f => !ADVANCE_PAYMENT_RANGE_FILTER_IDS.has(f) && !f.startsWith('currency:'))
-    const newRangeFilters = filters.filter(f => ADVANCE_PAYMENT_RANGE_FILTER_IDS.has(f))
+    const newRangeFilterIds = new Set(filters.filter(f => ADVANCE_PAYMENT_RANGE_FILTER_IDS.has(f)))
 
     // Set status filters
     setStatusFilter(statusFilters)
@@ -239,14 +239,14 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     setCurrencyTokens(currencyFilterTokens)
 
     // Clear ranges that are not in the new filter list
-    if (!newRangeFilters.includes('amountRange')) {
-      setAmountRangeState(null)
+    if (!newRangeFilterIds.has('amountRange')) {
+      setAmountRange(null)
     }
-    if (!newRangeFilters.includes('advanceRange')) {
-      setAdvanceRangeState(null)
+    if (!newRangeFilterIds.has('advanceRange')) {
+      setAdvanceRange(null)
     }
-    if (!newRangeFilters.includes('cardCreatedAtRange')) {
-      setCardCreatedAtRangeState(null)
+    if (!newRangeFilterIds.has('cardCreatedAtRange')) {
+      setCardCreatedAtRange(null)
     }
     setFiltersVersion(v => v + 1)
   }, [])
@@ -254,11 +254,11 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   // Remove filter function that handles all filter types
   const removeFilter = useCallback((filterId: string) => {
     if (filterId === 'amountRange') {
-      setAmountRangeState(null)
+      setAmountRange(null)
     } else if (filterId === 'advanceRange') {
-      setAdvanceRangeState(null)
+      setAdvanceRange(null)
     } else if (filterId === 'cardCreatedAtRange') {
-      setCardCreatedAtRangeState(null)
+      setCardCreatedAtRange(null)
     } else if (filterId.startsWith('currency:')) {
       setCurrencyTokens(prev => prev.filter(id => id !== filterId))
     } else {
@@ -270,9 +270,9 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   // Clear all filters including ranges and search
   const clearFilters = useCallback(() => {
     setStatusFilter([])
-    setAmountRangeState(null)
-    setAdvanceRangeState(null)
-    setCardCreatedAtRangeState(null)
+    setAmountRange(null)
+    setAdvanceRange(null)
+    setCardCreatedAtRange(null)
     setSearchTermState('')
     setCurrencyTokens([])
     setFiltersVersion(v => v + 1)
@@ -283,22 +283,22 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     () => (
       <ExpenseAmountRangeFilter
         amountRange={amountRange}
-        onAmountRangeChange={setAmountRange}
+        onAmountRangeChange={commitAmountRange}
         dataTestIdPrefix="amount-range"
       />
     ),
-    [amountRange]
+    [amountRange, commitAmountRange]
   )
 
   const advanceRangeComponent = useMemo(
     () => (
       <ExpenseAmountRangeFilter
         amountRange={advanceRange}
-        onAmountRangeChange={setAdvanceRange}
+        onAmountRangeChange={commitAdvanceRange}
         dataTestIdPrefix="advance-range"
       />
     ),
-    [advanceRange]
+    [advanceRange, commitAdvanceRange]
   )
 
   // Filter groups (legacy DataFilter sidebar; status id kept as status-* so handleDataFilterChange still works)
@@ -336,16 +336,16 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
 
   return {
     searchTerm,
-    setSearchTerm,
+    setSearchTerm: commitSearchTerm,
     debouncedSearchTerm,
     statusFilter,
     setStatusFilter,
     amountRange,
-    setAmountRange,
+    setAmountRange: commitAmountRange,
     advanceRange,
-    setAdvanceRange,
+    setAdvanceRange: commitAdvanceRange,
     cardCreatedAtRange,
-    setCardCreatedAtRange,
+    setCardCreatedAtRange: commitCardCreatedAtRange,
     applyStatisticsCardFilter,
     filterGroups,
     handleDataFilterChange,
