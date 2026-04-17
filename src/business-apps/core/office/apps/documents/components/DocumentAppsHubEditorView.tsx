@@ -15,10 +15,12 @@ import { PdfDocumentViewer } from './PdfDocumentViewer'
 import { TemplateFieldsPanel } from './TemplateFieldsPanel'
 import { ExternalDocumentSourceBadge } from './external-import/ExternalDocumentSourceBadge'
 import { TrashedDocumentReadonlyDialog } from './TrashedDocumentReadonlyDialog'
+import { DocumentApprovalReviewView } from './DocumentApprovalReviewView'
 import type { PagedDocumentEditorRef } from './PagedDocumentEditor'
 import type { Document, DocumentTemplate, DocumentFormatting, ParsedWordDocument } from '../types'
 
 export interface DocumentAppsHubEditorViewProps {
+  currentView: string
   templateBeingEdited: DocumentTemplate | null
   setTemplateBeingEdited: (t: DocumentTemplate | null) => void
   setSessionEntityContext: (c: string | null) => void
@@ -37,6 +39,7 @@ export interface DocumentAppsHubEditorViewProps {
     updates: { name?: string; content?: string; formatting?: DocumentFormatting }
   ) => Promise<DocumentTemplate | null>
   updateUrl: (docId: string | null, view?: string) => void
+  onNavigateToDocumentReview?: (versionNumber: number) => void
   setSelectedDocumentId: (id: string | null) => void
   setCurrentView: (v: string) => void
   setActiveSection: (s: string) => void
@@ -52,10 +55,12 @@ export interface DocumentAppsHubEditorViewProps {
   isRestoringTrashedDocument: boolean
   onGoToDocsHome: () => void
   onRestoreTrashedDocument: () => void
+  onApprovalResolved?: () => Promise<void> | void
   testId: string
 }
 
 export function DocumentAppsHubEditorView({
+  currentView,
   templateBeingEdited,
   setTemplateBeingEdited,
   setSessionEntityContext,
@@ -69,6 +74,7 @@ export function DocumentAppsHubEditorView({
   updateDocument,
   updateTemplate,
   updateUrl,
+  onNavigateToDocumentReview,
   setCurrentView,
   setActiveSection,
   handleBack,
@@ -83,6 +89,7 @@ export function DocumentAppsHubEditorView({
   isRestoringTrashedDocument,
   onGoToDocsHome,
   onRestoreTrashedDocument,
+  onApprovalResolved,
   testId
 }: DocumentAppsHubEditorViewProps): React.ReactElement {
   const { t } = useTranslation(translations)
@@ -167,6 +174,20 @@ export function DocumentAppsHubEditorView({
   }
 
   if (currentDocument) {
+    if (currentView === 'review') {
+      return (
+        <DocumentApprovalReviewView
+          currentDocument={currentDocument}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          handleBack={handleBack}
+          loadDocument={loadDocument}
+          onApprovalResolved={onApprovalResolved}
+          testId={testId}
+        />
+      )
+    }
+
     const isPdfDocument = currentDocument.sourceFile?.mimeType === 'application/pdf'
     if (isPdfDocument) {
       return (
@@ -213,6 +234,7 @@ export function DocumentAppsHubEditorView({
           }}
           onBack={handleBack}
           onSendForApproval={() => handleSendForApprovalClick(currentDocument.id)}
+          onNavigateToReviewVersion={onNavigateToDocumentReview}
           isReadOnly={isTrashedDocument || !canEdit || isExternalReadOnly}
           isTrashedDocument={isTrashedDocument}
           headerExtra={

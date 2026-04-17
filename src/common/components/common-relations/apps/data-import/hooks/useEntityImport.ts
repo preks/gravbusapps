@@ -866,9 +866,9 @@ export function useEntityImport<T = ConvertedEntity>(
             config.domain === 'investment' ? 'InvestmentLeadStatus:v1:OPEN' : 'SalesLeadStatus:v1:OPEN'
         }
 
-        // Java lead endpoints expect addressLine as plain string.
-        // Flowbot can return JSON/object-like addressLine, so normalize it back before submit.
-        if (config.entityType === 'lead') {
+        // CRM lead endpoint expects addressLine as plain string.
+        // Keep IRM lead addressLine as object ({ lines: [...] }) for investment-relations endpoints.
+        if (config.entityType === 'lead' && config.domain === 'customer') {
           const addressLine = toLeadAddressLineString(base.addressLine)
           if (addressLine) {
             base.addressLine = addressLine

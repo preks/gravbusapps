@@ -16,7 +16,7 @@ hero-tab-recent = Recent
 hero-tab-favorites = Favorites
 hero-tab-trash = Trash
 
-header-search-placeholder = Search in Drive...
+drive-header-search-placeholder = Search in Drive...
 header-new-folder = New folder
 header-upload-file = Upload file
 header-import-external = Import external

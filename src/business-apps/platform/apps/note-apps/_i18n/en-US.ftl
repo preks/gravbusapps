@@ -39,7 +39,7 @@ menu-new-template-title = From Template
 menu-new-template-description = Choose a template
 
 header-sort = Sort
-header-search-placeholder = Search...
+notes-header-search-placeholder = Search notes...
 sort-name = Name
 sort-modified = Modified
 sort-created = Created
@@ -47,14 +47,14 @@ table-owner = Owner
 
 empty-pinned-title = No pinned notes
 empty-pinned-description = Pin your important notes to access them quickly.
-empty-shared-title = Nothing shared with you
-empty-shared-description = When someone shares a note with you, it will appear here.
+notes-empty-shared-title = Nothing shared with you
+notes-empty-shared-description = When someone shares a note with you, it will appear here.
 empty-archived-title = No trashed notes
 empty-archived-description = Notes moved to trash will appear here.
-empty-trash-title = No trashed notes
-empty-trash-description = Notes moved to trash will appear here.
-empty-default-title = No notes yet
-empty-default-description = Create your first note to get started.
+notes-empty-trash-title = No trashed notes
+notes-empty-trash-description = Notes moved to trash will appear here.
+notes-empty-default-title = No notes yet
+notes-empty-default-description = Create your first note to get started.
 empty-create-note = Create Note
 loading-message = Loading...
 

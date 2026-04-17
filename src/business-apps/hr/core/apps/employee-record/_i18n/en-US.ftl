@@ -290,7 +290,7 @@ error-end-date-after-start-date = End date must be on or after the benefit start
 notification-address-updated-success = Address updates are done.
 notification-bank-account-updated-success = Bank account updates are done.
 notification-personal-data-updated-success = Personal data updates are sent for HR approval
-notification-communication-updated-success = Communication details updates are sent for HR approval
+notification-communication-updated-success = Communication details updated. HR has been notified.
 notification-profile-picture-updated-success = Profile picture updates are sent for HR approval
 notification-relationship-updated-success = Relationship status updates are sent for HR approval
 notification-expense-created-success = Expense created successfully
@@ -304,7 +304,7 @@ notification-working-hours-updated-success = Working hours updates are sent for 
 notification-address-updated-success = Address updates are done.
 notification-bank-account-updated-success = Bank account updates are done.
 notification-personal-data-updated-success = Personal data updates sent to be approved by the HR department.
-notification-communication-updated-success = Communication details updates sent to be approved by the HR department.
+notification-communication-updated-success = Communication details updated. HR has been notified.
 notification-communication-deleted-success = Communication entry deleted successfully.
 
 # Employee Record - Errors and states

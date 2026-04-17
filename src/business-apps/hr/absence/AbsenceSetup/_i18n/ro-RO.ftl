@@ -162,7 +162,6 @@ field-access-by-label = Acces de catre
 code-placeholder = ex. PTO
 icon-placeholder = ex. vacation
 icon-field-tooltip = Introdu o cheie semantica pentru pictograma folosita in aplicatiile runtime. Vezi exemplele in lista de sugestii.
-icon-field-helper = Chei sugerate: vacation, sick, home-office, business-trip, training, family-care, jury-duty.
 color-placeholder = ex. BE27F5
 group-placeholder = Selecteaza un grup
 validation-code-required = Codul este obligatoriu.

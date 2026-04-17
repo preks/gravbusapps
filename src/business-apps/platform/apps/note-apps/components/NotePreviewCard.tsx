@@ -344,8 +344,8 @@ export const NoNotesState: React.FC<{
   description?: string
 }> = ({ onCreateNew, title, description }) => {
   const { t } = useTranslation(translations)
-  const resolvedTitle = title ?? t('empty-default-title')
-  const resolvedDesc = description ?? t('empty-default-description')
+  const resolvedTitle = title ?? t('notes-empty-default-title')
+  const resolvedDesc = description ?? t('notes-empty-default-description')
   return (
     <Card className="gba:p-12 gba:text-center">
       <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">

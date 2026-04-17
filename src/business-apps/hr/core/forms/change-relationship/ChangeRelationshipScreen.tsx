@@ -84,10 +84,15 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     return Boolean(requiredOk && phoneOk)
   }, [relationshipTypeId, firstName, lastName, isEmergencyContact, phoneNumber])
 
-  // Map for relationship type labels
   const relationshipTypeLabelById = useMemo(() => {
     const map: Record<string, string> = {}
     for (const opt of relationshipTypeOptions) map[opt.id] = opt.label
+    return map
+  }, [relationshipTypeOptions])
+
+  const relationshipTypeCodeById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const opt of relationshipTypeOptions) map[opt.id] = opt.code
     return map
   }, [relationshipTypeOptions])
 
@@ -350,10 +355,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       }
     }
 
-    // Only show modal for specific relationship types (Child or Marriage)
-    const idSelected = relationshipTypeId.toLowerCase()
+    // Only show congratulations modal when adding a new Child or Marriage relationship
+    const selectedCode = (relationshipTypeCodeById[relationshipTypeId] || '').toLowerCase()
     const shouldShowCongrats =
-      idSelected.includes('child') || idSelected.includes('marriage') || idSelected.includes('mariage')
+      !isEditMode &&
+      (selectedCode.includes('child') || selectedCode.includes('marriage') || selectedCode.includes('mariage'))
 
     if (shouldShowCongrats) {
       // Show Congratulations modal first and resolve payload after user confirms

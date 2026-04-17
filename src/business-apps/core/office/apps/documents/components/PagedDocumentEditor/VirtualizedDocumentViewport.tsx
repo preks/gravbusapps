@@ -14,6 +14,7 @@ import {
 export interface VirtualizedDocumentViewportProps {
   editor: TiptapEditor | null
   activeEditor: TiptapEditor | null
+  isReviewMode?: boolean
   editorRenderKey?: number
   editorContainerRef: MutableRefObject<HTMLDivElement | null>
   zoom: number
@@ -35,6 +36,7 @@ export interface VirtualizedDocumentViewportProps {
 export function VirtualizedDocumentViewport({
   editor,
   activeEditor,
+  isReviewMode = false,
   editorRenderKey,
   editorContainerRef,
   zoom,
@@ -52,6 +54,35 @@ export function VirtualizedDocumentViewport({
   onOpenImageSidebar,
   onOpenLinkDialogForEditor
 }: Readonly<VirtualizedDocumentViewportProps>) {
+  const editorSurface = (
+    <div
+      className="paged-document-editor"
+      style={{
+        transform: `scale(${zoom / 100})`,
+        transformOrigin: 'top center'
+      }}
+      data-layout-active-pages={layoutViewportModel.activePageNumbers.join(',')}
+      data-virtual-window-enabled={layoutSnapshotPageCount > DOCUMENT_VIRTUAL_WINDOW_PAGE_THRESHOLD ? 'true' : 'false'}
+      onContextMenu={isReviewMode ? event => event.preventDefault() : undefined}
+    >
+      <EditorContent key={editorRenderKey} editor={editor} className="editor-content" />
+      {editor && !isReviewMode && (
+        <BubbleMenu
+          editor={editor}
+          shouldShow={({ editor: currentEditor }) => currentEditor.isActive('link')}
+          pluginKey="linkBubbleMenu"
+          onMouseDown={event => event.preventDefault()}
+        >
+          <LinkBubbleMenu
+            editor={editor}
+            onEdit={() => onOpenLinkDialogForEditor(editor)}
+            data-testid="document-link-bubble-menu"
+          />
+        </BubbleMenu>
+      )}
+    </div>
+  )
+
   return (
     <div
       ref={editorContainerRef}
@@ -77,45 +108,23 @@ export function VirtualizedDocumentViewport({
       data-virtual-window-page-count={DOCUMENT_VIRTUAL_WINDOW_PAGE_COUNT}
     >
       <div className="gba:flex gba:justify-center gba:py-8" style={{ minHeight: '100%' }}>
-        <DocumentContextMenu
-          editor={activeEditor}
-          contextMenuState={contextMenuState}
-          onContextMenuCapture={onContextMenuCapture}
-          onOpenLinkDialog={onOpenLinkDialog}
-          onAddInlineComment={onAddInlineComment}
-          onAiEditClick={onAiEditClick}
-          onOpenReplaceImageDialog={onOpenReplaceImageDialog}
-          onOpenImageSidebar={onOpenImageSidebar}
-          data-testid="document-editor-context-menu"
-        >
-          <div
-            className="paged-document-editor"
-            style={{
-              transform: `scale(${zoom / 100})`,
-              transformOrigin: 'top center'
-            }}
-            data-layout-active-pages={layoutViewportModel.activePageNumbers.join(',')}
-            data-virtual-window-enabled={
-              layoutSnapshotPageCount > DOCUMENT_VIRTUAL_WINDOW_PAGE_THRESHOLD ? 'true' : 'false'
-            }
+        {isReviewMode ? (
+          editorSurface
+        ) : (
+          <DocumentContextMenu
+            editor={activeEditor}
+            contextMenuState={contextMenuState}
+            onContextMenuCapture={onContextMenuCapture}
+            onOpenLinkDialog={onOpenLinkDialog}
+            onAddInlineComment={onAddInlineComment}
+            onAiEditClick={onAiEditClick}
+            onOpenReplaceImageDialog={onOpenReplaceImageDialog}
+            onOpenImageSidebar={onOpenImageSidebar}
+            data-testid="document-editor-context-menu"
           >
-            <EditorContent key={editorRenderKey} editor={editor} className="editor-content" />
-            {editor && (
-              <BubbleMenu
-                editor={editor}
-                shouldShow={({ editor: currentEditor }) => currentEditor.isActive('link')}
-                pluginKey="linkBubbleMenu"
-                onMouseDown={event => event.preventDefault()}
-              >
-                <LinkBubbleMenu
-                  editor={editor}
-                  onEdit={() => onOpenLinkDialogForEditor(editor)}
-                  data-testid="document-link-bubble-menu"
-                />
-              </BubbleMenu>
-            )}
-          </div>
-        </DocumentContextMenu>
+            {editorSurface}
+          </DocumentContextMenu>
+        )}
       </div>
     </div>
   )
