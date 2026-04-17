@@ -13,11 +13,44 @@ import { TOTAL_PAYMENTS_CARD_STATUSES } from '../../../utils/totalPaymentsCardSt
 const APPROVED_LIKE_STATUSES: string[] = ['APPROVED', 'PAID', 'BOOKED']
 const PENDING_STATUSES: string[] = ['PENDING', 'PREPARED']
 
+function sortStringsForCompare(values: string[]): string[] {
+  return [...values].sort((x, y) => x.localeCompare(y))
+}
+
 function statusSetsEqual(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false
-  const sa = [...a].sort()
-  const sb = [...b].sort()
+  const sa = sortStringsForCompare(a)
+  const sb = sortStringsForCompare(b)
   return sa.every((v, i) => v === sb[i])
+}
+
+function shouldClearActiveWidget(
+  activeWidget: string | null,
+  statusFilter: string[],
+  cardCreatedAtRange: unknown
+): boolean {
+  if (!activeWidget) return false
+
+  if (activeWidget === 'total-payments') {
+    if (!cardCreatedAtRange) return true
+    return !statusSetsEqual(statusFilter, TOTAL_PAYMENTS_CARD_STATUSES)
+  }
+
+  if (activeWidget === 'total-amount') {
+    if (!cardCreatedAtRange) return true
+    return !statusSetsEqual(statusFilter, APPROVED_LIKE_STATUSES)
+  }
+
+  if (activeWidget === 'pending-payments') {
+    return !statusSetsEqual(statusFilter, PENDING_STATUSES)
+  }
+
+  if (activeWidget === 'approved-payments') {
+    if (cardCreatedAtRange) return true
+    return !statusSetsEqual(statusFilter, APPROVED_LIKE_STATUSES)
+  }
+
+  return false
 }
 
 export interface AdvancePaymentsTabProps extends BusinessAppContextProps {
@@ -63,45 +96,8 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
   const mostUsedCurrencyRef = useMemo(() => pickMostUsedCurrencyRef(currencyStats as CurrencyStat[]), [currencyStats])
 
   useEffect(() => {
-    if (!activeWidget) return
-
-    if (activeWidget === 'total-payments') {
-      if (!cardCreatedAtRange) {
-        setActiveWidget(null)
-        return
-      }
-      if (!statusSetsEqual(statusFilter, TOTAL_PAYMENTS_CARD_STATUSES)) {
-        setActiveWidget(null)
-      }
-      return
-    }
-
-    if (activeWidget === 'total-amount') {
-      if (!cardCreatedAtRange) {
-        setActiveWidget(null)
-        return
-      }
-      if (!statusSetsEqual(statusFilter, APPROVED_LIKE_STATUSES)) {
-        setActiveWidget(null)
-      }
-      return
-    }
-
-    if (activeWidget === 'pending-payments') {
-      if (!statusSetsEqual(statusFilter, PENDING_STATUSES)) {
-        setActiveWidget(null)
-      }
-      return
-    }
-
-    if (activeWidget === 'approved-payments') {
-      if (cardCreatedAtRange) {
-        setActiveWidget(null)
-        return
-      }
-      if (!statusSetsEqual(statusFilter, APPROVED_LIKE_STATUSES)) {
-        setActiveWidget(null)
-      }
+    if (shouldClearActiveWidget(activeWidget, statusFilter, cardCreatedAtRange)) {
+      setActiveWidget(null)
     }
   }, [activeWidget, statusFilter, cardCreatedAtRange])
 

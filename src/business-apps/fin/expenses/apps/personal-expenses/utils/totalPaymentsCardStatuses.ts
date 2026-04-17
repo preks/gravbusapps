@@ -31,4 +31,4 @@ export const TOTAL_PAYMENTS_CARD_STATUSES: string[] = ADVANCE_PAYMENT_SIDEBAR_FI
   s => !EXCLUDED_FROM_TOTAL_PAYMENTS_CARD.has(s)
 )
   .map(s => s as string)
-  .sort()
+  .sort((a, b) => a.localeCompare(b))

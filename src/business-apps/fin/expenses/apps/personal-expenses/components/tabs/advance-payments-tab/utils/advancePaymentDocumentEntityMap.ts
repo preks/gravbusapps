@@ -7,17 +7,74 @@ export interface AdvancePaymentApproverContext {
   advancePaymentApprovalDate?: string
 }
 
+type PlanTripRow = NonNullable<NonNullable<AdvancePayment['expensePlan']>['expenseRequestTrip']>[number]
+
+function refSuffixToCode(ref: string): string {
+  return ref.replace(/^.*:([A-Za-z]{2,4})$/, '$1').toUpperCase()
+}
+
+function resolveRecordCurrencyCode(record: AdvancePayment): string {
+  if (record.currency?.code) return record.currency.code
+  if (typeof record.currencyRef === 'string' && record.currencyRef) {
+    return refSuffixToCode(record.currencyRef)
+  }
+  return ''
+}
+
+function readCatalogValue(obj: { value?: string | null } | null | undefined): string | undefined {
+  return obj && typeof obj === 'object' && 'value' in obj ? (obj as { value?: string }).value : undefined
+}
+
+function pickTripRows(plan: NonNullable<AdvancePayment['expensePlan']>): {
+  tripForDoc: PlanTripRow | undefined
+  destinationTrip: PlanTripRow | undefined
+} {
+  const trips = plan.expenseRequestTrip ?? []
+  const destinationTrip = trips.find(t => t?.pointType === 'DESTINATION_POINT')
+  const tripForDoc = destinationTrip ?? trips[0]
+  return { tripForDoc, destinationTrip }
+}
+
+function resolveCountryCode(tripForDoc: PlanTripRow | undefined): string {
+  const countryValue = readCatalogValue(tripForDoc?.country)
+  if (countryValue) return countryValue
+  const countryRef = tripForDoc?.countryRef ?? ''
+  if (typeof countryRef === 'string' && countryRef) {
+    return refSuffixToCode(countryRef)
+  }
+  return ''
+}
+
+function buildExpenseRequestTripEntity(
+  tripForDoc: PlanTripRow | undefined,
+  destinationTrip: PlanTripRow | undefined
+): Record<string, unknown> {
+  const travelRegionValue = readCatalogValue(tripForDoc?.travelRegion)
+  const countryValue = readCatalogValue(tripForDoc?.country)
+  const countryRef = tripForDoc?.countryRef ?? ''
+  const countryCode = countryValue ?? resolveCountryCode(tripForDoc)
+
+  return {
+    address: tripForDoc?.address ?? '',
+    pointType: tripForDoc?.pointType ?? '',
+    countryRef,
+    countryCode,
+    tripDateTime: tripForDoc?.tripDateTime ?? '',
+    tripOrder: tripForDoc?.tripOrder ?? '',
+    tripDirection: tripForDoc?.tripDirection ?? '',
+    travelRegion: travelRegionValue != null ? { value: travelRegionValue } : { value: '' },
+    country: countryValue != null ? { value: countryValue } : { value: '' },
+    destinationCountry: destinationTrip ? (countryValue ?? '') : '',
+    destinationAddress: destinationTrip ? (tripForDoc?.address ?? '') : ''
+  }
+}
+
 export function buildAdvancePaymentDocumentEntityMap(
   record: AdvancePayment,
   approverData: AdvancePaymentApproverContext,
   supervisorName: string | undefined
 ): Record<string, Record<string, unknown>> {
-  const plan = record.expensePlan
-  const currencyCode =
-    record.currency?.code ??
-    (typeof record.currencyRef === 'string' && record.currencyRef
-      ? record.currencyRef.replace(/^.*:([A-Za-z]{2,4})$/, '$1').toUpperCase()
-      : '')
+  const currencyCode = resolveRecordCurrencyCode(record)
 
   const map: Record<string, Record<string, unknown>> = {
     adv_payment: {
@@ -28,6 +85,7 @@ export function buildAdvancePaymentDocumentEntityMap(
     }
   }
 
+  const plan = record.expensePlan
   if (!plan) {
     return map
   }
@@ -51,35 +109,8 @@ export function buildAdvancePaymentDocumentEntityMap(
     }
   }
 
-  const trips = plan.expenseRequestTrip ?? []
-  const destinationTrip = trips.find((t: { pointType?: string | null }) => t?.pointType === 'DESTINATION_POINT')
-  const tripForDoc = destinationTrip ?? trips[0]
-  const travelRegionValue =
-    tripForDoc?.travelRegion && typeof tripForDoc.travelRegion === 'object' && 'value' in tripForDoc.travelRegion
-      ? (tripForDoc.travelRegion as { value?: string }).value
-      : undefined
-  const countryValue =
-    tripForDoc?.country && typeof tripForDoc.country === 'object' && 'value' in tripForDoc.country
-      ? (tripForDoc.country as { value?: string }).value
-      : undefined
-  const countryRef = tripForDoc?.countryRef ?? ''
-  const countryCode =
-    countryValue ??
-    (typeof countryRef === 'string' && countryRef ? countryRef.replace(/^.*:([A-Za-z]{2,4})$/, '$1').toUpperCase() : '')
-
-  map.expense_request_trip = {
-    address: tripForDoc?.address ?? '',
-    pointType: tripForDoc?.pointType ?? '',
-    countryRef,
-    countryCode,
-    tripDateTime: tripForDoc?.tripDateTime ?? '',
-    tripOrder: tripForDoc?.tripOrder ?? '',
-    tripDirection: tripForDoc?.tripDirection ?? '',
-    travelRegion: travelRegionValue != null ? { value: travelRegionValue } : { value: '' },
-    country: countryValue != null ? { value: countryValue } : { value: '' },
-    destinationCountry: destinationTrip ? (countryValue ?? '') : '',
-    destinationAddress: destinationTrip ? (tripForDoc?.address ?? '') : ''
-  }
+  const { tripForDoc, destinationTrip } = pickTripRows(plan)
+  map.expense_request_trip = buildExpenseRequestTripEntity(tripForDoc, destinationTrip)
 
   return map
 }
