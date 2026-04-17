@@ -49,6 +49,10 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
     setEndDateRange,
     effectiveDateRange,
     setEffectiveDateRange,
+    reimbursableAmountRange,
+    setReimbursableAmountRange,
+    advanceAmountRange,
+    setAdvanceAmountRange,
     filterLabelMap,
     addFilter,
     removeFilter
@@ -299,6 +303,10 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
     setEndDateRange,
     effectiveDateRange,
     setEffectiveDateRange,
+    reimbursableAmountRange,
+    setReimbursableAmountRange,
+    advanceAmountRange,
+    setAdvanceAmountRange,
     currencyStats
   }
 

@@ -52,6 +52,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     setPlanDateRange,
     effectiveDateRange,
     setEffectiveDateRange,
+    reimbursableAmountRange,
+    setReimbursableAmountRange,
+    paidAdvanceAmountRange,
+    setPaidAdvanceAmountRange,
     filterLabelMap,
     addFilter,
     removeFilter
@@ -295,6 +299,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       setEndDateRange={setEndDateRange}
       effectiveDateRange={effectiveDateRange}
       setEffectiveDateRange={setEffectiveDateRange}
+      reimbursableAmountRange={reimbursableAmountRange}
+      setReimbursableAmountRange={setReimbursableAmountRange}
+      paidAdvanceAmountRange={paidAdvanceAmountRange}
+      setPaidAdvanceAmountRange={setPaidAdvanceAmountRange}
       onFiltersChange={() => setCurrentPage(1)}
       availableStatuses={expensePlanAvailableStatuses}
       widgetTopDestinationFilterTokens={widgetTopDestinationFilterTokens}

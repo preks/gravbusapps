@@ -28,5 +28,9 @@ export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   setEndDateRange?: (range: [Date | null, Date | null] | null) => void
   effectiveDateRange?: [Date | null, Date | null] | null
   setEffectiveDateRange?: (range: [Date | null, Date | null] | null) => void
+  reimbursableAmountRange?: { min?: number; max?: number } | null
+  setReimbursableAmountRange?: (range: { min?: number; max?: number } | null) => void
+  advanceAmountRange?: { min?: number; max?: number } | null
+  setAdvanceAmountRange?: (range: { min?: number; max?: number } | null) => void
   currencyStats?: Array<{ ref: string; code: string; count: number }>
 }

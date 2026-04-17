@@ -3,7 +3,8 @@ import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { ExpenseFilter } from './useGetExpenseItems'
 import { ExpenseStatus } from '../utils'
 import { ExpenseDateRangeFilter } from '../components/tabs/expense-items-tab/filters/ExpenseDateRangeFilter'
-import { ExpenseAmountRangeFilter } from '../components/tabs/expense-items-tab/filters/ExpenseAmountRangeFilter'
+import { ExpenseAmountRangeFilter } from '@/business-apps/fin/expenses/common/components/filters/ExpenseAmountRangeFilter'
+import { formatExpenseAmountRangeChipLabel } from '@/business-apps/fin/expenses/common/utils/amountRangeFilterUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { CurrencyStat } from './useExpenseCurrencies'
 
@@ -201,18 +202,12 @@ export const useExpenseItemsFilters = (
         dateRangeLabel
     }
 
-    // Add amount range label if active
-    if (amountRange && (amountRange.min !== undefined || amountRange.max !== undefined)) {
-      let rangeText = ''
-      if (amountRange.min !== undefined && amountRange.max !== undefined) {
-        rangeText = `${amountRange.min} - ${amountRange.max}`
-      } else if (amountRange.min !== undefined) {
-        rangeText = `≥${amountRange.min}`
-      } else if (amountRange.max !== undefined) {
-        rangeText = `≤${amountRange.max}`
-      }
-      map['amountRange'] =
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range_label', 'Amount Range: ') + rangeText
+    const amountChip = formatExpenseAmountRangeChipLabel(
+      amountRange,
+      getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range_label', 'Amount Range: ')
+    )
+    if (amountChip) {
+      map['amountRange'] = amountChip
     }
 
     return map

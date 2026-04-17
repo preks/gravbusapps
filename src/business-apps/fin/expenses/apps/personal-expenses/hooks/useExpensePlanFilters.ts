@@ -8,12 +8,25 @@ import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import EffectiveDateRangeFilter from '../components/tabs/expense-plans-tab/filters/EffectiveDateRangeFilter'
 import { useDebounce } from '@/common/hooks/useDebounce'
+import {
+  addScalarNumericRangeConditions,
+  formatExpenseAmountRangeChipLabel,
+  type ExpenseAmountRangeValue
+} from '@/business-apps/fin/expenses/common/utils/amountRangeFilterUtils'
 
 export enum DataFilterType {
   CHECKBOX_GROUP = 'checkbox-group',
-  DATE_RANGE = 'date-range',
-  NUMBER_RANGE = 'number-range'
+  DATE_RANGE = 'date-range'
 }
+
+const PLAN_VIRTUAL_RANGE_FILTER_IDS = [
+  'planDateRange',
+  'startDateRange',
+  'endDateRange',
+  'effectiveDateRange',
+  'reimbursableAmountRange',
+  'paidAdvanceAmountRange'
+] as const
 
 export const useExpensePlanFilters = () => {
   const [search, setSearch] = useState('')
@@ -23,6 +36,8 @@ export const useExpensePlanFilters = () => {
   const [endDateRange, setEndDateRange] = useState<[Date | null, Date | null] | null>(null)
   const [planDateRange, setPlanDateRange] = useState<[Date | null, Date | null] | null>(null)
   const [effectiveDateRange, setEffectiveDateRange] = useState<[Date | null, Date | null] | null>(null)
+  const [reimbursableAmountRange, setReimbursableAmountRange] = useState<ExpenseAmountRangeValue>(null)
+  const [paidAdvanceAmountRange, setPaidAdvanceAmountRange] = useState<ExpenseAmountRangeValue>(null)
 
   const filterGroups = useMemo<DataFilterGroup[]>(
     () => [
@@ -245,6 +260,8 @@ export const useExpensePlanFilters = () => {
     addDateRangeConditions(conditions, startDateRange, 'startDate')
     addDateRangeConditions(conditions, endDateRange, 'endDate')
     addEffectiveDateConditions(conditions, effectiveDateRange)
+    addScalarNumericRangeConditions(conditions, reimbursableAmountRange, 'reimbursableAmount')
+    addScalarNumericRangeConditions(conditions, paidAdvanceAmountRange, 'advancePaymentPaidAmount')
 
     // Always exclude DISCARDED plans at backend level for correct pagination
     conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } })
@@ -256,6 +273,8 @@ export const useExpensePlanFilters = () => {
     startDateRange,
     endDateRange,
     effectiveDateRange,
+    reimbursableAmountRange,
+    paidAdvanceAmountRange,
     addSearchConditions,
     addStatusConditions,
     addPlanTypeConditions,
@@ -302,9 +321,29 @@ export const useExpensePlanFilters = () => {
     if (effectiveDateRange && (effectiveDateRange[0] || effectiveDateRange[1])) {
       filters.push('effectiveDateRange')
     }
+    if (
+      reimbursableAmountRange &&
+      (reimbursableAmountRange.min !== undefined || reimbursableAmountRange.max !== undefined)
+    ) {
+      filters.push('reimbursableAmountRange')
+    }
+    if (
+      paidAdvanceAmountRange &&
+      (paidAdvanceAmountRange.min !== undefined || paidAdvanceAmountRange.max !== undefined)
+    ) {
+      filters.push('paidAdvanceAmountRange')
+    }
 
     return filters
-  }, [selectedFilters, planDateRange, startDateRange, endDateRange, effectiveDateRange])
+  }, [
+    selectedFilters,
+    planDateRange,
+    startDateRange,
+    endDateRange,
+    effectiveDateRange,
+    reimbursableAmountRange,
+    paidAdvanceAmountRange
+  ])
 
   // Create filter label map including all active date ranges
   const filterLabelMap = useMemo<Record<string, string>>(() => {
@@ -344,10 +383,35 @@ export const useExpensePlanFilters = () => {
         `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date')}: ${effectiveDateLabel}`
     }
 
+    const reimbursableChip = formatExpenseAmountRangeChipLabel(
+      reimbursableAmountRange,
+      `${getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')}: `
+    )
+    if (reimbursableChip) {
+      map['reimbursableAmountRange'] = reimbursableChip
+    }
+
+    const paidAdvanceChip = formatExpenseAmountRangeChipLabel(
+      paidAdvanceAmountRange,
+      `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.paid_advance', 'Paid Advance')}: `
+    )
+    if (paidAdvanceChip) {
+      map['paidAdvanceAmountRange'] = paidAdvanceChip
+    }
+
     // Ensure currency pills show code (if present via DataContainer currency group)
     // Currency filters are injected at table level; here we just preserve any provided labels
     return map
-  }, [filterGroups, formatDateRangeLabel, planDateRange, startDateRange, endDateRange, effectiveDateRange])
+  }, [
+    filterGroups,
+    formatDateRangeLabel,
+    planDateRange,
+    startDateRange,
+    endDateRange,
+    effectiveDateRange,
+    reimbursableAmountRange,
+    paidAdvanceAmountRange
+  ])
 
   // Remove filter function that handles all date ranges
   const removeFilter = useCallback((filterId: string) => {
@@ -359,6 +423,10 @@ export const useExpensePlanFilters = () => {
       setEndDateRange(null)
     } else if (filterId === 'effectiveDateRange') {
       setEffectiveDateRange(null)
+    } else if (filterId === 'reimbursableAmountRange') {
+      setReimbursableAmountRange(null)
+    } else if (filterId === 'paidAdvanceAmountRange') {
+      setPaidAdvanceAmountRange(null)
     } else {
       setSelectedFilters(prev => prev.filter(id => id !== filterId))
     }
@@ -373,30 +441,35 @@ export const useExpensePlanFilters = () => {
       setStartDateRange(null)
       setEndDateRange(null)
       setEffectiveDateRange(null)
+      setReimbursableAmountRange(null)
+      setPaidAdvanceAmountRange(null)
       setSearch('')
       return
     }
 
-    // Separate date range filters from regular filters
-    const dateRangeFilters = ['planDateRange', 'startDateRange', 'endDateRange', 'effectiveDateRange']
-    const regularFilters = filters.filter(f => !dateRangeFilters.includes(f))
-    const newDateRangeFilters = filters.filter(f => dateRangeFilters.includes(f))
+    const virtualRangeIds = new Set<string>(PLAN_VIRTUAL_RANGE_FILTER_IDS)
+    const regularFilters = filters.filter(f => !virtualRangeIds.has(f))
+    const newVirtualRangeFilters = new Set(filters.filter(f => virtualRangeIds.has(f)))
 
-    // Set regular filters
     setSelectedFilters(regularFilters)
 
-    // Clear date ranges that are not in the new filter list
-    if (!newDateRangeFilters.includes('planDateRange')) {
+    if (!newVirtualRangeFilters.has('planDateRange')) {
       setPlanDateRange(null)
     }
-    if (!newDateRangeFilters.includes('startDateRange')) {
+    if (!newVirtualRangeFilters.has('startDateRange')) {
       setStartDateRange(null)
     }
-    if (!newDateRangeFilters.includes('endDateRange')) {
+    if (!newVirtualRangeFilters.has('endDateRange')) {
       setEndDateRange(null)
     }
-    if (!newDateRangeFilters.includes('effectiveDateRange')) {
+    if (!newVirtualRangeFilters.has('effectiveDateRange')) {
       setEffectiveDateRange(null)
+    }
+    if (!newVirtualRangeFilters.has('reimbursableAmountRange')) {
+      setReimbursableAmountRange(null)
+    }
+    if (!newVirtualRangeFilters.has('paidAdvanceAmountRange')) {
+      setPaidAdvanceAmountRange(null)
     }
   }, [])
 
@@ -407,6 +480,8 @@ export const useExpensePlanFilters = () => {
     setStartDateRange(null)
     setEndDateRange(null)
     setEffectiveDateRange(null)
+    setReimbursableAmountRange(null)
+    setPaidAdvanceAmountRange(null)
   }, [])
 
   return {
@@ -429,6 +504,10 @@ export const useExpensePlanFilters = () => {
     effectiveDateRange,
     setEffectiveDateRange,
     addFilter: handleFilterChange, // Add this for compatibility
-    removeFilter // Use the enhanced removeFilter
+    removeFilter, // Use the enhanced removeFilter
+    reimbursableAmountRange,
+    setReimbursableAmountRange,
+    paidAdvanceAmountRange,
+    setPaidAdvanceAmountRange
   }
 }
