@@ -8,9 +8,7 @@ const UUID_REGEX = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 
 /**
  * Extracts the process instance ID from the endpoint URL.
- * The processId is the first UUID after the process name (e.g. performanceEvaluation) in the path.
- * Example: .../processes/employee/performanceEvaluation/5a86f06a-2f5c-47b8-a88e-8d44d29c49a2/approvePeerReviewers/...
- * -> 5a86f06a-2f5c-47b8-a88e-8d44d29c49a2
+ * Legacy fallback — prefer mainProcessInstanceId from the task payload.
  */
 export function getProcessIdFromEndpoint(endpoint: string | undefined): string | null {
   if (!endpoint || typeof endpoint !== 'string') return null
@@ -49,6 +47,22 @@ function parseNominatedPeersFromResponse(data: unknown): NominatedPeer[] {
   }))
 }
 
+export function resolveProcessId(additionalData: Record<string, unknown> | undefined): string | null {
+  const taskPayload = additionalData?.psi_taskPayload as Record<string, unknown> | undefined
+  const directId = taskPayload?.mainProcessInstanceId
+  if (typeof directId === 'string' && directId) return directId
+
+  const metadata = additionalData?.psi_processMetadata as Record<string, unknown> | undefined
+  const endpoint = metadata?.endpoint as string | undefined
+  return getProcessIdFromEndpoint(endpoint)
+}
+
+function payloadHasPeerIds(additionalData: Record<string, unknown> | undefined): boolean {
+  const taskPayload = additionalData?.psi_taskPayload as Record<string, unknown> | undefined
+  const ids = taskPayload?.peerReviewerUserIds
+  return Array.isArray(ids) && ids.length > 0
+}
+
 export function useNominatedPeersFromProcess(
   accessToken: string | undefined,
   additionalData: Record<string, unknown> | undefined
@@ -66,14 +80,19 @@ export function useNominatedPeersFromProcess(
       return
     }
 
-    const metadata = additionalData?.psi_processMetadata as Record<string, unknown> | undefined
-    const endpoint = metadata?.endpoint as string | undefined
-    const processId = getProcessIdFromEndpoint(endpoint)
+    if (payloadHasPeerIds(additionalData)) {
+      setPeers([])
+      setError(null)
+      setLoading(false)
+      return
+    }
+
+    const processId = resolveProcessId(additionalData)
 
     if (!processId) {
       setPeers([])
       setLoading(false)
-      setError('Could not determine process ID from endpoint')
+      setError('Could not determine process ID from payload or endpoint')
       return
     }
 
