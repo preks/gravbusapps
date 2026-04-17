@@ -2,6 +2,7 @@ import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   createDateRangeFilterGroup,
+  createNumberRangeFilterGroup,
   createStatusFilterGroup,
   createTypeFilterGroup
 } from '../../../../common/config/filterConfigHelpers'
@@ -53,7 +54,8 @@ export function createExpensePlanFilterConfig({
       'lowcoder:personal_expenses.plan_type',
       'Plan Type',
       planTypeOptions
-    )
+    ),
+    createNumberRangeFilterGroup('plan-amount', 'totalAmount', 'lowcoder:sales_hub.amount.amount', 'Amount')
   ]
 
   return { id: 'expense-plans-filters', name: 'Expense Plans Filters', groups }
