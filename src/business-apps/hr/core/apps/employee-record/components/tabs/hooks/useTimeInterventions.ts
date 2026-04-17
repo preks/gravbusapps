@@ -8,12 +8,17 @@ import {
   employeeRegionLookupQuery,
   employmentRegionHolidaysQuery
 } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
+import { parseDurationToMinutes } from '@/business-apps/hr/core/apps/my-time/utils/duration'
+import { GET_EMPLOYEE_ABSENCES } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 
 export interface TimeInterventionItem {
   date: string // YYYY-MM-DD
   plannedMinutes: number
   workedMinutes: number
   reason: 'MISSING_HOURS' | 'NO_ATTENDANCE' | 'ABSENCE_WITH_ATTENDANCE'
+  pendingCorrection?: boolean
+  timeEntryId?: string
+  timeEntryVersion?: number
 }
 
 export interface UseTimeInterventionsParams {
@@ -63,105 +68,169 @@ export const useTimeInterventions = ({ employeeId, accessToken, workingHours }: 
     return Math.max(0, Math.round(numericHours * 60))
   }
 
-  const parseMinutes = (text?: string): number => {
-    if (!text) return 0
-    let h = 0
-    let m = 0
-    const parts = String(text).trim().split(/\s+/)
-    for (const p of parts) {
-      if (/^\d+h$/i.test(p)) h = parseInt(p, 10)
-      else if (/^\d+m$/i.test(p)) m = parseInt(p, 10)
-    }
-    return h * 60 + m
-  }
-
-  const load = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
-      const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
-
-      // Attendance for the entire month
-      const attRes = await graphqlClient.request<any>(employeeAttendanceMonthlyAllQuery, {
-        employeeId,
-        dateFrom: toDate(monthStart),
-        dateTo: toDate(monthEnd)
-      })
-      const attendanceRows: any[] = attRes?.EmployeeAttendance ?? []
-
-      // Resolve region holidays -> set of YYYY-MM-DD
-      let holidays = new Set<string>()
+  const load = useCallback(
+    async (silent = false) => {
+      if (!silent) setIsLoading(true)
+      setError(null)
       try {
-        const regionRes = await graphqlClient.request<any>(employeeRegionLookupQuery, {
+        const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
+        const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
+
+        // Attendance for the entire month
+        const attRes = await graphqlClient.request<any>(employeeAttendanceMonthlyAllQuery, {
           employeeId,
-          activeUserLocale: locale
+          dateFrom: toDate(monthStart),
+          dateTo: toDate(monthEnd)
         })
-        const regionId: string | undefined = regionRes?.employee?.[0]?.workingCondition?.[0]?.region?.id
-        if (regionId) {
-          const holidaysRes = await graphqlClient.request<any>(employmentRegionHolidaysQuery, {
-            activeUserLocale: locale,
-            regionId
+        const attendanceRows: any[] = attRes?.EmployeeAttendance ?? []
+
+        // Resolve region holidays -> set of YYYY-MM-DD
+        let holidays = new Set<string>()
+        try {
+          const regionRes = await graphqlClient.request<any>(employeeRegionLookupQuery, {
+            employeeId,
+            activeUserLocale: locale
           })
-          const list: any[] = holidaysRes?.holidays || []
-          const monthIndex = currentMonth.getMonth()
-          const year = currentMonth.getFullYear()
-          const yearStr = String(year)
-          const forYear = list.filter(h => String(h?.additionalValue3 ?? '') === yearStr)
-          const dates = forYear
-            .map(h => String(h?.alternativeCode ?? h?.code ?? ''))
-            .map(code => {
-              const m = /^(\d{4})(\d{2})(\d{2})$/.exec(code)
-              if (!m) return null
-              const y = parseInt(m[1], 10)
-              const mo = parseInt(m[2], 10)
-              const d = parseInt(m[3], 10)
-              if (y !== year || mo !== monthIndex + 1) return null
-              const dt = new Date(year, monthIndex, d)
-              if (dt.getMonth() !== monthIndex) return null
-              return toKey(dt)
+          const regionId: string | undefined = regionRes?.employee?.[0]?.workingCondition?.[0]?.region?.id
+          if (regionId) {
+            const holidaysRes = await graphqlClient.request<any>(employmentRegionHolidaysQuery, {
+              activeUserLocale: locale,
+              regionId
             })
-            .filter(Boolean) as string[]
-          holidays = new Set(dates)
-        }
-      } catch {}
+            const list: any[] = holidaysRes?.holidays || []
+            const monthIndex = currentMonth.getMonth()
+            const year = currentMonth.getFullYear()
+            const yearStr = String(year)
+            const forYear = list.filter(h => String(h?.additionalValue3 ?? '') === yearStr)
+            const dates = forYear
+              .map(h => String(h?.alternativeCode ?? h?.code ?? ''))
+              .map(code => {
+                const m = /^(\d{4})(\d{2})(\d{2})$/.exec(code)
+                if (!m) return null
+                const y = parseInt(m[1], 10)
+                const mo = parseInt(m[2], 10)
+                const d = parseInt(m[3], 10)
+                if (y !== year || mo !== monthIndex + 1) return null
+                const dt = new Date(year, monthIndex, d)
+                if (dt.getMonth() !== monthIndex) return null
+                return toKey(dt)
+              })
+              .filter(Boolean) as string[]
+            holidays = new Set(dates)
+          }
+        } catch {}
 
-      // Build day map of worked minutes
-      const workedByDay = attendanceRows.reduce<Record<string, number>>((acc, r) => {
-        const day = String(r.attendanceDate)
-        const eff = parseMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)
-        acc[day] = (acc[day] || 0) + Math.max(0, eff)
-        return acc
-      }, {})
-
-      // For now, treat absence detection as "planned 0 because holiday/weekend" only.
-      // Integrating full absence API can be added later.
-
-      const itemsAcc: TimeInterventionItem[] = []
-      const cursor = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1)
-      while (cursor <= monthEnd) {
-        const key = toKey(cursor)
-        // Skip holidays
-        const planned = holidays.has(key) ? 0 : getPlannedMinutesForDate(cursor)
-        const worked = workedByDay[key] || 0
-
-        if (planned > 0) {
-          if (worked === 0) {
-            itemsAcc.push({ date: key, plannedMinutes: planned, workedMinutes: worked, reason: 'NO_ATTENDANCE' })
-          } else if (worked < planned) {
-            itemsAcc.push({ date: key, plannedMinutes: planned, workedMinutes: worked, reason: 'MISSING_HOURS' })
+        // Build day map of worked minutes and keep track of attendance entry per date
+        const workedByDay: Record<string, number> = {}
+        const entryByDay: Record<string, { id: string; version?: number }> = {}
+        for (const r of attendanceRows) {
+          const day = String(r.attendanceDate)
+          const eff = parseDurationToMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)
+          workedByDay[day] = (workedByDay[day] || 0) + Math.max(0, eff)
+          if (r.id && !entryByDay[day]) {
+            entryByDay[day] = { id: String(r.id), version: r.version }
           }
         }
-        cursor.setDate(cursor.getDate() + 1)
-      }
 
-      setItems(itemsAcc)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load interventions')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [graphqlClient, employeeId, currentMonth, locale, workingHours])
+        // Fetch approved absences to exclude days covered by non-work absences (vacation, sick, etc.)
+        const nonWorkAbsenceDates = new Set<string>()
+        try {
+          const absRes = await graphqlClient.request<any>(GET_EMPLOYEE_ABSENCES, {
+            where: { employee: { id: { _eq: employeeId } }, isDeleted: { _eq: false } },
+            orderBy: [{ createdAt: 'DESC' }],
+            limit: 1000,
+            offset: 0,
+            activeUserLocale: locale
+          })
+          const absences: any[] = absRes?.EmployeeAbsence || []
+          const WORK_ABSENCE_GROUP = 'AbsenceGroup:v1:WORK'
+          for (const a of absences) {
+            if (String(a.status).toUpperCase() !== 'APPROVED') continue
+            const isWork = a.type?.parentEntryId === WORK_ABSENCE_GROUP
+            if (isWork || !a.startDate || !a.endDate) continue
+            const from = new Date(String(a.startDate))
+            const to = new Date(String(a.endDate))
+            const absCursor = new Date(from.getFullYear(), from.getMonth(), from.getDate())
+            const absEnd = new Date(to.getFullYear(), to.getMonth(), to.getDate())
+            while (absCursor <= absEnd) {
+              if (absCursor >= monthStart && absCursor <= monthEnd) {
+                nonWorkAbsenceDates.add(toKey(absCursor))
+              }
+              absCursor.setDate(absCursor.getDate() + 1)
+            }
+          }
+        } catch {
+          // If absence query fails, proceed without absence data
+        }
+
+        const itemsAcc: TimeInterventionItem[] = []
+        const cursor = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1)
+        while (cursor <= monthEnd) {
+          const key = toKey(cursor)
+          const isOff = holidays.has(key) || nonWorkAbsenceDates.has(key)
+          const planned = isOff ? 0 : getPlannedMinutesForDate(cursor)
+          const worked = workedByDay[key] || 0
+
+          if (planned > 0) {
+            const entry = entryByDay[key]
+            if (worked === 0) {
+              itemsAcc.push({
+                date: key,
+                plannedMinutes: planned,
+                workedMinutes: worked,
+                reason: 'NO_ATTENDANCE',
+                timeEntryId: entry?.id,
+                timeEntryVersion: entry?.version
+              })
+            } else if (worked < planned) {
+              itemsAcc.push({
+                date: key,
+                plannedMinutes: planned,
+                workedMinutes: worked,
+                reason: 'MISSING_HOURS',
+                timeEntryId: entry?.id,
+                timeEntryVersion: entry?.version
+              })
+            }
+          }
+          cursor.setDate(cursor.getDate() + 1)
+        }
+
+        try {
+          const { employeeAttendanceCorrectionsForRangeQuery } = await import(
+            '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
+          )
+          const corRes = await graphqlClient.request<any>(employeeAttendanceCorrectionsForRangeQuery, {
+            employeeId,
+            dateFrom: toDate(monthStart),
+            dateTo: toDate(monthEnd)
+          })
+          const terminalStatuses = new Set(['APPROVED_CORRECTION_REQUEST', 'REJECTED_CORRECTION_REQUEST'])
+          const pendingDates = new Set(
+            (corRes?.EmployeeAttendanceCorrectionRequest ?? [])
+              .filter((r: any) => !terminalStatuses.has(String(r?.status)))
+              .map((r: any) => String(r.attendanceDate))
+          )
+          if (pendingDates.size > 0) {
+            for (const item of itemsAcc) {
+              if (pendingDates.has(item.date)) {
+                item.pendingCorrection = true
+              }
+            }
+          }
+        } catch {
+          // If correction query fails, items keep default (no pending flag)
+        }
+
+        setItems(itemsAcc)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to load interventions')
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [graphqlClient, employeeId, currentMonth, locale, workingHours]
+  )
 
   useEffect(() => {
     load()
@@ -180,6 +249,7 @@ export const useTimeInterventions = ({ employeeId, accessToken, workingHours }: 
     error,
     currentMonth,
     nextMonth,
-    prevMonth
+    prevMonth,
+    refresh: () => load(true)
   }
 }
