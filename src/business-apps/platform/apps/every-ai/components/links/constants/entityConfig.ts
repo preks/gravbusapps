@@ -548,7 +548,7 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
   // Spreadsheets
   // -------------------------------------------------------------------------
   spreadsheet: {
-    urlTemplate: '/platform/every-office/spreadsheets?appId={id}&view=editor',
+    urlTemplate: '/platform/every-office/spreadsheets?appId={id}&view=viewer',
     icon: DEFAULT_ICON
   },
 
