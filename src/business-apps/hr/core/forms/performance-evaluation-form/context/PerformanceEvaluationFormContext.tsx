@@ -138,13 +138,6 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
 
   const ad = businessAppContext?.additionalData as any
 
-  console.log('[EvalContext] Props received:', {
-    preSelectedEmployeeId,
-    preSelectedUserId,
-    'currentUser.employeeId': businessAppContext.userInfo?.employeeDetails?.employeeId,
-    'currentUser.userId': businessAppContext.userInfo?.id
-  })
-
   // Fetch employee from process (GET process → employeeId → employee) for header, same as PeerApprove
   const {
     employeeId: employeeIdFromProcess,
@@ -326,27 +319,6 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     error: preSelectedEmployeeByUserIdError
   } = useEmployeeByUserId({ accessToken: businessAppContext.accessToken, userId: preSelectedUserId })
 
-  console.log('[EvalContext] useEmployeeDetails (by employeeId) result:', {
-    preSelectedEmployeeId,
-    employee: preSelectedEmployeeById
-      ? {
-          id: (preSelectedEmployeeById as any)?.id ?? (preSelectedEmployeeById as any)?.employeeId,
-          name: (preSelectedEmployeeById as any)?.name ?? (preSelectedEmployeeById as any)?.employee?.displayName
-        }
-      : null,
-    loading: preSelectedEmployeeByIdLoading
-  })
-  console.log('[EvalContext] useEmployeeByUserId (by userId) result:', {
-    preSelectedUserId,
-    employee: preSelectedEmployeeByUserId
-      ? {
-          id: (preSelectedEmployeeByUserId as any)?.employeeId,
-          name: (preSelectedEmployeeByUserId as any)?.employee?.displayName
-        }
-      : null,
-    loading: preSelectedEmployeeByUserIdLoading
-  })
-
   // Prefer employee from GET process (same as PeerApprove header); else use props-based lookups
   const preSelectedEmployee =
     employeeFromProcess ?? (preSelectedUserId ? preSelectedEmployeeByUserId : preSelectedEmployeeById)
@@ -355,21 +327,6 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     (preSelectedUserId ? preSelectedEmployeeByUserIdLoading : preSelectedEmployeeByIdLoading)
   const preSelectedEmployeeError =
     employeeFromProcessError ?? (preSelectedUserId ? preSelectedEmployeeByUserIdError : preSelectedEmployeeByIdError)
-
-  console.log('[EvalContext] Final header employee (preSelectedEmployee):', {
-    source: employeeFromProcess
-      ? 'useEmployeeFromProcess'
-      : preSelectedUserId
-        ? 'useEmployeeByUserId'
-        : 'useEmployeeDetails',
-    employee: preSelectedEmployee
-      ? {
-          id: (preSelectedEmployee as any)?.employeeId ?? (preSelectedEmployee as any)?.id,
-          name: (preSelectedEmployee as any)?.employee?.displayName ?? (preSelectedEmployee as any)?.name
-        }
-      : null,
-    loading: preSelectedEmployeeLoading
-  })
 
   // Get current user's employee ID
   const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
