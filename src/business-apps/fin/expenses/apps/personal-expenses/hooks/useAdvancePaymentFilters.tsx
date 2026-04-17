@@ -3,7 +3,7 @@ import dayjs from 'dayjs'
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter/DataFilter'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { ExpenseStatus, getAdvancePaymentStatusDisplay } from '../utils'
-import CompactRangeFilter from '../components/tabs/advance-payments-tab/filters/CompactRangeFilter'
+import { ExpenseAmountRangeFilter } from '@/business-apps/fin/expenses/common/components/filters/ExpenseAmountRangeFilter'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getTranslatedMonthName } from '../utils/monthTranslationUtils'
 import {
@@ -280,10 +280,9 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   // Create the custom components for range filters
   const amountRangeComponent = useMemo(
     () => (
-      <CompactRangeFilter
-        range={amountRange}
-        onRangeChange={setAmountRange}
-        label={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range')}
+      <ExpenseAmountRangeFilter
+        amountRange={amountRange}
+        onAmountRangeChange={setAmountRange}
         dataTestIdPrefix="amount-range"
       />
     ),
@@ -292,10 +291,9 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
 
   const advanceRangeComponent = useMemo(
     () => (
-      <CompactRangeFilter
-        range={advanceRange}
-        onRangeChange={setAdvanceRange}
-        label={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_range_filter', 'Advance Range')}
+      <ExpenseAmountRangeFilter
+        amountRange={advanceRange}
+        onAmountRangeChange={setAdvanceRange}
         dataTestIdPrefix="advance-range"
       />
     ),

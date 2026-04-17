@@ -371,7 +371,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
 
   const handleViewExpensePlanDetails = useCallback((record: AdvancePayment) => {
     const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
-      expensePlanId: record.expensePlan && record.expensePlan.id ? record.expensePlan.id : '',
+      expensePlanId: record.expensePlan?.id ?? '',
       referrer: '/platform/fin/expenses/personal-expenses?tab=advance-payments'
     })
     navigateTo(url)
