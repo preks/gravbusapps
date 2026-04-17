@@ -1,6 +1,9 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { createNumberRangeFilterGroup, createStatusFilterGroup } from '../../../../common/config/filterConfigHelpers'
+import {
+  createExpenseAmountRangeFilterGroup,
+  createStatusFilterGroup
+} from '../../../../common/config/filterConfigHelpers'
 
 export interface AdvancePaymentFilterConfigOptions {
   statusOptions: string[]
@@ -21,7 +24,7 @@ export function createAdvancePaymentFilterConfig({
     ),
     groups: [
       createStatusFilterGroup(statusFilters, 'lowcoder:expense_item_list.expense_table.status', 'Status'),
-      createNumberRangeFilterGroup(
+      createExpenseAmountRangeFilterGroup(
         'advance-payment-amount',
         'amount',
         'lowcoder:advance_payment_table.amount_label',
