@@ -6,6 +6,7 @@ every-box-blink-button = Blink
 every-box-tab-inflows = Intrări
 every-box-tab-outflows = Ieșiri
 every-box-blink-description = Creați și atribuiți rapid o sarcină
+every-box-hero-tagline = Inbox-ul dvs. unificat pentru sarcini și fluxuri de lucru
 every-box-search-placeholder = Căutare...
 every-box-sort-label = Sortare
 every-box-sort-newest = Cele mai noi
@@ -46,6 +47,9 @@ inbox-error-title = Eroare la încărcarea sarcinilor
 inbox-showing-tasks = Afișare {$current} din {$total}{$hasMore} sarcini
 inbox-load-more = Încarcă mai multe
 inbox-loading-more = Se încarcă mai multe sarcini...
+inbox-no-task-selected = Nicio sarcină selectată
+inbox-select-task-prompt = Selectați o sarcină din listă pentru a vedea detaliile
+inbox-task-no-title = Sarcină fără titlu
 
 # Inbox Empty States
 inbox-empty-no-results = Nu s-au găsit sarcini pentru "{$query}"
@@ -64,6 +68,8 @@ outbox-error-title = Eroare la încărcarea fluxurilor
 outbox-error-unable = Nu s-au putut încărca fluxurile
 outbox-error-server = Serverul are probleme de performanță. Aceasta este o problemă cunoscută.
 outbox-try-again = Încearcă din nou
+outbox-no-flow-selected = Niciun flux de lucru selectat
+outbox-select-flow-prompt = Selectați un flux de lucru din listă pentru a vedea detaliile
 
 # Outbox Empty States
 outbox-empty-no-results = Nu s-au găsit fluxuri pentru "{$query}"
@@ -311,3 +317,79 @@ due-date-days-left = { $days ->
     [one] { $days }z rămase
    *[other] { $days }z rămase
 }
+
+# AI Features
+ai-search-placeholder = Căutare inteligentă...
+ai-search-toggle = Căutare inteligentă
+ai-search-toggle-tooltip = Folosește căutarea semantică bazată pe AI
+ai-search-results-title = Rezultatele căutării
+ai-search-mode-semantic = Rezultate AI
+ai-search-mode-lexical = Rezultate text
+ai-search-no-results = Nu s-au găsit sarcini corespunzătoare
+ai-search-error = Căutarea a eșuat. Vă rugăm să încercați din nou.
+ai-summary-title = Rezumat
+ai-summary-loading = Se generează rezumatul...
+ai-summary-error = Rezumatul nu a putut fi generat
+ai-summary-regenerate = Regenerează
+ai-summary-cached = În cache
+ai-suggestions-title = Acțiuni sugerate
+ai-suggestions-loading = Se generează sugestiile...
+ai-suggestions-error = Sugestiile nu au putut fi generate
+ai-suggestions-retry = Reîncearcă
+ai-suggestions-copy = Copiază
+ai-suggestions-apply = Aplică
+ai-urgency-label = Urgență
+ai-urgency-high = Ridicată
+ai-urgency-medium = Medie
+ai-urgency-low = Scăzută
+ai-priority-suggested = Prioritate sugerată
+ai-priority-apply = Aplică prioritatea
+ai-clustering-group-by = Grupează pe categorie
+ai-clustering-group-label = { $cluster }
+ai-clustering-uncategorized = Necategorizate
+
+# AI Assistant
+ai-assistant-suggest = Sugerează
+ai-assistant-suggest-tooltip = Obține un răspuns sugerat de AI
+ai-assistant-improve = Îmbunătățește
+ai-assistant-improve-tooltip = Îmbunătățește ciorna dvs.
+ai-assistant-tone = Ton
+ai-assistant-tone-tooltip = Ajustează tonul mesajului
+ai-assistant-expand = Extinde
+ai-assistant-expand-tooltip = Adaugă mai multe detalii
+ai-assistant-shorten = Scurtează
+ai-assistant-shorten-tooltip = Fă-l mai concis
+ai-assistant-custom = Personalizat
+ai-assistant-custom-tooltip = Oferă instrucțiuni personalizate
+ai-assistant-custom-label = Ce ar trebui să facă AI?
+ai-assistant-custom-placeholder = ex., Fă-l mai politicos...
+ai-assistant-apply = Aplică
+ai-assistant-suggested-reply = Răspuns sugerat
+ai-assistant-use-this = Folosește acest lucru
+ai-assistant-dismiss = Respinge
+ai-assistant-placeholder = Scrieți răspunsul...
+ai-assistant-send = Trimite
+ai-assistant-cancel = Anulează
+ai-assistant-ai-assisted = Asistat de AI
+ai-assistant-applied = Aplicat
+ai-assistant-draft-helper = Asistent de scriere AI
+ai-assistant-draft-placeholder = Folosiți AI pentru a vă ajuta la redactarea răspunsului...
+ai-assistant-copy = Copiază
+ai-assistant-copied = Copiat în clipboard
+
+# AI Predictions
+ai-prediction-helpful = A fost util?
+ai-feedback-helpful = Da, a fost util
+ai-feedback-not-helpful = Nu, nu a fost util
+ai-feedback-thanks = Mulțumim pentru feedback!
+ai-prediction-likely-approve = Probabil va fi aprobat
+ai-prediction-likely-reject = Probabil va fi respins
+ai-prediction-likely-delegate = Probabil va fi delegat
+ai-prediction-likely-defer = Probabil va fi amânat
+ai-prediction-needs-review = Necesită revizuire
+ai-prediction-high-priority = Prioritate ridicată
+ai-prediction-medium-priority = Prioritate medie
+ai-prediction-low-priority = Prioritate scăzută
+ai-prediction-confidence = { $percent }% încredere
+ai-relationship-context = Context relațional
+ai-decision-history = Pe baza istoricului deciziilor dvs.

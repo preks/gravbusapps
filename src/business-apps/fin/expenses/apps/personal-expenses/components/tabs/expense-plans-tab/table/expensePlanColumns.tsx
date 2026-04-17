@@ -153,6 +153,7 @@ export function createExpensePlanColumns(): ColumnDef<ExpensePlan>[] {
       accessorKey: 'reimbursableAmount',
       header: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount'),
       size: 140,
+      sortDescFirst: false,
       meta: { align: 'right' as const },
       cell: renderReimbursableAmountCell
     },
@@ -164,6 +165,7 @@ export function createExpensePlanColumns(): ColumnDef<ExpensePlan>[] {
         'Paid Advance'
       ),
       size: 120,
+      sortDescFirst: false,
       meta: { align: 'right' as const },
       cell: renderPaidAdvanceCell
     }
