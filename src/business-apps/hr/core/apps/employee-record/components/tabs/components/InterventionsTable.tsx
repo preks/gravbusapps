@@ -270,13 +270,23 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({
                                       context: FlowContextName.employeeAttendanceCorrectionRequest,
                                       contextData: {
                                         employeeId,
+                                        employeeid: employeeId,
                                         attendanceDateISO: new Date(item.date).toISOString().slice(0, 10),
                                         reason: item.reason,
-                                        timeEntryId: item.timeEntryId,
-                                        timeEntryVersion: item.timeEntryVersion,
+                                        timeEntryId: item.entry?.id,
+                                        timeEntryVersion: item.entry?.version,
+                                        startTimeISO: item.entry?.startTime,
+                                        endTimeISO: item.entry?.endTime,
+                                        notes: item.entry?.notes,
+                                        recordedTime: item.entry?.recordedTime,
+                                        breakTime: item.entry?.breakTime,
+                                        effectiveTime: item.entry?.effectiveTime,
+                                        plannedTime: item.entry?.plannedTime,
+                                        differenceTime: item.entry?.differenceTime,
+                                        changeMode: 'INSERT',
                                         employeeAttendanceCorrectionRequest: {
-                                          timeEntryId: item.timeEntryId,
-                                          timeEntryVersion: item.timeEntryVersion
+                                          timeEntryId: item.entry?.id,
+                                          timeEntryVersion: item.entry?.version
                                         }
                                       }
                                     }
