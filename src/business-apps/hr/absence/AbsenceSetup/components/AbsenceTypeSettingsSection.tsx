@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -5,12 +6,18 @@ import {
   CardTitle,
   Checkbox,
   Combobox,
+  Icon,
   Input,
   Label,
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from '../_i18n'
 import { type AbsenceTypeObjectSettings } from '../utils/absenceTypeObjectValue'
+import {
+  ABSENCE_TYPE_SETUP_ICON_KEYS,
+  absenceTypeSetupIconMap,
+  type AbsenceTypeSetupIconKey
+} from '../utils/absenceTypeSetupIcons'
 
 interface AbsenceTypeSettingsSectionProps {
   settings: AbsenceTypeObjectSettings
@@ -32,19 +39,6 @@ const measurementLabelKeys = {
   CalendarDays: 'measurement-calendar-days',
   Hours: 'measurement-hours'
 } as const
-
-const absenceTypeIconOptions = [
-  'vacation',
-  'sick',
-  'home-office',
-  'business-trip',
-  'training',
-  'family-care',
-  'jury-duty'
-].map(icon => ({
-  value: icon,
-  label: icon
-}))
 
 const booleanFieldLabelKeys: Record<BooleanFieldKey, string> = {
   display: 'toggle-display-balance',
@@ -76,6 +70,43 @@ export function AbsenceTypeSettingsSection({ settings, onFieldChange }: Readonly
     label: t(labelKey)
   }))
 
+  const defaultIconOptions = useMemo(
+    () =>
+      ABSENCE_TYPE_SETUP_ICON_KEYS.map(key => {
+        const IconGlyph = absenceTypeSetupIconMap[key]
+        return {
+          value: key,
+          label: (
+            <span className="gba:flex gba:items-center gba:gap-2">
+              <Icon icon={IconGlyph} size="sm" decorative />
+              <span>{key}</span>
+            </span>
+          )
+        }
+      }),
+    []
+  )
+
+  const iconComboboxOptions = useMemo(() => {
+    const trimmedIcon = settings.icon.trim()
+    if (!trimmedIcon) {
+      return defaultIconOptions
+    }
+
+    const isKnownKey = ABSENCE_TYPE_SETUP_ICON_KEYS.includes(trimmedIcon as AbsenceTypeSetupIconKey)
+    if (isKnownKey) {
+      return defaultIconOptions
+    }
+
+    return [
+      ...defaultIconOptions,
+      {
+        value: trimmedIcon,
+        label: <span className="gba:pl-1 gba:text-sm">{trimmedIcon}</span>
+      }
+    ]
+  }, [defaultIconOptions, settings.icon])
+
   return (
     <Card data-testid="absence-type-settings-section" className="gba:border gba:border-border gba:bg-muted/10">
       <CardHeader className="gba:border-b gba:border-border gba:bg-background">
@@ -88,24 +119,16 @@ export function AbsenceTypeSettingsSection({ settings, onFieldChange }: Readonly
           <div className="gba:space-y-2">
             <Label htmlFor="absence-type-icon-select">{t('field-icon-label')}</Label>
             <Combobox
+              id="absence-type-icon-select"
               value={settings.icon}
               onValueChange={value => onFieldChange('icon', String(value || ''))}
-              options={absenceTypeIconOptions}
+              options={iconComboboxOptions}
               placeholder={t('icon-placeholder')}
               searchPlaceholder={t('icon-placeholder')}
               emptyText={t('icon-placeholder')}
               data-testid="absence-type-icon-input"
               title={t('icon-field-tooltip')}
             />
-            <Input
-              id="absence-type-icon-select"
-              value={settings.icon}
-              onChange={event => onFieldChange('icon', event.target.value)}
-              placeholder={t('icon-placeholder')}
-              data-testid="absence-type-icon-manual-input"
-              className="gba:mt-2"
-            />
-            <p className="gba:text-xs gba:text-muted-foreground">{t('icon-field-helper')}</p>
           </div>
 
           <div className="gba:space-y-2">
