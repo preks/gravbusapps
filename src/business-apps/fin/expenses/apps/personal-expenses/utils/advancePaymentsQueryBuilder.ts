@@ -74,8 +74,7 @@ const buildQueryParameters = (filterState: FilterState, filters: AdvancePaymentF
   }
 
   if (filterState.hasCreatedAtRange) {
-    parameters.push('$createdAtGte: timestamptz!')
-    parameters.push('$createdAtLte: timestamptz!')
+    parameters.push('$createdAtGte: timestamptz!', '$createdAtLte: timestamptz!')
   }
 
   // Add orderBy parameter for dynamic sorting (always present)

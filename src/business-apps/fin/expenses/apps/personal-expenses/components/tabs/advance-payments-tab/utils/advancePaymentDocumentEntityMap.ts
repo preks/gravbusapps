@@ -86,31 +86,29 @@ export function buildAdvancePaymentDocumentEntityMap(
   }
 
   const plan = record.expensePlan
-  if (!plan) {
-    return map
-  }
-
-  map.expense_plan = {
-    ...(plan as unknown as Record<string, unknown>),
-    approvedBy: approverData.expensePlanApprover || '',
-    approvalDate: approverData.expensePlanApprovalDate || ''
-  }
-
-  const emp = plan.employee
-  if (emp) {
-    const pos = emp.employeePosition
-    map.employee_position = {
-      firstName: emp.firstName ?? '',
-      lastName: emp.lastName ?? '',
-      fullName: emp.fullName ?? `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim(),
-      jobPosition: pos?.jobPosition ? { name: pos.jobPosition.name ?? '' } : { name: '' },
-      organizationalUnit: pos?.organizationalUnit ? { name: pos.organizationalUnit.name ?? '' } : { name: '' },
-      supervisorName: supervisorName || ''
+  if (plan) {
+    map.expense_plan = {
+      ...(plan as unknown as Record<string, unknown>),
+      approvedBy: approverData.expensePlanApprover || '',
+      approvalDate: approverData.expensePlanApprovalDate || ''
     }
-  }
 
-  const { tripForDoc, destinationTrip } = pickTripRows(plan)
-  map.expense_request_trip = buildExpenseRequestTripEntity(tripForDoc, destinationTrip)
+    const emp = plan.employee
+    if (emp) {
+      const pos = emp.employeePosition
+      map.employee_position = {
+        firstName: emp.firstName ?? '',
+        lastName: emp.lastName ?? '',
+        fullName: emp.fullName ?? `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim(),
+        jobPosition: pos?.jobPosition ? { name: pos.jobPosition.name ?? '' } : { name: '' },
+        organizationalUnit: pos?.organizationalUnit ? { name: pos.organizationalUnit.name ?? '' } : { name: '' },
+        supervisorName: supervisorName || ''
+      }
+    }
+
+    const { tripForDoc, destinationTrip } = pickTripRows(plan)
+    map.expense_request_trip = buildExpenseRequestTripEntity(tripForDoc, destinationTrip)
+  }
 
   return map
 }

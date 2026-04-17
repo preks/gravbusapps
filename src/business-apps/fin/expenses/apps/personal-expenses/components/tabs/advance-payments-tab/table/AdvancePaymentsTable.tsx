@@ -11,22 +11,42 @@ import type { AdvancePaymentsTableProps } from '../types/advancePaymentsTable.ty
 
 export type { AdvancePaymentsTableProps } from '../types/advancePaymentsTable.types'
 
-function resolveExpensePlanTypeLabel(selectedExpensePlan: unknown): string | undefined {
-  const sp = selectedExpensePlan as {
-    requestType?: { value?: string } | unknown
-    type?: { value?: string } | unknown
+function readCatalogValueFromUnknown(obj: unknown): string | undefined {
+  if (obj !== null && typeof obj === 'object' && 'value' in obj) {
+    const v = (obj as { value?: unknown }).value
+    return typeof v === 'string' ? v : undefined
   }
-  const requestTypeValue =
-    sp.requestType && typeof sp.requestType === 'object' && 'value' in sp.requestType
-      ? (sp.requestType as { value?: string }).value
-      : undefined
-  const typeValue =
-    sp.type && typeof sp.type === 'object' && 'value' in sp.type ? (sp.type as { value?: string }).value : undefined
-  if (requestTypeValue) return requestTypeValue
-  if (typeValue) return typeValue
-  if (sp.requestType) return String(sp.requestType)
-  if (sp.type) return String(sp.type)
   return undefined
+}
+
+function primitiveDisplayLabel(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  return undefined
+}
+
+function resolveExpensePlanTypeLabel(selectedExpensePlan: unknown): string | undefined {
+  if (selectedExpensePlan === null || typeof selectedExpensePlan !== 'object') {
+    return undefined
+  }
+  const sp = selectedExpensePlan as Record<string, unknown>
+  const requestTypeValue = readCatalogValueFromUnknown(sp.requestType)
+  const typeValue = readCatalogValueFromUnknown(sp.type)
+  if (requestTypeValue !== undefined) {
+    return requestTypeValue
+  }
+  if (typeValue !== undefined) {
+    return typeValue
+  }
+  const fromRequestType = primitiveDisplayLabel(sp.requestType)
+  if (fromRequestType !== undefined) {
+    return fromRequestType
+  }
+  return primitiveDisplayLabel(sp.type)
 }
 
 const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTableProps>((props, ref) => {
