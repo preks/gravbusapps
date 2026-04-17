@@ -42764,9 +42764,9 @@
     ]
   },
   "hr/core/apps/my-time": {
-    "bitbucketBuildNumber": 10942,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10942/",
-    "chunkJsBytes": 617229,
+    "bitbucketBuildNumber": 10964,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10964/",
+    "chunkJsBytes": 617261,
     "top": [
       {
         "kind": "bucket",
@@ -42789,8 +42789,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 249996,
-        "gzip": 63076,
+        "rendered": 250001,
+        "gzip": 63077,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/components/AbsenceCalendar.tsx",
@@ -87986,20 +87986,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10963,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10963/",
-    "chunkJsBytes": 1805424,
+    "bitbucketBuildNumber": 10964,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10964/",
+    "chunkJsBytes": 1806055,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1498564,
-        "gzip": 89642,
+        "rendered": 1499235,
+        "gzip": 89756,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1498564,
-            "gzip": 89642
+            "rendered": 1499235,
+            "gzip": 89756
           }
         ]
       },
@@ -101646,7 +101646,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-17T09:43:22.724Z",
+    "generatedAt": "2026-04-17T10:09:20.002Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
