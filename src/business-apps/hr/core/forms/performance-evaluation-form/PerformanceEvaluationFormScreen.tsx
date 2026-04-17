@@ -17,17 +17,19 @@ const PerformanceEvaluationFormScreen: React.FC<PerformanceEvaluationFormScreenP
   const taskPayload = (additionalData as any)?.psi_taskPayload
   const taskName = taskPayload?.TaskName
   const isPeerEvaluation = taskName === 'peerEvaluation'
-  const creatorUserId = taskPayload?.creatorUserId
+  const evaluatedEmployeeUserId = taskPayload?.employeeUserId ?? taskPayload?.CreatedBy
 
-  if (isPeerEvaluation) {
-    console.log('[PeerEvaluation] additionalData:', JSON.stringify(additionalData, null, 2))
-    console.log('[PeerEvaluation] taskPayload:', JSON.stringify(taskPayload, null, 2))
-  }
+  console.log('[EvalScreen] additionalData:', JSON.stringify(additionalData, null, 2))
+  console.log('[EvalScreen] taskPayload:', JSON.stringify(taskPayload, null, 2))
+  console.log('[EvalScreen] taskName:', taskName, '| isPeerEvaluation:', isPeerEvaluation)
+  console.log('[EvalScreen] evaluatedEmployeeUserId:', evaluatedEmployeeUserId)
+  console.log('[EvalScreen] preSelectedEmployeeId (prop):', preSelectedEmployeeId)
+  console.log('[EvalScreen] userInfo:', JSON.stringify(userInfo, null, 2))
 
-  // For peer evaluation step: employee comes from creatorUserId (resolve to employeeId)
-  const { employeeId: creatorEmployeeId } = useEmployeeByUserId({
+  // For peer evaluation step: employee comes from employeeUserId (the evaluated employee's userId)
+  const { employeeId: evaluatedEmployeeId } = useEmployeeByUserId({
     accessToken,
-    userId: isPeerEvaluation ? creatorUserId : undefined
+    userId: isPeerEvaluation ? evaluatedEmployeeUserId : undefined
   })
 
   // Extract employeeId from task payload (for manager/other flows)
@@ -52,8 +54,22 @@ const PerformanceEvaluationFormScreen: React.FC<PerformanceEvaluationFormScreenP
     userId: !isPeerEvaluation ? receiverId : undefined
   })
 
-  // Peer evaluation: use creatorUserId (resolved to employeeId). Otherwise use mapped receiverId or other fallbacks.
-  const finalEmployeeId = isPeerEvaluation ? creatorEmployeeId || employeeId : mappedEmployeeId || employeeId
+  // Peer evaluation: use employeeUserId (resolved to employeeId). Otherwise use mapped receiverId or other fallbacks.
+  const finalEmployeeId = isPeerEvaluation ? evaluatedEmployeeId || employeeId : mappedEmployeeId || employeeId
+
+  console.log('[EvalScreen] Resolution chain:', {
+    employeeIdFromTaskPayload,
+    'additionalData.employeeId': additionalData?.employeeId,
+    'flowContext.employeeId': additionalData?.flowContext?.employeeId,
+    'contextData.employeeId': additionalData?.contextData?.employeeId,
+    'psi_initialParameters.employeeId': additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId,
+    receiverId,
+    evaluatedEmployeeUserId,
+    evaluatedEmployeeId,
+    mappedEmployeeId,
+    employeeId,
+    finalEmployeeId
+  })
 
   const handleSubmitEvaluation = async () => {
     // Evaluation submission is now handled by Kogito process via dispatchProcessContinueEvent
