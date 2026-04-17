@@ -58,7 +58,9 @@ export const useUnifiedCapabilitiesCatalog = (
           kind: 'function',
           supportsVersion: true,
           sourceMeta: {
-            functionId: func.id
+            functionId: func.id,
+            connectorEnabled: func.connectorEnabled === true,
+            connectorKind: func.connectorKind ?? null
           }
         })
       })

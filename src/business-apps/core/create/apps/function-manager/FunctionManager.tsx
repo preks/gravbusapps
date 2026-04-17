@@ -85,6 +85,7 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
 
   const {
     data,
+    allItems,
     total,
     loading,
     error,
@@ -111,9 +112,13 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
     updateUrlWithFunctionId(fn.id, true)
   }, [])
 
-  const editingFunction = editingFunctionId ? data.find(f => f.id === editingFunctionId) : null
+  // Use the full unpaginated list so deep-links (?functionId=) resolve even when the target
+  // function is not on the current page slice. Falls back to `data` (current page) only for safety.
+  const editingFunction = editingFunctionId
+    ? (allItems.find(f => f.id === editingFunctionId) ?? data.find(f => f.id === editingFunctionId) ?? null)
+    : null
 
-  // Clear editingFunctionId from URL if the function is not in loaded data (e.g. invalid id or not in page)
+  // Clear editingFunctionId from URL only when the id is truly not in the loaded full list (invalid id).
   useEffect(() => {
     if (!loading && editingFunctionId && !editingFunction) {
       setEditingFunctionId(null)
