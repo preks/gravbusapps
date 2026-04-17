@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect } from 'react'
-import { DataDisplay, DataTable, useTranslation } from '@newwork/nw-design-system'
+import { CreateLayout, DataDisplay, DataTable, useTranslation } from '@newwork/nw-design-system'
 import { Code, KeyRound, List, ListPlus } from 'lucide-react'
 import type { SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { CreateLayout } from '@/components/create-layout'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import { LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
 import { deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 import { FunctionEditor } from './components/FunctionEditor'
@@ -265,6 +265,7 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
       heroIcon={<Code className="gba:w-8 gba:h-8 gba:text-white" />}
       heroTitle={t('page-title')}
       heroSubtitle={t('page-description')}
+      heroBackground={<PremiumHeroBackground />}
       views={overviewViews}
       currentView={listView}
       onViewChange={handleListViewChange}
@@ -321,7 +322,7 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
         )
       }
       className={className}
-      testId={DATA_TEST_ID}
+      data-testid={DATA_TEST_ID}
     />
   )
 }

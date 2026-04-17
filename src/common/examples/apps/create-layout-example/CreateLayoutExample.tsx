@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
+import { CreateLayout } from '@newwork/nw-design-system'
 import { MessageSquare, LayoutDashboard } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { CreateLayout } from '@/components/create-layout'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import { CreateChatInput } from '@/business-apps/core/create/components/CreateChatInput'
 
 const DATA_TEST_ID = 'create-layout-example'
@@ -26,10 +27,11 @@ export const CreateLayoutExample: React.FC<BusinessAppContextProps> = () => {
 
   return (
     <CreateLayout
-      testId={DATA_TEST_ID}
+      data-testid={DATA_TEST_ID}
       heroIcon={LayoutDashboard}
       heroTitle="Create Layout Example"
       heroSubtitle="Resizable chat + canvas. Drag the divider to resize."
+      heroBackground={<PremiumHeroBackground />}
       onBack={() => window.history.back()}
       heroBackLabel="Back"
       chatPanelCollapsed={chatCollapsed}

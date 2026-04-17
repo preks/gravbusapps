@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
   Badge,
   Button,
+  CreateLayout,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -27,7 +28,7 @@ import {
 } from '@newwork/nw-design-system'
 import { FileText, Sparkles, Workflow } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { CreateLayout } from '@/components/create-layout/CreateLayout'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import translations from './_i18n'
 import { FlowStudioCanvas } from './components/canvas/FlowStudioCanvas'
 import { FlowStudioChatPanel } from './components/FlowStudioChatPanel'
@@ -383,6 +384,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
             heroVariant="editor"
             heroOverline={t('app-eyebrow')}
             heroIcon={<Workflow className="gba:w-5 gba:h-5 gba:text-white" />}
+            heroBackground={<PremiumHeroBackground />}
             heroTitle={
               <input
                 type="text"
@@ -471,7 +473,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
             }
             chatPanelCollapsed={chatPanelCollapsed}
             onChatPanelCollapseChange={setChatPanelCollapsed}
-            testId={`${testId}-create-layout`}
+            data-testid={`${testId}-create-layout`}
           />
         </>
       ) : null}
@@ -480,6 +482,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
           heroVariant="overview"
           heroOverline={t('app-eyebrow')}
           heroIcon={<Workflow className="gba:w-8 gba:h-8 gba:text-white" />}
+          heroBackground={<PremiumHeroBackground />}
           heroTitle={t('list-title')}
           heroSubtitle={listSubView === LIST_VIEW_CREATE ? t('list-subtitle-create') : t('list-subtitle')}
           views={[
@@ -521,7 +524,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
               />
             )
           }
-          testId={`${testId}-overview-layout`}
+          data-testid={`${testId}-overview-layout`}
         />
       ) : null}
 
