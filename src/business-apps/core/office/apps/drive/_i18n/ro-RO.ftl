@@ -16,7 +16,7 @@ hero-tab-recent = Recent
 hero-tab-favorites = Favorite
 hero-tab-trash = Coș de gunoi
 
-header-search-placeholder = Caută în Drive...
+drive-header-search-placeholder = Caută în Drive...
 header-new-folder = Folder nou
 header-upload-file = Încarcă fișier
 header-import-external = Import extern

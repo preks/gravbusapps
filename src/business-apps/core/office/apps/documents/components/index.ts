@@ -13,3 +13,12 @@ export { GenerateDocumentDialog } from './GenerateDocumentDialog'
 export { SendForApprovalDialog } from './SendForApprovalDialog'
 export { ShareDocumentDialog } from './ShareDocumentDialog'
 export { ManageSharesDialog } from './ManageSharesDialog'
+export { DocumentApprovalReviewPanel } from './DocumentApprovalReviewPanel'
+export type {
+  DocumentApprovalReviewBannerMode,
+  DocumentApprovalReviewLoadedMeta,
+  DocumentApprovalReviewPanelProps,
+  DocumentApprovalReviewSource
+} from './DocumentApprovalReviewPanel'
+export { DocumentApprovalReviewDialog } from './DocumentApprovalReviewDialog'
+export type { DocumentApprovalReviewDialogProps } from './DocumentApprovalReviewDialog'

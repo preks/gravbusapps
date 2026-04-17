@@ -39,7 +39,7 @@ menu-new-template-title = Aus Vorlage
 menu-new-template-description = Vorlage auswählen
 
 header-sort = Sortieren
-header-search-placeholder = Suchen...
+notes-header-search-placeholder = Notizen suchen...
 sort-name = Name
 sort-modified = Geändert
 sort-created = Erstellt
@@ -47,14 +47,14 @@ table-owner = Besitzer
 
 empty-pinned-title = Keine angehefteten Notizen
 empty-pinned-description = Heften Sie wichtige Notizen an für schnellen Zugriff.
-empty-shared-title = Nichts mit Ihnen geteilt
-empty-shared-description = Geteilte Notizen erscheinen hier.
+notes-empty-shared-title = Nichts mit Ihnen geteilt
+notes-empty-shared-description = Geteilte Notizen erscheinen hier.
 empty-archived-title = Keine Notizen im Papierkorb
 empty-archived-description = In den Papierkorb verschobene Notizen erscheinen hier.
-empty-trash-title = Keine Notizen im Papierkorb
-empty-trash-description = In den Papierkorb verschobene Notizen erscheinen hier.
-empty-default-title = Noch keine Notizen
-empty-default-description = Erstellen Sie Ihre erste Notiz.
+notes-empty-trash-title = Keine Notizen im Papierkorb
+notes-empty-trash-description = In den Papierkorb verschobene Notizen erscheinen hier.
+notes-empty-default-title = Noch keine Notizen
+notes-empty-default-description = Erstellen Sie Ihre erste Notiz.
 empty-create-note = Notiz erstellen
 loading-message = Wird geladen...
 

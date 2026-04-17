@@ -701,7 +701,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             <div className="gba:relative">
               <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
               <Input
-                placeholder={t('header-search-placeholder')}
+                placeholder={t('slides-header-search-placeholder')}
                 value={trashSearchQuery}
                 onChange={event => setTrashSearchQuery(event.target.value)}
                 className="gba:h-12 gba:pl-11 gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm"
@@ -714,8 +714,8 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
               <OfficeTrashList
                 accessToken={accessToken ?? ''}
                 entityType="slide"
-                emptyTitle={t('empty-trash-title')}
-                emptyDescription={t('empty-trash-description')}
+                emptyTitle={t('slides-empty-trash-title')}
+                emptyDescription={t('slides-empty-trash-description')}
                 layout="list"
                 searchQuery={trashSearchQuery}
                 listControls={{
@@ -758,7 +758,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
               <div className="gba:relative">
                 <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
                 <Input
-                  placeholder={t('header-search-placeholder')}
+                  placeholder={t('slides-header-search-placeholder')}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   className="gba:pl-12 gba:pr-4 gba:h-12 gba:text-base gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm hover:gba:shadow-md hover:gba:bg-muted/70 hover:gba:border-border gba:transition-all gba:duration-200"
@@ -881,21 +881,21 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                 </div>
                 <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
                   {activeSection === 'favorites'
-                    ? t('empty-favorites-title')
+                    ? t('slides-empty-favorites-title')
                     : activeSection === 'shared'
-                      ? t('empty-shared-title')
+                      ? t('slides-empty-shared-title')
                       : activeSection === 'archived'
                         ? t('empty-archived-title')
-                        : t('empty-default-title')}
+                        : t('slides-empty-default-title')}
                 </h3>
                 <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
                   {activeSection === 'favorites'
-                    ? t('empty-favorites-description')
+                    ? t('slides-empty-favorites-description')
                     : activeSection === 'shared'
-                      ? t('empty-shared-description')
+                      ? t('slides-empty-shared-description')
                       : activeSection === 'archived'
                         ? t('empty-archived-description')
-                        : t('empty-default-description')}
+                        : t('slides-empty-default-description')}
                 </p>
                 {activeSection !== 'favorites' && activeSection !== 'shared' && activeSection !== 'archived' && (
                   <Button onClick={handleCreateNew}>

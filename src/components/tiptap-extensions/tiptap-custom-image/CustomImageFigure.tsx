@@ -15,6 +15,7 @@ interface CustomImageFigureProps {
   readonly selected: boolean
   readonly isCropMode: boolean
   readonly isFloatingImage: boolean
+  readonly isEditable: boolean
   readonly figureStyleOverride?: React.CSSProperties
   readonly selectionAnchorAttributes?: Record<string, string>
   readonly imageFrameRef?: React.Ref<HTMLElement>
@@ -76,6 +77,7 @@ export function CustomImageFigure({
   selected,
   isCropMode,
   isFloatingImage,
+  isEditable,
   figureStyleOverride,
   selectionAnchorAttributes,
   imageFrameRef,
@@ -125,9 +127,11 @@ export function CustomImageFigure({
         ) : (
           <span
             ref={imageFrameRef}
-            className={`gba:relative gba:inline-flex gba:max-w-full ${interactivePointerClass} ${isFloatingImage && selected && !isCropMode ? 'gba:cursor-move' : ''}`}
+            className={`gba:relative gba:inline-flex gba:max-w-full ${interactivePointerClass} ${
+              isEditable && isFloatingImage && selected && !isCropMode ? 'gba:cursor-move' : ''
+            }`}
             style={layout.imageFrameStyle}
-            onMouseDown={onStartMove}
+            onMouseDown={isEditable ? onStartMove : undefined}
             data-testid="document-editor-image-frame"
           >
             <span className="gba:relative gba:inline-block" style={layout.cropViewportStyle}>
@@ -176,7 +180,7 @@ export function CustomImageFigure({
                 data-testid="document-editor-image-selection-frame"
               />
             ) : null}
-            {selected && !error && displaySrc
+            {selected && isEditable && !error && displaySrc
               ? HANDLE_DIRECTIONS.map(direction => {
                   const directionClasses: Record<ResizeDirection, string> = {
                     n: 'gba:top-0 gba:left-1/2 gba:-translate-x-1/2 gba:-translate-y-1/2',
@@ -202,7 +206,7 @@ export function CustomImageFigure({
                   )
                 })
               : null}
-            {selected && !error && displaySrc ? (
+            {selected && isEditable && !error && displaySrc ? (
               <span
                 className="gba:absolute gba:bottom-full gba:left-1/2 gba:z-10 gba:flex gba:flex-col gba:items-center gba:-translate-x-1/2 gba:pb-2 gba:pointer-events-auto"
                 data-image-handle="true"

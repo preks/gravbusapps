@@ -132,10 +132,10 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
                       <Inbox className="gba:w-8 gba:h-8 gba:text-muted-foreground" />
                     </div>
                     <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">
-                      {searchQuery ? t('empty-search-title') : t('empty-default-title')}
+                      {searchQuery ? t('empty-search-title') : t('desk-empty-default-title')}
                     </h3>
                     <p className="gba:text-muted-foreground gba:mb-6">
-                      {searchQuery ? t('empty-search-description') : t('empty-default-description')}
+                      {searchQuery ? t('empty-search-description') : t('desk-empty-default-description')}
                     </p>
                     {!searchQuery && (
                       <div className="gba:flex gba:justify-center gba:gap-3">

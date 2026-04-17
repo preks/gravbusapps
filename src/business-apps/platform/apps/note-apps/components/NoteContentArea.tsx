@@ -209,19 +209,19 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
               {activeSection === 'pinned'
                 ? t('empty-pinned-title')
                 : activeSection === 'shared'
-                  ? t('empty-shared-title')
+                  ? t('notes-empty-shared-title')
                   : activeSection === 'trash'
-                    ? t('empty-trash-title')
-                    : t('empty-default-title')}
+                    ? t('notes-empty-trash-title')
+                    : t('notes-empty-default-title')}
             </h3>
             <p className="gba:text-muted-foreground gba:text-sm gba:text-center gba:max-w-sm gba:mb-5">
               {activeSection === 'pinned'
                 ? t('empty-pinned-description')
                 : activeSection === 'shared'
-                  ? t('empty-shared-description')
+                  ? t('notes-empty-shared-description')
                   : activeSection === 'trash'
-                    ? t('empty-trash-description')
-                    : t('empty-default-description')}
+                    ? t('notes-empty-trash-description')
+                    : t('notes-empty-default-description')}
             </p>
             {activeSection !== 'pinned' && activeSection !== 'shared' && activeSection !== 'trash' && (
               <Button onClick={() => onCreateNote()} size="sm">

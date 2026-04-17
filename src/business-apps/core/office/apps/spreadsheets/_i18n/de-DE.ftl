@@ -74,7 +74,7 @@ action-sort-name = Name
 action-sort-modified = Geändert
 action-sort-created = Erstellt
 action-search-placeholder = Suchen...
-header-search-placeholder = Tabellen suchen...
+spreadsheets-header-search-placeholder = Tabellen suchen...
 header-refresh = Aktualisieren
 sort-name = Name
 sort-trashed = In den Papierkorb verschoben am
@@ -88,8 +88,8 @@ table-modified-by = Geändert von
 table-rows = Zeilen
 
 # Empty states
-empty-trash-title = Keine Tabellen im Papierkorb
-empty-trash-description = In den Papierkorb verschobene Tabellen werden hier angezeigt.
+spreadsheets-empty-trash-title = Keine Tabellen im Papierkorb
+spreadsheets-empty-trash-description = In den Papierkorb verschobene Tabellen werden hier angezeigt.
 rows-label = Zeilen
 
 # Empty states

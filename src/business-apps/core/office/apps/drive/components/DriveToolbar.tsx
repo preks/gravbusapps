@@ -50,7 +50,7 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
       >
         <Search className="gba:w-5 gba:h-5 gba:text-muted-foreground/70 group-hover:gba:text-foreground gba:transition-colors" />
         <span className="gba:text-sm gba:text-muted-foreground/70 group-hover:gba:text-muted-foreground gba:transition-colors">
-          {t('header-search-placeholder')}
+          {t('drive-header-search-placeholder')}
         </span>
         <kbd className="gba:ml-auto gba:text-[11px] gba:text-muted-foreground/50 gba:px-2 gba:py-0.5 gba:rounded-md gba:bg-background gba:border gba:border-border/50 gba:font-medium gba:tracking-wide">
           ⌘K
