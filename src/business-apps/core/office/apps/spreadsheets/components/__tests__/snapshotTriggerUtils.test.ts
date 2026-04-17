@@ -1,4 +1,8 @@
-import { VALUE_MUTATION_SNAPSHOT_SUPPRESSION_MS, shouldScheduleSnapshotForMutation } from '../snapshotTriggerUtils'
+import {
+  VALUE_MUTATION_SNAPSHOT_SUPPRESSION_MS,
+  isStyleOnlySheetMutationCommand,
+  shouldScheduleSnapshotForMutation
+} from '../snapshotTriggerUtils'
 
 describe('snapshotTriggerUtils', () => {
   it('does not schedule snapshots for mutations carrying cell values', () => {
@@ -64,5 +68,36 @@ describe('snapshotTriggerUtils', () => {
         lastCellValueMutationAt: 0
       })
     ).toBe(false)
+  })
+
+  it('schedules snapshots for formatting COMMANDs (type 0) such as bold', () => {
+    expect(
+      shouldScheduleSnapshotForMutation({
+        commandType: 0,
+        mutationCommandType: 2,
+        commandId: 'sheet.command.set-range-bold',
+        params: {},
+        now: 10_000,
+        lastCellValueMutationAt: 10_000
+      })
+    ).toBe(true)
+  })
+
+  it('does not schedule snapshots for selection COMMANDs', () => {
+    expect(
+      shouldScheduleSnapshotForMutation({
+        commandType: 0,
+        mutationCommandType: 2,
+        commandId: 'sheet.command.selection-move',
+        params: {},
+        now: 10_000,
+        lastCellValueMutationAt: 0
+      })
+    ).toBe(false)
+  })
+
+  it('classifies style-only mutation commands for batch gating', () => {
+    expect(isStyleOnlySheetMutationCommand('sheet.command.set-range-bold')).toBe(true)
+    expect(isStyleOnlySheetMutationCommand('sheet.command.set-range-values')).toBe(false)
   })
 })

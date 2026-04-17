@@ -44,18 +44,21 @@ import { TableView, FormView, DashboardView, KanbanView } from './views'
 import type {
   UniverSheetGridHandle,
   CellDimensionsPayload,
-  ApplyRemoteCellUpdateOptions
+  ApplyRemoteCellUpdateOptions,
+  WorkbookSnapshotLifecycleEvent
 } from './components/UniverSheetGrid'
 import {
-  buildWorkbookSnapshot,
   buildMultiSheetWorkbookFromAppSheets,
   countWorksheetsInUniverSnapshot,
   mergeAuthoritativeViewerRowsIntoWorkbookSnapshot,
+  mergeWorkbookFormattingFromDonor,
   snapshotTrackingHeaderMatchesColumnLabels,
+  workbookFormattingRichnessScore,
   workbookSnapshotMismatchesViewerRows
 } from './utils/univerAdapter'
 import {
-  readLatestUniverSnapshot,
+  readUniverSnapshotCacheForBootstrap,
+  listValidUniverSnapshotCacheEntries,
   writeUniverSnapshotCache,
   clearUniverSnapshotCache
 } from './utils/univerSnapshotCache'
@@ -851,7 +854,7 @@ const loadBootstrapSnapshotData = async (
   version: number
   cacheWrite?: ReturnType<typeof writeUniverSnapshotCache>
 }> => {
-  const cached = readLatestUniverSnapshot(appId, sheetId, minVersion)
+  const cached = readUniverSnapshotCacheForBootstrap(appId, sheetId, minVersion)
   if (cached?.snapshot) {
     return {
       snapshot: cached.snapshot,
@@ -863,8 +866,11 @@ const loadBootstrapSnapshotData = async (
 
   const remote = await fetchUniverSnapshotWithTimeout(appId, sheetId, SNAPSHOT_FETCH_TIMEOUT_MS)
   const remoteVersion = Number(remote?.version ?? 0)
-  const isRemoteSnapshotUsable = remoteVersion >= minVersion
-  if (remote?.snapshot && typeof remote.snapshot === 'object' && isRemoteSnapshotUsable) {
+  // The remote Univer snapshot version tracks the last successful `saveUniverSnapshot`, which lags
+  // behind the sheet version bumped by cell batches. Use the returned workbook whenever it exists so
+  // formatting (`styles`, cell `s` refs) survives reload after an interrupted snapshot save. Row values
+  // from the canonical `getSheetSnapshot` rows are already overlaid on top by the bootstrap caller.
+  if (remote?.snapshot && typeof remote.snapshot === 'object') {
     const cacheWrite = writeUniverSnapshotCache(
       appId,
       sheetId,
@@ -873,7 +879,10 @@ const loadBootstrapSnapshotData = async (
     )
     return {
       snapshot: remote.snapshot as Record<string, unknown>,
-      seed: `remote-v${remoteVersion}`,
+      seed:
+        remoteVersion >= minVersion
+          ? `remote-v${remoteVersion}`
+          : `remote-v${remoteVersion}-lagging-sheet-v${minVersion}`,
       source: 'remote',
       version: remoteVersion,
       cacheWrite
@@ -969,25 +978,35 @@ const mergeBootstrapSnapshotWithCanonicalRows = (
   sheet: SpreadsheetSheet,
   rows: Record<string, unknown>[]
 ): Record<string, unknown> => {
-  const canonicalWorkbook = buildWorkbookSnapshot(sheet, rows, sheet.columns) as unknown as Record<string, unknown>
-  const canonicalWorksheet = getWorksheetFromSnapshot(canonicalWorkbook, sheet.id)
-  if (!canonicalWorksheet) return snapshot
-  const nextSnapshot = cloneSnapshot(snapshot)
-  const sheets = ((nextSnapshot.sheets as Record<string, unknown> | undefined) ?? {}) as Record<string, unknown>
-  const existingWorksheet = getWorksheetFromSnapshot(nextSnapshot, sheet.id) ?? {}
-  sheets[sheet.id] = {
-    ...existingWorksheet,
-    id: sheet.id,
-    name: sheet.name,
-    cellData: canonicalWorksheet.cellData,
-    rowCount: canonicalWorksheet.rowCount,
-    columnCount: canonicalWorksheet.columnCount
+  // IMPORTANT: Do not replace worksheet.cellData with buildWorkbookSnapshot(rows) — that drops
+  // Univer style refs (`s`) and snapshot-only state while leaving workbook.styles orphaned.
+  // Overlay row-authoritative values cell-by-cell instead (preserves formatting on reopen).
+  return mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(snapshot, sheet.id, rows, sheet.columns)
+}
+
+/**
+ * When the chosen bootstrap workbook is value-only or stale (e.g. bad remote payload) but an older
+ * localStorage generation still has `styles` / cell `s` refs from a prior successful save, merge that
+ * formatting in so reopen is not completely unstyled.
+ */
+const enrichBootstrapSnapshotFromOlderCacheFormatting = (
+  appId: string,
+  sheetId: string,
+  mergedSnapshot: Record<string, unknown>
+): Record<string, unknown> => {
+  const primaryScore = workbookFormattingRichnessScore(mergedSnapshot, sheetId)
+  const candidates = listValidUniverSnapshotCacheEntries(appId, sheetId)
+  let bestDonor: Record<string, unknown> | null = null
+  let bestScore = primaryScore
+  for (const entry of candidates) {
+    const s = workbookFormattingRichnessScore(entry.snapshot, sheetId)
+    if (s > bestScore) {
+      bestScore = s
+      bestDonor = entry.snapshot
+    }
   }
-  nextSnapshot.sheets = sheets
-  if (!Array.isArray(nextSnapshot.sheetOrder)) {
-    nextSnapshot.sheetOrder = [sheet.id]
-  }
-  return nextSnapshot
+  if (!bestDonor) return mergedSnapshot
+  return mergeWorkbookFormattingFromDonor(mergedSnapshot, bestDonor, sheetId)
 }
 
 const snapshotCellCoordinateKey = (row: number, col: number): string => `${row}:${col}`
@@ -1079,7 +1098,8 @@ const saveSnapshotWithRetry = async ({
   spreadsheetGridRef,
   collaboration,
   maxSnapshotRetries,
-  lastEmittedDimensionSignatureRef
+  lastEmittedDimensionSignatureRef,
+  useKeepaliveHttp = false
 }: {
   appId: string
   activeSheetId: string
@@ -1100,6 +1120,8 @@ const saveSnapshotWithRetry = async ({
   }
   maxSnapshotRetries: number
   lastEmittedDimensionSignatureRef: React.MutableRefObject<string | null>
+  /** When true (tab unloading), use fetch keepalive for small snapshot payloads so the request may outlive the page. */
+  useKeepaliveHttp?: boolean
 }): Promise<{ savedSnapshot: unknown; cacheResult: { stored: boolean; reason: string | null } }> => {
   let lastError: unknown
   for (let attempt = 0; attempt < maxSnapshotRetries; attempt++) {
@@ -1109,10 +1131,15 @@ const saveSnapshotWithRetry = async ({
       const clonedSnapshot = cloneSnapshot(rawSnapshot)
       const snapshotToSave = prepareSnapshotForSave ? prepareSnapshotForSave(clonedSnapshot) : clonedSnapshot
       const versionForSave = sheetVersionRef.current
-      await SpreadsheetApiService.saveUniverSnapshot(appId, activeSheetId, {
-        version: versionForSave,
-        snapshot: snapshotToSave as Record<string, unknown>
-      })
+      await SpreadsheetApiService.saveUniverSnapshot(
+        appId,
+        activeSheetId,
+        {
+          version: versionForSave,
+          snapshot: snapshotToSave as Record<string, unknown>
+        },
+        useKeepaliveHttp ? { keepalive: true } : undefined
+      )
       const cacheWrite = writeUniverSnapshotCache(
         appId,
         activeSheetId,
@@ -1279,6 +1306,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const pendingSnapshotCheckpointBySheetRef = useRef<Map<string, { requestedAt: number }>>(new Map())
   const snapshotCheckpointDrainScheduledRef = useRef(false)
   const snapshotCheckpointDrainPromiseRef = useRef<Promise<void> | null>(null)
+  /** True while Univer has scheduled a workbook snapshot that has not yet settled (HTTP + drain). */
+  const workbookSnapshotThrottlePendingRef = useRef(false)
   const lastSuccessfulSnapshotCheckpointAtRef = useRef<number>(0)
   const latestUniverDataRef = useRef<Record<string, unknown>[] | null>(null)
   const univerDataChangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1447,13 +1476,38 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           result.snapshot && typeof result.snapshot === 'object'
             ? mergeBootstrapSnapshotWithCanonicalRows(result.snapshot, canonicalSheetMeta, canonicalRows)
             : result.snapshot
-        setBootstrapState(normalizedSnapshot, result.seed)
-        if (normalizedSnapshot && normalizedSnapshot !== result.snapshot) {
-          writeUniverSnapshotCache(app.id, activeSheetId, result.version, normalizedSnapshot)
-          debugLog('bootstrap: merged Univer snapshot with row-authoritative overlay', {
+        const snapshotForBootstrap =
+          normalizedSnapshot && typeof normalizedSnapshot === 'object'
+            ? enrichBootstrapSnapshotFromOlderCacheFormatting(
+                app.id,
+                activeSheetId,
+                normalizedSnapshot as Record<string, unknown>
+              )
+            : normalizedSnapshot
+        setBootstrapState(snapshotForBootstrap, result.seed)
+        const rowOverlayChanged = Boolean(
+          normalizedSnapshot && result.snapshot && normalizedSnapshot !== result.snapshot
+        )
+        const formattingEnriched = Boolean(
+          snapshotForBootstrap && normalizedSnapshot && snapshotForBootstrap !== normalizedSnapshot
+        )
+        if (
+          snapshotForBootstrap &&
+          typeof snapshotForBootstrap === 'object' &&
+          (rowOverlayChanged || formattingEnriched)
+        ) {
+          writeUniverSnapshotCache(
+            app.id,
+            activeSheetId,
+            result.version,
+            snapshotForBootstrap as Record<string, unknown>
+          )
+          debugLog('bootstrap: merged Univer snapshot (rows and/or formatting fallback)', {
             appId: app.id,
             sheetId: activeSheetId,
-            source: result.source
+            source: result.source,
+            rowOverlayChanged,
+            formattingEnriched
           })
         }
         if (result.source === 'cache') {
@@ -1499,6 +1553,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   useEffect(() => {
     lastProcessedLengthRef.current = localSheetDataRef.current.length
     lastPersistedSheetDataRef.current = localSheetDataRef.current
+    workbookSnapshotThrottlePendingRef.current = false
   }, [activeSheetId])
 
   const tableUniverSnapshot = useMemo((): Record<string, unknown> | null => {
@@ -1632,6 +1687,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       sheetPersist.error
     ]
   )
+
+  /** Mirrors header “unsaved” / saving for synchronous beforeunload (React state is not readable there). */
+  const leaveGuardVersioningUnsavedRef = useRef(false)
+  const leaveGuardSheetDirtyRef = useRef(false)
+  const leaveGuardSheetErrorRef = useRef<string | null>(null)
+  const leaveGuardSheetSavingRef = useRef(false)
+  useEffect(() => {
+    leaveGuardVersioningUnsavedRef.current = versioning.hasUnsavedChanges
+  }, [versioning.hasUnsavedChanges])
+  useEffect(() => {
+    leaveGuardSheetDirtyRef.current = sheetPersist.hasLocalDirty
+    leaveGuardSheetErrorRef.current = sheetPersist.error
+    leaveGuardSheetSavingRef.current = sheetPersist.isSaving
+  }, [sheetPersist.hasLocalDirty, sheetPersist.error, sheetPersist.isSaving])
 
   const comments = useComments({
     entityId: app.id,
@@ -2339,6 +2408,26 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const canEditWithLockRef = useRef(canEditWithLock)
   canEditWithLockRef.current = canEditWithLock
 
+  /**
+   * Synchronous write of the live Univer workbook to localStorage so a fast close/reload can still
+   * restore styles from cache while the async HTTP snapshot is in flight or aborted.
+   */
+  const cacheLiveUniverSnapshotRef = useRef<() => void>(() => {})
+  const cacheLiveUniverSnapshotToLocalStorageBestEffort = useCallback(() => {
+    if (entityEnabledRef.current || !canEditWithLockRef.current) return
+    const sheetId = activeSheetIdRef.current
+    if (!sheetId) return
+    try {
+      const raw = spreadsheetGridRef.current?.getWorkbookSnapshot?.()
+      if (!raw || typeof raw !== 'object') return
+      const version = Math.max(0, Math.trunc(Number(sheetVersionRef.current ?? 0)))
+      writeUniverSnapshotCache(app.id, sheetId, version, cloneSnapshot(raw) as Record<string, unknown>)
+    } catch (err) {
+      console.warn('[SpreadsheetAppViewer] Emergency snapshot localStorage cache failed:', err)
+    }
+  }, [app.id])
+  cacheLiveUniverSnapshotRef.current = cacheLiveUniverSnapshotToLocalStorageBestEffort
+
   const effectiveGridColumns = useMemo(() => {
     const overrideEntries = Object.entries(pendingColumnWidthOverrides)
     if (overrideEntries.length === 0) return activeSheet.columns
@@ -2553,6 +2642,31 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const hasPendingCellPersistence = useCallback(
     () => pendingCellChangesRef.current.length > 0 || pendingCellBatchesRef.current.length > 0,
     []
+  )
+
+  /** True while a snapshot drain is scheduled/running on the op queue, or sheet ids are queued for it. */
+  const hasPendingSnapshotCheckpointForCellFlush = useCallback(
+    () => pendingSnapshotCheckpointBySheetRef.current.size > 0 || snapshotCheckpointDrainScheduledRef.current,
+    []
+  )
+
+  const handleWorkbookSnapshotLifecycle = useCallback(
+    (event: WorkbookSnapshotLifecycleEvent) => {
+      if (event.phase === 'checkpoint_scheduled') {
+        workbookSnapshotThrottlePendingRef.current = true
+        sheetPersist.markDirty()
+        versioning.markAsChanged()
+        return
+      }
+      if (event.ok) {
+        workbookSnapshotThrottlePendingRef.current = false
+        return
+      }
+      workbookSnapshotThrottlePendingRef.current = true
+      sheetPersist.markDirty()
+      versioning.markAsChanged()
+    },
+    [sheetPersist.markDirty, versioning.markAsChanged]
   )
 
   const recoverFromVersionConflict = useCallback(async (): Promise<boolean> => {
@@ -2899,7 +3013,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         }
       }
 
-      sheetPersist.beginPersist()
       try {
         let versionRefForSave = targetSheetVersionRef
         let sizeBytesForSave: number | null = snapshotSizeBytes
@@ -3024,7 +3137,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           spreadsheetGridRef,
           collaboration,
           maxSnapshotRetries: 3,
-          lastEmittedDimensionSignatureRef
+          lastEmittedDimensionSignatureRef,
+          useKeepaliveHttp: unloadKeepAlivePersistRef.current
         })
         cacheResult = saved.cacheResult
         debugLog('snapshot checkpoint saved', {
@@ -3046,9 +3160,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           successCount: prev.successCount + 1
         }))
         clearPendingSnapshotClearCoordinates(pendingSnapshotClearCellsRef.current, activeSheetId)
-        const queueClear = !hasPendingCellPersistence() && pendingCellPersistTimeoutRef.current == null
-        sheetPersist.recordSuccess(queueClear)
-        if (queueClear) {
+        const persistenceQuiet =
+          !hasPendingCellPersistence() &&
+          pendingCellPersistTimeoutRef.current == null &&
+          pendingSnapshotCheckpointBySheetRef.current.size === 0
+        sheetPersist.recordSuccess(persistenceQuiet)
+        if (persistenceQuiet) {
           versioning.markAsSaved()
         }
       } catch (error) {
@@ -3059,8 +3176,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           failCount: prev.failCount + 1
         }))
         sheetPersist.recordError(sheetT('persist-snapshot-failed'))
-      } finally {
-        sheetPersist.endPersist()
       }
     },
     [
@@ -3070,14 +3185,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       entityEnabled,
       hasPendingCellPersistence,
       recoverFromVersionConflict,
-      sheetPersist.beginPersist,
-      sheetPersist.endPersist,
       sheetPersist.recordError,
       sheetPersist.recordSuccess,
       sheetT,
       versioning.markAsSaved
     ]
   )
+
+  const persistSnapshotCheckpointForSheetRef = useRef(persistSnapshotCheckpointForSheet)
+  persistSnapshotCheckpointForSheetRef.current = persistSnapshotCheckpointForSheet
 
   const scheduleSnapshotCheckpointDrain = useCallback(() => {
     if (snapshotCheckpointDrainScheduledRef.current) {
@@ -3086,13 +3202,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
     snapshotCheckpointDrainScheduledRef.current = true
     const promise = chainOnOperationQueue(operationQueueRef, async () => {
-      while (pendingSnapshotCheckpointBySheetRef.current.size > 0) {
-        const pendingSheetIds = Array.from(pendingSnapshotCheckpointBySheetRef.current.keys())
-        pendingSnapshotCheckpointBySheetRef.current.clear()
+      sheetPersist.beginPersist()
+      try {
+        while (pendingSnapshotCheckpointBySheetRef.current.size > 0) {
+          const pendingSheetIds = Array.from(pendingSnapshotCheckpointBySheetRef.current.keys())
+          pendingSnapshotCheckpointBySheetRef.current.clear()
 
-        for (const targetSheetId of pendingSheetIds) {
-          await persistSnapshotCheckpointForSheet(targetSheetId)
+          for (const targetSheetId of pendingSheetIds) {
+            await persistSnapshotCheckpointForSheet(targetSheetId)
+          }
         }
+      } finally {
+        sheetPersist.endPersist()
       }
     }).finally(() => {
       snapshotCheckpointDrainScheduledRef.current = false
@@ -3104,12 +3225,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
     snapshotCheckpointDrainPromiseRef.current = promise
     return promise
-  }, [persistSnapshotCheckpointForSheet])
+  }, [persistSnapshotCheckpointForSheet, sheetPersist.beginPersist, sheetPersist.endPersist])
 
   const enqueueUniverSnapshotCheckpoint = useCallback((): Promise<void> => {
+    sheetPersist.markDirty()
     pendingSnapshotCheckpointBySheetRef.current.set(activeSheetId, { requestedAt: Date.now() })
     return scheduleSnapshotCheckpointDrain()
-  }, [activeSheetId, scheduleSnapshotCheckpointDrain])
+  }, [activeSheetId, scheduleSnapshotCheckpointDrain, sheetPersist.markDirty])
 
   useEffect(() => {
     enqueueSnapshotCheckpointRef.current = enqueueUniverSnapshotCheckpoint
@@ -3149,8 +3271,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
 
       if (!didPersistAnyBatch) return
-      sheetPersist.recordSuccess(!hasPendingCellPersistence())
-      if (!hasPendingCellPersistence()) {
+      const persistenceQuiet =
+        !hasPendingCellPersistence() &&
+        pendingCellPersistTimeoutRef.current == null &&
+        !hasPendingSnapshotCheckpointForCellFlush() &&
+        !workbookSnapshotThrottlePendingRef.current
+      sheetPersist.recordSuccess(persistenceQuiet)
+      if (persistenceQuiet) {
         versioning.markAsSaved()
       }
     } catch (error) {
@@ -3168,6 +3295,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     buildPendingCellBatches,
     entityEnabled,
     hasPendingCellPersistence,
+    hasPendingSnapshotCheckpointForCellFlush,
     persistPendingCellJournal,
     recoverFromVersionConflict,
     sheetPersist.beginPersist,
@@ -3542,15 +3670,33 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       pendingCellPersistTimeoutRef.current = null
     }
     const run = async () => {
+      // Runs synchronously for the localStorage part so a racing tab teardown still has a cache hit on reload.
+      cacheLiveUniverSnapshotRef.current()
       await processUniverDataChangeRef.current()
       await flushPendingCellChangesRef.current()
+      // Row batches were flushing here, but the Univer workbook snapshot (styles, fills, etc.)
+      // only ran on a separate debounced path — tabs closed during "Not saved" never persisted
+      // formatting to the API, so reopen loaded row values without cell `s` refs / styles map.
+      if (entityEnabledRef.current || !canEditWithLockRef.current) return
+      const sheetId = activeSheetIdRef.current
+      if (!sheetId) return
+      try {
+        sheetPersist.beginPersist()
+        try {
+          await persistSnapshotCheckpointForSheetRef.current(sheetId)
+        } finally {
+          sheetPersist.endPersist()
+        }
+      } catch (err) {
+        console.warn('[SpreadsheetAppViewer] Best-effort Univer snapshot on tab hide/flush failed:', err)
+      }
     }
 
     void chainOnOperationQueue(operationQueueRef, run).catch(err => {
       console.error('[SpreadsheetAppViewer] Flush on visibility/pagehide failed:', err)
       sheetPersist.recordError(sheetT('persist-cell-failed'))
     })
-  }, [entityEnabled, sheetPersist.recordError, sheetT])
+  }, [entityEnabled, sheetPersist.beginPersist, sheetPersist.endPersist, sheetPersist.recordError, sheetT])
 
   useEffect(() => {
     if (entityEnabled || typeof globalThis === 'undefined') return
@@ -3569,6 +3715,218 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }
   }, [entityEnabled, flushPendingPersistenceNow, pendingCellJournalStorageKey, persistPendingCellJournal])
 
+  /**
+   * Returns true when any persistence work is still in flight. Mirrors exactly the predicates used by
+   * the `beforeunload` handler so the SPA-navigation guard (Back button, Hub home, etc.) and the page
+   * reload/close guard stay consistent.
+   */
+  const hasUnpersistedWork = useCallback((): boolean => {
+    if (entityEnabledRef.current || !canEditWithLockRef.current) return false
+    const matchesHeaderUnsaved =
+      leaveGuardVersioningUnsavedRef.current ||
+      leaveGuardSheetDirtyRef.current ||
+      Boolean(leaveGuardSheetErrorRef.current) ||
+      leaveGuardSheetSavingRef.current
+    const hasPendingCells = pendingCellChangesRef.current.length > 0
+    const hasPendingDebounce = pendingCellPersistTimeoutRef.current != null
+    const hasPendingUniverChange = univerDataChangeTimeoutRef.current != null
+    const hasPendingSnapshotWork =
+      workbookSnapshotThrottlePendingRef.current ||
+      pendingSnapshotCheckpointBySheetRef.current.size > 0 ||
+      snapshotCheckpointDrainScheduledRef.current
+    return (
+      matchesHeaderUnsaved || hasPendingCells || hasPendingDebounce || hasPendingUniverChange || hasPendingSnapshotWork
+    )
+  }, [])
+
+  /**
+   * Shows a synchronous confirm dialog when there is unsaved work. Returns true if the caller may
+   * proceed with navigation, false if the user cancelled. Wraps SPA navigation callbacks (Back, Hub
+   * home) so in-app navigation honors the same unsaved-changes guarantee as `beforeunload` page reload.
+   */
+  const confirmLeaveIfUnsaved = useCallback((): boolean => {
+    if (!hasUnpersistedWork()) return true
+    // Nudge any queued work out the door before asking, so a fast server may finish while the dialog is up.
+    try {
+      flushPendingPersistenceNow()
+    } catch {
+      // Non-fatal: the prompt still surfaces regardless of flush outcome.
+    }
+    return globalThis.confirm(sheetT('unsaved-leave-confirm'))
+  }, [flushPendingPersistenceNow, hasUnpersistedWork, sheetT])
+
+  const handleGuardedBack = useMemo(() => {
+    if (!onBack) return undefined
+    return () => {
+      if (!confirmLeaveIfUnsaved()) return
+      onBack()
+    }
+  }, [confirmLeaveIfUnsaved, onBack])
+
+  const handleGuardedNavigateToSpreadsheetHub = useMemo(() => {
+    if (!onNavigateToSpreadsheetHub) return undefined
+    return () => {
+      if (!confirmLeaveIfUnsaved()) return
+      onNavigateToSpreadsheetHub()
+    }
+  }, [confirmLeaveIfUnsaved, onNavigateToSpreadsheetHub])
+
+  /**
+   * Platform-level SPA navigation (sidebar menu, internal links, host router) can leave the sheet
+   * without firing `beforeunload`. We intercept every realistic choke-point so unsaved style /
+   * snapshot / cell work is not dropped silently:
+   *   - `window.nwNavigate` (host helper) and a Proxy-like setter trap so a late host reassignment
+   *     does not overwrite our wrapper.
+   *   - `history.pushState` / `history.replaceState` (any SPA router: React Router, host router, our
+   *     own `navigateTo`). We compare old vs new path so internal URL updates for the same sheet
+   *     (e.g. appId / sheetId query params) still work without prompting.
+   *   - Capture-phase click on `<a>` elements with cross-path hrefs, for plain anchor navigation.
+   *   - `popstate` for browser back/forward — we restore the previous URL on cancel.
+   */
+  useEffect(() => {
+    if (typeof globalThis === 'undefined' || typeof window === 'undefined') return
+
+    const toPathAndSearch = (href: string): string => {
+      try {
+        const u = new URL(href, window.location.origin)
+        return `${u.pathname}${u.search}${u.hash}`
+      } catch {
+        return href
+      }
+    }
+    const samePath = (a: string, b: string): boolean => {
+      try {
+        const ua = new URL(a, window.location.origin)
+        const ub = new URL(b, window.location.origin)
+        // Same sheet context = same pathname AND same appId/sheetId query (other params like
+        // `section` are intentionally ignored so section toggles do not trigger the prompt).
+        const aAppId = ua.searchParams.get('appId')
+        const bAppId = ub.searchParams.get('appId')
+        const aSheetId = ua.searchParams.get('sheetId')
+        const bSheetId = ub.searchParams.get('sheetId')
+        return ua.pathname === ub.pathname && aAppId === bAppId && aSheetId === bSheetId
+      } catch {
+        return a === b
+      }
+    }
+
+    let lastKnownUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`
+
+    // --- nwNavigate wrapper with setter trap (host may reassign after we mount) ---
+    type NwNavigateFn = (path: string, options?: { replace?: boolean; scroll?: boolean }) => void
+    const w = window as unknown as { nwNavigate?: NwNavigateFn }
+    let realNwNavigate: NwNavigateFn | undefined = typeof w.nwNavigate === 'function' ? w.nwNavigate : undefined
+    const guardedNwNavigate: NwNavigateFn = (path, options) => {
+      if (!samePath(path, lastKnownUrl) && !confirmLeaveIfUnsaved()) return
+      lastKnownUrl = toPathAndSearch(path)
+      realNwNavigate?.(path, options)
+    }
+    try {
+      Object.defineProperty(window, 'nwNavigate', {
+        configurable: true,
+        get: () => guardedNwNavigate,
+        set: (next: NwNavigateFn) => {
+          realNwNavigate = typeof next === 'function' ? next : undefined
+        }
+      })
+    } catch {
+      w.nwNavigate = guardedNwNavigate
+    }
+
+    // --- history.pushState / replaceState patching (covers React Router + any SPA router) ---
+    const originalPushState = window.history.pushState.bind(window.history)
+    const originalReplaceState = window.history.replaceState.bind(window.history)
+    const patchedPushState: typeof window.history.pushState = (data, unused, url) => {
+      if (url != null) {
+        const target = typeof url === 'string' ? url : url.toString()
+        if (!samePath(target, lastKnownUrl)) {
+          if (!confirmLeaveIfUnsaved()) return
+          lastKnownUrl = toPathAndSearch(target)
+        }
+      }
+      return originalPushState(data, unused, url as string | URL | null | undefined)
+    }
+    const patchedReplaceState: typeof window.history.replaceState = (data, unused, url) => {
+      if (url != null) {
+        const target = typeof url === 'string' ? url : url.toString()
+        if (!samePath(target, lastKnownUrl)) {
+          if (!confirmLeaveIfUnsaved()) return
+          lastKnownUrl = toPathAndSearch(target)
+        }
+      }
+      return originalReplaceState(data, unused, url as string | URL | null | undefined)
+    }
+    window.history.pushState = patchedPushState
+    window.history.replaceState = patchedReplaceState
+
+    // --- Capture-phase link click interception (plain `<a href>` menu items) ---
+    const handleDocumentClickCapture = (event: MouseEvent) => {
+      if (event.defaultPrevented) return
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      const target = event.target as Element | null
+      if (!target) return
+      const anchor = target.closest('a[href]') as HTMLAnchorElement | null
+      if (!anchor) return
+      if (anchor.target && anchor.target !== '' && anchor.target !== '_self') return
+      const href = anchor.getAttribute('href')
+      if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return
+      try {
+        const resolved = new URL(href, window.location.origin)
+        if (resolved.origin !== window.location.origin) return
+        const targetPath = `${resolved.pathname}${resolved.search}${resolved.hash}`
+        if (samePath(targetPath, lastKnownUrl)) return
+        if (!confirmLeaveIfUnsaved()) {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+      } catch {
+        // Malformed href — let the default handler deal with it.
+      }
+    }
+    document.addEventListener('click', handleDocumentClickCapture, true)
+
+    // --- popstate (back/forward) — undo the pop on cancel ---
+    const handlePopState = () => {
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`
+      if (samePath(currentUrl, lastKnownUrl)) {
+        lastKnownUrl = currentUrl
+        return
+      }
+      if (!hasUnpersistedWork()) {
+        lastKnownUrl = currentUrl
+        return
+      }
+      try {
+        flushPendingPersistenceNow()
+      } catch {
+        // Non-fatal: still show prompt.
+      }
+      const proceed = globalThis.confirm(sheetT('unsaved-leave-confirm'))
+      if (proceed) {
+        lastKnownUrl = currentUrl
+        return
+      }
+      originalPushState(null, '', lastKnownUrl)
+    }
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+      document.removeEventListener('click', handleDocumentClickCapture, true)
+      if (window.history.pushState === patchedPushState) window.history.pushState = originalPushState
+      if (window.history.replaceState === patchedReplaceState) window.history.replaceState = originalReplaceState
+      try {
+        Object.defineProperty(window, 'nwNavigate', {
+          configurable: true,
+          writable: true,
+          value: realNwNavigate
+        })
+      } catch {
+        w.nwNavigate = realNwNavigate
+      }
+    }
+  }, [confirmLeaveIfUnsaved, flushPendingPersistenceNow, hasUnpersistedWork, sheetT])
+
   useEffect(() => {
     if (typeof globalThis === 'undefined' || typeof document === 'undefined') return
 
@@ -3583,11 +3941,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
     const handlePageHide = () => {
       unloadKeepAlivePersistRef.current = true
+      cacheLiveUniverSnapshotRef.current()
       flushPendingPersistenceNow()
     }
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         unloadKeepAlivePersistRef.current = true
+        cacheLiveUniverSnapshotRef.current()
         if (resumeFlushTimeout) {
           clearTimeout(resumeFlushTimeout)
           resumeFlushTimeout = null
@@ -3616,11 +3976,32 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (entityEnabledRef.current || !canEditWithLockRef.current) return
+      // Style-only / snapshot-throttled edits often match the header “unsaved” pill but never hit the cell queue.
+      cacheLiveUniverSnapshotRef.current()
+      const matchesHeaderUnsaved =
+        leaveGuardVersioningUnsavedRef.current ||
+        leaveGuardSheetDirtyRef.current ||
+        Boolean(leaveGuardSheetErrorRef.current) ||
+        leaveGuardSheetSavingRef.current
       const hasPendingCells = pendingCellChangesRef.current.length > 0
       const hasPendingDebounce = pendingCellPersistTimeoutRef.current != null
       const hasPendingUniverChange = univerDataChangeTimeoutRef.current != null
-      if (hasPendingCells || hasPendingDebounce || hasPendingUniverChange) {
+      const hasPendingSnapshotWork =
+        workbookSnapshotThrottlePendingRef.current ||
+        pendingSnapshotCheckpointBySheetRef.current.size > 0 ||
+        snapshotCheckpointDrainScheduledRef.current
+      const shouldPrompt =
+        matchesHeaderUnsaved ||
+        hasPendingCells ||
+        hasPendingDebounce ||
+        hasPendingUniverChange ||
+        hasPendingSnapshotWork
+      if (shouldPrompt) {
+        unloadKeepAlivePersistRef.current = true
+        flushPendingPersistenceNow()
         e.preventDefault()
+        e.returnValue = ''
       }
     }
 
@@ -4072,6 +4453,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           onCellChange={handleCellChange}
           onCellsChange={handleCellsChange}
           onSnapshotRequested={enqueueUniverSnapshotCheckpoint}
+          onWorkbookSnapshotLifecycle={handleWorkbookSnapshotLifecycle}
           onOpenCommentRequest={handleOpenCommentRequest}
           commentedCells={commentedCells}
           onDataChange={handleUniverDataChange}
@@ -4135,6 +4517,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     handleCellChange,
     handleCellsChange,
     enqueueUniverSnapshotCheckpoint,
+    handleWorkbookSnapshotLifecycle,
     handleOpenCommentRequest,
     commentedCells,
     handleUniverDataChange,
@@ -4197,8 +4580,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       <SpreadsheetHeader
         app={app}
         activeSheet={activeSheet}
-        onBack={onBack}
-        onNavigateToSpreadsheetHub={onNavigateToSpreadsheetHub}
+        onBack={handleGuardedBack}
+        onNavigateToSpreadsheetHub={handleGuardedNavigateToSpreadsheetHub}
         isEditing={isEditing}
         canEdit={canEditWithLock}
         headerParticipants={collaboration.headerParticipants}
