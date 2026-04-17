@@ -126,5 +126,15 @@ direction-return = Return
 view-table = Table
 view-timeline = Timeline
 
+# ============================================
+# Profile — SAP / HR reference (plan & request wizards)
+# ============================================
 
+missing-sap-wizard-title = Missing SAP number
+missing-sap-wizard-description = The SAP code is missing from your profile. Please contact the Accounting Department to provide the missing data before starting a reimbursement request.
 
+# ============================================
+# Trip — start vs first destination (request & plan wizards)
+# ============================================
+
+trip-start-equals-first-destination = Destination seems to be identical with the start location, please double check.

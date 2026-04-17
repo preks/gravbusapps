@@ -9,6 +9,7 @@ export interface ColumnConfig {
   title: string
   width?: string
   render: (record: any) => React.ReactNode
+  getTextValue?: (record: any) => string
 }
 
 /**

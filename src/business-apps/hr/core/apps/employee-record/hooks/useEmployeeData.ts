@@ -190,7 +190,10 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         }
       }
       relationship {
+        id
+        version
         isEmergencyContact
+        typeRef
         type {
           id
           value
@@ -691,7 +694,10 @@ interface Address {
 }
 
 interface Relationship {
+  id: string
+  version: number
   isEmergencyContact: boolean
+  typeRef: string
   type: CodeValue
   firstName: string
   lastName: string

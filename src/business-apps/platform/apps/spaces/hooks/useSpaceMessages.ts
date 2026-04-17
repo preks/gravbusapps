@@ -5,7 +5,9 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useChatClient } from '@/common/network/chat/useChatClient'
+import translations from '../_i18n'
 
 export interface ChatMessage {
   id: string
@@ -36,6 +38,7 @@ export function useSpaceMessages(
   accessToken: string | undefined,
   limit: number = 5
 ): UseSpaceMessagesResult {
+  const { t } = useTranslation(translations)
   const chatClient = useChatClient(accessToken)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -75,14 +78,14 @@ export function useSpaceMessages(
       setMessages(transformedMessages)
       lastFetchRef.current = conversationId
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch messages'
+      const message = err instanceof Error ? err.message : t('error-load-messages')
       setError(message)
       console.error('[useSpaceMessages] Error:', err)
       setMessages([])
     } finally {
       setIsLoading(false)
     }
-  }, [conversationId, accessToken, limit, messages.length, chatClient])
+  }, [accessToken, chatClient, conversationId, limit, messages.length, t])
 
   const refresh = useCallback(async () => {
     lastFetchRef.current = null

@@ -88,9 +88,9 @@ untitled = Untitled
 results-for-prefix = Results for
 pick-up-where = Pick up where you left off
 empty-search-title = No items match your search
-empty-default-title = No recent items yet
+desk-empty-default-title = No recent items yet
 empty-search-description = Try a different search term
-empty-default-description = Create your first document, spreadsheet, or note to get started
+desk-empty-default-description = Create your first document, spreadsheet, or note to get started
 
 # App card
 app-shared-count = { $count } shared
@@ -99,7 +99,7 @@ app-open = Open
 # Nexus Teaser (Nexus kept as product name)
 nexus-title = Nexus
 nexus-badge = AI-Powered
-nexus-description = Your intelligent content workspace. Generate documents, analyses, and presentations through conversation.
+nexus-description = Your intelligent content workspace. Generate documents and analyses through conversation.
 nexus-try = Try Nexus
 
 # Activity visualization

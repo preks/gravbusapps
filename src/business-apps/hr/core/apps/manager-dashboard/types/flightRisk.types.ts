@@ -135,7 +135,13 @@ export interface RawPerformanceGoal {
   status: 'ON_TRACK' | 'BEHIND_TARGET' | 'AT_RISK' | 'ACHIEVED' | 'NOT_ACHIEVED'
   startDate: string
   dueDate: string
+  updatedAt?: string
   completionDate?: string
+  employeePerformanceGoalUpdate?: {
+    id: string
+    progressPercent?: number
+    updateTime?: string
+  }[]
 }
 
 /**

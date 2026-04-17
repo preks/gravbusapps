@@ -88,9 +88,9 @@ untitled = Ohne Titel
 results-for-prefix = Ergebnisse für
 pick-up-where = Machen Sie dort weiter, wo Sie aufgehört haben
 empty-search-title = Keine passenden Inhalte gefunden
-empty-default-title = Noch keine letzten Inhalte
+desk-empty-default-title = Noch keine letzten Inhalte
 empty-search-description = Probieren Sie einen anderen Suchbegriff
-empty-default-description = Erstellen Sie Ihr erstes Dokument, Ihre erste Tabelle oder Notiz
+desk-empty-default-description = Erstellen Sie Ihr erstes Dokument, Ihre erste Tabelle oder Notiz
 
 # App card
 app-shared-count = { $count } geteilt
@@ -99,7 +99,7 @@ app-open = Öffnen
 # Nexus Teaser
 nexus-title = Nexus
 nexus-badge = KI-gestützt
-nexus-description = Ihr intelligenter Inhaltsarbeitsbereich. Dokumente, Analysen und Präsentationen per Gespräch erzeugen.
+nexus-description = Ihr intelligenter Inhaltsarbeitsbereich. Dokumente und Analysen per Gespräch erzeugen.
 nexus-try = Nexus testen
 
 # Activity visualization

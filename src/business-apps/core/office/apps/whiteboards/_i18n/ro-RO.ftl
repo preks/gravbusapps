@@ -8,6 +8,7 @@ whiteboard-my-whiteboards = Whiteboard-urile mele
 whiteboard-shared-with-me = Partajate cu mine
 whiteboard-recent = Recent
 whiteboard-favorites = Favorite
+whiteboard-trash = Coș de gunoi
 whiteboard-archived = Arhivate
 whiteboard-all = Toate whiteboard-urile
 whiteboard-rename = Redenumește
@@ -72,10 +73,43 @@ whiteboard-rename-placeholder = Numele whiteboard-ului
 whiteboard-rename-save = Salvează
 whiteboard-rename-saving = Se salvează...
 whiteboard-rename-cancel = Anulează
-whiteboard-delete-confirm-title = Șterge whiteboard-ul
-whiteboard-delete-confirm-description = Sigur vrei să ștergi acest whiteboard? Această acțiune nu poate fi anulată.
-whiteboard-delete-confirm = Șterge
+whiteboard-delete-confirm-title = Mută whiteboard-ul în coș
+whiteboard-delete-confirm-description = Sigur vrei să muți acest whiteboard în coș?
+whiteboard-delete-confirm = Mută în coș
 whiteboard-delete-cancel = Anulează
+whiteboard-trash-search-placeholder = Caută în coș...
+whiteboard-shared-badge = Partajat
+
+delete-confirm-title = Muți în coș?
+delete-confirm-single = „{ $name }” va fi mutat în coș. Îl puteți restaura în decurs de 30 de zile.
+delete-confirm-multi = { $count } elemente vor fi mutate în coș. Le puteți restaura în decurs de 30 de zile.
+delete-confirm-action = Mută în coș
+delete-confirm-cancel = Anulează
+
+whiteboards-empty-trash-title = Nu există whiteboard-uri în coș
+whiteboards-empty-trash-description = Whiteboard-urile mutate în coș vor apărea aici.
+trash-refresh = Reîmprospătează
+sort-name = Nume
+sort-trashed = Mutat în coș la
+table-trashed = Mutat în coș la
+
+trashed-readonly-title = Acest whiteboard este în coș
+trashed-readonly-description = „{ $title }” este în coș, așa că îl puteți vedea, dar nu îl puteți edita sau colabora la el.
+trashed-readonly-owner-note = Restaurați acest whiteboard pentru a relua editarea și colaborarea.
+trashed-readonly-shared-note = Doar proprietarul poate restaura acest whiteboard. Puteți continua să vedeți conținutul aici.
+trashed-readonly-go-home = Mergeți la Whiteboard-uri
+trashed-readonly-restore = Restaurare
+trashed-readonly-restoring = Se restaurează...
+
+toast-moved-to-trash = Whiteboard mutat în coș
+toast-move-to-trash-failed = Mutarea whiteboard-ului în coș a eșuat
+toast-restored = Whiteboard restaurat
+toast-restore-failed = Restaurarea whiteboard-ului a eșuat
+toast-rename-failed = Redenumirea whiteboard-ului a eșuat
+toast-duplicated = Whiteboard duplicat
+toast-duplicate-failed = Duplicarea whiteboard-ului a eșuat
+whiteboard-open-failed = Acest whiteboard nu a putut fi deschis
+
 time-just-now = Chiar acum
 time-minutes-ago = { $count ->
     [one] acum 1 minut

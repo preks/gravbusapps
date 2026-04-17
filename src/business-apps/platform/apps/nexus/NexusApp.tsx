@@ -59,6 +59,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
     isStreaming,
     streamingContent,
     activeArtifact,
+    artifactsById,
     artifactStreaming,
     artifactStreamContent,
     thinkingStatus,
@@ -82,7 +83,9 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
     deleteSession: deleteSessionApi
   } = useNexusSessions({ accessToken: accessToken || '' })
 
-  const { saveArtifact, updateArtifact } = useArtifact({ accessToken: accessToken || '' })
+  const { saveArtifact, updateArtifact, waitForDocumentReady, fetchArtifact } = useArtifact({
+    accessToken: accessToken || ''
+  })
 
   const { spaces: rawSpaces } = useSpaces(accessToken, {
     includeMembers: false,
@@ -226,6 +229,28 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
     setChatVisible(true)
   }, [])
 
+  const handleViewArtifact = useCallback(
+    async (artifactId: string) => {
+      try {
+        const resolvedArtifact =
+          artifactsById[artifactId] ||
+          (activeArtifact?.id === artifactId ? activeArtifact : null) ||
+          (await fetchArtifact(artifactId))
+
+        if (resolvedArtifact) {
+          setActiveArtifact(resolvedArtifact)
+        }
+
+        const root = document.querySelector<HTMLElement>(`[data-testid="${TEST_ID}-layout"]`)
+        const canvas = root?.querySelector<HTMLElement>(`[data-testid="${TEST_ID}-canvas-panel"]`)
+        canvas?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'end' })
+      } catch {
+        /* ignore */
+      }
+    },
+    [activeArtifact, artifactsById, fetchArtifact, setActiveArtifact]
+  )
+
   // Open chat + type suggestion text into the input (don't send yet)
   const handleSuggestionClick = useCallback((prompt: string) => {
     setChatVisible(true)
@@ -238,8 +263,8 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
   }, [])
 
   const handleSaveArtifact = useCallback(
-    async (artifactId: string, targetType: 'document' | 'slides') => {
-      return saveArtifact(artifactId, targetType)
+    async (artifactId: string) => {
+      return saveArtifact(artifactId)
     },
     [saveArtifact]
   )
@@ -285,7 +310,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
             scope={scope}
             spaceId={spaceId}
             spaces={spaces}
-            activeArtifact={activeArtifact}
+            artifactsById={artifactsById}
             sessionTitle={currentSession?.title}
             llmProvider={llmProvider}
             dataAccessEnabled={dataAccessEnabled}
@@ -306,6 +331,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
               setSidebarOpen(true)
               setChatVisible(true)
             }}
+            onViewArtifact={handleViewArtifact}
           />
         }
         canvasPanel={
@@ -318,6 +344,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
             onSuggestionClick={handleSuggestionClick}
             onSaveArtifact={handleSaveArtifact}
             onUpdateArtifact={updateArtifact}
+            onWaitForDocumentReady={waitForDocumentReady}
             onSetActiveArtifact={setActiveArtifact}
           />
         }

@@ -45,6 +45,7 @@ sh-tab-tasks = My tasks
 sh-tab-recent = Recent
 sh-tab-automations = Automations
 sh-tab-favorites = Favorites
+sh-tab-trash = Trash
 
 # Upload view
 upload-cancel = Cancel
@@ -73,6 +74,11 @@ action-sort-name = Name
 action-sort-modified = Modified
 action-sort-created = Created
 action-search-placeholder = Search...
+spreadsheets-header-search-placeholder = Search spreadsheets...
+header-refresh = Refresh
+sort-name = Name
+sort-trashed = Trashed on
+table-trashed = Trashed on
 action-refresh = Refresh list
 action-refresh-sheet = Refresh spreadsheet data
 status-saving = Saving...
@@ -80,6 +86,10 @@ status-saving = Saving...
 # List view - table headers
 table-modified-by = Modified By
 table-rows = Rows
+
+# Empty states
+spreadsheets-empty-trash-title = No trashed spreadsheets
+spreadsheets-empty-trash-description = Spreadsheets moved to trash will appear here.
 rows-label = rows
 
 # Empty states
@@ -724,6 +734,16 @@ header-breadcrumb-spreadsheets = Spreadsheets
 header-submitted-at = Submitted - { $date }
 header-rename-file-title = Click to rename file
 header-rename-file-placeholder = Spreadsheet name
+title-untitled = Untitled spreadsheet
+trashed-readonly-title = This spreadsheet is in trash
+trashed-readonly-description = "{ $title }" is in trash and opens in view-only mode until it is restored.
+trashed-readonly-owner-note = To edit this spreadsheet again, restore it from trash.
+trashed-readonly-shared-note = To edit this spreadsheet again, ask the owner to restore it from trash.
+trashed-readonly-back = Back to trash
+trashed-readonly-restore = Restore spreadsheet
+trashed-readonly-restoring = Restoring...
+trashed-readonly-delete = Delete permanently
+trashed-readonly-deleting = Deleting...
 
 # Version History (shared dialog)
 version-history-title = Version History
@@ -984,9 +1004,16 @@ toast-review-comment-created = Review finding added to comments.
 toast-file-name-required = File name cannot be empty.
 toast-file-rename-success = File name updated.
 toast-file-rename-failed = Failed to rename file.
+toast-restored = Spreadsheet restored
+toast-restore-failed = Failed to restore spreadsheet
+toast-delete-permanently-failed = Failed to delete spreadsheet permanently
 
 # Delete confirmation
-delete-confirm = Are you sure you want to delete this spreadsheet?
+delete-confirm-title = Move to trash?
+delete-confirm-single = "{$name}" will be moved to trash. You can restore it within 30 days.
+delete-confirm-multi = {$count} spreadsheets will be moved to trash. You can restore them within 30 days.
+delete-confirm-action = Move to trash
+delete-confirm-cancel = Cancel
 action-retry = Retry
 
 # Relative time

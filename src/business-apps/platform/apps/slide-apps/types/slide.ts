@@ -30,6 +30,8 @@ export interface SlideSummary {
   sharedBy?: string
   permission?: SlidePermission
   isOwner?: boolean
+  spaceId?: string | null
+  trashedAt?: string | null
 }
 
 /**
@@ -51,4 +53,7 @@ export interface Slide {
   isShared?: boolean
   sharedBy?: string
   permission?: SlidePermission
+  isOwner?: boolean
+  spaceId?: string | null
+  trashedAt?: string | null
 }

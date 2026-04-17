@@ -20,24 +20,38 @@ import { useResizableSidebar } from './hooks/useResizableSidebar'
 import { useNoteTreeDragDrop } from './hooks/useNoteTreeDragDrop'
 import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
+import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
 
 import { NoteApiService } from './services/NoteApiService'
-import type { NoteSummary, CreateNoteInput, NoteColor, NoteTreeNode } from './types'
+import type { NotePermission, NoteShare, NoteSummary, CreateNoteInput, NoteColor, NoteTreeNode } from './types'
+import { DriveApiService } from '@/business-apps/core/office/apps/drive/services/DriveApiService'
+import { NoteTrashList } from './components/NoteTrashList'
+import { TrashedNoteReadonlyDialog } from './components/TrashedNoteReadonlyDialog'
 import translations from './_i18n'
 
 export interface NoteAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-type HubView = 'list' | 'editor'
+type HubView = 'list' | 'editor' | 'trash'
+type SidebarSection = 'home' | 'my-notes' | 'shared' | 'pinned' | 'recent' | 'trash'
 
-const QUICK_ACCESS_TO_SECTION: Record<QuickAccessSection, string> = {
+const QUICK_ACCESS_TO_SECTION: Record<QuickAccessSection, SidebarSection> = {
   'all-notes': 'my-notes',
   favorites: 'home',
   pinned: 'pinned',
   shared: 'shared',
   recent: 'recent',
-  archived: 'archived'
+  trash: 'trash'
+}
+
+const SECTION_TO_QUICK_ACCESS: Record<SidebarSection, QuickAccessSection> = {
+  home: 'favorites',
+  'my-notes': 'all-notes',
+  pinned: 'pinned',
+  shared: 'shared',
+  recent: 'recent',
+  trash: 'trash'
 }
 
 export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
@@ -52,7 +66,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeQuickAccess, setActiveQuickAccess] = useState<QuickAccessSection | null>('all-notes')
-  const [activeSection, setActiveSection] = useState<string>('my-notes')
+  const [activeSection, setActiveSection] = useState<SidebarSection>('my-notes')
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
@@ -69,6 +83,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
   const [ownerInfoMap, setOwnerInfoMap] = useState<Map<string, { name: string; avatar?: string }>>(new Map())
+  const [isRestoringTrashedNote, setIsRestoringTrashedNote] = useState(false)
+  const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
+  const [pendingTrashNoteIds, setPendingTrashNoteIds] = useState<string[]>([])
+  const [isMovingToTrash, setIsMovingToTrash] = useState(false)
 
   // Share dialog
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -100,7 +118,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     deleteNote,
     duplicateNote,
     togglePin,
-    archiveNote,
     clearCurrentNote,
     refreshNotes,
     shareNote,
@@ -116,7 +133,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     loadNoteById: loadNote,
     setCurrentView,
     setSelectedNoteId,
-    activeSection: activeSection as any,
+    activeSection,
     setActiveSection
   })
 
@@ -136,6 +153,22 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   useEffect(() => {
     localStorage.setItem('note-favorites', JSON.stringify(Array.from(favorites)))
   }, [favorites])
+
+  useEffect(() => {
+    const nextQuickAccess = SECTION_TO_QUICK_ACCESS[activeSection]
+    if (nextQuickAccess !== activeQuickAccess) {
+      setActiveQuickAccess(nextQuickAccess)
+    }
+  }, [activeQuickAccess, activeSection])
+
+  const mapShareUsers = useCallback(
+    (users: NoteShare[]): SharedNoteUser[] =>
+      users.map(user => ({
+        ...user,
+        userName: user.userName || user.userEmail || t('owner-unknown')
+      })),
+    [t]
+  )
 
   // Fetch owner info
   const loadingOwnerInfoRef = useRef<Set<string>>(new Set())
@@ -170,18 +203,16 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   }, [notes, graphqlClient, ownerInfoMap])
 
   // Categorise notes
-  const { myNotes, sharedNotes, pinnedNotes, archivedNotes, recentNotes } = useMemo(() => {
+  const { myNotes, sharedNotes, pinnedNotes, recentNotes } = useMemo(() => {
     const my: NoteSummary[] = []
     const shared: NoteSummary[] = []
     const pinned: NoteSummary[] = []
-    const archived: NoteSummary[] = []
     const sortedByDate = [...notes].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     const recentIds = new Set(sortedByDate.slice(0, 10).map(n => n.id))
     const recent: NoteSummary[] = []
 
     notes.forEach(note => {
-      if (note.isArchived) {
-        archived.push(note)
+      if (note.isArchived || note.trashedAt) {
         return
       }
       if (note.isPinned) pinned.push(note)
@@ -190,7 +221,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       if (isSharedWithMe) shared.push(note)
       else my.push(note)
     })
-    return { myNotes: my, sharedNotes: shared, pinnedNotes: pinned, archivedNotes: archived, recentNotes: recent }
+    return { myNotes: my, sharedNotes: shared, pinnedNotes: pinned, recentNotes: recent }
   }, [notes, currentUserId])
 
   // Quick access counts — count all actual notes (not folders) across all nesting levels
@@ -202,9 +233,9 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       pinned: pinnedNotes.filter(n => !isFolder(n)).length,
       shared: sharedNotes.filter(n => !isFolder(n)).length,
       recent: recentNotes.filter(n => !isFolder(n)).length,
-      archived: archivedNotes.filter(n => !isFolder(n)).length
+      trash: 0
     }),
-    [myNotes, sharedNotes, pinnedNotes, archivedNotes, recentNotes, favorites, notes]
+    [myNotes, sharedNotes, pinnedNotes, recentNotes, favorites, notes]
   )
 
   // Filter + sort notes
@@ -217,8 +248,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       case 'shared':
         base = sharedNotes
         break
-      case 'archived':
-        base = archivedNotes
+      case 'trash':
+        base = []
         break
       case 'recent':
         base = recentNotes
@@ -272,7 +303,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     myNotes,
     sharedNotes,
     pinnedNotes,
-    archivedNotes,
     recentNotes,
     activeSection,
     activeQuickAccess,
@@ -347,11 +377,27 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       if (note) {
         setSelectedNoteId(id)
         noteTree.setSelectedId(id)
-        setCurrentView('editor')
-        updateUrl(id, 'editor')
+        const nextView = note.trashedAt ? 'trash' : 'editor'
+        setCurrentView(nextView)
+        updateUrl(id, nextView)
       }
     },
     [loadNote, updateUrl, noteTree]
+  )
+
+  const handleOpenTrashedNote = useCallback(
+    async (id: string) => {
+      const note = await loadNote(id)
+      if (!note) {
+        return
+      }
+
+      setSelectedNoteId(id)
+      noteTree.setSelectedId(id)
+      setCurrentView(note.trashedAt ? 'trash' : 'editor')
+      updateUrl(id, note.trashedAt ? 'trash' : 'editor', 'trash')
+    },
+    [loadNote, noteTree, updateUrl]
   )
 
   const handleOpenFolder = useCallback(
@@ -410,22 +456,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     [noteTree, refreshNotes, t]
   )
 
-  const handleDeleteNote = useCallback(
-    async (id: string) => {
-      if (confirm(t('confirm-delete'))) {
-        const success = await deleteNote(id)
-        if (success) {
-          noteTree.removeNodeOptimistic(id)
-          if (selectedNoteId === id) {
-            setSelectedNoteId(null)
-            setCurrentView('list')
-            updateUrl(null)
-          }
-        }
-      }
-    },
-    [deleteNote, selectedNoteId, updateUrl, t, noteTree]
-  )
+  const handleDeleteNote = useCallback((id: string) => {
+    setPendingTrashNoteIds([id])
+    setTrashConfirmOpen(true)
+  }, [])
 
   const handleDuplicateNote = useCallback(
     async (id: string) => {
@@ -449,30 +483,69 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     [togglePin, notes, t, noteTree]
   )
 
-  const handleArchiveNote = useCallback(
-    async (id: string) => {
-      const success = await archiveNote(id)
-      if (success) {
-        toast.success(t('toast-note-archived'))
-        if (selectedNoteId === id) {
-          setSelectedNoteId(null)
-          setCurrentView('list')
+  const handleBulkDelete = useCallback(() => {
+    if (selectedNotes.size === 0) return
+    setPendingTrashNoteIds(Array.from(selectedNotes))
+    setTrashConfirmOpen(true)
+  }, [selectedNotes])
+
+  const pendingTrashNoteNames = useMemo(
+    () =>
+      pendingTrashNoteIds.map(noteId => {
+        const matchingNote = notes.find(note => note.id === noteId)
+        if (matchingNote?.title?.trim()) {
+          return matchingNote.title
         }
-      }
-    },
-    [archiveNote, selectedNoteId, t]
+
+        if (currentNote?.id === noteId && currentNote.title?.trim()) {
+          return currentNote.title
+        }
+
+        return t('title-untitled-note')
+      }),
+    [currentNote?.id, currentNote?.title, notes, pendingTrashNoteIds, t]
   )
 
-  const handleBulkDelete = useCallback(async () => {
-    if (selectedNotes.size === 0) return
-    if (!confirm(t('confirm-delete'))) return
-    const ids = Array.from(selectedNotes)
-    for (const id of ids) {
-      await deleteNote(id)
-      noteTree.removeNodeOptimistic(id)
+  const confirmMoveToTrash = useCallback(async () => {
+    if (pendingTrashNoteIds.length === 0) return
+
+    setIsMovingToTrash(true)
+    try {
+      for (const noteId of pendingTrashNoteIds) {
+        const success = await deleteNote(noteId)
+        if (!success) {
+          continue
+        }
+
+        noteTree.removeNodeOptimistic(noteId)
+
+        if (selectedNoteId === noteId) {
+          setSelectedNoteId(null)
+          setCurrentView('list')
+          updateUrl(null)
+        }
+      }
+
+      setSelectedNotes(prev => {
+        const next = new Set(prev)
+        pendingTrashNoteIds.forEach(noteId => next.delete(noteId))
+        return next
+      })
+    } finally {
+      setIsMovingToTrash(false)
+      setPendingTrashNoteIds([])
     }
-    setSelectedNotes(new Set())
-  }, [selectedNotes, deleteNote, noteTree, t])
+  }, [deleteNote, noteTree, pendingTrashNoteIds, selectedNoteId, updateUrl])
+
+  const handleTrashConfirmOpenChange = useCallback(
+    (open: boolean) => {
+      setTrashConfirmOpen(open)
+      if (!open && !isMovingToTrash) {
+        setPendingTrashNoteIds([])
+      }
+    },
+    [isMovingToTrash]
+  )
 
   const handleBulkPin = useCallback(async () => {
     const ids = Array.from(selectedNotes)
@@ -480,12 +553,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     noteTree.loadTree()
     setSelectedNotes(new Set())
   }, [selectedNotes, togglePin, noteTree])
-
-  const handleBulkArchive = useCallback(async () => {
-    const ids = Array.from(selectedNotes)
-    for (const id of ids) await archiveNote(id)
-    setSelectedNotes(new Set())
-  }, [selectedNotes, archiveNote])
 
   const handleClearSelection = useCallback(() => {
     setSelectedNotes(new Set())
@@ -514,6 +581,63 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     setCurrentView('list')
     updateUrl(null)
   }, [clearCurrentNote, resetLoadAttempt, updateUrl])
+
+  const handleGoToNotesHome = useCallback(() => {
+    clearCurrentNote()
+    resetLoadAttempt()
+    setSelectedNoteId(null)
+    setCurrentView('list')
+    setActiveSection('my-notes')
+    updateUrl(null, undefined, 'my-notes')
+  }, [clearCurrentNote, resetLoadAttempt, updateUrl])
+
+  const isTrashedNote = Boolean(currentNote?.trashedAt)
+  const canManageTrashedNote = Boolean(
+    isTrashedNote &&
+      currentNotePermission === 'owner' &&
+      currentNote?.ownerId === currentUserId &&
+      !currentNote?.spaceId
+  )
+
+  const handleRestoreTrashedNote = useCallback(async () => {
+    if (!currentNote?.id || !canManageTrashedNote) {
+      return
+    }
+
+    setIsRestoringTrashedNote(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      await DriveApiService.restoreItems([{ entityType: 'note', entityId: currentNote.id }])
+      const restoredNote = await loadNote(currentNote.id)
+      if (!restoredNote) {
+        return
+      }
+
+      setSelectedNoteId(currentNote.id)
+      setActiveSection('my-notes')
+      setCurrentView('editor')
+      updateUrl(currentNote.id, 'editor', 'my-notes')
+      toast.success(t('toast-note-restored'))
+      await refreshNotes()
+      noteTree.loadTree()
+    } catch (error) {
+      console.error('[NoteAppsHub] Failed to restore trashed note:', error)
+      toast.error(t('toast-note-restore-failed'))
+    } finally {
+      setIsRestoringTrashedNote(false)
+    }
+  }, [
+    accessToken,
+    canManageTrashedNote,
+    currentNote?.id,
+    currentUserId,
+    currentNotePermission,
+    loadNote,
+    noteTree,
+    refreshNotes,
+    t,
+    updateUrl
+  ])
 
   const toggleFavorite = useCallback(
     (id: string, e?: React.MouseEvent) => {
@@ -564,17 +688,17 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       if (!note) return
       setNoteToShare(note)
       try {
-        setShareDialogSharedUsers((await getSharedUsers(id)) || [])
+        setShareDialogSharedUsers(mapShareUsers((await getSharedUsers(id)) || []))
       } catch {
         setShareDialogSharedUsers([])
       }
       setShareDialogOpen(true)
     },
-    [notes, getSharedUsers]
+    [notes, getSharedUsers, mapShareUsers]
   )
 
   const handleShareSubmit = useCallback(
-    async (userIds: string[], permission: 'view' | 'edit' | 'comment') => {
+    async (userIds: string[], permission: NotePermission) => {
       if (!noteToShare) return false
       return shareNote(
         noteToShare.id,
@@ -585,10 +709,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   )
 
   const handleUnshare = useCallback(
-    async (userId: string, shareId?: string) => {
-      if (!noteToShare || !accessToken) return false
+    async (_userId: string, shareId?: string) => {
+      if (!noteToShare || !accessToken || !shareId) return false
       try {
-        await NoteApiService.revokeShareById(accessToken, noteToShare.id, shareId || userId)
+        await NoteApiService.revokeShareById(shareId)
         return true
       } catch {
         return false
@@ -600,11 +724,11 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const refreshShares = useCallback(async () => {
     if (!noteToShare) return
     try {
-      setShareDialogSharedUsers((await getSharedUsers(noteToShare.id)) || [])
+      setShareDialogSharedUsers(mapShareUsers((await getSharedUsers(noteToShare.id)) || []))
     } catch {
       /* ignore */
     }
-  }, [noteToShare, getSharedUsers])
+  }, [noteToShare, getSharedUsers, mapShareUsers])
 
   const handleQuickAccessChange = useCallback(
     (section: QuickAccessSection) => {
@@ -614,12 +738,12 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       noteTree.setSelectedId(null)
       setCurrentFolderId(null)
       setFolderBreadcrumbs([])
-      if (currentView === 'editor') {
+      if (currentView === 'editor' || currentView === 'trash') {
         clearCurrentNote()
         setSelectedNoteId(null)
         setCurrentView('list')
-        updateUrl(null)
       }
+      updateUrl(null, undefined, mapped)
     },
     [currentView, clearCurrentNote, updateUrl, noteTree]
   )
@@ -708,8 +832,42 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     />
   ) : null
 
-  // Editor view
-  if (currentView === 'editor' && currentNote) {
+  if (currentView === 'trash' && selectedNoteId && !currentNote) {
+    return (
+      <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
+        {sidebarElement}
+        <div className="gba:flex-1 gba:flex gba:items-center gba:justify-center gba:min-w-0">
+          <div className="gba:flex gba:justify-center gba:py-12" data-testid={`${testId}-trash-loading`}>
+            <span className="gba:text-sm gba:text-muted-foreground">{t('loading-message')}</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (currentView === 'list' && activeSection === 'trash') {
+    return (
+      <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
+        {sidebarElement}
+        <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:p-6">
+          <NoteTrashList
+            accessToken={accessToken}
+            currentUserId={currentUserId}
+            searchQuery={searchQuery}
+            onOpenItem={item => handleOpenTrashedNote(item.id)}
+            onItemsChanged={() => {
+              void refreshNotes()
+              noteTree.loadTree()
+            }}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  const shouldRenderEditorView = (currentView === 'editor' || currentView === 'trash') && Boolean(currentNote)
+
+  if (shouldRenderEditorView && currentNote) {
     const effectivePermission = currentNotePermission || 'owner'
     const canEdit = effectivePermission === 'owner' || effectivePermission === 'edit'
     const isOwner = currentNote.ownerId === currentUserId || effectivePermission === 'owner'
@@ -724,6 +882,20 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         }
       | undefined
     const noteType = currentNote.noteType || contentJson?._noteType || 'text'
+    const trashedDialog = isTrashedNote ? (
+      <>
+        <TrashedNoteReadonlyDialog
+          noteTitle={currentNote.title}
+          canManage={canManageTrashedNote}
+          isRestoring={isRestoringTrashedNote}
+          onGoToNotesHome={handleGoToNotesHome}
+          onRestore={() => {
+            void handleRestoreTrashedNote()
+          }}
+          data-testid={`${testId}-trashed-note-dialog`}
+        />
+      </>
+    ) : null
 
     if (noteType === 'handwriting') {
       return (
@@ -733,7 +905,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             <HandwritingNote
               key={currentNote.id}
               noteId={currentNote.id}
-              title={currentNote.title}
+              title={currentNote.title || t('title-untitled-note')}
               initialStrokes={contentJson?.strokes || []}
               initialPaperStyle={contentJson?._paperStyle || 'lined'}
               initialSummary={contentJson?._summary || null}
@@ -772,7 +944,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
               data-testid={`${testId}-handwriting-editor`}
             />
           </div>
-          {noteToShare && (
+          {!isTrashedNote && noteToShare && (
             <ShareNoteDialog
               open={shareDialogOpen}
               onOpenChange={setShareDialogOpen}
@@ -788,6 +960,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
               onRefreshShares={refreshShares}
             />
           )}
+          {trashedDialog}
         </div>
       )
     }
@@ -804,11 +977,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             }}
             onBack={handleBack}
             onTogglePin={() => handleTogglePin(currentNote.id)}
-            onArchive={() => handleArchiveNote(currentNote.id)}
-            onDelete={() => handleDeleteNote(currentNote.id)}
-            onShare={isOwner ? () => handleShareNote(currentNote.id) : undefined}
+            onShare={!isTrashedNote && isOwner ? () => handleShareNote(currentNote.id) : undefined}
             onDuplicate={() => handleDuplicateNote(currentNote.id)}
-            isReadOnly={!canEdit}
+            isReadOnly={isTrashedNote || !canEdit}
+            isTrashedNote={isTrashedNote}
             isSidebarCollapsed={sidebar.isCollapsed}
             onToggleSidebar={sidebar.toggleCollapsed}
             onTitleChanged={handleTitleChanged}
@@ -818,7 +990,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             data-testid={`${testId}-editor`}
           />
         </div>
-        {noteToShare && (
+        {!isTrashedNote && noteToShare && (
           <ShareNoteDialog
             open={shareDialogOpen}
             onOpenChange={setShareDialogOpen}
@@ -834,6 +1006,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             onRefreshShares={refreshShares}
           />
         )}
+        {trashedDialog}
       </div>
     )
   }
@@ -874,7 +1047,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         onDeleteNote={handleDeleteNote}
         onDuplicateNote={handleDuplicateNote}
         onTogglePin={handleTogglePin}
-        onArchiveNote={handleArchiveNote}
         onShareNote={handleShareNote}
         onCopyLink={copyLink}
         onToggleFavorite={toggleFavorite}
@@ -882,7 +1054,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         onSelectAll={selectAllNotes}
         onBulkDelete={handleBulkDelete}
         onBulkPin={handleBulkPin}
-        onBulkArchive={handleBulkArchive}
         onClearSelection={handleClearSelection}
         onMoveToFolder={handleMoveToFolder}
         onRenameNote={handleRenameNote}
@@ -904,6 +1075,18 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
           />
         </div>
       )}
+
+      <DeleteConfirmDialog
+        open={trashConfirmOpen}
+        onOpenChange={handleTrashConfirmOpenChange}
+        itemNames={pendingTrashNoteNames}
+        onConfirm={() => {
+          void confirmMoveToTrash()
+        }}
+        isDeleting={isMovingToTrash}
+        t={t}
+        data-testid={`${testId}-trash-confirm`}
+      />
 
       {/* Share Dialog */}
       {noteToShare && (

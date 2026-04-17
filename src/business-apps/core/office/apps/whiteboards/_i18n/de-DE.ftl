@@ -8,6 +8,7 @@ whiteboard-my-whiteboards = Meine Whiteboards
 whiteboard-shared-with-me = Für mich freigegeben
 whiteboard-recent = Zuletzt verwendet
 whiteboard-favorites = Favoriten
+whiteboard-trash = Papierkorb
 whiteboard-archived = Archiviert
 whiteboard-all = Alle Whiteboards
 whiteboard-rename = Umbenennen
@@ -72,10 +73,43 @@ whiteboard-rename-placeholder = Whiteboard-Name
 whiteboard-rename-save = Speichern
 whiteboard-rename-saving = Wird gespeichert...
 whiteboard-rename-cancel = Abbrechen
-whiteboard-delete-confirm-title = Whiteboard löschen
-whiteboard-delete-confirm-description = Möchten Sie dieses Whiteboard wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
-whiteboard-delete-confirm = Löschen
+whiteboard-delete-confirm-title = Whiteboard in den Papierkorb verschieben
+whiteboard-delete-confirm-description = Möchten Sie dieses Whiteboard wirklich in den Papierkorb verschieben?
+whiteboard-delete-confirm = In den Papierkorb verschieben
 whiteboard-delete-cancel = Abbrechen
+whiteboard-trash-search-placeholder = Papierkorb durchsuchen...
+whiteboard-shared-badge = Freigegeben
+
+delete-confirm-title = In den Papierkorb verschieben?
+delete-confirm-single = „{ $name }“ wird in den Papierkorb verschoben. Sie können es innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-multi = { $count } Elemente werden in den Papierkorb verschoben. Sie können sie innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-action = In den Papierkorb verschieben
+delete-confirm-cancel = Abbrechen
+
+whiteboards-empty-trash-title = Keine Whiteboards im Papierkorb
+whiteboards-empty-trash-description = In den Papierkorb verschobene Whiteboards erscheinen hier.
+trash-refresh = Aktualisieren
+sort-name = Name
+sort-trashed = In den Papierkorb verschoben am
+table-trashed = In den Papierkorb verschoben am
+
+trashed-readonly-title = Dieses Whiteboard befindet sich im Papierkorb
+trashed-readonly-description = „{ $title }“ befindet sich im Papierkorb. Sie können die Inhalte ansehen, aber weder bearbeiten noch daran zusammenarbeiten.
+trashed-readonly-owner-note = Stellen Sie dieses Whiteboard wieder her, um Bearbeitung und Zusammenarbeit fortzusetzen.
+trashed-readonly-shared-note = Nur der Eigentümer kann dieses Whiteboard wiederherstellen. Sie können die Inhalte hier weiterhin ansehen.
+trashed-readonly-go-home = Zu Whiteboards
+trashed-readonly-restore = Wiederherstellen
+trashed-readonly-restoring = Wird wiederhergestellt...
+
+toast-moved-to-trash = Whiteboard in den Papierkorb verschoben
+toast-move-to-trash-failed = Whiteboard konnte nicht in den Papierkorb verschoben werden
+toast-restored = Whiteboard wiederhergestellt
+toast-restore-failed = Whiteboard konnte nicht wiederhergestellt werden
+toast-rename-failed = Whiteboard konnte nicht umbenannt werden
+toast-duplicated = Whiteboard dupliziert
+toast-duplicate-failed = Whiteboard konnte nicht dupliziert werden
+whiteboard-open-failed = Dieses Whiteboard konnte nicht geöffnet werden
+
 time-just-now = Gerade eben
 time-minutes-ago = { $count ->
     [one] vor 1 Minute
