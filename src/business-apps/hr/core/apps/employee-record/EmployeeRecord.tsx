@@ -205,7 +205,6 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const attendanceFeatureFlag = useFeature('human-resources.attendance.enabled')
   const compensationFeatureFlagRaw = useFeature<boolean>(Feature.HCM.Compensation.Key)
   const hrDevelopmentFeatureFlag = useFeature<boolean>(Feature.HCM.HRDevelopment.Key)
-  console.log(hrDevelopmentFeatureFlag, compensationFeatureFlagRaw, 'hrDevelopmentFeatureFlag')
 
   // Handle undefined as true (enabled by default until FeatureHub loads)
   const compensationFeatureFlag = compensationFeatureFlagRaw !== false
