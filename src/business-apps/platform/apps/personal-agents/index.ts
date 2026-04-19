@@ -5,6 +5,8 @@
  * Users create agents naturally through chat by messaging @Every.
  */
 
+import type { FC } from 'react'
+
 // Types
 export * from './types'
 
@@ -22,7 +24,7 @@ export { AgentCreationDialog } from './components/AgentCreationDialog'
 // Prompts
 export { AGENT_PARSER_SYSTEM_PROMPT, AGENT_PARSER_USER_PROMPT } from './prompts/agent-parser-prompt'
 
-// Default export (required by build system)
-// Personal agents is a service module, not a standalone app
-// Export an empty object as default to satisfy the build requirement
-export default {}
+// Default export (required by build / remote wrapper chain). This barrel is hooks + services, not a routable screen;
+// must be a valid component — `export default {}` breaks `wrapWithBlinkProvider` (React: element type is invalid … got: object).
+const PersonalAgentsModuleStub: FC = () => null
+export default PersonalAgentsModuleStub

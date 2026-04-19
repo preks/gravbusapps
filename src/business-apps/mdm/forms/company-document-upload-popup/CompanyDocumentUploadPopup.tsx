@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { FormProvider, useForm } from 'react-hook-form'
 import {
   Dialog,
   DialogContent,
@@ -27,12 +28,25 @@ import type { Company } from '@/common/data/orgchart/types/companyTypes'
 import translations from './_i18n'
 import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
+/** Minimal company when the remote shell omits `company` (platform passes only accessToken / userInfo / additionalData). */
+const REMOTE_SHELL_COMPANY_STUB: Company = {
+  id: '00000000-0000-0000-0000-000000000001',
+  name: '',
+  code: 'REMOTE',
+  structureId: '00000000-0000-0000-0000-000000000002',
+  createdAt: '',
+  createdBy: '',
+  updatedAt: '',
+  updatedBy: '',
+  isDeleted: false
+}
+
 export interface CompanyDocumentUploadPopupProps {
-  open: boolean
-  company: Company
+  open?: boolean
+  company?: Company
   accessToken: string
-  onClose: () => void
-  onSuccess: () => void
+  onClose?: () => void
+  onSuccess?: () => void
   mode?: 'create' | 'update' // Default to 'create'
   document?: any // Existing document for update mode
 }
@@ -47,15 +61,16 @@ interface FormState {
 }
 
 const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
-  open,
-  company,
+  open = true,
+  company: companyProp,
   accessToken,
-  onClose,
-  onSuccess,
+  onClose = () => {},
+  onSuccess = () => {},
   mode = 'create',
   document
 }) => {
   const { t } = useTranslation(translations)
+  const company = companyProp ?? REMOTE_SHELL_COMPANY_STUB
   const companyId = company.id
   const [formState, setFormState] = useState<FormState>({
     name: '',
@@ -75,6 +90,9 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
   const orgchartClient = useOrgchartClient(accessToken)
   const fileClient = useFileClient({ accessToken } as any)
   const graphqlClient = useGraphQLClient(accessToken)
+
+  /** CatalogSelect expects react-hook-form context (`useFormState`); this popup uses local state for fields. */
+  const catalogSelectFormShell = useForm({ defaultValues: {} })
 
   // Pre-fill form in update mode
   useEffect(() => {
@@ -295,168 +313,170 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={open => !open && handleClose()}>
-      <DialogContent
-        className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto"
-        data-testid="company-document-upload-popup"
-      >
-        <DialogHeader>
-          <DialogTitle data-testid="company-document-upload-title">
-            {mode === 'update' ? t('modal-title-update') : t('modal-title')}
-          </DialogTitle>
-        </DialogHeader>
+      <FormProvider {...catalogSelectFormShell}>
+        <DialogContent
+          className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto"
+          data-testid="company-document-upload-popup"
+        >
+          <DialogHeader>
+            <DialogTitle data-testid="company-document-upload-title">
+              {mode === 'update' ? t('modal-title-update') : t('modal-title')}
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="gba:space-y-4">
-          {/* Error Alert */}
-          {error && (
-            <Alert variant="destructive" data-testid="company-document-upload-error">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {/* File Upload */}
-          <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">
-              {t('label-file')}
-              {mode === 'create' && <span className="gba:text-destructive"> {t('message-required-field')}</span>}
-              {mode === 'update' && document?.fileInfo && (
-                <span className="gba:text-sm gba:text-muted-foreground gba:ml-2">(Current: {document.name})</span>
-              )}
-            </label>
-            <FileUpload
-              layout="list"
-              preview="icon"
-              maxFiles={1}
-              maxSizeMB={50}
-              multiple={false}
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.zip"
-              onChange={handleFilesChange}
-              data-testid="company-document-file-upload"
-            />
-          </div>
-
-          {/* Document Name */}
-          <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">
-              {t('label-name')}
-              <span className="gba:text-destructive"> {t('message-required-field')}</span>
-            </label>
-            <Input
-              value={formState.name}
-              onChange={e => handleFieldChange('name', e.target.value)}
-              placeholder={t('placeholder-name')}
-              data-testid="company-document-name-input"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{t('label-description')}</label>
-            <Textarea
-              value={formState.description}
-              onChange={e => handleFieldChange('description', e.target.value)}
-              rows={3}
-              placeholder={t('placeholder-description')}
-              data-testid="company-document-description-input"
-            />
-          </div>
-
-          {/* Document Group */}
-          <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{t('label-group')}</label>
-            <CatalogSelect
-              catalogIdentifier="CompanyDocumentGroup"
-              value={formState.documentGroupRef || null}
-              onValueChange={value => {
-                const stringValue = Array.isArray(value) ? value[0] : value
-                handleFieldChange('documentGroupRef', stringValue || '')
-              }}
-              data-testid="company-document-group-select"
-            />
-          </div>
-
-          {/* Document Type */}
-          <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{t('label-type')}</label>
-            <CatalogSelect
-              catalogIdentifier="CompanyDocumentType"
-              parentField="documentGroupRef"
-              requireSourceForEnable={true}
-              value={formState.documentTypeRef || null}
-              onValueChange={value => {
-                const stringValue = Array.isArray(value) ? value[0] : value
-                handleFieldChange('documentTypeRef', stringValue || '')
-              }}
-              data-testid="company-document-type-select"
-            />
-          </div>
-
-          {/* Parent Folder */}
-          {folders.length > 0 && (
-            <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{t('label-parent')}</label>
-              <Select
-                value={formState.parentDocumentId}
-                onValueChange={value => handleFieldChange('parentDocumentId', value)}
-                disabled={loadingFolders}
-              >
-                <SelectTrigger data-testid="company-document-parent-select">
-                  <SelectValue
-                    placeholder={loadingFolders ? t('placeholder-loading-folders') : t('placeholder-no-parent')}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {folders.map(folder => (
-                    <SelectItem key={folder.id} value={folder.id}>
-                      {folder.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Expiration Date */}
-          <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{t('label-expiration')}</label>
-            <DateInput
-              type="date"
-              value={formState.expirationDate}
-              onChange={value => {
-                const dateValue = Array.isArray(value) ? value[0] : value
-                handleFieldChange('expirationDate', dateValue || '')
-              }}
-              className="gba:w-full"
-              data-testid="company-document-expiration-input"
-            />
-          </div>
-        </div>
-
-        <DialogFooter className="gba:mt-6">
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={loading}
-            data-testid="company-document-cancel-button"
-          >
-            {t('button-cancel')}
-          </Button>
-          <Button
-            variant="default"
-            onClick={handleSubmit}
-            disabled={!isFormValid || loading}
-            data-testid="company-document-submit-button"
-          >
-            {loading ? (
-              <>
-                <Spinner size="sm" className="gba:mr-2" />
-                {submitButtonText}
-              </>
-            ) : (
-              submitButtonText
+          <div className="gba:space-y-4">
+            {/* Error Alert */}
+            {error && (
+              <Alert variant="destructive" data-testid="company-document-upload-error">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+
+            {/* File Upload */}
+            <div>
+              <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                {t('label-file')}
+                {mode === 'create' && <span className="gba:text-destructive"> {t('message-required-field')}</span>}
+                {mode === 'update' && document?.fileInfo && (
+                  <span className="gba:text-sm gba:text-muted-foreground gba:ml-2">(Current: {document.name})</span>
+                )}
+              </label>
+              <FileUpload
+                layout="list"
+                preview="icon"
+                maxFiles={1}
+                maxSizeMB={50}
+                multiple={false}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.zip"
+                onChange={handleFilesChange}
+                data-testid="company-document-file-upload"
+              />
+            </div>
+
+            {/* Document Name */}
+            <div>
+              <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                {t('label-name')}
+                <span className="gba:text-destructive"> {t('message-required-field')}</span>
+              </label>
+              <Input
+                value={formState.name}
+                onChange={e => handleFieldChange('name', e.target.value)}
+                placeholder={t('placeholder-name')}
+                data-testid="company-document-name-input"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{t('label-description')}</label>
+              <Textarea
+                value={formState.description}
+                onChange={e => handleFieldChange('description', e.target.value)}
+                rows={3}
+                placeholder={t('placeholder-description')}
+                data-testid="company-document-description-input"
+              />
+            </div>
+
+            {/* Document Group */}
+            <div>
+              <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{t('label-group')}</label>
+              <CatalogSelect
+                catalogIdentifier="CompanyDocumentGroup"
+                value={formState.documentGroupRef || null}
+                onValueChange={value => {
+                  const stringValue = Array.isArray(value) ? value[0] : value
+                  handleFieldChange('documentGroupRef', stringValue || '')
+                }}
+                data-testid="company-document-group-select"
+              />
+            </div>
+
+            {/* Document Type */}
+            <div>
+              <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{t('label-type')}</label>
+              <CatalogSelect
+                catalogIdentifier="CompanyDocumentType"
+                parentField="documentGroupRef"
+                requireSourceForEnable={true}
+                value={formState.documentTypeRef || null}
+                onValueChange={value => {
+                  const stringValue = Array.isArray(value) ? value[0] : value
+                  handleFieldChange('documentTypeRef', stringValue || '')
+                }}
+                data-testid="company-document-type-select"
+              />
+            </div>
+
+            {/* Parent Folder */}
+            {folders.length > 0 && (
+              <div>
+                <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{t('label-parent')}</label>
+                <Select
+                  value={formState.parentDocumentId}
+                  onValueChange={value => handleFieldChange('parentDocumentId', value)}
+                  disabled={loadingFolders}
+                >
+                  <SelectTrigger data-testid="company-document-parent-select">
+                    <SelectValue
+                      placeholder={loadingFolders ? t('placeholder-loading-folders') : t('placeholder-no-parent')}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {folders.map(folder => (
+                      <SelectItem key={folder.id} value={folder.id}>
+                        {folder.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Expiration Date */}
+            <div>
+              <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{t('label-expiration')}</label>
+              <DateInput
+                type="date"
+                value={formState.expirationDate}
+                onChange={value => {
+                  const dateValue = Array.isArray(value) ? value[0] : value
+                  handleFieldChange('expirationDate', dateValue || '')
+                }}
+                className="gba:w-full"
+                data-testid="company-document-expiration-input"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gba:mt-6">
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              disabled={loading}
+              data-testid="company-document-cancel-button"
+            >
+              {t('button-cancel')}
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleSubmit}
+              disabled={!isFormValid || loading}
+              data-testid="company-document-submit-button"
+            >
+              {loading ? (
+                <>
+                  <Spinner size="sm" className="gba:mr-2" />
+                  {submitButtonText}
+                </>
+              ) : (
+                submitButtonText
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </FormProvider>
     </Dialog>
   )
 }
