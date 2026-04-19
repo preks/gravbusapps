@@ -1283,7 +1283,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     lastFailAt: number | null
     successCount: number
     failCount: number
-  }>({ lastSuccessAt: null, lastFailAt: null, successCount: 0, failCount: 0 })
+  }>({
+    lastSuccessAt: null,
+    lastFailAt: null,
+    successCount: 0,
+    failCount: 0
+  })
   const [socketDebugInfo, setSocketDebugInfo] = useState({
     connectCount: 0,
     disconnectCount: 0,
@@ -1455,8 +1460,26 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
       setIsBootstrapSnapshotLoading(true)
       let minVersion = Number(activeSheet.version ?? 0)
+
+      // Optimistic first paint: if a recent Univer snapshot is cached in localStorage, mount the grid
+      // with it immediately so the user sees the spreadsheet while the canonical rows + snapshot
+      // fetch is in flight. The canonical data replaces this preview once both network calls settle.
+      const previewCache = readUniverSnapshotCacheForBootstrap(app.id, activeSheetId, minVersion)
+      const previewPainted = Boolean(previewCache?.snapshot)
+      if (previewCache?.snapshot && !cancelled) {
+        setBootstrapSnapshot(previewCache.snapshot as Record<string, unknown>)
+        setBootstrapSnapshotSeed(`preview-v${previewCache.version}`)
+        setIsBootstrapSnapshotLoading(false)
+      }
+
       try {
-        const canonicalSnapshot = await SpreadsheetApiService.getSheetSnapshot(app.id, activeSheetId)
+        // The canonical row fetch and the Univer workbook bootstrap fetch are independent
+        // (the latter only uses minVersion as a cache-selection hint), so run them in parallel
+        // instead of awaiting sequentially.
+        const [canonicalSnapshot, result] = await Promise.all([
+          SpreadsheetApiService.getSheetSnapshot(app.id, activeSheetId),
+          loadBootstrapSnapshotData(app.id, activeSheetId, minVersion)
+        ])
         if (cancelled) return
         const canonicalSheetMeta = (canonicalSnapshot.sheet as unknown as SpreadsheetSheet | undefined) ?? activeSheet
         const canonicalRows = sortSpreadsheetRowsBySheetSettings(
@@ -1469,9 +1492,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         setLocalSheetData(canonicalRows)
         lastPersistedSheetDataRef.current = canonicalRows
         peerSheetDataCacheRef.current.set(activeSheetId, canonicalRows)
-
-        const result = await loadBootstrapSnapshotData(app.id, activeSheetId, minVersion)
-        if (cancelled) return
         const normalizedSnapshot =
           result.snapshot && typeof result.snapshot === 'object'
             ? mergeBootstrapSnapshotWithCanonicalRows(result.snapshot, canonicalSheetMeta, canonicalRows)
@@ -1536,7 +1556,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         })
       } catch (error) {
         if (cancelled) return
-        setBootstrapState(null, `rows-fallback-error-v${minVersion}`)
+        // If we already painted the grid from the local preview cache, keep it visible rather
+        // than wiping it to null on a transient network failure; otherwise fall back to rows.
+        if (!previewPainted) {
+          setBootstrapState(null, `rows-fallback-error-v${minVersion}`)
+        } else {
+          setIsBootstrapSnapshotLoading(false)
+        }
         console.error('[SpreadsheetAppViewer] Failed to load backend Univer snapshot:', error)
       }
     }
