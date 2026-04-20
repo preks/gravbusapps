@@ -87996,20 +87996,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11060,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11060/",
-    "chunkJsBytes": 1805933,
+    "bitbucketBuildNumber": 11066,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11066/",
+    "chunkJsBytes": 1805949,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1499101,
-        "gzip": 88666,
+        "rendered": 1499115,
+        "gzip": 88697,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1499101,
-            "gzip": 88666
+            "rendered": 1499115,
+            "gzip": 88697
           }
         ]
       },
@@ -88254,15 +88254,15 @@
     ]
   },
   "platform/apps/chat": {
-    "bitbucketBuildNumber": 11060,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11060/",
-    "chunkJsBytes": 3715544,
+    "bitbucketBuildNumber": 11066,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11066/",
+    "chunkJsBytes": 3717075,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 4198291,
-        "gzip": 1832281,
+        "rendered": 4202673,
+        "gzip": 1832534,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/chat/worklets/rnnoise-processor.ts?inline",
@@ -88270,9 +88270,9 @@
             "gzip": 1329000
           },
           {
-            "name": "src/business-apps/platform/apps/every-ai/hooks/useFlowBot.ts",
-            "rendered": 49895,
-            "gzip": 10534
+            "name": "src/business-apps/platform/apps/every-ai/components/ChatInput.tsx",
+            "rendered": 52208,
+            "gzip": 8861
           }
         ]
       },
@@ -90208,25 +90208,25 @@
     ]
   },
   "platform/apps/every-ai": {
-    "bitbucketBuildNumber": 11060,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11060/",
-    "chunkJsBytes": 933312,
+    "bitbucketBuildNumber": 11066,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11066/",
+    "chunkJsBytes": 934842,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 736934,
-        "gzip": 172412,
+        "rendered": 741316,
+        "gzip": 172663,
         "leaves": [
+          {
+            "name": "src/business-apps/platform/apps/every-ai/components/ChatInput.tsx",
+            "rendered": 52206,
+            "gzip": 8858
+          },
           {
             "name": "src/business-apps/platform/apps/every-ai/hooks/useFlowBot.ts",
             "rendered": 49883,
             "gzip": 10530
-          },
-          {
-            "name": "src/business-apps/platform/apps/every-ai/components/ChatInput.tsx",
-            "rendered": 47824,
-            "gzip": 8607
           }
         ]
       },
@@ -101661,7 +101661,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-20T15:51:18.959Z",
+    "generatedAt": "2026-04-20T21:34:08.208Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
