@@ -695,9 +695,18 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     'plannedTime'
   ])
 
+  const statusWeight: Record<string, number> = {
+    in_progress: 0,
+    under_review: 1,
+    incomplete: 2,
+    completed: 3
+  }
+
+  const emptyLastKeys = new Set<keyof TimeEntry>([...durationSortKeys, 'status'])
+
   const sortedFilledEntries = useMemo(() => {
     const hasValue = (e: TimeEntry) => {
-      if (!durationSortKeys.has(sortKey)) return true
+      if (!emptyLastKeys.has(sortKey)) return true
       const raw = e[sortKey] as string | undefined
       return raw != null && raw !== ''
     }
@@ -711,6 +720,10 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         const ma = parseDurationToMinutes(a[sortKey] as string | undefined)
         const mb = parseDurationToMinutes(b[sortKey] as string | undefined)
         cmp = ma - mb
+      } else if (sortKey === 'status') {
+        const wa = statusWeight[a.status ?? ''] ?? 99
+        const wb = statusWeight[b.status ?? ''] ?? 99
+        cmp = wa - wb
       } else {
         cmp = String(a[sortKey] ?? '').localeCompare(String(b[sortKey] ?? ''))
       }

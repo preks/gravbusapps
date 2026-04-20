@@ -40,6 +40,7 @@ const formatSnapshotValue = (value: number): string => value.toFixed(2)
 const IDLE_PREVALIDATE: PrevalidateResult = {
   effectiveDays: null,
   workingDays: null,
+  calendarDays: null,
   errorCode: null,
   errorTitle: null,
   errorDetail: null,
@@ -141,14 +142,12 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
       <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2" data-testid="prevalidate-success">
         {prevalidate.effectiveDays !== null && (
           <Badge variant="info">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.effective_days', 'Effective days')}:{' '}
-            {prevalidate.effectiveDays}
+            {t('create-absence-effective-days-label') || 'Effective days'}: {prevalidate.effectiveDays}
           </Badge>
         )}
-        {prevalidate.workingDays !== null && (
+        {prevalidate.calendarDays !== null && (
           <Badge variant="secondary">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.working_days', 'Working days')}:{' '}
-            {prevalidate.workingDays}
+            {t('create-absence-calendar-days-label') || 'Calendar days'}: {prevalidate.calendarDays}
           </Badge>
         )}
       </div>

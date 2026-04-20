@@ -1,17 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import {
-  GET_TEAM_ATTENDANCE_FOR_RANGE,
-  GET_TEAM_ABSENCES_CALENDAR_RANGE,
-  GET_TEAM_ABSENCE_NET_FOR_RANGE
-} from '../queries/queries'
+import { GET_TEAM_ATTENDANCE_FOR_RANGE, GET_TEAM_ABSENCE_NET_FOR_RANGE } from '../queries/queries'
 import { TeamMember, TeamAttendanceEntry, TeamAbsenceToday, AbsenceNetEntry, ViewMode } from '../types/types'
 import { toLocalDateKey } from '../utils/timeUtils'
+import {
+  expandDateRange,
+  fetchTeamDetailedAbsences,
+  fetchTeamHolidayData,
+  getActiveLocale
+} from '../utils/teamTimeDomain'
 
 interface UseTeamAttendanceReturn {
   attendance: TeamAttendanceEntry[]
   absences: TeamAbsenceToday[]
   absenceNet: AbsenceNetEntry[]
+  holidayDatesByEmployeeId: Map<string, Set<string>>
+  holidayNamesByEmployeeId: Map<string, Record<string, string>>
   currentDate: Date
   viewMode: ViewMode
   setViewMode: (mode: ViewMode) => void
@@ -35,6 +39,10 @@ export const useTeamAttendance = (
   const [attendance, setAttendance] = useState<TeamAttendanceEntry[]>([])
   const [absences, setAbsences] = useState<TeamAbsenceToday[]>([])
   const [absenceNet, setAbsenceNet] = useState<AbsenceNetEntry[]>([])
+  const [holidayDatesByEmployeeId, setHolidayDatesByEmployeeId] = useState<Map<string, Set<string>>>(new Map())
+  const [holidayNamesByEmployeeId, setHolidayNamesByEmployeeId] = useState<Map<string, Record<string, string>>>(
+    new Map()
+  )
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,23 +76,21 @@ export const useTeamAttendance = (
 
     try {
       const { from, to } = getDateRange()
+      const locale = getActiveLocale()
 
-      const [attendanceResult, absenceResult, absenceNetResult] = await Promise.all([
+      const [attendanceResult, absenceNetResult, detailedAbsences, holidayData] = await Promise.all([
         graphqlClient.request<any>(GET_TEAM_ATTENDANCE_FOR_RANGE, {
           employeeIds: memberIds,
           dateFrom: from,
           dateTo: to
         }),
-        graphqlClient.request<any>(GET_TEAM_ABSENCES_CALENDAR_RANGE, {
-          employeeIds: memberIds,
-          from,
-          to
-        }),
         graphqlClient.request<any>(GET_TEAM_ABSENCE_NET_FOR_RANGE, {
           employeeIds: memberIds,
           from,
           to
-        })
+        }),
+        fetchTeamDetailedAbsences(graphqlClient, memberIds, from, to, locale),
+        fetchTeamHolidayData(graphqlClient, memberIds, from, to, locale)
       ])
 
       setAttendance(
@@ -105,13 +111,21 @@ export const useTeamAttendance = (
       )
 
       setAbsences(
-        (absenceResult?.EmployeeAbsenceCalendarView ?? []).map((r: any) => ({
-          employeeId: r.employeeId,
-          typeRef: r.typeRef,
-          status: r.status,
-          dayDate: r.dayDate,
-          employeeAbsenceId: r.employeeAbsenceId
-        }))
+        detailedAbsences.flatMap(absence =>
+          expandDateRange(absence.startDate, absence.endDate, from, to).map(dayDate => ({
+            employeeId: absence.employeeId,
+            typeRef: absence.typeRef,
+            status: absence.status,
+            dayDate,
+            employeeAbsenceId: absence.id,
+            typeLabel: absence.typeLabel,
+            parentEntryId: absence.parentEntryId,
+            startDate: absence.startDate,
+            endDate: absence.endDate,
+            employeeName: absence.employeeName,
+            pictureThumbnail: absence.pictureThumbnail
+          }))
+        )
       )
 
       setAbsenceNet(
@@ -123,6 +137,8 @@ export const useTeamAttendance = (
           netConsumed: r.netConsumed !== undefined && r.netConsumed !== null ? Number(r.netConsumed) : null
         }))
       )
+      setHolidayDatesByEmployeeId(holidayData.datesByEmployeeId)
+      setHolidayNamesByEmployeeId(holidayData.namesByEmployeeId)
     } catch (err) {
       console.error('Error fetching team attendance:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch attendance')
@@ -165,6 +181,8 @@ export const useTeamAttendance = (
     attendance,
     absences,
     absenceNet,
+    holidayDatesByEmployeeId,
+    holidayNamesByEmployeeId,
     currentDate,
     viewMode,
     setViewMode,
