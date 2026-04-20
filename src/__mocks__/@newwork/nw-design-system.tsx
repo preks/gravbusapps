@@ -92,6 +92,7 @@ export const Dialog = ({ children, open = true }: any) => (open ? <div>{children
 export const DialogContent = ({ children, ...props }: any) => <div {...props}>{children}</div>
 export const DialogHeader = ({ children, ...props }: any) => <div {...props}>{children}</div>
 export const DialogTitle = ({ children, ...props }: any) => <div {...props}>{children}</div>
+export const DialogDescription = ({ children, ...props }: any) => <div {...props}>{children}</div>
 export const DialogFooter = ({ children, ...props }: any) => <div {...props}>{children}</div>
 
 export const Table = ({ children, ...props }: any) => <table {...props}>{children}</table>
@@ -104,6 +105,9 @@ export const TableCell = ({ children, ...props }: any) => <td {...props}>{childr
 export const Checkbox = ({ checked, onCheckedChange, ...props }: any) => (
   <input type="checkbox" checked={checked} onChange={e => onCheckedChange?.(e.target.checked)} {...props} />
 )
+export const Switch = ({ checked, onCheckedChange, ...props }: any) => (
+  <input type="checkbox" checked={checked} onChange={e => onCheckedChange?.(e.target.checked)} {...props} />
+)
 export const TooltipProvider = ({ children }: any) => <>{children}</>
 export const Tooltip = ({ children }: any) => <>{children}</>
 export const TooltipTrigger = ({ children }: any) => <>{children}</>
@@ -112,6 +116,10 @@ export const TooltipContent = ({ children }: any) => <div>{children}</div>
 export const Avatar = ({ children }: any) => <div>{children}</div>
 export const AvatarImage = ({ alt = '', ...props }: any) => <img alt={alt} {...props} />
 export const AvatarFallback = ({ children }: any) => <div>{children}</div>
+export const IconAvatar = ({ label, ...props }: any) => <div aria-label={label} {...props} />
+
+export const Alert = ({ children, ...props }: any) => <div {...props}>{children}</div>
+export const AlertDescription = ({ children, ...props }: any) => <div {...props}>{children}</div>
 
 export const Spinner = () => <div>Loading...</div>
 
@@ -173,6 +181,7 @@ export default {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   Table,
   TableHeader,
@@ -181,6 +190,7 @@ export default {
   TableHead,
   TableCell,
   Checkbox,
+  Switch,
   TooltipProvider,
   Tooltip,
   TooltipTrigger,
@@ -188,6 +198,9 @@ export default {
   Avatar,
   AvatarImage,
   AvatarFallback,
+  IconAvatar,
+  Alert,
+  AlertDescription,
   Spinner,
   SectionHero,
   Tabs,

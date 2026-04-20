@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Checkbox,
@@ -31,6 +31,14 @@ function percentOfPool(amount: number, pool: number): number {
   return Math.round((10000 * amount) / pool) / 100
 }
 
+/** Increase budget as % of payroll baseline (aligns company row amount/percent after Distribute). */
+function salaryIncreasePercentOfPayrollBaseline(amount: number, currentTotalSalaryCost: number): number {
+  if (currentTotalSalaryCost <= 0 || !Number.isFinite(amount) || !Number.isFinite(currentTotalSalaryCost)) {
+    return 0
+  }
+  return Math.round((10000 * amount) / currentTotalSalaryCost) / 100
+}
+
 export interface BudgetDistributionDistributeDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -39,6 +47,7 @@ export interface BudgetDistributionDistributeDialogProps {
   sortedOrgUnits: CompanyOrganizationalUnit[]
   orgUnitBudgetRows: CompensationBudgetPlanOrganizationalUnitRow[]
   allocationByOrgUnitId: ReadonlyMap<string, number>
+  /** Current company salary-increase pool (from `salary_budget_amount` / resolve); basis for OU % and remainder. */
   distributionPool: number | null
   currencyCode: string
   companyBudgetRow: CompensationBudgetPlanCompanyRow | null
@@ -62,6 +71,8 @@ export function BudgetDistributionDistributeDialog({
   const [selectedOuIds, setSelectedOuIds] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  /** Avoid resetting checkbox state when parent re-renders while the dialog stays open. */
+  const hasInitializedSelectionForOpenRef = useRef(false)
 
   const saveableOrgUnits = useMemo(() => sortedOrgUnits.filter(u => u.id !== UNASSIGNED_ORG_UNIT_ID), [sortedOrgUnits])
 
@@ -75,11 +86,26 @@ export function BudgetDistributionDistributeDialog({
 
   useEffect(() => {
     if (!open) {
+      hasInitializedSelectionForOpenRef.current = false
       return
     }
     setErrorMessage(null)
-    setSelectedOuIds(new Set(saveableOrgUnits.map(u => u.id)))
-  }, [open, saveableOrgUnits])
+    if (hasInitializedSelectionForOpenRef.current) {
+      return
+    }
+    if (saveableOrgUnits.length === 0) {
+      return
+    }
+    hasInitializedSelectionForOpenRef.current = true
+    const next = new Set<string>()
+    for (const u of saveableOrgUnits) {
+      const raw = allocationByOrgUnitId.get(u.id) ?? 0
+      if (roundMoney2(raw) > 0) {
+        next.add(u.id)
+      }
+    }
+    setSelectedOuIds(next)
+  }, [open, saveableOrgUnits, allocationByOrgUnitId])
 
   const toggleOu = useCallback((ouId: string, checked: boolean) => {
     setSelectedOuIds(prev => {
@@ -130,18 +156,20 @@ export function BudgetDistributionDistributeDialog({
         const salaryBudgetPercent = percentOfPool(salaryBudgetAmount, distributionPool)
         const isInsert = row == null
 
+        /** Org-unit slice after HR distribute starts as DRAFT; department submissions UI labels this "Allocated". */
         const unitPayload: CompensationBudgetPlanOrganizationalUnitRestPayload = {
           salaryBudgetAmount,
           salaryBudgetPercent,
           bonusBudgetAmount: 0,
           bonusBudgetPercent: 0,
-          budgetPlanStatus: 'BUDGET_PLAN_APPROVED',
+          budgetPlanStatus: 'BUDGET_PLAN_DRAFT',
           compensationBudgetPlanCompany: companyBudgetRow.id,
           organizationalUnit: ouId
         }
 
         if (!isInsert && row) {
           unitPayload.id = row.id
+          unitPayload.version = row.version
         }
 
         await saveCompensationBudgetPlanOrganizationalUnit(restClient, accessToken, {
@@ -150,13 +178,23 @@ export function BudgetDistributionDistributeDialog({
         })
       }
 
+      /** Undistributed company pool: current pool minus amounts assigned to org units in this save (supports later batches). */
+      const sumAllocatedThisBatch = roundMoney2(
+        ids.reduce((sum, ouId) => sum + roundMoney2(allocationByOrgUnitId.get(ouId) ?? 0), 0)
+      )
+      const poolBefore = roundMoney2(distributionPool ?? 0)
+      const nextCompanySalaryAmount = roundMoney2(Math.max(0, poolBefore - sumAllocatedThisBatch))
+      const nextCompanySalaryPercent = salaryIncreasePercentOfPayrollBaseline(
+        nextCompanySalaryAmount,
+        companyBudgetRow.currentTotalSalaryCost
+      )
       const companyBody = buildSaveCompensationBudgetPlanCompanyUpdateBody({
         id: companyBudgetRow.id,
         version: companyBudgetRow.version,
         compensationBudgetPlanId: companyBudgetRow.compensationBudgetPlanId,
         companyId: companyBudgetRow.companyId,
-        salaryBudgetAmount: companyBudgetRow.salaryBudgetAmount,
-        salaryBudgetPercent: companyBudgetRow.salaryBudgetPercent,
+        salaryBudgetAmount: nextCompanySalaryAmount,
+        salaryBudgetPercent: nextCompanySalaryPercent,
         currentTotalSalaryCost: companyBudgetRow.currentTotalSalaryCost,
         currencyRef: companyBudgetRow.currencyRef
       })

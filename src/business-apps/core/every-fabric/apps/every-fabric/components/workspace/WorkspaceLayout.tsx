@@ -15,6 +15,7 @@ import { ClarificationPrompt } from './ClarificationPrompt'
 import { ConversationPanel } from './ConversationPanel'
 import { WorkspaceRightPanel } from './WorkspaceRightPanel'
 import { WorkspaceSkillIndicator } from './WorkspaceSkillIndicator'
+import { WorkspaceConnectorIndicator } from './WorkspaceConnectorIndicator'
 import { WorkspaceStreamingIsland } from './WorkspaceStreamingIsland'
 import { FabricInput } from '../landing/FabricInput'
 import { ConnectorPickerSheet } from '../connectors/ConnectorPickerSheet'
@@ -96,6 +97,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
     progressPercent,
     activityEvents,
     activeSkill,
+    sessionConnectorIds,
     artifacts,
     workspaceDocs,
     activeArtifact,
@@ -118,6 +120,12 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
   const [dismissedFollowUpMessageId, setDismissedFollowUpMessageId] = useState<string | null>(null)
   const [isConnectorSheetOpen, setIsConnectorSheetOpen] = useState(false)
   const lastPanelModeRef = useRef<WorkspacePanelMode>(initialPanelMode)
+
+  // Compute session connectors from stored IDs and available connectors
+  const sessionConnectors = useMemo(() => {
+    if (!sessionConnectorIds.length || !availableConnectors.length) return []
+    return availableConnectors.filter(c => sessionConnectorIds.includes(c.connection_id))
+  }, [sessionConnectorIds, availableConnectors])
 
   useEffect(() => {
     if (typeof globalThis.innerWidth !== 'number') return
@@ -256,6 +264,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
               <span className="gba:hidden sm:gba:inline">History</span>
             </button>
             <WorkspaceSkillIndicator skill={activeSkill} />
+            <WorkspaceConnectorIndicator connectors={sessionConnectors} />
           </div>
 
           <div

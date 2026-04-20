@@ -9,6 +9,8 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import {
+  Alert,
+  AlertDescription,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -43,7 +45,8 @@ type CreationMode = 'manual' | 'dimension'
 export interface CreateSpaceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onCreate: (input: CreateSpaceInput) => Promise<void>
+  onCreate: (input: CreateSpaceInput) => Promise<boolean>
+  error?: string | null
   accessToken?: string
   currentUserId?: string
   'data-testid'?: string
@@ -53,6 +56,7 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
   open,
   onOpenChange,
   onCreate,
+  error,
   accessToken,
   currentUserId,
   'data-testid': testId = 'create-space-dialog'
@@ -133,7 +137,11 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
         input.memberIds = dimensionMembers.map(m => m.id)
       }
 
-      await onCreate(input)
+      const created = await onCreate(input)
+      if (!created) {
+        return
+      }
+
       resetForm()
       onOpenChange(false)
     } finally {
@@ -400,6 +408,12 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
                 )}
               </TabsContent>
             </Tabs>
+
+            {error ? (
+              <Alert variant="destructive" data-testid={`${testId}-error`}>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
           </div>
         )}
 

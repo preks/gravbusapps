@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Dialog,
@@ -8,14 +8,19 @@ import {
   DialogTitle,
   useTranslation
 } from '@newwork/nw-design-system'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { RestClient } from '@/common/network/rest/RestClient'
 import type { DistributionMethod, TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import compensationPlanningTranslations from '../../compensation-planning/_i18n'
+import type { CompensationBudgetPlanCompanyRow } from '../../compensation-planning/hooks/useBudgetSetupForCompany'
+import type { ManagerOrgUnitBudgetSnapshot } from '../hooks/useManagerTeamSalaryBudget'
+import { persistManagerTeamBudgetAfterAllocations } from '../utils/persistManagerTeamBudgetAfterAllocations'
 import {
   persistAllocationsForSelectedEmployees,
   validateCustomPoolForSelected,
   validatePlanOuForAllSelected
 } from '../utils/teamCompensationSaveAllocationsWorkflow'
+import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
 import translations from '../_i18n'
 import { TeamCompensationSaveAllocationsDialogRows } from './TeamCompensationSaveAllocationsDialogRows'
 
@@ -32,6 +37,8 @@ export interface TeamCompensationSaveAllocationsDialogProps {
   currencyCode: string
   planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
   managerOrganizationalUnitId: string | null
+  managerCompanyBudgetRow: CompensationBudgetPlanCompanyRow | null
+  orgUnitBudgetSnapshotsByPlanRowId: ReadonlyMap<string, ManagerOrgUnitBudgetSnapshot>
   /** Called after successful saves; includes REST row ids keyed by employee id when returned by the API. */
   onSaved?: (createdIdsByEmployeeId?: Record<string, string>) => void | Promise<void>
 }
@@ -49,13 +56,18 @@ export function TeamCompensationSaveAllocationsDialog({
   currencyCode,
   planOuRowIdByOrganizationalUnitId,
   managerOrganizationalUnitId,
+  managerCompanyBudgetRow,
+  orgUnitBudgetSnapshotsByPlanRowId,
   onSaved
 }: Readonly<TeamCompensationSaveAllocationsDialogProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
+  const graphqlClient = useGraphQLClient(accessToken ?? '')
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  /** Avoid resetting checkbox state when parent re-renders while the dialog stays open. */
+  const hasInitializedSelectionForOpenRef = useRef(false)
 
   const sortedMembers = useMemo(
     () => [...teamMembers].sort((a, b) => a.displayName.localeCompare(b.displayName)),
@@ -72,11 +84,26 @@ export function TeamCompensationSaveAllocationsDialog({
 
   useEffect(() => {
     if (!open) {
+      hasInitializedSelectionForOpenRef.current = false
       return
     }
     setErrorMessage(null)
-    setSelectedEmployeeIds(new Set(sortedMembers.map(m => m.employeeId)))
-  }, [open, sortedMembers])
+    if (hasInitializedSelectionForOpenRef.current) {
+      return
+    }
+    if (sortedMembers.length === 0) {
+      return
+    }
+    hasInitializedSelectionForOpenRef.current = true
+    const next = new Set<string>()
+    for (const m of sortedMembers) {
+      const raw = allocationByEmployeeId.get(m.employeeId) ?? 0
+      if (roundMoney2(raw) > 0) {
+        next.add(m.employeeId)
+      }
+    }
+    setSelectedEmployeeIds(next)
+  }, [open, sortedMembers, allocationByEmployeeId])
 
   const toggleEmployee = useCallback((employeeId: string, checked: boolean) => {
     setSelectedEmployeeIds(prev => {
@@ -137,6 +164,11 @@ export function TeamCompensationSaveAllocationsDialog({
       return
     }
 
+    if (!managerCompanyBudgetRow) {
+      setErrorMessage(t('manager-team-save-missing-budget-context'))
+      return
+    }
+
     setSaving(true)
     try {
       const createdIdsByEmployeeId = await persistAllocationsForSelectedEmployees({
@@ -148,6 +180,18 @@ export function TeamCompensationSaveAllocationsDialog({
         planOuRowIdByOrganizationalUnitId,
         managerOrganizationalUnitId,
         managerEmployeeId
+      })
+      await persistManagerTeamBudgetAfterAllocations({
+        graphqlClient,
+        restClient,
+        accessToken,
+        companyBudgetRow: managerCompanyBudgetRow,
+        orgUnitBudgetSnapshotsByPlanRowId,
+        selectedEmployeeIds: ids,
+        memberById,
+        allocationByEmployeeId,
+        planOuRowIdByOrganizationalUnitId,
+        managerOrganizationalUnitId
       })
       await onSaved?.(createdIdsByEmployeeId)
       onOpenChange(false)
@@ -162,9 +206,12 @@ export function TeamCompensationSaveAllocationsDialog({
     allocationByEmployeeId,
     distributionMethod,
     distributionPool,
+    graphqlClient,
+    managerCompanyBudgetRow,
     managerEmployeeId,
     memberById,
     managerOrganizationalUnitId,
+    orgUnitBudgetSnapshotsByPlanRowId,
     onOpenChange,
     onSaved,
     planOuRowIdByOrganizationalUnitId,
