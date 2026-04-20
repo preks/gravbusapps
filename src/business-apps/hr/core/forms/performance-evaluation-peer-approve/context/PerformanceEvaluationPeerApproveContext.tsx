@@ -79,9 +79,22 @@ interface PerformanceEvaluationPeerApproveProviderProps {
   onSubmit?: (values: PerformanceEvaluationPeerApproveFormValues) => Promise<void>
 }
 
+function getPeerIdsFromTaskPayload(taskPayload: Record<string, unknown> | undefined): string[] {
+  if (!taskPayload) return []
+  const ids = taskPayload.peerReviewerUserIds
+  if (Array.isArray(ids) && ids.length > 0) return ids.map(String)
+  return []
+}
+
 function getNominatedPeersFromPayload(ad: Record<string, unknown> | undefined): NominatedPeer[] {
   if (!ad) return []
   const taskPayload = ad.psi_taskPayload as Record<string, unknown> | undefined
+
+  const directIds = getPeerIdsFromTaskPayload(taskPayload)
+  if (directIds.length > 0) {
+    return directIds.map(id => ({ id, name: id }))
+  }
+
   const processInputs = (ad.psi_processMetadata as Record<string, unknown> | undefined)?.inputs as
     | Record<string, unknown>
     | undefined
@@ -171,7 +184,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
   const allAdditionalSlotsFilled = additionalSlots.every(s => s.employeeId != null)
   const isValid = totalPeerCount >= MIN_PEERS && totalPeerCount <= MAX_PEERS && allAdditionalSlotsFilled
 
-  const resolvedError = error ?? peersError ?? employeeForHeaderError
+  const resolvedError = error ?? (peersFromPayload.length > 0 ? null : peersError) ?? employeeForHeaderError
   const peersLoadingResolved = peersLoading || (peerIds.length > 0 && namesLoading)
 
   const clearError = useCallback(() => setError(null), [])

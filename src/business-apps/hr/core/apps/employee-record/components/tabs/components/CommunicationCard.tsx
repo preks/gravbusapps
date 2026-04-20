@@ -51,7 +51,13 @@ const CommunicationCard: React.FC<CommunicationCardProps> = ({
   const [isDeleting, setIsDeleting] = useState(false)
 
   const communications = (employee.communication || []).filter(
-    comm => comm?.purpose === 'PRIVATE' && comm?.value?.trim() && !deletedIds.has(comm.id)
+    comm =>
+      comm?.purpose === 'PRIVATE' &&
+      comm?.value?.trim() &&
+      !deletedIds.has(comm.id) &&
+      comm.channel?.objectValue &&
+      typeof comm.channel.objectValue === 'object' &&
+      (comm.channel.objectValue as Record<string, unknown>).hr === true
   )
 
   const formatValue = (comm: (typeof communications)[0]) => {

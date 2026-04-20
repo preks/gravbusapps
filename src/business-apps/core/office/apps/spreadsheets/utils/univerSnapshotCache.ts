@@ -26,12 +26,7 @@ export interface SnapshotCacheReadResult {
 
 export interface SnapshotCacheWriteResult {
   stored: boolean
-  reason?:
-    | 'storage_unavailable'
-    | 'invalid_payload'
-    | 'payload_too_large'
-    | 'quota_exceeded'
-    | 'unknown_error'
+  reason?: 'storage_unavailable' | 'invalid_payload' | 'payload_too_large' | 'quota_exceeded' | 'unknown_error'
   sizeBytes: number
   evictedKeys: number
 }
@@ -151,6 +146,69 @@ export function readLatestUniverSnapshot(
     savedAt: candidate.savedAt,
     source: 'localStorage'
   }
+}
+
+function readSnapshotEntry(
+  entry: SnapshotIndexEntry
+): Pick<SnapshotCacheReadResult, 'snapshot' | 'version' | 'savedAt'> | null {
+  const parsed = parseJsonObject<Record<string, unknown>>(window.localStorage.getItem(entry.key))
+  if (!parsed || typeof parsed !== 'object') return null
+  return { snapshot: parsed, version: entry.version, savedAt: entry.savedAt }
+}
+
+/**
+ * Picks a cached Univer workbook for bootstrap when the server sheet version moved ahead of the last
+ * successful snapshot HTTP save. A newer localStorage write at version &lt;= minVersion (e.g. emergency
+ * cache written before `sheetVersionRef` caught up) can carry formatting that a stale v=minVersion entry
+ * from the last remote fetch does not.
+ */
+export function readUniverSnapshotCacheForBootstrap(
+  appId: string,
+  sheetId: string,
+  minVersion: number
+): SnapshotCacheReadResult | null {
+  if (!isStorageAvailable()) return null
+  const nowMs = Date.now()
+  const index = loadSheetIndex(appId, sheetId)
+  const valid = index.entries.filter(e => e.expiresAt > nowMs)
+  if (valid.length === 0) return null
+
+  const primaryEntry = valid
+    .filter(e => e.version >= minVersion)
+    .sort((a, b) => b.version - a.version || b.savedAt - a.savedAt)[0]
+  const lagEntry = valid
+    .filter(e => e.version <= minVersion)
+    .sort((a, b) => b.savedAt - a.savedAt || b.version - a.version)[0]
+
+  const primary = primaryEntry ? readSnapshotEntry(primaryEntry) : null
+  const lag = lagEntry ? readSnapshotEntry(lagEntry) : null
+
+  if (lag && (!primary || lag.savedAt > primary.savedAt)) {
+    return { ...lag, source: 'localStorage' }
+  }
+  if (primary) {
+    return { ...primary, source: 'localStorage' }
+  }
+  return null
+}
+
+/** All non-expired cached workbooks for a sheet (newest `savedAt` first), for formatting fallback on bootstrap. */
+export function listValidUniverSnapshotCacheEntries(
+  appId: string,
+  sheetId: string
+): Array<{ version: number; savedAt: number; snapshot: Record<string, unknown> }> {
+  if (!isStorageAvailable()) return []
+  const nowMs = Date.now()
+  const index = loadSheetIndex(appId, sheetId)
+  return index.entries
+    .filter(e => e.expiresAt > nowMs)
+    .sort((a, b) => b.savedAt - a.savedAt || b.version - a.version)
+    .map(entry => {
+      const parsed = parseJsonObject<Record<string, unknown>>(window.localStorage.getItem(entry.key))
+      if (!parsed || typeof parsed !== 'object') return null
+      return { version: entry.version, savedAt: entry.savedAt, snapshot: parsed }
+    })
+    .filter((row): row is { version: number; savedAt: number; snapshot: Record<string, unknown> } => row != null)
 }
 
 export function writeUniverSnapshotCache(

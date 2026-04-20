@@ -87,6 +87,40 @@ export const TaskGeneralTab: React.FC<TaskGeneralTabProps> = ({
   })()
   const showLinksSection = ![FlowStepType.AI_TASK_EXPERT, FlowStepType.FUNCTION].includes(config.stepType)
 
+  /**
+   * Resolve the effective Connector-vs-Function sub-category for the FUNCTION-family
+   * selector. Prefer the explicit studio-only hint on functionConfig; fall back to
+   * "the currently selected function wraps a connector" so legacy steps authored
+   * before this UI shipped still highlight the correct sub-tile. Default 'functions'
+   * when there's no signal at all.
+   */
+  const effectiveFunctionCategory = useMemo<'connectors' | 'functions'>(() => {
+    if (config.stepType !== FlowStepType.FUNCTION) return 'functions'
+    const hint = config.functionConfig?.categoryHint
+    if (hint === 'connectors' || hint === 'functions') return hint
+    const fnId = config.functionConfig?.functionId
+    const selectedFn = fnId ? studioData.functions.find(f => f.id === fnId) : undefined
+    if (selectedFn?.connectorEnabled === true) return 'connectors'
+    return 'functions'
+  }, [config.stepType, config.functionConfig?.categoryHint, config.functionConfig?.functionId, studioData.functions])
+
+  /**
+   * Persist the sub-category choice on functionConfig.categoryHint. We keep the
+   * rest of functionConfig untouched — stepType does not change, we only write
+   * the studio-only hint. The FunctionSelector below reads this hint to seed its
+   * segmented filter and the underlying dropdown groups.
+   */
+  const handleFunctionCategoryChange = (next: 'connectors' | 'functions') => {
+    const current = config.functionConfig ?? { functionId: '' }
+    if (current.categoryHint === next) return
+    update({
+      functionConfig: {
+        ...current,
+        categoryHint: next
+      }
+    })
+  }
+
   const applyStepType = (nextType: FlowStepType) => {
     const isAutomation = [FlowStepType.FUNCTION, FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT].includes(nextType)
     update({
@@ -120,6 +154,8 @@ export const TaskGeneralTab: React.FC<TaskGeneralTabProps> = ({
         humanGroupLabel={t('task-type-group-human')}
         aiGroupLabel={t('task-type-group-ai')}
         onChange={applyStepType}
+        functionCategoryHint={effectiveFunctionCategory}
+        onFunctionCategoryChange={handleFunctionCategoryChange}
         data-testid={`${testId}-task-type`}
       />
 

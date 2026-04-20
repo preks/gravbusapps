@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect } from 'react'
-import { DataDisplay, DataTable, useTranslation } from '@newwork/nw-design-system'
+import { CreateLayout, DataDisplay, DataTable, useTranslation } from '@newwork/nw-design-system'
 import { Code, KeyRound, List, ListPlus } from 'lucide-react'
 import type { SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { CreateLayout } from '@/components/create-layout'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import { LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
 import { deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 import { FunctionEditor } from './components/FunctionEditor'
@@ -85,6 +85,7 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
 
   const {
     data,
+    allItems,
     total,
     loading,
     error,
@@ -111,9 +112,13 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
     updateUrlWithFunctionId(fn.id, true)
   }, [])
 
-  const editingFunction = editingFunctionId ? data.find(f => f.id === editingFunctionId) : null
+  // Use the full unpaginated list so deep-links (?functionId=) resolve even when the target
+  // function is not on the current page slice. Falls back to `data` (current page) only for safety.
+  const editingFunction = editingFunctionId
+    ? (allItems.find(f => f.id === editingFunctionId) ?? data.find(f => f.id === editingFunctionId) ?? null)
+    : null
 
-  // Clear editingFunctionId from URL if the function is not in loaded data (e.g. invalid id or not in page)
+  // Clear editingFunctionId from URL only when the id is truly not in the loaded full list (invalid id).
   useEffect(() => {
     if (!loading && editingFunctionId && !editingFunction) {
       setEditingFunctionId(null)
@@ -265,6 +270,7 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
       heroIcon={<Code className="gba:w-8 gba:h-8 gba:text-white" />}
       heroTitle={t('page-title')}
       heroSubtitle={t('page-description')}
+      heroBackground={<PremiumHeroBackground />}
       views={overviewViews}
       currentView={listView}
       onViewChange={handleListViewChange}
@@ -321,7 +327,7 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
         )
       }
       className={className}
-      testId={DATA_TEST_ID}
+      data-testid={DATA_TEST_ID}
     />
   )
 }

@@ -146,6 +146,18 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     error: employeeFromProcessError
   } = useEmployeeFromProcess(businessAppContext?.accessToken, ad)
 
+  console.log('[EvalContext] useEmployeeFromProcess result:', {
+    employeeIdFromProcess,
+    employeeFromProcess: employeeFromProcess
+      ? {
+          id: (employeeFromProcess as any)?.employeeId ?? (employeeFromProcess as any)?.id,
+          name: (employeeFromProcess as any)?.employee?.displayName ?? (employeeFromProcess as any)?.name
+        }
+      : null,
+    loading: employeeFromProcessLoading,
+    error: employeeFromProcessError
+  })
+
   const transformCommentText = useCallback(
     async (
       text: string,

@@ -134,6 +134,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
       accessorFn: (row: ExpenseData) => row.totalRemainingAmount,
       header: t('header-remaining-amount'),
       enableSorting: true,
+      sortDescFirst: false,
       size: 150,
       minSize: 120,
       maxSize: 200,

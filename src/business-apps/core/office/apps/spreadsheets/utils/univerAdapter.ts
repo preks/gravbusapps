@@ -421,6 +421,78 @@ function getWorksheetFromWorkbookSnapshot(
   return first as Record<string, unknown> | undefined
 }
 
+/** Heuristic: how much formatting exists (workbook `styles` + per-cell `s` refs) for bootstrap fallback. */
+export function workbookFormattingRichnessScore(snapshot: Record<string, unknown>, sheetId: string): number {
+  if (!snapshot || typeof snapshot !== 'object') return 0
+  const styles = snapshot.styles as Record<string, unknown> | undefined
+  let score = 0
+  if (styles && typeof styles === 'object') {
+    score += Object.keys(styles).length
+  }
+  const worksheet = getWorksheetFromWorkbookSnapshot(snapshot, sheetId)
+  if (!worksheet) return score
+  const cellData = worksheet.cellData as UniverSheetCellData | undefined
+  if (!cellData || typeof cellData !== 'object') return score
+  for (const rowKey of Object.keys(cellData)) {
+    const row = cellData[rowKey] ?? cellData[Number(rowKey)]
+    if (!row || typeof row !== 'object') continue
+    for (const colKey of Object.keys(row)) {
+      const cell = (row as Record<string, UniverCellData | undefined>)[colKey]
+      if (!cell || typeof cell !== 'object') continue
+      if (cell.s != null && cell.s !== '') score += 1
+    }
+  }
+  return score
+}
+
+/**
+ * Copy Univer formatting (workbook `styles` + missing cell `s` refs) from an older snapshot into `into`.
+ * Row-authoritative values in `into` are preserved; donor only fills style ids / style definitions.
+ */
+export function mergeWorkbookFormattingFromDonor(
+  into: Record<string, unknown>,
+  donor: Record<string, unknown>,
+  sheetId: string
+): Record<string, unknown> {
+  const base = cloneWorkbookSnapshotJson(into)
+  if (!donor || typeof donor !== 'object') return base
+
+  const donorStyles = donor.styles as Record<string, unknown> | undefined
+  const baseStyles = (base.styles as Record<string, unknown> | undefined) ?? {}
+  if (donorStyles && typeof donorStyles === 'object') {
+    base.styles = { ...donorStyles, ...baseStyles }
+  }
+
+  const baseWs = getWorksheetFromWorkbookSnapshot(base, sheetId)
+  const donorWs = getWorksheetFromWorkbookSnapshot(donor as Record<string, unknown>, sheetId)
+  if (!baseWs || !donorWs) return base
+
+  const baseCd = (baseWs.cellData as UniverSheetCellData) ?? {}
+  const donorCd = (donorWs.cellData as UniverSheetCellData) ?? {}
+
+  for (const rowKey of Object.keys(baseCd)) {
+    const ri = Number(rowKey)
+    const baseRow = (baseCd[ri] ?? baseCd[rowKey]) as Record<number, UniverCellData> | undefined
+    if (!baseRow || typeof baseRow !== 'object') continue
+    const donorRow = (donorCd[ri] ?? donorCd[rowKey]) as Record<number, UniverCellData> | undefined
+    if (!donorRow) continue
+
+    for (const colKey of Object.keys(baseRow)) {
+      const ci = Number(colKey)
+      if (Number.isNaN(ci)) continue
+      const bc = baseRow[ci]
+      if (!bc || typeof bc !== 'object') continue
+      if (bc.s != null && bc.s !== '') continue
+      const dc = donorRow[ci]
+      if (!dc || typeof dc !== 'object') continue
+      if (dc.s == null || dc.s === '') continue
+      baseRow[ci] = { ...bc, s: dc.s } as UniverCellData
+    }
+  }
+
+  return base
+}
+
 const comparableUniverCellPayload = (cell: UniverCellData | undefined): string => {
   if (!cell || typeof cell !== 'object') return ''
   if ('v' in cell && cell.v !== undefined) {
@@ -519,7 +591,15 @@ export function mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
     for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
       const authCell = (authRow as Record<number, UniverCellData | undefined>)[colIndex]
       if (authCell) {
-        mergedRow[colIndex] = authCell
+        const priorCell = mergedRow[colIndex]
+        if (priorCell && typeof priorCell === 'object' && !Array.isArray(priorCell)) {
+          mergedRow[colIndex] = {
+            ...(priorCell as Record<string, unknown>),
+            ...(authCell as object as Record<string, unknown>)
+          } as UniverCellData
+        } else {
+          mergedRow[colIndex] = authCell
+        }
         continue
       }
 

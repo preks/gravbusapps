@@ -6,6 +6,7 @@ every-box-blink-button = Blink
 every-box-tab-inflows = Eingang
 every-box-tab-outflows = Ausgang
 every-box-blink-description = Schnelle Aufgabe erstellen und zuweisen
+every-box-hero-tagline = Ihr zentrales Postfach für Aufgaben und Workflows
 every-box-search-placeholder = Suchen...
 every-box-sort-label = Sortieren
 every-box-sort-newest = Neueste zuerst
@@ -46,6 +47,9 @@ inbox-error-title = Fehler beim Laden der Aufgaben
 inbox-showing-tasks = Zeige {$current} von {$total}{$hasMore} Aufgaben
 inbox-load-more = Mehr laden
 inbox-loading-more = Lade weitere Aufgaben...
+inbox-no-task-selected = Keine Aufgabe ausgewählt
+inbox-select-task-prompt = Wählen Sie eine Aufgabe aus der Liste aus, um Details anzuzeigen
+inbox-task-no-title = Aufgabe ohne Titel
 
 # Inbox Empty States
 inbox-empty-no-results = Keine Aufgaben gefunden für "{$query}"
@@ -64,6 +68,8 @@ outbox-error-title = Fehler beim Laden der Workflows
 outbox-error-unable = Workflows konnten nicht geladen werden
 outbox-error-server = Der Server hat Leistungsprobleme. Dies ist ein bekanntes Backend-Problem.
 outbox-try-again = Erneut versuchen
+outbox-no-flow-selected = Kein Workflow ausgewählt
+outbox-select-flow-prompt = Wählen Sie einen Workflow aus der Liste aus, um Details anzuzeigen
 
 # Outbox Empty States
 outbox-empty-no-results = Keine Workflows gefunden für "{$query}"
@@ -312,10 +318,78 @@ due-date-days-left = { $days ->
    *[other] { $days }T übrig
 }
 
+# AI Features
+ai-search-placeholder = Intelligente Suche...
+ai-search-toggle = Intelligente Suche
+ai-search-toggle-tooltip = KI-gestützte semantische Suche verwenden
+ai-search-results-title = Suchergebnisse
+ai-search-mode-semantic = KI-Ergebnisse
+ai-search-mode-lexical = Textergebnisse
+ai-search-no-results = Keine passenden Aufgaben gefunden
+ai-search-error = Suche fehlgeschlagen. Bitte versuchen Sie es erneut.
+ai-summary-title = Zusammenfassung
+ai-summary-loading = Zusammenfassung wird erstellt...
+ai-summary-error = Zusammenfassung konnte nicht erstellt werden
+ai-summary-regenerate = Neu erstellen
+ai-summary-cached = Zwischengespeichert
+ai-suggestions-title = Vorgeschlagene Aktionen
+ai-suggestions-loading = Vorschläge werden erstellt...
+ai-suggestions-error = Vorschläge konnten nicht erstellt werden
+ai-suggestions-retry = Erneut versuchen
+ai-suggestions-copy = Kopieren
+ai-suggestions-apply = Anwenden
+ai-urgency-label = Dringlichkeit
+ai-urgency-high = Hoch
+ai-urgency-medium = Mittel
+ai-urgency-low = Niedrig
+ai-priority-suggested = Vorgeschlagene Priorität
+ai-priority-apply = Priorität anwenden
+ai-clustering-group-by = Nach Kategorie gruppieren
+ai-clustering-group-label = { $cluster }
+ai-clustering-uncategorized = Nicht kategorisiert
+
 # AI Assistant
+ai-assistant-suggest = Vorschlagen
+ai-assistant-suggest-tooltip = KI-vorgeschlagene Antwort erhalten
+ai-assistant-improve = Verbessern
+ai-assistant-improve-tooltip = Ihren Entwurf verbessern
+ai-assistant-tone = Tonfall
+ai-assistant-tone-tooltip = Den Tonfall Ihrer Nachricht anpassen
+ai-assistant-expand = Erweitern
+ai-assistant-expand-tooltip = Mehr Details hinzufügen
+ai-assistant-shorten = Kürzen
+ai-assistant-shorten-tooltip = Prägnanter formulieren
+ai-assistant-custom = Benutzerdefiniert
+ai-assistant-custom-tooltip = Eigene Anweisungen geben
+ai-assistant-custom-label = Was soll die KI tun?
+ai-assistant-custom-placeholder = z. B. höflicher formulieren...
+ai-assistant-apply = Anwenden
+ai-assistant-suggested-reply = Vorgeschlagene Antwort
+ai-assistant-use-this = Übernehmen
+ai-assistant-dismiss = Verwerfen
+ai-assistant-placeholder = Antwort verfassen...
+ai-assistant-send = Senden
+ai-assistant-cancel = Abbrechen
+ai-assistant-ai-assisted = KI-unterstützt
 ai-assistant-applied = Angewendet
-ai-assistant-draft-helper = KI Schreibassistent
+ai-assistant-draft-helper = KI-Schreibassistent
 ai-assistant-draft-placeholder = Nutzen Sie KI, um Ihre Antwort zu verfassen...
 ai-assistant-copy = Kopieren
 ai-assistant-copied = In Zwischenablage kopiert
-ai-assistant-ai-assisted = KI-unterstützt
+
+# AI Predictions
+ai-prediction-helpful = War das hilfreich?
+ai-feedback-helpful = Ja, das war hilfreich
+ai-feedback-not-helpful = Nein, das war nicht hilfreich
+ai-feedback-thanks = Danke für Ihr Feedback!
+ai-prediction-likely-approve = Wahrscheinlich genehmigen
+ai-prediction-likely-reject = Wahrscheinlich ablehnen
+ai-prediction-likely-delegate = Wahrscheinlich delegieren
+ai-prediction-likely-defer = Wahrscheinlich zurückstellen
+ai-prediction-needs-review = Prüfung erforderlich
+ai-prediction-high-priority = Hohe Priorität
+ai-prediction-medium-priority = Mittlere Priorität
+ai-prediction-low-priority = Niedrige Priorität
+ai-prediction-confidence = { $percent } % Konfidenz
+ai-relationship-context = Beziehungskontext
+ai-decision-history = Basierend auf Ihrem Entscheidungsverlauf

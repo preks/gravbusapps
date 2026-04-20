@@ -1,6 +1,6 @@
 export const VALUE_MUTATION_SNAPSHOT_SUPPRESSION_MS = 300
 
-const VALUE_MUTATION_COMMAND_HINTS = [
+export const VALUE_MUTATION_COMMAND_HINTS = [
   'set-range-values',
   'set-range-value',
   'set-value',
@@ -40,6 +40,28 @@ const SNAPSHOT_WORTHY_COMMAND_HINTS = [
   'zoom'
 ]
 
+/** Navigation / selection COMMANDs must not trigger Univer snapshot saves. */
+const COMMAND_SNAPSHOT_EXCLUDE_HINTS = [
+  'selection',
+  'cursor',
+  'scroll',
+  'activate',
+  'navigation',
+  'move-selection',
+  'expand-selection'
+]
+
+/**
+ * True when the command id looks like formatting/layout only (no cell-value batch).
+ * Used to avoid routing style mutations through row/cell HTTP batch (which can clear values).
+ */
+export const isStyleOnlySheetMutationCommand = (commandId: string): boolean => {
+  const id = commandId.toLowerCase()
+  if (!id) return false
+  if (VALUE_MUTATION_COMMAND_HINTS.some(hint => id.includes(hint))) return false
+  return SNAPSHOT_WORTHY_COMMAND_HINTS.some(hint => id.includes(hint))
+}
+
 export const shouldScheduleSnapshotForMutation = ({
   commandType,
   mutationCommandType,
@@ -55,14 +77,23 @@ export const shouldScheduleSnapshotForMutation = ({
   now: number
   lastCellValueMutationAt: number
 }): boolean => {
-  if (commandType !== mutationCommandType) return false
-
   const normalizedCommandId = commandId.toLowerCase()
 
   const isLikelyCellValueMutation =
     params?.cellValue != null ||
     VALUE_MUTATION_COMMAND_HINTS.some(hint => normalizedCommandId.includes(hint)) ||
     now - lastCellValueMutationAt <= VALUE_MUTATION_SNAPSHOT_SUPPRESSION_MS
+
+  // Bold, borders, number format, etc. often arrive as COMMAND (type 0), not MUTATION (type 2).
+  if (commandType !== mutationCommandType) {
+    if (!normalizedCommandId) return false
+    if (COMMAND_SNAPSHOT_EXCLUDE_HINTS.some(hint => normalizedCommandId.includes(hint))) return false
+    // COMMAND channel: do not use time-based suppression (user may bold immediately after typing).
+    const isValueLikeCommand =
+      params?.cellValue != null || VALUE_MUTATION_COMMAND_HINTS.some(hint => normalizedCommandId.includes(hint))
+    if (isValueLikeCommand) return false
+    return SNAPSHOT_WORTHY_COMMAND_HINTS.some(hint => normalizedCommandId.includes(hint))
+  }
 
   if (isLikelyCellValueMutation) return false
 
