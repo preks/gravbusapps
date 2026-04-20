@@ -1,14 +1,15 @@
-# Account Details Segment Traduceri
+# Core Information Segment Traduceri
 
-# Informații Financiare
-annual-revenue-label = Venit Anual
+# Informații de bază
+legal-form-label = Formă juridică
+legal-form-placeholder = Vă rugăm să selectați...
+annual-revenue-label = Venit anual
 annual-revenue-placeholder = Vă rugăm să selectați...
-number-of-employees-label = Număr de Angajați
+number-of-employees-label = Număr de angajați
 number-of-employees-placeholder = Vă rugăm să selectați...
-foundation-date-label = Data Înființării
+foundation-date-label = Data înființării
 foundation-date-placeholder = Vă rugăm să introduceți...
 
 # Comun
 please-select = Vă rugăm să selectați...
 please-enter = Vă rugăm să introduceți...
-

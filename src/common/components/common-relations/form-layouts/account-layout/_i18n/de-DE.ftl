@@ -2,5 +2,4 @@
 
 communication-title = Kommunikation
 address-title = Adressinformationen
-financial-title = Finanzinformationen
-
+core-information-title = Basisinformationen
