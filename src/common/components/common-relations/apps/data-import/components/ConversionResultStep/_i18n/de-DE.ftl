@@ -35,3 +35,11 @@ all-fields-good-message = Alle Felder haben eine gute Abdeckung - bereit zum Imp
 # Import Button
 import-button = { $count } { $entityType } in CRM importieren
 importing-button = Wird in CRM importiert...
+
+# CSV-Qualität
+csv-quality-warning-title = Spaltenverschiebung erkannt
+csv-quality-warning-message = { $shiftedRows } von { $totalRows } Zeilen haben mögliche Spaltenausrichtungsprobleme. Sie können eine intensive Reparatur versuchen — einige Daten können sich ändern.
+csv-quality-repair-button = Intensive Reparatur und Daten extrahieren
+csv-quality-repairing-button = Wird repariert...
+csv-quality-residual-message = { $shiftedRows } Zeile(n) konnten nicht vollständig repariert werden. Diese Zeilen können fehlende oder verschobene Werte enthalten.
+csv-quality-success-message = Alle Zeilen erfolgreich repariert.
