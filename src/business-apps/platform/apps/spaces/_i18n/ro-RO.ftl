@@ -17,6 +17,7 @@ common-move-to-folder = Muta in dosar
 common-move-to-space = Muta in spatiu
 common-try-again = Incearca din nou
 common-open = Deschide
+common-join = Intra
 common-open-chat = Deschide chatul
 common-view-all = Vezi tot
 common-schedule-meeting = Programeaza intalnirea
