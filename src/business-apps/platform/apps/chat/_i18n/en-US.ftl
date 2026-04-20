@@ -191,6 +191,7 @@ chat-continue = Continue
 chat-memberCount = {$count} members selected
 chat-createGroupError = Failed to create group. Please try again.
 chat-groupCreationFailed = Failed to create group. Please try again.
+chat-groupCreationDuplicate = A group chat for this group already exists.
 
 # Dimension Picker
 chat-selectFrom = Select from
@@ -619,6 +620,7 @@ calendar-sidebar-dimensionViewerAccess = {$count ->
 }
 calendar-sidebar-membersPreview = Members
 calendar-sidebar-calendarExistsInfo = A shared calendar for this group already exists, so the existing calendar was selected.
+calendar-sidebar-calendarExistsError = A shared calendar for this group already exists.
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Schedule Meeting

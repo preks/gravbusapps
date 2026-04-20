@@ -11,7 +11,8 @@ export interface DeepAgentSession {
   reflection?: ReflectionResult
   quality_score?: number
   cost_summary?: CostSummary
-  duration_ms?: number
+  duration_ms?: number // Turn duration (most recent request)
+  total_duration_ms?: number // Total session duration from creation
   created_at: string
   updated_at: string
   started_at?: string
@@ -19,6 +20,7 @@ export interface DeepAgentSession {
   config?: SessionConfig
   human_question?: string | null
   structured_input_request?: StructuredInputRequestEvent | null
+  active_external_connection_ids?: string[]
 }
 
 export interface StartSessionResponse {

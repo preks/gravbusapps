@@ -14,9 +14,10 @@ import {
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import type { TimeEntry } from '../hooks/useTimeTrackingData'
+import type { TimeEntry, SortDirection } from '../hooks/useTimeTrackingData'
 import hrI18n from './_i18n'
 import { formatDurationToHHMM } from '@/business-apps/hr/core/apps/my-time/utils/duration'
+import { CaretUp, CaretDown, ArrowsDownUpIcon } from '@phosphor-icons/react'
 
 export interface TimeEntriesTableProps {
   entries: TimeEntry[]
@@ -28,17 +29,39 @@ export interface TimeEntriesTableProps {
   userId?: string
   /** When false, hides the "Rows per page" selector (e.g. for My Time Time History with fixed 100) */
   showRowsPerPage?: boolean
+  sortKey?: keyof TimeEntry
+  sortDir?: SortDirection
+  onSort?: (key: keyof TimeEntry, dir: SortDirection) => void
 }
 
 export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
-  const { entries, locale, pageSize, onPageSizeChange, accessToken, employeeId, userId, showRowsPerPage = true } = props
+  const {
+    entries,
+    locale,
+    pageSize,
+    onPageSizeChange,
+    accessToken,
+    employeeId,
+    userId,
+    showRowsPerPage = true,
+    sortKey,
+    sortDir,
+    onSort
+  } = props
   const { t } = useTranslation(hrI18n)
 
-  const statusToVariant: Record<string, any> = {
-    approved: 'success',
-    pending: 'warning',
-    rejected: 'destructive',
-    open: 'info'
+  const statusToVariant: Record<string, string> = {
+    in_progress: 'running',
+    completed: 'success',
+    incomplete: 'destructive',
+    under_review: 'warning'
+  }
+
+  const statusToLabel: Record<string, string> = {
+    in_progress: t('status_in_progress'),
+    completed: t('status_completed'),
+    incomplete: t('status_incomplete'),
+    under_review: t('status_under_review')
   }
 
   const formatTime = (iso?: string) =>
@@ -92,7 +115,36 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
             <TableHead>
               {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.planned', 'Planned')}
             </TableHead>
-            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.diff', 'Diff')}</TableHead>
+            <TableHead
+              className={
+                onSort ? 'gba:cursor-pointer gba:select-none gba:hover:bg-muted/60 gba:transition-colors' : undefined
+              }
+              onClick={
+                onSort
+                  ? () => {
+                      const nextDir: SortDirection = sortKey === 'differenceTime' && sortDir === 'asc' ? 'desc' : 'asc'
+                      onSort('differenceTime', nextDir)
+                    }
+                  : undefined
+              }
+            >
+              <div className="gba:flex gba:items-center gba:gap-1">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.diff', 'Diff')}
+                {onSort &&
+                  (sortKey === 'differenceTime' ? (
+                    sortDir === 'asc' ? (
+                      <CaretUp className="gba:ml-1 gba:h-4 gba:w-4 gba:shrink-0" aria-hidden />
+                    ) : (
+                      <CaretDown className="gba:ml-1 gba:h-4 gba:w-4 gba:shrink-0" aria-hidden />
+                    )
+                  ) : (
+                    <ArrowsDownUpIcon
+                      className="gba:ml-1 gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground"
+                      aria-hidden
+                    />
+                  ))}
+              </div>
+            </TableHead>
             <TableHead>
               {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.correction', 'Correction')}
             </TableHead>
@@ -168,15 +220,13 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                 <TableCell data-testid={`time-tracking-table-notes-cell-${e.id}`}>{e.notes ?? ''}</TableCell>
                 <TableCell data-testid={`time-tracking-table-status-cell-${e.id}`}>
                   {e.status ? (
-                    <Badge variant={statusToVariant[e.status] || 'info'}>
-                      {e.status.charAt(0).toUpperCase() + e.status.slice(1)}
-                    </Badge>
+                    <Badge variant={statusToVariant[e.status] || 'info'}>{statusToLabel[e.status] || e.status}</Badge>
                   ) : (
                     '-'
                   )}
                 </TableCell>
                 <TableCell className="gba:py-1.5 gba:px-2 gba:align-middle">
-                  {!e.isPlaceholder && e.status !== 'pending' ? (
+                  {!e.isPlaceholder && e.status !== 'under_review' && e.status !== 'in_progress' ? (
                     <div className="gba:flex gba:items-center gba:justify-start gba:scale-[0.65] gba:origin-left">
                       <AppActionButton
                         data-testid={`time-tracking-update-button-${e.id}`}
