@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { useFlowBot } from './hooks/useFlowBot'
@@ -15,7 +15,7 @@ import { VoiceFormProvider, useVoiceForm } from './context/VoiceFormContext'
 import { FlowProposalFileUploadProvider } from './context/FlowProposalFileUploadContext'
 import { HeroSection, DeepBlueNeuralBackground } from './components/HeroSection'
 import { ChatsCircle } from '@phosphor-icons/react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, Spinner } from '@newwork/nw-design-system'
 import { UserPreferencesProvider, useUserPreferencesContext } from './context/UserPreferencesContext'
 import { UserPreferences } from './components/UserPreferences'
 
@@ -74,6 +74,9 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     cancelledMessageText,
     clearCancelledMessage,
     loadSession,
+    loadMoreHistory,
+    hasMoreHistory,
+    isLoadingMoreHistory,
     pageSkillsEnabled,
     togglePageSkills,
     activePageSkills
@@ -382,11 +385,37 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     return conversation
   }, [conversation, isLoading])
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+  // When the user loads older messages via "Load more", we need to keep the
+  // viewport anchored at the same visual position instead of letting the
+  // usual auto-scroll-to-bottom effect jump them back down. We capture the
+  // distance-from-bottom before prepending and restore it in a layout effect
+  // (pre-paint) so there is no visible flash of content jumping.
+  const preservedDistanceFromBottomRef = useRef<number | null>(null)
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    if (preservedDistanceFromBottomRef.current !== null) {
+      const distanceFromBottom = preservedDistanceFromBottomRef.current
+      preservedDistanceFromBottomRef.current = null
+      el.scrollTop = Math.max(0, el.scrollHeight - distanceFromBottom)
+      return
     }
+
+    el.scrollTop = el.scrollHeight
   }, [extendedConversation.length])
+
+  const handleLoadMoreHistory = useCallback(async () => {
+    const el = scrollRef.current
+    if (el) {
+      preservedDistanceFromBottomRef.current = el.scrollHeight - el.scrollTop
+    }
+    const prependedCount = await loadMoreHistory()
+    if (prependedCount === 0) {
+      preservedDistanceFromBottomRef.current = null
+    }
+  }, [loadMoreHistory])
 
   // Track if we've already processed a prompt from sessionStorage to avoid duplicates
   const promptProcessedRef = useRef<string | null>(null)
@@ -640,6 +669,20 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               </div>
             ) : (
               <div className="gba:p-6">
+                {hasMoreHistory && (
+                  <div className="gba:flex gba:justify-center gba:pb-4">
+                    <Button
+                      onClick={handleLoadMoreHistory}
+                      variant="ghost"
+                      size="sm"
+                      disabled={isLoadingMoreHistory}
+                      className="gba:text-sm gba:text-muted-foreground hover:gba:text-foreground"
+                      data-testid="every-ai-load-more-history"
+                    >
+                      {isLoadingMoreHistory ? <Spinner size="sm" /> : 'Load older messages'}
+                    </Button>
+                  </div>
+                )}
                 <ConversationRenderer
                   turns={extendedConversation}
                   accessToken={accessToken}

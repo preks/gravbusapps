@@ -83,7 +83,18 @@ function isPrechatCacheFresh(entry: PrechatCacheEntry): boolean {
 type ConversationState = {
   conversation: ConversationTurn[]
   sessionId: string | null
+  /** Oldest message id currently loaded into `conversation` (cursor for Load more). */
+  oldestMessageId: number | null
+  /** Whether the server reports more (older) messages exist beyond the loaded window. */
+  hasMoreHistory: boolean
 }
+
+/**
+ * Default number of messages loaded per page when restoring a session or
+ * paginating older history. Matches the backend's
+ * `DEFAULT_SESSION_HISTORY_LIMIT` (~10 user + 10 assistant messages).
+ */
+export const SESSION_HISTORY_PAGE_SIZE = 20
 
 type UseFlowBotOptions = {
   isActive?: boolean
@@ -298,17 +309,42 @@ function getInitialSessionId(): string | null {
 
 function loadState(): ConversationState {
   const sessionId = getInitialSessionId()
-  return { conversation: [], sessionId }
+  return { conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false }
 }
 
-async function loadHistory(accessToken: string, sessionId: string | null): Promise<ConversationState> {
+type LoadHistoryOptions = {
+  /** Maximum messages to return. Defaults to `SESSION_HISTORY_PAGE_SIZE`. */
+  limit?: number
+  /** Cursor — return messages with id strictly less than `beforeId` (older page). */
+  beforeId?: number | null
+}
+
+/**
+ * Fetch a paginated window of conversation history from Flowbot.
+ *
+ * The first call for a session returns the most recent `limit` messages
+ * along with `hasMoreHistory` / `oldestMessageId` metadata. Subsequent calls
+ * can pass `beforeId` = the previous `oldestMessageId` to load older pages.
+ */
+async function loadHistory(
+  accessToken: string,
+  sessionId: string | null,
+  options: LoadHistoryOptions = {}
+): Promise<ConversationState> {
   if (!isValidSessionId(sessionId)) {
-    return { conversation: [], sessionId: null }
+    return { conversation: [], sessionId: null, oldestMessageId: null, hasMoreHistory: false }
   }
+
+  const limit = options.limit ?? SESSION_HISTORY_PAGE_SIZE
+  const beforeId = options.beforeId ?? null
 
   try {
     const baseUrl = resolveFlowbotBaseUrl()
-    const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sessionId}/history`, {
+    const params = new URLSearchParams({ limit: String(limit) })
+    if (beforeId !== null && Number.isFinite(beforeId)) {
+      params.set('before_id', String(beforeId))
+    }
+    const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sessionId}/history?${params.toString()}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -321,12 +357,12 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
       if (res.status === 404) {
         console.warn('Session not found on server, clearing invalid session:', sessionId)
         clearInvalidSession()
-        return { conversation: [], sessionId: null }
+        return { conversation: [], sessionId: null, oldestMessageId: null, hasMoreHistory: false }
       }
       if (res.status === 401 || res.status === 403) {
         console.warn('Session unauthorized, clearing invalid session:', sessionId)
         clearInvalidSession()
-        return { conversation: [], sessionId: null }
+        return { conversation: [], sessionId: null, oldestMessageId: null, hasMoreHistory: false }
       }
       throw new Error(`${res.status} ${res.statusText}`)
     }
@@ -334,10 +370,14 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
     const payload = await res.json()
 
     const backendConversation: any[] = Array.isArray(payload?.conversation) ? payload.conversation : []
+    const hasMoreHistory = Boolean(payload?.hasMore)
+    const payloadOldestId = typeof payload?.oldestMessageId === 'number' ? payload.oldestMessageId : null
 
     const historyState: ConversationState = {
       conversation: [],
-      sessionId
+      sessionId,
+      oldestMessageId: payloadOldestId,
+      hasMoreHistory
     }
 
     // Process conversation history
@@ -430,7 +470,7 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
     return historyState
   } catch (error) {
     console.error('Failed to load FlowBot history:', error)
-    return { conversation: [], sessionId }
+    return { conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false }
   }
 }
 
@@ -758,9 +798,11 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
 
   const [state, setState] = useState<ConversationState>(loadState)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const sessionIdRef = useRef<string | null>(null)
   const lastFetchedSessionIdRef = useRef<string | null>(null)
+  const isLoadingMoreHistoryRef = useRef(false)
   const [prechatSuggestions, setPrechatSuggestions] = useState<string[]>([])
   const [isPrechatLoading, setIsPrechatLoading] = useState(false)
   const isPrechatLoadingRef = useRef(false)
@@ -986,7 +1028,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           ) {
             console.warn('Clearing problematic session due to persistent error')
             clearInvalidSession()
-            setState({ conversation: [], sessionId: null })
+            setState({ conversation: [], sessionId: null, oldestMessageId: null, hasMoreHistory: false })
           }
         }
       } finally {
@@ -1506,7 +1548,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   }, [accessToken, currentPageContext, prechatContextKey, state.conversation.length, waitForIdle])
 
   const clearConversation = useCallback(() => {
-    setState({ conversation: [], sessionId: null })
+    setState({ conversation: [], sessionId: null, oldestMessageId: null, hasMoreHistory: false })
     resetAnalytics()
     if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY)
     setPrechatSuggestions([])
@@ -1598,7 +1640,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   /** Load a chat session by id: persist sessionId and fetch conversation from flowbot */
   const loadSession = useCallback(
     async (sessionId: string) => {
-      saveState({ conversation: [], sessionId })
+      saveState({ conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false })
       sessionIdRef.current = sessionId
       lastFetchedSessionIdRef.current = sessionId
       setIsLoading(true)
@@ -1608,13 +1650,56 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         lastFetchedSessionIdRef.current = history.sessionId ?? null
       } catch (error) {
         console.error('[FlowBot] Failed to load session:', error)
-        setState({ conversation: [], sessionId })
+        setState({ conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false })
       } finally {
         setIsLoading(false)
       }
     },
     [accessToken]
   )
+
+  /**
+   * Load the previous (older) page of messages for the current session and
+   * prepend them to the conversation. Used by the "Load more" affordance at
+   * the top of the chat transcript.
+   *
+   * Returns the number of turns that were prepended so callers can preserve
+   * scroll position across the layout shift.
+   */
+  const loadMoreHistory = useCallback(async (): Promise<number> => {
+    if (isLoadingMoreHistoryRef.current) return 0
+    const activeSessionId = sessionIdRef.current ?? state.sessionId
+    if (!isValidSessionId(activeSessionId)) return 0
+    if (!state.hasMoreHistory) return 0
+    if (state.oldestMessageId === null || state.oldestMessageId === undefined) return 0
+
+    isLoadingMoreHistoryRef.current = true
+    setIsLoadingMoreHistory(true)
+    try {
+      const older = await loadHistory(accessToken, activeSessionId, {
+        beforeId: state.oldestMessageId
+      })
+      const prependedCount = older.conversation.length
+      if (prependedCount === 0 && !older.hasMoreHistory) {
+        setState(prev => ({ ...prev, hasMoreHistory: false }))
+        return 0
+      }
+
+      setState(prev => ({
+        ...prev,
+        conversation: [...older.conversation, ...prev.conversation],
+        oldestMessageId: older.oldestMessageId ?? prev.oldestMessageId,
+        hasMoreHistory: older.hasMoreHistory
+      }))
+      return prependedCount
+    } catch (error) {
+      console.error('[FlowBot] Failed to load older history:', error)
+      return 0
+    } finally {
+      isLoadingMoreHistoryRef.current = false
+      setIsLoadingMoreHistory(false)
+    }
+  }, [accessToken, state.sessionId, state.hasMoreHistory, state.oldestMessageId])
 
   const getAllSessions = useCallback(async () => {
     return getAllFlowBotSessions(accessToken)
@@ -1645,6 +1730,9 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     getAllSessions,
     deleteSession,
     loadSession,
+    loadMoreHistory,
+    hasMoreHistory: state.hasMoreHistory,
+    isLoadingMoreHistory,
     pageSkillsEnabled,
     togglePageSkills,
     activePageSkills
