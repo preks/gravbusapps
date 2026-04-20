@@ -36,6 +36,7 @@ import { useSpaceContent } from './hooks/useSpaceContent'
 import { useSpaceActivity } from './hooks/useSpaceActivity'
 import { useSpaceUserLookup } from './hooks/useSpaceUserLookup'
 import { useLinkedGroupChat } from './hooks/useLinkedGroupChat'
+import { useLinkedSharedCalendar } from './hooks/useLinkedSharedCalendar'
 import { useSpaceCall } from './hooks/useSpaceCall'
 import type {
   SpaceContentItem,
@@ -124,6 +125,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     isLoading: chatLoading,
     error: chatError
   } = useLinkedGroupChat(spaceDimension, accessToken)
+
+  const { calendar: linkedCalendar } = useLinkedSharedCalendar(spaceDimension, accessToken)
 
   // Hook for starting calls from space
   const { startAudioCall, startVideoCall, canStartCall } = useSpaceCall(linkedConversation)
@@ -506,7 +509,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
                   <ScheduleMeetingButton
                     spaceId={spaceId}
                     spaceName={space.name}
-                    members={space.members || []}
+                    members={enrichedMembers}
+                    linkedCalendar={linkedCalendar}
                     data-testid={`${testId}-schedule-meeting`}
                   />
                 </div>
@@ -535,8 +539,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
                   <div className="gba:space-y-4">
                     {/* Team Calendar */}
                     <SpaceCalendar
-                      spaceId={spaceId}
-                      members={space.members || []}
+                      calendar={linkedCalendar}
                       accessToken={accessToken}
                       maxMeetings={3}
                       data-testid={`${testId}-team-calendar`}

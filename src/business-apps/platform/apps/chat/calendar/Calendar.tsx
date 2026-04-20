@@ -37,6 +37,7 @@ import {
   EventParticipant
 } from './types'
 import { getDefaultCalendarColor } from './utils/calendarColors'
+import type { CalendarEmployee } from './services/employeeSearchService'
 
 interface CalendarProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -50,6 +51,43 @@ interface CalendarProps extends BusinessAppContextProps {
 }
 
 const CALENDAR_VISIBILITY_STORAGE_KEY = 'chat-calendar-visibility'
+
+function parseCreateMeetingParticipants(rawValue: string | null): CalendarEmployee[] {
+  if (!rawValue) {
+    return []
+  }
+
+  try {
+    const parsedValue = JSON.parse(rawValue)
+
+    if (!Array.isArray(parsedValue)) {
+      return []
+    }
+
+    return parsedValue
+      .map(participant => {
+        if (!participant || typeof participant !== 'object') {
+          return null
+        }
+
+        const userId = typeof participant.userId === 'string' ? participant.userId : ''
+        const displayName = typeof participant.displayName === 'string' ? participant.displayName : undefined
+
+        if (!userId) {
+          return null
+        }
+
+        return {
+          id: userId,
+          userId,
+          displayName: displayName || userId
+        }
+      })
+      .filter((participant): participant is CalendarEmployee => participant !== null)
+  } catch {
+    return []
+  }
+}
 
 const CalendarInner: React.FC<CalendarProps> = ({
   accessToken,
@@ -209,10 +247,13 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [createModalInitialDate, setCreateModalInitialDate] = useState<Date | undefined>()
   const [createModalInitialHour, setCreateModalInitialHour] = useState<number | undefined>()
+  const [createModalInitialTitle, setCreateModalInitialTitle] = useState<string | undefined>()
+  const [createModalInitialParticipants, setCreateModalInitialParticipants] = useState<CalendarEmployee[]>([])
   const [editingMeeting, setEditingMeeting] = useState<CalendarEvent | null>(null)
   const [enrichedSelectedEvent, setEnrichedSelectedEvent] = useState<CalendarEvent | null>(null)
   const [updatingCalendarPreferenceId, setUpdatingCalendarPreferenceId] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(defaultSidebarOpen)
+  const [requestedMeetingCalendarId, setRequestedMeetingCalendarId] = useState<string | undefined>()
 
   const { t } = useTranslation(translations)
   const { fetchAvatarsSync, requestAvatars } = useEmployeeAvatarsCache(accessToken)
@@ -222,6 +263,10 @@ const CalendarInner: React.FC<CalendarProps> = ({
     return displayName || t('calendar-sidebar-myCalendar')
   }, [t, userInfo?.displayName])
   const defaultMeetingCalendarId = useMemo(() => {
+    if (requestedMeetingCalendarId) {
+      return requestedMeetingCalendarId
+    }
+
     const selectedEditableCalendar = sharedCalendars.find(
       calendar => selectedInternalCalendarIds.includes(calendar.id) && calendar.canEdit
     )
@@ -231,12 +276,13 @@ const CalendarInner: React.FC<CalendarProps> = ({
     }
 
     return sharedCalendars.find(calendar => calendar.canEdit)?.id
-  }, [selectedInternalCalendarIds, sharedCalendars])
+  }, [requestedMeetingCalendarId, selectedInternalCalendarIds, sharedCalendars])
 
   useEffect(() => {
     const urlParams = new URLSearchParams(globalThis.window.location.search)
     const calendarIdsParam = urlParams.get('calendarIds')
     const includePersonalParam = urlParams.get('includePersonal')
+    const requestedCalendarId = urlParams.get('calendarId') || undefined
 
     if (calendarIdsParam) {
       hasInitializedInternalSelection.current = true
@@ -251,6 +297,35 @@ const CalendarInner: React.FC<CalendarProps> = ({
     if (includePersonalParam === 'false') {
       setIncludePersonal(false)
     }
+
+    if (requestedCalendarId) {
+      setRequestedMeetingCalendarId(requestedCalendarId)
+    }
+  }, [])
+
+  useEffect(() => {
+    const url = new URL(globalThis.window.location.href)
+    const urlParams = url.searchParams
+    const action = urlParams.get('action')
+
+    if (action !== 'createMeeting') {
+      return
+    }
+
+    setEditingMeeting(null)
+    setCreateModalInitialDate(undefined)
+    setCreateModalInitialHour(undefined)
+    setCreateModalInitialTitle(urlParams.get('meetingTitle') || undefined)
+    setCreateModalInitialParticipants(parseCreateMeetingParticipants(urlParams.get('participantDrafts')))
+    setRequestedMeetingCalendarId(urlParams.get('calendarId') || undefined)
+    setIsCreateModalOpen(true)
+
+    url.searchParams.delete('action')
+    url.searchParams.delete('meetingTitle')
+    url.searchParams.delete('participantIds')
+    url.searchParams.delete('participantDrafts')
+    url.searchParams.delete('spaceId')
+    globalThis.window.history.replaceState({}, '', url.toString())
   }, [])
 
   // Ref so timeout callback can read latest events (after date change triggers fetch)
@@ -514,6 +589,9 @@ const CalendarInner: React.FC<CalendarProps> = ({
     setEditingMeeting(null)
     setCreateModalInitialDate(date)
     setCreateModalInitialHour(hour)
+    setCreateModalInitialTitle(undefined)
+    setCreateModalInitialParticipants([])
+    setRequestedMeetingCalendarId(undefined)
     setIsCreateModalOpen(true)
   }, [])
 
@@ -724,6 +802,9 @@ const CalendarInner: React.FC<CalendarProps> = ({
     setEditingMeeting(null)
     setCreateModalInitialDate(undefined)
     setCreateModalInitialHour(undefined)
+    setCreateModalInitialTitle(undefined)
+    setCreateModalInitialParticipants([])
+    setRequestedMeetingCalendarId(undefined)
     setIsCreateModalOpen(true)
   }, [])
 
@@ -838,15 +919,22 @@ const CalendarInner: React.FC<CalendarProps> = ({
         await refreshCalendars()
         setSelectedInternalCalendarIds(prev => Array.from(new Set([...prev, response.calendar.id])))
         setIsCreateSharedCalendarDialogOpen(false)
-
-        if (response.created) {
-          toast.success(t('calendar-sidebar-calendarCreatedSuccess'))
-        } else {
-          toast.info(t('calendar-sidebar-calendarExistsInfo'))
-        }
+        toast.success(t('calendar-sidebar-calendarCreatedSuccess'))
       } catch (error) {
         console.error('Error creating shared calendar:', error)
-        toast.error(t('calendar-sidebar-calendarCreatedError'))
+        const backendMessage =
+          error instanceof Error &&
+          typeof (error as { responseData?: { message?: string } }).responseData?.message === 'string'
+            ? (error as { responseData?: { message?: string } }).responseData?.message
+            : error instanceof Error
+              ? error.message
+              : ''
+
+        if (backendMessage.toLowerCase().includes('already exists for this dimension')) {
+          toast.error(t('calendar-sidebar-calendarExistsError'))
+        } else {
+          toast.error(t('calendar-sidebar-calendarCreatedError'))
+        }
       } finally {
         setIsCreatingSharedCalendar(false)
       }
@@ -1131,6 +1219,9 @@ const CalendarInner: React.FC<CalendarProps> = ({
         onClose={() => {
           setIsCreateModalOpen(false)
           setEditingMeeting(null)
+          setCreateModalInitialTitle(undefined)
+          setCreateModalInitialParticipants([])
+          setRequestedMeetingCalendarId(undefined)
         }}
         onSubmit={handleCreateMeeting}
         onUpdate={handleUpdateMeeting}
@@ -1140,6 +1231,8 @@ const CalendarInner: React.FC<CalendarProps> = ({
         defaultCalendarId={defaultMeetingCalendarId}
         initialDate={createModalInitialDate}
         initialHour={createModalInitialHour}
+        initialTitle={createModalInitialTitle}
+        initialParticipants={createModalInitialParticipants}
         editMeeting={
           editingMeeting
             ? {
