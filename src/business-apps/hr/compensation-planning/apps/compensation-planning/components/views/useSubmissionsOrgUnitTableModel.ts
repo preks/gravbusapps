@@ -6,7 +6,7 @@ import {
   SUBMISSIONS_ORG_UNIT_TABLE_VISIBLE_COLUMN_IDS,
   buildSubmissionsOrgUnitTableColumns
 } from './buildSubmissionsOrgUnitTableColumns'
-import { formatBudgetPlanStatusLabelForDisplay } from './budgetSetupDisplayUtils'
+import { formatOrgUnitBudgetStatusLabelForDisplay } from './budgetSetupDisplayUtils'
 import type { TranslateFn } from './budgetSetupDisplayUtils'
 import { buildSubmissionsOrgUnitFilterConfiguration } from './buildSubmissionsOrgUnitFilterConfiguration'
 
@@ -25,7 +25,7 @@ export function useSubmissionsOrgUnitTableModel(
     ...SUBMISSIONS_ORG_UNIT_TABLE_VISIBLE_COLUMN_IDS
   ])
 
-  const formatStatus = useCallback((v: string) => formatBudgetPlanStatusLabelForDisplay(v, t) || v, [t])
+  const formatStatus = useCallback((v: string) => formatOrgUnitBudgetStatusLabelForDisplay(v, t) || v, [t])
 
   const orgUnitBudgetStatusOptions = useMemo(() => {
     const ids = new Set<string>()
@@ -36,7 +36,7 @@ export function useSubmissionsOrgUnitTableModel(
     }
     return [...ids]
       .sort((a, b) => a.localeCompare(b))
-      .map(id => ({ id, label: formatBudgetPlanStatusLabelForDisplay(id, t) || id }))
+      .map(id => ({ id, label: formatOrgUnitBudgetStatusLabelForDisplay(id, t) || id }))
   }, [sourceRows, t])
 
   const filterConfiguration = useMemo(
@@ -50,14 +50,16 @@ export function useSubmissionsOrgUnitTableModel(
     const q = debouncedSearch.trim().toLowerCase()
     if (q) {
       list = list.filter(row => {
-        const statusLabel = formatBudgetPlanStatusLabelForDisplay(row.budgetPlanStatus, t).toLowerCase()
+        const statusLabel = formatOrgUnitBudgetStatusLabelForDisplay(row.budgetPlanStatus, t).toLowerCase()
         return (
           row.organizationalUnitName.toLowerCase().includes(q) ||
           row.organizationalUnitId.toLowerCase().includes(q) ||
           row.budgetPlanLabel.toLowerCase().includes(q) ||
           statusLabel.includes(q) ||
           String(row.salaryBudgetAmount).includes(q) ||
-          String(row.salaryBudgetPercent).includes(q)
+          String(row.salaryBudgetPercent).includes(q) ||
+          String(row.proposedNewSalary).includes(q) ||
+          String(row.organizationalUnitCurrentTotalSalary).includes(q)
         )
       })
     }
@@ -120,7 +122,9 @@ export function useSubmissionsOrgUnitTableModel(
       { id: 'budgetPlanLabel', label: t('submissions-table-col-company-budget-plan') },
       { id: 'budgetPlanStatus', label: t('budget-setup-table-col-budget-plan-status') },
       { id: 'salaryBudgetAmount', label: t('budget-setup-table-col-salary-budget-amount') },
-      { id: 'salaryBudgetPercent', label: t('budget-setup-table-col-salary-budget-percent') }
+      { id: 'salaryBudgetPercent', label: t('budget-setup-table-col-salary-budget-percent') },
+      { id: 'proposedNewSalary', label: t('submissions-table-col-proposed-new-salary') },
+      { id: 'organizationalUnitCurrentTotalSalary', label: t('submissions-table-col-org-unit-current-total-salary') }
     ],
     [t]
   )

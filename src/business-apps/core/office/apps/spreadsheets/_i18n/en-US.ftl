@@ -1122,6 +1122,7 @@ persist-rows-add-failed = Could not save new rows.
 persist-snapshot-failed = Could not save sheet layout to the server.
 persist-recovery-failed = Could not recover from a save conflict. Please refresh the page.
 persist-snapshot-too-large = Sheet formatting could not be saved because the spreadsheet is too large. Cell data is still saved.
+unsaved-leave-confirm = You have unsaved changes that have not yet been saved to the server. Leave the sheet anyway?
 
 # Share App Dialog
 share-dialog-title = Share "{ $name }"

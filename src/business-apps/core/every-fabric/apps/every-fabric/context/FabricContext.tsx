@@ -49,6 +49,9 @@ interface FabricContextValue {
   // Active enterprise skill
   activeSkill: ActiveSkillInfo | null
 
+  // Active connectors for the session (persisted from session start)
+  sessionConnectorIds: string[]
+
   // Task progress (right panel)
   taskNodes: FabricTaskNode[]
   completedCount: number
@@ -152,6 +155,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     readBootstrapSessionFromHistoryState(urlSessionId)
   )
   const pendingInternalSessionIdRef = useRef<string | null | undefined>(undefined)
+  const [sessionConnectorIds, setSessionConnectorIds] = useState<string[]>([])
 
   // Keep activeSessionId aligned with browser history changes.
   useEffect(() => {
@@ -202,6 +206,13 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     if (session) updateSession(session)
   }, [session, updateSession])
 
+  // Sync session connector IDs from loaded session (for page refreshes / session switching)
+  useEffect(() => {
+    if (session?.active_external_connection_ids) {
+      setSessionConnectorIds(session.active_external_connection_ids)
+    }
+  }, [session?.active_external_connection_ids])
+
   // Task progress derived from session.todos + SSE events
   const { taskNodes, completedCount, totalCount, progressPercent } = useFabricProgress(session, events)
 
@@ -237,6 +248,8 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       writeBootstrapSessionToHistoryState(bootstrap)
       pendingInternalSessionIdRef.current = sessionId === urlSessionId ? undefined : sessionId
       setActiveSessionId(sessionId)
+      // Track active connectors for this session
+      setSessionConnectorIds(activeExternalConnectionIds ?? [])
       addSession({
         session_id: sessionId,
         input: task,
@@ -256,6 +269,8 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       writeBootstrapSessionToHistoryState(null)
       pendingInternalSessionIdRef.current = id === urlSessionId ? undefined : id
       setActiveSessionId(id)
+      // Clear connector tracking when switching sessions (we don't know the old session's connectors)
+      setSessionConnectorIds([])
     },
     [urlSessionId]
   )
@@ -320,6 +335,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       sessionLoadError,
       activityEvents,
       activeSkill,
+      sessionConnectorIds,
       taskNodes,
       completedCount,
       totalCount,
@@ -356,6 +372,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       sessionLoadError,
       activityEvents,
       activeSkill,
+      sessionConnectorIds,
       taskNodes,
       completedCount,
       totalCount,

@@ -31,6 +31,7 @@ jest.mock('@newwork/nw-design-system', () => ({
   AlertDialogTitle: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   Badge: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+  CreateLayout: (props: any) => createLayoutMock(props),
   Dialog: ({ open, children }: any) => (open ? <div>{children}</div> : null),
   DialogContent: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   DialogDescription: ({ children, ...props }: any) => <div {...props}>{children}</div>,
@@ -71,10 +72,6 @@ jest.mock('@newwork/nw-design-system', () => ({
         }) as Record<string, string>
       )[key] ?? key
   })
-}))
-
-jest.mock('@/components/create-layout/CreateLayout', () => ({
-  CreateLayout: (props: any) => createLayoutMock(props)
 }))
 
 jest.mock('./components/canvas/FlowStudioCanvas', () => ({
@@ -133,11 +130,20 @@ jest.mock('@/business-apps/flow/providers', () => ({
 describe('FlowStudio', () => {
   beforeEach(() => {
     createLayoutMock.mockImplementation(
-      ({ heroVariant, heroTitle, heroSubtitle, heroExtra, views, currentView, canvasPanel, testId }: any) => (
+      ({
+        heroVariant,
+        heroTitle,
+        heroSubtitle,
+        heroExtra,
+        views,
+        currentView,
+        canvasPanel,
+        'data-testid': dataTestId
+      }: any) => (
         <div
           data-testid="mock-create-layout"
           data-hero-variant={heroVariant}
-          data-layout-testid={testId}
+          data-layout-testid={dataTestId}
           data-hero-title-type={typeof heroTitle}
           data-current-view={currentView}
           data-views={Array.isArray(views) ? views.map(view => view.value).join(',') : ''}

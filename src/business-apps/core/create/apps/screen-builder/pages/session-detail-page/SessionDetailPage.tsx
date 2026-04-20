@@ -2249,10 +2249,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
           repositoryId &&
           ((uniqueFileSummary?.totalUniqueFiles ?? 0) > 0 ||
             (sessions.find(s => s.sessionId === sessionId)?.fileCount ?? 0) > 0) ? (
-            <ResizablePanelGroup direction="horizontal" className="gba:flex-1 gba:min-h-0 gba:w-full">
+            <ResizablePanelGroup orientation="horizontal" className="gba:flex-1 gba:min-h-0 gba:w-full">
               <ResizablePanel
-                defaultSize={25}
-                minSize={25}
+                defaultSize="25%"
+                minSize="25%"
                 className="gba:flex gba:flex-col gba:min-h-0 gba:rounded-none"
               >
                 <ChatDrawer
@@ -2317,8 +2317,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
               </ResizablePanel>
               <ResizableHandle withHandle className="gba:bg-border" />
               <ResizablePanel
-                defaultSize={75}
-                minSize={25}
+                defaultSize="75%"
+                minSize="25%"
                 className="gba:flex gba:flex-col gba:min-h-0 gba:rounded-none"
               >
                 <PreviewSandbox

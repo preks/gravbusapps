@@ -85,7 +85,10 @@ export async function persistAllocationsForSelectedEmployees(
       continue
     }
     const rawAmount = allocationByEmployeeId.get(id) ?? 0
-    const body = buildSaveCompensationBudgetPlanEmployeeInsertBody(m, rawAmount, planOuId, managerEmployeeId)
+    const body = buildSaveCompensationBudgetPlanEmployeeInsertBody(m, rawAmount, planOuId, managerEmployeeId, {
+      submitAsSubmitted: true,
+      submittedAt: new Date().toISOString()
+    })
     const raw = await saveCompensationBudgetPlanEmployee(restClient, accessToken, body)
     const rowId = extractCreatedCompensationBudgetPlanEmployeeId(raw)
     if (rowId) {

@@ -8,7 +8,8 @@ import {
   PaperPlaneTiltIcon,
   CameraIcon,
   AtIcon,
-  UserCircleIcon
+  UserCircleIcon,
+  LightningIcon
 } from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
 import { VoiceModeButton } from './voice/VoiceModeButton'
@@ -91,6 +92,12 @@ interface ChatInputProps {
   compactSuggestions?: boolean
   /** Callback to open the user preferences modal */
   onOpenPreferences?: () => void
+  /** Whether page-context skills are active */
+  pageSkillsEnabled?: boolean
+  /** Callback to toggle page-context skills on/off */
+  onTogglePageSkills?: (enabled: boolean) => void
+  /** Skill names currently resolved from the page context */
+  activePageSkills?: string[]
 }
 
 interface StandardMenuOptionProps {
@@ -159,7 +166,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   accessToken = '',
   darkMode = false,
   compactSuggestions = false,
-  onOpenPreferences
+  onOpenPreferences,
+  pageSkillsEnabled = false,
+  onTogglePageSkills,
+  activePageSkills = []
 }) => {
   const { t } = useTranslation(translations)
   const effectivePlaceholder = placeholder ?? t('chat-input-placeholder')
@@ -664,6 +674,37 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   )
                 })
               )}
+            </div>
+          )}
+
+          {/* Page Skills toggle pill */}
+          {activePageSkills.length > 0 && onTogglePageSkills && (
+            <div className="gba:flex gba:items-center gba:gap-1.5">
+              <button
+                type="button"
+                className={`gba:flex gba:items-center gba:justify-center gba:gap-1.5 gba:h-7 gba:rounded-full gba:text-[11px] gba:font-semibold gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none ${
+                  pageSkillsEnabled
+                    ? darkMode
+                      ? 'gba:px-2.5 gba:bg-white/20 gba:text-white gba:border gba:border-white/25'
+                      : 'gba:px-2.5 gba:bg-primary/15 gba:text-primary'
+                    : darkMode
+                      ? 'gba:w-7 gba:bg-white/10 gba:text-white/50 hover:gba:bg-white/20'
+                      : 'gba:w-7 gba:bg-muted gba:text-muted-foreground hover:gba:bg-accent'
+                }`}
+                onClick={() => onTogglePageSkills(!pageSkillsEnabled)}
+                title={
+                  pageSkillsEnabled
+                    ? `Page Skills active: ${activePageSkills.join(', ')}. Click to use general assistant.`
+                    : 'Enable page-context skills for faster, focused replies'
+                }
+                data-testid="page-skills-toggle"
+              >
+                <LightningIcon
+                  className="gba:h-3.5 gba:w-3.5 gba:flex-shrink-0"
+                  weight={pageSkillsEnabled ? 'fill' : 'regular'}
+                />
+                {pageSkillsEnabled && <span>Page Skills</span>}
+              </button>
             </div>
           )}
 

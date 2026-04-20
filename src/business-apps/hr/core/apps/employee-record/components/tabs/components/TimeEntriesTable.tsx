@@ -93,7 +93,9 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.planned', 'Planned')}
             </TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.diff', 'Diff')}</TableHead>
-            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.manual', 'Manual')}</TableHead>
+            <TableHead>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.correction', 'Correction')}
+            </TableHead>
             <TableHead>
               {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.label', 'Location')}
             </TableHead>

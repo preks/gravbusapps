@@ -33,3 +33,6 @@ dashboard-stat-trend-decrease-vs-last-month = Rückgang gegenüber dem Vormonat
 # Expense Items Tab
 expense-items-date-label = Datum
 delete-selection-discard-error-draft = Sie können nur Elemente mit dem Status "Entwurf" oder "Zugewiesen" verwerfen.
+
+# Table lists (no rows)
+table-empty-filtered = Keine Daten verfügbar

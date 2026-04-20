@@ -21,8 +21,8 @@ const DATA_TEST_ID_PREFIX = 'CostCenterForm'
 export interface CostCenterFormProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   costCenter?: CostCenter
-  refetch: () => void
-  structureId: string
+  refetch?: () => void
+  structureId?: string
   open?: boolean
   setOpen?: Dispatch<SetStateAction<boolean>>
   isDrawerActive?: boolean
@@ -32,23 +32,24 @@ export interface CostCenterFormProps extends BusinessAppContextProps {
   isEditCostCenter?: boolean
   isFirstNode?: boolean
   costCenters?: CostCenter[]
-  onCancel: () => void
-  costCenterNodes: CostCenterNode[]
+  onCancel?: () => void
+  /** Parent supplies tree; `RenderRemoteComponent` omits — default `[]` for smoke / dev host. */
+  costCenterNodes?: CostCenterNode[]
 }
 
 export const CostCenterForm: React.FC<CostCenterFormProps> = ({
   prefixDataTestId,
   costCenter,
-  refetch,
-  structureId,
+  refetch = () => {},
+  structureId = '',
   open,
   setOpen,
   isDrawerActive = false,
   childAddButton,
   accessToken,
   isFirstNode,
-  onCancel,
-  costCenterNodes
+  onCancel = () => {},
+  costCenterNodes = []
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const orgchartClient = useOrgchartClient(accessToken)

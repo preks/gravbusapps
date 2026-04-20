@@ -27,13 +27,6 @@ export function applyCurrencyChange(
   }
 }
 
-export function buildFilteredEmptyMessage(): string {
-  return getTranslationFromI18nKeyAndLabel(
-    'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
-    'No data available'
-  )
-}
-
 export function buildDefaultEmptyMessage(noDataKey: string, noDataDefault: string): string {
   return getTranslationFromI18nKeyAndLabel(noDataKey, noDataDefault)
 }

@@ -37,6 +37,7 @@ export const GET_COMMUNICATION_LOOKUPS = `
     commChannel: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "CommunicationChannel" } }, isDeleted: { _eq: false } }) {
       id
       value
+      objectValue
       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
         localeCode
         value
@@ -107,7 +108,10 @@ export const useCommunicationLookups = (context: BusinessAppContextProps) => {
         }))
       }
 
-      setChannels(mapEntries(res?.commChannel))
+      const hrChannels = res?.commChannel?.filter(
+        (e: any) => e.objectValue && typeof e.objectValue === 'object' && e.objectValue.hr === true
+      )
+      setChannels(mapEntries(hrChannels))
       setTypes(mapEntries(res?.commType))
       setCommunications(Array.isArray(res?.EmployeeByPk?.communication) ? res.EmployeeByPk.communication : [])
       setEmployee({
