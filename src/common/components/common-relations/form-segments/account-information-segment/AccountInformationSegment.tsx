@@ -17,7 +17,7 @@ import { EmployeeSelect } from '@/components/employee-select'
 import { ContactSelect } from '@/common/components/common-relations/selects/contact-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { SelectOption as ContactSelectOption } from '@/common/components/common-relations/selects/contact-select'
-import { LEGAL_FORM, INDUSTRY_CLASS } from '@/common/constants/commonCatalogs'
+import { INDUSTRY_CLASS } from '@/common/constants/commonCatalogs'
 import translations from './_i18n'
 
 interface AccountInformationSegmentProps {
@@ -353,46 +353,25 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
         />
       )}
 
-      {/* Legal Form and Industry - Side by side */}
-      <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2 gba:w-full gba:max-w-full gba:overflow-hidden">
-        <FormField
-          control={form.control}
-          name="legalFormRef"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('legal-form-label')}</FormLabel>
-              <FormControl>
-                <CatalogSelect
-                  catalogIdentifier={LEGAL_FORM}
-                  value={field.value || ''}
-                  onValueChange={v => field.onChange(v)}
-                  data-testid="account-information-segment-legal-form"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="industryClassRef"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('industry-label')}</FormLabel>
-              <FormControl>
-                <CatalogSelect
-                  catalogIdentifier={INDUSTRY_CLASS}
-                  value={field.value || ''}
-                  onValueChange={v => field.onChange(v)}
-                  data-testid="account-information-segment-industry"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+      {/* Industry */}
+      <FormField
+        control={form.control}
+        name="industryClassRef"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('industry-label')}</FormLabel>
+            <FormControl>
+              <CatalogSelect
+                catalogIdentifier={INDUSTRY_CLASS}
+                value={field.value || ''}
+                onValueChange={v => field.onChange(v)}
+                data-testid="account-information-segment-industry"
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       {/* Website */}
       <FormField

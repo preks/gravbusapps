@@ -1,13 +1,5 @@
-# Account Layout - Romanian
+# Account Layout Translations
 
-# Section Titles
-account-layout-information = Informații cont
-account-layout-details = Detalii financiare
-account-layout-addresses = Adrese
-account-layout-communication = Comunicare
-
-
-
-
-
-
+communication-title = Comunicare
+address-title = Informații adresă
+core-information-title = Informații de bază
