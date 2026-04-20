@@ -65,6 +65,7 @@ export interface UniverWorkbookSnapshot {
   sheetOrder: string[]
   appVersion?: string
   locale?: string
+  styles?: Record<string, unknown>
   sheets: Record<string, UniverWorksheetData>
 }
 
@@ -696,14 +697,45 @@ function pickWorksheetFromSingleSheetBootstrap(
   const sheets = snapshot.sheets as Record<string, UniverWorksheetData> | undefined
   if (!sheets || Object.keys(sheets).length === 0) return null
 
-  const picked =
-    sheets[preferSheetId] ??
-    (Array.isArray(snapshot.sheetOrder)
-      ? sheets[String(snapshot.sheetOrder[0] ?? '')]
-      : (Object.values(sheets)[0] as UniverWorksheetData | undefined))
+  const keyedMatch = sheets[preferSheetId]
+  if (keyedMatch) {
+    return cloneUniverSnapshotSlice(keyedMatch)
+  }
 
-  if (!picked) return null
-  return cloneUniverSnapshotSlice(picked)
+  const orderedSheetId = Array.isArray(snapshot.sheetOrder) ? String(snapshot.sheetOrder[0] ?? '') : ''
+  if (orderedSheetId && orderedSheetId === preferSheetId && sheets[orderedSheetId]) {
+    return cloneUniverSnapshotSlice(sheets[orderedSheetId])
+  }
+
+  const valueMatch = Object.values(sheets).find(
+    worksheet => worksheet && typeof worksheet === 'object' && worksheet.id === preferSheetId
+  )
+  if (!valueMatch) return null
+  return cloneUniverSnapshotSlice(valueMatch)
+}
+
+export function isolateWorkbookSnapshotToSingleSheet(
+  snapshot: Record<string, unknown>,
+  preferSheetId: string,
+  nextSheetName?: string
+): Record<string, unknown> | null {
+  const worksheet = pickWorksheetFromSingleSheetBootstrap(snapshot, preferSheetId)
+  if (!worksheet) return null
+
+  const isolated = cloneWorkbookSnapshotJson(snapshot)
+  const nextWorksheet = cloneUniverSnapshotSlice(worksheet)
+  nextWorksheet.id = preferSheetId
+  if (nextSheetName) {
+    nextWorksheet.name = nextSheetName
+  }
+
+  isolated.sheetOrder = [preferSheetId]
+  isolated.sheets = { [preferSheetId]: nextWorksheet }
+  if (nextSheetName) {
+    isolated.name = nextSheetName
+  }
+
+  return isolated
 }
 
 export function buildMultiSheetWorkbookFromAppSheets(options: {
@@ -721,17 +753,36 @@ export function buildMultiSheetWorkbookFromAppSheets(options: {
 
   for (const sheet of appSheets) {
     const visibleColumns = sheet.columns.filter(column => column.isVisible !== false)
-    const bootstrapWorksheet =
-      sheet.id === activeSheetId && singleWorksheetBootstrap
-        ? pickWorksheetFromSingleSheetBootstrap(singleWorksheetBootstrap, activeSheetId)
-        : null
+    const sheetRows = getRowsForSheet(sheet.id)
+    // If the bootstrap is actually a workbook-shaped blob (the common case now —
+    // Univer snapshots are per-workbook, so even a "single sheet" bootstrap
+    // typically carries every worksheet), pull out the matching worksheet for
+    // THIS sheet so its cell styles / merges / number formats survive.
+    const bootstrapWorksheet = singleWorksheetBootstrap
+      ? pickWorksheetFromSingleSheetBootstrap(singleWorksheetBootstrap, sheet.id)
+      : null
 
-    const worksheet =
-      bootstrapWorksheet ?? buildWorkbookSnapshot(sheet, getRowsForSheet(sheet.id), sheet.columns).sheets[sheet.id]
+    const worksheet = bootstrapWorksheet ?? buildWorkbookSnapshot(sheet, sheetRows, sheet.columns).sheets[sheet.id]
 
-    const nextWorksheet = cloneUniverSnapshotSlice(worksheet)
+    let nextWorksheet = cloneUniverSnapshotSlice(worksheet)
     nextWorksheet.id = sheet.id
     nextWorksheet.name = sheet.name
+    if (bootstrapWorksheet) {
+      const mergedWorkbook = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
+        {
+          id: workbookId,
+          name: activeSheet?.name || sheet.name,
+          sheetOrder: [sheet.id],
+          sheets: { [sheet.id]: nextWorksheet }
+        },
+        sheet.id,
+        sheetRows,
+        sheet.columns
+      )
+      nextWorksheet = cloneUniverSnapshotSlice(
+        (mergedWorkbook as { sheets: Record<string, UniverWorksheetData> }).sheets[sheet.id]
+      )
+    }
     transformAvatarFormulasInSnapshot(
       {
         id: workbookId,
@@ -745,12 +796,27 @@ export function buildMultiSheetWorkbookFromAppSheets(options: {
     sheetOrder.push(sheet.id)
   }
 
+  // CRITICAL: Preserve the workbook-level `styles` registry. Univer stores style
+  // definitions once at the workbook level and cells reference them via `s: "<id>"`.
+  // Dropping `styles` here leaves every `s` ref orphaned after bootstrap, so cells
+  // keep their style-id strings but Univer can no longer resolve them — the cell
+  // renders unstyled and subsequent `getWorkbookSnapshot()` saves only capture
+  // newly-added styles, permanently losing pre-existing formatting on reload.
+  const preservedStyles: Record<string, unknown> = {}
+  if (singleWorksheetBootstrap && typeof singleWorksheetBootstrap === 'object') {
+    const srcStyles = (singleWorksheetBootstrap as Record<string, unknown>).styles
+    if (srcStyles && typeof srcStyles === 'object') {
+      Object.assign(preservedStyles, srcStyles as Record<string, unknown>)
+    }
+  }
+
   return {
     id: workbookId,
     name: activeSheet?.name || 'Workbook',
     sheetOrder,
     appVersion: '0.15.0',
     locale: 'en-US',
+    styles: preservedStyles,
     sheets
   }
 }

@@ -30,7 +30,7 @@ This plan describes the move to a clean v2 model where the **server is the singl
 | HTTP univer-snapshot PUT                                                               | C→S                 | styles, merges, col widths / row heights, sheet meta | Yes (persisted) – **not broadcast** today |
 | WS `cells_changed` (`document_operation`, `broadcastOnly: true`)                       | C→gateway→C (relay) | **style-only after this commit** (was value + style) | No                                        |
 | WS `dimension_sync` (`document_operation`, `broadcastOnly: true`)                      | C→gateway→C (relay) | row heights / col widths                             | No                                        |
-| WS `column_add` / `column_update` / `column_delete`                                    | C→gateway→C (relay) | schema column changes                                | No                                        |
+| WS `column_add` / `column_update` / `column_delete` / `columns_reorder`                | C→gateway→C (relay) | schema column changes                                | No                                        |
 
 `spreadsheetAuthoritativeOperationTypes` in `spreadsheet-v2-collaboration.gateway.ts` short-circuits the relay for the HTTP-persisted types; all others are forwarded to peers.
 
@@ -61,7 +61,7 @@ Add new operation types to the v2 batch pipeline so formatting/dimensions/column
   - Extend the batch op union handled by `applyBatchOperations`/`applyOperation` with:
     - `set_style` (single / range) — writes the style entry into the workbook snapshot styles map and links the cell(s) to it.
     - `set_row_height` / `set_col_width` — updates dimension arrays in the snapshot.
-    - `column_add` / `column_update` / `column_delete` — updates spreadsheet column metadata (currently handled via a separate controller today).
+    - `column_add` / `column_update` / `column_delete` / `columns_reorder` — updates spreadsheet column metadata (currently handled via a separate controller today).
   - In `broadcastCommittedOperations` add a branch that, for these new op types, pushes a `batch_operations` item that peers can apply directly (same pattern as `set_cell` today).
 - File: `document-service/src/spreadsheets-v2/spreadsheet-v2-collaboration.gateway.ts`
   - Add the new types to `spreadsheetAuthoritativeOperationTypes`.
@@ -87,49 +87,46 @@ After `saveUniverSnapshot` succeeds, emit a compact `snapshot_updated` WS event 
 - File: `gravity-business-apps/.../SpreadsheetAppViewer.tsx`
   - Remove the `dimension_sync` emit. Row height / col width changes are pushed to the new `set_row_height` / `set_col_width` HTTP batch ops.
 - File: `gravity-business-apps/.../hooks/useSpreadsheetColumns.ts`
-  - Remove the `column_add` / `column_update` / `column_delete` emits; route these mutations through the v2 batch endpoint.
+  - Remove the `column_add` / `column_update` / `column_delete` / `columns_reorder` emits; route these mutations through the v2 batch endpoint.
 - File: `gravity-business-apps/.../services/SpreadsheetCollaborationManager.ts`
-  - Keep `handleCellsChanged` / `handleDocumentOperation` for one release as a receive-only no-op for backward-compat, then remove.
+  - Remove `handleCellsChanged` and the `handleDocumentOperation` peer-relay receive paths; the new authoritative `batch_operations` receive pipeline is the only source of truth.
   - Remove `CellsChangedCell.value` from the type (now never sent).
 
 ### 4.5 Client — extend receive pipeline for the new ops
 
 - File: `gravity-business-apps/.../services/SpreadsheetCollaborationManager.ts`
-  - Add `handleSetStyle`, `handleSetRowHeight`, `handleSetColWidth`, `handleColumn*` cases to `handleBatchOperations` (the server `batch_operations` fan-out).
+  - Add `handleSetStyle`, `handleSetRowHeight`, `handleSetColWidth`, `handleColumn*` (including `columns_reorder`) cases to `handleBatchOperations` (the server `batch_operations` fan-out).
   - Route style ops into the existing `addStyles` + `setValue({s: id})` flow; dimension ops into Univer's row/col size setters; column ops into the existing column-state update callbacks.
 
 ### 4.6 Echo suppression cleanup
 
 With all inbound changes arriving via `batch_operations` only, `RemoteEchoSuppressionEntry.signatures` no longer needs multi-signature handling — we can shrink it back to a single string or drop the 'blank' fallback once per-op types are stable. Keep during migration as a safety net.
 
-### 4.7 Feature flag / rollout
+### 4.7 Rollout
 
-- Add `SPREADSHEETS_V2_SERVER_ONLY_BROADCAST` flag on both client and server.
-  - Server: when on, gateway drops non-authoritative `document_operation`. When off, relays (fallback).
-  - Client: when on, do not emit any P2P `document_operation`.
-- Roll out in three stages:
-  1. Deploy server broadcast for styles/dims/cols (additive, no client change). Verify logs show peers receiving styles via `batch_operations`.
-  2. Flip client flag in staging → canary → prod. Monitor `collab_receive_*` diagnostics.
-  3. Remove client emit code and v1 controllers.
+Single-step, atomic deploy: server + client ship together in one release. No feature flag, no staged rollout.
+
+- Server: new `set_style` / `set_row_height` / `set_col_width` / `column_add` / `column_update` / `column_delete` / `columns_reorder` batch ops go live with broadcast; gateway rejects unknown `document_operation` with `{ success: false, error: 'unsupported_document_operation' }`.
+- Client: stops emitting all non-authoritative `document_operation`s; receive pipeline handles the new `batch_operations` types; legacy P2P emit/receive helpers are deleted in the same release.
+- v1 URL namespace shutdown (§4.3) can ride the same release or follow independently; it is not a prerequisite for the server-broadcast switch.
 
 ## 5. Risks & mitigations
 
-| Risk                                                                    | Mitigation                                                                                                                        |
-| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Temporary regression of live styling latency while server path is wired | Keep client P2P emit behind feature flag; turn off per-environment                                                                |
-| Larger `batch_operations` payloads (styles are heavy)                   | Fan-out only style-_id_ plus delta in the styles map; don't resend the full cell snapshot                                         |
-| Mixed-version clients during rollout (some still emit `cells_changed`)  | Receive side of `cells_changed` remains, but is style-only (this commit) and additive to the server broadcast — no value conflict |
-| v1 shutdown breaks a background integration we don't know about         | Ship 410 with structured body for one release, monitor access logs before removal                                                 |
+| Risk                                                            | Mitigation                                                                                                                                     |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Larger `batch_operations` payloads (styles are heavy)           | Fan-out only style-_id_ plus delta in the styles map; don't resend the full cell snapshot                                                      |
+| Stale client loaded before the deploy keeps emitting P2P ops    | Gateway rejects unknown `document_operation`; the affected client gets a hard error and must refresh. Acceptable for a single-release cutover. |
+| v1 shutdown breaks a background integration we don't know about | Ship 410 with structured body for one release, monitor access logs before removal                                                              |
 
 ## 6. Observability
 
-- Keep `collab_receive_*` diagnostics on the client; add a `collab_receive_source: 'server' | 'p2p'` tag to catch anything still arriving peer-to-peer after the flag is on.
-- Server: add counters per new op type in `broadcastCommittedOperations` and a counter for `unsupported_document_operation` drops in the gateway.
+- Keep `collab_receive_*` diagnostics on the client; tag with `collab_receive_source: 'server' | 'p2p'` so any unexpected P2P delivery post-deploy is visible.
+- Server: add counters per new op type in `broadcastCommittedOperations` and a counter for `unsupported_document_operation` rejections in the gateway.
 
 ## 7. Acceptance criteria
 
-- No client emits `document_operation` with a non-authoritative type when the flag is on.
-- Styles, row/column dimensions and schema column changes all propagate to peers within the same latency budget as current `set_cell` broadcasts (< 300 ms p95 on staging).
+- No client emits `document_operation` with a non-authoritative type post-deploy (verified via the `collab_receive_source` tag and the gateway's `unsupported_document_operation` counter staying flat).
+- Styles, row/column dimensions and schema column changes (including `columns_reorder`) all propagate to peers within the same latency budget as current `set_cell` broadcasts (< 300 ms p95 on staging).
 - Deleting a cell value with formatting no longer causes the echo regression across any number of peers (validated by the manual repro from the originating bug and an automated e2e).
 - `/api/v1/spreadsheets/*` returns `410 Gone` and no 2xx responses are seen in production access logs for 7 consecutive days before code removal.
 

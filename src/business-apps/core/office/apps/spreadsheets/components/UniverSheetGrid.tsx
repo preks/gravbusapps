@@ -716,14 +716,39 @@ export interface UniverSheetGridProps {
   workbookRemountKey?: string
   multiSheetWorkbookMode?: boolean
   onActiveWorksheetChange?: (sheetId: string, sheetName: string) => void
+  /**
+   * Multi-sheet context resolver. In `multiSheetWorkbookMode`, cell mutations
+   * can target any worksheet Univer holds in memory, not just `props.sheet`.
+   * When Univer reports a change on sheet X, this resolver tells us which
+   * columns and rows to use to build the conversion context (rowIndex → rowId
+   * mapping, column index → columnName, etc.) so we emit the right delta.
+   *
+   * Should return `null` for unknown sheet ids; the grid will fall back to the
+   * single-sheet `sheet`/`data`/`columns` props in that case.
+   */
+  getSheetContext?: (sheetId: string) => {
+    columns: SpreadsheetColumn[]
+    data: Record<string, unknown>[]
+  } | null
+  /**
+   * Fires after Univer inserts a worksheet via its native sheet-bar (+ button,
+   * insertSheet/ InsertSheetCommand). The host should persist a matching backend
+   * SpreadsheetSheet with the same id so /operations/batch and future snapshots
+   * stay in sync.
+   */
+  onUniverSheetInserted?: (payload: { sheetId: string; sheetName: string; index: number }) => void
+  /** Fires after Univer removes a worksheet via its native sheet-bar. */
+  onUniverSheetRemoved?: (payload: { sheetId: string }) => void
+  /** Fires after Univer renames a worksheet (SetWorksheetNameCommand). */
+  onUniverSheetRenamed?: (payload: { sheetId: string; sheetName: string }) => void
   columns: SpreadsheetColumn[]
   isReadOnly: boolean
-  onCellChange: (rowId: string, columnId: string, value: unknown) => void
-  onCellsChange?: (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => void
+  onCellChange: (rowId: string, columnId: string, value: unknown, sheetId?: string) => void
+  onCellsChange?: (cells: Array<{ rowId: string; columnName: string; value: unknown; sheetId?: string }>) => void
   onSnapshotRequested?: () => Promise<void> | void
   /** Fires when a throttled Univer workbook snapshot is scheduled or when the snapshot request finishes (success or failure). */
   onWorkbookSnapshotLifecycle?: (event: WorkbookSnapshotLifecycleEvent) => void
-  onDataChange: (data: Record<string, unknown>[]) => void
+  onDataChange: (data: Record<string, unknown>[], sheetId?: string) => void
   onOpenCommentRequest?: () => void
   commentedCells?: Array<{
     cellReference: string
@@ -1467,7 +1492,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       columns,
       initialSnapshot,
       collaborationEnabled: props.collaborationEnabled ?? false,
-      onOperationEmit: props.onOperationEmit
+      onOperationEmit: props.onOperationEmit,
+      getSheetContext: props.getSheetContext,
+      multiSheetWorkbookMode: props.multiSheetWorkbookMode ?? false
     })
     propsRef.current = {
       sheet,
@@ -1475,7 +1502,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       columns,
       initialSnapshot,
       collaborationEnabled: props.collaborationEnabled ?? false,
-      onOperationEmit: props.onOperationEmit
+      onOperationEmit: props.onOperationEmit,
+      getSheetContext: props.getSheetContext,
+      multiSheetWorkbookMode: props.multiSheetWorkbookMode ?? false
     }
     const callbacksRef = useRef({
       onCellChange,
@@ -1487,7 +1516,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       onOperationEmit: props.onOperationEmit,
       onDimensionsChange: props.onDimensionsChange,
       onOpenCommentRequest: props.onOpenCommentRequest,
-      onActiveWorksheetChange: props.onActiveWorksheetChange
+      onActiveWorksheetChange: props.onActiveWorksheetChange,
+      onUniverSheetInserted: props.onUniverSheetInserted,
+      onUniverSheetRemoved: props.onUniverSheetRemoved,
+      onUniverSheetRenamed: props.onUniverSheetRenamed
     })
     callbacksRef.current = {
       onCellChange,
@@ -1499,13 +1531,22 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       onOperationEmit: props.onOperationEmit,
       onDimensionsChange: props.onDimensionsChange,
       onOpenCommentRequest: props.onOpenCommentRequest,
-      onActiveWorksheetChange: props.onActiveWorksheetChange
+      onActiveWorksheetChange: props.onActiveWorksheetChange,
+      onUniverSheetInserted: props.onUniverSheetInserted,
+      onUniverSheetRemoved: props.onUniverSheetRemoved,
+      onUniverSheetRenamed: props.onUniverSheetRenamed
     }
     const readOnlyRef = useRef(props.isReadOnly)
     readOnlyRef.current = props.isReadOnly
     const lastEmittedCursorPathRef = useRef<string>('')
     const pendingInitialCursorPathRef = useRef<string>('')
     const lastEmittedWorksheetIdRef = useRef<string>('')
+    // Univer fires insert-sheet / set-worksheet-name mutations while the workbook
+    // is bootstrapping (Univer seeds the initial worksheets through the same
+    // command pipeline). Ignore those until the initial paint settles; otherwise
+    // we would try to "create" the exact sheets we just loaded.
+    const univerBootstrapCompleteRef = useRef<boolean>(false)
+    const recentSheetMutationIdsRef = useRef<Set<string>>(new Set())
     // Caches actual column widths and row heights read from the workbook snapshot so that
     // cursor overlays match the real rendered cell dimensions (not hardcoded constants).
     const cellDimensionsRef = useRef<{
@@ -2104,9 +2145,29 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           save?: () => unknown
           getSnapshot?: () => unknown
           snapshot?: unknown
+          _workbook?: {
+            getStyles?: () => { toJSON?: () => Record<string, unknown> } | undefined
+            getSnapshot?: () => Record<string, unknown> | undefined
+          }
         }
         const rawSnapshot = wb.save?.() ?? wb.getSnapshot?.() ?? wb.snapshot
         if (!rawSnapshot || typeof rawSnapshot !== 'object') return null
+
+        // Safety net: Univer's FWorkbook.save() deep-clones workbook._snapshot, but that
+        // _snapshot.styles can drift from the live Styles registry in edge cases (e.g. a
+        // snapshot replacement after bootstrap while the live registry keeps mutating).
+        // Rehydrate from the authoritative Styles instance so cell `s` refs always resolve.
+        try {
+          const snapshotObj = rawSnapshot as Record<string, unknown>
+          const snapshotStylesKeys = Object.keys((snapshotObj.styles as Record<string, unknown>) ?? {})
+          const liveStyles = wb._workbook?.getStyles?.()?.toJSON?.()
+          const liveStylesKeys = liveStyles ? Object.keys(liveStyles) : []
+          if (liveStyles && liveStylesKeys.length > snapshotStylesKeys.length) {
+            snapshotObj.styles = { ...(snapshotObj.styles as Record<string, unknown> | undefined), ...liveStyles }
+          }
+        } catch {
+          // Non-fatal; fall back to raw snapshot if style rehydration fails.
+        }
 
         // Ensure payload is JSON-serializable before sending to API.
         try {
@@ -2502,6 +2563,46 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       contextRef.current = createUniverConversionContext(columns, data)
     }, [data, columns])
 
+    // Rebuild the authoritative signature cache when the rendered `data`/
+    // `columns` changed WITHOUT the parent bumping `authoritativeDataSyncToken`.
+    // Token bumps are the parent's signal that the data change is authoritative
+    // (local edits via `handleCellsChange`, backend round-trips for new rows,
+    // reloads, bulk-row ops) — for those, `handleDetectedCellMutation` already
+    // seeded the signature map with the post-edit values and the re-apply
+    // effect below should diff against that baseline. But non-authoritative
+    // data changes still update the `data` prop: tab switch swaps `data`/
+    // `columns` to the new sheet's rows directly via `setLocalSheetData`, and
+    // entity-backed sheets replace `data` when the entity query resettles —
+    // neither bumps the token. Without rebuilding for those paths the re-apply
+    // effect would diff the new sheet's values against the previous sheet's
+    // signatures and fire `applyRemoteCellUpdate` for every row that differs
+    // between the two sheets (visible as the whole-grid blink on edits after
+    // a tab switch, because the first keystroke bumps the token and the
+    // accumulated false positives finally flush). The prior "rebuild only on
+    // sheet-id change" variant didn't work either: sheet switches complete
+    // across two renders (first with the new `sheet.id` but stale `data`
+    // still pointing at the previous sheet, then with the refreshed `data`),
+    // so the sheet-id-gated rebuild ran on the stale data and the correct
+    // data-ready render was skipped because the id hadn't moved.
+    //
+    // Tracking the last-seen token lets us distinguish the two classes
+    // cleanly: if `data`/`columns` changed but the token did NOT, rebuild
+    // (it's a sheet switch / entity refresh / similar non-authoritative
+    // source and the cache is stale). If the token DID change, leave the
+    // cache alone so `handleDetectedCellMutation`'s seed survives the
+    // two-phase drag-fill commit lifecycle.
+    const lastObservedAuthoritativeTokenForRebuildRef = useRef<number>(props.authoritativeDataSyncToken ?? 0)
+    useEffect(() => {
+      if (!univerAPIRef.current) return
+      const currentToken = props.authoritativeDataSyncToken ?? 0
+      const tokenChanged = currentToken !== lastObservedAuthoritativeTokenForRebuildRef.current
+      lastObservedAuthoritativeTokenForRebuildRef.current = currentToken
+      if (tokenChanged) return
+      lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(data, columns)
+      lastSyncedGridRowCountRef.current = data.length
+      lastSyncedGridColumnCountRef.current = columns.filter(column => column.isVisible !== false).length
+    }, [data, columns, props.authoritativeDataSyncToken])
+
     useEffect(() => {
       const api = univerAPIRef.current
       if (!api) return
@@ -2511,26 +2612,54 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         authoritativeReapplySeed !== lastProcessedAuthoritativeReapplySeedRef.current
       if (!shouldSyncWorkbook) return
       const visibleColumns = columns.filter(column => column.isVisible !== false)
-      const previousSignatures = lastSyncedGridCellSignaturesRef.current
-      const nextSignatures = new Map<string, string>()
+      // Mutate the existing signature map in place rather than building a
+      // replacement. The seed planted by `handleDetectedCellMutation` for
+      // rows that are still en-route through `processUniverDataChange`'s
+      // async backend round-trip (drag-fill expansion, paste extension)
+      // lives in this map at coordinates beyond the current `data.length`.
+      // Replacing the whole map with only the currently-addressable rows
+      // would drop those seeds, so when the backend commit eventually
+      // appends the created rows and re-enters this effect with a larger
+      // `data`, `previousSignatures.get(key)` would be `undefined` for
+      // exactly the drag-filled cells and `applyRemoteCellUpdate` would
+      // redraw cells Univer already paints correctly — the whole-grid
+      // blink. We still prune out-of-range entries that no longer belong
+      // (row/column shrinkage from a remote delete) so the map doesn't
+      // grow unbounded.
+      const signatures = lastSyncedGridCellSignaturesRef.current
       const previousRowCount = lastSyncedGridRowCountRef.current
       const previousColumnCount = lastSyncedGridColumnCountRef.current
       const maxRowCount = Math.max(previousRowCount, data.length)
       const maxColumnCount = Math.max(previousColumnCount, visibleColumns.length)
+      const nowForLocalMutationCheck = Date.now()
       for (let rowIndex = 0; rowIndex < maxRowCount; rowIndex++) {
         const row = data[rowIndex]
+        const rowInBounds = rowIndex < data.length
         for (let colIndex = 0; colIndex < maxColumnCount; colIndex++) {
           const column = visibleColumns[colIndex]
+          const colInBounds = colIndex < visibleColumns.length
           const key = remoteEchoKey(rowIndex, colIndex)
+          if (!rowInBounds || !colInBounds) {
+            signatures.delete(key)
+            continue
+          }
           const nextValue = row && column ? (readAuthoritativeRowCellValue(row, column) ?? '') : ''
           const nextSignature = toEchoSignature(nextValue)
-          nextSignatures.set(key, nextSignature)
-          if (previousSignatures.get(key) === nextSignature) continue
+          const previousSignature = signatures.get(key)
+          signatures.set(key, nextSignature)
+          if (previousSignature === nextSignature) continue
+          // Defense in depth: skip `applyRemoteCellUpdate` when the user just mutated
+          // this cell locally. Univer already holds the edited value from the user's
+          // direct interaction (typing, drag-fill, paste), so re-dispatching a
+          // `SetRangeValuesMutation` for the same coordinate forces Univer to re-tear
+          // down and redraw that cell — the visible "whole-grid blink" observed on
+          // drag-fill and fast multi-cell typing.
+          const localMutationExpiresAt = recentLocallyMutatedGridCellsRef.current.get(key) ?? 0
+          if (localMutationExpiresAt > nowForLocalMutationCheck) continue
           applyRemoteCellUpdate(rowIndex, colIndex, nextValue)
         }
       }
 
-      lastSyncedGridCellSignaturesRef.current = nextSignatures
       lastSyncedGridRowCountRef.current = data.length
       lastSyncedGridColumnCountRef.current = visibleColumns.length
       lastProcessedAuthoritativeDataSyncTokenRef.current = nextToken
@@ -2700,6 +2829,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
       }
 
+      univerBootstrapCompleteRef.current = false
       queueMicrotask(() => {
         try {
           const wb = univerAPI.getActiveWorkbook?.() as { setActiveSheet?: (id: string) => void } | undefined
@@ -2709,6 +2839,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
         emitWorksheetFromUniver()
       })
+      // Short delay: swallow any insert-sheet/set-worksheet-name mutations that
+      // fire during Univer's bootstrap before we start forwarding them to the
+      // backend. 500ms is generous; user sheet creation happens only on click.
+      const bootstrapSettleTimer = globalThis.setTimeout(() => {
+        univerBootstrapCompleteRef.current = true
+      }, 500)
       const canvasHealthTimeout = globalThis.setTimeout(() => {
         const host = containerRef.current
         const hasCanvas = Boolean(host?.querySelector('canvas'))
@@ -2954,14 +3090,39 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
 
         lastCellValueMutationAtRef.current = now
-        const ctxBefore = contextRef.current
         const {
           onCellChange: onCellChangeCb,
           onCellsChange: onCellsChangeCb,
           onDataChange: onDataChangeCb
         } = callbacksRef.current
+
+        // In multi-sheet workbook mode Univer may report a mutation on any
+        // worksheet it holds in memory, not just the one mirrored via props.
+        // Resolve the mutation's *actual* sheet id and build its context
+        // on-the-fly so rowIndex→rowId and colIndex→columnName mapping targets
+        // the correct sheet. Falls back to the single-sheet contextRef when no
+        // resolver is provided or the active sheet matches props.
+        const univerActiveSheetId = worksheet?.getSheetId?.() ?? null
+        const propSheetId = propsRef.current.sheet.id
+        const targetSheetId =
+          propsRef.current.multiSheetWorkbookMode && univerActiveSheetId ? univerActiveSheetId : propSheetId
+        const useResolvedContext =
+          propsRef.current.multiSheetWorkbookMode &&
+          typeof propsRef.current.getSheetContext === 'function' &&
+          targetSheetId !== propSheetId
+
+        let ctxBefore = contextRef.current
+        let contextColumns = propsRef.current.columns
+        let currentData = propsRef.current.data
+        if (useResolvedContext) {
+          const resolved = propsRef.current.getSheetContext?.(targetSheetId) ?? null
+          if (resolved) {
+            contextColumns = resolved.columns
+            currentData = resolved.data
+            ctxBefore = createUniverConversionContext(resolved.columns, resolved.data)
+          }
+        }
         if (!ctxBefore) return false
-        const currentData = propsRef.current.data
         const newRowIndices = getNewRowIndices(cellValue, ctxBefore, rowOffset)
         const pendingNewRowsUpdate =
           newRowIndices.length > 0 && onDataChangeCb
@@ -2977,7 +3138,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                 })
                 const nextData = [...currentData, ...newRows]
                 const nextContext = overlaySparseRowIndexMappings(
-                  createUniverConversionContext(propsRef.current.columns, nextData),
+                  createUniverConversionContext(contextColumns, nextData),
                   newRowIndices.map(rowIndex => {
                     const globalRowIndex = rowIndex + rowOffset
                     return {
@@ -2990,7 +3151,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               })()
             : null
 
-        const ctx = pendingNewRowsUpdate?.nextContext ?? contextRef.current ?? ctxBefore
+        const ctx = pendingNewRowsUpdate?.nextContext ?? ctxBefore
         const changedCells = collectChangedCells({ cellValue, ctx, rowOffset, colOffset, shouldSuppress })
         const collabEntries =
           propsRef.current.collaborationEnabled && propsRef.current.onOperationEmit
@@ -3002,9 +3163,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
 
         if (pendingNewRowsUpdate && onDataChangeCb && changedCells.length > 0) {
-          onDataChangeCb(pendingNewRowsUpdate.nextData)
+          onDataChangeCb(pendingNewRowsUpdate.nextData, targetSheetId)
           // Only materialize inferred rows after we confirmed a real cell mutation.
-          contextRef.current = pendingNewRowsUpdate.nextContext
+          // Skip overwriting contextRef when the mutation targeted a non-active
+          // sheet; contextRef represents the active sheet's ctx for single-sheet
+          // paths and rebuilding it with the wrong sheet's data would break
+          // subsequent active-sheet mutations.
+          if (!useResolvedContext) {
+            contextRef.current = pendingNewRowsUpdate.nextContext
+          }
         }
 
         const signature =
@@ -3035,13 +3202,39 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
         }
 
+        // Seed `lastSyncedGridCellSignaturesRef` with each locally-mutated cell's
+        // post-edit signature before `onCellsChangeCb` triggers the parent's
+        // `commitLocalSheetData` → `authoritativeDataSyncToken` bump → authoritative
+        // re-apply effect (the one around `applyRemoteCellUpdate` / `setValue`
+        // below). Without this seed, the effect's `previousSignatures` cache still
+        // holds the pre-edit baseline for these exact cells, the "signature
+        // unchanged" fast-path falls through, and `applyRemoteCellUpdate` re-dispatches
+        // Univer's `SetRangeValuesMutation` for a cell Univer already has in the
+        // just-typed state. That redundant mutation forces a full cell/grid
+        // redraw — observable as the whole-grid flicker on first-keystroke in
+        // column A, on drag-fill series expansion, and on fast typing bursts
+        // (each burst adds a new "existing row was mutated" commit whose re-apply
+        // then re-writes every just-typed cell). We only seed when the mutation
+        // targets the sheet this grid is currently rendering, because the
+        // signature cache + re-apply effect are scoped to the active sheet's
+        // data/columns and a non-active mutation would corrupt the active
+        // sheet's diff baseline.
+        if (!useResolvedContext && changedCells.length > 0) {
+          for (const cell of changedCells) {
+            lastSyncedGridCellSignaturesRef.current.set(
+              remoteEchoKey(cell.univerRow, cell.univerCol),
+              toEchoSignature(cell.value)
+            )
+          }
+        }
+
         const emitCollabIfNeeded = (): void => {
-          const { collaborationEnabled, onOperationEmit, sheet: s } = propsRef.current
+          const { collaborationEnabled, onOperationEmit } = propsRef.current
           if (!collaborationEnabled || !onOperationEmit || collabEntries.length === 0) return
           const snap = getWorkbookSnapshotRef.current?.() ?? null
           const facadeWb = univerAPIRef.current?.getActiveWorkbook?.() ?? null
           const wire = buildCollabCellsChangedPayload({
-            sheetId: s.id,
+            sheetId: targetSheetId,
             entries: collabEntries,
             workbookSnapshot: snap,
             facadeWorkbook: facadeWb
@@ -3049,19 +3242,23 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           if (wire.length === 0) return
           onOperationEmit({
             type: 'cells_changed',
-            data: { sheetId: s.id, cells: wire },
+            data: { sheetId: targetSheetId, cells: wire },
             broadcastOnly: true
           } as DocumentOperation)
         }
 
         let handledPersistable = false
         if (changedCells.length > 0) {
+          // Attach the resolved sheetId to every emitted cell so downstream
+          // batch grouping routes to the correct backend sheet, regardless of
+          // which sheet React currently considers active.
+          const stampedCells = changedCells.map(cell => ({ ...cell, sheetId: targetSheetId }))
           if (onCellsChangeCb) {
-            onCellsChangeCb(changedCells)
+            onCellsChangeCb(stampedCells)
             handledPersistable = true
           } else if (onCellChangeCb) {
-            for (const cell of changedCells) {
-              onCellChangeCb(cell.rowId, cell.columnName, cell.value)
+            for (const cell of stampedCells) {
+              onCellChangeCb(cell.rowId, cell.columnName, cell.value, targetSheetId)
             }
             handledPersistable = true
           }
@@ -3173,6 +3370,134 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         syncScrollFromWorksheet()
       })
       const scrollPollIntervalId = setInterval(syncScrollFromWorksheet, 120)
+      const activeWorksheetPollIntervalId = props.multiSheetWorkbookMode
+        ? setInterval(emitWorksheetFromUniver, 150)
+        : null
+
+      // Univer's native sheet bar "+" button dispatches `sheet.command.insert-sheet`
+      // without a sheet id, so Univer auto-generates a short random id (non-UUID).
+      // Our backend validates `CreateSheetDto.id` as `@IsUUID()` and the
+      // `spreadsheet_sheets.id` column is a Postgres uuid. Injecting a UUID into
+      // `params.sheet.id` *before* the command handler runs keeps the Univer
+      // worksheet id and the backend row id identical without any BE schema change.
+      // The facade re-emits `r.params` by reference (see @univerjs/core facade.js),
+      // so mutating `event.params.sheet.id` here is observed by the command handler.
+      const beforeCommandEventKey =
+        (univerAPI as { Event?: { BeforeCommandExecute?: string } }).Event?.BeforeCommandExecute ??
+        'BeforeCommandExecute'
+      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      const generateSheetUuid = (): string => {
+        const cryptoRef = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto
+        if (cryptoRef?.randomUUID) return cryptoRef.randomUUID()
+        return `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`.replace(/[xy]/g, ch => {
+          const r = (Math.random() * 16) | 0
+          const v = ch === 'x' ? r : (r & 0x3) | 0x8
+          return v.toString(16)
+        })
+      }
+      const beforeCommandDisposable = (
+        univerAPI as {
+          addEvent?(
+            event: string,
+            cb: (p: { id?: string; params?: unknown; cancel?: boolean }) => void
+          ): { dispose(): void }
+        }
+      ).addEvent?.(beforeCommandEventKey, event => {
+        if (event?.id !== 'sheet.command.insert-sheet') return
+        const params = event.params as { unitId?: string; index?: number; sheet?: { id?: unknown } } | undefined
+        const newId = generateSheetUuid()
+        if (!params) {
+          // Univer's native "+" button in the sheet bar dispatches the command with
+          // `params === undefined`. We can't mutate `undefined`, so cancel the
+          // original dispatch and re-execute immediately with explicit params.
+          // The re-dispatch re-enters this hook but takes the "already a UUID"
+          // fast path and proceeds normally.
+          // Pin `index` to the current sheet count so the new tab appends to
+          // the end, and precompute a unique "Sheet N" name instead of letting
+          // Univer fall back to its internal counter (which can yield odd names
+          // like "Sheet11" depending on prior attempts).
+          event.cancel = true
+          const workbook = (
+            univerAPI as {
+              getActiveWorkbook?: () =>
+                | {
+                    getSheets?: () => Array<{
+                      getName?: () => string
+                      getMaxColumns?: () => number
+                      getMaxRows?: () => number
+                    }>
+                  }
+                | null
+                | undefined
+            }
+          ).getActiveWorkbook?.()
+          const existingSheets = workbook?.getSheets?.() ?? []
+          const existingNames = new Set(
+            existingSheets.map(s => (typeof s?.getName === 'function' ? s.getName() : '')).filter(Boolean)
+          )
+          let candidate = existingSheets.length + 1
+          let nextName = `Sheet${candidate}`
+          while (existingNames.has(nextName)) {
+            candidate += 1
+            nextName = `Sheet${candidate}`
+          }
+          // Univer's DEFAULT_WORKSHEET_COLUMN_COUNT is 20 (A–T) and DEFAULT_WORKSHEET_ROW_COUNT
+          // is 1000. When we re-dispatch without explicit dimensions, the new sheet gets those
+          // defaults — which visibly shrinks the column range to T on brand-new tabs compared
+          // to existing sheets that were bootstrapped with 26+ columns. Mirror the first
+          // existing sheet's dimensions so new tabs feel consistent with the rest of the book.
+          const referenceSheet = existingSheets[0]
+          const referenceColumnCount =
+            typeof referenceSheet?.getMaxColumns === 'function' ? referenceSheet.getMaxColumns() : 0
+          const referenceRowCount = typeof referenceSheet?.getMaxRows === 'function' ? referenceSheet.getMaxRows() : 0
+          const newColumnCount = Math.max(referenceColumnCount, 26)
+          const newRowCount = Math.max(referenceRowCount, 1000)
+          const rerun = (univerAPI as { executeCommand?: (id: string, p: unknown) => unknown }).executeCommand
+          if (typeof rerun === 'function') {
+            queueMicrotask(() => {
+              try {
+                rerun.call(univerAPI, 'sheet.command.insert-sheet', {
+                  index: existingSheets.length,
+                  sheet: {
+                    id: newId,
+                    name: nextName,
+                    columnCount: newColumnCount,
+                    rowCount: newRowCount
+                  }
+                })
+                // Univer's `sheet.command.insert-sheet` handler inserts the
+                // worksheet but does NOT activate it — only the facade
+                // `fWorkbook.insertSheet()` helper follows up with a separate
+                // set-active-sheet operation. Because we had to cancel the
+                // original "+" click to inject a UUID, that follow-up never
+                // runs and the sheet bar keeps the OLD tab highlighted. Flip
+                // the active sheet here so the user sees the new tab
+                // immediately (and so the React-side setActiveSheetId flip in
+                // `handleUniverSheetInserted` doesn't fight Univer: the sync
+                // effect in this component would otherwise call
+                // setActiveSheet(newId) a tick later and cause a visible
+                // flicker on the very first cell edit).
+                const activeWb = (
+                  univerAPI as {
+                    getActiveWorkbook?: () => { setActiveSheet?: (idOrSheet: string) => unknown } | null | undefined
+                  }
+                ).getActiveWorkbook?.()
+                activeWb?.setActiveSheet?.(newId)
+              } catch (err) {
+                console.warn('[UniverSheetGrid] failed to re-dispatch insert-sheet with UUID', err)
+              }
+            })
+          }
+          return
+        }
+        if (!params.sheet) {
+          ;(params as { sheet?: { id?: unknown } }).sheet = { id: newId }
+          return
+        }
+        const existing = params.sheet.id
+        if (typeof existing === 'string' && UUID_REGEX.test(existing)) return
+        params.sheet.id = newId
+      })
 
       const commandEventKey =
         (univerAPI as { Event?: { CommandExecuted?: string } }).Event?.CommandExecuted ?? 'CommandExecuted'
@@ -3195,6 +3520,42 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           callbacksRef.current.onOpenCommentRequest?.()
         }
         queueMicrotask(emitWorksheetFromUniver)
+
+        // Propagate Univer's native sheet lifecycle (via its + / right-click /
+        // double-click handlers) back to the host so the backend can persist a
+        // matching SpreadsheetSheet row. We listen on MUTATIONs because only the
+        // final committed form carries the full sheet payload / id.
+        if (univerBootstrapCompleteRef.current && event?.type === UNIVER_COMMAND_TYPE_MUTATION) {
+          if (commandId === 'sheet.mutation.insert-sheet') {
+            const p = event.params as
+              | {
+                  index?: number
+                  sheet?: { id?: string; name?: string }
+                }
+              | undefined
+            const sheetId = p?.sheet?.id
+            if (sheetId && !recentSheetMutationIdsRef.current.has(`ins:${sheetId}`)) {
+              recentSheetMutationIdsRef.current.add(`ins:${sheetId}`)
+              callbacksRef.current.onUniverSheetInserted?.({
+                sheetId,
+                sheetName: p?.sheet?.name ?? 'Sheet',
+                index: p?.index ?? 0
+              })
+            }
+          } else if (commandId === 'sheet.mutation.remove-sheet') {
+            const p = event.params as { subUnitId?: string } | undefined
+            const sheetId = p?.subUnitId
+            if (sheetId && !recentSheetMutationIdsRef.current.has(`rm:${sheetId}`)) {
+              recentSheetMutationIdsRef.current.add(`rm:${sheetId}`)
+              callbacksRef.current.onUniverSheetRemoved?.({ sheetId })
+            }
+          } else if (commandId === 'sheet.mutation.set-worksheet-name') {
+            const p = event.params as { subUnitId?: string; name?: string } | undefined
+            if (p?.subUnitId && typeof p.name === 'string') {
+              callbacksRef.current.onUniverSheetRenamed?.({ sheetId: p.subUnitId, sheetName: p.name })
+            }
+          }
+        }
         if (readOnlyRef.current) return
         if (isApplyingRemoteUpdateRef.current) return
 
@@ -3394,6 +3755,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         scheduleSnapshotCheckpointRef.current = null
         snapshotRequestQueuedRef.current = false
         clearTimeout(canvasHealthTimeout)
+        clearTimeout(bootstrapSettleTimer)
+        univerBootstrapCompleteRef.current = false
+        recentSheetMutationIdsRef.current = new Set()
         if (snapshotCheckpointTimerRef.current) {
           clearTimeout(snapshotCheckpointTimerRef.current)
           snapshotCheckpointTimerRef.current = null
@@ -3430,9 +3794,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           worksheetScrollDisposable?.dispose?.()
         } catch {}
         clearInterval(scrollPollIntervalId)
+        if (activeWorksheetPollIntervalId) {
+          clearInterval(activeWorksheetPollIntervalId)
+        }
         clearInterval(cursorPollIntervalId)
         try {
           commandDisposable?.dispose?.()
+        } catch {}
+        try {
+          beforeCommandDisposable?.dispose?.()
         } catch {}
         sheetScrollRef.current = { scrollLeft: 0, scrollTop: 0 }
         univerAPI.dispose()
