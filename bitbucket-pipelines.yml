@@ -103,6 +103,32 @@ definitions:
           - |
             # Pre-install native deps (optionalDependency resolution on Linux CI can skip these; see npm/cli#4828)
             npm install @rollup/rollup-linux-x64-gnu@4.59.0 lightningcss-linux-x64-gnu@1.31.1 @tailwindcss/oxide-linux-x64-gnu@4.2.1 --ignore-scripts=true || true
+          - |
+            # Prune node_modules before it travels as an artifact to downstream steps.
+            # Removes docs, changelogs, tests, examples and source maps - nothing that
+            # the build, Sonar scan or publish steps read at runtime. Cuts the tar/upload
+            # cost on "Build teardown" and the matching download on every consumer step.
+            echo "Pruning node_modules..."
+            SIZE_BEFORE="$(du -sh node_modules 2>/dev/null | cut -f1)"
+            COUNT_BEFORE="$(find node_modules -type f 2>/dev/null | wc -l)"
+
+            find node_modules -type d \( \
+              -name test -o -name tests -o -name __tests__ \
+              -o -name docs -o -name doc \
+              -o -name example -o -name examples \
+              -o -name .github \
+            \) -prune -exec rm -rf {} + 2>/dev/null || true
+
+            find node_modules -type f \( \
+              -name '*.md' -o -name '*.markdown' \
+              -o -name '*.map' \
+              -o -name 'CHANGELOG*' -o -name 'HISTORY*' \
+              -o -name 'AUTHORS*' -o -name 'CONTRIBUTORS*' \
+            \) -delete 2>/dev/null || true
+
+            SIZE_AFTER="$(du -sh node_modules 2>/dev/null | cut -f1)"
+            COUNT_AFTER="$(find node_modules -type f 2>/dev/null | wc -l)"
+            echo "node_modules pruned: ${SIZE_BEFORE} (${COUNT_BEFORE} files) -> ${SIZE_AFTER} (${COUNT_AFTER} files)"
         artifacts:
           - node_modules/**
           - pipeline/scripts/**
