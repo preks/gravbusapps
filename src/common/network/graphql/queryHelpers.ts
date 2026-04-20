@@ -231,6 +231,17 @@ export const buildFilter = (
       }
     }
 
+    // Handle number range objects { min, max } for descriptors with type 'number' and no kind
+    if (!leaf && !d.kind && d.type === 'number' && typeof value === 'object' && value !== null) {
+      const { min, max } = value as { min?: number; max?: number }
+      const condition: Record<string, number> = {}
+      if (min !== undefined && min !== null) condition._gte = min
+      if (max !== undefined && max !== null) condition._lte = max
+      if (Object.keys(condition).length > 0) {
+        leaf = condition
+      }
+    }
+
     if (leaf) {
       andConds.push(buildNestedObjectPath(d.path, leaf))
     }

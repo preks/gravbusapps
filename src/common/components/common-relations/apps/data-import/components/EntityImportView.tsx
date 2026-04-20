@@ -65,9 +65,11 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
     isLoading,
     error,
     importResult,
+    csvQuality,
     handleFileChange,
     analyzeWithAgent,
     convertData,
+    retryWithHardRepair,
     importToBackend,
     downloadJSON,
     reset
@@ -196,6 +198,8 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
           isLoading={isLoading}
           importResult={importResult}
           campaignName={campaignName || undefined}
+          csvQuality={csvQuality}
+          onHardRepair={retryWithHardRepair}
           onDownloadJSON={downloadJSON}
           onImportToBackend={importToBackend}
           onReset={reset}

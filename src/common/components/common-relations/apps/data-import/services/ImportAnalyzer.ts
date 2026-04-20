@@ -15,8 +15,8 @@ export class ImportAnalyzer {
     flowbotClient.setAccessToken(accessToken)
   }
 
-  async analyzeImport(file: File, llmModel?: string): Promise<ImportAnalyzerResponse> {
-    const response = await flowbotClient.mapFromFile(this.entityType, file, llmModel, this.domain)
+  async analyzeImport(file: File, modelKind: string = 'default'): Promise<ImportAnalyzerResponse> {
+    const response = await flowbotClient.mapFromFile(this.entityType, file, modelKind, this.domain)
 
     return {
       fieldMappings: response.fieldMappings.map(mapping => ({

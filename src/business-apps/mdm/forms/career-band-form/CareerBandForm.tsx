@@ -7,14 +7,15 @@ import { useTranslation } from 'react-i18next'
 export interface CareerBandFormProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   initialValues?: any
-  payGrades: PayGrade[]
+  /** Parent loaders pass this from catalog/API; remote shell (e.g. test host) may omit — empty select until data loads. */
+  payGrades?: PayGrade[]
   onSubmit?: (values: any) => Promise<void>
 }
 
 export const CareerBandForm: React.FC<CareerBandFormProps> = ({
   prefixDataTestId,
   initialValues,
-  payGrades,
+  payGrades = [],
   onSubmit
 }) => {
   const [form] = Form.useForm()

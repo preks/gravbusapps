@@ -172,7 +172,7 @@ export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
         <div className="gba:relative">
           <Search className="gba:absolute gba:left-2.5 gba:top-1/2 gba:-translate-y-1/2 gba:w-3.5 gba:h-3.5 gba:text-white/40" />
           <Input
-            placeholder={t('header-search-placeholder')}
+            placeholder={t('notes-header-search-placeholder')}
             value={searchQuery}
             onChange={e => onSearchChange(e.target.value)}
             className="gba:h-8 gba:pl-8 gba:text-xs gba:rounded-lg gba:bg-white/10 gba:border-0 gba:shadow-none gba:text-white gba:placeholder-white/40 focus-visible:gba:ring-1 focus-visible:gba:ring-white/30"

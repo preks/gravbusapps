@@ -86,8 +86,8 @@ delete-confirm-multi = { $count } elemente vor fi mutate în coș. Le puteți re
 delete-confirm-action = Mută în coș
 delete-confirm-cancel = Anulează
 
-empty-trash-title = Nu există whiteboard-uri în coș
-empty-trash-description = Whiteboard-urile mutate în coș vor apărea aici.
+whiteboards-empty-trash-title = Nu există whiteboard-uri în coș
+whiteboards-empty-trash-description = Whiteboard-urile mutate în coș vor apărea aici.
 trash-refresh = Reîmprospătează
 sort-name = Nume
 sort-trashed = Mutat în coș la

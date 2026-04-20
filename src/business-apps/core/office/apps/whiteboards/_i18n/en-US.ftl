@@ -86,8 +86,8 @@ delete-confirm-multi = { $count } items will be moved to trash. You can restore 
 delete-confirm-action = Move to trash
 delete-confirm-cancel = Cancel
 
-empty-trash-title = No trashed whiteboards
-empty-trash-description = Whiteboards moved to trash will appear here.
+whiteboards-empty-trash-title = No trashed whiteboards
+whiteboards-empty-trash-description = Whiteboards moved to trash will appear here.
 trash-refresh = Refresh
 sort-name = Name
 sort-trashed = Trashed on

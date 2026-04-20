@@ -24,6 +24,21 @@ const BUDGET_DISTRIBUTION_METHOD_I18N_KEY: Record<string, string> = {
 }
 
 /**
+ * Label for `compensation_budget_plan_organizational_unit.budget_plan_status` on department submissions:
+ * HR budget distribution persists `BUDGET_PLAN_DRAFT` for newly allocated OU slices — show as "Allocated", not "Draft".
+ * Other statuses use {@link formatBudgetPlanStatusLabelForDisplay}.
+ */
+export function formatOrgUnitBudgetStatusLabelForDisplay(value: string | null | undefined, t: TranslateFn): string {
+  if (value === 'BUDGET_PLAN_DRAFT') {
+    return t('budget-plan-status-org-unit-allocated')
+  }
+  if (value === 'BUDGET_PLAN_SUBMITTED') {
+    return t('budget-plan-status-org-unit-proposals-submitted')
+  }
+  return formatBudgetPlanStatusLabelForDisplay(value, t)
+}
+
+/**
  * Human-readable label for budget plan status (e.g. `BUDGET_PLAN_DRAFT` → "Draft").
  * Falls back to {@link formatEnumLabelForDisplay} for unknown status values.
  */

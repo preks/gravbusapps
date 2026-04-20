@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { Card, CardContent, Button, Badge, Skeleton, Spinner } from '@newwork/nw-design-system'
 import { Play, History, ChevronRight, RefreshCw } from 'lucide-react'
-import { DOCUMENT_API_URL } from '@/common/utils/serviceResolver'
+import { getSpreadsheetServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import type { AutomationRun, AutomationWithRuns, TranslateFn } from './automationSectionTypes'
 import {
   extractArray,
@@ -36,7 +36,7 @@ export const AutomationDetailView: React.FC<AutomationDetailViewProps> = ({
   const [isLoadingRuns, setIsLoadingRuns] = useState(false)
   const [selectedRun, setSelectedRun] = useState<AutomationRun | null>(null)
 
-  const docServiceUrl = DOCUMENT_API_URL.replace(/\/+$/, '')
+  const docServiceUrl = getSpreadsheetServiceApiUrl().replace(/\/+$/, '')
   const Icon = getAutomationTypeIcon(automation.type)
 
   const fetchRuns = useCallback(async () => {

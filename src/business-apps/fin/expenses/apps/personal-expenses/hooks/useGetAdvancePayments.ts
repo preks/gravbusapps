@@ -82,6 +82,7 @@ export interface FetchItemsOptions {
   statusFilter?: string[]
   amountRange?: { min?: number; max?: number } | null
   advanceRange?: { min?: number; max?: number } | null
+  createdAtRange?: { gte: string; lte: string } | null
   sortField?: SortField
   sortOrder?: SortOrder
   currencyRef?: string | null
@@ -117,6 +118,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       statusFilter: string[]
       amountRange: { min?: number; max?: number } | null
       advanceRange: { min?: number; max?: number } | null
+      createdAtRange: { gte: string; lte: string } | null
       sortField: SortField
       sortOrder: SortOrder
       currencyRef: string | null
@@ -129,6 +131,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
           statusFilter: params.statusFilter,
           amountRange: params.amountRange,
           advanceRange: params.advanceRange,
+          createdAtRange: params.createdAtRange,
           sortField: params.sortField,
           sortOrder: params.sortOrder,
           currencyRef: params.currencyRef
@@ -262,6 +265,11 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     if (filterState.hasCurrencyRef && filters.currencyRef) {
       variables.currencyRef = filters.currencyRef
     }
+
+    if (filterState.hasCreatedAtRange && filters.createdAtRange?.gte && filters.createdAtRange?.lte) {
+      variables.createdAtGte = filters.createdAtRange.gte
+      variables.createdAtLte = filters.createdAtRange.lte
+    }
   }
 
   // Helper function to build GraphQL variables
@@ -289,6 +297,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     advanceMin?: number
     advanceMax?: number
     currencyRef?: string
+    createdAtGte?: string
+    createdAtLte?: string
   }
 
   const buildVariables = useCallback((options: BuildVariablesOptions): GraphQLVariables => {
@@ -374,6 +384,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         statusFilter = [],
         amountRange = null,
         advanceRange = null,
+        createdAtRange = null,
         sortField,
         sortOrder,
         currencyRef,
@@ -393,6 +404,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         statusFilter,
         amountRange,
         advanceRange,
+        createdAtRange: createdAtRange ?? null,
         sortField: sortField || null,
         sortOrder: sortOrder || null,
         currencyRef: currencyRef || null
@@ -410,6 +422,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         statusFilter,
         amountRange,
         advanceRange,
+        createdAtRange,
         sortField,
         sortOrder,
         currencyRef,
@@ -441,7 +454,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
         amountRange: amountRange || undefined,
         advanceRange: advanceRange || undefined,
-        currencyRef: currencyRef || undefined
+        currencyRef: currencyRef || undefined,
+        createdAtRange: createdAtRange ?? undefined
       }
       const filterState = validateFilters(filters)
       const query = buildAdvancePaymentsListQuery(filters, { includeSearch })

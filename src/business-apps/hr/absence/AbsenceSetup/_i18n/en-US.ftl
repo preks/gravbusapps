@@ -162,7 +162,6 @@ field-access-by-label = Access by
 code-placeholder = e.g. PTO
 icon-placeholder = e.g. vacation
 icon-field-tooltip = Enter a semantic icon key used by downstream apps. Example keys are available in the suggestion list.
-icon-field-helper = Suggested keys: vacation, sick, home-office, business-trip, training, family-care, jury-duty.
 color-placeholder = e.g. BE27F5
 group-placeholder = Select a group
 validation-code-required = Code is required.

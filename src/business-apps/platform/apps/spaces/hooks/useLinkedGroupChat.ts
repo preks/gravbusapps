@@ -6,8 +6,10 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useChatClient } from '@/common/network/chat/useChatClient'
 import type { SpaceDimension, LinkedConversation } from '../types/space.types'
+import translations from '../_i18n'
 
 // Re-export for convenience
 export type { LinkedConversation } from '../types/space.types'
@@ -34,6 +36,7 @@ export function useLinkedGroupChat(
   dimension: SpaceDimension | undefined,
   accessToken: string | undefined
 ): UseLinkedGroupChatResult {
+  const { t } = useTranslation(translations)
   const chatClient = useChatClient(accessToken)
   const [conversation, setConversation] = useState<LinkedConversation | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -74,14 +77,14 @@ export function useLinkedGroupChat(
       setConversation(linkedConv || null)
       lastQueryRef.current = queryKey
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to find linked conversation'
+      const message = err instanceof Error ? err.message : t('error-load-linked-chat')
       setError(message)
       console.error('[useLinkedGroupChat] Error:', err)
       setConversation(null)
     } finally {
       setIsLoading(false)
     }
-  }, [dimension, accessToken, conversation, chatClient])
+  }, [accessToken, chatClient, conversation, dimension, t])
 
   const refresh = useCallback(async () => {
     lastQueryRef.current = null

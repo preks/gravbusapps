@@ -14,7 +14,8 @@ import {
   ImportStep,
   ImportConfig,
   ConvertedEntity,
-  ImportResult
+  ImportResult,
+  CsvQuality
 } from '@/common/components/common-relations/apps/data-import/types'
 import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
@@ -45,6 +46,9 @@ export interface UseEntityImportReturn<T> {
   error: string | null
   importResult: ImportResult | null
 
+  // CSV quality state
+  csvQuality: CsvQuality | null
+
   // Handlers
   handleFileChange: (file: File | null) => Promise<void>
   analyzeWithAgent: () => Promise<void>
@@ -53,6 +57,7 @@ export interface UseEntityImportReturn<T> {
     enforcedFieldsJson?: string,
     transformFn?: (entity: ConvertedEntity) => T
   ) => Promise<void>
+  retryWithHardRepair: () => Promise<void>
   importToBackend: () => Promise<void>
   downloadJSON: () => void
   reset: () => void
@@ -229,6 +234,16 @@ function shouldRetryWithUiMappings(error: unknown): boolean {
 function toRecordObject(value: unknown): Record<string, any> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
   return value as Record<string, any>
+}
+
+function toLeadAddressLineString(value: unknown): string | undefined {
+  if (typeof value === 'string') return value
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+
+  const lines = (value as { lines?: unknown }).lines
+  if (!Array.isArray(lines) || lines.length === 0) return undefined
+  const firstLine = lines[0]
+  return typeof firstLine === 'string' ? firstLine : undefined
 }
 
 function extractErrorMessage(error: unknown): string {
@@ -586,6 +601,13 @@ export function useEntityImport<T = ConvertedEntity>(
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [csvQuality, setCsvQuality] = useState<CsvQuality | null>(null)
+
+  const lastConvertArgsRef = useRef<{
+    mappings: FieldMapping[]
+    enforcedFieldsJson?: string
+    transformFn?: (entity: ConvertedEntity) => T
+  } | null>(null)
 
   const setCampaign = useCallback((id: string | null, name?: string | null) => {
     setCampaignIdState(id || '')
@@ -747,9 +769,12 @@ export function useEntityImport<T = ConvertedEntity>(
         return
       }
 
+      lastConvertArgsRef.current = { mappings, enforcedFieldsJson, transformFn }
+
       setIsLoading(true)
       setError(null)
       setImportResult(null)
+      setCsvQuality(null)
       forcedInvestmentTypeRefRef.current = undefined
 
       try {
@@ -782,7 +807,8 @@ export function useEntityImport<T = ConvertedEntity>(
             file,
             backendMappingJson,
             enforcedFieldsJson,
-            config.domain
+            config.domain,
+            'default'
           )
         } catch (error) {
           if (config.domain === 'investment' && shouldRetryWithUiMappings(error)) {
@@ -792,7 +818,8 @@ export function useEntityImport<T = ConvertedEntity>(
               file,
               uiMappingJson,
               enforcedFieldsJson,
-              config.domain
+              config.domain,
+              'default'
             )
             usedUiMappings = true
           } else {
@@ -815,6 +842,7 @@ export function useEntityImport<T = ConvertedEntity>(
             : transformedEntities
 
         setConvertedEntities(finalEntities as T[])
+        setCsvQuality(response.csvQuality ?? null)
         setStep('result')
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Conversion failed')
@@ -824,6 +852,85 @@ export function useEntityImport<T = ConvertedEntity>(
     },
     [file, config.entityType, config.domain]
   )
+
+  // Retry extraction with hard CSV repair
+  const retryWithHardRepair = useCallback(async () => {
+    const args = lastConvertArgsRef.current
+    if (!file || !args) {
+      setError('No previous conversion to retry')
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { mappings, enforcedFieldsJson, transformFn } = args
+
+      const enforcedKeys = enforcedFieldsJson
+        ? new Set(Object.keys(JSON.parse(enforcedFieldsJson) as Record<string, string>))
+        : new Set<string>()
+      const filteredMappings = enforcedKeys.size > 0 ? mappings.filter(m => !enforcedKeys.has(m.targetField)) : mappings
+      const adapters = buildTargetFieldAdapters(
+        config.targetFields.map(targetField => targetField.value),
+        config.domain === 'investment'
+      )
+      const backendMappings = toBackendMappings(filteredMappings, adapters)
+      const backendMappingJson = JSON.stringify({ fieldMappings: backendMappings })
+      const uiMappingJson = JSON.stringify({ fieldMappings: filteredMappings })
+
+      let response
+      let usedUiMappings = false
+
+      try {
+        response = await flowbotClient.extractFromFile(
+          config.entityType,
+          file,
+          backendMappingJson,
+          enforcedFieldsJson,
+          config.domain,
+          'default',
+          0,
+          5000,
+          'hard'
+        )
+      } catch (error) {
+        if (config.domain === 'investment' && shouldRetryWithUiMappings(error)) {
+          response = await flowbotClient.extractFromFile(
+            config.entityType,
+            file,
+            uiMappingJson,
+            enforcedFieldsJson,
+            config.domain,
+            'default',
+            0,
+            5000,
+            'hard'
+          )
+          usedUiMappings = true
+        } else {
+          throw error
+        }
+      }
+
+      const responseRecords = usedUiMappings ? response.records : restoreUiTargetFieldNames(response.records, adapters)
+      const recordsWithUiFields = responseRecords as ConvertedEntity[]
+
+      const transformedEntities = transformFn ? recordsWithUiFields.map(transformFn) : (recordsWithUiFields as T[])
+
+      const finalEntities =
+        config.entityType === 'contact' || config.entityType === 'account'
+          ? transformedEntities.map(entity => transformCommunicationChannels(entity as ConvertedEntity))
+          : transformedEntities
+
+      setConvertedEntities(finalEntities as T[])
+      setCsvQuality(response.csvQuality ?? null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Hard repair failed')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [file, config.entityType, config.domain, config.targetFields])
 
   // Import to backend
   const importToBackend = useCallback(async () => {
@@ -852,6 +959,17 @@ export function useEntityImport<T = ConvertedEntity>(
         if (config.entityType === 'lead' && !base.leadStatusRef) {
           base.leadStatusRef =
             config.domain === 'investment' ? 'InvestmentLeadStatus:v1:OPEN' : 'SalesLeadStatus:v1:OPEN'
+        }
+
+        // CRM lead endpoint expects addressLine as plain string.
+        // Keep IRM lead addressLine as object ({ lines: [...] }) for investment-relations endpoints.
+        if (config.entityType === 'lead' && config.domain === 'customer') {
+          const addressLine = toLeadAddressLineString(base.addressLine)
+          if (addressLine) {
+            base.addressLine = addressLine
+          } else {
+            delete base.addressLine
+          }
         }
 
         return stripEmptyValues(base)
@@ -992,6 +1110,8 @@ export function useEntityImport<T = ConvertedEntity>(
     setStep('upload')
     setError(null)
     setImportResult(null)
+    setCsvQuality(null)
+    lastConvertArgsRef.current = null
   }, [])
 
   return {
@@ -1005,9 +1125,11 @@ export function useEntityImport<T = ConvertedEntity>(
     isLoading,
     error,
     importResult,
+    csvQuality,
     handleFileChange,
     analyzeWithAgent,
     convertData,
+    retryWithHardRepair,
     importToBackend,
     downloadJSON,
     reset

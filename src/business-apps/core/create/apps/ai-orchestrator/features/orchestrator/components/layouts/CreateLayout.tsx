@@ -18,14 +18,14 @@ export const CreateLayout = ({
 }: CreateLayoutProps) => {
   return (
     <ResizablePanelGroup
-      direction="horizontal"
+      orientation="horizontal"
       className="gba:h-full gba:min-h-0 gba:w-full gba:bg-background"
       data-testid={`${testId}-layout`}
     >
       <ResizablePanel
-        defaultSize={28}
-        minSize={20}
-        maxSize={50}
+        defaultSize="28%"
+        minSize="20%"
+        maxSize="50%"
         className="gba:flex gba:flex-col gba:min-h-0 gba:overflow-hidden gba:border-r gba:border-border"
       >
         <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden" data-testid={`${testId}-chat-panel`}>
@@ -34,9 +34,9 @@ export const CreateLayout = ({
       </ResizablePanel>
       <ResizableHandle withHandle className="gba:bg-border" data-testid={`${testId}-resize-handle`} />
       <ResizablePanel
-        defaultSize={72}
-        minSize={50}
-        maxSize={80}
+        defaultSize="72%"
+        minSize="50%"
+        maxSize="80%"
         className="gba:flex gba:flex-col gba:min-h-0 gba:overflow-hidden"
       >
         <div

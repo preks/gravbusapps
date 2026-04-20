@@ -149,6 +149,11 @@ export interface CurrencyColumnOptions<T> {
   size?: number
   minSize?: number
   maxSize?: number
+  /**
+   * When unset, defaults to false so the first click sorts ascending like text/date columns
+   * (TanStack otherwise uses desc-first for numeric accessors).
+   */
+  sortDescFirst?: boolean
 }
 
 export function createCurrencyColumn<T extends object>(
@@ -164,6 +169,7 @@ export function createCurrencyColumn<T extends object>(
     accessorFn: getAmount,
     header,
     enableSorting: true,
+    sortDescFirst: options?.sortDescFirst ?? false,
     size: options?.size ?? 130,
     minSize: options?.minSize ?? 100,
     maxSize: options?.maxSize ?? 180,

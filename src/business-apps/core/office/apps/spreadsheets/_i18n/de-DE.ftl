@@ -74,7 +74,7 @@ action-sort-name = Name
 action-sort-modified = Geändert
 action-sort-created = Erstellt
 action-search-placeholder = Suchen...
-header-search-placeholder = Tabellen suchen...
+spreadsheets-header-search-placeholder = Tabellen suchen...
 header-refresh = Aktualisieren
 sort-name = Name
 sort-trashed = In den Papierkorb verschoben am
@@ -88,8 +88,8 @@ table-modified-by = Geändert von
 table-rows = Zeilen
 
 # Empty states
-empty-trash-title = Keine Tabellen im Papierkorb
-empty-trash-description = In den Papierkorb verschobene Tabellen werden hier angezeigt.
+spreadsheets-empty-trash-title = Keine Tabellen im Papierkorb
+spreadsheets-empty-trash-description = In den Papierkorb verschobene Tabellen werden hier angezeigt.
 rows-label = Zeilen
 
 # Empty states
@@ -1122,6 +1122,7 @@ persist-rows-add-failed = Neue Zeilen konnten nicht gespeichert werden.
 persist-snapshot-failed = Das Tabellenlayout konnte nicht auf dem Server gespeichert werden.
 persist-recovery-failed = Speicherkonflikt konnte nicht behoben werden. Bitte die Seite neu laden.
 persist-snapshot-too-large = Die Formatierung konnte nicht gespeichert werden, da die Tabelle zu groß ist. Zelldaten werden weiterhin gespeichert.
+unsaved-leave-confirm = Es gibt ungespeicherte Änderungen, die noch nicht an den Server übertragen wurden. Die Tabelle trotzdem verlassen?
 
 # Share App Dialog
 share-dialog-title = „{ $name }" teilen

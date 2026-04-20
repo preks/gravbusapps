@@ -54,12 +54,26 @@ export const getFlowStatusBadgeClass = (status: string): string => {
 }
 
 export function transformFlowStep(step: Record<string, unknown>): FlowStep {
+  const rawAssignedTo = step.assignedTo
+  const assignedToIds = Array.isArray(rawAssignedTo)
+    ? rawAssignedTo.map(value => String(value || '').trim()).filter(Boolean)
+    : typeof rawAssignedTo === 'string' && rawAssignedTo.trim()
+      ? [rawAssignedTo.trim()]
+      : []
+
+  const rawEligibleUsers = step.eligibleUsers
+  const eligibleUserIds = Array.isArray(rawEligibleUsers)
+    ? rawEligibleUsers.map(value => String(value || '').trim()).filter(Boolean)
+    : []
+
   return {
     id: String(step.id || `step-${step.stepIndex || 0}`),
     title: String(step.title || 'Untitled Step'),
     status: String(step.status || 'QUEUED'),
     stepIndex: Number(step.stepIndex || 0),
-    assignedTo: typeof step.assignedTo === 'string' ? step.assignedTo : undefined,
+    assignedTo: assignedToIds[0],
+    assignedToIds: assignedToIds.length ? assignedToIds : undefined,
+    eligibleUserIds: eligibleUserIds.length ? eligibleUserIds : undefined,
     completedBy: typeof step.completedBy === 'string' ? step.completedBy : undefined,
     totalForks: typeof step.totalForks === 'number' ? step.totalForks : undefined,
     completedForks: typeof step.completedForks === 'number' ? step.completedForks : undefined,

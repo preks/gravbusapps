@@ -213,8 +213,8 @@ export function NoteTrashList({
 
       {sortedItems.length === 0 ? (
         <Card className="gba:p-8 gba:text-center" data-testid={`${testId}-empty`}>
-          <h3 className="gba:text-lg gba:font-semibold">{t('empty-trash-title')}</h3>
-          <p className="gba:mt-2 gba:text-sm gba:text-muted-foreground">{t('empty-trash-description')}</p>
+          <h3 className="gba:text-lg gba:font-semibold">{t('notes-empty-trash-title')}</h3>
+          <p className="gba:mt-2 gba:text-sm gba:text-muted-foreground">{t('notes-empty-trash-description')}</p>
         </Card>
       ) : (
         <div className="gba:w-full" data-testid={testId}>

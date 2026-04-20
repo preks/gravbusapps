@@ -1,6 +1,8 @@
 import React, { useCallback, useMemo } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { buildPlatformUrl, navigateTo, Navigation } from '@/common/utils/navigationUtils'
+
+const REVIEW_SOURCE_DEPARTMENT_SUBMISSIONS = 'department-submissions' as const
 import { useTeamCompensationData } from '../../../manager-compensation-planning/hooks/useTeamCompensationData'
 import type { CompensationBudgetPlanRow } from '../../hooks/useBudgetPlansTable'
 import { useSubmissionsOrgUnitBudgetTable } from '../../hooks/useSubmissionsOrgUnitBudgetTable'
@@ -78,7 +80,8 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({
         orgUnitId: row.organizationalUnitId,
         planOuRowId: row.id,
         supervisorReview: '1',
-        teamLabel: row.organizationalUnitName
+        teamLabel: row.organizationalUnitName,
+        reviewSource: REVIEW_SOURCE_DEPARTMENT_SUBMISSIONS
       })
       navigateTo(url)
     },

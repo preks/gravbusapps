@@ -12,7 +12,6 @@ import {
   applyDateRangeFromFilter,
   resolveSelectedCurrencyCode,
   applyCurrencyChange,
-  buildFilteredEmptyMessage,
   buildDefaultEmptyMessage
 } from '../../../../utils/tableUtils'
 import { useTableSetup } from '@/business-apps/fin/expenses/common/hooks/useTableSetup'
@@ -277,7 +276,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
   )
 
   const emptyMessage = hasActiveFilters
-    ? buildFilteredEmptyMessage()
+    ? tPersonal('table-empty-filtered')
     : buildDefaultEmptyMessage(
         'lowcoder:personal_expenses.no_expense_request_data',
         'No expense requests found. Create your first expense request to get started.'

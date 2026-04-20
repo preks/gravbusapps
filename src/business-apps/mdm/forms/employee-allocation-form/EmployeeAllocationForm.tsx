@@ -14,6 +14,18 @@ import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 const DATA_TEST_ID_PREFIX = 'EmployeeAllocationForm'
 const EMPLOYEES_BASE_URL = `${env('NEXT_PUBLIC_BASE_URL')}/processes/employee`
 
+/** When `RenderRemoteComponent` omits parent props — enough to render; API calls use placeholder ids until a real parent supplies data. */
+const REMOTE_SHELL_EMPLOYEE: TeamEmployee = {
+  id: '00000000-0000-0000-0000-000000000001',
+  employeeId: '00000000-0000-0000-0000-000000000001',
+  fullName: 'Employee',
+  firstName: 'Employee',
+  lastName: '',
+  percentage: 0,
+  teamAssignmentId: '00000000-0000-0000-0000-000000000099',
+  totalAllocationPercent: null
+}
+
 // Translation function type for project-allocation bundle (optional when used from ProjectAllocation)
 type TranslationFn = (key: string, params?: Record<string, string | number>) => string
 
@@ -69,9 +81,10 @@ const createEmployeeAllocationFormSchema = (
 }
 
 export interface EmployeeAllocationFormProps extends BusinessAppContextProps {
-  employee: TeamEmployee
-  teamId: string
-  structureId: string
+  /** Omitted in `RenderRemoteComponent` — stub used for smoke / dev host. */
+  employee?: TeamEmployee
+  teamId?: string
+  structureId?: string
   onCancel?: () => void
   prefixDataTestId?: string
   childAddButton?: React.ReactNode
@@ -80,7 +93,7 @@ export interface EmployeeAllocationFormProps extends BusinessAppContextProps {
   open?: boolean
   setOpen?: Dispatch<SetStateAction<boolean>>
   onSubmit?: () => void
-  totalAllocationPercent: {
+  totalAllocationPercent?: {
     id: string
     version: number
     totalAllocationPercent: number | null
@@ -90,21 +103,22 @@ export interface EmployeeAllocationFormProps extends BusinessAppContextProps {
 }
 
 const EmployeeAllocationForm: React.FC<EmployeeAllocationFormProps> = ({
-  employee,
-  totalAllocationPercent,
-  teamId,
-  structureId,
+  employee: employeeProp,
+  totalAllocationPercent = null,
+  teamId = '',
+  structureId = '',
   onCancel,
   prefixDataTestId,
   childAddButton,
   accessToken,
-  refetch,
+  refetch = () => {},
   isDrawerActive = false,
   open,
   setOpen,
   onSubmit,
   t: tProjectAllocation
 }) => {
+  const employee = employeeProp ?? REMOTE_SHELL_EMPLOYEE
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const orgchartClient = useOrgchartClient(accessToken)
   const restClientEmployees = useRestClient(EMPLOYEES_BASE_URL)
@@ -156,7 +170,7 @@ const EmployeeAllocationForm: React.FC<EmployeeAllocationFormProps> = ({
         }
       })
 
-      refetch?.()
+      refetch()
       onSubmit?.()
     } catch (error) {
       console.error('Error updating employee allocation:', error)

@@ -150,7 +150,19 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
       handleClose()
     } catch (err) {
       console.error('Error creating group:', err)
-      setError(t('chat-groupCreationFailed'))
+      const backendMessage =
+        err instanceof Error &&
+        typeof (err as { responseData?: { message?: string } }).responseData?.message === 'string'
+          ? (err as { responseData?: { message?: string } }).responseData?.message
+          : err instanceof Error
+            ? err.message
+            : ''
+
+      if (backendMessage.toLowerCase().includes('already exists for this dimension')) {
+        setError(t('chat-groupCreationDuplicate'))
+      } else {
+        setError(t('chat-groupCreationFailed'))
+      }
     } finally {
       setIsCreating(false)
     }

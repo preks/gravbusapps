@@ -33,3 +33,6 @@ dashboard-stat-trend-decrease-vs-last-month = decrease from last month
 # Expense Items Tab
 expense-items-date-label = Date
 delete-selection-discard-error-draft = You can only discard items with status "Draft" or "Assigned".
+
+# Table lists (no rows)
+table-empty-filtered = No data available

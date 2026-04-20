@@ -441,7 +441,7 @@ export function useYjsDocumentSync({
 
   // Drive Yjs sync over Socket.IO: create provider, start, cleanup
   useEffect(() => {
-    if (!documentId || !collaborationSocket || isTrashedDocument) return
+    if (!documentId || !collaborationSocket || isTrashedDocument || isReadOnly) return
 
     readyStateInspectionCompletedRef.current = false
     recoveryAttemptedRef.current = false
@@ -493,7 +493,8 @@ export function useYjsDocumentSync({
     getEditorReadyPromise,
     applyNormalizedContentToEditor,
     handleReadyStateApplied,
-    isTrashedDocument
+    isTrashedDocument,
+    isReadOnly
   ])
 
   // Cleanup snapshot timeout on unmount

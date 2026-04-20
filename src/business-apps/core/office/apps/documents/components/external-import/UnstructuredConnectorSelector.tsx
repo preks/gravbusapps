@@ -7,10 +7,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { FileText, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { ConnectorLogo } from '@/business-apps/core/create/apps/newwork-connect/components/ConnectorLogo'
+import translations from '../../_i18n'
 import type { UnstructuredConnectorSummary } from '../../types/externalUnstructuredConnector'
 
 export interface SharedConnectionOption {
@@ -73,11 +75,13 @@ export const UnstructuredConnectorSelector: React.FC<UnstructuredConnectorSelect
   error,
   'data-testid': testId = 'unstructured-connector-selector'
 }) => {
+  const { t } = useTranslation(translations)
+
   if (isLoading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:py-12" data-testid={testId}>
         <Spinner size="md" />
-        <span className="gba:ml-2 gba:text-sm gba:text-muted-foreground">Loading connectors...</span>
+        <span className="gba:ml-2 gba:text-sm gba:text-muted-foreground">{t('external-import-selector-loading')}</span>
       </div>
     )
   }
@@ -94,17 +98,14 @@ export const UnstructuredConnectorSelector: React.FC<UnstructuredConnectorSelect
     return (
       <div className="gba:py-8 gba:text-center gba:space-y-2" data-testid={testId}>
         <FileText className="gba:w-8 gba:h-8 gba:mx-auto gba:text-muted-foreground" />
-        <p className="gba:text-sm gba:text-muted-foreground">
-          No document sources connected yet. Go to NEWWORK CONNECT to set up a connection (Google Drive, SharePoint,
-          Confluence, S3, etc.) and enable &quot;Document Import&quot;.
-        </p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('external-import-selector-empty')}</p>
       </div>
     )
   }
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
-      <p className="gba:text-sm gba:text-muted-foreground">Choose a source to import files from.</p>
+      <p className="gba:text-sm gba:text-muted-foreground">{t('external-import-selector-choose')}</p>
 
       <div className="gba:grid gba:grid-cols-1 gba:gap-3">
         {connectors.map(c => {
@@ -143,18 +144,22 @@ export const UnstructuredConnectorSelector: React.FC<UnstructuredConnectorSelect
 
       {selectedId && onConnectionChange && (isLoadingConnections || connectionOptions.length > 0) ? (
         <div className="gba:space-y-2">
-          <Label className="gba:text-xs">Shared connection</Label>
+          <Label className="gba:text-xs">{t('external-import-selector-shared-connection')}</Label>
           <Select
             value={selectedConnectionId || '__none__'}
             onValueChange={value => onConnectionChange(value === '__none__' ? null : value)}
           >
             <SelectTrigger className="gba:h-9" data-testid={`${testId}-shared-connection`}>
               <SelectValue
-                placeholder={isLoadingConnections ? 'Loading shared connections...' : 'Use connector defaults'}
+                placeholder={
+                  isLoadingConnections
+                    ? t('external-import-selector-loading-shared')
+                    : t('external-import-selector-use-defaults')
+                }
               />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none__">Use connector defaults</SelectItem>
+              <SelectItem value="__none__">{t('external-import-selector-use-defaults')}</SelectItem>
               {connectionOptions.map(option => (
                 <SelectItem key={option.id} value={option.id}>
                   {option.name}
@@ -172,7 +177,7 @@ export const UnstructuredConnectorSelector: React.FC<UnstructuredConnectorSelect
 
       <div className="gba:flex gba:justify-end gba:pt-2">
         <Button size="sm" onClick={onNext} disabled={!selectedId} data-testid={`${testId}-next`}>
-          Preview <ArrowRight className="gba:w-3 gba:h-3 gba:ml-1" />
+          {t('external-import-selector-preview')} <ArrowRight className="gba:w-3 gba:h-3 gba:ml-1" />
         </Button>
       </div>
     </div>

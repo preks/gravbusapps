@@ -12,7 +12,12 @@ import type {
   DocumentParticipant,
   DocumentOperation
 } from '../../../../../platform/apps/shared/services/CollaborationClient'
-import { UniverSheetGrid, type UniverSheetGridHandle, type CellDimensionsPayload } from '../components/UniverSheetGrid'
+import {
+  UniverSheetGrid,
+  type UniverSheetGridHandle,
+  type CellDimensionsPayload,
+  type WorkbookSnapshotLifecycleEvent
+} from '../components/UniverSheetGrid'
 import translations from '../_i18n'
 
 export interface TableViewProps {
@@ -20,6 +25,7 @@ export interface TableViewProps {
   data: Record<string, unknown>[]
   initialSnapshot?: Record<string, unknown> | null
   snapshotSeed?: string
+  authoritativeDataSyncToken?: number
   workbookRemountKey?: string
   multiSheetWorkbookMode?: boolean
   onActiveWorksheetChange?: (sheetId: string, sheetName: string) => void
@@ -29,6 +35,7 @@ export interface TableViewProps {
   onCellChange?: (rowId: string, columnName: string, value: unknown) => void
   onCellsChange?: (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => void
   onSnapshotRequested?: () => Promise<void> | void
+  onWorkbookSnapshotLifecycle?: (event: WorkbookSnapshotLifecycleEvent) => void
   onOpenCommentRequest?: () => void
   commentedCells?: Array<{
     cellReference: string
@@ -61,6 +68,7 @@ export const TableView = memo<TableViewProps>(function TableView({
   data,
   initialSnapshot,
   snapshotSeed,
+  authoritativeDataSyncToken,
   workbookRemountKey,
   multiSheetWorkbookMode,
   onActiveWorksheetChange,
@@ -75,6 +83,7 @@ export const TableView = memo<TableViewProps>(function TableView({
   onCellChange,
   onCellsChange,
   onSnapshotRequested,
+  onWorkbookSnapshotLifecycle,
   onOpenCommentRequest,
   commentedCells,
   onDataChange,
@@ -190,6 +199,7 @@ export const TableView = memo<TableViewProps>(function TableView({
         data={data}
         initialSnapshot={initialSnapshot}
         snapshotSeed={snapshotSeed}
+        authoritativeDataSyncToken={authoritativeDataSyncToken}
         workbookRemountKey={workbookRemountKey}
         multiSheetWorkbookMode={multiSheetWorkbookMode}
         onActiveWorksheetChange={onActiveWorksheetChange}
@@ -198,6 +208,7 @@ export const TableView = memo<TableViewProps>(function TableView({
         onCellChange={handleCellChange}
         onCellsChange={handleCellsChange}
         onSnapshotRequested={handleSnapshotRequested}
+        onWorkbookSnapshotLifecycle={onWorkbookSnapshotLifecycle}
         onOpenCommentRequest={onOpenCommentRequest}
         commentedCells={commentedCells}
         onDataChange={handleDataChange}

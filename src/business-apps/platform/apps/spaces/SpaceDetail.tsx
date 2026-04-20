@@ -8,7 +8,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { Tabs, TabsContent, TabsList, TabsTrigger, toast } from '@newwork/nw-design-system'
+import { Tabs, TabsContent, TabsList, TabsTrigger, toast, useTranslation } from '@newwork/nw-design-system'
 
 // Components
 import {
@@ -36,6 +36,7 @@ import { useSpaceContent } from './hooks/useSpaceContent'
 import { useSpaceActivity } from './hooks/useSpaceActivity'
 import { useSpaceUserLookup } from './hooks/useSpaceUserLookup'
 import { useLinkedGroupChat } from './hooks/useLinkedGroupChat'
+import { useLinkedSharedCalendar } from './hooks/useLinkedSharedCalendar'
 import { useSpaceCall } from './hooks/useSpaceCall'
 import type {
   SpaceContentItem,
@@ -45,6 +46,7 @@ import type {
   UpdateSpaceInput
 } from './types/space.types'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import translations from './_i18n'
 
 export interface SpaceDetailProps extends BusinessAppContextProps {
   spaceId: string
@@ -60,6 +62,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   onNavigateToHub,
   'data-testid': testId = 'space-detail'
 }) => {
+  const { t } = useTranslation(translations)
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [addContentDialogOpen, setAddContentDialogOpen] = useState(false)
@@ -122,6 +125,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     isLoading: chatLoading,
     error: chatError
   } = useLinkedGroupChat(spaceDimension, accessToken)
+
+  const { calendar: linkedCalendar } = useLinkedSharedCalendar(spaceDimension, accessToken)
 
   // Hook for starting calls from space
   const { startAudioCall, startVideoCall, canStartCall } = useSpaceCall(linkedConversation)
@@ -255,13 +260,13 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   const handleDeleteSpace = useCallback(async (): Promise<boolean> => {
     const ok = await spaceData.deleteSpace()
     if (ok) {
-      toast.success('Space deleted')
+      toast.success(t('detail-toast-space-deleted'))
       handleBack()
     } else {
-      toast.error('Could not delete space. Only the owner can delete a space.')
+      toast.error(t('detail-toast-space-delete-failed'))
     }
     return ok
-  }, [spaceData.deleteSpace, handleBack])
+  }, [handleBack, spaceData.deleteSpace, t])
 
   const handleShare = useCallback(() => {
     setInviteDialogOpen(true)
@@ -429,7 +434,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
       <div className="gba:min-h-screen gba:bg-background gba:flex gba:items-center gba:justify-center">
         <div className="gba:text-center">
           <div className="gba:w-16 gba:h-16 gba:border-4 gba:border-primary gba:border-t-transparent gba:rounded-full gba:animate-spin gba:mx-auto gba:mb-4" />
-          <p className="gba:text-muted-foreground">Loading space...</p>
+          <p className="gba:text-muted-foreground">{t('detail-loading-space')}</p>
         </div>
       </div>
     )
@@ -440,8 +445,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     return (
       <div className="gba:min-h-screen gba:bg-background gba:flex gba:items-center gba:justify-center">
         <div className="gba:text-center">
-          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">Space not found</h2>
-          <p className="gba:text-muted-foreground">This space may have been deleted or you do not have access</p>
+          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">{t('detail-not-found-title')}</h2>
+          <p className="gba:text-muted-foreground">{t('detail-not-found-description')}</p>
         </div>
       </div>
     )
@@ -472,13 +477,13 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         >
           <TabsList className="gba:w-fit" data-testid={`${testId}-tabs`}>
             <TabsTrigger value="overview" data-testid={`${testId}-tab-overview`}>
-              Overview
+              {t('detail-tab-overview')}
             </TabsTrigger>
             <TabsTrigger value="drive" data-testid={`${testId}-tab-drive`}>
-              Drive
+              {t('detail-tab-drive')}
             </TabsTrigger>
             <TabsTrigger value="members" data-testid={`${testId}-tab-members`}>
-              Members ({space.members?.length || 0})
+              {t('detail-tab-members', { count: space.members?.length || 0 })}
             </TabsTrigger>
           </TabsList>
 
@@ -498,11 +503,14 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
               <section data-testid={`${testId}-team-collaboration`} className="gba:space-y-4">
                 {/* Header with Schedule Meeting */}
                 <div className="gba:flex gba:items-center gba:justify-between">
-                  <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">Team Collaboration</h2>
+                  <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
+                    {t('detail-team-collaboration')}
+                  </h2>
                   <ScheduleMeetingButton
                     spaceId={spaceId}
                     spaceName={space.name}
-                    members={space.members || []}
+                    members={enrichedMembers}
+                    linkedCalendar={linkedCalendar}
                     data-testid={`${testId}-schedule-meeting`}
                   />
                 </div>
@@ -531,8 +539,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
                   <div className="gba:space-y-4">
                     {/* Team Calendar */}
                     <SpaceCalendar
-                      spaceId={spaceId}
-                      members={space.members || []}
+                      calendar={linkedCalendar}
                       accessToken={accessToken}
                       maxMeetings={3}
                       data-testid={`${testId}-team-calendar`}
@@ -555,14 +562,16 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
             {/* Pinned Content */}
             {pinnedItems.length > 0 && (
               <section>
-                <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Pinned</h2>
+                <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">{t('detail-pinned')}</h2>
                 <SpacePinned items={pinnedItems} onItemClick={handleItemClick} data-testid={`${testId}-pinned`} />
               </section>
             )}
 
             {/* Activity Feed - Full Width */}
             <section>
-              <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Recent Activity</h2>
+              <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
+                {t('detail-recent-activity')}
+              </h2>
               <div className="gba:rounded-lg gba:bg-card gba:p-4">
                 <SpaceActivity
                   activities={activities}

@@ -333,13 +333,16 @@ export interface ProjectFormProps extends BusinessAppContextProps {
   onCancel?: () => void
   prefixDataTestId?: string
   childAddButton?: React.ReactNode
-  refetch: () => void
+  /** Parent passes after data load; remote shell may omit. */
+  refetch?: () => void
   isDrawerActive?: boolean
-  structureId: string
+  /** Org structure scope; remote shell may omit for smoke/dev host. */
+  structureId?: string
   open?: boolean
   setOpen?: Dispatch<SetStateAction<boolean>>
   parentNodeId?: string
-  accounts: Account[]
+  /** CRM accounts for EXTERNAL projects; remote shell may omit. */
+  accounts?: Account[]
   /** Callback when project status changes to CANCELLED or COMPLETED (for cleanup: reset allocations + delete team) */
   onProjectClosed?: (matrixUnitId: string) => Promise<void>
 }
@@ -350,12 +353,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
   prefixDataTestId,
   childAddButton,
   accessToken,
-  refetch,
+  refetch = () => {},
   isDrawerActive = false,
-  structureId,
+  structureId = '',
   open,
   setOpen,
-  accounts,
+  accounts = [],
   onProjectClosed
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)

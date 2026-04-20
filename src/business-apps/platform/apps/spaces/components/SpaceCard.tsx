@@ -5,14 +5,16 @@
  */
 
 import React from 'react'
-import { Card, CardContent } from '@newwork/nw-design-system'
+import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { Users, Globe, Lock, ArrowRight, FolderOpen, Trash2 } from 'lucide-react'
 import type { Space } from '../types/space.types'
+import translations from '../_i18n'
 
 export interface SpaceCardProps {
   space: Space
   onClick?: () => void
   isOwner?: boolean
+  onRequestDelete?: () => void
   'data-testid'?: string
 }
 
@@ -23,6 +25,7 @@ export const SpaceCard: React.FC<SpaceCardProps> = ({
   onRequestDelete,
   'data-testid': testId = 'space-card'
 }) => {
+  const { t } = useTranslation(translations)
   const contentCounts = space.settings?.contentCounts || { documents: 0, spreadsheets: 0, notes: 0, total: 0 }
   const memberCount = space.members?.length || 0
 
@@ -49,7 +52,7 @@ export const SpaceCard: React.FC<SpaceCardProps> = ({
                   }}
                   className="gba:inline-flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-lg gba:text-destructive-foreground/80 hover:gba:bg-destructive/15 hover:gba:text-destructive-foreground gba:transition-colors"
                   data-testid={`${testId}-delete-trigger`}
-                  aria-label="Delete space"
+                  aria-label={t('hero-delete-space')}
                 >
                   <Trash2 className="gba:w-4 gba:h-4" />
                 </button>
@@ -58,12 +61,12 @@ export const SpaceCard: React.FC<SpaceCardProps> = ({
                 {space.isPublic ? (
                   <>
                     <Globe className="gba:w-3 gba:h-3" />
-                    Public
+                    {t('common-public')}
                   </>
                 ) : (
                   <>
                     <Lock className="gba:w-3 gba:h-3" />
-                    Private
+                    {t('common-private')}
                   </>
                 )}
               </span>
@@ -85,23 +88,21 @@ export const SpaceCard: React.FC<SpaceCardProps> = ({
           <div className="gba:flex gba:items-center gba:gap-3 gba:text-sm gba:text-decorative-foreground/70">
             <div className="gba:flex gba:items-center gba:gap-1.5">
               <Users className="gba:w-4 gba:h-4" />
-              <span>{memberCount}</span>
+              <span>{t('common-member-count', { count: memberCount })}</span>
             </div>
             <span className="gba:text-decorative-foreground/30">|</span>
-            <span>
-              {contentCounts.total} item{contentCounts.total !== 1 ? 's' : ''}
-            </span>
+            <span>{t('common-item-count', { count: contentCounts.total })}</span>
             {isOwner && (
               <>
                 <span className="gba:text-decorative-foreground/30">|</span>
                 <span className="gba:inline-flex gba:items-center gba:rounded gba:bg-decorative-foreground/15 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-decorative-foreground/90">
-                  Owner
+                  {t('card-owner-badge')}
                 </span>
               </>
             )}
           </div>
           <div className="gba:flex gba:items-center gba:gap-1 gba:text-sm gba:font-medium gba:text-decorative-foreground group-hover:gba:text-decorative-foreground/90 gba:transition-colors">
-            <span>Open</span>
+            <span>{t('common-open')}</span>
             <ArrowRight className="gba:h-4 gba:w-4 gba:transition-transform group-hover:gba:translate-x-1" />
           </div>
         </div>

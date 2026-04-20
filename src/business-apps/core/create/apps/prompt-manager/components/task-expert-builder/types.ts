@@ -27,6 +27,10 @@ export interface UnifiedCapability {
     transport?: 'http' | 'sse' | 'websocket'
     promptManagerToolId?: string
     internal?: boolean
+    /** True if the function wraps a Newwork Connect connection (Anypoint Connect or Data Bridge). */
+    connectorEnabled?: boolean
+    /** 'structured' → Anypoint Connect (Salesforce/SAP/DB…), 'unstructured' → Data Bridge (SharePoint/Drive/S3…). */
+    connectorKind?: 'structured' | 'unstructured' | null
   }
 }
 

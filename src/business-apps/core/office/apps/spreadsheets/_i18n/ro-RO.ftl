@@ -74,7 +74,7 @@ action-sort-name = Nume
 action-sort-modified = Modificat
 action-sort-created = Creat
 action-search-placeholder = Caută...
-header-search-placeholder = Caută foi de calcul...
+spreadsheets-header-search-placeholder = Caută foi de calcul...
 header-refresh = Reîmprospătează
 sort-name = Nume
 sort-trashed = Mutat în coș la
@@ -88,8 +88,8 @@ table-modified-by = Modificat de
 table-rows = Rânduri
 
 # Empty states
-empty-trash-title = Nicio foaie de calcul în coș
-empty-trash-description = Foile de calcul mutate în coș vor apărea aici.
+spreadsheets-empty-trash-title = Nicio foaie de calcul în coș
+spreadsheets-empty-trash-description = Foile de calcul mutate în coș vor apărea aici.
 rows-label = rânduri
 
 # Empty states
@@ -516,6 +516,7 @@ persist-rows-add-failed = Rândurile noi nu au putut fi salvate.
 persist-snapshot-failed = Aspectul foii nu a putut fi salvat pe server.
 persist-recovery-failed = Conflictul de salvare nu a putut fi rezolvat. Te rugăm să reîncarci pagina.
 persist-snapshot-too-large = Formatarea nu a putut fi salvată deoarece foaia este prea mare. Datele celulelor sunt în continuare salvate.
+unsaved-leave-confirm = Există modificări nesalvate care nu au fost încă trimise la server. Părăsești foaia oricum?
 
 # Share App Dialog
 share-dialog-title = Partajează „{ $name }"

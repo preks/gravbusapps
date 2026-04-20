@@ -19,8 +19,13 @@ import type {
   EmployeeLightResult
 } from './automationSectionTypes'
 import { getSpreadsheetBasePath, isAllowedSpreadsheetPath } from '../../utils/spreadsheetPaths'
+import { getSpreadsheetApiBasePath } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employeeQueries'
+
+function getSpreadsheetApiUrl(docServiceUrl: string, suffix = ''): string {
+  return `${docServiceUrl.replace(/\/+$/, '')}${getSpreadsheetApiBasePath()}${suffix}`
+}
 
 export function extractArray<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) return payload as T[]
@@ -142,7 +147,7 @@ async function fetchSheetPayload(
   sheetId: string
 ): Promise<Record<string, unknown> | null> {
   try {
-    const response = await fetch(`${docServiceUrl}/spreadsheets/${appId}/sheets/${sheetId}`, {
+    const response = await fetch(getSpreadsheetApiUrl(docServiceUrl, `/${appId}/sheets/${sheetId}`), {
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
     })
@@ -218,7 +223,7 @@ export async function fetchAutomationsForApp(
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
     }),
-    fetch(`${docServiceUrl}/spreadsheets/${app.id}`, {
+    fetch(getSpreadsheetApiUrl(docServiceUrl, `/${app.id}`), {
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
     })
@@ -549,7 +554,7 @@ export async function fetchAccessibleSpreadsheets(
   const apps: Array<{ id: string; name: string }> = []
 
   while (hasMore) {
-    const response = await fetch(`${docServiceUrl}/spreadsheets?page=${page}&limit=${PAGE_SIZE}`, {
+    const response = await fetch(getSpreadsheetApiUrl(docServiceUrl, `?page=${page}&limit=${PAGE_SIZE}`), {
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
     })

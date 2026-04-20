@@ -5,8 +5,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
+import translations from '../_i18n'
 
 export interface UserInfo {
   userId: string
@@ -36,6 +38,7 @@ export interface UseSpaceUserLookupResult {
 
 export function useSpaceUserLookup(params: UseSpaceUserLookupParams): UseSpaceUserLookupResult {
   const { accessToken, userIds } = params
+  const { t } = useTranslation(translations)
   const graphqlClient = useGraphQLClient(accessToken)
 
   const [userInfoMap, setUserInfoMap] = useState<UserInfoMap>(new Map())
@@ -72,7 +75,7 @@ export function useSpaceUserLookup(params: UseSpaceUserLookupParams): UseSpaceUs
 
         return {
           userId: emp.userId || userId,
-          name: emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown',
+          name: emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || t('common-unknown'),
           avatar: toAvatarDataUrl(emp.pictureThumbnail),
           jobTitle,
           department
@@ -109,7 +112,7 @@ export function useSpaceUserLookup(params: UseSpaceUserLookupParams): UseSpaceUs
               // Fallback for users not found
               newMap.set(userId, {
                 userId,
-                name: `User ${userId.slice(0, 8)}...`
+                name: t('common-unknown')
               })
             }
           })
@@ -122,7 +125,7 @@ export function useSpaceUserLookup(params: UseSpaceUserLookupParams): UseSpaceUs
     }
 
     loadUsers()
-  }, [userIds, graphqlClient, fetchUserInfo, userInfoMap])
+  }, [fetchUserInfo, graphqlClient, t, userIds, userInfoMap])
 
   const getUserInfo = useCallback(
     (userId: string): UserInfo | undefined => {

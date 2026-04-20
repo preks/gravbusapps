@@ -25,14 +25,23 @@ import type {
   DocumentParticipant,
   DocumentOperation
 } from '../../../../../platform/apps/shared/services/CollaborationClient'
+import type { CellsChangedCell } from '../services/SpreadsheetCollaborationManager'
 import {
   buildWorkbookSnapshot,
   createUniverConversionContext,
   getHyperlinkUrlFromSelection,
+  overlaySparseRowIndexMappings,
   transformAvatarFormulasInSnapshot,
   type ConversionContext,
   type UniverWorkbookSnapshot
 } from '../utils/univerAdapter'
+import {
+  buildAbsoluteCellMatrixForRanges,
+  normalizeCellMatrix,
+  type SheetCellMatrix,
+  type SheetRangeShape
+} from './cellMatrixUtils'
+import { isStyleOnlySheetMutationCommand, shouldScheduleSnapshotForMutation } from './snapshotTriggerUtils'
 
 const isSpreadsheetGridRemoteApplyDebug = (): boolean => {
   try {
@@ -55,6 +64,7 @@ const CURSOR_OVERLAY_HEADER_HEIGHT_PX = 28
 const CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX = 48
 const UNIVER_COMMAND_TYPE_MUTATION = 2
 const REMOTE_ECHO_SUPPRESSION_TTL_MS = 800
+const SELECTION_RECONCILE_LOCAL_EDIT_SUPPRESSION_MS = 400
 const GERMAN_NUMFMT_LOCALE = 'de_DE'
 /** Same grid pattern as context-menu injection (`tryInjectViaGridContainer`): inner list lives in `univer-grid` + `gap-1`. */
 const NUMFMT_GRID_ROW_SELECTOR = ':scope > div.univer-flex.univer-h-7'
@@ -225,7 +235,19 @@ function getSupportedUniverFonts(): UniverFontConfig[] {
 
 type RemoteEchoSuppressionEntry = {
   expiresAt: number
-  signature: string
+  // Accept multiple candidate signatures because Univer may emit the post-apply
+  // cell-change as a delta (e.g. `{v:null}` → 'blank') OR as the full cell state
+  // (e.g. `{s:'styleId'}` → `j:{"s":"styleId"}`). A single signature would miss one.
+  signatures: ReadonlySet<string>
+}
+
+const UNIVER_CELL_VALUE_KEYS = ['v', 'f', 'm', 'ct'] as const
+
+function richCellPayloadHasValue(rich: Record<string, unknown>): boolean {
+  for (const k of UNIVER_CELL_VALUE_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(rich, k)) return true
+  }
+  return false
 }
 
 function normalizeValueForEchoSignature(value: unknown): unknown {
@@ -245,6 +267,18 @@ function normalizeValueForEchoSignature(value: unknown): unknown {
   return value
 }
 
+function normalizeValueForGridWrite(value: unknown): unknown {
+  const normalized = normalizeValueForEchoSignature(value)
+  if (normalized === undefined || normalized === null) return ''
+  if (typeof normalized === 'object' && normalized && !Array.isArray(normalized)) {
+    const obj = normalized as Record<string, unknown>
+    if (typeof obj.f === 'string') {
+      return obj.f.trim().startsWith('=') ? obj.f.trim() : `=${obj.f.trim()}`
+    }
+  }
+  return normalized
+}
+
 function toEchoSignature(value: unknown): string {
   const normalized = normalizeValueForEchoSignature(value)
   if (normalized === undefined) return 'u:'
@@ -259,8 +293,66 @@ function toEchoSignature(value: unknown): string {
   }
 }
 
+function normalizeBlankLikeEchoSignature(signature: string | undefined): string {
+  if (signature === 'u:' || signature === 'n:' || signature === 's:') return 'blank'
+  return signature ?? 'missing'
+}
+
+function normalizeSelectionReconcileSignature(signature: string | undefined): string {
+  return normalizeBlankLikeEchoSignature(signature)
+}
+
+function readAuthoritativeRowCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): unknown {
+  let value: unknown
+  if (Object.prototype.hasOwnProperty.call(row, column.name)) {
+    value = row[column.name]
+  } else if (Object.prototype.hasOwnProperty.call(row, column.id)) {
+    value = row[column.id]
+  }
+  if (value === undefined) {
+    const rowKeys = Object.keys(row)
+    const matchingKey = rowKeys.find(
+      key => key.toLowerCase() === column.name.toLowerCase() || key.toLowerCase() === column.id.toLowerCase()
+    )
+    if (matchingKey) value = row[matchingKey]
+  }
+  if (value && typeof value === 'object') {
+    if (Array.isArray(value)) return value
+    const cellObject = value as Record<string, unknown>
+    if ('v' in cellObject || 'f' in cellObject || 'm' in cellObject || 'ct' in cellObject) {
+      return value
+    }
+    return ''
+  }
+  return value
+}
+
+function buildAuthoritativeCellSignatureMap(
+  data: Record<string, unknown>[],
+  columns: SpreadsheetColumn[]
+): Map<string, string> {
+  const visibleColumns = columns.filter(column => column.isVisible !== false)
+  const signatures = new Map<string, string>()
+  for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
+    const row = data[rowIndex]
+    for (let colIndex = 0; colIndex < visibleColumns.length; colIndex++) {
+      const value = readAuthoritativeRowCellValue(row, visibleColumns[colIndex]) ?? ''
+      signatures.set(remoteEchoKey(rowIndex, colIndex), toEchoSignature(value))
+    }
+  }
+  return signatures
+}
+
 function remoteEchoKey(row: number, col: number): string {
   return `${row}:${col}`
+}
+
+function pruneExpiredRecentMutationEntries(entries: Map<string, number>, now: number): void {
+  for (const [key, expiresAt] of entries.entries()) {
+    if (expiresAt <= now) {
+      entries.delete(key)
+    }
+  }
 }
 
 // Prioritizes the cellRef (A1 notation) for cursor position, falling back to raw row:/col: entries.
@@ -287,6 +379,28 @@ function parseCursorPath(path?: string[]): { row: number; col: number } | null {
   return { row, col }
 }
 
+function parseLegacySpreadsheetCursorPath(
+  path: string[] | undefined,
+  sheetId: string,
+  context: ConversionContext | null,
+  columns: SpreadsheetColumn[]
+): { row: number; col: number } | null {
+  if (!path || path.length < 3 || path[0] !== sheetId || !context) return null
+
+  const rowId = String(path[1] ?? '')
+  const columnId = String(path[2] ?? '')
+  if (!rowId || !columnId) return null
+
+  const row = context.rowIdToIndex.get(rowId)
+  if (row == null) return null
+
+  const visibleColumns = columns.filter(column => column.isVisible !== false)
+  const col = visibleColumns.findIndex(column => column.id === columnId || column.name === columnId)
+  if (col < 0) return null
+
+  return { row, col }
+}
+
 function parseA1Reference(cellRef: string): { row: number; col: number } | null {
   const normalized = cellRef.trim().toUpperCase()
   const singleCellMatch = /^([A-Z]+)(\d+)$/.exec(normalized)
@@ -301,12 +415,11 @@ function parseA1Reference(cellRef: string): { row: number; col: number } | null 
   return { row, col: col - 1 }
 }
 
-type SheetRangeShape = { startRow: number; endRow: number; startColumn: number; endColumn: number }
-type SheetCellMatrix = Record<number, Record<number, unknown>>
-type SheetCellBounds = { min: number; max: number }
-
-function normalizeCellMatrix(value: unknown): SheetCellMatrix | undefined {
-  return value && typeof value === 'object' ? (value as SheetCellMatrix) : undefined
+function buildChangedCellSignature(cells: Array<{ rowId: string; columnName: string; value: unknown }>): string {
+  return cells
+    .map(cell => `${cell.rowId}:${cell.columnName}:${toEchoSignature(cell.value)}`)
+    .sort()
+    .join('|')
 }
 
 export function isClearLikeMutationCommand(commandId: string): boolean {
@@ -330,36 +443,6 @@ function readWorksheetCellValue(
     (cellRange as { getValue?: () => unknown })?.getValue?.() ??
     (cellRange as { getCellData?: () => { v?: unknown } })?.getCellData?.()?.v
   )
-}
-
-function getNumericMatrixKeys(value: SheetCellMatrix): number[] {
-  return Object.keys(value)
-    .map(k => Number(k))
-    .filter(n => !Number.isNaN(n))
-}
-
-function getColumnKeysFromMatrix(value: SheetCellMatrix): number[] {
-  const colKeys: number[] = []
-  for (const rowKey of Object.keys(value)) {
-    const rowCells = value[Number(rowKey)]
-    if (!rowCells || typeof rowCells !== 'object') continue
-    colKeys.push(...getNumericMatrixKeys(rowCells as SheetCellMatrix))
-  }
-  return colKeys
-}
-
-function getBounds(values: number[]): SheetCellBounds {
-  if (values.length === 0) return { min: 0, max: 0 }
-  return {
-    min: Math.min(...values),
-    max: Math.max(...values)
-  }
-}
-
-function resolveAxisOffset(bounds: SheetCellBounds, rangeStart: number, rangeEnd: number): number {
-  const looksAbsolute = bounds.min >= rangeStart && bounds.max <= rangeEnd
-  const looksRelative = bounds.min >= 0 && bounds.max <= rangeEnd - rangeStart
-  return !looksAbsolute && looksRelative ? rangeStart : 0
 }
 
 export function deriveCellMatrixFromRanges(
@@ -397,21 +480,6 @@ export function deriveCellMatrixFromRanges(
     }
   }
   return Object.keys(derived).length > 0 ? derived : undefined
-}
-
-function resolveCellOffsets(
-  range: SheetRangeShape | undefined,
-  cellValue: SheetCellMatrix
-): { rowOffset: number; colOffset: number } {
-  if (!range) return { rowOffset: 0, colOffset: 0 }
-
-  const rowBounds = getBounds(getNumericMatrixKeys(cellValue))
-  const colBounds = getBounds(getColumnKeysFromMatrix(cellValue))
-
-  return {
-    rowOffset: resolveAxisOffset(rowBounds, range.startRow, range.endRow),
-    colOffset: resolveAxisOffset(colBounds, range.startColumn, range.endColumn)
-  }
 }
 
 function getNewRowIndices(cellValue: SheetCellMatrix, ctx: ConversionContext, rowOffset: number): number[] {
@@ -458,21 +526,32 @@ function buildNewRowsFromCellMatrix(params: {
  * data-array-index-based resolution wrote to the wrong row after row additions/deletions caused
  * the data array and Univer grid to drift out of sync.
  */
-function collectChangedCells(params: {
+/** Univer may emit `{ s: ... }` style-only cell payloads; those must not become row-model writes. */
+function isPersistableCellDataMutationValue(value: unknown): boolean {
+  if (value === undefined) return false
+  if (value === null) return true
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return true
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const o = value as Record<string, unknown>
+  return 'v' in o || 'f' in o || 'm' in o || 'ct' in o
+}
+
+/** Includes style-only `{ s }` mutations so collaboration can broadcast formatting without row persistence. */
+function isCollabWireCellMutationValue(value: unknown): boolean {
+  if (isPersistableCellDataMutationValue(value)) return true
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  return 's' in (value as object)
+}
+
+function collectCollabWireEntries(params: {
   cellValue: SheetCellMatrix
   ctx: ConversionContext
   rowOffset: number
   colOffset: number
   shouldSuppress?: (rowIndex: number, colIndex: number, value: unknown) => boolean
-}): Array<{ rowId: string; columnName: string; value: unknown; univerRow: number; univerCol: number }> {
+}): Array<{ rowId: string; columnName: string; univerRow: number; univerCol: number }> {
   const { cellValue, ctx, rowOffset, colOffset, shouldSuppress } = params
-  const changedCells: Array<{
-    rowId: string
-    columnName: string
-    value: unknown
-    univerRow: number
-    univerCol: number
-  }> = []
+  const out: Array<{ rowId: string; columnName: string; univerRow: number; univerCol: number }> = []
   for (const rowKey of Object.keys(cellValue)) {
     const rowIndex = Number(rowKey)
     if (Number.isNaN(rowIndex)) continue
@@ -489,11 +568,133 @@ function collectChangedCells(params: {
       const columnName = ctx.columnIndexToName.get(globalColIndex) ?? ctx.columnIndexToId.get(globalColIndex)
       if (columnName === undefined) continue
       const cell = rowCells[colIndex]
+      if (!isCollabWireCellMutationValue(cell)) continue
+      if (shouldSuppress?.(globalRowIndex, globalColIndex, cell) === true) continue
+      out.push({ rowId, columnName, univerRow: globalRowIndex, univerCol: globalColIndex })
+    }
+  }
+  return out
+}
+
+function extractWorkbookStylesFromSnapshot(snapshot: Record<string, unknown> | null): Record<string, unknown> {
+  if (!snapshot?.styles || typeof snapshot.styles !== 'object' || Array.isArray(snapshot.styles)) return {}
+  return snapshot.styles as Record<string, unknown>
+}
+
+function buildCollabCellsChangedPayload(params: {
+  sheetId: string
+  entries: Array<{ rowId: string; columnName: string; univerRow: number; univerCol: number }>
+  workbookSnapshot: Record<string, unknown> | null
+  facadeWorkbook: {
+    getActiveSheet?: () => {
+      getRange?: (row: number, col: number) => { getCellData?: () => unknown }
+    }
+  } | null
+}): CellsChangedCell[] {
+  const { entries, workbookSnapshot, facadeWorkbook } = params
+  const stylesMap = extractWorkbookStylesFromSnapshot(workbookSnapshot)
+  const fSheet = facadeWorkbook?.getActiveSheet?.()
+  if (!fSheet || typeof fSheet.getRange !== 'function') return []
+
+  const wire: CellsChangedCell[] = []
+  for (const entry of entries) {
+    let cellData: Record<string, unknown> | null = null
+    try {
+      const raw = fSheet.getRange(entry.univerRow, entry.univerCol)?.getCellData?.()
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        cellData = JSON.parse(JSON.stringify(raw)) as Record<string, unknown>
+      }
+    } catch {
+      cellData = null
+    }
+    if (!cellData || Object.keys(cellData).length === 0) continue
+
+    // Values are persisted via HTTP batch and rebroadcast authoritatively by the server
+    // (`batch_operations` → `set_cell`/`set_range`/`clear_cell`). This channel is now
+    // style-only: strip value keys so we never conflict with the authoritative value path.
+    for (const k of UNIVER_CELL_VALUE_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(cellData, k)) {
+        delete (cellData as Record<string, unknown>)[k]
+      }
+    }
+    if (Object.keys(cellData).length === 0) continue
+
+    const styleKey = typeof cellData.s === 'string' && cellData.s.length > 0 ? cellData.s : null
+    const styleDef = styleKey ? stylesMap[styleKey] : undefined
+    const univerStyles =
+      styleKey && styleDef && typeof styleDef === 'object' ? { [styleKey]: styleDef as unknown } : undefined
+
+    const trimmedRef = toA1Reference(entry.univerRow, entry.univerCol).trim()
+    const base: CellsChangedCell = {
+      rowId: entry.rowId,
+      column: entry.columnName,
+      cellRef: trimmedRef || undefined,
+      univerCell: cellData,
+      ...(univerStyles ? { univerStyles: univerStyles as Record<string, unknown> } : {})
+    }
+
+    wire.push(base)
+  }
+
+  return wire
+}
+
+function buildCollabWireSignature(
+  entries: Array<{ rowId: string; columnName: string; univerRow: number; univerCol: number }>,
+  cellValue: SheetCellMatrix
+): string {
+  // IMPORTANT: include the actual cell payload (style/value signature) so rapid successive
+  // style changes on the same cell (e.g. bold then italic within the 1500ms dedup window)
+  // don't collapse to a single signature and suppress the second emit. Without this, only
+  // the first change would broadcast and peer tabs would miss subsequent updates.
+  return entries
+    .map(e => {
+      const cell = cellValue?.[e.univerRow]?.[e.univerCol]
+      const contentSig = normalizeBlankLikeEchoSignature(toEchoSignature(cell))
+      return `${e.rowId}\t${e.columnName}\t${e.univerRow}\t${e.univerCol}\t${contentSig}`
+    })
+    .join('|')
+}
+
+function collectChangedCells(params: {
+  cellValue: SheetCellMatrix
+  ctx: ConversionContext
+  rowOffset: number
+  colOffset: number
+  shouldSuppress?: (rowIndex: number, colIndex: number, value: unknown) => boolean
+}): Array<{ rowId: string; columnName: string; value: unknown; univerRow: number; univerCol: number }> {
+  const { cellValue, ctx, rowOffset, colOffset, shouldSuppress } = params
+  const changedCells: Array<{
+    rowId: string
+    columnName: string
+    value: unknown
+    univerRow: number
+    univerCol: number
+  }> = []
+  const normalizeChangedCellValue = (value: unknown): unknown =>
+    value === undefined ? undefined : normalizeValueForEchoSignature(value)
+  for (const rowKey of Object.keys(cellValue)) {
+    const rowIndex = Number(rowKey)
+    if (Number.isNaN(rowIndex)) continue
+    const rowCells = cellValue[rowIndex]
+    if (!rowCells || typeof rowCells !== 'object') continue
+    const globalRowIndex = rowIndex + rowOffset
+    const rowId = ctx.rowIndexToId.get(globalRowIndex)
+    if (rowId === undefined) continue
+
+    for (const colKey of Object.keys(rowCells)) {
+      const colIndex = Number(colKey)
+      if (Number.isNaN(colIndex)) continue
+      const globalColIndex = colIndex + colOffset
+      const columnName = ctx.columnIndexToName.get(globalColIndex) ?? ctx.columnIndexToId.get(globalColIndex)
+      if (columnName === undefined) continue
+      const cell = rowCells[colIndex]
+      if (!isPersistableCellDataMutationValue(cell)) continue
       if (shouldSuppress?.(globalRowIndex, globalColIndex, cell) === true) continue
       changedCells.push({
         rowId,
         columnName,
-        value: cell ?? { v: '' },
+        value: normalizeChangedCellValue(cell),
         univerRow: globalRowIndex,
         univerCol: globalColIndex
       })
@@ -502,11 +703,16 @@ function collectChangedCells(params: {
   return changedCells
 }
 
+export type WorkbookSnapshotLifecycleEvent =
+  | { phase: 'checkpoint_scheduled' }
+  | { phase: 'checkpoint_settled'; ok: boolean }
+
 export interface UniverSheetGridProps {
   sheet: SpreadsheetSheet
   data: Record<string, unknown>[]
   initialSnapshot?: Record<string, unknown> | null
   snapshotSeed?: string
+  authoritativeDataSyncToken?: number
   workbookRemountKey?: string
   multiSheetWorkbookMode?: boolean
   onActiveWorksheetChange?: (sheetId: string, sheetName: string) => void
@@ -515,6 +721,8 @@ export interface UniverSheetGridProps {
   onCellChange: (rowId: string, columnId: string, value: unknown) => void
   onCellsChange?: (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => void
   onSnapshotRequested?: () => Promise<void> | void
+  /** Fires when a throttled Univer workbook snapshot is scheduled or when the snapshot request finishes (success or failure). */
+  onWorkbookSnapshotLifecycle?: (event: WorkbookSnapshotLifecycleEvent) => void
   onDataChange: (data: Record<string, unknown>[]) => void
   onOpenCommentRequest?: () => void
   commentedCells?: Array<{
@@ -549,6 +757,10 @@ export interface CellDimensionsPayload {
 /** When set from live collab with a sender `cellRef`, row index must not be replaced by `rowIdToIndex`. */
 export type ApplyRemoteCellUpdateOptions = {
   useSenderA1Row?: boolean
+  /** Full Univer cell payload (preferred over scalar `value` when present). */
+  univerCell?: Record<string, unknown> | null
+  /** Style definitions to register before applying a cell that references them by id. */
+  univerStyles?: Record<string, unknown> | null
 }
 
 export interface UniverSheetGridHandle {
@@ -559,10 +771,12 @@ export interface UniverSheetGridHandle {
     rowId?: string,
     options?: ApplyRemoteCellUpdateOptions
   ) => void
+  forceAuthoritativeReapply: () => void
   getWorkbookSnapshot: () => Record<string, unknown> | null
   getVisibleRangeValues: (rowCount: number, colCount: number) => Record<number, Record<number, unknown>> | null
   applyRemoteDimensions: (payload: CellDimensionsPayload) => void
   getActiveCellReference: () => string | null
+  requestSnapshotCheckpoint: (force?: boolean) => void
 }
 
 function toA1Reference(row: number, col: number): string {
@@ -714,49 +928,6 @@ function extractActiveRangePosition(workbook: unknown): { row: number; col: numb
   const col = rangeRecord.getColumn?.() ?? nestedRange?.startColumn ?? rangeRecord.startColumn ?? rangeRecord.column
   if (typeof row !== 'number' || typeof col !== 'number') return null
   return { row, col }
-}
-
-function extractSelectionFromEvent(event: unknown): { row: number; col: number } | null {
-  const eventRecord = (event ?? {}) as {
-    selections?: Array<{
-      range?: { startRow?: number; startColumn?: number; row?: number; column?: number }
-      primary?: { actualRow?: number; actualColumn?: number; startRow?: number; startColumn?: number }
-    }>
-    range?: {
-      startRow?: number
-      startColumn?: number
-      row?: number
-      column?: number
-      actualRow?: number
-      actualColumn?: number
-    }
-    params?: {
-      selections?: Array<{
-        range?: { startRow?: number; startColumn?: number; row?: number; column?: number }
-        primary?: { actualRow?: number; actualColumn?: number; startRow?: number; startColumn?: number }
-      }>
-      range?: {
-        startRow?: number
-        startColumn?: number
-        row?: number
-        column?: number
-        actualRow?: number
-        actualColumn?: number
-      }
-    }
-    primary?: { actualRow?: number; actualColumn?: number; startRow?: number; startColumn?: number }
-  }
-  const selection =
-    eventRecord.selections?.[0]?.range ??
-    eventRecord.range ??
-    eventRecord.params?.selections?.[0]?.range ??
-    eventRecord.params?.range
-  const primary =
-    eventRecord.selections?.[0]?.primary ?? eventRecord.primary ?? eventRecord.params?.selections?.[0]?.primary
-  const startRow = primary?.actualRow ?? primary?.startRow ?? selection?.startRow ?? selection?.row
-  const startColumn = primary?.actualColumn ?? primary?.startColumn ?? selection?.startColumn ?? selection?.column
-  if (typeof startRow !== 'number' || typeof startColumn !== 'number') return null
-  return { row: startRow, col: startColumn }
 }
 
 function areCursorRectsEqual(
@@ -1012,11 +1183,10 @@ function scheduleContextMenuInjectionPoll(run: () => void): void {
  * Returns false if skipped or failed (caller may retry after Univer injector is ready).
  */
 function applyGermanNumfmtLocale(workbook: unknown, opts?: { silent?: boolean }): boolean {
-  const setNumfmtLocal = (workbook as { setNumfmtLocal?: (locale: string) => unknown } | null | undefined)
-    ?.setNumfmtLocal
-  if (typeof setNumfmtLocal !== 'function') return false
+  const workbookWithNumfmt = (workbook as { setNumfmtLocal?: (locale: string) => unknown } | null | undefined) ?? null
+  if (typeof workbookWithNumfmt?.setNumfmtLocal !== 'function') return false
   try {
-    setNumfmtLocal.call(workbook, GERMAN_NUMFMT_LOCALE)
+    workbookWithNumfmt.setNumfmtLocal.call(workbook, GERMAN_NUMFMT_LOCALE)
     return true
   } catch (error) {
     if (!opts?.silent) {
@@ -1238,6 +1408,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const [gridHostEl, setGridHostEl] = useState<HTMLDivElement | null>(null)
     // If a persisted snapshot initializes to a blank sheet (no canvas), retry once with a row-built snapshot.
     const [forceRowSnapshotSeed, setForceRowSnapshotSeed] = useState(0)
+    const [authoritativeReapplySeed, setAuthoritativeReapplySeed] = useState(0)
     const setGridHostRef = useCallback((node: HTMLDivElement | null) => {
       containerRef.current = node
       setGridHostEl(node)
@@ -1271,22 +1442,49 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const isApplyingRemoteUpdateRef = useRef(false)
     const isDirtyRef = useRef(false)
     const hasEditedRef = useRef(false)
+    const lastCellValueMutationAtRef = useRef(0)
     const snapshotRequestInFlightRef = useRef<Promise<void> | null>(null)
-    const snapshotRequestQueuedCountRef = useRef<number>(0)
+    const snapshotRequestQueuedRef = useRef(false)
     const snapshotCheckpointTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const snapshotCheckpointScheduledAtRef = useRef<number | null>(null)
+    const snapshotFirstDirtyAtRef = useRef<number | null>(null)
+    const snapshotLastRequestedAtRef = useRef<number>(0)
     const requestSnapshotCheckpointRef = useRef<((force?: boolean) => void) | null>(null)
     const scheduleSnapshotCheckpointRef = useRef<((delayMs?: number) => void) | null>(null)
+    const lastSyncedGridCellSignaturesRef = useRef<Map<string, string>>(new Map())
+    const lastSyncedGridRowCountRef = useRef(0)
+    const lastSyncedGridColumnCountRef = useRef(0)
+    const lastProcessedAuthoritativeDataSyncTokenRef = useRef<number>(props.authoritativeDataSyncToken ?? 0)
+    const lastProcessedAuthoritativeReapplySeedRef = useRef(0)
     const newRowClientIdByIndexRef = useRef<Map<number, string>>(new Map())
+    const recentLocalMutationSignaturesRef = useRef<Map<string, number>>(new Map())
+    const recentLocallyMutatedGridCellsRef = useRef<Map<string, number>>(new Map())
     const activeSelectionRef = useRef<{ row: number; col: number } | null>(null)
     const contextRef = useRef<ReturnType<typeof createUniverConversionContext> | null>(null)
-    const propsRef = useRef({ sheet, data, columns, initialSnapshot })
-    propsRef.current = { sheet, data, columns, initialSnapshot }
+    const propsRef = useRef({
+      sheet,
+      data,
+      columns,
+      initialSnapshot,
+      collaborationEnabled: props.collaborationEnabled ?? false,
+      onOperationEmit: props.onOperationEmit
+    })
+    propsRef.current = {
+      sheet,
+      data,
+      columns,
+      initialSnapshot,
+      collaborationEnabled: props.collaborationEnabled ?? false,
+      onOperationEmit: props.onOperationEmit
+    }
     const callbacksRef = useRef({
       onCellChange,
       onCellsChange,
       onSnapshotRequested,
+      onWorkbookSnapshotLifecycle: props.onWorkbookSnapshotLifecycle,
       onDataChange,
       onCursorEmit,
+      onOperationEmit: props.onOperationEmit,
       onDimensionsChange: props.onDimensionsChange,
       onOpenCommentRequest: props.onOpenCommentRequest,
       onActiveWorksheetChange: props.onActiveWorksheetChange
@@ -1295,8 +1493,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       onCellChange,
       onCellsChange,
       onSnapshotRequested,
+      onWorkbookSnapshotLifecycle: props.onWorkbookSnapshotLifecycle,
       onDataChange,
       onCursorEmit,
+      onOperationEmit: props.onOperationEmit,
       onDimensionsChange: props.onDimensionsChange,
       onOpenCommentRequest: props.onOpenCommentRequest,
       onActiveWorksheetChange: props.onActiveWorksheetChange
@@ -1304,6 +1504,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const readOnlyRef = useRef(props.isReadOnly)
     readOnlyRef.current = props.isReadOnly
     const lastEmittedCursorPathRef = useRef<string>('')
+    const pendingInitialCursorPathRef = useRef<string>('')
     const lastEmittedWorksheetIdRef = useRef<string>('')
     // Caches actual column widths and row heights read from the workbook snapshot so that
     // cursor overlays match the real rendered cell dimensions (not hardcoded constants).
@@ -1329,14 +1530,17 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       Record<string, { top: number; left: number; width: number; height: number }>
     >({})
     const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null)
+    const legacyCursorContext = useMemo(() => createUniverConversionContext(columns, data), [columns, data])
     const remoteCursorOverlays = useMemo(
       () =>
         (props.participants ?? [])
           .map(participant => {
-            const parsed = parseCursorPath(participant.cursor?.path)
+            const parsed =
+              parseCursorPath(participant.cursor?.path) ||
+              parseLegacySpreadsheetCursorPath(participant.cursor?.path, sheet.id, legacyCursorContext, columns)
             if (!parsed) return null
             return {
-              id: `${participant.userId}-${parsed.row}-${parsed.col}`,
+              id: `${participant.socketId || participant.userId}`,
               userName: participant.userName || 'User',
               userColor: participant.userColor || '#4ECDC4',
               row: parsed.row,
@@ -1346,8 +1550,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           .filter(
             (entry): entry is { id: string; userName: string; userColor: string; row: number; col: number } => !!entry
           ),
-      [props.participants]
+      [columns, legacyCursorContext, props.participants, sheet.id]
     )
+
+    useEffect(() => {
+      if (props.collaborationEnabled) {
+        lastEmittedCursorPathRef.current = ''
+        pendingInitialCursorPathRef.current = ''
+      }
+    }, [props.collaborationEnabled, sheet.id, props.snapshotSeed])
     const supportedUniverFonts = useMemo(() => getSupportedUniverFonts(), [])
     const commentOverlays = useMemo(
       () =>
@@ -1643,7 +1854,21 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
             const expiresAt = Date.now() + REMOTE_ECHO_SUPPRESSION_TTL_MS
             const key = remoteEchoKey(resolvedRow, colIndex)
-            remoteEchoSuppressionRef.current.set(key, { expiresAt, signature: toEchoSignature(value) })
+            const echoSource =
+              options?.univerCell && typeof options.univerCell === 'object' ? options.univerCell : value
+            const signatureCandidates = new Set<string>()
+            signatureCandidates.add(normalizeBlankLikeEchoSignature(toEchoSignature(echoSource)))
+            // Authoritative clears (`clear_cell` / blank value over `batch_operations`) surface as
+            // blank-like cell-change events after apply, so add the 'blank' candidate for them.
+            // Style-only `cells_changed` payloads no longer need this — we merge style without
+            // touching `v`/`f`/`m`, so no blank-like event is generated on the receiver.
+            if (value === null || value === undefined || value === '') {
+              signatureCandidates.add('blank')
+            }
+            remoteEchoSuppressionRef.current.set(key, {
+              expiresAt,
+              signatures: signatureCandidates
+            })
             globalThis.setTimeout(() => {
               const current = remoteEchoSuppressionRef.current.get(key)
               if (current?.expiresAt === expiresAt) {
@@ -1708,7 +1933,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             // under fast remote bursts (same refs applied, withA1Applied=1, but UI missing a value).
             const rowForApply = resolvedRow
             const colForApply = colIndex
-            const valueForApply = value
             debugRemoteApply('queue_setValue_microtask', {
               row0: rowForApply,
               col0: colForApply,
@@ -1753,7 +1977,92 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                   col0: colForApply,
                   a1: toA1Reference(rowForApply, colForApply)
                 })
-                rQ.setValue(valueForApply as any)
+                const optStyles = options?.univerStyles
+                if (optStyles && typeof optStyles === 'object') {
+                  const keys = Object.keys(optStyles)
+                  if (keys.length > 0) {
+                    const fw = wbQ as { addStyles?: (s: Record<string, unknown>) => void }
+                    try {
+                      fw.addStyles?.(optStyles)
+                    } catch (styleErr) {
+                      console.warn('[UniverSheetGrid] addStyles (remote collab) failed:', styleErr)
+                    }
+                  }
+                }
+                const rich = options?.univerCell
+                if (rich && typeof rich === 'object' && Object.keys(rich).length > 0) {
+                  const richObj = rich as Record<string, unknown>
+                  if (!richCellPayloadHasValue(richObj)) {
+                    // Style-only payload: merge style into the existing cell and keep the value.
+                    // Value changes (including deletes) now arrive exclusively via the server's
+                    // authoritative `batch_operations` broadcast (`set_cell`/`clear_cell`), so
+                    // `cells_changed` must never affect `v`/`f`/`m` on the receiver.
+                    try {
+                      const current = (rQ.getCellData?.() as Record<string, unknown> | null | undefined) ?? {}
+                      const merged = { ...current, ...richObj }
+                      // Univer's post-apply cell-change reports the merged cell (including the
+                      // preserved `v`/`f`/`m`). The initial suppression entry only covers the rich
+                      // payload signature — without adding the merged-cell signature, our local
+                      // change-detection here would MISS the match and persist the stale value via
+                      // HTTP batch, which the server would then broadcast back → the sender would
+                      // see its delete "come back". Augment before firing setValue.
+                      const echoEntry = remoteEchoSuppressionRef.current.get(key)
+                      if (echoEntry && Date.now() <= echoEntry.expiresAt) {
+                        const next = new Set(echoEntry.signatures)
+                        next.add(normalizeBlankLikeEchoSignature(toEchoSignature(merged)))
+                        for (const k of UNIVER_CELL_VALUE_KEYS) {
+                          if (Object.prototype.hasOwnProperty.call(current, k)) {
+                            next.add(
+                              normalizeBlankLikeEchoSignature(toEchoSignature((current as Record<string, unknown>)[k]))
+                            )
+                          }
+                        }
+                        remoteEchoSuppressionRef.current.set(key, { ...echoEntry, signatures: next })
+                      }
+                      rQ.setValue(merged as any)
+                    } catch {
+                      rQ.setValue(richObj as any)
+                    }
+                  } else {
+                    rQ.setValue(richObj as any)
+                  }
+                } else {
+                  const scalar = normalizeValueForGridWrite(value)
+                  try {
+                    const current = rQ.getCellData?.() as Record<string, unknown> | null | undefined
+                    const keepStyle = current && typeof current === 'object' && 's' in current && current.s != null
+                    if (keepStyle) {
+                      // IMPORTANT: Univer's `SetRangeValuesMutation` merges the payload with
+                      // the existing cell — a MISSING key is left untouched, only an EXPLICIT
+                      // `null` clears the key. Therefore to clear `v`/`f`/`m` while keeping the
+                      // style, we must pass `null` values (matching Univer's own clear command
+                      // which emits `{v:null, p:null, f:null, si:null, custom:null}`).
+                      const merged: Record<string, unknown> = { ...current }
+                      if (typeof scalar === 'string' && scalar.startsWith('=')) {
+                        merged.f = scalar
+                        merged.v = null
+                        merged.p = null
+                        merged.si = null
+                      } else if (scalar === '' || scalar == null) {
+                        merged.v = null
+                        merged.f = null
+                        merged.p = null
+                        merged.si = null
+                        merged.custom = null
+                      } else {
+                        merged.v = scalar as unknown
+                        merged.f = null
+                        merged.p = null
+                        merged.si = null
+                      }
+                      rQ.setValue(merged as any)
+                    } else {
+                      rQ.setValue(scalar as any)
+                    }
+                  } catch {
+                    rQ.setValue(scalar as any)
+                  }
+                }
                 debugRemoteApply('setValue_done', {
                   row0: rowForApply,
                   col0: colForApply,
@@ -1816,6 +2125,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
     }, [])
 
+    const getWorkbookSnapshotRef = useRef(getWorkbookSnapshot)
+    getWorkbookSnapshotRef.current = getWorkbookSnapshot
+
     const applyRemoteDimensions = useCallback(
       (payload: CellDimensionsPayload) => {
         if (payload.sheetId !== sheet.id) return
@@ -1834,6 +2146,22 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           columnHeaderHeight: payload.columnHeaderHeight,
           zoomRatio: localZoom
         }
+        const currentRowData = cellDimensionsRef.current?.rowData ?? {}
+        const nextDimensions = {
+          defaultColWidth: payload.defaultColWidth,
+          defaultRowHeight: payload.defaultRowHeight,
+          // Column widths are synchronized through durable column metadata. Applying
+          // snapshot-derived columnData here can reintroduce an older width after a newer resize.
+          columnData: currentColumnData,
+          rowData: payload.rowData ?? {},
+          rowHeaderWidth: payload.rowHeaderWidth,
+          columnHeaderHeight: payload.columnHeaderHeight,
+          zoomRatio: localZoom
+        }
+        if (areSnapshotDimensionsEqual(cellDimensionsRef.current, nextDimensions)) {
+          return
+        }
+        cellDimensionsRef.current = nextDimensions
         const api = univerAPIRef.current
         const worksheet = api?.getActiveWorkbook?.()?.getActiveSheet?.()
         if (
@@ -1846,7 +2174,14 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
           Object.entries(payload.rowData ?? {}).forEach(([rowStr, meta]) => {
             const h = meta?.h
-            if (typeof h === 'number' && h > 0) ws.setRowHeight(Number(rowStr), h)
+            const currentHeight =
+              typeof currentRowData[rowStr]?.h === 'number' && Number.isFinite(currentRowData[rowStr]?.h)
+                ? Math.round(currentRowData[rowStr].h as number)
+                : null
+            const nextHeight = typeof h === 'number' && Number.isFinite(h) ? Math.round(h) : null
+            if (nextHeight != null && nextHeight > 0 && currentHeight !== nextHeight) {
+              ws.setRowHeight(Number(rowStr), h)
+            }
           })
         }
         refreshCursorRectsRef.current?.()
@@ -2139,19 +2474,68 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       ref,
       () => ({
         applyRemoteCellUpdate,
+        forceAuthoritativeReapply: () => {
+          lastSyncedGridCellSignaturesRef.current = new Map()
+          setAuthoritativeReapplySeed(prev => prev + 1)
+        },
         getWorkbookSnapshot,
         getVisibleRangeValues,
         applyRemoteDimensions,
-        getActiveCellReference
+        getActiveCellReference,
+        requestSnapshotCheckpoint: (force = false) => {
+          requestSnapshotCheckpointRef.current?.(force)
+        }
       }),
       [applyRemoteCellUpdate, getWorkbookSnapshot, getVisibleRangeValues, applyRemoteDimensions, getActiveCellReference]
     )
+
+    const flushQueuedSnapshotRequest = useCallback(() => {
+      if (!snapshotRequestQueuedRef.current) return
+      snapshotRequestQueuedRef.current = false
+      if (!isDirtyRef.current) return
+      requestSnapshotCheckpointRef.current?.(true)
+    }, [])
 
     // Keep conversion context in sync when data/columns change (e.g. after save) so value-change handler maps indices correctly.
     useEffect(() => {
       if (!univerAPIRef.current) return
       contextRef.current = createUniverConversionContext(columns, data)
     }, [data, columns])
+
+    useEffect(() => {
+      const api = univerAPIRef.current
+      if (!api) return
+      const nextToken = props.authoritativeDataSyncToken ?? 0
+      const shouldSyncWorkbook =
+        nextToken !== lastProcessedAuthoritativeDataSyncTokenRef.current ||
+        authoritativeReapplySeed !== lastProcessedAuthoritativeReapplySeedRef.current
+      if (!shouldSyncWorkbook) return
+      const visibleColumns = columns.filter(column => column.isVisible !== false)
+      const previousSignatures = lastSyncedGridCellSignaturesRef.current
+      const nextSignatures = new Map<string, string>()
+      const previousRowCount = lastSyncedGridRowCountRef.current
+      const previousColumnCount = lastSyncedGridColumnCountRef.current
+      const maxRowCount = Math.max(previousRowCount, data.length)
+      const maxColumnCount = Math.max(previousColumnCount, visibleColumns.length)
+      for (let rowIndex = 0; rowIndex < maxRowCount; rowIndex++) {
+        const row = data[rowIndex]
+        for (let colIndex = 0; colIndex < maxColumnCount; colIndex++) {
+          const column = visibleColumns[colIndex]
+          const key = remoteEchoKey(rowIndex, colIndex)
+          const nextValue = row && column ? (readAuthoritativeRowCellValue(row, column) ?? '') : ''
+          const nextSignature = toEchoSignature(nextValue)
+          nextSignatures.set(key, nextSignature)
+          if (previousSignatures.get(key) === nextSignature) continue
+          applyRemoteCellUpdate(rowIndex, colIndex, nextValue)
+        }
+      }
+
+      lastSyncedGridCellSignaturesRef.current = nextSignatures
+      lastSyncedGridRowCountRef.current = data.length
+      lastSyncedGridColumnCountRef.current = visibleColumns.length
+      lastProcessedAuthoritativeDataSyncTokenRef.current = nextToken
+      lastProcessedAuthoritativeReapplySeedRef.current = authoritativeReapplySeed
+    }, [applyRemoteCellUpdate, authoritativeReapplySeed, columns, data, props.authoritativeDataSyncToken])
 
     useEffect(() => {
       const api = univerAPIRef.current
@@ -2166,12 +2550,23 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const ws = worksheet as { setColumnWidth: (col: number, w: number) => unknown }
       const nextColumnData = { ...(cellDimensionsRef.current?.columnData ?? {}) }
       const visibleColumns = columns.filter(column => column.isVisible !== false)
+      let hasMaterialWidthChange = false
       visibleColumns.forEach((column, index) => {
         if (typeof column.width === 'number' && Number.isFinite(column.width) && column.width > 0) {
+          const currentWidth =
+            typeof nextColumnData[index]?.w === 'number' && Number.isFinite(nextColumnData[index]?.w)
+              ? Math.round(nextColumnData[index].w as number)
+              : null
+          const nextWidth = Math.round(column.width)
+          if (currentWidth === nextWidth) return
+          hasMaterialWidthChange = true
           ws.setColumnWidth(index, column.width)
           nextColumnData[index] = { ...(nextColumnData[index] ?? {}), w: column.width }
         }
       })
+      if (!hasMaterialWidthChange) {
+        return
+      }
       cellDimensionsRef.current = cellDimensionsRef.current
         ? { ...cellDimensionsRef.current, columnData: nextColumnData }
         : {
@@ -2187,12 +2582,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
     // Fallback interval: separate from Univer lifecycle so it keeps running even if the Univer effect re-runs.
     useEffect(() => {
-      const FALLBACK_INTERVAL_MS = 10000
+      const FALLBACK_INTERVAL_MS = 60000
       const id = setInterval(() => {
-        if (!hasEditedRef.current) return
+        if (!isDirtyRef.current) return
         const req = requestSnapshotCheckpointRef.current
         if (!req || snapshotRequestInFlightRef.current) return
-        req(true)
+        req()
       }, FALLBACK_INTERVAL_MS)
       return () => clearInterval(id)
     }, [])
@@ -2205,8 +2600,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (document.visibilityState !== 'visible') return
         if (readOnlyRef.current) return
         const schedule = scheduleSnapshotCheckpointRef.current
-        if (!schedule || !hasEditedRef.current) return
-        schedule(0)
+        if (!schedule || !isDirtyRef.current) return
+        schedule(5000)
       }
       document.addEventListener('visibilitychange', onVisibilityChange)
       return () => document.removeEventListener('visibilitychange', onVisibilityChange)
@@ -2237,6 +2632,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         return
       }
       contextRef.current = createUniverConversionContext(c, d)
+      lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(d, c)
+      lastSyncedGridRowCountRef.current = d.length
+      lastSyncedGridColumnCountRef.current = c.filter(column => column.isVisible !== false).length
+      lastProcessedAuthoritativeDataSyncTokenRef.current = props.authoritativeDataSyncToken ?? 0
 
       const univerLocaleData =
         appLocale === 'de-DE'
@@ -2275,6 +2674,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         univerAPI.dispose()
         univerAPIRef.current = null
         contextRef.current = null
+        lastSyncedGridCellSignaturesRef.current = new Map()
+        lastSyncedGridRowCountRef.current = 0
+        lastSyncedGridColumnCountRef.current = 0
+        lastProcessedAuthoritativeDataSyncTokenRef.current = props.authoritativeDataSyncToken ?? 0
         return
       }
 
@@ -2344,60 +2747,93 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       setTimeout(updateCellDimensions, 200)
 
       const SNAPSHOT_TIMEOUT_MS = 10000
+      /** Shorter throttle so formatting-heavy sessions hit the server before users close the tab. */
+      const AUTO_SNAPSHOT_THROTTLE_MS = 2000
+      const AUTO_SNAPSHOT_MAX_WAIT_MS = 12000
       const requestSnapshotCheckpoint = (force = false) => {
         const onSnapshotRequestedCb = callbacksRef.current.onSnapshotRequested
         if (!onSnapshotRequestedCb) return
         if (!force && !isDirtyRef.current) return
         if (snapshotRequestInFlightRef.current) {
-          snapshotRequestQueuedCountRef.current += 1
+          snapshotRequestQueuedRef.current = true
           return
         }
+        if (snapshotCheckpointTimerRef.current) {
+          clearTimeout(snapshotCheckpointTimerRef.current)
+          snapshotCheckpointTimerRef.current = null
+        }
+        snapshotCheckpointScheduledAtRef.current = null
         try {
+          callbacksRef.current.onWorkbookSnapshotLifecycle?.({ phase: 'checkpoint_scheduled' })
+          snapshotLastRequestedAtRef.current = Date.now()
           const result = onSnapshotRequestedCb()
           const promise = Promise.resolve(result) as Promise<void>
           snapshotRequestInFlightRef.current = promise
           const timeoutId = setTimeout(() => {
             if (snapshotRequestInFlightRef.current === promise) {
               snapshotRequestInFlightRef.current = null
-              if (snapshotRequestQueuedCountRef.current > 0) {
-                snapshotRequestQueuedCountRef.current -= 1
-                requestSnapshotCheckpoint(true)
-              }
+              flushQueuedSnapshotRequest()
             }
           }, SNAPSHOT_TIMEOUT_MS)
           void promise
             .then(() => {
               isDirtyRef.current = false
+              hasEditedRef.current = false
+              snapshotFirstDirtyAtRef.current = null
+              callbacksRef.current.onWorkbookSnapshotLifecycle?.({ phase: 'checkpoint_settled', ok: true })
             })
             .catch(() => {
+              callbacksRef.current.onWorkbookSnapshotLifecycle?.({ phase: 'checkpoint_settled', ok: false })
               // Keep dirty; we'll retry on the next trigger.
+              scheduleSnapshotCheckpoint(AUTO_SNAPSHOT_THROTTLE_MS)
             })
             .finally(() => {
               clearTimeout(timeoutId)
               snapshotRequestInFlightRef.current = null
-              if (snapshotRequestQueuedCountRef.current > 0) {
-                snapshotRequestQueuedCountRef.current -= 1
-                requestSnapshotCheckpoint(true)
-              }
+              flushQueuedSnapshotRequest()
             })
         } catch {
           // Keep dirty
-          if (snapshotRequestQueuedCountRef.current > 0) {
-            snapshotRequestQueuedCountRef.current -= 1
-            requestSnapshotCheckpoint(true)
-          }
+          callbacksRef.current.onWorkbookSnapshotLifecycle?.({ phase: 'checkpoint_settled', ok: false })
+          scheduleSnapshotCheckpoint(AUTO_SNAPSHOT_THROTTLE_MS)
+          flushQueuedSnapshotRequest()
         }
       }
-      // 2000ms gives the cell-flush debounce (400ms) + API round-trip time to finish
-      // before we snapshot, so the saved snapshot always reflects a persisted version.
-      const scheduleSnapshotCheckpoint = (delayMs = 2000) => {
+      // Pace frontend snapshot saves, but guarantee they are emitted within a bounded
+      // window while the workbook stays dirty.
+      const scheduleSnapshotCheckpoint = (preferredDelayMs = AUTO_SNAPSHOT_THROTTLE_MS) => {
+        const onSnapshotRequestedCb = callbacksRef.current.onSnapshotRequested
+        if (!onSnapshotRequestedCb || !isDirtyRef.current) return
+
+        const now = Date.now()
+        if (snapshotFirstDirtyAtRef.current == null) {
+          snapshotFirstDirtyAtRef.current = now
+        }
+        const earliestAllowedAt = snapshotLastRequestedAtRef.current + AUTO_SNAPSHOT_THROTTLE_MS
+        const preferredAt = now + Math.max(0, preferredDelayMs)
+        const maxWaitAt = snapshotFirstDirtyAtRef.current + AUTO_SNAPSHOT_MAX_WAIT_MS
+        const dueAt = Math.min(maxWaitAt, Math.max(earliestAllowedAt, preferredAt))
+
+        if (
+          snapshotCheckpointTimerRef.current &&
+          snapshotCheckpointScheduledAtRef.current != null &&
+          snapshotCheckpointScheduledAtRef.current <= dueAt
+        ) {
+          return
+        }
         if (snapshotCheckpointTimerRef.current) {
           clearTimeout(snapshotCheckpointTimerRef.current)
         }
-        snapshotCheckpointTimerRef.current = setTimeout(() => {
-          snapshotCheckpointTimerRef.current = null
-          requestSnapshotCheckpoint(true)
-        }, delayMs)
+        snapshotCheckpointScheduledAtRef.current = dueAt
+        snapshotCheckpointTimerRef.current = setTimeout(
+          () => {
+            snapshotCheckpointTimerRef.current = null
+            snapshotCheckpointScheduledAtRef.current = null
+            requestSnapshotCheckpoint(true)
+          },
+          Math.max(0, dueAt - Date.now())
+        )
+        callbacksRef.current.onWorkbookSnapshotLifecycle?.({ phase: 'checkpoint_scheduled' })
       }
       requestSnapshotCheckpointRef.current = requestSnapshotCheckpoint
       scheduleSnapshotCheckpointRef.current = scheduleSnapshotCheckpoint
@@ -2405,6 +2841,254 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         isDirtyRef.current = true
         hasEditedRef.current = true
         scheduleSnapshotCheckpoint()
+      }
+      const handleDetectedCellMutation = ({
+        source,
+        payloadCellValue,
+        ranges
+      }: {
+        source: 'sheet-value-changed' | 'command-executed' | 'selection-reconcile' | 'sheet-edit-ended'
+        payloadCellValue: SheetCellMatrix | undefined
+        ranges: SheetRangeShape[]
+      }): boolean => {
+        const workbook = univerAPIRef.current?.getActiveWorkbook()
+        const worksheet = workbook?.getActiveSheet()
+        // Prefer reading the post-mutation value directly from the worksheet. Some
+        // mutation payloads can still carry the previous cell value, which causes live
+        // collaboration to briefly show stale data until the later authoritative
+        // persistence broadcast arrives.
+        const worksheetCellValue = deriveCellMatrixFromRanges(worksheet, ranges)
+        const cellValue = buildAbsoluteCellMatrixForRanges(ranges, worksheetCellValue, payloadCellValue)
+        if (!cellValue) {
+          return false
+        }
+
+        const rowOffset = 0
+        const colOffset = 0
+        const now = Date.now()
+        pruneExpiredRecentMutationEntries(recentLocallyMutatedGridCellsRef.current, now)
+        const shouldSuppress = (globalRowIndex: number, globalColIndex: number, value: unknown): boolean => {
+          const key = remoteEchoKey(globalRowIndex, globalColIndex)
+          const entry = remoteEchoSuppressionRef.current.get(key)
+          if (!entry) return false
+          if (now > entry.expiresAt) {
+            remoteEchoSuppressionRef.current.delete(key)
+            return false
+          }
+          return entry.signatures.has(normalizeBlankLikeEchoSignature(toEchoSignature(value)))
+        }
+
+        let hasNonSuppressedCell = false
+        for (const rowKey of Object.keys(cellValue)) {
+          const rowIndex = Number(rowKey)
+          if (Number.isNaN(rowIndex)) continue
+          const rowCells = cellValue[rowIndex]
+          if (!rowCells || typeof rowCells !== 'object') continue
+          const globalRowIndex = rowIndex + rowOffset
+          for (const colKey of Object.keys(rowCells)) {
+            const colIndex = Number(colKey)
+            if (Number.isNaN(colIndex)) continue
+            const globalColIndex = colIndex + colOffset
+            const cell = rowCells[colIndex]
+            if (!shouldSuppress(globalRowIndex, globalColIndex, cell)) {
+              hasNonSuppressedCell = true
+              break
+            }
+          }
+          if (hasNonSuppressedCell) break
+        }
+
+        if (!hasNonSuppressedCell) {
+          return false
+        }
+
+        if (source === 'selection-reconcile') {
+          let allCellsWereRecentlyMutatedLocally = true
+          for (const rowKey of Object.keys(cellValue)) {
+            const rowIndex = Number(rowKey)
+            if (Number.isNaN(rowIndex)) continue
+            const rowCells = cellValue[rowIndex]
+            if (!rowCells || typeof rowCells !== 'object') continue
+            for (const colKey of Object.keys(rowCells)) {
+              const colIndex = Number(colKey)
+              if (Number.isNaN(colIndex)) continue
+              const key = remoteEchoKey(rowIndex + rowOffset, colIndex + colOffset)
+              const expiresAt = recentLocallyMutatedGridCellsRef.current.get(key) ?? 0
+              if (expiresAt <= now) {
+                allCellsWereRecentlyMutatedLocally = false
+                break
+              }
+            }
+            if (!allCellsWereRecentlyMutatedLocally) break
+          }
+          if (allCellsWereRecentlyMutatedLocally) {
+            return false
+          }
+        }
+
+        if (source === 'selection-reconcile') {
+          let hasAuthoritativeDiff = false
+          for (const rowKey of Object.keys(cellValue)) {
+            const rowIndex = Number(rowKey)
+            if (Number.isNaN(rowIndex)) continue
+            const rowCells = cellValue[rowIndex]
+            if (!rowCells || typeof rowCells !== 'object') continue
+            for (const colKey of Object.keys(rowCells)) {
+              const colIndex = Number(colKey)
+              if (Number.isNaN(colIndex)) continue
+              const nextSignature = normalizeSelectionReconcileSignature(toEchoSignature(rowCells[colIndex]))
+              const authoritativeSignature = normalizeSelectionReconcileSignature(
+                lastSyncedGridCellSignaturesRef.current.get(remoteEchoKey(rowIndex, colIndex))
+              )
+              if (authoritativeSignature !== nextSignature) {
+                hasAuthoritativeDiff = true
+                break
+              }
+            }
+            if (hasAuthoritativeDiff) break
+          }
+
+          if (!hasAuthoritativeDiff) {
+            return false
+          }
+        }
+
+        lastCellValueMutationAtRef.current = now
+        const ctxBefore = contextRef.current
+        const {
+          onCellChange: onCellChangeCb,
+          onCellsChange: onCellsChangeCb,
+          onDataChange: onDataChangeCb
+        } = callbacksRef.current
+        if (!ctxBefore) return false
+        const currentData = propsRef.current.data
+        const newRowIndices = getNewRowIndices(cellValue, ctxBefore, rowOffset)
+        const pendingNewRowsUpdate =
+          newRowIndices.length > 0 && onDataChangeCb
+            ? (() => {
+                const newRows = buildNewRowsFromCellMatrix({
+                  newRowIndices,
+                  cellValue,
+                  ctx: ctxBefore,
+                  colOffset,
+                  rowOffset,
+                  getClientRowId: (globalRowIndex: number) =>
+                    getOrCreateClientRowId(globalRowIndex, newRowClientIdByIndexRef.current)
+                })
+                const nextData = [...currentData, ...newRows]
+                const nextContext = overlaySparseRowIndexMappings(
+                  createUniverConversionContext(propsRef.current.columns, nextData),
+                  newRowIndices.map(rowIndex => {
+                    const globalRowIndex = rowIndex + rowOffset
+                    return {
+                      rowIndex: globalRowIndex,
+                      rowId: getOrCreateClientRowId(globalRowIndex, newRowClientIdByIndexRef.current)
+                    }
+                  })
+                )
+                return { nextData, nextContext }
+              })()
+            : null
+
+        const ctx = pendingNewRowsUpdate?.nextContext ?? contextRef.current ?? ctxBefore
+        const changedCells = collectChangedCells({ cellValue, ctx, rowOffset, colOffset, shouldSuppress })
+        const collabEntries =
+          propsRef.current.collaborationEnabled && propsRef.current.onOperationEmit
+            ? collectCollabWireEntries({ cellValue, ctx, rowOffset, colOffset, shouldSuppress })
+            : []
+
+        if (changedCells.length === 0 && collabEntries.length === 0) {
+          return false
+        }
+
+        if (pendingNewRowsUpdate && onDataChangeCb && changedCells.length > 0) {
+          onDataChangeCb(pendingNewRowsUpdate.nextData)
+          // Only materialize inferred rows after we confirmed a real cell mutation.
+          contextRef.current = pendingNewRowsUpdate.nextContext
+        }
+
+        const signature =
+          changedCells.length > 0
+            ? buildChangedCellSignature(changedCells)
+            : `collab:${buildCollabWireSignature(collabEntries, cellValue)}`
+        for (const [existingSignature, at] of recentLocalMutationSignaturesRef.current.entries()) {
+          if (now - at > 1500) {
+            recentLocalMutationSignaturesRef.current.delete(existingSignature)
+          }
+        }
+        if (recentLocalMutationSignaturesRef.current.has(signature)) return true
+        recentLocalMutationSignaturesRef.current.set(signature, now)
+        if (source !== 'selection-reconcile') {
+          for (const rowKey of Object.keys(cellValue)) {
+            const rowIndex = Number(rowKey)
+            if (Number.isNaN(rowIndex)) continue
+            const rowCells = cellValue[rowIndex]
+            if (!rowCells || typeof rowCells !== 'object') continue
+            for (const colKey of Object.keys(rowCells)) {
+              const colIndex = Number(colKey)
+              if (Number.isNaN(colIndex)) continue
+              recentLocallyMutatedGridCellsRef.current.set(
+                remoteEchoKey(rowIndex + rowOffset, colIndex + colOffset),
+                now + SELECTION_RECONCILE_LOCAL_EDIT_SUPPRESSION_MS
+              )
+            }
+          }
+        }
+
+        const emitCollabIfNeeded = (): void => {
+          const { collaborationEnabled, onOperationEmit, sheet: s } = propsRef.current
+          if (!collaborationEnabled || !onOperationEmit || collabEntries.length === 0) return
+          const snap = getWorkbookSnapshotRef.current?.() ?? null
+          const facadeWb = univerAPIRef.current?.getActiveWorkbook?.() ?? null
+          const wire = buildCollabCellsChangedPayload({
+            sheetId: s.id,
+            entries: collabEntries,
+            workbookSnapshot: snap,
+            facadeWorkbook: facadeWb
+          })
+          if (wire.length === 0) return
+          onOperationEmit({
+            type: 'cells_changed',
+            data: { sheetId: s.id, cells: wire },
+            broadcastOnly: true
+          } as DocumentOperation)
+        }
+
+        let handledPersistable = false
+        if (changedCells.length > 0) {
+          if (onCellsChangeCb) {
+            onCellsChangeCb(changedCells)
+            handledPersistable = true
+          } else if (onCellChangeCb) {
+            for (const cell of changedCells) {
+              onCellChangeCb(cell.rowId, cell.columnName, cell.value)
+            }
+            handledPersistable = true
+          }
+        }
+
+        emitCollabIfNeeded()
+
+        return handledPersistable || collabEntries.length > 0
+      }
+      const reconcileSingleCell = (
+        row: number | undefined,
+        col: number | undefined,
+        source: 'selection-reconcile' | 'sheet-edit-ended'
+      ): void => {
+        if (typeof row !== 'number' || typeof col !== 'number') return
+        handleDetectedCellMutation({
+          source,
+          payloadCellValue: undefined,
+          ranges: [
+            {
+              startRow: row,
+              endRow: row,
+              startColumn: col,
+              endColumn: col
+            }
+          ]
+        })
       }
       const handleSheetScroll = (scrollLeft: number, scrollTop: number) => {
         sheetScrollRef.current = { scrollLeft, scrollTop }
@@ -2501,12 +3185,34 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
       ).addEvent?.(commandEventKey, (event: { type?: number; id?: string; commandId?: string; params?: unknown }) => {
         const commandId = String(event?.id ?? event?.commandId ?? '').toLowerCase()
+        const params = event?.params as
+          | {
+              cellValue?: unknown
+              range?: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+            }
+          | undefined
         if (commandId.includes('comment') || commandId.includes('thread')) {
           callbacksRef.current.onOpenCommentRequest?.()
         }
         queueMicrotask(emitWorksheetFromUniver)
         if (readOnlyRef.current) return
         if (isApplyingRemoteUpdateRef.current) return
+
+        const t = event?.type
+        const commandPayloadCellValue = normalizeCellMatrix(params?.cellValue)
+        const commandRanges = Array.isArray(params?.range) ? params.range : []
+        if (
+          t === UNIVER_COMMAND_TYPE_MUTATION &&
+          (commandPayloadCellValue || commandRanges.length > 0) &&
+          !isStyleOnlySheetMutationCommand(commandId)
+        ) {
+          handleDetectedCellMutation({
+            source: 'command-executed',
+            payloadCellValue: commandPayloadCellValue,
+            ranges: commandRanges
+          })
+        }
+
         const { changed: dimensionsChanged, dimensions } = updateCellDimensions()
         if (dimensionsChanged) {
           if (dimensions) {
@@ -2514,10 +3220,18 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
           markDirtyAndScheduleSnapshot()
         }
-        const t = event?.type
         // Only MUTATION (type 2) represents an actual data change. COMMAND (type 0)
         // includes selection/navigation commands which must not trigger snapshots.
-        if (t === UNIVER_COMMAND_TYPE_MUTATION) {
+        if (
+          shouldScheduleSnapshotForMutation({
+            commandType: t,
+            mutationCommandType: UNIVER_COMMAND_TYPE_MUTATION,
+            commandId,
+            params,
+            now: Date.now(),
+            lastCellValueMutationAt: lastCellValueMutationAtRef.current
+          })
+        ) {
           markDirtyAndScheduleSnapshot()
         }
       })
@@ -2525,9 +3239,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         (univerAPI as { Event?: { SheetValueChanged?: string } }).Event?.SheetValueChanged ?? 'SheetValueChanged'
       const valueChangeDisposable = (
         univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
-      ).addEvent?.(
-        eventKey,
-        (params: {
+      ).addEvent?.(eventKey, (rawParams: unknown) => {
+        if (readOnlyRef.current) return
+        // Suppress re-entry while applyRemoteCellUpdate is writing into Univer.
+        // Without this guard, the setValue() inside applyRemoteCellUpdate re-enters
+        // handleDetectedCellMutation and causes a redundant HTTP persist and/or a
+        // style-only cells_changed rebroadcast, which in turn triggers another merge
+        // on the peer tab and produces the "delete echo" ping-pong.
+        if (isApplyingRemoteUpdateRef.current) return
+        const params = rawParams as {
           effectedRanges?: Array<{
             getRange?: () => { startRow: number; endRow: number; startColumn: number; endColumn: number }
           }>
@@ -2538,114 +3258,61 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               range?: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
             }
           }
-        }) => {
-          if (readOnlyRef.current) return
-          const payload = params?.payload
-          const preserveUndefinedAsNull = isClearLikeMutationCommand(String(payload?.id ?? ''))
-          let cellValue = normalizeCellMatrix(payload?.params?.cellValue)
-          const workbook = univerAPIRef.current?.getActiveWorkbook()
-          const worksheet = workbook?.getActiveSheet()
-          const ranges = (payload?.params?.range ??
-            params.effectedRanges?.map(r => r.getRange?.()).filter(Boolean) ??
-            []) as Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
-
-          if (preserveUndefinedAsNull) {
-            cellValue = deriveCellMatrixFromRanges(worksheet, ranges, 10000, true)
-          } else if (!cellValue) {
-            // Fallback: derive changed values from effected ranges when mutation payload
-            // does not provide `cellValue` (observed in some Univer command variants).
-            cellValue = deriveCellMatrixFromRanges(worksheet, ranges)
-          }
-          // Paste/edit mutations can use different internal command ids across Univer versions.
-          // Persist whenever mutation payload carries concrete cell values.
-          if (!cellValue) return
-          const range = payload?.params?.range?.[0] ?? params.effectedRanges?.[0]?.getRange?.()
-          const { rowOffset, colOffset } = resolveCellOffsets(range, cellValue)
-          const now = Date.now()
-          const shouldSuppress = (globalRowIndex: number, globalColIndex: number, value: unknown): boolean => {
-            const key = remoteEchoKey(globalRowIndex, globalColIndex)
-            const entry = remoteEchoSuppressionRef.current.get(key)
-            if (!entry) return false
-            if (now > entry.expiresAt) {
-              remoteEchoSuppressionRef.current.delete(key)
-              return false
-            }
-            return entry.signature === toEchoSignature(value)
-          }
-
-          let hasNonSuppressedCell = false
-          for (const rowKey of Object.keys(cellValue)) {
-            const rowIndex = Number(rowKey)
-            if (Number.isNaN(rowIndex)) continue
-            const rowCells = cellValue[rowIndex]
-            if (!rowCells || typeof rowCells !== 'object') continue
-            const globalRowIndex = rowIndex + rowOffset
-            for (const colKey of Object.keys(rowCells)) {
-              const colIndex = Number(colKey)
-              if (Number.isNaN(colIndex)) continue
-              const globalColIndex = colIndex + colOffset
-              const cell = rowCells[colIndex]
-              if (!shouldSuppress(globalRowIndex, globalColIndex, cell)) {
-                hasNonSuppressedCell = true
-                break
-              }
-            }
-            if (hasNonSuppressedCell) break
-          }
-
-          if (!hasNonSuppressedCell) return
-
-          isDirtyRef.current = true
-          hasEditedRef.current = true
-          scheduleSnapshotCheckpoint()
-          const ctxBefore = contextRef.current
-          const {
-            onCellChange: onCellChangeCb,
-            onCellsChange: onCellsChangeCb,
-            onDataChange: onDataChangeCb
-          } = callbacksRef.current
-          if (!ctxBefore) return
-          const currentData = propsRef.current.data
-          const newRowIndices = getNewRowIndices(cellValue, ctxBefore, rowOffset)
-          if (newRowIndices.length > 0 && onDataChangeCb) {
-            const newRows = buildNewRowsFromCellMatrix({
-              newRowIndices,
-              cellValue,
-              ctx: ctxBefore,
-              colOffset,
-              rowOffset,
-              getClientRowId: (globalRowIndex: number) =>
-                getOrCreateClientRowId(globalRowIndex, newRowClientIdByIndexRef.current)
-            })
-            const nextData = [...currentData, ...newRows]
-            onDataChangeCb(nextData)
-            // Keep mapping up to date immediately so subsequent events in the same paste burst can resolve rowIds.
-            contextRef.current = createUniverConversionContext(propsRef.current.columns, nextData)
-          }
-
-          const ctx = contextRef.current ?? ctxBefore
-          const changedCells = collectChangedCells({ cellValue, ctx, rowOffset, colOffset, shouldSuppress })
-
-          if (changedCells.length > 0 && onCellsChangeCb) {
-            onCellsChangeCb(changedCells)
-            // Do NOT call requestSnapshotCheckpoint here. At this point the cell flush
-            // (schedulePendingCellPersist) has not yet run, so the sheet version has not
-            // been bumped. A snapshot saved now would be immediately stale. The debounced
-            // CommandExecuted snapshot (fired below) runs after the flush completes and
-            // captures the correct version.
-            return
-          }
-
-          if (changedCells.length > 0 && onCellChangeCb) {
-            for (const cell of changedCells) {
-              onCellChangeCb(cell.rowId, cell.columnName, cell.value)
-            }
-            // Same reasoning: snapshot is triggered by CommandExecuted, not here.
-          }
         }
-      )
+        const payload = params?.payload
+        const preserveUndefinedAsNull = isClearLikeMutationCommand(String(payload?.id ?? ''))
+        let cellValue = normalizeCellMatrix(payload?.params?.cellValue)
+        const workbook = univerAPIRef.current?.getActiveWorkbook()
+        const worksheet = workbook?.getActiveSheet()
+        const ranges = (payload?.params?.range ??
+          params.effectedRanges?.map(r => r.getRange?.()).filter(Boolean) ??
+          []) as Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+
+        if (preserveUndefinedAsNull) {
+          cellValue = deriveCellMatrixFromRanges(worksheet, ranges, 10000, true)
+        } else if (!cellValue) {
+          // Fallback: derive changed values from effected ranges when mutation payload
+          // does not provide `cellValue` (observed in some Univer command variants).
+          cellValue = deriveCellMatrixFromRanges(worksheet, ranges)
+        }
+        if (!cellValue) return
+        handleDetectedCellMutation({
+          source: 'sheet-value-changed',
+          payloadCellValue: cellValue,
+          ranges
+        })
+      })
+      const sheetEditEndedEventKey =
+        (univerAPI as { Event?: { SheetEditEnded?: string } }).Event?.SheetEditEnded ?? 'SheetEditEnded'
+      const sheetEditEndedDisposable = (
+        univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
+      ).addEvent?.(sheetEditEndedEventKey, (rawParams: unknown) => {
+        if (readOnlyRef.current) return
+        const params = rawParams as
+          | {
+              row?: number
+              col?: number
+              startRow?: number
+              startColumn?: number
+              cell?: { row?: number; col?: number; actualRow?: number; actualColumn?: number }
+              range?: { startRow?: number; startColumn?: number }
+            }
+          | undefined
+        const cell = params?.cell
+        const range = params?.range
+        // Never fall back to the current active selection here. After a slow edit ends,
+        // Univer may already have moved selection to the next cell, which can duplicate
+        // the just-typed value into a neighbor. Selection-based reconciliation runs separately.
+        const row = cell?.actualRow ?? cell?.row ?? params?.row ?? params?.startRow ?? range?.startRow
+        const col = cell?.actualColumn ?? cell?.col ?? params?.col ?? params?.startColumn ?? range?.startColumn
+        reconcileSingleCell(row, col, 'sheet-edit-ended')
+      })
       const selectionEventKey =
         (univerAPI as { Event?: { SelectionMoveEnd?: string } }).Event?.SelectionMoveEnd ?? 'SelectionMoveEnd'
+
+      let pendingCursorEmitTimeoutId: ReturnType<typeof setTimeout> | null = null
+      let pendingCursorSelectionSyncTimeoutId: ReturnType<typeof setTimeout> | null = null
+
       // Emits cursor position using A1 notation (cellRef) as the primary coordinate.
       // row:/col: entries are kept for backward compatibility.
       const emitCursorByRowCol = (startRow: number, startColumn: number) => {
@@ -2661,11 +3328,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
       const emitCursorFromWorksheetSelection = () => {
         const workbook = univerAPIRef.current?.getActiveWorkbook?.()
-        const fromRange = extractActiveRangePosition(workbook)
-        if (fromRange) {
-          emitCursorByRowCol(fromRange.row, fromRange.col)
-          return
-        }
         const worksheet = workbook?.getActiveSheet?.()
         const selection = (
           worksheet as { getSelection?: () => { getCurrentCell?: () => unknown } | null } | undefined
@@ -2675,13 +3337,35 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           | undefined
         const row = currentCell?.actualRow ?? currentCell?.row
         const col = currentCell?.actualColumn ?? currentCell?.column
-        if (typeof row !== 'number' || typeof col !== 'number') return
-        emitCursorByRowCol(row, col)
+        if (typeof row === 'number' && typeof col === 'number') {
+          const previous = activeSelectionRef.current
+          if (previous && (previous.row !== row || previous.col !== col)) {
+            reconcileSingleCell(previous.row, previous.col, 'selection-reconcile')
+          }
+          emitCursorByRowCol(row, col)
+          return
+        }
+        const fromRange = extractActiveRangePosition(workbook)
+        if (fromRange) {
+          const previous = activeSelectionRef.current
+          if (previous && (previous.row !== fromRange.row || previous.col !== fromRange.col)) {
+            reconcileSingleCell(previous.row, previous.col, 'selection-reconcile')
+          }
+          emitCursorByRowCol(fromRange.row, fromRange.col)
+        }
       }
-      const emitCursorFromSelectionEvent = (event: unknown) => {
-        const pos = extractSelectionFromEvent(event)
-        if (!pos) return
-        emitCursorByRowCol(pos.row, pos.col)
+      const scheduleCursorEmitFromWorksheetSelection = (delayMs = 80) => {
+        if (pendingCursorSelectionSyncTimeoutId) {
+          clearTimeout(pendingCursorSelectionSyncTimeoutId)
+          pendingCursorSelectionSyncTimeoutId = null
+        }
+        pendingCursorSelectionSyncTimeoutId = setTimeout(() => {
+          pendingCursorSelectionSyncTimeoutId = null
+          emitCursorFromWorksheetSelection()
+        }, delayMs)
+      }
+      const emitCursorFromSelectionEvent = () => {
+        scheduleCursorEmitFromWorksheetSelection(80)
       }
       const selectionDisposable = (
         univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
@@ -2692,18 +3376,35 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const currentSelectionChangeDisposable = (
         univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
       ).addEvent?.('CurrentSelectionChanged', emitCursorFromSelectionEvent)
-      const cursorPollIntervalId = setInterval(emitCursorFromWorksheetSelection, 300)
+      const startupCursorPollStartedAt = Date.now()
+      const cursorPollIntervalId = setInterval(() => {
+        if (lastEmittedCursorPathRef.current) {
+          clearInterval(cursorPollIntervalId)
+          return
+        }
+        if (Date.now() - startupCursorPollStartedAt > 3000) {
+          clearInterval(cursorPollIntervalId)
+          return
+        }
+        emitCursorFromWorksheetSelection()
+      }, 250)
 
       const dispose = () => {
         requestSnapshotCheckpointRef.current = null
         scheduleSnapshotCheckpointRef.current = null
+        snapshotRequestQueuedRef.current = false
         clearTimeout(canvasHealthTimeout)
         if (snapshotCheckpointTimerRef.current) {
           clearTimeout(snapshotCheckpointTimerRef.current)
           snapshotCheckpointTimerRef.current = null
         }
+        snapshotCheckpointScheduledAtRef.current = null
+        snapshotFirstDirtyAtRef.current = null
         try {
           valueChangeDisposable?.dispose()
+        } catch {}
+        try {
+          sheetEditEndedDisposable?.dispose()
         } catch {}
         try {
           selectionDisposable?.dispose()
@@ -2714,6 +3415,14 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         try {
           currentSelectionChangeDisposable?.dispose()
         } catch {}
+        if (pendingCursorEmitTimeoutId) {
+          clearTimeout(pendingCursorEmitTimeoutId)
+          pendingCursorEmitTimeoutId = null
+        }
+        if (pendingCursorSelectionSyncTimeoutId) {
+          clearTimeout(pendingCursorSelectionSyncTimeoutId)
+          pendingCursorSelectionSyncTimeoutId = null
+        }
         try {
           scrollEventDisposable?.dispose?.()
         } catch {}
@@ -2729,6 +3438,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         univerAPI.dispose()
         univerAPIRef.current = null
         contextRef.current = null
+        lastSyncedGridCellSignaturesRef.current = new Map()
+        lastSyncedGridRowCountRef.current = 0
+        lastSyncedGridColumnCountRef.current = 0
+        lastProcessedAuthoritativeDataSyncTokenRef.current = props.authoritativeDataSyncToken ?? 0
       }
 
       return dispose

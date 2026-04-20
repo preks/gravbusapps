@@ -82,11 +82,9 @@ export function AbsenceTypeModal({ open, onClose, onSave, absenceType, groups }:
     setTranslationValues(getCatalogTranslationValues(absenceType))
   }, [absenceType, open])
 
+  const isGroupRequiredAndMissing = !absenceType?.id && !formValues.parentEntryId.trim()
   const isSaveDisabled =
-    isSaving ||
-    !formValues.code.trim() ||
-    !translationValues.enUS.trim() ||
-    (!absenceType?.id && !formValues.parentEntryId.trim())
+    isSaving || !formValues.code.trim() || !translationValues.enUS.trim() || isGroupRequiredAndMissing
 
   const handleSubmit = async () => {
     if (isSaveDisabled) {
@@ -116,14 +114,16 @@ export function AbsenceTypeModal({ open, onClose, onSave, absenceType, groups }:
     <Dialog open={open} onOpenChange={nextOpen => !nextOpen && onClose()}>
       <DialogContent
         data-testid="absence-type-modal"
-        className="gba:flex gba:max-w-3xl gba:max-h-[85vh] gba:flex-col gba:overflow-hidden gba:p-0"
+        className="gba:flex gba:max-w-2xl gba:max-h-[85vh] gba:flex-col gba:overflow-hidden gba:p-0"
         onInteractOutside={event => event.preventDefault()}
       >
         <div className="gba:flex gba:min-h-0 gba:flex-1 gba:flex-col">
           <DialogHeader className="gba:border-b gba:border-border gba:bg-muted/20 gba:px-4 gba:py-3">
             <DialogTitle>{absenceType?.id ? t('type-modal-edit-title') : t('type-modal-create-title')}</DialogTitle>
             <DialogDescription>
-              {t('generic-catalog-modal-description', { entity: t('absence-type-entity-label') })}
+              {absenceType?.id
+                ? t('type-modal-description')
+                : t('generic-catalog-modal-description', { entity: t('absence-type-entity-label') })}
             </DialogDescription>
           </DialogHeader>
 
@@ -132,71 +132,80 @@ export function AbsenceTypeModal({ open, onClose, onSave, absenceType, groups }:
               <CardHeader className="gba:border-b gba:border-border gba:bg-background">
                 <CardTitle>{t('basic-information-section-title')}</CardTitle>
               </CardHeader>
-              <CardContent className="gba:grid gba:gap-4 gba:p-4 gba:md:grid-cols-3">
-                <div className="gba:space-y-2">
-                  <Label htmlFor="absence-type-code">
-                    {t('field-code-label')}
-                    <span className="gba:text-destructive"> *</span>
-                  </Label>
-                  <Input
-                    id="absence-type-code"
-                    value={formValues.code}
-                    onChange={event => setFormValues(current => ({ ...current, code: event.target.value }))}
-                    placeholder={t('code-placeholder')}
-                    disabled={Boolean(absenceType?.id)}
-                    data-testid="absence-type-code-input"
-                  />
-                </div>
-
-                <div className="gba:space-y-2">
-                  <Label htmlFor="absence-type-name-en">
-                    {t('field-name-en-label')}
-                    <span className="gba:text-destructive"> *</span>
-                  </Label>
-                  <Input
-                    id="absence-type-name-en"
-                    value={translationValues.enUS}
-                    onChange={event => setTranslationValues(current => ({ ...current, enUS: event.target.value }))}
-                    data-testid="absence-type-name-en-input"
-                  />
-                </div>
-
-                <div className="gba:space-y-2">
-                  <Label htmlFor="absence-type-name-de">{t('field-name-de-label')}</Label>
-                  <Input
-                    id="absence-type-name-de"
-                    value={translationValues.deDE}
-                    onChange={event => setTranslationValues(current => ({ ...current, deDE: event.target.value }))}
-                    data-testid="absence-type-name-de-input"
-                  />
-                </div>
-
-                <div className="gba:space-y-2">
-                  <Label htmlFor="absence-type-name-ro">{t('field-name-ro-label')}</Label>
-                  <Input
-                    id="absence-type-name-ro"
-                    value={translationValues.roRO}
-                    onChange={event => setTranslationValues(current => ({ ...current, roRO: event.target.value }))}
-                    data-testid="absence-type-name-ro-input"
-                  />
-                </div>
-
-                {!absenceType?.id ? (
-                  <div className="gba:space-y-2">
-                    <Label>{t('field-group-label')}</Label>
-                    <Combobox
-                      value={formValues.parentEntryId}
-                      onValueChange={value =>
-                        setFormValues(current => ({ ...current, parentEntryId: String(value || '') }))
-                      }
-                      options={groupOptions}
-                      placeholder={t('group-placeholder')}
-                      searchPlaceholder={t('group-placeholder')}
-                      emptyText={t('empty-catalog-entries', { entity: t('absence-group-entity-label') })}
-                      data-testid="absence-type-group-select"
+              <CardContent className="gba:p-4">
+                <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:sm:grid-cols-3">
+                  <div className={absenceType?.id ? 'gba:space-y-2 gba:sm:col-span-3' : 'gba:space-y-2'}>
+                    <Label htmlFor="absence-type-code">
+                      {t('field-code-label')}
+                      <span className="gba:text-destructive"> *</span>
+                    </Label>
+                    <Input
+                      id="absence-type-code"
+                      value={formValues.code}
+                      onChange={event => setFormValues(current => ({ ...current, code: event.target.value }))}
+                      placeholder={t('code-placeholder')}
+                      disabled={Boolean(absenceType?.id)}
+                      data-testid="absence-type-code-input"
                     />
                   </div>
-                ) : null}
+
+                  {!absenceType?.id ? (
+                    <>
+                      <div className="gba:space-y-2">
+                        <Label htmlFor="absence-type-group-select">
+                          {t('field-group-label')}
+                          <span className="gba:text-destructive"> *</span>
+                        </Label>
+                        <Combobox
+                          id="absence-type-group-select"
+                          value={formValues.parentEntryId}
+                          onValueChange={value =>
+                            setFormValues(current => ({ ...current, parentEntryId: String(value || '') }))
+                          }
+                          options={groupOptions}
+                          placeholder={t('group-placeholder')}
+                          searchPlaceholder={t('group-placeholder')}
+                          emptyText={t('empty-catalog-entries', { entity: t('absence-group-entity-label') })}
+                          data-testid="absence-type-group-select"
+                        />
+                      </div>
+                      <div aria-hidden="true" className="gba:hidden gba:sm:block" />
+                    </>
+                  ) : null}
+
+                  <div className="gba:space-y-2">
+                    <Label htmlFor="absence-type-name-en">
+                      {t('field-name-en-label')}
+                      <span className="gba:text-destructive"> *</span>
+                    </Label>
+                    <Input
+                      id="absence-type-name-en"
+                      value={translationValues.enUS}
+                      onChange={event => setTranslationValues(current => ({ ...current, enUS: event.target.value }))}
+                      data-testid="absence-type-name-en-input"
+                    />
+                  </div>
+
+                  <div className="gba:space-y-2">
+                    <Label htmlFor="absence-type-name-de">{t('field-name-de-label')}</Label>
+                    <Input
+                      id="absence-type-name-de"
+                      value={translationValues.deDE}
+                      onChange={event => setTranslationValues(current => ({ ...current, deDE: event.target.value }))}
+                      data-testid="absence-type-name-de-input"
+                    />
+                  </div>
+
+                  <div className="gba:space-y-2">
+                    <Label htmlFor="absence-type-name-ro">{t('field-name-ro-label')}</Label>
+                    <Input
+                      id="absence-type-name-ro"
+                      value={translationValues.roRO}
+                      onChange={event => setTranslationValues(current => ({ ...current, roRO: event.target.value }))}
+                      data-testid="absence-type-name-ro-input"
+                    />
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
