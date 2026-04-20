@@ -48,7 +48,7 @@ export function runRomaniaValidation(employee: PayrollEmployee, translate: Issue
       createIssue(
         employee.employeeId,
         'RO_MISSING_CONTRACT_SALARY',
-        'missing_contract_salary',
+        'missing_salary_data',
         'blocker',
         translate,
         'baseSalary'
@@ -61,7 +61,7 @@ export function runRomaniaValidation(employee: PayrollEmployee, translate: Issue
       createIssue(
         employee.employeeId,
         'RO_MISSING_WORK_NORM',
-        'missing_contract_salary',
+        'missing_working_hours',
         'blocker',
         translate,
         'weeklyHours'

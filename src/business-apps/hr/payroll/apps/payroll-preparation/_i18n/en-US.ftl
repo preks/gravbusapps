@@ -186,17 +186,19 @@ change-deduction = Deduction Change
 change-absence = Absence Change
 change-country-specific = Country-Specific Change
 
-category-missing-personal-data = Missing Personal Data
+category-missing-contract-data = Missing Contract Data
 category-missing-bank-details = Missing Bank Details
-category-missing-contract-salary = Missing Contract/Salary
+category-missing-salary-data = Missing Salary Data
 category-missing-tax-social = Missing Tax/Social Data
-category-missing-country-specific = Missing Country-Specific Data
-category-missing-approvals = Missing Approvals
+category-missing-contract-master-data = Missing Contract Master Data
 category-missing-absence-data = Missing Absence Data
-category-overlapping-absences = Overlapping Absences
-category-retroactive-changes = Retroactive Changes
+category-missing-working-hours = Missing Working Hours
 category-pending-final-payroll = Pending Final Payroll
-category-invalid-effective-dates = Invalid Effective Dates
+category-other-exceptions = Other Exceptions
+employee-information-title = Employee Information
+employee-contact-chat = Start chat
+employee-contact-video = Start video call
+employee-contact-call = Start audio call
 
 # Issue codes (short titles; see validationRules / germanyValidation / romaniaValidation)
 issue-code-missing-bank-details = Missing bank details
@@ -344,6 +346,7 @@ exceptions-pagination-showing = Showing { $start }-{ $end } of { $total }
 exception-detail-title = Exception
 exception-detail-issue = Issue details
 exception-detail-employee = Employee details
+exception-detail-suggested-actions = Suggested Actions
 exception-detail-open-employee = Open employee record
 exception-detail-no-direct-action = No direct update action is available from payroll preparation for this exception yet.
 exception-section-review = Review

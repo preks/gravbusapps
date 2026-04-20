@@ -48,7 +48,7 @@ export function runGermanyValidation(employee: PayrollEmployee, translate: Issue
       createIssue(
         employee.employeeId,
         'DE_MISSING_EMPLOYMENT_TYPE',
-        'missing_country_specific',
+        'missing_contract_data',
         'warning',
         translate,
         'workingCondition.employmentType'
@@ -61,7 +61,7 @@ export function runGermanyValidation(employee: PayrollEmployee, translate: Issue
       createIssue(
         employee.employeeId,
         'DE_SICK_LEAVE_EAU_MISSING',
-        'missing_country_specific',
+        'missing_absence_data',
         'warning',
         translate,
         'eauStatus'

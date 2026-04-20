@@ -60,14 +60,7 @@ export function runGenericValidation(employee: PayrollEmployee, translate: Issue
 
   if (employee.baseSalary == null || employee.baseSalary <= 0) {
     issues.push(
-      createIssue(
-        employee.employeeId,
-        'MISSING_BASE_SALARY',
-        'missing_contract_salary',
-        'blocker',
-        translate,
-        'baseSalary'
-      )
+      createIssue(employee.employeeId, 'MISSING_BASE_SALARY', 'missing_salary_data', 'blocker', translate, 'baseSalary')
     )
   }
 
@@ -76,7 +69,7 @@ export function runGenericValidation(employee: PayrollEmployee, translate: Issue
       createIssue(
         employee.employeeId,
         'MISSING_CONTRACT_TYPE',
-        'missing_contract_salary',
+        'missing_contract_data',
         'blocker',
         translate,
         'contractType'
@@ -86,12 +79,12 @@ export function runGenericValidation(employee: PayrollEmployee, translate: Issue
 
   if (!employee.hireDate) {
     issues.push(
-      createIssue(employee.employeeId, 'MISSING_HIRE_DATE', 'missing_personal_data', 'blocker', translate, 'hireDate')
+      createIssue(employee.employeeId, 'MISSING_HIRE_DATE', 'missing_contract_data', 'blocker', translate, 'hireDate')
     )
   }
 
   if (employee.fte == null) {
-    issues.push(createIssue(employee.employeeId, 'MISSING_FTE', 'missing_contract_salary', 'warning', translate, 'fte'))
+    issues.push(createIssue(employee.employeeId, 'MISSING_FTE', 'missing_working_hours', 'warning', translate, 'fte'))
   }
 
   if (employee.payrollRelevant === null) {
@@ -99,7 +92,7 @@ export function runGenericValidation(employee: PayrollEmployee, translate: Issue
       createIssue(
         employee.employeeId,
         'PAYROLL_RELEVANT_NOT_SET',
-        'missing_contract_salary',
+        'missing_contract_master_data',
         'warning',
         translate,
         'contractType.objectValue.payroll_relevant'
@@ -123,7 +116,7 @@ export function runGenericValidation(employee: PayrollEmployee, translate: Issue
 
   if (employee.variablePayStatus === 'pending' && employee.totalVariablePay != null && employee.totalVariablePay > 0) {
     issues.push(
-      createIssue(employee.employeeId, 'PENDING_VARIABLE_PAY', 'missing_approvals', 'warning', translate, 'variablePay')
+      createIssue(employee.employeeId, 'PENDING_VARIABLE_PAY', 'other_exceptions', 'warning', translate, 'variablePay')
     )
   }
 

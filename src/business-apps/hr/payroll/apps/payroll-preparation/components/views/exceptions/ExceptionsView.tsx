@@ -30,17 +30,15 @@ interface ExceptionsViewProps {
 }
 
 const CATEGORY_KEYS: Record<IssueCategory, string> = {
-  missing_personal_data: 'category-missing-personal-data',
+  missing_contract_data: 'category-missing-contract-data',
   missing_bank_details: 'category-missing-bank-details',
-  missing_contract_salary: 'category-missing-contract-salary',
+  missing_salary_data: 'category-missing-salary-data',
   missing_tax_social: 'category-missing-tax-social',
-  missing_country_specific: 'category-missing-country-specific',
-  missing_approvals: 'category-missing-approvals',
+  missing_contract_master_data: 'category-missing-contract-master-data',
   missing_absence_data: 'category-missing-absence-data',
-  overlapping_absences: 'category-overlapping-absences',
-  retroactive_changes: 'category-retroactive-changes',
+  missing_working_hours: 'category-missing-working-hours',
   pending_final_payroll: 'category-pending-final-payroll',
-  invalid_effective_dates: 'category-invalid-effective-dates'
+  other_exceptions: 'category-other-exceptions'
 }
 
 const SeverityIcon: React.FC<{ severity: IssueSeverity }> = ({ severity }) => {
