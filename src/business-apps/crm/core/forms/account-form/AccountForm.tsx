@@ -19,6 +19,7 @@ import { CampaignSelect } from '@/common/components/customer/selects/campaign-se
 import { CatalogSelect } from '@/components/catalog-select'
 import { AppActionForm } from '@/components/app-action-form'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import { AccountAiEnrichButton } from '@/common/components/common-relations/form-segments/account-ai-enrich'
 
 // CRM-specific schema extension (adds salesCampaignId)
 export const customerAccountSchema = accountSchema.extend({
@@ -184,6 +185,8 @@ const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo, additi
         submitButtonText={account?.id ? 'Update Account' : 'Create Account'}
         isSubmitDisabled={loading}
       >
+        {/* AI fill button — only shown when creating a new account. */}
+        <AccountAiEnrichButton accessToken={accessToken} accountContext="crm" isEditMode={!!account?.id} />
         {/* Account Layout */}
         <AccountLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
