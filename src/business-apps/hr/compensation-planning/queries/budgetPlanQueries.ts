@@ -162,6 +162,7 @@ export const LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET
       limit: 500
     ) {
       id
+      version
       compensationBudgetPlanCompanyId
       organizationalUnitId
       salaryBudgetAmount
@@ -189,6 +190,7 @@ export const LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET
       limit: 2000
     ) {
       id
+      version
       compensationBudgetPlanCompanyId
       organizationalUnitId
       salaryBudgetAmount
@@ -238,6 +240,59 @@ export const GET_COMPENSATION_BUDGET_PLAN_COMPANY = `
       }
       limit: 1
     ) {
+      id
+      version
+      compensationBudgetPlanId
+      companyId
+      salaryBudgetAmount
+      salaryBudgetPercent
+      bonusBudgetAmount
+      bonusBudgetPercent
+      budgetPlanStatus
+      currentTotalSalaryCost
+      distributionMethod
+      headcount
+      currencyRef
+    }
+  }
+`
+
+/** Single org-unit budget line (supervisor approve → refresh remaining team pool in DB). */
+export const GET_COMPENSATION_BUDGET_PLAN_ORG_UNIT_BUDGET_ROW_BY_ID = `
+  query GetCompensationBudgetPlanOrgUnitBudgetRowById($id: uuid!) {
+    CompensationBudgetPlanOrganizationalUnit(
+      where: { id: { _eq: $id }, isDeleted: { _eq: false } }
+      limit: 1
+    ) {
+      id
+      version
+      compensationBudgetPlanCompanyId
+      organizationalUnitId
+      salaryBudgetAmount
+      salaryBudgetPercent
+      bonusBudgetAmount
+      bonusBudgetPercent
+      budgetPlanStatus
+    }
+  }
+`
+
+/** Sum driver for supervisor rollup — read amounts from DB after employee rows were saved. */
+export const GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_INCREASE_AMOUNTS_BY_ROW_IDS = `
+  query GetCompensationBudgetPlanEmployeeIncreaseAmountsByRowIds($ids: [uuid!]!) {
+    CompensationBudgetPlanEmployee(
+      where: { id: { _in: $ids }, isDeleted: { _eq: false } }
+      limit: 500
+    ) {
+      proposedSalaryIncreaseAmount
+    }
+  }
+`
+
+/** Parent company budget row for the org-unit line (company save after OU update, same as HR distribute). */
+export const GET_COMPENSATION_BUDGET_PLAN_COMPANY_ROW_BY_ID = `
+  query GetCompensationBudgetPlanCompanyRowById($id: uuid!) {
+    CompensationBudgetPlanCompany(where: { id: { _eq: $id }, isDeleted: { _eq: false } }, limit: 1) {
       id
       version
       compensationBudgetPlanId

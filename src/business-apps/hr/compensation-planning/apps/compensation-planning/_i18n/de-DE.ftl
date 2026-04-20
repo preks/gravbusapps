@@ -25,6 +25,8 @@ submissions-table-empty-no-org-unit-rows = Für die Budgetpläne dieses Unterneh
 submissions-table-empty-filtered = Keine OE-Budgets entsprechen Suche oder Filtern.
 submissions-table-col-org-unit = Abteilungen
 submissions-table-col-company-budget-plan = Unternehmensbudget / Plan
+submissions-table-col-proposed-new-salary = Vorgeschlagenes neues Gehalt
+submissions-table-col-org-unit-current-total-salary = Aktuelles Gesamtgehalt
 submissions-table-col-review = Prüfung
 submissions-table-review-team = Team prüfen
 
@@ -47,6 +49,8 @@ budget-plan-update-dialog-title = Vergütungszyklus bearbeiten
 budget-plan-update-submit = Aktualisieren
 budget-plan-status-unknown = Unbekannt
 budget-plan-status-draft = Entwurf
+budget-plan-status-org-unit-allocated = Zugewiesen
+budget-plan-status-org-unit-proposals-submitted = Vorschläge eingereicht
 budget-plan-status-submitted = Eingereicht
 budget-plan-status-approved = Genehmigt
 budget-plan-status-rejected = Abgelehnt

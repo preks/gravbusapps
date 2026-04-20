@@ -40,11 +40,8 @@ export interface TeamCompensationDistributionSplitPanelProps {
   totalSalaryCostAcrossEmployees: number
   grandTotalPositivePerformanceScores: number
   dataDisplay: { searchQuery: string; setSearchQuery: (value: string) => void }
-  canSubmitProposals: boolean
-  submitting: boolean
-  submitDraftProposals: () => void | Promise<void>
   canShowSaveAction: boolean
-  onOpenSaveAllocations: () => void
+  onOpenSubmitProposals: () => void
 }
 
 export function TeamCompensationDistributionSplitPanel({
@@ -67,11 +64,8 @@ export function TeamCompensationDistributionSplitPanel({
   totalSalaryCostAcrossEmployees,
   grandTotalPositivePerformanceScores,
   dataDisplay,
-  canSubmitProposals,
-  submitting,
-  submitDraftProposals,
   canShowSaveAction,
-  onOpenSaveAllocations
+  onOpenSubmitProposals
 }: Readonly<TeamCompensationDistributionSplitPanelProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
@@ -87,22 +81,12 @@ export function TeamCompensationDistributionSplitPanel({
         <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
           <Button
             type="button"
-            variant="secondary"
-            className="gba:shrink-0"
-            disabled={!canSubmitProposals}
-            onClick={() => void submitDraftProposals()}
-            data-testid="manager-team-submit-proposals"
-          >
-            {submitting ? t('manager-team-submitting') : t('manager-team-submit-proposals')}
-          </Button>
-          <Button
-            type="button"
             className="gba:shrink-0"
             disabled={!canShowSaveAction}
-            onClick={onOpenSaveAllocations}
-            data-testid="manager-team-save-allocations-open"
+            onClick={onOpenSubmitProposals}
+            data-testid="manager-team-submit-proposals-open"
           >
-            {t('manager-team-save-allocations')}
+            {t('manager-team-submit-proposals-toolbar')}
           </Button>
         </div>
       </CardHeader>

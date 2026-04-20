@@ -1,6 +1,5 @@
 import React from 'react'
 import { Button, DataDisplay, DataTable, TooltipProvider, useTranslation } from '@newwork/nw-design-system'
-import { PlusIcon } from '@phosphor-icons/react'
 import type { CompensationBudgetPlanRow } from '../../hooks/useBudgetPlansTable'
 import translations from '../../_i18n'
 import { useOverviewPlansTableModel } from './useOverviewPlansTableModel'
@@ -74,7 +73,6 @@ export function OverviewPlansTable({
               onClick={onCreatePlan}
               data-testid="overview-create-plan-button"
             >
-              <PlusIcon size={16} className="gba:mr-2" />
               {t('overview-plans-new-button')}
             </Button>
           </div>

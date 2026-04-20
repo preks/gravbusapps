@@ -1,4 +1,5 @@
 import type { SaveCompensationBudgetPlanEmployeeRestBody } from '../../../api/saveCompensationBudgetPlan'
+import type { BudgetPlanStatusApi } from '../../../types/budgetPlanGraphqlEnums'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import { computeNewSalaryFromIncrease } from '../../../utils/budgetCalculations'
 import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
@@ -51,6 +52,11 @@ export function resolvePlanOrganizationalUnitRowIdForTeamMember(
 
 export interface BuildManagerEmployeeSaveBodyOptions {
   submittedAt?: string
+  /**
+   * When true (team compensation modal submit), persist as `BUDGET_PLAN_SUBMITTED` with
+   * `submittedAt` set (defaults to current ISO time).
+   */
+  submitAsSubmitted?: boolean
 }
 
 /**
@@ -66,6 +72,12 @@ export function buildSaveCompensationBudgetPlanEmployeeInsertBody(
   const { proposedSalaryIncreaseAmount, proposedSalaryIncreasePercent, proposedNewSalary } =
     computeManagerProposalAmountsFromIncrease(member, increaseAmount)
 
+  const submitAsSubmitted = options?.submitAsSubmitted === true
+  const submittedAtIso = submitAsSubmitted
+    ? (options?.submittedAt ?? new Date().toISOString())
+    : (options?.submittedAt ?? '')
+  const budgetPlanStatus: BudgetPlanStatusApi = submitAsSubmitted ? 'BUDGET_PLAN_SUBMITTED' : 'BUDGET_PLAN_DRAFT'
+
   return {
     changeMode: 'INSERT',
     compensationBudgetPlanEmployee: {
@@ -73,8 +85,8 @@ export function buildSaveCompensationBudgetPlanEmployeeInsertBody(
       proposedSalaryIncreasePercent,
       proposedNewSalary,
       justification: '',
-      budgetPlanStatus: 'BUDGET_PLAN_DRAFT',
-      submittedAt: options?.submittedAt ?? '',
+      budgetPlanStatus,
+      submittedAt: submittedAtIso,
       reviewNotes: '',
       compensationBudgetPlanOrganizationalUnit: planOrganizationalUnitRowId,
       employee: member.employeeId,
