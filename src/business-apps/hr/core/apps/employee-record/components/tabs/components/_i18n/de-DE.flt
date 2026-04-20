@@ -19,3 +19,9 @@ time_tracking_day_type_weekend = Wochenende
 time_tracking_day_type_not_working = Kein Arbeitstag
 time_tracking_day_type_work_day = Arbeitstag
 manual_entry = Manuelle Erfassung
+
+# Attendance status badges
+status_in_progress = In Bearbeitung
+status_completed = Abgeschlossen
+status_incomplete = Unvollständig
+status_under_review = In Prüfung

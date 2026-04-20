@@ -37,8 +37,8 @@ export type TimeEntry = {
   notes?: string
   // persisted location enum from BE
   attendanceLocation?: 'UNKNOWN_LOCATION' | 'IS_NEAR_HOME' | 'IS_NEAR_OFFICE' | 'IS_OTHER_LOCATION'
-  // optional external workflow status (kept for UI badge if available)
-  status?: 'approved' | 'pending' | 'rejected' | 'open'
+  // derived attendance status for UI badge
+  status?: 'in_progress' | 'completed' | 'incomplete' | 'under_review'
   // derived for internal calculations (not rendered directly)
   totalMinutes?: number
   isPlaceholder?: boolean
@@ -142,16 +142,30 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const toLocalDateKey = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
+  const deriveAttendanceStatus = (
+    startIso?: string,
+    endIso?: string,
+    attendanceDateISO?: string
+  ): TimeEntry['status'] => {
+    if (!startIso && !endIso) return undefined
+    if (startIso && endIso) return 'completed'
+    const todayKey = toLocalDateKey(new Date())
+    const entryKey = attendanceDateISO ? toLocalDateKey(new Date(attendanceDateISO)) : ''
+    if (startIso && !endIso) {
+      return entryKey === todayKey ? 'in_progress' : 'incomplete'
+    }
+    return 'incomplete'
+  }
+
   const mapAttendanceToEntry = (row: any): TimeEntry => {
-    // GraphQL returns ISO values already; ensure strings
     const startIso = row.startTime ? String(row.startTime) : undefined
     const endIso = row.endTime ? String(row.endTime) : undefined
-    // Effective, planned, difference, break are returned as strings, keep them
     const totalMinutes = parseDurationToMinutes(row.effectiveTime)
+    const attendanceDateISO = new Date(row.attendanceDate).toISOString()
     return {
       id: row.id,
       version: row.version,
-      attendanceDateISO: new Date(row.attendanceDate).toISOString(),
+      attendanceDateISO,
       startTimeISO: startIso,
       endTimeISO: endIso,
       recordedTime: row.recordedTime,
@@ -162,7 +176,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       manualOverride: Boolean(row.manualOverride),
       notes: row.notes ?? '',
       attendanceLocation: row?.attendanceLocation ?? undefined,
-      status: 'open',
+      status: deriveAttendanceStatus(startIso, endIso, attendanceDateISO),
       totalMinutes
     }
   }
@@ -203,7 +217,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         for (const entry of list) {
           const entryDay = toLocalDateKey(new Date(entry.attendanceDateISO))
           if (correctionDates.has(entryDay)) {
-            entry.status = 'pending'
+            entry.status = 'under_review'
           }
         }
       }
@@ -407,7 +421,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       for (const entry of allMapped) {
         const entryDay = toLocalDateKey(new Date(entry.attendanceDateISO))
         if (correctionDates.has(entryDay)) {
-          entry.status = 'pending'
+          entry.status = 'under_review'
         }
       }
     }
@@ -673,11 +687,33 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     workAbsenceDates
   ])
 
+  const durationSortKeys = new Set<keyof TimeEntry>([
+    'differenceTime',
+    'recordedTime',
+    'breakTime',
+    'effectiveTime',
+    'plannedTime'
+  ])
+
   const sortedFilledEntries = useMemo(() => {
+    const hasValue = (e: TimeEntry) => {
+      if (!durationSortKeys.has(sortKey)) return true
+      const raw = e[sortKey] as string | undefined
+      return raw != null && raw !== ''
+    }
     return [...filledMonthEntries].sort((a, b) => {
-      const va = a[sortKey]
-      const vb = b[sortKey]
-      const cmp = String(va ?? '').localeCompare(String(vb ?? ''))
+      const aHas = hasValue(a)
+      const bHas = hasValue(b)
+      if (aHas !== bHas) return aHas ? -1 : 1
+
+      let cmp: number
+      if (durationSortKeys.has(sortKey)) {
+        const ma = parseDurationToMinutes(a[sortKey] as string | undefined)
+        const mb = parseDurationToMinutes(b[sortKey] as string | undefined)
+        cmp = ma - mb
+      } else {
+        cmp = String(a[sortKey] ?? '').localeCompare(String(b[sortKey] ?? ''))
+      }
       return sortDir === 'asc' ? cmp : -cmp
     })
   }, [filledMonthEntries, sortKey, sortDir])
