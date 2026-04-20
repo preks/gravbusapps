@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Card, CardContent, Alert, Badge, Icon, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, Alert, Badge, Icon, Button, useTranslation } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useTimeInterventions } from '../hooks/useTimeInterventions'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -14,6 +14,8 @@ import {
   HourglassIcon
 } from '@phosphor-icons/react'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import type { TimeInterventionItem } from '../hooks/useTimeInterventions'
+import hrI18n from './_i18n'
 
 interface InterventionsTableProps {
   employeeId: string
@@ -49,6 +51,35 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({
     accessToken,
     workingHours
   })
+  const { t } = useTranslation(hrI18n)
+
+  type InterventionStatus = 'in_progress' | 'completed' | 'incomplete' | 'under_review'
+
+  const deriveInterventionStatus = (item: TimeInterventionItem): InterventionStatus => {
+    if (item.pendingCorrection) return 'under_review'
+    const hasStart = Boolean(item.entry?.startTime)
+    const hasEnd = Boolean(item.entry?.endTime)
+    if (hasStart && hasEnd) return 'completed'
+    if (hasStart && !hasEnd) {
+      const todayKey = new Date().toISOString().slice(0, 10)
+      return item.date === todayKey ? 'in_progress' : 'incomplete'
+    }
+    return 'incomplete'
+  }
+
+  const statusToVariant: Record<InterventionStatus, string> = {
+    in_progress: 'running',
+    completed: 'success',
+    incomplete: 'destructive',
+    under_review: 'warning'
+  }
+
+  const statusToLabel: Record<InterventionStatus, string> = {
+    in_progress: t('status_in_progress'),
+    completed: t('status_completed'),
+    incomplete: t('status_incomplete'),
+    under_review: t('status_under_review')
+  }
 
   useProcessCompletion({
     onSuccess: () => {
@@ -86,33 +117,6 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({
       }
       return next
     })
-  }
-
-  const getReason = (reason: string) => {
-    if (reason === 'MISSING_HOURS')
-      return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.missing_hours', 'Missing hours')
-    if (reason === 'NO_ATTENDANCE')
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:time_tracking.interventions.no_attendance',
-        'No attendance recorded'
-      )
-    return getTranslationFromI18nKeyAndLabel(
-      'lowcoder:time_tracking.interventions.absence_with_attendance',
-      'Absence and attendance overlap'
-    )
-  }
-
-  const getBadgeVariant = (reason: string): any => {
-    switch (reason) {
-      case 'MISSING_HOURS':
-        return 'warning'
-      case 'NO_ATTENDANCE':
-        return 'info'
-      case 'ABSENCE_WITH_ATTENDANCE':
-        return 'destructive'
-      default:
-        return 'secondary'
-    }
   }
 
   const getReasonIcon = (reason: string) => {
@@ -227,21 +231,17 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({
                               <div className="gba:flex gba:flex-col">
                                 <div className="gba:flex gba:items-center gba:gap-2">
                                   <div className="gba:font-medium">{dateText}</div>
-                                  {item.pendingCorrection ? (
-                                    <Badge variant="warning" data-testid={`time-interventions-pending-${item.date}`}>
-                                      {getTranslationFromI18nKeyAndLabel(
-                                        'lowcoder:time_tracking.interventions.manager_approval_pending',
-                                        'Manager approval pending'
-                                      )}
-                                    </Badge>
-                                  ) : (
-                                    <Badge
-                                      variant={getBadgeVariant(item.reason)}
-                                      data-testid={`time-interventions-reason-${item.date}`}
-                                    >
-                                      {getReason(item.reason)}
-                                    </Badge>
-                                  )}
+                                  {(() => {
+                                    const status = deriveInterventionStatus(item)
+                                    return (
+                                      <Badge
+                                        variant={statusToVariant[status]}
+                                        data-testid={`time-interventions-status-${item.date}`}
+                                      >
+                                        {statusToLabel[status]}
+                                      </Badge>
+                                    )
+                                  })()}
                                 </div>
                                 <div className="gba:text-sm gba:text-muted-foreground">
                                   {getTranslationFromI18nKeyAndLabel(
