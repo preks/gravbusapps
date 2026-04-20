@@ -41,6 +41,7 @@ import {
 } from '../../utils/timeUtils'
 import { toAvatarSrc, goToProfile } from '../../utils/employeeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { GET_TEAM_ABSENCE_NET_FOR_RANGE } from '../../queries/queries'
 import {
   expandDateRange,
   fetchTeamDetailedAbsences,
@@ -251,6 +252,8 @@ const getProgressColor = (pct: number): string => {
   return 'var(--nw-destructive)'
 }
 
+const getForecastTimeOffKey = (employeeId: string, dayDate: string): string => `${employeeId}:${dayDate}`
+
 export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   const { members, memberIds, isLoading: membersLoading } = useTeamMembers(props)
   const {
@@ -282,6 +285,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   const [forecastHolidayNamesByEmployeeId, setForecastHolidayNamesByEmployeeId] = useState<
     Map<string, Record<string, string>>
   >(new Map())
+  const [forecastTimeOffByEmployeeDate, setForecastTimeOffByEmployeeDate] = useState<Map<string, number>>(new Map())
   const [forecastLoading, setForecastLoading] = useState(false)
   const [activePanel, setActivePanel] = useState<PanelType>(null)
   const [selectedForecastDay, setSelectedForecastDay] = useState<string | null>(null)
@@ -316,32 +320,66 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
       const to = toDateString(calEnd)
       const locale = getActiveLocale()
 
-      const [detailedAbsences, holidayData] = await Promise.all([
+      const [detailedAbsences, holidayData, absenceNetResult] = await Promise.all([
         fetchTeamDetailedAbsences(graphqlClient, memberIds, from, to, locale),
-        fetchTeamHolidayData(graphqlClient, memberIds, from, to, locale)
+        fetchTeamHolidayData(graphqlClient, memberIds, from, to, locale),
+        graphqlClient.request<any>(GET_TEAM_ABSENCE_NET_FOR_RANGE, {
+          employeeIds: memberIds,
+          from,
+          to
+        })
       ])
 
-      setForecastAbsences(
-        detailedAbsences.flatMap(absence =>
-          expandDateRange(absence.startDate, absence.endDate, from, to).map(dayDate => ({
-            employeeId: absence.employeeId,
-            typeRef: absence.typeRef,
-            status: absence.status,
-            dayDate,
-            employeeAbsenceId: absence.id,
-            typeLabel: absence.typeLabel,
-            parentEntryId: absence.parentEntryId,
-            startDate: absence.startDate,
-            endDate: absence.endDate,
-            employeeName: absence.employeeName,
-            pictureThumbnail: absence.pictureThumbnail
-          }))
-        )
+      const expandedForecastAbsences = detailedAbsences.flatMap(absence =>
+        expandDateRange(absence.startDate, absence.endDate, from, to).map(dayDate => ({
+          employeeId: absence.employeeId,
+          typeRef: absence.typeRef,
+          status: absence.status,
+          dayDate,
+          employeeAbsenceId: absence.id,
+          typeLabel: absence.typeLabel,
+          parentEntryId: absence.parentEntryId,
+          startDate: absence.startDate,
+          endDate: absence.endDate,
+          employeeName: absence.employeeName,
+          pictureThumbnail: absence.pictureThumbnail
+        }))
       )
+      setForecastAbsences(expandedForecastAbsences)
       setForecastHolidayDatesByEmployeeId(holidayData.datesByEmployeeId)
       setForecastHolidayNamesByEmployeeId(holidayData.namesByEmployeeId)
+
+      const nonWorkAbsenceDayKeys = new Set(
+        expandedForecastAbsences
+          .filter(absence => absence.status === 'APPROVED' && !isWorkAbsence(absence))
+          .map(absence => getForecastTimeOffKey(absence.employeeId, absence.dayDate))
+      )
+
+      const dailyTimeOffFraction = new Map<string, number>()
+      const absenceNetRows: any[] = absenceNetResult?.DailyAbsenceNetView ?? []
+      absenceNetRows.forEach(row => {
+        const dayKey = getForecastTimeOffKey(row.employeeId, row.dayDate)
+        if (!nonWorkAbsenceDayKeys.has(dayKey)) {
+          return
+        }
+
+        const value = Number(row.netSignedEps ?? row.netConsumed) || 0
+        if (value <= 0) {
+          return
+        }
+
+        dailyTimeOffFraction.set(dayKey, Math.min(1, (dailyTimeOffFraction.get(dayKey) ?? 0) + value))
+      })
+
+      nonWorkAbsenceDayKeys.forEach(dayKey => {
+        if (!dailyTimeOffFraction.has(dayKey)) {
+          dailyTimeOffFraction.set(dayKey, 1)
+        }
+      })
+      setForecastTimeOffByEmployeeDate(dailyTimeOffFraction)
     } catch {
       // secondary data, don't block
+      setForecastTimeOffByEmployeeDate(new Map())
     } finally {
       setForecastLoading(false)
     }
@@ -357,20 +395,23 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
     setActivePanel(prev => (prev === panel ? null : panel))
   }
 
+  const getForecastTimeOffFraction = (employeeId: string, dayDate: string): number => {
+    return Math.min(1, forecastTimeOffByEmployeeDate.get(getForecastTimeOffKey(employeeId, dayDate)) ?? 0)
+  }
+
   const getForecastCell = (date: string): { available: number; total: number; pct: number } => {
-    const total = members.filter(member => {
+    const workingMembers = members.filter(member => {
       if (!isWorkingDay(date, member.workingHours)) {
         return false
       }
 
       return !forecastHolidayDatesByEmployeeId.get(member.id)?.has(date)
-    }).length
-    const absentIds = new Set(
-      forecastAbsences
-        .filter(absence => absence.dayDate === date && absence.status === 'APPROVED' && !isWorkAbsence(absence))
-        .map(absence => absence.employeeId)
-    )
-    const available = Math.max(0, total - absentIds.size)
+    })
+    const total = workingMembers.length
+    const fullyUnavailableCount = workingMembers.filter(
+      member => getForecastTimeOffFraction(member.id, date) >= 1
+    ).length
+    const available = Math.max(0, total - fullyUnavailableCount)
     const pct = total > 0 ? Math.round((available / total) * 100) : 100
     return { available, total, pct }
   }
@@ -490,13 +531,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
           return false
         }
 
-        return !forecastAbsences.some(
-          absence =>
-            absence.employeeId === member.id &&
-            absence.dayDate === selectedForecastDay &&
-            absence.status === 'APPROVED' &&
-            !isWorkAbsence(absence)
-        )
+        return getForecastTimeOffFraction(member.id, selectedForecastDay) < 1
       })
     : []
   const forecastUnavailableMembers = selectedForecastDay
@@ -510,6 +545,10 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
           return [{ member, reason: holidayLabel }]
         }
 
+        if (getForecastTimeOffFraction(member.id, selectedForecastDay) < 1) {
+          return []
+        }
+
         const absence = forecastAbsences.find(
           item =>
             item.employeeId === member.id &&
@@ -518,17 +557,16 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
             !isWorkAbsence(item)
         )
 
-        if (!absence) {
-          return []
-        }
-
-        const periodLabel = formatAbsencePeriod(absence)
+        const periodLabel = absence ? formatAbsencePeriod(absence) : ''
+        const reason = absence
+          ? periodLabel
+            ? `${absence.typeLabel || absence.typeRef} · ${periodLabel}`
+            : absence.typeLabel || absence.typeRef
+          : t('approved_absence', 'Approved absence')
         return [
           {
             member,
-            reason: periodLabel
-              ? `${absence.typeLabel || absence.typeRef} · ${periodLabel}`
-              : absence.typeLabel || absence.typeRef
+            reason
           }
         ]
       })

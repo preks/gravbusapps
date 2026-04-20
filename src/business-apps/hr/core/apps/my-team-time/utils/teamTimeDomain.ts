@@ -81,8 +81,23 @@ export interface TeamHolidayData {
 }
 
 const toDateKey = (value: Date | string): string => {
-  const date = value instanceof Date ? value : new Date(`${value}T00:00:00`)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  if (value instanceof Date) {
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
+  }
+
+  const normalized = String(value).trim()
+  // Accept both plain date and timestamp inputs (e.g. 2026-04-07 or 2026-04-07T00:00:00).
+  const datePrefix = /^(\d{4})-(\d{2})-(\d{2})/.exec(normalized)
+  if (datePrefix) {
+    return `${datePrefix[1]}-${datePrefix[2]}-${datePrefix[3]}`
+  }
+
+  const parsed = new Date(normalized)
+  if (Number.isNaN(parsed.getTime())) {
+    return ''
+  }
+
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`
 }
 
 const toLocalDate = (value: string): Date => new Date(`${value}T00:00:00`)
@@ -225,7 +240,19 @@ export const fetchTeamHolidayData = async (
 
   const regionEntries = Array.from(employeeIdsByRegion.entries())
   await Promise.all(
-    regionEntries.map(async ([regionId, regionEmployeeIds]) => {
+    regionEntries.map(async ([regionIdRaw, regionEmployeeIds]) => {
+      // Keep holiday resolution consistent with My Time history:
+      // map RO sub-regions to the consolidated ROU holiday catalog.
+      let regionId = regionIdRaw
+      try {
+        const regionCode = String(regionIdRaw).split(':').pop() || ''
+        if (regionCode.startsWith('RO') && regionCode !== 'ROU') {
+          regionId = 'EmploymentRegion:v1:ROU'
+        }
+      } catch {
+        regionId = regionIdRaw
+      }
+
       const holidaysResult = await graphqlClient.request<HolidaysResult>(employmentRegionHolidaysQuery, {
         activeUserLocale: locale,
         regionId

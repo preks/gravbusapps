@@ -69,30 +69,21 @@ export const useTeamCapacity = (
             dateFrom: fromStr,
             dateTo: toStr
           })
-      const cumulativeAttendancePromise = graphqlClient.request<any>(GET_TEAM_ATTENDANCE_FOR_RANGE, {
-        employeeIds: memberIds,
-        dateFrom: '2000-01-01',
-        dateTo: toStr
-      })
-
-      const [absenceNetResult, detailedAbsences, holidayData, monthAttendanceResult, cumulativeAttendanceResult] =
-        await Promise.all([
-          graphqlClient.request<any>(GET_TEAM_ABSENCE_NET_FOR_RANGE, {
-            employeeIds: memberIds,
-            from: fromStr,
-            to: toStr
-          }),
-          fetchTeamDetailedAbsences(graphqlClient, memberIds, fromStr, toStr, locale),
-          fetchTeamHolidayData(graphqlClient, memberIds, fromStr, toStr, locale),
-          monthAttendancePromise,
-          cumulativeAttendancePromise
-        ])
+      const [absenceNetResult, detailedAbsences, holidayData, monthAttendanceResult] = await Promise.all([
+        graphqlClient.request<any>(GET_TEAM_ABSENCE_NET_FOR_RANGE, {
+          employeeIds: memberIds,
+          from: fromStr,
+          to: toStr
+        }),
+        fetchTeamDetailedAbsences(graphqlClient, memberIds, fromStr, toStr, locale),
+        fetchTeamHolidayData(graphqlClient, memberIds, fromStr, toStr, locale),
+        monthAttendancePromise
+      ])
 
       const absenceNetRows: any[] = absenceNetResult?.DailyAbsenceNetView ?? []
       const attendanceRows: any[] = canUseSharedAttendance
         ? (monthAttendanceResult as TeamAttendanceEntry[])
         : (((monthAttendanceResult as any)?.EmployeeAttendance ?? []) as TeamAttendanceEntry[])
-      const cumulativeAttendanceRows: any[] = cumulativeAttendanceResult?.EmployeeAttendance ?? []
 
       const today = new Date()
       const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
@@ -132,7 +123,6 @@ export const useTeamCapacity = (
         }
 
         const empAttendance = attendanceRows.filter((r: any) => r.employeeId === member.id)
-        const cumulativeAttendance = cumulativeAttendanceRows.filter((r: any) => r.employeeId === member.id)
 
         let workedMinutes = 0
         let missingEntries = 0
@@ -198,10 +188,7 @@ export const useTeamCapacity = (
           monthlyCursor.setDate(monthlyCursor.getDate() + 1)
         }
 
-        const netBalanceMinutes = cumulativeAttendance.reduce(
-          (sum: number, attendanceEntry: any) => sum + parseDurationToMinutes(attendanceEntry.differenceTime),
-          0
-        )
+        const netBalanceMinutes = workedMinutes - targetUpToNow
 
         return {
           employee: member,

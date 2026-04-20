@@ -37,10 +37,10 @@ import {
 import { formatMinutes, toDateString, toLocalDateKey, getPlannedMinutesForDate } from '../../utils/timeUtils'
 import { InsightsAbsenceAnalytics } from './InsightsAbsenceAnalytics'
 import { fetchTeamDetailedAbsences, getActiveLocale, isVacationAbsence } from '../../utils/teamTimeDomain'
-import { translateMyTeamTimeText } from '../../useMyTeamTimeTranslation'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const t = (key: string, fallback: string, vars?: Record<string, unknown>) =>
-  translateMyTeamTimeText(key, fallback, vars)
+  getTranslationFromI18nKeyAndLabel(`lowcoder:my_team_time.${key}`, fallback, vars)
 
 const DAILY_HOURS_BUFFER_RATIO = 1.15
 const OVERTIME_WARNING_RATIO = 0.06
@@ -316,9 +316,7 @@ const renderCoverageCardContent = (
 ): React.ReactNode => {
   if (coverageLoading) {
     return (
-      <div className="gba:text-center gba:py-4 gba:text-muted-foreground gba:text-sm">
-        {translateMyTeamTimeText('loading', 'Loading...')}
-      </div>
+      <div className="gba:text-center gba:py-4 gba:text-muted-foreground gba:text-sm">{t('loading', 'Loading...')}</div>
     )
   }
 
@@ -737,7 +735,7 @@ const computeSustainabilitySignals = (
         riskLevel = riskLevel === 'medium' ? 'high' : 'medium'
       }
       if (recentPtoEmployeeIds && !recentPtoEmployeeIds.has(row.employee.id)) {
-        signals.push(t('no_pto_last_three_months', 'No PTO taken in last 3 months'))
+        signals.push(t('no_pto_taken_last_three_months', 'No PTO taken in the last 3 months'))
       }
       if (row.missingEntries > 3)
         signals.push(t('missing_entries_count', '{{count}} missing time entries', { count: row.missingEntries }))
@@ -965,7 +963,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
       case 'compliance':
         return t('compliance_monitor', 'Compliance Monitor')
       case 'coverage':
-        return t('capability_coverage_details', 'Capability Coverage Details')
+        return t('absence_impact_scenario', 'Absence Impact Scenario')
       default:
         return ''
     }
@@ -987,11 +985,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
   // ── Loading / error ─────────────────────────────────────────────────────────
 
   if (isLoading) {
-    return (
-      <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-        {translateMyTeamTimeText('loading', 'Loading...')}
-      </div>
-    )
+    return <div className="gba:text-center gba:py-12 gba:text-muted-foreground">{t('loading', 'Loading...')}</div>
   }
 
   if (error) {
@@ -1181,7 +1175,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
           </CardContent>
         </Card>
 
-        {/* Panel 3: Capability Coverage */}
+        {/* Panel 3: Absence Impact Scenario */}
         <Card
           className="gba:cursor-pointer gba:border gba:border-border gba:transition-colors hover:gba:bg-muted/20"
           onClick={() => toggleDrawer('coverage')}
@@ -1190,7 +1184,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
           <CardHeader className="gba:pb-2">
             <CardTitle className="gba:text-sm gba:font-semibold gba:flex gba:items-center gba:gap-2">
               <UsersThreeIcon className="gba:text-info" />
-              {t('capability_coverage', 'Capability Coverage')}
+              {t('absence_impact_scenario', 'Absence Impact Scenario')}
             </CardTitle>
           </CardHeader>
           <CardContent className="gba:pt-0">
@@ -1204,7 +1198,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
         <InsightsAbsenceAnalytics {...props} />
       ) : (
         <div className="gba:rounded-lg gba:border gba:border-border gba:bg-muted/20 gba:py-10 gba:text-center gba:text-muted-foreground">
-          {translateMyTeamTimeText('loading', 'Loading...')}
+          {t('loading', 'Loading...')}
         </div>
       )}
 
