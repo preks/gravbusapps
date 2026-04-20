@@ -99,10 +99,10 @@ definitions:
           - set -e
           - echo $NEWWORK_NMP_CREDENTIALS | base64 -d > ~/.npmrc
           - apt-get update && apt-get install gettext -y
-          - npm ci --ignore-scripts=true
+          - npm ci
           - |
             # Pre-install native deps (optionalDependency resolution on Linux CI can skip these; see npm/cli#4828)
-            npm install @rollup/rollup-linux-x64-gnu lightningcss-linux-x64-gnu @tailwindcss/oxide-linux-x64-gnu --ignore-scripts=true || true
+            npm install @rollup/rollup-linux-x64-gnu@4.59.0 lightningcss-linux-x64-gnu@1.31.1 @tailwindcss/oxide-linux-x64-gnu@4.2.1 --ignore-scripts=true || true
         artifacts:
           - node_modules/**
           - pipeline/scripts/**
