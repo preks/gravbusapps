@@ -1,0 +1,108 @@
+/**
+ * TableWidget - mini data table widget showing top N rows with selected columns.
+ */
+
+import React, { useMemo } from 'react'
+import type { BoardRow, BoardColumn, TableWidgetConfig } from '../../types'
+
+export interface TableWidgetProps {
+  config: TableWidgetConfig
+  columns: BoardColumn[]
+  rows: BoardRow[]
+  testId: string
+}
+
+export const TableWidget: React.FC<TableWidgetProps> = ({ config, columns, rows, testId }) => {
+  const displayColumns = useMemo(() => {
+    if (config.columns.length === 0) return columns.slice(0, 4)
+    return config.columns
+      .map(ref => {
+        return (
+          columns.find(c => c.name === ref) ||
+          columns.find(c => c.id === ref) ||
+          columns.find(c => c.label.toLowerCase() === ref.toLowerCase()) ||
+          columns.find(c => c.name.toLowerCase().includes(ref.toLowerCase()))
+        )
+      })
+      .filter(Boolean) as BoardColumn[]
+  }, [config.columns, columns])
+
+  const displayRows = useMemo(() => {
+    const sorted = [...rows]
+    if (config.sortBy) {
+      const col = columns.find(c => c.name === config.sortBy)
+      const isNumeric = col && ['number', 'currency', 'percentage'].includes(col.type)
+      sorted.sort((a, b) => {
+        const aVal = a.data[config.sortBy!]
+        const bVal = b.data[config.sortBy!]
+        if (isNumeric) {
+          const diff = (Number(aVal) || 0) - (Number(bVal) || 0)
+          return config.sortDirection === 'desc' ? -diff : diff
+        }
+        const cmp = String(aVal ?? '').localeCompare(String(bVal ?? ''))
+        return config.sortDirection === 'desc' ? -cmp : cmp
+      })
+    }
+    return sorted.slice(0, config.limit || 10)
+  }, [rows, columns, config.limit, config.sortBy, config.sortDirection])
+
+  if (displayColumns.length === 0) {
+    return (
+      <div
+        className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-xs gba:text-muted-foreground"
+        data-testid={testId}
+      >
+        No columns configured
+      </div>
+    )
+  }
+
+  return (
+    <div className="gba:overflow-auto gba:max-h-[250px]" data-testid={testId}>
+      <table className="gba:w-full gba:text-xs gba:border-collapse">
+        <thead className="gba:sticky gba:top-0">
+          <tr className="gba:bg-muted/60">
+            {displayColumns.map(col => (
+              <th
+                key={col.id || col.name}
+                className="gba:px-2 gba:py-1.5 gba:text-left gba:font-medium gba:text-muted-foreground gba:border-b gba:whitespace-nowrap"
+              >
+                {col.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {displayRows.map(row => (
+            <tr key={row.id} className="gba:hover:bg-muted/20">
+              {displayColumns.map((col, colIdx) => (
+                <td
+                  key={col.id || col.name}
+                  className={`gba:px-2 gba:py-1 gba:border-b gba:truncate gba:max-w-32 ${
+                    colIdx === 0 ? 'gba:font-medium' : ''
+                  }`}
+                >
+                  {row.data[col.name] != null
+                    ? (typeof row.data[col.name] === 'object'
+                      ? (() => { try { return JSON.stringify(row.data[col.name]) } catch { return '' } })()
+                      : String(row.data[col.name]))
+                    : ''}
+                </td>
+              ))}
+            </tr>
+          ))}
+          {displayRows.length === 0 && (
+            <tr>
+              <td
+                colSpan={displayColumns.length}
+                className="gba:px-2 gba:py-4 gba:text-center gba:text-muted-foreground"
+              >
+                No data
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  )
+}

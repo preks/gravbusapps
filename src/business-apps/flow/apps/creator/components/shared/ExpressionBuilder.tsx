@@ -34,7 +34,7 @@ import { useCatalogDiscovery } from '../../hooks/useCatalogDiscovery'
 import { useEntitySchemas, clearEntitySchemasCache } from '../../hooks/useEntitySchemas'
 import { useDatasource } from '../../hooks/useDatasource'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 
 interface ExpressionBuilderProps {
   isOpen: boolean
@@ -67,9 +67,9 @@ const validateExpressionStrict = (value: string): { isValid: boolean; message?: 
   })
 
   // Check if remaining text contains suspicious characters
-  // Allow: letters, numbers, spaces, basic punctuation (. , ! ? : ; - _ / \)
-  // Disallow: @ # $ % ^ & * ( ) + = { } [ ] | < >
-  const suspiciousCharPattern = /[@#$%^&*+={}[\]|<>]/
+  // Allow: letters, numbers, spaces, most punctuation including @ ; ` < >
+  // Disallow: # $ % ^ & * ( ) + = { } [ ] | (expression-like characters)
+  const suspiciousCharPattern = /[#$%^&*+={}[\]|]/
 
   if (suspiciousCharPattern.test(remainingText)) {
     const suspiciousChars = remainingText.match(suspiciousCharPattern)
@@ -160,7 +160,8 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   const { testExpression, testResult, isTesting, clearResult } = useExpressionTesting(
     template,
     stepIndex,
-    context.accessToken
+    context.accessToken,
+    context.userInfo?.id // Pass authenticated user ID for orgchart expression testing
   )
 
   // Sync local value with prop
@@ -229,7 +230,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
         }
 
         // Then call backend API for thorough validation
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+        const apiUrl = CUSTOM_FLOW_ENGINE_API_URL
 
         // Create a complete template with ALL steps for cross-step validation
         const testTemplate = {
@@ -249,7 +250,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
           )
         }
 
-        const response = await fetch(`${apiUrl}/api/templates/validate-expressions`, {
+        const response = await fetch(`${apiUrl}/templates/validate-expressions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -612,8 +613,23 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
     insertAtCursor(node.expressionTemplate)
   }
 
+  const handleOrgChartFieldSelect = (node: TreeNodeType) => {
+    if (node.expressionTemplate) {
+      // Replace ID_PLACEHOLDER with $workflow.initiator as the most common use case
+      // User can edit if needed
+      const expression = node.expressionTemplate.replace('ID_PLACEHOLDER', '$workflow.initiator')
+      insertAtCursor(expression)
+    }
+  }
+
   const handleFieldSelect = (node: TreeNodeType) => {
     if (!node.path) return
+
+    // OrgChart field click - handle separately
+    if (node.type === 'orgchart-field') {
+      handleOrgChartFieldSelect(node)
+      return
+    }
 
     // Entity fields from static entity schema
     if (node.path[0] === '$entity') {
@@ -1222,27 +1238,103 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
                       </div>
                     </div>
 
-                    {/* Future Features Section */}
-                    <div className="gba:border-t gba:pt-4">
-                      <h4 className="gba:font-semibold gba:mb-2 gba:text-base gba:text-gray-500">Coming Soon</h4>
-                      <p className="gba:text-xs gba:text-gray-500 gba:mb-3 gba:italic">
-                        These features are planned for future releases
+                    {/* OrgChart Section */}
+                    <div>
+                      <h4 className="gba:font-semibold gba:mb-2 gba:text-base">OrgChart - Organizational Hierarchy</h4>
+                      <p className="gba:text-xs gba:text-gray-600 gba:mb-3">
+                        Access managers, skip-level managers, and direct reports based on organizational structure
                       </p>
-                      <div className="gba:space-y-3 gba:opacity-50">
+                      <div className="gba:space-y-2">
+                        <div>
+                          <h5 className="gba:font-medium gba:mb-1 gba:text-sm gba:text-blue-700">
+                            By User ID (Recommended)
+                          </h5>
+                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                            {'{{$orgchart.managerByUserId[$workflow.initiator]}}'}
+                            <br />
+                            <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                              → My manager (user ID)
+                            </span>
+                          </code>
+                        </div>
+                        <div>
+                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                            {'{{$orgchart.managerByUserId[$workflow.initiator].name}}'}
+                            <br />
+                            <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                              → My manager's display name
+                            </span>
+                          </code>
+                        </div>
+                        <div>
+                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                            {'{{$orgchart.skipLevelManagerByUserId[$workflow.initiator]}}'}
+                            <br />
+                            <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                              → My director (skip-level manager)
+                            </span>
+                          </code>
+                        </div>
+                        <div>
+                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                            {'{{$orgchart.directReportsByUserId[$workflow.initiator]}}'}
+                            <br />
+                            <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                              → My team members (array of user IDs)
+                            </span>
+                          </code>
+                        </div>
+                      </div>
+                      <div className="gba:mt-3 gba:space-y-2">
+                        <h5 className="gba:font-medium gba:mb-1 gba:text-sm gba:text-gray-700">By Employee ID</h5>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$orgchart.manager[$workflow.input.employeeId]}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Manager of specific employee
+                          </span>
+                        </code>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$orgchart.manager[$workflow.input.employeeId].email}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Manager's email address
+                          </span>
+                        </code>
+                      </div>
+                      <div className="gba:mt-3 gba:space-y-2">
+                        <h5 className="gba:font-medium gba:mb-1 gba:text-sm gba:text-blue-700">ID Conversion</h5>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$orgchart.userIdByEmployeeId[$steps.step_0.formData.selectedEmployee]}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Convert employeeId from form to userId (for assignments)
+                          </span>
+                        </code>
+                      </div>
+                    </div>
+
+                    {/* Catalog & Entity Section */}
+                    <div>
+                      <h4 className="gba:font-semibold gba:mb-2 gba:text-base">Catalog & Entity Data</h4>
+                      <p className="gba:text-xs gba:text-gray-600 gba:mb-3">
+                        Access catalog entries and entity records
+                      </p>
+                      <div className="gba:space-y-2">
                         <div>
                           <h5 className="gba:font-medium gba:mb-1 gba:text-sm">Catalog Data</h5>
-                          <code className="gba:block gba:p-2 gba:bg-gray-50 gba:rounded gba:text-xs">
-                            {'{{$catalog.asset-management[0].name}}'}
+                          <code className="gba:block gba:p-2 gba:bg-gray-100 gba:rounded gba:text-xs gba:font-mono">
+                            {"{{$catalog.asset-management['asset-001'].name}}"}
                             <br />
-                            {'{{$catalog.employees[emp-001].email}}'}
+                            {"{{$catalog.employees['emp-001'].email}}"}
                           </code>
                         </div>
                         <div>
                           <h5 className="gba:font-medium gba:mb-1 gba:text-sm">Entity References</h5>
-                          <code className="gba:block gba:p-2 gba:bg-gray-50 gba:rounded gba:text-xs">
-                            {'{{$entity.ticket.TKT-123.subject}}'}
+                          <code className="gba:block gba:p-2 gba:bg-gray-100 gba:rounded gba:text-xs gba:font-mono">
+                            {'{{$entity.employee.emp-123.firstName}}'}
                             <br />
-                            {'{{$entity.employee.{{$workflow.initiator}}.email}}'}
+                            {'{{$entity.department.dept-456.name}}'}
                           </code>
                         </div>
                       </div>
@@ -1292,13 +1384,23 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
               </AlertTitle>
               <AlertDescription className="nw:mt-2">
                 {testResult.success ? (
-                  <div className="nw:space-y-1">
+                  <div className="nw:space-y-2">
+                    {testResult.info && (
+                      <div className="nw:text-xs nw:bg-blue-50 nw:px-2 nw:py-1 nw:rounded nw:text-blue-800">
+                        ℹ️ {testResult.info}
+                      </div>
+                    )}
                     <div className="nw:flex nw:items-start nw:gap-2">
                       <span className="nw:text-xs nw:text-muted-foreground nw:shrink-0">Resolved to:</span>
                       <code className="nw:bg-muted nw:px-2 nw:py-1 nw:rounded nw:text-sm nw:flex-1 nw:break-all">
                         {testResult.resolvedValue}
                       </code>
                     </div>
+                    {testResult.warning && (
+                      <div className="nw:text-xs nw:bg-yellow-50 nw:px-2 nw:py-1 nw:rounded nw:text-yellow-800">
+                        ⚠️ {testResult.warning}
+                      </div>
+                    )}
                     <div className="nw:text-muted-foreground nw:text-xs nw:italic">
                       Resolved in {testResult.resolvedIn} using sample data
                     </div>

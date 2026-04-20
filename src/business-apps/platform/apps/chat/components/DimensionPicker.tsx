@@ -8,7 +8,8 @@ import {
   IconAvatar,
   RadioGroup,
   RadioGroupItem,
-  ScrollArea
+  ScrollArea,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   MagnifyingGlass,
@@ -23,7 +24,7 @@ import {
 import { UserIcon } from 'lucide-react'
 import type { DimensionType, DimensionOption } from '../hooks/useOrganizationalDimensions'
 import type { OrgUserBasic } from '@/common/network/org-directory/OrgDirectoryClient'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import translations from '../_i18n'
 
 interface DimensionPickerProps {
   organizationalUnits: DimensionOption[]
@@ -35,7 +36,7 @@ interface DimensionPickerProps {
   isLoadingMembers: boolean
   selectedMembers: OrgUserBasic[]
   onDimensionSelect: (type: DimensionType, dimensionId: string) => void
-  onConfirm: (members: OrgUserBasic[], dimensionName: string) => void
+  onConfirm: (members: OrgUserBasic[], dimensionName: string, dimensionType: DimensionType, dimensionId: string) => void
   onCancel: () => void
   currentUserId?: string | null
   prefixDataTestId?: string
@@ -91,7 +92,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
   currentUserId,
   prefixDataTestId = 'dimension-picker'
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const [step, setStep] = useState<Step>('select_type')
   const [selectedType, setSelectedType] = useState<DimensionType | null>(null)
   const [selectedDimension, setSelectedDimension] = useState<DimensionOption | null>(null)
@@ -156,8 +157,8 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
 
   // Handle confirm
   const handleConfirm = () => {
-    if (selectedDimension && filteredMembers.length > 0) {
-      onConfirm(filteredMembers, selectedDimension.name)
+    if (selectedDimension && selectedType && filteredMembers.length > 0) {
+      onConfirm(filteredMembers, selectedDimension.name, selectedType, selectedDimension.id)
     }
   }
 

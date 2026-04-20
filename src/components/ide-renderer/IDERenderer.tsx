@@ -1,11 +1,14 @@
-import React, { useEffect } from 'react'
+import React, { Profiler, useCallback, useEffect } from 'react'
 import { createElement } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
 import { Alert } from '@newwork/nw-design-system'
 import { Button } from '@newwork/nw-design-system'
 import { useDynamicScreen } from '@/common/hooks/useDynamicScreen'
+import { recordScreenRender, setActiveProfiledScreen } from '@/common/hooks/useScreenPerformanceMetrics'
 import { BusinessAppInfo } from '@/components/ide-main-menu'
 import { UserInfoProps } from '@/common/BusinessAppContext'
+
+const DYNAMIC_SCREEN_HMR_EVENT = 'gba:dynamic-screen-hmr'
 
 // Dynamic component wrapper that loads components on demand
 const DynamicComponentWrapper: React.FC<{
@@ -18,6 +21,15 @@ const DynamicComponentWrapper: React.FC<{
 
   useEffect(() => {
     loadScreen(app.screenKey)
+  }, [app.screenKey, loadScreen])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || import.meta.env.MODE !== 'development') return
+    const handle = () => loadScreen(app.screenKey)
+    window.addEventListener(DYNAMIC_SCREEN_HMR_EVENT, handle)
+    return () => {
+      window.removeEventListener(DYNAMIC_SCREEN_HMR_EVENT, handle)
+    }
   }, [app.screenKey, loadScreen])
 
   if (state.isLoading) {
@@ -83,6 +95,8 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
   additionalData,
   onAppSelect
 }) => {
+  const selectedScreenKey = selectedApp?.screenKey ?? null
+
   // Manage dialog visibility internally based on app type
   const [dialogVisible, setDialogVisible] = React.useState<boolean>(false)
 
@@ -95,6 +109,21 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
     }
   }, [selectedApp])
 
+  React.useEffect(() => {
+    setActiveProfiledScreen(selectedScreenKey)
+  }, [selectedScreenKey])
+
+  const handleScreenProfileRender = useCallback(
+    (_id: string, phase: 'mount' | 'update' | 'nested-update', actualDuration: number, baseDuration: number) => {
+      if (!selectedScreenKey) {
+        return
+      }
+
+      recordScreenRender(selectedScreenKey, phase, actualDuration, baseDuration)
+    },
+    [selectedScreenKey]
+  )
+
   const handleDialogClose = () => {
     setDialogVisible(false)
     onAppSelect(null) // Clear the selected app when dialog closes
@@ -104,19 +133,21 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
     if (!selectedApp) return null
 
     return (
-      <DynamicComponentWrapper
-        app={selectedApp}
-        userInfo={userInfo}
-        accessToken={accessToken}
-        additionalData={additionalData}
-        key={`${selectedApp.screenKey}-${JSON.stringify(userInfo)}-${accessToken}-${JSON.stringify(additionalData)}`}
-      />
+      <Profiler id={selectedApp.screenKey} onRender={handleScreenProfileRender}>
+        <DynamicComponentWrapper
+          app={selectedApp}
+          userInfo={userInfo}
+          accessToken={accessToken}
+          additionalData={additionalData}
+          key={`${selectedApp.screenKey}-${JSON.stringify(userInfo)}-${accessToken}-${JSON.stringify(additionalData)}`}
+        />
+      </Profiler>
     )
   }
 
   // Render app content directly in main area (fills parent)
-  if (selectedApp && selectedApp.type === 'app') {
-    return <div className="gba:w-full gba:h-full">{renderAppContent()}</div>
+  if (selectedApp && (selectedApp.type === 'app' || selectedApp.type === 'record')) {
+    return renderAppContent()
   }
 
   // Render forms and popups in dialog

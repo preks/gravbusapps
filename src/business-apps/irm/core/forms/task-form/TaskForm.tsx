@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect, useRef } from 'react'
+import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TaskLayout, taskSchema } from '@/common/components/common-relations/form-layouts/task-layout'
@@ -46,6 +46,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
   // Investment task hook - declarative single-by-PK
   const taskId = additionalData?.taskId || initialParameters?.taskId || null
   const { task, loading, error } = useInvestmentTask(accessToken || '', taskId)
+
+  // For edit mode, keep the skeleton visible until form.reset() has been applied.
+  // This ensures every field (including the raw Select for taskTiming) receives its
+  // correct value before the first paint, avoiding a stale defaultValue being shown.
+  const [isFormReady, setIsFormReady] = useState(!taskId)
 
   // File client for document uploads
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
@@ -141,6 +146,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
     if (taskRef.current?.id !== task?.id) {
       form.reset(mapToFormValues(task || {}, investmentTaskSchema) as any)
       taskRef.current = task
+      // Signal that the form is ready to render — TaskSegment will mount on the next
+      // render after reset() has been applied, so every field reads the correct value
+      // from the form store on its very first render (no stale defaultValue flash).
+      setIsFormReady(true)
 
       // Manually set assignee fields when task loads (prevents infinite loop in MultiEmployeeSelect)
       if (task?.taskAssignees && task.taskAssignees.length > 0) {
@@ -345,9 +354,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
           statusCatalog={'InvestmentTaskStatus:v1'}
           // Type selection control
           initialTypeRef={typeRef}
-          catalogSelectConfig={{
-            code: { mode: 'omit', values: ['APPROVAL'] }
-          }}
+          disableTypeSelection={isApprovalTask}
+          catalogSelectConfig={
+            isApprovalTask
+              ? undefined // Don't filter when approval context is set
+              : { code: { mode: 'omit', values: ['APPROVAL'] } }
+          }
           // Assignee selection control - hide in update mode (tasks cannot be reassigned)
           hideAssigneeSelection={!!taskId}
           // Entity search - hide if any entity is set
@@ -369,8 +381,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
           onFilesChange={handleFilesChange}
           existingDocuments={form.watch('documents') || []}
           onDocumentRemove={handleDocumentRemove}
-          // Loading state
-          loading={loading && !!taskId}
+          // Loading state — also keep skeleton until form.reset() has run (isFormReady)
+          loading={(loading && !!taskId) || !isFormReady}
           data-testid="investment-task-layout"
         />
       </AppActionForm>

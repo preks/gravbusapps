@@ -13,6 +13,13 @@ import {
   fetchExpenseCatalogueDataQuery,
   getStructureCostCenterQuery
 } from '../../expense-request/ExpenseRequestQueries'
+import type { EmployeePositionLike } from '../../expense-request/utils/resolvePrimaryEmployeePosition'
+import {
+  getExpenseCatalogueCostCenterState,
+  mapGraphqlCostCentersToOptions,
+  mapGraphqlProjectsToOptions,
+  resolvePreferredCostCenterId
+} from '../../expense-request/utils/expenseFormCostCenterUtils'
 import { FormStepType, FORM_STEPS } from '../constants/constants'
 
 /**
@@ -85,16 +92,9 @@ export const ExpensePlanProvider: React.FC<BusinessAppContextProps & { children:
       })
 
       setExpenseCatalogueData(fetchExpenseCatalogueData.data)
-      if (
-        fetchExpenseCatalogueData.data.EmployeePosition &&
-        fetchExpenseCatalogueData.data.EmployeePosition[0] &&
-        fetchExpenseCatalogueData.data.EmployeePosition[0].costCenterId
-      ) {
-        setSelectedCostCenter(fetchExpenseCatalogueData.data.EmployeePosition[0].costCenterId)
-      }
 
-      const employeePosition = fetchExpenseCatalogueData?.data?.EmployeePosition || []
-      const structureId = employeePosition[0]?.structureId || getCurrentActiveStructureId()
+      const positions = (fetchExpenseCatalogueData?.data?.EmployeePosition || []) as EmployeePositionLike[]
+      const { structureId, candidateIds } = getExpenseCatalogueCostCenterState(positions, getCurrentActiveStructureId())
       if (!structureId) {
         showToast(
           getTranslationFromI18nKeyAndLabel(
@@ -117,21 +117,14 @@ export const ExpensePlanProvider: React.FC<BusinessAppContextProps & { children:
       const userCostCenters = getStructureCostCenter?.data?.userCostCenters || []
       const userProjects = getStructureCostCenter?.data?.Project || []
 
-      setCostCenters(
-        userCostCenters.map((costCenterElement: any) => ({
-          id: costCenterElement.id,
-          name: costCenterElement.name
-        }))
-      )
-      setProjects(
-        userProjects.map((projectElement: any) => ({
-          id: projectElement.id,
-          name: projectElement.name
-        }))
-      )
+      const mappedCostCenters = mapGraphqlCostCentersToOptions(userCostCenters)
 
-      if (selectedCostCenter === '' && userCostCenters.length > 0 && userCostCenters[0].id) {
-        setSelectedCostCenter(userCostCenters[0].id)
+      setCostCenters(mappedCostCenters)
+      setProjects(mapGraphqlProjectsToOptions(userProjects))
+
+      const preferredCostCenterId = resolvePreferredCostCenterId(mappedCostCenters, candidateIds)
+      if (preferredCostCenterId) {
+        setSelectedCostCenter(preferredCostCenterId)
       }
     } catch {
       showToast(
@@ -141,6 +134,7 @@ export const ExpensePlanProvider: React.FC<BusinessAppContextProps & { children:
         ),
         'error'
       )
+      setExpenseCatalogueData({ expenseRequestType: [], ExpensePlan: [] })
     } finally {
       setLoading(false)
     }

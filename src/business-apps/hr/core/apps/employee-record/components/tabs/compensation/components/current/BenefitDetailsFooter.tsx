@@ -10,6 +10,10 @@ interface BenefitDetailsFooterProps {
    */
   benefit: BenefitCatalogItem
   /**
+   * When set, passed to request flow as pre-selected provider (from modal provider dropdown)
+   */
+  selectedProviderRef?: string
+  /**
    * Translation function
    */
   t: (key: string, params?: any) => string
@@ -31,21 +35,26 @@ interface BenefitDetailsFooterProps {
  * Benefit Details Footer Component
  * Displays action buttons and error messages in the sheet footer
  *
- * Shows request button only for available benefits (not active or scheduled)
+ * Shows request button only when benefit can be requested (not active, scheduled, or pending)
  */
 const BenefitDetailsFooter: React.FC<BenefitDetailsFooterProps> = ({
   benefit,
+  selectedProviderRef,
   t,
   accessToken,
   employeeId,
   onClose
 }) => {
   const isEmployeeIdValid = Boolean(employeeId)
-  const isAvailableBenefit = !benefit.isActive && !benefit.isScheduled
+  const isAvailableBenefit = benefit.canRequest
+  const hasProviders = (benefit.availableProviders?.length ?? 0) > 0
+  const hasProviderSelection = selectedProviderRef != null && selectedProviderRef !== ''
+  const canSubmitRequest = isAvailableBenefit && (!hasProviders || hasProviderSelection)
+  const benefitWithProvider = hasProviderSelection ? { ...benefit, providerRef: selectedProviderRef } : benefit
 
   return (
     <SheetFooter className="gba:mt-auto gba:px-6 gba:flex-col gba:gap-2">
-      {isAvailableBenefit && (
+      {canSubmitRequest && (
         <>
           {!isEmployeeIdValid && (
             <div
@@ -66,7 +75,7 @@ const BenefitDetailsFooter: React.FC<BenefitDetailsFooterProps> = ({
               contexts={[
                 {
                   context: FlowContextName.employeeBenefitRequest,
-                  contextData: { employeeId: employeeId!, benefit: benefit }
+                  contextData: { employeeId: employeeId!, benefit: benefitWithProvider }
                 }
               ]}
               prefixDataTestId={`benefit-details-request-${benefit.code}`}
@@ -74,7 +83,7 @@ const BenefitDetailsFooter: React.FC<BenefitDetailsFooterProps> = ({
               accessToken={accessToken}
               className="gba:font-semibold gba:w-full"
             >
-              {benefit.isPending ? t('benefit-status-pending') : t('benefit-request-button')}
+              {t('benefit-request-button')}
             </AppAction>
           )}
         </>

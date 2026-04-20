@@ -8,3 +8,14 @@ actions = Actions
 
 today = Today
 holiday = Bank Holiday
+manual_entry = Manual Entry
+absence-request-option-sick = Report Sick Leave
+absence-request-option-special = Request Special Leave
+absence-request-option-vacation = Request Vacation
+absence-request-option-work = Request Work Leave
+
+# Day Type column (attendance page only; absences use catalog translations)
+time_tracking_day_type_weekend = Weekend
+time_tracking_day_type_not_working = Not a working day
+time_tracking_day_type_work_day = Work day
+manual_entry = Manual Entry

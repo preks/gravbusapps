@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { EmployeeFormValues, EmployeeContextState } from '../types'
 import { useOrganizationalUnits } from '../hooks/useOrganizationalUnits'
+import { useOrgUnitById } from '../hooks/useOrgUnitById'
 import { useJobPositions } from '../hooks/useJobPositions'
 import { useEmploymentTypes } from '../hooks/useEmploymentTypes'
 import { useContractTypes } from '../hooks/useContractTypes'
@@ -16,14 +17,23 @@ export const useEmployeeContext = () => {
 }
 
 export const EmployeeProvider: React.FC<{
+  targetOrgUnitId?: string
+  targetJobPositionId?: string
   initialValues?: Partial<EmployeeFormValues>
   isEdit?: boolean
   accessToken: string
   structureId: string
   children: React.ReactNode
-}> = ({ initialValues = {}, isEdit = false, accessToken, structureId, children }) => {
-  // Form state
-  const [formValuesState, setFormValuesState] = useState<EmployeeFormValues>({
+}> = ({
+  targetOrgUnitId,
+  targetJobPositionId,
+  initialValues = {},
+  isEdit = false,
+  accessToken,
+  structureId,
+  children
+}) => {
+  const [formValuesState, setFormValuesState] = useState<EmployeeFormValues>(() => ({
     firstName: '',
     lastName: '',
     email: '',
@@ -33,8 +43,12 @@ export const EmployeeProvider: React.FC<{
     employmentTypeId: '',
     contractTypeId: '',
     hireDate: '',
-    ...initialValues
-  })
+    fixedTermUntil: '',
+    fixedTermReason: '',
+    ...initialValues,
+    ...(targetOrgUnitId != null && targetOrgUnitId !== '' ? { organizationalUnitId: targetOrgUnitId } : {}),
+    ...(targetJobPositionId != null && targetJobPositionId !== '' ? { jobPositionId: targetJobPositionId } : {})
+  }))
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +63,7 @@ export const EmployeeProvider: React.FC<{
 
   // Organizational units hook
   const {
-    organizationalUnits,
+    organizationalUnits: organizationalUnitsFromHook,
     loading: organizationalUnitsLoading,
     error: organizationalUnitsError,
     hasMore: hasMoreOrganizationalUnits,
@@ -57,7 +71,19 @@ export const EmployeeProvider: React.FC<{
     searchUnits: searchOrganizationalUnitsInternal
   } = useOrganizationalUnits({ accessToken, structureId, search: organizationalUnitSearch })
 
-  // Job positions hook - filtered by organizational unit
+  const { orgUnit: targetOrgUnitOption } = useOrgUnitById({
+    accessToken,
+    orgUnitId: targetOrgUnitId,
+    structureId
+  })
+
+  const organizationalUnits = useMemo(() => {
+    if (!targetOrgUnitOption?.id) return organizationalUnitsFromHook
+    const alreadyInList = organizationalUnitsFromHook.some(u => u.id === targetOrgUnitOption.id)
+    if (alreadyInList) return organizationalUnitsFromHook
+    return [targetOrgUnitOption, ...organizationalUnitsFromHook]
+  }, [organizationalUnitsFromHook, targetOrgUnitOption])
+
   const {
     jobPositions,
     allJobPositions,
@@ -93,34 +119,6 @@ export const EmployeeProvider: React.FC<{
     searchContractTypes: searchContractTypesInternal,
     loadMoreContractTypes
   } = useContractTypes(accessToken)
-
-  // Debug logging
-  useEffect(() => {
-    console.log('EmployeeForm - Form Values:', formValuesState)
-    console.log('EmployeeForm - Organizational Units:', {
-      organizationalUnits,
-      organizationalUnitsLoading,
-      organizationalUnitsError,
-      hasMoreOrganizationalUnits
-    })
-    console.log('EmployeeForm - Job Positions:', {
-      jobPositions,
-      jobPositionsLoading,
-      jobPositionsError,
-      hasMoreJobPositions,
-      organizationalUnitId: formValuesState.organizationalUnitId
-    })
-  }, [
-    formValuesState,
-    organizationalUnits,
-    organizationalUnitsLoading,
-    organizationalUnitsError,
-    hasMoreOrganizationalUnits,
-    jobPositions,
-    jobPositionsLoading,
-    jobPositionsError,
-    hasMoreJobPositions
-  ])
 
   // Search handlers
   const searchOrganizationalUnits = useCallback(
@@ -171,8 +169,6 @@ export const EmployeeProvider: React.FC<{
         ) {
           const orgUnit = selectedJobPosition.organizationalUnitEmployees[0].organizationalUnit
           if (orgUnit) {
-            console.log('Auto-selecting organizational unit:', orgUnit)
-            // Find the org unit in the list to get the proper SelectOption format
             const orgUnitOption = organizationalUnits.find(unit => unit.id === orgUnit.id)
             if (orgUnitOption) {
               setFormValuesState(prev => ({ ...prev, organizationalUnitId: orgUnit.id }))
@@ -204,7 +200,6 @@ export const EmployeeProvider: React.FC<{
 
         // Apply updates if any
         if (Object.keys(updates).length > 0) {
-          console.log('Auto-selecting employment/contract types:', updates)
           setFormValuesState(prev => ({ ...prev, ...updates }))
         }
       }
@@ -222,7 +217,6 @@ export const EmployeeProvider: React.FC<{
 
       // If org unit is cleared and there's a job position, clear the job position
       if (!organizationalUnitId && jobPositionId) {
-        console.log('Clearing job position because organizational unit was cleared')
         setFormValuesState(prev => ({ ...prev, jobPositionId: '' }))
       }
     }
@@ -240,7 +234,6 @@ export const EmployeeProvider: React.FC<{
           (emp: any) => emp.organizationalUnit.id === organizationalUnitId
         )
         if (!isPositionInOrgUnit) {
-          console.log('Clearing job position as it does not belong to selected organizational unit')
           setFormValuesState(prev => ({ ...prev, jobPositionId: '' }))
         }
       }

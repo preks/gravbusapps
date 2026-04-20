@@ -9,14 +9,16 @@ export interface ColumnConfig {
   title: string
   width?: string
   render: (record: any) => React.ReactNode
+  getTextValue?: (record: any) => string
 }
 
 /**
  * Configuration interface for customizing the shared investment report table component
+ * Accepts any investment group code (e.g., 'EQUITY', 'REAL_ESTATE', 'LIQUID_FUND', 'PRIVATE_EQUITY', etc.)
  */
 export interface InvestmentReportTableConfig {
-  // Investment group identifier
-  investmentGroup: 'EQUITY' | 'REAL_ESTATE' | 'LIQUID_FUND'
+  // Investment group identifier (any string - dynamically determined from catalog)
+  investmentGroup: string
 
   // Display configuration
   icon?: React.ComponentType<any> // ChartPieIcon, BuildingsIcon, or undefined
@@ -26,8 +28,8 @@ export interface InvestmentReportTableConfig {
     description: (investmentTypeValue: string) => string
   }
 
-  // Navigation
-  fromSubView: 'equity' | 'real-estate' | 'liquid-fund'
+  // Navigation (any string identifier for the sub-view)
+  fromSubView: string
 
   // Column generation
   columnGenerator: (params: {

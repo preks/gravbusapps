@@ -423,29 +423,32 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="gba:flex gba:flex-col gba:max-h-[85vh] gba:overflow-hidden">
+          <DialogHeader className="gba:flex-shrink-0">
             <DialogTitle>Conditions for: {selectedStage?.value}</DialogTitle>
             <DialogDescription>Manage conditions for this stage.</DialogDescription>
           </DialogHeader>
 
-          <div className="gba:space-y-4">
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-lg gba:font-semibold">Conditions ({conditions.length})</h3>
-              <Button
-                onClick={openCreateModal}
-                disabled={operationLoading}
-                data-testid={`${prefixDataTestId}-add-condition-button`}
-              >
-                <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                Add Condition
-              </Button>
-            </div>
+          <div className="gba:flex gba:flex-shrink-0 gba:justify-between gba:items-center gba:gap-2 gba:pb-2">
+            <h3 className="gba:text-lg gba:font-semibold">Conditions ({conditions.length})</h3>
+            <Button
+              onClick={openCreateModal}
+              disabled={operationLoading}
+              data-testid={`${prefixDataTestId}-add-condition-button`}
+            >
+              <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+              Add Condition
+            </Button>
+          </div>
 
+          <div
+            className="gba:min-h-0 gba:flex-1 gba:overflow-y-auto gba:pr-1"
+            data-testid={`${prefixDataTestId}-conditions-scroll`}
+          >
             {renderConditionsContent()}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gba:flex-shrink-0">
             <Button variant="outline" onClick={onClose}>
               Close
             </Button>

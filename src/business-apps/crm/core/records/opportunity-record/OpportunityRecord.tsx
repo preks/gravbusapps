@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Spinner, Button, RecordLayout, Badge, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
-import { UserIcon, FileTextIcon, StarIcon, TrendUpIcon, LightbulbIcon, RobotIcon } from '@phosphor-icons/react'
+import {
+  UserIcon,
+  FileTextIcon,
+  StarIcon,
+  TrendUpIcon,
+  LightbulbIcon,
+  CurrencyDollarIcon,
+  CalendarIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
@@ -12,7 +20,7 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
 import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
-import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action'
 import { OpportunityStageProgression } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/OpportunityStageProgression'
 import type { OpportunityPipelineContextConfig } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/types'
@@ -149,12 +157,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
     try {
       const activitiesData = await fetchCustomerActivitiesByOpportunityId(opportunityId)
-      const sortedActivities = (activitiesData || []).sort((a, b) => {
-        const dateA = new Date(a.occurredAt || a.createdAt).getTime()
-        const dateB = new Date(b.occurredAt || b.createdAt).getTime()
-        return dateB - dateA
-      })
-      setActivities(sortedActivities)
+      setActivities(activitiesData || [])
     } catch (err) {
       setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities')
     } finally {
@@ -360,11 +363,13 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
                   // Fallback: if formatDate returns ISO format, manually format the date
                   return formatted?.includes('T') ? dateOnly : formatted
                 })()
-              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: CalendarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.currency', 'Currency'),
-            value: extractCurrencyCode(opportunityData?.currency?.id || 'Currency:v1:EUR')
+            value: extractCurrencyCode(opportunityData?.currency?.id || 'Currency:v1:EUR'),
+            icon: CurrencyDollarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.winningChance', 'Winning Chance'),
@@ -378,7 +383,8 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.estimatedAmount', 'Estimated Amount'),
             value: opportunityData?.estimatedAmount
               ? formatCurrency(opportunityData.estimatedAmount, opportunityData.currency?.id || 'Currency:v1:EUR')
-              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: CurrencyDollarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
@@ -402,32 +408,14 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     opportunityData?.ownerEmployee
   ])
 
-  const headerActions = useMemo(() => {
-    const actions: AiAction[] = [
-      {
-        key: 'ai-summary',
-        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-        icon: <RobotIcon size={16} />,
-        hook: aiSummaryHook,
-        config: {
-          entityType: 'opportunity',
-          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
-          loadingSubtitle: getTranslationFromI18nKeyAndLabel(
-            'crm.ai.summary.subtitle',
-            'Analyzing opportunity data and activities'
-          )
-        }
-      }
-    ]
-
-    return (
-      <AiActions
-        actions={actions}
-        dataTestId={`opportunity-update-button-${opportunityId}`}
-        buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
-      />
-    )
-  }, [aiSummaryHook, opportunityId])
+  const headerActions = (
+    <AiActions
+      entityType="opportunity"
+      entityId={opportunityId}
+      features={['summary', 'meeting-planner']}
+      hooks={{ summary: aiSummaryHook, meetingPlanner: aiSummaryHook }}
+    />
+  )
 
   const headerContent = useMemo(() => {
     // Show stage progression if data is ready
@@ -587,23 +575,23 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   }
 
   return (
-    <div className="gba:opportunity-details-container" data-testid="opportunity-record-detail">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
-        headerOverline="OPPORTUNITY"
-        onBack={onBack}
-        headerTitle={opportunityData.name || 'Unnamed Opportunity'}
-        headerMeta={headerMeta}
-        headerActions={headerActions}
-        headerActionButton={headerActionButton}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        headerSlotAfter={headerContent}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="opportunity-record-detail"
+      className="gba:opportunity-details-container"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
+      headerOverline="OPPORTUNITY"
+      onBack={onBack}
+      headerTitle={opportunityData.name || 'Unnamed Opportunity'}
+      headerMeta={headerMeta}
+      headerActions={headerActions}
+      headerActionButton={headerActionButton}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      headerSlotAfter={headerContent}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

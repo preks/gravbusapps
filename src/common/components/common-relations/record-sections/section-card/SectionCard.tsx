@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
-import { PiCaretLeft, PiCaretRight } from 'react-icons/pi'
+import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -14,6 +14,17 @@ export interface ActionButtonConfig {
     emptyStateBehavior?: 'enable' | 'disable' | 'hide'
     deferMainContextRequestsUntilClick?: boolean
     // For AppAction only
+    variant?:
+      | 'header'
+      | 'table-row'
+      | 'list-item'
+      | 'create-primary'
+      | 'create-secondary'
+      | 'update-primary'
+      | 'update-secondary'
+      | 'delete-primary'
+      | 'delete-secondary'
+      | 'custom'
     children?: React.ReactNode
   }
 }
@@ -171,16 +182,33 @@ const SectionWrapper = <T = Record<string, any>,>({
         />
       )
     } else if (config.type === 'AppAction') {
-      if (!config.config.children || !React.isValidElement(config.config.children)) {
+      // When variant is provided, children are optional (variant provides defaults)
+      const hasVariant = config.config.variant && config.config.variant !== 'custom'
+
+      if (!hasVariant && (!config.config.children || !React.isValidElement(config.config.children))) {
         return null
       }
+
+      // Transform old API (contextsArray + externalContextData) to new API (contexts)
+      const contexts = config.config.contextsArray?.map(context => ({
+        context,
+        contextData: config.config.externalContextData || {}
+      }))
+
+      // Use contexts as key to force re-render when context changes
+      const contextKey = JSON.stringify({
+        contexts: config.config.contextsArray,
+        data: config.config.externalContextData || {}
+      })
+
       return (
         <AppAction
+          key={`app-action-${contextKey}`}
           accessToken={accessToken}
-          contextsArray={config.config.contextsArray}
-          externalContextData={config.config.externalContextData}
+          variant={config.config.variant}
+          contexts={contexts}
           prefixDataTestId={config.config.prefixDataTestId}
-          emptyStateBehavior={config.config.emptyStateBehavior || 'enable'}
+          emptyState={config.config.emptyStateBehavior || 'enable'}
         >
           {config.config.children}
         </AppAction>
@@ -217,14 +245,14 @@ const SectionWrapper = <T = Record<string, any>,>({
                   data-testid={`${singleSection.id}-carousel-prev`}
                   className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground gba:hover:bg-muted-foreground/10"
                 >
-                  <PiCaretLeft className="gba:text-[10px]" />
+                  <CaretLeftIcon className="gba:text-[10px]" />
                 </button>
                 <button
                   onClick={() => handleCarouselNext(singleSection.id, sectionInfo.pages.length)}
                   data-testid={`${singleSection.id}-carousel-next`}
                   className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground gba:hover:bg-muted-foreground/10"
                 >
-                  <PiCaretRight className="gba:text-[10px]" />
+                  <CaretRightIcon className="gba:text-[10px]" />
                 </button>
               </div>
             </div>
@@ -241,7 +269,10 @@ const SectionWrapper = <T = Record<string, any>,>({
   const activeSectionAccessToken = activeSection ? (activeSection.props as any).accessToken : undefined
 
   return (
-    <Card className={`${className} gba:flex-col gba:h-full`} data-testid={dataTestId || 'section-wrapper-tabs'}>
+    <Card
+      className={`${className} gba:flex gba:flex-col gba:h-full`}
+      data-testid={dataTestId || 'section-wrapper-tabs'}
+    >
       <CardHeader>
         <div className="gba:flex gba:justify-between gba:items-center gba:w-full">
           <div>
@@ -264,12 +295,16 @@ const SectionWrapper = <T = Record<string, any>,>({
           {activeSectionInfo && renderActionButton(activeSectionInfo.actionButtonConfig, activeSectionAccessToken)}
         </div>
       </CardHeader>
-      <CardContent className="gba:overflow-auto gba:h-full gba:relative">
+      <CardContent className="gba:overflow-auto gba:flex-1 gba:relative">
         {sections.map(section => {
-          if (activeTab !== section.id) return null
           const currentPageIndex = carouselStates[section.id] || 0
           const sectionInfo = getSectionInfo(section, currentPageIndex)
-          return <div key={section.id}>{sectionInfo.content}</div>
+          const isActive = activeTab === section.id
+          return (
+            <div key={section.id} className={`gba:h-full ${isActive ? '' : 'gba:hidden'}`} aria-hidden={!isActive}>
+              {sectionInfo.content}
+            </div>
+          )
         })}
         {/* Carousel Navigation - Bottom Right (for active section) */}
         {activeSectionInfo && activeSectionInfo.hasCarousel && activeSectionInfo.pages.length > 1 && (
@@ -283,14 +318,14 @@ const SectionWrapper = <T = Record<string, any>,>({
                 data-testid={`${activeTab}-carousel-prev`}
                 className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground gba:hover:bg-muted-foreground/10"
               >
-                <PiCaretLeft className="gba:text-[10px]" />
+                <CaretLeftIcon className="gba:text-[10px]" />
               </button>
               <button
                 onClick={() => handleCarouselNext(activeTab, activeSectionInfo.pages.length)}
                 data-testid={`${activeTab}-carousel-next`}
                 className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground gba:hover:bg-muted-foreground/10"
               >
-                <PiCaretRight className="gba:text-[10px]" />
+                <CaretRightIcon className="gba:text-[10px]" />
               </button>
             </div>
           </div>

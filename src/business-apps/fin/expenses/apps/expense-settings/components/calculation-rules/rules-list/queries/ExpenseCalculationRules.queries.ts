@@ -23,7 +23,7 @@ export const GET_CALCULATION_TYPES = (): string => {
   return `
   query getCalculationTypes($activeUserLocale: String!) {
     calculationType: CatalogEntry(
-      where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "ExpenseCalculationType" } } }
+      where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "ExpenseCalculationType" } }, isDeleted: { _eq: false } }
       orderBy: { value: ASC }
     ) {
       value
@@ -43,7 +43,7 @@ export const GET_CALCULATION_TYPES = (): string => {
 export const GET_FORM_CATALOGS = (): string => {
   return `
   query getFormCatalogs($activeUserLocale: String!) {
-    CalculationTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseCalculationType"}}}, orderBy: {value: ASC}) {
+    CalculationTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseCalculationType"}}, isDeleted: { _eq: false }}, orderBy: {value: ASC}) {
       code
       value
       id
@@ -53,7 +53,7 @@ export const GET_FORM_CATALOGS = (): string => {
       }
       catalog { defaultLocale }
     }
-    Currencies: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}, orderBy: {value: ASC}) {
+    Currencies: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}, isDeleted: { _eq: false }}, orderBy: {value: ASC}) {
       code
       value
       id
@@ -63,7 +63,7 @@ export const GET_FORM_CATALOGS = (): string => {
       }
       catalog { defaultLocale }
     }
-    Countries: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "Country" } } }, orderBy: { value: ASC }) {
+    Countries: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "Country" } }, isDeleted: { _eq: false } }, orderBy: { value: ASC }) {
       code
       id
       value
@@ -96,6 +96,7 @@ export const buildGetExpenseRulesQuery = (): string => {
       id
       version
       code
+      calculationTypeRef
       calculationType{
       value
       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
@@ -150,6 +151,20 @@ export const getExpensesWithRulePk = `query ExpenseRuleAggregateByCode($ruleId: 
     aggregate {
       count
     }
+  }
+}
+`
+
+// Batch query to check which rules are used (have associated expenses)
+export const getBatchRuleUsage = `query BatchRuleUsage($ruleIds: [uuid!]!) {
+  ExpenseItem(where: {expenseRuleId: {_in: $ruleIds}}, limit: 1000) {
+    expenseRuleId
+  }
+  ExpenseRequest(where: {expenseRuleId: {_in: $ruleIds}}, limit: 1000) {
+    expenseRuleId
+  }
+  ExpensePlan(where: {expenseRuleId: {_in: $ruleIds}}, limit: 1000) {
+    expenseRuleId
   }
 }
 `

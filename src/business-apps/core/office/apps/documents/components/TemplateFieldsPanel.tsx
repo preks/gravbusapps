@@ -1,0 +1,388 @@
+/**
+ * TemplateFieldsPanel
+ *
+ * Left panel for the template editor: lists entities from the template entity
+ * registry. Field lists are loaded from GraphQL introspection when the user
+ * expands an entity – no fallback.
+ */
+
+import React, { useState, useMemo } from 'react'
+import { Spinner, Badge, Input, useTranslation } from '@newwork/nw-design-system'
+import { ChevronDown, ChevronRight, Database, FolderOpen, Search, X } from 'lucide-react'
+import {
+  getTemplateEntities,
+  getTemplateEntity,
+  formatTemplatePlaceholder,
+  DOMAIN_DISPLAY_NAMES,
+  DOMAIN_ORDER,
+  type TemplateEntityContext,
+  type TemplateEntityDefinition,
+  type TemplateEntityDomain
+} from '../entities'
+import { useTemplateEntityFields, type TemplateEntityFieldFromGraphQL } from '../hooks/useTemplateEntityFields'
+import translations from '../_i18n'
+import { extractEntityKeysFromContent } from '../utils/templatePlaceholders'
+
+export interface TemplateFieldsPanelProps {
+  onInsertField: (placeholder: string) => void
+  accessToken: string | undefined
+  /** Optional: show only entities from this domain */
+  domain?: TemplateEntityDomain
+  /**
+   * Optional: context tag (e.g. 'candidate', 'onboarding'). When set, only entities
+   * that list this context in the registry are shown. Omit to show all entities.
+   */
+  context?: TemplateEntityContext
+  /** Optional: template HTML content to show "Entities used in this template" (parsed from placeholders) */
+  templateContent?: string
+  'data-testid'?: string
+}
+
+/** Renders a flat list of field buttons */
+const FieldButtons: React.FC<{
+  entityKey: string
+  fields: TemplateEntityFieldFromGraphQL[]
+  onInsert: (placeholder: string) => void
+  testId: string
+  indent?: boolean
+  searchQuery?: string
+}> = ({ entityKey, fields, onInsert, testId, indent = true, searchQuery = '' }) => {
+  const { t } = useTranslation(translations)
+  const filteredFields = searchQuery.trim()
+    ? fields.filter(
+        field =>
+          field.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          field.key.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : fields
+
+  if (filteredFields.length === 0 && searchQuery.trim()) {
+    return (
+      <div
+        className={`gba:text-xs gba:text-muted-foreground gba:italic ${indent ? 'gba:pl-6 gba:pr-2 gba:pb-2' : 'gba:pl-2 gba:pr-2 gba:pb-1'}`}
+      >
+        {t('template-fields-no-match', { query: searchQuery })}
+      </div>
+    )
+  }
+
+  return (
+    <div className={`gba:space-y-0.5 ${indent ? 'gba:pl-6 gba:pr-2 gba:pb-2' : 'gba:pl-2 gba:pr-2 gba:pb-1'}`}>
+      {filteredFields.map(field => (
+        <button
+          key={field.key}
+          type="button"
+          onClick={() => onInsert(formatTemplatePlaceholder(entityKey, field.key))}
+          className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1.5 gba:rounded gba:text-left gba:text-xs hover:gba:bg-muted/60 gba:transition-colors"
+          title={formatTemplatePlaceholder(entityKey, field.key)}
+          data-testid={`${testId}-field-${entityKey}-${field.key.replaceAll('.', '-')}`}
+        >
+          <span className="gba:truncate gba:font-medium">{field.displayName}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** Renders field list for one entity; fetches fields from GraphQL when mounted */
+const EntityFieldsList: React.FC<{
+  entityKey: string
+  accessToken: string | undefined
+  onInsert: (placeholder: string) => void
+  testId: string
+  searchQuery?: string
+}> = ({ entityKey, accessToken, onInsert, testId, searchQuery = '' }) => {
+  const { t } = useTranslation(translations)
+  const { directFields, catalogGroups, isLoading, error } = useTemplateEntityFields(entityKey, accessToken)
+  const [catalogsExpanded, setCatalogsExpanded] = useState(true)
+  const [expandedCatalog, setExpandedCatalog] = useState<string | null>(null)
+
+  const toggleCatalog = (fieldKey: string) => {
+    setExpandedCatalog(prev => (prev === fieldKey ? null : fieldKey))
+  }
+
+  if (isLoading) {
+    return (
+      <div className="gba:pl-6 gba:pr-2 gba:pb-2 gba:flex gba:items-center gba:gap-2">
+        <Spinner size="sm" />
+        <span className="gba:text-xs gba:text-muted-foreground">{t('template-fields-loading')}</span>
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div className="gba:pl-6 gba:pr-2 gba:pb-2 gba:text-xs gba:text-destructive">
+        {t('template-fields-load-failed', { message: error.message })}
+      </div>
+    )
+  }
+  if (directFields.length === 0 && catalogGroups.length === 0) {
+    return (
+      <div className="gba:pl-6 gba:pr-2 gba:pb-2 gba:text-xs gba:text-muted-foreground">
+        {t('template-fields-no-fields')}
+      </div>
+    )
+  }
+
+  return (
+    <div className="gba:pb-2">
+      {directFields.length > 0 && (
+        <>
+          <div className="gba:px-3 gba:pt-1 gba:pb-0.5 gba:text-xs gba:font-medium gba:text-muted-foreground">
+            {t('template-fields-fields-label')}
+          </div>
+          <FieldButtons
+            entityKey={entityKey}
+            fields={directFields}
+            onInsert={onInsert}
+            testId={testId}
+            searchQuery={searchQuery}
+          />
+        </>
+      )}
+      {catalogGroups.length > 0 && (
+        <div className="gba:mt-1">
+          <button
+            type="button"
+            onClick={() => setCatalogsExpanded(prev => !prev)}
+            className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground hover:gba:bg-muted/60 gba:transition-colors"
+            data-testid={`${testId}-catalogs-${entityKey}`}
+          >
+            {catalogsExpanded ? (
+              <ChevronDown className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
+            ) : (
+              <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
+            )}
+            <FolderOpen className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-primary/70" />
+            <span>{t('template-fields-catalog-values')}</span>
+          </button>
+          {catalogsExpanded && (
+            <div className="gba:pl-2 gba:space-y-0.5">
+              {catalogGroups.map(group => {
+                const isExpanded = expandedCatalog === group.fieldKey
+                return (
+                  <div key={group.fieldKey} className="gba:rounded gba:overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => toggleCatalog(group.fieldKey)}
+                      className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:text-left gba:text-xs hover:gba:bg-muted/60 gba:transition-colors"
+                      data-testid={`${testId}-catalog-${entityKey}-${group.fieldKey}`}
+                    >
+                      {isExpanded ? (
+                        <ChevronDown className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
+                      )}
+                      <span className="gba:font-medium gba:truncate">{group.displayName}</span>
+                    </button>
+                    {isExpanded && (
+                      <FieldButtons
+                        entityKey={entityKey}
+                        fields={group.subFields}
+                        onInsert={onInsert}
+                        testId={testId}
+                        indent={false}
+                        searchQuery={searchQuery}
+                      />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
+  onInsertField,
+  accessToken,
+  domain,
+  context,
+  templateContent,
+  'data-testid': testId = 'template-fields-panel'
+}) => {
+  const { t } = useTranslation(translations)
+  const [expandedEntities, setExpandedEntities] = useState<Set<string>>(new Set())
+  const [expandedDomains, setExpandedDomains] = useState<Set<TemplateEntityDomain>>(new Set())
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const entityList = useMemo(() => getTemplateEntities(domain, context), [domain, context])
+
+  // Auto-expand all entities when searching
+  const shouldAutoExpand = searchQuery.trim().length > 0
+
+  const isEntityExpanded = (entityKey: string) => {
+    if (shouldAutoExpand) return true
+    return expandedEntities.has(entityKey)
+  }
+
+  const entitiesByDomain = useMemo(() => {
+    const map = new Map<TemplateEntityDomain, TemplateEntityDefinition[]>()
+    for (const entity of entityList) {
+      const list = map.get(entity.domain) ?? []
+      list.push(entity)
+      map.set(entity.domain, list)
+    }
+    return DOMAIN_ORDER.filter(d => map.has(d)).map(d => ({ domain: d, entities: map.get(d)! }))
+  }, [entityList])
+  const entitiesUsedInContent = useMemo(
+    () => (templateContent ? extractEntityKeysFromContent(templateContent) : []),
+    [templateContent]
+  )
+
+  const toggleEntity = (entityKey: string) => {
+    setExpandedEntities(prev => {
+      const next = new Set(prev)
+      if (next.has(entityKey)) next.delete(entityKey)
+      else next.add(entityKey)
+      return next
+    })
+  }
+
+  const toggleDomain = (d: TemplateEntityDomain) => {
+    setExpandedDomains(prev => {
+      const next = new Set(prev)
+      if (next.has(d)) next.delete(d)
+      else next.add(d)
+      return next
+    })
+  }
+
+  const isDomainExpanded = (d: TemplateEntityDomain) => {
+    if (shouldAutoExpand) return true
+    return expandedDomains.size === 0 || expandedDomains.has(d)
+  }
+  const ensureDomainsInitialized = (domains: { domain: TemplateEntityDomain }[]) => {
+    setExpandedDomains(prev => {
+      if (prev.size > 0) return prev
+      return new Set(domains.map(({ domain }) => domain))
+    })
+  }
+
+  return (
+    <aside
+      className="gba:w-64 gba:h-full gba:min-h-0 gba:flex-shrink-0 gba:border-r gba:bg-card gba:flex gba:flex-col gba:overflow-hidden"
+      data-testid={testId}
+    >
+      <div className="gba:flex-shrink-0 gba:px-3 gba:py-3 gba:border-b gba:space-y-3">
+        <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('template-fields-insert')}</h3>
+
+        {/* Search input */}
+        <div className="gba:relative">
+          <Search className="gba:absolute gba:left-2 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder={t('template-fields-search-placeholder')}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="gba:pl-8 gba:pr-8 gba:h-8 gba:text-xs"
+            data-testid={`${testId}-search-input`}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="gba:absolute gba:right-2 gba:top-1/2 gba:-translate-y-1/2 gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors"
+              data-testid={`${testId}-search-clear`}
+            >
+              <X className="gba:w-4 gba:h-4" />
+            </button>
+          )}
+        </div>
+
+        {entitiesUsedInContent.length > 0 && (
+          <div className="gba:pt-2 gba:border-t gba:border-border">
+            <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">
+              {t('template-fields-entities-used')}
+            </p>
+            <div className="gba:flex gba:flex-wrap gba:gap-1">
+              {entitiesUsedInContent.map(key => {
+                const def = getTemplateEntity(key)
+                return (
+                  <Badge
+                    key={key}
+                    variant="secondary"
+                    className="gba:text-[10px] gba:px-1.5 gba:py-0"
+                    data-testid={`${testId}-used-entity-${key}`}
+                  >
+                    {def?.displayName ?? key}
+                  </Badge>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="gba:min-h-0 gba:flex-1 gba:overflow-y-auto gba:overflow-x-hidden gba:py-2">
+        {entityList.length === 0 ? (
+          <p className="gba:px-3 gba:text-xs gba:text-muted-foreground">{t('template-fields-no-entity-types')}</p>
+        ) : (
+          <div className="gba:space-y-1">
+            {entitiesByDomain.map(({ domain, entities }) => {
+              const domainExpanded = isDomainExpanded(domain)
+              return (
+                <div key={domain} className="gba:rounded-md gba:overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      ensureDomainsInitialized(entitiesByDomain)
+                      toggleDomain(domain)
+                    }}
+                    className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:text-left gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide hover:gba:bg-muted/60 gba:transition-colors"
+                    data-testid={`${testId}-domain-${domain}`}
+                  >
+                    {domainExpanded ? (
+                      <ChevronDown className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
+                    ) : (
+                      <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
+                    )}
+                    <span>{DOMAIN_DISPLAY_NAMES[domain]}</span>
+                  </button>
+                  {domainExpanded && (
+                    <div className="gba:pl-4 gba:border-l-2 gba:border-l-border gba:ml-2 gba:space-y-0.5">
+                      {entities.map((entity: TemplateEntityDefinition) => {
+                        const isExpanded = isEntityExpanded(entity.entityKey)
+                        return (
+                          <div key={entity.entityKey} className="gba:rounded-md gba:overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => toggleEntity(entity.entityKey)}
+                              className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:text-left gba:text-sm hover:gba:bg-muted/60 gba:transition-colors"
+                              data-testid={`${testId}-entity-${entity.entityKey}`}
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
+                              )}
+                              <Database className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-primary/70" />
+                              <span className="gba:font-medium gba:truncate">{entity.displayName}</span>
+                            </button>
+                            {isExpanded && (
+                              <EntityFieldsList
+                                entityKey={entity.entityKey}
+                                accessToken={accessToken}
+                                onInsert={onInsertField}
+                                testId={testId}
+                                searchQuery={searchQuery}
+                              />
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </aside>
+  )
+}
+
+export default TemplateFieldsPanel

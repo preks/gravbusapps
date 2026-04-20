@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
-import { PiPlus } from 'react-icons/pi'
+import { PlusIcon } from '@phosphor-icons/react'
 import { RegionGroupCard } from './RegionGroupCard'
 import { SmartColumnGroup, CatalogOption } from '../types'
 
@@ -9,13 +9,14 @@ interface AllowanceRegionDetailsSectionProps {
   countries: CatalogOption[]
   travelRegions: CatalogOption[]
   currencies: CatalogOption[]
-  isLoadingMoreRegions: boolean
-  hasMore: boolean
+  isLoadingRegions: boolean
+  hasMoreRegions: boolean
+  onSearchRegions: (searchTerm: string) => void
+  onLoadMoreRegions: () => void
   onAddGroup: () => void
   onUpdateGroupDetail: (groupKey: string, field: string, value: any) => void
   onUpdateAmount: (groupKey: string, amountIndex: number, value: string) => void
   onRemoveGroup: (groupKey: string) => void
-  onScroll: (e: React.UIEvent<HTMLDivElement>) => void
   isUsedInTransactions?: boolean
   showValidation?: boolean
 }
@@ -25,13 +26,14 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
   countries,
   travelRegions,
   currencies,
-  isLoadingMoreRegions,
-  hasMore,
+  isLoadingRegions,
+  hasMoreRegions,
+  onSearchRegions,
+  onLoadMoreRegions,
   onAddGroup,
   onUpdateGroupDetail,
   onUpdateAmount,
   onRemoveGroup,
-  onScroll,
   isUsedInTransactions = false,
   showValidation = false
 }) => {
@@ -41,7 +43,7 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle>Allowance Region Details</CardTitle>
           <Button onClick={onAddGroup} size="sm" className="gba:flex gba:items-center gba:gap-2">
-            <PiPlus className="gba:h-4 gba:w-4" />
+            <PlusIcon className="gba:h-4 gba:w-4" />
             Add Group
           </Button>
         </div>
@@ -57,12 +59,13 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
                 countries={countries}
                 travelRegions={travelRegions}
                 currencies={currencies}
-                isLoadingMoreRegions={isLoadingMoreRegions}
-                hasMore={hasMore}
+                isLoadingRegions={isLoadingRegions}
+                hasMoreRegions={hasMoreRegions}
+                onSearchRegions={onSearchRegions}
+                onLoadMoreRegions={onLoadMoreRegions}
                 onUpdateField={(field, value) => onUpdateGroupDetail(group.key, field, value)}
                 onUpdateAmount={(amountIndex, value) => onUpdateAmount(group.key, amountIndex, value)}
                 onRemoveGroup={() => onRemoveGroup(group.key)}
-                onScroll={onScroll}
                 isUsedInTransactions={isUsedInTransactions}
                 showValidation={showValidation}
               />

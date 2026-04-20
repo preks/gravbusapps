@@ -18,7 +18,7 @@ interface OverduePlansQueryVariables {
  * @returns Object containing loading state, error, the count of overdue plans, and refetch function
  */
 export const useOverduePlans = (
-  props: BusinessAppContextProps & { selectedDepartment?: string; isActive?: boolean }
+  props: Readonly<BusinessAppContextProps & { selectedDepartment?: string; isActive?: boolean }>
 ) => {
   const { accessToken, selectedDepartment, isActive = true } = props
   const [loading, setLoading] = useState<boolean>(true)

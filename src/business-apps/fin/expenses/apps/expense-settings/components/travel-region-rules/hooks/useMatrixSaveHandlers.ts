@@ -34,10 +34,7 @@ export const useMatrixSaveHandlers = ({
         throw new Error('Access token is missing')
       }
 
-      // Only save cells that are modified/new and have an amount > 0
-      const modifiedCells = editableCells.filter(
-        cell => ((cell.isModified && !cell.isNew) || cell.isNew) && cell.amount > 0 // Only save cells with actual amounts
-      )
+      const modifiedCells = editableCells.filter(cell => (cell.isModified && !cell.isNew) || cell.isNew)
 
       if (modifiedCells.length === 0) {
         toast.success('No changes to save')
@@ -95,6 +92,7 @@ export const useMatrixSaveHandlers = ({
                   activeTo: cell.activeTo || null, // Explicitly set to null if undefined
                   travelRegionRef: cell.travelRegionId,
                   countryRef: countryRef,
+                  home: cell.home || false,
                   allowanceRegionRule: rule.id,
                   ...(cell.id && cell.version !== undefined && { version: cell.version })
                 },

@@ -8,16 +8,21 @@ import {
   useTranslation,
   Badge
 } from '@newwork/nw-design-system'
-import { Home, Newspaper, BookOpen, FileText, MessageCircleQuestion, TrendingUp } from 'lucide-react'
+import { Home, Newspaper, BookOpen, MessageCircleQuestion, TrendingUp, Shield } from 'lucide-react'
 import translations from './_i18n'
 import NewsView from './views/news-view'
 import HomeView from './views/home-view'
 import KnowledgeView from './views/knowledge-view'
-import DocumentView from './views/document-view'
+import PoliciesView from './views/policies-view'
 import QuestionView from './views/question-view'
 import EngagementView from './views/engagement-view'
-import { BannerCarousel, BannerVariant, BannerConfig } from './components/shared/Banner'
+import { EveryPagesHero } from './components/shared/EveryPagesHero'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
+import {
+  CONTENT_REACTION_IDENTIFIER,
+  CONTENT_REACTION_UPVOTE_ENTRY_ID,
+  CONTENT_REACTION_DOWNVOTE_ENTRY_ID
+} from '@/common/data/content/constants/contentCatalogs'
 import { usePortalTranslation } from './hooks/usePortalTranslation'
 import { AiTranslationButton } from '@/common/components/content'
 import { useUserEngagement } from './hooks/useUserEngagement'
@@ -25,8 +30,6 @@ import { useUserEngagement } from './hooks/useUserEngagement'
 export interface ContentPortalProps extends BusinessAppContextProps {
   tab?: string
 }
-
-const CATALOG_IDENTIFIER = 'ContentReaction'
 
 const ContentPortal: React.FC<ContentPortalProps> = context => {
   const { t } = useTranslation(translations)
@@ -47,7 +50,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
   useEffect(() => {
     const loadReactions = async () => {
       try {
-        const result = await fetchCatalogEntriesByIdentifier(CATALOG_IDENTIFIER, {
+        const result = await fetchCatalogEntriesByIdentifier(CONTENT_REACTION_IDENTIFIER, {
           limit: 100,
           offset: 0
         })
@@ -64,9 +67,9 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             allowedCodes.push(unifiedCode)
 
             // Also map +1/-1 by their special keys for VoteButtons
-            if (entry.id === 'ContentReaction:v1:+1') {
+            if (entry.id === CONTENT_REACTION_UPVOTE_ENTRY_ID) {
               catalogMap['+1'] = entry.id
-            } else if (entry.id === 'ContentReaction:v1:-1') {
+            } else if (entry.id === CONTENT_REACTION_DOWNVOTE_ENTRY_ID) {
               catalogMap['-1'] = entry.id
             }
           }
@@ -102,10 +105,6 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
 
   const [activeTab, setActiveTab] = useState(initialTab)
 
-  // Tab order for carousel-style animation
-  const tabOrder = ['home', 'news', 'knowledge', 'documents', 'questions', 'engagement']
-  const activeTabIndex = tabOrder.indexOf(activeTab)
-
   // Update URL when tab changes
   useEffect(() => {
     if (globalThis.window !== undefined) {
@@ -129,85 +128,6 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
     setTargetLanguage(languageId)
   }
 
-  // Format current date for Intranet
-  const formattedDate = useMemo(() => {
-    const now = new Date()
-    return now.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
-    })
-  }, [])
-
-  // Determine appropriate greeting for Intranet
-  const greeting = useMemo(() => {
-    const localTimeHours = new Date().getHours()
-    if (localTimeHours >= 5 && localTimeHours < 12) return t('greeting-morning')
-    if (localTimeHours >= 12 && localTimeHours < 18) return t('greeting-afternoon')
-    if (localTimeHours >= 18 && localTimeHours < 22) return t('greeting-evening')
-    return t('greeting-generic')
-  }, [t])
-
-  // Helper function to get banner configuration for any tab
-  const getBannerConfig = (tab: string): BannerConfig => {
-    switch (tab) {
-      case 'home':
-        return {
-          variant: BannerVariant.INTRANET,
-          title: t('intranet-welcome-title'),
-          subtitle: t('intranet-welcome-subtitle'),
-          children: (
-            <div className="gba:flex gba:flex-col gba:items-end">
-              <span className="gba:text-lg gba:md:text-xl gba:text-white gba:font-medium gba:text-right gba:font-bold">
-                {greeting}
-              </span>
-              <span className="gba:text-sm gba:text-white gba:opacity-80 gba:text-right">{formattedDate}</span>
-            </div>
-          )
-        }
-      case 'news':
-        return {
-          variant: BannerVariant.NEWS,
-          title: t('news-welcome-title'),
-          subtitle: t('news-welcome-subtitle')
-        }
-      case 'knowledge':
-        return {
-          variant: BannerVariant.KNOWLEDGE,
-          title: t('knowledge-welcome-title'),
-          subtitle: t('knowledge-welcome-subtitle')
-        }
-      case 'documents':
-        return {
-          variant: BannerVariant.DOCUMENT,
-          title: t('document-welcome-title'),
-          subtitle: t('document-welcome-subtitle')
-        }
-      case 'questions':
-        return {
-          variant: BannerVariant.QUESTION,
-          title: t('question-welcome-title'),
-          subtitle: t('question-welcome-subtitle')
-        }
-      case 'engagement':
-        return {
-          variant: BannerVariant.INTRANET,
-          title: t('engagement-dashboard-title'),
-          subtitle: t('engagement-dashboard-subtitle')
-        }
-      default:
-        return {
-          variant: BannerVariant.INTRANET,
-          title: t('intranet-welcome-title'),
-          subtitle: t('intranet-welcome-subtitle')
-        }
-    }
-  }
-
-  // Get all banner configs for carousel
-  const bannerConfigs = useMemo(() => tabOrder.map(tab => getBannerConfig(tab)), [t, greeting, formattedDate])
-
   // Stabilize props to prevent unnecessary re-renders
   const stableAllowedReactions = useMemo(() => allowedReactions, [allowedReactions.join(',')])
   const stableReactionCatalogMap = useMemo(() => reactionCatalogMap, [JSON.stringify(reactionCatalogMap)])
@@ -215,8 +135,8 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
 
   return (
     <div className="gba:min-h-screen gba:flex gba:flex-col gba:w-full gba:bg-background" data-testid="intranet">
-      {/* Dynamic Banner Carousel */}
-      <BannerCarousel configs={bannerConfigs} activeIndex={activeTabIndex} />
+      {/* EveryPages Hero - adapts to active tab */}
+      <EveryPagesHero activeTab={activeTab} data-testid="everypages-hero" />
 
       <TabSwitch value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
         <div className="gba:bg-card gba:border-b gba:border-border gba:sticky gba:top-0 gba:z-10">
@@ -245,12 +165,13 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
                   {t('knowledge')}
                 </TabSwitchTrigger>
                 <TabSwitchTrigger
-                  value="documents"
-                  startIcon={<FileText className="gba:w-4 gba:h-4" />}
-                  data-testid="intranet-tab-documents"
+                  value="policies"
+                  startIcon={<Shield className="gba:w-4 gba:h-4" />}
+                  data-testid="intranet-tab-policies"
                 >
-                  {t('documents')}
+                  {t('policies')}
                 </TabSwitchTrigger>
+                {/* Documents tab hidden - code preserved for future use */}
                 <TabSwitchTrigger
                   value="questions"
                   startIcon={<MessageCircleQuestion className="gba:w-4 gba:h-4" />}
@@ -282,6 +203,15 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
                     isTranslating={isTranslating}
                     accessToken={accessToken}
                     onLanguageSelect={handleLanguageSelect}
+                    labels={{
+                      language: t('ai-translation-language'),
+                      detecting: t('ai-translation-detecting'),
+                      translating: t('ai-translation-translating'),
+                      selectTarget: t('ai-translation-select-target'),
+                      searchPlaceholder: t('ai-translation-search-placeholder'),
+                      noLanguagesFound: t('ai-translation-no-languages-found'),
+                      noLanguagesAvailable: t('ai-translation-no-languages-available')
+                    }}
                     data-testid="portal-translation-button"
                   />
                 </div>
@@ -296,6 +226,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             userInfo={context.userInfo}
             hideBanner
             currentTab="home"
+            allowedReactions={stableAllowedReactions}
             reactionCatalogMap={stableReactionCatalogMap}
             targetLanguage={targetLanguage}
             translatedItems={stableTranslatedItems}
@@ -330,6 +261,16 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           />
         </TabSwitchContent>
 
+        <TabSwitchContent value="policies" data-testid="intranet-content-policies">
+          <PoliciesView
+            accessToken={context.accessToken}
+            userInfo={context.userInfo}
+            hideBanner
+            currentTab="policies"
+          />
+        </TabSwitchContent>
+
+        {/* Documents content hidden - code preserved for future use
         <TabSwitchContent value="documents" data-testid="intranet-content-documents">
           <DocumentView
             accessToken={context.accessToken}
@@ -340,6 +281,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             onTranslate={translateAllContent}
           />
         </TabSwitchContent>
+        */}
 
         <TabSwitchContent value="questions" data-testid="intranet-content-questions">
           <QuestionView

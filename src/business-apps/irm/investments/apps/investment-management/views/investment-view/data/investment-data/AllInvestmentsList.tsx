@@ -9,6 +9,8 @@ import { BuildingsIcon, CalendarIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatDate } from '@/common/data/investment/utils/formatters'
 import { getInvestmentStatusBadgeVariant } from '../utils/statusBadgeHelpers'
+import type { InvestmentListAggregates } from '@/common/data/investment/hooks/useInvestments.new'
+import { InvestmentListAggregatesBar } from '../shared/InvestmentListAggregatesBar'
 
 // Helper function to format group names for display
 const formatGroupName = (groupName: string): string => {
@@ -18,7 +20,7 @@ const formatGroupName = (groupName: string): string => {
   if (groupName === 'LiquidFund' || groupName === 'LiquidFunds') {
     return 'Liquid Fund'
   }
-  return groupName.replaceAll(/([A-Z])/g, ' $1').trim()
+  return groupName.replace(/([A-Z])/g, ' $1').trim()
 }
 
 // Helper function to get owner display name
@@ -163,6 +165,9 @@ export interface AllInvestmentsListProps extends BusinessAppContextProps {
   onPaginationChange?: (pagination: { pageIndex: number; pageSize: number }) => void
   // Column visibility
   visibleColumns?: string[]
+  listAggregates: InvestmentListAggregates
+  showAggregatesBar: boolean
+  displayCurrencyCode?: string
 }
 
 // Row actions component - extracted outside
@@ -174,7 +179,7 @@ const createRowActions =
       contexts={[
         {
           context: FlowContextName.investmentEntity,
-          contextData: { investmentId: row.original.id }
+          contextData: { investmentId: row.original.id, dealType: 'DIVESTMENT_DEAL' }
         }
       ]}
       prefixDataTestId="all-investment-update"
@@ -268,7 +273,10 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = ({
     'ownerEmployee',
     'investmentStatus',
     'createdAt'
-  ]
+  ],
+  listAggregates,
+  showAggregatesBar,
+  displayCurrencyCode = 'EUR'
 }) => {
   const handleRowClick = (investment: Investment) => {
     if (!investment.id) return
@@ -293,30 +301,40 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = ({
   )
 
   return (
-    <DataTable<Investment>
-      data={investments}
-      columns={filteredColumns}
-      loading={loading}
-      error={error || undefined}
-      totalCount={totalCount}
-      sorting={sorting}
-      onSortingChange={onSortingChange}
-      pagination={pagination}
-      onPaginationChange={onPaginationChange}
-      enablePagination
-      enableSorting
-      enableSelection={false}
-      enableColumnPinning
-      enableResizing={false}
-      tableLayout="fixed"
-      rowsPerPageOptions={[10, 20, 50, 100]}
-      showPageNumbers
-      maxVisiblePages={7}
-      emptyMessage="No investments found"
-      onRowClick={handleRowClick}
-      actions={rowActions}
-      data-testid="all-investments-list"
-    />
+    <>
+      <DataTable<Investment>
+        data={investments}
+        columns={filteredColumns}
+        loading={loading}
+        error={error || undefined}
+        totalCount={totalCount}
+        sorting={sorting}
+        onSortingChange={onSortingChange}
+        pagination={pagination}
+        onPaginationChange={onPaginationChange}
+        enablePagination
+        enableSorting
+        enableSelection={false}
+        enableColumnPinning
+        enableResizing={false}
+        tableLayout="fixed"
+        rowsPerPageOptions={[10, 20, 50, 100]}
+        showPageNumbers
+        maxVisiblePages={7}
+        emptyMessage="No investments found"
+        onRowClick={handleRowClick}
+        actions={rowActions}
+        data-testid="all-investments-list"
+      />
+      {showAggregatesBar && (
+        <InvestmentListAggregatesBar
+          listAggregates={listAggregates}
+          showEquityMetrics={false}
+          dataTestIdPrefix="all-investments"
+          displayCurrencyCode={displayCurrencyCode}
+        />
+      )}
+    </>
   )
 }
 

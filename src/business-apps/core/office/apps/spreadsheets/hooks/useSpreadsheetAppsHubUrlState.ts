@@ -1,0 +1,224 @@
+import { useCallback, useEffect, useRef } from 'react'
+import { navigateTo } from '@/common/utils/navigationUtils'
+
+type HubView = 'list' | 'upload' | 'analysis' | 'viewer' | 'editor' | 'trash'
+type SidebarSection = 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'automations' | 'tasks' | 'trash'
+
+export interface UseSpreadsheetAppsHubUrlStateParams {
+  currentView: HubView
+  currentAppId: string | null
+  isLoadingApps: boolean
+  loadAppById: (appId: string, filePath?: string, options?: { allowTrashed?: boolean }) => Promise<unknown | null>
+  setSelectedAppId: (id: string | null) => void
+  setCurrentView: (view: HubView) => void
+  activeSection: SidebarSection
+  setActiveSection: (section: SidebarSection) => void
+  /** Called when loading app from URL fails (app not found or access denied) */
+  onLoadFailed?: (appId: string) => void
+}
+
+export interface UseSpreadsheetAppsHubUrlStateReturn {
+  updateUrl: (appId: string | null, view?: HubView, filePath?: string | null, section?: SidebarSection) => void
+  resetLoadAttempt: () => void
+}
+
+function getUrlParams(): {
+  appId: string | null
+  filePath: string | null
+  view: HubView | null
+  section: SidebarSection | null
+} {
+  const urlParams = new URLSearchParams(globalThis.location.search)
+  return {
+    appId: urlParams.get('appId'),
+    filePath: urlParams.get('filePath'),
+    view: (urlParams.get('view') as HubView | null) || null,
+    section: (urlParams.get('section') as SidebarSection | null) || null
+  }
+}
+
+export function useSpreadsheetAppsHubUrlState(
+  params: UseSpreadsheetAppsHubUrlStateParams
+): UseSpreadsheetAppsHubUrlStateReturn {
+  const {
+    currentView,
+    currentAppId,
+    isLoadingApps,
+    loadAppById,
+    setSelectedAppId,
+    setCurrentView,
+    activeSection,
+    setActiveSection,
+    onLoadFailed
+  } = params
+
+  const loadAttemptedRef = useRef<string | null>(null)
+  const initialAppIdRef = useRef(getUrlParams().appId)
+  const initialViewRef = useRef(getUrlParams().view)
+
+  const updateUrl = useCallback(
+    (appId: string | null, view?: HubView, filePath?: string | null, section?: SidebarSection) => {
+      const urlParams = new URLSearchParams(globalThis.location.search)
+      const nextSection = section ?? activeSection
+      if (appId) {
+        urlParams.set('appId', appId)
+        if (view) urlParams.set('view', view)
+        if (filePath) {
+          urlParams.set('filePath', encodeURIComponent(filePath))
+        } else {
+          urlParams.delete('filePath')
+        }
+      } else {
+        urlParams.delete('appId')
+        urlParams.delete('view')
+        urlParams.delete('filePath')
+      }
+      if (nextSection && nextSection !== 'my-files') {
+        urlParams.set('section', nextSection)
+      } else {
+        urlParams.delete('section')
+      }
+      const newUrl = urlParams.toString()
+        ? `${globalThis.location.pathname}?${urlParams.toString()}`
+        : globalThis.location.pathname
+      globalThis.history.pushState({ appId, view, filePath, section: nextSection }, '', newUrl)
+    },
+    [activeSection]
+  )
+
+  const resetLoadAttempt = useCallback(() => {
+    loadAttemptedRef.current = null
+  }, [])
+
+  // Restore section from URL on mount
+  useEffect(() => {
+    const { section } = getUrlParams()
+    if (section && section !== activeSection) {
+      setActiveSection(section)
+    }
+  }, []) // Run only on mount
+
+  // Load app from URL on mount.
+  // Uses initialAppIdRef as fallback since parent effects may clear URL params.
+  useEffect(() => {
+    const urlParams = getUrlParams()
+    const appId = urlParams.appId || initialAppIdRef.current
+    const filePath = urlParams.filePath
+    const view = urlParams.view || initialViewRef.current
+    if (!appId) return
+    if (currentAppId) return
+    if (isLoadingApps) return
+    if (loadAttemptedRef.current === appId) return
+
+    loadAttemptedRef.current = appId
+    initialAppIdRef.current = null
+    initialViewRef.current = null
+
+    const loadFromUrl = async () => {
+      if (view === 'trash') {
+        const trashedApp = await loadAppById(appId, undefined, { allowTrashed: true })
+        if (!trashedApp) {
+          onLoadFailed?.(appId)
+          return
+        }
+        setSelectedAppId(appId)
+        setCurrentView('trash')
+        return
+      }
+
+      const decodedFilePath = filePath ? decodeURIComponent(filePath) : undefined
+      let app = await loadAppById(appId, decodedFilePath)
+
+      // Retry once without filePath in case URL carries an outdated path.
+      if (!app && decodedFilePath) {
+        app = await loadAppById(appId)
+      }
+
+      if (!app) {
+        // Keep loadAttemptedRef as appId to prevent infinite retries when backend is unreachable.
+        // User can call resetLoadAttempt() then reload to retry.
+        onLoadFailed?.(appId)
+        return
+      }
+
+      setSelectedAppId(appId)
+      setCurrentView(view === 'editor' ? 'editor' : 'viewer')
+    }
+
+    void loadFromUrl()
+  }, [currentAppId, isLoadingApps, loadAppById, setCurrentView, setSelectedAppId, onLoadFailed])
+
+  // Handle browser back/forward navigation.
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state as {
+        appId?: string
+        view?: HubView
+        section?: SidebarSection
+      } | null
+
+      // Check if we should return to a space instead of the hub
+      // This happens when going back from a spreadsheet/hub that was opened from a space
+      if (!state?.appId) {
+        // First, check for stored space return URL
+        try {
+          const spaceReturnUrl = sessionStorage.getItem('space_return_url')
+          if (spaceReturnUrl) {
+            sessionStorage.removeItem('space_return_url')
+            navigateTo(spaceReturnUrl)
+            return
+          }
+        } catch (e) {
+          console.warn('Failed to check space_return_url:', e)
+        }
+
+        // Second, check if current URL has a spaceId parameter
+        // If so, we should return to that space
+        const urlParams = new URLSearchParams(globalThis.location.search)
+        const spaceId = urlParams.get('spaceId')
+        if (spaceId) {
+          const spaceUrl = `/platform/every-office/spaces?spaceId=${encodeURIComponent(spaceId)}`
+          navigateTo(spaceUrl)
+          return
+        }
+      }
+
+      // Restore section if present
+      if (state?.section) {
+        setActiveSection(state.section)
+      }
+
+      if (state?.appId) {
+        if (state.view === 'trash') {
+          loadAppById(state.appId, undefined, { allowTrashed: true }).then(app => {
+            if (!app) {
+              onLoadFailed?.(state.appId!)
+              return
+            }
+            setSelectedAppId(state.appId!)
+            setCurrentView('trash')
+          })
+          return
+        }
+
+        loadAppById(state.appId).then(app => {
+          if (!app) {
+            onLoadFailed?.(state.appId)
+            return
+          }
+          setSelectedAppId(state.appId!)
+          setCurrentView(state.view || 'viewer')
+        })
+        return
+      }
+
+      setSelectedAppId(null)
+      setCurrentView('list')
+    }
+
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
+  }, [currentView, loadAppById, setCurrentView, setSelectedAppId, setActiveSection, onLoadFailed])
+
+  return { updateUrl, resetLoadAttempt }
+}

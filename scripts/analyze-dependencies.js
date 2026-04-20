@@ -12,6 +12,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { execSync } from 'node:child_process'
 import { glob } from 'glob'
+import {
+  getScreenDirectories as getScreenDirectoriesFromHelper,
+  isScreenSpecificFile as isScreenSpecificFileFromHelper
+} from './utils/screenDiscovery.js'
 
 const projectRoot = process.cwd()
 
@@ -19,23 +23,12 @@ const projectRoot = process.cwd()
  * Find all screen directories
  */
 async function findAllScreens() {
-  const patterns = [
-    'src/business-apps/**/apps/*/index.ts',
-    'src/business-apps/**/forms/*/index.ts',
-    'src/business-apps/**/popups/*/index.ts',
-    'src/business-apps/**/records/*/index.ts',
-    'src/business-apps/**/debug/*/index.ts'
-  ]
-
+  const screenDirs = await getScreenDirectoriesFromHelper({ cwd: projectRoot })
   const screens = new Set()
 
-  for (const pattern of patterns) {
-    const files = await glob(pattern, { cwd: projectRoot, nodir: true })
-    for (const file of files) {
-      const dir = path.dirname(file)
-      const screenPath = dir.replace(/^src[\\/]+business-apps[\\/]+/, '').replace(/\\/g, '/')
-      screens.add(screenPath)
-    }
+  for (const dir of screenDirs) {
+    const screenPath = dir.replace(/^src[\\/]+business-apps[\\/]+/, '').replace(/\\/g, '/')
+    screens.add(screenPath)
   }
 
   return Array.from(screens).sort()
@@ -131,13 +124,17 @@ async function findScreensImportingFile(changedFile) {
         // 2. Raw path imports: import { x } from 'common/utils/file'
         // 3. Relative imports: import { x } from '../../../common/utils/file'
         //    For relative imports, we just check if the path ends with our target
+        //
+        // Guards: aliasDir for top-level src/ files (e.g. src/BusinessAppIDE.tsx) resolves
+        // to bare '@', and rawDir resolves to '.'. Without the guards, content.includes('@')
+        // and content.includes('/.') would match virtually every screen file.
         if (
           content.includes(aliasPath) ||
-          content.includes(aliasDir) ||
+          (aliasDir.includes('/') && content.includes(aliasDir)) ||
           content.includes(`/${relativePath}'`) || // Matches '../../../common/utils/file'
           content.includes(`/${relativePath}"`) || // Double quotes
-          content.includes(`/${rawDir}'`) ||
-          content.includes(`/${rawDir}"`)
+          (rawDir !== '.' && content.includes(`/${rawDir}'`)) ||
+          (rawDir !== '.' && content.includes(`/${rawDir}"`))
         ) {
           affectedScreens.add(screen)
           break
@@ -164,26 +161,8 @@ async function getScreenDirectories() {
     return screenDirectoriesCache
   }
 
-  const patterns = [
-    'src/business-apps/**/apps/*/index.ts',
-    'src/business-apps/**/forms/*/index.ts',
-    'src/business-apps/**/popups/*/index.ts',
-    'src/business-apps/**/records/*/index.ts'
-  ]
-
-  const screenDirs = new Set()
-
-  for (const pattern of patterns) {
-    const files = await glob(pattern, { cwd: projectRoot, nodir: true })
-    for (const file of files) {
-      // Get the directory containing the index.ts
-      const dir = path.dirname(file)
-      screenDirs.add(dir)
-    }
-  }
-
-  screenDirectoriesCache = screenDirs
-  return screenDirs
+  screenDirectoriesCache = await getScreenDirectoriesFromHelper({ cwd: projectRoot })
+  return screenDirectoriesCache
 }
 
 /**
@@ -191,24 +170,8 @@ async function getScreenDirectories() {
  * A screen is defined as a folder in apps/forms/popups/records that has an index.ts file
  */
 async function isScreenSpecificFile(filePath) {
-  // Must be in a potential screen location (apps/forms/popups/records)
-  if (!/\/(apps|forms|popups|records)\//.test(filePath)) {
-    return false
-  }
-
-  // Get all known screen directories
   const screenDirs = await getScreenDirectories()
-
-  // Check if this file is inside any screen directory
-  for (const screenDir of screenDirs) {
-    if (filePath.startsWith(screenDir + '/') || filePath === screenDir) {
-      return true
-    }
-  }
-
-  // File is in apps/forms/popups/records but NOT in a folder with index.ts
-  // This means it's shared code (e.g., forms/components/)
-  return false
+  return isScreenSpecificFileFromHelper(filePath, { cwd: projectRoot, screenDirs })
 }
 
 /**
@@ -566,12 +529,22 @@ async function main() {
   console.log('='.repeat(60))
   console.log(`📝 Changed files to analyze: ${changedFiles.length}`)
 
+  // Dev-only files that are never imported by any screen and must not trigger rebuilds.
+  // Changes to these files are irrelevant to published screen bundles.
+  const DEV_ONLY_FILES = new Set([
+    'src/BusinessAppIDE.tsx' // Local development IDE shell – not part of any deployed screen
+  ])
+
   // Filter to dependency-related files:
   // - Package files (package.json, etc.)
   // - Global shared code (src/* except business-apps)
   // - Shared code in business-apps (NOT inside a screen folder with index.ts)
   const dependencyFiles = []
   for (const f of changedFiles) {
+    if (DEV_ONLY_FILES.has(f)) {
+      console.log(`⏩ Skipping dev-only file (will not trigger rebuilds): ${f}`)
+      continue
+    }
     if (f === 'package.json') {
       dependencyFiles.push(f)
     } else if (f.startsWith('src/') && !f.startsWith('src/business-apps/')) {

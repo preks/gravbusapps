@@ -36,6 +36,15 @@ content_link_copied = Link copiat în clipboard
 no_image = Fără imagine
 content_image = Imagine conținut
 
+# AI Translation button (shared by portal and content record)
+ai-translation-language = Limbă
+ai-translation-detecting = Se detectează...
+ai-translation-translating = Se traduce...
+ai-translation-select-target = Selectează limba țintă
+ai-translation-search-placeholder = Caută limbi...
+ai-translation-no-languages-found = Nu s-au găsit limbi
+ai-translation-no-languages-available = Nu există limbi disponibile
+
 # Comments & Interactions
 comment = comentariu
 comments = comentarii
@@ -43,3 +52,12 @@ add_comment = Adaugă comentariu
 answer = Răspuns
 answers = Răspunsuri
 unknown = Necunoscut
+
+# Content groups
+content-group-unknown = Necunoscut
+content-group-news = Știri
+content-group-knowledge = Cunoaștere
+content-group-glossary = Glosar
+content-group-question = Întrebare
+content-group-document = Document
+content-group-policy = Politică

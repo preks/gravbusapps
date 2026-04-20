@@ -1,13 +1,11 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import {
-  getDateFormat,
-  getCurrentActiveUserLocale,
-  getTranslationFromI18nKeyAndLabel
-} from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getDateFormat } from '@/common/utils/windowUtils'
+import formsTranslations from '@/business-apps/hr/core/forms/_i18n'
 import { useAbsenceTypeDetails } from './useAbsenceTypeDetails'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
@@ -25,10 +23,14 @@ import {
   getEmployeeAbsences,
   getEmployeeAbsenceEntitlement,
   getTodayAbsences,
+  latestEntitlementSnapshotForRangeQuery,
   employeeRegionLookupQuery,
-  employmentRegionHolidaysQuery,
+  employmentRegionHolidayByDateQuery,
+  employmentRegionHolidaysInRangeQuery,
   employeeWorkingHoursQuery
 } from '../queries/getEmployeeAbsences'
+import { extractAbsencePriority } from '../utils/absencePriority'
+import { resolveEmploymentRegionRef } from '../utils/employmentRegion'
 
 export interface AbsenceValidationError {
   type: 'overlap' | 'balance' | 'general'
@@ -75,6 +77,126 @@ export interface EmployeeAbsenceEntitlement {
   }
 }
 
+/** Up-to-date balance from EntitlementUsageSnapshotView (GetLatestEntitlementSnapshotForRange). */
+export interface EntitlementSnapshotForBalance {
+  totalEntitlement: number
+  usedApproved: number
+  usedPending: number
+  remaining: number
+  snapshotAt: string
+}
+
+type ResolvedBalanceDetails = {
+  effectiveAvailable: number
+  totalBalance: number
+  approvedBalance: number
+  pendingBalance: number
+}
+
+type RequestedDaysCalculation = {
+  requestedDays: number
+  breakdown: DateRangeBreakdown
+}
+
+const resolveBalanceDetails = (
+  snapshot: EntitlementSnapshotForBalance | null,
+  entitlement: EmployeeAbsenceEntitlement | null
+): ResolvedBalanceDetails | null => {
+  if (snapshot != null) {
+    return {
+      effectiveAvailable: Math.max(0, snapshot.remaining),
+      totalBalance: snapshot.totalEntitlement,
+      approvedBalance: snapshot.usedApproved,
+      pendingBalance: snapshot.usedPending
+    }
+  }
+
+  if (entitlement == null) {
+    return null
+  }
+
+  return {
+    effectiveAvailable: Math.max(0, entitlement.total - entitlement.approved - entitlement.pending),
+    totalBalance: entitlement.total,
+    approvedBalance: entitlement.approved,
+    pendingBalance: entitlement.pending
+  }
+}
+
+const calculateRequestedDaysWithBreakdown = (
+  measurement: string | undefined,
+  newStartDate: Date,
+  newEndDate: Date,
+  holidaysToUse: HolidayEntry[],
+  workingHours: WorkingHours | null
+): RequestedDaysCalculation => {
+  const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidaysToUse, workingHours)
+  if (measurement === 'WorkingDays') {
+    const halfDayDates = extractHalfDayDates(holidaysToUse, newStartDate, newEndDate)
+    return {
+      requestedDays: calculateWorkingDays(newStartDate, newEndDate, {
+        holidays: holidaysToUse,
+        excludeWeekends: true,
+        halfDayDates,
+        workingHours
+      }),
+      breakdown
+    }
+  }
+
+  return {
+    requestedDays: breakdown.effectiveDays - breakdown.holidays.length - breakdown.halfDays.length * 0.5,
+    breakdown
+  }
+}
+
+type BuildBalanceMessageArgs = {
+  roundedRequestedDays: number
+  effectiveAvailable: number
+  measurement: string | undefined
+  holidaysToUse: HolidayEntry[]
+  newStartDate: Date
+  newEndDate: Date
+  requestedDays: number
+  workingHours: WorkingHours | null
+  t: (key: string, values?: Record<string, unknown>) => string
+}
+
+const buildInsufficientBalanceMessage = ({
+  roundedRequestedDays,
+  effectiveAvailable,
+  measurement,
+  holidaysToUse,
+  newStartDate,
+  newEndDate,
+  requestedDays,
+  workingHours,
+  t
+}: BuildBalanceMessageArgs): string => {
+  const insufficientBalanceLabel = t('create-absence-insufficient-balance')
+  const requestedLabel = t('create-absence-requested')
+  const availableLabel = t('create-absence-available')
+  const daysLabel = t('create-absence-days')
+  let message = `${insufficientBalanceLabel}. ${requestedLabel}: ${roundedRequestedDays} ${daysLabel}, ${availableLabel}: ${effectiveAvailable} ${daysLabel}`
+
+  if (measurement !== 'WorkingDays' || holidaysToUse.length === 0) {
+    return message
+  }
+
+  const weekdaysOnly = calculateWorkingDays(newStartDate, newEndDate, {
+    holidays: [],
+    excludeWeekends: true,
+    halfDayDates: new Set(),
+    workingHours
+  })
+  const excludedHolidayDays = Math.round((weekdaysOnly - requestedDays) * 100) / 100
+  if (excludedHolidayDays > 0) {
+    message += `. ${t('create-absence-bank-holidays-not-counted', { count: excludedHolidayDays })}`
+  }
+
+  return message
+}
+
 export interface UseAbsenceValidationProps {
   accessToken: string
   employeeId: string
@@ -82,6 +204,7 @@ export interface UseAbsenceValidationProps {
   startDate?: Date
   endDate?: Date
   context: BusinessAppContextProps
+  disableCalendarValidation?: boolean
 }
 
 /**
@@ -89,25 +212,7 @@ export interface UseAbsenceValidationProps {
  * Lower numbers indicate higher priority (e.g., priority 5 > priority 10).
  * Returns 999 as default (lowest priority) if no priority is found.
  */
-export const extractPriority = (objectValue: unknown): number => {
-  if (!objectValue) return 999
-
-  if (typeof objectValue === 'string') {
-    try {
-      const parsed = JSON.parse(objectValue)
-      return typeof parsed?.priority === 'number' ? parsed.priority : 999
-    } catch {
-      return 999
-    }
-  }
-
-  if (typeof objectValue === 'object' && objectValue !== null) {
-    const obj = objectValue as Record<string, unknown>
-    return typeof obj?.priority === 'number' ? obj.priority : 999
-  }
-
-  return 999
-}
+export const extractPriority = extractAbsencePriority
 
 export const useAbsenceValidation = ({
   accessToken,
@@ -115,19 +220,26 @@ export const useAbsenceValidation = ({
   selectedType,
   startDate,
   endDate,
-  context
+  context,
+  disableCalendarValidation = false
 }: UseAbsenceValidationProps) => {
+  const { t } = useTranslation(formsTranslations)
   const client = useGraphQLClient(accessToken)
   const [validationErrors, setValidationErrors] = useState<AbsenceValidationError[]>([])
   const [validationWarnings, setValidationWarnings] = useState<AbsenceValidationError[]>([])
   const [isValidating, setIsValidating] = useState(false)
   const [existingAbsences, setExistingAbsences] = useState<EmployeeAbsence[]>([])
   const [absenceEntitlement, setAbsenceEntitlement] = useState<EmployeeAbsenceEntitlement | null>(null)
+  const [entitlementSnapshot, setEntitlementSnapshot] = useState<EntitlementSnapshotForBalance | null>(null)
   const [todayAbsences, setTodayAbsences] = useState<EmployeeAbsence[]>([])
   const [existingSickLeave, setExistingSickLeave] = useState<EmployeeAbsence | null>(null)
-  const [holidays, setHolidays] = useState<HolidayEntry[]>([])
+  const [employeeRegionRef, setEmployeeRegionRef] = useState<string | null>(null)
+  const [holidays] = useState<HolidayEntry[]>([])
   const [dateRangeBreakdown, setDateRangeBreakdown] = useState<DateRangeBreakdown | null>(null)
   const [workingHours, setWorkingHours] = useState<WorkingHours | null>(null)
+  const [isCheckingBankHoliday, setIsCheckingBankHoliday] = useState(false)
+  const bankHolidayCacheRef = useRef<Record<string, boolean>>({})
+  const rangeHolidaysCacheRef = useRef<Record<string, HolidayEntry[]>>({})
 
   const { details: absenceTypeDetails } = useAbsenceTypeDetails(context, selectedType)
 
@@ -175,6 +287,11 @@ export const useAbsenceValidation = ({
   }, [accessToken, employeeId, client, isSickLeaveType])
 
   useEffect(() => {
+    if (disableCalendarValidation) {
+      setExistingAbsences([])
+      return
+    }
+
     if (!accessToken || !employeeId || !startDate || !endDate) {
       setExistingAbsences([])
       return
@@ -199,62 +316,30 @@ export const useAbsenceValidation = ({
     }
 
     fetchExistingAbsences()
-  }, [accessToken, employeeId, startDate, endDate, client])
+  }, [accessToken, employeeId, startDate, endDate, client, disableCalendarValidation])
 
   useEffect(() => {
-    if (!accessToken || !employeeId) {
-      setHolidays([])
+    if (disableCalendarValidation) {
+      setEmployeeRegionRef(null)
+      setWorkingHours(null)
       return
     }
 
-    const fetchRegionAndHolidays = async () => {
+    if (!accessToken || !employeeId) {
+      setEmployeeRegionRef(null)
+      return
+    }
+
+    const fetchRegion = async () => {
       try {
         const activeLocale = getCurrentActiveUserLocale()
-        const regionRes = await client.request(employeeRegionLookupQuery, {
+        const res = await client.request(employeeRegionLookupQuery, {
           employeeId,
           activeUserLocale: activeLocale
         })
-
-        const regionCode: string | undefined = regionRes?.employee?.[0]?.workingCondition?.[0]?.region?.id
-
-        if (regionCode) {
-          const parentRegionIds: string[] = []
-
-          const regionMatch = regionCode.match(/EmploymentRegion:v\d+:(.+)$/)
-          if (regionMatch) {
-            const regionSuffix = regionMatch[1]
-
-            const subRegionMatch = regionSuffix.match(/^([A-Z]{2})(\d+)$/)
-            if (subRegionMatch) {
-              const countryCode = subRegionMatch[1]
-              parentRegionIds.push(`EmploymentRegion:v1:${countryCode}U`)
-              parentRegionIds.push(`EmploymentRegion:v1:${countryCode}`)
-            } else {
-              const parts = regionSuffix.split('_')
-              if (parts.length >= 3) {
-                const countryState = parts.slice(0, 2).join('_')
-                parentRegionIds.push(`EmploymentRegion:v1:${countryState}`)
-                parentRegionIds.push(`EmploymentRegion:v1:${parts[0]}`)
-              } else if (parts.length === 2) {
-                parentRegionIds.push(`EmploymentRegion:v1:${parts[0]}`)
-              }
-            }
-          }
-
-          const regionIds = [regionCode, ...parentRegionIds]
-
-          const holidaysRes = await client.request(employmentRegionHolidaysQuery, {
-            activeUserLocale: activeLocale,
-            regionIds: regionIds
-          })
-
-          const holidaysData: HolidayEntry[] = holidaysRes?.holidays || []
-          setHolidays(holidaysData)
-        } else {
-          setHolidays([])
-        }
+        setEmployeeRegionRef(resolveEmploymentRegionRef(res))
       } catch {
-        setHolidays([])
+        setEmployeeRegionRef(null)
       }
     }
 
@@ -263,7 +348,6 @@ export const useAbsenceValidation = ({
         const workingHoursRes = await client.request(employeeWorkingHoursQuery, {
           employeeId
         })
-
         const workingHoursData: WorkingHours | null = workingHoursRes?.employee?.[0]?.workingHours?.[0] || null
         setWorkingHours(workingHoursData)
       } catch {
@@ -271,11 +355,17 @@ export const useAbsenceValidation = ({
       }
     }
 
-    fetchRegionAndHolidays()
+    fetchRegion()
     fetchWorkingHours()
-  }, [accessToken, employeeId, client])
+  }, [accessToken, employeeId, client, disableCalendarValidation])
 
   useEffect(() => {
+    if (disableCalendarValidation) {
+      setAbsenceEntitlement(null)
+      setEntitlementSnapshot(null)
+      return
+    }
+
     if (!accessToken || !employeeId || !selectedType) {
       setAbsenceEntitlement(null)
       return
@@ -285,35 +375,57 @@ export const useAbsenceValidation = ({
 
     if (!shouldCheckEntitlement) {
       setAbsenceEntitlement(null)
+      setEntitlementSnapshot(null)
       return
     }
 
-    const fetchAbsenceEntitlement = async () => {
+    const fetchEntitlementAndSnapshot = async () => {
       try {
-        const response = await client.request(getEmployeeAbsenceEntitlement, {
-          employeeId,
-          typeRef: selectedType
-        })
-        const entitlements = response?.EmployeeAbsenceEntitlement || []
+        const now = dayjs()
+        const fromStr = now.startOf('year').format('YYYY-MM-DD')
+        const toStr = now.endOf('year').format('YYYY-MM-DD')
 
-        // Find valid entitlement for current period
+        const [entitlementResponse, snapshotResponse] = await Promise.all([
+          client.request(getEmployeeAbsenceEntitlement, {
+            employeeId,
+            typeRef: selectedType
+          }),
+          client.request(latestEntitlementSnapshotForRangeQuery, {
+            employeeId,
+            typeRef: selectedType,
+            from: fromStr,
+            to: toStr
+          })
+        ])
+
+        const entitlements = entitlementResponse?.EmployeeAbsenceEntitlement || []
         const validEntitlement = entitlements.find((entitlement: EmployeeAbsenceEntitlement) => {
-          const now = dayjs()
           const validFrom = dayjs(entitlement.validFrom)
           const validTo = dayjs(entitlement.validTo)
-          const isValid = now.isSameOrAfter(validFrom) && now.isSameOrBefore(validTo)
-
-          return isValid
+          return now.isSameOrAfter(validFrom) && now.isSameOrBefore(validTo)
         })
-
         setAbsenceEntitlement(validEntitlement || null)
+
+        const snapshotRow = snapshotResponse?.EntitlementUsageSnapshotView?.[0]
+        if (snapshotRow) {
+          setEntitlementSnapshot({
+            totalEntitlement: Number(snapshotRow.totalEntitlement) || 0,
+            usedApproved: Number(snapshotRow.usedApproved) || 0,
+            usedPending: Number(snapshotRow.usedPending) || 0,
+            remaining: Number(snapshotRow.remaining) || 0,
+            snapshotAt: snapshotRow.snapshotAt
+          })
+        } else {
+          setEntitlementSnapshot(null)
+        }
       } catch {
         setAbsenceEntitlement(null)
+        setEntitlementSnapshot(null)
       }
     }
 
-    fetchAbsenceEntitlement()
-  }, [accessToken, employeeId, selectedType, client, absenceTypeDetails])
+    fetchEntitlementAndSnapshot()
+  }, [accessToken, employeeId, selectedType, client, absenceTypeDetails, disableCalendarValidation])
 
   const checkOverlapValidation = useCallback(
     (newStartDate: Date, newEndDate: Date): AbsenceValidationError[] => {
@@ -359,9 +471,9 @@ export const useAbsenceValidation = ({
           if (newPriority >= existingPriority) {
             errors.push({
               type: 'overlap',
-              message: `${getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.absence_exists', 'There is already a')} ${absenceTypeName} ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.absence_scheduled', 'absence scheduled')} ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.from', 'from')} ${existingStart.format(
+              message: `${t('create-absence-overlap-prefix')} ${absenceTypeName} ${t('create-absence-overlap-scheduled')} ${t('create-absence-from')} ${existingStart.format(
                 getDateFormat('date-long')
-              )} ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.to', 'to')} ${existingEnd.format(getDateFormat('date-long'))}.`,
+              )} ${t('create-absence-to')} ${existingEnd.format(getDateFormat('date-long'))}.`,
               details: {
                 conflictingAbsence: absence,
                 conflictingDates: {
@@ -379,7 +491,7 @@ export const useAbsenceValidation = ({
 
       return errors
     },
-    [selectedType, existingAbsences, absenceTypeDetails]
+    [selectedType, existingAbsences, absenceTypeDetails, t]
   )
 
   type BalanceValidationResult = {
@@ -388,7 +500,7 @@ export const useAbsenceValidation = ({
   }
 
   const checkBalanceValidation = useCallback(
-    (newStartDate: Date, newEndDate: Date): BalanceValidationResult => {
+    (newStartDate: Date, newEndDate: Date, holidaysForRange?: HolidayEntry[]): BalanceValidationResult => {
       const warnings: AbsenceValidationError[] = []
       const errors: AbsenceValidationError[] = []
 
@@ -398,104 +510,199 @@ export const useAbsenceValidation = ({
         return { errors, warnings }
       }
 
-      if (!absenceEntitlement) {
+      const balanceDetails = resolveBalanceDetails(entitlementSnapshot, absenceEntitlement)
+      if (balanceDetails == null) {
         warnings.push({
           type: 'balance',
-          message: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:hr_absences.unable_to_verify_absence_balance',
-            'Unable to verify absence balance. Please check manually.'
-          ),
+          message: t('create-absence-unable-to-verify-balance'),
           details: { reason: 'no_entitlement_info' }
         })
         return { errors, warnings }
       }
 
+      const holidaysToUse = holidaysForRange ?? holidays
       const measurement = absenceTypeDetails?.objectValue?.measurement
-      let requestedDays: number
-
-      if (measurement === 'WorkingDays') {
-        const halfDayDates = extractHalfDayDates(holidays, newStartDate, newEndDate)
-
-        requestedDays = calculateWorkingDays(newStartDate, newEndDate, {
-          holidays,
-          excludeWeekends: true,
-          halfDayDates,
-          workingHours
-        })
-
-        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidays, workingHours)
-        setDateRangeBreakdown(breakdown)
-      } else {
-        requestedDays = dayjs(newEndDate).diff(dayjs(newStartDate), 'day') + 1
-
-        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidays, workingHours)
-        setDateRangeBreakdown(breakdown)
-      }
+      const { requestedDays, breakdown } = calculateRequestedDaysWithBreakdown(
+        measurement,
+        newStartDate,
+        newEndDate,
+        holidaysToUse,
+        workingHours
+      )
+      setDateRangeBreakdown(breakdown)
 
       const roundedRequestedDays = Math.round(requestedDays * 100) / 100
+      const { effectiveAvailable, totalBalance, approvedBalance, pendingBalance } = balanceDetails
 
-      // Use 'available' from entitlement - this already accounts for pending absences
-      if (roundedRequestedDays > absenceEntitlement.available) {
-        const insufficientBalanceLabel = getTranslationFromI18nKeyAndLabel(
-          'lowcoder:hr_absences.insufficient_balance',
-          'Insufficient balance'
-        )
-        const requestedLabel = getTranslationFromI18nKeyAndLabel(
-          'lowcoder:backoffice_absence_overview.absence_overview_table.requested',
-          'Requested'
-        )
-        const availableLabel = getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')
-        const daysLabel = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')
-
+      if (roundedRequestedDays > effectiveAvailable) {
+        const message = buildInsufficientBalanceMessage({
+          roundedRequestedDays,
+          effectiveAvailable,
+          measurement,
+          holidaysToUse,
+          newStartDate,
+          newEndDate,
+          requestedDays,
+          workingHours,
+          t
+        })
         errors.push({
           type: 'balance',
-          message: `${insufficientBalanceLabel}. ${requestedLabel}: ${roundedRequestedDays} ${daysLabel}, ${availableLabel}: ${absenceEntitlement.available} ${daysLabel}`,
+          message,
           details: {
             requestedDays: roundedRequestedDays,
-            availableBalance: absenceEntitlement.available,
-            totalBalance: absenceEntitlement.total,
-            approvedBalance: absenceEntitlement.approved,
-            pendingBalance: absenceEntitlement.pending
+            availableBalance: effectiveAvailable,
+            totalBalance,
+            approvedBalance,
+            pendingBalance
           }
         })
       }
 
       return { errors, warnings }
     },
-    [absenceEntitlement, absenceTypeDetails, holidays, workingHours]
+    [absenceEntitlement, entitlementSnapshot, absenceTypeDetails, holidays, workingHours, t]
+  )
+
+  const checkSingleDayBankHoliday = useCallback(
+    async (startDate: Date, regionRef: string): Promise<AbsenceValidationError | null> => {
+      const altCode = dayjs(startDate).format('YYYYMMDD')
+      const year = dayjs(startDate).format('YYYY')
+      const cacheKey = `${regionRef}:${altCode}`
+      let isBankHoliday = bankHolidayCacheRef.current[cacheKey]
+
+      if (isBankHoliday === undefined) {
+        setIsCheckingBankHoliday(true)
+        try {
+          const activeLocale = getCurrentActiveUserLocale()
+          const res = await client.request<{ holidays?: Array<{ additionalValue1?: string }> }>(
+            employmentRegionHolidayByDateQuery,
+            {
+              activeUserLocale: activeLocale,
+              regionId: regionRef,
+              year,
+              altCode
+            }
+          )
+          const entries = res?.holidays || []
+          const fullDayHoliday = entries.find(h => h.additionalValue1 !== '05H')
+          isBankHoliday = !!fullDayHoliday
+          bankHolidayCacheRef.current[cacheKey] = isBankHoliday
+        } catch {
+          isBankHoliday = false
+          bankHolidayCacheRef.current[cacheKey] = false
+        } finally {
+          setIsCheckingBankHoliday(false)
+        }
+      }
+
+      if (isBankHoliday) {
+        return {
+          type: 'general',
+          message: t('create-absence-single-day-bank-holiday-blocked')
+        }
+      }
+      return null
+    },
+    [client, t]
+  )
+
+  const fetchRangeHolidays = useCallback(
+    async (rangeStart: Date, rangeEnd: Date, regionRef: string): Promise<HolidayEntry[]> => {
+      const altCodeFrom = dayjs(rangeStart).format('YYYYMMDD')
+      const altCodeTo = dayjs(rangeEnd).format('YYYYMMDD')
+      const rangeCacheKey = `${regionRef}:${altCodeFrom}:${altCodeTo}`
+      const cached = rangeHolidaysCacheRef.current[rangeCacheKey]
+      if (cached === undefined) {
+        try {
+          const res = await client.request<{
+            holidays?: Array<{
+              id: string
+              value?: string
+              code?: string
+              alternativeCode?: string
+              additionalValue1?: string
+              additionalValue2?: string
+              additionalValue3?: string
+            }>
+          }>(employmentRegionHolidaysInRangeQuery, {
+            regionId: regionRef,
+            altCodeFrom,
+            altCodeTo
+          })
+          const entries = res?.holidays || []
+          const holidays = entries.map(h => ({
+            id: h.id,
+            value: h.value ?? '',
+            code: h.code ?? '',
+            alternativeCode: h.alternativeCode,
+            additionalValue1: h.additionalValue1,
+            additionalValue2: h.additionalValue2,
+            additionalValue3: h.additionalValue3
+          }))
+          rangeHolidaysCacheRef.current[rangeCacheKey] = holidays
+          return holidays
+        } catch {
+          return []
+        }
+      }
+      return cached
+    },
+    [client]
   )
 
   const validateAbsence = useCallback(
     async (validateStartDate?: Date, validateEndDate?: Date) => {
+      if (disableCalendarValidation) {
+        setValidationErrors([])
+        setValidationWarnings([])
+        setIsValidating(false)
+        setIsCheckingBankHoliday(false)
+        return []
+      }
+
       const validationStartDate = validateStartDate || startDate
       const validationEndDate = validateEndDate || endDate
 
       if (!validationStartDate || !validationEndDate || !selectedType) {
         setValidationErrors([])
+        setValidationWarnings([])
         return []
       }
 
       if (dayjs(validationEndDate).isBefore(dayjs(validationStartDate).subtract(1, 'day'))) {
         const dateOrderError: AbsenceValidationError = {
           type: 'general',
-          message: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:hr_absences.end_date_must_be_after_start_date',
-            'End date must be after start date'
-          )
+          message: t('create-absence-end-date-after-start')
         }
         setValidationErrors([dateOrderError])
         return [dateOrderError]
       }
 
-      setIsValidating(true)
-
       setValidationWarnings([])
 
+      const isSingleDay = dayjs(validationStartDate).isSame(dayjs(validationEndDate), 'day')
+      if (isSingleDay && employeeRegionRef) {
+        const bankHolidayError = await checkSingleDayBankHoliday(validationStartDate, employeeRegionRef)
+        if (bankHolidayError) {
+          setValidationErrors([bankHolidayError])
+          return [bankHolidayError]
+        }
+      }
+
+      const isRange = !dayjs(validationStartDate).isSame(dayjs(validationEndDate), 'day')
+      const rangeHolidays =
+        isRange && employeeRegionRef
+          ? await fetchRangeHolidays(validationStartDate, validationEndDate, employeeRegionRef)
+          : []
+
+      setIsValidating(true)
       try {
         const overlapErrors = checkOverlapValidation(validationStartDate, validationEndDate)
         const { errors: balanceErrors, warnings: balanceWarnings } = checkBalanceValidation(
           validationStartDate,
-          validationEndDate
+          validationEndDate,
+          rangeHolidays.length > 0 ? rangeHolidays : undefined
         )
 
         const allErrors = [...overlapErrors, ...balanceErrors]
@@ -507,7 +714,7 @@ export const useAbsenceValidation = ({
       } catch (error) {
         const generalError: AbsenceValidationError = {
           type: 'general',
-          message: 'Validation failed. Please try again.',
+          message: t('create-absence-validation-failed'),
           details: { error }
         }
         setValidationErrors([generalError])
@@ -516,21 +723,39 @@ export const useAbsenceValidation = ({
         setIsValidating(false)
       }
     },
-    [startDate, endDate, selectedType, checkOverlapValidation, checkBalanceValidation]
+    [
+      startDate,
+      endDate,
+      selectedType,
+      employeeRegionRef,
+      checkSingleDayBankHoliday,
+      fetchRangeHolidays,
+      checkOverlapValidation,
+      checkBalanceValidation,
+      t,
+      disableCalendarValidation
+    ]
   )
 
   useEffect(() => {
+    if (disableCalendarValidation) {
+      setValidationErrors([])
+      setValidationWarnings([])
+      return
+    }
+
     if (startDate && endDate && selectedType) {
       validateAbsence()
     } else {
       setValidationErrors([])
     }
-  }, [startDate, endDate, selectedType, existingAbsences, validateAbsence])
+  }, [startDate, endDate, selectedType, existingAbsences, validateAbsence, disableCalendarValidation])
 
   return {
     validationErrors,
     validationWarnings,
     isValidating,
+    isCheckingBankHoliday,
     validateAbsence,
     hasValidationErrors: validationErrors.length > 0,
     overlapErrors: validationErrors.filter(error => error.type === 'overlap'),
@@ -538,6 +763,7 @@ export const useAbsenceValidation = ({
     generalErrors: validationErrors.filter(error => error.type === 'general'),
     existingAbsences,
     absenceEntitlement,
+    entitlementSnapshot,
     todayAbsences,
     existingSickLeave,
     isSickLeaveType,

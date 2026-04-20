@@ -27,18 +27,25 @@ const OrgChartFeature = {
 const CoreFeature = {
   Collaboration: { Key: 'core.collaboration.mode', Values: CoreFeatureCollaborationValue },
   Intranet: { Key: 'core.intranet.mode', Values: CoreFeatureIntranetValue },
-  AiAgent: { Key: 'core.aiagent.enabled' }
+  AiAgent: { Key: 'core.aiagent.enabled' },
+  TeamChat: { Key: 'core.teamchat.enabled' },
+  ChatTeam: { Key: 'core.chat.team.enabled' },
+  ChatAI: { Key: 'core.chat.ai.enabled' }
 }
 
 const HCMFeature = {
   EmployeeProfile: { Key: 'hcm.employee-profile.mode', Values: HCMFeatureEmployeeProfileValue },
   EmployeeAbsence: { Key: 'hcm.employee-absence.enabled' },
   EmployeeExpenses: { Key: 'hcm.employee-expenses.enabled' },
-  Compensation: { Key: 'human-resources.compensation.enabled' }
+  HRDevelopment: { Key: 'human-resources.performance.enabled' },
+  Compensation: { Key: 'human-resources.compensation.enabled' },
+  Recruiting: { Key: 'human-resources.recruiting.enabled' },
+  Assets: { Key: 'assets.enabled' }
 }
 
 const CRMFeature = {
-  Accounts: { Key: 'crm.accounts.enabled' }
+  Accounts: { Key: 'crm.accounts.enabled' },
+  CustomerRelations: { Key: 'customer-relations.enabled' }
 }
 
 const ServicesFeature = {
@@ -61,12 +68,23 @@ const PlatformFeature = {
   EveryAI: { Key: 'everyai.enabled' }
 }
 
+const EveryBoxFeature = {
+  AiEnabled: { Key: 'everybox.ai.enabled' },
+  AiInsightsEnabled: { Key: 'everyboxadmin.ai.enabled' }
+}
+
 const DevFeature = {
   Enabled: { Key: 'dev.enabled' }
 }
 
 const PreviewFeature = {
   Enabled: { Key: 'preview.enabled' }
+}
+
+const ReportingFeature = {
+  Internal: {
+    Enabled: { Key: 'reporting.internal.enabled' }
+  }
 }
 
 export const Feature = {
@@ -78,5 +96,7 @@ export const Feature = {
   FLOW: FLOWFeature,
   Platform: PlatformFeature,
   Dev: DevFeature,
-  Preview: PreviewFeature
+  Preview: PreviewFeature,
+  Reporting: ReportingFeature,
+  EveryBox: EveryBoxFeature
 }

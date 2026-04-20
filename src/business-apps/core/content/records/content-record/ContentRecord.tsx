@@ -1,10 +1,17 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { ArrowLeft } from 'lucide-react'
 import { AiTranslationButton, useContentTranslation } from '@/common/components/content'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
+import {
+  CONTENT_REACTION_IDENTIFIER,
+  CONTENT_REACTION_VERSION,
+  CONTENT_REACTION_UPVOTE_ENTRY_ID,
+  CONTENT_REACTION_DOWNVOTE_ENTRY_ID
+} from '@/common/data/content/constants/contentCatalogs'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { isPolicyContentEntry } from '@/business-apps/core/content/utils/policyUtils'
 import ContentPage from './components/ContentPage'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import translations from './_i18n'
@@ -14,9 +21,6 @@ export interface ContentRecordProps extends BusinessAppContextProps {
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
 }
-
-const CATALOG_IDENTIFIER = 'ContentReaction'
-const CATALOG_VERSION = 'v1'
 
 const ContentRecord: React.FC<ContentRecordProps> = context => {
   const { t } = useTranslation(translations)
@@ -48,8 +52,8 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
       try {
         const response = await catalogClient.getCatalogEntriesList(
           {
-            catalogIdentifier: CATALOG_IDENTIFIER,
-            version: CATALOG_VERSION
+            catalogIdentifier: CONTENT_REACTION_IDENTIFIER,
+            version: CONTENT_REACTION_VERSION
           },
           {
             limit: 100,
@@ -72,9 +76,9 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
             allowedCodes.push(unifiedCode)
 
             // Also map +1/-1 by their special keys for VoteButtons
-            if (entry.id === 'ContentReaction:v1:+1') {
+            if (entry.id === CONTENT_REACTION_UPVOTE_ENTRY_ID) {
               catalogMap['+1'] = entry.id
-            } else if (entry.id === 'ContentReaction:v1:-1') {
+            } else if (entry.id === CONTENT_REACTION_DOWNVOTE_ENTRY_ID) {
               catalogMap['-1'] = entry.id
             }
           }
@@ -110,7 +114,8 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
 
   // Get the tab parameter to know which tab to return to and determine count type
   const fromTab = useMemo(() => {
-    return new URLSearchParams(window.location.search).get('tab') || 'intranet'
+    const tab = new URLSearchParams(window.location.search).get('tab') || 'home'
+    return tab === 'intranet' ? 'home' : tab
   }, [])
 
   const queryOptions = useMemo(
@@ -124,7 +129,8 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
   const {
     entry: item,
     isLoading,
-    error
+    error,
+    refetch
   } = useContentEntry(contentId, {
     accessToken: context.accessToken,
     queryOptions
@@ -143,20 +149,28 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
     translateComments
   } = useContentTranslation(context.accessToken)
 
+  // Track which content id we already attempted detection for (avoid retry loop when API fails or returns empty)
+  const detectionAttemptedForContentIdRef = useRef<string | null>(null)
+
   // Initial language detection when content is loaded
-  // Use existing languageRef if available, otherwise detect from content
+  // Use existing languageRef if available, otherwise detect from content (once per item)
   useEffect(() => {
-    if (!item || detectedLanguage || isDetecting) return
+    if (!item || isDetecting) return
 
     // Check if content entry already has a language stored
     if (item.languageRef) {
-      // Use existing language reference - no API detection needed
       setLanguageFromRef(item.languageRef, item.language?.value)
-    } else if (item.language?.id) {
-      // Use language catalog entry if available - no API call needed
+      return
+    }
+    if (item.language?.id) {
       setLanguageFromRef(item.language.id, item.language.value)
-    } else if (item.content) {
-      // No language stored, detect from content via API
+      return
+    }
+    if (item.content) {
+      if (detectedLanguage) return
+      const contentId = item.id ?? null
+      if (detectionAttemptedForContentIdRef.current === contentId) return
+      detectionAttemptedForContentIdRef.current = contentId
       detectLanguage(item.content)
     }
   }, [item, detectedLanguage, isDetecting, detectLanguage, setLanguageFromRef])
@@ -213,24 +227,43 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
     )
   }
 
+  // Policy entries have their own back button and translate button inside the hero
+  const isPolicy = isPolicyContentEntry(item as any)
+
   return (
     <div className="gba:min-h-screen gba:bg-background gba:pb-10" data-testid="content-record">
-      {/* Back Button and Translation Button */}
-      <div className="gba:max-w-[1000px] gba:mx-auto gba:pt-6 gba:px-4 gba:flex gba:justify-between gba:items-center">
-        <Button variant="ghost" onClick={handleBackClick} className="gba:mb-4" data-testid="content-record-back-button">
-          <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
-          {t('back_to_overview')}
-        </Button>
-        <AiTranslationButton
-          detectedLanguage={detectedLanguage}
-          targetLanguage={targetLanguage}
-          isDetecting={isDetecting}
-          isTranslating={isTranslating}
-          accessToken={context.accessToken}
-          onLanguageSelect={handleLanguageSelect}
-          data-testid="content-record-translation-button"
-        />
-      </div>
+      {/* Back Button and Translation Button – hidden for policy view (handled inside hero) */}
+      {!isPolicy && (
+        <div className="gba:max-w-[1000px] gba:mx-auto gba:pt-6 gba:px-4 gba:flex gba:justify-between gba:items-center">
+          <Button
+            variant="ghost"
+            onClick={handleBackClick}
+            className="gba:mb-4"
+            data-testid="content-record-back-button"
+          >
+            <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
+            {t('back_to_overview')}
+          </Button>
+          <AiTranslationButton
+            detectedLanguage={detectedLanguage}
+            targetLanguage={targetLanguage}
+            isDetecting={isDetecting}
+            isTranslating={isTranslating}
+            accessToken={context.accessToken}
+            onLanguageSelect={handleLanguageSelect}
+            labels={{
+              language: t('ai-translation-language'),
+              detecting: t('ai-translation-detecting'),
+              translating: t('ai-translation-translating'),
+              selectTarget: t('ai-translation-select-target'),
+              searchPlaceholder: t('ai-translation-search-placeholder'),
+              noLanguagesFound: t('ai-translation-no-languages-found'),
+              noLanguagesAvailable: t('ai-translation-no-languages-available')
+            }}
+            data-testid="content-record-translation-button"
+          />
+        </div>
+      )}
 
       {/* Content Page */}
       <ContentPage
@@ -238,6 +271,7 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
         accessToken={context.accessToken}
         userId={context.userInfo?.id}
         employeeId={context.userInfo?.employeeDetails?.employeeId}
+        additionalData={context.additionalData}
         allowedReactions={allowedReactions}
         reactionCatalogMap={reactionCatalogMap}
         detectedLanguage={detectedLanguage}
@@ -246,6 +280,10 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
         isTranslating={isTranslating}
         isDetecting={isDetecting}
         onTranslateComments={translateComments}
+        onReactionSuccess={refetch}
+        onEntryUpdated={refetch}
+        onBackClick={handleBackClick}
+        onLanguageSelect={handleLanguageSelect}
       />
     </div>
   )

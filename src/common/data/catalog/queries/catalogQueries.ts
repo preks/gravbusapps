@@ -72,7 +72,14 @@ const buildCatalogEntryWhereCondition = (variables: CatalogEntryQueryVariables):
 
   // Filter by a specific entry id
   if (variables.entryId) {
-    conditions.push(`{ id: { _eq: "${variables.entryId}" } }`)
+    if (Array.isArray(variables.entryId)) {
+      const entryIds = variables.entryId.filter(entryId => typeof entryId === 'string' && entryId.length > 0)
+      if (entryIds.length > 0) {
+        conditions.push(`{ id: { _in: [${entryIds.map(entryId => `"${entryId}"`).join(', ')}] } }`)
+      }
+    } else {
+      conditions.push(`{ id: { _eq: "${variables.entryId}" } }`)
+    }
   }
 
   // Filter by parent entry
@@ -169,7 +176,7 @@ const buildNestedEntryWhere = (variables: { search?: string; parentEntryId?: str
       ]
     }`)
   }
-  return conditions.length > 0 ? `where: { _and: [${conditions.join(', ')}] }` : ''
+  return conditions.length > 0 ? `{ _and: [${conditions.join(', ')}] }` : '{}'
 }
 
 // 1. GET_CATALOGS - REST-like query with conditional includes
@@ -186,6 +193,7 @@ export const GET_CATALOGS = (variables: CatalogQueryOptions = {}): string => {
     catalogEntries(
       limit: ${entriesLimit}
       offset: ${entriesOffset}
+      where: { isDeleted: { _eq: false } }
       orderBy: [{ displayOrder: ASC_NULLS_LAST }, { value: ASC }]
     ) @include(if: $includeCatalogEntries) {
       ${CATALOG_ENTRY_REF}
@@ -417,8 +425,8 @@ export const GET_CATALOG = (variables: {
         catalogEntries(
           limit: ${limit}
           offset: ${offset}
+          where: ${entryWhere}
           ${entryOrderBy}
-          ${entryWhere}
         ) {
           ${CATALOG_ENTRY_REF}
           catalog { ${CATALOG_REF} }

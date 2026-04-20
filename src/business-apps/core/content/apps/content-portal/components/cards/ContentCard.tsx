@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation, Badge } from '@newwork/nw-design-system'
-import { MessageCircle, Share2 } from 'lucide-react'
+import { MessageCircle, Share2, ThumbsUp } from 'lucide-react'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { calculateReadingTime } from '../../utils/contentUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -12,7 +12,7 @@ import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reac
 import { EmployeeHoverCard } from '@/common/components/employee'
 import { ContentArticleAnalyzer } from '@/business-apps/core/content/components/ContentArticleAnalyzer'
 import { ContentImage } from '../shared/ContentImage'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup, resolveContentTypeName } from '@/common/data/content/constants/contentConstants'
 import dayjs from 'dayjs'
 import translations from '../../_i18n'
 
@@ -31,6 +31,7 @@ interface ContentCardProps extends BusinessAppContextProps {
   authorLabel?: string // Label for author field (e.g., "Author", "Creator", "Responsible")
   translatedTitle?: string
   translatedPreview?: string
+  simpleReactions?: boolean // Show simple reaction/comment counts instead of full ReactionPicker
 }
 
 const ContentCard: React.FC<ContentCardProps> = ({
@@ -47,7 +48,8 @@ const ContentCard: React.FC<ContentCardProps> = ({
   onReactionsRefetch,
   authorLabel,
   translatedTitle,
-  translatedPreview
+  translatedPreview,
+  simpleReactions = false
 }) => {
   const { t } = useTranslation(translations)
   const formattedDate = item?.createdAt ? dayjs(item.createdAt).format('MMM DD, YYYY') : ''
@@ -79,9 +81,9 @@ const ContentCard: React.FC<ContentCardProps> = ({
   const readingTime = item.timeToRead ?? calculateReadingTime(item.content)
   const commentCount =
     item.descendantContentEntriesAggregate?.aggregate?.count || item.childContentEntriesAggregate?.aggregate?.count || 0
+  const reactionCount = item.contentEntryReactionCounts?.reduce((sum, r) => sum + (r.count || 0), 0) || 0
 
-  const isNewsOrKnowledge =
-    item.contentGroupRef === ContentGroup.NEWS || item.contentGroupRef === ContentGroup.KNOWLEDGE
+  const isNewsOrKnowledge = item.contentGroup === ContentGroup.NEWS || item.contentGroup === ContentGroup.KNOWLEDGE
 
   return (
     <div className={`gba:relative gba:w-full ${className}`}>
@@ -126,9 +128,9 @@ const ContentCard: React.FC<ContentCardProps> = ({
           <div className="gba:flex gba:justify-between gba:items-center gba:mb-2 gba:text-xs">
             <div className="gba:flex gba:items-center gba:gap-2">
               <span className="gba:text-muted-foreground">{formattedDate}</span>
-              {variant === 'knowledge' && item.contentType?.value && (
+              {variant === 'knowledge' && resolveContentTypeName(item.contentType) && (
                 <Badge variant="outline" className="gba:text-xs">
-                  {item.contentType.value}
+                  {resolveContentTypeName(item.contentType)}
                 </Badge>
               )}
             </div>
@@ -183,32 +185,52 @@ const ContentCard: React.FC<ContentCardProps> = ({
 
             {/* Stats */}
             <div className="gba:flex gba:items-center gba:gap-4 gba:pt-2 gba:border-t gba:border-border">
-              {item.allowReaction && (
-                <button
-                  type="button"
-                  onClick={e => e.stopPropagation()}
-                  onKeyDown={e => e.stopPropagation()}
-                  className="gba:bg-transparent gba:border-0 gba:p-0"
-                >
-                  <ReactionPicker
-                    contentEntryId={item.id || ''}
-                    reactionSummary={reactionSummary}
-                    allowReaction={item.allowReaction}
-                    accessToken={accessToken}
-                    employeeId={userInfo?.employeeDetails?.employeeId || ''}
-                    onSuccess={onReactionsRefetch}
-                    size="sm"
-                    allowedReactions={allowedReactions}
-                    reactionCatalogMap={reactionCatalogMap}
-                    data-testid={`content-card-reaction-${item.id}`}
-                  />
-                </button>
-              )}
-              {item.allowComment && (
-                <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
-                  <MessageCircle className="gba:w-4 gba:h-4" />
-                  <span>{commentCount}</span>
-                </div>
+              {simpleReactions ? (
+                /* Simple reaction/comment counts - like hero article style */
+                <>
+                  {reactionCount > 0 && (
+                    <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+                      <ThumbsUp className="gba:w-4 gba:h-4" />
+                      <span>{reactionCount}</span>
+                    </div>
+                  )}
+                  {commentCount > 0 && (
+                    <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+                      <MessageCircle className="gba:w-4 gba:h-4" />
+                      <span>{commentCount}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Full ReactionPicker */
+                <>
+                  {item.allowReaction && (
+                    <div
+                      onClick={e => e.stopPropagation()}
+                      onKeyDown={e => e.stopPropagation()}
+                      className="gba:bg-transparent gba:border-0 gba:p-0"
+                    >
+                      <ReactionPicker
+                        contentEntryId={item.id || ''}
+                        reactionSummary={reactionSummary}
+                        allowReaction={item.allowReaction}
+                        accessToken={accessToken}
+                        employeeId={userInfo?.employeeDetails?.employeeId || ''}
+                        onSuccess={onReactionsRefetch}
+                        size="sm"
+                        allowedReactions={allowedReactions}
+                        reactionCatalogMap={reactionCatalogMap}
+                        data-testid={`content-card-reaction-${item.id}`}
+                      />
+                    </div>
+                  )}
+                  {item.allowComment && (
+                    <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+                      <MessageCircle className="gba:w-4 gba:h-4" />
+                      <span>{commentCount}</span>
+                    </div>
+                  )}
+                </>
               )}
               {entityType && (
                 <div className="gba:ml-auto" onClick={e => e.stopPropagation()}>

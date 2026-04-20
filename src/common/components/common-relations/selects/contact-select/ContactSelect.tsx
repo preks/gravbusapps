@@ -13,7 +13,7 @@ import {
   SelectValue,
   Button
 } from '@newwork/nw-design-system'
-import { PiX } from 'react-icons/pi'
+import { XIcon } from '@phosphor-icons/react'
 import { Building2, Briefcase } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ContactType, getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
@@ -53,9 +53,17 @@ interface ContactSelectProps {
   contactsLoading: boolean
   contactsError: string | null
   searchContacts: (search: string) => void
+  hasMore?: boolean
+  onLoadMore?: () => void
 
   // Full account contacts with full contact data (for email/phone extraction)
   accountContacts?: any[]
+
+  /** When false, hides per-row contact-type catalog (e.g. activity “related contact” picker) */
+  showContactType?: boolean
+
+  /** Disables search combobox (e.g. no linked contacts) */
+  disabled?: boolean
 }
 
 const ContactSelect: React.FC<ContactSelectProps> = ({
@@ -67,7 +75,11 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
   contactsLoading,
   contactsError,
   searchContacts,
-  accountContacts = []
+  hasMore,
+  onLoadMore,
+  accountContacts = [],
+  showContactType = true,
+  disabled = false
 }) => {
   // Helper function to extract ID from value (string or object)
   const getContactId = (contactValue: string | ContactValue): string => {
@@ -426,10 +438,13 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
   }
 
   return (
-    <div className="gba:space-y-4" data-testid={dataTestId || 'contact-list'}>
+    <div className="gba:space-y-4 gba:w-full gba:min-w-0" data-testid={dataTestId || 'contact-list'}>
       {/* Contact Cards List */}
       {internalValue.length > 0 && (
-        <div className="gba:space-y-2" data-testid={formatDataTestId(dataTestId || 'contact-list', 'cards-list')}>
+        <div
+          className="gba:space-y-2 gba:w-full gba:min-w-0"
+          data-testid={formatDataTestId(dataTestId || 'contact-list', 'cards-list')}
+        >
           {internalValue.map((contactValue, index) => {
             const contactId = getContactId(contactValue)
             const contactData = getContactData(contactValue)
@@ -457,7 +472,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
             return (
               <div
                 key={contactId}
-                className="gba:flex gba:items-center gba:gap-3 gba:py-2"
+                className="gba:flex gba:items-center gba:gap-3 gba:py-2 gba:w-full gba:min-w-0 gba:overflow-hidden"
                 data-testid={formatDataTestId(dataTestId || 'contact-list', `contact-card-${index}`)}
               >
                 {/* Avatar */}
@@ -469,11 +484,13 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
                   )}
                 </Avatar>
 
-                {/* Name, Job Position, Department */}
-                <div className="gba:flex-1 gba:min-w-0">
-                  <h4 className="gba:text-sm gba:font-semibold gba:truncate">{displayName}</h4>
+                {/* Name, Job Position, Department - flex-1 min-w-0 so name truncates within available width */}
+                <div className="gba:flex-1 gba:min-w-0 gba:overflow-hidden">
+                  <h4 className="gba:text-sm gba:font-semibold gba:truncate" title={displayName}>
+                    {displayName}
+                  </h4>
                   {(jobPosition || department) && (
-                    <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:mt-1 gba:text-xs">
+                    <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:mt-1 gba:text-xs gba:min-w-0 gba:overflow-hidden">
                       {jobPosition && (
                         <span className="gba:flex gba:items-center gba:gap-1">
                           <Briefcase className="gba:w-3 gba:h-3" />
@@ -491,29 +508,31 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
                   )}
                 </div>
 
-                {/* Contact Type Select */}
-                <div className="gba:w-48">
-                  <Select
-                    value={contactType || ''}
-                    onValueChange={value => handleContactTypeChange(index, value)}
-                    data-testid={formatDataTestId(dataTestId || 'contact-list', `contact-type-${index}`)}
-                  >
-                    <SelectTrigger className="gba:w-full">
-                      <SelectValue placeholder="Select type..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ContactType.PRIMARY_CONTACT}>
-                        {getContactTypeLabel(ContactType.PRIMARY_CONTACT)}
-                      </SelectItem>
-                      <SelectItem value={ContactType.SECONDARY_CONTACT}>
-                        {getContactTypeLabel(ContactType.SECONDARY_CONTACT)}
-                      </SelectItem>
-                      <SelectItem value={ContactType.FOUNDER_CONTACT}>
-                        {getContactTypeLabel(ContactType.FOUNDER_CONTACT)}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Contact Type Select - fixed width, never shrink */}
+                {showContactType ? (
+                  <div className="gba:w-48 gba:flex-shrink-0">
+                    <Select
+                      value={contactType || ''}
+                      onValueChange={value => handleContactTypeChange(index, value)}
+                      data-testid={formatDataTestId(dataTestId || 'contact-list', `contact-type-${index}`)}
+                    >
+                      <SelectTrigger className="gba:w-full">
+                        <SelectValue placeholder="Select type..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ContactType.PRIMARY_CONTACT}>
+                          {getContactTypeLabel(ContactType.PRIMARY_CONTACT)}
+                        </SelectItem>
+                        <SelectItem value={ContactType.SECONDARY_CONTACT}>
+                          {getContactTypeLabel(ContactType.SECONDARY_CONTACT)}
+                        </SelectItem>
+                        <SelectItem value={ContactType.FOUNDER_CONTACT}>
+                          {getContactTypeLabel(ContactType.FOUNDER_CONTACT)}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
 
                 {/* Remove Button */}
                 <Button
@@ -525,7 +544,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
                   data-testid={formatDataTestId(dataTestId || 'contact-list', `remove-contact-${index}`)}
                   aria-label={`Remove ${displayName}`}
                 >
-                  <PiX className="gba:w-4 gba:h-4" />
+                  <XIcon className="gba:w-4 gba:h-4" />
                 </Button>
               </div>
             )
@@ -541,9 +560,12 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
         placeholder="Search and select contact..."
         searchPlaceholder="Type to search..."
         emptyText={getEmptyText()}
-        disabled={contactsLoading}
+        disabled={Boolean(disabled) || contactsLoading}
         loading={contactsLoading}
         onSearch={searchContacts}
+        searchDebounce={300}
+        hasMore={Boolean(hasMore)}
+        onLoadMore={onLoadMore}
         data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-contact-combobox')}
       />
 

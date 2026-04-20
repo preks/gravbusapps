@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import '@newwork/nw-design-system/style'
 import { PageLayout } from '@newwork/nw-design-system'
-import { PiGauge, PiPath, PiHandCoins, PiMoney, PiCalendarBlank, PiWalletDuotone } from 'react-icons/pi'
-
+import { GaugeIcon, PathIcon, HandCoinsIcon, MoneyIcon, CalendarBlankIcon, WalletIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Import tab components
@@ -54,42 +53,48 @@ const getTabFromUrl = (): ManagerTabKey => {
 export type ManagerExpensesProps = BusinessAppContextProps
 
 const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
-  const viewOptions = [
-    {
-      key: 'dashboard',
-      icon: PiGauge,
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.dashboard_btn', 'Dashboard')
-    },
-    {
-      key: 'expense-plans',
-      icon: PiPath,
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-        'Expense Plans'
-      )
-    },
-    {
-      key: 'advance-payments',
-      icon: PiHandCoins,
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:backoffice_expense_landing_page.advance_title',
-        'Advance Payments'
-      )
-    },
-    {
-      key: 'expense-requests',
-      icon: PiMoney,
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Expense Requests')
-    },
-    {
-      key: 'expense-calendar',
-      icon: PiCalendarBlank,
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_calendar',
-        'Expense Calendar'
-      )
-    }
-  ]
+  const viewOptions = useMemo(
+    () => [
+      {
+        key: 'dashboard',
+        icon: GaugeIcon,
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_backoffice.dashboard_btn',
+          'Dashboard'
+        )
+      },
+      {
+        key: 'expense-plans',
+        icon: PathIcon,
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
+          'Expense Plans'
+        )
+      },
+      {
+        key: 'advance-payments',
+        icon: HandCoinsIcon,
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:backoffice_expense_landing_page.advance_title',
+          'Advance Payments'
+        )
+      },
+      {
+        key: 'expense-requests',
+        icon: MoneyIcon,
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Expense Requests')
+      },
+      {
+        key: 'expense-calendar',
+        icon: CalendarBlankIcon,
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.expense_calendar',
+          'Expense Calendar'
+        )
+      }
+    ],
+    []
+  )
 
   const hostViewParam = typeof props.additionalData?.view === 'string' ? props.additionalData.view : undefined
   const contextView = isValidView(hostViewParam) ? hostViewParam : null
@@ -178,12 +183,6 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
     updateUrl('analytics', undefined, 'push')
   }, [updateUrl])
 
-  const handleNavigateBackToDashboard = useCallback(() => {
-    setCurrentView('tabs')
-    setActiveTab('dashboard')
-    updateUrl('tabs', 'dashboard', 'push')
-  }, [updateUrl])
-
   const handleTabChange = useCallback(
     (tab: string) => {
       if (!isValidTab(tab) || tab === activeTab) {
@@ -252,17 +251,19 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
     })
   }, [contextTab, contextView, updateUrl])
 
-  // Create tab props for passing to tab components
-  const tabProps = {
-    ...props,
-    onNavigateToApprovals: handleNavigateToApprovals,
-    onNavigateToReports: handleNavigateToReports,
-    onNavigateToAnalytics: handleNavigateToAnalytics
-    // Currency is now managed globally via the store, no need to pass it explicitly
-  }
+  // Memoize tab props so tab children don't re-render when parent re-renders with unchanged props
+  const tabProps = useMemo(
+    () => ({
+      ...props,
+      onNavigateToApprovals: handleNavigateToApprovals,
+      onNavigateToReports: handleNavigateToReports,
+      onNavigateToAnalytics: handleNavigateToAnalytics
+    }),
+    [props, handleNavigateToApprovals, handleNavigateToReports, handleNavigateToAnalytics]
+  )
 
-  // Lazy-mount only the active tab to avoid duplicate data fetching
-  const renderActiveTabOnly = () => {
+  // Memoize tab content by activeTab and tabProps to avoid unstable JSX on each render
+  const tabContent = useMemo(() => {
     switch (activeTab) {
       case 'dashboard':
         return (
@@ -284,26 +285,40 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
       default:
         return <ExpenseDashboardTab {...tabProps} />
     }
-  }
+  }, [activeTab, tabProps, handleNavigateToApprovals, handleNavigateToReports, handleNavigateToAnalytics])
+
+  const headerSubViewItems = useMemo(
+    () => viewOptions.map(option => ({ value: option.key, label: option.label })),
+    [viewOptions]
+  )
+
+  const headerSubViews = useMemo(
+    () => ({
+      value: activeTab,
+      onValueChange: handleTabChange,
+      items: headerSubViewItems
+    }),
+    [activeTab, handleTabChange, headerSubViewItems]
+  )
 
   // Render based on current view
   if (currentView === 'approvals') {
-    return <ApprovalsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
+    return <ApprovalsPage {...props} />
   }
 
   if (currentView === 'reports') {
-    return <ExpenseReportsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
+    return <ExpenseReportsPage {...props} />
   }
 
   if (currentView === 'analytics') {
-    return <TeamSpendingAnalyticsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
+    return <TeamSpendingAnalyticsPage {...props} />
   }
 
   // Default tabs view
   return (
     <div data-testid="manager-expenses-container">
       <PageLayout
-        headerIcon={PiWalletDuotone as any}
+        headerIcon={WalletIcon as any}
         headerTitle={getTranslationFromI18nKeyAndLabel(
           'lowcoder:team_expenses_page.team_expenses_title',
           'Team Expenses'
@@ -312,17 +327,10 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
           'lowcoder:team_expenses_page.team_expenses_subheader',
           'Manage team expenses, track expense plans, advance payments, and expense requests'
         )}
-        headerSubViews={{
-          value: activeTab,
-          onValueChange: handleTabChange,
-          items: viewOptions.map(option => ({
-            value: option.key,
-            label: option.label
-          }))
-        }}
+        headerSubViews={headerSubViews}
         className="gba:min-h-screen"
       >
-        {renderActiveTabOnly()}
+        {tabContent}
       </PageLayout>
     </div>
   )

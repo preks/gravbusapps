@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
@@ -14,6 +15,19 @@ import ActivitySection from '@/common/components/common-relations/record-section
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
+import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/customer/constants/customerCatalogs'
+import {
+  APPROVAL_TASK_TYPE_REF,
+  FILE_CONTEXT,
+  APP_NAME,
+  getFileEntityFromType
+} from '@/common/data/customer/constants/customerConstants'
+import { buildCustomerTaskPayload } from '@/common/data/customer/types/customerTaskTypes'
+import { buildCustomerActivityPayload } from '@/common/data/customer/types/customerActivityTypes'
+import { buildCustomerNotePayload } from '@/common/data/customer/types/customerNoteTypes'
+import { getReferenceEntityType } from '@/common/data/customer/utils/referenceEntityUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { useFileClient } from '@/common/network/files/useFileClient'
 
 interface HomeViewProps extends BusinessAppContextProps {
   accountId: string
@@ -21,6 +35,46 @@ interface HomeViewProps extends BusinessAppContextProps {
 }
 
 const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props }) => {
+  const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
+  const taskPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.TASK,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient]
+  )
+  const activityPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.ACTIVITY,
+      appName: APP_NAME,
+      entityId: accountId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient, accountId]
+  )
+  const notePreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.NOTE,
+      appName: APP_NAME,
+      entityId: accountId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: false
+    }),
+    [props.userInfo, fileClient, accountId]
+  )
+
   // Data fetching hooks for CRM customer sections
   const { fetchCustomerActivitiesByAccountId } = useCustomerActivities(props)
   const { fetchCustomerTasksByAccountId } = useCustomerTasks(props)
@@ -64,9 +118,6 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
         fetchCustomerTasksByAccountId(accountId)
       ])
 
-      const sortedActivities = (activitiesData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
       const sortedNotes = (notesData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
@@ -76,17 +127,17 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
 
       // Separate regular tasks from approvals based on type catalog entry
       const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.type?.code || ''
-        const taskTypeValue = task?.type?.value || ''
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
         return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
       })
       const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.type?.code || ''
-        const taskTypeValue = task?.type?.value || ''
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
-      setActivities(sortedActivities)
+      setActivities(activitiesData || [])
       setNotes(sortedNotes)
       setTasks(regularTasks)
       setApprovals(approvalTasks)
@@ -172,8 +223,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
       contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: {
         accountId,
-        typeRef: 'SalesTaskType:v1:APPROVAL',
-        salesTask: { account: accountId, type: 'SalesTaskType:v1:APPROVAL' }
+        typeRef: APPROVAL_TASK_TYPE_REF,
+        salesTask: { account: accountId, type: APPROVAL_TASK_TYPE_REF }
       },
       prefixDataTestId: 'account-approval',
       emptyStateBehavior: 'enable' as const
@@ -213,16 +264,16 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
 
   return (
     <>
-      {/* Account Section - 1/3 width */}
+      {/* Account Section - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'account-section',
             component: AccountSection,
             props: {
               ...props,
-              account: accountData, // ✅ Vollständiges CustomerAccount-Objekt
+              account: accountData,
               accountId: accountId,
               actionButtonProps: {
                 contextsArray: [FlowContextName.customerAccountEntity],
@@ -235,9 +286,9 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
         data-testid="account-account-section-wrapper"
       />
 
-      {/* Contact Section - 1/3 width */}
+      {/* Contact Section - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'contact-section',
@@ -271,41 +322,66 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
         data-testid="account-contact-section-wrapper"
       />
 
-      {/* Activities Section - 1/3 width, full height */}
+      {/* Activities & Notes Section - 1/2 width, spans 2 rows */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-5"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2 gba:min-h-196 gba:max-h-196"
         sections={[
           {
             id: 'activities-section',
             component: ActivitySection,
             props: {
               ...props,
+              accountId,
               activities: activities,
               activitiesLoading: sectionsLoading,
               activitiesError: sectionsError,
               onReloadActivities: loadSectionData,
               alignment: 'right',
               activitySectionActionProps: activityActionProps,
-              activityEntityActionProps: activityEntityActionProps
+              activityEntityActionProps: activityEntityActionProps,
+              activityTypeCatalog: ACTIVITY_TYPE,
+              buildActivityPayload: buildCustomerActivityPayload,
+              preSubmit: activityPreSubmit,
+              getRelatedRecordUrl: buildCrmRelatedEntityRecordUrl
+            }
+          },
+          {
+            id: 'notes-section',
+            component: NoteSection,
+            props: {
+              ...props,
+              accountId,
+              notes: notes,
+              noteActionProps: noteActionProps,
+              noteEntityActionProps: noteEntityActionProps,
+              buildNotePayload: buildCustomerNotePayload,
+              preSubmit: notePreSubmit,
+              'data-testid': 'account-notes-section'
             }
           }
         ]}
-        data-testid="account-activities-section-wrapper"
+        data-testid="account-activities-notes-section-wrapper"
       />
 
-      {/* Tasks & Approvals - 2/3 width, spans 2 rows */}
+      {/* Tasks & Approvals - 1/2 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'tasks-section',
             component: TaskSection,
             props: {
               ...props,
+              accountId,
               buildReferenceUrl,
               tasks: tasks,
               taskActionProps: taskActionProps,
-              taskEntityActionProps: taskEntityActionProps
+              taskEntityActionProps: taskEntityActionProps,
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildCustomerTaskPayload,
+              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit
             }
           },
           {
@@ -313,34 +389,23 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: TaskSection,
             props: {
               ...props,
+              accountId,
               sectionTitle: 'Approval Tasks',
               buildReferenceUrl,
               tasks: approvals,
               taskEntityActionProps: approvalEntityActionProps,
-              taskActionProps: approvalActionProps
+              taskActionProps: approvalActionProps,
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildCustomerTaskPayload,
+              isApprovalTaskSection: true,
+              approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit
             }
           }
         ]}
         data-testid="account-tasks-approvals-section-wrapper"
-      />
-
-      {/* Notes Section - 2/3 width, spans 3 rows */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-3"
-        sections={[
-          {
-            id: 'notes-section',
-            component: NoteSection,
-            props: {
-              ...props,
-              notes: notes,
-              noteActionProps: noteActionProps,
-              noteEntityActionProps: noteEntityActionProps,
-              'data-testid': 'account-notes-section'
-            }
-          }
-        ]}
-        data-testid="account-notes-section-wrapper"
       />
     </>
   )

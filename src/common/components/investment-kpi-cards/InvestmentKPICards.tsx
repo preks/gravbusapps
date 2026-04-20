@@ -1,6 +1,7 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { KPIConfig, BaseKPIData, formatKPIValue, calculateChange, validateKPIData } from '@/common/data/investment/kpis'
+import { KPIConfig, BaseKPIData, formatKPIValue, validateKPIData } from '@/common/data/investment/kpis'
+import { calculateTrend } from '@/common/utils/trendUtils'
 
 export interface InvestmentKPICardsProps<T extends BaseKPIData> {
   /** KPI configuration defining which KPIs to display */
@@ -73,10 +74,6 @@ export function InvestmentKPICards<T extends BaseKPIData>({
       const formattedValue =
         kpi.format === 'number' ? currentValue : formatKPIValue(currentValue, kpi.format, currencyCode)
 
-      // Calculate trend
-      const trend = calculateChange(currentValue, previousValue)
-
-      // Create widget item
       const Icon = kpi.icon
       return {
         key: kpi.key,
@@ -87,11 +84,7 @@ export function InvestmentKPICards<T extends BaseKPIData>({
         valueIsString: kpi.format !== 'number',
         span: kpi.span || { xs: 24, sm: 12, lg: 6 },
         description: kpi.description,
-        trend: {
-          value: trend.value,
-          positive: trend.positive,
-          description: 'vs last quarter'
-        }
+        trend: calculateTrend(currentValue, previousValue, kpi.trendDescription ?? 'vs last quarter')
       }
     })
 

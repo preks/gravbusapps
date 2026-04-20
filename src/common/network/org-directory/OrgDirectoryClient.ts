@@ -77,7 +77,23 @@ export class OrgDirectoryClient {
       lastName
       structureId
       supervisorEmployeeId
-      siteLocation { id name isDeleted }
+      siteLocation { 
+        id 
+        country { 
+          id 
+          translations {
+            value
+            localeCode
+          }
+        }
+        region { 
+          id 
+          translations {
+            value
+            localeCode
+          }
+        }
+      }
       company { id name isDeleted }
       costCenter { id name isDeleted }
       employeeCapabilities(where: {capability: {isDeleted: {_eq: false}}}) { 
@@ -282,6 +298,42 @@ export class OrgDirectoryClient {
   }
 
   /**
+   * Extract best-effort display value from catalog translation objects.
+   */
+  private getCatalogDisplayValue(catalogEntry: any): string {
+    if (!catalogEntry) return ''
+
+    const directValue = String(catalogEntry?.value || catalogEntry?.code || '').trim()
+    if (directValue) return directValue
+
+    const translations = Array.isArray(catalogEntry?.translations) ? catalogEntry.translations : []
+    const preferred = translations.find((t: any) => t?.localeCode === 'en-US') || translations[0]
+
+    return String(preferred?.value || '').trim()
+  }
+
+  /**
+   * Build a readable site location label from country/region catalogs.
+   */
+  private buildSiteLocationName(location: any): string {
+    const countryName = this.getCatalogDisplayValue(location?.country)
+    const regionName = this.getCatalogDisplayValue(location?.region)
+
+    return [countryName, regionName].filter(Boolean).join(', ')
+  }
+
+  /**
+   * Get all active users with avatar URLs (lightweight query).
+   * Uses the basic selection which includes pictureThumbnail.
+   * No userId filter — includes all employees in the active org structure
+   * who have an internal email communication record.
+   */
+  async getAllUsersBasic(): Promise<OrgUserBasic[]> {
+    const positions = await this.fetchPositions({}, 'basic')
+    return this.mapPositionsToBasicUnique(positions)
+  }
+
+  /**
    * Get all active users in the organization
    */
   async getAllUsers(): Promise<OrgUser[]> {
@@ -302,7 +354,8 @@ export class OrgDirectoryClient {
         _or: [
           { id: { _eq: String(userId) } },
           { userId: { _eq: String(userId) } },
-          { employeeId: { _eq: String(userId) } }
+          { employeeId: { _eq: String(userId) } },
+          { employee: { userId: { _eq: String(userId) } } }
         ]
       },
       'full'
@@ -332,6 +385,40 @@ export class OrgDirectoryClient {
       'basic'
     )
     return this.mapPositionsToBasicUnique(positions)
+  }
+
+  /**
+   * Get the manager's userId for a team (organizational unit).
+   * Uses the supervisor of the first position found in that org unit.
+   * Returns null if the org unit has no positions or the supervisor has no userId.
+   */
+  async getTeamManagerUserId(organizationalUnitId: string): Promise<string | null> {
+    const where = this.buildActiveWhere({
+      organizationalUnitEmployees: {
+        organizationalUnit: {
+          id: { _eq: String(organizationalUnitId) }
+        }
+      }
+    })
+    const query = `
+      query TeamManagerUserId($where: EmployeePositionBoolExp!) {
+        EmployeePosition(where: $where, limit: 1) {
+          supervisorEmployeeId
+          supervisorEmployee {
+            userId
+          }
+        }
+      }
+    `
+    const data = await this.client.request<{
+      EmployeePosition: Array<{
+        supervisorEmployeeId?: string | null
+        supervisorEmployee?: { userId?: string | null } | null
+      }>
+    }>(query, { where })
+    const position = data?.EmployeePosition?.[0]
+    const userId = position?.supervisorEmployee?.userId ?? null
+    return userId ? String(userId) : null
   }
 
   /**
@@ -559,11 +646,11 @@ export class OrgDirectoryClient {
 
     for (const p of positions) {
       const location = p?.siteLocation
-      // Skip deleted locations
-      if (location?.isDeleted) continue
+      if (!location) continue
 
       const locationId = String(location?.id || '')
-      const locationName = String(location?.name || '')
+
+      const locationName = this.buildSiteLocationName(location) || locationId
 
       if (locationId && !locationMap.has(locationId)) {
         locationMap.set(locationId, { id: locationId, name: locationName })
@@ -715,8 +802,11 @@ export class OrgDirectoryClient {
     const locationMap = new Map<string, { id: string; name: string }>()
     for (const p of positions) {
       const location = p?.siteLocation
+      if (!location) continue
+
       const locationId = String(location?.id || '')
-      const locationName = String(location?.name || '')
+      const locationName = this.buildSiteLocationName(location) || locationId
+
       if (locationId && !locationMap.has(locationId)) {
         locationMap.set(locationId, { id: locationId, name: locationName })
       }

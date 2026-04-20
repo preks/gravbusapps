@@ -10,13 +10,14 @@ import {
   CardHeader,
   CardTitle
 } from '@newwork/nw-design-system'
-import { PiClock, PiCurrencyDollar, PiMapPin, PiUsers, PiArrowUpRight } from 'react-icons/pi'
+import { ClockIcon, CurrencyDollarIcon, MapPinIcon, UsersIcon, ArrowUpRightIcon } from '@phosphor-icons/react'
 import { EnhancedMileageRule } from '../../hooks/useMileageRulesIntegration'
 import { useGetCalculationRuleUsage, CalculationRuleUsage } from '../../queries/MileageRuleQueries'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
+import { formatDate } from '../../utils'
 
 // Register dayjs plugins
 dayjs.extend(weekday)
@@ -127,7 +128,7 @@ const MileageRuleDetails: React.FC<MileageRuleDetailsProps> = ({
       <Card>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <PiCurrencyDollar className="gba:text-primary" />
+            <CurrencyDollarIcon className="gba:text-primary" />
             {getTranslationFromI18nKeyAndLabel('expense-settings:mileage_rule_information', 'Mileage Rule Information')}
           </CardTitle>
         </CardHeader>
@@ -167,7 +168,7 @@ const MileageRuleDetails: React.FC<MileageRuleDetailsProps> = ({
                 {getTranslationFromI18nKeyAndLabel('expense-settings:valid_period', 'Valid Period')}
               </dt>
               <dd className="gba:mt-1 gba:flex gba:items-center gba:gap-2">
-                <PiClock className="gba:text-muted-foreground" />
+                <ClockIcon className="gba:text-muted-foreground" />
                 <span className="gba:text-sm">{mileageRule.validityPeriod}</span>
               </dd>
             </div>
@@ -234,7 +235,7 @@ const MileageRuleDetails: React.FC<MileageRuleDetailsProps> = ({
         <CardHeader>
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <PiUsers className="gba:text-primary" />
+              <UsersIcon className="gba:text-primary" />
               {getTranslationFromI18nKeyAndLabel(
                 'expense-settings:used_in_calculation_rules',
                 'Used in Calculation Rules'
@@ -325,20 +326,19 @@ const MileageRuleDetails: React.FC<MileageRuleDetailsProps> = ({
 
                           <div className="gba:flex gba:flex-wrap gba:gap-4 gba:text-sm gba:text-muted-foreground">
                             <div className="gba:flex gba:items-center gba:gap-1">
-                              <PiMapPin size={14} />
+                              <MapPinIcon size={14} />
                               <span>{rule.country?.code || '-'}</span>
                             </div>
 
                             <div className="gba:flex gba:items-center gba:gap-1">
-                              <PiCurrencyDollar size={14} />
+                              <CurrencyDollarIcon size={14} />
                               <span>{rule.currency?.code || '-'}</span>
                             </div>
 
                             <div className="gba:flex gba:items-center gba:gap-1">
-                              <PiClock size={14} />
+                              <ClockIcon size={14} />
                               <span>
-                                {dayjs(rule.activeFrom).format('DD.MM.YYYY')} -
-                                {rule.activeTo ? dayjs(rule.activeTo).format('DD.MM.YYYY') : 'No end'}
+                                {formatDate(rule.activeFrom)} - {rule.activeTo ? formatDate(rule.activeTo) : 'No end'}
                               </span>
                             </div>
                           </div>
@@ -358,7 +358,7 @@ const MileageRuleDetails: React.FC<MileageRuleDetailsProps> = ({
                           )}
                           data-testid={`calculation-rule-view-button-${rule.id}`}
                         >
-                          <PiArrowUpRight />
+                          <ArrowUpRightIcon />
                         </Button>
                       </div>
                     </Card>

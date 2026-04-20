@@ -22,33 +22,40 @@ import {
 } from '../services/ContentArticleAnalyzerService'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { useContentDescendants } from '../hooks/useContentDescendants'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 
 interface ContentArticleAnalyzerProps {
   contentEntry: ContentEntry
   accessToken: string
   userId: string | undefined
+  buttonLabel?: string
 }
 
 export const ContentArticleAnalyzer: React.FC<ContentArticleAnalyzerProps> = ({
   contentEntry,
   accessToken,
-  userId
+  userId,
+  buttonLabel
 }) => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<ContentArticleAnalyzerOutput | null>(null)
   const serviceRef = useRef<ContentArticleAnalyzerService | null>(null)
+  const promptManagerClient = usePromptManagerClient(accessToken)
 
-  // Fetch all descendants (comments and replies)
-  const { descendants, isLoading: isLoadingDescendants } = useContentDescendants(contentEntry.id, accessToken)
+  // Fetch all descendants (comments and replies) - only when popover is open
+  const { descendants, isLoading: isLoadingDescendants } = useContentDescendants(
+    isPopoverOpen ? contentEntry.id : undefined,
+    isPopoverOpen ? accessToken : undefined
+  )
 
   // Initialize service
   useEffect(() => {
     if (accessToken) {
-      serviceRef.current = new ContentArticleAnalyzerService(accessToken)
+      serviceRef.current = new ContentArticleAnalyzerService(promptManagerClient)
     }
-  }, [accessToken])
+  }, [accessToken, promptManagerClient])
 
   const handleAnalyze = useCallback(async () => {
     if (!serviceRef.current || !userId || !contentEntry.id) {
@@ -80,6 +87,12 @@ export const ContentArticleAnalyzer: React.FC<ContentArticleAnalyzerProps> = ({
       handleAnalyze()
     }
   }, [isPopoverOpen, analysis, isLoading, isLoadingDescendants, descendants, handleAnalyze])
+
+  useEffect(() => {
+    setAnalysis(null)
+    setError(null)
+    setIsPopoverOpen(false)
+  }, [contentEntry.id])
 
   const renderAnalysis = () => {
     if (isLoading || isLoadingDescendants) {
@@ -323,12 +336,14 @@ export const ContentArticleAnalyzer: React.FC<ContentArticleAnalyzerProps> = ({
         <div>
           <AiButton
             variant="default"
-            size="icon"
+            size={buttonLabel ? 'sm' : 'icon'}
             showIcon={true}
             icon={<SparkleIcon size={16} />}
             onClick={() => setIsPopoverOpen(true)}
             data-testid="content-article-analyzer-button"
-          />
+          >
+            {buttonLabel}
+          </AiButton>
         </div>
       </PopoverAnchor>
       <PopoverContent

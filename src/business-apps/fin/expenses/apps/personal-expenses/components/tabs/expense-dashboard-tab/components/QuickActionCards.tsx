@@ -1,12 +1,14 @@
 import React, { useCallback } from 'react'
-import { Card, Button, CardContent } from '@newwork/nw-design-system'
-import { PlusCircleOutlined, SendOutlined } from '@ant-design/icons'
+import { Card, Button, CardContent, useTranslation } from '@newwork/nw-design-system'
+import { PlusCircleIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { startProcess } from '@/common/utils/start-process'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import personalTranslations from '../../../../_i18n'
 
 const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
   const { userInfo } = props
+  const { t } = useTranslation(personalTranslations)
 
   const handlePlanTrip = useCallback(() => {
     const employeeId = userInfo?.employeeDetails?.employeeId
@@ -73,7 +75,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
         'lowcoder:personal_expenses.record_expense_description',
         'Plan a new Business Trip.'
       ),
-      icon: <PlusCircleOutlined className="gba:text-2xl gba:text-blue-500" />,
+      icon: <PlusCircleIcon className="gba:text-2xl gba:text-blue-500" />,
       features: [
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_plan_approval', 'Request plan approval'),
         getTranslationFromI18nKeyAndLabel(
@@ -85,8 +87,8 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
           'Track Submission Status'
         )
       ],
-      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.add_plan', 'Plan a new Business Trip'),
-      buttonIcon: <PlusCircleOutlined />,
+      buttonText: t('dashboard-quick-action-plan-button'),
+      buttonIcon: <PlusCircleIcon size={16} />,
       buttonAction: handlePlanTrip
     },
     {
@@ -96,7 +98,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
         'lowcoder:personal_expenses.record_expense_description',
         'Quickly add a new expense to your records. Keep track of your spending efficiently.'
       ),
-      icon: <PlusCircleOutlined className="gba:text-2xl gba:text-blue-500" />,
+      icon: <PlusCircleIcon className="gba:text-2xl gba:text-blue-500" />,
       features: [
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:personal_expenses.single_or_multiple_items',
@@ -108,8 +110,8 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
         ),
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.categorize_for_clarity', 'Categorize for clarity')
       ],
-      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.new_expense', 'New Expense'),
-      buttonIcon: <PlusCircleOutlined />,
+      buttonText: t('dashboard-quick-action-expense-item-button'),
+      buttonIcon: <PlusCircleIcon size={16} />,
       buttonAction: handleRecordExpense
     },
     {
@@ -119,7 +121,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
         'lowcoder:personal_expenses.submit_request_description',
         'Submit your expense reports for reimbursement and manage your trip requests efficiently.'
       ),
-      icon: <SendOutlined className="gba:text-2xl gba:text-green-500" />,
+      icon: <PaperPlaneTiltIcon className="gba:text-2xl gba:text-green-500" />,
       features: [
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.create_expense_report', 'Create expense report'),
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_trip_approval', 'Request trip approval'),
@@ -128,8 +130,8 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
           'Track submission status'
         )
       ],
-      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.new_request', 'New Request'),
-      buttonIcon: <SendOutlined />,
+      buttonText: t('dashboard-quick-action-request-button'),
+      buttonIcon: <PaperPlaneTiltIcon size={16} />,
       buttonAction: handleSubmitRequest
     }
   ]

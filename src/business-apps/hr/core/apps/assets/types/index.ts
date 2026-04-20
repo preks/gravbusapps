@@ -1,5 +1,7 @@
 export enum AssetStatus {
   AVAILABLE = 'AVAILABLE_ASSET',
+  /** Asset is allocated but awaiting employee acknowledgment; moves to ALLOCATED after acknowledge. */
+  PENDING = 'PENDING_ASSET',
   ALLOCATED = 'ALLOCATED_ASSET',
   UNDER_REPAIR = 'IN_REPAIR_ASSET',
   RETIRED = 'RETIRED_ASSET'
@@ -8,9 +10,9 @@ export enum AssetStatus {
 export interface Asset {
   id: string
   model: string
-  serialNumber: string
-  acquisitionDate: string
-  warrantyPeriodMonths: number
+  serialNumber?: string
+  acquisitionDate?: string
+  warrantyPeriodMonths?: number
   inventoryValue: number
   assetStatus: AssetStatus
   notes?: string
@@ -38,6 +40,20 @@ export interface Asset {
   updatedAt?: string
   createdBy?: string
   updatedBy?: string
+  /** Disposal fields (retired assets) - align with DB: disposal_status, disposal_outcome_ref, disposal_date, disposal_reason, require_sanitization, sanitization_method_ref, sanitization_execution_date, responsible_employee_id, performer_employee_id */
+  disposalStatus?: string
+  disposalOutcomeRef?: string
+  disposalDate?: string
+  disposalReason?: string
+  responsibleEmployeeId?: string
+  performerEmployeeId?: string
+  requireSanitization?: boolean
+  sanitizationMethodRef?: string
+  sanitizationExecutionDate?: string
+  disposalOutcome?: { id: string; code: string; value: string }
+  sanitizationMethod?: { id: string; code: string; value: string }
+  responsibleEmployee?: { id: string; displayName?: string; firstName?: string; lastName?: string }
+  performerEmployee?: { id: string; displayName?: string; firstName?: string; lastName?: string }
 }
 
 export interface CompanyLocation {
@@ -73,6 +89,7 @@ export interface AssetStatistics {
   availableAssets: number
   allocatedAssets: number
   underRepairAssets: number
+  retiredAssets: number
 }
 
 export interface AssetFilter {

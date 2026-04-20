@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input, Typography } from 'antd'
-import { RiSearchLine } from '@remixicon/react'
-import { PiUsersThreeDuotone } from 'react-icons/pi'
+import { MagnifyingGlassIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import { HrSettingsCard, HrSettingsCardProps } from './components/HrSettingsCard'
 import { useHrSettingsCards } from './hooks/useHrSettingsCards'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
@@ -41,12 +40,12 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
 
   return (
     <PageLayout
-      headerIcon={<PiUsersThreeDuotone color="var(--nw-decorative)" />}
+      headerIcon={<UsersThreeIcon weight="duotone" color="var(--nw-decorative)" />}
       headerLabel={getTranslationFromI18nKeyAndLabel('translation:hr.hr_settings', 'HR Settings')}
       className={`${className ?? ''} gba:!overflow-y-visible`}
       pageHeaderRight={
         <Input
-          prefix={<RiSearchLine className="gba:text-muted-foreground" />}
+          prefix={<MagnifyingGlassIcon size={16} className="gba:text-muted-foreground" />}
           placeholder={getTranslationFromI18nKeyAndLabel('translation:actions.search', 'Search')}
           style={{ maxWidth: '320px' }}
           allowClear
@@ -58,12 +57,8 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
       contentContainer={
         <div
           data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-          style={{
-            background: 'var(--gradient-decorative-1)',
-            minHeight: '100%',
-            padding: '32px'
-          }}
-          className="gba:w-full gba:h-full gba:!overflow-y-auto"
+          className="no-scrollbar gba:w-full gba:h-full gba:overflow-y-auto gba:bg-muted/30 gba:pb-8"
+          style={{ padding: '24px' }}
         >
           {filteredCards.length === 0 ? (
             <div

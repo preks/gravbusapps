@@ -2,11 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { PageLayout } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-// import { useFeature } from '@/common/hooks/useFeature' // TEMP: Disabled for local dev
-import { PiSquaresFour, PiCalculator, PiCar, PiGlobe } from 'react-icons/pi'
-
+import { CalculatorIcon, CarIcon, GlobeIcon } from '@phosphor-icons/react'
 // Tab components
-import ExpenseSettingsDashboard from './components/dashboard/ExpenseSettingsDashboard'
 import CalculationRulesView from './components/calculation-rules/CalculationRulesView'
 import CalculationRuleRecord from './components/calculation-rule-record/CalculationRuleRecord'
 import MileageRulesView from './components/mileage-rules/MileageRulesView'
@@ -20,30 +17,21 @@ export interface ExpenseSettingsProps extends BusinessAppContextProps {
 const ExpenseSettings: React.FC<ExpenseSettingsProps> = context => {
   const { prefixDataTestId = '', className = '' } = context
 
-  // TEMPORARY: Feature flag disabled for local development testing
-  // const isDevEnabled = useFeature('dev.enabled')
-  // if (isDevEnabled === false) { ... }
-
   // Define main view options for headerSubViews
   const viewOptions = [
     {
-      key: 'dashboard',
-      icon: <PiSquaresFour />,
-      label: getTranslationFromI18nKeyAndLabel('expense-settings:dashboard', 'Dashboard')
-    },
-    {
       key: 'calculation-rules',
-      icon: <PiCalculator />,
+      icon: <CalculatorIcon />,
       label: getTranslationFromI18nKeyAndLabel('expense-settings:calculation_rules', 'Calculation Rules')
     },
     {
       key: 'mileage-rules',
-      icon: <PiCar />,
+      icon: <CarIcon />,
       label: getTranslationFromI18nKeyAndLabel('expense-settings:mileage_rules', 'Mileage Rules')
     },
     {
       key: 'travel-region-rules',
-      icon: <PiGlobe />,
+      icon: <GlobeIcon />,
       label: getTranslationFromI18nKeyAndLabel('expense-settings:travel_region_rules', 'Travel Region Rules')
     }
   ]
@@ -129,12 +117,6 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = context => {
   const renderViewContent = () => {
     // Render the normal view content
     switch (activeView) {
-      case 'dashboard':
-        return (
-          <div data-testid={`${prefixDataTestId}-dashboard-view`}>
-            <ExpenseSettingsDashboard {...context} />
-          </div>
-        )
       case 'calculation-rules':
         return <CalculationRulesView {...context} prefixDataTestId={prefixDataTestId} />
       case 'mileage-rules':

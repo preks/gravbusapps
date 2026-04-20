@@ -10,6 +10,26 @@ export interface GenericActivity {
   occurredAt?: string
   createdAt: string
   activityType?: { value: string; code?: string }
+  // Owner/creator information
+  ownerEmployee?: {
+    id: string
+    firstName?: string
+    lastName?: string
+    displayName?: string
+  }
+  // Documents attached to activity
+  documents?: Array<{
+    id: string
+    name: string
+    mimeType?: string | null
+    fileSize?: number | null
+    fileInfo?: {
+      path: string
+      fileMetadata?: {
+        mimeType?: string
+      }
+    }
+  }>
   // Entity references (optional)
   accountId?: string | null
   account?: { id: string; name: string } | null
@@ -19,6 +39,9 @@ export interface GenericActivity {
   lead?: { id: string; name: string } | null
   opportunityId?: string | null
   opportunity?: { id: string; name: string } | null
+  /** IRM-only; optional on type for workspace adapters that load investment activities */
+  investmentId?: string | null
+  investment?: { id?: string; name?: string; code?: string | null; pictureThumbnail?: string | null } | null
 }
 
 /**

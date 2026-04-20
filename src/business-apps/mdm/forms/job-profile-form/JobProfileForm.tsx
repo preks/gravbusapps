@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormWrapperModal } from '@/components/form-wrapper'
 import {
@@ -15,10 +15,202 @@ import {
 import { JobFunction, JobProfile, JobLevelGroup, JobLevel } from '@/business-apps/mdm/apps/job-structure-data/types'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { env } from '@/common/env/EnvUtils'
+import SkillsSection from './components/SkillsSection'
+import { useFileClient } from '@/common/network/files/useFileClient'
+import type { FileListEntry } from '@/common/types/FileTypes'
 
 import { useRestClient } from '@/common/network/rest/useRestClient'
 
 const DATA_TEST_ID_PREFIX = 'JobProfileForm'
+
+interface JobProfileSkill {
+  skillId: string
+  skillName: string
+  level: number | null
+}
+
+interface JobDescriptionInitialFile {
+  id: string
+  fileId: string
+  name: string
+  type: string
+  path: string
+  size: number
+  url: string
+}
+
+function normalizeJobDescriptionEntries(jobDescriptionValue: unknown): unknown[] {
+  if (Array.isArray(jobDescriptionValue)) {
+    return jobDescriptionValue.filter(Boolean)
+  }
+  if (jobDescriptionValue) {
+    return [jobDescriptionValue]
+  }
+  return []
+}
+
+function buildJobDescriptionFileIdPayload(
+  jobDescriptionFileId: string | null,
+  fileWasRemoved: boolean
+): { jobDescriptionFileId: string | null } | Record<string, never> {
+  if (jobDescriptionFileId) {
+    return { jobDescriptionFileId }
+  }
+  if (fileWasRemoved) {
+    return { jobDescriptionFileId: null }
+  }
+  return {}
+}
+
+function computeJobDescriptionFileIdsToDelete(params: {
+  jobProfileId: string | undefined
+  fileWasRemoved: boolean
+  uploadedNewJobDescriptionFile: boolean
+  previousFileIds: string[]
+  jobDescriptionFileId: string | null
+}): string[] {
+  const { jobProfileId, fileWasRemoved, uploadedNewJobDescriptionFile, previousFileIds, jobDescriptionFileId } = params
+  if (!jobProfileId) {
+    return []
+  }
+  if (fileWasRemoved) {
+    return previousFileIds
+  }
+  if (uploadedNewJobDescriptionFile) {
+    return previousFileIds.filter(fileId => fileId !== jobDescriptionFileId)
+  }
+  return []
+}
+
+async function resolveJobDescriptionFileIdFromFirstEntry(
+  firstEntry: any,
+  fileClient: {
+    uploadFile: (
+      file: File,
+      scope: { accessScope: string },
+      opts: { appName: string; folderPath: string; mimeType: string }
+    ) => Promise<{ fileInfo?: { fileId?: string } }>
+  },
+  jobProfileId: string | undefined
+): Promise<{ fileId: string | null; uploadedNew: boolean }> {
+  let jobDescriptionFileId: string | null = null
+  let uploadedNewJobDescriptionFile = false
+  const file = firstEntry?.originFileObj || firstEntry?.file
+  if (file instanceof File) {
+    const uploadResponse = await fileClient.uploadFile(
+      file,
+      { accessScope: 'tenant' },
+      {
+        appName: 'mdm',
+        folderPath: `/job-profiles/${jobProfileId || 'new'}/documents`,
+        mimeType: file.type || 'application/pdf'
+      }
+    )
+    jobDescriptionFileId = uploadResponse?.fileInfo?.fileId || null
+    uploadedNewJobDescriptionFile = Boolean(jobDescriptionFileId)
+  } else if (firstEntry?.fileId) {
+    jobDescriptionFileId = firstEntry.fileId
+  }
+  return { fileId: jobDescriptionFileId, uploadedNew: uploadedNewJobDescriptionFile }
+}
+
+async function submitJobProfileAndCleanupFiles(ctx: {
+  values: any
+  jobProfile?: JobProfile
+  previousJobDescriptionFileIds: string[]
+  fileClient: {
+    uploadFile: (
+      file: File,
+      scope: { accessScope: string },
+      opts: { appName: string; folderPath: string; mimeType: string }
+    ) => Promise<{ fileInfo?: { fileId?: string } }>
+    deleteFile: (
+      args: { accessScope: string; fileId: string },
+      opts: { appName: string; folderPath: string }
+    ) => Promise<unknown>
+  }
+  restClient: { post: (path: string, body: unknown, opts: { headers: Record<string, string> }) => Promise<unknown> }
+  accessToken: string | undefined
+  refetch: () => void
+}): Promise<void> {
+  const { values, jobProfile, previousJobDescriptionFileIds, fileClient, restClient, accessToken, refetch } = ctx
+
+  let jobDescriptionFileId: string | null = null
+  let uploadedNewJobDescriptionFile = false
+  const previousFileIds = previousJobDescriptionFileIds
+  const jobDescriptionValue = values.jobDescriptionFile
+  const currentJobDescriptionEntries = normalizeJobDescriptionEntries(jobDescriptionValue)
+  const fileWasRemoved =
+    Boolean(jobProfile?.id) && previousFileIds.length > 0 && currentJobDescriptionEntries.length === 0
+
+  if (currentJobDescriptionEntries.length > 0) {
+    try {
+      const firstEntry = currentJobDescriptionEntries[0]
+      const resolved = await resolveJobDescriptionFileIdFromFirstEntry(firstEntry, fileClient, jobProfile?.id)
+      jobDescriptionFileId = resolved.fileId
+      uploadedNewJobDescriptionFile = resolved.uploadedNew
+    } catch (fileError) {
+      console.error('Error uploading job description file:', fileError)
+    }
+  }
+
+  const skills = (values.skills || [])
+    .filter((skill: JobProfileSkill) => skill.skillId && skill.skillId.length > 0)
+    .map((skill: JobProfileSkill) => ({
+      skillId: skill.skillId,
+      skillName: skill.skillName || null,
+      requiredLevel: skill.level ?? null
+    }))
+
+  const payload = {
+    changeMode: 'INSERT',
+    jobProfile: {
+      code: values.code,
+      name: values.name,
+      description: values.description,
+      contractTypeRef: values.contractTypeRef?.length > 0 ? values.contractTypeRef : null,
+      employmentTypeRef: values.employmentTypeRef?.length > 0 ? values.employmentTypeRef : null,
+      jobFunction: values.jobFunctionId,
+      jobLevel: values.jobLevelId?.length > 0 ? values.jobLevelId : null,
+      recordState: values.active,
+      ...(skills.length > 0 ? { skills } : {}),
+      ...buildJobDescriptionFileIdPayload(jobDescriptionFileId, fileWasRemoved),
+      ...(jobProfile ? { version: jobProfile.version, id: jobProfile.id } : {})
+    }
+  }
+
+  await restClient.post('/employee/saveJobProfile', payload, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+
+  const fileIdsToDelete = computeJobDescriptionFileIdsToDelete({
+    jobProfileId: jobProfile?.id,
+    fileWasRemoved,
+    uploadedNewJobDescriptionFile,
+    previousFileIds,
+    jobDescriptionFileId
+  })
+
+  if (fileIdsToDelete.length > 0 && jobProfile?.id) {
+    try {
+      await Promise.all(
+        fileIdsToDelete.map(fileId =>
+          fileClient.deleteFile(
+            { accessScope: 'tenant', fileId },
+            {
+              appName: 'mdm',
+              folderPath: `/job-profiles/${jobProfile.id}/documents`
+            }
+          )
+        )
+      )
+    } catch (deleteError) {
+      console.error('Failed to delete previous job description files:', deleteError)
+    }
+  }
+
+  refetch()
+}
 
 export interface JobProfileFormProps extends BusinessAppContextProps {
   jobProfile?: JobProfile
@@ -48,6 +240,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
+  const fileClient = useFileClient({ accessToken } as BusinessAppContextProps)
   const [loading, setLoading] = useState(false)
   const [selectedJobFunction, setSelectedJobFunction] = useState<{
     id: string
@@ -57,11 +250,116 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
     id: string
     name: string
   } | null>(jobProfile?.jobLevel ?? null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isLoadingJobDescriptionFile, setIsLoadingJobDescriptionFile] = useState(false)
+  const [initialJobDescriptionFile, setInitialJobDescriptionFile] = useState<JobDescriptionInitialFile | null>(null)
+  const [previousJobDescriptionFileIds, setPreviousJobDescriptionFileIds] = useState<string[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    let objectUrlToRevoke: string | null = null
+
+    const fetchJobDescriptionFile = async () => {
+      if (!isModalOpen || !jobProfile?.id) {
+        setInitialJobDescriptionFile(null)
+        setPreviousJobDescriptionFileIds([])
+        setIsLoadingJobDescriptionFile(false)
+        return
+      }
+
+      try {
+        setIsLoadingJobDescriptionFile(true)
+        const response = await fileClient.getAllFiles(
+          { accessScope: 'tenant' },
+          {
+            appName: 'mdm',
+            folderPath: `/job-profiles/${jobProfile.id}/documents`
+          }
+        )
+
+        const files = Array.isArray(response.files) ? response.files : []
+        const fileIds = files.map(file => file.fileId).filter((fileId): fileId is string => Boolean(fileId))
+        setPreviousJobDescriptionFileIds(fileIds)
+
+        const latestFile = [...files]
+          .sort((a: FileListEntry, b: FileListEntry) => {
+            const first = new Date(a.uploadedAt || '').getTime()
+            const second = new Date(b.uploadedAt || '').getTime()
+            return second - first
+          })
+          .find(file => Boolean(file.fileId))
+
+        if (!latestFile || cancelled) {
+          setInitialJobDescriptionFile(null)
+          return
+        }
+
+        let fileSize = 0
+        let fileUrl = latestFile.path || latestFile.fileId
+        const filePath = latestFile.path || ''
+
+        try {
+          const downloaded = filePath
+            ? await fileClient.downloadFileByPath(filePath, accessToken || '')
+            : await fileClient.getFile(
+                { accessScope: 'tenant', fileId: latestFile.fileId },
+                {
+                  appName: 'mdm',
+                  folderPath: `/job-profiles/${jobProfile.id}/documents`
+                }
+              )
+
+          fileSize = downloaded.size
+          objectUrlToRevoke = URL.createObjectURL(downloaded)
+          fileUrl = objectUrlToRevoke
+        } catch (downloadError) {
+          console.error('Error downloading existing job description file:', downloadError)
+        }
+
+        setInitialJobDescriptionFile({
+          id: latestFile.fileId,
+          fileId: latestFile.fileId,
+          name: latestFile.fileMetadata?.originalFileName || latestFile.fileId,
+          type: latestFile.fileMetadata?.mimeType || '',
+          path: latestFile.path || latestFile.fileId,
+          size: fileSize,
+          url: fileUrl
+        })
+      } catch (error) {
+        if (!cancelled) {
+          setInitialJobDescriptionFile(null)
+          setPreviousJobDescriptionFileIds([])
+        }
+        console.error('Error fetching existing job description file:', error)
+      } finally {
+        if (!cancelled) {
+          setIsLoadingJobDescriptionFile(false)
+        }
+      }
+    }
+
+    fetchJobDescriptionFile()
+
+    return () => {
+      cancelled = true
+      if (objectUrlToRevoke) {
+        URL.revokeObjectURL(objectUrlToRevoke)
+      }
+    }
+  }, [accessToken, fileClient, isModalOpen, jobProfile?.id])
 
   const jobLevels = useMemo(() => {
+    if (!jobFunctions || !Array.isArray(jobFunctions)) {
+      return []
+    }
+
     const targetJobFunction = jobFunctions.find(jobFunction => jobFunction.id === selectedJobFunction?.id)
 
     if (!targetJobFunction) {
+      return []
+    }
+
+    if (!jobLevelGroups || !Array.isArray(jobLevelGroups)) {
       return []
     }
 
@@ -80,29 +378,17 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
   const handleSubmit = async (values: any) => {
     try {
       setLoading(true)
-
-      const payload = {
-        changeMode: 'INSERT',
-        jobProfile: {
-          code: values.code,
-          name: values.name,
-          description: values.description,
-          contractTypeRef: values.contractTypeRef?.length > 0 ? values.contractTypeRef : null,
-          employmentTypeRef: values.employmentTypeRef?.length > 0 ? values.employmentTypeRef : null,
-          jobFunction: values.jobFunctionId,
-          jobLevel: values.jobLevelId?.length > 0 ? values.jobLevelId : null,
-          recordState: values.active,
-          ...(jobProfile ? { version: jobProfile.version, id: jobProfile.id } : {})
-        }
-      }
-
-      await restClient.post('/employee/saveJobProfile', payload, {
-        headers: { Authorization: `Bearer ${accessToken}` }
+      await submitJobProfileAndCleanupFiles({
+        values,
+        jobProfile,
+        previousJobDescriptionFileIds,
+        fileClient,
+        restClient,
+        accessToken,
+        refetch
       })
-
-      refetch()
     } catch (error) {
-      console.error('Error saving Job Function:', error)
+      console.error('Error saving Job Profile:', error)
     } finally {
       setLoading(false)
     }
@@ -120,9 +406,22 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             jobLevelId: jobProfile.jobLevelId,
             contractTypeRef: jobProfile.contractTypeRef,
             employmentTypeRef: jobProfile.employmentTypeRef,
-            active: jobProfile.recordState ? 'active' : 'inactive'
+            active: jobProfile.recordState ? 'active' : 'inactive',
+            skills: (jobProfile as any).jobProfileSkills
+              ? (
+                  (jobProfile as any).jobProfileSkills as Array<{
+                    skillId: string
+                    requiredLevel?: number | null
+                    skill?: { id: string; name: string }
+                  }>
+                ).map(profileSkill => ({
+                  skillId: profileSkill.skillId,
+                  skillName: profileSkill.skill?.name || '',
+                  level: profileSkill.requiredLevel ?? null
+                }))
+              : []
           }
-        : {},
+        : { skills: [] },
     [jobProfile]
   )
 
@@ -141,6 +440,8 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
       loading={loading}
       dataTestId={dataTestId}
       isDrawerActive={isDrawerActive}
+      open={isModalOpen}
+      setOpen={setIsModalOpen}
     >
       <FormField
         name="name"
@@ -201,7 +502,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             <FormControl>
               <Combobox
                 key={`job-function-combobox-${field.value || 'empty'}`}
-                options={jobFunctions.map(func => ({
+                options={(jobFunctions || []).map(func => ({
                   value: func.id,
                   label: func.name
                 }))}
@@ -209,7 +510,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
                 onValueChange={value => {
                   field.onChange(value)
 
-                  const targetJobFunction = jobFunctions.find(jobFunction => jobFunction.id === value)
+                  const targetJobFunction = jobFunctions?.find(jobFunction => jobFunction.id === value)
 
                   if (targetJobFunction) {
                     setSelectedJobFunction(targetJobFunction)
@@ -275,7 +576,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             <FormControl>
               <Combobox
                 key={`contract-type-combobox-${field.value || 'empty'}`}
-                options={contractTypes.map(type => ({
+                options={(contractTypes || []).map(type => ({
                   value: type.id,
                   label: type.value
                 }))}
@@ -301,7 +602,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             <FormControl>
               <Combobox
                 key={`employment-type-combobox-${field.value || 'empty'}`}
-                options={employmentTypes.map(type => ({
+                options={(employmentTypes || []).map(type => ({
                   value: type.id,
                   label: type.value
                 }))}
@@ -317,6 +618,13 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             <FormMessage />
           </FormItem>
         )}
+      />
+
+      <SkillsSection
+        dataTestId={dataTestId}
+        accessToken={accessToken || ''}
+        isLoadingJobDescriptionFile={isLoadingJobDescriptionFile}
+        initialJobDescriptionFile={initialJobDescriptionFile}
       />
 
       <FormField

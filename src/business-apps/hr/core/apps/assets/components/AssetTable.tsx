@@ -4,7 +4,6 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { SortableTableHead } from './SortableTableHead'
-import { AssetTableFilters } from './AssetTableFilters'
 import { AssetTableRow } from './AssetTableRow'
 import { AssetTablePagination } from './AssetTablePagination'
 
@@ -14,20 +13,22 @@ interface AssetTableProps extends BusinessAppContextProps {
   isLoading?: boolean
   currentPage?: number
   pageSize?: number
-  statusFilter?: string
   searchQuery?: string
   sortField?: string
   sortOrder?: 'ASC' | 'DESC'
   onPageChange?: (page: number) => void
   onPageSizeChange?: (pageSize: number) => void
   onSearchChange?: (search: string) => void
-  onStatusFilterChange?: (status: string) => void
   onSortChange?: (field: string, order: 'ASC' | 'DESC' | '') => void
   onAssetClick?: (asset: Asset) => void
+  isAssetDeletable?: (asset: Asset) => boolean
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
   onRetrieveAsset?: (assetId: string) => void
+  onDeleteAsset?: (assetId: string) => void
+  onGenerateDocument?: (assetId: string) => void
+  emptyMessage?: string
 }
 
 export const AssetTable: React.FC<AssetTableProps> = ({
@@ -36,34 +37,30 @@ export const AssetTable: React.FC<AssetTableProps> = ({
   isLoading = false,
   currentPage = 1,
   pageSize = 10,
-  statusFilter = 'all',
-  searchQuery = '',
+  searchQuery: _searchQuery = '',
   sortField: sortFieldProp,
   sortOrder: sortOrderProp,
   onPageChange,
   onPageSizeChange,
-  onSearchChange,
-  onStatusFilterChange,
+  onSearchChange: _onSearchChange,
   onSortChange,
   onAssetClick,
+  isAssetDeletable,
   onAllocateAsset,
   onUpdateAsset,
   onRetireAsset,
   onRetrieveAsset,
+  onDeleteAsset,
+  onGenerateDocument,
+  emptyMessage,
   accessToken
 }) => {
   const DATA_TEST_ID_PREFIX = 'asset-table'
+  void _searchQuery
+  void _onSearchChange
 
   return (
     <div className="gba:space-y-4" data-testid="asset-table-container">
-      <AssetTableFilters
-        searchQuery={searchQuery}
-        statusFilter={statusFilter}
-        onSearchChange={onSearchChange || (() => {})}
-        onStatusFilterChange={onStatusFilterChange || (() => {})}
-        onPageChange={onPageChange}
-      />
-
       <div className="gba:border gba:rounded-lg">
         <Table data-testid="assets-table">
           <TableHeader>
@@ -156,10 +153,11 @@ export const AssetTable: React.FC<AssetTableProps> = ({
               <TableRow>
                 <TableCell colSpan={9} className="gba:text-center gba:py-8">
                   <div data-testid="asset-table-empty">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:hr_assets.no_assets_found',
-                      'No assets found matching your criteria.'
-                    )}
+                    {emptyMessage ||
+                      getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:hr_assets.no_assets_found',
+                        'No assets found matching your criteria.'
+                      )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -170,11 +168,14 @@ export const AssetTable: React.FC<AssetTableProps> = ({
                   asset={asset}
                   accessToken={accessToken}
                   dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+                  canDeleteAsset={isAssetDeletable?.(asset) ?? false}
                   onAssetClick={onAssetClick}
                   onAllocateAsset={onAllocateAsset}
                   onUpdateAsset={onUpdateAsset}
                   onRetireAsset={onRetireAsset}
                   onRetrieveAsset={onRetrieveAsset}
+                  onDeleteAsset={onDeleteAsset}
+                  onGenerateDocument={onGenerateDocument}
                 />
               ))
             )}

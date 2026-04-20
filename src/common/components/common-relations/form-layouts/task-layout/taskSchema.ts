@@ -21,7 +21,7 @@ export const taskSchema = z.object({
   templateStartDate: z.string().nullable().optional(),
 
   // Task catalog references
-  taskTypeRef: z.string().nullable().optional(),
+  taskTypeRef: z.string().min(1, 'Type is required'),
   taskPriorityRef: z.string().min(1, 'Priority is required'),
   taskStatusRef: z.string().nullable().optional(), // Backend computed, not required from user
   taskTemplateId: z.string().nullable().optional(),
@@ -65,8 +65,8 @@ export const taskSchema = z.object({
         id: z.string(),
         name: z.string().optional(),
         version: z.number().optional(),
-        mimeType: z.string().optional(),
-        fileSize: z.number().optional(),
+        mimeType: z.string().nullable().optional(),
+        fileSize: z.number().nullable().optional(),
         fileInfo: z.any().optional()
       })
     )

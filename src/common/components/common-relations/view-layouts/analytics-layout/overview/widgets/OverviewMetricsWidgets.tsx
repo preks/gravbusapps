@@ -2,49 +2,18 @@ import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Label } from '@newwork/nw-design-system'
 import {
-  UserOutlined,
-  BankOutlined,
-  DollarCircleOutlined,
-  ContactsOutlined,
-  PercentageOutlined,
-  TrophyOutlined
-} from '@ant-design/icons'
+  UserIcon,
+  BankIcon,
+  CurrencyCircleDollarIcon,
+  AddressBookIcon,
+  PercentIcon,
+  TrophyIcon
+} from '@phosphor-icons/react'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
+import { calculateTrend } from '@/common/utils/trendUtils'
 import type { OverviewTrendData } from '../../hooks'
 
-// ============================================================================
-// HELPER FUNCTIONS - Reduce cognitive complexity
-// ============================================================================
-
-/** Calculate percentage trend between current and previous values */
-const calculateTrend = (
-  current: number,
-  previous: number
-): { value: string; positive: boolean; description: string } => {
-  // Handle edge case where previous is 0
-  if (previous === 0) {
-    if (current === 0) {
-      return {
-        value: '0.0%',
-        positive: true,
-        description: 'vs previous period (30 days ago)'
-      }
-    } else {
-      return {
-        value: '+100.0%',
-        positive: true,
-        description: 'vs previous period (30 days ago)'
-      }
-    }
-  }
-
-  const change = ((current - previous) / previous) * 100
-  return {
-    value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
-    positive: change >= 0,
-    description: 'vs previous period (30 days ago)'
-  }
-}
+const TREND_DESCRIPTION = 'vs previous period (30 days ago)'
 
 /** Build a count-based KPI widget with optional trend */
 const buildCountWidget = (
@@ -61,7 +30,9 @@ const buildCountWidget = (
   value,
   prefix: icon,
   description,
-  ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.current, trendData.previous) } : {})
+  ...(trendData && !trendLoading
+    ? { trend: calculateTrend(trendData.current, trendData.previous, TREND_DESCRIPTION) }
+    : {})
 })
 
 /** Build a percentage-based KPI widget with optional trend */
@@ -80,7 +51,9 @@ const buildPercentageWidget = (
   valueIsString: true,
   prefix: icon,
   description,
-  ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.current, trendData.previous) } : {})
+  ...(trendData && !trendLoading
+    ? { trend: calculateTrend(trendData.current, trendData.previous, TREND_DESCRIPTION) }
+    : {})
 })
 
 /** Build a currency-based KPI widget with optional trend */
@@ -101,7 +74,7 @@ const buildCurrencyWidget = (params: {
   prefix: params.icon,
   description: params.description,
   ...(params.trendData && !params.trendLoading
-    ? { trend: calculateTrend(params.trendData.current, params.trendData.previous) }
+    ? { trend: calculateTrend(params.trendData.current, params.trendData.previous, TREND_DESCRIPTION) }
     : {})
 })
 
@@ -251,7 +224,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
         'total-leads',
         labels.leads.title,
         counts.leads,
-        <UserOutlined />,
+        <UserIcon size={16} />,
         labels.leads.description,
         trendData?.leads,
         trendLoading
@@ -265,7 +238,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
         'total-accounts',
         labels.accounts.title,
         counts.accounts,
-        <BankOutlined />,
+        <BankIcon size={16} />,
         labels.accounts.description,
         trendData?.accounts,
         trendLoading
@@ -279,7 +252,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
         'total-opportunities',
         labels.opportunities.title,
         counts.opportunities,
-        <DollarCircleOutlined />,
+        <CurrencyCircleDollarIcon />,
         labels.opportunities.description,
         trendData?.opportunities,
         trendLoading
@@ -293,7 +266,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
         'total-contacts',
         labels.contacts.title,
         counts.contacts,
-        <ContactsOutlined />,
+        <AddressBookIcon size={16} />,
         labels.contacts.description,
         trendData?.contacts,
         trendLoading
@@ -309,7 +282,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
         'lead-conversion-rate',
         labels.leadToOpportunityRate.title,
         conversionMetrics.leadToOpportunityRate,
-        <PercentageOutlined />,
+        <PercentIcon size={16} />,
         labels.leadToOpportunityRate.description,
         trendData?.opportunities,
         trendLoading
@@ -323,7 +296,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
         'opportunity-win-rate',
         labels.opportunityWinRate.title,
         conversionMetrics.opportunityWinRate,
-        <TrophyOutlined />,
+        <TrophyIcon />,
         labels.opportunityWinRate.description,
         trendData?.wonOpportunities,
         trendLoading
@@ -347,7 +320,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
         title: labels.avgDealSize.title,
         value: conversionMetrics.avgDealSize,
         currency: selectedCurrency,
-        icon: <DollarCircleOutlined />,
+        icon: <CurrencyCircleDollarIcon size={16} />,
         description: labels.avgDealSize.description,
         trendData: { current: currentAvgDealSize, previous: previousAvgDealSize },
         trendLoading
@@ -362,7 +335,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
         title: labels.totalWonRevenue.title,
         value: conversionMetrics.totalWonRevenue,
         currency: selectedCurrency,
-        icon: <DollarCircleOutlined />,
+        icon: <CurrencyCircleDollarIcon size={16} />,
         description: labels.totalWonRevenue.description,
         trendData: trendData?.wonRevenue,
         trendLoading

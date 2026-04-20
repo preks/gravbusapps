@@ -2,7 +2,9 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useLeadExport } from './hooks/useLeadExport'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -66,6 +68,22 @@ export interface LeadLayoutProps<TLead extends Lead = Lead, TQueryVariables = an
   readonly initialFilters?: Record<string, any>
   readonly hideFilters?: boolean
   readonly customPrimaryAction?: React.ReactNode
+  /**
+   * Pass statistics here instead of via config.leadStatistics so that statistics
+   * state updates do not recreate the config object and inadvertently re-trigger
+   * the GetLeads query via the queryVariables / loadData dependency chain.
+   */
+  readonly leadStatistics?: LeadStatisticsData
+  /** When true, renders CSV and Excel export buttons in the toolbar. */
+  readonly enableExport?: boolean
+  /** Filename prefix for exported files (timestamp is appended automatically). */
+  readonly exportFilenamePrefix?: string
+  /** Called whenever the user changes filters — use to persist filter state externally. */
+  readonly onFilterChange?: (filters: Record<string, any>) => void
+  readonly initialSorting?: Array<{ id: string; desc: boolean }>
+  readonly onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
+  readonly initialVisibleColumns?: string[]
+  readonly onVisibleColumnsChange?: (columns: string[]) => void
 }
 
 // Row Actions Component
@@ -108,15 +126,28 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
     dataTestId = 'lead-view',
     initialFilters = {},
     hideFilters = false,
-    customPrimaryAction
+    customPrimaryAction,
+    leadStatistics: leadStatisticsProp,
+    enableExport = false,
+    exportFilenamePrefix = 'leads',
+    onFilterChange: onFilterChangeProp,
+    initialSorting: initialSortingProp,
+    onSortingChange: onSortingChangeProp,
+    initialVisibleColumns: initialVisibleColumnsProp,
+    onVisibleColumnsChange: onVisibleColumnsChangeProp
   } = props
+
+  // Prefer the directly-passed prop; fall back to config for backwards compatibility
+  const activeLeadStatistics = leadStatisticsProp ?? config.leadStatistics
 
   // View State
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
+    () => initialSortingProp ?? [{ id: 'createdAt', desc: true }]
+  )
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => initialVisibleColumnsProp ?? [])
 
   // Data State
   const [leads, setLeads] = useState<TLead[]>([])
@@ -176,20 +207,21 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
   useEffect(() => {
     if (!context?.accessToken || !isInitialLoad) return
     loadData(true)
-  }, [context?.accessToken, isInitialLoad, loadData])
+  }, [context?.accessToken, isInitialLoad])
 
-  // Reload data when filters/search/sort change (skip initial load)
+  // Reload data when filters/search/sort change (skip initial load).
+  // loadData is intentionally omitted from deps: it is derived from queryVariables,
+  // so including it would cause the effect to fire twice on every query change.
   useEffect(() => {
     if (isInitialLoad || !context?.accessToken) return
     loadData(false)
-  }, [queryVariables, isInitialLoad, context?.accessToken, loadData])
+  }, [queryVariables, context?.accessToken])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
     loadData(false)
-    // Also refresh statistics when process completes
-    config.leadStatistics?.refetch?.()
-  }, [loadData, config.leadStatistics?.refetch])
+    activeLeadStatistics?.refetch?.()
+  }, [loadData, activeLeadStatistics?.refetch])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
@@ -199,10 +231,30 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
-  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
-    setSelectedFilters(filters)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [])
+  const handleFilterUpdate = useCallback(
+    (filters: Record<string, any>) => {
+      setSelectedFilters(filters)
+      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+      onFilterChangeProp?.(filters)
+    },
+    [onFilterChangeProp]
+  )
+
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      setSorting(newSorting)
+      onSortingChangeProp?.(newSorting)
+    },
+    [onSortingChangeProp]
+  )
+
+  const handleVisibleColumnsChange = useCallback(
+    (newColumns: string[]) => {
+      setVisibleColumns(newColumns)
+      onVisibleColumnsChangeProp?.(newColumns)
+    },
+    [onVisibleColumnsChangeProp]
+  )
 
   const handleRowClick = useCallback(
     (lead: TLead) => {
@@ -241,9 +293,56 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
     )
   }, [config, context?.accessToken])
 
+  // Export hook — always called unconditionally (React rules).
+  const { isExporting, handleExportCsv, handleExportExcel } = useLeadExport({
+    fetchLeads: config.fetchLeads as any,
+    queryVariables,
+    totalCount,
+    filenamePrefix: exportFilenamePrefix
+  })
+
+  const exportSecondaryActions = useMemo(() => {
+    if (!enableExport) return undefined
+
+    const getTitle = (entityLabel: string) => {
+      if (isExporting) return 'Exporting…'
+      if (totalCount === 0) return 'No data to export'
+      return entityLabel
+    }
+    const csvTitle = getTitle(`Export ${totalCount} leads as CSV`)
+    const excelTitle = getTitle(`Export ${totalCount} leads as Excel`)
+
+    return (
+      <>
+        <Button
+          onClick={handleExportCsv}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="lead-export-csv-button"
+          title={csvTitle}
+        >
+          <DownloadIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'CSV'}
+        </Button>
+        <Button
+          onClick={handleExportExcel}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="lead-export-excel-button"
+          title={excelTitle}
+        >
+          <FileXlsIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'Excel'}
+        </Button>
+      </>
+    )
+  }, [enableExport, isExporting, totalCount, handleExportCsv, handleExportExcel])
+
   if (!context) {
     console.error('LeadLayout: context is required')
-    return null
+    return <></>
   }
 
   const accessToken = context.accessToken
@@ -251,8 +350,8 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {config.leadStatistics && (
-        <LeadStatisticsLayout statistics={config.leadStatistics} data-testid={`${dataTestId}-statistics`} />
+      {activeLeadStatistics && (
+        <LeadStatisticsLayout statistics={activeLeadStatistics} data-testid={`${dataTestId}-statistics`} />
       )}
 
       {/* DataDisplay */}
@@ -282,10 +381,10 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
         onFilterChange={hideFilters ? undefined : handleFilterUpdate}
         sorting={sorting}
         sortableColumns={sortableColumns}
-        onSortingChange={setSorting}
+        onSortingChange={handleSortingChange}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
-        onVisibleColumnsChange={setVisibleColumns}
+        onVisibleColumnsChange={handleVisibleColumnsChange}
         primaryAction={
           customPrimaryAction ||
           (config.flowContexts.createContext ? (
@@ -306,6 +405,7 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
             </AppAction>
           ) : undefined)
         }
+        secondaryActions={exportSecondaryActions}
         toolbarDensity="default"
         enableLiveFiltering={true}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel(
@@ -324,7 +424,7 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
           totalCount={totalCount}
           columns={columns.filter(col => visibleColumns.includes(col.id as string))}
           sorting={sorting}
-          onSortingChange={setSorting}
+          onSortingChange={handleSortingChange}
           pagination={pagination}
           onPaginationChange={setPagination}
           actions={rowActions}

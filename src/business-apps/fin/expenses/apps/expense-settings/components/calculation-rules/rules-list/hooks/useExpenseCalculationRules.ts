@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useExpenseCalculationRulesQueries } from '../queries/ExpenseCalculationRules.queries'
+import { useExpenseCalculationRulesQueries, getBatchRuleUsage } from '../queries/ExpenseCalculationRules.queries'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface CalculationTypeOption {
   id: string
@@ -40,6 +41,7 @@ export interface UseExpenseCalculationRulesResult {
   error: string | null
   calculationTypes: CalculationTypeOption[]
   formCatalogs: FormCatalogs
+  usedRuleIds: Set<string>
   reload: () => void
   setPage: (page: number) => void
   setPageSize: (size: number) => void
@@ -63,11 +65,13 @@ export interface UseExpenseCalculationRulesResult {
 
 export const useExpenseCalculationRules = (context: BusinessAppContextProps): UseExpenseCalculationRulesResult => {
   const { fetchCalculationTypes, fetchExpenseRules, fetchFormCatalogs } = useExpenseCalculationRulesQueries(context)
+  const graphqlClient = useGraphqlClient(context.accessToken)
 
   const [items, setItems] = useState<ExpenseRuleListItem[]>([])
   const [totalCount, setTotalCount] = useState<number>(0)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [usedRuleIds, setUsedRuleIds] = useState<Set<string>>(new Set())
 
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [pageSize, setPageSize] = useState<number>(10)
@@ -279,6 +283,44 @@ export const useExpenseCalculationRules = (context: BusinessAppContextProps): Us
     }
   }, [context.accessToken, filterKey])
 
+  // Batch check which rules are used (have associated expenses)
+  useEffect(() => {
+    if (!context.accessToken || items.length === 0) {
+      setUsedRuleIds(new Set())
+      return
+    }
+
+    let cancelled = false
+    const checkUsage = async () => {
+      try {
+        const ruleIds = items.map(item => item.id)
+        const result = await graphqlClient.request<{
+          ExpenseItem: Array<{ expenseRuleId: string }>
+          ExpenseRequest: Array<{ expenseRuleId: string }>
+          ExpensePlan: Array<{ expenseRuleId: string }>
+        }>(getBatchRuleUsage, { ruleIds })
+
+        if (!cancelled) {
+          const usedIds = new Set<string>()
+          result.ExpenseItem?.forEach(item => usedIds.add(item.expenseRuleId))
+          result.ExpenseRequest?.forEach(item => usedIds.add(item.expenseRuleId))
+          result.ExpensePlan?.forEach(item => usedIds.add(item.expenseRuleId))
+          setUsedRuleIds(usedIds)
+        }
+      } catch (err) {
+        console.error('Failed to check rule usage:', err)
+        // On error, don't block deletion - set empty set
+        if (!cancelled) setUsedRuleIds(new Set())
+      }
+    }
+
+    checkUsage()
+
+    return () => {
+      cancelled = true
+    }
+  }, [context.accessToken, items, graphqlClient])
+
   // no standalone setSort helper; use inline setter in return to avoid extra re-creations
 
   return {
@@ -288,6 +330,7 @@ export const useExpenseCalculationRules = (context: BusinessAppContextProps): Us
     error,
     calculationTypes,
     formCatalogs,
+    usedRuleIds,
     reload: () => {
       setRefreshTick(t => t + 1)
     },

@@ -5,6 +5,7 @@ import { Employee, WorkCommunication } from '../types/employee.types'
 
 export interface TeamBirthday {
   id: string
+  userId?: string
   firstName: string
   lastName: string
   fullName: string
@@ -65,6 +66,7 @@ export const useTeamBirthdays = ({
             orderBy: [{ firstName: ASC }, { lastName: ASC }]
           ) {
             id
+            userId
             firstName
             lastName
             birthDate
@@ -123,6 +125,7 @@ export const useTeamBirthdays = ({
 
           return {
             id: employee.id,
+            userId: employee.userId,
             firstName: employee.firstName,
             lastName: employee.lastName,
             fullName: `${employee.firstName} ${employee.lastName}`,

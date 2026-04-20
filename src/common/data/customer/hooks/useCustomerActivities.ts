@@ -4,7 +4,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { BaseCustomerActivity, CustomerActivity } from '../types/customerActivityTypes'
+import type { CustomerActivity } from '../types/customerActivityTypes'
 
 // Use the new query builder functions
 import {
@@ -22,14 +22,14 @@ import {
 import { toCustomerActivity } from '../mappers/customerRelatedEntityMappers'
 
 export interface CustomerActivityListQueryResponse {
-  SalesActivity: BaseCustomerActivity[]
+  SalesActivity: any[]
   SalesActivityAggregate: {
     aggregate: { count: number }
   }
 }
 
 export interface CustomerActivityByEntityQueryResponse {
-  SalesActivity: BaseCustomerActivity[]
+  SalesActivity: any[]
 }
 
 export interface CustomerActivityListData {
@@ -44,7 +44,33 @@ export const useCustomerActivities = (context: BusinessAppContextProps) => {
     async (variables: CustomerActivityQueryVariables = {}): Promise<CustomerActivityListData> => {
       const query = buildCustomerActivityQuery()
 
-      const whereCondition = buildCustomerActivityWhereCondition(variables)
+      // Build custom OR conditions for reference type filter
+      // Use nested relationship paths (same pattern as useCustomerTasks)
+      const customConditions: Record<string, any>[] = []
+      if (variables.referenceTypes && variables.referenceTypes.length > 0) {
+        const referenceConditions = variables.referenceTypes
+          .map(type => {
+            switch (type) {
+              case 'account':
+                return { account: { id: { _neq: null } } }
+              case 'contact':
+                return { contact: { id: { _neq: null } } }
+              case 'lead':
+                return { lead: { id: { _neq: null } } }
+              case 'opportunity':
+                return { opportunity: { id: { _neq: null } } }
+              default:
+                return null
+            }
+          })
+          .filter(c => c !== null)
+
+        if (referenceConditions.length > 0) {
+          customConditions.push({ _or: referenceConditions })
+        }
+      }
+
+      const whereCondition = buildCustomerActivityWhereCondition(variables, [], customConditions)
 
       const orderBy = buildCustomerActivityOrderBy(variables.orderBy || [])
       if (orderBy.length === 0) {
@@ -52,7 +78,7 @@ export const useCustomerActivities = (context: BusinessAppContextProps) => {
       }
 
       const graphQLVariables: Record<string, any> = {
-        limit: Math.min(variables.limit || 50, 100),
+        limit: variables.limit || 50,
         offset: variables.offset || 0,
         where: whereCondition,
         orderBy: orderBy
@@ -72,16 +98,25 @@ export const useCustomerActivities = (context: BusinessAppContextProps) => {
   )
 
   const fetchCustomerActivitiesByAccountId = useCallback(
-    async (accountId: string): Promise<CustomerActivity[]> => {
+    async (accountId: string, limit?: number, offset?: number): Promise<CustomerActivity[]> => {
       const query = buildCustomerActivityByAccountIdQuery()
       const whereCondition = buildCustomerActivityWhereCondition({}, [], [{ account: { id: { _eq: accountId } } }])
       const orderBy = buildCustomerActivityOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
+      const graphQLVariables: Record<string, any> = {
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      if (limit !== undefined) {
+        graphQLVariables.limit = limit
+      }
+      if (offset !== undefined) {
+        graphQLVariables.offset = offset
+      }
+
       try {
-        const result = await graphqlClient.request<CustomerActivityByEntityQueryResponse>(query, {
-          where: whereCondition,
-          orderBy: orderBy
-        })
+        const result = await graphqlClient.request<CustomerActivityByEntityQueryResponse>(query, graphQLVariables)
         return result.SalesActivity.map(toCustomerActivity)
       } catch (error) {
         console.error('Error fetching customer activities by account ID:', error)
@@ -92,16 +127,25 @@ export const useCustomerActivities = (context: BusinessAppContextProps) => {
   )
 
   const fetchCustomerActivitiesByContactId = useCallback(
-    async (contactId: string): Promise<CustomerActivity[]> => {
+    async (contactId: string, limit?: number, offset?: number): Promise<CustomerActivity[]> => {
       const query = buildCustomerActivityByContactIdQuery()
       const whereCondition = buildCustomerActivityWhereCondition({}, [], [{ contact: { id: { _eq: contactId } } }])
       const orderBy = buildCustomerActivityOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
+      const graphQLVariables: Record<string, any> = {
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      if (limit !== undefined) {
+        graphQLVariables.limit = limit
+      }
+      if (offset !== undefined) {
+        graphQLVariables.offset = offset
+      }
+
       try {
-        const result = await graphqlClient.request<CustomerActivityByEntityQueryResponse>(query, {
-          where: whereCondition,
-          orderBy: orderBy
-        })
+        const result = await graphqlClient.request<CustomerActivityByEntityQueryResponse>(query, graphQLVariables)
         return result.SalesActivity.map(toCustomerActivity)
       } catch (error) {
         console.error('Error fetching customer activities by contact ID:', error)

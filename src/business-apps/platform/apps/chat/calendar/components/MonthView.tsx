@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react'
-import { cn, useLocale } from '@newwork/nw-design-system'
+import { cn, useLocale, useTranslation } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
+import { Phone } from 'lucide-react'
 import type { CalendarEvent, DateRange } from '../types'
+import translations from '../../_i18n'
 
 interface MonthViewProps {
   dateRange: DateRange
@@ -9,6 +11,7 @@ interface MonthViewProps {
   events: CalendarEvent[]
   onEventClick: (event: CalendarEvent) => void
   onDayClick: (date: Date) => void
+  activeConversationCalls?: Map<string, any>
 }
 
 const MAX_EVENTS_VISIBLE = 2 // Reduced for better mobile fit
@@ -108,8 +111,15 @@ const formatEventTime = (date: Date | string, locale?: string): string => {
   })
 }
 
-export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEventClick, onDayClick }) => {
+export const MonthView: React.FC<MonthViewProps> = ({
+  currentDate,
+  events,
+  onEventClick,
+  onDayClick,
+  activeConversationCalls
+}) => {
   const { locale } = useLocale()
+  const { t } = useTranslation(translations)
 
   // Compute base locale and week start setting first, before any useMemo hooks
   const baseLocale = useMemo(() => locale?.split('-')[0]?.toLowerCase() || 'en', [locale])
@@ -192,33 +202,45 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEve
 
                 {/* Events */}
                 <div className="gba:space-y-0.5">
-                  {day.events.slice(0, MAX_EVENTS_VISIBLE).map(event => (
-                    <button
-                      key={event.id}
-                      onClick={e => {
-                        e.stopPropagation()
-                        onEventClick(event)
-                      }}
-                      className={cn(
-                        'gba:w-full gba:text-left gba:px-1 gba:sm:px-1.5 gba:py-0.5 gba:rounded gba:text-[8px] gba:sm:text-[10px] gba:font-medium gba:truncate gba:transition-opacity gba:hover:opacity-80',
-                        event.status === 'cancelled' && 'gba:line-through gba:opacity-50'
-                      )}
-                      style={{
-                        backgroundColor: event.color,
-                        // eslint-disable-next-line newwork-local/no-hardcoded-colors -- contrast color for dynamic background
-                        color: 'white'
-                      }}
-                      data-testid={`calendar-event-${event.id}`}
-                    >
-                      <span className="gba:hidden gba:sm:inline">
-                        {!event.allDay && (
-                          <span className="gba:opacity-75 gba:mr-1">{formatEventTime(event.start, locale)}</span>
+                  {day.events.slice(0, MAX_EVENTS_VISIBLE).map(event => {
+                    // Check if there's an active call for this event
+                    const callId = event.conversationId || event.id
+                    const hasActiveCall = !!activeConversationCalls?.get(callId)
+                    const isLive = event.status === 'in_progress' || hasActiveCall
+                    const displayTitle = event.isBusyBlock ? t('calendar-sidebar-busy') : event.title
+
+                    return (
+                      <button
+                        key={event.id}
+                        onClick={e => {
+                          e.stopPropagation()
+                          onEventClick(event)
+                        }}
+                        className={cn(
+                          'gba:w-full gba:text-left gba:px-1 gba:sm:px-1.5 gba:py-0.5 gba:rounded gba:text-[8px] gba:sm:text-[10px] gba:font-medium gba:truncate gba:transition-opacity gba:hover:opacity-80 gba:flex gba:items-center gba:gap-0.5',
+                          event.status === 'cancelled' && 'gba:line-through gba:opacity-50',
+                          isLive && 'gba:ring-1 gba:ring-success'
                         )}
-                        {event.title}
-                      </span>
-                      <span className="gba:sm:hidden">{event.title}</span>
-                    </button>
-                  ))}
+                        style={{
+                          backgroundColor: event.color,
+                          // eslint-disable-next-line newwork-local/no-hardcoded-colors -- contrast color for dynamic background
+                          color: 'white'
+                        }}
+                        data-testid={`calendar-event-${event.id}`}
+                      >
+                        {isLive && (
+                          <Phone className="gba:h-2 gba:w-2 gba:sm:h-2.5 gba:sm:w-2.5 gba:flex-shrink-0 gba:animate-pulse" />
+                        )}
+                        <span className="gba:hidden gba:sm:inline gba:truncate">
+                          {!event.allDay && (
+                            <span className="gba:opacity-75 gba:mr-1">{formatEventTime(event.start, locale)}</span>
+                          )}
+                          {displayTitle}
+                        </span>
+                        <span className="gba:sm:hidden gba:truncate">{displayTitle}</span>
+                      </button>
+                    )
+                  })}
 
                   {/* More events indicator */}
                   {day.events.length > MAX_EVENTS_VISIBLE && (

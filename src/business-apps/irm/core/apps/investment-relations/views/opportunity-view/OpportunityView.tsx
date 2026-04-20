@@ -1,6 +1,7 @@
-import React, { useMemo, useState, useCallback } from 'react'
+import React, { useMemo, useState, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import type { QuickFiltersRenderProps } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
@@ -53,7 +54,10 @@ const InvestmentOpportunityStatistics: React.FC<{
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
-  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('irm:investment-opportunity-preferences:v1')
+
+  const { fetchInvestmentOpportunities, fetchInvestmentOpportunityAggregates } = useGetInvestmentOpportunities(context)
   const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>('all')
 
   const handleQuickFilterChange = useCallback(
@@ -85,17 +89,24 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
     [activeQuickFilter, handleQuickFilterChange]
   )
 
-  // State to trigger statistics refresh
+  // State to trigger statistics refresh (re-mounts InvestmentOpportunityStatistics via key prop)
   const [statisticsRefreshKey, setStatisticsRefreshKey] = useState(0)
+
+  // Refs so that renderStatistics in config always reads the latest values without
+  // causing config to rebuild (which would cascade to listQueryVariables → loadListData → query).
+  const statisticsRefreshKeyRef = useRef(statisticsRefreshKey)
+  statisticsRefreshKeyRef.current = statisticsRefreshKey
+  const contextRef = useRef(context)
+  contextRef.current = context
 
   // Create a refetch callback for statistics
   const refetchStatistics = useCallback(() => {
     setStatisticsRefreshKey(prev => prev + 1)
   }, [])
 
-  // Statistics data with refetch callback
-  const opportunityStatisticsData: OpportunityStatisticsData | undefined = useMemo(() => {
-    return {
+  // Statistics data with refetch callback — stable because refetchStatistics is stable
+  const opportunityStatisticsData: OpportunityStatisticsData | undefined = useMemo(
+    () => ({
       recentOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
       totalOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
       opportunitiesThisQuarter: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
@@ -103,9 +114,14 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       isLoading: false,
       error: null,
       refetch: refetchStatistics
-    }
-  }, [refetchStatistics])
+    }),
+    [refetchStatistics]
+  )
 
+  // Config — context and statisticsRefreshKey are intentionally excluded from deps.
+  // They are accessed via refs so that statistics refreshes and context reference changes
+  // do not recreate config, which would cascade into new listQueryVariables / loadListData
+  // references and re-fire GetOpportunities.
   const config = useMemo(
     () =>
       createOpportunityConfig<InvestmentOpportunity, InvestmentOpportunityQueryVariables>({
@@ -117,10 +133,14 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         }),
 
         fetchOpportunities: async variables => {
-          const result = await fetchInvestmentOpportunities(variables)
+          const [result, aggregates] = await Promise.all([
+            fetchInvestmentOpportunities(variables),
+            fetchInvestmentOpportunityAggregates(variables)
+          ])
           return {
             opportunities: result.InvestmentOpportunity,
-            total: result.InvestmentOpportunityAggregate.aggregate.count
+            total: result.InvestmentOpportunityAggregate.aggregate.count,
+            aggregates
           }
         },
 
@@ -158,13 +178,13 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         extractBoardOpportunities: result => result.InvestmentOpportunity || [],
         extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
 
-        // Provide statistics data for refetch in handleProcessComplete
         opportunityStatistics: opportunityStatisticsData,
 
+        // Reads latest context/key from refs so config stays stable
         renderStatistics: (selectedCurrency?: string, quickFilter?: string) => (
           <InvestmentOpportunityStatistics
-            key={statisticsRefreshKey}
-            context={context}
+            key={statisticsRefreshKeyRef.current}
+            context={contextRef.current}
             selectedCurrency={selectedCurrency}
             quickFilter={quickFilter}
           />
@@ -174,7 +194,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
           opportunityId: row.original.id
         })
       }),
-    [context, fetchInvestmentOpportunities, opportunityStatisticsData, statisticsRefreshKey]
+    [fetchInvestmentOpportunities, fetchInvestmentOpportunityAggregates, opportunityStatisticsData]
   )
 
   return (
@@ -184,6 +204,14 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       dataTestId="investment-opportunities-view"
       renderQuickFilters={renderQuickFilters}
       quickFilter={activeQuickFilter}
+      enableExport
+      exportFilenamePrefix="opportunities"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
     />
   )
 }

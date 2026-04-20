@@ -621,14 +621,15 @@ const RequestsToApproveTable = ({
                           <Button
                             size="sm"
                             className="gba:bg-primary-600 gba:text-white"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || (employeeId && change.employee.id === employeeId)}
                             onClick={() =>
                               handleApprovePersonalChange({
                                 change,
                                 userId,
                                 accessToken,
                                 refetchPersonalData,
-                                setIsSubmitting
+                                setIsSubmitting,
+                                currentEmployeeId: employeeId
                               })
                             }
                           >

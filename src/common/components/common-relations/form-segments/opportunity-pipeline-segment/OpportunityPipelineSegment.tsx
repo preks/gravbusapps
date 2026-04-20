@@ -11,13 +11,16 @@ interface OpportunityPipelineSegmentProps {
   opportunityStatusCatalogIdentifier?: string
   // Custom fields
   customFields?: React.ReactNode
+  // Control dynamic required indicator (for conditional validation scenarios)
+  showDynamicStageRequired?: boolean
 }
 
 const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
   pipelineCatalogIdentifier,
   stageCatalogIdentifier,
   opportunityStatusCatalogIdentifier,
-  customFields
+  customFields,
+  showDynamicStageRequired = true
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
@@ -30,13 +33,30 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
   // Watch pipeline value
   const pipelineValue = form.watch(pipelineFieldName)
 
-  // Clear stage when pipeline changes
+  // Keep track of previous pipeline value to detect changes
+  const previousPipelineValueRef = React.useRef<typeof pipelineValue>(undefined)
+
+  // Stage is required only when a pipeline is selected.
+  const isStageRequired = Boolean(
+    pipelineValue !== null &&
+      pipelineValue !== undefined &&
+      pipelineValue !== '' &&
+      typeof pipelineValue === 'string' &&
+      pipelineValue.trim() !== ''
+  )
+
+  // Clear stage when pipeline is cleared
   useEffect(() => {
-    if (pipelineValue) {
-      // Stage will be automatically filtered by CatalogSelect via filterField
-      // No need to manually clear here as CatalogSelect handles it
-    } else {
-      form.setValue(stageFieldName, '')
+    const currentValue = pipelineValue
+    const previousValue = previousPipelineValueRef.current
+
+    if (currentValue !== previousValue) {
+      previousPipelineValueRef.current = currentValue
+
+      if (!currentValue || (typeof currentValue === 'string' && currentValue.trim() === '')) {
+        form.setValue(stageFieldName, '', { shouldValidate: false, shouldDirty: true })
+        form.clearErrors(stageFieldName)
+      }
     }
   }, [pipelineValue, stageFieldName, form])
 
@@ -50,16 +70,14 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
           name={pipelineFieldName}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('opportunity-pipeline-label')}</FormLabel>
+              <FormLabel className="gba:text-foreground">{t('opportunity-pipeline-label')}</FormLabel>
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier={pipelineCatalogIdentifier}
+                  variant="combobox"
                   value={field.value || ''}
-                  onValueChange={value => {
-                    field.onChange(value)
-                    // Clear stage when pipeline changes
-                    form.setValue(stageFieldName, '')
-                  }}
+                  onValueChange={value => field.onChange(value || '')}
+                  allowClear
                   data-testid="opportunity-segment-pipeline-select"
                 />
               </FormControl>
@@ -74,14 +92,18 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
           name={stageFieldName}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('opportunity-stage-label')}</FormLabel>
+              <FormLabel className="gba:text-foreground">
+                {t('opportunity-stage-label')}
+                {showDynamicStageRequired && isStageRequired && <span className="gba:text-destructive"> *</span>}
+              </FormLabel>
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier={stageCatalogIdentifier}
                   parentField={pipelineFieldName}
-                  requireSourceForEnable={true}
+                  variant="combobox"
                   value={field.value || ''}
-                  onValueChange={field.onChange}
+                  onValueChange={value => field.onChange(value || '')}
+                  allowClear
                   data-testid="opportunity-segment-stage-select"
                 />
               </FormControl>

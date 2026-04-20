@@ -5,16 +5,16 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Alert,
   Button,
   Textarea,
-  Label,
-  Alert,
-  DateInput
+  Label
 } from '@newwork/nw-design-system'
+import { AbsenceDateRangePicker } from './components/AbsenceDateRangePicker'
 import { AlertCircle } from 'lucide-react'
 import { Upload } from 'antd'
 import type { UploadFile } from 'antd'
-import { UploadOutlined } from '@ant-design/icons'
+import { UploadIcon } from '@phosphor-icons/react'
 import { useForm } from 'react-hook-form'
 
 import dayjs from 'dayjs'
@@ -25,7 +25,12 @@ import { getAllEmployees } from './queries/getAllEmployees'
 import { GET_EMPLOYEE_DETAILS } from './queries/getEmployeeDetails'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  getPrevalidateErrorPresentation,
+  shouldDuplicatePrevalidateErrorBelowDatepicker
+} from '@/business-apps/hr/core/utils/absencePrevalidateLabels'
 import { useAbsenceValidation } from './hooks/useAbsenceValidation'
+import { useAbsencePrevalidate } from './hooks/useAbsencePrevalidate'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useAbsenceTypesByGroup } from './hooks/useAbsenceTypesByGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
@@ -100,23 +105,39 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
   const formValuesState = form.watch()
 
-  const {
-    isValidating,
-    hasValidationErrors,
-    overlapErrors,
-    balanceErrors,
-    generalErrors,
-    existingSickLeave,
-    hasExistingSickLeave,
-    validationWarnings
-  } = useAbsenceValidation({
+  const { existingSickLeave, hasExistingSickLeave } = useAbsenceValidation({
     accessToken,
     employeeId: employeeId || '',
     selectedType: formValuesState.selectedType || '',
     startDate: formValuesState.startDate,
     endDate: formValuesState.endDate,
-    context: props
+    context: props,
+    disableCalendarValidation: true
   })
+
+  const prevalidateStartDateStr =
+    formValuesState.startDate == null ? null : dayjs(formValuesState.startDate).format('YYYY-MM-DD')
+  const prevalidateEndDateStr =
+    formValuesState.endDate == null ? null : dayjs(formValuesState.endDate).format('YYYY-MM-DD')
+  const prevalidate = useAbsencePrevalidate(
+    accessToken,
+    employeeId || undefined,
+    formValuesState.selectedType || undefined,
+    prevalidateStartDateStr,
+    prevalidateEndDateStr
+  )
+  const hasPrevalidateError = !!prevalidate.errorCode
+  const duplicatedPrevalidateError = useMemo(() => {
+    if (!prevalidate.errorCode || !shouldDuplicatePrevalidateErrorBelowDatepicker(prevalidate.errorCode)) {
+      return null
+    }
+
+    const presentation = getPrevalidateErrorPresentation(prevalidate.errorCode, prevalidate.errorDetail)
+    return {
+      title: getTranslationFromI18nKeyAndLabel(presentation.messageKey, presentation.messageFallback),
+      detail: getTranslationFromI18nKeyAndLabel(presentation.detailKey, presentation.detailFallback)
+    }
+  }, [prevalidate.errorCode, prevalidate.errorDetail])
 
   useEffect(() => {
     const start = formValuesState.startDate
@@ -185,24 +206,13 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
   const isFormValid = useMemo(() => {
     if (isUpdateMode) {
-      const updateModeValid =
-        formValuesState.selectedType &&
-        formValuesState.startDate &&
-        formValuesState.endDate &&
-        !hasValidationErrors &&
-        !isValidating
-
-      return updateModeValid
+      return !!(formValuesState.selectedType && formValuesState.startDate && formValuesState.endDate)
     }
 
-    const createModeValid = isMandatoryFieldsCompleted && !hasValidationErrors && !isValidating
-
-    return createModeValid
+    return isMandatoryFieldsCompleted
   }, [
     isUpdateMode,
     isMandatoryFieldsCompleted,
-    hasValidationErrors,
-    isValidating,
     formValuesState.selectedType,
     formValuesState.startDate,
     formValuesState.endDate
@@ -292,13 +302,13 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
           } catch {}
         }
       }
-
       const payload =
         isUpdateMode && existingSickLeave
           ? {
               employeeId: employeeId,
               absenceType: formData.selectedType,
               event: 'pse_submit',
+              shouldBECustomErrorMessage: true,
               employeeAbsence: {
                 ...baseAbsenceData,
                 id: existingSickLeave.id,
@@ -310,6 +320,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               employeeId: employeeId,
               absenceType: formData.selectedType,
               event: 'pse_submit',
+              shouldBECustomErrorMessage: true,
               employeeAbsence: baseAbsenceData,
               ...(employeeDocuments.length > 0 && { employeeDocuments })
             }
@@ -319,33 +330,24 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     [employeeId, fileList, isUpdateMode, existingSickLeave, fileClient]
   )
 
-  const validateForm = useCallback(
-    (formData: CreateNewAbsenceFormValues): string[] | null => {
-      const errors: string[] = []
+  const validateForm = useCallback((formData: CreateNewAbsenceFormValues): string[] | null => {
+    const errors: string[] = []
 
-      if (!formData.selectedType) {
-        errors.push('Type is required')
-      }
-      if (!formData.startDate) {
-        errors.push('Start date is required')
-      }
-      if (!formData.endDate) {
-        errors.push('End date is required')
-      }
-      if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
-        errors.push('End date must be after start date')
-      }
+    if (!formData.selectedType) {
+      errors.push('Type is required')
+    }
+    if (!formData.startDate) {
+      errors.push('Start date is required')
+    }
+    if (!formData.endDate) {
+      errors.push('End date is required')
+    }
+    if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
+      errors.push('End date must be after start date')
+    }
 
-      if (hasValidationErrors) {
-        generalErrors.forEach(error => errors.push(error.message))
-        overlapErrors.forEach(error => errors.push(error.message))
-        balanceErrors.forEach(error => errors.push(error.message))
-      }
-
-      return errors.length > 0 ? errors : null
-    },
-    [hasValidationErrors, generalErrors, overlapErrors, balanceErrors]
-  )
+    return errors.length > 0 ? errors : null
+  }, [])
 
   return (
     <div
@@ -381,7 +383,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               )
             : getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')
         }
-        isSubmitDisabled={!isFormValid || isValidating}
+        isSubmitDisabled={!isFormValid || hasPrevalidateError}
         submitEventType="pse_submit"
         cancelEventType="pse_abort"
         data-testid="create-new-absence-form"
@@ -469,40 +471,17 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                   {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}
                   <span className="gba:text-destructive gba:ml-1">*</span>
                 </Label>
-                <DateInput
-                  mode="range"
-                  type="date"
-                  value={
-                    formValuesState.startDate && formValuesState.endDate
-                      ? ([
-                          formValuesState.startDate.toISOString().split('T')[0],
-                          formValuesState.endDate.toISOString().split('T')[0]
-                        ] as any)
-                      : formValuesState.startDate
-                        ? ([formValuesState.startDate.toISOString().split('T')[0], null] as any)
-                        : undefined
-                  }
-                  onChange={(value: string | [string | null, string | null] | null) => {
-                    if (Array.isArray(value)) {
-                      const startDateStr = value[0]
-                      const endDateStr = value[1]
-                      form.setValue('startDate', startDateStr ? new Date(startDateStr) : undefined)
-                      form.setValue('endDate', endDateStr ? new Date(endDateStr) : undefined)
-                    } else if (value) {
-                      form.setValue('startDate', new Date(value))
-                      form.setValue('endDate', undefined)
-                    } else {
-                      form.setValue('startDate', undefined)
-                      form.setValue('endDate', undefined)
-                    }
+                <AbsenceDateRangePicker
+                  startDate={formValuesState.startDate}
+                  endDate={formValuesState.endDate}
+                  onChange={(start, end) => {
+                    form.setValue('startDate', start)
+                    form.setValue('endDate', end)
                   }}
-                  outputFormat="iso"
-                  placeholder={
-                    getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.select_start_date', 'Select start date') +
-                    ' / ' +
-                    getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.select_end_date', 'Select end date')
-                  }
-                  className="gba:w-full"
+                  accessToken={accessToken}
+                  employeeId={employeeId}
+                  selectedTypeRef={formValuesState.selectedType}
+                  prevalidate={prevalidate}
                   data-testid="absence-date-range-input"
                 />
               </div>
@@ -569,50 +548,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                 </div>
               )}
 
-              {(hasValidationErrors || validationWarnings.length > 0) && (
-                <div className="gba:mb-4" data-testid="validation-errors-container">
-                  {generalErrors.map((error, index) => (
-                    <Alert key={`general-${index}`} className="gba:mb-2" data-testid={`general-error-${index}`}>
-                      <AlertCircle className="gba:h-4 gba:w-4" />
-                      <span>{error.message}</span>
-                    </Alert>
-                  ))}
-
-                  {overlapErrors.map((error, index) => (
-                    <Alert key={`overlap-${index}`} className="gba:mb-2" data-testid={`overlap-error-${index}`}>
-                      <AlertCircle className="gba:h-4 gba:w-4" />
-                      <span>{error.message}</span>
-                    </Alert>
-                  ))}
-
-                  {balanceErrors.map((error, index) => (
-                    <Alert key={`balance-${index}`} className="gba:mb-2" data-testid={`balance-error-${index}`}>
-                      <AlertCircle className="gba:h-4 gba:w-4" />
-                      <span>{error.message}</span>
-                    </Alert>
-                  ))}
-                  {validationWarnings.map((warning, index) => (
-                    <Alert key={`warning-${index}`} className="gba:mb-2" data-testid={`validation-warning-${index}`}>
-                      <AlertCircle className="gba:h-4 gba:w-4" />
-                      <span>{warning.message}</span>
-                    </Alert>
-                  ))}
-                </div>
-              )}
-
-              {/* Loading indicator for validation */}
-              {isValidating && (
-                <div
-                  className="gba:mb-4 gba:text-center gba:text-sm gba:text-muted-foreground"
-                  data-testid="validation-loading"
-                >
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:absence_form.validation_checking',
-                    'Checking availability...'
-                  )}
-                </div>
-              )}
-
               {/* File Upload Section - Only for Sick Leave */}
               {isSickLeaveProcess && (
                 <div className="gba:mb-4">
@@ -635,7 +570,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                       className="gba:w-full gba:h-12 gba:border-dashed gba:border-2 gba:border-border hover:gba:border-info"
                       data-testid="upload-button"
                     >
-                      <UploadOutlined className="gba:mr-2" />
+                      <UploadIcon size={16} className="gba:mr-2" />
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:absence_form.upload_button',
                         'Click or drag files to upload'
@@ -649,6 +584,15 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                     )}
                   </div>
                 </div>
+              )}
+              {duplicatedPrevalidateError && (
+                <Alert className="gba:mb-4" data-testid="prevalidate-inline-error">
+                  <AlertCircle className="gba:h-4 gba:w-4" />
+                  <span className="gba:flex gba:flex-col gba:gap-0.5">
+                    <strong>{duplicatedPrevalidateError.title}</strong>
+                    <span>{duplicatedPrevalidateError.detail}</span>
+                  </span>
+                </Alert>
               )}
             </>
           )}

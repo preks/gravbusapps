@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { message } from 'antd'
-import {
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-  FileTextOutlined,
-  InfoCircleOutlined,
-  OrderedListOutlined,
-  EyeOutlined
-} from '@ant-design/icons'
+import { ClockIcon, CheckCircleIcon, FileTextIcon, InfoIcon, ListBulletsIcon, EyeIcon } from '@phosphor-icons/react'
 import {
   Button,
   Card,
@@ -41,12 +34,13 @@ import {
   FileText,
   Info,
   ArrowRight,
-  Zap
+  Zap,
+  RefreshCw
 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FlowManagement } from '@/common/components/flow'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { TaskDetailsTab } from './components'
-import { FlowManagement } from '../../common/components'
 import { QuickTaskModal, QuickTaskFormData, QuickTaskFlowService } from '../../common/components/flow-quick-task'
 
 // Remove unused Ant Design destructuring
@@ -354,6 +348,11 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
     }
   }, [selectedUserId])
 
+  const handleRefresh = async () => {
+    if (!selectedUserId) return
+    await Promise.all([fetchUserData(selectedUserId), fetchCompletedTasks(selectedUserId)])
+  }
+
   const performTaskAction = async (taskId: string, action: string, payload: any = {}) => {
     setActionLoading(taskId + action)
     try {
@@ -529,7 +528,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
         uploadResults: [], // File upload can be added later if needed
         accessToken,
         initiatorId: userInfo?.id || 'unknown',
-        apiBaseUrl: API_BASE.replace('/api', '')
+        apiBaseUrl: API_BASE
       })
 
       message.success(`Quick Task "${data.title}" created successfully!`)
@@ -545,15 +544,15 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
   const getTaskTypeIcon = (task: Task) => {
     switch (task.type) {
       case 'APPROVAL':
-        return <CheckCircleOutlined style={{ color: '#52c41a' }} />
+        return <CheckCircleIcon size={16} style={{ color: '#52c41a' }} />
       case 'ACKNOWLEDGE':
-        return <EyeOutlined style={{ color: '#1890ff' }} />
+        return <EyeIcon style={{ color: '#1890ff' }} />
       case 'TASK':
-        return <OrderedListOutlined style={{ color: '#722ed1' }} />
+        return <ListBulletsIcon size={16} style={{ color: '#722ed1' }} />
       case 'INFORMATION':
-        return <InfoCircleOutlined style={{ color: '#faad14' }} />
+        return <InfoIcon style={{ color: '#faad14' }} />
       default:
-        return <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
+        return <ClockIcon size={16} style={{ color: '#8c8c8c' }} />
     }
   }
   /* eslint-enable newwork-local/no-hardcoded-colors */
@@ -651,6 +650,15 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
 
           {/* Top Right: User Selection and Quick Task Button */}
           <div className="gba:flex gba:items-center gba:gap-3">
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={loading || completedLoading}
+              data-testid={`${prefixDataTestId}-RefreshButton`}
+            >
+              <RefreshCw className="gba:h-4 gba:w-4 gba:mr-2" />
+              Refresh
+            </Button>
             <Button
               onClick={() => setIsQuickTaskModalOpen(true)}
               className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 hover:gba:from-blue-700 hover:gba:to-indigo-700 gba:text-white gba:shadow-lg"
@@ -828,7 +836,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
                 <div className="gba:bg-gray-50/50 gba:rounded-lg gba:p-4">
                   {filteredOpenTasks.length === 0 ? (
                     <div className="gba:text-center gba:py-12">
-                      <FileTextOutlined className="gba:text-6xl gba:mb-4 gba:text-gray-400" />
+                      <FileTextIcon size={48} className="gba:text-6xl gba:mb-4 gba:text-gray-400" />
                       <h3 className="gba:text-lg gba:font-medium gba:mb-2 gba:text-gray-900">No tasks found</h3>
                       <p className="gba:text-gray-600">No open tasks available at the moment</p>
                     </div>
@@ -1026,7 +1034,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
 
                   {filteredCompletedTasks.length === 0 ? (
                     <div className="gba:text-center gba:py-12">
-                      <CheckCircleOutlined className="gba:text-6xl gba:mb-4 gba:text-gray-400" />
+                      <CheckCircleIcon size={48} className="gba:text-6xl gba:mb-4 gba:text-gray-400" />
                       <h3 className="gba:text-lg gba:font-medium gba:mb-2 gba:text-gray-900">No completed tasks</h3>
                       <p className="gba:text-gray-600">Completed tasks will appear here</p>
                     </div>

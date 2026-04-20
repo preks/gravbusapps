@@ -6,16 +6,13 @@ import {
   CardContent,
   IconAvatar,
   ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent
+  useTranslation
 } from '@newwork/nw-design-system'
-import { BarChart, Bar, XAxis, YAxis } from 'recharts'
+import { BarChart, Bar } from 'recharts'
 import { ChartBarIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatCurrencyForChart } from '../../../../../utils/currencyUtils'
 import { getChartColor } from '../../../../../utils/chartColorUtils'
+import ExpenseBarChartDecorators from '../../../../charts/ExpenseBarChartDecorators'
+import translations from '../../../../../_i18n'
 
 // Chart layout constants
 // Note: Recharts requires numeric values for margin and radius props
@@ -33,20 +30,39 @@ interface PlanVsRequestChartProps {
 }
 
 export const PlanVsRequestChart: React.FC<PlanVsRequestChartProps> = ({ chartData, selectedCurrencyCode }) => {
+  const { t } = useTranslation(translations)
+  const chartWrapperRef = React.useRef<HTMLDivElement | null>(null)
+  const [hasChartSpace, setHasChartSpace] = React.useState(false)
+
+  React.useEffect(() => {
+    const wrapper = chartWrapperRef.current
+    if (!wrapper) return
+
+    const syncChartSpace = () => {
+      setHasChartSpace(wrapper.clientWidth > 0 && wrapper.clientHeight > 0)
+    }
+
+    syncChartSpace()
+    const observer = new ResizeObserver(syncChartSpace)
+    observer.observe(wrapper)
+
+    return () => observer.disconnect()
+  }, [chartData.length])
+
   // Chart configuration - using design system tokens resolved to actual colors
   // Recharts requires actual color values, so we resolve CSS variables at runtime
   const chartConfig = useMemo(
     () => ({
       a_planned: {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:cards.planned_chart_legend', 'Planned'),
-        color: getChartColor('chart1') // Design system chart-1 token (blue)
+        label: t('pvr-planned-legend'),
+        color: getChartColor('chart1')
       },
       b_actual: {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:cards.actual_chart_legend', 'Actual'),
-        color: getChartColor('chart3') // Design system chart-3 token (orange)
+        label: t('pvr-actual-legend'),
+        color: getChartColor('chart3')
       }
     }),
-    []
+    [t]
   )
 
   return (
@@ -54,32 +70,38 @@ export const PlanVsRequestChart: React.FC<PlanVsRequestChartProps> = ({ chartDat
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <IconAvatar icon={ChartBarIcon} variant="default" size="md" decorative />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.monthly_trend', 'Monthly Trend')}
+          {t('pvr-monthly-trend')}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {chartData.length === 0 ? (
           <div className="gba:text-center gba:p-8" data-testid="chart-empty-state">
             <ChartBarIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-muted-foreground" />
-            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">No data available</h3>
-            <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-              No trend data found for the selected period.
-            </p>
+            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">{t('empty-no-data')}</h3>
+            <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">{t('empty-no-trend-period')}</p>
           </div>
         ) : (
-          <ChartContainer config={chartConfig} className="gba:h-[320px] gba:w-full" data-testid="plan-vs-request-chart">
-            <BarChart data={chartData} margin={CHART_MARGIN}>
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} interval={0} />
-              <YAxis
-                tickFormatter={value => formatCurrencyForChart(value, selectedCurrencyCode)}
-                tick={{ fontSize: 12 }}
-              />
-              <ChartTooltip content={<ChartTooltipContent labelKey="month" />} />
-              <ChartLegend content={<ChartLegendContent />} />
-              <Bar dataKey="a_planned" fill="var(--color-a_planned)" radius={BAR_BORDER_RADIUS} />
-              <Bar dataKey="b_actual" fill="var(--color-b_actual)" radius={BAR_BORDER_RADIUS} />
-            </BarChart>
-          </ChartContainer>
+          <div ref={chartWrapperRef} className="gba:w-full gba:h-[320px]">
+            {hasChartSpace ? (
+              <ChartContainer
+                config={chartConfig}
+                className="gba:h-[320px] gba:w-full"
+                data-testid="plan-vs-request-chart"
+              >
+                <BarChart data={chartData} margin={CHART_MARGIN}>
+                  <ExpenseBarChartDecorators
+                    xDataKey="month"
+                    tooltipLabelKey="month"
+                    selectedCurrencyCode={selectedCurrencyCode}
+                  />
+                  <Bar dataKey="a_planned" fill="var(--color-a_planned)" radius={BAR_BORDER_RADIUS} />
+                  <Bar dataKey="b_actual" fill="var(--color-b_actual)" radius={BAR_BORDER_RADIUS} />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <div className="gba:w-full gba:h-[320px]" />
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

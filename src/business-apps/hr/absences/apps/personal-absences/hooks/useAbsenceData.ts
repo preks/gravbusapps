@@ -4,6 +4,21 @@ import { GET_EMPLOYEE_ABSENCES } from '../queries/graphql'
 import { EnhancedAbsence } from '../types/enhancedAbsence'
 import { getCurrentActiveUserLocale, getCatalogValue } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
+import { getCanonicalStatus } from '@/common/utils/absenceUtils'
+
+// Extracted helper to module scope to avoid re-creating per render and reduce function complexity
+const extractColorFromObjectValue = (objectValue: any): string => {
+  if (!objectValue || typeof objectValue !== 'object') {
+    return 'var(--nw-muted-foreground)'
+  }
+
+  const color = objectValue.color
+  if (!color) {
+    return 'var(--nw-muted-foreground)'
+  }
+
+  return color.startsWith('#') ? color : `#${color}`
+}
 
 export interface UseAbsenceDataProps {
   accessToken: string
@@ -74,19 +89,6 @@ export const useAbsenceData = ({ accessToken, employeeId, filters }: UseAbsenceD
     return () => clearInterval(interval)
   }, [currentLocale])
 
-  const extractColorFromObjectValue = (objectValue: any): string => {
-    if (!objectValue || typeof objectValue !== 'object') {
-      return 'var(--nw-muted-foreground)'
-    }
-
-    const color = objectValue.color
-    if (!color) {
-      return 'var(--nw-muted-foreground)'
-    }
-
-    return color.startsWith('#') ? color : `#${color}`
-  }
-
   const fetchAbsences = useCallback(async () => {
     if (!accessToken || !employeeId) {
       return
@@ -154,6 +156,7 @@ export const useAbsenceData = ({ accessToken, employeeId, filters }: UseAbsenceD
             ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee'
             : 'Unknown Employee'
 
+        const statusCode = getCanonicalStatus({ statusCode: absence.statusCode, status: absence.status })
         return {
           ...absence,
           employee: {
@@ -176,7 +179,8 @@ export const useAbsenceData = ({ accessToken, employeeId, filters }: UseAbsenceD
               : absence.type?.value || 'Unknown Group',
           typeName: absence.type ? getCatalogValue(absence.type) || 'Unknown Type' : 'Unknown Type',
           color: extractColorFromObjectValue(absence.type?.objectValue),
-          effectiveDays: absence.workingDays ?? absence.effectiveDays ?? 0
+          effectiveDays: absence.effectiveDays ?? absence.workingDays ?? 0,
+          statusCode
         }
       })
 

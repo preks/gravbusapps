@@ -19,10 +19,18 @@ import {
   Label
 } from '@newwork/nw-design-system'
 import { toast } from 'sonner'
-import { PiArrowLeft, PiPlus, PiMapPin, PiFloppyDisk, PiDotsSixVertical, PiTrash } from 'react-icons/pi'
+import {
+  ArrowLeftIcon,
+  PlusIcon,
+  MapPinIcon,
+  FloppyDiskIcon,
+  DotsSixVerticalIcon,
+  TrashIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
+import { formatDateForInput } from '../../utils'
 import TravelRegionRuleForm from '../../forms/travel-region-rule-form/TravelRegionRuleForm'
 import TravelRegionForm from '../../forms/travel-region-form/TravelRegionForm'
 import { useAllowanceRuleUsageCheck } from '../../hooks'
@@ -101,6 +109,7 @@ const createNewEditableCell = (
     travelRegionId: region.id,
     allowanceRegionRuleId: rule.id,
     amount: 0,
+    home: false,
     currencyCode: 'EUR',
     currencyRef: eurCurrency?.id,
     countryRef: countryRef,
@@ -121,10 +130,10 @@ const handleCellDelete = async (
   cell: EditableCell,
   getExpenseSettingsClient: () => any,
   cellEditing: any,
-  loadData: () => Promise<void>,
+  setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>,
+  setAllowanceRegionRules: React.Dispatch<React.SetStateAction<EditableAllowanceRegionRule[]>>,
   checkDetailUsage: (detailId: string) => Promise<{ isUsed: boolean; usedIn: Record<string, unknown>; message: string }>
 ) => {
-  // Check usage before deletion
   if (cell.id) {
     try {
       const usageInfo = await checkDetailUsage(cell.id)
@@ -134,7 +143,6 @@ const handleCellDelete = async (
       }
     } catch (error) {
       console.error('Error checking detail usage:', error)
-      // Continue with deletion if check fails - user can verify manually
     }
   }
 
@@ -158,7 +166,14 @@ const handleCellDelete = async (
     toast.success('Detail deleted successfully')
     cellEditing.setEditingCellId(null)
     cellEditing.setEditingCellUsageInfo(null)
-    await loadData()
+
+    setEditableCells(prev => prev.filter(c => c.id !== cell.id))
+    setAllowanceRegionRules(prev =>
+      prev.map(rule => ({
+        ...rule,
+        details: rule.details?.filter((d: any) => d.id !== cell.id) || []
+      }))
+    )
   } catch (err: any) {
     console.error('Error deleting detail:', err)
     const errorMsg = err.response?.data?.message || err.message || 'Failed to delete detail'
@@ -238,7 +253,7 @@ const SortableColumnHeader: React.FC<{
             {...listeners}
             className="gba:cursor-grab gba:text-muted-foreground hover:gba:text-foreground"
           >
-            <PiDotsSixVertical className="gba:w-4 gba:h-4" />
+            <DotsSixVerticalIcon className="gba:w-4 gba:h-4" />
           </div>
           <div className="gba:flex gba:gap-1">
             <Button
@@ -248,7 +263,7 @@ const SortableColumnHeader: React.FC<{
               className="gba:h-6 gba:w-6 gba:p-0"
               title="Add new detail for this rule"
             >
-              <PiPlus className="gba:w-3 gba:h-3" />
+              <PlusIcon className="gba:w-3 gba:h-3" />
             </Button>
             <Button
               size="sm"
@@ -258,7 +273,7 @@ const SortableColumnHeader: React.FC<{
               title={hasDetails ? 'Cannot delete rule with existing details' : 'Delete this rule'}
               disabled={hasDetails}
             >
-              <PiTrash className="gba:w-3 gba:h-3" />
+              <TrashIcon className="gba:w-3 gba:h-3" />
             </Button>
           </div>
         </div>
@@ -538,9 +553,16 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         toast.error('Detail not found')
         return Promise.resolve()
       }
-      return handleCellDelete(cell, getExpenseSettingsClientFn, cellEditing, loadData, checkDetailUsage)
+      return handleCellDelete(
+        cell,
+        getExpenseSettingsClientFn,
+        cellEditing,
+        setEditableCells,
+        setAllowanceRegionRules,
+        checkDetailUsage
+      )
     },
-    [editableCells, cellEditing, loadData, checkDetailUsage]
+    [editableCells, cellEditing, setEditableCells, setAllowanceRegionRules, checkDetailUsage]
   )
 
   // Save handlers
@@ -578,19 +600,13 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     [getExpenseSettingsClient, loadData]
   )
 
-  // Client-side pagination
+  // Client-side pagination (always applied, including during search)
   const paginatedRegions = useMemo(() => {
-    // When searching, show all results without pagination
-    if (search.state.searchTerm) {
-      return sorting.state.sortedRegions
-    }
-
-    // Otherwise, apply pagination
     const { currentPage, pageSize } = pagination.state
     const startIndex = (currentPage - 1) * pageSize
     const endIndex = startIndex + pageSize
     return sorting.state.sortedRegions.slice(startIndex, endIndex)
-  }, [sorting.state.sortedRegions, pagination.state.currentPage, pagination.state.pageSize, search.state.searchTerm])
+  }, [sorting.state.sortedRegions, pagination.state.currentPage, pagination.state.pageSize])
 
   if (isLoading) {
     return (
@@ -632,7 +648,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       <div className="gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4 gba:mb-4">
           <Button variant="ghost" onClick={onBack} data-testid={`${prefixDataTestId}-back-button`}>
-            <PiArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
+            <ArrowLeftIcon className="gba:w-4 gba:h-4 gba:mr-2" />
             Back to Travel Region Sets
           </Button>
         </div>
@@ -697,7 +713,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
           </div>
           <div className="gba:flex gba:gap-3">
             <Button onClick={handleSaveAll} disabled={isSaving} variant="default" data-testid="save-all-changes-button">
-              <PiFloppyDisk className="gba:w-4 gba:h-4 gba:mr-2" />
+              <FloppyDiskIcon className="gba:w-4 gba:h-4 gba:mr-2" />
               {isSaving ? 'Saving...' : 'Save All Changes'}
             </Button>
           </div>
@@ -728,7 +744,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
               className="gba:text-center gba:py-12 gba:bg-muted gba:rounded-lg"
               data-testid={`${prefixDataTestId}-empty-state`}
             >
-              <PiMapPin className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
+              <MapPinIcon className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
               <h4 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">No Matrix Data Available</h4>
               <p className="gba:text-muted-foreground gba:mb-4">
                 Create travel regions and allowance rules to build your matrix.
@@ -739,7 +755,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                   onClick={modals.actions.handleAddRegion}
                   data-testid={`${prefixDataTestId}-empty-state-add-region-button`}
                 >
-                  <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+                  <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                   Add Travel Region
                 </Button>
                 <Button
@@ -747,7 +763,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                   onClick={modals.actions.handleAddRule}
                   data-testid={`${prefixDataTestId}-empty-state-add-rule-button`}
                 >
-                  <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+                  <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                   Add Rule
                 </Button>
               </div>
@@ -800,7 +816,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                           title="Add New Rule"
                           data-testid={`${prefixDataTestId}-rule-header-add-button`}
                         >
-                          <PiPlus className="gba:w-4 gba:h-4" />
+                          <PlusIcon className="gba:w-4 gba:h-4" />
                         </Button>
                       </TableHead>
                     </TableRow>
@@ -817,7 +833,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                           title="Add New Travel Region"
                           data-testid={`${prefixDataTestId}-add-region-button`}
                         >
-                          <PiPlus className="gba:w-4 gba:h-4" />
+                          <PlusIcon className="gba:w-4 gba:h-4" />
                         </Button>
                       </TableCell>
                       {allowanceRegionRules.map(rule => (
@@ -917,7 +933,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       })()}
 
       {/* Pagination Controls */}
-      {!search.state.searchTerm && sorting.state.sortedRegions.length > 0 && (
+      {sorting.state.sortedRegions.length > 0 && (
         <MileageRulesPagination
           currentPage={pagination.state.currentPage}
           pageSize={pagination.state.pageSize}
@@ -932,18 +948,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
             }
           }}
         />
-      )}
-
-      {/* Search Results Info */}
-      {search.state.searchTerm && editableTravelRegions.length > 0 && (
-        <div
-          className="gba:flex gba:items-center gba:justify-center gba:mt-6 gba:px-4 gba:py-4 gba:bg-info-secondary gba:border gba:border-info gba:rounded-lg"
-          data-testid={`${prefixDataTestId}-search-results-info`}
-        >
-          <span className="gba:text-sm gba:text-foreground">
-            Showing {editableTravelRegions.length} search results for "{search.state.searchTerm}"
-          </span>
-        </div>
       )}
 
       {/* Rule Creation Modal */}
@@ -1063,10 +1067,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                   code: modals.state.selectedRuleForEdit.code,
                   name: modals.state.selectedRuleForEdit.name,
                   activeFrom: modals.state.selectedRuleForEdit.activeFrom
-                    ? dayjs(modals.state.selectedRuleForEdit.activeFrom).format('YYYY-MM-DD')
+                    ? formatDateForInput(modals.state.selectedRuleForEdit.activeFrom) || dayjs().format('YYYY-MM-DD')
                     : dayjs().format('YYYY-MM-DD'),
                   activeTo: modals.state.selectedRuleForEdit.activeTo
-                    ? dayjs(modals.state.selectedRuleForEdit.activeTo).format('YYYY-MM-DD')
+                    ? formatDateForInput(modals.state.selectedRuleForEdit.activeTo) || ''
                     : '',
                   details: []
                 }}

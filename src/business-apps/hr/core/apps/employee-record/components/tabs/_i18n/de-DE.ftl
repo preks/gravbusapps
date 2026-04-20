@@ -67,3 +67,15 @@ documents-detail-description = Beschreibung
 documents-detail-no-description = Keine Beschreibung vorhanden
 documents-detail-na = K.A.
 
+# Additional Document Strings
+documents-unknown = Unbekannt
+documents-error-load-failed = Dokumente konnten nicht geladen werden
+documents-viewer-title = Dokumentenbetrachter
+documents-expired-tooltip = Dokument ist abgelaufen
+documents-valid-tooltip = Dokument ist gültig
+documents-error-load-document = Dokument konnte nicht geladen werden
+documents-error-empty-blob = Leerer Blob erhalten
+documents-error-no-file-id = Keine Dokumentdatei-ID verfügbar
+documents-error-no-file-info = Keine Dateiinformationen verfügbar
+documents-error-image-display = Das Bild konnte nicht angezeigt werden. Es könnte in einem nicht unterstützten Format sein.
+change-entitlement = Kontingent ändern

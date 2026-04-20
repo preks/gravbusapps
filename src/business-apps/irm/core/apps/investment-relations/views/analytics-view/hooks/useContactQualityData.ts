@@ -9,8 +9,7 @@ export const useContactQualityData = (accessToken: string) => {
     () => ({
       contactEntity: 'InvestmentContact',
       contactAggregate: 'InvestmentContactAggregate',
-      accountField: 'investmentAccountContact.accountId',
-      typeField: 'type'
+      accountField: 'investmentAccountContact.accountId'
     }),
     []
   )

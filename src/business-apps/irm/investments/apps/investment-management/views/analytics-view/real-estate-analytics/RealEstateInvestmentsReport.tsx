@@ -29,6 +29,7 @@ import { WidgetGroup } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { calculateTrend } from '@/common/utils/trendUtils'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
@@ -41,19 +42,6 @@ import {
   extractCurrencyCode
 } from '@/common/utils/numberFormatter'
 import type { RealEstateInvestmentSummary } from '../shared/types'
-
-// Helper functions for investment-specific business logic
-const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
-  if (previous === 0) {
-    return { value: current > 0 ? '+100%' : '0%', positive: current > 0 }
-  }
-  const change = ((current - previous) / Math.abs(previous)) * 100
-  const formattedChange = Math.abs(change).toFixed(1)
-  return {
-    value: `${change >= 0 ? '+' : '-'}${formattedChange}%`,
-    positive: change >= 0
-  }
-}
 
 const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
   const currencyCode = extractCurrencyCode(currency)
@@ -100,10 +88,12 @@ export interface RealEstateInvestmentKPIs {
 
 interface RealEstateInvestmentsReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  isActive?: boolean
 }
 
 const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = props => {
   const prefixDataTestId = props.prefixDataTestId || 'RealEstateInvestmentsReport'
+  const isActive = props.isActive ?? true
   const [activeTab, setActiveTab] = useState('distribution')
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
@@ -124,7 +114,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
     isLoading: kpiLoading,
     error: kpiError,
     refetch: refetchKpis
-  } = useRealEstateKPIIntegration(props, selectedCurrency)
+  } = useRealEstateKPIIntegration(props, selectedCurrency, undefined, isActive)
 
   const { fetchInvestments } = useGetInvestments(props)
 
@@ -274,11 +264,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               color: 'var(--nw-color-primary-500)',
               span: { xs: 24, sm: 12, lg: 6 },
               description: 'Property count',
-              trend: {
-                value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
-                positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: 'vs last quarter'
-              }
+              trend: calculateTrend(kpis.totalInvestments, previousKpis.totalInvestments, 'vs last quarter')
             },
             {
               key: 'total-amount-invested',
@@ -289,11 +275,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
               description: 'Total capital',
-              trend: {
-                value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
-                positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: 'vs last quarter'
-              }
+              trend: calculateTrend(kpis.totalAmountInvested, previousKpis.totalAmountInvested, 'vs last quarter')
             },
             {
               key: 'total-market-value',
@@ -304,11 +286,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
               description: 'Current valuation',
-              trend: {
-                value: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).value,
-                positive: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).positive,
-                description: 'vs last quarter'
-              }
+              trend: calculateTrend(kpis.totalMarketValue, previousKpis.totalMarketValue, 'vs last quarter')
             },
             {
               key: 'average-occupancy-rate',
@@ -319,11 +297,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
               description: 'Portfolio avg',
-              trend: {
-                value: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).value,
-                positive: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).positive,
-                description: 'vs last quarter'
-              }
+              trend: calculateTrend(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate, 'vs last quarter')
             }
           ]}
           isLoading={isLoading}

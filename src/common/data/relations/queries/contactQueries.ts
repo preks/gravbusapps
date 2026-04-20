@@ -45,6 +45,8 @@ export interface ContactRelationFields {
 
 export interface CommonContactQueryVariables extends BaseQueryVariables {
   academicTitleIds?: string[]
+  departmentIds?: string[]
+  jobPositions?: string[]
   languageIds?: string[]
   ownerEmployeeIds?: string[]
   salutationIds?: string[]
@@ -141,7 +143,6 @@ export const buildContactQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.salutationRef}
-        ${entityFields.type}
         ${accountContactsRelation}
         ${additionalFields || ''}
       }
@@ -161,13 +162,15 @@ export const buildContactQuery = (
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
  * @param additionalFields - Additional domain-specific fields (addresses, leads, etc.) (optional)
+ * @param accountNestedExtras - Extra selections inside each nested `account { ... }` under accountContacts (optional)
  */
 export const buildContactByIdQuery = (
   entityName: string,
   entityFields: Record<keyof typeof ContactFields, string> = ContactFields,
   relationBuilders?: ContactRelationBuilders,
   relationFields?: ContactRelationFields,
-  additionalFields?: string
+  additionalFields?: string,
+  accountNestedExtras?: string
 ): string => {
   // Base fields inline
   const baseFields = `
@@ -197,7 +200,6 @@ export const buildContactByIdQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.salutationRef}
-        ${entityFields.type}
   `
 
   // Common entity relations
@@ -245,6 +247,7 @@ export const buildContactByIdQuery = (
         ${relationFields.accountFields.addresses}(where: { isDeleted: { _eq: false } }) {
           ${ADDRESS_REF}
         }
+        ${accountNestedExtras || ''}
       }
         accountId
         contactId

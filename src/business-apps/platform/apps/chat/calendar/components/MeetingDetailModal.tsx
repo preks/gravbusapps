@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   Button,
@@ -12,14 +13,15 @@ import {
   AvatarFallback,
   Spinner,
   Separator,
-  useLocale
+  useLocale,
+  useTranslation
 } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import 'dayjs/locale/de'
 import 'dayjs/locale/en'
 import 'dayjs/locale/ro'
-import { useChatTranslation } from '../../contexts/TranslationContext'
+import translations from '../../_i18n'
 import {
   Calendar,
   Clock,
@@ -32,10 +34,14 @@ import {
   Trash2,
   Pencil,
   Phone,
-  MessageSquare
+  MessageSquare,
+  ListTodo,
+  ExternalLink,
+  Globe
 } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import type { CalendarEvent, InvitationStatus, MeetingStatus } from '../types'
+import { CalendarEvent, InternalCalendarType, InvitationStatus, MeetingStatus } from '../types'
+import { getAgendaFromMetadata, getTotalAgendaDuration } from '../utils/agendaUtils'
 
 dayjs.extend(localizedFormat)
 
@@ -49,10 +55,11 @@ interface MeetingDetailModalProps {
   onStartCall?: () => void
   onOpenChat?: () => void
   currentUserId?: string
+  activeConversationCalls?: Map<string, any>
 }
 
-const formatDate = (date: Date): string => {
-  return date.toLocaleDateString(undefined, {
+const formatDate = (date: Date, locale?: string): string => {
+  return date.toLocaleDateString(locale, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -84,11 +91,11 @@ const getStatusBadge = (status: MeetingStatus) => {
 
 const getParticipantStatusIcon = (status?: InvitationStatus) => {
   switch (status) {
-    case 'accepted':
+    case InvitationStatus.ACCEPTED:
       return <Check className="gba:h-4 gba:w-4 gba:text-success" />
-    case 'declined':
+    case InvitationStatus.DECLINED:
       return <X className="gba:h-4 gba:w-4 gba:text-destructive" />
-    case 'tentative':
+    case InvitationStatus.TENTATIVE:
       return <HelpCircle className="gba:h-4 gba:w-4 gba:text-warning" />
     default:
       return <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
@@ -118,9 +125,10 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
   onEdit,
   onDelete,
   onStartCall,
-  onOpenChat
+  onOpenChat,
+  activeConversationCalls
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const { locale } = useLocale()
   const [responseComment, setResponseComment] = useState('')
   const [isResponding, setIsResponding] = useState(false)
@@ -130,18 +138,50 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
 
   if (!event) return null
 
+  // Check if there's an active call for this meeting
+  // If meeting is linked to a conversation, check using conversation ID
+  // Otherwise, check using meeting ID
+  const callId = event.conversationId || event.id
+  const activeCall = activeConversationCalls?.get(callId)
+  const hasActiveCall = !!activeCall
+
   const organizerName =
     event.organizer.displayName ||
     `${event.organizer.firstName || ''} ${event.organizer.lastName || ''}`.trim() ||
     event.organizer.email
 
-  const canEdit = event.isOrganizer && event.status === 'scheduled'
-  const canDelete = event.isOrganizer
-  const canRespond = !event.isOrganizer && event.status === 'scheduled'
+  const isExternal = event.source && event.source !== 'internal'
+
+  let calendarName = event.calendarName
+  if (!calendarName) {
+    if (event.source === 'microsoft') {
+      calendarName = 'Microsoft'
+    } else if (event.source === 'google') {
+      calendarName = 'Google Calendar'
+    } else {
+      calendarName = t('calendar-sidebar-myCalendar')
+    }
+  }
+
+  let calendarTypeLabel: string
+  if (isExternal) {
+    calendarTypeLabel = t('calendar-sidebar-external')
+  } else if (event.calendarType === InternalCalendarType.SPACE) {
+    calendarTypeLabel = t('calendar-sidebar-spaceCalendar')
+  } else if (event.calendarType === InternalCalendarType.SHARED) {
+    calendarTypeLabel = t('calendar-sidebar-sharedCalendar')
+  } else {
+    calendarTypeLabel = t('calendar-sidebar-myCalendar')
+  }
+  const CalendarSourceIcon = isExternal ? Globe : Calendar
+  const isInvitedParticipant = event.participantStatus !== undefined
+  const canEdit = Boolean(onEdit) && event.status === 'scheduled' && !isExternal
+  const canDelete = Boolean(onDelete) && !isExternal
+  const canRespond = isInvitedParticipant && !event.isOrganizer && event.status === 'scheduled' && !isExternal
   const canStartCall = event.meetingLink && (event.status === 'scheduled' || event.status === 'in_progress')
 
   const handleResponse = async (status: InvitationStatus) => {
-    if (status === 'declined' || status === 'tentative') {
+    if (status === InvitationStatus.DECLINED || status === InvitationStatus.TENTATIVE) {
       // Show comment input for decline/tentative
       setPendingResponse(status)
       setShowResponseInput(true)
@@ -187,6 +227,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
       <DialogContent className="gba:max-w-md">
+        <DialogDescription className="gba:sr-only">{event.title} — meeting details</DialogDescription>
         <DialogHeader className="gba:pb-2">
           <div className="gba:flex gba:items-start gba:gap-3">
             <div
@@ -195,12 +236,41 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
             />
             <div className="gba:flex-1">
               <DialogTitle className="gba:text-lg gba:mb-1">{event.title}</DialogTitle>
-              {getStatusBadge(event.status)}
+              <div className="gba:flex gba:items-center gba:gap-2">
+                {isExternal && (
+                  <Badge variant="info" className="gba:gap-1">
+                    <Globe className="gba:h-3 gba:w-3" />
+                    {event.source === 'microsoft' ? 'Microsoft' : event.source === 'google' ? 'Google' : 'External'}
+                  </Badge>
+                )}
+                {hasActiveCall && (
+                  <Badge variant="default" className="gba:bg-success gba:text-success-foreground">
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      <Phone className="gba:h-3 gba:w-3" />
+                      <span>Call in Progress</span>
+                    </div>
+                  </Badge>
+                )}
+                {getStatusBadge(event.status)}
+              </div>
             </div>
           </div>
         </DialogHeader>
 
         <div className="gba:space-y-4 gba:py-4">
+          {((event as CalendarEvent & { transcriptionEnabled?: boolean }).transcriptionEnabled === true ||
+            event.metadata?.aiTranscriptionEnabled === true) && (
+            <div className="gba:flex gba:items-center gba:gap-2" data-testid="meeting-detail-recording-notice">
+              <span
+                className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                aria-hidden
+              />
+              <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                {t('chat-call-recordingTranscriptNotice')}
+              </p>
+            </div>
+          )}
+
           {/* Date and Time */}
           <div className="gba:flex gba:items-start gba:gap-3">
             <Calendar className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
@@ -212,6 +282,17 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                 <div className="gba:text-sm gba:text-muted-foreground">
                   {formatTime(event.start, locale)} - {formatTime(event.end, locale)}
                 </div>
+              )}
+            </div>
+          </div>
+
+          <div className="gba:flex gba:items-start gba:gap-3" data-testid="meeting-detail-calendar-source">
+            <CalendarSourceIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
+            <div>
+              <div className="gba:font-medium">{t('calendar-sourceCalendar')}</div>
+              <div className="gba:text-sm gba:text-muted-foreground">{calendarName}</div>
+              {calendarTypeLabel !== calendarName && (
+                <div className="gba:text-xs gba:text-muted-foreground">{calendarTypeLabel}</div>
               )}
             </div>
           </div>
@@ -242,6 +323,85 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
               {event.description}
             </div>
           )}
+
+          {/* Agenda */}
+          {(() => {
+            const agenda = getAgendaFromMetadata(event.metadata)
+            if (agenda.length === 0) return null
+
+            const totalDuration = getTotalAgendaDuration(agenda)
+
+            // Helper to get participant name by ID
+            const getAssigneeName = (assigneeId?: string) => {
+              if (!assigneeId || !event.participants) return null
+              const participant = event.participants.find(p => p.id === assigneeId)
+              if (!participant) return null
+              return (
+                participant.displayName ||
+                `${participant.firstName || ''} ${participant.lastName || ''}`.trim() ||
+                participant.email
+              )
+            }
+
+            // Helper to get participant avatar by ID
+            const getAssigneeAvatar = (assigneeId?: string) => {
+              if (!assigneeId || !event.participants) return null
+              const participant = event.participants.find(p => p.id === assigneeId)
+              return participant?.avatarUrl
+            }
+
+            return (
+              <div className="gba:space-y-2">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <ListTodo className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
+                    <span className="gba:text-sm gba:font-medium">{t('calendar-agenda')}</span>
+                  </div>
+                  {totalDuration > 0 && (
+                    <span className="gba:text-xs gba:text-muted-foreground">
+                      {t('calendar-agendaTotalDuration', { minutes: totalDuration })}
+                    </span>
+                  )}
+                </div>
+                <div className="gba:space-y-1.5 gba:pl-7">
+                  {agenda.map((item, index) => {
+                    const assigneeName = getAssigneeName(item.assigneeId)
+                    const assigneeAvatar = getAssigneeAvatar(item.assigneeId)
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="gba:flex gba:items-center gba:gap-2 gba:py-1.5 gba:px-2 gba:rounded-md gba:bg-muted/30"
+                      >
+                        <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:min-w-[20px]">
+                          {index + 1}.
+                        </span>
+                        <div className="gba:flex-1 gba:min-w-0">
+                          <div className="gba:text-sm gba:font-medium gba:truncate">{item.title}</div>
+                          {item.description && (
+                            <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{item.description}</div>
+                          )}
+                        </div>
+                        {item.duration && (
+                          <Badge variant="outline" className="gba:text-[10px] gba:shrink-0">
+                            {item.duration} min
+                          </Badge>
+                        )}
+                        {assigneeName && (
+                          <div className="gba:flex gba:items-center gba:gap-1 gba:shrink-0">
+                            <Avatar className="gba:h-5 gba:w-5">
+                              {assigneeAvatar && <AvatarImage src={assigneeAvatar} alt={assigneeName} />}
+                              <AvatarFallback className="gba:text-[8px]">{getInitials(assigneeName)}</AvatarFallback>
+                            </Avatar>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
 
           <Separator />
 
@@ -347,7 +507,9 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
           {showResponseInput && (
             <div className="gba:space-y-3 gba:p-3 gba:border gba:border-border gba:rounded-lg">
               <div className="gba:text-sm gba:font-medium">
-                {pendingResponse === 'declined' ? t('calendar-declineMeeting') : t('calendar-markTentative')}
+                {pendingResponse === InvitationStatus.DECLINED
+                  ? t('calendar-declineMeeting')
+                  : t('calendar-markTentative')}
               </div>
               <Textarea
                 value={responseComment}
@@ -361,7 +523,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                 </Button>
                 <Button
                   size="sm"
-                  variant={pendingResponse === 'declined' ? 'destructive' : 'default'}
+                  variant={pendingResponse === InvitationStatus.DECLINED ? 'destructive' : 'default'}
                   onClick={() => submitResponse(pendingResponse!, responseComment)}
                   disabled={isResponding}
                 >
@@ -378,27 +540,27 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
           {canRespond && !showResponseInput && (
             <div className="gba:flex gba:gap-2">
               <Button
-                variant={event.participantStatus === 'accepted' ? 'default' : 'outline'}
+                variant={event.participantStatus === InvitationStatus.ACCEPTED ? 'default' : 'outline'}
                 className="gba:flex-1"
-                onClick={() => handleResponse('accepted')}
+                onClick={() => handleResponse(InvitationStatus.ACCEPTED)}
                 disabled={isResponding}
               >
                 <Check className="gba:h-4 gba:w-4 gba:mr-1" />
                 {t('calendar-accept')}
               </Button>
               <Button
-                variant={event.participantStatus === 'tentative' ? 'default' : 'outline'}
+                variant={event.participantStatus === InvitationStatus.TENTATIVE ? 'default' : 'outline'}
                 className="gba:flex-1"
-                onClick={() => handleResponse('tentative')}
+                onClick={() => handleResponse(InvitationStatus.TENTATIVE)}
                 disabled={isResponding}
               >
                 <HelpCircle className="gba:h-4 gba:w-4 gba:mr-1" />
                 {t('calendar-maybe')}
               </Button>
               <Button
-                variant={event.participantStatus === 'declined' ? 'destructive' : 'outline'}
+                variant={event.participantStatus === InvitationStatus.DECLINED ? 'destructive' : 'outline'}
                 className="gba:flex-1"
-                onClick={() => handleResponse('declined')}
+                onClick={() => handleResponse(InvitationStatus.DECLINED)}
                 disabled={isResponding}
               >
                 <X className="gba:h-4 gba:w-4 gba:mr-1" />
@@ -411,21 +573,33 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
           <div className="gba:flex gba:gap-2">
             {/* Start call button */}
             {canStartCall && onStartCall && (
-              <Button onClick={onStartCall} className="gba:flex-1">
+              <Button onClick={onStartCall} className="gba:flex-1" variant={hasActiveCall ? 'default' : 'default'}>
                 <Phone className="gba:h-4 gba:w-4 gba:mr-1" />
-                {t('calendar-joinCall')}
+                {hasActiveCall ? t('calendar-joinMeeting') : t('calendar-startMeeting')}
               </Button>
             )}
 
-            {/* Open chat button */}
-            {event.conversationId && onOpenChat && (
+            {/* Open chat button - show for internal meetings when handler is provided (conversationId or meeting id) */}
+            {onOpenChat && (event.conversationId || (event.id && !isExternal)) && (
               <Button variant="outline" onClick={onOpenChat}>
                 <MessageSquare className="gba:h-4 gba:w-4 gba:mr-1" />
                 {t('calendar-chat')}
               </Button>
             )}
 
-            {/* Edit button (organizer only) */}
+            {/* Open in provider button (external events) */}
+            {isExternal && event.externalLink && (
+              <Button
+                variant="outline"
+                onClick={() => window.open(event.externalLink, '_blank', 'noopener,noreferrer')}
+              >
+                <ExternalLink className="gba:h-4 gba:w-4 gba:mr-1" />
+                Open in{' '}
+                {event.source === 'microsoft' ? 'Outlook' : event.source === 'google' ? 'Google Calendar' : 'Calendar'}
+              </Button>
+            )}
+
+            {/* Edit button (organizer only, internal events) */}
             {canEdit && onEdit && (
               <Button variant="outline" onClick={onEdit}>
                 <Pencil className="gba:h-4 gba:w-4 gba:mr-1" />

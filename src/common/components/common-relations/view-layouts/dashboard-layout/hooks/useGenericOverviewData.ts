@@ -87,6 +87,8 @@ export const useGenericOverviewData = (
 
   // Use shared hooks with config parameters extracted from comprehensive config
   const pipelineRefs = pipelines.map(p => p.ref)
+  const funnelConfig = config.aggregatedFunnel
+
   const {
     aggregatedFunnel: sharedAggregatedFunnel,
     availableCurrencies: sharedAvailableCurrencies,
@@ -95,9 +97,9 @@ export const useGenericOverviewData = (
     accessToken,
     pipelineRefs,
     selectedCurrency,
-    currentYear: null, // null = no year filter, show all opportunities
+    currentYear: null,
     enabled: shouldFetch,
-    config: config.aggregatedFunnel
+    config: funnelConfig
   })
 
   const { leadSources: sharedLeadSources, totalLeadCount: sharedTotalLeadCount } = useLeadSourceData({

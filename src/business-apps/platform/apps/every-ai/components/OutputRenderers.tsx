@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Button, useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { CheckCircleIcon, CopyIcon } from '@phosphor-icons/react'
 import { ThumbsUp, ThumbsDown } from 'lucide-react'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
@@ -13,9 +14,13 @@ import type {
   ScatterGraphData,
   CalendarViewData,
   EntityData,
-  FlowProposalOutput
+  FlowProposalOutput,
+  ConversationTurn,
+  DocumentStreamChunkOutput,
+  DocumentStreamCompleteOutput,
+  DocumentStreamErrorOutput,
+  DocumentStreamStartOutput
 } from '../types/models'
-import type { ConversationTurn } from '../types/models'
 import DynamicFormDisplay from './DynamicFormDisplay'
 // Standardized entity card
 import GenericEntityDisplay from './entities/GenericEntityDisplay'
@@ -23,6 +28,24 @@ import WorkflowDisplay from './entities/WorkflowDisplay'
 import { MarkdownWithChipsRenderer, UnifiedTableRenderer } from '@/common/components/markdown'
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
+import { RemoteFormDisplay } from './displays/RemoteFormDisplay'
+import { CrmFunnelDisplay } from './displays/crm-funnel'
+import { AssetSummaryDisplay } from './displays/asset-summary'
+import { TeamAvailabilityDisplay } from './displays/team-availability'
+import { FlowbotCalendarDisplay } from './displays/calendar/FlowbotCalendarDisplay'
+import { ChatSnippetDisplay } from './displays/ChatSnippetDisplay'
+import {
+  AreaChartDisplay,
+  GanttDisplay,
+  HeatmapDisplay,
+  KanbanBoardDisplay,
+  LineChartDisplay,
+  MetricCardsDisplay,
+  PieChartDisplay,
+  StackedBarChartDisplay,
+  TimelineDisplay,
+  TreemapDisplay
+} from './displays/visual-elements'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface FlowProposalBoundaryProps {
@@ -138,6 +161,8 @@ class FlowProposalBoundary extends React.Component<FlowProposalBoundaryProps, Fl
 
 // Premium Loading Display with AI animation
 export const LoadingDisplay: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <div
       className="gba:flex gba:items-center gba:justify-between gba:gap-4 gba:p-6 gba:rounded-2xl gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:border gba:border-border"
@@ -155,7 +180,7 @@ export const LoadingDisplay: React.FC<{ onCancel?: () => void }> = ({ onCancel }
         />
       </div>
       <span className="gba:text-sm gba:text-muted-foreground gba:font-medium gba:animate-pulse">
-        EveryAI is thinking...
+        {t('everyai-thinking')}
       </span>
       {onCancel && (
         <button
@@ -223,27 +248,29 @@ export const ToolOutput: React.FC<{ name: string; reason?: string }> = ({ name, 
   const displayText = reason || formatToolName(name)
 
   return (
-    <div
-      className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:rounded-xl gba:text-sm gba:border gba:border-border/50"
-      data-testid="tool-output"
-    >
-      <div className="gba:h-6 gba:w-6 gba:rounded-full gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:flex gba:items-center gba:justify-center gba:shadow-md">
-        <svg
-          className="gba:h-3.5 gba:w-3.5 gba:text-ai-foreground"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2.5}
-            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-          />
-        </svg>
-      </div>
-      <span className="gba:text-muted-foreground gba:font-medium gba:italic">{displayText}</span>
+    <div className="gba:text-xs gba:text-muted-foreground gba:font-medium gba:italic" data-testid="tool-output">
+      {displayText}
     </div>
+  )
+}
+
+export const DocumentStreamStartDisplay: React.FC<{ data: DocumentStreamStartOutput }> = () => null
+
+export const DocumentStreamChunkDisplay: React.FC<{ data: DocumentStreamChunkOutput; accessToken: string }> = () => null
+
+export const DocumentStreamCompleteDisplay: React.FC<{ data: DocumentStreamCompleteOutput }> = () => null
+
+export const DocumentStreamErrorDisplay: React.FC<{ data: DocumentStreamErrorOutput }> = ({ data }) => {
+  return (
+    <Card
+      className="gba:border gba:border-destructive/40 gba:bg-destructive-secondary/20"
+      data-testid="document-stream-error"
+    >
+      <CardContent className="gba:p-4">
+        <div className="gba:text-sm gba:font-semibold gba:text-destructive gba:mb-1">Document stream failed</div>
+        <div className="gba:text-sm gba:text-foreground">{data.message}</div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -349,10 +376,12 @@ function renderEntity(item: EntityData, accessToken: string) {
           accessToken={accessToken}
           operation={item.operation}
           flowProposal={item.flow_proposal}
+          textTitle={item.text_title}
+          tool={item.tool}
+          link={item.link}
         />
       )
     default: {
-      // Standard generic display for all other entity types
       return (
         <GenericEntityDisplay
           key={item.id}
@@ -362,6 +391,8 @@ function renderEntity(item: EntityData, accessToken: string) {
           operation={item.operation}
           textHuman={item.text_human}
           textTitle={item.text_title}
+          link={item.link}
+          variant="decorative"
         />
       )
     }
@@ -672,32 +703,7 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
 
 // Calendar Display
 export const CalendarDisplay: React.FC<{ data: CalendarViewData }> = ({ data }) => {
-  return (
-    <Card data-testid="calendar-display">
-      {data.title && (
-        <CardHeader>
-          <CardTitle className="gba:text-base">{data.title}</CardTitle>
-          {data.description && <p className="gba:text-sm gba:text-muted-foreground">{data.description}</p>}
-        </CardHeader>
-      )}
-      <CardContent>
-        <div className="gba:space-y-2">
-          <p className="gba:text-sm gba:text-muted-foreground">
-            View: {data.view} | Start: {data.startDate}
-          </p>
-          <div className="gba:space-y-1">
-            {data.events.map(event => (
-              <div key={event.id} className="gba:p-2 gba:bg-muted gba:rounded gba:text-sm">
-                <p className="gba:font-medium">{event.label || event.id}</p>
-                <p className="gba:text-xs gba:text-muted-foreground">{event.date}</p>
-                {event.tooltip && <p className="gba:text-xs">{event.tooltip}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
+  return <FlowbotCalendarDisplay data={data} />
 }
 
 // Premium File Display with prominent download button
@@ -796,16 +802,44 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
       return <ScatterGraphDisplay key={idx} data={item} />
     case 'calendar':
       return <CalendarDisplay key={idx} data={item} />
+    case 'crmFunnel':
+      return <CrmFunnelDisplay key={idx} data={item} />
+    case 'assetSummary':
+      return <AssetSummaryDisplay key={idx} data={item} />
+    case 'teamAvailability':
+      return <TeamAvailabilityDisplay key={idx} data={item} />
     case 'navigation':
       return <NavigationDisplay key={idx} data={item} />
     case 'entity':
       return renderEntity(item, accessToken)
     case 'file':
       return <FileDisplay key={idx} data={item} />
+    case 'chat_reference':
+      return <ChatSnippetDisplay key={idx} data={item} />
     case 'reminder':
       // ReminderData is already handled via EntityData with entity: 'reminder'
       // Skip rendering to avoid duplicates
       return null
+    case 'lineChart':
+      return <LineChartDisplay key={idx} data={item} />
+    case 'areaChart':
+      return <AreaChartDisplay key={idx} data={item} />
+    case 'stackedBarChart':
+      return <StackedBarChartDisplay key={idx} data={item} />
+    case 'pieChart':
+      return <PieChartDisplay key={idx} data={item} />
+    case 'metricCards':
+      return <MetricCardsDisplay key={idx} data={item} />
+    case 'heatmap':
+      return <HeatmapDisplay key={idx} data={item} />
+    case 'timeline':
+      return <TimelineDisplay key={idx} data={item} />
+    case 'gantt':
+      return <GanttDisplay key={idx} data={item} />
+    case 'treemap':
+      return <TreemapDisplay key={idx} data={item} />
+    case 'kanbanBoard':
+      return <KanbanBoardDisplay key={idx} data={item} />
     default:
       return null
   }
@@ -1016,6 +1050,7 @@ export const OutputItemRenderer: React.FC<{
   sessionId?: string
   onCancelGeneration?: () => void
   isAgentGenerating?: boolean
+  userInfo?: any
 }> = ({
   item,
   accessToken,
@@ -1024,13 +1059,22 @@ export const OutputItemRenderer: React.FC<{
   isVoiceMode = false,
   sessionId,
   onCancelGeneration,
-  isAgentGenerating
+  isAgentGenerating,
+  userInfo
 }) => {
   switch (item.type) {
     case 'answer':
       return <AnswerOutputRenderer data={item} accessToken={accessToken} sessionId={sessionId} />
     case 'tool':
       return <ToolOutput name={item.name} reason={item.reason} />
+    case 'document_stream_start':
+      return <DocumentStreamStartDisplay data={item} />
+    case 'document_stream_chunk':
+      return <DocumentStreamChunkDisplay data={item} accessToken={accessToken} />
+    case 'document_stream_complete':
+      return <DocumentStreamCompleteDisplay data={item} />
+    case 'document_stream_error':
+      return <DocumentStreamErrorDisplay data={item} />
     case 'loading':
       return <LoadingDisplay onCancel={onCancelGeneration} />
     case 'error':
@@ -1043,6 +1087,107 @@ export const OutputItemRenderer: React.FC<{
           </Card>
         )
       }
+
+      // Check if this is a content_entry flow proposal - show RemoteFormDisplay instead
+      const isContentEntryFlow =
+        item.flow_name?.toLowerCase().includes('content') ||
+        item.module_name?.toLowerCase().includes('content') ||
+        item.flow_name === 'createContentEntry' ||
+        item.flow_name === 'saveContentEntry' ||
+        item.flow_name === 'frm_createContentEntry'
+
+      if (isContentEntryFlow) {
+        // Extract and transform flow proposal data for the form
+        const flowData = item.arguments?.flow || {}
+        const taskData = item.arguments?.task || {}
+        const flowContentEntry =
+          typeof flowData.contentEntry === 'object' && flowData.contentEntry ? flowData.contentEntry : null
+        const taskContentEntry =
+          typeof taskData.contentEntry === 'object' && taskData.contentEntry ? taskData.contentEntry : null
+        const flowRootContent =
+          flowData &&
+          (flowData.title ||
+            flowData.preview ||
+            flowData.previewText ||
+            flowData.content ||
+            flowData.contentGroup ||
+            flowData.contentTypeId ||
+            flowData.role)
+            ? flowData
+            : null
+        const taskRootContent =
+          taskData &&
+          (taskData.title ||
+            taskData.preview ||
+            taskData.previewText ||
+            taskData.content ||
+            taskData.contentGroup ||
+            taskData.contentTypeId ||
+            taskData.role)
+            ? taskData
+            : null
+
+        const contentEntryData = flowContentEntry || taskContentEntry || flowRootContent || taskRootContent || {}
+
+        // Transform the data structure to match what the form component expects
+        // The form component likely reads from additionalData and expects fields at top level
+        // or nested under contentEntry. We provide both for maximum compatibility.
+        // IMPORTANT: Avoid circular references by creating fresh objects instead of spreading nested structures
+
+        // Create a clean contentEntry object without circular references
+        // Use nullish coalescing to preserve empty strings but default to empty string if undefined
+        const cleanContentEntry = {
+          title: contentEntryData.title ?? '',
+          preview: contentEntryData.preview ?? '',
+          previewText: contentEntryData.preview ?? '', // Some forms use previewText instead of preview
+          content: contentEntryData.content ?? '',
+          role: contentEntryData.role ?? '',
+          contentGroup: contentEntryData.contentGroup ?? '',
+          contentTypeId:
+            contentEntryData.contentTypeId ?? contentEntryData.contentType ?? contentEntryData.contentTypeName ?? '',
+          creatorEmployee: contentEntryData.creatorEmployee ?? ''
+        }
+
+        const formData = {
+          // Primary format: Flattened fields at top level (form fields can access directly)
+          ...cleanContentEntry,
+          changeMode: flowData.changeMode || 'INSERT',
+
+          // Nested format: Under contentEntry (for components expecting nested structure)
+          contentEntry: cleanContentEntry,
+
+          // Flow structure: Keep original flow structure (avoid circular reference)
+          flow: {
+            changeMode: flowData.changeMode || 'INSERT',
+            contentEntry: cleanContentEntry
+            // Don't spread flowData here to avoid circular reference
+          },
+
+          // Include flow proposal metadata
+          flowProposal: {
+            uuid: item.uuid,
+            flow_name: item.flow_name,
+            module_name: item.module_name,
+            operation: item.operation
+          }
+        }
+
+        return (
+          <RemoteFormDisplay
+            screenKey="frm_createContentEntry"
+            accessToken={accessToken}
+            userInfo={userInfo}
+            formData={formData}
+            onClose={() => {}}
+            sendMessage={sendMessage}
+            flowName={item.flow_name}
+            moduleName={item.module_name}
+            flowUuid={item.uuid}
+          />
+        )
+      }
+
+      // For other flow proposals, use the default DynamicFormDisplay
       return (
         <FlowProposalBoundary data={item} sendMessage={sendMessage}>
           <DynamicFormDisplay

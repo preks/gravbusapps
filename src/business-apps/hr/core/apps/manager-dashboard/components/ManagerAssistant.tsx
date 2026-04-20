@@ -2,11 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, Button, Input } from '@newwork/nw-design-system'
-import {
-  PiPaperPlaneRight,
-  PiX,
-  PiStar as PiSparkle // Using PiStar as replacement for PiSparkle
-} from 'react-icons/pi'
+import { PaperPlaneRightIcon, XIcon, StarIcon } from '@phosphor-icons/react'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { UserInfo } from '../types/employee.types'
 
 // AI suggestions - keeping existing predefined prompts
@@ -89,18 +86,19 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
       const form = new FormData()
       form.append('session_id', sessionId) // use existing session or empty for new
       form.append('user_input_text', userMessage)
-      form.append('llm_model', 'gpt-4.1') // Use the correct model version
+      form.append('model_kind', 'default')
       form.append('use_web_search_tool', 'false')
 
       // Add current page context - use correct structure for manager dashboard
       const pageContext = {
         type: 'overview',
-        url: window.location.href,
+        url: globalThis.location.href,
         entity_name: 'employee'
       }
       form.append('current_page_context', JSON.stringify(pageContext))
 
-      const response = await fetch('/flowbot/api/agent/v2/chat', {
+      const flowbotBaseUrl = resolveFlowbotBaseUrl()
+      const response = await fetch(`${flowbotBaseUrl}/flowbot/api/agent/v2/chat`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -237,7 +235,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
       <div className="gba:flex gba:items-start gba:max-w-[85%]">
         <div className="gba:mr-2 gba:mt-1">
           <div className="gba:h-6 gba:w-6 gba:bg-primary-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center">
-            <PiSparkle className="gba:h-3 gba:w-3 gba:text-primary" />
+            <StarIcon className="gba:h-3 gba:w-3 gba:text-primary" />
           </div>
         </div>
         <div className="gba:bg-muted gba:rounded-lg gba:p-3 gba:border gba:border-border">
@@ -268,7 +266,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
       <div className="gba:flex gba:items-start">
         <div className="gba:mr-2 gba:mt-1">
           <div className="gba:h-6 gba:w-6 gba:bg-primary-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center">
-            <PiSparkle className="gba:h-3 gba:w-3 gba:text-primary" />
+            <StarIcon className="gba:h-3 gba:w-3 gba:text-primary" />
           </div>
         </div>
         <div className="gba:bg-muted gba:rounded-lg gba:p-3 gba:border gba:border-border">
@@ -288,7 +286,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <div className="gba:flex gba:items-center">
             <div className="gba:h-6 gba:w-6 gba:bg-primary-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center gba:mr-2">
-              <PiSparkle className="gba:h-3 gba:w-3 gba:text-primary" />
+              <StarIcon className="gba:h-3 gba:w-3 gba:text-primary" />
             </div>
             <div>
               <h3 className="gba:text-sm gba:font-medium gba:text-foreground">Manager Assistant</h3>
@@ -301,7 +299,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
               onClick={clearConversation}
               data-testid="manager-dashboard-ai-clear-button"
             >
-              <PiX size={14} />
+              <XIcon size={14} />
             </button>
           )}
         </div>
@@ -339,7 +337,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
             disabled={isLoading}
             data-testid="manager-dashboard-ai-submit-button"
           >
-            {isLoading ? '...' : <PiPaperPlaneRight size={14} />}
+            {isLoading ? '...' : <PaperPlaneRightIcon size={14} />}
           </Button>
         </form>
 

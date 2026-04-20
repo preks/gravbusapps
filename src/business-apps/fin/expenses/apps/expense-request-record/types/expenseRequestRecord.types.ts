@@ -7,20 +7,37 @@ export interface ExpenseRequestRecordProps {
   code?: string
 }
 
+export interface ExpensePosition {
+  positionOrder: number
+  totalAmount: number
+  reimbursableAmount: number
+  nonReimbursableAmount: number
+  deductibleAmount: number
+  nonDeductibleAmount: number
+  expenseGroup: {
+    value: string
+    translations?: Array<{
+      localeCode: string
+      value: string
+    }>
+  }
+  costCenter?: {
+    name: string
+  }
+}
+
 export interface ExpenseRequestItem {
+  id: string
   code: string | null
   title: string
+  status: string
   expenseGroup: {
     value: string
   }
   expenseClass: {
     value: string
   }
-  expensePosition: Array<{
-    expenseGroup: {
-      value: string
-    }
-  }>
+  expensePosition: ExpensePosition[]
   currency: {
     code: string
   }
@@ -124,11 +141,16 @@ export interface ExpenseRequestRecord {
   }
   status: string
   employee: {
+    id: string
     fullName: string
+    firstName?: string
+    lastName?: string
     pictureThumbnail?: string
     employeePosition?: {
       supervisor?: {
         fullName: string
+        firstName?: string
+        lastName?: string
       }
     }
   }
@@ -138,6 +160,12 @@ export interface ExpenseRequestRecord {
   nonReimbursableAmount: number
   deductibleAmount: number
   nonDeductibleAmount: number
+  employeeDocument?: {
+    id: string
+    file: string
+    name?: string
+    mimeType?: string
+  }
   expenseRequest: any[]
   expenseRequestComment: ExpenseRequestComment[]
   expenseRequestItem: ExpenseRequestItem[]

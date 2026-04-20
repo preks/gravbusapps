@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { useInvestments } from '@/common/data/investment/hooks/useInvestments.new'
+import { useInvestments, type InvestmentListAggregates } from '@/common/data/investment/hooks/useInvestments.new'
 import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries.new'
 import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
 
@@ -12,6 +12,7 @@ export interface UseEquitySectionStateReturn {
   // Data
   investments: Investment[]
   totalCount: number
+  listAggregates: InvestmentListAggregates
   loading: boolean
   error: string | null
   refetch: () => Promise<void>
@@ -63,6 +64,13 @@ export const useEquitySectionState = ({
 
   // Query variables
   const queryVariables: InvestmentQueryVariables = useMemo(() => {
+    // Remove investment type filters from selectedFilters to avoid conflicts
+    const otherFilters = Object.fromEntries(
+      Object.entries(selectedFilters).filter(
+        ([key]) => !['realEstateInvestment', 'liquidFundInvestment', 'equityInvestment'].includes(key)
+      )
+    )
+
     return {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
@@ -70,9 +78,10 @@ export const useEquitySectionState = ({
       orderBy: sortField
         ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
         : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-      // Default filter for equity investments
-      equityInvestment: { id: { _isNull: false } },
-      ...selectedFilters
+      ...otherFilters,
+      // Always enforce equity investment filter for this tab
+      // Check that at least one related record exists (Hasura array relationship filter)
+      equityInvestment: { id: { _isNull: false } }
     }
   }, [currentPage, pageSize, search, sortField, sortOrder, selectedFilters])
 
@@ -80,6 +89,7 @@ export const useEquitySectionState = ({
   const {
     investments,
     total: totalCount,
+    listAggregates,
     loading,
     error,
     refetch
@@ -130,6 +140,7 @@ export const useEquitySectionState = ({
   return {
     investments,
     totalCount,
+    listAggregates,
     loading,
     error,
     refetch,

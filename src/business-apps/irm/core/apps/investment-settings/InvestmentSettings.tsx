@@ -12,13 +12,15 @@ import {
 } from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import LeadDataPage from './pages/lead-data/LeadDataPage'
 import ActivityDataPage from './pages/activity-data/ActivityDataPage'
 import OpportunityDataPage from './pages/opportunity-data/OpportunityDataPage'
 import AccountDataPage from './pages/account-data/AccountDataPage'
 import InvestmentDataPage from './pages/investment-data/InvestmentDataPage'
+import InvestmentGroupsTypesPage from './pages/investment-groups-types/InvestmentGroupsTypesPage'
+import InvestmentLiquidFundTypesPage from './pages/investment-liquid-fund-types/InvestmentLiquidFundTypesPage'
 import InvestmentSpecificDataPage from './pages/investment-specific-data/InvestmentSpecificDataPage'
-import TemplateDataPage from './pages/template-data/TemplateDataPage'
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
 import DocumentDataPage from './pages/document-data/DocumentDataPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
@@ -67,40 +69,61 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     }
   }, [])
 
-  // Update URL when inline page changes
+  // Navigate to child page (forward) or back to settings home
   const handleInlinePageChange = (page: { key: string; tab?: string } | null) => {
+    if (page === null) {
+      // Going back to settings home - use replaceState to avoid creating new history entry
+      setInlinePage(null)
+      const settingsUrl = globalThis.location.pathname
+      globalThis.history.replaceState({}, '', settingsUrl)
+      return
+    }
+
+    // Going forward to child page - create new history entry
     setInlinePage(page)
 
     const newSearchParams = new URLSearchParams(globalThis.location.search)
-
-    if (page) {
-      newSearchParams.set('page', page.key)
-      if (page.tab) {
-        newSearchParams.set('tab', page.tab)
-      } else {
-        newSearchParams.delete('tab')
-      }
+    newSearchParams.set('page', page.key)
+    if (page.tab) {
+      newSearchParams.set('tab', page.tab)
     } else {
-      newSearchParams.delete('page')
       newSearchParams.delete('tab')
     }
 
-    // Update URL without page reload
-    const newURL = `${globalThis.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`
-    globalThis.history.replaceState({}, '', newURL)
+    const newURL = `${globalThis.location.pathname}?${newSearchParams.toString()}`
+    globalThis.history.pushState({}, '', newURL)
   }
 
   const cards = [
     {
-      title: t('crm.investment_data', 'Investment Data'),
-      description: t('crm.investment_data_description', 'Configure investment form and record fields'),
+      title: t('crm.investment_structure', 'Investment Structure'),
+      description: t(
+        'crm.investment_structure_description',
+        'Manage investment groups, types, and field configuration'
+      ),
       icon: DatabaseIcon,
       iconSize: 'md' as const,
       entries: [
         {
-          label: t('crm.investment_configuration', 'Investment Configuration'),
-          onClick: () => handleInlinePageChange({ key: 'investment-data' })
+          label: t('crm.investment_groups_and_types', 'Groups & Types'),
+          onClick: () => handleInlinePageChange({ key: 'investment-groups-types' })
         },
+        {
+          label: t('crm.investment_liquid_fund_types', 'Liquid Fund Types'),
+          onClick: () => handleInlinePageChange({ key: 'investment-liquid-fund-types' })
+        },
+        {
+          label: t('crm.investment_configuration', 'Field Configuration'),
+          onClick: () => handleInlinePageChange({ key: 'investment-data' })
+        }
+      ]
+    },
+    {
+      title: t('crm.investment_reference_data', 'Investment Reference Data'),
+      description: t('crm.investment_reference_data_description', 'Manage investment roles, statuses, and stake types'),
+      icon: TrendUpIcon,
+      iconSize: 'md' as const,
+      entries: [
         {
           label: t('crm.investment_roles', 'Roles'),
           onClick: () => handleInlinePageChange({ key: 'investment-specific-data', tab: 'roles' })
@@ -117,14 +140,10 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     },
     {
       title: t('crm.templates', 'Templates'),
-      description: t('crm.templates_description', 'Manage document and task templates for investments'),
+      description: t('crm.templates_description', 'Manage folder and task templates for investments'),
       icon: FileHtmlIcon,
       iconSize: 'md' as const,
       entries: [
-        {
-          label: t('crm.document_templates', 'Document Templates'),
-          onClick: () => handleInlinePageChange({ key: 'template-data' })
-        },
         {
           label: t('crm.folder_templates', 'Folder Templates'),
           onClick: () => handleInlinePageChange({ key: 'folder-templates' })
@@ -164,6 +183,10 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
         {
           label: t('crm.opportunity_forecasts', 'Forecasts'),
           onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'forecasts' })
+        },
+        {
+          label: t('crm.pipeline_stage_types', 'Stage Types'),
+          onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'stage-types' })
         }
       ]
     },
@@ -225,6 +248,26 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     }
   ]
 
+  if (inlinePage?.key === 'investment-groups-types') {
+    return (
+      <InvestmentGroupsTypesPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentGroupsTypesSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'investment-liquid-fund-types') {
+    return (
+      <InvestmentLiquidFundTypesPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentLiquidFundTypesSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
   if (inlinePage?.key === 'investment-data') {
     return (
       <InvestmentDataPage
@@ -243,16 +286,6 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
         prefixDataTestId={`${prefixDataTestId || ''}-InvestmentSpecificSettings`}
         onBack={() => handleInlinePageChange(null)}
         initialTab={initialTab || 'roles'}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'template-data') {
-    return (
-      <TemplateDataPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentTemplateSettings`}
-        onBack={() => handleInlinePageChange(null)}
       />
     )
   }
@@ -291,7 +324,7 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
   }
 
   if (inlinePage?.key === 'opportunity-data') {
-    const initialTab = inlinePage.tab as 'pipelines' | 'statuses' | 'forecasts' | undefined
+    const initialTab = inlinePage.tab as 'pipelines' | 'statuses' | 'forecasts' | 'stage-types' | undefined
     return (
       <OpportunityDataPage
         {...context}
@@ -344,10 +377,15 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
         label: 'Investment Settings'
       }}
       headerLabel={t('crm.investment_settings', 'Investment Settings')}
+      headerDescription={t(
+        'crm.investment_settings_description',
+        'Configure and manage all investment relations management settings'
+      )}
       cards={cards}
       className={className}
       prefixDataTestId={prefixDataTestId}
       searchPlaceholder={t('common.search_placeholder', 'Search settings...')}
+      onBack={() => navigateTo('/platform/use')}
     />
   )
 }

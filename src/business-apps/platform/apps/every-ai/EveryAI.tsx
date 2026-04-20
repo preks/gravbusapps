@@ -9,12 +9,21 @@ import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { ConversationRenderer } from './components/ConversationRenderer'
 import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
 import { VoiceOverlay } from './components/voice/VoiceOverlay'
-import { Sparkle } from '@phosphor-icons/react'
+import { ChatHistory } from './components/ChatHistory'
 import type { OutputItem, AnswerOutput, NavigationData } from './types/models'
 import { VoiceFormProvider, useVoiceForm } from './context/VoiceFormContext'
+import { FlowProposalFileUploadProvider } from './context/FlowProposalFileUploadContext'
+import { HeroSection, DeepBlueNeuralBackground } from './components/HeroSection'
+import { ChatsCircle } from '@phosphor-icons/react'
+import { Button } from '@newwork/nw-design-system'
+import { UserPreferencesProvider, useUserPreferencesContext } from './context/UserPreferencesContext'
+import { UserPreferences } from './components/UserPreferences'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
+  isActive?: boolean
+  /** When true (e.g. in sidebar), show fewer suggestions so they fit in one row */
+  compactSuggestions?: boolean
 }
 
 /**
@@ -24,9 +33,11 @@ export interface EveryAIProps extends BusinessAppContextProps {
  */
 export const EveryAI: React.FC<EveryAIProps> = props => {
   return (
-    <VoiceFormProvider>
-      <EveryAIInner {...props} />
-    </VoiceFormProvider>
+    <UserPreferencesProvider accessToken={props.accessToken}>
+      <VoiceFormProvider>
+        <EveryAIInner {...props} />
+      </VoiceFormProvider>
+    </UserPreferencesProvider>
   )
 }
 
@@ -34,15 +45,19 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
  * Inner component that uses the VoiceFormContext
  */
 const EveryAIInner: React.FC<EveryAIProps> = props => {
-  const { accessToken, className, userInfo } = props
+  const { accessToken, className, userInfo, isActive = true, compactSuggestions = false } = props
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isSpeechMode, setIsSpeechMode] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const isSpeechModeRef = useRef(false) // Ref for use in callbacks
   const lastSpokenTurnIndexRef = useRef<number>(-1)
   const lastNavigatedTurnIndexRef = useRef<number>(-1)
 
   // Voice form context for form interactions in voice mode
   const voiceForm = useVoiceForm()
+
+  // User preferences context for personalization
+  const userPreferences = useUserPreferencesContext()
 
   const {
     conversation,
@@ -54,10 +69,12 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     isPrechatLoading,
     sessionId,
     attachFiles,
+    attachFilesForFlowProposalField,
     cancelGeneration,
     cancelledMessageText,
-    clearCancelledMessage
-  } = useFlowBot(accessToken)
+    clearCancelledMessage,
+    loadSession
+  } = useFlowBot(accessToken, { isActive })
 
   // Fetch current user's picture
   const { pictureThumbnail } = useCurrentUserPicture(userInfo?.employeeDetails?.employeeId, accessToken)
@@ -90,16 +107,12 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     speed: 1.0,
     accessToken,
     onStart: () => {
-      // STOP listening when AI starts speaking to prevent feedback loop
-      console.log('🔇 [Voice] AI speaking started - stopping mic')
       voiceInput.cancelListening()
     },
     onEnd: () => {
       // Record when AI stopped speaking (for echo filtering)
       aiStoppedSpeakingAtRef.current = Date.now()
-      // Auto-restart listening IMMEDIATELY
       if (isSpeechModeRef.current) {
-        console.log('🎤 [Voice] AI finished speaking - restarting listening immediately')
         voiceInput.startListening()
       }
     }
@@ -108,9 +121,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   // Stop AI speech when user starts talking (detected by interim transcript or volume)
   useEffect(() => {
     if (isSpeechMode && voiceSynthesis.isSpeaking) {
-      // User is speaking - stop the AI
       if (voiceInput.interimTranscript || voiceInput.volume > 0.15) {
-        console.log('🔇 [Voice] User speaking - stopping AI speech')
         voiceSynthesis.stop()
       }
     }
@@ -119,8 +130,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   // Toggle speech mode
   const toggleSpeechMode = useCallback(() => {
     if (isSpeechMode) {
-      // Exiting speech mode - IMMEDIATELY stop everything
-      console.log('🎤 [Voice] Exiting speech mode - stopping all audio')
       isSpeechModeRef.current = false // Set ref FIRST to prevent any queued operations
       setIsSpeechMode(false)
       voiceInput.cancelListening()
@@ -133,15 +142,12 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       voiceForm.clearPendingFormSummary()
       voiceForm.setActiveForm(null) // Clear any active form registration
     } else {
-      // Entering speech mode - auto-start listening
       setIsSpeechMode(true)
       isSpeechModeRef.current = true
       lastSpokenTurnIndexRef.current = conversation.length - 1
       voiceForm.setIsVoiceMode(true)
-      // Auto-start listening after a brief delay for UI to render
       setTimeout(() => {
         if (isSpeechModeRef.current) {
-          console.log('🎤 [Voice] Auto-starting listening on speech mode entry')
           voiceInput.startListening()
         }
       }, 200)
@@ -155,20 +161,15 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       return
     }
 
-    // DON'T speak if already speaking (prevents queue buildup and loops)
     if (voiceSynthesis.isSpeaking || voiceSynthesis.isLoading) {
-      console.log('🔊 [Voice Form] Skipping - already speaking')
       return
     }
 
-    // CRITICAL: Check if we already spoke this exact summary (prevent loops)
     if (spokenFormSummaryRef.current === voiceForm.pendingFormSummary) {
-      console.log('🔊 [Voice Form] Already spoke this summary, skipping')
       voiceForm.clearPendingFormSummary()
       return
     }
 
-    console.log('🔊 [Voice Form] Speaking form summary:', voiceForm.pendingFormSummary.substring(0, 60) + '...')
     spokenFormSummaryRef.current = voiceForm.pendingFormSummary
     voiceSynthesis.speak(voiceForm.pendingFormSummary)
     voiceForm.clearPendingFormSummary()
@@ -188,62 +189,35 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   // Auto-speak new AI responses in speech mode - trigger as soon as answer appears
   useEffect(() => {
-    // Double-check both state and ref to prevent speaking after mode exit
     if (!isSpeechMode || !isSpeechModeRef.current) {
-      console.log('🔊 [TTS] Not in speech mode, skipping')
       return
     }
 
-    // DON'T speak if AI is already speaking (prevents overlap/loops)
     if (voiceSynthesis.isSpeaking || voiceSynthesis.isLoading) {
-      console.log('🔊 [TTS] Already speaking/loading, skipping')
       return
     }
 
-    // DON'T speak if there's an active form (the form summary effect handles that)
     if (voiceForm.activeForm) {
-      console.log('🔊 [TTS] Active form present, skipping')
       lastSpokenTurnIndexRef.current = conversation.length - 1
       return
     }
 
-    console.log(
-      '🔊 [TTS] Checking conversation for new responses. Length:',
-      conversation.length,
-      'lastSpoken:',
-      lastSpokenTurnIndexRef.current
-    )
-
     // Find the latest agent turn with an answer (don't wait for isLoading to finish)
     for (let i = conversation.length - 1; i > lastSpokenTurnIndexRef.current; i--) {
       const turn = conversation[i]
-      console.log('🔊 [TTS] Checking turn', i, 'side:', turn.side)
-
       if (turn.side === 'agent') {
-        // Skip if this turn has a flow_proposal (form) - let form summary handle it
         const hasFlowProposal = turn.outputs?.some((o: OutputItem) => o.type === 'flow_proposal')
         if (hasFlowProposal) {
-          console.log('🔊 [TTS] Turn has flow_proposal, skipping')
           lastSpokenTurnIndexRef.current = i
           continue
         }
 
         // Find the answer output
         const answerOutput = turn.outputs?.find((o: OutputItem): o is AnswerOutput => o.type === 'answer')
-        console.log(
-          '🔊 [TTS] Answer output:',
-          answerOutput ? 'FOUND' : 'NOT FOUND',
-          'outputs:',
-          turn.outputs?.map(o => o.type)
-        )
-
         if (answerOutput?.displayData) {
-          // Extract text from display data
           const textParts: string[] = []
           for (const data of answerOutput.displayData) {
-            console.log('🔊 [TTS] Display data type:', data.type)
             if (data.type === 'textBlock' && data.text) {
-              // Clean markdown for speech
               const cleanText = data.text
                 .replace(/\*\*/g, '')
                 .replace(/\*/g, '')
@@ -257,13 +231,9 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             }
           }
 
-          console.log('🔊 [TTS] Text parts:', textParts.length, textParts)
-
           if (textParts.length > 0 && isSpeechModeRef.current) {
             const textToSpeak = textParts.join('. ')
-            // Limit to first ~500 characters to avoid very long speeches
             const truncatedText = textToSpeak.length > 500 ? textToSpeak.substring(0, 500) + '...' : textToSpeak
-            console.log('🔊 [TTS] Speaking:', truncatedText.substring(0, 80) + '...')
             voiceSynthesis.speak(truncatedText)
             lastSpokenTurnIndexRef.current = i
             break // Only speak one response at a time
@@ -275,28 +245,22 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   // Auto-navigate in speech mode when AI returns a navigation action
   useEffect(() => {
-    // Double-check both state and ref to prevent navigation after mode exit
     if (!isSpeechMode || !isSpeechModeRef.current) return
 
-    // Find the latest agent turn with a navigation (don't wait for isLoading to finish)
     for (let i = conversation.length - 1; i > lastNavigatedTurnIndexRef.current; i--) {
       const turn = conversation[i]
 
       if (turn.side === 'agent') {
-        // Find the answer output with navigation data
         const answerOutput = turn.outputs?.find((o: OutputItem): o is AnswerOutput => o.type === 'answer')
 
         if (answerOutput?.displayData) {
-          // Look for navigation data
           const navigationData = answerOutput.displayData.find(
             (data): data is NavigationData => data.type === 'navigation'
           )
 
           if (navigationData?.url) {
-            console.log('🧭 [Voice] Auto-navigating to:', navigationData.url)
             lastNavigatedTurnIndexRef.current = i
 
-            // Small delay to let the user hear the AI's response first
             setTimeout(() => {
               navigateTo(navigationData.url)
             }, 1500) // Wait 1.5 seconds so they can hear the explanation
@@ -312,20 +276,13 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     (text: string) => {
       if (text && typeof text === 'string' && text.trim()) {
         const cleanText = text.trim()
-        console.log('🎤 [Voice] Received:', cleanText)
-
-        // IMPORTANT: Ignore very short inputs (likely noise/echo)
         if (cleanText.length < 2) {
-          console.log('🎤 [Voice] Ignoring too short input:', cleanText)
           voiceInput.resetTranscript()
           return
         }
 
-        // ECHO FILTER: Ignore transcripts that arrive within 800ms of AI stopping
-        // This prevents the microphone from picking up the AI's voice
         const timeSinceAIStopped = Date.now() - aiStoppedSpeakingAtRef.current
         if (timeSinceAIStopped < 800) {
-          console.log('🎤 [Voice] Ignoring echo (too soon after AI stopped):', cleanText, `(${timeSinceAIStopped}ms)`)
           voiceInput.resetTranscript()
           return
         }
@@ -333,15 +290,10 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         // Stop AI speech immediately when user speaks
         voiceSynthesis.stop()
 
-        // Check if there's an active form and if this is a form command
-        console.log('🎤 [Voice] activeForm check:', voiceForm.activeForm ? 'HAS ACTIVE FORM' : 'NO ACTIVE FORM')
         if (voiceForm.activeForm) {
           const command = voiceForm.parseVoiceCommand(cleanText)
-          console.log('🎤 [Voice Form] Parsed command:', command, 'from text:', cleanText)
 
           if (command.type === 'confirm') {
-            console.log('🎤 [Voice Form] Confirming and submitting form')
-            // Clear active form IMMEDIATELY to prevent re-announcing
             const submitHandler = voiceForm.activeForm.submitHandler
             voiceForm.setActiveForm(null)
             voiceForm.clearPendingFormSummary()
@@ -352,8 +304,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
           }
 
           if (command.type === 'cancel') {
-            console.log('🎤 [Voice Form] Cancelling form')
-            // Clear active form IMMEDIATELY to prevent re-announcing
             const cancelHandler = voiceForm.activeForm.cancelHandler
             voiceForm.setActiveForm(null)
             voiceForm.clearPendingFormSummary()
@@ -364,7 +314,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
           }
 
           if (command.type === 'modify') {
-            console.log('🎤 [Voice Form] Modifying field:', command.field, 'to:', command.value)
             voiceForm.activeForm.updateField(command.field, command.value)
             voiceSynthesis.speak(`Updated ${command.field} to ${command.value}. Say "submit" when ready.`)
             voiceInput.resetTranscript()
@@ -396,21 +345,18 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               // Exit form mode so TTS is allowed to speak the response
               voiceForm.setActiveForm(null)
               voiceForm.clearPendingFormSummary()
-              sendMessage(cleanText, [], false, false, undefined)
+              sendMessage(cleanText, [], false, false)
               voiceInput.resetTranscript()
               return
             }
 
-            // NOT a new request and NOT a valid form command
-            // SILENTLY ignore to prevent feedback loop - just keep listening
-            console.log('🎤 [Voice Form] Unknown input, ignoring silently:', cleanText)
             voiceInput.resetTranscript()
             return
           }
         }
 
         // No active form - send as regular chat message
-        sendMessage(cleanText, [], false, false, undefined)
+        sendMessage(cleanText, [], false, false)
         voiceInput.resetTranscript()
       }
     },
@@ -458,17 +404,32 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
 
     try {
-      const initialPrompt = sessionStorage.getItem('everyAIInitialPrompt')
+      const memoryPayload = window.__everyAIInitialPayload
+      const initialPrompt = memoryPayload?.prompt ?? sessionStorage.getItem('everyAIInitialPrompt')
+      const initialAdditionInfo = memoryPayload?.additionInfo ?? sessionStorage.getItem('everyAIInitialAdditionInfo')
+      const initialSkills =
+        memoryPayload?.skills ??
+        (() => {
+          try {
+            const rawSkills = sessionStorage.getItem('everyAIInitialSkills')
+            if (!rawSkills) return undefined
+            const parsedSkills = JSON.parse(rawSkills)
+            return Array.isArray(parsedSkills) ? parsedSkills : undefined
+          } catch {
+            return undefined
+          }
+        })()
+
       if (initialPrompt && initialPrompt !== promptProcessedRef.current) {
-        console.log('[EveryAI] Found initial prompt in sessionStorage:', initialPrompt)
-        // Mark this prompt as processed
         promptProcessedRef.current = initialPrompt
-        // Clear the prompt from storage immediately to prevent duplicate sends
+        window.__everyAIInitialPayload = undefined
         sessionStorage.removeItem('everyAIInitialPrompt')
-        // Send the prompt after a short delay to ensure component is fully ready
+        sessionStorage.removeItem('everyAIInitialAdditionInfo')
+        sessionStorage.removeItem('everyAIInitialSkills')
         setTimeout(() => {
-          console.log('[EveryAI] Sending initial prompt:', initialPrompt)
-          sendMessage(initialPrompt, [], false, false, undefined)
+          // Pass through exactly as resolved so empty string can still force
+          // `addition_info` multipart field inclusion.
+          sendMessage(initialPrompt, [], false, false, initialAdditionInfo ?? undefined, initialSkills)
         }, 300)
       }
     } catch (error) {
@@ -486,10 +447,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   // Listen for custom event when sidebar opens (handles case when component is already mounted)
   useEffect(() => {
     const handleSidebarOpen = () => {
-      console.log('[EveryAI] Sidebar opened event received')
-      // Reset processed prompt when sidebar opens fresh
       promptProcessedRef.current = null
-      // Check for prompt after a short delay to ensure component is ready
       setTimeout(() => {
         checkAndSendInitialPrompt()
       }, 500)
@@ -502,23 +460,122 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
   }, [checkAndSendInitialPrompt])
 
+  useEffect(() => {
+    const handleNativeSpeechToText = (event: Event) => {
+      const customEvent = event as CustomEvent<{ text?: string; isFinal?: boolean } | string>
+      const detail = customEvent.detail
+      const text = typeof detail === 'string' ? detail : detail?.text
+      const isFinal = typeof detail === 'string' ? true : detail?.isFinal !== false
+      if (!text || typeof text !== 'string') {
+        return
+      }
+      const normalizedText = text.trim()
+      if (!normalizedText || !isFinal) {
+        return
+      }
+      sendMessage(normalizedText, [], false, false)
+    }
+
+    window.addEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
+    return () => {
+      window.removeEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
+    }
+  }, [sendMessage])
+
+  const handleSessionSelect = useCallback(
+    async (sessionIdToLoad: string) => {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('newwork_every_ai', JSON.stringify({ sessionId: sessionIdToLoad }))
+        } catch (error) {
+          console.warn('Failed to save session ID:', error)
+        }
+      }
+      setShowHistory(false)
+      await loadSession(sessionIdToLoad)
+    },
+    [loadSession]
+  )
+
+  const handleNewChat = useCallback(() => {
+    clearConversation()
+    setShowHistory(false)
+    window.dispatchEvent(new CustomEvent('chat-history-refresh'))
+  }, [clearConversation])
+
   const handleSend = (
     text: string,
     files: File[],
     isThinking: boolean,
     isSearching: boolean,
-    mentions?: Array<{ id: string; typeKey: string; display: string; raw?: any; start?: number; end?: number }>
+    mentions?: Array<{ id: string; type: string; display: string }>
   ) => {
-    // Keep passing files for backwards compatibility.
-    // useFlowBot.sendMessage will decide whether to use /add_files or direct upload.
-    sendMessage(text, files, isThinking, isSearching, mentions)
+    sendMessage(text, files, isThinking, isSearching, undefined, undefined, mentions)
   }
+
+  const isEmptyState = conversation.length === 0 && !isLoading
+
+  // Mobile webview fix: the webview viewport can be wider than the device
+  // screen (e.g. 671px vs 430px), causing content to be clipped on the right.
+  // Constrain this component to the screen width when a mismatch is detected.
+  const [webviewMaxWidth, setWebviewMaxWidth] = useState<number | undefined>(undefined)
+  useEffect(() => {
+    if (typeof screen !== 'undefined' && window.innerWidth > screen.width * 1.1) {
+      setWebviewMaxWidth(screen.width)
+    }
+  }, [])
 
   return (
     <div
-      className={`gba:h-full gba:flex gba:flex-col gba:bg-background gba:relative gba:overflow-hidden ${className || ''}`}
+      className={`gba:h-full gba:flex gba:flex-col gba:relative gba:overflow-hidden ${className || ''}`}
+      style={
+        {
+          backgroundColor: isEmptyState ? 'var(--nw-ai-hero-background)' : 'var(--nw-background)',
+          '--nw-ai': 'var(--nw-decorative)',
+          '--nw-ai-secondary': 'var(--nw-decorative-secondary)',
+          ...(webviewMaxWidth ? { maxWidth: webviewMaxWidth, width: webviewMaxWidth } : {})
+        } as React.CSSProperties
+      }
       data-testid="every-ai-app"
     >
+      {/* Full-page animated background for empty state */}
+      {isEmptyState && (
+        <div className="gba:absolute gba:inset-0 gba:z-0">
+          <DeepBlueNeuralBackground />
+        </div>
+      )}
+
+      {/* History toggle button - visible when panel is closed */}
+      {!showHistory && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setShowHistory(true)}
+          className="gba:absolute gba:top-4 gba:left-4 gba:z-20 gba:h-10 gba:w-10 gba:rounded-full gba:bg-background/80 gba:backdrop-blur-sm gba:shadow-md hover:gba:bg-muted gba:border gba:border-border/50"
+          aria-label="Open chat history"
+          title="Chat history"
+          data-testid="every-ai-open-history"
+        >
+          <ChatsCircle className="gba:w-5 gba:h-5" weight="fill" />
+        </Button>
+      )}
+
+      {/* History Sidebar */}
+      <div
+        className={`
+          gba:absolute gba:inset-y-0 gba:left-0 gba:z-30 gba:transform gba:transition-transform gba:duration-300
+          gba:w-80 gba:bg-white gba:shadow-lg gba:border-r gba:border-gray-200
+          ${showHistory ? 'gba:translate-x-0' : 'gba:-translate-x-full'}
+        `}
+      >
+        <ChatHistory
+          accessToken={accessToken}
+          onSessionSelect={handleSessionSelect}
+          onNewChat={handleNewChat}
+          currentSessionId={sessionId}
+        />
+      </div>
+
       {/* Voice Mode Overlay */}
       <VoiceOverlay
         isVisible={isSpeechMode}
@@ -567,147 +624,136 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       />
 
       <FormSubmissionProvider>
-        {/* Conversation Area with subtle gradient */}
-        <div
-          ref={scrollRef}
-          className="gba:flex-1 gba:overflow-y-auto gba:p-6 gba:relative gba:z-10"
-          data-testid="conversation-area"
-        >
-          {conversation.length === 0 && !isLoading ? (
-            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:text-center">
-              {/* Professional welcome screen */}
-              <div className="gba:relative gba:mb-8">
-                <div className="gba:h-20 gba:w-20 gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center gba:relative gba:shadow-lg">
-                  <Sparkle className="gba:h-10 gba:w-10 gba:text-ai-foreground" weight="fill" />
-                </div>
+        <FlowProposalFileUploadProvider upload={attachFilesForFlowProposalField}>
+          {/* Conversation Area with subtle gradient */}
+          <div
+            ref={scrollRef}
+            className="gba:flex-1 gba:overflow-y-auto gba:relative gba:z-10 gba:flex gba:flex-col"
+            data-testid="conversation-area"
+          >
+            {conversation.length === 0 && !isLoading ? (
+              <div className="gba:flex-1 gba:flex gba:flex-col gba:relative gba:min-h-0">
+                <HeroSection data-testid="every-ai-hero" />
               </div>
+            ) : (
+              <div className="gba:p-6">
+                <ConversationRenderer
+                  turns={extendedConversation}
+                  accessToken={accessToken}
+                  sendMessage={sendMessage}
+                  editMessage={editMessage}
+                  userInfo={userInfo}
+                  pictureThumbnail={pictureThumbnail}
+                  isVoiceMode={isSpeechMode}
+                  sessionId={sessionId ?? undefined}
+                  onCancelGeneration={cancelGeneration}
+                  isAgentGenerating={isLoading}
+                />
+              </div>
+            )}
+          </div>
 
-              <h2 className="gba:text-3xl gba:font-bold gba:text-foreground gba:mb-3">Welcome to EveryAI</h2>
-              <p className="gba:text-muted-foreground gba:max-w-md gba:text-base gba:mb-10">
-                Your intelligent companion for managing tasks, analyzing data, and automating workflows across the
-                entire platform.
-              </p>
-
-              {/* Feature highlights with icons */}
-              <div className="gba:grid gba:grid-cols-4 gba:gap-4 gba:max-w-3xl gba:mb-8">
-                {[
-                  {
-                    icon: (
-                      <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 10V3L4 14h7v7l9-11h-7z"
-                        />
-                      </svg>
-                    ),
-                    label: 'Instant Answers'
-                  },
-                  {
-                    icon: (
-                      <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                        />
-                      </svg>
-                    ),
-                    label: 'Data Insights'
-                  },
-                  {
-                    icon: (
-                      <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                        />
-                      </svg>
-                    ),
-                    label: 'Voice Mode'
-                  },
-                  {
-                    icon: (
-                      <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
-                    ),
-                    label: 'Automation'
-                  }
-                ].map((feature, idx) => (
-                  <div
-                    key={idx}
-                    className="gba:flex gba:flex-col gba:items-center gba:gap-2.5 gba:p-4 gba:rounded-lg gba:bg-card gba:border gba:border-border hover:gba:border-ai/50 gba:transition-colors"
-                  >
-                    <div className="gba:h-10 gba:w-10 gba:rounded-lg gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-muted-foreground">
-                      {feature.icon}
-                    </div>
-                    <span className="gba:text-sm gba:font-medium gba:text-foreground">{feature.label}</span>
+          {/* Input Area - fully transparent, content behind shows through */}
+          <div
+            className={`gba:flex-shrink-0 gba:relative gba:z-20 ${
+              isEmptyState
+                ? 'gba:absolute gba:bottom-6 gba:left-1/2 gba:-translate-x-1/2 gba:w-full gba:max-w-2xl gba:px-4'
+                : 'gba:pt-2 gba:px-6 gba:pb-6'
+            }`}
+          >
+            {/* Animated circling border for empty state */}
+            {isEmptyState && (
+              <style>{`
+                @keyframes rotateBorder {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+                }
+              `}</style>
+            )}
+            <div className={isEmptyState ? 'gba:relative gba:rounded-2xl gba:p-[1.5px]' : ''}>
+              {/* Rotating border gradient - masked to only show on border */}
+              {isEmptyState && (
+                <>
+                  <div className="gba:absolute gba:inset-0 gba:rounded-2xl gba:overflow-hidden gba:pointer-events-none">
+                    <div
+                      className="gba:absolute"
+                      style={{
+                        width: '150%',
+                        height: '150%',
+                        top: '-25%',
+                        left: '-25%',
+                        background:
+                          'conic-gradient(from 0deg, transparent 0deg, color-mix(in srgb, var(--nw-ai-secondary) 90%, transparent) 45deg, color-mix(in srgb, var(--nw-ai) 70%, transparent) 90deg, transparent 135deg, transparent 360deg)',
+                        animation: 'rotateBorder 3s linear infinite'
+                      }}
+                    />
                   </div>
-                ))}
+                  {/* Inner mask to cut out the center, leaving only the border visible */}
+                  <div
+                    className="gba:absolute gba:rounded-[14px] gba:pointer-events-none"
+                    style={{
+                      inset: '1.5px',
+                      backgroundColor: 'var(--nw-ai-hero-background)'
+                    }}
+                  />
+                </>
+              )}
+              {/* Inner container - fully transparent, no blur so content behind shows through */}
+              <div
+                className={isEmptyState ? 'gba:relative gba:rounded-[14px]' : ''}
+                style={isEmptyState ? { backgroundColor: 'transparent' } : undefined}
+              >
+                <ChatInput
+                  onSend={handleSend}
+                  onClear={clearConversation}
+                  disabled={isLoading}
+                  suggestions={nextStepProposals}
+                  isPrechatLoading={isPrechatLoading}
+                  // Voice mode props
+                  isSpeechMode={isSpeechMode}
+                  isListening={voiceInput.isListening}
+                  isSpeaking={voiceSynthesis.isSpeaking}
+                  isVoiceLoading={voiceSynthesis.isLoading}
+                  voiceVolume={voiceInput.volume}
+                  onToggleVoiceMode={toggleSpeechMode}
+                  onStopSpeaking={voiceSynthesis.stop}
+                  // Pre-upload files as soon as they are attached for faster first answers.
+                  onFilesAttached={files => attachFiles(files)}
+                  // Cancel restoration props
+                  cancelledMessageText={cancelledMessageText}
+                  onClearCancelledMessage={clearCancelledMessage}
+                  darkMode={isEmptyState}
+                  compactSuggestions={compactSuggestions}
+                  // Access token for entity mentions
+                  accessToken={accessToken}
+                  // User preferences
+                  onOpenPreferences={userPreferences.openModal}
+                />
               </div>
-
-              <p className="gba:text-sm gba:text-muted-foreground">
-                Type a message, click a suggestion, or use{' '}
-                <span className="gba:font-medium gba:text-foreground">Voice Mode</span> to speak
-              </p>
             </div>
-          ) : (
-            <ConversationRenderer
-              turns={extendedConversation}
-              accessToken={accessToken}
-              sendMessage={sendMessage}
-              editMessage={editMessage}
-              userInfo={userInfo}
-              pictureThumbnail={pictureThumbnail}
-              isVoiceMode={isSpeechMode}
-              sessionId={sessionId ?? undefined}
-              onCancelGeneration={cancelGeneration}
-              isAgentGenerating={isLoading}
-            />
-          )}
-        </div>
-
-        {/* Input Area with premium styling */}
-        <div className="gba:flex-shrink-0 gba:border-t gba:border-border gba:bg-card/50 gba:backdrop-blur-md gba:p-6 gba:relative gba:z-10">
-          <ChatInput
-            onSend={handleSend}
-            onClear={clearConversation}
-            disabled={isLoading}
-            suggestions={nextStepProposals}
-            isPrechatLoading={isPrechatLoading}
-            placeholder="Ask EveryAI anything..."
-            // Voice mode props
-            isSpeechMode={isSpeechMode}
-            isListening={voiceInput.isListening}
-            isSpeaking={voiceSynthesis.isSpeaking}
-            isVoiceLoading={voiceSynthesis.isLoading}
-            voiceVolume={voiceInput.volume}
-            onToggleVoiceMode={toggleSpeechMode}
-            onStopSpeaking={voiceSynthesis.stop}
-            // Pre-upload files as soon as they are attached for faster first answers.
-            onFilesAttached={files => attachFiles(files)}
-            // Cancel restoration props
-            cancelledMessageText={cancelledMessageText}
-            onClearCancelledMessage={clearCancelledMessage}
-          />
-        </div>
+          </div>
+        </FlowProposalFileUploadProvider>
       </FormSubmissionProvider>
+
+      {/* Overlay for sidebar - click to close */}
+      {showHistory && (
+        <div
+          className="gba:absolute gba:inset-0 gba:bg-black/20 gba:z-20 gba:cursor-pointer"
+          onClick={() => setShowHistory(false)}
+          onKeyDown={e => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setShowHistory(false)
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="Close chat history sidebar"
+          data-testid="every-ai-history-overlay"
+        />
+      )}
+      {/* User Preferences Modal */}
+      <UserPreferences darkMode={isEmptyState} />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import {
   useTranslation,
   Card,
@@ -12,7 +12,25 @@ import {
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useUserEngagement } from '../../hooks/useUserEngagement'
-import { Eye, Heart, MessageCircle, HelpCircle, Target, Trophy, TrendingUp, Upload } from 'lucide-react'
+import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
+import { ContentRole, ContentGroup } from '@/common/data/content/constants/contentConstants'
+import {
+  Eye,
+  Heart,
+  MessageCircle,
+  HelpCircle,
+  Target,
+  Trophy,
+  TrendingUp,
+  Upload,
+  Newspaper,
+  BookOpen,
+  FileText,
+  MessageCircleQuestion
+} from 'lucide-react'
+import ContentCard from '../../components/cards/ContentCard'
+import ContentCardSkeleton from '../../components/skeletons/ContentCardSkeleton'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import translations from '../../_i18n'
 
 type EngagementViewProps = BusinessAppContextProps
@@ -100,6 +118,79 @@ const EngagementView: React.FC<EngagementViewProps> = ({ accessToken, userInfo }
   const currentLevel = getCurrentLevel()
   const progress = calculateProgress()
 
+  // Fetch user's content
+  const myContentQueryParams = useMemo(
+    () => ({
+      role: ContentRole.ROOT,
+      contentGroups: [
+        ContentGroup.NEWS,
+        ContentGroup.KNOWLEDGE,
+        ContentGroup.DOCUMENT,
+        ContentGroup.QUESTION,
+        ContentGroup.GLOSSARY
+      ],
+      createdBy: userId || null,
+      limit: 100,
+      offset: 0,
+      sortBy: 'createdAt' as const,
+      sortOrder: 'DESC' as const
+    }),
+    [userId]
+  )
+
+  const { entries: myContentEntries, isLoading: isLoadingMyContent } = useContentEntries(
+    myContentQueryParams,
+    accessToken
+  )
+
+  // Group content by content group
+  const groupedContent = useMemo(() => {
+    if (!myContentEntries) return {}
+
+    return myContentEntries.reduce(
+      (acc, entry) => {
+        const group = entry.contentGroup || 'other'
+        if (!acc[group]) {
+          acc[group] = []
+        }
+        acc[group].push(entry)
+        return acc
+      },
+      {} as Record<string, typeof myContentEntries>
+    )
+  }, [myContentEntries])
+
+  const getVariantForGroup = (groupRef: string | null | undefined): 'news' | 'knowledge' | 'intranet' | 'document' => {
+    if (groupRef === ContentGroup.NEWS) return 'news'
+    if (groupRef === ContentGroup.KNOWLEDGE || groupRef === ContentGroup.GLOSSARY) return 'knowledge'
+    if (groupRef === ContentGroup.DOCUMENT) return 'document'
+    return 'intranet'
+  }
+
+  const getGroupLabel = (groupRef: string | null | undefined): string => {
+    if (groupRef === ContentGroup.NEWS) return t('news') || 'News'
+    if (groupRef === ContentGroup.KNOWLEDGE) return t('knowledge') || 'Knowledge'
+    if (groupRef === ContentGroup.GLOSSARY) return t('glossary') || 'Glossary'
+    if (groupRef === ContentGroup.DOCUMENT) return t('documents') || 'Documents'
+    if (groupRef === ContentGroup.QUESTION) return t('questions') || 'Questions'
+    return t('other') || 'Other'
+  }
+
+  const getGroupIcon = (groupRef: string | null | undefined) => {
+    if (groupRef === ContentGroup.NEWS) return Newspaper
+    if (groupRef === ContentGroup.KNOWLEDGE || groupRef === ContentGroup.GLOSSARY) return BookOpen
+    if (groupRef === ContentGroup.DOCUMENT) return FileText
+    if (groupRef === ContentGroup.QUESTION) return MessageCircleQuestion
+    return FileText
+  }
+
+  const handleArticleClick = (entryId: string) => {
+    const url = buildPlatformUrl('/platform/content/intranet/content-record', {
+      id: entryId
+    })
+    navigateTo(url)
+  }
+
   if (!userId) {
     return (
       <div className="gba:p-6" data-testid="engagement-view-no-user">
@@ -133,11 +224,18 @@ const EngagementView: React.FC<EngagementViewProps> = ({ accessToken, userInfo }
       data-testid="engagement-view"
     >
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
+        {/* Section Header */}
+        <div className="gba:pt-6 gba:mb-6">
+          <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+            {t('engagement-dashboard-title')}
+          </h3>
+        </div>
+
         {/* Engagement Dashboard Card */}
         <Card className="gba:mb-8 gba:p-8 gba:bg-primary gba:text-primary-foreground">
           <div className="gba:flex gba:items-start gba:justify-between gba:mb-6">
             <div>
-              <h1 className="gba:text-4xl gba:font-bold gba:mb-2">{t('engagement-dashboard-title')}</h1>
+              <h2 className="gba:text-3xl gba:font-bold gba:mb-2">{t('total-score')}</h2>
               <p className="gba:text-lg gba:opacity-90">{t('engagement-dashboard-subtitle')}</p>
             </div>
             <TrendingUp className="gba:w-16 gba:h-16 gba:opacity-80" />
@@ -249,7 +347,7 @@ const EngagementView: React.FC<EngagementViewProps> = ({ accessToken, userInfo }
         )}
 
         {/* Achievement Levels */}
-        <Card className="gba:p-6">
+        <Card className="gba:p-6 gba:mb-8">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-6">
             <Trophy className="gba:w-5 gba:h-5 gba:text-warning" />
             <h2 className="gba:text-2xl gba:font-bold">{t('achievement-levels')}</h2>
@@ -308,6 +406,66 @@ const EngagementView: React.FC<EngagementViewProps> = ({ accessToken, userInfo }
               )
             })}
           </div>
+        </Card>
+
+        {/* My Content */}
+        <Card className="gba:p-6">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-6">
+            <h2 className="gba:text-2xl gba:font-bold">{t('my-content') || 'My Content'}</h2>
+          </div>
+
+          {isLoadingMyContent ? (
+            <div className="gba:space-y-8">
+              {[ContentGroup.NEWS, ContentGroup.KNOWLEDGE, ContentGroup.DOCUMENT, ContentGroup.QUESTION].map(group => (
+                <div key={group}>
+                  <Skeleton className="gba:h-6 gba:w-48 gba:mb-4" />
+                  <div className="gba:grid gba:grid-cols-1 gba:gap-6">
+                    <ContentCardSkeleton variant="horizontal" count={3} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : Object.keys(groupedContent).length > 0 ? (
+            <div className="gba:space-y-8">
+              {Object.entries(groupedContent).map(([groupRef, entries]) => {
+                const GroupIcon = getGroupIcon(groupRef)
+                const variant = getVariantForGroup(groupRef)
+                const label = getGroupLabel(groupRef)
+
+                return (
+                  <div key={groupRef}>
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-6">
+                      <GroupIcon className="gba:w-5 gba:h-5 gba:text-primary" />
+                      <h3 className="gba:text-xl gba:font-bold">{label}</h3>
+                      <Badge variant="secondary" className="gba:ml-2">
+                        {entries.length}
+                      </Badge>
+                    </div>
+                    <div className="gba:grid gba:grid-cols-1 gba:gap-6">
+                      {entries.map(entry => (
+                        <ContentCard
+                          key={entry.id}
+                          item={entry}
+                          variant={variant}
+                          currentTab="engagement"
+                          accessToken={accessToken}
+                          userInfo={userInfo}
+                          authorLabel="Creator"
+                          onClick={() => entry.id && handleArticleClick(entry.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="gba:text-center gba:py-12">
+              <p className="gba:text-muted-foreground">
+                {t('no-my-content-found') || 'You have not created any content yet.'}
+              </p>
+            </div>
+          )}
         </Card>
       </div>
     </div>

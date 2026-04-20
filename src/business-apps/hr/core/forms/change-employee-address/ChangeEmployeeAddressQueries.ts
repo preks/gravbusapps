@@ -43,7 +43,7 @@ EmployeeAddress(where: {employeeId: {_eq: $id}, isDeleted: {_eq: false}}, orderB
     }`
 
 export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: String!){
-countries: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Country"}}}, orderBy: {value: ASC}) {
+countries: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Country"}}, isDeleted: {_eq: false}}, orderBy: {value: ASC}) {
      id
     value
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -54,7 +54,7 @@ countries: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq
       defaultLocale
     }
   }
-  regions: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "CountryRegion"}}}, orderBy: {value: ASC}) {
+  regions: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "CountryRegion"}}, isDeleted: {_eq: false}}, orderBy: {value: ASC}) {
     value
     id
     code
@@ -69,7 +69,7 @@ countries: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq
       defaultLocale
     }
   }
-  counties: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "County"}}}, orderBy: {value: ASC}) {
+  counties: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "County"}}, isDeleted: {_eq: false}}, orderBy: {value: ASC}) {
     value
     id
     code

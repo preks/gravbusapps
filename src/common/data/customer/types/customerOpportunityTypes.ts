@@ -23,6 +23,7 @@ import type { CustomerOpportunityContact } from './customerRelationTypes'
 import type { CustomerOpportunityAccount } from './customerAccountAssociationTypes'
 import { toCustomerAccount } from './customerAccountTypes'
 import { toCustomerContact } from './customerContactTypes'
+import { mapRawCrmNoteGraphQLRow } from '../utils/crmNoteMap'
 
 /**
  * Customer Opportunity Type
@@ -99,9 +100,12 @@ export type CustomerOpportunityStageConditionFieldName =
  * Adds CRM-specific fields that don't exist in Common/IRM
  */
 export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
-  // Filter out descriptors that need structural overrides
+  // Filter out descriptors that need structural overrides or have undefined field paths
   ...createOpportunityDescriptors(CustomerOpportunityFields as Record<keyof typeof OpportunityFields, string>).filter(
-    d => !['leads', 'notes', 'opportunityContacts', 'opportunityStageConditions', 'rejectionReasons'].includes(d.key)
+    d =>
+      !['account', 'leads', 'notes', 'opportunityContacts', 'opportunityStageConditions', 'rejectionReasons'].includes(
+        d.key
+      )
   ),
   {
     key: 'opportunityStageConditions',
@@ -237,6 +241,9 @@ export function toCustomerOpportunity(raw: any): CustomerOpportunity {
       ? stageConditionStatuses.map((sc: any) => toCustomerOpportunityStageCondition(sc))
       : raw.opportunityStageConditions
 
+  const noteSource = raw.notes ?? crmNote
+  const mappedNotes = Array.isArray(noteSource) ? noteSource.map(mapRawCrmNoteGraphQLRow) : noteSource
+
   return {
     ...rest,
     opportunityAccounts: mappedOpportunityAccounts,
@@ -248,7 +255,7 @@ export function toCustomerOpportunity(raw: any): CustomerOpportunity {
     opportunityStageConditions: mappedOpportunityStageConditions,
     opportunityContacts: raw.opportunityContacts ?? mappedOpportunityContacts,
     documents: raw.documents ?? crmDocument,
-    notes: raw.notes ?? crmNote
+    notes: mappedNotes
   } as CustomerOpportunity
 }
 

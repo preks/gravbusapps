@@ -10,7 +10,7 @@ import { toISOFormat } from '@/common/utils/dateFormatter'
  * Ensures empty values are not included in payload
  */
 export const toStringOrUndefined = (value: any): string | undefined => {
-  if (value === undefined || value === null || value === '') {
+  if (value === undefined || value === null) {
     return undefined
   }
   return String(value)

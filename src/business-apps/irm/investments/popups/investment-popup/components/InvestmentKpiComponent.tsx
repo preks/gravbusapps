@@ -8,7 +8,11 @@ import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { InvestmentKpiComponentProps, KpiFormData } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { parseAdditionalProperties, validateInvestmentData, INVESTMENT_ERRORS } from '../utils/investmentPopupUtils'
+import {
+  getSubtypeOrInvestmentAdditionalProperties,
+  validateInvestmentData,
+  INVESTMENT_ERRORS
+} from '../utils/investmentPopupUtils'
 import { buildInvestmentSubtypePayload } from '../utils/investmentPopupPayloadHelper'
 
 const prefixDataTestId = 'investment-kpi-component'
@@ -67,12 +71,7 @@ export const InvestmentKpiComponent: React.FC<InvestmentKpiComponentProps> = ({
   // This hook MUST be called before any conditional returns
   useEffect(() => {
     if (investment && kpiKey) {
-      const investmentData = investment as any
-      const equityInvestment = Array.isArray(investmentData.equityInvestment)
-        ? investmentData.equityInvestment[0]
-        : investmentData.equityInvestment
-
-      const additionalProps = parseAdditionalProperties(equityInvestment?.additionalProperties)
+      const additionalProps = getSubtypeOrInvestmentAdditionalProperties(investment)
       const kpis = additionalProps?.kpis || {}
       const kpiValue = kpis[kpiKey] || ''
 
@@ -107,12 +106,7 @@ export const InvestmentKpiComponent: React.FC<InvestmentKpiComponentProps> = ({
     }
 
     // Get current additionalProperties from subtype (equityInvestment, realEstateInvestment, etc.)
-    const investmentData = investment as any
-    const equityInvestment = Array.isArray(investmentData.equityInvestment)
-      ? investmentData.equityInvestment[0]
-      : investmentData.equityInvestment
-
-    const currentAdditionalProps = parseAdditionalProperties(equityInvestment?.additionalProperties)
+    const currentAdditionalProps = getSubtypeOrInvestmentAdditionalProperties(investment)
 
     // Update the specific KPI
     const existingKpis = currentAdditionalProps?.kpis || {}

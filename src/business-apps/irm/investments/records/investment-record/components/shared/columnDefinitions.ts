@@ -3,13 +3,10 @@ import React from 'react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
-import {
-  getInvestmentTypeFieldDefinition,
-  getLiquidFundTypeFieldDefinition,
-  formatFieldValue
-} from '../../utils/investmentHeaderConfig'
+import { findFormFieldsDefinition, formatFieldValue } from '../../utils/investmentHeaderConfig'
 import { getValueByPath } from '@/common/utils/objectUtils'
-import { FormFieldsDefinition, FormFieldDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
+import { FormFieldDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
+import { formatExportDate } from '@/common/utils/excelExportUtils'
 
 export interface ColumnDefinition {
   key: string
@@ -17,6 +14,65 @@ export interface ColumnDefinition {
   width?: string
   sortable?: boolean
   render: (record: any) => React.ReactElement
+  /** Plain-text value extractor for CSV/Excel export. Uses CRM amount pattern (no currency symbol). */
+  getTextValue?: (record: any) => string
+}
+
+/** Extracts the raw field value from an InvestmentReport record, mirroring the render path logic. */
+const getRecordFieldValue = (field: FormFieldDefinition, record: any): any => {
+  if (field.property.startsWith('investment.')) {
+    const fieldName = field.property.replace('investment.', '')
+    return fieldName === 'investmentRole' ? record.investmentRoleReport : getValueByPath(record, fieldName)
+  }
+  if (field.property.startsWith('equityInvestment.')) {
+    const fieldName = field.property.replace('equityInvestment.', '')
+    const fromReport = getValueByPath(record.equityInvestmentReport?.[0], fieldName)
+    return fromReport === undefined
+      ? getValueByPath(record.equityInvestmentReport?.[0]?.equityInvestment, fieldName)
+      : fromReport
+  }
+  if (field.property.startsWith('liquidFundInvestment.')) {
+    const fieldName = field.property.replace('liquidFundInvestment.', '')
+    const fromReport = getValueByPath(record.liquidFundInvestmentReport?.[0], fieldName)
+    return fromReport === undefined
+      ? getValueByPath(record.liquidFundInvestmentReport?.[0]?.liquidFundInvestment, fieldName)
+      : fromReport
+  }
+  if (field.property.startsWith('realEstateInvestment.')) {
+    const fieldName = field.property.replace('realEstateInvestment.', '')
+    const fromReport = getValueByPath(record.realEstateInvestmentReport?.[0], fieldName)
+    return fromReport === undefined
+      ? getValueByPath(record.realEstateInvestmentReport?.[0]?.realEstateInvestment, fieldName)
+      : fromReport
+  }
+  return getValueByPath(record, field.property)
+}
+
+const getRecordCurrencyCode = (record: any): string =>
+  record.currency?.code?.split(':').pop() || record.investment?.currency?.code?.split(':').pop() || ''
+
+/**
+ * Formats a raw field value for CSV/Excel export.
+ * AMOUNT uses the CRM pattern (`{value} {currency}`, no symbol) to avoid Excel column-width issues.
+ */
+const formatExportFieldValue = (value: any, fieldType: string, currencyCode: string): string => {
+  if (value === null || value === undefined || value === '') return '-'
+
+  switch (fieldType) {
+    case 'DATE':
+    case 'DATETIME':
+      return formatExportDate(String(value))
+
+    case 'AMOUNT': {
+      const num = typeof value === 'number' ? value : Number.parseFloat(String(value))
+      if (Number.isNaN(num)) return '-'
+      if (num === 0) return '0'
+      return currencyCode ? `${num} ${currencyCode}` : String(num)
+    }
+
+    default:
+      return formatFieldValue(value, fieldType, currencyCode)
+  }
 }
 
 /**
@@ -37,60 +93,41 @@ export const createInvestmentReportColumns = (
     key: 'date',
     title: getTranslationFromI18nKeyAndLabel('crm.investments.reports.columns.date', 'Date'),
     sortable: true,
+    getTextValue: (record: any) => formatExportDate(record.date),
     render: (record: any) => {
       const date = record.date
-      if (!date) return React.createElement('span', null, '-')
+      if (!date) return React.createElement('div', { className: 'gba:flex gba:items-center gba:h-8' }, '-')
       try {
         const formatted = formatDate(date, 'date.short')
+        let displayValue: string
         if (formatted && !formatted.includes('T')) {
-          return React.createElement('span', null, formatted)
-        }
-        const dateObj = new Date(date)
-        if (isNaN(dateObj.getTime())) return React.createElement('span', null, '-')
-        return React.createElement(
-          'span',
-          null,
-          dateObj.toLocaleDateString('en-US', {
+          displayValue = formatted
+        } else {
+          const dateObj = new Date(date)
+          if (Number.isNaN(dateObj.getTime())) {
+            return React.createElement('div', { className: 'gba:flex gba:items-center gba:h-8' }, '-')
+          }
+          displayValue = dateObj.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric'
           })
-        )
+        }
+        return React.createElement('div', { className: 'gba:flex gba:items-center gba:h-8' }, displayValue)
       } catch {
-        return React.createElement('span', null, '-')
+        return React.createElement('div', { className: 'gba:flex gba:items-center gba:h-8' }, '-')
       }
     }
   })
 
-  // Get form field definition using the correct logic based on investment group
-  let formFieldsDefinition: FormFieldsDefinition | null = null
-
-  // Determine investment group from either mainInvestment or investmentTypeCode
   const investmentGroup = mainInvestment?.investmentGroup?.code
-
-  // Apply the correct rules:
-  // 1) For equity, check the group catalog's object value
-  // 2) For real estate, check the type
-  // 3) For liquid funds, check the investmentliquidfundtype
-
-  if (investmentGroup === 'EQUITY') {
-    // RULE 1: For equity, check the EQUITY group's object value
-    formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData)
-  } else if (investmentGroup === 'LIQUID_FUND' && liquidFundTypeCode) {
-    // RULE 3: For liquid funds, check the investmentliquidfundtype
-    formFieldsDefinition = getLiquidFundTypeFieldDefinition(liquidFundTypeCode, catalogData)
-  } else if (investmentGroup === 'REAL_ESTATE') {
-    // RULE 2: For real estate, check the TYPE
-    formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData)
-  } else {
-    // Fallback: Use investment type
-    if (liquidFundTypeCode) {
-      formFieldsDefinition = getLiquidFundTypeFieldDefinition(liquidFundTypeCode, catalogData)
-    }
-    if (!formFieldsDefinition) {
-      formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData)
-    }
-  }
+  const formFieldsDefinition = findFormFieldsDefinition({
+    investment: mainInvestment,
+    catalogData,
+    investmentTypeCode,
+    liquidFundTypeCode,
+    investmentGroupCode: investmentGroup
+  })
 
   if (formFieldsDefinition?.formFields) {
     // Get all fields and sort by display order (same as header)
@@ -115,8 +152,13 @@ export const createInvestmentReportColumns = (
       columns.push({
         key: field.property.replace(/\./g, '_'),
         title: field.label,
-        width: getReportColumnWidth(field.type),
+        width: getReportColumnWidth(field.type, field.label),
         sortable: isReportFieldSortable(field.type),
+        getTextValue: (record: any) => {
+          const effectiveType = field.property.toLowerCase().includes('interestrate') ? 'PERCENTAGE' : field.type
+          const value = getRecordFieldValue(field, record)
+          return formatExportFieldValue(value, effectiveType, getRecordCurrencyCode(record))
+        },
         render: (record: any) => {
           // REPORTS DATA STRUCTURE: record is InvestmentReport from report tables
           // Fields are stored in type-specific nested arrays (realEstateInvestmentReport, etc.)
@@ -127,7 +169,12 @@ export const createInvestmentReportColumns = (
             // INVESTMENT FIELDS: For reports, these are report-level snapshots, not current investment values
             // Strip the 'investment.' prefix and look ONLY at report root level (no fallback to nested investment)
             const fieldName = field.property.replace('investment.', '')
-            value = getValueByPath(record, fieldName)
+            // investmentRole at report level is stored in investmentRoleReport array
+            if (fieldName === 'investmentRole') {
+              value = record.investmentRoleReport
+            } else {
+              value = getValueByPath(record, fieldName)
+            }
           } else if (field.property.startsWith('equityInvestment.')) {
             // EQUITY INVESTMENT FIELDS: Map to correct paths in equityInvestmentReport
             const fieldName = field.property.replace('equityInvestment.', '')
@@ -152,14 +199,18 @@ export const createInvestmentReportColumns = (
             if (value === undefined) {
               value = getValueByPath(record.liquidFundInvestmentReport?.[0]?.liquidFundInvestment, fieldName)
             }
+          } else if (field.property.startsWith('realEstateInvestment.')) {
+            const fieldName = field.property.replace('realEstateInvestment.', '')
+
+            value = getValueByPath(record.realEstateInvestmentReport?.[0], fieldName)
+
+            if (value === undefined) {
+              value = getValueByPath(record.realEstateInvestmentReport?.[0]?.realEstateInvestment, fieldName)
+            }
           } else {
-            // For other paths, try report-level fields only (no fallback to nested investment)
-            // Note: Report type fields are arrays, access first element
-            value =
-              getValueByPath(record, field.property) ||
-              getValueByPath(record.realEstateInvestmentReport?.[0], field.property) ||
-              getValueByPath(record.liquidFundInvestmentReport?.[0], field.property) ||
-              getValueByPath(record.equityInvestmentReport?.[0], field.property)
+            // For all other field paths, retrieve directly from the record
+            // Each group-specific field should be explicitly handled in the if/else if blocks above
+            value = getValueByPath(record, field.property)
           }
 
           const currencyCode =
@@ -175,9 +226,18 @@ export const createInvestmentReportColumns = (
           const formattedValue = formatFieldValue(value, effectiveFieldType, currencyCode)
 
           return React.createElement(
-            'span',
-            { className: getReportColumnClassName(effectiveFieldType) },
-            formattedValue
+            'div',
+            {
+              className: `gba:flex gba:items-center gba:h-8 ${getReportColumnClassName(effectiveFieldType)}`
+            },
+            React.createElement(
+              'span',
+              {
+                className: 'gba:truncate gba:block',
+                title: formattedValue
+              },
+              formattedValue
+            )
           )
         }
       })
@@ -213,19 +273,33 @@ export const createInvestmentReportColumns = (
 /**
  * Helper functions for report column configuration
  */
-const getReportColumnWidth = (fieldType: string): string => {
+const getReportColumnWidth = (fieldType: string, label?: string): string => {
+  // Base width from field type
+  let baseWidth = 150
   switch (fieldType) {
     case 'DATE':
     case 'DATETIME':
-      return '120px'
+      baseWidth = 120
+      break
     case 'AMOUNT':
-      return '140px'
+      baseWidth = 140
+      break
     case 'PERCENTAGE':
     case 'NUMBER':
-      return '100px'
-    default:
-      return 'auto'
+      baseWidth = 100
+      break
+    case 'TEXT':
+      baseWidth = 180
+      break
   }
+
+  // If label provided, calculate width needed (roughly 8px per character + padding)
+  if (label) {
+    const labelWidth = Math.ceil(label.length * 8) + 32 // 32px for padding/icons
+    return `${Math.max(baseWidth, labelWidth)}px`
+  }
+
+  return `${baseWidth}px`
 }
 
 const getReportColumnClassName = (fieldType: string): string => {

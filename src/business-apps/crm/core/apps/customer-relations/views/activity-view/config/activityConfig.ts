@@ -1,4 +1,3 @@
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { ActivityViewConfig } from '@/common/components/common-relations/view-layouts/activity-layout/ActivityLayout'
 import type { CustomerActivity } from '@/common/data/customer/types/customerActivityTypes'
 import type { CustomerActivityQueryVariables } from '@/common/data/customer/queries/customerActivityQueries'
@@ -15,16 +14,26 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 /**
+ * Maps column ids (used by the table) to descriptor keys (used by buildOrderBy).
+ * Required when the column id contains a nested path like 'activityType.value'
+ * but the descriptor key is just 'activityType'.
+ */
+const COLUMN_TO_SORT_FIELD: Record<string, string> = {
+  'activityType.value': 'activityType',
+  'ownerEmployee.displayName': 'ownerEmployee'
+}
+
+/**
  * Helper: Build sorting configuration
  */
 const buildSortingConfig = (sorting: Array<{ id: string; desc: boolean }>) => {
   if (sorting.length > 0) {
     return sorting.map(sort => ({
-      field: sort.id as any,
-      direction: sort.desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
+      field: COLUMN_TO_SORT_FIELD[sort.id] ?? sort.id,
+      direction: (sort.desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST') as 'DESC_NULLS_LAST' | 'ASC_NULLS_LAST'
     }))
   }
-  return [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }]
+  return [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' as const }]
 }
 
 /**
@@ -98,11 +107,12 @@ const buildQueryVariables = (params: {
 
 /**
  * Build CRM Activity Configuration
+ * Accepts fetchCustomerActivities as a parameter so the caller can call the hook
+ * at the component level and memoize the resulting config.
  */
 export const buildCrmActivityConfig = (
-  context: BusinessAppContextProps
+  fetchCustomerActivities: ReturnType<typeof useCustomerActivities>['fetchCustomerActivities']
 ): ActivityViewConfig<CustomerActivity, CustomerActivityQueryVariables> => {
-  const { fetchCustomerActivities } = useCustomerActivities(context)
   const activityDescriptors = createActivityDescriptors()
 
   return {
@@ -114,7 +124,7 @@ export const buildCrmActivityConfig = (
       }
     },
 
-    createColumns: config => createActivityColumns(config),
+    createColumns: config => createActivityColumns(config) as any,
 
     descriptors: activityDescriptors,
     entityName: 'SalesActivity',
@@ -166,6 +176,8 @@ export const buildCrmActivityConfig = (
           return buildPlatformUrl('/platform/crm/contact-record', { contactId: reference.id })
         case 'opportunity':
           return buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: reference.id })
+        case 'investment':
+          return ''
         default:
           return ''
       }

@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getEmployeesPerYearBatchQuery } from '../queries/getEmployeesPerYear'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 import dayjs from 'dayjs'
-import { formatDate } from '@/common/utils/windowUtils'
 
 /**
  * Interface for yearly employee count data
@@ -10,17 +8,6 @@ import { formatDate } from '@/common/utils/windowUtils'
 export interface YearlyEmployeeData {
   year: number
   count: number
-}
-
-/**
- * GraphQL response type for employees per year query
- */
-interface EmployeesPerYearBatchResponse {
-  y0: { aggregate: { count: number } }
-  y1: { aggregate: { count: number } }
-  y2: { aggregate: { count: number } }
-  y3: { aggregate: { count: number } }
-  y4: { aggregate: { count: number } }
 }
 
 /**
@@ -35,10 +22,10 @@ export const useEmployeesPerYear = (accessToken: string) => {
   const [error, setError] = useState<Error | null>(null)
   const isMounted = useRef<boolean>(true)
 
-  // Get GraphQL client
-  const graphQLClient = useGraphqlClient(accessToken)
+  // Dataset client (EMPLOYEE service)
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
 
-  // Fetch end-of-year active headcount for the last 5 years in a single batched query
+  // Fetch yearly employee counts for the last 5 years via dataset timeseries ("employeesPerYear")
   const fetchEmployeesPerYear = useCallback(async () => {
     if (!accessToken) {
       if (isMounted.current) {
@@ -54,29 +41,26 @@ export const useEmployeesPerYear = (accessToken: string) => {
         setError(null)
       }
 
-      const currentYear = dayjs().year()
-      // Build 5 cutoffs: y0=today (YTD), y1..y4 = end of prior years
-      const y0 = formatDate(new Date(), 'fullDateTime.ISO') as string
-      const y1 = formatDate(new Date(currentYear - 1, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
-      const y2 = formatDate(new Date(currentYear - 2, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
-      const y3 = formatDate(new Date(currentYear - 3, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
-      const y4 = formatDate(new Date(currentYear - 4, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      const years = 5
+      const result = await datasetClient.executeQuery('employeesPerYear', QueryType.TIMESERIES, { years })
+      const rows = (result?.data ?? []) as Array<{
+        category?: string
+        date_category?: string
+        dateCategory?: string
+        value?: number
+        [key: string]: any
+      }>
 
-      const response = await graphQLClient.request<EmployeesPerYearBatchResponse>(getEmployeesPerYearBatchQuery, {
-        y0,
-        y1,
-        y2,
-        y3,
-        y4
-      })
-
-      const series: YearlyEmployeeData[] = [
-        { year: currentYear - 4, count: Number(response.y4?.aggregate?.count ?? 0) },
-        { year: currentYear - 3, count: Number(response.y3?.aggregate?.count ?? 0) },
-        { year: currentYear - 2, count: Number(response.y2?.aggregate?.count ?? 0) },
-        { year: currentYear - 1, count: Number(response.y1?.aggregate?.count ?? 0) },
-        { year: currentYear, count: Number(response.y0?.aggregate?.count ?? 0) }
-      ]
+      const series: YearlyEmployeeData[] = rows
+        .map(r => ({
+          year: (() => {
+            const dateStr = r.date_category ?? r.dateCategory
+            return dateStr ? dayjs(dateStr).year() : Number.NaN
+          })(),
+          count: Number(r.value ?? 0)
+        }))
+        .filter(d => Number.isFinite(d.year))
+        .sort((a, b) => a.year - b.year)
 
       if (isMounted.current) {
         setData(series)
@@ -89,7 +73,7 @@ export const useEmployeesPerYear = (accessToken: string) => {
         setLoading(false)
       }
     }
-  }, [accessToken, graphQLClient])
+  }, [accessToken, datasetClient])
 
   useEffect(() => {
     isMounted.current = true

@@ -14,7 +14,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { ThumbsUp, XCircle, MessageSquare } from 'lucide-react'
-import { PiCalendarDuotone, PiClock, PiMapPin } from 'react-icons/pi'
+import { CalendarIcon, ClockIcon, MapPinIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { splitExpenseItems } from './utils/expenseItemUtils'
@@ -27,6 +27,8 @@ import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/compon
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 import { formatDateTime } from '@/common/utils/dateFormatter'
+import { useExpenseRequestAnalysis } from '../../common/hooks/useExpenseRequestAnalysis'
+import AIAnalysisSection from '../../common/components/ai-analysis/AIAnalysisSection'
 
 // Component imports
 import {
@@ -108,6 +110,18 @@ const ApproveExpenseRequestContent: React.FC<ApproveExpenseRequestProps> = ({
     accessToken,
     payloadData: payloadExpenseRequest // Pass payload data to avoid unnecessary GraphQL query
   })
+
+  // AI Analysis for expense request
+  const {
+    analysis: aiAnalysis,
+    loading: aiAnalysisLoading,
+    error: aiAnalysisError,
+    refetch: refetchAiAnalysis
+  } = useExpenseRequestAnalysis({
+    expenseRequestId: expenseId || null,
+    accessToken
+  })
+
   const processMetadata = additionalData?.psi_processMetadata || {}
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
@@ -314,6 +328,10 @@ const ApproveExpenseRequestContent: React.FC<ApproveExpenseRequestProps> = ({
   const handleReject = async () => {
     // Require comment for rejection
     if (!comment.trim()) {
+      // Auto-fill comment from AI insights if available (WARNING type)
+      if (aiAnalysis?.type === 'WARNING' && aiAnalysis.user_text) {
+        setComment(aiAnalysis.user_text)
+      }
       setShowComment(true)
       return
     }
@@ -527,6 +545,10 @@ const ApproveExpenseRequestContent: React.FC<ApproveExpenseRequestProps> = ({
           formatCurrency={formatCurrency}
           getCatalogValue={getCatalogValue}
           t={t}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={additionalData}
+          employeeId={expenseRequest?.employee?.id}
         />
       )}
 
@@ -535,7 +557,7 @@ const ApproveExpenseRequestContent: React.FC<ApproveExpenseRequestProps> = ({
         <Card>
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <PiMapPin className="gba:h-5 gba:w-5" />
+              <MapPinIcon className="gba:h-5 gba:w-5" />
               {t('section-trip-details')}
             </CardTitle>
           </CardHeader>
@@ -545,7 +567,7 @@ const ApproveExpenseRequestContent: React.FC<ApproveExpenseRequestProps> = ({
               <div className="gba:grid gba:grid-cols-2 gba:gap-4">
                 {expenseRequest.expensePlan?.startDate && (
                   <div className="gba:flex gba:items-start gba:gap-2">
-                    <PiCalendarDuotone className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
+                    <CalendarIcon weight="duotone" className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
                     <div>
                       <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">
                         {t('label-start-date')}
@@ -556,7 +578,7 @@ const ApproveExpenseRequestContent: React.FC<ApproveExpenseRequestProps> = ({
                 )}
                 {expenseRequest.expensePlan?.endDate && (
                   <div className="gba:flex gba:items-start gba:gap-2">
-                    <PiClock className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
+                    <ClockIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
                     <div>
                       <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">
                         {t('label-end-date')}
@@ -589,7 +611,15 @@ const ApproveExpenseRequestContent: React.FC<ApproveExpenseRequestProps> = ({
         />
       )}
 
-      {/* 7. Comment Section - Only for active tasks */}
+      {/* 7. AI Analysis Section */}
+      <AIAnalysisSection
+        analysis={aiAnalysis}
+        loading={aiAnalysisLoading}
+        error={aiAnalysisError}
+        onRefresh={refetchAiAnalysis}
+      />
+
+      {/* 8. Comment Section - Only for active tasks */}
       {!isTaskCompleted && (
         <div ref={commentSectionRef} data-testid="approve-expense-request-comment-section">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">

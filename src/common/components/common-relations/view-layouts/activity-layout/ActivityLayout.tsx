@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { useActivityExport } from './hooks/useActivityExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -62,13 +64,26 @@ export interface ActivityLayoutProps<TActivity extends Activity = Activity, TQue
   readonly config: ActivityViewConfig<TActivity, TQueryVariables>
   readonly dataTestId?: string
   readonly initialFilters?: Record<string, any>
+  readonly onFilterChange?: (filters: Record<string, any>) => void
+  readonly initialSorting?: Array<{ id: string; desc: boolean }>
+  readonly onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
+  readonly initialVisibleColumns?: string[]
+  readonly onVisibleColumnsChange?: (columns: string[]) => void
   readonly hideFilters?: boolean
   readonly showOwnerEmployee?: boolean
   readonly secondaryActions?: React.ReactNode
+  readonly enableExport?: boolean
+  readonly exportFilenamePrefix?: string
   readonly kpiStatistics?: ActivityStatisticsData | null
   readonly kpiLoading?: boolean
   readonly kpiError?: Error | null
   readonly onKpiRetry?: () => void
+}
+
+const getExportButtonTitle = (isExporting: boolean, totalCount: number, format: string): string => {
+  if (isExporting) return 'Exporting…'
+  if (totalCount === 0) return 'No data to export'
+  return `Export ${totalCount} activities as ${format}`
 }
 
 function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVariables = any>(
@@ -79,9 +94,16 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
     config,
     dataTestId = 'activity-view',
     initialFilters = {},
+    onFilterChange,
+    initialSorting,
+    onSortingChange,
+    initialVisibleColumns,
+    onVisibleColumnsChange,
     hideFilters = false,
     showOwnerEmployee = false,
     secondaryActions,
+    enableExport = false,
+    exportFilenamePrefix = 'activities',
     kpiStatistics,
     kpiLoading = false,
     kpiError = null,
@@ -91,9 +113,11 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
   // View State
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
+    () => initialSorting ?? [{ id: 'createdAt', desc: true }]
+  )
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => initialVisibleColumns ?? [])
   const [selectedActivity, setSelectedActivity] = useState<TActivity | null>(null)
 
   // Data State
@@ -181,8 +205,25 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
     (filters: Record<string, any>) => {
       setSelectedFilters(filters)
       setPagination({ pageIndex: 0, pageSize: pagination.pageSize })
+      onFilterChange?.(filters)
     },
-    [pagination.pageSize]
+    [pagination.pageSize, onFilterChange]
+  )
+
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      setSorting(newSorting)
+      onSortingChange?.(newSorting)
+    },
+    [onSortingChange]
+  )
+
+  const handleVisibleColumnsChange = useCallback(
+    (newColumns: string[]) => {
+      setVisibleColumns(newColumns)
+      onVisibleColumnsChange?.(newColumns)
+    },
+    [onVisibleColumnsChange]
   )
 
   // Handle activity click
@@ -227,6 +268,51 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
     [config, context.accessToken]
   )
 
+  // Export hook — always called (hooks must not be conditional)
+  const { isExporting, handleExportCsv, handleExportExcel } = useActivityExport({
+    fetchActivities: config.fetchActivities as any,
+    queryVariables,
+    totalCount,
+    filenamePrefix: exportFilenamePrefix
+  })
+
+  // Combine export buttons with any external secondaryActions
+  const combinedSecondaryActions = useMemo(() => {
+    if (!enableExport) return secondaryActions
+
+    const csvTitle = getExportButtonTitle(isExporting, totalCount, 'CSV')
+    const excelTitle = getExportButtonTitle(isExporting, totalCount, 'Excel')
+
+    const exportButtons = (
+      <>
+        <Button
+          onClick={handleExportCsv}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="activity-export-csv-button"
+          title={csvTitle}
+        >
+          <DownloadIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'CSV'}
+        </Button>
+        <Button
+          onClick={handleExportExcel}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="activity-export-excel-button"
+          title={excelTitle}
+        >
+          <FileXlsIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'Excel'}
+        </Button>
+        {secondaryActions}
+      </>
+    )
+    return exportButtons
+  }, [enableExport, isExporting, totalCount, handleExportCsv, handleExportExcel, secondaryActions])
+
   return (
     <div data-testid={dataTestId} className="gba:flex gba:flex-col gba:gap-4">
       {kpiStatistics && (
@@ -258,10 +344,10 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
         onFilterChange={hideFilters ? undefined : handleFilterChange}
         sorting={sorting}
         sortableColumns={config.sortableColumns}
-        onSortingChange={setSorting}
+        onSortingChange={handleSortingChange}
         availableColumns={config.availableColumns}
         visibleColumns={visibleColumns}
-        onVisibleColumnsChange={setVisibleColumns}
+        onVisibleColumnsChange={handleVisibleColumnsChange}
         primaryAction={
           config.flowContexts.createContext ? (
             <AppAction
@@ -282,7 +368,7 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
             </AppAction>
           ) : undefined
         }
-        secondaryActions={secondaryActions}
+        secondaryActions={combinedSecondaryActions}
         toolbarDensity="default"
         enableLiveFiltering={true}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterActivities', 'Filter Activities')}
@@ -300,7 +386,7 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
           pagination={pagination}
           sorting={sorting}
           onPaginationChange={setPagination}
-          onSortingChange={setSorting}
+          onSortingChange={handleSortingChange}
           onRowClick={handleActivityClick}
           actions={rowActions}
           onRetry={loadActivities}
@@ -321,7 +407,6 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
           }
           return ''
         }}
-        businessAppContext={context}
         data-testid={`${dataTestId}-detail-sheet`}
         accessToken={context.accessToken}
         flowContext={config.rowActionsContextArray?.[0]}

@@ -9,6 +9,12 @@ import {
 } from '../types/analytics-context'
 import type { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { compactRecord, limitArray, normalizeEmail, normalizePhone } from './collectorUtils'
+import {
+  isCrmNoteNextStepType,
+  isCrmNoteRegularType,
+  mapCrmNoteRawToAnalyticsActivity
+} from '@/common/data/customer/types/customerNoteTypes'
+import { mapRawCrmNoteGraphQLRow } from '@/common/data/customer/utils/crmNoteMap'
 
 const GET_OPPORTUNITY_ANALYTICS = `
   query GetOpportunityAnalytics($id: uuid!) {
@@ -181,11 +187,13 @@ const GET_OPPORTUNITY_TASKS = `
       priority {
         value
       }
-      assignedEmployee {
-        id
-        firstName
-        lastName
-        displayName
+      taskAssignees(where: { isDeleted: { _eq: false } }) {
+        assignedEmployee {
+          id
+          firstName
+          lastName
+          displayName
+        }
       }
       creatorEmployee {
         id
@@ -207,6 +215,7 @@ const GET_OPPORTUNITY_NOTES = `
       id
       noteTitle
       noteText
+      noteType
       createdAt
       createdBy
     }
@@ -313,7 +322,7 @@ function buildOpportunityAssociates(opportunity: OpportunityRecord, contactRecor
     associates.push({
       id: contact.id,
       name: [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim() || undefined,
-      relation: entry.contactType || contact.contactType || 'opportunityContact',
+      relation: entry.contactType || 'opportunityContact',
       role: contact.jobTitle || undefined,
       type: 'contact',
       email: normalizeEmail(contact.email),
@@ -349,9 +358,11 @@ function buildOpportunityMetrics(params: {
   stageConditions: any[]
   activityCount: number
   taskCount: number
-  noteCount: number
+  generalNoteCount: number
+  nextStepNoteCount: number
 }): AnalyticsMetric[] {
-  const { opportunity, contacts, stageConditions, activityCount, taskCount, noteCount } = params
+  const { opportunity, contacts, stageConditions, activityCount, taskCount, generalNoteCount, nextStepNoteCount } =
+    params
   const metrics: AnalyticsMetric[] = []
 
   metrics.push({
@@ -368,11 +379,19 @@ function buildOpportunityMetrics(params: {
     })
   }
 
-  if (noteCount > 0) {
+  if (generalNoteCount > 0) {
     metrics.push({
-      id: 'opportunity.notes.total',
+      id: 'opportunity.notes.general',
       label: 'Notes',
-      value: noteCount
+      value: generalNoteCount
+    })
+  }
+
+  if (nextStepNoteCount > 0) {
+    metrics.push({
+      id: 'opportunity.notes.nextSteps',
+      label: 'Next steps',
+      value: nextStepNoteCount
     })
   }
 
@@ -451,14 +470,17 @@ function buildOpportunityActivities(params: { activities: any[]; tasks: any[]; n
       type: normalizedType,
       title: task.name || 'Task',
       occurredAt: task.dueDate || task.createdAt || undefined,
-      relationId: task.assignedEmployee?.id || undefined,
+      relationId: task.taskAssignees?.[0]?.assignedEmployee?.id || undefined,
       meta: compactRecord({
         statusRef: task.statusRef,
         timingType: task.timingType,
         priority: task.priority?.value || task.priorityRef,
         assignedEmployee:
-          task.assignedEmployee?.displayName ||
-          [task.assignedEmployee?.firstName, task.assignedEmployee?.lastName].filter(Boolean).join(' ').trim() ||
+          task.taskAssignees?.[0]?.assignedEmployee?.displayName ||
+          [task.taskAssignees?.[0]?.assignedEmployee?.firstName, task.taskAssignees?.[0]?.assignedEmployee?.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .trim() ||
           undefined,
         createdBy:
           task.creatorEmployee?.displayName ||
@@ -469,15 +491,13 @@ function buildOpportunityActivities(params: { activities: any[]; tasks: any[]; n
   })
 
   const mappedNotes = limitArray(notes, 3).map(note => {
+    const mapped = mapCrmNoteRawToAnalyticsActivity(note)
     return {
-      id: note.id,
-      type: 'note',
-      title: note.noteTitle || 'Note',
-      occurredAt: note.createdAt || undefined,
-      meta: compactRecord({
-        author: note.createdBy,
-        text: note.noteText
-      })
+      id: mapped.id,
+      type: mapped.type,
+      title: mapped.title,
+      occurredAt: mapped.occurredAt,
+      meta: compactRecord(mapped.meta)
     } as AnalyticsActivity
   })
 
@@ -631,6 +651,8 @@ export async function buildOpportunityAnalytics(params: {
   const activities = activitiesResult.status === 'fulfilled' ? (activitiesResult.value?.SalesActivity ?? []) : []
   const tasks = tasksResult.status === 'fulfilled' ? (tasksResult.value?.SalesTask ?? []) : []
   const notes = notesResult.status === 'fulfilled' ? (notesResult.value?.CrmNote ?? []) : []
+  const generalNoteCount = notes.filter(n => isCrmNoteRegularType(mapRawCrmNoteGraphQLRow(n))).length
+  const nextStepNoteCount = notes.filter(n => isCrmNoteNextStepType(mapRawCrmNoteGraphQLRow(n))).length
 
   if (activitiesResult.status === 'rejected') {
     console.warn('Failed to load opportunity activities for analytics:', activitiesResult.reason)
@@ -655,7 +677,8 @@ export async function buildOpportunityAnalytics(params: {
     stageConditions,
     activityCount: activities.length,
     taskCount: tasks.length,
-    noteCount: notes.length
+    generalNoteCount,
+    nextStepNoteCount
   })
 
   const raw = buildOpportunityRaw(opportunity, contacts, stageConditions)
@@ -664,7 +687,9 @@ export async function buildOpportunityAnalytics(params: {
     as_of: new Date().toISOString(),
     activityCount: activities.length,
     taskCount: tasks.length,
-    noteCount: notes.length
+    noteCountTotal: notes.length,
+    generalNoteCount,
+    nextStepNoteCount
   })
 
   return {

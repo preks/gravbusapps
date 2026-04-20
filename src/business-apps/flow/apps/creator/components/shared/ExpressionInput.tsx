@@ -9,13 +9,13 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { Code, Type, CheckCircle, AlertCircle, Network, Loader2 } from 'lucide-react'
+import { CheckCircle, AlertCircle, Network, Loader2, Code } from 'lucide-react'
 import { FlowTemplate } from '../../types/flowTemplate'
 import { ExpressionBuilder } from './ExpressionBuilder'
 import { HumanReadablePreview } from './HumanReadablePreview'
 import { useExpressionValidator } from '../../hooks/useExpressionValidator'
 import { useEntitySchemas } from '../../hooks/useEntitySchemas'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface ExpressionInputProps {
@@ -202,7 +202,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
           }
 
           // Call backend API for thorough validation
-          const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+          const apiUrl = CUSTOM_FLOW_ENGINE_API_URL
 
           // Create validation template with the expression to validate
           // Preserve ALL steps with their form fields for cross-step validation
@@ -226,7 +226,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
             )
           }
 
-          const response = await fetch(`${apiUrl}/api/templates/validate-expressions`, {
+          const response = await fetch(`${apiUrl}/templates/validate-expressions`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -274,12 +274,6 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
       }
     }
   }, [value, shouldValidate, hasExpressions, entitySchemas])
-
-  const toggleMode = () => {
-    if (mode !== 'auto') {
-      setIsExpressionMode(!isExpressionMode)
-    }
-  }
 
   // Get validation badge
   const getValidationBadge = () => {
@@ -374,29 +368,6 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
             </div>
           )}
         </div>
-
-        {/* Mode toggle button */}
-        {mode !== 'auto' && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={toggleMode}
-                  disabled={disabled}
-                  className="gba:shrink-0"
-                  data-testid={`${testId}-mode-toggle`}
-                >
-                  {isExpressionMode ? <Type className="gba:h-4 gba:w-4" /> : <Code className="gba:h-4 gba:w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="gba:text-xs">{isExpressionMode ? 'Switch to plain text' : 'Switch to expression mode'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
 
         {/* Builder button - Always show when useTreeBuilder is enabled */}
         {useTreeBuilder && template && (

@@ -11,10 +11,12 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Separator
+  Separator,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { CalendarIcon, MapPinIcon, TagIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { getActionLabels } from './AssetTableActionButton'
 import {
   getTranslationFromI18nKeyAndLabel,
   formatDate,
@@ -32,6 +34,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/en'
 import 'dayjs/locale/de'
 import 'dayjs/locale/ro'
+import assetsTranslations from '../_i18n'
 
 dayjs.extend(relativeTime)
 
@@ -41,16 +44,21 @@ interface AssetDetailPanelProps {
   isOpen: boolean
   onClose: () => void
   accessToken: string
+  canDeleteAsset?: boolean
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
   onRetrieveAsset?: (assetId: string) => void
+  onDeleteAsset?: (assetId: string) => void
+  onGenerateDocument?: (assetId: string) => void
 }
 
 const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warning' | 'destructive' | 'default' => {
   switch (status) {
     case AssetStatus.AVAILABLE:
       return 'success'
+    case AssetStatus.PENDING:
+      return 'default'
     case AssetStatus.ALLOCATED:
       return 'info'
     case AssetStatus.UNDER_REPAIR:
@@ -65,6 +73,9 @@ const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warni
 const formatStatus = (status: AssetStatus | string): string => {
   if (status === AssetStatus.AVAILABLE) {
     return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')
+  }
+  if (status === AssetStatus.PENDING) {
+    return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending')
   }
   if (status === AssetStatus.ALLOCATED) {
     return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_allocated', 'Allocated')
@@ -106,13 +117,17 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   isOpen,
   onClose,
   accessToken,
+  canDeleteAsset = false,
   onAllocateAsset,
   onUpdateAsset,
   onRetireAsset,
-  onRetrieveAsset
+  onRetrieveAsset,
+  onDeleteAsset,
+  onGenerateDocument
 }) => {
   if (!asset) return null
 
+  const { t } = useTranslation(assetsTranslations)
   const { options: conditionOptions } = useAssetConditionCatalog({ accessToken } as BusinessAppContextProps)
 
   const conditionLookup = useMemo(() => {
@@ -132,17 +147,26 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
     return conditionValue || getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
   }
 
+  const getResponsiblePersonDisplay = (): string => {
+    const r = asset.responsibleEmployee
+    if (!r) return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
+    if (r.displayName?.trim()) return r.displayName.trim()
+    const name = `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim()
+    return name || getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
+  }
+
   const isAllocated = asset.assetStatus === AssetStatus.ALLOCATED
   const isRetired = asset.assetStatus === AssetStatus.RETIRED
 
   const staticFlowData = useMemo(() => {
+    const labels = getActionLabels()
     const actions: any[] = []
 
     if (!isRetired && onUpdateAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: labels.actions,
         key: 'update-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.update_asset', 'Update Asset'),
+        label: labels.update_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onUpdateAsset(asset.id)
@@ -152,9 +176,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
     if (!isAllocated && !isRetired && onAllocateAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: labels.actions,
         key: 'allocate-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset', 'Allocate Asset'),
+        label: labels.allocate_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onAllocateAsset(asset.id)
@@ -164,9 +188,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
     if (isAllocated && !isRetired && onRetrieveAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: labels.actions,
         key: 'retrieve-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retrieve_asset', 'Retrieve Asset'),
+        label: labels.retrieve_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetrieveAsset(asset.id)
@@ -176,9 +200,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
     if (!isRetired && onRetireAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: labels.actions,
         key: 'retire-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retire_asset', 'Retire Asset'),
+        label: labels.retire_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetireAsset(asset.id)
@@ -186,23 +210,65 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
       })
     }
 
+    if (canDeleteAsset && onDeleteAsset) {
+      actions.push({
+        category: labels.actions,
+        key: 'delete-asset',
+        label: labels.delete_asset,
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onDeleteAsset(asset.id)
+        }
+      })
+    }
+
+    if (isRetired && onGenerateDocument) {
+      actions.push({
+        category: labels.actions,
+        key: 'generate-document',
+        label: labels.export_certificate,
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onGenerateDocument(asset.id)
+        }
+      })
+    }
+
     return actions
-  }, [asset.id, isAllocated, isRetired, onAllocateAsset, onUpdateAsset, onRetireAsset, onRetrieveAsset])
+  }, [
+    asset.id,
+    isAllocated,
+    isRetired,
+    onAllocateAsset,
+    onUpdateAsset,
+    onRetireAsset,
+    onRetrieveAsset,
+    canDeleteAsset,
+    onDeleteAsset,
+    onGenerateDocument
+  ])
 
   const userLocale = getCurrentActiveUserLocale()
   const localeCode = userLocale.split('-')[0].toLowerCase()
   const dayjsLocale = localeCode === 'ro' ? 'ro' : localeCode === 'de' ? 'de' : 'en'
   dayjs.locale(dayjsLocale)
 
-  const acquisitionDate = dayjs(asset.acquisitionDate)
-  const warrantyExpiryDate = acquisitionDate.add(asset.warrantyPeriodMonths, 'month')
+  const hasValidWarrantyData =
+    asset.acquisitionDate != null &&
+    asset.acquisitionDate !== '' &&
+    typeof asset.warrantyPeriodMonths === 'number' &&
+    !Number.isNaN(asset.warrantyPeriodMonths)
 
-  const warrantyExpired = isWarrantyExpired(warrantyExpiryDate.toISOString())
-  const daysRemaining = getWarrantyDaysRemaining(warrantyExpiryDate.toISOString())
+  const warrantyExpiryDate = hasValidWarrantyData
+    ? dayjs(asset.acquisitionDate).add(asset.warrantyPeriodMonths ?? 0, 'month')
+    : null
+
+  const warrantyExpired = warrantyExpiryDate != null && isWarrantyExpired(warrantyExpiryDate.toISOString())
+  const daysRemaining = warrantyExpiryDate != null ? getWarrantyDaysRemaining(warrantyExpiryDate.toISOString()) : 0
   const sortedAllocations = [...allocations].sort((a, b) => dayjs(b.startDate).diff(dayjs(a.startDate)))
 
   return (
-    <Sheet open={isOpen} onOpenChange={onClose} title="">
+    <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent
         className="gba:w-full sm:gba:max-w-xl gba:flex gba:flex-col gba:p-0 gba:h-full"
         data-testid="asset-detail-panel"
@@ -268,7 +334,8 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                       className="gba:text-sm gba:text-muted-foreground gba:font-mono"
                       data-testid="asset-serial-number"
                     >
-                      {asset.serialNumber}
+                      {asset.serialNumber ??
+                        getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
                     </p>
                   </div>
                 </div>
@@ -311,7 +378,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                       {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.acquisition_date', 'Acquisition Date')}
                     </p>
                     <p className="gba:text-sm gba:text-muted-foreground" data-testid="asset-acquisition-date">
-                      {formatDate(asset.acquisitionDate) || asset.acquisitionDate}
+                      {asset.acquisitionDate
+                        ? formatDate(asset.acquisitionDate) || asset.acquisitionDate
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
                     </p>
                   </div>
                 </div>
@@ -331,35 +400,44 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                       {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty_period', 'Warranty Period')}
                     </p>
                     <p className="gba:text-sm gba:text-muted-foreground">
-                      {asset.warrantyPeriodMonths}{' '}
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.months', 'months')}
+                      {typeof asset.warrantyPeriodMonths === 'number'
+                        ? `${asset.warrantyPeriodMonths} ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.months', 'months')}`
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
                     </p>
                   </div>
-                  {warrantyExpired ? (
-                    <Badge variant="destructive" data-testid="warranty-status-expired">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expired', 'Expired')}
-                    </Badge>
-                  ) : daysRemaining < 90 ? (
-                    <Badge variant="warning" data-testid="warranty-status-expiring">
-                      {Math.ceil(daysRemaining / 30)}{' '}
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.mo_left', 'mo left')}
-                    </Badge>
-                  ) : (
-                    <Badge variant="success" data-testid="warranty-status-valid">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.valid', 'Valid')}
-                    </Badge>
-                  )}
+                  {hasValidWarrantyData ? (
+                    warrantyExpired ? (
+                      <Badge variant="destructive" data-testid="warranty-status-expired">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expired', 'Expired')}
+                      </Badge>
+                    ) : daysRemaining < 90 ? (
+                      <Badge variant="warning" data-testid="warranty-status-expiring">
+                        {Math.ceil(daysRemaining / 30)}{' '}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.mo_left', 'mo left')}
+                      </Badge>
+                    ) : (
+                      <Badge variant="success" data-testid="warranty-status-valid">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.valid', 'Valid')}
+                      </Badge>
+                    )
+                  ) : null}
                 </div>
 
                 <Separator />
 
                 <div>
-                  <p className="gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expiry_date', 'Expiry Date')}
-                  </p>
+                  <p className="gba:text-sm gba:font-medium">{t('end-of-warranty-period')}</p>
                   <p className="gba:text-sm gba:text-muted-foreground" data-testid="warranty-expiry-date">
-                    {formatDate(warrantyExpiryDate.toISOString()) || warrantyExpiryDate.toISOString()}
-                    {!warrantyExpired && <span className="gba:text-xs gba:ml-2">({warrantyExpiryDate.fromNow()})</span>}
+                    {warrantyExpiryDate != null ? (
+                      <>
+                        {formatDate(warrantyExpiryDate.toISOString()) || warrantyExpiryDate.toISOString()}
+                        {!warrantyExpired && (
+                          <span className="gba:text-xs gba:ml-2">({warrantyExpiryDate.fromNow()})</span>
+                        )}
+                      </>
+                    ) : (
+                      getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
+                    )}
                   </p>
                 </div>
               </CardContent>
@@ -391,99 +469,153 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
               </CardHeader>
               <CardContent>
                 {sortedAllocations.length === 0 ? (
-                  <p
-                    className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-4"
-                    data-testid="no-allocation-history"
-                  >
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:hr_assets.allocation_history_empty',
-                      'No allocation history available for this asset.'
+                  <div className="gba:space-y-2">
+                    <p
+                      className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-4"
+                      data-testid="no-allocation-history"
+                    >
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:hr_assets.allocation_history_empty',
+                        'No allocation history available for this asset.'
+                      )}
+                    </p>
+                    {isRetired && (
+                      <p
+                        className="gba:text-xs gba:text-muted-foreground gba:text-center"
+                        data-testid="asset-retired-at-by"
+                      >
+                        {t('retired-at-by', {
+                          disposalDate:
+                            asset.disposalDate != null && asset.disposalDate !== ''
+                              ? formatDate(asset.disposalDate) || asset.disposalDate
+                              : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A'),
+                          responsiblePerson: getResponsiblePersonDisplay()
+                        })}
+                      </p>
                     )}
-                  </p>
+                  </div>
                 ) : (
                   <div className="gba:space-y-4">
-                    {sortedAllocations.map((allocation, index) => (
-                      <div key={allocation.id} data-testid={`allocation-history-item-${allocation.id}`}>
-                        <div className="gba:flex gba:items-start gba:gap-3">
-                          <div className="gba:flex gba:flex-col gba:items-center gba:pt-1">
-                            <div
-                              className={`gba:w-3 gba:h-3 gba:rounded-full ${
-                                allocation.endDate ? 'gba:bg-muted' : 'gba:bg-success'
-                              }`}
-                            />
-                            {index < sortedAllocations.length - 1 && (
-                              <div className="gba:w-0.5 gba:h-16 gba:bg-border gba:my-1" />
-                            )}
-                          </div>
-
-                          <div className="gba:flex-1 gba:pb-4">
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <p
-                                className="gba:text-sm gba:font-medium"
-                                data-testid={`allocation-employee-${allocation.id}`}
-                              >
-                                {allocation.employee?.displayName ||
-                                  `${allocation.employee?.firstName || ''} ${allocation.employee?.lastName || ''}`.trim() ||
-                                  getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:hr_assets.unknown_employee',
-                                    'Unknown Employee'
-                                  )}
-                              </p>
-                              {!allocation.endDate && (
-                                <Badge variant="success" data-testid={`allocation-status-${allocation.id}`}>
-                                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.current', 'Current')}
-                                </Badge>
+                    {sortedAllocations.map((allocation, index) => {
+                      const effectivelyEnded = !!allocation.endDate || (isRetired && !allocation.endDate)
+                      const isActiveAllocation = !allocation.endDate && !isRetired
+                      const showCurrentBadge = isActiveAllocation && asset.assetStatus !== AssetStatus.PENDING
+                      const showPendingBadge = isActiveAllocation && asset.assetStatus === AssetStatus.PENDING
+                      const endLabel = allocation.endDate
+                        ? formatDate(allocation.endDate) || allocation.endDate
+                        : isRetired
+                          ? t('asset-retired')
+                          : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.present', 'Present')
+                      return (
+                        <div key={allocation.id} data-testid={`allocation-history-item-${allocation.id}`}>
+                          <div className="gba:flex gba:items-start gba:gap-3">
+                            <div className="gba:flex gba:flex-col gba:items-center gba:pt-1">
+                              <div
+                                className={`gba:w-3 gba:h-3 gba:rounded-full ${
+                                  effectivelyEnded
+                                    ? 'gba:bg-muted'
+                                    : showPendingBadge
+                                      ? 'gba:bg-muted'
+                                      : 'gba:bg-success'
+                                }`}
+                              />
+                              {index < sortedAllocations.length - 1 && (
+                                <div className="gba:w-0.5 gba:h-16 gba:bg-border gba:my-1" />
                               )}
                             </div>
 
-                            <p
-                              className="gba:text-xs gba:text-muted-foreground"
-                              data-testid={`allocation-dates-${allocation.id}`}
-                            >
-                              {formatDate(allocation.startDate) || allocation.startDate}
-                              {' → '}
-                              {allocation.endDate
-                                ? formatDate(allocation.endDate) || allocation.endDate
-                                : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.present', 'Present')}
-                            </p>
-
-                            {allocation.startAssetCondition && (
-                              <p
-                                className="gba:text-xs gba:text-muted-foreground gba:mt-1"
-                                data-testid={`allocation-condition-start-${allocation.id}`}
-                              >
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:hr_assets.condition_at_handover',
-                                  'Condition at handover'
+                            <div className="gba:flex-1 gba:pb-4">
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                <p
+                                  className="gba:text-sm gba:font-medium"
+                                  data-testid={`allocation-employee-${allocation.id}`}
+                                >
+                                  {allocation.employee?.displayName ||
+                                    `${allocation.employee?.firstName || ''} ${allocation.employee?.lastName || ''}`.trim() ||
+                                    getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:hr_assets.unknown_employee',
+                                      'Unknown Employee'
+                                    )}
+                                </p>
+                                {showCurrentBadge && (
+                                  <Badge variant="success" data-testid={`allocation-status-${allocation.id}`}>
+                                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.current', 'Current')}
+                                  </Badge>
                                 )}
-                                :{' '}
-                                {getConditionDisplayValue(
-                                  allocation.startAssetConditionRef,
-                                  allocation.startAssetCondition.value
+                                {showPendingBadge && (
+                                  <Badge variant="default" data-testid={`allocation-status-pending-${allocation.id}`}>
+                                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending')}
+                                  </Badge>
                                 )}
-                              </p>
-                            )}
+                                {isRetired && !allocation.endDate && (
+                                  <Badge variant="default" data-testid={`allocation-status-ended-${allocation.id}`}>
+                                    {t('ended-asset-retired')}
+                                  </Badge>
+                                )}
+                              </div>
 
-                            {allocation.endDate && allocation.endAssetCondition && (
                               <p
                                 className="gba:text-xs gba:text-muted-foreground"
-                                data-testid={`allocation-condition-end-${allocation.id}`}
+                                data-testid={`allocation-dates-${allocation.id}`}
                               >
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:hr_assets.condition_at_return',
-                                  'Condition at return'
-                                )}
-                                :{' '}
-                                {getConditionDisplayValue(
-                                  allocation.endAssetConditionRef,
-                                  allocation.endAssetCondition.value
-                                )}
+                                {formatDate(allocation.startDate) || allocation.startDate}
+                                {' → '}
+                                {endLabel}
                               </p>
-                            )}
+
+                              {allocation.startAssetCondition && (
+                                <p
+                                  className="gba:text-xs gba:text-muted-foreground gba:mt-1"
+                                  data-testid={`allocation-condition-start-${allocation.id}`}
+                                >
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:hr_assets.condition_at_handover',
+                                    'Condition at handover'
+                                  )}
+                                  :{' '}
+                                  {getConditionDisplayValue(
+                                    allocation.startAssetConditionRef,
+                                    allocation.startAssetCondition.value
+                                  )}
+                                </p>
+                              )}
+
+                              {allocation.endDate && allocation.endAssetCondition && (
+                                <p
+                                  className="gba:text-xs gba:text-muted-foreground"
+                                  data-testid={`allocation-condition-end-${allocation.id}`}
+                                >
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:hr_assets.condition_at_return',
+                                    'Condition at return'
+                                  )}
+                                  :{' '}
+                                  {getConditionDisplayValue(
+                                    allocation.endAssetConditionRef,
+                                    allocation.endAssetCondition.value
+                                  )}
+                                </p>
+                              )}
+
+                              {isRetired && index === 0 && (
+                                <p
+                                  className="gba:text-xs gba:text-muted-foreground gba:mt-1"
+                                  data-testid="asset-retired-at-by"
+                                >
+                                  {t('retired-at-by', {
+                                    disposalDate:
+                                      asset.disposalDate != null && asset.disposalDate !== ''
+                                        ? formatDate(asset.disposalDate) || asset.disposalDate
+                                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A'),
+                                    responsiblePerson: getResponsiblePersonDisplay()
+                                  })}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>

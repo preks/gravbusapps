@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
-import { OrganizationalStructureApiResponse, Department, OrganizationalUnitNode, CostCenter, Company } from '../types'
-
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
+import { Department, OrganizationalStructureApiResponse, OrganizationalUnitNode, CostCenter, Company } from '../types'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 export const useDepartments = (context: BusinessAppContextProps) => {
   const [rootDepartments, setRootDepartments] = useState<Department[]>([])
@@ -15,9 +13,9 @@ export const useDepartments = (context: BusinessAppContextProps) => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const structureId = useRef<string>(context.additionalData?.structureId || 'active')
+  const structureId = useRef<string>(getCurrentActiveStructureId() ?? '')
 
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(context.accessToken)
 
   // Transform API organizational unit node to UI-friendly Department interface
   const transformDepartment = (node: OrganizationalUnitNode, allNodes: OrganizationalUnitNode[]): Department => {
@@ -114,15 +112,17 @@ export const useDepartments = (context: BusinessAppContextProps) => {
         throw new Error('Structure ID is required to fetch departments')
       }
 
-      const response = await restClient.get<OrganizationalStructureApiResponse>(`/structures/active`, {
-        params: {
+      const response = await orgchartClient.getStructuresActive<OrganizationalStructureApiResponse>(
+        {
           nodeType: 'organization_unit',
           isPlanningMode: false
         },
-        headers: {
-          Authorization: `Bearer ${context.accessToken}`
+        {
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`
+          }
         }
-      })
+      )
 
       structureId.current = response.structure.structureId
       // Transform nodes to departments
@@ -137,7 +137,7 @@ export const useDepartments = (context: BusinessAppContextProps) => {
       console.error('Error fetching departments:', error)
       throw new Error('Failed to fetch departments from orgchart API')
     }
-  }, [context.accessToken, context.additionalData?.structureId, restClient])
+  }, [context.accessToken, orgchartClient])
 
   const fetchCostCenters = useCallback(async (): Promise<CostCenter[]> => {
     try {
@@ -145,12 +145,14 @@ export const useDepartments = (context: BusinessAppContextProps) => {
         throw new Error('Structure ID is required to fetch cost centers')
       }
 
-      const response = await restClient.get<CostCenter[]>(`/cost-centers`, {
-        params: { structureId: structureId.current },
-        headers: {
-          Authorization: `Bearer ${context.accessToken}`
+      const response = await orgchartClient.getCostCenters(
+        { structureId: structureId.current },
+        {
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`
+          }
         }
-      })
+      )
 
       if (response?.length > 0) {
         return response
@@ -161,7 +163,7 @@ export const useDepartments = (context: BusinessAppContextProps) => {
       console.error('Error fetching cost centers:', error)
       throw new Error('Failed to fetch cost centers from orgchart API')
     }
-  }, [context.accessToken, restClient])
+  }, [context.accessToken, orgchartClient])
 
   const fetchCompanies = useCallback(async (): Promise<Company[]> => {
     try {
@@ -169,12 +171,14 @@ export const useDepartments = (context: BusinessAppContextProps) => {
         throw new Error('Structure ID is required to fetch departments')
       }
 
-      const response = await restClient.get<Company[]>(`/companies`, {
-        params: { structureId: structureId.current },
-        headers: {
-          Authorization: `Bearer ${context.accessToken}`
+      const response = await orgchartClient.getCompanies(
+        { structureId: structureId.current },
+        {
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`
+          }
         }
-      })
+      )
 
       if (response?.length > 0) {
         return response

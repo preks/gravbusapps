@@ -1,0 +1,17 @@
+# Task Section & Quick-Add
+tasks-untitled = Unbenannte Aufgabe
+tasks-emptyState = Noch keine Aufgaben. Erstellen Sie Ihre erste Aufgabe.
+tasks-addQuick = Aufgabe schnell anlegen
+tasks-assignee = Zugewiesen an
+tasks-selectAssignee = Auswählen...
+tasks-type = Typ
+tasks-priority = Priorität
+tasks-timingType = Zeitart
+tasks-pleaseSelect = Auswählen...
+tasks-deadline = Fälligkeit
+tasks-taskDetails = Aufgabe
+tasks-documents = Dokumente
+tasks-quickAddPlaceholder = Aufgabentitel...
+tasks-descriptionPlaceholder = Beschreibung...
+common-creating = Wird erstellt...
+tasks-create = Erstellen

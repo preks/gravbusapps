@@ -1,10 +1,12 @@
 import React from 'react'
-import dayjs from 'dayjs'
 import { Button } from '@newwork/nw-design-system'
-import { PiTrash } from 'react-icons/pi'
+import { TrashIcon } from '@phosphor-icons/react'
 import {
+  Badge,
+  Checkbox,
   DateInput,
   Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -13,6 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { EditableCell } from '../types'
 import { formatPeriodShort } from '../utils/matrixFormatters'
+import { formatDateForInput, normalizeDateInputValue, toISOEndOfDay, toISOStartOfDay } from '../../../utils'
 
 /**
  * Action buttons for new cell (Cancel + Save)
@@ -50,7 +53,7 @@ const NewCellActions: React.FC<{
         onSaveCell()
       }}
       className="gba:flex-1 gba:h-7 gba:text-xs"
-      disabled={isSavingCell || cell.amount <= 0}
+      disabled={isSavingCell}
     >
       {isSavingCell ? 'Saving...' : 'Save'}
     </Button>
@@ -105,7 +108,7 @@ const ExistingCellActions: React.FC<{
         disabled={isSavingCell || isCheckingCellUsage}
         title="Delete this detail"
       >
-        <PiTrash className="gba:w-4 gba:h-4" />
+        <TrashIcon className="gba:w-4 gba:h-4" />
       </Button>
     )}
   </div>
@@ -184,11 +187,13 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
             </label>
             <DateInput
               id={`${prefixDataTestId}-cell-active-from-${ruleId}-${regionId}`}
-              value={cell.activeFrom ? dayjs(cell.activeFrom).format('YYYY-MM-DD') : ''}
+              value={formatDateForInput(cell.activeFrom) || ''}
               onChange={date => {
-                const dateValue = date ? `${date}T00:00:00+00:00` : ''
+                const normalized = normalizeDateInputValue(date)
+                const dateValue = normalized ? toISOStartOfDay(normalized) : ''
                 onUpdateCell({ activeFrom: dateValue, isModified: true })
               }}
+              outputFormat="iso"
               disabled={isUsedInTransactions && !cell.isNew}
               data-testid={`${prefixDataTestId}-cell-active-from-${ruleId}-${regionId}`}
             />
@@ -204,11 +209,13 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
             </label>
             <DateInput
               id={`${prefixDataTestId}-cell-active-to-${ruleId}-${regionId}`}
-              value={cell.activeTo ? dayjs(cell.activeTo).format('YYYY-MM-DD') : ''}
+              value={formatDateForInput(cell.activeTo) || ''}
               onChange={date => {
-                const dateValue = date ? `${date}T00:00:00+00:00` : undefined
+                const normalized = normalizeDateInputValue(date)
+                const dateValue = normalized ? toISOEndOfDay(normalized) : undefined
                 onUpdateCell({ activeTo: dateValue, isModified: true })
               }}
+              outputFormat="iso"
               data-testid={`${prefixDataTestId}-cell-active-to-${ruleId}-${regionId}`}
             />
           </div>
@@ -225,10 +232,10 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
               id={`${prefixDataTestId}-cell-amount-${ruleId}-${regionId}`}
               type="number"
               step="0.01"
-              value={cell.amount || ''}
+              value={cell.amount !== null && cell.amount !== undefined ? cell.amount : ''}
               onChange={e => {
-                const value = Number.parseFloat(e.target.value) || 0
-                onUpdateCell({ amount: value, isModified: true })
+                const value = e.target.value === '' ? 0 : Number.parseFloat(e.target.value)
+                onUpdateCell({ amount: isNaN(value) ? 0 : value, isModified: true })
               }}
               onClick={e => e.stopPropagation()}
               className="gba:w-full gba:h-7 gba:text-center gba:text-sm gba:font-semibold"
@@ -236,6 +243,25 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
               disabled={isUsedInTransactions && !cell.isNew}
               data-testid={`${prefixDataTestId}-cell-amount-${ruleId}-${regionId}`}
             />
+          </div>
+
+          {/* Home Region */}
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Checkbox
+              id={`${prefixDataTestId}-cell-home-${ruleId}-${regionId}`}
+              checked={Boolean(cell.home)}
+              onCheckedChange={checked => {
+                onUpdateCell({ home: Boolean(checked), isModified: true })
+              }}
+              disabled={isUsedInTransactions && !cell.isNew}
+              data-testid={`${prefixDataTestId}-cell-home-${ruleId}-${regionId}`}
+            />
+            <Label
+              htmlFor={`${prefixDataTestId}-cell-home-${ruleId}-${regionId}`}
+              className="gba:text-xs gba:text-muted-foreground gba:cursor-pointer"
+            >
+              Home Region
+            </Label>
           </div>
 
           {/* Currency */}
@@ -353,6 +379,17 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
         <>
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:text-center">
             {formatPeriodShort(cell.activeFrom, cell.activeTo)}
+          </div>
+          <div className="gba:flex gba:justify-center gba:mb-2">
+            {cell.home && (
+              <Badge
+                variant="secondary"
+                className="gba:text-[10px]"
+                data-testid={`${prefixDataTestId}-cell-home-badge-${ruleId}-${regionId}`}
+              >
+                Home
+              </Badge>
+            )}
           </div>
           <div className="gba:text-center gba:mb-2">
             <div className="gba:text-lg gba:font-semibold gba:text-foreground">{cell.amount.toFixed(2)}</div>

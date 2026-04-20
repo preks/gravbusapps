@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { PiX } from 'react-icons/pi'
+import { XIcon } from '@phosphor-icons/react'
 import { Building2 } from 'lucide-react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
@@ -61,8 +61,10 @@ interface AccountSegmentProps {
   accountsLoading: boolean
   accountsError: string | null
   searchAccounts: (search: string) => void
+  hasMore?: boolean
+  onLoadMore?: () => void
 
-  // Account contacts with full data (for display)
+  // Account contacts from loaded entity (with nested account) for display - same pattern as account form
   accountContacts?: any[]
 
   // Test ID prefix
@@ -83,7 +85,7 @@ const AccountItem: React.FC<{
   typeMode: 'accountType' | 'contactType'
   accountTypeCatalogIdentifier?: string
   accountIndex: number
-  accountContacts: any[]
+  accountContacts?: any[]
   accounts: AccountSegmentOption[]
   onRemove: () => void
   dataTestId?: string
@@ -106,16 +108,12 @@ const AccountItem: React.FC<{
   // Watch the account ID to get display data
   const accountId = form.watch(`${fieldArrayName}.${accountIndex}.${accountIdFieldName}`)
 
-  // Get account display data from accountContacts (junction table records) or accounts (search results)
+  // Get account display data from accountContacts (from loaded entity) or accounts (search results)
   const accountData = React.useMemo(() => {
-    // First, try to find in accountContacts (junction table with nested data)
-    const accountContact = accountContacts.find((ac: any) => {
-      // Handle both investmentAccount (for investments) and account (for opportunities)
-      const id = ac.investmentAccount?.id || ac.account?.id || ac.investmentAccountId || ac.accountId
+    const accountContact = accountContacts?.find((ac: any) => {
+      const id = ac.account?.id || ac.investmentAccount?.id || ac.accountId || ac.investmentAccountId
       return id === accountId
     })
-
-    // Extract account object - could be 'account' or 'investmentAccount'
     const account = accountContact?.account || accountContact?.investmentAccount
 
     if (account) {
@@ -215,7 +213,7 @@ const AccountItem: React.FC<{
         aria-label={`Remove ${accountData.name}`}
         disabled={disabled}
       >
-        <PiX className="gba:w-4 gba:h-4" />
+        <XIcon className="gba:w-4 gba:h-4" />
       </Button>
     </div>
   )
@@ -227,11 +225,13 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
   accountTypeFieldName,
   typeMode = 'accountType',
   accountTypeCatalogIdentifier,
+  accountContacts,
   accounts,
   accountsLoading,
   accountsError,
   searchAccounts,
-  accountContacts = [],
+  hasMore,
+  onLoadMore,
   dataTestId = 'account-segment',
   disabled = false,
   error
@@ -326,6 +326,9 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
         disabled={disabled || accountsLoading}
         loading={accountsLoading}
         onSearch={searchAccounts}
+        searchDebounce={300}
+        hasMore={Boolean(hasMore)}
+        onLoadMore={onLoadMore}
         data-testid={formatDataTestId(dataTestId, 'add-account-combobox')}
       />
 

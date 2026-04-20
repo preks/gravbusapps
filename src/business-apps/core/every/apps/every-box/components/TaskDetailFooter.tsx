@@ -111,12 +111,32 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
 }) => {
   const { t } = useTranslation(translations)
 
-  // Auto-generate actions from task.availableActions if task is provided
-  // Returns { left: TaskAction[], right: TaskAction[] } for proper positioning
+  const mergedTags = useMemo(() => {
+    const fromTask = (task?.tags ?? {}) as Record<string, unknown>
+    const fromSource = (task?.sourceMetadata?.tags ?? {}) as Record<string, unknown>
+    const fromWorkflow = ((task as unknown as { workflowMeta?: { tags?: Record<string, unknown> } })?.workflowMeta
+      ?.tags ?? {}) as Record<string, unknown>
+    return { ...fromSource, ...fromWorkflow, ...fromTask }
+  }, [task])
+
+  const taskAppTag = String(mergedTags.app ?? mergedTags.app_tag ?? '')
+  const taskAutomationType = String(mergedTags.automationType ?? mergedTags.automation_type ?? '')
+  const isSpreadsheetExcelCollectionTask =
+    taskAppTag === 'spreadsheet-automation' && taskAutomationType === 'excel_collection'
+
+  const isTaskCompleted = task?.status === 'COMPLETED' || !!task?.completedAt
+
+  // Auto-generate actions from task.availableActions if task is provided.
+  // Must run unconditionally (before any early return) to satisfy Rules of Hooks.
   const { leftActions, rightActions } = useMemo(() => {
     // If manual actions provided, put them all on the right
     if (actions) {
       return { leftActions: [], rightActions: actions }
+    }
+
+    // No footer for completed tasks when no custom children
+    if (isTaskCompleted && !children) {
+      return { leftActions: [], rightActions: [] }
     }
 
     // If no task or availableActions, return empty
@@ -165,7 +185,7 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
 
     // canComplete - Complete task (or Approve/Acknowledge based on task type) - goes on RIGHT
     // Priority: 1. Approval (detected via multiple fields) 2. Acknowledge (detected via multiple fields) 3. Complete Task
-    if (task.availableActions.canComplete) {
+    if (task.availableActions.canComplete && !isSpreadsheetExcelCollectionTask) {
       const isApproval = isApprovalTask(task)
       const isAcknowledge = !isApproval && isAcknowledgementTask(task)
 
@@ -204,10 +224,15 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
     }
 
     return { leftActions: left, rightActions: right }
-  }, [task, actions, onTaskAction, isLoading, t])
+  }, [task, actions, onTaskAction, isLoading, t, isTaskCompleted, children, isSpreadsheetExcelCollectionTask])
 
   // Combined actions for empty check
   const hasActions = leftActions.length > 0 || rightActions.length > 0
+
+  // Don't show footer for completed tasks (unless custom children provided)
+  if (isTaskCompleted && !children) {
+    return null
+  }
 
   // If no actions or children, don't render footer
   if (!hasActions && !children) {
@@ -240,7 +265,7 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
       )}
       {...props}
     >
-      <div className="gba:px-6 gba:py-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
+      <div className="gba:px-6 gba:py-2 gba:flex gba:items-center gba:justify-end gba:gap-2">
         {hasActions ? (
           <>
             {/* Reject button first (left of Approve) */}

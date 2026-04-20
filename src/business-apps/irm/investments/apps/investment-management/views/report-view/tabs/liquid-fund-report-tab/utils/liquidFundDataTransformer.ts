@@ -6,13 +6,9 @@ import { AnalyticsRowData } from '../types/AnalyticsTypes'
 
 /**
  * Transforms investment reports to analytics data format for liquid funds
- * Extracted from useLiquidFundReports hook for reusability
+ * All filtering is done server-side via GraphQL query variables
  */
-export function transformReportsToAnalyticsData(
-  reports: InvestmentReport[],
-  investmentTypeFilter?: string
-): AnalyticsRowData[] {
-  // Transform to analytics data
+export function transformReportsToAnalyticsData(reports: InvestmentReport[]): AnalyticsRowData[] {
   const transformedData: AnalyticsRowData[] = []
 
   reports.forEach(report => {
@@ -71,44 +67,17 @@ export function transformReportsToAnalyticsData(
         // Keep full structures for dynamic column access
         liquidFundReport: liquidFundReport,
         liquidFundInvestment: liquidFundReport.liquidFundInvestment ? [liquidFundReport.liquidFundInvestment] : [],
-        investment: report.investment
+        investment: report.investment,
+
+        // CRITICAL: Include InvestmentReport.totalInvestmentAmount (the actual closing balance per period)
+        // This is needed for the "Closing Balance" column which the catalog defines as investment.totalInvestmentAmount
+        // but should actually use the report's root totalInvestmentAmount, not the parent investment's total
+        totalInvestmentAmount: report.totalInvestmentAmount
       }
 
       transformedData.push(row)
     })
   })
 
-  // Client-side filtering by investment type (if needed)
-  let filteredData = transformedData
-  if (investmentTypeFilter) {
-    const typeMapping: Record<string, string> = {
-      'Bank Deposit': 'BANK_DEPOSITE', // Catalog has typo DEPOSITE (not DEPOSIT)
-      'Fixed-Term Deposit': 'FIXED_TERM_DEPOSIT',
-      'Money Market Funds': 'MONEY_MARKET_FUNDS',
-      'Pension Fund': 'PENSION_FUNDS',
-      Equity: 'EQUITY',
-      Bond: 'BONDS'
-    }
-
-    // Handle comma-separated multiple types (for "Multiple Types" tab)
-    const requestedTypes = investmentTypeFilter.split(',').map(t => t.trim())
-    const targetTypes = requestedTypes.map(type => typeMapping[type]).filter(Boolean)
-
-    if (targetTypes.length > 0) {
-      filteredData = transformedData.filter(item => {
-        // Check multiple possible locations for the investment type code
-        const itemTypeCode =
-          item.investmentType || // From root level (set in transformation)
-          item.liquidFundReport?.investmentLiquidFundType?.code ||
-          item.liquidFundReport?.investmentLiquidFundTypeRef?.split(':')?.pop()
-
-        // Check if item type matches any of the target types
-        const matches = itemTypeCode && targetTypes.includes(itemTypeCode)
-
-        return matches
-      })
-    }
-  }
-
-  return filteredData
+  return transformedData
 }

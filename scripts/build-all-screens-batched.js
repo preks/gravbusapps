@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const BATCH_SIZE = 50
+const BATCH_SIZE = 40
 
 console.log('🚀 Building all screens in batches...')
 
@@ -22,7 +22,7 @@ function getAllScreens() {
   const businessAppsDir = path.join(projectRootDir, 'src', 'business-apps')
   const screens = []
 
-  const validScreenTypes = ['apps', 'forms', 'popups', 'records']
+  const validScreenTypes = ['apps', 'forms', 'popups', 'records', 'windows']
 
   function scanDirectory(dir, relativePath = '') {
     const items = fs.readdirSync(dir)
@@ -56,6 +56,7 @@ function getAllScreens() {
 }
 
 async function buildBatch(screens, batchNum, totalBatches) {
+  let failureErrors = []
   console.log(`\n${'='.repeat(80)}`)
   console.log(`📦 BATCH ${batchNum}/${totalBatches} - Building ${screens.length} screens`)
   console.log(`${'='.repeat(80)}`)
@@ -79,7 +80,7 @@ async function buildBatch(screens, batchNum, totalBatches) {
       env: {
         ...process.env,
         VITE_BATCH_MODE: 'true',
-        NODE_OPTIONS: '--max-old-space-size=6144' // 6GB heap for batch builds
+        NODE_OPTIONS: '--max-old-space-size=14336' // 14GB heap for batch builds
       }
     })
 
@@ -90,16 +91,17 @@ async function buildBatch(screens, batchNum, totalBatches) {
       fs.unlinkSync(batchEntriesFile)
     }
 
-    return true
+    return { success: true, errors: [] }
   } catch (error) {
     console.error(`❌ Batch ${batchNum}/${totalBatches} failed:`, error.message)
+    failureErrors.push(error.message)
 
     // Clean up temp file
     if (fs.existsSync(batchEntriesFile)) {
       fs.unlinkSync(batchEntriesFile)
     }
 
-    return false
+    return { success: false, errors: failureErrors }
   }
 }
 
@@ -122,13 +124,15 @@ async function main() {
   // Build each batch
   let successCount = 0
   let failureCount = 0
+  let failureErrors = []
 
   for (let i = 0; i < batches.length; i++) {
-    const success = await buildBatch(batches[i], i + 1, batches.length)
+    const { success, errors } = await buildBatch(batches[i], i + 1, batches.length)
     if (success) {
       successCount++
     } else {
       failureCount++
+      failureErrors.push(...errors)
       console.error(`\n⚠️  Batch ${i + 1} failed, but continuing with remaining batches...`)
     }
   }
@@ -146,6 +150,7 @@ async function main() {
 
   if (failureCount > 0) {
     console.log(`\n💥 Build completed with ${failureCount} failed batch(es)`)
+    console.log(`❌ Errors: ${failureErrors.join('\n')}`)
     process.exit(1)
   } else {
     console.log(`\n🎉 All batches completed successfully!`)

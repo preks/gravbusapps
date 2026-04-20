@@ -9,9 +9,15 @@ import {
   Button,
   DateInput
 } from '@newwork/nw-design-system'
-import { PiFloppyDisk, PiX } from 'react-icons/pi'
-import dayjs from 'dayjs'
+import { FloppyDiskIcon, XIcon } from '@phosphor-icons/react'
 import { EditableCell, CurrencyOption, UsageInfo } from './types'
+import {
+  formatDate as formatDateDisplay,
+  formatDateForInput,
+  normalizeDateInputValue,
+  toISOEndOfDay,
+  toISOStartOfDay
+} from '../../utils'
 
 interface MatrixCellProps {
   cell: EditableCell
@@ -48,12 +54,6 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
   setEditingCellId,
   setEditingCellUsageInfo
 }) => {
-  const formatDate = (dateStr: string | undefined): string => {
-    if (!dateStr) return ''
-    const date = dayjs(dateStr)
-    return date.isValid() ? date.format('DD.MM.YYYY') : ''
-  }
-
   return (
     <div
       key={cell.id || cell.validityPeriodId}
@@ -96,11 +96,13 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
           <div>
             <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">From:</label>
             <DateInput
-              value={cell.activeFrom ? dayjs(cell.activeFrom).format('YYYY-MM-DD') : ''}
+              value={formatDateForInput(cell.activeFrom) || ''}
               onChange={date => {
-                const dateValue = date ? `${date}T00:00:00+00:00` : ''
+                const normalized = normalizeDateInputValue(date)
+                const dateValue = normalized ? toISOStartOfDay(normalized) : ''
                 updateCellField(cell.id!, cell.validityPeriodId!, 'activeFrom', dateValue)
               }}
+              outputFormat="iso"
               disabled={isUsedInTransactions && !cell.isNew}
               data-testid={`${prefixDataTestId}-cell-active-from-${ruleId}-${regionId}`}
             />
@@ -110,11 +112,13 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
           <div>
             <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">To:</label>
             <DateInput
-              value={cell.activeTo ? dayjs(cell.activeTo).format('YYYY-MM-DD') : ''}
+              value={formatDateForInput(cell.activeTo) || ''}
               onChange={date => {
-                const dateValue = date ? `${date}T00:00:00+00:00` : undefined
+                const normalized = normalizeDateInputValue(date)
+                const dateValue = normalized ? toISOEndOfDay(normalized) : undefined
                 updateCellField(cell.id!, cell.validityPeriodId!, 'activeTo', dateValue)
               }}
+              outputFormat="iso"
               data-testid={`${prefixDataTestId}-cell-active-to-${ruleId}-${regionId}`}
             />
           </div>
@@ -179,7 +183,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
                   disabled={!cell.amount || cell.amount <= 0}
                   data-testid={`${prefixDataTestId}-cell-save-${ruleId}-${regionId}`}
                 >
-                  <PiFloppyDisk className="gba:w-3 gba:h-3 gba:mr-1" />
+                  <FloppyDiskIcon className="gba:w-3 gba:h-3 gba:mr-1" />
                   Save
                 </Button>
                 <Button
@@ -192,7 +196,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
                   className="gba:h-7 gba:w-7 gba:p-0"
                   data-testid={`${prefixDataTestId}-cell-cancel-${ruleId}-${regionId}`}
                 >
-                  <PiX className="gba:w-3 gba:h-3" />
+                  <XIcon className="gba:w-3 gba:h-3" />
                 </Button>
               </>
             ) : (
@@ -208,7 +212,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
                   disabled={!cell.isModified || !cell.amount || cell.amount <= 0}
                   data-testid={`${prefixDataTestId}-cell-save-${ruleId}-${regionId}`}
                 >
-                  <PiFloppyDisk className="gba:w-3 gba:h-3 gba:mr-1" />
+                  <FloppyDiskIcon className="gba:w-3 gba:h-3 gba:mr-1" />
                   Save
                 </Button>
                 <Button
@@ -222,7 +226,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
                   className="gba:h-7 gba:w-7 gba:p-0"
                   data-testid={`${prefixDataTestId}-cell-cancel-${ruleId}-${regionId}`}
                 >
-                  <PiX className="gba:w-3 gba:h-3" />
+                  <XIcon className="gba:w-3 gba:h-3" />
                 </Button>
               </>
             )}
@@ -235,7 +239,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
             {cell.amount ? cell.amount.toFixed(2) : '—'} {cell.currencyCode}
           </div>
           <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-            {formatDate(cell.activeFrom)} - {cell.activeTo ? formatDate(cell.activeTo) : '∞'}
+            {formatDateDisplay(cell.activeFrom)} - {cell.activeTo ? formatDateDisplay(cell.activeTo) : '∞'}
           </div>
         </div>
       )}

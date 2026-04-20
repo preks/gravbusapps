@@ -49,8 +49,8 @@ export const activitySchema = z.object({
         id: z.string(),
         name: z.string().optional(),
         version: z.number().optional(),
-        mimeType: z.string().optional(),
-        fileSize: z.number().optional(),
+        mimeType: z.string().nullable().optional(),
+        fileSize: z.number().nullable().optional(),
         fileInfo: z.any().optional()
       })
     )

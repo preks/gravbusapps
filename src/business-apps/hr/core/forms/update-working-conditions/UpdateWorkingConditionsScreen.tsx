@@ -7,6 +7,7 @@ import {
   SelectContent,
   SelectItem,
   Input,
+  DateInput,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -23,6 +24,8 @@ import translations from '../_i18n'
 
 const prefixDataTestId = 'UpdateWorkingConditionsScreen'
 
+const getDateInputValue = (value: string): string | undefined => (value ? value : undefined)
+
 const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(translations)
   const {
@@ -35,7 +38,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     firstName,
     lastName,
     pictureThumbnail,
-    loading
+    loading,
+    regionCatalogIsFull
   } = useWorkingConditionsLookups(context)
 
   const [employmentType, setEmploymentType] = useState<string | undefined>(undefined)
@@ -45,6 +49,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const [startDate, setStartDate] = useState<string>('')
   const [probationEndDate, setProbationEndDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
+  const [fixedTermReason, setFixedTermReason] = useState<string>('')
 
   useEffect(() => {
     if (current) {
@@ -60,14 +65,15 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       setStartDate(toDateInput(current.startDate))
       setProbationEndDate(toDateInput(current.probationEndDate))
       setEndDate(toDateInput(current.endDate))
+      setFixedTermReason(current.additionalProperties?.fixedTermReason || '')
     }
   }, [current])
 
   useEffect(() => {
-    if (!region && Array.isArray(regions) && regions.length === 1) {
+    if (!regionCatalogIsFull && !region && Array.isArray(regions) && regions.length === 1) {
       setRegion(regions[0].id)
     }
-  }, [regions, region])
+  }, [regions, region, regionCatalogIsFull])
 
   const probationPeriodText = useMemo(() => {
     if (!contractType) return null
@@ -171,15 +177,23 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     return calculatedEndDate !== null && probationEndDate !== calculatedEndDate
   }, [startDate, contractType, probationEndDate, calculateProbationEndDate])
 
+  const isProbationEndBeforeStart = useMemo(() => {
+    if (!startDate || !probationEndDate) return false
+    const start = dayjs(startDate)
+    const probationEnd = dayjs(probationEndDate)
+    return start.isValid() && probationEnd.isValid() && probationEnd.isBefore(start, 'day')
+  }, [startDate, probationEndDate])
+
   const isValid = useMemo(() => {
-    return Boolean(employmentType && contractType && remote && region && startDate)
-  }, [employmentType, contractType, remote, region, startDate])
+    return Boolean(employmentType && contractType && remote && region && startDate) && !isProbationEndBeforeStart
+  }, [employmentType, contractType, remote, region, startDate, isProbationEndBeforeStart])
 
   const hasChanges = useMemo(() => {
     if (!current) return true
     const curStart = current.startDate ? current.startDate.split('T')[0] : ''
     const curProb = current.probationEndDate ? current.probationEndDate.split('T')[0] : ''
     const curEnd = current.endDate ? current.endDate.split('T')[0] : ''
+    const curFixedTermReason = current.additionalProperties?.fixedTermReason || ''
     return (
       employmentType !== current.employmentTypeRef ||
       contractType !== current.contractTypeRef ||
@@ -187,12 +201,16 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       region !== current.regionRef ||
       (startDate || '') !== curStart ||
       (probationEndDate || '') !== curProb ||
-      (endDate || '') !== curEnd
+      (endDate || '') !== curEnd ||
+      fixedTermReason !== curFixedTermReason
     )
-  }, [current, employmentType, contractType, remote, region, startDate, probationEndDate, endDate])
+  }, [current, employmentType, contractType, remote, region, startDate, probationEndDate, endDate, fixedTermReason])
 
   const validateForm = () => {
-    if (!isValid) {
+    if (isProbationEndBeforeStart) {
+      return [t('working-conditions-probation-end-before-start')]
+    }
+    if (!employmentType || !contractType || !remote || !region || !startDate) {
       return [
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:working_conditions_form.required',
@@ -222,11 +240,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
         probationEnd: probationEndDate || undefined,
         exitDate: endDate || undefined,
         employeeId,
-        contractStatus: 'ACTIVE'
-      },
-      completeNotification: {
-        type: 'success',
-        message: t('notification-working-conditions-updated-success')
+        contractStatus: 'ACTIVE',
+        additionalProperties: fixedTermReason ? { fixedTermReason } : undefined
       }
     }
   }
@@ -247,7 +262,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
     >
-      <div className="gba:bg-white gba:max-w-3xl gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
+      <div className="gba:bg-white gba:max-w-3xl gba:w-full">
         <div className="gba:flex gba:items-center gba:gap-2 gba:py-6">
           <img src={flowSmall} alt="Flow Small" className="gba:w-6 gba:h-6" style={{ filter: 'brightness(0)' }} />
           <h2 className="gba:text-xl gba:font-semibold">
@@ -276,7 +291,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
 
         <div className="gba:border-t" />
 
-        <div className="gba:py-6 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
+        <div className="gba:py-6 gba:space-y-4">
           <div className="gba:space-y-2">
             <div className="gba:text-sm gba:font-medium">
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.employmentType', 'Employment Type')}*
@@ -364,10 +379,14 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <div className="gba:text-sm gba:font-medium">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.start_date', 'Start Date')}*
               </div>
-              <Input
+              <DateInput
                 type="date"
-                value={startDate}
-                onChange={(e: any) => setStartDate(e.target.value)}
+                value={getDateInputValue(startDate)}
+                onChange={(value: string | [string | null, string | null] | null) => {
+                  const stringValue = typeof value === 'string' ? value : ''
+                  setStartDate(stringValue)
+                }}
+                outputFormat="iso"
                 data-testid="flw_updateWorkingConditions_startDatePicker"
               />
             </div>
@@ -391,14 +410,26 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                   'Probation End Date'
                 )}
               </div>
-              <Input
+              <DateInput
                 type="date"
-                value={probationEndDate}
-                onChange={(e: any) => setProbationEndDate(e.target.value)}
+                value={getDateInputValue(probationEndDate)}
+                onChange={(value: string | [string | null, string | null] | null) => {
+                  const stringValue = typeof value === 'string' ? value : ''
+                  setProbationEndDate(stringValue)
+                }}
                 disabled={!startDate || loading}
                 min={startDate || undefined}
+                outputFormat="iso"
                 data-testid="flw_updateWorkingConditions_probationEndDatePicker"
               />
+              {isProbationEndBeforeStart && (
+                <div
+                  className="gba:text-sm gba:text-destructive"
+                  data-testid="flw_updateWorkingConditions_probationEndBeforeStartError"
+                >
+                  {t('working-conditions-probation-end-before-start')}
+                </div>
+              )}
               {isProbationException && (
                 <div
                   className="gba:text-sm gba:text-warning"
@@ -412,13 +443,34 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <div className="gba:text-sm gba:font-medium">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.end_date', 'End Date')}
               </div>
-              <Input
+              <DateInput
                 type="date"
-                value={endDate}
-                onChange={(e: any) => setEndDate(e.target.value)}
+                value={getDateInputValue(endDate)}
+                onChange={(value: string | [string | null, string | null] | null) => {
+                  const stringValue = typeof value === 'string' ? value : ''
+                  setEndDate(stringValue)
+                }}
                 disabled={!startDate || loading}
                 min={startDate || undefined}
+                outputFormat="iso"
                 data-testid="flw_updateWorkingConditions_endDatePicker"
+              />
+            </div>
+
+            <div className="gba:space-y-2">
+              <div className="gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.fixed_term_reason', 'Exit Reason')}
+              </div>
+              <Input
+                type="text"
+                value={fixedTermReason}
+                onChange={(e: any) => setFixedTermReason(e.target.value)}
+                disabled={!endDate || loading}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:working_conditions_form.fixed_term_reason_placeholder',
+                  'Enter reason'
+                )}
+                data-testid="flw_updateWorkingConditions_fixedTermReason"
               />
             </div>
           </div>

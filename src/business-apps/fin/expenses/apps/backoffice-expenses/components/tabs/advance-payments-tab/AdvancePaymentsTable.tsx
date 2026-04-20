@@ -1,781 +1,288 @@
 /**
  * Advance Payments Table Component
- * Displays a table of advance payments with filtering and view capabilities
+ * Delegates filter state and body rendering to focused modules.
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useAdvancePayments } from '../../../hooks/useAdvancePayment'
-import { useDebounce } from '@/common/hooks/useDebounce'
-
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { SortingState } from '@tanstack/react-table'
+import { type BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../_i18n'
+import advancePaymentDetailsTranslations from '@/business-apps/fin/expenses/common/_i18n'
+import { useTableSetup } from '../../../../../common/hooks/useTableSetup'
+import { useVisibleColumns } from '../../../common/hooks/useSharedTabState'
+import { useFilterData } from '../../../hooks/useFilterData'
+import { getActiveStructureDepartmentOptions } from '../../../utils/departmentOptions'
+import type { AdvancePaymentItem } from '../../../types'
+import type { OrderByClause, FetchPaymentsOptions } from '../../../hooks/useAdvancePayment'
+import { useAdvancePaymentCurrency } from './hooks/useAdvancePaymentCurrency'
+import { useAdvancePaymentsFilterState } from './hooks/useAdvancePaymentsFilterState.ts'
+import { buildAdvancePaymentFetchOptions } from './hooks/advancePaymentQueryBuilder'
 import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-  Alert,
-  Spinner,
-  Card,
-  CardContent,
-  Sheet,
-  SheetContent,
-  Badge
-} from '@newwork/nw-design-system'
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
-import { DataFilterGroup } from '@/components/data-filter/DataFilter'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-
-import { getAdvancePaymentStatusDisplay } from '../../../utils/utils'
-import AdvancePaymentDetailsBackoffice from './AdvancePaymentDetailsBackoffice'
-import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { TablePagination } from '../../../../../components'
+  createBackofficeAdvancePaymentAllDataColumns,
+  createBackofficeAdvancePaymentSortableColumns
+} from './config/backofficeAdvancePaymentSortableColumns'
+import {
+  buildAdvancePaymentOrderBy,
+  DEFAULT_ADVANCE_PAYMENT_SORTING_STATE,
+  DEFAULT_ADVANCE_PAYMENT_VISIBLE_COLUMNS,
+  type AdvancePaymentVisibleColumnId
+} from './hooks/advancePaymentTableSort'
+import { useAdvancePaymentsTableUrlSearch } from './hooks/useAdvancePaymentsTableUrlSearch'
+import AdvancePaymentsDataBody from './components/AdvancePaymentsDataBody'
+import AdvancePaymentsDetailsSheet from './components/AdvancePaymentsDetailsSheet'
+import { BackofficeDataDisplay } from '../../../common/components/BackofficeDataDisplay'
+import { BackofficeFilterSheet } from '../../../common/components/BackofficeFilterSheet'
+import { ADVANCE_PAYMENT_REPORTER_FILTER_GROUP_ID } from './constants/advancePaymentReporterFilter'
+import { AdvancePaymentReporterFilter } from './components/AdvancePaymentReporterFilter'
+import { AdvancePaymentsRowActions } from './components/AdvancePaymentsRowActions'
+import { createBackofficeAdvancePaymentDataColumns } from './table/backofficeAdvancePaymentColumns'
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string
   onSearchChange?: (search: string) => void
+  isActive?: boolean
+  payments: AdvancePaymentItem[]
+  totalCount: number
+  isLoading: boolean
+  error: unknown
+  fetchPayments: (options?: FetchPaymentsOptions) => Promise<void>
+  setOrderBy: (orderBy: OrderByClause) => void
+  searchReporters: (searchTerm: string) => Promise<string[]>
+  searchStatuses: () => Promise<string[]>
 }
 
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
-  const { search, onSearchChange, ...context } = props
+  const {
+    search,
+    onSearchChange,
+    payments,
+    totalCount,
+    isLoading,
+    error,
+    fetchPayments,
+    setOrderBy,
+    searchReporters,
+    searchStatuses,
+    ...context
+  } = props
+  const { t } = useTranslation(translations)
+  // Pre-register common advance payment details bundle so the details sidebar shows translated labels on first render
+  useTranslation(advancePaymentDetailsTranslations)
 
-  const [searchText, setSearchText] = useState(search || '')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
+  const [sortingState, setSortingState] = useState<SortingState>(DEFAULT_ADVANCE_PAYMENT_SORTING_STATE)
+  const [visibleColumns, setVisibleColumns] = useState<AdvancePaymentVisibleColumnId[]>(
+    DEFAULT_ADVANCE_PAYMENT_VISIBLE_COLUMNS
+  )
+  const [selectedItem, setSelectedItem] = useState<AdvancePaymentItem | null>(null)
+  const {
+    organizationalUnits = [],
+    currencies = [],
+    mostUsedCurrency: mostUsedCurrencyRef
+  } = useFilterData({ accessToken: context.accessToken }) || {}
 
-  // Filter states
-  const [statusFilter, setStatusFilter] = useState<string[]>([])
-  const [amountMinFilter, setAmountMinFilter] = useState('')
-  const [amountMaxFilter, setAmountMaxFilter] = useState('')
-  const [advanceMinFilter, setAdvanceMinFilter] = useState('')
-  const [advanceMaxFilter, setAdvanceMaxFilter] = useState('')
-  const [reporterFilter, setReporterFilter] = useState('')
+  const departmentOptions = useMemo(
+    () => getActiveStructureDepartmentOptions(organizationalUnits),
+    [organizationalUnits]
+  )
 
-  // Reporter search states
-  const [reporterSearchText, setReporterSearchText] = useState('')
-  const [showReporterDropdown, setShowReporterDropdown] = useState(false)
-  const [reporterSearchResults, setReporterSearchResults] = useState<string[]>([])
-  const [reporterSearchLoading, setReporterSearchLoading] = useState(false)
-  const [selectedReporters, setSelectedReporters] = useState<string[]>([])
+  const { selectedCurrencyCode, selectedCurrencyRef, currencySecondaryAction } = useAdvancePaymentCurrency({
+    currencies,
+    mostUsedCurrencyRef,
+    setCurrentPage
+  })
 
-  // Status filter states
-  const [availableStatuses, setAvailableStatuses] = useState<string[]>([])
+  const { searchText, debouncedSearchText, handleSearchChange } = useAdvancePaymentsTableUrlSearch({
+    searchFromParent: search,
+    onSearchChange
+  })
+  const {
+    queryFilterState,
+    filterConfiguration,
+    filtersObject,
+    handleFilterChangeFromDisplay,
+    hasActiveFilters,
+    reporterSearchText,
+    setReporterSearchText,
+    showReporterDropdown,
+    setShowReporterDropdown,
+    reporterSearchResults,
+    reporterSearchLoading
+  } = useAdvancePaymentsFilterState({
+    t,
+    searchStatuses,
+    searchReporters,
+    departmentOptions,
+    currencyRef: selectedCurrencyRef,
+    setCurrentPage
+  })
 
-  // Selection states
-  const [selectedItem, setSelectedItem] = useState<any>(null)
-
-  const { payments, totalCount, isLoading, error, fetchPayments, searchReporters, searchStatuses } =
-    useAdvancePayments(context)
-
-  // Debounced values using useDebounce hook
-  const debouncedSearchText = useDebounce(searchText, 300)
-  const debouncedReporterSearchText = useDebounce(reporterSearchText, 300)
-
-  // Navigation handler for plan details
-  const handleNavigateToPlanDetails = useCallback((record: any) => {
-    if (record.expensePlan?.id) {
-      const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
-        expensePlanId: record.expensePlan.id,
-        referrer: '/platform/fin/expenses/backoffice-expenses?tab=advance-payments'
-      })
-      navigateTo(url)
-    }
-  }, [])
-
-  // Navigation handler for request details
-  const handleNavigateToRequestDetails = useCallback((record: any) => {
-    const expenseRequest = record.expenseRequest
-    if (expenseRequest?.id) {
-      const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-        expenseRequestId: expenseRequest.id,
-        referrer: '/platform/fin/expenses/backoffice-expenses?tab=advance-payments'
-      })
-      navigateTo(url)
-    }
-  }, [])
-
-  // Handle debounced search for reporters
   useEffect(() => {
-    const searchReportersDebounced = async () => {
-      if (!debouncedReporterSearchText.trim()) {
-        setReporterSearchResults([])
-        return
-      }
-
-      setReporterSearchLoading(true)
-      try {
-        const results = await searchReporters(debouncedReporterSearchText)
-        setReporterSearchResults(results)
-      } catch (error) {
-        console.error(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:advance_payment_table.error_searching_reporters',
-            'Error searching reporters:'
-          ),
-          error
-        )
-        setReporterSearchResults([])
-      } finally {
-        setReporterSearchLoading(false)
-      }
-    }
-
-    searchReportersDebounced()
-  }, [debouncedReporterSearchText, searchReporters])
-
-  // Handle debounced fetch payments
-  useEffect(() => {
-    fetchPayments({
+    const fetchOptions = buildAdvancePaymentFetchOptions({
       searchTerm: debouncedSearchText,
       page: currentPage,
       pageSize,
-      status: statusFilter.length > 0 ? statusFilter.join(',') : undefined,
-      amountMin: amountMinFilter,
-      amountMax: amountMaxFilter,
-      advanceMin: advanceMinFilter,
-      advanceMax: advanceMaxFilter,
-      reporter: reporterFilter
+      filters: queryFilterState
     })
-  }, [
-    debouncedSearchText,
-    currentPage,
-    pageSize,
-    statusFilter,
-    amountMinFilter,
-    amountMaxFilter,
-    advanceMinFilter,
-    advanceMaxFilter,
-    reporterFilter,
-    fetchPayments
-  ])
 
-  // Load available statuses from backend
-  useEffect(() => {
-    const loadAvailableStatuses = async () => {
-      try {
-        const statuses = await searchStatuses()
-        setAvailableStatuses(statuses)
-      } catch (error) {
-        console.error('Error loading available statuses:', error)
-      }
-    }
+    fetchPayments(fetchOptions)
+  }, [debouncedSearchText, currentPage, pageSize, queryFilterState, fetchPayments])
 
-    loadAvailableStatuses()
-  }, [searchStatuses])
-
-  // Sync with parent search prop if provided
-  useEffect(() => {
-    if (search !== undefined && search !== searchText) {
-      setSearchText(search)
+  const handleSearchChangeWithReset = useCallback(
+    (value: string = '') => {
       setCurrentPage(1)
-    }
-  }, [search, searchText])
-
-  // Handle search changes
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearchText(value)
-      setCurrentPage(1)
-
-      // Notify parent if callback exists
-      if (onSearchChange) {
-        onSearchChange(value)
-      }
+      handleSearchChange(value)
     },
-    [onSearchChange]
+    [handleSearchChange]
   )
-
-  // Handle clicking outside dropdown to close it
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (!target.closest('.reporter-search-container')) {
-        setShowReporterDropdown(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
 
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null)
   }, [])
 
-  // Helper function to handle reporter selection (reduces nesting depth)
-  const handleReporterClick = useCallback(
-    (reporter: string) => {
-      const newSelected = selectedReporters.includes(reporter)
-        ? selectedReporters.filter(r => r !== reporter)
-        : [...selectedReporters, reporter]
-      setSelectedReporters(newSelected)
-      setReporterFilter(newSelected.join(','))
-      setCurrentPage(1)
-    },
-    [selectedReporters]
+  const allColumns = useMemo(() => createBackofficeAdvancePaymentDataColumns(t), [t])
+
+  const sortableColumns = useMemo(() => createBackofficeAdvancePaymentSortableColumns(t), [t])
+  const availableColumns = useMemo(() => createBackofficeAdvancePaymentAllDataColumns(t), [t])
+
+  const columnsFilteredByVisibility = useVisibleColumns(visibleColumns, availableColumns)
+
+  const { columns, pagination, handlePaginationChange } = useTableSetup(
+    props,
+    allColumns,
+    columnsFilteredByVisibility,
+    currentPage,
+    pageSize,
+    setCurrentPage,
+    setPageSize
   )
 
-  // Helper function to render reporter dropdown content (reduces nested ternary complexity)
-  const renderReporterDropdownContent = useCallback(() => {
-    if (reporterSearchLoading) {
-      return (
-        <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:advance_payment_table.loading_reporters',
-            'Loading reporters...'
-          )}
-        </div>
-      )
-    }
-
-    if (reporterSearchResults.length === 0) {
-      return (
-        <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.no_reporters_found', 'No reporters found')}
-        </div>
-      )
-    }
-
-    return reporterSearchResults.map(reporter => (
-      <button
-        key={reporter}
-        className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-muted gba:transition-colors ${
-          selectedReporters.includes(reporter) ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-foreground'
-        }`}
-        onClick={() => handleReporterClick(reporter)}
-        data-testid={`reporter-option-${reporter}`}
-      >
-        {reporter}
-      </button>
-    ))
-  }, [reporterSearchLoading, reporterSearchResults, selectedReporters, handleReporterClick])
-
-  // Enhanced table change handler for sorting
-  const handleEnhancedTableChange = (pagination: any) => {
-    setCurrentPage(pagination.current)
-    setPageSize(pagination.pageSize)
-  }
-
-  // Adapter for TablePagination component
-  const handleTablePaginationChange = useCallback((pagination: { current: number; pageSize: number }) => {
-    handleEnhancedTableChange(pagination)
+  const handleRowClick = useCallback((record: AdvancePaymentItem) => {
+    setSelectedItem(record)
   }, [])
 
-  const renderDataBody = useCallback(() => {
-    if (isLoading && !payments?.length) {
-      return (
-        <div className="gba:flex gba:justify-center gba:p-8">
-          <Spinner />
-        </div>
-      )
-    }
-
-    if (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      return <Alert variant="destructive">{errorMessage}</Alert>
-    }
-
-    return (
-      <Card data-testid="advance-payments-container">
-        <CardContent className="gba:p-0">
-          {isLoading && (
-            <div className="gba:flex gba:justify-center gba:p-4">
-              <Spinner />
-            </div>
-          )}
-
-          <div className="gba:overflow-x-auto gba:max-w-full gba:px-6">
-            <Table data-testid="advance-payments-data-table" className="gba:min-w-[1400px] gba:w-full">
-              <TableHeader>
-                <TableRow className="gba:border-b gba:bg-muted">
-                  <TableHead className="gba:w-[60px] gba:font-semibold gba:text-foreground gba:py-4 gba:px-3">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.employee_tabs.flows_button.actions',
-                      'Actions'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:manager_expense_request_list.expense_table.title',
-                      'Title'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:manager_expense_request_list.expense_table.reporter',
-                      'Reporter'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_config_calculation_rule_list.expense_config_expense_assignement_modal.org_unit_label',
-                      'Org Unit'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_request_overview.side_bar.request_cost_center',
-                      'Cost Center'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[10%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_list_backoffice.plan_id', 'Plan Id')}
-                  </TableHead>
-                  <TableHead className="gba:w-[10%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_request_list.expense_plan_table.status',
-                      'Status'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-right">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_request_list.expense_plan_table.amount',
-                      'Amount'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-right">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:manager_expense_request_list.expense_table.advance',
-                      'Advance'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-                      'Payment Method'
-                    )}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!isLoading && totalCount === 0 && (!payments || payments.length === 0) ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="gba:py-8 gba:text-center">
-                      <div className="gba:text-gray-500">
-                        {hasActiveFilters
-                          ? getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
-                              'No data available'
-                            )
-                          : getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:backoffice_expense_landing_page.no_advance_payments_created_yet',
-                              'No advance payments created yet.'
-                            )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  payments.map((record: any) => {
-                    const hasExpenseRequest =
-                      record.expensePlan &&
-                      Array.isArray(record.expensePlan.expenseRequest) &&
-                      record.expensePlan.expenseRequest.length > 0 &&
-                      record.expensePlan.expenseRequest[0]?.id
-
-                    return (
-                      <TableRow
-                        key={record.id}
-                        onClick={(event: React.MouseEvent<HTMLTableRowElement>) => {
-                          const target = event.target as HTMLElement
-                          const isActionButton = target.closest('[data-testid*="actions"]')
-                          if (!isActionButton) {
-                            setSelectedItem(record)
-                          }
-                        }}
-                        className="gba:cursor-pointer gba:hover:bg-muted"
-                      >
-                        <TableCell className="gba:w-[60px]">
-                          <div
-                            className="gba:flex gba:justify-center gba:items-center"
-                            onClick={e => e.stopPropagation()}
-                          >
-                            <AppActionButton
-                              data-testid={`advance-payments-update-button-${record.id}`}
-                              size="icon"
-                              staticFlowData={[
-                                {
-                                  category: getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:employee_list.flows_button.navigations',
-                                    'Navigations'
-                                  ),
-                                  key: 'view-advance-payment-details',
-                                  label: getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:advance_payment_table.view_advance_payment_details',
-                                    'View Advance Payment Details'
-                                  ),
-                                  onClick: (e?: React.MouseEvent) => {
-                                    e?.stopPropagation()
-                                    setSelectedItem(record)
-                                  }
-                                },
-                                {
-                                  category: getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:employee_list.flows_button.navigations',
-                                    'Navigations'
-                                  ),
-                                  key: 'view-plan-details',
-                                  label: getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
-                                    'View Plan Details'
-                                  ),
-                                  onClick: (e?: React.MouseEvent) => {
-                                    e?.stopPropagation()
-                                    handleNavigateToPlanDetails(record)
-                                  }
-                                },
-                                ...(hasExpenseRequest
-                                  ? [
-                                      {
-                                        category: getTranslationFromI18nKeyAndLabel(
-                                          'lowcoder:employee_list.flows_button.navigations',
-                                          'Navigations'
-                                        ),
-                                        key: 'view-request-details',
-                                        label: getTranslationFromI18nKeyAndLabel(
-                                          'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-                                          'View Request Details'
-                                        ),
-                                        onClick: (e?: React.MouseEvent) => {
-                                          e?.stopPropagation()
-                                          handleNavigateToRequestDetails(record)
-                                        }
-                                      }
-                                    ]
-                                  : [])
-                              ]}
-                              prefixDataTestId="advance-payments-update"
-                              accessToken={props.accessToken}
-                              emptyStateBehavior="enable"
-                              deferMainContextRequestsUntilClick
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-title-cell">
-                            {record.title || record.description || 'N/A'}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-reporter-cell">{record.employeeFullName || 'N/A'}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-org-unit-cell">
-                            {record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A'}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-cost-center-cell">{record.costCenter?.name || 'N/A'}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-plan-id-cell">{record.expensePlan?.code || 'N/A'}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-status-cell">
-                            {(() => {
-                              const status = getAdvancePaymentStatusDisplay(record.status || 'N/A')
-                              return <Badge variant={(status as any).badgeVariant || 'outline'}>{status.label}</Badge>
-                            })()}
-                          </div>
-                        </TableCell>
-                        <TableCell className="gba:text-right">
-                          <span data-testid="advance-payment-amount-cell">
-                            {formatNumberFunction(String(record.expensePlan?.totalAmount ?? '0'))}{' '}
-                            {record.currency?.code || record.expensePlan?.currency?.code || ''}
-                          </span>
-                        </TableCell>
-                        <TableCell className="gba:text-right">
-                          <span data-testid="advance-payment-advance-cell">
-                            {formatNumberFunction(String(record.amount ?? '0'))}{' '}
-                            {record.currency?.code || record.expensePlan?.currency?.code || ''}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-method-cell">
-                            {record.paymentMethod === 'DIRECT_DEPOSIT'
-                              ? getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-                                  'Direct Deposit'
-                                )
-                              : record.paymentMethod
-                                ? getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-                                    'Cash Payment'
-                                  )
-                                : 'N/A'}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          <TablePagination
-            currentPage={currentPage}
-            pageSize={pageSize}
-            totalItems={totalCount}
-            onPageChange={handleTablePaginationChange}
-            entityNamePlural={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:backoffice_expense_landing_page.advance_title',
-              'Advance Payments'
-            )}
-            dataTestIdPrefix="advance-payments"
-            showBorder={false}
-          />
-        </CardContent>
-      </Card>
-    )
-  }, [payments, isLoading, error, totalCount, currentPage, pageSize, handleEnhancedTableChange, props.accessToken])
-
-  // Filter groups for DataContainer
-  const filterGroups: DataFilterGroup[] = [
-    {
-      id: 'status',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-      type: 'checkbox',
-      filters: availableStatuses.map(status => ({
-        id: status,
-        label: getAdvancePaymentStatusDisplay(status).label,
-        selected: statusFilter.includes(status)
-      }))
-    },
-    {
-      id: 'reporter',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expense_request_list.expense_table.reporter',
-        'Reporter'
-      ),
-      type: 'custom',
-      customComponent: (
-        <div className="reporter-search-container gba:relative gba:p-2">
-          <input
-            type="text"
-            value={reporterSearchText}
-            onChange={e => {
-              setReporterSearchText(e.target.value)
-              setShowReporterDropdown(true)
-            }}
-            onFocus={() => setShowReporterDropdown(true)}
-            className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:advance_payment_table.search_reporter_placeholder',
-              'Search reporter...'
-            )}
-            data-testid="reporter-search-input"
-          />
-
-          {/* Dropdown with search results */}
-          {showReporterDropdown && reporterSearchText.trim() && (
-            <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-background gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
-              {renderReporterDropdownContent()}
-            </div>
-          )}
-        </div>
-      )
-    },
-    {
-      id: 'amount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
-      type: 'custom',
-      customComponent: (
-        <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Min</span>
-            <input
-              type="number"
-              value={amountMinFilter}
-              onChange={e => {
-                setAmountMinFilter(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Min"
-              data-testid="amount-min-filter-input"
-            />
-          </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Max</span>
-            <input
-              type="number"
-              value={amountMaxFilter}
-              onChange={e => {
-                setAmountMaxFilter(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Max"
-              data-testid="amount-max-filter-input"
-            />
-          </div>
-        </div>
-      )
-    },
-    {
-      id: 'advance',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expense_request_list.expense_table.advance',
-        'Advance'
-      ),
-      type: 'custom',
-      customComponent: (
-        <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Min</span>
-            <input
-              type="number"
-              value={advanceMinFilter}
-              onChange={e => {
-                setAdvanceMinFilter(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Min"
-              data-testid="advance-min-filter-input"
-            />
-          </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Max</span>
-            <input
-              type="number"
-              value={advanceMaxFilter}
-              onChange={e => {
-                setAdvanceMaxFilter(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Max"
-              data-testid="advance-max-filter-input"
-            />
-          </div>
-        </div>
-      )
-    }
-  ]
-
-  const selectedFilters: string[] = [
-    ...(statusFilter.length > 0 ? ['status'] : []),
-    ...(reporterFilter ? ['reporter'] : []),
-    ...(amountMinFilter || amountMaxFilter ? ['amount'] : []),
-    ...(advanceMinFilter || advanceMaxFilter ? ['advance'] : [])
-  ]
-
-  const hasActiveFilters = useMemo(() => {
-    const hasSearch = (searchText || '').trim() !== ''
-    return (
-      hasSearch ||
-      statusFilter.length > 0 ||
-      !!reporterFilter ||
-      !!amountMinFilter ||
-      !!amountMaxFilter ||
-      !!advanceMinFilter ||
-      !!advanceMaxFilter
-    )
-  }, [searchText, statusFilter, reporterFilter, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter])
-
-  const filterLabelMap: Record<string, string> = {
-    status:
-      statusFilter.length > 0
-        ? `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}: ${statusFilter.map(status => getAdvancePaymentStatusDisplay(status).label).join(', ')}`
-        : getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.status_all', 'Status: All'),
-    reporter: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.reporter_label', 'Reporter:')} ${selectedReporters.join(', ')}`,
-    amount: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.amount_label', 'Amount:')} ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
-    advance: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.advance_label', 'Advance:')} ${advanceMinFilter || '0'} - ${advanceMaxFilter || '∞'}`
-  }
-
-  const handleFilterChange = useCallback(
-    (filterId: string, selected: boolean) => {
-      // Check if this is a status filter (any of the available statuses)
-      if (availableStatuses.includes(filterId)) {
-        const newStatusFilter = selected
-          ? [...statusFilter, filterId]
-          : statusFilter.filter(status => status !== filterId)
-        setStatusFilter(newStatusFilter)
-        setCurrentPage(1)
-      }
-    },
-    [availableStatuses, statusFilter]
+  const renderRowActions = useCallback(
+    (row: { original: AdvancePaymentItem }) => (
+      <AdvancePaymentsRowActions
+        accessToken={props.accessToken}
+        record={row.original}
+        onSelectItem={setSelectedItem}
+        t={t}
+      />
+    ),
+    [props.accessToken, t]
   )
 
-  const setFilters = useCallback(() => {
-    // Clear all filters
-    setStatusFilter([])
-    setReporterFilter('')
-    setSelectedReporters([])
-    setAmountMinFilter('')
-    setAmountMaxFilter('')
-    setAdvanceMinFilter('')
-    setAdvanceMaxFilter('')
-    setCurrentPage(1)
+  const handleSortingChange = useCallback(
+    (newSorting: SortingState) => {
+      const sanitizedSorting = newSorting.slice(0, 1)
+      const nextSortingState = sanitizedSorting.length > 0 ? sanitizedSorting : DEFAULT_ADVANCE_PAYMENT_SORTING_STATE
+      const currentSorting = sortingState[0]
+      const nextSorting = nextSortingState[0]
+
+      if (currentSorting?.id === nextSorting?.id && currentSorting?.desc === nextSorting?.desc) {
+        return
+      }
+
+      setSortingState(nextSortingState)
+      setCurrentPage(1)
+      setOrderBy(buildAdvancePaymentOrderBy(nextSortingState))
+    },
+    [setOrderBy, sortingState]
+  )
+
+  const hasSearchFilter = searchText.trim() !== ''
+  const hasCurrencyFilter = selectedCurrencyCode !== null
+  const hasAnyFilter = hasSearchFilter || hasActiveFilters || hasCurrencyFilter
+
+  const listEmptyMessage = useMemo(
+    () => (hasAnyFilter ? t('empty-no-data') : t('advance-payment-no-payments-yet')),
+    [hasAnyFilter, t]
+  )
+
+  const handleVisibleColumnsChange = useCallback((nextVisibleColumns: string[]) => {
+    setVisibleColumns(nextVisibleColumns as AdvancePaymentVisibleColumnId[])
   }, [])
 
   return (
-    <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="advance-payments-table-wrapper">
-      <DataContainer
-        contentBackground="white"
-        dataControllerProps={{
-          listTitle: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:backoffice_expense_landing_page.advance_title',
-            'Advance Payments'
-          ),
-          listAmount: totalCount ? `${totalCount}` : undefined,
-          search: searchText,
-          setSearch: handleSearchChange,
-          placeholder: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:advance_payment_table.search_placeholder',
-            'Search in Advance Payments'
-          ),
-          filter: totalCount === 0 && !isLoading ? [] : selectedFilters,
-          setFilter: setFilters,
-          filterLabelMap: filterLabelMap,
-          actions: []
-        }}
-        dataFilterProps={{
-          filterGroups,
-          onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
-        }}
-        dataBody={renderDataBody()}
-      />
-      <Sheet
-        open={!!selectedItem}
-        onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedItem?.title ||
-          selectedItem?.description ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:advance_payment_table.advance_payment_details',
-            'Advance Payment Details'
-          )
-        }
-      >
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <ExpenseDetailsShell
-            title={
-              selectedItem?.title ||
-              selectedItem?.description ||
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:advance_payment_table.advance_payment_details',
-                'Advance Payment Details'
-              )
+    <div className="gba:h-full gba:flex gba:flex-col" data-testid="advance-payments-tab-container">
+      <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="advance-payments-table-wrapper">
+        <BackofficeDataDisplay
+          titleSections={[
+            {
+              id: 'list',
+              label: t('tab-advance-payments'),
+              metadata: { count: totalCount, isLoading }
             }
-          >
-            {selectedItem ? (
-              <AdvancePaymentDetailsBackoffice
-                payment={selectedItem}
-                accessToken={props.accessToken}
-                userInfo={props.userInfo}
-              />
-            ) : null}
-          </ExpenseDetailsShell>
-        </SheetContent>
-      </Sheet>
+          ]}
+          currentSection="list"
+          searchValue={searchText}
+          searchPlaceholder={t('advance-payment-search')}
+          onSearchChange={handleSearchChangeWithReset}
+          filters={filtersObject}
+          filterConfiguration={filterConfiguration}
+          onFilterChange={handleFilterChangeFromDisplay}
+          sorting={sortingState}
+          sortableColumns={sortableColumns}
+          onSortingChange={handleSortingChange}
+          availableColumns={availableColumns}
+          visibleColumns={columnsFilteredByVisibility}
+          onVisibleColumnsChange={handleVisibleColumnsChange}
+          secondaryActions={currencySecondaryAction}
+          renderFilterSheet={(open, onOpenChange) => (
+            <BackofficeFilterSheet
+              open={open}
+              onOpenChange={onOpenChange}
+              configuration={filterConfiguration}
+              values={filtersObject}
+              onApply={handleFilterChangeFromDisplay}
+              onChange={handleFilterChangeFromDisplay}
+              title={t('advance-payment-filter-sheet-title')}
+              description={t('advance-payment-filter-sheet-description')}
+              customGroup={{
+                groupId: ADVANCE_PAYMENT_REPORTER_FILTER_GROUP_ID,
+                valueKey: 'reporterIds',
+                render: renderProps => (
+                  <AdvancePaymentReporterFilter
+                    {...renderProps}
+                    reporterSearchText={reporterSearchText}
+                    setReporterSearchText={setReporterSearchText}
+                    showReporterDropdown={showReporterDropdown}
+                    setShowReporterDropdown={setShowReporterDropdown}
+                    reporterSearchResults={reporterSearchResults}
+                    reporterSearchLoading={reporterSearchLoading}
+                    t={t}
+                  />
+                )
+              }}
+            />
+          )}
+        >
+          <AdvancePaymentsDataBody
+            payments={payments}
+            isLoading={isLoading}
+            error={error}
+            totalCount={totalCount}
+            columns={columns}
+            sorting={sortingState}
+            onSortingChange={handleSortingChange}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            emptyMessage={listEmptyMessage}
+            onRowClick={handleRowClick}
+            actions={renderRowActions}
+          />
+        </BackofficeDataDisplay>
+        <AdvancePaymentsDetailsSheet
+          selectedItem={selectedItem}
+          accessToken={props.accessToken}
+          userInfo={props.userInfo}
+          t={t}
+          onClose={handleCloseDetails}
+        />
+      </div>
     </div>
   )
 }

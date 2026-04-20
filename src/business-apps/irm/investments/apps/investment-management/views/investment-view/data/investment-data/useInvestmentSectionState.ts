@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { useInvestments } from '@/common/data/investment/hooks/useInvestments.new'
+import { useInvestments, type InvestmentListAggregates } from '@/common/data/investment/hooks/useInvestments.new'
 import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries.new'
 import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
 
@@ -12,6 +12,7 @@ export interface UseInvestmentSectionStateReturn {
   // Data
   investments: Investment[]
   totalCount: number
+  listAggregates: InvestmentListAggregates
   loading: boolean
   error: string | null
   refetch: () => Promise<void>
@@ -55,8 +56,21 @@ export const useInvestmentSectionState = ({
   ])
   const initialLoadDone = useRef(false)
 
-  // Query variables
+  // Convert currencyIds → currency.code customCondition (relation path works; scalar path does not).
+  const currencyConditions = useMemo(() => {
+    const ids: string[] = selectedFilters.currencyIds ?? []
+    const codes = ids.map((id: string) => id.split(':').pop()).filter(Boolean)
+    if (codes.length === 0) return []
+    return [{ currency: { code: { _in: codes } } }]
+  }, [selectedFilters.currencyIds])
+
+  // Query variables — strip currencyIds from direct filter path (handled via currencyConditions).
   const queryVariables: InvestmentQueryVariables = useMemo(() => {
+    const existingConditions: Record<string, any>[] = selectedFilters.customConditions ?? []
+    const listFilters = Object.fromEntries(
+      Object.entries(selectedFilters).filter(([key]) => key !== 'currencyIds' && key !== 'customConditions')
+    )
+    const mergedConditions = [...existingConditions, ...currencyConditions]
     return {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
@@ -64,14 +78,16 @@ export const useInvestmentSectionState = ({
       orderBy: sortField
         ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
         : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-      ...selectedFilters
+      ...listFilters,
+      ...(mergedConditions.length > 0 ? { customConditions: mergedConditions } : {})
     }
-  }, [currentPage, pageSize, search, sortField, sortOrder, selectedFilters])
+  }, [currentPage, pageSize, search, sortField, sortOrder, selectedFilters, currencyConditions])
 
   // Fetch data
   const {
     investments,
     total: totalCount,
+    listAggregates,
     loading,
     error,
     refetch
@@ -122,6 +138,7 @@ export const useInvestmentSectionState = ({
   return {
     investments,
     totalCount,
+    listAggregates,
     loading,
     error,
     refetch,

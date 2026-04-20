@@ -65,6 +65,10 @@ export interface AdjustEmployeeSalaryContextData {
   weeklyHours: number | null
   /** Employee's bank account currency - prefilled if exists, otherwise user selects */
   bankAccountCurrency: string | null
+  /** Currency from employee's employment region country - used to preset currency in assign mode */
+  countryCurrencyRef: string | null
+  /** Whether the employee has an employment region set (from working condition) */
+  hasEmploymentRegion: boolean
 }
 
 export interface EmployeeDataResponse {

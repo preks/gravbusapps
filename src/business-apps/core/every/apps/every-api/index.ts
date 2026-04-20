@@ -20,9 +20,13 @@ import { validateConfig } from './utils/config'
 // Export types
 export * from './types'
 
+export { EVERYBOX_FIRST_PAGE_LIMIT } from './constants/everyboxPagination'
+
 // Export services
 export * from './services/UnifiedTaskService'
 export * from './services/TaskAdapterService'
+export * from './services/EveryboxUserStateService'
+export * from './services/AiService'
 
 // Export utilities
 export * from './utils/CflowClient'

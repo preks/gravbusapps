@@ -9,8 +9,13 @@
  * @returns Filtered array or undefined if empty
  */
 export function filterCommunicationChannels(channels: any[]): any[] | undefined {
-  if (!channels || !Array.isArray(channels)) {
+  if (!Array.isArray(channels)) {
     return undefined
+  }
+
+  // Preserve explicit collection clearing in update payloads.
+  if (channels.length === 0) {
+    return []
   }
 
   const filtered = channels.filter((channel: any) => channel.value && channel.value.trim() !== '')
@@ -86,8 +91,13 @@ export function hasAddressContent(addr: any): boolean {
  * @returns Filtered addresses array or undefined
  */
 export function filterAddresses(addresses: any[], transformAddressLine?: (addressLine: any) => any): any[] | undefined {
-  if (!addresses || !Array.isArray(addresses)) {
+  if (!Array.isArray(addresses)) {
     return undefined
+  }
+
+  // Preserve explicit collection clearing in update payloads.
+  if (addresses.length === 0) {
+    return []
   }
 
   const filtered = addresses

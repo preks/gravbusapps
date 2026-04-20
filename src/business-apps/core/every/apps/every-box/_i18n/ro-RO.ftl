@@ -6,6 +6,31 @@ every-box-blink-button = Blink
 every-box-tab-inflows = Intrări
 every-box-tab-outflows = Ieșiri
 every-box-blink-description = Creați și atribuiți rapid o sarcină
+every-box-hero-tagline = Inbox-ul dvs. unificat pentru sarcini și fluxuri de lucru
+every-box-search-placeholder = Căutare...
+every-box-sort-label = Sortare
+every-box-sort-newest = Cele mai noi
+every-box-sort-oldest = Cele mai vechi
+every-box-sort-priority = Prioritate
+every-box-refresh-label = Reîmprospătare
+every-box-due-filter-label = Termen
+every-box-due-filter-any = Oricare
+every-box-due-filter-overdue = Întârziat
+every-box-due-filter-due-soon = Scadent în <24h
+every-box-due-filter-has = Are termen
+every-box-due-filter-none = Fără termen
+
+# Filters Dropdown
+filters-dropdown-label = Filtre
+filters-all = Toate
+filters-blinks = Blinks
+filters-approvals = Aprobări
+filters-completed = Finalizate
+filters-active-count = { $count } active
+
+# Detail Panel
+detail-panel-empty = Selectați o sarcină pentru a vedea detaliile
+detail-panel-empty-flow = Selectați un flux de lucru pentru a vedea detaliile
 
 # Inbox View
 inbox-search-placeholder = Căutare sarcini...
@@ -21,6 +46,10 @@ inbox-new-completed-tasks-description = Au sosit sarcini finalizate noi. Apăsa�
 inbox-error-title = Eroare la încărcarea sarcinilor
 inbox-showing-tasks = Afișare {$current} din {$total}{$hasMore} sarcini
 inbox-load-more = Încarcă mai multe
+inbox-loading-more = Se încarcă mai multe sarcini...
+inbox-no-task-selected = Nicio sarcină selectată
+inbox-select-task-prompt = Selectați o sarcină din listă pentru a vedea detaliile
+inbox-task-no-title = Sarcină fără titlu
 
 # Inbox Empty States
 inbox-empty-no-results = Nu s-au găsit sarcini pentru "{$query}"
@@ -39,6 +68,8 @@ outbox-error-title = Eroare la încărcarea fluxurilor
 outbox-error-unable = Nu s-au putut încărca fluxurile
 outbox-error-server = Serverul are probleme de performanță. Aceasta este o problemă cunoscută.
 outbox-try-again = Încearcă din nou
+outbox-no-flow-selected = Niciun flux de lucru selectat
+outbox-select-flow-prompt = Selectați un flux de lucru din listă pentru a vedea detaliile
 
 # Outbox Empty States
 outbox-empty-no-results = Nu s-au găsit fluxuri pentru "{$query}"
@@ -60,9 +91,28 @@ blink-upload-error = Nu s-au putut încărca atașamentele: {$error}
 task-card-overdue = Întârziat
 task-card-due-soon = Scadent în curând
 task-card-due = Scadent {$date}
+task-card-due-in-hours = Scadent în {$hours}h
+task-card-overdue-hours = Întârziat {$hours}h
+task-card-due-in-days = Scadent în {$days}z
+task-card-overdue-days = Întârziat {$days}z
+task-card-tooltip-due-hours = Scadent în {$hours} ore
+task-card-tooltip-due-days = Scadent în {$days} zile
+task-card-tooltip-overdue-hours = Întârziat: {$hours} ore
+task-card-tooltip-overdue-days = Întârziat: {$days} zile
 task-card-blink = Blink
 task-card-unknown-creator = Necunoscut
 task-card-untitled = Sarcină fără titlu
+task-card-pinned = Fixată
+
+# Task meta actions (Everybox-service)
+task-meta-pin = Fixează
+task-meta-unpin = Anulează fixarea
+task-meta-mark-unread = Marchează ca necitit
+task-meta-priority = Prioritate
+task-meta-priority-none = Niciuna
+task-meta-priority-high = Ridicată
+task-meta-priority-medium = Medie
+task-meta-priority-low = Scăzută
 
 # FlowCard Component
 flow-card-blink = Blink
@@ -121,7 +171,6 @@ flow-detail-flow-steps = Pași flux de lucru
 flow-detail-step = Pasul {$number}: {$title}
 flow-detail-assigned-to = Atribuit către: {$name}
 flow-detail-completed-by = Finalizat de: {$name}
-flow-detail-id = ID: {$id}
 
 # TaskDetailDialog Component
 task-dialog-completed-success = ✓ Sarcină finalizată cu succes!
@@ -143,15 +192,52 @@ completed-showing = Afișare {$current} din {$total} sarcini finalizate
 completed-load-more = Încarcă mai multe
 
 # UniversalCflowTaskDetails Component
+task-details-related-links = Link-uri asociate
+task-details-meeting-links = Link-uri întâlnire
 task-details-related-to = Legat de
+task-details-meeting-recording-notice = Înregistrare și transcriere. Prin participare, acceptați includerea.
+task-details-meeting-participants = Participanți
+task-details-meeting-participants-with-count = Participanți ({$count})
+task-details-meeting-organiser = Organizator
+task-details-meeting-invitation-title-with-count = Invitație la întâlnire: {$count} participanți
+task-details-meeting-participants-show-more = Arată încă {$count}
+task-details-meeting-participants-show-less = Arată mai puțin
+task-details-meeting-please-respond = Vă rugăm să răspundeți la această invitație.
+task-details-meeting-participant-view-profile = Vezi profilul
+task-details-meeting-status-pending = În așteptare
+task-details-meeting-status-accepted = Acceptat
+task-details-meeting-status-declined = Refuzat
+task-details-meeting-status-tentative = Poate
 task-details-attachments = Atașamente ({$count})
+document-approval-review-card-label = Document în examinare
+document-approval-review-card-fallback-name = Document
+document-approval-review-card-snapshot-badge = Snapshot
+document-approval-review-card-description = Previzualizează snapshot-ul read-only aici sau deschide documentul în aplicația Documents. Aprobă sau respinge din acest task.
+document-approval-review-open-here = Examinează aici
+document-approval-review-open-external = Deschide în aplicația Documents
+document-approval-review-open-external-tooltip = Deschide documentul în aplicația Documents (vizualizare separată)
+document-approval-review-dialog-description = Snapshot read-only al versiunii trimise spre aprobare. Aprobarea sau respingerea se face din task, nu din această previzualizare.
+document-approval-outcome-review-card-label-approved = Revizie aprobată
+document-approval-outcome-review-card-label-rejected = Revizie respinsă
+document-approval-outcome-review-card-description-approved = Vizualizează exact versiunea care a fost aprobată. Deschide-o aici sau în aplicația Documents.
+document-approval-outcome-review-card-description-rejected = Vizualizează exact versiunea care a fost respinsă. Deschide-o aici sau în aplicația Documents.
+document-approval-outcome-review-card-snapshot-badge-approved = Aprobată
+document-approval-outcome-review-card-snapshot-badge-rejected = Respinsă
+document-approval-outcome-review-open-here = Previzualizează revizia
+document-approval-outcome-review-dialog-description = Snapshot read-only al versiunii revizuite. Această previzualizare reflectă documentul la momentul revizuirii.
 task-details-form = Formular
+task-due-date-label = Scadență
+task-start-date-label = Începe
 task-details-read-only = Doar citire
 task-details-form-loading = Se încarcă...
 task-details-add-comment = Adaugă comentariu
 task-details-optional = (Opțional)
+task-details-rejection-comment-hint = necesar pentru respingere
+task-details-rejection-comment-missing = Adăugați un comentariu care explică de ce respingeți acest document.
 task-details-comment-placeholder = Introduceți comentariul...
+task-details-comment-placeholder-reject = Explicați de ce respingeți…
 task-details-blink-info = Aceasta este o sarcină Blink rapidă. O puteți finaliza direct de aici.
+task-details-blink-instruction-hint = Deschideți linkul de mai jos pentru a accesa copia dvs. alocată, completați-o și reveniți aici pentru a trimite.
 task-details-unknown = Necunoscut
 task-details-untitled = Sarcină fără titlu
 task-details-claim-coming = Funcția de preluare va fi disponibilă în curând
@@ -213,3 +299,97 @@ formatter-priority-normal = Normal
 formatter-priority-high = Ridicat
 formatter-priority-medium = Mediu
 formatter-priority-low = Scăzut
+
+# Due Date Labels
+due-date-days-overdue = { $days ->
+    [one] { $days }z întârziere
+   *[other] { $days }z întârziere
+}
+due-date-hours-overdue = { $hours ->
+    [one] { $hours }h întârziere
+   *[other] { $hours }h întârziere
+}
+due-date-hours-left = { $hours ->
+    [one] { $hours }h rămase
+   *[other] { $hours }h rămase
+}
+due-date-days-left = { $days ->
+    [one] { $days }z rămase
+   *[other] { $days }z rămase
+}
+
+# AI Features
+ai-search-placeholder = Căutare inteligentă...
+ai-search-toggle = Căutare inteligentă
+ai-search-toggle-tooltip = Folosește căutarea semantică bazată pe AI
+ai-search-results-title = Rezultatele căutării
+ai-search-mode-semantic = Rezultate AI
+ai-search-mode-lexical = Rezultate text
+ai-search-no-results = Nu s-au găsit sarcini corespunzătoare
+ai-search-error = Căutarea a eșuat. Vă rugăm să încercați din nou.
+ai-summary-title = Rezumat
+ai-summary-loading = Se generează rezumatul...
+ai-summary-error = Rezumatul nu a putut fi generat
+ai-summary-regenerate = Regenerează
+ai-summary-cached = În cache
+ai-suggestions-title = Acțiuni sugerate
+ai-suggestions-loading = Se generează sugestiile...
+ai-suggestions-error = Sugestiile nu au putut fi generate
+ai-suggestions-retry = Reîncearcă
+ai-suggestions-copy = Copiază
+ai-suggestions-apply = Aplică
+ai-urgency-label = Urgență
+ai-urgency-high = Ridicată
+ai-urgency-medium = Medie
+ai-urgency-low = Scăzută
+ai-priority-suggested = Prioritate sugerată
+ai-priority-apply = Aplică prioritatea
+ai-clustering-group-by = Grupează pe categorie
+ai-clustering-group-label = { $cluster }
+ai-clustering-uncategorized = Necategorizate
+
+# AI Assistant
+ai-assistant-suggest = Sugerează
+ai-assistant-suggest-tooltip = Obține un răspuns sugerat de AI
+ai-assistant-improve = Îmbunătățește
+ai-assistant-improve-tooltip = Îmbunătățește ciorna dvs.
+ai-assistant-tone = Ton
+ai-assistant-tone-tooltip = Ajustează tonul mesajului
+ai-assistant-expand = Extinde
+ai-assistant-expand-tooltip = Adaugă mai multe detalii
+ai-assistant-shorten = Scurtează
+ai-assistant-shorten-tooltip = Fă-l mai concis
+ai-assistant-custom = Personalizat
+ai-assistant-custom-tooltip = Oferă instrucțiuni personalizate
+ai-assistant-custom-label = Ce ar trebui să facă AI?
+ai-assistant-custom-placeholder = ex., Fă-l mai politicos...
+ai-assistant-apply = Aplică
+ai-assistant-suggested-reply = Răspuns sugerat
+ai-assistant-use-this = Folosește acest lucru
+ai-assistant-dismiss = Respinge
+ai-assistant-placeholder = Scrieți răspunsul...
+ai-assistant-send = Trimite
+ai-assistant-cancel = Anulează
+ai-assistant-ai-assisted = Asistat de AI
+ai-assistant-applied = Aplicat
+ai-assistant-draft-helper = Asistent de scriere AI
+ai-assistant-draft-placeholder = Folosiți AI pentru a vă ajuta la redactarea răspunsului...
+ai-assistant-copy = Copiază
+ai-assistant-copied = Copiat în clipboard
+
+# AI Predictions
+ai-prediction-helpful = A fost util?
+ai-feedback-helpful = Da, a fost util
+ai-feedback-not-helpful = Nu, nu a fost util
+ai-feedback-thanks = Mulțumim pentru feedback!
+ai-prediction-likely-approve = Probabil va fi aprobat
+ai-prediction-likely-reject = Probabil va fi respins
+ai-prediction-likely-delegate = Probabil va fi delegat
+ai-prediction-likely-defer = Probabil va fi amânat
+ai-prediction-needs-review = Necesită revizuire
+ai-prediction-high-priority = Prioritate ridicată
+ai-prediction-medium-priority = Prioritate medie
+ai-prediction-low-priority = Prioritate scăzută
+ai-prediction-confidence = { $percent }% încredere
+ai-relationship-context = Context relațional
+ai-decision-history = Pe baza istoricului deciziilor dvs.

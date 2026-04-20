@@ -25,7 +25,7 @@ import {
   Toaster
 } from '@newwork/nw-design-system'
 import { toast } from 'sonner'
-import { PiArrowLeft, PiPlus, PiWarning } from 'react-icons/pi'
+import { ArrowLeftIcon, PlusIcon, WarningIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -33,7 +33,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 import MileageRulesPagination from '../mileage-rules/MileageRulesPagination'
 import AllowanceRegionRuleForm from '../../forms/allowance-region-rule-form/AllowanceRegionRuleForm'
-import dayjs from 'dayjs'
+import { formatDate } from '../../utils'
 
 interface UnassignedAllowanceRegionRule {
   id: string
@@ -203,10 +203,6 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({ accessToken, 
     }
   }, [accessToken, loadTravelRegionSets])
 
-  const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD/MM/YYYY')
-  }
-
   const handleAssignToSet = (ruleId: string) => {
     const rule = unassignedRules.find(r => r.id === ruleId)
     if (rule) {
@@ -287,7 +283,7 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({ accessToken, 
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
         <span className="gba:font-medium">{record.name}</span>
         <Badge variant="secondary" className="gba:bg-orange-100 gba:text-orange-700">
-          <PiWarning className="gba:mr-1 gba:w-3 gba:h-3" />
+          <WarningIcon className="gba:mr-1 gba:w-3 gba:h-3" />
           Unassigned
         </Badge>
       </div>
@@ -355,7 +351,7 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({ accessToken, 
       <div className="gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4 gba:mb-4">
           <Button variant="ghost" onClick={onBack} data-testid={`${prefixDataTestId}-back-button`}>
-            <PiArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
+            <ArrowLeftIcon className="gba:w-4 gba:h-4 gba:mr-2" />
             Back to Travel Region Sets
           </Button>
         </div>
@@ -378,7 +374,7 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({ accessToken, 
                 onClick={() => setIsCreateRuleModalVisible(true)}
                 data-testid={`${prefixDataTestId}-create-rule-button`}
               >
-                <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+                <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                 Create New Rule
               </Button>
             </div>
@@ -430,7 +426,7 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({ accessToken, 
         </>
       ) : (
         <div className="gba:text-center gba:py-12">
-          <PiWarning className="gba:text-4xl gba:text-green-400 gba:mb-4" />
+          <WarningIcon className="gba:text-4xl gba:text-green-400 gba:mb-4" />
           <h4 className="gba:text-lg gba:font-medium gba:text-gray-600 gba:mb-2">All Rules Are Assigned</h4>
           <p className="gba:text-gray-500">Great! All allowance region rules are assigned to travel region sets.</p>
         </div>

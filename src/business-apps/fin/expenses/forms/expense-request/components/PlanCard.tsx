@@ -1,4 +1,5 @@
 import React from 'react'
+import { Card, CardContent } from '@newwork/nw-design-system'
 import { formatDate } from '@/common/utils/windowUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ICONS } from '../../../utils/icons'
@@ -23,7 +24,7 @@ interface PlanCardProps {
 }
 
 /**
- * PlanCard component to display expense plan information
+ * PlanCard component to display expense plan information in a card
  */
 const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true }) => {
   const { planType, title, creationDate, tripInterval, paymentAmount, paymentCurrency, planAmount, planCurrency } = plan
@@ -48,119 +49,115 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
     }
   }
 
-  const CardWrapper = selectable ? 'button' : 'div'
+  const cardClassName = [
+    'gba:w-full gba:text-left gba:rounded-md gba:border gba:border-border gba:bg-background gba:shadow-sm',
+    selectable &&
+      'gba:cursor-pointer gba:transition-all gba:duration-200 hover:gba:shadow-md hover:gba:-translate-y-0.5 active:gba:translate-y-0 active:gba:shadow-sm'
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
-    <CardWrapper
-      type={selectable ? 'button' : undefined}
-      className="gba:flex gba:flex-col"
-      style={{
-        backgroundColor: 'background',
-        padding: '16px',
-        width: '100%',
-        cursor: selectable ? 'pointer' : 'default',
-        transition: selectable ? 'all 0.2s ease' : 'none',
-        border: 'none',
-        textAlign: 'left',
-        ...(selectable && {
-          ':hover': {
-            boxShadow: '0 0 12px rgba(0, 0, 0, 0.15)',
-            transform: 'translateY(-2px)'
-          },
-          ':active': {
-            transform: 'translateY(0)',
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-          }
-        })
-      }}
+    <Card
+      className={cardClassName}
       data-testid={`plan-card-${plan.id}`}
       onClick={selectable ? handleClick : undefined}
       onKeyDown={selectable ? handleKeyDown : undefined}
+      role={selectable ? 'button' : undefined}
+      tabIndex={selectable ? 0 : undefined}
     >
-      <div className="gba:flex gba:items-center" style={{ marginBottom: '12px' }} data-testid="plan-card-header">
-        <div
-          className="gba:flex gba:items-center"
-          style={{ marginRight: '8px' }}
-          data-testid="plan-card-icon-container"
-        >
-          <img src={`${iconPath}`} alt={iconTitle} width="20" height="20" data-testid="plan-card-icon-image" />
-        </div>
-        <span style={{ fontSize: '14px', fontWeight: 500, color: 'foreground333' }} data-testid="plan-card-type">
-          {iconTitle}
-        </span>
-      </div>
-
-      <div className="gba:flex gba:flex-col" data-testid="plan-card-content">
-        <div
-          className="gba:flex gba:flex-col"
-          style={{ lineHeight: '20px', marginBottom: '16px' }}
-          data-testid="plan-card-title-container"
-        >
-          <span style={{ fontSize: '18px', fontWeight: 500 }} data-testid="plan-card-title">
-            {title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.no_title', 'No Title')}
+      <CardContent className="gba:p-4">
+        <div className="gba:flex gba:items-center" style={{ marginBottom: '12px' }} data-testid="plan-card-header">
+          <div
+            className="gba:flex gba:items-center"
+            style={{ marginRight: '8px' }}
+            data-testid="plan-card-icon-container"
+          >
+            <img src={`${iconPath}`} alt={iconTitle} width="20" height="20" data-testid="plan-card-icon-image" />
+          </div>
+          <span style={{ fontSize: '14px', fontWeight: 500, color: 'foreground333' }} data-testid="plan-card-type">
+            {iconTitle}
           </span>
-          {tripInterval && (
-            <span
-              style={{ fontSize: '14px', fontWeight: 400, color: 'muted-foreground' }}
-              data-testid="plan-card-interval"
-            >
-              {tripInterval}
+        </div>
+
+        <div className="gba:flex gba:flex-col" data-testid="plan-card-content">
+          <div
+            className="gba:flex gba:flex-col"
+            style={{ lineHeight: '20px', marginBottom: '16px' }}
+            data-testid="plan-card-title-container"
+          >
+            <span style={{ fontSize: '18px', fontWeight: 500 }} data-testid="plan-card-title">
+              {title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.no_title', 'No Title')}
             </span>
-          )}
-        </div>
-
-        <div
-          className="gba:flex gba:flex-row gba:items-center"
-          style={{ lineHeight: '20px', gap: '10px', width: '100%' }}
-          data-testid="plan-card-footer"
-        >
-          <span
-            style={{ fontSize: '14px', fontWeight: 'normal', width: '33%', textAlign: 'left', display: 'inline-block' }}
-            data-testid="plan-card-creation-date"
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.created', 'Created')}:{' '}
-            {formattedCreationDate}
-          </span>
-
-          {paymentAmount ? (
-            <div
-              className="gba:flex gba:items-center"
-              style={{ gap: '5px', width: '33%', textAlign: 'left' }}
-              data-testid="plan-card-payment"
-            >
-              <div style={{ width: '16px', height: '16px' }} data-testid="plan-card-payment-icon-container">
-                <div
-                  style={{
-                    background: `url('${ICONS.HAND_COIN_ICON}') no-repeat center`,
-                    backgroundSize: 'contain',
-                    width: '16px',
-                    height: '16px',
-                    filter:
-                      'brightness(0) saturate(100%) invert(43%) sepia(17%) saturate(1570%) hue-rotate(255deg) brightness(89%) contrast(95%)'
-                  }}
-                  data-testid="plan-card-hand-coin-icon"
-                />
-              </div>
+            {tripInterval && (
               <span
-                style={{ fontSize: '14px', fontWeight: 'normal', color: 'primary' }}
-                data-testid="plan-card-payment-amount"
+                style={{ fontSize: '14px', fontWeight: 400, color: 'muted-foreground' }}
+                data-testid="plan-card-interval"
               >
-                {paymentAmount} {paymentCurrency}
+                {tripInterval}
               </span>
-            </div>
-          ) : (
-            <div style={{ width: '33%' }} data-testid="plan-card-payment-empty"></div>
-          )}
+            )}
+          </div>
 
-          <span
-            style={{ fontSize: '18px', fontWeight: 500, width: '33%', textAlign: 'right', display: 'inline-block' }}
-            data-testid="plan-card-amount"
+          <div
+            className="gba:flex gba:flex-row gba:items-center"
+            style={{ lineHeight: '20px', gap: '10px', width: '100%' }}
+            data-testid="plan-card-footer"
           >
-            {planAmount || '0'} {planCurrency || DEFAULT_PLAN_CURRENCY_CODE}
-          </span>
+            <span
+              style={{
+                fontSize: '14px',
+                fontWeight: 'normal',
+                width: '33%',
+                textAlign: 'left',
+                display: 'inline-block'
+              }}
+              data-testid="plan-card-creation-date"
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.created', 'Created')}:{' '}
+              {formattedCreationDate}
+            </span>
+
+            {paymentAmount ? (
+              <div
+                className="gba:flex gba:items-center"
+                style={{ gap: '5px', width: '33%', textAlign: 'left' }}
+                data-testid="plan-card-payment"
+              >
+                <div style={{ width: '16px', height: '16px' }} data-testid="plan-card-payment-icon-container">
+                  <div
+                    style={{
+                      background: `url('${ICONS.HAND_COIN_ICON}') no-repeat center`,
+                      backgroundSize: 'contain',
+                      width: '16px',
+                      height: '16px',
+                      filter:
+                        'brightness(0) saturate(100%) invert(43%) sepia(17%) saturate(1570%) hue-rotate(255deg) brightness(89%) contrast(95%)'
+                    }}
+                    data-testid="plan-card-hand-coin-icon"
+                  />
+                </div>
+                <span
+                  style={{ fontSize: '14px', fontWeight: 'normal', color: 'primary' }}
+                  data-testid="plan-card-payment-amount"
+                >
+                  {paymentAmount} {paymentCurrency}
+                </span>
+              </div>
+            ) : (
+              <div style={{ width: '33%' }} data-testid="plan-card-payment-empty"></div>
+            )}
+
+            <span
+              style={{ fontSize: '18px', fontWeight: 500, width: '33%', textAlign: 'right', display: 'inline-block' }}
+              data-testid="plan-card-amount"
+            >
+              {planAmount || '0'} {planCurrency || DEFAULT_PLAN_CURRENCY_CODE}
+            </span>
+          </div>
         </div>
-      </div>
-    </CardWrapper>
+      </CardContent>
+    </Card>
   )
 }
 

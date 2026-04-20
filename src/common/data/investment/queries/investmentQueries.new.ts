@@ -22,6 +22,9 @@ export const INVESTMENT_QUERY_CONFIGS: Record<string, string[]> = {
   // Minimal: Only essential fields for quick lookups
   minimal: ['code', 'createdAt', 'id', 'name'],
 
+  // IRM activity form: linked accounts + contacts on those accounts for secondary pickers
+  irmActivityAssociation: ['code', 'id', 'investmentAccountsForActivityAssociation', 'name'],
+
   // List: Common fields for table/list views
   list: [
     'acquisitionDate',
@@ -54,6 +57,7 @@ export const INVESTMENT_QUERY_CONFIGS: Record<string, string[]> = {
     'acquisitionDate',
     'additionalProperties',
     'code',
+    'company',
     'createdAt',
     'createdBy',
     'currency',
@@ -327,7 +331,45 @@ export const buildInvestmentFragment = (fields: string[]): string => {
     ${buildEntityReferenceField(fieldSet, 'loanRecipientInvestmentAccount', 'loanRecipientInvestmentAccountId', InvestmentFields.loanRecipientInvestmentAccount, INVESTMENT_ACCOUNT_REF)}
     
     ${
-      fieldSet.has('investmentAccounts')
+      fieldSet.has('investmentAccountsForActivityAssociation')
+        ? `
+      ${InvestmentFields.investmentAccounts}(where: { isDeleted: { _eq: false } }) {
+        id
+        version
+        investmentId
+        investmentAccountId
+        investmentAccount {
+          ${INVESTMENT_ACCOUNT_REF}
+          investmentAccountContact(where: { isDeleted: { _eq: false } }) {
+            id
+            contactId
+            accountId
+            contact {
+              id
+              code
+              firstName
+              lastName
+              fullName
+              communicationChannels(where: { isDeleted: { _eq: false } }) {
+                value
+                valueExtension
+                communicationChannel {
+                  ${CATALOG_ENTRY}
+                }
+                communicationChannelRef
+              }
+            }
+            ${AUDIT_FIELDS}
+          }
+        }
+        ${AUDIT_FIELDS}
+      }
+    `
+        : ''
+    }
+    
+    ${
+      fieldSet.has('investmentAccounts') && !fieldSet.has('investmentAccountsForActivityAssociation')
         ? `
       ${InvestmentFields.investmentAccounts}(where: { isDeleted: { _eq: false } }) {
         id
@@ -395,6 +437,7 @@ export const buildInvestmentFragment = (fields: string[]): string => {
         ${RealEstateInvestmentFields.size}
         ${RealEstateInvestmentFields.locality}
         ${RealEstateInvestmentFields.postalCode}
+        ${RealEstateInvestmentFields.sizeMeasurementUnitRef}
         ${RealEstateInvestmentFields.sizeMeasurementUnit} {
           ${CATALOG_ENTRY}
         }
@@ -460,8 +503,9 @@ export interface InvestmentQueryVariables extends BaseQueryVariables {
 
   // Investment type filters (passed as customConditions to buildWhere)
   // These are direct GraphQL objects, not processed by descriptors
-  liquidFundInvestment?: { id: { _isNull: false } }
-  realEstateInvestment?: { id: { _isNull: false } }
-  equityInvestment?: { id: { _isNull: false } }
+  // Use {} to check if relationship array has any items (Hasura "exists" syntax)
+  liquidFundInvestment?: Record<string, any>
+  realEstateInvestment?: Record<string, any>
+  equityInvestment?: Record<string, any>
   planedExit?: boolean
 }

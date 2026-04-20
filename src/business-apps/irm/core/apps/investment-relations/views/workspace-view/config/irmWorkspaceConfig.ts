@@ -6,11 +6,13 @@ import {
   useIrmTasksAdapter
 } from '../hooks/usePersonalWorkspaceAdapters'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildIrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { TargetIcon, BuildingsIcon, UsersIcon, ChartPieIcon, UserIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MyActivitiesTab } from '../components/MyActivitiesTab'
 import { MyTasksTab } from '../components/MyTasksTab'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import type { TaskReference } from '@/common/data/relations/types/taskTypes'
 
 /**
  * IRM-specific configuration for Personal Workspace
@@ -143,13 +145,32 @@ const buildIrmWorkspaceConfig = (
     flowContexts: {
       entityContext: FlowContextName.investmentActivityEntity,
       createContext: FlowContextName.investmentActivityCreate
-    }
+    },
+    rowActionsContextArray: [FlowContextName.investmentActivityEntity],
+    buildReferenceUrl: (entityType: string, entityId: string) =>
+      buildIrmRelatedEntityRecordUrl(entityType as Parameters<typeof buildIrmRelatedEntityRecordUrl>[0], entityId)
   } as any,
 
   myTasksConfig: {
     flowContexts: {
       entityContext: FlowContextName.investmentTaskEntity,
       createContext: FlowContextName.investmentTaskCreate
+    },
+    buildReferenceUrl: (reference: TaskReference) => {
+      switch (reference.type) {
+        case 'lead':
+          return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id })
+        case 'account':
+          return buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id })
+        case 'contact':
+          return buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id })
+        case 'opportunity':
+          return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id })
+        case 'investment':
+          return buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id })
+        default:
+          return ''
+      }
     }
   } as any,
 

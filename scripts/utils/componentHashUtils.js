@@ -15,24 +15,54 @@ export function calculateFileHash(filePath) {
 
 /**
  * Calculate combined hash for all artifacts in a screen's build directory
- * Combines hashes of all .js and .css files
+ * Combines hashes of:
+ * - all .js/.css files in the screen directory
+ * - referenced shared chunk files under dist/chunks (if any)
  */
 export function calculateScreenHash(buildOutputDir) {
-  const files = glob.sync('**/*.{js,css}', { cwd: buildOutputDir, nodir: true })
+  const screenFiles = glob.sync('**/*.{js,css}', { cwd: buildOutputDir, nodir: true })
 
-  if (files.length === 0) {
+  if (screenFiles.length === 0) {
     throw new Error(`No artifacts found in ${buildOutputDir}`)
   }
 
-  // Sort files for deterministic hash
-  files.sort()
+  const distMarker = `${path.sep}dist${path.sep}`
+  const markerIndex = buildOutputDir.lastIndexOf(distMarker)
+  const distRootDir = markerIndex >= 0 ? buildOutputDir.slice(0, markerIndex + distMarker.length - 1) : null
+
+  // Detect shared chunk dependencies referenced from screen JS output.
+  // This captures shared component changes that end up in dist/chunks/* or dist/_chunks/*.
+  const referencedChunkFiles = new Set()
+  if (distRootDir) {
+    for (const relativeFile of screenFiles) {
+      if (!relativeFile.endsWith('.js')) continue
+      const absoluteFilePath = path.join(buildOutputDir, relativeFile)
+      const content = fs.readFileSync(absoluteFilePath, 'utf8')
+      const chunkPathMatches = content.match(/_?chunks\/[A-Za-z0-9._/-]+\.(js|css)/g) || []
+      for (const chunkRelPath of chunkPathMatches) {
+        const normalized = chunkRelPath.replace(/\//g, path.sep)
+        const absoluteChunkPath = path.join(distRootDir, normalized)
+        if (fs.existsSync(absoluteChunkPath)) {
+          referencedChunkFiles.add(absoluteChunkPath)
+        }
+      }
+    }
+  }
+
+  // Sort for deterministic hash
+  const screenFilesSorted = [...screenFiles].sort()
+  const chunkFilesSorted = [...referencedChunkFiles].sort()
 
   // Combine all file hashes
   const combinedHash = crypto.createHash('md5')
-  for (const file of files) {
+  for (const file of screenFilesSorted) {
     const filePath = path.join(buildOutputDir, file)
     const fileHash = calculateFileHash(filePath)
     combinedHash.update(fileHash)
+  }
+  for (const chunkPath of chunkFilesSorted) {
+    const chunkHash = calculateFileHash(chunkPath)
+    combinedHash.update(chunkHash)
   }
 
   return combinedHash.digest('hex') // Full 32-char MD5 hash
@@ -93,13 +123,22 @@ export function compareScreenHashes(screenPath, devHashes, prodHashes) {
   return { changed: false, reason: 'hash_match', devHash, prodHash }
 }
 
+/** Default git author for hash / screen-publish CI commits */
+export const CI_GIT_AUTHOR_NAME_HASHES = 'CI Hash Update Bot'
+
+/** Git author for bundle-top-dependencies.json CI commits (distinct from hash bot in history) */
+export const CI_GIT_AUTHOR_NAME_BUNDLE = 'CI Bundle Report Bot'
+
 /**
  * Configure git for CI commits
+ * @param {object} [options]
+ * @param {string} [options.userName] — defaults to {@link CI_GIT_AUTHOR_NAME_HASHES}
  */
-export function configureGit(projectRootDir, execSyncFn) {
+export function configureGit(projectRootDir, execSyncFn, options = {}) {
+  const userName = options.userName ?? CI_GIT_AUTHOR_NAME_HASHES
   try {
     // 1) Configure Git identity (these do NOT need to be secret; it's just who is performing the commit)
-    execSyncFn('git config user.name "CI Hash Update Bot"', { cwd: projectRootDir })
+    execSyncFn(`git config user.name ${JSON.stringify(userName)}`, { cwd: projectRootDir })
     execSyncFn('git config user.email "ci-bot@newwork.com"', { cwd: projectRootDir })
 
     // 2) Reconfigure 'origin' URL with credentials

@@ -27,6 +27,7 @@ export interface ExpenseData {
   userId: string
   expenseRuleId: string
   totalAmount: number
+  reimbursableAmount?: number
   nonReimbursableAmount?: number
   employeeDocumentId: string | null
   documentData: any
@@ -74,6 +75,7 @@ export interface ExpenseRequest {
   status?: string
   title?: string
   totalAmount?: number
+  reimbursableAmount?: number
   nonReimbursableAmount?: number
   totalRemainingAmount?: number
   endDate?: string
@@ -86,6 +88,7 @@ export interface ExpenseRequest {
     firstName?: string
     lastName?: string
     code?: string
+    hrReferenceCode?: string
     id?: string
     userId?: string
     additionalProperties?: any

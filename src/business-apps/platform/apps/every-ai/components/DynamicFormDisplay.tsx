@@ -1,11 +1,19 @@
 import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
-import type { FlowProposalOutput, ConversationTurn } from '../types/models'
+import type { FlowProposalOutput, ConversationTurn, BulkFlowProposalItem } from '../types/models'
 import { useFormSubmission } from './FormSubmissionContext'
 import { useVoiceFormContext } from '../context/VoiceFormContext'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { FormHeader, FormActions, FormStatusMessages, SchemaField, SecondaryCollapsible } from './forms'
+import {
+  FormHeader,
+  FormActions,
+  FormStatusMessages,
+  SchemaField,
+  SecondaryCollapsible,
+  BulkItemSelector
+} from './forms'
 import { formatFlowName } from './forms/utils/formSchemaUtils'
+import { FlowProposalFormProvider } from '../context/FlowProposalFormContext'
 
 interface DynamicFormDisplayProps {
   data: FlowProposalOutput
@@ -63,8 +71,44 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   const [initialCheckComplete, setInitialCheckComplete] = useState(false)
   const submissionTriggeredRef = useRef(false)
 
+  const bulkOperation = data.bulk_operation ?? null
+  const [selectedBulkKeys, setSelectedBulkKeys] = useState<Set<string>>(() => {
+    if (!bulkOperation) return new Set<string>()
+    if (bulkOperation.require_explicit_item_confirmation) return new Set<string>()
+    return new Set(bulkOperation.items.map(i => i.key))
+  })
+  const [bulkItemsEdit, setBulkItemsEdit] = useState<BulkFlowProposalItem[] | null>(null)
+
+  const effectiveBulkItems = useMemo(() => {
+    if (!bulkOperation) return []
+    return bulkItemsEdit ?? bulkOperation.items
+  }, [bulkOperation, bulkItemsEdit])
+
+  const isBulk = bulkOperation !== null
+  const noBulkItemsSelected = isBulk && selectedBulkKeys.size === 0
+
+  const bulkVaryingFieldKey = useMemo(() => {
+    if (!bulkOperation?.varying_field) return null
+    const segments = bulkOperation.varying_field.split('.')
+    return segments[segments.length - 1] || null
+  }, [bulkOperation])
+
   // Track the current form key to detect when a new form instance is mounted
   const previousFormKeyRef = useRef<string>(formKey)
+
+  useEffect(() => {
+    setBulkItemsEdit(null)
+    const op = data.bulk_operation
+    if (!op) {
+      setSelectedBulkKeys(new Set())
+      return
+    }
+    if (op.require_explicit_item_confirmation) {
+      setSelectedBulkKeys(new Set())
+    } else {
+      setSelectedBulkKeys(new Set(op.items.map(i => i.key)))
+    }
+  }, [data.uuid])
 
   // Reset form state and refs when a new form instance is detected (different formKey)
   useEffect(() => {
@@ -474,16 +518,26 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
         const currentFormData = formDataRef.current
         console.log('[DynamicFormDisplay] Submitting with formData:', currentFormData)
 
+        // Merge original proposal entity with current form data so that pre-filled/extracted
+        // values (e.g. opportunity, creatorEmployee) are preserved when the form or select
+        // didn't keep them (e.g. Combobox cleared value when option wasn't in list yet).
+        const originalEntity =
+          objectKey && (sourceType === 'task' ? data.arguments?.task?.[objectKey] : data.arguments?.flow?.[objectKey])
+        const mergedEntity =
+          typeof originalEntity === 'object' && originalEntity !== null
+            ? { ...originalEntity, ...currentFormData }
+            : currentFormData
+
         const updatedArguments = { ...data.arguments }
         if (objectKey && sourceType === 'task' && updatedArguments.task?.[objectKey]) {
           updatedArguments.task = {
             ...updatedArguments.task,
-            [objectKey]: currentFormData
+            [objectKey]: mergedEntity
           }
         } else if (objectKey && sourceType === 'flow' && updatedArguments.flow?.[objectKey]) {
           updatedArguments.flow = {
             ...updatedArguments.flow,
-            [objectKey]: currentFormData
+            [objectKey]: mergedEntity
           }
         } else {
           updatedArguments.flow = {
@@ -493,16 +547,24 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
         }
 
         if (sendMessage) {
+          const submissionData: Record<string, any> = {
+            flow: updatedArguments?.flow || {},
+            ...(updatedArguments?.task ? { task: updatedArguments.task } : {})
+          }
+
+          if (bulkOperation) {
+            const itemsSource = bulkItemsEdit ?? bulkOperation.items
+            const selectedItems: BulkFlowProposalItem[] = itemsSource.filter(i => selectedBulkKeys.has(i.key))
+            submissionData.bulk = { items: selectedItems }
+          }
+
           const formDataMessage = JSON.stringify(
             {
               action: 'form_submission',
               flow_name: data.flow_name || '',
               module_name: data.module_name || '',
               uuid: data.uuid || '',
-              data: {
-                flow: updatedArguments?.flow || {},
-                ...(updatedArguments?.task ? { task: updatedArguments.task } : {})
-              }
+              data: submissionData
             },
             null,
             2
@@ -546,7 +608,20 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
         })
       }
     },
-    [formData, data, formKey, currentFormState, setFormState, sendMessage, objectKey, sourceType, markFormAsSubmitted]
+    [
+      formData,
+      data,
+      formKey,
+      currentFormState,
+      setFormState,
+      sendMessage,
+      objectKey,
+      sourceType,
+      markFormAsSubmitted,
+      bulkOperation,
+      bulkItemsEdit,
+      selectedBulkKeys
+    ]
   )
 
   const handleCancel = useCallback(() => {
@@ -747,10 +822,11 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     const primary: [string, any][] = []
     const secondary: [string, any][] = []
     for (const [k, s] of fields as [string, any][]) {
+      if (bulkVaryingFieldKey && k === bulkVaryingFieldKey) continue
       ;(decidePriority(k, s) === 'primary' ? primary : secondary).push([k, s])
     }
     return [primary, secondary] as [Array<[string, any]>, Array<[string, any]>]
-  }, [fields, decidePriority])
+  }, [fields, decidePriority, bulkVaryingFieldKey])
 
   const requiredFields = useMemo(() => schema?.required ?? [], [schema])
 
@@ -930,7 +1006,12 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
       data-testid="dynamic-form-display"
       onClick={isDeleteOperation && deleteSummary?.entityUrl ? handleCardClick : undefined}
     >
-      <FormHeader flowName={data.flow_name || ''} isDeleteOperation={isDeleteOperation} operation={operation} />
+      <FormHeader
+        flowName={data.flow_name || ''}
+        isDeleteOperation={isDeleteOperation}
+        operation={operation}
+        bulkItemCount={isBulk ? selectedBulkKeys.size : undefined}
+      />
       <CardContent className="gba:p-4">
         <form onSubmit={handleSubmit} className={isCompleted ? 'gba:opacity-60 gba:pointer-events-none' : ''}>
           {isDeleteOperation && deleteSummary ? (
@@ -971,52 +1052,70 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
             </div>
           ) : (
             // Regular form with all fields
-            <div className="gba:space-y-4">
-              {/* PRIMARY fields first */}
-              {primaryFields.map(([fieldName, fieldSchema]) => {
-                if (fieldSchema == null || typeof fieldSchema !== 'object') {
-                  console.warn('[EveryAI][DynamicFormDisplay] skipping non-object schema field', fieldName, fieldSchema)
-                  return null
-                }
+            <FlowProposalFormProvider flowProposalId={data.uuid}>
+              <div className="gba:space-y-4">
+                {bulkOperation && (
+                  <BulkItemSelector
+                    items={effectiveBulkItems}
+                    selectedKeys={selectedBulkKeys}
+                    onSelectionChange={setSelectedBulkKeys}
+                    onItemsChange={setBulkItemsEdit}
+                    itemLabel={bulkOperation.item_label}
+                    disabled={isCompleted}
+                    varyingFieldKey={bulkVaryingFieldKey}
+                    varyingFieldPath={bulkOperation.varying_field}
+                  />
+                )}
+                {primaryFields.map(([fieldName, fieldSchema]) => {
+                  if (fieldSchema == null || typeof fieldSchema !== 'object') {
+                    console.warn(
+                      '[EveryAI][DynamicFormDisplay] skipping non-object schema field',
+                      fieldName,
+                      fieldSchema
+                    )
+                    return null
+                  }
 
-                try {
-                  return (
-                    <SchemaField
-                      key={fieldName}
-                      name={fieldName}
-                      path=""
-                      schema={fieldSchema}
-                      required={schema.required?.includes(fieldName) || false}
-                      disabled={isCompleted}
-                      value={formData[fieldName]}
-                      onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
-                      formData={formData}
-                      onFieldValueChange={handleFieldValueChange}
-                      accessToken={accessToken}
-                    />
-                  )
-                } catch (error) {
-                  console.error('[EveryAI][DynamicFormDisplay] failed to render field', fieldName, error)
-                  return (
-                    <div key={`field-error-${fieldName}`} className="gba:text-sm gba:text-destructive">
-                      Unable to render field "{fieldName}". Please contact support.
-                    </div>
-                  )
-                }
-              })}
-              {/* SECONDARY fields in collapsible */}
-              {secondaryFields.length > 0 && (
-                <SecondaryCollapsible
-                  fields={secondaryFields}
-                  requiredFields={requiredFields}
-                  isCompleted={isCompleted}
-                  formData={formData}
-                  onFieldValueChange={handleFieldValueChange}
-                  onFieldChange={(fieldName, value) => setFormData(prev => ({ ...prev, [fieldName]: value }))}
-                  accessToken={accessToken}
-                />
-              )}
-            </div>
+                  try {
+                    return (
+                      <SchemaField
+                        key={fieldName}
+                        name={fieldName}
+                        path=""
+                        schema={fieldSchema}
+                        required={schema.required?.includes(fieldName) || false}
+                        disabled={isCompleted}
+                        value={formData[fieldName]}
+                        onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                        formData={formData}
+                        onFieldValueChange={handleFieldValueChange}
+                        accessToken={accessToken}
+                        moduleName={data.module_name}
+                      />
+                    )
+                  } catch (error) {
+                    console.error('[EveryAI][DynamicFormDisplay] failed to render field', fieldName, error)
+                    return (
+                      <div key={`field-error-${fieldName}`} className="gba:text-sm gba:text-destructive">
+                        Unable to render field "{fieldName}". Please contact support.
+                      </div>
+                    )
+                  }
+                })}
+                {secondaryFields.length > 0 && (
+                  <SecondaryCollapsible
+                    fields={secondaryFields}
+                    requiredFields={requiredFields}
+                    isCompleted={isCompleted}
+                    formData={formData}
+                    onFieldValueChange={handleFieldValueChange}
+                    onFieldChange={(fieldName, value) => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                    accessToken={accessToken}
+                    moduleName={data.module_name}
+                  />
+                )}
+              </div>
+            </FlowProposalFormProvider>
           )}
 
           <FormStatusMessages isFlowCompleted={isFlowCompleted} hasError={hasError} isCancelled={isCancelled} />
@@ -1026,6 +1125,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
               isDeleteOperation={isDeleteOperation}
               isLoading={isLoading}
               isAgentGenerating={isAgentGenerating}
+              submitDisabled={noBulkItemsSelected}
               onCancel={onCancel ? handleCancel : undefined}
             />
           )}

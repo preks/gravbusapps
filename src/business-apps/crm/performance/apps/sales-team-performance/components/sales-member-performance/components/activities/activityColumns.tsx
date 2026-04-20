@@ -1,18 +1,8 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
-import {
-  CalendarIcon,
-  PhoneIcon,
-  EnvelopeIcon,
-  UsersIcon,
-  ListChecksIcon,
-  UserIcon,
-  BuildingIcon,
-  TargetIcon,
-  HandshakeIcon
-} from '@phosphor-icons/react'
+import { CalendarIcon, PhoneIcon, EnvelopeIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react'
 import { EmployeeActivity } from '../../hooks/useEmployeeActivitiesData'
-import { getEntityName, getEntityType } from '../../../../utils/activityHelpers'
+import { ActivityTableReferenceCell } from '@/common/components/common-relations/view-layouts/activity-layout/config/ActivityTableReferenceCell'
 import { calculateActivityScore, getScoreBadgeVariant } from '../../../../utils/activityScoreCalculator'
 import { formatDate } from '@/common/utils/windowUtils'
 
@@ -20,35 +10,17 @@ import { formatDate } from '@/common/utils/windowUtils'
 const getActivityTypeIcon = (type: string) => {
   switch (type) {
     case 'Call':
-      return <PhoneIcon size={16} className="gba:text-success" />
+      return <PhoneIcon size={16} className="gba:text-foreground" />
     case 'Email':
-      return <EnvelopeIcon size={16} className="gba:text-primary" />
+      return <EnvelopeIcon size={16} />
     case 'Meeting':
-      return <UsersIcon size={16} className="gba:text-warning" />
+      return <UsersIcon size={16} />
     case 'Task':
-      return <ListChecksIcon size={16} className="gba:text-accent" />
+      return <ListChecksIcon size={16} />
     default:
-      return <ListChecksIcon size={16} className="gba:text-muted-foreground" />
+      return <ListChecksIcon size={16} />
   }
 }
-
-// Get entity type icon
-const getEntityTypeIcon = (entityType: string) => {
-  switch (entityType) {
-    case 'Contact':
-      return <UserIcon size={14} />
-    case 'Lead':
-      return <TargetIcon size={14} />
-    case 'Opportunity':
-      return <HandshakeIcon size={14} />
-    case 'Account':
-      return <BuildingIcon size={14} />
-    default:
-      return <UserIcon size={14} />
-  }
-}
-
-// Local icon mapping functions (icon library specific)
 
 export const createActivityColumns = ({
   onReferenceClick
@@ -82,42 +54,15 @@ export const createActivityColumns = ({
     accessorKey: 'reference',
     header: 'Reference',
     enableSorting: false,
-    cell: ({ row }) => {
-      const activity = row.original
-      const entityName = getEntityName(activity)
-      const entityType = getEntityType(activity)
-
-      // If no reference, display simple text without icon
-      if (entityName === 'No reference' || entityType === 'No reference') {
-        return (
-          <span
-            className="gba:text-sm gba:text-muted-foreground gba:italic"
-            data-testid={`activity-reference-${row.original.id}`}
-          >
-            No reference
-          </span>
-        )
-      }
-
-      return (
-        <button
-          type="button"
-          className="gba:flex gba:flex-col gba:gap-1 gba:cursor-pointer gba:hover:bg-accent gba:px-3 gba:py-2 gba:rounded gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left gba:w-fit"
-          onClick={e => {
-            e.stopPropagation()
-            onReferenceClick(activity)
-          }}
-          title={`View ${entityType.toLowerCase()}: ${entityName}`}
-          data-testid={`activity-reference-${row.original.id}`}
-        >
-          <span className="gba:text-sm gba:font-medium gba:text-primary">{entityName}</span>
-          <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
-            {getEntityTypeIcon(entityType)}
-            <span>{entityType}</span>
-          </div>
-        </button>
-      )
-    }
+    cell: ({ row }) => (
+      <ActivityTableReferenceCell
+        activity={row.original}
+        onReferenceClick={onReferenceClick}
+        emptyVariant="no-reference"
+        dataTestId={`activity-reference-${row.original.id}`}
+        singleReferenceButtonClassName="gba:px-3 gba:py-2 gba:w-fit"
+      />
+    )
   },
   {
     accessorKey: 'createdAt',

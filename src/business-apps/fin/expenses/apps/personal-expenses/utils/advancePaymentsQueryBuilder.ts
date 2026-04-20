@@ -6,6 +6,12 @@ export interface AdvancePaymentFilters {
   amountRange?: { min?: number; max?: number }
   advanceRange?: { min?: number; max?: number }
   currencyRef?: string
+  /** When set, restricts rows to AdvancePayment.createdAt within [gte, lte] (matches statistics cards). */
+  createdAtRange?: { gte: string; lte: string } | null
+}
+
+export interface AdvancePaymentsQueryOptions {
+  includeSearch?: boolean
 }
 
 export interface FilterState {
@@ -13,6 +19,7 @@ export interface FilterState {
   hasAmountRange: boolean
   hasAdvanceRange: boolean
   hasCurrencyRef: boolean
+  hasCreatedAtRange: boolean
 }
 
 export const validateFilters = (filters: AdvancePaymentFilters): FilterState => {
@@ -24,16 +31,18 @@ export const validateFilters = (filters: AdvancePaymentFilters): FilterState => 
     filters.advanceRange && (filters.advanceRange.min !== undefined || filters.advanceRange.max !== undefined)
   )
   const hasCurrencyRef = Boolean(filters.currencyRef && filters.currencyRef.length > 0)
+  const hasCreatedAtRange = Boolean(filters.createdAtRange?.gte && filters.createdAtRange?.lte)
 
   return {
     hasStatusFilter,
     hasAmountRange,
     hasAdvanceRange,
-    hasCurrencyRef
+    hasCurrencyRef,
+    hasCreatedAtRange
   }
 }
 
-const buildQueryParameters = (filterState: FilterState): string => {
+const buildQueryParameters = (filterState: FilterState, filters: AdvancePaymentFilters): string[] => {
   const parameters: string[] = []
 
   if (filterState.hasStatusFilter) {
@@ -41,21 +50,37 @@ const buildQueryParameters = (filterState: FilterState): string => {
   }
 
   if (filterState.hasAmountRange) {
-    parameters.push('$amountMin: numeric, $amountMax: numeric')
+    // Only declare variables that are actually used (more efficient GraphQL queries)
+    if (filters.amountRange?.min !== undefined) {
+      parameters.push('$amountMin: numeric')
+    }
+    if (filters.amountRange?.max !== undefined) {
+      parameters.push('$amountMax: numeric')
+    }
   }
 
   if (filterState.hasAdvanceRange) {
-    parameters.push('$advanceMin: numeric, $advanceMax: numeric')
+    // Only declare variables that are actually used (more efficient GraphQL queries)
+    if (filters.advanceRange?.min !== undefined) {
+      parameters.push('$advanceMin: numeric')
+    }
+    if (filters.advanceRange?.max !== undefined) {
+      parameters.push('$advanceMax: numeric')
+    }
   }
 
   if (filterState.hasCurrencyRef) {
     parameters.push('$currencyRef: String!')
   }
 
-  // Add orderBy parameter for dynamic sorting
+  if (filterState.hasCreatedAtRange) {
+    parameters.push('$createdAtGte: timestamptz!', '$createdAtLte: timestamptz!')
+  }
+
+  // Add orderBy parameter for dynamic sorting (always present)
   parameters.push('$orderBy: [AdvancePaymentOrderBy!]')
 
-  return parameters.join(', ')
+  return parameters
 }
 
 const buildExpensePlanConditions = (filterState: FilterState, filters: AdvancePaymentFilters): string => {
@@ -99,39 +124,90 @@ const buildAdvancePaymentConditions = (filterState: FilterState, filters: Advanc
 }
 
 export const buildAdvancePaymentsQuery = (filters: AdvancePaymentFilters): string => {
+  return buildAdvancePaymentsListQuery(filters, { includeSearch: true })
+}
+
+const buildSearchCondition = (): string => `
+  _or: [
+    {code: {_ilike: $searchTerm}}
+    {description: {_ilike: $searchTerm}}
+    {status: {_ilike: $searchTerm}}
+    {paymentMethod: {_ilike: $searchTerm}}
+    {expensePlan: {title: {_ilike: $searchTerm}}}
+  ]
+`
+
+/**
+ * Builds the where clause conditions for the GraphQL query.
+ * Extracted as a separate function for better testability and maintainability (SRP).
+ */
+const buildWhereConditions = (
+  expensePlanConditionString: string,
+  statusConditionString: string,
+  currencyConditionString: string,
+  advancePaymentConditionString: string,
+  searchConditionString: string,
+  createdAtConditionString: string
+): string => {
+  const conditions: string[] = [
+    `expensePlan: {
+            employeeId: {_eq: $employeeId}${expensePlanConditionString}
+          }`,
+    'isDeleted: {_eq: false}'
+  ]
+
+  if (createdAtConditionString) conditions.push(createdAtConditionString)
+  if (statusConditionString) conditions.push(statusConditionString)
+  if (currencyConditionString) conditions.push(currencyConditionString)
+  if (advancePaymentConditionString) conditions.push(advancePaymentConditionString)
+  if (searchConditionString) conditions.push(searchConditionString.trim())
+
+  return conditions.join(',\n          ')
+}
+
+export const buildAdvancePaymentsListQuery = (
+  filters: AdvancePaymentFilters,
+  options?: AdvancePaymentsQueryOptions
+) => {
+  const includeSearch = options?.includeSearch ?? true
   const filterState = validateFilters(filters)
-  const queryParameters = buildQueryParameters(filterState)
+  const queryParameters = buildQueryParameters(filterState, filters)
   const expensePlanConditions = buildExpensePlanConditions(filterState, filters)
   const advancePaymentConditions = buildAdvancePaymentConditions(filterState, filters)
 
-  const parameterString = queryParameters ? `, ${queryParameters}` : ''
-  const expensePlanConditionString = expensePlanConditions ? `, ${expensePlanConditions}` : ''
-  const advancePaymentConditionString = advancePaymentConditions ? `, ${advancePaymentConditions}` : ''
+  const baseParameters = [
+    '$employeeId: uuid!',
+    '$limit: Int',
+    '$offset: Int',
+    ...(includeSearch ? ['$searchTerm: String'] : [])
+  ]
+  const allParameters = [...baseParameters, ...queryParameters].join(', ')
+
+  const expensePlanConditionString = expensePlanConditions ? `\n            ${expensePlanConditions}` : ''
+  const advancePaymentConditionString = advancePaymentConditions ? `\n          ${advancePaymentConditions}` : ''
+  const searchConditionString = includeSearch ? buildSearchCondition() : ''
+  const statusConditionString = filterState.hasStatusFilter ? 'status: {_in: $statusFilter}' : ''
+  const currencyConditionString = filterState.hasCurrencyRef ? 'currencyRef: {_eq: $currencyRef}' : ''
+  const createdAtConditionString = filterState.hasCreatedAtRange
+    ? 'createdAt: {_gte: $createdAtGte, _lte: $createdAtLte}'
+    : ''
+
+  const whereConditions = buildWhereConditions(
+    expensePlanConditionString,
+    statusConditionString,
+    currencyConditionString,
+    advancePaymentConditionString,
+    searchConditionString,
+    createdAtConditionString
+  )
 
   return `
     query GetAdvancePaymentsByEmployee(
-      $employeeId: uuid!,
-      $limit: Int,
-      $offset: Int,
-      $searchTerm: String${parameterString}
+      ${allParameters}
     ) {
       AdvancePaymentAggregate(
         where: {
-          expensePlan: {
-            employeeId: {_eq: $employeeId}
-            ${expensePlanConditionString}
-          },
-          isDeleted: {_eq: false},
-          ${filterState.hasStatusFilter ? 'status: {_in: $statusFilter},' : ''}
-          ${filterState.hasCurrencyRef ? 'currencyRef: {_eq: $currencyRef},' : ''}
-          ${advancePaymentConditionString ? `${advancePaymentConditionString},` : ''}
-          _or: [
-            {code: {_ilike: $searchTerm}},
-            {description: {_ilike: $searchTerm}},
-            {status: {_ilike: $searchTerm}},
-            {paymentMethod: {_ilike: $searchTerm}},
-            {expensePlan: {title: {_ilike: $searchTerm}}}
-          ]
+          ${whereConditions}
         }
       ) {
         aggregate {
@@ -143,23 +219,7 @@ export const buildAdvancePaymentsQuery = (filters: AdvancePaymentFilters): strin
         offset: $offset,
         orderBy: $orderBy,
         where: {
-          expensePlan: {employeeId: 
-              {_eq: $employeeId} 
-              ${expensePlanConditionString}},
-          isDeleted: {_eq: false},
-          ${filterState.hasStatusFilter ? 'status: {_in: $statusFilter},' : ''}
-          ${filterState.hasCurrencyRef ? 'currencyRef: {_eq: $currencyRef},' : ''}
-          ${advancePaymentConditionString ? `${advancePaymentConditionString},` : ''}
-          _or: [
-            {code: {_ilike: $searchTerm}},
-            {description: {_ilike: $searchTerm}},
-            {status: {_ilike: $searchTerm}},
-            {paymentMethod: {_ilike: $searchTerm}},
-            {expensePlan: {
-              title: {_ilike: $searchTerm}
-            }
-           }
-          ]
+          ${whereConditions}
         }
       ) {
         id
@@ -168,77 +228,53 @@ export const buildAdvancePaymentsQuery = (filters: AdvancePaymentFilters): strin
         amount
         currencyRef
         currency { code }
-        costCenter { name }
         status
         paymentMethod
         expensePlan {
           id
           code
-          reimbursableAmount
+          title
           startDate
           endDate
-          planDate
-          decisionDate
-          status
-          title
           totalAmount
-          requestTypeRef
-          createdAt
-          employeeDocumentId
-          advancePaymentPaidAmount
-          advancePaymentInTransitAmount
-          currencyRef
-          description
-          currency {
-            type
-            translations(where: {localeCode: {_eq: "en"}}) { localeCode value }
-            catalog { defaultLocale }
-            value
+          currency { code }
+          costCenter { name }
+          project { name }
+          employee {
             id
             code
-          }
-          requestType {
-            value
-            translations(where: {localeCode: {_eq: "en"}}) { localeCode value }
-            catalog { defaultLocale }
-          }
-          expensePlanItem { title status totalAmount expenseDate }
-          advancePayment {
-            id
-            amount
-            status
-            currency {
-              code
-              translations(where: {localeCode: {_eq: "en"}}) { localeCode value }
-              catalog { defaultLocale }
+            firstName
+            lastName
+            fullName
+            employeePosition {
+              jobPosition { name }
+              organizationalUnit { name }
             }
           }
-          expenseRequestTrip { tripDateTime }
-          expenseRequest {
-            id 
-            code 
-            title 
-            description 
-            startDate 
-            endDate 
-            requestDate 
-            decisionDate 
-            totalAmount 
-            currencyRef 
-            status
-            reimbursableAmount nonReimbursableAmount additionalProperties
-            currency { value translations(where: {localeCode: {_eq: "en"}}) { localeCode value } catalog { defaultLocale } }
-            requestType { value translations(where: {localeCode: {_eq: "en"}}) { localeCode value } catalog { defaultLocale } }
-            costCenter { name }
-            project { name }
-            employee { fullName employeePosition { supervisor { fullName } } }
+          expenseRequestTrip(orderBy: { tripOrder: ASC }, where: { isDeleted: { _eq: false } }) {
+            id
+            address
+            pointType
+            countryRef
+            tripDateTime
+            tripOrder
+            tripDirection
+            travelRegion { value }
+            country { value }
           }
-          employee {
-            id code firstName lastName
-            employeePosition {
-              siteLocation { name }
-              organizationalUnit { name }
-              firstName lastName
+          expenseRequest(where: { isDeleted: { _eq: false } }) {
+            id
+            code
+            expenseRequestTrip(orderBy: { tripOrder: ASC }, where: { isDeleted: { _eq: false } }) {
+              id
+              address
+              pointType
+              countryRef
+              tripDateTime
+              tripOrder
+              tripDirection
+              travelRegion { value }
+              country { value }
             }
           }
         }

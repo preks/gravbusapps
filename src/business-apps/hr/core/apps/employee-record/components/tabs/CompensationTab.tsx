@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardContent
 } from '@newwork/nw-design-system'
-import { PiCurrencyEur, PiClockCounterClockwise } from 'react-icons/pi'
+import { CurrencyEurIcon, ClockCounterClockwiseIcon } from '@phosphor-icons/react'
 import CurrentCompensationView from './compensation/views/CurrentCompensationView'
 import PayHistoryView from './compensation/views/PayHistoryView'
 import { useCompensationData } from './compensation/hooks/useCompensationData'
@@ -22,6 +22,7 @@ import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
 import { CompensationPermissions } from './compensation/hooks/useCompensationPermissions'
 import translations from '../../_i18n'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 interface CompensationTabProps extends BusinessAppContextProps {
   employeeId: string
@@ -94,6 +95,13 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
     shouldLoadCompensationData ? accessToken : '',
     currentLocale
   )
+
+  useProcessCompletion({
+    onSuccess: () => {
+      if (!shouldLoadCompensationData) return
+      void refetchCompensation()
+    }
+  })
 
   const updateUrl = useCallback(
     (subView: CompensationSubView) => {
@@ -187,7 +195,7 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
             disabled={permissionsLoading || employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading}
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-              <PiCurrencyEur />
+              <CurrencyEurIcon />
               <span>{t('tab-current-compensation')}</span>
             </div>
           </TabsTrigger>
@@ -198,7 +206,7 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
             disabled={permissionsLoading || employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading}
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-              <PiClockCounterClockwise />
+              <ClockCounterClockwiseIcon />
               <span>{t('tab-compensation-history')}</span>
             </div>
           </TabsTrigger>

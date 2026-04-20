@@ -1,1 +1,6 @@
-export { DocumentPopup as default, DocumentPopup, type DocumentPopupProps } from './DocumentPopup'
+export { DocumentPopup, type DocumentPopupProps, type DocumentData } from './DocumentPopup'
+export { DocumentSegment, type DocumentSegmentProps } from './components/DocumentSegment'
+export { DocumentAIClassification, type DocumentAIClassificationProps } from './components/DocumentAIClassification'
+export { useDocumentFileUpload } from './hooks/useDocumentFileUpload'
+export { useDocumentFormData } from './hooks/useDocumentFormData'
+export { useDocumentAIClassification } from './hooks/useDocumentAIClassification'

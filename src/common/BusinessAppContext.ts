@@ -9,6 +9,9 @@ export interface UserInfoProps {
     employeeId: string
     firstName: string
     lastName: string
+    displayName?: string
+    pictureThumbnail?: string
+    jobTitle?: string
     supervisor: {
       id: string
       firstName: string

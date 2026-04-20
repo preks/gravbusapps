@@ -75,10 +75,16 @@ export const evaluateDisplayCondition = (condition: any, formData: Record<string
  * Check if field is a searchable UUID field (for entity selection)
  */
 export const isSearchableUuidField = (fieldName: string, schema: any): boolean => {
-  const employeeTimeFields = ['substituteEmployee', 'approverId']
+  // Flow engine / custom flows: entity picker from schema extension
+  if (schema?.['x-dataSource']?.type === 'ENTITY' && schema?.['x-dataSource']?.entity) {
+    return true
+  }
+
+  const employeeTimeFields = ['substituteEmployee', 'approverId', 'employee']
   const crmFields = ['ownerEmployee', 'account', 'contact', 'lead', 'opportunity', 'assignedEmployee']
   const irmFields = ['ownerEmployee', 'investmentAccount', 'contact']
-  const searchableUuidFields = [...employeeTimeFields, ...crmFields, ...irmFields]
+  const feedbackFields = ['employeeId', 'senderEmployeeId']
+  const searchableUuidFields = [...employeeTimeFields, ...crmFields, ...irmFields, ...feedbackFields]
 
   return (
     searchableUuidFields.includes(fieldName) ||
@@ -87,6 +93,7 @@ export const isSearchableUuidField = (fieldName: string, schema: any): boolean =
         (fieldName.toLowerCase().includes('substitute') ||
           fieldName.toLowerCase().includes('owner') ||
           fieldName.toLowerCase().includes('assigned'))) ||
+        fieldName.toLowerCase() === 'employeeid' ||
         fieldName.toLowerCase().includes('approver') ||
         fieldName.toLowerCase().includes('account') ||
         fieldName.toLowerCase().includes('contact') ||
@@ -153,6 +160,18 @@ export const extractFieldType = (schema: any): string | undefined => {
     return 'array'
   }
   return undefined
+}
+
+/**
+ * Convert a camelCase or snake_case field key to a human-readable label.
+ */
+export const formatFieldName = (key: string): string => {
+  if (!key) return ''
+  return key
+    .replace(/_/g, ' ')
+    .replace(/([A-Z])/g, ' $1')
+    .trim()
+    .replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase())
 }
 
 /**

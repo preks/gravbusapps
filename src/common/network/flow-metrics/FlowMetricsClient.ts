@@ -1,5 +1,6 @@
 import { RestClient } from '../rest/RestClient'
 import { env } from '@/common/env/EnvUtils'
+import { FLOW_METRICS_API_URL } from '@/common/utils/serviceResolver'
 
 export interface FlowExecutionTask {
   id: string
@@ -58,32 +59,26 @@ export interface FlowExecutionTasksParams {
   filterProcessName?: string
   filterTaskName?: string
   state?: string // Filter by task state (e.g., 'open', 'completed')
-  filterState?: string // Filter by task state (e.g., 'open', 'completed')
+  filterState?: string | string[] // e.g. 'Closed' or ['Closed'] for completed
+}
+
+function resolveFlowMetricsBaseUrl(): string {
+  const trimmed = (FLOW_METRICS_API_URL || '').trim().replace(/\/+$/, '')
+  if (trimmed) return trimmed
+
+  const origin =
+    typeof globalThis !== 'undefined' && (globalThis as any).location?.origin ? (globalThis as any).location.origin : ''
+
+  let baseUrl = env('NEXT_PUBLIC_FLOW_METRICS_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || origin
+  if (baseUrl && baseUrl.startsWith('/')) {
+    baseUrl = `${origin}${baseUrl}`
+  }
+  return baseUrl || origin
 }
 
 export class FlowMetricsClient extends RestClient {
   constructor(accessToken?: string) {
-    // Determine origin for relative URL resolution
-    const origin =
-      typeof globalThis !== 'undefined' && (globalThis as any).location?.origin
-        ? (globalThis as any).location.origin
-        : ''
-
-    // Priority: NEXT_PUBLIC_FLOW_METRICS_ENDPOINT > NEXT_PUBLIC_BASE_URL > origin
-    // Note: FlowMetrics API (/flow-executions/tasks) is at the platform root, no subpath needed
-    let baseUrl = env('NEXT_PUBLIC_FLOW_METRICS_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || origin
-
-    // Ensure relative paths become absolute
-    if (baseUrl && baseUrl.startsWith('/')) {
-      baseUrl = `${origin}${baseUrl}`
-    }
-
-    // If still empty, use origin
-    if (!baseUrl) {
-      baseUrl = origin
-    }
-
-    console.log('[FlowMetricsClient] Initialized with baseUrl:', baseUrl)
+    const baseUrl = resolveFlowMetricsBaseUrl()
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
@@ -130,8 +125,9 @@ export class FlowMetricsClient extends RestClient {
       queryParams.taskName = taskName
     }
 
-    if (filterState) {
-      queryParams.filterState = filterState
+    if (filterState !== undefined && filterState !== null) {
+      const fs = Array.isArray(filterState) ? filterState.filter(Boolean).join(',') : String(filterState)
+      if (fs !== '') queryParams.filterState = fs
     }
 
     if (filterProcessName) {
@@ -156,6 +152,40 @@ export class FlowMetricsClient extends RestClient {
    */
   async getFlowExecutionTask(taskId: string): Promise<FlowExecutionTask> {
     return this.get<FlowExecutionTask>(`/flow-executions/tasks/${taskId}`)
+  }
+
+  /**
+   * Get flow execution tasks by business key
+   * @param businessKey - The business key that links GraphQL tasks to flow execution tasks
+   * @param params - Optional query parameters (userId, filterState, pagination, etc.)
+   */
+  async getFlowExecutionTasksByBusinessKey(
+    businessKey: string,
+    params?: {
+      size?: number
+      page?: number
+      field?: string
+      direction?: 'ASC' | 'DESC'
+      filterTaskName?: string
+    }
+  ): Promise<FlowExecutionTasksResponse> {
+    const queryParams: Record<string, string | number> = {
+      // Pagination (mandatory)
+      size: params?.size || 20,
+      page: params?.page || 0,
+      // Sort (mandatory)
+      field: params?.field || 'CREATION_DATE',
+      direction: params?.direction || 'DESC'
+    }
+
+    // filterTaskName (optional)
+    if (params?.filterTaskName) {
+      queryParams.filterTaskName = params.filterTaskName
+    }
+
+    return this.get<FlowExecutionTasksResponse>(`/flow-executions/tasks/${businessKey}`, {
+      params: queryParams
+    })
   }
 
   /**

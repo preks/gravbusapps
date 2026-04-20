@@ -35,3 +35,7 @@ label-school-qualification = Schulabschluss
 
 # Error States
 error-loading-title = Fehler beim Laden der Personaldaten
+error-cannot-approve-own-changes = Sie können Ihre eigenen Personaldatenänderungen nicht genehmigen. Bitte bitten Sie einen anderen HR-Manager, diese zu überprüfen und zu genehmigen.
+
+# Warning States
+warning-own-change-title = Eigene Änderungen können nicht genehmigt werden

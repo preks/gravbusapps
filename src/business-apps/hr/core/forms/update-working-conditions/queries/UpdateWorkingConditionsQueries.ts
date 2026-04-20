@@ -20,6 +20,9 @@ export interface WorkingConditionsRecord {
   startDate?: string | null
   probationEndDate?: string | null
   endDate?: string | null
+  additionalProperties?: {
+    fixedTermReason?: string
+  }
 }
 
 export const GET_WORKING_CONDITIONS_LOOKUPS = `
@@ -49,31 +52,33 @@ export const GET_WORKING_CONDITIONS_LOOKUPS = `
         exitDate
         employeeId
         probationEnd
+        additionalProperties
       }
     }
     allEmploymentRegions: CatalogEntry(
-      where: {catalog: {version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegion" }}},
+      where: {catalog: {version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegion" }}, isDeleted: { _eq: false }},
       orderBy: {value: ASC}
     ) {
       id
       value
+      additionalValue3
       translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
       catalog { defaultLocale }
     }
-    contractTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ContractType"}}}) {
+    contractTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ContractType"}}, isDeleted: { _eq: false }}) {
       id
       value
       additionalValue2
       translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
       catalog { defaultLocale }
     }
-    employmentTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "EmploymentType"}}}) {
+    employmentTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "EmploymentType"}}, isDeleted: { _eq: false }}) {
       id
       value
       translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
       catalog { defaultLocale }
     }
-    remote: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "RemoteWork"}}}) {
+    remote: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "RemoteWork"}}, isDeleted: { _eq: false }}) {
       value
       id
       code
@@ -87,12 +92,30 @@ export const GET_REGIONS_BY_COUNTRY = `
       where: {
         catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegion" } },
         additionalValue3: { _eq: $countryId }
+        isDeleted: { _eq: false }
       },
       orderBy: { value: ASC }
     ) {
       id
       value
       translations(where: { localeCode: { _eq: $activeUserLocale } }) { value }
+      catalog { defaultLocale }
+    }
+  }
+`
+
+/** Full employment region catalog (e.g. when address has no country or no regions for that country). */
+export const GET_ALL_EMPLOYMENT_REGIONS = `
+  query GetAllEmploymentRegions($activeUserLocale: String!) {
+    CatalogEntry(
+      where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegion" } }, isDeleted: { _eq: false } },
+      orderBy: { value: ASC },
+      limit: 500
+    ) {
+      id
+      value
+      additionalValue3
+      translations(where: { localeCode: { _eq: $activeUserLocale } }) { localeCode value }
       catalog { defaultLocale }
     }
   }
@@ -112,6 +135,7 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
   const [lastName, setLastName] = useState<string>('')
   const [pictureThumbnail, setPictureThumbnail] = useState<string>('')
   const [countryId, setCountryId] = useState<string>('')
+  const [regionCatalogIsFull, setRegionCatalogIsFull] = useState(false)
 
   const toOptions = (arr?: any[]): SelectOption[] =>
     (arr || []).map((e: any) => ({
@@ -140,29 +164,58 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
       setRemoteOptions(toOptions(res?.remote))
       const employeeCountry = res?.employee?.[0]?.addresses?.[0]?.country || null
       const employeeCountryId = employeeCountry?.id || ''
-      const employeeCountryValue = employeeCountry?.value || ''
-      setCountryId(employeeCountryId)
-      if (employeeCountryId) {
+      const wcRaw = res?.employee?.[0]?.workingCondition?.[0] || null
+      const currentRegionId = wcRaw?.region?.id
+      const allRegionsFromLookups = res?.allEmploymentRegions || []
+      const currentRegionEntry = currentRegionId
+        ? allRegionsFromLookups.find((r: { id: string }) => r.id === currentRegionId)
+        : null
+      const storedRegionParentCountryId = currentRegionEntry?.additionalValue3 ?? null
+
+      const hasNoAddressCountry = !employeeCountryId?.trim()
+      const storedRegionDoesNotMatchAddress =
+        employeeCountryId &&
+        currentRegionId &&
+        (currentRegionEntry == null || storedRegionParentCountryId !== employeeCountryId)
+
+      const toCatalogEntries = (r: any) => r?.CatalogEntry ?? r?.catalogEntry ?? []
+
+      const loadFullRegionCatalog = async (): Promise<SelectOption[]> => {
+        const res = await graphqlClient.request<any>(GET_ALL_EMPLOYMENT_REGIONS, {
+          activeUserLocale: locale
+        })
+        return toOptions(toCatalogEntries(res))
+      }
+
+      let useFullRegionCatalog: boolean
+      let regionOptions: SelectOption[]
+
+      if (hasNoAddressCountry) {
+        useFullRegionCatalog = true
+        regionOptions = await loadFullRegionCatalog()
+      } else {
         try {
           const regRes = await graphqlClient.request<any>(GET_REGIONS_BY_COUNTRY, {
             countryId: employeeCountryId,
             activeUserLocale: locale
           })
-          const regionOptions = toOptions(regRes?.CatalogEntry)
-          if (regionOptions.length > 0) {
-            setRegions(regionOptions)
+          const byCountry = toOptions(toCatalogEntries(regRes))
+          if (byCountry.length > 0 && !storedRegionDoesNotMatchAddress) {
+            useFullRegionCatalog = false
+            regionOptions = byCountry
           } else {
-            const label = employeeCountryValue?.split(':').pop() || employeeCountryValue || 'Country'
-            setRegions([{ id: employeeCountryId, value: employeeCountryValue, label }])
+            useFullRegionCatalog = true
+            regionOptions = await loadFullRegionCatalog()
           }
         } catch {
-          const label = employeeCountryValue?.split(':').pop() || employeeCountryValue || 'Country'
-          setRegions([{ id: employeeCountryId, value: employeeCountryValue, label }])
+          useFullRegionCatalog = true
+          regionOptions = await loadFullRegionCatalog()
         }
-      } else {
-        setRegions(toOptions(res?.allEmploymentRegions))
       }
-      const wcRaw = res?.employee?.[0]?.workingCondition?.[0] || null
+
+      setCountryId(employeeCountryId)
+      setRegionCatalogIsFull(useFullRegionCatalog)
+      setRegions(regionOptions.length > 0 ? regionOptions : toOptions(res?.allEmploymentRegions))
       const wc: WorkingConditionsRecord | null = wcRaw
         ? {
             id: wcRaw.id,
@@ -170,10 +223,11 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
             employmentTypeRef: wcRaw.employmentType?.id,
             contractTypeRef: wcRaw.contractType?.id,
             remoteRef: wcRaw.remote?.id,
-            regionRef: wcRaw.region?.id,
+            regionRef: useFullRegionCatalog ? undefined : wcRaw.region?.id,
             startDate: wcRaw.hireDate || null,
             probationEndDate: wcRaw.probationEnd || null,
-            endDate: wcRaw.exitDate || null
+            endDate: wcRaw.exitDate || null,
+            additionalProperties: wcRaw.additionalProperties || undefined
           }
         : null
       setCurrent(wc)
@@ -210,6 +264,7 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
     pictureThumbnail,
     loading,
     error,
-    refetch: load
+    refetch: load,
+    regionCatalogIsFull
   }
 }

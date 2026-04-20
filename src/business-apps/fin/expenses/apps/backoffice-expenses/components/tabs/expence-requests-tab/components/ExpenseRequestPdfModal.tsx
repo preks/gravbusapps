@@ -1,6 +1,14 @@
 import React from 'react'
-import { Alert, Spinner, Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  Alert,
+  Spinner,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  useTranslation
+} from '@newwork/nw-design-system'
+import translations from '../../../../_i18n'
 
 interface ExpenseRequestPdfModalProps {
   isVisible: boolean
@@ -17,6 +25,8 @@ const ExpenseRequestPdfModal: React.FC<ExpenseRequestPdfModalProps> = ({
   pdfError,
   onClose
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <Dialog open={isVisible} onOpenChange={open => !open && onClose()}>
       <DialogContent
@@ -25,31 +35,32 @@ const ExpenseRequestPdfModal: React.FC<ExpenseRequestPdfModalProps> = ({
         data-testid="expense-request-pdf-modal"
       >
         <DialogHeader className="gba:p-4">
-          <DialogTitle>Expense Request Document</DialogTitle>
+          <DialogTitle>{t('pdf-modal-title')}</DialogTitle>
         </DialogHeader>
-        {pdfLoading ? (
+        {pdfLoading && (
           <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
             <Spinner />
           </div>
-        ) : pdfError ? (
+        )}
+        {!pdfLoading && pdfError && (
           <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
             <Alert variant="destructive">
-              <div className="gba:font-medium">Error Loading PDF</div>
+              <div className="gba:font-medium">{t('pdf-error-loading')}</div>
               <div className="gba:text-sm">{pdfError}</div>
             </Alert>
           </div>
-        ) : pdfUrl ? (
+        )}
+        {!pdfLoading && !pdfError && pdfUrl && (
           <iframe
             src={pdfUrl}
             className="gba:w-full gba:border-0"
             style={{ height: 'calc(90vh - 55px)' }}
-            title="Expense Request PDF"
+            title={t('pdf-iframe-title')}
             data-testid="expense-request-pdf-iframe"
           />
-        ) : (
-          <div className="gba:text-center gba:p-8 gba:text-gray-500">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_document', 'No PDF URL available')}
-          </div>
+        )}
+        {!pdfLoading && !pdfError && !pdfUrl && (
+          <div className="gba:text-center gba:p-8 gba:text-gray-500">{t('empty-no-document')}</div>
         )}
       </DialogContent>
     </Dialog>

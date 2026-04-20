@@ -3,6 +3,15 @@ import { InvestmentFormValues } from '@/common/components/investment/form-layout
 import { mapFromSingleInvestmentTypeId } from '@/common/components/investment/form-layouts/investment-layout/utils/investmentTypeMapper'
 import { InvestmentType } from '@/common/data/investment/hooks/useInvestmentTypes'
 
+const extractIdOrString = (value: unknown): string | undefined => {
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object' && 'id' in value) {
+    const id = (value as { id?: unknown }).id
+    return typeof id === 'string' ? id : undefined
+  }
+  return undefined
+}
+
 /**
  * Sanitizes InvestmentFormValues for API payload
  * - Converts investmentTypeId back to groupId/typeId/liquidFundTypeId
@@ -18,22 +27,12 @@ export const sanitizeInvestment = (
   const investmentTypeId = formData.investment?.investmentTypeId ?? null
   const { groupId, typeId, liquidFundTypeId } = mapFromSingleInvestmentTypeId(investmentTypeId, getPathByType)
 
+  const investmentRaw = (formData.investment ?? {}) as Record<string, unknown>
+
   // Sanitize entity reference IDs - extract ID string if passed as object
-  const ownerEmployeeId =
-    typeof formData.investment?.ownerEmployeeId === 'object' && formData.investment?.ownerEmployeeId?.id
-      ? formData.investment.ownerEmployeeId.id
-      : formData.investment?.ownerEmployeeId
-
-  const companyId =
-    typeof formData.investment?.companyId === 'object' && formData.investment?.companyId?.id
-      ? formData.investment.companyId.id
-      : formData.investment?.companyId
-
-  const loanRecipientInvestmentAccountId =
-    typeof formData.investment?.loanRecipientInvestmentAccountId === 'object' &&
-    formData.investment?.loanRecipientInvestmentAccountId?.id
-      ? formData.investment.loanRecipientInvestmentAccountId.id
-      : formData.investment?.loanRecipientInvestmentAccountId
+  const ownerEmployeeId = extractIdOrString(investmentRaw.ownerEmployeeId)
+  const companyId = extractIdOrString(investmentRaw.companyId)
+  const loanRecipientInvestmentAccountId = extractIdOrString(investmentRaw.loanRecipientInvestmentAccountId)
 
   // Sanitize investmentAccounts - extract investmentAccountId from nested objects
   const investmentAccounts = formData.investment?.investmentAccounts?.map((acc: any) => ({
@@ -44,12 +43,18 @@ export const sanitizeInvestment = (
     ...(acc.isDeleted !== undefined && { isDeleted: acc.isDeleted })
   }))
 
+  const investmentGroupRefFromForm =
+    typeof formData.investment?.investmentGroupRef === 'string' ? formData.investment.investmentGroupRef : undefined
+
+  const investmentWithoutTypeId = formData.investment
+    ? Object.fromEntries(Object.entries(formData.investment).filter(([key]) => key !== 'investmentTypeId'))
+    : undefined
+
   // Convert to Investment format
-  const mergedData: Partial<Investment> = {
-    ...formData.investment,
+  const mergedData: Record<string, unknown> = {
+    ...investmentWithoutTypeId,
     // Remove investmentTypeId from payload (not part of API) and replace it with group & type
-    investmentTypeId: undefined,
-    investmentGroupRef: groupId ?? undefined,
+    investmentGroupRef: groupId ?? investmentGroupRefFromForm ?? undefined,
     investmentTypeRef: typeId ?? undefined,
     // Sanitized entity reference IDs (extract ID string from objects)
     ownerEmployeeId,
@@ -84,5 +89,5 @@ export const sanitizeInvestment = (
       : {})
   }
 
-  return mergedData
+  return mergedData as Partial<Investment>
 }

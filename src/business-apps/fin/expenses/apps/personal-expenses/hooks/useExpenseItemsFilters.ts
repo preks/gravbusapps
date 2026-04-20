@@ -2,8 +2,8 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { ExpenseFilter } from './useGetExpenseItems'
 import { ExpenseStatus } from '../utils'
-import { ExpenseDateRangeFilter } from '../components/tabs/expense-items-tab/ExpenseDateRangeFilter'
-import { ExpenseAmountRangeFilter } from '../components/tabs/expense-items-tab/ExpenseAmountRangeFilter'
+import { ExpenseDateRangeFilter } from '../components/tabs/expense-items-tab/filters/ExpenseDateRangeFilter'
+import { ExpenseAmountRangeFilter } from '../components/tabs/expense-items-tab/filters/ExpenseAmountRangeFilter'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { CurrencyStat } from './useExpenseCurrencies'
 
@@ -60,7 +60,6 @@ export const useExpenseItemsFilters = (
   const formatStatusName = (status: string): string => {
     // Map status to proper display name using platform translations
     const statusMapping: Record<string, string> = {
-      PREPARED: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
       CREATED: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.created', 'Created')})`,
       ASSIGNED: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
       PENDING: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')})`,
@@ -69,8 +68,7 @@ export const useExpenseItemsFilters = (
       BOOKED: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked')})`,
       TRANSFERRED: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred')})`,
       PAID: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
-      REJECTED: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')})`,
-      CLOSED: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed')
+      REJECTED: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')})`
     }
 
     return statusMapping[status] || `${status.charAt(0) + status.slice(1).toLowerCase()} (${status})`
@@ -108,19 +106,7 @@ export const useExpenseItemsFilters = (
       return availableStatuses
     }
     // Default statuses if none provided
-    return [
-      'PREPARED',
-      'CREATED',
-      'ASSIGNED',
-      'PENDING',
-      'APPROVED',
-      'REJECTED',
-      'VERIFIED',
-      'BOOKED',
-      'PAID',
-      'CLOSED',
-      'TRANSFERRED'
-    ]
+    return ['CREATED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'TRANSFERRED']
   }, [availableStatuses])
 
   // Define filter groups - memoized so they don't cause re-renders
@@ -156,7 +142,6 @@ export const useExpenseItemsFilters = (
         customComponent: React.createElement(ExpenseAmountRangeFilter, {
           amountRange: amountRange,
           onAmountRangeChange: setAmountRange,
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
           dataTestIdPrefix: 'expense-amount-range'
         }),
         hideSearch: true
@@ -353,11 +338,15 @@ export const useExpenseItemsFilters = (
         filter.status = statuses.map(status => status.toUpperCase())
       }
 
-      // Process expense date range filters (priority over time period filters)
+      // Process expense date range filters (priority over time period filters); allow partial range (from only or to only)
       const dateRangeToUse = expenseDateRangeParam || expenseDateRange
-      if (dateRangeToUse && dateRangeToUse[0] && dateRangeToUse[1]) {
-        filter.expenseDateStart = dateRangeToUse[0].toISOString().split('T')[0]
-        filter.expenseDateEnd = dateRangeToUse[1].toISOString().split('T')[0]
+      if (dateRangeToUse) {
+        if (dateRangeToUse[0]) {
+          filter.expenseDateStart = dateRangeToUse[0].toISOString().split('T')[0]
+        }
+        if (dateRangeToUse[1]) {
+          filter.expenseDateEnd = dateRangeToUse[1].toISOString().split('T')[0]
+        }
       }
       // Process date range filters (priority over time period filters)
       else if (startDateRange && startDateRange[0] && endDateRange && endDateRange[1]) {

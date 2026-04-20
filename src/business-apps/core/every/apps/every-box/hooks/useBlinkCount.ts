@@ -6,8 +6,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { fetchCflowBlinkTasks } from '@/business-apps/core/every/apps/every-api/utils/CflowClient'
-import { adaptCflowTasks } from '@/business-apps/core/every/apps/every-api/services/TaskAdapterService'
+import { EVERYBOX_FIRST_PAGE_LIMIT, fetchBlinkUserTasks } from '@/business-apps/core/every/apps/every-api'
 import { UnifiedTask } from '@/business-apps/core/every/apps/every-api/types'
 
 interface UseBlinkTasksResult {
@@ -20,7 +19,7 @@ interface UseBlinkTasksResult {
   loadMore: () => Promise<void>
 }
 
-const BLINK_FETCH_SIZE = 20
+const BLINK_FETCH_SIZE = EVERYBOX_FIRST_PAGE_LIMIT
 
 export const useBlinkCount = (
   context: BusinessAppContextProps
@@ -42,11 +41,7 @@ export const useBlinkCount = (
     setError(null)
 
     try {
-      // Fetch with limit=1 just to get the totalCount from the response
-      const result = await fetchCflowBlinkTasks(userId, context.accessToken, {
-        limit: '1' // We only need the totalCount, not the tasks
-      })
-
+      const result = await fetchBlinkUserTasks(userId, context.accessToken, { limit: 1, offset: 0 })
       setCount(result.totalCount)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch blink count'
@@ -76,19 +71,33 @@ export const useBlinkCount = (
 /**
  * Hook to fetch blink tasks for the Blinks tab
  */
-export const useBlinkTasks = (context: BusinessAppContextProps): UseBlinkTasksResult => {
+export const useBlinkTasks = (
+  context: BusinessAppContextProps,
+  options?: {
+    enabled?: boolean
+    initialTotalCount?: number
+  }
+): UseBlinkTasksResult => {
   const [tasks, setTasks] = useState<UnifiedTask[]>([])
-  const [totalCount, setTotalCount] = useState(0)
+  const [totalCount, setTotalCount] = useState(options?.initialTotalCount ?? 0)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
   const [offset, setOffset] = useState(0)
 
   const userId = context.userInfo?.id || ''
+  const enabled = options?.enabled ?? true
+
+  useEffect(() => {
+    if (!enabled) {
+      setIsLoading(false)
+      setTotalCount(options?.initialTotalCount ?? 0)
+    }
+  }, [enabled, options?.initialTotalCount])
 
   const fetchTasks = useCallback(
     async (currentOffset: number, append: boolean = false) => {
-      if (!userId) {
+      if (!userId || !enabled) {
         return
       }
 
@@ -96,17 +105,15 @@ export const useBlinkTasks = (context: BusinessAppContextProps): UseBlinkTasksRe
       setError(null)
 
       try {
-        const result = await fetchCflowBlinkTasks(userId, context.accessToken, {
-          limit: BLINK_FETCH_SIZE.toString(),
-          offset: currentOffset.toString()
+        const result = await fetchBlinkUserTasks(userId, context.accessToken, {
+          limit: BLINK_FETCH_SIZE,
+          offset: currentOffset
         })
 
-        const adaptedTasks = adaptCflowTasks(result.tasks)
-
         if (append) {
-          setTasks(prev => [...prev, ...adaptedTasks])
+          setTasks(prev => [...prev, ...result.tasks])
         } else {
-          setTasks(adaptedTasks)
+          setTasks(result.tasks)
         }
 
         setTotalCount(result.totalCount)
@@ -120,27 +127,30 @@ export const useBlinkTasks = (context: BusinessAppContextProps): UseBlinkTasksRe
         setIsLoading(false)
       }
     },
-    [userId, context.accessToken]
+    [userId, context.accessToken, enabled]
   )
 
   // Initial fetch on mount
   const blinkFetchedRef = useRef(false)
   useEffect(() => {
+    if (!enabled) return
     if (!blinkFetchedRef.current && userId) {
       blinkFetchedRef.current = true
       fetchTasks(0, false)
     }
-  }, [userId, fetchTasks])
+  }, [userId, fetchTasks, enabled])
 
   const refetch = useCallback(async () => {
+    if (!enabled) return
     setOffset(0)
     await fetchTasks(0, false)
-  }, [fetchTasks])
+  }, [fetchTasks, enabled])
 
   const loadMore = useCallback(async () => {
+    if (!enabled) return
     if (!hasMore || isLoading) return
     await fetchTasks(offset, true)
-  }, [fetchTasks, offset, hasMore, isLoading])
+  }, [fetchTasks, offset, hasMore, isLoading, enabled])
 
   return {
     tasks,

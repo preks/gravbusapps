@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getCatalogValue } from '@/common/utils/windowUtils'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useQueryExecutionClient } from '@/common/network/dataset/useQueryExecutionClient'
+import { Services } from '@/common/types/enums/Services'
 
 /**
  * Employee type definition for the directory.
@@ -47,166 +47,53 @@ export type EmployeeFilters = {
 
 const EMPLOYEES_PER_PAGE = 20
 
-/**
- * Helper function to extract matrix team names from matrixUnitEmployees
- * This avoids deeply nested functions in the map operation
- */
-function extractMatrixTeamNames(matrixUnitEmployees: any[] | null | undefined): string[] {
-  if (!matrixUnitEmployees || !Array.isArray(matrixUnitEmployees)) {
-    return []
+// Helpers
+function parseMatrixTeams(matrixTeamsValue: unknown): string[] {
+  if (Array.isArray(matrixTeamsValue)) {
+    return matrixTeamsValue.filter((v): v is string => typeof v === 'string')
   }
-
-  const teamNames: string[] = []
-
-  for (const employee of matrixUnitEmployees) {
-    if (employee?.matrixUnit?.name) {
-      teamNames.push(employee.matrixUnit.name)
+  if (typeof matrixTeamsValue === 'string') {
+    try {
+      const parsed = JSON.parse(matrixTeamsValue)
+      return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : []
+    } catch {
+      return matrixTeamsValue ? [matrixTeamsValue] : []
     }
   }
-
-  return teamNames
+  return []
 }
 
-/**
- * Helper function to extract work email from communications array
- */
-function extractWorkEmail(communications: any[] | null | undefined): string | undefined {
-  if (!communications || !Array.isArray(communications)) {
-    return undefined
-  }
-
-  const emailComm = communications.find((c: any) => {
-    if (!c.value || c.value.trim() === '') return false
-    const channelValue = c.channel?.value?.toLowerCase() || ''
-    return channelValue.includes('email')
-  })
-
-  return emailComm?.value?.trim() || undefined
+function extractTotalFromRows(rows: any[]): number | null {
+  const label = rows?.[0]?.value_label
+  if (typeof label !== 'string') return null
+  const parts = label.split('|')
+  const totalParsed = parts.length === 2 ? Number(parts[1]) : Number.NaN
+  return Number.isFinite(totalParsed) ? totalParsed : null
 }
 
-// GraphQL query to fetch employee positions with employee and related info
-const EMPLOYEE_POSITION_QUERY = `
-  query EmployeePositions($limit: Int!, $offset: Int!, $where: EmployeePositionBoolExp!, $orderBy: [EmployeePositionOrderBy!]) {
-    EmployeePosition(
-      limit: $limit,
-      offset: $offset,
-      orderBy: $orderBy,
-      where: {
-        _and: [
-          { jobPositionId: { _isNull: false } },
-          { employeeId: { _isNull: false } },
-          $where
-        ]
-      }
-    ) {
-      employeeId
-      userId
-      supervisorEmployeeId
-      supervisor {
-        id
-        firstName
-        lastName
-      }
-      firstName
-      lastName
-      jobPosition {
-        name
-      }
-      organizationalUnit {
-        id
-        name
-      }
-      matrixUnitEmployees(where: { matrixUnit: { isDeleted: { _eq: false } } }) {
-        matrixUnit {
-          id
-          name
-        }
-      }
-      employee {
-        id
-        pictureThumbnail
-        workingCondition {
-          contractType {
-        value
-        id
-        code
-        catalogId
-        translations {
-          value
-          localeCode
-          id
-        }
-      }
-          employmentType {
-        value
-        id
-        code
-        catalogId
-        translations {
-          value
-          localeCode
-          id
-        }
-      }
-        }
-        communication(where: { _and: [{ isDeleted: { _eq: false } }, { purpose: { _eq: "INTERNAL" } }] }) {
-          id
-          value
-          channel {
-            value
-          }
-        }
-      }
-    }
-    EmployeePositionAggregate(
-      where: {
-        _and: [
-          { jobPositionId: { _isNull: false } },
-          { employeeId: { _isNull: false } },
-          $where
-        ]
-      }
-    ) {
-      aggregate {
-        count
-      }
-    }
-  }
-`
-
-/**
- * Helper function to build sort condition for GraphQL orderBy (matches AccountList pattern)
- */
-const buildSortCondition = (sortField: string, sortOrder: 'ASC' | 'DESC', orderBy: any) => {
-  const sortDirection = sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
-
-  switch (sortField) {
-    case 'name':
-      // For name sorting, prioritize lastName then firstName
-      orderBy.lastName = sortDirection
-      break
-    case 'firstName':
-      orderBy.firstName = sortDirection
-      break
-    case 'lastName':
-      orderBy.lastName = sortDirection
-      break
-    case 'jobTitle':
-      orderBy.jobPosition = { name: sortDirection }
-      break
-    case 'organizationalUnit':
-      orderBy.organizationalUnit = { name: sortDirection }
-      break
-    case 'employmentType':
-      // Fixed: Use correct GraphQL path for employment type sorting
-      orderBy.employee = { workingConditionAggregate: { max: { employmentTypeRef: sortDirection } } }
-      break
-    case 'contractType':
-      // Fixed: Use correct GraphQL path for contract type sorting
-      orderBy.employee = { workingConditionAggregate: { max: { contractTypeRef: sortDirection } } }
-      break
+function mapRowToEmployee(row: any): Employee {
+  const matrixTeams = parseMatrixTeams(row?.matrix_teams)
+  return {
+    id: row?.employee_id,
+    userId: row?.user_id,
+    supervisorEmployeeId: row?.supervisor_employee_id,
+    firstName: row?.first_name ?? '',
+    lastName: row?.last_name ?? '',
+    jobTitle: row?.job_title ?? '',
+    organizationalUnit: row?.organizational_unit ?? '',
+    organizationalUnitId: row?.organizational_unit_id,
+    workEmail: row?.work_email ?? '',
+    employmentType: row?.employment_type ?? '',
+    contractType: undefined,
+    matrixTeams,
+    profilePicture: row?.profile_picture ?? ''
   }
 }
+
+// Dataset query name to replace GraphQL in Employees tab
+const DATASET_QUERY_NAME = 'hrActiveEmployees'
+
+// Sorting is currently not applied at the dataset level
 
 /**
  * Custom hook to fetch employee directory data with filters and pagination.
@@ -214,7 +101,7 @@ const buildSortCondition = (sortField: string, sortOrder: 'ASC' | 'DESC', orderB
  * @returns Employees, total count, loading, error, hasMore, loadMore, loadPage, retry
  */
 export function useGetEmployees(filters: EmployeeFilters & { accessToken: string }) {
-  const client = useGraphqlClient(filters.accessToken)
+  const datasetClient = useQueryExecutionClient(filters.accessToken, Services.EMPLOYEE)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -223,31 +110,38 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
   const [hasMore, setHasMore] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [shouldClearData, setShouldClearData] = useState(false)
+  const lastParamsRef = useRef<Record<string, string | number | boolean>>({})
   const { alpha, search, organizationalUnits, employmentTypes, contractTypes, matrixTeams, sortField, sortOrder } =
     filters
   const alphaFilter = alpha ? `${alpha}%` : `%`
   const searchFilter = search ? `%${search}%` : `%`
-  const organizationalUnitObj =
-    organizationalUnits && organizationalUnits.length > 0
-      ? { organizationalUnitId: { _in: organizationalUnits } }
-      : undefined
-  const employmentTypeObj =
-    employmentTypes && employmentTypes.length > 0
-      ? { employee: { workingCondition: { employmentTypeRef: { _in: employmentTypes } } } }
-      : undefined
-  const contractTypeObj =
-    contractTypes && contractTypes.length > 0
-      ? { employee: { workingCondition: { contractTypeRef: { _in: contractTypes } } } }
-      : undefined
-  const matrixTeamObj =
-    matrixTeams && matrixTeams.length > 0
-      ? {
-          matrixUnitEmployees: {
-            matrixUnitId: { _in: matrixTeams },
-            matrixUnit: { isDeleted: { _eq: false } }
-          }
-        }
-      : undefined
+
+  // Build dataset parameters from current filters
+  const buildDatasetParams = useCallback(
+    (limitParam: number, offsetParam: number) => {
+      const params: Record<string, string | number | boolean> = {
+        limit: limitParam,
+        offset: offsetParam
+      }
+      if (alpha && alpha.trim() !== '') {
+        params.alpha = alpha
+      }
+      if (search && search.trim() !== '') {
+        params.search = search
+      }
+      if (organizationalUnits && organizationalUnits.length > 0) {
+        params.orgUnitIds = organizationalUnits.join(',')
+      }
+      if (employmentTypes && employmentTypes.length > 0) {
+        params.employmentTypeRefs = employmentTypes.join(',')
+      }
+      if (matrixTeams && matrixTeams.length > 0) {
+        params.matrixTeamIds = matrixTeams.join(',')
+      }
+      return params
+    },
+    [alpha, search, organizationalUnits, employmentTypes, matrixTeams]
+  )
 
   // Reset pagination state on filter change
   useEffect(() => {
@@ -257,6 +151,11 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
     setShouldClearData(true)
     // Don't show loading for filter changes - only for true initial load
     setIsInitialLoad(false)
+    // Capture latest params (without limit/offset) to persist across pagination
+    const p = buildDatasetParams(0, 0)
+    delete (p as any).limit
+    delete (p as any).offset
+    lastParamsRef.current = p
   }, [
     alpha,
     search,
@@ -273,8 +172,8 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
    */
   const loadMore = useCallback(() => {
     if (typeof window === 'undefined') return // Prevent SSR execution
-    if (!client) {
-      setError(new Error('GraphQL client unavailable'))
+    if (!datasetClient) {
+      setError(new Error('Dataset client unavailable'))
       setLoading(false)
       return
     }
@@ -285,58 +184,26 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
       setLoading(true)
     }
     // For filter changes and infinite scroll: no loading indicator - seamless UX
-    // Dynamically build the where filter
-    const where = {
-      ...(alpha ? { lastName: { _ilike: alphaFilter } } : {}),
-      ...(search
-        ? {
-            _or: [{ firstName: { _ilike: searchFilter } }, { lastName: { _ilike: searchFilter } }]
-          }
-        : {}),
-      ...organizationalUnitObj,
-      ...employmentTypeObj,
-      ...contractTypeObj,
-      ...matrixTeamObj
-    }
-    // Build order by condition (matches AccountList pattern)
-    const orderBy: any = {}
-    if (sortField && sortField.trim() !== '' && sortOrder) {
-      buildSortCondition(sortField, sortOrder, orderBy)
-    }
+    const params = buildDatasetParams(EMPLOYEES_PER_PAGE, offset)
+    // Persist last non-empty filter params for pagination
+    const persisted = { ...params }
+    delete (persisted as any).limit
+    delete (persisted as any).offset
+    lastParamsRef.current = persisted
 
-    client
-      .request?.(EMPLOYEE_POSITION_QUERY, {
-        limit: EMPLOYEES_PER_PAGE,
-        offset,
-        where,
-        orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ lastName: 'ASC_NULLS_LAST' }]
-      })
-      .then((res: any) => {
-        if (!res) {
-          setError(new Error('No response from GraphQL query'))
+    datasetClient
+      .executeDatasetQuery(DATASET_QUERY_NAME, params)
+      .then(res => {
+        if (!res || !Array.isArray(res.data)) {
+          setError(new Error('No response from dataset query'))
           setLoading(false)
           return
         }
-        const employeePositions = res.EmployeePosition ?? []
-        const newEmployees = employeePositions.map((ep: any) => {
-          const workingCondition = ep.employee?.workingCondition?.[0]
-          const workEmail = extractWorkEmail(ep.employee?.communication)
-          return {
-            id: ep.employeeId,
-            userId: ep.userId,
-            supervisorEmployeeId: ep.supervisorEmployeeId,
-            firstName: ep.firstName,
-            lastName: ep.lastName,
-            jobTitle: ep.jobPosition?.name ?? '',
-            organizationalUnit: ep.organizationalUnit?.name ?? '',
-            organizationalUnitId: ep.organizationalUnit?.id,
-            workEmail: workEmail,
-            employmentType: getCatalogValue(workingCondition?.employmentType) || '',
-            contractType: getCatalogValue(workingCondition?.contractType) || '',
-            matrixTeams: extractMatrixTeamNames(ep.matrixUnitEmployees),
-            profilePicture: ep.employee?.pictureThumbnail ?? ''
-          }
-        })
+        const rows = Array.isArray(res.data) ? res.data : []
+        const totalParsed = extractTotalFromRows(rows)
+        if (totalParsed != null) setTotal(totalParsed)
+
+        const newEmployees = rows.map(mapRowToEmployee)
         if (shouldClearData || employees.length === 0) {
           setEmployees(newEmployees)
           setShouldClearData(false)
@@ -344,7 +211,6 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
           setEmployees((prev: Employee[]) => [...prev, ...newEmployees])
         }
 
-        setTotal(res.EmployeePositionAggregate.aggregate.count)
         setOffset(prev => prev + EMPLOYEES_PER_PAGE)
         setHasMore(newEmployees.length === EMPLOYEES_PER_PAGE)
         setLoading(false)
@@ -360,7 +226,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
   }, [
     loading,
     hasMore,
-    client,
+    datasetClient,
     offset,
     alpha,
     search,
@@ -391,8 +257,8 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
   const loadPage = useCallback(
     (page: number, pageSize: number = EMPLOYEES_PER_PAGE) => {
       if (typeof window === 'undefined') return // Prevent SSR execution
-      if (!client) {
-        setError(new Error('GraphQL client unavailable'))
+      if (!datasetClient) {
+        setError(new Error('Dataset client unavailable'))
         setLoading(false)
         return
       }
@@ -400,63 +266,29 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
 
       const pageOffset = (page - 1) * pageSize
 
-      if (isInitialLoad && employees.length === 0) {
-        setLoading(true)
-      }
-      const where = {
-        ...(alpha ? { lastName: { _ilike: alphaFilter } } : {}),
-        ...(search
-          ? {
-              _or: [{ firstName: { _ilike: searchFilter } }, { lastName: { _ilike: searchFilter } }]
-            }
-          : {}),
-        ...organizationalUnitObj,
-        ...employmentTypeObj,
-        ...contractTypeObj,
-        ...matrixTeamObj
-      }
+      // Always show loading on explicit page change
+      setLoading(true)
+      setError(null)
 
-      const orderBy: any = {}
-      if (sortField && sortField.trim() !== '' && sortOrder) {
-        buildSortCondition(sortField, sortOrder, orderBy)
-      }
+      // Reuse the last known filter params to ensure stable pagination
+      const base = lastParamsRef.current || {}
+      const pageParams = { ...base, limit: pageSize, offset: pageOffset }
 
-      client
-        .request?.(EMPLOYEE_POSITION_QUERY, {
-          limit: pageSize,
-          offset: pageOffset,
-          where,
-          orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ lastName: 'ASC_NULLS_LAST' }]
-        })
-        .then((res: any) => {
-          if (!res) {
-            setError(new Error('No response from GraphQL query'))
+      datasetClient
+        .executeDatasetQuery(DATASET_QUERY_NAME, pageParams)
+        .then(res => {
+          if (!res || !Array.isArray(res.data)) {
+            setError(new Error('No response from dataset query'))
             setLoading(false)
             return
           }
-          const employeePositions = res.EmployeePosition ?? []
-          const newEmployees = employeePositions.map((ep: any) => {
-            const workingCondition = ep.employee?.workingCondition?.[0]
-            const workEmail = extractWorkEmail(ep.employee?.communication)
-            return {
-              id: ep.employeeId,
-              userId: ep.userId,
-              supervisorEmployeeId: ep.supervisorEmployeeId,
-              firstName: ep.firstName,
-              lastName: ep.lastName,
-              jobTitle: ep.jobPosition?.name ?? '',
-              organizationalUnit: ep.organizationalUnit?.name ?? '',
-              organizationalUnitId: ep.organizationalUnit?.id,
-              workEmail: workEmail,
-              employmentType: getCatalogValue(workingCondition?.employmentType) || '',
-              contractType: getCatalogValue(workingCondition?.contractType) || '',
-              matrixTeams: extractMatrixTeamNames(ep.matrixUnitEmployees),
-              profilePicture: ep.employee?.pictureThumbnail ?? ''
-            }
-          })
+          const rows = Array.isArray(res.data) ? res.data : []
+          const totalParsed = extractTotalFromRows(rows)
+          setTotal(totalParsed ?? 0)
+
+          const newEmployees = rows.map(mapRowToEmployee)
 
           setEmployees(newEmployees)
-          setTotal(res.EmployeePositionAggregate.aggregate.count)
           setOffset(pageOffset)
           setHasMore(newEmployees.length === pageSize)
           setLoading(false)
@@ -472,7 +304,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
     },
     [
       loading,
-      client,
+      datasetClient,
       alpha,
       search,
       organizationalUnits,
@@ -488,10 +320,12 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
   )
 
   useEffect(() => {
-    if (client && (employees.length === 0 || shouldClearData) && !loading) {
+    if (datasetClient && (employees.length === 0 || shouldClearData) && !loading) {
       loadMore()
     }
-  }, [client, shouldClearData, loadMore])
+  }, [datasetClient, shouldClearData, loadMore])
+
+  // Total is now derived from value_label in dataset results; no separate total query
 
   return { employees, total, loading, error, hasMore, loadMore, loadPage, retry }
 }

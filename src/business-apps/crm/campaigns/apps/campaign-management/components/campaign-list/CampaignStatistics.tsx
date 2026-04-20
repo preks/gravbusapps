@@ -2,6 +2,8 @@ import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { ChartBarIcon, PlayIcon, CheckCircleIcon, ClockIcon } from '@phosphor-icons/react'
 import { SalesCampaignStatistics } from './types/SalesCampaignTypes'
+import { NW_CHART_COLOR_VARS } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
+import { calculateTrend } from '@/common/utils/trendUtils'
 
 interface CampaignStatisticsProps {
   statistics: SalesCampaignStatistics
@@ -23,24 +25,6 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
     return `${days} days`
   }
 
-  // Calculate real trend data based on previous period
-  const calculateTrend = (currentValue: number, previousValue: number) => {
-    if (previousValue === 0) {
-      return currentValue > 0
-        ? { value: '+100%', positive: true, description: 'vs previous period (30 days ago)' }
-        : { value: '0%', positive: false, description: 'vs previous period (30 days ago)' }
-    }
-
-    const change = currentValue - previousValue
-    const changePercent = (change / previousValue) * 100
-
-    return {
-      value: `${change > 0 ? '+' : ''}${changePercent.toFixed(1)}%`,
-      positive: change >= 0,
-      description: 'vs previous period (30 days ago)'
-    }
-  }
-
   // Transform stats data into widgets format
   const widgets: WidgetItem[] = [
     {
@@ -48,7 +32,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       title: 'Total Campaigns',
       value: statistics.totalCampaigns,
       prefix: <ChartBarIcon />,
-      color: '#1890ff',
+      color: NW_CHART_COLOR_VARS[0],
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'All campaigns in the system',
       trend: statistics.previousPeriod
@@ -60,7 +44,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       title: 'Active Campaigns',
       value: statistics.activeCampaigns,
       prefix: <PlayIcon />,
-      color: '#52c41a',
+      color: NW_CHART_COLOR_VARS[1],
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Currently running campaigns',
       trend: statistics.previousPeriod
@@ -72,7 +56,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       title: 'Completed Campaigns',
       value: statistics.completedCampaigns,
       prefix: <CheckCircleIcon />,
-      color: '#722ed1',
+      color: NW_CHART_COLOR_VARS[2],
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Successfully finished campaigns',
       trend: statistics.previousPeriod
@@ -85,7 +69,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       value: formatDuration(statistics.averageDuration),
       valueIsString: true,
       prefix: <ClockIcon />,
-      color: '#fa8c16',
+      color: NW_CHART_COLOR_VARS[3],
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Average campaign duration in days',
       trend: statistics.previousPeriod

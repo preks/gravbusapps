@@ -1,16 +1,36 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import '@newwork/nw-design-system/style'
-import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  DateInput,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { WarningCircleIcon } from '@phosphor-icons/react'
+import {
+  getCatalogValue,
+  getCurrentActiveUserLocale,
+  getTranslationFromI18nKeyAndLabel
+} from '@/common/utils/windowUtils'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import FormHeader from '../../components/FormHeader'
 import { env } from '@/common/env/EnvUtils'
+import translations from '../../_i18n'
 
 export interface EntitlementRowLike {
   id?: string
   version?: number
   employeeId?: string
   type?: { id: string; value?: string; code?: string; translations?: any[] }
+  validFrom?: string
+  validTo?: string
   available?: number
   pending?: number
   approved?: number
@@ -28,7 +48,6 @@ interface UpdateEntitlementModalProps {
   accessToken: string
   year: number
   onSuccess: () => Promise<void>
-  existingEntitlementTypeIds?: string[]
   employeeHeaderInfo?: EmployeeInfo
 }
 
@@ -40,6 +59,27 @@ const normalizeInteger = (value: string): string => {
   return normalized
 }
 
+const toDateInputValue = (value?: string): string => {
+  if (!value) {
+    return ''
+  }
+
+  return value.slice(0, 10)
+}
+
+const getTodayDateInputValue = (): string => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const toUtcStartOfMonthIso = (value: string): string => {
+  const [year = '', month = ''] = value.split('-')
+  return `${year}-${month}-01T00:00:00Z`
+}
+
 export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   isOpen,
   onClose,
@@ -49,20 +89,21 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   accessToken,
   year,
   onSuccess,
-  existingEntitlementTypeIds,
   employeeHeaderInfo
 }) => {
-  const isFromTable = Boolean(selectedLine && selectedLine.id)
+  const { t } = useTranslation(translations)
 
   const [absenceTypeRef, setAbsenceTypeRef] = useState<string>('')
   const [total, setTotal] = useState<number>(0)
   const [pending, setPending] = useState<number>(0)
   const [approved, setApproved] = useState<number>(0)
+  const [validFrom, setValidFrom] = useState<string>('')
   const [initialState, setInitialState] = useState<{
     typeRef: string
     total: number
     pending: number
     approved: number
+    validFrom: string
   } | null>(null)
 
   const selectTriggerRef = useRef<HTMLButtonElement | null>(null)
@@ -74,18 +115,21 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   useEffect(() => {
     if (!isOpen) return
     const defaultType = selectedLine?.type?.id || ''
+    const defaultValidFrom = toDateInputValue(selectedLine?.validFrom) || getTodayDateInputValue()
     setAbsenceTypeRef(defaultType)
     setTotal(Number(selectedLine?.total ?? 0))
     setPending(Number(selectedLine?.pending ?? 0))
     setApproved(Number(selectedLine?.approved ?? 0))
+    setValidFrom(defaultValidFrom)
     setTouchedType(false)
     setInitialState({
       typeRef: defaultType,
       total: Number(selectedLine?.total ?? 0),
       pending: Number(selectedLine?.pending ?? 0),
-      approved: Number(selectedLine?.approved ?? 0)
+      approved: Number(selectedLine?.approved ?? 0),
+      validFrom: defaultValidFrom
     })
-  }, [isOpen, selectedLine])
+  }, [isOpen, selectedLine, year])
 
   // Manage initial focus when modal opens
   useEffect(() => {
@@ -108,37 +152,19 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
     return result
   }, [total, pending, approved])
 
-  const hasAvailableError = available < 0
-
-  const headerTitle = isFromTable
-    ? getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.update_entitlements', 'Update Entitlements')
-    : getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')
-
-  const addByTypeText = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:entitlements.add_entitlement_by_type',
-    'Add Entitlement by Type'
-  )
+  const headerTitle = getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')
 
   const handleSubmit = async () => {
-    const firstDay = new Date(year, 0, 1, 0, 0, 0, 0)
-    const lastDay = new Date(year, 11, 31, 23, 59, 59, 999)
-
     const body: any = {
       employeeAbsenceEntitlement: {
-        ...(isFromTable
-          ? {
-              id: selectedLine?.id,
-              version: selectedLine?.version
-            }
-          : {}),
         employeeId: employeeId,
         typeRef: absenceTypeRef,
         available: available,
         pending: pending,
         approved: approved,
         total: total,
-        validFrom: firstDay.toISOString(),
-        validTo: lastDay.toISOString()
+        validFrom: toUtcStartOfMonthIso(validFrom),
+        validTo: null
       },
       changeMode: 'INSERT'
     }
@@ -163,16 +189,17 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
       initialState.typeRef !== absenceTypeRef ||
       initialState.total !== total ||
       initialState.pending !== pending ||
-      initialState.approved !== approved
+      initialState.approved !== approved ||
+      initialState.validFrom !== validFrom
     )
-  }, [initialState, absenceTypeRef, total, pending, approved])
+  }, [initialState, absenceTypeRef, total, pending, approved, validFrom])
 
-  const isSubmitDisabled = !absenceTypeRef || hasAvailableError || !hasChangesComparedToInitial
+  const isSubmitDisabled = !absenceTypeRef || !validFrom || !hasChangesComparedToInitial
 
   return (
     <div
       data-testid="hcm_createHrAbsence_mainContainer"
-      className="gba:!bg-card gba:!border-0 gba:!shadow-none gba:flex gba:flex-col gba:gap-4  gba:px-6"
+      className="gba:!border-0 gba:!shadow-none gba:flex gba:flex-col gba:gap-4  gba:px-6"
     >
       <FormHeader
         title={headerTitle}
@@ -190,12 +217,6 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
         }
       />
 
-      {!isFromTable && (
-        <div data-testid="flw_updateEntitlementModal_addByType" className="gba:text-sm">
-          {addByTypeText}
-        </div>
-      )}
-
       {/* Absence Type Select */}
       <div className="gba:flex gba:flex-col gba:gap-2">
         <div className="gba:font-semibold gba:text-sm">
@@ -203,7 +224,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
           <span className="gba:text-destructive"> *</span>
         </div>
         <div>
-          <Select value={absenceTypeRef} onValueChange={v => setAbsenceTypeRef(v)} disabled={!!selectedLine?.type?.id}>
+          <Select value={absenceTypeRef} onValueChange={v => setAbsenceTypeRef(v)}>
             <SelectTrigger
               ref={selectTriggerRef}
               data-testid="hcm_createHrAbsence_absenceTypeSelect"
@@ -217,11 +238,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
               />
             </SelectTrigger>
             {(() => {
-              const selectableTypes = (() => {
-                if (!!selectedLine?.type?.id) return absenceTypes || []
-                const existingIds = new Set((existingEntitlementTypeIds || []).filter(Boolean))
-                return (absenceTypes || []).filter(item => !existingIds.has(item.id))
-              })()
+              const selectableTypes = absenceTypes || []
               return selectableTypes.length > 0 ? (
                 <SelectContent>
                   {selectableTypes.map(item => (
@@ -244,17 +261,33 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
         )}
       </div>
 
-      {/* Year of Entitlement Display */}
       <div className="gba:flex gba:flex-col gba:gap-2">
         <div className="gba:font-semibold gba:text-sm">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.year_of_entitlement', 'Year of Entitlement')}
+          {t('entitlements-effective-from')}
+          <span className="gba:text-destructive"> *</span>
         </div>
-        <div
-          className="gba:bg-muted gba:rounded-md gba:px-3 gba:py-2 gba:text-sm"
-          data-testid="flw_updateEmployeeEntitlements_year_in_modal"
+        <DateInput
+          type="date"
+          value={validFrom}
+          onChange={value => setValidFrom(typeof value === 'string' ? value : '')}
+          placeholder={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:working_hours_form.employee_placeholder',
+            'Select...'
+          )}
+          className="gba:w-[100%]"
+          data-testid="flw_updateEntitlementModal_validFromInput"
+          {...({ locale: getCurrentActiveUserLocale(), captionLayout: 'dropdown' } as any)}
+        />
+        <Alert
+          variant="default"
+          className="gba:w-full gba:py-2 gba:px-3"
+          data-testid="flw_updateEntitlementModal_validFromHint"
         >
-          {year}
-        </div>
+          <WarningCircleIcon className="gba:h-4 gba:w-4" />
+          <AlertDescription className="gba:!max-w-none gba:text-xs gba:leading-5">
+            {t('entitlements-valid-from-month-start-hint')}
+          </AlertDescription>
+        </Alert>
       </div>
 
       {/* Numeric Inputs */}
@@ -275,54 +308,6 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
             className="gba:appearance-none gba:text-sm"
           />
         </div>
-
-        <div className="gba:flex gba:flex-col gba:gap-2">
-          <div className="gba:font-semibold gba:text-sm">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.payment_status', 'Pending')}
-          </div>
-          <div
-            className="gba:bg-muted gba:rounded-md gba:px-3 gba:py-2 gba:text-sm"
-            data-testid="flw_updateEntitlementModal_pendingInput"
-          >
-            {pending}
-          </div>
-        </div>
-
-        <div className="gba:flex gba:flex-col gba:gap-2">
-          <div className="gba:font-semibold gba:text-sm">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:manager_expense_landing_page.upcoming_approved_badge',
-              'Approved'
-            )}
-          </div>
-          <div
-            className="gba:bg-muted gba:rounded-md gba:px-3 gba:py-2 gba:text-sm"
-            data-testid="flw_updateEntitlementModal_approved"
-          >
-            {approved}
-          </div>
-        </div>
-      </div>
-
-      {/* Available Display */}
-      <div className="gba:flex gba:flex-col gba:gap-2">
-        <div className="gba:font-semibold gba:text-sm">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
-        </div>
-        <div
-          className="gba:bg-muted gba:rounded-md gba:px-3 gba:py-2 gba:text-sm"
-          data-testid="flw_updateEntitlementModal_available"
-        >
-          {available}
-        </div>
-        {hasAvailableError && (
-          <div className="gba:text-destructive">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:entitlements.entitlements_validation_message',
-              'The total entitlement cannot be adjusted to this value, as the remaining days must not be negative.'
-            )}
-          </div>
-        )}
       </div>
 
       {/* Actions */}
@@ -345,15 +330,10 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
             void handleSubmit()
           }}
         >
-          {isFromTable
-            ? getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_update',
-                'Update'
-              )
-            : getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add',
-                'Add'
-              )}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add',
+            'Add'
+          )}
         </Button>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { useSalesCampaignData } from './components/campaign-list/hooks/useSalesCampaignData'
 import { useCampaignFilters } from './components/campaign-list/hooks/useCampaignFilters'
 import { useGetCampaignTypes } from './components/campaign-list/hooks/useGetCampaignTypes'
@@ -54,10 +55,23 @@ const CampaignRowActions: React.FC<{
 
 /**
  * Helper: Process date range filter and normalize it
+ * Handles both array format ["2025-12-29", "2026-02-22"] and string format "2025-12-29,2026-02-22"
+ * Converts to ISO datetime strings with proper time boundaries
  */
 const processDateRangeFilter = (filters: Record<string, any>, rangeKey: string) => {
-  const normalized = normalizeDateRange(filters[rangeKey])
-  return normalized || { from: undefined, to: undefined }
+  const rangeValue = filters[rangeKey]
+
+  const normalized = normalizeDateRange(rangeValue)
+
+  if (!normalized || (!normalized.from && !normalized.to)) {
+    return { from: undefined, to: undefined }
+  }
+
+  // Convert date strings to ISO datetime with time boundaries
+  const from = normalized.from ? new Date(normalized.from + 'T00:00:00.000Z').toISOString() : undefined
+  const to = normalized.to ? new Date(normalized.to + 'T23:59:59.999Z').toISOString() : undefined
+
+  return { from, to }
 }
 
 /**
@@ -117,6 +131,29 @@ const buildDynamicFilterConfig = (campaignTypeOptions: Array<{ id: string; label
   return config
 }
 
+/**
+ * Convert raw DataDisplay filters into the internal format used by processFiltersAndFetch.
+ * Extracted so the same logic can be used at initialization time (from localStorage)
+ * and whenever the user changes filters at runtime.
+ */
+const buildProcessedFilters = (filters: Record<string, any>): Record<string, any> => {
+  const startDate = processDateRangeFilter(filters, 'startDateRange')
+  const endDate = processDateRangeFilter(filters, 'endDateRange')
+  const createdDate = processDateRangeFilter(filters, 'createdAtRange')
+  const processedCampaignTypes = mapFiltersToOldFormat(filters)
+
+  return {
+    ...filters,
+    _processedStartDateAfter: startDate.from,
+    _processedStartDateBefore: startDate.to,
+    _processedEndDateAfter: endDate.from,
+    _processedEndDateBefore: endDate.to,
+    _processedCreatedAfter: createdDate.from,
+    _processedCreatedBefore: createdDate.to,
+    _processedCampaignTypes: processedCampaignTypes
+  }
+}
+
 // Helper to determine campaign status from dates
 const getCampaignStatus = (campaign: SalesCampaign): string => {
   if (!campaign.startDate || !campaign.endDate) {
@@ -149,33 +186,29 @@ const filterCampaignsByStatus = (campaigns: SalesCampaign[], statusFilters: stri
 }
 
 const CampaignManagementContent: React.FC<CampaignManagementContentProps> = props => {
+  // Persist filters, sorting, and visible columns across navigation
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('crm:campaign-management-preferences:v1')
+
   // Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
   // Analytics timeline period state
   const [timelinePeriod, setTimelinePeriod] = useState<TimelinePeriod>('last-year')
 
-  // Filter state
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
+  // Filter state — initialize from localStorage on first mount
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(() =>
+    Object.keys(initialFilters).length > 0 ? buildProcessedFilters(initialFilters) : {}
+  )
 
-  // Sorting state
-  const [sortField, setSortField] = useState<string>('createdAt')
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
+  // Sorting state — initialize from localStorage on first mount
+  const storedSort = initialSorting?.[0]
+  const [sortField, setSortField] = useState<string>(storedSort?.id ?? 'createdAt')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>(storedSort?.desc === false ? 'ASC' : 'DESC')
 
   // Use the centralized campaign filters hook
   const campaignFilters = useCampaignFilters(props)
-  const {
-    search,
-    setSearch,
-    selectedFilters: campaignSelectedFilters,
-    startDateAfter: filterStartDateAfter,
-    startDateBefore: filterStartDateBefore,
-    endDateAfter: filterEndDateAfter,
-    endDateBefore: filterEndDateBefore,
-    createdAfter: filterCreatedAfter,
-    createdBefore: filterCreatedBefore,
-    filtersInitialized
-  } = campaignFilters
+  const { search, setSearch, filtersInitialized } = campaignFilters
 
   // Fetch campaign data
   const {
@@ -186,6 +219,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
     isStatisticsLoading,
     statisticsError,
     refetch,
+    fetchSalesCampaignsWithCount,
     processFiltersAndFetch,
     refetchStatistics
   } = useSalesCampaignData(props)
@@ -217,36 +251,22 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
   // Handle filter changes from DataDisplay
   const handleFilterChange = useCallback(
     (filters: Record<string, any>) => {
-      // Update local state to trigger useEffect
-      setSelectedFilters(filters)
-
-      // Map date ranges to separate after/before values
-      const startDate = processDateRangeFilter(filters, 'startDateRange')
-      const endDate = processDateRangeFilter(filters, 'endDateRange')
-      const createdDate = processDateRangeFilter(filters, 'createdAtRange')
-
-      // Update date filter states
-      campaignFilters.handleStartDateRangeChange(startDate.from, startDate.to)
-      campaignFilters.handleEndDateRangeChange(endDate.from, endDate.to)
-      campaignFilters.handleCreatedDateRangeChange(createdDate.from, createdDate.to)
-
-      // Map type and status filters
-      const newSelectedFilters = mapFiltersToOldFormat(filters)
-
-      // Update the old hook's selectedFilters
-      campaignFilters.resetFilters()
-      for (const filterId of newSelectedFilters) {
-        campaignFilters.addFilter(filterId)
-      }
+      setSelectedFilters(buildProcessedFilters(filters))
+      // Persist only the raw (user-facing) filters — no _processed* internal keys
+      saveFilters(filters)
     },
-    [campaignFilters]
+    [saveFilters]
   )
 
   // Handle sorting changes from DataDisplay
-  const handleSortChange = useCallback((field: string, order: 'ASC' | 'DESC') => {
-    setSortField(field)
-    setSortOrder(order)
-  }, [])
+  const handleSortChange = useCallback(
+    (field: string, order: 'ASC' | 'DESC') => {
+      setSortField(field)
+      setSortOrder(order)
+      saveSorting([{ id: field, desc: order === 'DESC' }])
+    },
+    [saveSorting]
+  )
 
   // Sync filters and trigger fetch
   useEffect(() => {
@@ -254,35 +274,30 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
       return
     }
 
+    // Extract processed values from selectedFilters state
+    const startDateAfter = selectedFilters._processedStartDateAfter
+    const startDateBefore = selectedFilters._processedStartDateBefore
+    const endDateAfter = selectedFilters._processedEndDateAfter
+    const endDateBefore = selectedFilters._processedEndDateBefore
+    const createdAfter = selectedFilters._processedCreatedAfter
+    const createdBefore = selectedFilters._processedCreatedBefore
+    const campaignTypesArray = selectedFilters._processedCampaignTypes || []
+
     processFiltersAndFetch({
       search: search,
-      selectedFilters: campaignSelectedFilters,
-      startDateAfter: filterStartDateAfter,
-      startDateBefore: filterStartDateBefore,
-      endDateAfter: filterEndDateAfter,
-      endDateBefore: filterEndDateBefore,
-      createdAfter: filterCreatedAfter,
-      createdBefore: filterCreatedBefore,
+      selectedFilters: campaignTypesArray,
+      startDateAfter,
+      startDateBefore,
+      endDateAfter,
+      endDateBefore,
+      createdAfter,
+      createdBefore,
       sortField: sortField,
       sortOrder: sortOrder,
       offset: 0,
       limit: 10000
     })
-  }, [
-    search,
-    selectedFilters,
-    sortField,
-    sortOrder,
-    filtersInitialized,
-    processFiltersAndFetch,
-    campaignSelectedFilters,
-    filterStartDateAfter,
-    filterStartDateBefore,
-    filterEndDateAfter,
-    filterEndDateBefore,
-    filterCreatedAfter,
-    filterCreatedBefore
-  ])
+  }, [search, selectedFilters, sortField, sortOrder, filtersInitialized, processFiltersAndFetch])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
@@ -442,6 +457,11 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
         sortField={sortField}
         sortOrder={sortOrder}
         onSortChange={handleSortChange}
+        // Persistence props — inject stored values so layout restores them on mount
+        initialFilters={initialFilters}
+        initialSorting={initialSorting ?? undefined}
+        initialVisibleColumns={initialVisibleColumns ?? undefined}
+        onSaveVisibleColumns={saveVisibleColumns}
         // Actions
         onRefetch={refetch}
         onRefetchStatistics={refetchStatistics}
@@ -464,6 +484,10 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
         // Configuration
         filterConfiguration={dynamicFilterConfig}
         sortableColumns={createCampaignSortableColumns()}
+        // Export
+        enableExport
+        exportFilenamePrefix="campaigns"
+        fetchCampaignsForExport={fetchSalesCampaignsWithCount}
       />
 
       {/* Add Campaign Modal */}

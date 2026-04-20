@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentTasks } from '@/common/data/investment/hooks/useInvestmentTasks'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { useInvestmentTaskStatistics } from '@/common/data/investment/hooks/useInvestmentTaskStatistics'
 import { TaskLayout, type TaskViewConfig } from '@/common/components/common-relations/view-layouts/task-layout'
 import { type InvestmentTask, INVESTMENT_TASK_DESCRIPTORS } from '@/common/data/investment/types/investmentTaskTypes'
@@ -68,6 +69,9 @@ const copyInvestmentTaskFilters = (
 export type TaskViewProps = BusinessAppContextProps
 
 export const TaskView: React.FC<TaskViewProps> = context => {
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('irm:investment-task-preferences:v1')
+
   const investmentTasksHook = useInvestmentTasks(context)
   const { fetchInvestmentTasks } = investmentTasksHook
   const taskStatistics = useInvestmentTaskStatistics(context)
@@ -212,6 +216,14 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       context={context}
       config={config}
       dataTestId="investment-task-view"
+      enableExport
+      exportFilenamePrefix="irm-tasks"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
     />
   )
 }

@@ -21,7 +21,9 @@ import {
   fetchCflowTaskStats
 } from '../utils/CflowClient'
 import { fetchKogitoUserTasks, fetchKogitoTask, fetchKogitoTaskStats } from '../utils/KogitoClient'
+import { EVERYBOX_FIRST_PAGE_LIMIT } from '../constants/everyboxPagination'
 import { getApiConfig } from '../utils/config'
+import { getEveryboxServiceApiUrl } from '../utils/everyboxServiceUrl'
 
 export interface FetchTasksResult {
   tasks: UnifiedTask[]
@@ -36,6 +38,8 @@ export interface FetchTasksResult {
   warnings: string[]
   hasMore: boolean // Indicates if more tasks might be available
   prefetchPromise?: Promise<UnifiedTask[]> // Background prefetch for next batch
+  /** Opaque cursor for fetching the next page. Null/undefined if no more pages. */
+  nextCursor?: string | null
 }
 
 export interface FetchTaskStatsResult {
@@ -48,8 +52,76 @@ export interface FetchTaskStatsResult {
   warnings: string[]
 }
 
+export interface FetchTasksBootstrapResult {
+  inbox: FetchTasksResult
+}
+
+export interface FetchTasksBootstrapCountsResult {
+  counts: {
+    completed: number
+    blinks: number
+    outflows: number
+  }
+}
+
+/** Single response: first inbox page + tab badge counts (everybox-service `GET .../initial-data`). */
+export interface FetchTasksInitialDataResult {
+  inbox: FetchTasksResult
+  counts: FetchTasksBootstrapCountsResult['counts']
+}
+
 // Fetch limits optimized for backend constraints
 const FETCH_LIMIT_PER_SOURCE = 50 // Backend max per request
+
+function toEveryboxQuery(filters?: Partial<TaskFilters>): Record<string, string | number | boolean | undefined> {
+  if (!filters) return {}
+  return {
+    status: filters.status,
+    search: filters.search,
+    source: filters.source,
+    priority: filters.priority,
+    taskCategory: filters.taskCategory,
+    assignedTo: filters.assignedTo,
+    dueFilter: filters.dueFilter,
+    limit: filters.limit,
+    offset: filters.offset,
+    sortBy: filters.sortBy,
+    sortOrder: filters.sortOrder,
+    claimableOnly: filters.claimableOnly,
+    assignedOnly: filters.assignedOnly,
+    cursor: filters.cursor
+  }
+}
+
+async function everyboxGet<T>(
+  path: string,
+  accessToken: string | undefined,
+  params?: Record<string, string | number | boolean | undefined>
+): Promise<T> {
+  const baseUrl = getEveryboxServiceApiUrl()
+  const url = new URL(`${baseUrl}${path}`)
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v === undefined || v === null) return
+      url.searchParams.set(k, String(v))
+    })
+  }
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+    }
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Everybox-service HTTP ${response.status}: ${text || response.statusText}`)
+  }
+
+  return (await response.json()) as T
+}
 
 /**
  * Parse and validate filter parameters
@@ -374,6 +446,14 @@ export async function fetchAllUserTasks(
     normalizedFilters.assignedTo = userId
   }
 
+  // Prefer everybox-service (backend) for fast server-side search/sort + user metadata
+  try {
+    return await everyboxGet<FetchTasksResult>(`/tasks/user/${userId}`, accessToken, toEveryboxQuery(normalizedFilters))
+  } catch (error) {
+    // Fallback to legacy in-browser aggregation (keeps UI functional if service is not yet routed)
+    console.warn('[UnifiedTaskService] everybox-service unavailable, falling back to legacy aggregation:', error)
+  }
+
   const parsedFilters = parseFilters(normalizedFilters)
   const warnings: string[] = []
 
@@ -408,6 +488,89 @@ export async function fetchAllUserTasks(
 }
 
 /**
+ * Inbox first page + counts in one HTTP request (preferred when everybox-service is available).
+ */
+export async function fetchTasksInitialData(
+  userId: string,
+  accessToken?: string,
+  filters?: Partial<TaskFilters>
+): Promise<FetchTasksInitialDataResult> {
+  try {
+    return await everyboxGet<FetchTasksInitialDataResult>(
+      `/tasks/user/${userId}/initial-data`,
+      accessToken,
+      toEveryboxQuery(filters)
+    )
+  } catch (error) {
+    console.warn('[UnifiedTaskService] everybox-service unavailable (initial-data), falling back:', error)
+  }
+
+  const [bootstrap, countsResult] = await Promise.all([
+    fetchTasksBootstrap(userId, accessToken, filters),
+    fetchTasksBootstrapCounts(userId, accessToken, filters)
+  ])
+  return {
+    inbox: bootstrap.inbox,
+    counts: countsResult.counts
+  }
+}
+
+export async function fetchTasksBootstrap(
+  userId: string,
+  accessToken?: string,
+  filters?: Partial<TaskFilters>
+): Promise<FetchTasksBootstrapResult> {
+  try {
+    return await everyboxGet<FetchTasksBootstrapResult>(
+      `/tasks/user/${userId}/bootstrap`,
+      accessToken,
+      toEveryboxQuery(filters)
+    )
+  } catch (error) {
+    console.warn('[UnifiedTaskService] everybox-service unavailable (bootstrap), falling back:', error)
+  }
+
+  const inbox = await fetchAllUserTasks(userId, accessToken, filters)
+
+  return {
+    inbox
+  }
+}
+
+export async function fetchTasksBootstrapCounts(
+  userId: string,
+  accessToken?: string,
+  filters?: Partial<TaskFilters>
+): Promise<FetchTasksBootstrapCountsResult> {
+  try {
+    return await everyboxGet<FetchTasksBootstrapCountsResult>(
+      `/tasks/user/${userId}/bootstrap-counts`,
+      accessToken,
+      toEveryboxQuery(filters)
+    )
+  } catch (error) {
+    console.warn('[UnifiedTaskService] everybox-service unavailable (bootstrap-counts), falling back:', error)
+  }
+
+  const [completed, blinks] = await Promise.all([
+    fetchCompletedUserTasks(userId, accessToken, {
+      ...filters,
+      limit: 1,
+      offset: 0
+    }),
+    fetchBlinkUserTasks(userId, accessToken, { limit: 1, offset: 0 })
+  ])
+
+  return {
+    counts: {
+      completed: completed.totalCount,
+      blinks: blinks.totalCount,
+      outflows: 0
+    }
+  }
+}
+
+/**
  * Fetch COMPLETED tasks from all sources using dedicated endpoint
  * This uses the /completed endpoint which filters by task_business_status (not task_conductor_status)
  */
@@ -416,6 +579,16 @@ export async function fetchCompletedUserTasks(
   accessToken?: string,
   filters?: Partial<TaskFilters>
 ): Promise<FetchTasksResult> {
+  // Prefer everybox-service for completed tasks (server-side filtering + consistent totals)
+  try {
+    return await everyboxGet<FetchTasksResult>(`/tasks/user/${userId}/completed`, accessToken, toEveryboxQuery(filters))
+  } catch (error) {
+    console.warn(
+      '[UnifiedTaskService] everybox-service unavailable (completed), falling back to legacy aggregation:',
+      error
+    )
+  }
+
   const parsedFilters = parseFilters(filters)
   const config = getApiConfig()
 
@@ -546,9 +719,57 @@ export async function fetchCompletedUserTasks(
 }
 
 /**
+ * Fetch BLINK (quick-task) tasks for a user.
+ *
+ * Prefer everybox-service, fall back to Flow Engine direct calls.
+ */
+export async function fetchBlinkUserTasks(
+  userId: string,
+  accessToken?: string,
+  filters?: Partial<TaskFilters>
+): Promise<FetchTasksResult> {
+  try {
+    return await everyboxGet<FetchTasksResult>(`/tasks/user/${userId}/blinks`, accessToken, toEveryboxQuery(filters))
+  } catch (error) {
+    console.warn('[UnifiedTaskService] everybox-service unavailable (blinks), falling back:', error)
+  }
+
+  // Fallback: use Flow Engine tag filtering (legacy)
+  const cflow = await fetchCflowUserAssignedTasks(userId, accessToken, {
+    limit: String(filters?.limit ?? EVERYBOX_FIRST_PAGE_LIMIT),
+    offset: String(filters?.offset ?? 0),
+    'tags.app': 'quick-task',
+    ...(filters?.search ? { search: filters.search } : {})
+  })
+
+  const tasks = adaptCflowTasks(cflow.tasks)
+  return {
+    tasks,
+    totalCount: cflow.totalCount,
+    cflowTotalCount: cflow.totalCount,
+    kogitoTotalCount: 0,
+    errors: [],
+    warnings: [],
+    hasMore: Boolean(tasks.length && tasks.length >= (filters?.limit ?? EVERYBOX_FIRST_PAGE_LIMIT))
+  }
+}
+
+/**
  * Fetch a single task by ID from all sources
  */
 export async function fetchTaskById(taskId: string, userId: string, accessToken?: string): Promise<UnifiedTask | null> {
+  // Prefer everybox-service for single-task lookup (includes userState)
+  try {
+    const res = await everyboxGet<{ status: 'success' | 'error'; task?: UnifiedTask }>(
+      `/tasks/${taskId}`,
+      accessToken,
+      { userId }
+    )
+    if (res.status === 'success' && res.task) return res.task
+  } catch (error) {
+    console.warn('[UnifiedTaskService] everybox-service unavailable (taskById), falling back:', error)
+  }
+
   // Try cflow first
   try {
     const cflowTask = await fetchCflowTask(taskId, userId, accessToken)
@@ -579,6 +800,13 @@ export async function fetchTaskById(taskId: string, userId: string, accessToken?
  * Optimized: Uses smaller sample size (100 tasks) for statistics
  */
 export async function fetchTaskStatistics(userId: string, accessToken?: string): Promise<FetchTaskStatsResult> {
+  // Prefer everybox-service for stats
+  try {
+    return await everyboxGet<FetchTaskStatsResult>(`/tasks/user/${userId}/stats`, accessToken)
+  } catch (error) {
+    console.warn('[UnifiedTaskService] everybox-service unavailable (stats), falling back:', error)
+  }
+
   const errors: FetchTaskStatsResult['errors'] = []
   const warnings: string[] = []
 
@@ -623,14 +851,15 @@ export async function fetchTaskStatistics(userId: string, accessToken?: string):
       })
     }
 
-    // Aggregate priority counts
+    // Aggregate priority counts (API keys are strings; TaskStatistics uses numeric priority)
     if (cflowStats.byPriority && statistics.byPriority) {
-      Object.entries(cflowStats.byPriority).forEach(([priority, count]) => {
-        const byPriority = statistics.byPriority
-        if (byPriority) {
-          byPriority[priority] = (byPriority[priority] || 0) + (count as number)
-        }
-      })
+      const bucket = statistics.byPriority as Record<number, number>
+      for (const [key, raw] of Object.entries(cflowStats.byPriority)) {
+        const p = Number(key)
+        const n = typeof raw === 'number' ? raw : Number(raw)
+        if (!Number.isFinite(p) || !Number.isFinite(n)) continue
+        bucket[p] = (bucket[p] ?? 0) + n
+      }
     }
   } catch (error) {
     errors.push({

@@ -28,6 +28,7 @@ export interface UseSalesCampaignDataReturn {
   statisticsError: string | null
   refetch: () => void
   fetchCampaigns: (variables?: SalesCampaignQueryVariables) => Promise<void>
+  fetchSalesCampaignsWithCount: (variables?: SalesCampaignQueryVariables) => Promise<any>
   processFiltersAndFetch: (params: ProcessFiltersParams) => Promise<void>
   refetchStatistics: () => void
 }
@@ -100,19 +101,6 @@ export const useSalesCampaignData = (context: BusinessAppContextProps): UseSales
         }
 
         const result = await fetchSalesCampaignsWithCount(queryVariables)
-
-        // Debug: Log first campaign's dates to check format
-        if (result.SalesCampaign && result.SalesCampaign.length > 0) {
-          console.log('[CampaignData] First campaign dates:', {
-            id: result.SalesCampaign[0].id,
-            name: result.SalesCampaign[0].name,
-            startDate: result.SalesCampaign[0].startDate,
-            endDate: result.SalesCampaign[0].endDate,
-            createdAt: result.SalesCampaign[0].createdAt,
-            startDateType: typeof result.SalesCampaign[0].startDate,
-            endDateType: typeof result.SalesCampaign[0].endDate
-          })
-        }
 
         setCampaigns(result.SalesCampaign || [])
         setTotalCount(result.SalesCampaignAggregate?.aggregate?.count || 0)
@@ -252,6 +240,7 @@ export const useSalesCampaignData = (context: BusinessAppContextProps): UseSales
     statisticsError,
     refetch,
     fetchCampaigns,
+    fetchSalesCampaignsWithCount,
     processFiltersAndFetch,
     refetchStatistics
   }

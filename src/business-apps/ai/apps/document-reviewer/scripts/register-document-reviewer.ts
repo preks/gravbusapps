@@ -13,15 +13,21 @@
  * import { registerDocumentReviewer } from '@/business-apps/ai/apps/document-reviewer/scripts/register-document-reviewer'
  */
 
-import { promptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
-import { DOCUMENT_OBSERVER_TOOL } from '../definitions/document-observer-tool'
+import { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import { DOCUMENT_OBSERVER_FUNCTION_CODE } from '../definitions/document-observer-tool'
 import { createDocumentReviewerAgent, DOCUMENT_REVIEWER_AGENT_ID } from '../definitions/document-reviewer-agent'
 
 export interface RegisterDocumentReviewerResult {
   success: boolean
-  toolId?: string
+  toolCode?: string
   agentId?: string
   error?: string
+}
+
+function createAuthorizedPromptManagerClient(accessToken: string) {
+  const promptManagerClient = new PromptManagerClient()
+  promptManagerClient.setAccessToken(accessToken)
+  return promptManagerClient
 }
 
 /**
@@ -37,29 +43,12 @@ export async function registerDocumentReviewer(
   modelId: string
 ): Promise<RegisterDocumentReviewerResult> {
   try {
-    promptManagerClient.setAccessToken(accessToken)
+    const promptManagerClient = createAuthorizedPromptManagerClient(accessToken)
 
     console.log('🔧 [DocumentReviewer] Starting registration...')
-
-    // Step 1: Check if tool already exists
-    console.log('📦 [DocumentReviewer] Checking for existing tool...')
-    const existingTools = await promptManagerClient.getTools({
-      toolName: DOCUMENT_OBSERVER_TOOL.name,
-      limit: 1
-    })
-
-    let toolId: string
-
-    if (existingTools.data?.length > 0) {
-      toolId = existingTools.data[0]._id!
-      console.log(`✅ [DocumentReviewer] Tool already exists: ${toolId}`)
-    } else {
-      // Create the tool
-      console.log('📦 [DocumentReviewer] Creating document_observer tool...')
-      const toolResult = await promptManagerClient.createFunctionTool(DOCUMENT_OBSERVER_TOOL)
-      toolId = toolResult._id!
-      console.log(`✅ [DocumentReviewer] Tool created: ${toolId}`)
-    }
+    console.log(
+      `ℹ️ [DocumentReviewer] Tool '${DOCUMENT_OBSERVER_FUNCTION_CODE}' is expected to come from functions-service (not persisted in prompt-manager).`
+    )
 
     // Step 2: Check if agent already exists
     console.log('🤖 [DocumentReviewer] Checking for existing agent...')
@@ -100,12 +89,12 @@ export async function registerDocumentReviewer(
     }
 
     console.log('🎉 [DocumentReviewer] Registration complete!')
-    console.log('   Tool ID:', toolId)
+    console.log('   Tool Code:', DOCUMENT_OBSERVER_FUNCTION_CODE)
     console.log('   Agent ID:', agentId)
 
     return {
       success: true,
-      toolId,
+      toolCode: DOCUMENT_OBSERVER_FUNCTION_CODE,
       agentId
     }
   } catch (error) {
@@ -127,7 +116,7 @@ export async function unregisterDocumentReviewer(
   workspaceId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    promptManagerClient.setAccessToken(accessToken)
+    const promptManagerClient = createAuthorizedPromptManagerClient(accessToken)
 
     console.log('🗑️ [DocumentReviewer] Starting cleanup...')
 
@@ -142,17 +131,7 @@ export async function unregisterDocumentReviewer(
       await promptManagerClient.deletePrompt(agents.data[0]._id!)
       console.log('✅ [DocumentReviewer] Agent deleted')
     }
-
-    // Find and delete tool
-    const tools = await promptManagerClient.getTools({
-      toolName: DOCUMENT_OBSERVER_TOOL.name,
-      limit: 1
-    })
-
-    if (tools.data?.length > 0) {
-      await promptManagerClient.deleteFunctionTool(tools.data[0]._id!)
-      console.log('✅ [DocumentReviewer] Tool deleted')
-    }
+    console.log(`ℹ️ [DocumentReviewer] Tool '${DOCUMENT_OBSERVER_FUNCTION_CODE}' is managed by functions-service.`)
 
     console.log('🎉 [DocumentReviewer] Cleanup complete!')
 
@@ -171,18 +150,15 @@ export async function unregisterDocumentReviewer(
 export async function getDocumentReviewerStatus(
   accessToken: string,
   workspaceId: string
-): Promise<{ toolExists: boolean; agentExists: boolean; toolId?: string; agentId?: string }> {
-  promptManagerClient.setAccessToken(accessToken)
+): Promise<{ toolConfigured: boolean; agentExists: boolean; toolCode?: string; agentId?: string }> {
+  const promptManagerClient = createAuthorizedPromptManagerClient(accessToken)
 
-  const [tools, agents] = await Promise.all([
-    promptManagerClient.getTools({ toolName: DOCUMENT_OBSERVER_TOOL.name, limit: 1 }),
-    promptManagerClient.getPrompts({ promptName: DOCUMENT_REVIEWER_AGENT_ID, workspaceId, limit: 1 })
-  ])
+  const agents = await promptManagerClient.getPrompts({ promptName: DOCUMENT_REVIEWER_AGENT_ID, workspaceId, limit: 1 })
 
   return {
-    toolExists: (tools.data?.length || 0) > 0,
+    toolConfigured: true,
     agentExists: (agents.data?.length || 0) > 0,
-    toolId: tools.data?.[0]?._id,
+    toolCode: DOCUMENT_OBSERVER_FUNCTION_CODE,
     agentId: agents.data?.[0]?._id
   }
 }

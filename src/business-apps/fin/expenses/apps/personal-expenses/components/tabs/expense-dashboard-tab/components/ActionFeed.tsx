@@ -1,11 +1,10 @@
 import React, { useState } from 'react'
-import { Card, CardHeader, CardContent, CardTitle, Button, Alert } from '@newwork/nw-design-system'
-import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
+import { Card, CardHeader, CardContent, CardTitle, Button, Alert, Badge } from '@newwork/nw-design-system'
+import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 import { DashboardStats, RecentActivity } from '../types'
 // import { formatNumberFunction } from '@/common/utils/windowUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { getExpenseRequestStatusDisplay } from '../../../../utils'
-import Pill from '@/components/pill'
+import { getExpenseRequestStatusDisplay, type StatusDisplayConfig } from '../../../../utils'
 
 interface ActionFeedProps {
   stats: DashboardStats | undefined
@@ -69,12 +68,12 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
             >
               {showAll ? (
                 <>
-                  <EyeInvisibleOutlined className="gba:mr-1" />
+                  <EyeSlashIcon size={16} className="gba:mr-1" />
                   {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_less', 'View Less')}
                 </>
               ) : (
                 <>
-                  <EyeOutlined className="gba:mr-1" />
+                  <EyeIcon size={16} className="gba:mr-1" />
                   {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_all', 'View All')}
                 </>
               )}
@@ -113,14 +112,11 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
                   <div className="gba:col-span-5 gba:text-xs gba:font-medium gba:truncate">{item.title}</div>
                   <div className="gba:col-span-2 gba:flex gba:justify-center">
                     {(() => {
-                      const statusConfig = getExpenseRequestStatusDisplay(item.status)
+                      const statusConfig: StatusDisplayConfig = getExpenseRequestStatusDisplay(item.status)
                       return (
-                        <Pill
-                          type={statusConfig.type}
-                          label={statusConfig.label}
-                          color={statusConfig.color}
-                          data-testid="expense-status-cell"
-                        />
+                        <Badge variant={statusConfig.badgeVariant ?? 'outline'} data-testid="expense-status-cell">
+                          {statusConfig.label}
+                        </Badge>
                       )
                     })()}
                   </div>

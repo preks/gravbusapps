@@ -33,6 +33,8 @@ interface MultiEmployeeSelectionModalProps {
   onSearch?: (term: string) => void
   initialSelectedIds?: string[]
   onConfirm: (selectedIds: string[], selectedEmployees: MultiEmployeeOption[]) => void
+  maxSelection?: number
+  selectionCountLabel?: string | ((count: number, maxSelection?: number) => string)
 }
 
 const prefixDataTestId = 'MultiEmployeeSelectionModal'
@@ -45,7 +47,9 @@ const MultiEmployeeSelectionModal: React.FC<MultiEmployeeSelectionModalProps> = 
   error,
   onSearch,
   initialSelectedIds = [],
-  onConfirm
+  onConfirm,
+  maxSelection,
+  selectionCountLabel
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(initialSelectedIds))
@@ -76,11 +80,29 @@ const MultiEmployeeSelectionModal: React.FC<MultiEmployeeSelectionModalProps> = 
   const toggleId = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        if (maxSelection != null && next.size >= maxSelection) return prev
+        next.add(id)
+      }
       return next
     })
   }
+
+  const isMaxReached = maxSelection != null && selectedIds.size >= maxSelection
+  const resolvedSelectionCountLabel = useMemo(() => {
+    if (typeof selectionCountLabel === 'function') {
+      return selectionCountLabel(selectedIds.size, maxSelection)
+    }
+    if (selectionCountLabel) {
+      return selectionCountLabel
+    }
+    if (maxSelection != null) {
+      return `${selectedIds.size} of ${maxSelection} selected`
+    }
+    return null
+  }, [selectionCountLabel, selectedIds.size, maxSelection])
 
   const filtered = useMemo(() => {
     if (!searchTerm.trim()) return employees
@@ -117,6 +139,10 @@ const MultiEmployeeSelectionModal: React.FC<MultiEmployeeSelectionModalProps> = 
             data-testid={formatDataTestId(prefixDataTestId, 'SearchInput')}
           />
 
+          {resolvedSelectionCountLabel && (
+            <div className="gba:text-sm gba:text-muted-foreground">{resolvedSelectionCountLabel}</div>
+          )}
+
           <div className="gba:max-h-[60vh] gba:overflow-y-auto gba:space-y-2">
             {loading && employees.length === 0 ? (
               <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-8">
@@ -129,6 +155,7 @@ const MultiEmployeeSelectionModal: React.FC<MultiEmployeeSelectionModalProps> = 
             ) : (
               filtered.map(emp => {
                 const selected = selectedIds.has(emp.id)
+                const disabled = !selected && isMaxReached
                 const initials = (emp.name || '?')
                   .split(' ')
                   .map((p: string) => p[0])
@@ -141,8 +168,13 @@ const MultiEmployeeSelectionModal: React.FC<MultiEmployeeSelectionModalProps> = 
                     key={emp.id}
                     type="button"
                     onClick={() => toggleId(emp.id)}
+                    disabled={disabled}
                     className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-4 gba:rounded-lg gba:border gba:transition-all ${
-                      selected ? 'gba:bg-accent gba:border-accent' : 'gba:hover:bg-muted'
+                      selected
+                        ? 'gba:bg-accent gba:border-accent'
+                        : disabled
+                          ? 'gba:opacity-50 gba:cursor-not-allowed'
+                          : 'gba:hover:bg-muted'
                     }`}
                     data-testid={formatDataTestId(prefixDataTestId, `Row-${emp.id}`)}
                   >

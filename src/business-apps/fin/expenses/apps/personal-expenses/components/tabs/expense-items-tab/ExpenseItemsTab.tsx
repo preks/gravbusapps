@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react'
 // import dayjs from 'dayjs'
-import { getItemsCardStrategies, preserveCurrencyAndReset } from './cardStrategies'
+import { getItemsCardStrategies, preserveCurrencyAndReset } from './utils/cardStrategies'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_PENDING_ITEMS } from '../../../queries/expenseItems'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 // import { ExpenseStatus } from '../../../utils'
-import ExpenseItemStatistics from './ExpenseItemStatistics'
-import ExpenseItemsTable from './ExpenseItemsTable'
+import ExpenseItemStatistics from './statistics/ExpenseItemStatistics'
+import ExpenseItemsTable from './table/ExpenseItemsTable'
 import { useExpenseItemsFilters } from '../../../hooks/useExpenseItemsFilters'
 import { startProcess } from '@/common/utils/start-process'
 // import { env } from '@/common/env/EnvUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { PROCESS_COMPLETION_EVENT_NAMES } from '@/business-apps/fin/expenses/common/constants/processCompletionEventNames'
 // import { useExpenseItemStatistics } from '../../../hooks/useExpenseItemStatistics';
-import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
+import { getSelectedCurrencyRef, pickMostUsedCurrencyRef } from '../../../utils/currencyUtils'
 import { useExpenseItemStatsOverview } from '../../../hooks/useExpenseItemStatsOverview'
+import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies'
 
 export interface ExpenseItemsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void
@@ -33,19 +35,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
 
   // Get all available statuses from the enum
   const availableStatuses = useMemo(
-    () => [
-      'PREPARED',
-      'CREATED',
-      'ASSIGNED',
-      'PENDING',
-      'APPROVED',
-      'REJECTED',
-      'VERIFIED',
-      'BOOKED',
-      'PAID',
-      'CLOSED',
-      'TRANSFERRED'
-    ],
+    () => ['CREATED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'TRANSFERRED'],
     []
   )
 
@@ -62,13 +52,33 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
     setExpenseDateRange,
     expenseDateRange,
     amountRange,
+    setAmountRange,
     onStatusFilterChange
   } = useExpenseItemsFilters(availableStatuses)
 
-  // Use the selectedFilters from the hook which already includes date range and amount range
-  // const allSelectedFilters = selectedFilters;
+  // Currency stats: preselect most-used on first load; when user selects "All", cards still use most-used
+  const { currencyStats, initialized } = useExpenseCurrencies(contextProps, selectedFilters, setFilters)
+  const mostUsedCurrencyRef = useMemo(() => pickMostUsedCurrencyRef(currencyStats), [currencyStats])
 
   const [activeCard, setActiveCard] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!activeCard) return
+    const statusFilters = new Set(selectedFilters.filter(f => !f.includes(':')))
+    if (activeCard === 'total-expenses') {
+      if (!statusFilters.has('paid')) setActiveCard(null)
+    } else if (activeCard === 'pending-reimbursement') {
+      if (!statusFilters.has('pending')) setActiveCard(null)
+    }
+  }, [selectedFilters, activeCard])
+
+  useEffect(() => {
+    if (!activeCard) return
+    const hasDateRange = Boolean(expenseDateRange?.[0] || expenseDateRange?.[1])
+    if (!hasDateRange) {
+      setActiveCard(null)
+    }
+  }, [activeCard, expenseDateRange])
 
   // Stats come from aggregated overview hook
   const [pendingItemCountFromApi, setPendingItemCountFromApi] = useState<number>(0)
@@ -160,10 +170,16 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
     }
   }, [addFilter, clearFilters, selectedFilters])
 
-  // Resolve selected currency from filters (token format: currency:<ref>)
+  // Resolve selected currency from filters; when "All" use most-used so cards show that currency
   const selectedCurrencyRef = useMemo(() => {
-    return getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR')
-  }, [selectedFilters])
+    return getSelectedCurrencyRef(selectedFilters, mostUsedCurrencyRef)
+  }, [selectedFilters, mostUsedCurrencyRef])
+
+  const currencyCodeForCards = useMemo(() => {
+    if (!selectedCurrencyRef) return 'EUR'
+    const code = currencyStats.find(s => s.ref === selectedCurrencyRef)?.code
+    return code ?? selectedCurrencyRef.split(':').pop() ?? 'EUR'
+  }, [selectedCurrencyRef, currencyStats])
 
   const handleWidgetClick = useCallback(
     (widgetKey: string) => {
@@ -176,11 +192,19 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
         return
       }
 
-      preserveCurrencyAndReset(selectedFilters, clearFilters, addFilter)
+      preserveCurrencyAndReset(selectedFilters, clearFilters, addFilter, mostUsedCurrencyRef)
       strategies[widgetKey]?.apply()
       setActiveCard(widgetKey)
     },
-    [activeCard, clearFilters, setExpenseDateRange, onStatusFilterChange, selectedFilters, addFilter]
+    [
+      activeCard,
+      clearFilters,
+      setExpenseDateRange,
+      onStatusFilterChange,
+      selectedFilters,
+      addFilter,
+      mostUsedCurrencyRef
+    ]
   )
 
   // Handle status filter changes - use the hook's function (direct usage in handlers)
@@ -280,7 +304,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
     }
 
     return () => {
-      eventNames.forEach(eventName => {
+      PROCESS_COMPLETION_EVENT_NAMES.forEach(eventName => {
         window.removeEventListener(eventName, handleProcessCompletion as EventListener)
       })
 
@@ -310,14 +334,14 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
           fetchItemStatistics={fetchItemStatistics}
           onWidgetClick={handleWidgetClick}
           activeWidgetKey={activeCard ?? undefined}
-          currencyCode={selectedCurrencyRef?.split(':').pop() || 'EUR'}
+          currencyCode={currencyCodeForCards}
         />
       </div>
     )
   }, [
     totalExpenses,
     previousMonthTotalExpenses,
-    selectedFilters,
+    currencyCodeForCards,
     statsLoading,
     statsError,
     fetchItemStatistics,
@@ -373,23 +397,32 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
     })
   }, [contextProps.userInfo?.employeeDetails?.employeeId])
 
+  const handleClearAllFilters = useCallback(() => {
+    preserveCurrencyAndReset(selectedFilters, clearFilters, addFilter, mostUsedCurrencyRef)
+    setActiveCard(null)
+  }, [selectedFilters, clearFilters, addFilter, mostUsedCurrencyRef])
+
   return (
     <ExpenseItemsTable
       {...contextProps}
       onAddExpenseItem={handleAddExpenseItem}
-      // Pass the shared filter state to ensure toggle works
-      selectedFilters={selectedFilters} // Use the hook's complete filter state instead of finalFilters
+      selectedFilters={selectedFilters}
       addFilter={addFilter}
       removeFilter={removeFilter}
-      clearFilters={clearFilters}
+      clearFilters={handleClearAllFilters}
       filterGroups={filterGroups}
       filterLabelMap={filterLabelMap}
       getFilters={getFiltersWithDateRange}
       setFilters={setFilters}
       availableStatuses={availableStatuses}
       amountRange={amountRange}
+      setAmountRange={setAmountRange}
+      expenseDateRange={expenseDateRange}
+      setExpenseDateRange={setExpenseDateRange}
       tableRefreshTrigger={tableRefreshTrigger}
       activeWidgetKey={activeCard ?? undefined}
+      currencyStats={currencyStats}
+      currenciesInitialized={initialized}
     />
   )
 }

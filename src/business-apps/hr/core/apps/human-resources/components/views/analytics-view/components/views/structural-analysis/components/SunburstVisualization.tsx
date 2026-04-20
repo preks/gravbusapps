@@ -1,11 +1,8 @@
-import React, { useRef, useState } from 'react'
-import { Card, Typography } from 'antd'
+import React from 'react'
 import { SunburstChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { SunburstNode } from '../types/structuralTypes'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Title, Text } = Typography
 
 interface SunburstVisualizationProps {
   data: SunburstNode
@@ -82,8 +79,6 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
   prefixDataTestId = 'StructuralAnalysis'
 }) => {
   const { t } = useTranslation(hrTranslations)
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | undefined>(undefined)
   // Enhanced data validation
   const hasValidData = data && typeof data === 'object' && data.name && typeof data.value === 'number' && data.value > 0
 
@@ -91,24 +86,15 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
   const sunburstData = hasValidData ? transformToSunburstFormat(data) : createFallbackData()
 
   return (
-    <Card data-testid={`${prefixDataTestId}-SunburstVisualization`} className="gba:h-[600px]">
-      <div className="gba:p-4 gba:border-b">
-        <Title level={4} className="gba:m-0 gba:text-foreground">
+    <div data-testid={`${prefixDataTestId}-SunburstVisualization`} className="gba:grid gba:gap-6">
+      <div>
+        <h3 className="gba:m-0 gba:mb-4 gba:text-foreground gba:text-xl gba:font-semibold">
           {t('hr-analytics-organizational-hierarchy-sunburst')}
-        </Title>
-        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{t('hr-analytics-sunburst-description')}</Text>
+        </h3>
+        <p className="gba:text-muted-foreground gba:text-sm">{t('hr-analytics-sunburst-description')}</p>
       </div>
 
-      <div
-        className="gba:p-4"
-        ref={containerRef}
-        onMouseMove={e => {
-          if (!containerRef.current) return
-          const rect = containerRef.current.getBoundingClientRect()
-          setTooltipPos({ x: e.clientX - rect.left + 12, y: e.clientY - rect.top + 12 })
-        }}
-        onMouseLeave={() => setTooltipPos(undefined)}
-      >
+      <div>
         {hasValidData ? (
           <ResponsiveContainer height={450} width="100%">
             <SunburstChart
@@ -133,7 +119,6 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
               <Tooltip
                 content={<SunburstTooltip />}
                 isAnimationActive={false}
-                position={tooltipPos}
                 wrapperStyle={{ transition: 'none' }}
                 allowEscapeViewBox={{ x: true, y: true }}
                 cursor={{ fill: 'rgba(0,0,0,0.04)' }}
@@ -153,6 +138,6 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
           </div>
         )}
       </div>
-    </Card>
+    </div>
   )
 }

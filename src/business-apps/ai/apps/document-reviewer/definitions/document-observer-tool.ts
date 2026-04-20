@@ -10,7 +10,7 @@
  * 3. Script (see setup documentation)
  */
 
-import type { FunctionToolDetails, SchemaConfig } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import type { SchemaConfig } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 
 /**
  * Input schema for the document_observer tool
@@ -254,7 +254,7 @@ function buildFetchQuery(contentType, documentId) {
             title
             content
             preview
-            contentGroupRef
+            contentGroup
             categoryNames
             tagNames
             createdAt
@@ -317,33 +317,9 @@ function extractMetadata(data, contentType) {
 `
 
 /**
- * Complete tool definition for registering in Prompt Manager
+ * This tool used to be a prompt-manager persisted function tool (js-runtime).
+ *
+ * Prompt Manager no longer persists function tools; use a functions-service tool instead.
+ * Keep the schema/source here for reference when implementing `function.document_observer`.
  */
-export const DOCUMENT_OBSERVER_TOOL: FunctionToolDetails = {
-  name: 'document_observer',
-  description: `Fetches and analyzes documents from the NEWWORK platform.
-
-This tool retrieves document content (knowledge articles, documents, contracts, etc.)
-and prepares it for AI-powered review. The AI model will analyze the content and
-generate structured annotations highlighting issues, suggestions, and improvements.
-
-Use this tool when you need to:
-- Review a knowledge article for grammar, style, or accuracy
-- Check a document for compliance or legal issues
-- Analyze content for accessibility or brand guidelines
-- Perform any structured document review
-
-The tool returns document content and metadata. You should then analyze the content
-based on the review_type and return structured annotations in the specified format.`,
-  type: 'function',
-  config: {
-    runtime: 'js-runtime',
-    source: DOCUMENT_OBSERVER_SOURCE
-  },
-  schemaConfig: {
-    input: DOCUMENT_OBSERVER_INPUT_SCHEMA,
-    output: DOCUMENT_OBSERVER_OUTPUT_SCHEMA
-  }
-}
-
-export default DOCUMENT_OBSERVER_TOOL
+export const DOCUMENT_OBSERVER_FUNCTION_CODE = 'function.document_observer'

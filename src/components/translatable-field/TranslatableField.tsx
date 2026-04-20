@@ -1,43 +1,41 @@
 'use client'
 
+import { useRef, useState, useEffect } from 'react'
 import {
-  Input,
+  cn,
   Label,
-  Button,
-  Badge,
   Popover,
   PopoverContent,
   PopoverTrigger,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
+  InputGroup,
+  InputGroupInput,
+  InputGroupTextarea,
+  InputGroupAddon,
+  InputGroupButton
 } from '@newwork/nw-design-system'
-import { Languages, X, Settings } from 'lucide-react'
+import { Languages } from 'lucide-react'
+import {
+  updateMainFieldTranslation,
+  updateTranslation,
+  changeDefaultLanguage,
+  removeTranslationLanguage
+} from './utils'
+import { TranslationWidget } from './TranslationWidget'
 
 export interface TranslatableFieldProps {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  translations: Record<string, string>
-  onTranslationsChange: (translations: Record<string, string>) => void
-  placeholder?: string
-  required?: boolean
-  error?: string
-  defaultLanguage?: string
-  onDefaultLanguageChange?: (language: string) => void
-  className?: string
-  inputClassName?: string
-  'data-testid'?: string
-}
-
-const defaultLanguages = ['en-US', 'de-DE', 'ro-RO']
-
-const languageNames: Record<string, string> = {
-  'en-US': 'English',
-  'de-DE': 'German',
-  'ro-RO': 'Romanian'
+  readonly label: string
+  readonly value: string
+  readonly onChange: (value: string) => void
+  readonly translations: Record<string, string>
+  readonly onTranslationsChange: (translations: Record<string, string>) => void
+  readonly placeholder?: string
+  readonly required?: boolean
+  readonly error?: string
+  readonly defaultLanguage?: string
+  readonly onDefaultLanguageChange?: (language: string) => void
+  readonly className?: string
+  readonly variant?: 'input' | 'textarea'
+  readonly 'data-testid'?: string
 }
 
 export function TranslatableField({
@@ -52,78 +50,84 @@ export function TranslatableField({
   defaultLanguage = 'en-US',
   onDefaultLanguageChange,
   className = '',
-  inputClassName = '',
+  variant = 'input',
   'data-testid': dataTestId
 }: TranslatableFieldProps) {
-  // Remove the unused state since we're using uncontrolled Popover
-
-  // Get all languages that should be shown: default languages + languages with existing translations
-  const translatedLanguageCodes = Object.keys(translations)
-  const allLanguageCodes = Array.from(new Set([...defaultLanguages, ...translatedLanguageCodes]))
-
-  const getLanguageDisplayName = (langCode: string) => {
-    return languageNames[langCode] || langCode.toUpperCase()
-  }
-
-  // Handle main field value change
   const handleMainFieldChange = (newValue: string) => {
     onChange(newValue)
-    // Auto-update the default language translation
-    onTranslationsChange({
-      ...translations,
-      [defaultLanguage]: newValue
-    })
+    const newTranslations = updateMainFieldTranslation(newValue, defaultLanguage, translations)
+    onTranslationsChange(newTranslations)
   }
 
-  // Handle translation change for specific language
   const handleTranslationChange = (langCode: string, translationValue: string) => {
-    const updatedTranslations = {
-      ...translations,
-      [langCode]: translationValue
+    const result = updateTranslation(langCode, translationValue, defaultLanguage, translations)
+    onTranslationsChange(result.newTranslations)
+    if (result.shouldUpdateMainField && result.newMainValue !== null) {
+      onChange(result.newMainValue)
     }
-
-    // If changing the default language, also update the main field
-    if (langCode === defaultLanguage) {
-      onChange(translationValue)
-    }
-
-    onTranslationsChange(updatedTranslations)
   }
 
-  // Handle default language change
   const handleDefaultLanguageChange = (newLanguage: string) => {
     if (!onDefaultLanguageChange) return
 
-    // Update the main field value to match the new default language
-    const newDefaultValue = translations[newLanguage] || ''
-    onChange(newDefaultValue)
-
-    // Preserve current main field value in old default language
-    const updatedTranslations = {
-      ...translations,
-      [defaultLanguage]: value,
-      [newLanguage]: newDefaultValue
-    }
-
-    onTranslationsChange(updatedTranslations)
+    const result = changeDefaultLanguage(newLanguage, value, defaultLanguage, translations)
+    onChange(result.newMainValue)
+    onTranslationsChange(result.newTranslations)
     onDefaultLanguageChange(newLanguage)
   }
 
-  // Remove language
-  const removeLanguage = (langToRemove: string) => {
-    // Don't allow removing the current default language
-    if (langToRemove === defaultLanguage) return
-
-    const updatedTranslations = { ...translations }
-    delete updatedTranslations[langToRemove]
-    onTranslationsChange(updatedTranslations)
+  const handleRemoveLanguage = (langToRemove: string) => {
+    const newTranslations = removeTranslationLanguage(langToRemove, defaultLanguage, translations)
+    if (newTranslations !== null) {
+      onTranslationsChange(newTranslations)
+    }
   }
 
   const hasTranslations = Object.keys(translations).length > 0
   const currentValue = value
+  const [open, setOpen] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLDivElement>(null)
+  const lastFocusedInContentRef = useRef<HTMLElement | null>(null)
+
+  // Keep focus inside the popover when Radix or parent tries to move it to the inline value
+  const handleFocusOutside = (e: { preventDefault(): void }) => {
+    e.preventDefault()
+    const active = document.activeElement as HTMLElement | null
+    if (contentRef.current?.contains(active)) return
+    const toRestore = lastFocusedInContentRef.current
+    if (toRestore?.offsetParent != null) {
+      requestAnimationFrame(() => toRestore.focus())
+    }
+  }
+
+  const handleFocusInContent = () => {
+    const active = document.activeElement as HTMLElement | null
+    if (active && contentRef.current?.contains(active)) {
+      lastFocusedInContentRef.current = active
+    }
+  }
+
+  // Handle outside click ourselves so clicks inside inputs (e.g. Romanian) don't close the popover
+  useEffect(() => {
+    if (!open) return
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node | null
+      if (contentRef.current?.contains(target)) {
+        if (target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/i.test(target.tagName)) {
+          lastFocusedInContentRef.current = target
+        }
+        return
+      }
+      if (triggerRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', handleMouseDown, true)
+    return () => document.removeEventListener('mousedown', handleMouseDown, true)
+  }, [open])
 
   return (
-    <div className={`${label ? 'gba:space-y-2' : 'gba:space-y-0'} ${className}`} data-testid={dataTestId}>
+    <div className={label ? 'gba:space-y-2' : 'gba:space-y-0'} data-testid={dataTestId}>
       {/* Label */}
       {label && (
         <Label className="gba:flex gba:items-center" data-testid={`${dataTestId}-Label`}>
@@ -132,125 +136,75 @@ export function TranslatableField({
         </Label>
       )}
 
-      {/* Main Input Field with Translation Icon */}
-      <div className="gba:relative gba:inline-block gba:w-full">
-        <Input
-          value={currentValue}
-          onChange={e => handleMainFieldChange(e.target.value)}
-          placeholder={placeholder}
-          className={`${error ? 'gba:border-red-500 gba:pr-10' : 'gba:pr-10'} ${inputClassName}`}
-          data-testid={`${dataTestId}-MainInput`}
-        />
-
-        {/* Translation Icon inside field */}
-        <div className="gba:absolute gba:right-2 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:z-10">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="link"
-                size="sm"
-                className="gba:h-8 gba:w-8 gba:p-0 hover:gba:bg-gray-100"
-                data-testid={`${dataTestId}-TranslateButton`}
-              >
-                <Languages
-                  className={`gba:h-4 gba:w-4 gba:transition-colors ${
-                    hasTranslations ? 'gba:text-blue-500' : 'gba:text-gray-400'
-                  }`}
+      {/* Main Input/Textarea Field with Translation Icon */}
+      <InputGroup
+        className={cn(
+          className,
+          'gba:[&&_[data-slot=input-group-control]]:![font-size:inherit]',
+          'gba:[&&_[data-slot=input-group-control]]:![font-family:inherit]',
+          'gba:[&&_[data-slot=input-group-control]]:![line-height:inherit]',
+          'gba:[&&_[data-slot=input-group-addon]]:![font-size:inherit]',
+          'gba:[&&_[data-slot=input-group-addon]]:![font-family:inherit]',
+          'gba:[&&_[data-slot=input-group-addon]]:![line-height:inherit]'
+        )}
+      >
+        {variant === 'textarea' ? (
+          <InputGroupTextarea
+            value={currentValue}
+            onChange={e => handleMainFieldChange(e.target.value)}
+            placeholder={placeholder}
+            className={error ? 'gba:border-red-500' : ''}
+            data-testid={`${dataTestId}-MainTextarea`}
+            rows={4}
+          />
+        ) : (
+          <InputGroupInput
+            value={currentValue}
+            onChange={e => handleMainFieldChange(e.target.value)}
+            placeholder={placeholder}
+            className={error ? 'gba:border-red-500' : ''}
+            data-testid={`${dataTestId}-MainInput`}
+          />
+        )}
+        <InputGroupAddon align={variant === 'textarea' ? 'block-end' : 'inline-end'}>
+          <Popover open={open} onOpenChange={setOpen}>
+            <div ref={triggerRef} className="gba:inline-flex">
+              <PopoverTrigger asChild>
+                <InputGroupButton
+                  variant="link"
+                  size="iconXs"
+                  data-testid={`${dataTestId}-TranslateButton`}
+                  className="gba:ml-auto"
+                >
+                  <Languages
+                    className={`gba:h-4 gba:w-4 gba:transition-colors ${
+                      hasTranslations ? 'gba:text-blue-500' : 'gba:text-gray-400'
+                    }`}
+                  />
+                </InputGroupButton>
+              </PopoverTrigger>
+            </div>
+            <PopoverContent
+              className="gba:w-[28rem] gba:p-4 gba:z-[10000] gba:pointer-events-auto"
+              align="end"
+              onPointerDownOutside={e => e.preventDefault()}
+              onFocusOutside={handleFocusOutside}
+            >
+              <div ref={contentRef} className="gba:outline-none" onFocusCapture={handleFocusInContent}>
+                <TranslationWidget
+                  translations={translations}
+                  defaultLanguage={defaultLanguage}
+                  variant={variant}
+                  onTranslationChange={handleTranslationChange}
+                  onDefaultLanguageChange={handleDefaultLanguageChange}
+                  onRemoveLanguage={handleRemoveLanguage}
+                  onDefaultLanguageChangeProp={onDefaultLanguageChange}
                 />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="gba:w-[28rem] gba:p-4" align="end">
-              <div className="gba:space-y-4">
-                {/* Header */}
-                <div className="gba:pb-2">
-                  <h4 className="gba:font-medium gba:text-sm gba:text-gray-900">Translations</h4>
-                </div>
-
-                {/* Default Language Selection */}
-                {onDefaultLanguageChange && allLanguageCodes.length > 1 && (
-                  <>
-                    <div className="gba:space-y-3">
-                      <div className="gba:flex gba:items-center gba:space-x-2">
-                        <Settings className="gba:h-4 gba:w-4 gba:text-gray-500" />
-                        <span className="gba:text-sm gba:font-medium gba:text-gray-700">Default Language</span>
-                      </div>
-                      <Select value={defaultLanguage} onValueChange={handleDefaultLanguageChange}>
-                        <SelectTrigger className="gba:w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {allLanguageCodes.map(langCode => (
-                            <SelectItem key={langCode} value={langCode}>
-                              {getLanguageDisplayName(langCode)} ({langCode})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="gba:text-xs gba:text-gray-500 gba:leading-relaxed">
-                        The main field will sync with this language
-                      </p>
-                    </div>
-                    <div className="gba:border-t gba:border-gray-200 gba:my-4" />
-                  </>
-                )}
-
-                {/* Translation Inputs */}
-                <div className="gba:space-y-3">
-                  <div className="gba:max-h-[70vh] gba:overflow-y-auto gba:space-y-3">
-                    {allLanguageCodes.map(langCode => {
-                      const isCurrentLanguage = langCode === defaultLanguage
-                      const isDefaultLanguage = defaultLanguages.includes(langCode)
-                      const canRemove = langCode !== defaultLanguage && !isDefaultLanguage
-
-                      return (
-                        <div
-                          key={langCode}
-                          className={`gba:flex gba:items-center gba:space-x-3 gba:p-3 gba:rounded-md gba:border ${
-                            isCurrentLanguage
-                              ? 'gba:bg-blue-50 gba:border-blue-200'
-                              : 'gba:bg-gray-50 gba:border-gray-200'
-                          }`}
-                        >
-                          <div className="gba:w-20 gba:flex-shrink-0">
-                            <div className="gba:space-y-1 gba:flex gba:flex-col gba:items-center">
-                              <div className="gba:text-sm gba:font-medium gba:text-gray-700 gba:text-center">
-                                {getLanguageDisplayName(langCode)}
-                              </div>
-                              {isCurrentLanguage && (
-                                <Badge variant="default" className="gba:text-xs">
-                                  Default
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          <div className="gba:flex-1">
-                            <Input
-                              value={translations[langCode] || ''}
-                              onChange={e => handleTranslationChange(langCode, e.target.value)}
-                              placeholder="Please enter..."
-                              className="gba:h-9"
-                            />
-                          </div>
-                          {canRemove && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeLanguage(langCode)}
-                              className="gba:text-red-600 hover:gba:text-red-700 gba:p-1 gba:h-8 gba:w-8"
-                            >
-                              <X className="gba:h-4 gba:w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
               </div>
             </PopoverContent>
           </Popover>
-        </div>
-      </div>
+        </InputGroupAddon>
+      </InputGroup>
 
       {/* Error Message */}
       {error && (

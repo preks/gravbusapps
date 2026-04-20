@@ -11,9 +11,10 @@ import {
   IconAvatar,
   HeaderSlot
 } from '@newwork/nw-design-system'
-import { UsersIcon, FileTextIcon, AddressBookIcon, RobotIcon, FlagIcon } from '@phosphor-icons/react'
+import { UsersIcon, FileTextIcon, AddressBookIcon, FlagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildIrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
@@ -29,7 +30,7 @@ import { LeadDocuments } from './components/LeadDocuments'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
-import type { Investment } from '@/common/data/investment/types'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import {
   buildInvestmentAccountFromLead,
   buildInvestmentContactFromLead,
@@ -40,7 +41,20 @@ import ActivitySection from '@/common/components/common-relations/record-section
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
-import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
+import {
+  APPROVAL_TASK_TYPE_REF,
+  FILE_CONTEXT,
+  APP_NAME,
+  getFileEntityFromType
+} from '@/common/data/investment/constants/investmentConstants'
+import { getReferenceEntityType } from '@/common/data/investment/utils/referenceEntityUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { useFileClient } from '@/common/network/files/useFileClient'
+import { buildInvestmentTaskPayload } from '@/common/data/investment/types/investmentTaskTypes'
+import { buildInvestmentActivityPayload } from '@/common/data/investment/types/investmentActivityTypes'
+import { buildInvestmentNotePayload } from '@/common/data/investment/types/investmentNoteTypes'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AppAction } from '@/components/app-action'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
@@ -92,8 +106,49 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     await refetch()
   }, [refetch])
 
+  const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
+  const taskPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.TASK,
+      appName: APP_NAME,
+      entityId: leadId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient, leadId]
+  )
+  const activityPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.ACTIVITY,
+      appName: APP_NAME,
+      entityId: leadId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient, leadId]
+  )
+  const notePreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.NOTE,
+      appName: APP_NAME,
+      entityId: leadId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: false
+    }),
+    [props.userInfo, fileClient, leadId]
+  )
+
   // Always call useAiSummary hook, but conditionally use its result
-  const aiSummary = useAiSummary(leadId, props.accessToken)
+  const aiSummary = useAiSummary(leadId, props.accessToken, leadData)
 
   // Use leadData for lead reference (for compatibility)
   const lead = leadData
@@ -148,10 +203,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
         fetchInvestmentTasksByLeadId(leadId)
       ])
 
-      // Sort by creation date (newest first)
-      const sortedActivities = (activitiesData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
+      // Sort notes and tasks by creation date (newest first). Activity order is applied in ActivitySection.
       const sortedNotes = (notesData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
@@ -171,7 +223,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
-      setActivities(sortedActivities)
+      setActivities(activitiesData || [])
       setNotes(sortedNotes)
       setTasks(regularTasks)
       setApprovals(approvalTasks)
@@ -273,7 +325,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     const hasReasons = rejectionReasons.length > 0
     const badgeVariant = hasReasons ? 'destructive' : 'secondary'
     const badgeText = hasReasons
-      ? getTranslationFromI18nKeyAndLabel('rejection.badge.rejected', 'Rejected')
+      ? getTranslationFromI18nKeyAndLabel('rejection.badge.rejected', 'Rejection Reasons')
       : getTranslationFromI18nKeyAndLabel('rejection.badge.noReasons', 'No Rejection Reason')
 
     return (
@@ -316,8 +368,8 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">
       <span>
-        {lead?.displayName ||
-          `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim() ||
+        {`${lead?.firstName || ''} ${lead?.lastName || ''}`.trim() ||
+          lead?.companyName ||
           getTranslationFromI18nKeyAndLabel('crm.investments.lead.title', 'Investment Lead')}
       </span>
       {lead?.sensitive === true && (
@@ -369,37 +421,19 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     [lead?.leadSource?.value, lead?.leadRating?.value, lead?.ownerEmployee]
   )
 
-  const headerActions = useMemo(() => {
-    if (!props.accessToken || !leadId) return null
-
-    const actions: AiAction[] = [
-      {
-        key: 'ai-summary',
-        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-        icon: <RobotIcon size={16} />,
-        hook: aiSummary,
-        config: {
-          entityType: 'lead',
-          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
-          loadingSubtitle: getTranslationFromI18nKeyAndLabel(
-            'crm.ai.summary.subtitle',
-            'Analyzing lead data and activities'
-          )
-        }
-      }
-    ]
-
-    return (
-      <AiActions
-        actions={actions}
-        dataTestId={`lead-update-button-${leadId}`}
-        buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
-      />
-    )
-  }, [props.accessToken, leadId, aiSummary])
+  const headerActions = (
+    <AiActions
+      entityType="investment-lead"
+      entityId={leadId}
+      features={['summary']}
+      hooks={{ summary: aiSummary }}
+      requireAccessToken
+      accessToken={props.accessToken}
+    />
+  )
 
   const leadDisplayName =
-    lead?.displayName || `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim() || 'Investment Lead'
+    `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim() || lead?.companyName || 'Investment Lead'
 
   const headerActionButton = useMemo(
     () =>
@@ -582,7 +616,12 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                       externalContextData: { leadId },
                       prefixDataTestId: 'lead-task-entity',
                       emptyStateBehavior: 'enable'
-                    }
+                    },
+                    typeCatalog: TASK_TYPE,
+                    priorityCatalog: TASK_PRIORITY,
+                    buildTaskPayload: buildInvestmentTaskPayload,
+                    defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+                    preSubmit: taskPreSubmit
                   }
                 },
                 {
@@ -605,12 +644,19 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                       externalContextData: {
                         leadId,
                         lead: leadId,
-                        typeRef: 'InvestmentTaskType:v1:APPROVAL',
-                        investmentTask: { lead: leadId, type: 'InvestmentTaskType:v1:APPROVAL' }
+                        typeRef: APPROVAL_TASK_TYPE_REF,
+                        investmentTask: { lead: leadId, type: APPROVAL_TASK_TYPE_REF }
                       },
                       prefixDataTestId: 'lead-approvals',
                       emptyStateBehavior: 'enable'
-                    }
+                    },
+                    isApprovalTaskSection: true,
+                    approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+                    defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+                    typeCatalog: TASK_TYPE,
+                    priorityCatalog: TASK_PRIORITY,
+                    buildTaskPayload: buildInvestmentTaskPayload,
+                    preSubmit: taskPreSubmit
                   }
                 }
               ]}
@@ -626,20 +672,40 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                   component: ActivitySection,
                   props: {
                     ...props,
+                    leadId,
                     activities: activities,
                     activitiesLoading: sectionsLoading,
                     activitiesError: sectionsError,
                     onReloadActivities: loadSectionData,
                     activitySectionActionProps: {
                       contextsArray: [FlowContextName.investmentActivityCreate],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-activities'
+                      externalContextData: {
+                        leadId,
+                        lead: leadId,
+                        investmentActivity: { lead: leadId },
+                        ...(props.userInfo?.employeeDetails?.employeeId && {
+                          ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+                        }),
+                        ...(props.userInfo?.id && {
+                          employeeId: props.userInfo.id,
+                          userId: props.userInfo.id,
+                          employeeDetails: { userId: props.userInfo.id }
+                        })
+                      },
+                      prefixDataTestId: 'lead-activities',
+                      emptyStateBehavior: 'enable'
                     },
                     activityEntityActionProps: {
                       contextsArray: [FlowContextName.investmentActivityEntity],
                       externalContextData: { leadId },
-                      prefixDataTestId: 'lead-activity-entity'
-                    }
+                      prefixDataTestId: 'lead-activity-entity',
+                      emptyStateBehavior: 'enable'
+                    },
+                    activityTypeCatalog: ACTIVITY_TYPE,
+                    buildActivityPayload: buildInvestmentActivityPayload,
+                    alignment: 'right',
+                    preSubmit: activityPreSubmit,
+                    getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl
                   }
                 },
                 {
@@ -647,6 +713,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                   component: NoteSection as React.ComponentType<any>,
                   props: {
                     ...props,
+                    leadId,
                     notes: notes,
                     noteActionProps: {
                       contextsArray: [FlowContextName.investmentNoteCreate],
@@ -659,7 +726,9 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                       externalContextData: { leadId },
                       prefixDataTestId: 'lead-note-entity',
                       emptyStateBehavior: 'enable'
-                    }
+                    },
+                    buildNotePayload: buildInvestmentNotePayload,
+                    preSubmit: notePreSubmit
                   }
                 }
               ]}
@@ -682,23 +751,22 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
   }
 
   return (
-    <div data-testid="investment-lead-detail">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={AddressBookIcon} variant="decorative" size="xl" />}
-        headerOverline={getTranslationFromI18nKeyAndLabel('crm.lead.category', 'LEAD')}
-        onBack={onBack}
-        headerTitle={headerTitle}
-        headerMeta={headerMeta}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        headerActions={headerActions}
-        headerActionButton={headerActionButton}
-        headerSlotAfter={headerContent}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="investment-lead-detail"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={AddressBookIcon} variant="decorative" size="xl" />}
+      headerOverline={getTranslationFromI18nKeyAndLabel('crm.lead.category', 'LEAD')}
+      onBack={onBack}
+      headerTitle={headerTitle}
+      headerMeta={headerMeta}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      headerActions={headerActions}
+      headerActionButton={headerActionButton}
+      headerSlotAfter={headerContent}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

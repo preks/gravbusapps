@@ -15,3 +15,6 @@ export const EXCLUDE_ITEM_STATUSES = new Set<string>(['DISCARDED'])
 export const EXCLUDE_REQUEST_STATUSES = new Set<string>(['REJECTED', 'DISCARDED', 'CREATED'])
 export const EXCLUDE_PLAN_STATUSES = new Set<string>(['DISCARDED', 'REJECTED'])
 export const EXCLUDE_ADV_PAYMENT_STATUSES = new Set<string>(['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED'])
+
+/** Statuses excluded from Plans tab when no explicit status filter is selected. */
+export const PLAN_TAB_HIDDEN_STATUSES: readonly string[] = ['CREATED']

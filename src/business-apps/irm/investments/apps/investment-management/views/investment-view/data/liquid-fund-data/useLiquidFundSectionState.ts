@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { useInvestments } from '@/common/data/investment/hooks/useInvestments.new'
+import { useInvestments, type InvestmentListAggregates } from '@/common/data/investment/hooks/useInvestments.new'
 import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries.new'
 import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
 
@@ -12,6 +12,7 @@ export interface UseLiquidFundSectionStateReturn {
   // Data
   investments: Investment[]
   totalCount: number
+  listAggregates: InvestmentListAggregates
   loading: boolean
   error: string | null
   refetch: () => Promise<void>
@@ -57,6 +58,13 @@ export const useLiquidFundSectionState = ({
 
   // Query variables
   const queryVariables: InvestmentQueryVariables = useMemo(() => {
+    // Remove investment type filters from selectedFilters to avoid conflicts
+    const otherFilters = Object.fromEntries(
+      Object.entries(selectedFilters).filter(
+        ([key]) => !['realEstateInvestment', 'liquidFundInvestment', 'equityInvestment'].includes(key)
+      )
+    )
+
     return {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
@@ -69,9 +77,10 @@ export const useLiquidFundSectionState = ({
             }
           ]
         : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-      // Default filter for liquid fund investments
-      liquidFundInvestment: { id: { _isNull: false } },
-      ...selectedFilters
+      ...otherFilters,
+      // Always enforce liquid fund investment filter for this tab
+      // Check that at least one related record exists (Hasura array relationship filter)
+      liquidFundInvestment: { id: { _isNull: false } }
     }
   }, [currentPage, pageSize, search, sortField, sortOrder, selectedFilters])
 
@@ -79,6 +88,7 @@ export const useLiquidFundSectionState = ({
   const {
     investments,
     total: totalCount,
+    listAggregates,
     loading,
     error,
     refetch
@@ -129,6 +139,7 @@ export const useLiquidFundSectionState = ({
   return {
     investments,
     totalCount,
+    listAggregates,
     loading,
     error,
     refetch,

@@ -400,9 +400,6 @@ const buildLiquidFundInvestmentReportFragment = (fieldSet: Set<string>): string 
         investmentLiquidFundType {
           ${CATALOG_ENTRY}
         }
-        interestPaymentFrequency {
-          ${CATALOG_ENTRY}
-        }
         additionalProperties
         businessKey
         processInstanceId
@@ -424,6 +421,8 @@ const buildRealEstateInvestmentReportFragment = (fieldSet: Set<string>): string 
         date
         scope
         size
+        sizeMeasurementUnitRef
+        sizeMeasurementUnit { ${CATALOG_ENTRY} }
         numberOfUnits
         occupancyPercent
         annualNetColdRent

@@ -22,6 +22,7 @@ export interface CustomerNote {
   version?: number
   noteTitle?: string
   noteText?: string
+  noteType?: 'UNKNOWN_NOTE_TYPE' | 'GENERAL_NOTE' | 'NEXT_STEP_NOTE' | null
   reminderDate?: string
   authorEmployee?: {
     id: string
@@ -36,8 +37,8 @@ export interface CustomerNote {
     name?: string
     file?: string
     fileInfo?: any
-    mimeType?: string
-    fileSize?: number
+    mimeType?: string | null
+    fileSize?: number | null
   }>
 }
 
@@ -49,16 +50,25 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchCustomerNotesByAccountId = useCallback(
-    async (accountId: string): Promise<CustomerNote[]> => {
+    async (accountId: string, limit?: number, offset?: number): Promise<CustomerNote[]> => {
       const query = buildCustomerNoteByAccountIdQuery()
       const whereCondition = buildCustomerNoteWhereCondition({}, [], [{ account: { id: { _eq: accountId } } }])
       const orderBy = buildCustomerNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
+      const graphQLVariables: Record<string, any> = {
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      if (limit !== undefined) {
+        graphQLVariables.limit = limit
+      }
+      if (offset !== undefined) {
+        graphQLVariables.offset = offset
+      }
+
       try {
-        const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query, {
-          where: whereCondition,
-          orderBy: orderBy
-        })
+        const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query, graphQLVariables)
         return (result.CrmNote || []).map(toCustomerNote)
       } catch (error) {
         console.error('Error fetching customer notes by account ID:', error)
@@ -69,16 +79,25 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
   )
 
   const fetchCustomerNotesByContactId = useCallback(
-    async (contactId: string): Promise<CustomerNote[]> => {
+    async (contactId: string, limit?: number, offset?: number): Promise<CustomerNote[]> => {
       const query = buildCustomerNoteByContactIdQuery()
       const whereCondition = buildCustomerNoteWhereCondition({}, [], [{ contact: { id: { _eq: contactId } } }])
       const orderBy = buildCustomerNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
+      const graphQLVariables: Record<string, any> = {
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      if (limit !== undefined) {
+        graphQLVariables.limit = limit
+      }
+      if (offset !== undefined) {
+        graphQLVariables.offset = offset
+      }
+
       try {
-        const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query, {
-          where: whereCondition,
-          orderBy: orderBy
-        })
+        const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query, graphQLVariables)
         return (result.CrmNote || []).map(toCustomerNote)
       } catch (error) {
         console.error('Error fetching customer notes by contact ID:', error)

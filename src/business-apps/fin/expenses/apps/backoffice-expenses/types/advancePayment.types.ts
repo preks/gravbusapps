@@ -23,6 +23,7 @@ export interface AdvancePaymentItem {
     title: string
     startDate: string
     totalAmount: number
+    expenseRequest?: Array<{ id?: string; title?: string; code?: string }>
     employee?: {
       id: string
       firstName: string

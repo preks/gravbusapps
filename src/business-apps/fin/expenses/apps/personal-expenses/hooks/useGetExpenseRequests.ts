@@ -1,8 +1,11 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_REQUESTS_BY_EMPLOYEE } from '../queries/expenseRequests'
+import { buildExpenseRequestOrderBy } from '../components/tabs/expense-requests-tab/config/expenseRequestOrderBy'
 import { CatalogEntry } from './useGetExpensePlans'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { makeCancellableRequest } from '../utils/cancellableRequest'
+import { normalize, handleCachedData as handleCachedDataUtil } from '../utils/cacheUtils'
 
 // Type aliases for union types
 type SortField = string | null
@@ -67,25 +70,10 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
   const abortControllerRef = useRef<AbortController | null>(null)
   const pageCacheRef = useRef<Map<string, { items: ExpenseRequest[]; totalCount: number }>>(new Map())
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map())
+  const itemsRef = useRef<ExpenseRequest[]>([]) // Avoid loading flash on sort/pagination (same as items/advance payments)
 
   const accessToken = context?.accessToken || ''
   const client = useGraphqlClient(accessToken)
-
-  const normalize = useCallback((val: any): any => {
-    if (Array.isArray(val)) {
-      return val.map(normalize)
-    }
-    if (val && typeof val === 'object') {
-      const sorted: any = {}
-      Object.keys(val)
-        .sort((a, b) => a.localeCompare(b))
-        .forEach(k => {
-          sorted[k] = normalize(val[k])
-        })
-      return sorted
-    }
-    return val
-  }, [])
 
   const generateCacheKey = useCallback(
     (filters: any, page: number, pageSize: number, sortField: SortField, sortOrder: SortOrder) => {
@@ -99,7 +87,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
         })
       )}`
     },
-    [normalize]
+    []
   )
 
   // Helper function to validate and get required values
@@ -127,17 +115,17 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
   }
 
   // Helper function to handle cached data
-  const handleCachedData = (cacheKey: string, options?: { force?: boolean }): boolean => {
-    const cachedData = pageCacheRef.current.get(cacheKey)
-    if (cachedData && !options?.force) {
-      setItems(cachedData.items)
-      setTotalCount(cachedData.totalCount)
-      setIsLoading(false)
-      setError(null)
-      return true
-    }
-    return false
-  }
+  const handleCachedData = useCallback((cacheKey: string, options?: { force?: boolean }): boolean => {
+    return handleCachedDataUtil(
+      cacheKey,
+      pageCacheRef.current,
+      options,
+      setItems,
+      setTotalCount,
+      setIsLoading,
+      setError
+    )
+  }, [])
 
   // Helper function to handle inflight requests
   const handleInflightRequest = async (requestKey: string, cacheKey: string): Promise<boolean> => {
@@ -180,28 +168,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       where: whereClause
     }
 
-    if (sortField && sortOrder) {
-      const fieldMap: Record<string, string> = {
-        code: 'code',
-        title: 'title',
-        requestDate: 'requestDate',
-        startDate: 'startDate',
-        endDate: 'endDate',
-        status: 'status',
-        reimbursableAmount: 'reimbursableAmount',
-        totalAmount: 'totalAmount',
-        createdAt: 'createdAt',
-        updatedAt: 'updatedAt',
-        description: 'description',
-        currencyRef: 'currencyRef',
-        nonReimbursableAmount: 'nonReimbursableAmount'
-      }
-      const gqlField = fieldMap[sortField] || sortField
-      const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC'
-      variables.orderBy = [{ [gqlField]: direction }]
-    } else {
-      variables.orderBy = [{ requestDate: 'DESC' }]
-    }
+    variables.orderBy = buildExpenseRequestOrderBy(sortField, sortOrder)
 
     return variables
   }
@@ -250,29 +217,44 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
         return
       }
 
-      setIsLoading(true)
+      // Only show loading when we have no data yet (initial load); skip for sort/pagination to avoid table rerender/flash (same as items/advance payments)
+      if (itemsRef.current.length === 0) {
+        setIsLoading(true)
+      }
       setError(null)
 
       try {
         const variables = buildVariables(employeeId, filters, page, pageSize, sortField, sortOrder)
 
-        const requestPromise = client.request(GET_EXPENSE_REQUESTS_BY_EMPLOYEE, variables).finally(() => {
+        const baseRequestPromise = client.request(GET_EXPENSE_REQUESTS_BY_EMPLOYEE, variables)
+        const requestPromise = makeCancellableRequest(baseRequestPromise, controller).finally(() => {
           inflightRef.current.delete(requestKey)
         })
 
         inflightRef.current.set(requestKey, requestPromise)
         const data = await requestPromise
 
+        // If a newer request started, ignore this response.
+        if (abortControllerRef.current !== controller) {
+          return
+        }
+
         processResponseData(data, cacheKey)
       } catch (err) {
+        // Ignore errors from cancelled/stale requests
         if (err instanceof Error && err.name === 'AbortError') {
+          return
+        }
+        if (abortControllerRef.current !== controller) {
           return
         }
         setError(err instanceof Error ? err : new Error(String(err)))
         setItems([])
         setTotalCount(0)
       } finally {
-        setIsLoading(false)
+        if (abortControllerRef.current === controller) {
+          setIsLoading(false)
+        }
       }
     },
     [
@@ -286,6 +268,10 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       setTotalCount
     ]
   )
+
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
 
   const invalidateAllCache = useCallback(() => {
     pageCacheRef.current.clear()

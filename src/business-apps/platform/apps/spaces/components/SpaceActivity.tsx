@@ -1,0 +1,191 @@
+/**
+ * SpaceActivity - Activity feed component
+ *
+ * Simple activity list following NEWWORK design system
+ */
+
+import React, { useCallback } from 'react'
+import {
+  FileText,
+  Edit3,
+  Share2,
+  MessageCircle,
+  Plus,
+  Activity,
+  Trash2,
+  FolderInput,
+  FileSpreadsheet,
+  StickyNote,
+  Presentation,
+  Upload,
+  File,
+  Folder
+} from 'lucide-react'
+import { Avatar, AvatarImage, AvatarFallback, useTranslation } from '@newwork/nw-design-system'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import type { SpaceActivity as SpaceActivityType } from '../types/space.types'
+import type { UserInfo } from '../hooks/useSpaceUserLookup'
+import translations from '../_i18n'
+import { formatLocalizedDistance } from '../utils/spaceLocalization'
+
+export interface SpaceActivityProps {
+  activities: SpaceActivityType[]
+  isLoading?: boolean
+  spaceId?: string
+  /** Function to get user info (name, avatar) by userId - from useSpaceUserLookup */
+  getUserInfo?: (userId: string) => UserInfo | undefined
+  'data-testid'?: string
+}
+
+const entityTypeConfig: Record<string, { icon: typeof FileText }> = {
+  document: { icon: FileText },
+  note: { icon: StickyNote },
+  spreadsheet: { icon: FileSpreadsheet },
+  slide: { icon: Presentation },
+  space: { icon: Activity },
+  file: { icon: File },
+  folder: { icon: Folder }
+}
+
+const getInitials = (name: string): string => {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
+
+export const SpaceActivity: React.FC<SpaceActivityProps> = ({
+  activities,
+  isLoading = false,
+  spaceId,
+  getUserInfo,
+  'data-testid': testId = 'space-activity'
+}) => {
+  const { t, locale } = useTranslation(translations)
+  const actionConfig: Record<string, { icon: typeof FileText; label: string }> = {
+    created: { icon: Plus, label: t('activity-action-created') },
+    updated: { icon: Edit3, label: t('activity-action-edited') },
+    edited: { icon: Edit3, label: t('activity-action-edited') },
+    deleted: { icon: Trash2, label: t('activity-action-deleted') },
+    shared: { icon: Share2, label: t('activity-action-shared') },
+    moved: { icon: FolderInput, label: t('activity-action-moved') },
+    commented: { icon: MessageCircle, label: t('activity-action-commented') },
+    uploaded: { icon: Upload, label: t('activity-action-uploaded') }
+  }
+
+  const handleActivityClick = useCallback(
+    (activity: SpaceActivityType) => {
+      if (activity.action === 'deleted' || ['space', 'folder', 'file'].includes(activity.entityType)) return
+
+      const basePathByType: Partial<Record<SpaceActivityType['entityType'], string>> = {
+        document: '/platform/every-office/documents',
+        note: '/platform/every-office/notes',
+        spreadsheet: '/platform/every-office/spreadsheets',
+        slide: '/platform/every-office/slides',
+        space: '/platform/every-office/spaces'
+      }
+
+      const basePath = basePathByType[activity.entityType]
+      if (!basePath) return
+
+      const commonParams = spaceId ? { spaceId } : undefined
+
+      switch (activity.entityType) {
+        case 'document':
+          navigateTo(buildPlatformUrl(basePath, { ...(commonParams || {}), docId: activity.entityId }))
+          return
+        case 'note':
+          navigateTo(buildPlatformUrl(basePath, { ...(commonParams || {}), noteId: activity.entityId }))
+          return
+        case 'spreadsheet':
+          navigateTo(buildPlatformUrl(basePath, { ...(commonParams || {}), appId: activity.entityId, view: 'viewer' }))
+          return
+        case 'slide':
+          navigateTo(buildPlatformUrl(basePath, { ...(commonParams || {}), slideId: activity.entityId }))
+          return
+        default:
+          return
+      }
+    },
+    [spaceId]
+  )
+
+  if (isLoading) {
+    return (
+      <div className="gba:space-y-3" data-testid={testId}>
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="gba:flex gba:gap-3 gba:animate-pulse">
+            <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-muted/50" />
+            <div className="gba:flex-1 gba:space-y-2">
+              <div className="gba:h-4 gba:bg-muted/50 gba:rounded gba:w-3/4" />
+              <div className="gba:h-3 gba:bg-muted/50 gba:rounded gba:w-1/4" />
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (activities.length === 0) {
+    return (
+      <div className="gba:text-center gba:py-8" data-testid={testId}>
+        <Activity className="gba:w-8 gba:h-8 gba:text-muted-foreground/40 gba:mx-auto gba:mb-2" />
+        <p className="gba:text-sm gba:text-muted-foreground">{t('activity-empty-title')}</p>
+        <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">{t('activity-empty-description')}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="gba:space-y-1" data-testid={testId}>
+      {activities.map(activity => {
+        const action = actionConfig[activity.action] || actionConfig.updated
+        const entityType = entityTypeConfig[activity.entityType] || entityTypeConfig.document
+        const EntityIcon = entityType.icon
+        const nonClickableTypes = ['space', 'folder', 'file']
+        const isClickable = activity.action !== 'deleted' && !nonClickableTypes.includes(activity.entityType)
+
+        // Get resolved user info (with avatar) from useSpaceUserLookup
+        const resolvedUser = getUserInfo?.(activity.userId)
+        const displayName = resolvedUser?.name || activity.userName
+        const avatarSrc = resolvedUser?.avatar || activity.userAvatar
+
+        return (
+          <div
+            key={activity.id}
+            className={`gba:flex gba:gap-3 gba:p-2 gba:rounded-md gba:transition-colors ${
+              isClickable ? 'gba:cursor-pointer gba:hover:bg-muted/30' : ''
+            }`}
+            onClick={() => isClickable && handleActivityClick(activity)}
+            data-testid={`${testId}-item-${activity.id}`}
+          >
+            {/* User Avatar */}
+            <Avatar className="gba:w-8 gba:h-8 gba:flex-shrink-0">
+              {avatarSrc && <AvatarImage src={avatarSrc} alt={displayName} />}
+              <AvatarFallback className="gba:text-xs gba:bg-muted gba:text-muted-foreground">
+                {getInitials(displayName)}
+              </AvatarFallback>
+            </Avatar>
+
+            {/* Content */}
+            <div className="gba:flex-1 gba:min-w-0">
+              <p className="gba:text-sm gba:text-foreground">
+                <span className="gba:font-medium">{displayName}</span>
+                <span className="gba:text-muted-foreground"> {action.label} </span>
+                <span className="gba:font-medium gba:inline-flex gba:items-center gba:gap-1">
+                  <EntityIcon className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
+                  {activity.entityTitle}
+                </span>
+              </p>
+              <p className="gba:text-xs gba:text-muted-foreground">
+                {formatLocalizedDistance(new Date(activity.timestamp), locale)}
+              </p>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export default SpaceActivity

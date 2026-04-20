@@ -1,5 +1,5 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 
 // Base filter groups (without content group filter)
 const baseFilterGroups = [
@@ -9,20 +9,53 @@ const baseFilterGroups = [
     collapsible: true,
     filters: [
       {
-        id: 'contentTypeRef',
-        field: 'contentTypeRef',
+        id: 'contentTypeId',
+        field: 'contentTypeId',
         label: 'Type',
-        type: 'select' as const,
+        type: 'multi-select' as const,
         config: {
-          options: [
-            { id: 'ContentType:v1:Article', label: 'Article' },
-            { id: 'ContentType:v1:News', label: 'News' },
-            { id: 'ContentType:v1:Announcement', label: 'Announcement' },
-            { id: 'ContentType:v1:KnowledgeBase', label: 'Knowledge Base' },
-            { id: 'ContentType:v1:Document', label: 'Document' },
-            { id: 'ContentType:v1:Question', label: 'Question' },
-            { id: 'ContentType:v1:Discussion', label: 'Discussion' }
-          ]
+          options: [],
+          searchPlaceholder: 'Search types...',
+          totalCount: 0,
+          hasMore: false
+        }
+      }
+    ]
+  },
+  {
+    id: 'category-filter',
+    label: 'Category',
+    collapsible: true,
+    filters: [
+      {
+        id: 'categoryIds',
+        field: 'categoryIds',
+        label: 'Category',
+        type: 'multi-select' as const,
+        config: {
+          options: [],
+          searchPlaceholder: 'Search categories...',
+          totalCount: 0,
+          hasMore: false
+        }
+      }
+    ]
+  },
+  {
+    id: 'tag-filter',
+    label: 'Tag',
+    collapsible: true,
+    filters: [
+      {
+        id: 'tagIds',
+        field: 'tagIds',
+        label: 'Tag',
+        type: 'multi-select' as const,
+        config: {
+          options: [],
+          searchPlaceholder: 'Search tags...',
+          totalCount: 0,
+          hasMore: false
         }
       }
     ]
@@ -36,12 +69,14 @@ const baseFilterGroups = [
         id: 'status',
         field: 'status',
         label: 'Status',
-        type: 'select' as const,
+        type: 'multi-select' as const,
         config: {
           options: [
             { id: 'active', label: 'Active' },
             { id: 'deleted', label: 'Deleted' }
-          ]
+          ],
+          totalCount: 2,
+          hasMore: false
         }
       }
     ]
@@ -55,8 +90,14 @@ const baseFilterGroups = [
         id: 'dateRange',
         field: 'dateRange',
         label: 'Created Date',
-        type: 'dateRange' as const,
-        config: {}
+        type: 'date' as const,
+        config: {
+          dateType: 'date',
+          mode: 'range',
+          placeholder: 'Start Date',
+          placeholderEnd: 'End Date',
+          showClearButton: true
+        }
       }
     ]
   }
@@ -69,17 +110,20 @@ const contentGroupFilter = {
   collapsible: true,
   filters: [
     {
-      id: 'contentGroupRef',
-      field: 'contentGroupRef',
+      id: 'contentGroup',
+      field: 'contentGroup',
       label: 'Group',
-      type: 'select' as const,
+      type: 'multi-select' as const,
       config: {
         options: [
           { id: ContentGroup.NEWS, label: 'News' },
           { id: ContentGroup.KNOWLEDGE, label: 'Knowledge' },
+          { id: ContentGroup.POLICY, label: 'Policies' },
           { id: ContentGroup.DOCUMENT, label: 'Document' },
           { id: ContentGroup.QUESTION, label: 'Question' }
-        ]
+        ],
+        totalCount: 5,
+        hasMore: false
       }
     }
   ]
@@ -87,10 +131,14 @@ const contentGroupFilter = {
 
 // Filter config for "All Content" section (includes group filter)
 export const contentFilterConfigAll: FilterConfiguration = {
+  id: 'content-filters-all',
+  name: 'Content Filters',
   groups: [contentGroupFilter, ...baseFilterGroups]
 }
 
 // Filter config for specific sections (without group filter)
 export const contentFilterConfigSpecific: FilterConfiguration = {
+  id: 'content-filters-specific',
+  name: 'Content Filters',
   groups: baseFilterGroups
 }

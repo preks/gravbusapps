@@ -28,6 +28,7 @@ import {
 import { WidgetGroup } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { calculateTrend } from '@/common/utils/trendUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import type { Investment, EquityInvestment } from '@/common/data/investment/types/investmentTypes'
@@ -54,17 +55,6 @@ import type { EquityInvestmentSummary } from '../shared/types'
 import { EquityTimelineCharts, EquityAnalyticsCharts, EquityDistributionCharts } from './components'
 
 // Helper functions for investment-specific business logic
-const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
-  if (previous === 0) {
-    return { value: current > 0 ? '+100%' : '0%', positive: current > 0 }
-  }
-  const change = ((current - previous) / Math.abs(previous)) * 100
-  const formattedChange = Math.abs(change).toFixed(1)
-  return {
-    value: `${change >= 0 ? '+' : '-'}${formattedChange}%`,
-    positive: change >= 0
-  }
-}
 
 const getInvestmentStatusColor = (status: string): string => {
   switch (status?.toLowerCase()) {
@@ -123,10 +113,12 @@ export interface EquityInvestmentKPIs {
 
 interface EquityInvestmentsReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  isActive?: boolean
 }
 
 const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props => {
   const prefixDataTestId = props.prefixDataTestId || 'EquityInvestmentsReport'
+  const isActive = props.isActive ?? true
   const [activeTab, setActiveTab] = useState('distribution')
   const [selectedCurrency, setSelectedCurrency] = useState<string>('Currency:v1:EUR') // Store full ID
 
@@ -161,7 +153,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
     isLoading: kpiLoading,
     error: kpiError,
     refetch: refetchKpis
-  } = useEquityKPIIntegration(props, selectedCurrencyCode)
+  } = useEquityKPIIntegration(props, selectedCurrencyCode, undefined, isActive)
 
   const { fetchInvestments } = useGetInvestments(props)
 
@@ -330,11 +322,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               color: 'var(--nw-color-primary-500)',
               span: { xs: 24, sm: 12, lg: 6 },
               description: 'Equity count',
-              trend: {
-                value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
-                positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: 'vs last quarter'
-              }
+              trend: calculateTrend(kpis.totalInvestments, previousKpis.totalInvestments, 'vs last quarter')
             },
             {
               key: 'assets-under-management',
@@ -352,11 +340,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
               description: 'Total AUM',
-              trend: {
-                value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
-                positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: 'vs last quarter'
-              }
+              trend: calculateTrend(kpis.totalAmountInvested, previousKpis.totalAmountInvested, 'vs last quarter')
             },
             {
               key: 'portfolio-moic',
@@ -367,11 +351,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
               description: 'Avg MOIC',
-              trend: {
-                value: calculateChange(kpis.portfolioMoic, previousKpis.portfolioMoic).value,
-                positive: calculateChange(kpis.portfolioMoic, previousKpis.portfolioMoic).positive,
-                description: 'vs last quarter'
-              }
+              trend: calculateTrend(kpis.portfolioMoic, previousKpis.portfolioMoic, 'vs last quarter')
             },
             {
               key: 'average-duration',
@@ -382,11 +362,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
               description: 'Avg holding period',
-              trend: {
-                value: calculateChange(kpis.averageDuration, previousKpis.averageDuration).value,
-                positive: calculateChange(kpis.averageDuration, previousKpis.averageDuration).positive,
-                description: 'vs last quarter'
-              }
+              trend: calculateTrend(kpis.averageDuration, previousKpis.averageDuration, 'vs last quarter')
             }
           ]}
           isLoading={isLoading}

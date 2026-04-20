@@ -2,27 +2,28 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { Project, ProjectData, ProjectStatusBE, ProjectStatusUI, ProjectTypeBE } from '../types'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 // Default pagination values
 const DEFAULT_PAGE_SIZE = 10
 const DEFAULT_CURRENT_PAGE = 1
 
-// GraphQL query to get active structure ID
-export const GET_ACTIVE_STRUCTURE = (): string => {
-  return `query getActiveStructure {
-    Structure(where: {isActive: {_eq: true}}, limit: 1) {
-      id
-    }
-  }`
-}
-
-interface ActiveStructureResponse {
-  Structure?: Array<{ id: string }>
+/** Map i18n language code to Intl locale for date formatting (e.g. en -> en-US, de -> de-DE, ro -> ro-RO) */
+export const getDateLocaleFromLanguage = (lang: string | undefined): string => {
+  if (lang == null || lang === '') return 'en-US'
+  const map: Record<string, string> = { en: 'en-US', de: 'de-DE', ro: 'ro-RO' }
+  return map[lang] ?? map[lang.split('-')[0]] ?? 'en-US'
 }
 
 // GraphQL query builder for projects with pagination
 // Uses variables for all user inputs to prevent injection
-export const buildProjectsQuery = (hasSearch: boolean, onlyActiveProjects: boolean): string => {
+export const buildProjectsQuery = (
+  hasSearch: boolean,
+  onlyActiveProjects: boolean,
+  includeCustomerId: boolean = true
+): string => {
   const searchCondition = hasSearch
     ? `_or: [
         { name: { _ilike: $search } }
@@ -59,7 +60,7 @@ export const buildProjectsQuery = (hasSearch: boolean, onlyActiveProjects: boole
         hoursBudget
         projectType
         status
-        customerId
+        ${includeCustomerId ? 'customerId' : ''}
         projectManagerId
         matrixUnitId
         validFrom
@@ -217,8 +218,14 @@ const transformStatus = (beStatus?: ProjectStatusBE): ProjectStatusUI => {
   }
 }
 
+const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric'
+}
+
 // Transform API project data to UI-friendly Project interface
-const transformProject = (projectData: ProjectData): Project => {
+const transformProject = (projectData: ProjectData, locale: string = 'en-US'): Project => {
   const now = new Date()
   let status = ProjectStatusUI.InProgress
   let isActive = true
@@ -231,11 +238,7 @@ const transformProject = (projectData: ProjectData): Project => {
   // Format validFrom date
   if (projectData.validFrom) {
     const validFromDate = new Date(projectData.validFrom)
-    formattedValidFrom = validFromDate.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+    formattedValidFrom = validFromDate.toLocaleDateString(locale, DATE_FORMAT_OPTIONS)
     const timeDiffFrom = validFromDate.getTime() - now.getTime()
     daysUntilStart = Math.ceil(timeDiffFrom / (1000 * 3600 * 24))
   }
@@ -243,11 +246,7 @@ const transformProject = (projectData: ProjectData): Project => {
   // Format validTo date
   if (projectData.validTo) {
     const validToDate = new Date(projectData.validTo)
-    formattedValidTo = validToDate.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+    formattedValidTo = validToDate.toLocaleDateString(locale, DATE_FORMAT_OPTIONS)
     const timeDiffTo = validToDate.getTime() - now.getTime()
     daysUntilExpiry = Math.ceil(timeDiffTo / (1000 * 3600 * 24))
   }
@@ -285,12 +284,16 @@ const transformProject = (projectData: ProjectData): Project => {
   }
 }
 
-export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects: boolean = false) => {
+export const useProjects = (
+  context: BusinessAppContextProps,
+  onlyActiveProjects: boolean = false,
+  locale: string = 'en-US'
+) => {
   const [projects, setProjects] = useState<Project[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const structureId = useRef<string>(context.additionalData?.structureId || '')
+  const structureId = useRef<string>(getCurrentActiveStructureId() ?? '')
   const accountsFetched = useRef<boolean>(false)
   const [searchTerm, setSearchTerm] = useState<string>('')
 
@@ -300,34 +303,29 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE)
 
   const graphqlClient = useGraphqlClient(context.accessToken)
+  const customerRelationsEnabled = useFeature<boolean>(Feature.CRM.CustomerRelations.Key)
 
-  // Fetch structure ID only if not already cached
-  const fetchStructureId = useCallback(async (): Promise<string> => {
-    // If we already have a valid structureId, return it
+  const fetchStructureId = useCallback((): string => {
     if (structureId.current && structureId.current.length > 0) {
       return structureId.current
     }
 
-    // Fetch active structure ID using GraphQL
-    const structureQuery = GET_ACTIVE_STRUCTURE()
-    const structureResult = await graphqlClient.request<ActiveStructureResponse>(structureQuery)
-
-    if (!structureResult.Structure || structureResult.Structure.length === 0) {
+    const activeId = getCurrentActiveStructureId()
+    if (!activeId) {
       throw new Error('No active structure found')
     }
 
-    structureId.current = structureResult.Structure[0].id
+    structureId.current = activeId
     return structureId.current
-  }, [graphqlClient])
+  }, [])
 
   // Fetch projects using GraphQL with pagination
   const fetchProjects = useCallback(
     async (limit: number, offset: number, search?: string): Promise<{ projects: Project[]; totalCount: number }> => {
       try {
-        // Get structure ID (cached or fetched)
-        const activeStructureId = await fetchStructureId()
+        const activeStructureId = fetchStructureId()
 
-        const query = buildProjectsQuery(Boolean(search), onlyActiveProjects)
+        const query = buildProjectsQuery(Boolean(search), onlyActiveProjects, customerRelationsEnabled)
         const variables = buildProjectsQueryVariables(activeStructureId, limit, offset, search, onlyActiveProjects)
         const result = await graphqlClient.request<ProjectsGraphQLResponse>(query, variables)
 
@@ -348,7 +346,7 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
               matrixUnitId: project.matrixUnitId,
               hoursBudget: project.hoursBudget
             }
-            return transformProject(projectData)
+            return transformProject(projectData, locale)
           })
 
           const totalCount = result.ProjectAggregate?.aggregate?.count || 0
@@ -368,7 +366,7 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
         throw new Error('Failed to fetch projects')
       }
     },
-    [graphqlClient, fetchStructureId]
+    [graphqlClient, fetchStructureId, locale, customerRelationsEnabled, onlyActiveProjects]
   )
 
   // Fetch accounts using GraphQL
@@ -454,8 +452,8 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
         // Calculate offset based on current page and page size
         const offset = (currentPage - 1) * pageSize
 
-        // Step 1: Fetch projects (always) and accounts (only if not already fetched)
-        const shouldFetchAccounts = !accountsFetched.current || accounts.length === 0
+        // Step 1: Fetch projects (always) and accounts (only if CRM is enabled and not already fetched)
+        const shouldFetchAccounts = customerRelationsEnabled && (!accountsFetched.current || accounts.length === 0)
 
         const [projectsResult, accountsResult] = await Promise.all([
           fetchProjects(pageSize, offset, search),
@@ -519,7 +517,16 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
         setIsLoading(false)
       }
     },
-    [fetchProjects, fetchAccounts, fetchEmployeesByIds, fetchMatrixMemberCounts, currentPage, pageSize, accounts]
+    [
+      fetchProjects,
+      fetchAccounts,
+      fetchEmployeesByIds,
+      fetchMatrixMemberCounts,
+      currentPage,
+      pageSize,
+      accounts,
+      customerRelationsEnabled
+    ]
   )
 
   // Search projects - triggers BE query

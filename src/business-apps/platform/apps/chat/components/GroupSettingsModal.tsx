@@ -15,20 +15,21 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem
+  DropdownMenuItem,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { UserIcon, MoreVertical, Crown, Trash2, Shield, UserMinus } from 'lucide-react'
 import { UserSelector } from './UserSelector'
-import { ChatApiClient } from '../services/chatApiClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 import type { Conversation, User } from '../types'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import translations from '../_i18n'
 
 interface GroupSettingsModalProps {
   isOpen: boolean
   onClose: () => void
   conversation: Conversation | null
   currentUserId: string | null
-  apiClient: ChatApiClient | null
+  apiClient: ChatClient | null
   onRefresh: () => void
   prefixDataTestId?: string
   accessToken?: string
@@ -44,7 +45,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
   prefixDataTestId = 'group-settings-modal',
   accessToken
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const [isAddingMembers, setIsAddingMembers] = useState(false)
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -197,7 +198,14 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="gba:max-w-2xl gba:max-h-[80vh]" data-testid={prefixDataTestId}>
+      <DialogContent
+        className="gba:max-h-[80vh]"
+        style={{
+          width: '90vw',
+          maxWidth: window.innerWidth >= 1280 ? '896px' : window.innerWidth >= 1024 ? '768px' : '90vw'
+        }}
+        data-testid={prefixDataTestId}
+      >
         <DialogHeader>
           <DialogTitle>{conversation.name || 'Group Settings'}</DialogTitle>
         </DialogHeader>

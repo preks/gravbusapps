@@ -48,6 +48,27 @@ export const ASSET_FIELDS = `
     id
     name
   }
+  disposalStatus
+  disposalOutcomeRef
+  disposalDate
+  disposalReason
+  responsibleEmployeeId
+  performerEmployeeId
+  requireSanitization
+  sanitizationMethodRef
+  sanitizationExecutionDate
+  responsibleEmployee {
+    id
+    displayName
+    firstName
+    lastName
+  }
+  performerEmployee {
+    id
+    displayName
+    firstName
+    lastName
+  }
 `
 
 export const EMPLOYEE_ASSET_FIELDS = `
@@ -116,10 +137,7 @@ export const GET_ASSET_BY_ID = `
 export const GET_ASSET_STATISTICS = `
   query GetAssetStatistics {
     totalAssets: AssetAggregate(
-      where: {
-        isDeleted: { _eq: false }
-        assetStatus: { _neq: "${AssetStatus.RETIRED}" }
-      }
+      where: { isDeleted: { _eq: false } }
     ) {
       aggregate {
         count
@@ -149,6 +167,16 @@ export const GET_ASSET_STATISTICS = `
       where: {
         isDeleted: { _eq: false }
         assetStatus: { _eq: "${AssetStatus.UNDER_REPAIR}" }
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    retiredAssets: AssetAggregate(
+      where: {
+        isDeleted: { _eq: false }
+        assetStatus: { _eq: "${AssetStatus.RETIRED}" }
       }
     ) {
       aggregate {
@@ -218,6 +246,44 @@ export const GET_CURRENT_ALLOCATION = `
   }
 `
 
+/** Single allocation by id (e.g. for employee acknowledgment review). */
+export const GET_EMPLOYEE_ASSET_BY_ID = `
+  query GetEmployeeAssetById($id: uuid!) {
+    EmployeeAsset(where: { id: { _eq: $id }, isDeleted: { _eq: false } }, limit: 1) {
+      ${EMPLOYEE_ASSET_FIELDS}
+    }
+  }
+`
+
+/** Asset IDs that have a current allocation to one of the given employee IDs (for filter by employee). */
+export const GET_ASSET_IDS_BY_EMPLOYEE_IDS = `
+  query GetAssetIdsByEmployeeIds($employeeIds: [uuid!]!) {
+    EmployeeAsset(
+      where: {
+        employeeId: { _in: $employeeIds }
+        endDate: { _isNull: true }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      assetId
+    }
+  }
+`
+
+/** Asset IDs that have any allocation history (used to determine delete eligibility). */
+export const GET_ASSET_IDS_WITH_ALLOCATION_HISTORY = `
+  query GetAssetIdsWithAllocationHistory($assetIds: [uuid!]!) {
+    EmployeeAsset(
+      where: {
+        assetId: { _in: $assetIds }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      assetId
+    }
+  }
+`
+
 export const ALLOCATE_ASSET = `
   mutation AllocateAsset($allocation: EmployeeAssetInsertInput!) {
     insert_EmployeeAsset_one(object: $allocation) {
@@ -248,6 +314,8 @@ export interface AssetQueryVariables {
   offset?: number
   where?: any
   orderBy?: any
+  /** When set, only return assets whose id is in this list (e.g. from employee filter). Applied in addition to where. */
+  assetIds?: string[]
 }
 
 export interface AssetByIdVariables {
@@ -259,6 +327,7 @@ export interface AssetStatisticsResponse {
   allocatedAssets: { aggregate: { count: number } }
   availableAssets: { aggregate: { count: number } }
   underRepairAssets: { aggregate: { count: number } }
+  retiredAssets: { aggregate: { count: number } }
 }
 
 export interface InsertAssetVariables {
@@ -311,4 +380,8 @@ export interface DeallocateAssetVariables {
   version: number
   endDate: string
   conditionEnd?: string
+}
+
+export interface AssetIdsWithAllocationHistoryVariables {
+  assetIds: string[]
 }

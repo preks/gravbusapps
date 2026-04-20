@@ -5,7 +5,8 @@
 
 import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
-import type { ContentRole } from './contentEnums'
+import type { ContentRole, ContentGroup } from '../constants/contentConstants'
+import type { ContentType, ContentCategory, ContentTag } from './contentTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
 
@@ -21,8 +22,8 @@ export interface ContentEntry extends BaseEntity {
   creatorEmployeeId?: string | null
   updaterEmployeeId?: string | null
   acceptorEmployeeId?: string | null
-  contentGroupRef?: string | null
-  contentTypeRef?: string | null
+  contentGroup?: ContentGroup | null
+  contentTypeId?: string | null
   languageRef?: string | null
 
   title?: string | null
@@ -46,8 +47,7 @@ export interface ContentEntry extends BaseEntity {
   creatorEmployee?: EmployeeRef | null
   updaterEmployee?: EmployeeRef | null
   acceptorEmployee?: EmployeeRef | null
-  contentGroup?: CatalogEntry | null
-  contentType?: CatalogEntry | null
+  contentType?: ContentType | null
   language?: CatalogEntry | null
   contentEntryCategories?: ContentEntryCategory[]
   contentEntryTags?: ContentEntryTag[]
@@ -72,12 +72,12 @@ export interface ContentEntry extends BaseEntity {
 export interface ContentEntryCategory extends BaseEntity {
   id?: string
   contentEntryId: string
-  contentCategoryRef?: string | null
+  contentCategoryId?: string | null
   recordState?: string
 
   // Relations from GraphQL
   contentEntry?: ContentEntry | null
-  contentCategory?: CatalogEntry | null
+  contentCategory?: ContentCategory | null
 }
 
 // =====================================================
@@ -87,12 +87,12 @@ export interface ContentEntryCategory extends BaseEntity {
 export interface ContentEntryTag extends BaseEntity {
   id?: string
   contentEntryId: string
-  contentTagRef?: string | null
+  contentTagId?: string | null
   recordState?: string
 
   // Relations from GraphQL
   contentEntry?: ContentEntry | null
-  contentTag?: CatalogEntry | null
+  contentTag?: ContentTag | null
 }
 
 // =====================================================
@@ -160,8 +160,8 @@ export const ContentEntryFields = {
   creatorEmployeeId: 'creatorEmployeeId',
   updaterEmployeeId: 'updaterEmployeeId',
   acceptorEmployeeId: 'acceptorEmployeeId',
-  contentGroupRef: 'contentGroupRef',
-  contentTypeRef: 'contentTypeRef',
+  contentGroup: 'contentGroup',
+  contentTypeId: 'contentTypeId',
   languageRef: 'languageRef',
   title: 'title',
   preview: 'preview',
@@ -182,7 +182,6 @@ export const ContentEntryFields = {
   creatorEmployee: 'creatorEmployee',
   updaterEmployee: 'updaterEmployee',
   acceptorEmployee: 'acceptorEmployee',
-  contentGroup: 'contentGroup',
   contentType: 'contentType',
   language: 'language',
   contentEntryCategories: 'contentEntryCategories',
@@ -220,8 +219,23 @@ export const CONTENT_ENTRY_DESCRIPTORS: Descriptor[] = [
   { key: 'creatorEmployeeId', searchPaths: ['creatorEmployeeId'], sortPath: 'creatorEmployeeId', type: 'text' },
   { key: 'updaterEmployeeId', searchPaths: ['updaterEmployeeId'], sortPath: 'updaterEmployeeId', type: 'text' },
   { key: 'acceptorEmployeeId', searchPaths: ['acceptorEmployeeId'], sortPath: 'acceptorEmployeeId', type: 'text' },
-  { key: 'contentGroupRef', searchPaths: ['contentGroupRef'], sortPath: 'contentGroupRef', type: 'text' },
-  { key: 'contentTypeRef', searchPaths: ['contentTypeRef'], sortPath: 'contentTypeRef', type: 'text' },
+  { key: 'contentGroup', searchPaths: ['contentGroup'], sortPath: 'contentGroup', type: 'text' },
+  {
+    key: 'contentTypeId',
+    path: ContentEntryFields.contentTypeId,
+    filterLabel: 'Content Type',
+    searchPaths: ['contentTypeId', 'contentType.name'],
+    sortPath: 'contentTypeId',
+    type: 'text',
+    optionSelectPaths: [
+      `${ContentEntryFields.contentTypeId}`,
+      `${ContentEntryFields.contentType}.name`,
+      `${ContentEntryFields.contentType}.nameI18n`
+    ],
+    optionSearchPaths: [`${ContentEntryFields.contentType}.name`],
+    optionDistinctOn: [ContentEntryFields.contentTypeId],
+    kind: 'inIds'
+  },
   { key: 'languageRef', searchPaths: ['languageRef'], sortPath: 'languageRef', type: 'text' },
   { key: 'title', searchPaths: ['title'], sortPath: 'title', type: 'text' },
   { key: 'preview', searchPaths: ['preview'], sortPath: 'preview', type: 'text' },
@@ -256,15 +270,9 @@ export const CONTENT_ENTRY_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   {
-    key: 'contentGroupName',
-    searchPaths: ['contentGroup.value'],
-    sortPath: 'contentGroup.value',
-    type: 'text'
-  },
-  {
     key: 'contentTypeName',
-    searchPaths: ['contentType.value'],
-    sortPath: 'contentType.value',
+    searchPaths: ['contentType.name'],
+    sortPath: 'contentType.name',
     type: 'text'
   },
   {
@@ -275,15 +283,47 @@ export const CONTENT_ENTRY_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'categoryNames',
-    searchPaths: ['contentEntryCategories.contentCategory.value'],
-    sortPath: 'contentEntryCategories.contentCategory.value',
+    searchPaths: ['contentEntryCategories.contentCategory.name'],
+    sortPath: 'contentEntryCategories.contentCategory.name',
     type: 'text'
   },
   {
+    key: 'categoryIds',
+    path: 'contentEntryCategories.contentCategoryId',
+    filterLabel: 'Category',
+    searchPaths: ['contentEntryCategories.contentCategory.name'],
+    sortPath: 'contentEntryCategories.contentCategory.name',
+    type: 'text',
+    optionSelectPaths: [
+      `${ContentEntryFields.contentEntryCategories}.contentCategory.id`,
+      `${ContentEntryFields.contentEntryCategories}.contentCategory.name`,
+      `${ContentEntryFields.contentEntryCategories}.contentCategory.nameI18n`
+    ],
+    optionSearchPaths: [`${ContentEntryFields.contentEntryCategories}.contentCategory.name`],
+    optionDistinctOn: [],
+    kind: 'inIds'
+  },
+  {
     key: 'tagNames',
-    searchPaths: ['contentEntryTags.contentTag.value'],
-    sortPath: 'contentEntryTags.contentTag.value',
+    searchPaths: ['contentEntryTags.contentTag.name'],
+    sortPath: 'contentEntryTags.contentTag.name',
     type: 'text'
+  },
+  {
+    key: 'tagIds',
+    path: 'contentEntryTags.contentTagId',
+    filterLabel: 'Tag',
+    searchPaths: ['contentEntryTags.contentTag.name'],
+    sortPath: 'contentEntryTags.contentTag.name',
+    type: 'text',
+    optionSelectPaths: [
+      `${ContentEntryFields.contentEntryTags}.contentTag.id`,
+      `${ContentEntryFields.contentEntryTags}.contentTag.name`,
+      `${ContentEntryFields.contentEntryTags}.contentTag.nameI18n`
+    ],
+    optionSearchPaths: [`${ContentEntryFields.contentEntryTags}.contentTag.name`],
+    optionDistinctOn: [],
+    kind: 'inIds'
   },
 
   // Aggregate counts
@@ -296,12 +336,112 @@ export const CONTENT_ENTRY_DESCRIPTORS: Descriptor[] = [
 ]
 
 // =====================================================
+// PAYLOAD ROW TYPES
+// =====================================================
+
+export interface ContentEntryCategoryRow {
+  id?: string
+  version?: number
+  contentCategory?: string
+  contentCategoryName?: string
+}
+
+export interface ContentEntryTagRow {
+  id?: string
+  version?: number
+  contentTag?: string
+  contentTagName?: string
+}
+
+export interface ContentEntryDocumentRow {
+  documentGroupRef?: string
+  documentTypeRef?: string
+  parentDocument?: string | null
+  folder?: boolean
+  name?: string
+  description?: string | null
+  fileInfo?: any
+}
+
+export interface ContentEntryPayloadOptions {
+  employeeId: string
+  isUpdate: boolean
+  existingEntry?: ContentEntry
+  parentContentEntryId?: string | null
+  rootContentEntryId?: string | null
+}
+
+export type ChangeMode = 'UPSERT' | 'REPLACE'
+
+export interface CategoryItem {
+  id?: string
+  version?: number
+  contentCategory?: string
+  contentCategoryName?: string
+}
+
+export interface DocumentItem {
+  documentGroupRef?: string
+  documentTypeRef?: string
+  parentDocument?: string | null
+  folder?: boolean
+  name?: string
+  description?: string | null
+  fileInfo?: any
+}
+
+export interface TagItem {
+  id?: string
+  version?: number
+  contentTag?: string
+  contentTagName?: string
+}
+
+export interface BuildContentEntryPayloadParams {
+  title?: string
+  preview?: string
+  content?: string
+  picture?: string | null
+  pictureThumbnail?: string | null
+  role: ContentRole
+  contentGroup?: string | null
+  contentTypeId?: string | null
+  parentContentEntryId?: string | null
+  rootContentEntryId?: string | null
+  creatorEmployeeId?: string
+  updaterEmployeeId?: string
+  displayCreator?: boolean
+  displayUpdater?: boolean
+  allowComment?: boolean
+  allowReaction?: boolean
+  timeToRead?: number | null
+  activeFrom?: string | Date | null
+  activeTo?: string | Date | null
+  entryVersion?: string | null
+  id?: string
+  version?: number
+  categories?: {
+    changeMode: ChangeMode
+    items: CategoryItem[]
+  }
+  documents?: {
+    changeMode: ChangeMode
+    items: DocumentItem[]
+  }
+  tags?: {
+    changeMode: ChangeMode
+    items: TagItem[]
+  }
+}
+
+// =====================================================
 // FORM FIELDS
 // =====================================================
 
 /**
  * Content Entry Form Fields
- * Maps form field names to GraphQL mutation field names
+ * Maps GraphQL entity field names used in query descriptors and filters.
+ * For the form-to-payload mapping see contentEntryFormFields (lowercase).
  */
 export const ContentEntryFormFields = {
   // Core fields
@@ -310,8 +450,8 @@ export const ContentEntryFormFields = {
   creatorEmployeeId: 'creatorEmployeeId',
   updaterEmployeeId: 'updaterEmployeeId',
   acceptorEmployeeId: 'acceptorEmployeeId',
-  contentGroupRef: 'contentGroupRef',
-  contentTypeRef: 'contentTypeRef',
+  contentGroup: 'contentGroup',
+  contentTypeId: 'contentTypeId',
   languageRef: 'languageRef',
   title: 'title',
   preview: 'preview',
@@ -328,4 +468,28 @@ export const ContentEntryFormFields = {
   activeFrom: 'activeFrom',
   activeTo: 'activeTo',
   recordState: 'recordState'
+} as const
+
+/**
+ * Content Entry form-to-payload field mapping.
+ * Maps form field names to backend DTO field names.
+ * Used by the content entry payload builder and mapper.
+ *
+ * Note: contentTypeId maps to the backend field "contentType" (UUID reference).
+ *       Category and tag relations are handled separately through split id/name arrays.
+ */
+export const contentEntryFormFields = {
+  title: 'title',
+  preview: 'preview',
+  content: 'content',
+  picture: 'picture',
+  pictureThumbnail: 'pictureThumbnail',
+  contentGroup: 'contentGroup',
+  contentTypeId: 'contentType',
+  role: 'role',
+  displayCreator: 'displayCreator',
+  allowComment: 'allowComment',
+  allowReaction: 'allowReaction',
+  activeFrom: 'activeFrom',
+  activeTo: 'activeTo'
 } as const

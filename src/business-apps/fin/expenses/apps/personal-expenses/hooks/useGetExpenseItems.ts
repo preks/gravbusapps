@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, GET_EXPENSE_ITEM_BY_ID } from '../queries/expenseItems'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { normalize } from '../utils/cacheUtils'
+import { buildExpenseItemOrderBy } from '../config/expenseItemOrderBy'
 
 // Type aliases for union types
 type SortField = string | null
@@ -95,26 +97,11 @@ export const useGetExpenseItems = (
   const [error, setError] = useState<Error | null>(null)
   const [totalCount, setTotalCount] = useState<number>(0)
   const abortControllerRef = useRef<AbortController | null>(null) // For request cancellation
+  const itemsRef = useRef<ExpenseItem[]>([]) // For checking existing data inside fetchItems (avoid loading flash on sort/pagination)
+  const lastDisplayedCacheKeyRef = useRef<string>('')
   // Page cache: stores results by cache key (search, filters, page, pageSize, sortField, sortOrder)
   const pageCacheRef = useRef<Map<string, { items: ExpenseItem[]; totalCount: number }>>(new Map())
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map()) // Track in-flight requests
-
-  // Helper to normalize objects for stable cache keys
-  const normalize = useCallback((val: any): any => {
-    if (Array.isArray(val)) {
-      return val.map(normalize)
-    }
-    if (val && typeof val === 'object') {
-      const sorted: any = {}
-      Object.keys(val)
-        .sort((a, b) => a.localeCompare(b))
-        .forEach(k => {
-          sorted[k] = normalize(val[k])
-        })
-      return sorted
-    }
-    return val
-  }, [])
 
   // Generate cache key for a specific page (includes all parameters that affect the query)
   const generateCacheKey = useCallback(
@@ -128,7 +115,7 @@ export const useGetExpenseItems = (
     ) => {
       return `cache:${JSON.stringify(normalize({ searchTerm, page, pageSize, filter, sortField, sortOrder }))}`
     },
-    [normalize]
+    []
   )
 
   // Helper function to build base where clause
@@ -152,7 +139,7 @@ export const useGetExpenseItems = (
     return where
   }, [])
 
-  // Helper function to add search filters to where clause
+  // Helper function to add search filters to where clause (status excluded – use Status filter for that)
   const addSearchFilters = useCallback((where: Record<string, any>, searchTerm: string): void => {
     const trimmedSearch = (searchTerm || '').trim()
     // Only add search filter if there's an actual search term (not '%' which means "all items")
@@ -161,7 +148,6 @@ export const useGetExpenseItems = (
       where._or = [
         { title: { _ilike: pattern } },
         { code: { _ilike: pattern } },
-        { status: { _ilike: pattern } },
         { expenseClass: { value: { _ilike: pattern } } },
         { expenseClass: { translations: { value: { _ilike: pattern } } } },
         { costCenter: { name: { _ilike: pattern } } }
@@ -200,27 +186,6 @@ export const useGetExpenseItems = (
     }
   }, [])
 
-  // Helper function to build orderBy clause
-  const buildOrderBy = useCallback((sortField?: SortField, sortOrder?: SortOrder): any[] => {
-    if (sortField && sortOrder) {
-      const fieldMap: Record<string, string> = {
-        title: 'title',
-        expenseDate: 'expenseDate',
-        status: 'status',
-        reimbursableAmount: 'reimbursableAmount',
-        totalAmount: 'totalAmount',
-        createdAt: 'createdAt',
-        updatedAt: 'updatedAt',
-        code: 'code',
-        description: 'description'
-      }
-      const gqlField = fieldMap[sortField] || sortField
-      const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC'
-      return [{ [gqlField]: direction }]
-    }
-    return [{ expenseDate: 'DESC' }]
-  }, [])
-
   /**
    * Helper function to build GraphQL variables for the query
    */
@@ -244,12 +209,12 @@ export const useGetExpenseItems = (
         limit: pageSize,
         offset,
         where,
-        orderBy: buildOrderBy(sortField, sortOrder)
+        orderBy: buildExpenseItemOrderBy(sortField, sortOrder)
       }
 
       return variables
     },
-    [buildBaseWhereClause, addSearchFilters, addFilterConditions, buildOrderBy]
+    [buildBaseWhereClause, addSearchFilters, addFilterConditions]
   )
 
   /**
@@ -317,12 +282,18 @@ export const useGetExpenseItems = (
       // Check cache first - if page is cached and not forcing refresh, return immediately
       const cachedData = pageCacheRef.current.get(cacheKey)
       if (cachedData && !options?.force) {
-        // Return cached data immediately - no loading state
+        lastDisplayedCacheKeyRef.current = cacheKey
         setItems(cachedData.items)
         setTotalCount(cachedData.totalCount)
         setIsLoading(false)
         setError(null)
         return
+      }
+
+      // Only show table loading when we have no data yet (initial load); skip for sort/pagination so the table doesn't rerender/flash (same as plans tab)
+      const hasExistingListData = (itemsRef.current?.length ?? 0) > 0
+      if (!hasExistingListData) {
+        setIsLoading(true)
       }
 
       // Cancel previous request if it exists
@@ -347,7 +318,7 @@ export const useGetExpenseItems = (
 
           // Cache the result
           pageCacheRef.current.set(cacheKey, { items: mappedItems, totalCount: finalCount })
-
+          lastDisplayedCacheKeyRef.current = cacheKey
           setItems(mappedItems)
           setTotalCount(finalCount)
           setIsLoading(false)
@@ -358,7 +329,6 @@ export const useGetExpenseItems = (
         }
       }
 
-      setIsLoading(true)
       setError(null)
 
       try {
@@ -387,7 +357,7 @@ export const useGetExpenseItems = (
 
         // Cache the result
         pageCacheRef.current.set(cacheKey, { items: mappedItems, totalCount: finalCount })
-
+        lastDisplayedCacheKeyRef.current = cacheKey
         setItems(mappedItems)
         setTotalCount(finalCount)
       } catch (err) {
@@ -411,6 +381,10 @@ export const useGetExpenseItems = (
       generateCacheKey
     ]
   )
+
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
 
   // Initial fetch on component mount (configurable)
   useEffect(() => {

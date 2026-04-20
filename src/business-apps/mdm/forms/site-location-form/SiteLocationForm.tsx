@@ -1,9 +1,7 @@
 import React, { useState, useEffect, Dispatch, SetStateAction, useMemo, useCallback } from 'react'
 import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage, Combobox } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useTranslation } from 'react-i18next'
-import { env } from '@/common/env/EnvUtils'
 import {
   SiteLocation,
   SiteLocationCountry,
@@ -11,30 +9,31 @@ import {
 } from '@/business-apps/mdm/apps/organizational-data/types'
 import { FormWrapperModal } from '@/components/form-wrapper'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 const DATA_TEST_ID_PREFIX = 'SiteLocationForm'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 interface SiteLocationFormProps extends BusinessAppContextProps {
   siteLocation?: SiteLocation
-  refetch: () => void
-  structureId: string
+  refetch?: () => void
+  structureId?: string
   open?: boolean
   setOpen?: Dispatch<SetStateAction<boolean>>
   isDrawerActive?: boolean
-  childAddButton: React.ReactNode
+  childAddButton?: React.ReactNode
   isEditSiteLocation?: boolean
   onCancel?: () => void
   prefixDataTestId?: string
-  countries: SiteLocationCountry[]
-  fetchRegionsForCountries: (_countryCodes: string[]) => Promise<void>
-  getRegionsForCountry: (_countryCode: string) => SiteLocationRegion[]
+  /** Parent loads catalog; `RenderRemoteComponent` omits — default `[]`. */
+  countries?: SiteLocationCountry[]
+  fetchRegionsForCountries?: (_countryCodes: string[]) => Promise<void>
+  getRegionsForCountry?: (_countryCode: string) => SiteLocationRegion[]
 }
 
 const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
   siteLocation,
-  refetch,
-  structureId,
+  refetch = () => {},
+  structureId = '',
   open: _open,
   setOpen,
   isDrawerActive,
@@ -43,13 +42,13 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
   onCancel,
   prefixDataTestId,
   accessToken,
-  countries,
-  fetchRegionsForCountries,
-  getRegionsForCountry
+  countries = [],
+  fetchRegionsForCountries = async () => {},
+  getRegionsForCountry = () => []
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const { t } = useTranslation('master-data')
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(accessToken)
   const [countriesOptions, setCountriesOptions] = useState<Array<{ value: string; label: string; code: string }>>([])
   const [regions, setRegions] = useState<Array<{ value: string; label: string; code: string }>>([])
   const [isLoadingRegions, setIsLoadingRegions] = useState(false)
@@ -79,7 +78,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
       }
 
       // First check if regions are already cached
-      const cachedRegions = getRegionsForCountry(countryCode)
+      const cachedRegions = getRegionsForCountry(countryCode) ?? []
       if (cachedRegions.length > 0) {
         const regionsOptions = cachedRegions.map(region => ({
           value: region.value,
@@ -95,7 +94,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
       try {
         await fetchRegionsForCountries([countryCode])
         // After fetching, get regions from cache again
-        const updatedRegions = getRegionsForCountry(countryCode)
+        const updatedRegions = getRegionsForCountry(countryCode) ?? []
         const regionsOptions = updatedRegions.map(region => ({
           value: region.value,
           label: region.value,
@@ -161,14 +160,14 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
 
       if (isEditSiteLocation && siteLocation?.id) {
         // Update existing site location
-        await restClient.put(`/site-locations/${siteLocation.id}`, siteLocationData, {
+        await orgchartClient.updateSiteLocation(siteLocation.id, siteLocationData, {
           headers: {
             Authorization: `Bearer ${accessToken}`
           }
         })
       } else {
         // Create new site location
-        await restClient.post('/site-locations', siteLocationData, {
+        await orgchartClient.createSiteLocation(siteLocationData, {
           headers: {
             Authorization: `Bearer ${accessToken}`
           }

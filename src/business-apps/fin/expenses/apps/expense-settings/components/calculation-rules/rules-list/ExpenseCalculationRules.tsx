@@ -3,7 +3,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { DataControllerProps } from '@/components/dataController/DataController'
-import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDate as formatDateSafe } from '../../../utils/dateUtils'
 import { env } from '@/common/env/EnvUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import {
@@ -24,7 +25,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@newwork/nw-design-system'
-import { PiDotsThreeVertical, PiPencil, PiTrash, PiPlus } from 'react-icons/pi'
+import { DotsThreeVerticalIcon, PencilIcon, TrashIcon, PlusIcon } from '@phosphor-icons/react'
 import { useExpenseCalculationRules } from './hooks/useExpenseCalculationRules'
 import {
   Pagination,
@@ -51,7 +52,7 @@ import {
 } from '@phosphor-icons/react'
 import CreateRuleDialog from './components/CreateRuleDialog'
 import DeleteRuleDialog from './components/DeleteRuleDialog'
-import { GET_EXPENSE_RULE_FLAGS, getExpensesWithRulePk } from './queries/ExpenseCalculationRules.queries'
+import { GET_EXPENSE_RULE_FLAGS } from './queries/ExpenseCalculationRules.queries'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 
 interface ExpenseCalculationRulesProps extends BusinessAppContextProps {
@@ -68,6 +69,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
     error,
     calculationTypes,
     formCatalogs,
+    usedRuleIds,
     reload,
     setPage,
     setPageSize,
@@ -294,7 +296,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
     filterLabelMap: {},
     actions: (
       <Button onClick={openCalculationRuleModal} data-testid={`${PREFIX}-create-button`}>
-        <PiPlus className="gba:mr-2 gba:h-4 gba:w-4" />
+        <PlusIcon className="gba:mr-2 gba:h-4 gba:w-4" />
         {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.flow_button', 'Create Calculation Rule')}
       </Button>
     )
@@ -416,7 +418,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
                                     data-testid={`${PREFIX}-actions-button-${index}`}
                                     onClick={e => e.stopPropagation()}
                                   >
-                                    <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                    <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
@@ -428,39 +430,43 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
                                     }}
                                     data-testid={`${PREFIX}-action-edit-${index}`}
                                   >
-                                    <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                                    <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                     {getTranslationFromI18nKeyAndLabel(
                                       'lowcoder:expense_calculation_rule.expense_table.edit',
                                       'Edit'
                                     )}
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={async e => {
-                                      e.stopPropagation()
-                                      setSelectedRow(row as any)
-                                      try {
-                                        const res = await graphqlClient.request<any>(getExpensesWithRulePk, {
-                                          ruleId: row.id
-                                        })
-                                        const c1 = res?.ExpenseItemAggregate?.aggregate?.count || 0
-                                        const c2 = res?.ExpenseRequestAggregate?.aggregate?.count || 0
-                                        const c3 = res?.ExpensePlanAggregate?.aggregate?.count || 0
-                                        setDeleteBlocked(c1 + c2 + c3 > 0)
-                                      } catch {
-                                        setDeleteBlocked(true)
-                                      }
-                                      setDeleteOpen(true)
-                                    }}
-                                    className="gba:text-destructive"
-                                    data-testid={`${PREFIX}-action-delete-${index}`}
-                                  >
-                                    <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
-                                    {getTranslationFromI18nKeyAndLabel(
-                                      'lowcoder:expense_calculation_rule.expense_table.delete',
-                                      'Delete'
-                                    )}
-                                  </DropdownMenuItem>
+                                  {usedRuleIds.has(row.id) ? (
+                                    <DropdownMenuItem
+                                      disabled
+                                      className="gba:text-muted-foreground gba:cursor-not-allowed"
+                                      data-testid={`${PREFIX}-action-delete-${index}`}
+                                    >
+                                      <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2 gba:opacity-50" />
+                                      {getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:expense_calculation_rule.expense_table.delete_in_use',
+                                        'Delete (in use)'
+                                      )}
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        setSelectedRow(row as any)
+                                        setDeleteBlocked(false)
+                                        setDeleteOpen(true)
+                                      }}
+                                      className="gba:text-destructive"
+                                      data-testid={`${PREFIX}-action-delete-${index}`}
+                                    >
+                                      <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                                      {getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:expense_calculation_rule.expense_table.delete',
+                                        'Delete'
+                                      )}
+                                    </DropdownMenuItem>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
@@ -489,14 +495,14 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
                                 )}
                             </TableCell>
                             <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-from-${index}`}>
-                              {formatDate(row.activeFrom || '', 'date.long') ||
+                              {formatDateSafe(row.activeFrom) ||
                                 getTranslationFromI18nKeyAndLabel(
                                   'lowcoder:advance_payment_table.not_available',
                                   'N/A'
                                 )}
                             </TableCell>
                             <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-to-${index}`}>
-                              {formatDate(row.activeTo || '', 'date.long') ||
+                              {formatDateSafe(row.activeTo) ||
                                 getTranslationFromI18nKeyAndLabel(
                                   'lowcoder:advance_payment_table.not_available',
                                   'N/A'

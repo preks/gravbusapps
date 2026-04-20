@@ -1,336 +1,257 @@
-import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { DataContainer } from '@/components/layout/dataContainer'
-import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters'
+import React, { useState, useMemo, useCallback } from 'react'
+import type { SortingState } from '@tanstack/react-table'
+import {
+  useCurrencyInit,
+  useFilterSignatureReset,
+  useSortingState,
+  useSearchHandler,
+  useCurrencyChangeHandler,
+  useVisibleColumns,
+  useCurrencySecondaryAction,
+  useEmptyMessage
+} from '../../../hooks/useTabState'
+import { DataDisplay, useTranslation } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { buildDeduplicatedFilters } from '../../../utils/filterUtils'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import translations from '../../../_i18n'
+import { advancePaymentFilterStatuses } from '../../../hooks/availableFilterStatuses'
+import { ExpenseStatus, getAdvancePaymentStatusFilterLabel } from '../../../utils'
 import AdvancePaymentStatistics from './AdvancePaymentStatistics'
 import AdvancePaymentsTable from './AdvancePaymentsTable'
-import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
-import { standardizeCurrencyRef } from '../../../utils/currencyUtils'
+import AdvancePaymentDetails from './AdvancePaymentDetails'
+import { DetailsSheet } from '../../../common/components/DetailsSheet'
+import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCurrencies'
+import { useAdvancePaymentsOverviewData } from '../../../hooks/useAdvancePaymentsOverviewData'
+import { createAdvancePaymentFilterConfig } from './config/advancePaymentFilterConfig'
+import { buildAdvancePaymentOrderBy } from './config/advancePaymentOrderBy'
+import { advancePaymentSortableColumns } from './config/advancePaymentSortableColumns'
+import { advancePaymentAvailableColumns } from './config/advancePaymentAvailableColumns'
+import type { AdvancePayment } from '../../../hooks/useMainViewAdvancePayments'
+
+const DEFAULT_VISIBLE_COLUMN_IDS = [
+  'expensePlan.title',
+  'expensePlan.startDate',
+  'expensePlan.endDate',
+  'expensePlan.employee.fullName',
+  'createdAt',
+  'amount',
+  'status'
+]
 
 const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
-  // Get managerId from userInfo for currency filtering
+  const { t } = useTranslation(translations)
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
 
-  // Use the advance payment filters hook without fetching currencies (we'll use overview's currencies)
-  const {
-    searchTerm,
-    setSearchTerm,
-    statusFilter,
-    setStatusFilter,
-    currencyFilter,
-    filterGroups: statusFilterGroup, // Only contains status filters - currency is added below
-    handleDataFilterChange: baseHandleDataFilterChange,
-    filterLabelMap: baseLabelMap
-  } = useAdvancePaymentFilters({
-    accessToken: undefined, // Don't fetch currencies from the old hook
-    managerId: undefined
+  const [searchTerm, setSearchTerm] = useState('')
+  /** Default filter "In Approval (Pending)" is linked to the second (Pending) card; chip and card stay in sync. */
+  const [statusFilter, setStatusFilter] = useState<string[]>([ExpenseStatus.PENDING])
+  const [primaryCurrency, setPrimaryCurrency] = useState<string | null>(null)
+  const [pageSize, setPageSize] = useState(20)
+
+  const { availableCurrencies: currencyCodes, mostUsedCurrency } = useAdvancePaymentCurrencies({
+    accessToken: props.accessToken ?? '',
+    managerId
   })
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...DEFAULT_VISIBLE_COLUMN_IDS])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [sorting, setSorting] = useState<{
+    field: string | null
+    order: 'ASC' | 'DESC' | null
+  }>({ field: 'createdAt', order: 'DESC' })
+  const [selectedPayment, setSelectedPayment] = useState<AdvancePayment | null>(null)
 
-  // State for page size
-  const [pageSize, setPageSize] = useState<number>(20)
-
-  // Stats from overview aggregates (declared after overview)
-  let advancePaymentStats: any = null
-  let statsLoading = false
-  let statsError: any = null
-  let fetchAdvancePaymentStatistics: () => Promise<void> = async () => {}
-
-  // Use the main data hook to fetch advance payments data for the table
-  // Local overview-driven paging + sorting
-  const [currentPage, setCurrentPage] = useState<number>(1)
-  const [sorting, setSorting] = useState<{ field: string | null; order: 'ASC' | 'DESC' | null }>({
-    field: null,
-    order: null
-  })
-
-  const payOrderBy = useMemo(() => {
-    if (!sorting.field || !sorting.order) return [{ createdAt: 'DESC' } as any]
-    const dir = sorting.order
-    switch (sorting.field) {
-      case 'expensePlan.title':
-        return [{ expensePlan: { title: dir } } as any]
-      case 'expensePlan.startDate':
-        return [{ expensePlan: { startDate: dir } } as any]
-      case 'expensePlan.endDate':
-        return [{ expensePlan: { endDate: dir } } as any]
-      case 'expensePlan.employee.fullName':
-        return [{ expensePlan: { employee: { fullName: dir } } } as any]
-      case 'createdAt':
-        return [{ createdAt: dir } as any]
-      case 'amount':
-        return [{ amount: dir } as any]
-      case 'status':
-        return [{ status: dir } as any]
-      default:
-        return [{ createdAt: 'DESC' } as any]
-    }
-  }, [sorting])
-
-  const currencyRef = useMemo(
-    () => (currencyFilter ? standardizeCurrencyRef(currencyFilter) : undefined),
-    [currencyFilter]
+  const payOrderBy = useMemo(
+    () => buildAdvancePaymentOrderBy(sorting.field, sorting.order),
+    [sorting.field, sorting.order]
   )
 
-  const overview = useManagerExpensesOverview(props, {
-    managerId,
-    currencyRef,
-    searchTerm,
-    payments: { limit: pageSize, offset: (currentPage - 1) * pageSize, orderBy: payOrderBy },
-    paymentsStatus: statusFilter || undefined,
-    requests: { limit: 0, offset: 0 },
-    plans: { limit: 0, offset: 0 }
-  })
+  const { payStats, statsLoading, statsError, advancePayments, paymentsLoading, paymentsError, totalCount, refetch } =
+    useAdvancePaymentsOverviewData(props, {
+      managerId,
+      primaryCurrency,
+      mostUsedCurrency,
+      searchTerm,
+      statusFilter,
+      pageSize,
+      currentPage,
+      payOrderBy
+    })
 
-  // Use ref to keep the last valid stats to prevent flickering/height changes
-  const lastValidStatsRef = useRef<any>(null)
+  const filterLabelMap = useMemo(
+    () => Object.fromEntries(advancePaymentFilterStatuses.map(s => [s, getAdvancePaymentStatusFilterLabel(s)])),
+    []
+  )
 
-  // Compute stats from overview now that it's declared
-  advancePaymentStats = useMemo(() => {
-    const newStats = overview.data
-      ? {
-          // Use currency-agnostic counts for card totals
-          totalCount: overview.data.totalPaymentsAll || 0,
-          sumAmount: overview.data.paymentTotalAmount || 0,
-          pendingCount: overview.data.pendingPaymentsAll || 0,
-          pendingAmount: overview.data.paymentPendingAmount || 0
+  const filterConfiguration = useMemo(
+    () =>
+      createAdvancePaymentFilterConfig({
+        statusOptions: advancePaymentFilterStatuses,
+        filterLabelMap
+      }),
+    [filterLabelMap]
+  )
+
+  // Initialize selector/filter with the most used currency once it becomes available.
+  useCurrencyInit(mostUsedCurrency, setPrimaryCurrency, primaryCurrency)
+
+  const filterSignature = useMemo(
+    () => ({ searchTerm, statusFilter, primaryCurrency }),
+    [searchTerm, statusFilter, primaryCurrency]
+  )
+  const resetPage = useCallback(() => setCurrentPage(1), [])
+  useFilterSignatureReset(filterSignature, resetPage)
+
+  const handleSortingChange = useCallback(
+    (newState: SortingState) => {
+      if (newState.length === 0) {
+        if (sorting.field === 'createdAt') {
+          setSorting({ field: null, order: null })
+        } else {
+          setSorting({ field: 'createdAt', order: 'DESC' })
         }
-      : null
-
-    // Update ref with new stats if available
-    if (newStats) {
-      lastValidStatsRef.current = newStats
-    }
-
-    // Return new stats if available, otherwise return last valid stats to prevent flickering
-    return newStats || lastValidStatsRef.current
-  }, [overview.data])
-
-  // Don't show loading on stats cards - they should remain stable while table updates
-  statsLoading = false
-  statsError = null
-  fetchAdvancePaymentStatistics = useCallback(async () => {
-    await overview.refetch()
-  }, [overview])
-
-  const advancePayments = useMemo(() => {
-    const rows = overview.data?.advancePayments || []
-    return rows.map((p: any) => ({
-      id: p.id,
-      code: p.code,
-      description: p.description ?? null,
-      status: p.status,
-      amount: Number(p.amount ?? 0),
-      currencyRef: p.currencyRef,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-      paymentMethod: p.paymentMethod,
-      decisionDate: p.decisionDate,
-      transactionDate: p.transactionDate,
-      costCenter: p.costCenter,
-      project: p.project,
-      expensePlan: p.expensePlan
-    }))
-  }, [overview.data?.advancePayments])
-
-  // Only show loading if we have no data AND we're loading (initial load)
-  // Don't show loading when we have cached data (prevents bouncing on filter changes)
-  const paymentsLoading = overview.isLoading && !overview.data
-  const paymentsError = overview.error ? new Error(overview.error) : null
-  const totalCount = overview.data?.advancePaymentsTotal ?? 0
-
-  // Get currencies from overview
-  const availableCurrencies = useMemo(() => {
-    return overview.data?.distinctCurrencies || []
-  }, [overview.data?.distinctCurrencies])
-
-  // Initialize currencyFilter with first available currency if empty
-  const hasInitializedCurrency = useRef(false)
-
-  useEffect(() => {
-    if (hasInitializedCurrency.current) {
-      return
-    }
-
-    if (!currencyFilter && availableCurrencies.length > 0) {
-      hasInitializedCurrency.current = true
-      const rawCurrency = availableCurrencies[0]
-      const code = String(rawCurrency).includes(':') ? String(rawCurrency).split(':').pop() || rawCurrency : rawCurrency
-      baseHandleDataFilterChange(`currency:${code}`, true)
-    }
-  }, [currencyFilter, availableCurrencies, baseHandleDataFilterChange])
-
-  // Build filter groups with currencies from overview
-  const filterGroups = useMemo(() => {
-    const currencyItems = availableCurrencies.map(curr => {
-      const code = String(curr).includes(':') ? String(curr).split(':').pop() || curr : curr
-      return {
-        id: `currency:${code}`,
-        label: code,
-        selected: code === currencyFilter,
-        group: 'currencyGroup'
+      } else {
+        const first = newState[0]
+        setSorting({ field: first.id, order: first.desc ? 'DESC' : 'ASC' })
       }
-    })
-
-    return [
-      ...statusFilterGroup,
-      {
-        id: 'currencyGroup',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule.expense_table.currency',
-          'Currency'
-        ),
-        filters: currencyItems,
-        selectionMode: 'single' as const
-      }
-    ]
-  }, [statusFilterGroup, availableCurrencies, currencyFilter])
-
-  const filterLabelMap = useMemo(() => {
-    const map = { ...baseLabelMap }
-    for (const curr of availableCurrencies) {
-      map[curr] = curr
-    }
-    return map
-  }, [baseLabelMap, availableCurrencies])
-
-  const handleDataFilterChange = useCallback(
-    (filterId: string, selected: boolean) => {
-      baseHandleDataFilterChange(filterId, selected)
+      setCurrentPage(1)
     },
-    [baseHandleDataFilterChange]
+    [sorting.field]
   )
 
-  const updateSorting = useCallback((field: string) => {
-    setSorting(prev => {
-      if (prev.field === field) {
-        if (prev.order === 'ASC') return { field, order: 'DESC' }
-        if (prev.order === 'DESC') return { field: null, order: null }
-        return { field, order: 'ASC' }
-      }
-      return { field, order: 'ASC' }
-    })
+  const handleSearchChange = useSearchHandler(setSearchTerm, setCurrentPage)
+
+  const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
+    const statusIds = (filters.statusIds as string[] | undefined) || []
+    setStatusFilter(statusIds)
     setCurrentPage(1)
   }, [])
 
-  const handleSearchChange = useCallback(
-    (search: string) => {
-      setSearchTerm(search)
+  const handleStatsFilterChange = useCallback(
+    (statuses: string[]) => {
+      setStatusFilter(statuses)
+      if (!primaryCurrency && mostUsedCurrency) {
+        setPrimaryCurrency(mostUsedCurrency)
+      }
+      setCurrentPage(1)
     },
-    [setSearchTerm]
+    [primaryCurrency, mostUsedCurrency]
   )
 
-  const clearAllFilters = useCallback(() => {
-    setSearchTerm('')
-    setStatusFilter([])
-  }, [setSearchTerm, setStatusFilter])
+  const handleCurrencyChange = useCurrencyChangeHandler(setPrimaryCurrency, setCurrentPage)
 
-  // Reset pagination when filters or search change so filtered results are visible from page 1.
-  const prevFilterSignatureRef = useRef<string | null>(null)
-  useEffect(() => {
-    const signature = JSON.stringify({
-      searchTerm,
-      statusFilter,
-      currencyFilter
-    })
-    const prev = prevFilterSignatureRef.current
-    if (prev !== null && prev !== signature) {
-      setCurrentPage(1)
-    }
-    prevFilterSignatureRef.current = signature
-  }, [searchTerm, statusFilter, currencyFilter])
+  const displayCurrencyCode = primaryCurrency ?? mostUsedCurrency ?? 'EUR'
+
+  const filtersObject = useMemo((): Record<string, unknown> => {
+    const obj: Record<string, unknown> = {}
+    if (statusFilter.length > 0) obj.statusIds = statusFilter
+    return obj
+  }, [statusFilter])
+
+  const sortingState = useSortingState(sorting)
+
+  const hasActiveFilters = useMemo(() => {
+    const hasSearch = (searchTerm || '').trim() !== ''
+    const hasStatus = statusFilter.length > 0
+    return hasSearch || hasStatus || !!primaryCurrency
+  }, [searchTerm, statusFilter, primaryCurrency])
+
+  const emptyMessage = useEmptyMessage(
+    hasActiveFilters,
+    'lowcoder:manager_expense_landing_page.no_advance_payments_created_by_team',
+    'No advance payment created by your team yet.'
+  )
+
+  const columnsFilteredByVisibility = useVisibleColumns(visibleColumns, advancePaymentAvailableColumns)
+
+  const secondaryActions = useCurrencySecondaryAction(
+    currencyCodes,
+    primaryCurrency,
+    handleCurrencyChange,
+    'advance-payments'
+  )
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="advance-payments-tab-container">
-      {/* Statistics Section - fixed height to prevent layout shift */}
       <div className="gba:mb-6 gba:min-h-[120px]">
         <AdvancePaymentStatistics
-          advancePaymentStats={advancePaymentStats}
+          advancePaymentStats={payStats}
           statsLoading={statsLoading}
           statsError={statsError}
-          fetchAdvancePaymentStatistics={fetchAdvancePaymentStatistics}
-          currencyFilter={currencyFilter}
+          fetchAdvancePaymentStatistics={refetch}
+          currencyFilter={primaryCurrency}
+          displayCurrency={displayCurrencyCode}
+          activeFilter={statusFilter}
+          onFilterChange={handleStatsFilterChange}
         />
       </div>
 
-      {/* Data Container with Table */}
-      <DataContainer
-        key="advance-payments-data-container"
-        contentBackground="background"
-        addLeftPaddingWhenNoFilter={true}
-        dataControllerProps={{
-          search: searchTerm,
-          // Always keep applied filters visible, even when there are no advance payments yet
-          filter: buildDeduplicatedFilters(statusFilter ?? undefined, currencyFilter),
-          setSearch: handleSearchChange,
-          setFilter: (newFilters: string[]) => {
-            const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
-            const statusFiltersIncoming = newFilters.filter(f => !f.startsWith('currency:'))
-
-            setStatusFilter(statusFiltersIncoming.length > 0 ? statusFiltersIncoming : [])
-
-            // Currency remains selected even when clearing all filters
-            const hasCurrency = currencyFilters.length > 0
-            if (hasCurrency && currencyFilters[0] !== `currency:${currencyFilter}`) {
-              const newCurrencyCode = currencyFilters[0].replace('currency:', '')
-              handleDataFilterChange(`currency:${newCurrencyCode}`, true)
-            }
-          },
-          filterLabelMap: {
-            ...filterLabelMap,
-            ...(currencyFilter ? { [`currency:${currencyFilter}`]: currencyFilter } : {})
-          },
-          listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:backoffice_expense_landing_page.advance_title',
-                    'Advance Payments'
-                  )}
-                </span>
-                <span className="gba:text-muted-foreground">({totalCount})</span>
-              </div>
-            </div>
-          ),
-          debounceDelay: 300
-        }}
-        dataFilterProps={{
-          // Keep filter sidebar available regardless of current result count
-          filterGroups,
-          onFilterChange: handleDataFilterChange
-        }}
-        dataBody={
-          <div data-testid="advance-payments-table-container">
-            <AdvancePaymentsTable
-              accessToken={props.accessToken}
-              userInfo={props.userInfo}
-              search={searchTerm}
-              onSearchChange={handleSearchChange}
-              activeFilter={statusFilter}
-              onFilterChange={filter => setStatusFilter(filter || [])}
-              onClearFilters={clearAllFilters}
-              currencyFilter={currencyFilter}
-              // Pass data from the main hook
-              advancePayments={advancePayments}
-              loading={paymentsLoading}
-              error={paymentsError}
-              totalCount={totalCount}
-              currentPage={currentPage}
-              setCurrentPage={setCurrentPage}
-              sorting={
-                sorting
-                  ? { field: sorting.field || '', direction: (sorting.order || 'ASC').toLowerCase() as any }
-                  : null
-              }
-              updateSorting={updateSorting}
-              pageSize={pageSize}
-              setPageSize={setPageSize}
-            />
-          </div>
+      <DataDisplay
+        titleSections={[
+          {
+            id: 'list',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:backoffice_expense_landing_page.advance_title',
+              'Advance Payments'
+            ),
+            metadata: { count: totalCount, isLoading: paymentsLoading }
+          }
+        ]}
+        currentSection="list"
+        searchValue={searchTerm}
+        searchPlaceholder={
+          getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
+          '...'
         }
-      />
+        onSearchChange={handleSearchChange}
+        filters={filtersObject}
+        filterConfiguration={filterConfiguration}
+        onFilterChange={handleFilterChangeFromDisplay}
+        sorting={sortingState}
+        sortableColumns={advancePaymentSortableColumns}
+        onSortingChange={handleSortingChange}
+        availableColumns={advancePaymentAvailableColumns}
+        visibleColumns={columnsFilteredByVisibility}
+        onVisibleColumnsChange={setVisibleColumns}
+        toolbarDensity="default"
+        enableLiveFiltering={true}
+        filterSheetTitle={t('filter-advance-payments-title')}
+        filterSheetDescription={t('filter-advance-payments-description')}
+        secondaryActions={secondaryActions}
+      >
+        <AdvancePaymentsTable
+          accessToken={props.accessToken}
+          userInfo={props.userInfo}
+          advancePayments={advancePayments}
+          loading={paymentsLoading}
+          error={paymentsError}
+          totalCount={totalCount}
+          currencyFilter={primaryCurrency}
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          sorting={sortingState}
+          onSortingChange={handleSortingChange}
+          pageSize={pageSize}
+          setPageSize={setPageSize}
+          visibleColumnIds={columnsFilteredByVisibility}
+          emptyMessage={emptyMessage}
+          onViewDetails={setSelectedPayment}
+        />
+      </DataDisplay>
+
+      <DetailsSheet
+        open={!!selectedPayment}
+        onOpenChange={open => !open && setSelectedPayment(null)}
+        title={
+          selectedPayment?.expensePlan?.title ||
+          getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.title', 'Advance Payment Details')
+        }
+        testId="advance-payments-details-sheet"
+        onClose={() => setSelectedPayment(null)}
+      >
+        {selectedPayment && (
+          <AdvancePaymentDetails payment={selectedPayment} accessToken={props.accessToken} userInfo={props.userInfo} />
+        )}
+      </DetailsSheet>
     </div>
   )
 }

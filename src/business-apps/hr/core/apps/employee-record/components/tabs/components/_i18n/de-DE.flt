@@ -8,3 +8,14 @@ actions = Aktionen
 
 today = Heute
 holiday = Feiertag
+manual_entry = Manuelle Erfassung
+absence-request-option-sick = Krankmeldung
+absence-request-option-special = Sonderurlaub beantragen
+absence-request-option-vacation = Urlaub beantragen
+absence-request-option-work = Arbeitsbezogene Abwesenheit beantragen
+
+# Day Type column (attendance page only; absences use catalog translations)
+time_tracking_day_type_weekend = Wochenende
+time_tracking_day_type_not_working = Kein Arbeitstag
+time_tracking_day_type_work_day = Arbeitstag
+manual_entry = Manuelle Erfassung

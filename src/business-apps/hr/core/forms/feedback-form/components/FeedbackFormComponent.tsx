@@ -12,7 +12,7 @@ import {
   AlertDescription,
   Switch
 } from '@newwork/nw-design-system'
-import { DownOutlined } from '@ant-design/icons'
+import { CaretDownIcon } from '@phosphor-icons/react'
 import { useFeedbackForm } from '../context/FeedbackFormContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -107,6 +107,7 @@ const FeedbackFormComponent: React.FC = () => {
   }
 
   const title = getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.title', 'Give Feedback')
+  const showOnlyPreselectedLoading = hasPreSelectedEmployee && preSelectedEmployeeLoading
 
   return (
     <div
@@ -118,8 +119,8 @@ const FeedbackFormComponent: React.FC = () => {
 
         {/* Modal Content */}
         <div className="gba:px-6 gba:py-6 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-200px)]">
-          {/* Show loading state for pre-selected employee */}
-          {hasPreSelectedEmployee && preSelectedEmployeeLoading && (
+          {/* During preselected fetch, render only loader to avoid flashing editable fields. */}
+          {showOnlyPreselectedLoading ? (
             <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded-lg">
               <Spinner size="sm" />
               <span className="gba:text-sm gba:text-muted-foreground">
@@ -129,173 +130,177 @@ const FeedbackFormComponent: React.FC = () => {
                 )}
               </span>
             </div>
-          )}
-
-          {/* Show error state for pre-selected employee */}
-          {hasPreSelectedEmployee && preSelectedEmployeeError && (
-            <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'EmployeeErrorAlert')}>
-              <AlertDescription>{preSelectedEmployeeError}</AlertDescription>
-            </Alert>
-          )}
-
-          {/* Employee Selection Section - only show if not pre-selected or is current user */}
-          {(!hasPreSelectedEmployee || isPreSelectedEmployeeCurrentUser) && !preSelectedEmployeeLoading && (
-            <div className="gba:space-y-2">
-              <Label htmlFor="employee-select" className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.employee.label', 'Employee')} *
-              </Label>
-              <EmployeeSelect
-                value={formValues.employeeId || null}
-                onValueChange={value => {
-                  if (value) {
-                    handleEmployeeChange(value)
-                  } else {
-                    setFormValues({ employeeId: undefined, employeeName: undefined })
-                  }
-                }}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:feedback_give_form.employee.placeholder',
-                  'Select an employee...'
-                )}
-                employees={
-                  employees.map(emp => ({
-                    id: emp.id,
-                    displayName: emp.name,
-                    firstName: emp.name.split(' ')[0] || '',
-                    lastName: emp.name.split(' ').slice(1).join(' ') || '',
-                    pictureThumbnail: emp.pictureThumbnail,
-                    userId: emp.userId,
-                    employeePosition: {
-                      jobPosition: emp.jobTitle ? { name: emp.jobTitle } : undefined,
-                      organizationalUnit: emp.department ? { name: emp.department } : undefined
-                    }
-                  })) as Employee[]
-                }
-                loading={employeesLoading}
-                onSearch={searchEmployees}
-                data-testid={formatDataTestId(prefixDataTestId, 'EmployeeSelect')}
-                className="gba:w-full"
-              />
-              {employeesError && <div className="gba:text-sm gba:text-destructive">{employeesError}</div>}
-            </div>
-          )}
-
-          {/* Public switch */}
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <Label htmlFor="feedback-public" className="gba:text-sm gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.public.label', 'Public Feedback')}
-            </Label>
-            <Switch
-              id="feedback-public"
-              checked={!!formValues.feedbackPublic}
-              onCheckedChange={(v: boolean) => setFormValues({ feedbackPublic: v })}
-              data-testid={formatDataTestId(prefixDataTestId, 'PublicSwitch')}
-            />
-          </div>
-
-          {/* Feedback Text Section */}
-          <div className="gba:space-y-2">
-            <Label htmlFor="feedback-text" className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.text.label', 'Feedback')} *
-            </Label>
-            <Textarea
-              id="feedback-text"
-              name="feedbackText"
-              data-testid={formatDataTestId(prefixDataTestId, 'Textarea')}
-              value={formValues.feedbackText}
-              onChange={handleTextChange}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:feedback_give_form.text.placeholder',
-                'Enter your feedback here...'
+          ) : (
+            <>
+              {/* Show error state for pre-selected employee */}
+              {hasPreSelectedEmployee && preSelectedEmployeeError && (
+                <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'EmployeeErrorAlert')}>
+                  <AlertDescription>{preSelectedEmployeeError}</AlertDescription>
+                </Alert>
               )}
-              rows={12}
-              className="gba:resize-none gba:border-border gba:focus:border-ring gba:focus:ring-ring gba:min-h-[200px]"
-            />
-          </div>
 
-          {/* Text Transformation Tool */}
-          <div className="gba:space-y-2 gba:w-30">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="default"
-                  disabled={!formValues.feedbackText.trim() || isLoading}
-                  className="gba:w-full gba:justify-between gba:bg-destructive hover:gba:bg-destructive gba:text-primary-foreground gba:border-destructive"
-                  data-testid={formatDataTestId(prefixDataTestId, 'TransformDropdown')}
-                >
-                  <span>
-                    {isLoading ? (
-                      <span className="gba:flex gba:items-center gba:gap-2">
-                        <Spinner size="sm" />
-                      </span>
-                    ) : (
-                      getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:feedback_give_form.transform.placeholder',
-                        'Text Tool'
-                      )
+              {/* Employee Selection Section - only show if not pre-selected or is current user */}
+              {(!hasPreSelectedEmployee || isPreSelectedEmployeeCurrentUser) && !preSelectedEmployeeLoading && (
+                <div className="gba:space-y-2">
+                  <Label htmlFor="employee-select" className="gba:text-sm gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.employee.label', 'Employee')} *
+                  </Label>
+                  <EmployeeSelect
+                    value={formValues.employeeId || null}
+                    onValueChange={value => {
+                      if (value) {
+                        handleEmployeeChange(value)
+                      } else {
+                        setFormValues({ employeeId: undefined, employeeName: undefined })
+                      }
+                    }}
+                    placeholder={getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:feedback_give_form.employee.placeholder',
+                      'Select an employee...'
                     )}
-                  </span>
-                  <DownOutlined className="gba:h-4 gba:w-4 gba:opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">
-                <DropdownMenuItem
-                  onClick={() => handleTransform('formalize')}
-                  data-testid={formatDataTestId(prefixDataTestId, 'FormalizeOption')}
-                  className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
-                >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.formalize', 'Formalize')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleTransform('translate')}
-                  data-testid={formatDataTestId(prefixDataTestId, 'TranslateOption')}
-                  className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
-                >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.translate', 'Translate')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleTransform('shorten')}
-                  data-testid={formatDataTestId(prefixDataTestId, 'ShortenOption')}
-                  className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
-                >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.shorten', 'Shorten')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                    employees={
+                      employees.map(emp => ({
+                        id: emp.id,
+                        displayName: emp.name,
+                        firstName: emp.name.split(' ')[0] || '',
+                        lastName: emp.name.split(' ').slice(1).join(' ') || '',
+                        pictureThumbnail: emp.pictureThumbnail,
+                        userId: emp.userId,
+                        employeePosition: {
+                          jobPosition: emp.jobTitle ? { name: emp.jobTitle } : undefined,
+                          organizationalUnit: emp.department ? { name: emp.department } : undefined
+                        }
+                      })) as Employee[]
+                    }
+                    loading={employeesLoading}
+                    onSearch={searchEmployees}
+                    data-testid={formatDataTestId(prefixDataTestId, 'EmployeeSelect')}
+                    className="gba:w-full"
+                  />
+                  {employeesError && <div className="gba:text-sm gba:text-destructive">{employeesError}</div>}
+                </div>
+              )}
 
-          {/* Error Display */}
-          {error && (
-            <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'ErrorAlert')}>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+              {/* Public switch */}
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <Label htmlFor="feedback-public" className="gba:text-sm gba:text-gray-600">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.public.label', 'Public Feedback')}
+                </Label>
+                <Switch
+                  id="feedback-public"
+                  checked={!!formValues.feedbackPublic}
+                  onCheckedChange={(v: boolean) => setFormValues({ feedbackPublic: v })}
+                  data-testid={formatDataTestId(prefixDataTestId, 'PublicSwitch')}
+                />
+              </div>
+
+              {/* Feedback Text Section */}
+              <div className="gba:space-y-2">
+                <Label htmlFor="feedback-text" className="gba:text-sm gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.text.label', 'Feedback')} *
+                </Label>
+                <Textarea
+                  id="feedback-text"
+                  name="feedbackText"
+                  data-testid={formatDataTestId(prefixDataTestId, 'Textarea')}
+                  value={formValues.feedbackText}
+                  onChange={handleTextChange}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:feedback_give_form.text.placeholder',
+                    'Enter your feedback here...'
+                  )}
+                  rows={12}
+                  className="gba:resize-none gba:border-border gba:focus:border-ring gba:focus:ring-ring gba:min-h-[200px]"
+                />
+              </div>
+
+              {/* Text Transformation Tool */}
+              <div className="gba:space-y-2 gba:w-30">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="default"
+                      disabled={!formValues.feedbackText.trim() || isLoading}
+                      className="gba:w-full gba:justify-between gba:bg-destructive hover:gba:bg-destructive gba:text-primary-foreground gba:border-destructive"
+                      data-testid={formatDataTestId(prefixDataTestId, 'TransformDropdown')}
+                    >
+                      <span>
+                        {isLoading ? (
+                          <span className="gba:flex gba:items-center gba:gap-2">
+                            <Spinner size="sm" />
+                          </span>
+                        ) : (
+                          getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:feedback_give_form.transform.placeholder',
+                            'Text Tool'
+                          )
+                        )}
+                      </span>
+                      <CaretDownIcon size={16} className="gba:h-4 gba:w-4 gba:opacity-50" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">
+                    <DropdownMenuItem
+                      onClick={() => handleTransform('formalize')}
+                      data-testid={formatDataTestId(prefixDataTestId, 'FormalizeOption')}
+                      className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                    >
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.formalize', 'Formalize')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleTransform('translate')}
+                      data-testid={formatDataTestId(prefixDataTestId, 'TranslateOption')}
+                      className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                    >
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.translate', 'Translate')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleTransform('shorten')}
+                      data-testid={formatDataTestId(prefixDataTestId, 'ShortenOption')}
+                      className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                    >
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.shorten', 'Shorten')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* Error Display */}
+              {error && (
+                <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'ErrorAlert')}>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+            </>
           )}
         </div>
 
         {/* Action Buttons - Fixed at bottom */}
-        <div className="gba:px-6 gba:py-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end">
-          {!isRequestedFeedbackFlow && (
+        {!showOnlyPreselectedLoading && (
+          <div className="gba:px-6 gba:py-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end">
+            {!isRequestedFeedbackFlow && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.cancel', 'Cancel')}
+              </Button>
+            )}
             <Button
-              variant="secondary"
-              onClick={onCancel}
-              data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
-              className="gba:px-6 gba:py-2 gba:rounded-lg"
+              type="button"
+              variant="default"
+              disabled={!isFormValid || isLoading || (hasPreSelectedEmployee && preSelectedEmployeeLoading)}
+              onClick={handleSubmit}
+              className="gba:bg-foreground hover:gba:bg-muted gba:text-primary-foreground"
+              data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
             >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.cancel', 'Cancel')}
+              {isLoading && <Spinner size="sm" className="gba:mr-2" />}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.submit', 'Submit')}
             </Button>
-          )}
-          <Button
-            variant="default"
-            disabled={!isFormValid || isLoading || (hasPreSelectedEmployee && preSelectedEmployeeLoading)}
-            size="default"
-            onClick={handleSubmit}
-            className="gba:bg-primary hover:gba:bg-primary gba:text-primary-foreground gba:px-6 gba:py-2 gba:rounded-lg"
-            data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
-          >
-            {isLoading && <Spinner size="sm" className="gba:mr-2" />}
-            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.submit', 'Submit')}
-          </Button>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )

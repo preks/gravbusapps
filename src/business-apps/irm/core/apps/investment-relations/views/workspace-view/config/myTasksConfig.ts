@@ -154,7 +154,7 @@ export const buildIrmMyTasksConfig = (
           }
         ]
       } else {
-        vars.orderBy = [{ field: 'dueDate' as any, direction: 'ASC_NULLS_LAST' }]
+        vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
       }
 
       return vars

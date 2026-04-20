@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useEmployeeContext } from '../context/EmployeeContext'
+import { useDelayedBoolean } from '../hooks/useDelayedBoolean'
 import {
   Button,
   Input,
@@ -9,6 +10,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  Combobox,
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
@@ -37,9 +39,15 @@ const EmployeeForm: React.FC = () => {
     structureId,
     organizationalUnitsError,
     organizationalUnitsLoading,
+    loadMoreOrganizationalUnits,
+    hasMoreOrganizationalUnits,
+    searchOrganizationalUnits,
     refetchJobPositions,
     jobPositionsError,
     jobPositionsLoading,
+    loadMoreJobPositions,
+    hasMoreJobPositions,
+    searchJobPositions,
     employmentTypesError,
     employmentTypesLoading,
     contractTypesError,
@@ -48,9 +56,34 @@ const EmployeeForm: React.FC = () => {
 
   const [showAdditionalAttributes, setShowAdditionalAttributes] = useState(false)
   const [isCreateJobPositionModalOpen, setIsCreateJobPositionModalOpen] = useState(false)
+  const [isProcessPending, setIsProcessPending] = useState(false)
+
+  // Avoid flicker: show loading only if it lasts longer than 200ms
+  const showOrgUnitsLoading = useDelayedBoolean(organizationalUnitsLoading, 300)
+  const showJobPositionsLoading = useDelayedBoolean(jobPositionsLoading, 300)
 
   const selectedOrgUnit = organizationalUnits.find(unit => unit.id === formValues.organizationalUnitId)
   const selectedOrgUnitName = selectedOrgUnit?.name || ''
+
+  const organizationalUnitOptions = useMemo(
+    () => organizationalUnits.map(unit => ({ value: unit.id, label: unit.name })),
+    [organizationalUnits]
+  )
+
+  const jobPositionOptions = useMemo(
+    () => jobPositions.map(position => ({ value: position.id, label: position.name })).filter(Boolean),
+    [jobPositions]
+  )
+
+  const jobPositionEmptyText = (() => {
+    if (formValues.organizationalUnitId) {
+      if (jobPositionsLoading) {
+        return t('loading')
+      }
+      return t('employee-form-no-positions')
+    }
+    return t('employee-form-select-org-unit-first')
+  })()
 
   const isFormValid =
     formValues.firstName?.trim() &&
@@ -58,6 +91,7 @@ const EmployeeForm: React.FC = () => {
     formValues.email?.trim() &&
     formValues.organizationalUnitId &&
     formValues.jobPositionId &&
+    formValues.hireDate?.trim() &&
     formValues.employmentTypeId &&
     formValues.contractTypeId
 
@@ -66,7 +100,35 @@ const EmployeeForm: React.FC = () => {
     return emailRegex.test(email)
   }
 
+  const formatDateToMidnight = (value?: string) => {
+    if (!value) return undefined
+    return `${value}T00:00:00`
+  }
+
   const isEmailFieldValid = !formValues.email || isEmailValid(formValues.email)
+
+  // Validate fixed-term dates
+  const fixedTermDateError = (() => {
+    if (!formValues.fixedTermUntil) return null
+
+    // If fixed-term date is set but hire date is not, require hire date
+    if (!formValues.hireDate) {
+      return t('employee-form-hire-date-required')
+    }
+
+    // If both dates are set, validate that fixed-term >= hire date
+    if (formValues.hireDate && formValues.fixedTermUntil) {
+      const hireDate = new Date(formValues.hireDate)
+      const fixedTermDate = new Date(formValues.fixedTermUntil)
+      if (fixedTermDate < hireDate) {
+        return t('employee-form-fixed-term-before-hire')
+      }
+    }
+
+    return null
+  })()
+
+  const hasFixedTermDateError = !!fixedTermDateError
 
   const handleJobPositionChange = (selectedJobPositionId: string) => {
     if (selectedJobPositionId) {
@@ -97,11 +159,16 @@ const EmployeeForm: React.FC = () => {
   }
 
   const handleSubmit = async () => {
+    setIsProcessPending(true)
     try {
       await submit()
 
       const hireDateToUse = formValues.hireDate || new Date().toISOString().split('T')[0]
-      const hireDateFormatted = `${hireDateToUse}T00:00:00`
+      const hireDateFormatted = formatDateToMidnight(hireDateToUse)
+      const fixedTermUntilFormatted = formatDateToMidnight(formValues.fixedTermUntil)
+
+      // Auto-set fixedTermReason to "Fixed-Term Employment" when fixedTermUntil is present
+      const fixedTermReason = formValues.fixedTermUntil ? 'Fixed-Term Employment' : formValues.fixedTermReason
 
       const payload: any = {
         employee: {
@@ -123,7 +190,9 @@ const EmployeeForm: React.FC = () => {
               contractStatus: 'ACTIVE',
               contractTypeRef: formValues.contractTypeId,
               employmentTypeRef: formValues.employmentTypeId,
-              hireDate: hireDateFormatted
+              hireDate: hireDateFormatted,
+              exitDate: fixedTermUntilFormatted,
+              additionalProperties: fixedTermReason ? { fixedTermReason: fixedTermReason } : undefined
             }
           ]
         },
@@ -134,15 +203,36 @@ const EmployeeForm: React.FC = () => {
         createUser: true
       }
 
-      if (formValues.preferredName && formValues.preferredName.trim()) {
-        payload.employee.displayName = `${formValues.preferredName} ${formValues.lastName}`
-      } else {
-        payload.employee.displayName = `${formValues.firstName} ${formValues.lastName}`
-      }
+      window.dispatchEvent(
+        new CustomEvent('com.newwork.employeeForm.saveEmployeePayload', {
+          detail: { payload }
+        })
+      )
 
+      // Wait for the same process-completion event that closes the modal (shell listens to it too)
       dispatchProcessContinueEvent('pse_submit', payload)
+      await new Promise<void>(resolve => {
+        const handleProcessCompletion = (event: Event) => {
+          const customEvent = event as CustomEvent<{ resolution?: 'success' | 'failure' }>
+          const detail = customEvent?.detail ?? null
+          if (detail?.resolution === 'success' || detail?.resolution === 'failure') {
+            cleanup()
+            resolve()
+          }
+        }
+
+        const cleanup = () => {
+          globalThis.window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+          globalThis.window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion)
+        }
+
+        globalThis.window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+        globalThis.window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion)
+      })
     } catch (err) {
       console.error('Error submitting employee form:', err)
+    } finally {
+      setIsProcessPending(false)
     }
   }
 
@@ -207,30 +297,22 @@ const EmployeeForm: React.FC = () => {
                 {t('employee-form-organizational-unit')}
                 <span className="gba:text-destructive"> *</span>
               </label>
-              <Select
-                value={formValues.organizationalUnitId || undefined}
-                onValueChange={value => setFormValues({ organizationalUnitId: value })}
-                disabled={organizationalUnitsLoading}
-              >
-                <SelectTrigger className="gba:w-full">
-                  <SelectValue
-                    placeholder={organizationalUnitsLoading ? t('loading') : t('action-select-placeholder')}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {organizationalUnits.length === 0 ? (
-                    <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
-                      {organizationalUnitsLoading ? t('loading') : t('employee-form-no-results')}
-                    </div>
-                  ) : (
-                    organizationalUnits.map(unit => (
-                      <SelectItem key={unit.id} value={unit.id}>
-                        {unit.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <Combobox
+                className="gba:[&&]:h-auto gba:w-full"
+                options={organizationalUnitOptions}
+                value={formValues.organizationalUnitId || ''}
+                onValueChange={v => setFormValues({ organizationalUnitId: v ?? '' })}
+                placeholder={t('action-select-placeholder')}
+                searchPlaceholder="Type to search..."
+                emptyText={organizationalUnitsLoading ? t('loading') : t('employee-form-no-results')}
+                onSearch={searchOrganizationalUnits}
+                searchDebounce={300}
+                loading={showOrgUnitsLoading}
+                onLoadMore={loadMoreOrganizationalUnits}
+                hasMore={Boolean(hasMoreOrganizationalUnits)}
+                data-testid="employee-form-organizational-unit-combobox"
+                align="start"
+              />
               {organizationalUnitsError && (
                 <div className="gba:text-destructive gba:text-sm gba:mt-1">{organizationalUnitsError}</div>
               )}
@@ -243,28 +325,23 @@ const EmployeeForm: React.FC = () => {
               </label>
               <div className="gba:flex gba:gap-2 gba:items-center">
                 <div className="gba:flex-1">
-                  <Select
-                    value={formValues.jobPositionId || undefined}
-                    onValueChange={handleJobPositionChange}
-                    disabled={!formValues.organizationalUnitId || jobPositionsLoading}
-                  >
-                    <SelectTrigger className="gba:w-full">
-                      <SelectValue placeholder={jobPositionsLoading ? t('loading') : t('action-select-placeholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {jobPositions.length === 0 ? (
-                        <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
-                          {jobPositionsLoading ? t('loading') : t('employee-form-no-positions')}
-                        </div>
-                      ) : (
-                        jobPositions.map(position => (
-                          <SelectItem key={position.id} value={position.id}>
-                            {position.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    className="gba:[&&]:h-auto gba:w-full"
+                    options={jobPositionOptions}
+                    value={formValues.jobPositionId || ''}
+                    onValueChange={v => handleJobPositionChange(v ?? '')}
+                    placeholder={t('action-select-placeholder')}
+                    searchPlaceholder="Type to search..."
+                    emptyText={jobPositionEmptyText}
+                    onSearch={searchJobPositions}
+                    searchDebounce={300}
+                    loading={showJobPositionsLoading}
+                    onLoadMore={loadMoreJobPositions}
+                    hasMore={Boolean(hasMoreJobPositions)}
+                    data-testid="employee-form-job-position-combobox"
+                    align="start"
+                    disabled={!formValues.organizationalUnitId}
+                  />
                 </div>
                 <Button
                   type="button"
@@ -298,6 +375,7 @@ const EmployeeForm: React.FC = () => {
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
                 {t('employee-form-hire-date')}
+                <span className="gba:text-destructive"> *</span>
               </label>
               <DateInput
                 type="date"
@@ -400,6 +478,22 @@ const EmployeeForm: React.FC = () => {
                       <div className="gba:text-destructive gba:text-sm gba:mt-1">{contractTypesError}</div>
                     )}
                   </div>
+
+                  <div>
+                    <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
+                      {t('employee-form-fixed-term-end-date')}
+                    </label>
+                    <DateInput
+                      type="date"
+                      value={formValues.fixedTermUntil || ''}
+                      onChange={v => setFormValues({ fixedTermUntil: typeof v === 'string' ? v : '' })}
+                      className={`gba:w-full ${hasFixedTermDateError ? 'gba:border-destructive' : ''}`}
+                      captionLayout="dropdown"
+                    />
+                    {fixedTermDateError && (
+                      <div className="gba:text-destructive gba:text-sm gba:mt-1">{fixedTermDateError}</div>
+                    )}
+                  </div>
                 </div>
               </CollapsibleContent>
             </div>
@@ -415,11 +509,15 @@ const EmployeeForm: React.FC = () => {
         <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-border">
           <Button
             variant="default"
-            disabled={!isFormValid || !isEmailFieldValid || loading}
+            disabled={!isFormValid || !isEmailFieldValid || hasFixedTermDateError || loading || isProcessPending}
             className="gba:w-full"
             onClick={handleSubmit}
           >
-            {loading ? t('loading') : isEdit ? t('employee-form-update-employee') : t('employee-form-create-employee')}
+            {loading || isProcessPending
+              ? t('loading')
+              : isEdit
+                ? t('employee-form-update-employee')
+                : t('employee-form-create-employee')}
           </Button>
         </div>
       </form>

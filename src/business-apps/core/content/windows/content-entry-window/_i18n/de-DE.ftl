@@ -13,7 +13,9 @@ content = Inhalt
 content-placeholder = Beginnen Sie mit dem Schreiben...
 content-image = Inhaltsbild
 content-group = Inhaltsgruppe
+select-group = Gruppe auswählen
 content-type = Inhaltstyp
+select-type = Typ auswählen
 author = Autor
 display-author = Autor anzeigen
 allow-comments = Kommentare erlauben
@@ -25,6 +27,9 @@ end-date = Enddatum
 description = Beschreibung
 summary = Zusammenfassung
 summary-placeholder = Kurze Zusammenfassung für Suche und Listen...
+header-image = Kopfbild
+short-description = Kurzbeschreibung
+short-description-placeholder = Kurze Zusammenfassung, die im Dokumentenportal angezeigt wird...
 
 # Question-specific fields
 question-title = Fragetitel
@@ -57,6 +62,14 @@ glossary-examples-hint = Helfen Sie anderen zu verstehen, wie dieser Begriff in 
 categories = Kategorien
 tags = Tags
 
+# Policy-specific fields
+policy-title-placeholder = Richtlinientitel eingeben...
+policy-preview-placeholder = Kurze Zusammenfassung der Richtlinie...
+policy-content-placeholder = Richtlinieninhalt hier verfassen...
+policy-validity-period = Gültigkeitszeitraum der Richtlinie
+policy-valid-from = Gültig ab
+policy-valid-to = Gültig bis
+
 # Validations
 title-required = Titel ist erforderlich
 preview-required = Vorschautext ist erforderlich
@@ -65,4 +78,5 @@ group-required = Inhaltsgruppe ist erforderlich
 type-required = Inhaltstyp ist erforderlich
 start-date-required = Startdatum ist erforderlich
 end-date-required = Enddatum ist erforderlich
+version-required = Version ist für Updates erforderlich
 

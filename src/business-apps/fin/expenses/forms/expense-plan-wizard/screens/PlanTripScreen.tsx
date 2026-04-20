@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Form } from 'antd'
 import { Button, Checkbox } from '@newwork/gravity-ui-catalog'
+import { useTranslation } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
@@ -33,43 +34,9 @@ import { EVENTS } from '../../../utils/constants'
 import { getLatestRejectComment, setLocalitiesDefault } from '../utils/tripScreenUtils'
 import { setByExternalCustomComponent } from '../../expense-request-wizard/utils/tripScreenUtils'
 import { combineDateTimeToISOString } from '../../expense-request-wizard/utils/locationTimeUtils'
-
-/**
- * Filters travel regions based on expense items' currency
- * @param items - Expense items with currency information
- * @param mainRule - Home region rule
- * @param otherRules - All available travel regions
- * @returns Filtered travel regions and flag indicating if all items use the same currency
- */
-const filterRules = (items: any[], mainRule: any, otherRules: any[]) => {
-  if (!items || !items.length || !mainRule || !otherRules) {
-    return { sameRuleCurrency: false, valuesArray: otherRules || [] }
-  }
-
-  const ruleCurrency = mainRule.currency?.id
-  if (!ruleCurrency) {
-    return { sameRuleCurrency: false, valuesArray: otherRules || [] }
-  }
-
-  const allMatch = items.every(item => item.currencyId === ruleCurrency || item.currency === ruleCurrency)
-
-  if (allMatch) {
-    return {
-      sameRuleCurrency: true,
-      valuesArray: otherRules.filter(rule => rule.currency?.id === ruleCurrency)
-    }
-  }
-
-  return {
-    sameRuleCurrency: false,
-    valuesArray: otherRules.filter(rule =>
-      items.some(item => {
-        const itemCurrency = item.currencyId || item.currency
-        return itemCurrency === rule.currency?.id
-      })
-    )
-  }
-}
+import expenseFormsTranslations from '../../_i18n'
+import { tripLocationPointsEqual } from '../../expense-request-wizard/utils/tripLocationPointEquality'
+import { filterTravelRegionsByExpenseItemsCurrency } from '../../shared/utils/filterTravelRegionsByExpenseItemsCurrency'
 
 export const PlanTripScreen: React.FC<TripScreenProps> = props => {
   const { accessToken, additionalData } = props
@@ -85,6 +52,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     setRequestAdvancePayment
   } = useExpensePlanWizardContext()
   const { userInfo } = props
+  const { t: tForms } = useTranslation(expenseFormsTranslations)
 
   // Get expense items from additionalData if available
   const getExpenseItems = () => {
@@ -110,7 +78,8 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
 
     // Then filter by expense items currency if items exist
     if (expenseItems && expenseItems.length > 0 && expenseRulesData?.homeRegionRule?.length > 0) {
-      return filterRules(expenseItems, expenseRulesData.homeRegionRule[0], baseRegions).valuesArray
+      return filterTravelRegionsByExpenseItemsCurrency(expenseItems, expenseRulesData.homeRegionRule[0], baseRegions)
+        .valuesArray
     }
 
     return baseRegions
@@ -132,6 +101,9 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
   const [endLocationOverlap, setEndLocationOverlap] = useState<{ message: string; isError: boolean } | null>(null)
   const [employeeRuleError, setEmployeeRuleError] = useState<string | null>(null)
   const [ruleConflictError, setRuleConflictError] = useState<string | null>(null)
+
+  /** Rule id from date+time validation; not pushed to context until submit/next to avoid full-tree rerender */
+  const validatedEmployeeRuleIdRef = useRef<string | null>(null)
 
   const validateEmployeeRule = async (startDate: Date | undefined, startTime: Date | undefined) => {
     setEmployeeRuleError(null)
@@ -158,7 +130,6 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
       }
 
       const ruleData = await fetchEmployeeRule(employeeId, dateString, accessToken)
-      const ruleDataValue = ruleData.id || ruleData.expenseRuleId
       if (!ruleData) {
         const errorMessage = getTranslationFromI18nKeyAndLabel(
           'lowcoder:create_expense_item.missing_expense_rule_message',
@@ -168,8 +139,19 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
         return false
       }
 
+      const ruleDataValue = ruleData.id || ruleData.expenseRuleId
       if (ruleDataValue) {
-        setEmployeeRuleId(ruleDataValue)
+        validatedEmployeeRuleIdRef.current = ruleDataValue
+        try {
+          const activeUserLocale = getCurrentActiveUserLocale()
+          const rulesResponse = await graphqlClient.request(getExpenseRulesDataQuery, {
+            expenseRuleId: ruleDataValue,
+            activeUserLocale
+          })
+          setExpenseRulesData(rulesResponse)
+        } catch {
+          // Keep previous rules on fetch error
+        }
       }
 
       return true
@@ -195,9 +177,14 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     }
 
     if (!isEndLocation) {
-      const isRuleValid = await validateEmployeeRule(startDate, startTime)
-      if (!isRuleValid) {
-        return
+      if (startDate && startTime) {
+        const isRuleValid = await validateEmployeeRule(startDate, startTime)
+        if (!isRuleValid) {
+          return
+        }
+      } else {
+        setEmployeeRuleError(null)
+        validatedEmployeeRuleIdRef.current = null
       }
     }
 
@@ -499,7 +486,10 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
 
         setExpenseRulesData(rulesResponse)
 
-        await loadInitialTripData()
+        // Only prefill trip from plan when form is not yet filled (avoids overwriting user's date/time)
+        if (!startLocation.departureDate) {
+          await loadInitialTripData()
+        }
       } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
@@ -531,6 +521,20 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     [startLocation, destinations, endLocation]
   )
 
+  const startEqualsFirstDestinationMessage = useMemo(() => {
+    if (destinations.length === 0) {
+      return null
+    }
+    const first = destinations[0]
+    if (!startLocation.location?.trim() || !first.location?.trim()) {
+      return null
+    }
+    if (!tripLocationPointsEqual(startLocation, first)) {
+      return null
+    }
+    return tForms('trip-start-equals-first-destination')
+  }, [destinations, startLocation, tForms])
+
   const validateTripForm = useCallback(() => {
     if (employeeRuleError || ruleConflictError) {
       updateTripFormValidation(false)
@@ -540,6 +544,18 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     if (startLocationOverlap?.isError === true || endLocationOverlap?.isError === true) {
       updateTripFormValidation(false)
       return false
+    }
+
+    if (destinations.length > 0) {
+      const firstDest = destinations[0]
+      if (
+        startLocation.location?.trim() &&
+        firstDest.location?.trim() &&
+        tripLocationPointsEqual(startLocation, firstDest)
+      ) {
+        updateTripFormValidation(false)
+        return false
+      }
     }
 
     if (
@@ -604,7 +620,15 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
   ])
 
   const handleSave = () => {
-    submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.SAVE, requestAdvancePayment)
+    submitActionTripData(
+      startLocation,
+      destinations,
+      endLocation,
+      expenseRulesData,
+      EVENTS.SAVE,
+      requestAdvancePayment,
+      validatedEmployeeRuleIdRef.current ?? undefined
+    )
   }
 
   const handleNext = () => {
@@ -615,7 +639,8 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
         endLocation,
         expenseRulesData,
         EVENTS.NEXT,
-        requestAdvancePayment
+        requestAdvancePayment,
+        validatedEmployeeRuleIdRef.current ?? undefined
       )
     }
   }
@@ -770,6 +795,21 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                   showDateTimeFields={index < destinations.length - 1}
                   dateTimeLimits={destinationLimits[destination.id] ?? {}}
                   travelRegions={getFilteredTravelRegions(destination.isAbroad)}
+                  errorMessage={index === 0 ? startEqualsFirstDestinationMessage : null}
+                  locationFormLabels={{
+                    inputFieldLabel: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.add_request_trip_details.destination_input_label',
+                      'Destination'
+                    ),
+                    dateFieldLabel: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.add_request_trip_details.departure_date',
+                      'Departure Date'
+                    ),
+                    timeFieldLabel: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.add_request_trip_details.departure_time',
+                      'Departure Time'
+                    )
+                  }}
                 />
               </LocationContainer>
             </div>

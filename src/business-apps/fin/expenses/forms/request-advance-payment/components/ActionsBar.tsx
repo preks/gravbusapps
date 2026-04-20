@@ -19,22 +19,23 @@ const ActionsBar: React.FC<ActionsBarProps> = ({
 }) => {
   return (
     <div
-      className="gba:flex gba:justify-between gba:gap-3 gba:pt-6 gba:border-t gba:border-gray-300"
+      className="gba:flex gba:justify-between gba:gap-3 gba:pt-6 gba:border-t gba:border-border"
       data-testid={dataTestId}
     >
       <Button
         variant="outline"
         onClick={onCancel}
-        className="gba:px-6 gba:py-2 gba:border gba:border-gray-300 gba:text-black gba:hover:bg-gray-50"
+        className="gba:px-6 gba:py-2"
         data-testid="request-advance-payment-cancel-button"
       >
         {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_expense_plan.cancel_button', 'Cancel')}
       </Button>
 
       <Button
+        variant="default"
         onClick={onSubmit}
         disabled={isSubmitting || isSubmitDisabled}
-        className="gba:px-6 gba:py-2 gba:bg-blue-600 gba:text-background gba:hover:bg-blue-700 gba:disabled:bg-gray-300"
+        className="gba:px-6 gba:py-2 gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90 disabled:gba:opacity-50"
         data-testid="request-advance-payment-submit-button"
       >
         {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}

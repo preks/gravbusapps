@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   AiButton,
   Popover,
@@ -12,11 +12,82 @@ import {
   CardContent,
   Button
 } from '@newwork/nw-design-system'
-import { ChartBarIcon, LightbulbIcon, ArrowClockwiseIcon } from '@phosphor-icons/react'
+import { ChartBarIcon, LightbulbIcon, ArrowClockwiseIcon, RobotIcon, CalendarIcon } from '@phosphor-icons/react'
 import { Bot } from 'lucide-react'
-import { AiActionsProps, AiAction } from './AiActionsTypes'
+import { AiActionsProps, AiAction, EnhancedAiActionsProps } from './AiActionsTypes'
 import { openEveryAI } from '@/common/utils/openEveryAI'
 import { buildAiSummaryPrompt } from '@/common/utils/buildAiSummaryPrompt'
+import { buildAiMeetingPlannerPrompt } from '@/common/utils/buildAiMeetingPlannerPrompt'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+
+/**
+ * Helper to build actions from enhanced API features
+ */
+function buildActionsFromFeatures(props: EnhancedAiActionsProps): AiAction[] {
+  // Determine display name for entity type
+  const getEntityDisplayName = (entityType: string): string => {
+    const normalized = entityType.toLowerCase()
+    if (normalized === 'investment') return 'investment'
+    if (normalized.startsWith('investment-')) {
+      const baseType = normalized.replace('investment-', '')
+      return `investment ${baseType}`
+    }
+    return entityType
+  }
+
+  const displayName = getEntityDisplayName(props.entityType)
+
+  const actionBuilders = {
+    summary: () => ({
+      key: 'ai-summary',
+      label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
+      icon: <RobotIcon size={16} />,
+      hook: props.hooks.summary!,
+      config: {
+        entityType: props.entityType,
+        loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
+        loadingSubtitle: getTranslationFromI18nKeyAndLabel(
+          `crm.ai.summary.${props.entityType}.subtitle`,
+          `Analyzing ${displayName} data and activities`
+        )
+      }
+    }),
+    'meeting-planner': () => ({
+      key: 'ai-meeting-planner',
+      label: getTranslationFromI18nKeyAndLabel('crm.ai.meetingPlanner', 'AI Meeting Planner'),
+      icon: <CalendarIcon size={16} />,
+      hook: props.hooks.meetingPlanner!,
+      config: {
+        entityType: props.entityType,
+        loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.meetingPlanner.loading', 'Planning meeting...'),
+        loadingSubtitle: getTranslationFromI18nKeyAndLabel(
+          'crm.ai.meetingPlanner.subtitle',
+          'Analyzing best meeting options'
+        )
+      }
+    }),
+    booklet: () => ({
+      key: 'ai-booklet',
+      label: getTranslationFromI18nKeyAndLabel('crm.ai.booklet', 'AI Booklet'),
+      icon: <RobotIcon size={16} />,
+      hook: props.hooks.booklet!,
+      config: {
+        entityType: props.entityType,
+        loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.booklet.loading', 'Generating AI Booklet...'),
+        loadingSubtitle: getTranslationFromI18nKeyAndLabel(
+          'crm.ai.booklet.subtitle',
+          'Analyzing account documents for creating a booklet'
+        ),
+        emptyStateMessage: getTranslationFromI18nKeyAndLabel(
+          'crm.ai.booklet.emptyState',
+          'Click to generate an M&A booklet from account documents'
+        )
+      }
+    })
+  }
+
+  return props.features.map(feature => actionBuilders[feature]())
+}
 
 /**
  * Centralized AI Actions component that provides consistent AI functionality
@@ -24,15 +95,40 @@ import { buildAiSummaryPrompt } from '@/common/utils/buildAiSummaryPrompt'
  *
  * This component eliminates code duplication by providing a reusable interface
  * for any entity that implements the AiAction pattern.
+ *
+ * Supports both legacy (array-based) and enhanced (feature-based) APIs.
  */
-export const AiActions: React.FC<AiActionsProps> = ({
-  actions,
-  dataTestId = 'ai-actions-button',
-  buttonText = 'AI Actions',
-  className = '',
-  variant = 'default',
-  size = 'default'
-}) => {
+export const AiActions: React.FC<AiActionsProps> = props => {
+  // Detect which API is being used
+  const isEnhancedApi = 'entityType' in props && 'features' in props
+
+  // Build actions internally for enhanced API
+  const actions = useMemo(() => {
+    if (isEnhancedApi) {
+      // Check access token requirement
+      if (props.requireAccessToken && !props.accessToken) {
+        return []
+      }
+      return buildActionsFromFeatures(props)
+    }
+    return props.actions
+  }, [isEnhancedApi, props])
+
+  // Auto-determine button text based on action count
+  const buttonText =
+    props.buttonText ||
+    (actions.length > 1
+      ? getTranslationFromI18nKeyAndLabel('crm.ai.actions', 'AI Actions')
+      : getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'))
+
+  // Auto-generate dataTestId if using enhanced API
+  const dataTestId =
+    props.dataTestId || (isEnhancedApi ? `${props.entityType}-ai-actions-${props.entityId}` : 'ai-actions-button')
+
+  const className = props.className || ''
+  const variant = props.variant || 'default'
+  const size = props.size || 'default'
+
   const [activeAction, setActiveAction] = useState<string | null>(null)
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [isProgrammaticallyOpening, setIsProgrammaticallyOpening] = useState(false)
@@ -41,6 +137,13 @@ export const AiActions: React.FC<AiActionsProps> = ({
     // For ai-summary actions, open Every AI sidebar instead of popover
     if (action.key === 'ai-summary') {
       const prompt = buildAiSummaryPrompt(action.config.entityType)
+      openEveryAI({ prompt })
+      return
+    }
+
+    // For ai-meeting-planner actions, open Every AI with meeting prompt
+    if (action.key === 'ai-meeting-planner') {
+      const prompt = buildAiMeetingPlannerPrompt(action.config.entityType)
       openEveryAI({ prompt })
       return
     }

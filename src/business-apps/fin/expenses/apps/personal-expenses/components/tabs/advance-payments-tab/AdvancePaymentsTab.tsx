@@ -1,17 +1,63 @@
-import React, { useState, useEffect, ReactNode, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, ReactNode } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import AdvancePaymentStatistics from './AdvancePaymentStatistics'
-import AdvancePaymentsTable from './AdvancePaymentsTable'
+import AdvancePaymentStatistics from './statistics/AdvancePaymentStatistics'
+import AdvancePaymentsTable from './table/AdvancePaymentsTable'
 import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters'
-// import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies';
-import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
+import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCurrencies'
+import { getSelectedCurrencyRef, pickMostUsedCurrencyRef, type CurrencyStat } from '../../../utils/currencyUtils'
+import { useProcessRefresh } from '@/business-apps/fin/expenses/common/hooks/useProcessRefresh'
+import { useSyncContentHeader } from '@/business-apps/fin/expenses/common/hooks/useSharedTabState'
+import { preserveCurrencyAndResetAdvancePayments } from './utils/cardStrategies'
+import { TOTAL_PAYMENTS_CARD_STATUSES } from '../../../utils/totalPaymentsCardStatuses'
+
+const APPROVED_LIKE_STATUSES: string[] = ['APPROVED', 'PAID', 'BOOKED']
+const PENDING_STATUSES: string[] = ['PENDING', 'PREPARED']
+
+function sortStringsForCompare(values: string[]): string[] {
+  return [...values].sort((x, y) => x.localeCompare(y))
+}
+
+function statusSetsEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false
+  const sa = sortStringsForCompare(a)
+  const sb = sortStringsForCompare(b)
+  return sa.every((v, i) => v === sb[i])
+}
+
+function shouldClearActiveWidget(
+  activeWidget: string | null,
+  statusFilter: string[],
+  cardCreatedAtRange: unknown
+): boolean {
+  if (!activeWidget) return false
+
+  if (activeWidget === 'total-payments') {
+    if (!cardCreatedAtRange) return true
+    return !statusSetsEqual(statusFilter, TOTAL_PAYMENTS_CARD_STATUSES)
+  }
+
+  if (activeWidget === 'total-amount') {
+    if (!cardCreatedAtRange) return true
+    return !statusSetsEqual(statusFilter, APPROVED_LIKE_STATUSES)
+  }
+
+  if (activeWidget === 'pending-payments') {
+    return !statusSetsEqual(statusFilter, PENDING_STATUSES)
+  }
+
+  if (activeWidget === 'approved-payments') {
+    if (cardCreatedAtRange) return true
+    return !statusSetsEqual(statusFilter, APPROVED_LIKE_STATUSES)
+  }
+
+  return false
+}
 
 export interface AdvancePaymentsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void
 }
 
 const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
-  // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(
     () => ({
       accessToken: props.accessToken,
@@ -20,29 +66,59 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     [props.accessToken, props.userInfo]
   )
 
-  // Table refresh trigger state
-  const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0)
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState(0)
+  const [activeWidget, setActiveWidget] = useState<string | null>(null)
+  const bumpTableRefresh = useCallback(() => {
+    setTableRefreshTrigger(prev => prev + 1)
+  }, [])
+  useProcessRefresh(bumpTableRefresh)
 
-  // Use the enhanced advance payment filters hook
   const {
     searchTerm,
     setSearchTerm,
     statusFilter,
-    // setStatusFilter,
     amountRange,
-    // setAmountRange,
     advanceRange,
-    // setAdvanceRange,
+    cardCreatedAtRange,
+    setCardCreatedAtRange,
+    setAmountRange,
+    setAdvanceRange,
+    applyStatisticsCardFilter,
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
     selectedFilters,
     setFilters,
-    removeFilter,
-    filtersVersion
+    removeFilter
   } = useAdvancePaymentFilters()
 
-  // Create memoized content header with statistics component
+  const { currencyStats } = useAdvancePaymentCurrencies(contextProps, selectedFilters, setFilters)
+  const mostUsedCurrencyRef = useMemo(() => pickMostUsedCurrencyRef(currencyStats as CurrencyStat[]), [currencyStats])
+
+  useEffect(() => {
+    if (shouldClearActiveWidget(activeWidget, statusFilter, cardCreatedAtRange)) {
+      setActiveWidget(null)
+    }
+  }, [activeWidget, statusFilter, cardCreatedAtRange])
+
+  const handleWidgetClick = useCallback(
+    (widgetKey: string) => {
+      const isDeactivating = activeWidget === widgetKey
+      const nextActive = isDeactivating ? null : widgetKey
+      setActiveWidget(nextActive)
+
+      if (isDeactivating) {
+        preserveCurrencyAndResetAdvancePayments(selectedFilters, setFilters, mostUsedCurrencyRef)
+        applyStatisticsCardFilter(null)
+        return
+      }
+
+      preserveCurrencyAndResetAdvancePayments(selectedFilters, setFilters, mostUsedCurrencyRef)
+      applyStatisticsCardFilter(widgetKey)
+    },
+    [activeWidget, selectedFilters, setFilters, mostUsedCurrencyRef, applyStatisticsCardFilter]
+  )
+
   const contentHeader = useMemo(() => {
     const selectedCurrencyRef = getSelectedCurrencyRef(selectedFilters || [], 'Currency:v1:EUR')
     const refreshKey = JSON.stringify({
@@ -50,14 +126,17 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
       statusFilter,
       amountRange,
       advanceRange,
+      cardCreatedAtRange,
       selectedCurrencyRef
     })
     return (
       <AdvancePaymentStatistics
+        key={refreshKey}
         accessToken={contextProps.accessToken}
         userInfo={contextProps.userInfo}
         selectedCurrencyRef={selectedCurrencyRef}
-        refreshKey={refreshKey}
+        onWidgetClick={handleWidgetClick}
+        activeWidgetKey={activeWidget ?? undefined}
       />
     )
   }, [
@@ -68,17 +147,13 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     statusFilter,
     amountRange,
     advanceRange,
-    filtersVersion
+    cardCreatedAtRange,
+    handleWidgetClick,
+    activeWidget
   ])
 
-  // Update the content header when it changes
-  useEffect(() => {
-    if (props.onContentHeaderChange) {
-      props.onContentHeaderChange(contentHeader)
-    }
-  }, [props.onContentHeaderChange, contentHeader])
+  useSyncContentHeader(contentHeader, props.onContentHeaderChange)
 
-  // Handle search term changes from table
   const handleSearchChange = useCallback(
     (term: string) => {
       setSearchTerm(term)
@@ -86,7 +161,6 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     [setSearchTerm]
   )
 
-  // Handle filter changes (enforce single selection for currency)
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
       if (filterId.startsWith('currency:')) {
@@ -99,81 +173,28 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     [handleDataFilterChange, selectedFilters, setFilters]
   )
 
-  // Note: clearing handled via handleClearAllFiltersNoParams and setFilters([])
-  // Wrapper for clear all filters without parameters (for table clearFilters prop)
   const handleClearAllFiltersNoParams = useCallback(() => {
-    // Use the enhanced setFilters which handles clearing all filters properly
+    setActiveWidget(null)
     setFilters([])
   }, [setFilters])
-
-  // Process completion event listener to refresh data
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      try {
-        if (event.detail?.resolution === 'success') {
-          // Trigger table refresh by updating a state that forces re-render
-          setTableRefreshTrigger(prev => prev + 1)
-
-          return
-        }
-      } catch (err) {
-        console.error('Error handling process completion:', err)
-      }
-    }
-
-    const handleAllEvents = (event: any) => {
-      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleProcessCompletion(event)
-      }
-    }
-
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    const originalDispatchEvent = window.dispatchEvent
-    window.dispatchEvent = function (event: Event) {
-      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleAllEvents(event)
-      }
-      return originalDispatchEvent.call(this, event)
-    }
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-
-      window.dispatchEvent = originalDispatchEvent
-    }
-  }, [])
 
   return (
     <AdvancePaymentsTable
       {...contextProps}
       search={searchTerm}
       onSearchChange={handleSearchChange}
-      activeFilter={statusFilter} // Pass raw status values - DataController will handle display
-      onFilterChange={setFilters} // Use enhanced setFilters for individual filter removal
-      onClearFilters={handleClearAllFiltersNoParams} // Use wrapper for clear all
+      activeFilter={statusFilter}
+      onFilterChange={setFilters}
+      onClearFilters={handleClearAllFiltersNoParams}
       filterGroups={filterGroups}
       handleFilterChange={handleFilterChange}
       filterLabelMap={filterLabelMap}
       amountRange={amountRange}
       advanceRange={advanceRange}
+      setAmountRange={setAmountRange}
+      setAdvanceRange={setAdvanceRange}
+      cardCreatedAtRange={cardCreatedAtRange}
+      setCardCreatedAtRange={setCardCreatedAtRange}
       selectedFilters={selectedFilters}
       removeFilter={removeFilter}
       tableRefreshTrigger={tableRefreshTrigger}

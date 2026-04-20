@@ -3,33 +3,22 @@
  * Publish ALL screens to DEV
  * - Uses the existing single-screen dev publisher
  * - Does NOT rely on change detection; iterates every screen
- * - Non-interactive: passes --no-interaction to avoid prompts
+ * - Non-interactive: passes --ci to avoid prompts
  */
 
 import path from 'node:path'
 import fs from 'node:fs'
 import { execSync } from 'node:child_process'
-import { glob } from 'glob'
+import { getScreenDirectories } from './utils/screenDiscovery.js'
+import { logPhase } from './utils/logPhase.js'
 
 async function findAllScreenDirectories() {
-  const appIndexFiles = await glob('src/business-apps/**/apps/*/index.ts', {
-    nodir: true
-  })
-  const formIndexFiles = await glob('src/business-apps/**/forms/*/index.ts', {
-    nodir: true
-  })
-  const popupIndexFiles = await glob('src/business-apps/**/popups/*/index.ts', {
-    nodir: true
-  })
-  const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', {
-    nodir: true
-  })
-
-  const allIndexFiles = [...appIndexFiles, ...formIndexFiles, ...popupIndexFiles, ...recordIndexFiles]
   const uniqueDirs = new Set()
 
-  for (const filePath of allIndexFiles) {
-    const dir = path.dirname(filePath)
+  const projectRootDir = path.resolve(__dirname, '..')
+  const screenDirs = await getScreenDirectories({ cwd: projectRootDir })
+
+  for (const dir of screenDirs) {
     // strip prefix 'src/business-apps/' to get publish path
     const publishPath = dir.replace(/^src[\\/]+business-apps[\\/]+/, '').replace(/\\/g, '/')
     if (publishPath) uniqueDirs.add(publishPath)
@@ -39,17 +28,17 @@ async function findAllScreenDirectories() {
 }
 
 async function main() {
-  console.log('🚀 Publishing ALL screens to DEV (non-interactive)...')
+  logPhase('PUBLISH ALL SCREENS TO DEV')
+  console.log('Publishing in non-interactive mode...')
 
   const allScreens = await findAllScreenDirectories()
   if (allScreens.length === 0) {
-    console.log('✅ No screens found under src/business-apps.')
+    console.log('No screens found under src/business-apps.')
     return
   }
 
-  console.log('Screens to publish:')
+  logPhase(`SCREENS TO PUBLISH (${allScreens.length})`)
   allScreens.forEach(s => console.log(' - ' + s))
-  console.log('---')
 
   const failed = []
   const skipped = []
@@ -57,14 +46,14 @@ async function main() {
   for (const publishPath of allScreens) {
     const indexFile = path.join('src', 'business-apps', publishPath, 'index.ts')
     if (!fs.existsSync(indexFile)) {
-      console.log(`⚠️  Skipping removed screen: ${publishPath} (${indexFile} not found)`)
+      console.log(`WARNING: Skipping removed screen: ${publishPath} (${indexFile} not found)`)
       skipped.push(publishPath)
       continue
     }
 
     console.log(`Publishing: ${publishPath}`)
     try {
-      execSync(`npm run publish:screen -- "${publishPath}" --no-interaction`, {
+      execSync(`npm run publish:screen -- "${publishPath}" --ci`, {
         stdio: 'inherit'
       })
     } catch {
@@ -74,8 +63,7 @@ async function main() {
     }
   }
 
-  console.log('---')
-  console.log('Publishing Summary:')
+  logPhase('PUBLISHING SUMMARY')
   if (skipped.length > 0) {
     console.log(`Skipped removed screens (${skipped.length}):`)
     skipped.forEach(s => console.log(' - ' + s))
@@ -90,6 +78,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('❌ Unexpected error:', err)
+  console.error('Unexpected error:', err)
   process.exit(1)
 })

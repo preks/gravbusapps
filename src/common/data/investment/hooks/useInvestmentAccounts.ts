@@ -1,6 +1,7 @@
 // Investment Account hooks - CRM account entity operations
-import { useCallback, useState, useEffect, useMemo } from 'react'
+import { useCallback, useState, useEffect, useMemo, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 // buildWhere and buildOrderBy are now used internally by the new query builders
 // Descriptors are now used internally by the new query builders
@@ -140,7 +141,7 @@ export function useGetInvestmentAccounts(
 ): FunctionOnlyReturn | StatefulReturn {
   const { withState = false, autoFetch = false, pageSize = 20, mapToSelectOptions = false } = options || {}
 
-  const graphqlClient = useGraphQLClient(context.accessToken)
+  const graphqlClient: GraphQLClient = useGraphQLClient(context.accessToken)
 
   // State management (only used when withState=true)
   const [state, setState] = useState({
@@ -164,7 +165,7 @@ export function useGetInvestmentAccounts(
       const orderBy = buildInvestmentAccountOrderBy(variables.orderBy || [])
 
       const graphQLVariables: Record<string, any> = {
-        limit: Math.min(variables.limit || 50, 100),
+        limit: variables.limit || 50,
         offset: variables.offset || 0,
         where: whereCondition,
         orderBy: orderBy
@@ -328,7 +329,10 @@ export interface UseInvestmentAccountsListResult {
   total: number
   loading: boolean
   error: string | null
+  hasMore: boolean
   refetch: (variables?: InvestmentAccountQueryVariables) => Promise<void>
+  search: (searchTerm: string) => void
+  loadMore: () => void
 }
 
 export function useInvestmentAccountsList(
@@ -336,6 +340,7 @@ export function useInvestmentAccountsList(
   variables?: InvestmentAccountQueryVariables
 ): UseInvestmentAccountsListResult {
   const graphqlClient = useGraphQLClient(context.accessToken)
+  const pageSize = variables?.limit || 20
 
   // Memoize variables to prevent infinite loops when object is recreated on each render
   const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
@@ -344,58 +349,111 @@ export function useInvestmentAccountsList(
     accounts: [] as InvestmentAccount[],
     total: 0,
     loading: true,
-    error: null as string | null
+    error: null as string | null,
+    hasMore: false
   })
 
-  const fetchAccounts = useCallback(
-    async (queryVariables?: InvestmentAccountQueryVariables) => {
+  const currentSearchRef = useRef('')
+  const currentOffsetRef = useRef(0)
+
+  const fetchPage = useCallback(
+    async (searchTerm: string, offset: number, append: boolean) => {
       if (!context.accessToken) {
         setState(prev => ({ ...prev, loading: false }))
         return
       }
 
-      setState(prev => ({ ...prev, loading: true, error: null }))
+      setState(prev => ({
+        ...prev,
+        loading: true,
+        error: null,
+        ...(append ? {} : { accounts: [] })
+      }))
 
       try {
-        const vars = { ...stableVariables, ...queryVariables }
+        const vars: InvestmentAccountQueryVariables = {
+          ...stableVariables,
+          limit: pageSize,
+          offset,
+          ...(searchTerm.trim() ? { search: searchTerm.trim() } : {})
+        }
+
         const query = buildInvestmentAccountQuery()
         const whereCondition = buildInvestmentAccountWhereCondition(vars)
         const orderBy = buildInvestmentAccountOrderBy(vars.orderBy || [])
 
         const graphQLVariables: Record<string, any> = {
-          limit: Math.min(vars.limit || 50, 100),
-          offset: vars.offset || 0,
+          limit: pageSize,
+          offset,
           where: whereCondition,
-          orderBy: orderBy
+          orderBy
         }
 
         const result = await graphqlClient.request<InvestmentAccountQueryResponse>(query, graphQLVariables)
-        const accounts = result.InvestmentAccount.map(toInvestmentAccount)
+        const fetched = result.InvestmentAccount.map(toInvestmentAccount)
         const total = result.InvestmentAccountAggregate?.aggregate?.count || 0
+        const hasMore = fetched.length === pageSize
 
-        setState({ accounts, total, loading: false, error: null })
+        currentOffsetRef.current = (append ? currentOffsetRef.current : 0) + fetched.length
+
+        setState(prev => ({
+          accounts: append ? [...prev.accounts, ...fetched] : fetched,
+          total,
+          loading: false,
+          error: null,
+          hasMore
+        }))
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment accounts'
 
         setState(prev => ({
           ...prev,
-          accounts: [],
-          total: 0,
+          ...(append ? {} : { accounts: [], total: 0 }),
           loading: false,
-          error: errorMessage
+          error: errorMessage,
+          hasMore: false
         }))
       }
     },
-    [context.accessToken, graphqlClient, stableVariables]
+    [context.accessToken, graphqlClient, stableVariables, pageSize]
   )
 
   useEffect(() => {
-    fetchAccounts()
-  }, [fetchAccounts])
+    currentSearchRef.current = ''
+    currentOffsetRef.current = 0
+    fetchPage('', 0, false)
+  }, [fetchPage])
+
+  const refetch = useCallback(
+    async (queryVariables?: InvestmentAccountQueryVariables) => {
+      const searchTerm = (queryVariables?.search as string) || ''
+      currentSearchRef.current = searchTerm
+      currentOffsetRef.current = 0
+      await fetchPage(searchTerm, 0, false)
+    },
+    [fetchPage]
+  )
+
+  const search = useCallback(
+    (searchTerm: string) => {
+      currentSearchRef.current = searchTerm
+      currentOffsetRef.current = 0
+      fetchPage(searchTerm, 0, false)
+    },
+    [fetchPage]
+  )
+
+  const loadMore = useCallback(() => {
+    if (state.hasMore && !state.loading) {
+      fetchPage(currentSearchRef.current, currentOffsetRef.current, true)
+    }
+  }, [fetchPage, state.hasMore, state.loading])
 
   return {
     ...state,
-    refetch: fetchAccounts
+    refetch,
+    search,
+    loadMore
   }
 }
 

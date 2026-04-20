@@ -80,7 +80,7 @@ const GET_PERSONAL_DATA_CATALOGS = `
     $ids: [String!],
     $activeUserLocale: String!
   ) {
-    entries: CatalogEntry(where: {id: {_in: $ids}}) {
+    entries: CatalogEntry(where: {id: {_in: $ids}, isDeleted: {_eq: false}}) {
       id
       value
       code

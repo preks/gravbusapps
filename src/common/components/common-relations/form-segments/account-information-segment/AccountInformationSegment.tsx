@@ -6,6 +6,8 @@ import {
   FormControl,
   FormMessage,
   Input,
+  Switch,
+  Badge,
   useTranslation,
   AvatarUpload
 } from '@newwork/nw-design-system'
@@ -22,6 +24,9 @@ interface AccountInformationSegmentProps {
   // Business app context for EmployeeSelect
   businessAppContext?: BusinessAppContextProps
 
+  // Account contacts from loaded entity (with nested contact) for display - same pattern as ownerEmployee
+  accountContacts?: any[]
+
   // Owner employee from account data (to display immediately)
   ownerEmployee?: any
   // Entity ID (account ID for edit mode)
@@ -33,7 +38,10 @@ interface AccountInformationSegmentProps {
     contacts: any[]
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
 
   // Custom fields (context-specific, e.g., CRM Sales Campaign)
@@ -44,16 +52,22 @@ interface AccountInformationSegmentProps {
 
   // Catalog identifier for account priority (context-specific)
   accountPriorityCatalogIdentifier?: string
+
+  // Context for prospective field label (determines non-prospective label)
+  // REQUIRED: Must be explicitly set to 'crm' or 'irm' to ensure correct labels
+  accountContext: 'crm' | 'irm'
 }
 
 const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
   businessAppContext,
+  accountContacts,
   ownerEmployee,
   entityId,
   useContacts,
   customFields,
   avatarFileRef,
-  accountPriorityCatalogIdentifier
+  accountPriorityCatalogIdentifier,
+  accountContext
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
@@ -83,13 +97,16 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
     })
   }, [useContacts?.contacts])
 
-  // Search function that calls refetch with search variables
+  // Search function — prefers the stateful `search` fn, falls back to `refetch`
   const searchContacts = useCallback(
     (searchTerm: string) => {
-      if (!useContacts?.refetch) return
-      useContacts.refetch({ search: searchTerm.trim(), limit: 20, offset: 0 })
+      if (useContacts?.search) {
+        useContacts.search(searchTerm.trim())
+      } else if (useContacts?.refetch) {
+        useContacts.refetch({ search: searchTerm.trim(), limit: 20, offset: 0 })
+      }
     },
-    [useContacts?.refetch]
+    [useContacts?.search, useContacts?.refetch]
   )
 
   // Helper function to parse picture string
@@ -113,15 +130,20 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
     jobPosition?: string
     department?: string
   } => {
-    if (ac.contact) {
-      const contact = ac.contact
+    const contactId = ac.contactId || ac.contact?.id || ''
+
+    // Use nested contact from loaded entity (accountContacts prop) or from useContacts
+    const contact =
+      ac.contact ||
+      accountContacts?.find((acEntity: any) => (acEntity.contactId || acEntity.contact?.id) === contactId)?.contact ||
+      useContacts?.contacts?.find((c: any) => c.id === contactId)
+
+    if (contact) {
       const displayName =
-        contact.displayName ||
-        contact.fullName ||
-        `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
-        'Unknown Contact'
+        contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'Unknown Contact'
+
       return {
-        id: ac.contactId || ac.contact?.id || '',
+        id: contactId,
         name: displayName,
         contactType: ac.contactType || undefined,
         pictureThumbnail: contact.pictureThumbnail,
@@ -129,9 +151,11 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
         department: contact.department
       }
     }
+
+    // Fallback if contact not found
     return {
-      id: ac.contactId || '',
-      name: ac.contact?.name || 'Unknown Contact',
+      id: contactId,
+      name: 'Unknown Contact',
       contactType: ac.contactType || undefined
     }
   }
@@ -195,6 +219,58 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
             <FormMessage />
           </FormItem>
         )}
+      />
+
+      {/* Prospective Toggle - Enhanced with Card-like Container */}
+      <FormField
+        control={form.control}
+        name="prospective"
+        render={({ field }) => {
+          // Calculate label and description based on current field value
+          const prospectiveLabel = field.value
+            ? t('prospect-label')
+            : accountContext === 'irm'
+              ? t('portfolio-company-label')
+              : t('customer-label')
+
+          const prospectiveDescription = field.value
+            ? accountContext === 'irm'
+              ? t('prospect-description-irm')
+              : t('prospect-description-crm')
+            : accountContext === 'irm'
+              ? t('portfolio-description')
+              : t('customer-description')
+
+          return (
+            <FormItem>
+              <div className="gba:rounded-lg gba:border gba:border-border gba:bg-muted/30 gba:p-4">
+                <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
+                  <div className="gba:flex-1 gba:space-y-1">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <FormLabel className="gba:text-base gba:font-semibold gba:m-0">
+                        {t('account-type-label')}
+                      </FormLabel>
+                      <Badge variant={field.value ? 'info' : 'success'} className="gba:text-xs">
+                        {prospectiveLabel}
+                      </Badge>
+                    </div>
+                    <p className="gba:text-sm gba:text-muted-foreground gba:m-0">{prospectiveDescription}</p>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={Boolean(field.value)}
+                      onCheckedChange={checked => {
+                        field.onChange(checked)
+                      }}
+                      data-testid="account-information-prospective-switch"
+                    />
+                  </FormControl>
+                </div>
+              </div>
+              <FormMessage />
+            </FormItem>
+          )
+        }}
       />
 
       {/* Account Name */}
@@ -347,6 +423,7 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
           name="accountContacts"
           render={({ field, fieldState }) => {
             // Transform accountContacts to ContactSelect format
+            // Contact display data is looked up from useContacts list
             const accountContacts = field.value || []
             const contactSelectValue = accountContacts.map(transformAccountContactToContactSelect)
 
@@ -387,6 +464,8 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
                     contactsLoading={useContacts.loading}
                     contactsError={useContacts.error}
                     searchContacts={searchContacts}
+                    hasMore={useContacts.hasMore}
+                    onLoadMore={useContacts.loadMore}
                     accountContacts={field.value || []}
                     dataTestId="account-information-segment-contacts"
                     error={fieldState.error?.message || null}

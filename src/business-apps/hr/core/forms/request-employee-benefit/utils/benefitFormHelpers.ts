@@ -138,19 +138,22 @@ export const validateBenefitForm = ({
   }
 
   const trimmedJustification = justification.trim()
-  if (trimmedJustification.length < BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH) {
-    errors.push(
-      t('error-justification-min-length', {
-        min: BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH
-      })
-    )
-  }
-  if (trimmedJustification.length > BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH) {
-    errors.push(
-      t('error-justification-max-length', {
-        max: BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH
-      })
-    )
+  // Justification is optional, but if provided, must meet min/max length requirements
+  if (trimmedJustification.length > 0) {
+    if (trimmedJustification.length < BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH) {
+      errors.push(
+        t('error-justification-min-length', {
+          min: BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH
+        })
+      )
+    }
+    if (trimmedJustification.length > BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH) {
+      errors.push(
+        t('error-justification-max-length', {
+          max: BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH
+        })
+      )
+    }
   }
 
   return errors.length > 0 ? errors : null

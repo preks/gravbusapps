@@ -1,0 +1,7 @@
+export { ContentBackground } from './ContentBackground'
+export { HeroSection } from './HeroSection'
+export { AppCard, type AppCardProps } from './AppCard'
+export { QuickActions } from './QuickActions'
+export { NexusTeaser } from './NexusTeaser'
+export { ActivityVisualization } from './ActivityVisualization'
+export { RecentItems } from './RecentItems'

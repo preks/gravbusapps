@@ -1,28 +1,37 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Spinner, TimelineLayout, Button, Alert, EmptyState } from '@newwork/nw-design-system'
-import {
-  PhoneIcon,
-  EnvelopeIcon,
-  CalendarBlankIcon,
-  UserIcon,
-  PlusIcon,
-  DotsThreeVerticalIcon
-} from '@phosphor-icons/react'
+import { Spinner, TimelineLayout, Button, Alert, EmptyState, useTranslation } from '@newwork/nw-design-system'
+import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon, PlusIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { AppActionProvider } from '@/components/app-action-provider/AppActionProvider'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
+import { toISOFormat } from '@/common/utils/dateFormatter'
+import translations from './_i18n'
+import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
+import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import type { Activity } from '@/common/data/relations/types/activityTypes'
+import { compareActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
+import { ActivityInput } from './ActivityInput'
+import { ActivityEmailBody } from './ActivityEmailBody'
+import { ActivityRelatedEntityHints } from './ActivityRelatedEntityHints'
+import {
+  getActivityRelatedEntities,
+  type ActivityWithInvestment,
+  type ActivityRelatedEntityKind
+} from './getActivityRelatedEntities'
+import { AppAction } from '@/components/app-action'
+import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 
 export type ActivityDocument = {
   id: string
   name: string
-  mimeType?: string
-  fileSize?: number
+  mimeType?: string | null
+  fileSize?: number | null
   file?: string
   fileInfo?: FileInfo
 }
@@ -59,55 +68,201 @@ export interface ActivitySectionProps extends BusinessAppContextProps {
   activityEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
   className?: string
   alignment?: 'left' | 'right'
+  /** Catalog identifier for activity type (e.g. from customerCatalogs or investmentCatalogs). */
+  activityTypeCatalog?: string
+  /** Optional payload builder; when set, quick-add submit passes built payload to executeAction instead of raw form shape. */
+  buildActivityPayload?: (activity: Record<string, any>) => Record<string, any>
+  accountId?: string
+  contactId?: string
+  opportunityId?: string
+  leadId?: string
+  investmentId?: string
+  /**
+   * When true, shows chips for every linked entity, including the one that matches the current record context.
+   * When false or omitted, omits chips that duplicate the section context (accountId, contactId, etc.).
+   */
+  showAllRelatedEntityChips?: boolean
+  /** Record URLs for linked entities; parent supplies CRM vs IRM paths. Omitted hrefs render non-clickable chips. */
+  getRelatedRecordUrl?: (kind: ActivityRelatedEntityKind, id: string) => string | undefined
+  /** Optional pre-submit handler (e.g. uploads _pendingFiles and returns data with documents). When set, called before buildActivityPayload/executeAction. */
+  preSubmit?: (data: Record<string, any>) => Promise<Record<string, any>>
 }
 
 // Standard React component that can be used with SectionWrapper
 const ActivitySection: React.FC<ActivitySectionProps> = props => {
   const {
     accessToken,
+    userInfo,
     activities: rawActivities = [],
     activitiesLoading = false,
     activitiesError = null,
     onReloadActivities,
     activityEntityActionProps,
+    activitySectionActionProps,
     className,
-    alignment = 'left'
+    alignment = 'left',
+    activityTypeCatalog,
+    buildActivityPayload,
+    accountId,
+    contactId,
+    opportunityId,
+    leadId,
+    investmentId,
+    showAllRelatedEntityChips,
+    getRelatedRecordUrl
   } = props
+
+  const { t } = useTranslation(translations)
+  const [showQuickAdd, setShowQuickAdd] = useState(false)
+  const [ownerPrefill, setOwnerPrefill] = useState<
+    Array<{
+      id: string
+      displayName: string
+      userId?: string
+      pictureThumbnail?: string
+      organizationalUnitName?: string
+      jobPositionName?: string
+    }>
+  >([])
+
+  const currentEmployeeId = userInfo?.employeeDetails?.employeeId
+
+  // Employee search for owner selection
+  const {
+    employees,
+    loading: employeesLoading,
+    search,
+    hydrateById,
+    hasMore,
+    loadMore
+  } = useEmployeeSearch(accessToken)
+
+  // Prefill current user as default owner
+  useEffect(() => {
+    const employeeId = props.userInfo?.employeeDetails?.employeeId
+    if (!employeeId) return
+
+    const displayName =
+      `${props.userInfo?.employeeDetails?.firstName || ''} ${props.userInfo?.employeeDetails?.lastName || ''}`.trim() ||
+      props.userInfo?.userName ||
+      'Current User'
+
+    // Set basic prefill immediately
+    setOwnerPrefill([
+      {
+        id: employeeId,
+        displayName,
+        organizationalUnitName: props.userInfo?.employeeDetails?.organizationalUnit?.name
+      }
+    ])
+
+    // Hydrate to get full details (picture, job position)
+    hydrateById(employeeId)
+
+    // Trigger initial search to load all employees
+    search('')
+  }, [
+    props.userInfo?.employeeDetails?.employeeId,
+    props.userInfo?.employeeDetails?.firstName,
+    props.userInfo?.employeeDetails?.lastName,
+    search,
+    hydrateById
+  ])
+
+  // Merge prefilled owner with employees (employees from hook already include hydrated data)
+  const mergedEmployees = useMemo(() => {
+    const map = new Map<string, any>()
+    // Add prefill first (will be overwritten by full data from employees)
+    for (const o of ownerPrefill) {
+      map.set(o.id, o)
+    }
+    // Add/override with full employee data
+    for (const e of employees) {
+      map.set(e.id, e)
+    }
+    return Array.from(map.values())
+  }, [ownerPrefill, employees])
+
+  // Form schema for quick add
+  const quickActivitySchema = z.object({
+    details: z.object({
+      title: z.string().min(1, 'Title is required'),
+      description: z.string().optional()
+    }),
+    activityTypeRef: z.string().min(1, 'Activity type is required'),
+    occurredAt: z.string().min(1, 'Date & time is required'),
+    ownerEmployeeId: z.string().min(1, 'Owner is required'),
+    _pendingFiles: z.array(z.any()).optional()
+  })
+
+  const form = useForm({
+    resolver: zodResolver(quickActivitySchema),
+    defaultValues: {
+      details: { title: '', description: '' },
+      activityTypeRef: '',
+      occurredAt: new Date().toISOString().slice(0, 16),
+      ownerEmployeeId: props.userInfo?.employeeDetails?.employeeId || '',
+      _pendingFiles: [] as File[]
+    }
+  })
+
+  // Reset datetime field when showQuickAdd opens
+  useEffect(() => {
+    if (showQuickAdd) {
+      form.setValue('occurredAt', new Date().toISOString().slice(0, 16))
+      if (props.userInfo?.employeeDetails?.employeeId) {
+        form.setValue('ownerEmployeeId', props.userInfo.employeeDetails.employeeId)
+      }
+    }
+  }, [showQuickAdd, form, props.userInfo])
 
   // Process activities - map from Activity to ActivityItem
   const processedActivities = useMemo(() => {
     if (!rawActivities || rawActivities.length === 0) return []
 
-    return rawActivities.map((activity: Activity) => ({
-      id: activity.id,
-      title: activity.title || 'Untitled Activity',
-      description: activity.description || '',
-      occurredAt: activity.occurredAt || activity.createdAt,
-      createdAt: activity.createdAt,
-      ownerEmployee: activity.ownerEmployee,
-      createdBy: activity.ownerEmployee
-        ? `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
-          activity.ownerEmployee.displayName
-        : undefined,
-      activityType: activity.activityType,
-      documents: activity.documents || []
-    }))
-  }, [rawActivities])
+    const relatedContext = {
+      accountId,
+      contactId,
+      opportunityId,
+      leadId,
+      investmentId,
+      showAllRelatedEntityChips,
+      getRelatedRecordUrl
+    }
+
+    return rawActivities
+      .map((activity: Activity) => ({
+        id: activity.id,
+        title: activity.title || 'Untitled Activity',
+        description: activity.description || '',
+        occurredAt: activity.occurredAt || activity.createdAt,
+        createdAt: activity.createdAt,
+        ownerEmployee: activity.ownerEmployee,
+        createdBy: activity.ownerEmployee
+          ? `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
+            activity.ownerEmployee.displayName
+          : undefined,
+        activityType: activity.activityType,
+        documents: activity.documents || [],
+        emailMessageId: activity.additionalProperties?.emailMessageId || null,
+        relatedEntities: getActivityRelatedEntities(activity as ActivityWithInvestment, relatedContext)
+      }))
+      .sort(compareActivitiesByOccurredAtDesc)
+  }, [
+    rawActivities,
+    accountId,
+    contactId,
+    opportunityId,
+    leadId,
+    investmentId,
+    showAllRelatedEntityChips,
+    getRelatedRecordUrl
+  ])
 
   // Handle document download
-  const handleDocumentClick = (document: ActivityDocument, e: React.MouseEvent) => {
+  const handleDocumentClick = async (document: ActivityDocument, e: React.MouseEvent) => {
     e.stopPropagation()
-
-    if (!document.fileInfo) {
-      return
-    }
-
-    try {
-      const fileUrl = buildFileUrl(document.fileInfo)
-      window.open(fileUrl, '_blank')
-    } catch {
-      // Silent fail - fileInfo structure invalid
-    }
+    await handleDocumentClickUtil(document, accessToken, { showToast: true })
   }
 
   const getActivityIcon = (activityType: string) => {
@@ -139,118 +294,217 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
     navigateTo(buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId }))
   }
 
-  return (
-    <div data-testid="activity-section-new-content" className={className}>
-      {activitiesLoading ? (
+  const renderContent = () => {
+    if (activitiesLoading) {
+      return (
         <div className="gba:flex gba:justify-center gba:py-8">
           <Spinner size="lg" />
         </div>
-      ) : activitiesError ? (
+      )
+    }
+
+    if (activitiesError) {
+      return (
         <Alert variant="destructive" data-testid="activity-error-alert">
           <div>
-            <strong>
-              {getTranslationFromI18nKeyAndLabel('crm.activities.errorTitle', 'Error loading activities')}
-            </strong>
+            <strong>{t('activities-errorTitle')}</strong>
             <div>{activitiesError}</div>
             {onReloadActivities && (
               <Button variant="secondary" size="sm" onClick={onReloadActivities} data-testid="activity-retry-button">
-                {getTranslationFromI18nKeyAndLabel('crm.common.retry', 'Retry')}
+                {t('common-retry')}
               </Button>
             )}
           </div>
         </Alert>
-      ) : processedActivities.length === 0 ? (
+      )
+    }
+
+    if (processedActivities.length === 0) {
+      return (
         <EmptyState
           type="no-data"
           title="No Activities"
-          description="No activities yet. Create your first activity."
+          description={t('activities-emptyState')}
           data-testid="activity-section-empty-state"
         />
-      ) : (
-        <TimelineLayout
-          items={processedActivities.map((activity: any) => {
-            const activityTypeLabel = getActivityTypeLabel(activity.activityType)
-            const ownerName = getOwnerName(activity.ownerEmployee)
-            const description = activity.description
+      )
+    }
 
-            const activityActions = activityEntityActionProps ? (
-              <AppActionMenu
-                accessToken={accessToken}
-                contextsArray={activityEntityActionProps.contextsArray}
-                externalContextData={{
-                  ...activityEntityActionProps.externalContextData,
-                  activityId: activity.id,
-                  activityType: activity.activityType?.value
+    return (
+      <TimelineLayout
+        items={processedActivities.map((activity: any) => {
+          const activityTypeLabel = getActivityTypeLabel(activity.activityType)
+          const ownerName = getOwnerName(activity.ownerEmployee)
+          const description = activity.description
+          const emailMessageId = activity.emailMessageId
+
+          const activityActions = activityEntityActionProps ? (
+            <AppAction
+              variant="list-item"
+              accessToken={accessToken}
+              contextsArray={activityEntityActionProps.contextsArray}
+              externalContextData={{
+                ...activityEntityActionProps.externalContextData,
+                activityId: activity.id,
+                activityType: activity.activityType?.value
+              }}
+              prefixDataTestId={`${activityEntityActionProps.prefixDataTestId}-${activity.id}`}
+            />
+          ) : null
+
+          return {
+            id: activity.id,
+            date: `${t('activities-timelineOccurred')}: ${dayjs(activity.occurredAt).format('MMM D, YYYY h:mm A')}`,
+            actor: activity.ownerEmployee ? (
+              <a
+                href={buildPlatformUrl('/platform/hr/core/employees/employee-record', {
+                  employeeId: activity.ownerEmployee.id
+                })}
+                onClick={e => {
+                  e.preventDefault()
+                  handleEmployeeClick(activity.ownerEmployee.id)
                 }}
-                prefixDataTestId={`${activityEntityActionProps.prefixDataTestId}-${activity.id}`}
-                deferMainContextRequestsUntilClick={true}
-                emptyStateBehavior="enable"
+                className="gba:font-medium gba:text-primary gba:hover:underline gba:cursor-pointer"
               >
-                <div
-                  className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-muted gba:transition-colors"
-                  data-testid={`activity-menu-${activity.id}`}
-                >
-                  <DotsThreeVerticalIcon size={16} />
-                </div>
-              </AppActionMenu>
-            ) : null
-
-            return {
-              id: activity.id,
-              date: dayjs(activity.occurredAt).format('MMM D, YYYY h:mm A'),
-              actor: activity.ownerEmployee ? (
-                <a
-                  href={buildPlatformUrl('/platform/hr/core/employees/employee-record', {
-                    employeeId: activity.ownerEmployee.id
-                  })}
-                  onClick={e => {
-                    e.preventDefault()
-                    handleEmployeeClick(activity.ownerEmployee.id)
-                  }}
-                  className="gba:font-medium gba:text-primary gba:hover:underline gba:cursor-pointer"
-                >
-                  {ownerName}
-                </a>
-              ) : undefined,
-              title: (
-                <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
+                {ownerName}
+              </a>
+            ) : undefined,
+            title: (
+              <div className="gba:flex gba:flex-col gba:gap-1.5 gba:w-full gba:min-w-0">
+                <ActivityRelatedEntityHints activityId={activity.id} entities={activity.relatedEntities} t={t} />
+                <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:min-w-0">
                   <span className="gba:flex-1 gba:truncate">{activity.title}</span>
                   {activityActions}
                 </div>
-              ),
-              description: (
-                <div className="gba:flex gba:flex-col gba:gap-2">
-                  {description && <span>{description}</span>}
-                  {activity.documents && activity.documents.length > 0 && (
-                    <div className="gba:flex gba:flex-wrap gba:gap-2">
-                      {activity.documents.map((doc: ActivityDocument) => {
-                        const FileIcon = getFileIcon(doc.mimeType)
-                        return (
-                          <button
-                            key={doc.id}
-                            onClick={e => handleDocumentClick(doc, e)}
-                            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
-                            data-testid={`activity-document-${activity.id}-${doc.id}`}
-                            title={doc.name}
-                          >
-                            <FileIcon size={14} weight="bold" />
-                            <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              ),
-              icon: getActivityIcon(activityTypeLabel)
-            } as any
-          })}
-          variant="default"
-          orientation="vertical"
-          alignment={alignment}
-          className="gba:w-full"
-        />
+              </div>
+            ),
+            description: (
+              <div className="gba:flex gba:flex-col gba:gap-2">
+                {description && <span>{description}</span>}
+                {activity.documents && activity.documents.length > 0 && (
+                  <div className="gba:flex gba:flex-wrap gba:gap-2">
+                    {activity.documents.map((doc: ActivityDocument) => (
+                      <button
+                        key={doc.id}
+                        onClick={e => handleDocumentClick(doc, e)}
+                        className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
+                        data-testid={`activity-document-${activity.id}-${doc.id}`}
+                        title={doc.name}
+                      >
+                        {getDocumentIcon({ name: doc.name, mimeType: doc.mimeType, size: 14 })}
+                        <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Inline email body for email-type activities */}
+                {emailMessageId && accessToken && (
+                  <ActivityEmailBody
+                    emailMessageId={emailMessageId}
+                    accessToken={accessToken}
+                    isEmailOwner={
+                      !!currentEmployeeId &&
+                      !!activity.ownerEmployee?.id &&
+                      currentEmployeeId === activity.ownerEmployee.id
+                    }
+                    data-testid={`activity-email-body-${activity.id}`}
+                  />
+                )}
+              </div>
+            ),
+            icon: getActivityIcon(activityTypeLabel)
+          } as any
+        })}
+        variant="default"
+        orientation="vertical"
+        alignment={alignment}
+        className="gba:w-full"
+      />
+    )
+  }
+
+  return (
+    <div data-testid="activity-section-new-content" className={className}>
+      {activitySectionActionProps && !activitiesLoading && !activitiesError && (
+        <div className="gba:mb-4">
+          <AppActionProvider
+            accessToken={accessToken}
+            contextsArray={activitySectionActionProps.contextsArray}
+            externalContextData={activitySectionActionProps.externalContextData}
+            prefixDataTestId={activitySectionActionProps.prefixDataTestId}
+            onSuccess={() => {
+              form.reset({
+                details: { title: '', description: '' },
+                activityTypeRef: '',
+                occurredAt: new Date().toISOString().slice(0, 16),
+                ownerEmployeeId: props.userInfo?.employeeDetails?.employeeId || '',
+                _pendingFiles: [] as File[]
+              })
+              setShowQuickAdd(false)
+            }}
+            onError={(error: Error) => {
+              console.error('Failed to create activity:', error)
+            }}
+            transformData={
+              buildActivityPayload
+                ? (data: any) => data
+                : (data: any) =>
+                    ({
+                      title: data.details.title,
+                      description: data.details.description,
+                      activityTypeRef: data.activityTypeRef,
+                      occurredAt: toISOFormat(data.occurredAt) || new Date().toISOString(),
+                      ownerEmployeeId: data.ownerEmployeeId
+                    }) as Record<string, unknown>
+            }
+          >
+            {({ executeAction, isProcessing }) => {
+              const handleSubmit = async (data: any) => {
+                const mapped = {
+                  title: data.details.title,
+                  description: data.details.description,
+                  activityTypeRef: data.activityTypeRef,
+                  occurredAt: toISOFormat(data.occurredAt) || new Date().toISOString(),
+                  ownerEmployeeId: data.ownerEmployeeId,
+                  _pendingFiles: data._pendingFiles && data._pendingFiles.length > 0 ? data._pendingFiles : undefined,
+                  ...(leadId && { leadId }),
+                  ...(accountId && { accountId }),
+                  ...(contactId && { contactId }),
+                  ...(opportunityId && { opportunityId }),
+                  ...(investmentId && { investmentId })
+                }
+                let toBuild: Record<string, any> = mapped
+                if (props.preSubmit && mapped._pendingFiles?.length) {
+                  toBuild = await props.preSubmit(mapped)
+                }
+                const payload = buildActivityPayload ? buildActivityPayload(toBuild) : toBuild
+                if (payload && '_pendingFiles' in payload) {
+                  delete payload._pendingFiles
+                }
+                await executeAction(payload)
+              }
+              return (
+                <ActivityInput
+                  form={form}
+                  accessToken={accessToken}
+                  employees={mergedEmployees}
+                  employeesLoading={employeesLoading}
+                  onEmployeeSearch={search}
+                  employeesHasMore={hasMore}
+                  onEmployeeLoadMore={loadMore}
+                  onSubmit={handleSubmit}
+                  isProcessing={isProcessing}
+                  showQuickAdd={showQuickAdd}
+                  onShowQuickAddChange={setShowQuickAdd}
+                  activityTypeCatalog={activityTypeCatalog}
+                  schema={quickActivitySchema}
+                />
+              )
+            }}
+          </AppActionProvider>
+        </div>
       )}
+      {renderContent()}
     </div>
   )
 }

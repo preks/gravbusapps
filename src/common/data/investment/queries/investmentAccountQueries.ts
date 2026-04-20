@@ -38,6 +38,7 @@ import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
 import { InvestmentNoteFields } from '../types/investmentNoteTypes'
 import { InvestmentTaskFields } from '../types/investmentTaskTypes'
 import { InvestmentLeadFields } from '../types/investmentLeadTypes'
+import { AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 
 /**
  * Investment Account Query Variables Interface
@@ -122,6 +123,19 @@ export const buildInvestmentAccountByIdQuery = (
     
     investmentReport(where: { isDeleted: { _eq: false } }) {
       ${INVESTMENT_REPORT_REF}
+    }
+
+    # Investments linked to this account (junction) — IRM activity secondary picker
+    investments(where: { isDeleted: { _eq: false } }) {
+      id
+      investmentId
+      investmentAccountId
+      investment {
+        id
+        name
+        code
+      }
+      ${AUDIT_FIELDS}
     }
   `
 

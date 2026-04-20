@@ -21,6 +21,7 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
+import { normalizeDateInputValue, toISOEndOfDay, toISOStartOfDay } from '../../utils'
 import dayjs from 'dayjs'
 import { allowanceRegionRuleFormSchema } from '../../schemas'
 
@@ -105,8 +106,8 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
         code: data.code.trim(),
         name: data.name.trim(),
         description: data.description?.trim() || '',
-        activeFrom: data.activeFrom ? `${data.activeFrom}T00:00:00+00:00` : null,
-        activeTo: data.activeTo ? `${data.activeTo}T00:00:00+00:00` : null,
+        activeFrom: data.activeFrom ? toISOStartOfDay(data.activeFrom) : null,
+        activeTo: data.activeTo ? toISOEndOfDay(data.activeTo) : null,
         travelRegionSetRef: travelRegionSetId,
         additionalProperties: {},
         businessKey: data.code.trim()
@@ -254,7 +255,8 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                          outputFormat="iso"
                           data-testid={`${prefixDataTestId}-active-from-input`}
                           disabled={isSubmitting}
                         />
@@ -275,7 +277,8 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date))}
+                          outputFormat="iso"
                           data-testid={`${prefixDataTestId}-active-to-input`}
                           disabled={isSubmitting}
                         />

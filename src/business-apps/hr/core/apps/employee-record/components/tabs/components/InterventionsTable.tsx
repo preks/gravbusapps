@@ -1,12 +1,19 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Card, Alert, Badge, Icon, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, Alert, Badge, Icon, Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useTimeInterventions } from '../hooks/useTimeInterventions'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { CalendarXIcon, WarningCircleIcon, ArrowsClockwiseIcon, LightningIcon } from '@phosphor-icons/react'
+import {
+  CalendarXIcon,
+  WarningCircleIcon,
+  ArrowsClockwiseIcon,
+  LightningIcon,
+  HourglassIcon
+} from '@phosphor-icons/react'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 interface InterventionsTableProps {
   employeeId: string
@@ -20,6 +27,8 @@ interface InterventionsTableProps {
     fridayHours?: number
     saturdayHours?: number
   }
+  onReviewClick?: () => void
+  defaultExpanded?: boolean
 }
 
 const formatHm = (minutes: number) => {
@@ -28,15 +37,26 @@ const formatHm = (minutes: number) => {
   return `${h}:${String(m).padStart(2, '0')}`
 }
 
-export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employeeId, accessToken, workingHours }) => {
-  const { items, isLoading, error } = useTimeInterventions({
+export const InterventionsTable: React.FC<InterventionsTableProps> = ({
+  employeeId,
+  accessToken,
+  workingHours,
+  onReviewClick,
+  defaultExpanded = false
+}) => {
+  const { items, isLoading, error, refresh } = useTimeInterventions({
     employeeId,
     accessToken,
     workingHours
   })
 
-  // Collapsed by default: show warning header and hide cards
-  const [isExpanded, setIsExpanded] = useState(false)
+  useProcessCompletion({
+    onSuccess: () => {
+      refresh().catch(() => {})
+    }
+  })
+
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
   const headerRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -109,166 +129,185 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
   }
 
   return (
-    <Card className="gba:p-4 gba:mt-4" data-testid="time-interventions-card">
-      <div
-        className="gba:flex gba:items-center gba:justify-between gba:mb-3"
-        data-testid="time-interventions-header"
-        ref={headerRef}
-      >
-        <button
-          type="button"
-          onClick={toggleExpanded}
-          className="gba:flex gba:items-center gba:gap-2 gba:select-none"
-          data-testid="time-interventions-toggle-text"
-        >
-          <span
-            className={`gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full ${
-              isExpanded ? 'gba:bg-gradient-to-br gba:from-primary gba:to-info' : 'gba:bg-warning'
-            }`}
-          >
-            <Icon
-              icon={isExpanded ? LightningIcon : WarningCircleIcon}
-              className={isExpanded ? 'gba:text-primary-foreground' : 'gba:text-warning-foreground'}
-            />
-          </span>
-          <div className="gba:text-lg gba:font-semibold gba:text-left">
-            {isExpanded ? (
-              <>
-                <span>NEWWORK </span>
-                <span className="gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent">
-                  EveryAI Assistant
-                </span>
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:time_tracking.interventions.header_expanded_suffix',
-                    ' noticed ...'
-                  )}
-                </span>
-              </>
-            ) : (
-              <>
-                <span>NEWWORK </span>
-                <span className="gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent">
-                  EveryAI Assistant
-                </span>
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:time_tracking.interventions.header_collapsed_suffix',
-                    ' noticed data that need your attention!'
-                  )}
-                </span>
-              </>
-            )}
+    <Card className="" data-testid="time-interventions-card">
+      <CardContent className="gba:p-4">
+        <div className="gba:mb-3" data-testid="time-interventions-header" ref={headerRef}>
+          <div className="gba:flex gba:items-start gba:gap-2">
+            <div
+              className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:text-muted-foreground"
+              data-testid="time-interventions-assistant-icon"
+            >
+              <Icon icon={isExpanded ? LightningIcon : WarningCircleIcon} />
+            </div>
+            <div className="gba:text-base gba:font-semibold">
+              {isExpanded ? (
+                <>
+                  <span>NEWWORK </span>
+                  <span className="gba:text-ai">EveryAI Assistant</span>
+                  <span>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:time_tracking.interventions.header_expanded_suffix',
+                      ' noticed ...'
+                    )}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>NEWWORK </span>
+                  <span className="gba:text-ai">EveryAI Assistant</span>
+                  <span>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:time_tracking.interventions.header_collapsed_suffix',
+                      ' noticed data that need your attention!'
+                    )}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
-        </button>
-        <div>
-          <Button variant="ghost" size="sm" onClick={toggleExpanded} data-testid="time-interventions-toggle-button">
-            {isExpanded
-              ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.hide', 'Hide')
-              : getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.review', 'Review')}
-          </Button>
-        </div>
-      </div>
-
-      {isExpanded && (
-        <>
-          {error && (
-            <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:!inline-block gba:mb-3">
-              {error}
-            </Alert>
+          {!defaultExpanded && (
+            <Button
+              variant="outline"
+              className="gba:w-full gba:mt-3"
+              onClick={onReviewClick ?? toggleExpanded}
+              data-testid="time-interventions-toggle-button"
+            >
+              {isExpanded
+                ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.hide', 'Hide')
+                : getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.review', 'Review')}
+            </Button>
           )}
+        </div>
 
-          <div className="gba:w-full" data-testid="time-interventions-list" ref={listRef}>
-            {isLoading && (
-              <div className="gba:py-3">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:common.loading', 'Loading...')}
-              </div>
+        {isExpanded && (
+          <>
+            {error && (
+              <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:!inline-block gba:mb-3">
+                {error}
+              </Alert>
             )}
-            {!isLoading && visibleItems.length === 0 && (
-              <div className="gba:py-3">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.empty', 'No issues found')}
-              </div>
-            )}
-            {!isLoading && visibleItems.length > 0 && (
-              <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-3">
-                {visibleItems.map(item => {
-                  const IconCmp = getReasonIcon(item.reason)
-                  // Prefer platform formatter; if it returns ISO, fall back to local-only date
-                  let dateText = String(formatDate(item.date, 'date.short') || '')
-                  if (dateText.includes('T')) {
-                    try {
-                      dateText = new Date(item.date).toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                      })
-                    } catch {
-                      dateText = String(item.date).split('T')[0]
+
+            <div className="gba:w-full" data-testid="time-interventions-list" ref={listRef}>
+              {isLoading && (
+                <div className="gba:py-3">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:common.loading', 'Loading...')}
+                </div>
+              )}
+              {!isLoading && visibleItems.length === 0 && (
+                <div className="gba:py-3">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.empty', 'No issues found')}
+                </div>
+              )}
+              {!isLoading && visibleItems.length > 0 && (
+                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-3">
+                  {visibleItems.map(item => {
+                    const IconCmp = getReasonIcon(item.reason)
+                    // Prefer platform formatter; if it returns ISO, fall back to local-only date
+                    let dateText = String(formatDate(item.date, 'date.short') || '')
+                    if (dateText.includes('T')) {
+                      try {
+                        dateText = new Date(item.date).toLocaleDateString(undefined, {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit'
+                        })
+                      } catch {
+                        dateText = String(item.date).split('T')[0]
+                      }
                     }
-                  }
-                  const deficit = Math.max(0, item.plannedMinutes - item.workedMinutes)
-                  return (
-                    <Card key={item.date} className="gba:p-3" data-testid={`time-interventions-item-${item.date}`}>
-                      <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
-                        <div className="gba:flex gba:items-center gba:gap-3">
-                          <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:text-muted-foreground">
-                            <Icon icon={IconCmp} />
-                          </div>
-                          <div className="gba:flex gba:flex-col">
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <div className="gba:font-medium">{dateText}</div>
-                              <Badge
-                                variant={getBadgeVariant(item.reason)}
-                                data-testid={`time-interventions-reason-${item.date}`}
-                              >
-                                {getReason(item.reason)}
-                              </Badge>
+                    const deficit = Math.max(0, item.plannedMinutes - item.workedMinutes)
+                    return (
+                      <Card key={item.date} data-testid={`time-interventions-item-${item.date}`}>
+                        <CardContent className="gba:p-3">
+                          <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+                            <div className="gba:flex gba:items-center gba:gap-3">
+                              <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:text-muted-foreground">
+                                <Icon icon={item.pendingCorrection ? HourglassIcon : IconCmp} />
+                              </div>
+                              <div className="gba:flex gba:flex-col">
+                                <div className="gba:flex gba:items-center gba:gap-2">
+                                  <div className="gba:font-medium">{dateText}</div>
+                                  {item.pendingCorrection ? (
+                                    <Badge variant="warning" data-testid={`time-interventions-pending-${item.date}`}>
+                                      {getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:time_tracking.interventions.manager_approval_pending',
+                                        'Manager approval pending'
+                                      )}
+                                    </Badge>
+                                  ) : (
+                                    <Badge
+                                      variant={getBadgeVariant(item.reason)}
+                                      data-testid={`time-interventions-reason-${item.date}`}
+                                    >
+                                      {getReason(item.reason)}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="gba:text-sm gba:text-muted-foreground">
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:time_tracking.interventions.planned',
+                                    'Planned'
+                                  )}{' '}
+                                  {formatHm(item.plannedMinutes)} •{' '}
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:time_tracking.interventions.worked',
+                                    'Worked'
+                                  )}{' '}
+                                  {formatHm(item.workedMinutes)}
+                                  {deficit > 0
+                                    ? ` • ${getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.ballance', 'Balance')} -${formatHm(deficit)}`
+                                    : ''}
+                                </div>
+                              </div>
                             </div>
-                            <div className="gba:text-sm gba:text-muted-foreground">
-                              {getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:time_tracking.interventions.planned',
-                                'Planned'
-                              )}{' '}
-                              {formatHm(item.plannedMinutes)} •{' '}
-                              {getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:time_tracking.interventions.worked',
-                                'Worked'
-                              )}{' '}
-                              {formatHm(item.workedMinutes)}
-                              {deficit > 0
-                                ? ` • ${getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.ballance', 'Balance')} -${formatHm(deficit)}`
-                                : ''}
-                            </div>
+                            {!item.pendingCorrection && (
+                              <div className="gba:flex gba:justify-start">
+                                <AppAction
+                                  variant="update-secondary"
+                                  data-testid={`time-interventions-update-button-${item.date}`}
+                                  contexts={[
+                                    {
+                                      context: FlowContextName.employeeAttendanceCorrectionRequest,
+                                      contextData: {
+                                        employeeId,
+                                        employeeid: employeeId,
+                                        attendanceDateISO: new Date(item.date).toISOString().slice(0, 10),
+                                        reason: item.reason,
+                                        timeEntryId: item.entry?.id,
+                                        timeEntryVersion: item.entry?.version,
+                                        startTimeISO: item.entry?.startTime,
+                                        endTimeISO: item.entry?.endTime,
+                                        notes: item.entry?.notes,
+                                        recordedTime: item.entry?.recordedTime,
+                                        breakTime: item.entry?.breakTime,
+                                        effectiveTime: item.entry?.effectiveTime,
+                                        plannedTime: item.entry?.plannedTime,
+                                        differenceTime: item.entry?.differenceTime,
+                                        changeMode: 'INSERT',
+                                        employeeAttendanceCorrectionRequest: {
+                                          timeEntryId: item.entry?.id,
+                                          timeEntryVersion: item.entry?.version
+                                        }
+                                      }
+                                    }
+                                  ]}
+                                  prefixDataTestId="time-interventions-update"
+                                  accessToken={accessToken}
+                                  onClick={e => e.stopPropagation()}
+                                />
+                              </div>
+                            )}
                           </div>
-                        </div>
-                        <div className="gba:flex gba:justify-start">
-                          <AppAction
-                            variant="update-secondary"
-                            data-testid={`time-interventions-update-button-${item.date}`}
-                            contexts={[
-                              {
-                                context: FlowContextName.employeeAttendanceCorrectionRequest,
-                                contextData: {
-                                  employeeId,
-                                  attendanceDateISO: new Date(item.date).toISOString().slice(0, 10),
-                                  reason: item.reason
-                                }
-                              }
-                            ]}
-                            prefixDataTestId="time-interventions-update"
-                            accessToken={accessToken}
-                            onClick={e => e.stopPropagation()}
-                          />
-                        </div>
-                      </div>
-                    </Card>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </>
-      )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </CardContent>
     </Card>
   )
 }

@@ -23,10 +23,6 @@ import {
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-import {
-  useGetHierarchyEdgesMin,
-  useGetHierarchyEdgesWithCounts
-} from '../components/views/structural-analysis/components/organizational-hierarchy-report/queries/HierarchyQueries'
 
 export interface StructuralAnalysisIntegrationData {
   organizationalNodes: OrganizationalNode[]
@@ -46,9 +42,12 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
   const [error, setError] = useState<string | null>(null)
 
   const datasetClient = useQueryExecutionClient(context.accessToken, Services.EMPLOYEE)
-  const { fetchHierarchyEdgesMin } = useGetHierarchyEdgesMin(context)
-  const { fetchHierarchyEdgesWithCounts } = useGetHierarchyEdgesWithCounts(context)
-  type DatasetRow = { category: string; value: number }
+  type DatasetRow = {
+    category: string
+    value: number
+    manager_name?: string | null
+    organizational_unit_name?: string | null
+  }
   interface DatasetResponse<T> {
     data: T[]
   }
@@ -59,11 +58,6 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
     }
     return []
   }
-  const getValueByCategory = (rows: DatasetRow[], key: string): number => {
-    const row = rows.find(r => String(r.category).toLowerCase() === key.toLowerCase())
-    return typeof row?.value === 'number' ? row.value : 0
-  }
-
   interface HierarchyEdgeRow {
     // mandatory dataset columns
     category: string
@@ -73,6 +67,138 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
     child_id_text?: string | null
     parent_name?: string | null
     child_name?: string | null
+  }
+  type SunburstDatasetRow = HierarchyEdgeRow
+  interface ReportingChainDatasetRow {
+    category: string
+    value: number
+    root_name?: string | null
+    branch_name?: string | null
+    leaf_id_text?: string | null
+    leaf_name?: string | null
+    chain_node_count?: number | null
+    chain_path?: string | null
+    chain_path_without_root?: string | null
+    bottleneck_count?: number | null
+    bottleneck_nodes?: string | null
+  }
+
+  const mapSpanDistributionRowToSpanOfControl = (r: DatasetRow): SpanOfControlData => {
+    const rawDirectReports = typeof r.value === 'number' ? r.value : Number(r.value)
+    const directReports = Number.isFinite(rawDirectReports) ? rawDirectReports : 0
+    let efficiency: SpanOfControlData['efficiency']
+    if (directReports > 7) {
+      efficiency = 'Overloaded'
+    } else if (directReports >= 3) {
+      efficiency = 'Optimal'
+    } else {
+      efficiency = 'Underutilized'
+    }
+    let recommendation: string
+    if (efficiency === 'Overloaded') {
+      recommendation = t('hr-analytics-recommendation-overloaded')
+    } else if (efficiency === 'Underutilized') {
+      recommendation = t('hr-analytics-recommendation-underutilized')
+    } else {
+      recommendation = t('hr-analytics-recommendation-optimal')
+    }
+    return {
+      managerId: r.category,
+      managerName: r.manager_name?.trim() || r.category,
+      organizationalUnit: r.organizational_unit_name?.trim() || r.manager_name?.trim() || r.category,
+      directReports,
+      managerLevel: null,
+      efficiency,
+      recommendation
+    }
+  }
+
+  const parseSunburstRowsToEdges = (sunburstRows: SunburstDatasetRow[]): HierarchyEdgeRow[] => {
+    return sunburstRows
+      .map(r => {
+        const val = Number(r?.value ?? 0)
+        if (!Number.isFinite(val)) return null
+
+        const parentIdFromColumns = String(r?.parent_id_text ?? '').trim()
+        const childIdFromColumns = String(r?.child_id_text ?? '').trim()
+        const parentNameFromColumns = String(r?.parent_name ?? '').trim()
+        const childNameFromColumns = String(r?.child_name ?? '').trim()
+
+        if (childIdFromColumns) {
+          const normalizedParentId = parentIdFromColumns === 'ROOT' ? '' : parentIdFromColumns
+          const resolvedChildName = childNameFromColumns || String(r?.category ?? '').trim() || 'Unknown'
+
+          return {
+            category: resolvedChildName,
+            value: val,
+            parent_id_text: normalizedParentId || null,
+            child_id_text: childIdFromColumns,
+            parent_name: parentNameFromColumns || null,
+            child_name: resolvedChildName
+          } as HierarchyEdgeRow
+        }
+
+        // Backward-compatible fallback while the dataset rolls out the additional columns.
+        const rawCat = String(r?.category ?? '')
+        const parts000 = rawCat.split('|000|')
+        if (parts000.length < 4) return null
+        const [parentIdRaw, parentNameRaw, childIdRaw, childNameRaw] = parts000
+        const parentIdText = (parentIdRaw || '').trim() === 'ROOT' ? '' : (parentIdRaw || '').trim()
+        const parentName = (parentNameRaw || '').trim()
+        const childIdText = (childIdRaw || '').trim()
+        const childName = (childNameRaw || '').trim()
+
+        return {
+          category: childName,
+          value: val,
+          parent_id_text: parentIdText || null,
+          child_id_text: childIdText || null,
+          parent_name: parentName || null,
+          child_name: childName || null
+        } as HierarchyEdgeRow
+      })
+      .filter(Boolean) as HierarchyEdgeRow[]
+  }
+
+  const depthPenaltyForChainLength = (chainLength: number): number => {
+    if (chainLength > 6) return 20
+    if (chainLength > 4) return 10
+    return 0
+  }
+
+  const mapReportingChainDatasetRow = (
+    row: ReportingChainDatasetRow,
+    employeeCountByNodeId: Map<string, number>
+  ): ReportingChainData => {
+    const numericChainLength = typeof row.value === 'number' ? row.value : Number(row.value)
+    const chainLength = Number.isFinite(numericChainLength) ? Math.max(0, Math.round(numericChainLength)) : 0
+    const rawNodeCount =
+      typeof row.chain_node_count === 'number' ? row.chain_node_count : Number(row.chain_node_count ?? 0)
+    const levels = Number.isFinite(rawNodeCount) ? Math.max(1, Math.round(rawNodeCount)) : Math.max(1, chainLength + 1)
+    const rawBottleneckCount =
+      typeof row.bottleneck_count === 'number' ? row.bottleneck_count : Number(row.bottleneck_count ?? 0)
+    const bottleneckCount = Number.isFinite(rawBottleneckCount) ? Math.max(0, Math.round(rawBottleneckCount)) : 0
+    const bottleneckList = (row.bottleneck_nodes ?? '')
+      .split(',')
+      .map(item => item.trim())
+      .filter(item => item.length > 0)
+    const fallbackBottlenecks =
+      bottleneckCount > 0 && bottleneckList.length === 0 ? [t('hr-analytics-bottlenecks-identified')] : bottleneckList
+    const leafEmployeeCount = row.leaf_id_text ? (employeeCountByNodeId.get(String(row.leaf_id_text)) ?? 0) : 0
+    const depthPenalty = depthPenaltyForChainLength(chainLength)
+    const bottleneckPenalty = Math.min(30, bottleneckCount * 10)
+    const efficiency = Math.max(50, 95 - depthPenalty - bottleneckPenalty)
+
+    return {
+      chainId: String(row.category),
+      topManager: row.root_name?.trim() || row.branch_name?.trim() || t('hr-analytics-top-org-unit'),
+      levels,
+      totalEmployees: leafEmployeeCount,
+      averageSpanOfControl: 0,
+      chainPath: row.chain_path?.trim() || row.chain_path_without_root?.trim() || '',
+      bottlenecks: fallbackBottlenecks,
+      efficiency
+    }
   }
 
   const buildNodesFromEdges = (edgeRows: HierarchyEdgeRow[]): OrganizationalNode[] => {
@@ -156,102 +282,39 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
     setError(null)
 
     try {
-      const structureId = getCurrentActiveStructureId() || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
+      const structureId = getCurrentActiveStructureId()
       if (!structureId) {
         throw new Error('No structure ID available')
       }
 
       // Execute datasets
-      let overviewRows: DatasetRow[] = []
-      let hierarchyRows: DatasetRow[] = []
       let spanDistRows: DatasetRow[] = []
+      let reportingChainRows: ReportingChainDatasetRow[] = []
       // Sunburst: we'll first try orgHierarchySunburstData (edges encoded in category), else fall back to GraphQL
       let edgeRowsFromDataset: HierarchyEdgeRow[] = []
       if (datasetClient) {
-        const [overviewRes, hierarchyRes, spanDistRes, sunburstRes] = await Promise.all([
-          datasetClient.executeQuery('structuralOverviewMetrics', QueryType.DATASET, { structureId }),
-          datasetClient.executeQuery('hierarchyDepthMetrics', QueryType.DATASET, { structureId }),
+        const [spanDistRes, sunburstRes, reportingChainsRes] = await Promise.all([
           datasetClient.executeQuery('spanOfControlDistribution', QueryType.DATASET, { structureId }),
           datasetClient
             .executeQuery('orgHierarchySunburstData', QueryType.DATASET, { structureId })
+            .catch(() => ({ data: [] })),
+          datasetClient
+            .executeQuery('reportingChainsDetails', QueryType.DATASET, { structureId, pageSize: 50 })
             .catch(() => ({ data: [] }))
         ])
-        overviewRows = toRows<DatasetRow>(overviewRes)
-        hierarchyRows = toRows<DatasetRow>(hierarchyRes)
         spanDistRows = toRows<DatasetRow>(spanDistRes)
-        const sunburstRows = toRows<{ category: string; value: number }>(sunburstRes)
+        reportingChainRows = toRows<ReportingChainDatasetRow>(reportingChainsRes)
+        const sunburstRows = toRows<SunburstDatasetRow>(sunburstRes)
 
         if (Array.isArray(sunburstRows) && sunburstRows.length > 0) {
-          edgeRowsFromDataset = sunburstRows
-            .map(r => {
-              // Parse encoded edge using the standardized "|000|" separator
-              const rawCat = String(r?.category ?? '')
-              const parts000 = rawCat.split('|000|')
-              if (parts000.length < 4) return null
-              const [parentIdRaw, parentNameRaw, childIdRaw, childNameRaw] = parts000
-              const parentIdText = (parentIdRaw || '').trim() === 'ROOT' ? '' : (parentIdRaw || '').trim()
-              const parentName = (parentNameRaw || '').trim()
-              const childIdText = (childIdRaw || '').trim()
-              const childName = (childNameRaw || '').trim()
-              const val = Number(r?.value ?? 0)
-              // Keep zero-value rows; they are needed for correct totals/structure
-              if (!Number.isFinite(val)) return null
-              return {
-                category: childName,
-                value: val,
-                parent_id_text: parentIdText || null,
-                child_id_text: childIdText || null,
-                parent_name: parentName || null,
-                child_name: childName || null
-              } as HierarchyEdgeRow
-            })
-            .filter(Boolean) as HierarchyEdgeRow[]
+          edgeRowsFromDataset = parseSunburstRowsToEdges(sunburstRows)
         }
       }
 
-      // Build organizational nodes:
-      // - Prefer dataset edges (already sized) for a true multi-ring sunburst with minimal payload
-      // - Else fall back to GraphQL hierarchy (counts-enabled), then minimal edges
+      // Build organizational nodes from dataset edges only.
       let organizationalNodes: OrganizationalNode[] = []
       if (edgeRowsFromDataset.length > 0) {
         organizationalNodes = buildNodesFromEdges(edgeRowsFromDataset)
-      } else {
-        try {
-          // Prefer counts-enabled minimal query to size nodes properly
-          const asOf = new Date().toISOString()
-          const gqlEdgesWithCounts = await fetchHierarchyEdgesWithCounts({ structureId, asOf })
-          const edgesList = (gqlEdgesWithCounts as any)?.OrganizationalUnitRelationship ?? []
-          if (Array.isArray(edgesList) && edgesList.length > 0) {
-            const mapped: HierarchyEdgeRow[] = edgesList.map((e: any) => ({
-              category: String(e?.child?.name ?? ''),
-              value: Number(e?.child?.organizationalUnitEmployeeAggregate?.aggregate?.count ?? 0),
-              parent_id_text: e?.parentId ?? null,
-              child_id_text: e?.childId ?? null,
-              parent_name: e?.parent?.name ?? null,
-              child_name: e?.child?.name ?? null
-            }))
-            organizationalNodes = buildNodesFromEdges(mapped)
-          }
-
-          // If still empty, try edges-only minimal query and synthesize
-          if (organizationalNodes.length === 0) {
-            const gqlEdges = await fetchHierarchyEdgesMin({ structureId })
-            const edgesOnly = (gqlEdges as any)?.OrganizationalUnitRelationship ?? []
-            if (Array.isArray(edgesOnly) && edgesOnly.length > 0) {
-              const mappedMin: HierarchyEdgeRow[] = edgesOnly.map((e: any) => ({
-                category: String(e?.child?.name ?? ''),
-                value: 1, // size leaves minimally; real counts not available here
-                parent_id_text: e?.parentId ?? null,
-                child_id_text: e?.childId ?? null,
-                parent_name: e?.parent?.name ?? null,
-                child_name: e?.child?.name ?? null
-              }))
-              organizationalNodes = buildNodesFromEdges(mappedMin)
-            }
-          }
-        } catch {
-          // ignore
-        }
       }
 
       // No extra overrides needed when dataset provided edges + counts
@@ -259,105 +322,24 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
       // Generate analysis data (prefer dataset rows for span-of-control distribution)
       const spanOfControlData: SpanOfControlData[] =
         spanDistRows.length > 0
-          ? spanDistRows.map<SpanOfControlData>(r => {
-              const directReports = typeof r.value === 'number' ? r.value : 0
-              const efficiency = directReports > 7 ? 'Overloaded' : directReports >= 3 ? 'Optimal' : 'Underutilized'
-              const recommendation =
-                efficiency === 'Overloaded'
-                  ? t('hr-analytics-recommendation-overloaded')
-                  : efficiency === 'Underutilized'
-                    ? t('hr-analytics-recommendation-underutilized')
-                    : t('hr-analytics-recommendation-optimal')
-              return {
-                managerId: r.category, // no id available; use name as key
-                managerName: r.category,
-                organizationalUnit: r.category,
-                directReports,
-                managerLevel: null,
-                efficiency,
-                recommendation
-              }
-            })
+          ? spanDistRows.map(r => mapSpanDistributionRowToSpanOfControl(r))
           : generateSpanOfControlAnalysis(organizationalNodes)
-      let spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData)
+      const spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData)
       const depthAnalysisData = generateDepthAnalysis(organizationalNodes)
-      const reportingChainData = generateReportingChainAnalysis(organizationalNodes)
-      let reportingChainSummary = generateReportingChainSummary(reportingChainData)
+      const employeeCountByNodeId = new Map(organizationalNodes.map(node => [node.id, node.employeeCount]))
+      const reportingChainData: ReportingChainData[] =
+        reportingChainRows.length > 0
+          ? reportingChainRows.map(row => mapReportingChainDatasetRow(row, employeeCountByNodeId))
+          : generateReportingChainAnalysis(organizationalNodes)
+      const reportingChainSummary = generateReportingChainSummary(reportingChainData)
       const sunburstData = generateSunburstData(organizationalNodes)
 
       // Calculate overall statistics
-      let structuralStatistics = calculateStructuralStatistics(
+      const structuralStatistics = calculateStructuralStatistics(
         organizationalNodes,
         spanOfControlData,
         reportingChainSummary
       )
-
-      // Override with dataset metrics
-      if (overviewRows.length > 0 || hierarchyRows.length > 0) {
-        const dsTotalEmployees = getValueByCategory(overviewRows, 'total_employees')
-        const dsTotalManagers = getValueByCategory(overviewRows, 'total_managers')
-        const dsTotalUnits = getValueByCategory(overviewRows, 'total_units')
-        const dsAvgSpan = getValueByCategory(overviewRows, 'avg_span_of_control')
-        const dsOptimalCount = getValueByCategory(overviewRows, 'optimal_count')
-        const dsUnderutilizedCount = getValueByCategory(overviewRows, 'underutilized_count')
-        const dsOverburdenedCount = getValueByCategory(overviewRows, 'overburdened_count')
-        const dsHierarchyDepth = getValueByCategory(hierarchyRows, 'hierarchy_depth')
-        const dsAvgChain = getValueByCategory(hierarchyRows, 'avg_chain_length')
-        const dsMinChain = getValueByCategory(hierarchyRows, 'min_chain_length')
-        const dsMaxChain = getValueByCategory(hierarchyRows, 'max_chain_length')
-
-        structuralStatistics = {
-          ...structuralStatistics,
-          totalEmployees: dsTotalEmployees || structuralStatistics.totalEmployees,
-          totalManagers: dsTotalManagers || structuralStatistics.totalManagers,
-          totalUnits: dsTotalUnits || structuralStatistics.totalUnits,
-          averageSpanOfControl: dsAvgSpan || structuralStatistics.averageSpanOfControl,
-          hierarchyDepth: dsHierarchyDepth || structuralStatistics.hierarchyDepth,
-          maxDepth: dsHierarchyDepth || structuralStatistics.maxDepth,
-          averageReportingChainLength: dsAvgChain || structuralStatistics.averageReportingChainLength
-        }
-
-        // Also override span of control summary counts for Key Insights
-        spanOfControlSummary = {
-          ...spanOfControlSummary,
-          totalManagers: dsTotalManagers || spanOfControlSummary.totalManagers,
-          averageSpan: dsAvgSpan ? Math.round(dsAvgSpan * 10) / 10 : spanOfControlSummary.averageSpan,
-          optimalCount: dsOptimalCount || spanOfControlSummary.optimalCount,
-          underUtilizedCount: dsUnderutilizedCount || spanOfControlSummary.underUtilizedCount,
-          overBurdenedCount: dsOverburdenedCount || spanOfControlSummary.overBurdenedCount
-        }
-
-        // Override reporting chain summary cards from datasets when available
-        reportingChainSummary = {
-          ...reportingChainSummary,
-          averageChainLength: dsAvgChain || reportingChainSummary.averageChainLength,
-          minChainLength:
-            typeof dsMinChain === 'number' && dsMinChain > 0 ? dsMinChain : reportingChainSummary.minChainLength,
-          maxChainLength:
-            typeof dsMaxChain === 'number' && dsMaxChain > 0 ? dsMaxChain : reportingChainSummary.maxChainLength
-        }
-        if (typeof dsOverburdenedCount === 'number') {
-          const desired = Math.max(0, Math.floor(dsOverburdenedCount))
-          if (desired < reportingChainSummary.bottlenecks.length) {
-            reportingChainSummary = {
-              ...reportingChainSummary,
-              bottlenecks: reportingChainSummary.bottlenecks.slice(0, desired)
-            }
-          } else if (desired > reportingChainSummary.bottlenecks.length) {
-            const padCount = desired - reportingChainSummary.bottlenecks.length
-            const pads = Array.from({ length: padCount }).map((_, i) => ({
-              managerId: `unknown-${i}`,
-              managerName: 'N/A',
-              chainsThroughManager: 0,
-              impact: 0
-            }))
-            reportingChainSummary = {
-              ...reportingChainSummary,
-              bottlenecks: [...reportingChainSummary.bottlenecks, ...pads]
-            }
-          }
-        }
-      }
 
       const integratedData: StructuralAnalysisIntegrationData = {
         organizationalNodes,
@@ -378,7 +360,7 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
     } finally {
       setIsLoading(false)
     }
-  }, [datasetClient])
+  }, [datasetClient, t])
 
   useEffect(() => {
     if (context.accessToken) {

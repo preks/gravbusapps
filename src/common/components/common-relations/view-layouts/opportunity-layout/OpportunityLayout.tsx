@@ -12,6 +12,8 @@ import {
 } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { useOpportunityExport } from './hooks/useOpportunityExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -31,6 +33,7 @@ import {
   getFilterChangeHandlerForSection
 } from './utils/layoutHelpers'
 import { OpportunityStatisticsLayout, type OpportunityStatisticsData } from './components/OpportunityStatisticsLayout'
+import { OpportunityAggregatesBar, type OpportunityAggregates } from './components/OpportunityAggregatesBar'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 
 // Helper: Update filter options
@@ -96,6 +99,7 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   fetchOpportunities: (variables: TQueryVariables) => Promise<{
     opportunities?: TOpportunity[]
     total?: number
+    aggregates?: OpportunityAggregates
   }>
 
   filterDataHook: (context: BusinessAppContextProps) => {
@@ -106,7 +110,7 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
     statuses: Array<{ id: string; label: string }>
   }
 
-  createColumns: (buildAccountUrl: (id: string) => string) => ColumnDef<TOpportunity>[]
+  createColumns: () => ColumnDef<TOpportunity>[]
   createSortableColumns: (availableColumnIds?: string[]) => Array<{ id: string; label: string }>
 
   baseFilterConfig: FilterConfiguration
@@ -160,6 +164,18 @@ export interface OpportunityLayoutProps<TOpportunity extends { id: string } = an
   extendVisibleColumns?: string[] // Additional columns to add to base columns
   renderQuickFilters?: (props: QuickFiltersRenderProps) => React.ReactNode
   quickFilter?: string // Current quick filter value (e.g., 'all', 'qualified', 'unqualified')
+  /** When true, renders CSV and Excel export buttons in the list view toolbar. */
+  enableExport?: boolean
+  /** Filename prefix for exported files (timestamp is appended automatically). */
+  exportFilenamePrefix?: string
+  showAllCurrencyOption?: boolean
+  defaultCurrency?: string
+  /** Called whenever the user changes list-tab filters — use to persist filter state externally. */
+  onFilterChange?: (filters: Record<string, any>) => void
+  initialSorting?: Array<{ id: string; desc: boolean }>
+  onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
+  initialVisibleColumns?: string[]
+  onVisibleColumnsChange?: (columns: string[]) => void
 }
 
 interface OpportunityRowActionsProps<TOpportunity extends { id: string }> {
@@ -198,9 +214,15 @@ interface CurrencyFilterProps {
   selectedCurrency: string
   currencies: Array<{ code: string; label: string }>
   onCurrencyChange: (currencyCode: string) => void
+  showAllOption?: boolean
 }
 
-const CurrencyFilter: React.FC<CurrencyFilterProps> = ({ selectedCurrency, currencies, onCurrencyChange }) => {
+const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
+  selectedCurrency,
+  currencies,
+  onCurrencyChange,
+  showAllOption = true
+}) => {
   if (currencies.length === 0) return null
 
   // Get display label for selected currency
@@ -218,7 +240,7 @@ const CurrencyFilter: React.FC<CurrencyFilterProps> = ({ selectedCurrency, curre
           <SelectValue placeholder="Select currency">{getDisplayLabel(selectedCurrency)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All</SelectItem>
+          {showAllOption && <SelectItem value="ALL">All</SelectItem>}
           {currencies.map(currency => (
             <SelectItem key={currency.code} value={currency.code}>
               {currency.label}
@@ -238,6 +260,7 @@ interface BoardSecondaryActionsProps {
   selectedCurrency: string
   currencies: Array<{ code: string; label: string }>
   onCurrencyChange: (currencyCode: string) => void
+  showAllCurrencyOption?: boolean
 }
 
 const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
@@ -247,7 +270,8 @@ const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
   onPipelineChange,
   selectedCurrency,
   currencies,
-  onCurrencyChange
+  onCurrencyChange,
+  showAllCurrencyOption = true
 }) => {
   if (currentSection !== 'board') return undefined
 
@@ -268,7 +292,12 @@ const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
           </SelectContent>
         </Select>
       </div>
-      <CurrencyFilter selectedCurrency={selectedCurrency} currencies={currencies} onCurrencyChange={onCurrencyChange} />
+      <CurrencyFilter
+        selectedCurrency={selectedCurrency}
+        currencies={currencies}
+        onCurrencyChange={onCurrencyChange}
+        showAllOption={showAllCurrencyOption}
+      />
     </div>
   )
 }
@@ -278,19 +307,102 @@ interface ListSecondaryActionsProps {
   selectedCurrency: string
   currencies: Array<{ code: string; label: string }>
   onCurrencyChange: (currencyCode: string) => void
+  showAllCurrencyOption?: boolean
 }
 
 const ListSecondaryActions: React.FC<ListSecondaryActionsProps> = ({
   currentSection,
   selectedCurrency,
   currencies,
-  onCurrencyChange
+  onCurrencyChange,
+  showAllCurrencyOption = true
 }) => {
   if (currentSection !== 'list') return undefined
 
   return (
-    <CurrencyFilter selectedCurrency={selectedCurrency} currencies={currencies} onCurrencyChange={onCurrencyChange} />
+    <CurrencyFilter
+      selectedCurrency={selectedCurrency}
+      currencies={currencies}
+      onCurrencyChange={onCurrencyChange}
+      showAllOption={showAllCurrencyOption}
+    />
   )
+}
+
+function initializeVisibleColumns(baseColumns: string[], extendColumns: string[]): string[] {
+  if (extendColumns.length === 0) return baseColumns
+  const closeDateIndex = baseColumns.indexOf('closeDate')
+  if (closeDateIndex >= 0) {
+    return [...baseColumns.slice(0, closeDateIndex + 1), ...extendColumns, ...baseColumns.slice(closeDateIndex + 1)]
+  }
+  return [...baseColumns, ...extendColumns]
+}
+
+function buildDynamicListFilterConfig(
+  baseFilterConfig: FilterConfiguration,
+  filterData: {
+    owners: Array<{ id: string; label: string }>
+    stages: Array<{ id: string; label: string }>
+    pipelines: Array<{ id: string; label: string }>
+    accounts: Array<{ id: string; label: string }>
+    statuses: Array<{ id: string; label: string }>
+    forecasts: Array<{ id: string; label: string }>
+    amountRange: { min: number; max: number }
+  }
+): FilterConfiguration {
+  const filterConfig = { ...baseFilterConfig }
+  const { owners, stages, pipelines, accounts, statuses, forecasts, amountRange } = filterData
+  updateFilterOptions(
+    filterConfig,
+    'stage-group',
+    'opportunityPipelineStageIds',
+    stages.map(s => ({ id: s.id, label: s.label }))
+  )
+  updateFilterOptions(
+    filterConfig,
+    'status-group',
+    'opportunityStatusIds',
+    statuses.map(s => ({ id: s.id, label: s.label }))
+  )
+  updateFilterOptions(
+    filterConfig,
+    'forecast-group',
+    'opportunityForecastIds',
+    (forecasts || []).map((f: any) => ({ id: f.id, label: f.label }))
+  )
+  updateFilterOptions(
+    filterConfig,
+    'pipeline-group',
+    'opportunityPipelineIds',
+    pipelines.map(p => ({ id: p.id, label: p.label }))
+  )
+  updateFilterOptions(
+    filterConfig,
+    'owner-group',
+    'ownerEmployeeIds',
+    owners.map(o => ({ id: o.id, label: o.label }))
+  )
+  updateFilterOptions(
+    filterConfig,
+    'account-group',
+    'accountIds',
+    accounts.map(a => ({ id: a.id, label: a.label }))
+  )
+  updateAmountRangeFilter(filterConfig, amountRange)
+  return filterConfig
+}
+
+function applyCurrencyToVars(
+  baseVars: any,
+  selectedCurrency: string,
+  availableCurrencies: Array<{ id: string; code: string }>
+): any {
+  if (selectedCurrency === 'ALL') return baseVars
+  const selectedCurrencyObj = availableCurrencies.find(c => c.code === selectedCurrency)
+  if (selectedCurrencyObj?.id) {
+    return { ...baseVars, currencyIds: [selectedCurrencyObj.id] }
+  }
+  return baseVars
 }
 
 function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQueryVariables = any>(
@@ -305,7 +417,16 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     customPrimaryAction,
     extendVisibleColumns = [],
     renderQuickFilters,
-    quickFilter
+    quickFilter,
+    enableExport = false,
+    exportFilenamePrefix = 'opportunities',
+    showAllCurrencyOption = true,
+    defaultCurrency = 'ALL',
+    onFilterChange: onFilterChangeProp,
+    initialSorting: initialSortingProp,
+    onSortingChange: onSortingChangeProp,
+    initialVisibleColumns: initialVisibleColumnsProp,
+    onVisibleColumnsChange: onVisibleColumnsChangeProp
   } = props
   const { accessToken } = context
 
@@ -315,7 +436,9 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   // List View State
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
+    () => initialSortingProp ?? [{ id: 'createdAt', desc: true }]
+  )
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
 
   const baseVisibleColumns = useMemo(
@@ -327,33 +450,19 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       'opportunityStatus',
       'opportunityForecast',
       'closeDate',
-      'account',
       'owner',
       'created'
     ],
     []
   )
 
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
-    if (extendVisibleColumns.length === 0) {
-      return baseVisibleColumns
-    }
-
-    // Insert extended columns after 'account' if it exists, otherwise append
-    const accountIndex = baseVisibleColumns.indexOf('account')
-    if (accountIndex >= 0) {
-      return [
-        ...baseVisibleColumns.slice(0, accountIndex + 1),
-        ...extendVisibleColumns,
-        ...baseVisibleColumns.slice(accountIndex + 1)
-      ]
-    }
-    return [...baseVisibleColumns, ...extendVisibleColumns]
-  })
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    () => initialVisibleColumnsProp ?? initializeVisibleColumns(baseVisibleColumns, extendVisibleColumns)
+  )
 
   // Board View State
   const [boardPipelineId, setBoardPipelineId] = useState('')
-  const [selectedCurrency, setSelectedCurrency] = useState('ALL')
+  const [selectedCurrency, setSelectedCurrency] = useState(defaultCurrency)
   const [boardFilters, setBoardFilters] = useState<Record<string, any>>({})
   const [boardSearch, setBoardSearch] = useState('')
   const [boardOpportunities, setBoardOpportunities] = useState<TOpportunity[]>([])
@@ -365,6 +474,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   // List Data State
   const [opportunities, setOpportunities] = useState<TOpportunity[]>([])
   const [totalCount, setTotalCount] = useState(0)
+  const [listAggregates, setListAggregates] = useState<OpportunityAggregates | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
@@ -421,70 +531,36 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   }, [boardEmployees])
 
   // Dynamic Filter Configuration for List
-  const dynamicFilterConfig = useMemo(() => {
-    const filterConfig = { ...config.baseFilterConfig }
-
-    updateFilterOptions(
-      filterConfig,
-      'stage-group',
-      'opportunityPipelineStageIds',
-      stages.map(s => ({ id: s.id, label: s.label }))
-    )
-    updateFilterOptions(
-      filterConfig,
-      'status-group',
-      'opportunityStatusIds',
-      statuses.map(s => ({ id: s.id, label: s.label }))
-    )
-    updateFilterOptions(
-      filterConfig,
-      'forecast-group',
-      'opportunityForecastIds',
-      (forecasts || []).map((f: any) => ({ id: f.id, label: f.label }))
-    )
-    updateFilterOptions(
-      filterConfig,
-      'pipeline-group',
-      'opportunityPipelineIds',
-      pipelines.map(p => ({ id: p.id, label: p.label }))
-    )
-    updateFilterOptions(
-      filterConfig,
-      'owner-group',
-      'ownerEmployeeIds',
-      owners.map(o => ({ id: o.id, label: o.label }))
-    )
-    updateFilterOptions(
-      filterConfig,
-      'account-group',
-      'accountIds',
-      accounts.map(a => ({ id: a.id, label: a.label }))
-    )
-
-    updateAmountRangeFilter(filterConfig, amountRange)
-
-    return filterConfig
-  }, [owners, stages, pipelines, accounts, statuses, forecasts, amountRange, config.baseFilterConfig])
+  const dynamicFilterConfig = useMemo(
+    () =>
+      buildDynamicListFilterConfig(config.baseFilterConfig, {
+        owners,
+        stages,
+        pipelines,
+        accounts,
+        statuses,
+        forecasts,
+        amountRange
+      }),
+    [owners, stages, pipelines, accounts, statuses, forecasts, amountRange, config.baseFilterConfig]
+  )
 
   // List Query Variables
   const listQueryVariables = useMemo(() => {
-    const baseVars = config.buildQueryVariables({
-      pagination,
-      searchTerm,
-      selectedFilters,
-      sorting
-    })
-
-    // Convert selected currency code to full catalog ID if not "ALL"
-    if (selectedCurrency !== 'ALL') {
-      const selectedCurrencyObj = availableCurrencies.find(c => c.code === selectedCurrency)
-      if (selectedCurrencyObj?.id) {
-        ;(baseVars as any).currencyIds = [selectedCurrencyObj.id]
-      }
-    }
-
-    return baseVars
+    const baseVars = config.buildQueryVariables({ pagination, searchTerm, selectedFilters, sorting })
+    return applyCurrencyToVars(baseVars, selectedCurrency, availableCurrencies)
   }, [pagination, searchTerm, selectedFilters, sorting, selectedCurrency, availableCurrencies, config])
+
+  // Export
+  const { isExporting, handleExportCsv, handleExportExcel } = useOpportunityExport({
+    fetchOpportunities: config.fetchOpportunities as any,
+    queryVariables: listQueryVariables,
+    totalCount,
+    filenamePrefix: exportFilenamePrefix,
+    contextType: config.contextType,
+    listAggregates,
+    displayCurrencyCode: selectedCurrency === 'ALL' ? 'EUR' : selectedCurrency
+  })
 
   // Load List Data
   const loadListData = useCallback(
@@ -498,6 +574,9 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         const result = await config.fetchOpportunities(listQueryVariables)
         setOpportunities(result.opportunities || [])
         setTotalCount(result.total || 0)
+        if (result.aggregates) {
+          setListAggregates(result.aggregates)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
       } finally {
@@ -576,28 +655,23 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     }
 
     loadBothSections()
-  }, [accessToken, isInitialLoad, boardPipelineId, loadListData, loadBoardData])
+  }, [accessToken, isInitialLoad])
 
-  // Reload list data when filters/search/sort change (only when list is active, skip initial load)
+  // Reload list data when filters/search/sort change (only when list is active, skip initial load).
+  // loadListData is intentionally omitted from deps: it is derived from listQueryVariables,
+  // so including it would cause the effect to fire twice on every query change.
   useEffect(() => {
     if (isInitialLoad || !accessToken || currentSection !== 'list') return
     loadListData(false)
-  }, [listQueryVariables, isInitialLoad, accessToken, loadListData, currentSection])
+  }, [listQueryVariables, accessToken, currentSection])
 
-  // Reload board data when filters/search/currency change (only when board is active, skip initial load)
+  // Reload board data when filters/search/currency change (only when board is active, skip initial load).
+  // loadBoardData is intentionally omitted from deps: it is derived from the other deps listed,
+  // so including it would cause the effect to fire twice on every change.
   useEffect(() => {
     if (isInitialLoad || !accessToken || currentSection !== 'board' || !boardPipelineId) return
     loadBoardData()
-  }, [
-    boardPipelineId,
-    boardFilters,
-    boardSearch,
-    selectedCurrency,
-    isInitialLoad,
-    accessToken,
-    loadBoardData,
-    currentSection
-  ])
+  }, [boardPipelineId, boardFilters, boardSearch, selectedCurrency, isInitialLoad, accessToken, currentSection])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
@@ -619,10 +693,30 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
-  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
-    setSelectedFilters(filters)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [])
+  const handleFilterUpdate = useCallback(
+    (filters: Record<string, any>) => {
+      setSelectedFilters(filters)
+      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+      onFilterChangeProp?.(filters)
+    },
+    [onFilterChangeProp]
+  )
+
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      setSorting(newSorting)
+      onSortingChangeProp?.(newSorting)
+    },
+    [onSortingChangeProp]
+  )
+
+  const handleVisibleColumnsChange = useCallback(
+    (newColumns: string[]) => {
+      setVisibleColumns(newColumns)
+      onVisibleColumnsChangeProp?.(newColumns)
+    },
+    [onVisibleColumnsChangeProp]
+  )
 
   const handleRowClick = useCallback(
     (opportunity: TOpportunity) => {
@@ -633,19 +727,18 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   )
 
   // Columns
-  const columns = useMemo(() => config.createColumns(config.buildAccountUrl), [config])
+  const columns = useMemo(() => config.createColumns(), [config])
   const availableColumns = useMemo(() => deriveAvailableColumns(columns), [columns])
 
   // Row actions - rendered internally
   // Row actions - rendered internally (only if actions are configured)
   const rowActions = useMemo(() => {
-    // Hide actions column if no actions are configured
-    if (!config.rowActionsContextArray || config.rowActionsContextArray.length === 0) {
-      return undefined
+    if (config.rowActionsContextArray && config.rowActionsContextArray.length > 0) {
+      return (row: { original: TOpportunity }) => (
+        <OpportunityRowActions row={row} config={config} accessToken={accessToken} />
+      )
     }
-    return (row: { original: TOpportunity }) => (
-      <OpportunityRowActions row={row} config={config} accessToken={accessToken} />
-    )
+    return undefined
   }, [config, accessToken])
 
   // Board secondary actions: Pipeline selector + Currency filter
@@ -659,22 +752,62 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         selectedCurrency={selectedCurrency}
         currencies={availableCurrencies}
         onCurrencyChange={setSelectedCurrency}
+        showAllCurrencyOption={showAllCurrencyOption}
       />
     ),
-    [currentSection, boardPipelineId, pipelines, selectedCurrency, availableCurrencies]
+    [currentSection, boardPipelineId, pipelines, selectedCurrency, availableCurrencies, showAllCurrencyOption]
   )
 
-  // List secondary actions: Currency filter
+  // List secondary actions: Currency filter + optional export buttons
   const listSecondaryActions = useMemo(
     () => (
-      <ListSecondaryActions
-        currentSection={currentSection}
-        selectedCurrency={selectedCurrency}
-        currencies={availableCurrencies}
-        onCurrencyChange={setSelectedCurrency}
-      />
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <ListSecondaryActions
+          currentSection={currentSection}
+          selectedCurrency={selectedCurrency}
+          currencies={availableCurrencies}
+          onCurrencyChange={setSelectedCurrency}
+          showAllCurrencyOption={showAllCurrencyOption}
+        />
+        {enableExport && currentSection === 'list' && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCsv}
+              disabled={isExporting || totalCount === 0}
+              title={isExporting ? 'Exporting…' : `Export ${totalCount} opportunities as CSV`}
+              data-testid="export-csv-button"
+            >
+              <DownloadIcon size={16} />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportExcel}
+              disabled={isExporting || totalCount === 0}
+              title={isExporting ? 'Exporting…' : `Export ${totalCount} opportunities as Excel`}
+              data-testid="export-excel-button"
+            >
+              <FileXlsIcon size={16} />
+              Excel
+            </Button>
+          </>
+        )}
+      </div>
     ),
-    [currentSection, selectedCurrency, availableCurrencies]
+    [
+      currentSection,
+      selectedCurrency,
+      availableCurrencies,
+      showAllCurrencyOption,
+      enableExport,
+      isExporting,
+      totalCount,
+      handleExportCsv,
+      handleExportExcel
+    ]
   )
 
   // Extract sortableColumns for list view
@@ -687,22 +820,25 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   // Extract primary action
   const primaryActionElement = useMemo(() => {
     if (customPrimaryAction) return customPrimaryAction
-    if (!config.flowContexts.createContext) return undefined
 
-    return (
-      <AppAction
-        contextsArray={[config.flowContexts.createContext]}
-        externalContextData={config.flowContexts.createContextData}
-        accessToken={accessToken}
-        data-testid="add-opportunity-action"
-        emptyStateBehavior="hide"
-      >
-        <Button size="sm" variant="default" data-testid="add-opportunity-button" type="button">
-          <Plus size={16} />
-          {getTranslationFromI18nKeyAndLabel('crm:opportunity.addOpportunity', 'Add Opportunity')}
-        </Button>
-      </AppAction>
-    )
+    if (config.flowContexts.createContext) {
+      return (
+        <AppAction
+          contextsArray={[config.flowContexts.createContext]}
+          externalContextData={config.flowContexts.createContextData}
+          accessToken={accessToken}
+          data-testid="add-opportunity-action"
+          emptyStateBehavior="hide"
+        >
+          <Button size="sm" variant="default" data-testid="add-opportunity-button" type="button">
+            <Plus size={16} />
+            {getTranslationFromI18nKeyAndLabel('crm:opportunity.addOpportunity', 'Add Opportunity')}
+          </Button>
+        </AppAction>
+      )
+    }
+
+    return undefined
   }, [customPrimaryAction, config.flowContexts.createContext, config.flowContexts.createContextData, accessToken])
 
   // Convert selected currency code to full ID for statistics
@@ -776,10 +912,10 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         )}
         sorting={currentSection === 'list' ? sorting : undefined}
         sortableColumns={listSortableColumns}
-        onSortingChange={currentSection === 'list' ? setSorting : undefined}
+        onSortingChange={currentSection === 'list' ? handleSortingChange : undefined}
         availableColumns={currentSection === 'list' ? availableColumns : undefined}
         visibleColumns={currentSection === 'list' ? visibleColumns : undefined}
-        onVisibleColumnsChange={currentSection === 'list' ? setVisibleColumns : undefined}
+        onVisibleColumnsChange={currentSection === 'list' ? handleVisibleColumnsChange : undefined}
         primaryAction={primaryActionElement}
         secondaryActions={currentSection === 'board' ? boardSecondaryActions : listSecondaryActions}
         toolbarDensity="default"
@@ -792,20 +928,29 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         }
       >
         {currentSection === 'list' ? (
-          <OpportunityListLayout<TOpportunity>
-            data={opportunities}
-            loading={isLoading}
-            error={error}
-            totalCount={totalCount}
-            columns={columns.filter(col => visibleColumns.includes(col.id as string))}
-            sorting={sorting}
-            onSortingChange={setSorting}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            actions={rowActions}
-            onRowClick={handleRowClick}
-            dataTestId={`${dataTestId}-list`}
-          />
+          <>
+            <OpportunityListLayout<TOpportunity>
+              data={opportunities}
+              loading={isLoading}
+              error={error}
+              totalCount={totalCount}
+              columns={columns.filter(col => visibleColumns.includes(col.id as string))}
+              sorting={sorting}
+              onSortingChange={handleSortingChange}
+              pagination={pagination}
+              onPaginationChange={setPagination}
+              actions={rowActions}
+              onRowClick={handleRowClick}
+              dataTestId={`${dataTestId}-list`}
+            />
+            {listAggregates && (
+              <OpportunityAggregatesBar
+                aggregates={listAggregates}
+                displayCurrencyCode={selectedCurrency === 'ALL' ? 'EUR' : selectedCurrency}
+                dataTestId={`${dataTestId}-aggregates-bar`}
+              />
+            )}
+          </>
         ) : (
           <OpportunityBoardLayout
             accessToken={accessToken}

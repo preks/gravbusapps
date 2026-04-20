@@ -2,10 +2,10 @@ import React, { useState } from 'react'
 import { Button, Alert } from '@newwork/nw-design-system'
 import { FileTextIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentReportClient } from '@/common/network/investment-reports'
 import { useInvestmentReportData, BaseInvestment } from '../../hooks/useInvestmentReportData'
+import { fileClient } from '@/common/network/files/FileClient'
 
 // =============================================================================
 // DIRECT API GENERATE BUTTON (Internal Component)
@@ -35,14 +35,18 @@ export const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = (
   } as BusinessAppContextProps)
 
   if (!accessToken) {
-    return null // Don't render if no access token
+    return null
+  }
+
+  // Only show the button if a report template is configured for this investment type
+  if (!investmentData?.investmentType?.objectValue?.templateName) {
+    return null
   }
 
   const handleGenerateReport = async () => {
     setIsGenerating(true)
     setError(null)
     try {
-      // 🔥 ALWAYS USE PRE-LOADED DATA - NO ADDITIONAL API CALLS
       if (!investmentData) {
         throw new Error(
           getTranslationFromI18nKeyAndLabel(
@@ -55,21 +59,22 @@ export const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = (
       // Use existing investment data instead of fetching
       const reportPayload = transformInvestmentToPayload(investmentData)
 
-      // Generate the report
-      const response = await reportClient.generateInvestmentReport(reportPayload)
+      // Generate the report — API returns { id, reportPath: "FileInfo(...path=/api/v1/...)", ... }
+      const response = (await reportClient.generateInvestmentReport(reportPayload)) as any
 
-      if (response.success) {
-        // If the API returns a download URL, open it using platform navigation
-        if (response.reportUrl) {
-          const url = buildPlatformUrl(response.reportUrl)
-          navigateTo(url)
-        }
-      } else {
+      const pathMatch = response.reportPath?.match(/path=([^,\s)]+)/)
+      const filePath = pathMatch ? pathMatch[1] : null
+
+      if (!filePath) {
         throw new Error(
-          response.message ||
-            getTranslationFromI18nKeyAndLabel('investment.reports.generateFailed', 'Report generation failed')
+          getTranslationFromI18nKeyAndLabel('investment.reports.generateFailed', 'Report generation failed')
         )
       }
+
+      // Fetch the file using FileClient (handles authentication correctly)
+      const blob = await fileClient.downloadFileByPath(filePath, accessToken || '')
+      const objectUrl = URL.createObjectURL(blob)
+      window.open(objectUrl, '_blank')
     } catch (err) {
       const unknownError = getTranslationFromI18nKeyAndLabel('common.unknownError', 'Unknown error occurred')
       const errorMessage = err instanceof Error ? err.message : unknownError

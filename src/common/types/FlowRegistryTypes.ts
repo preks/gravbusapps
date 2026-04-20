@@ -21,6 +21,75 @@ export enum FlowContextName {
   updateEmployeeNote = 'updateEmployeeNote',
   deleteEmployeeNote = 'deleteEmployeeNote',
 
+  // Recruiting
+
+  /// Job Requests
+  jobRequestEntity = 'jobRequestEntity',
+  jobRequestCreate = 'jobRequestCreate',
+  jobRequestUpdate = 'jobRequestUpdate',
+  jobRequestDelete = 'jobRequestDelete',
+  jobRequestSubmit = 'jobRequestSubmit',
+
+  /// Job Postings
+  jobPostingEntity = 'jobPostingEntity',
+  jobPostingCreate = 'jobPostingCreate',
+  jobPostingUpdate = 'jobPostingUpdate',
+  jobPostingDelete = 'jobPostingDelete',
+
+  /// Job Candidates
+  jobCandidateEntity = 'jobCandidateEntity',
+  jobCandidateCreate = 'jobCandidateCreate',
+  jobCandidateUpdate = 'jobCandidateUpdate',
+  jobCandidateDelete = 'jobCandidateDelete',
+
+  /// Job Applications
+  jobApplicationEntity = 'jobApplicationEntity',
+  jobApplicationCreate = 'jobApplicationCreate',
+  jobApplicationUpdate = 'jobApplicationUpdate',
+  jobApplicationDelete = 'jobApplicationDelete',
+
+  /// Job Interviews
+  jobInterviewEntity = 'jobInterviewEntity',
+  jobInterviewCreate = 'jobInterviewCreate',
+  jobInterviewUpdate = 'jobInterviewUpdate',
+  jobInterviewDelete = 'jobInterviewDelete',
+
+  /// Job Offers
+  jobOfferEntity = 'jobOfferEntity',
+  jobOfferCreate = 'jobOfferCreate',
+  jobOfferUpdate = 'jobOfferUpdate',
+  jobOfferDelete = 'jobOfferDelete',
+
+  /// Job Candidate Documents
+  jobCandidateDocumentEntity = 'jobCandidateDocumentEntity',
+  jobCandidateDocumentCreate = 'jobCandidateDocumentCreate',
+  jobCandidateDocumentUpdate = 'jobCandidateDocumentUpdate',
+  jobCandidateDocumentDelete = 'jobCandidateDocumentDelete',
+
+  /// Job Application Feedback
+  jobApplicationFeedbackEntity = 'jobApplicationFeedbackEntity',
+  jobApplicationFeedbackCreate = 'jobApplicationFeedbackCreate',
+  jobApplicationFeedbackUpdate = 'jobApplicationFeedbackUpdate',
+  jobApplicationFeedbackDelete = 'jobApplicationFeedbackDelete',
+
+  /// Job Interview Participants
+  jobInterviewParticipantEntity = 'jobInterviewParticipantEntity',
+  jobInterviewParticipantCreate = 'jobInterviewParticipantCreate',
+  jobInterviewParticipantUpdate = 'jobInterviewParticipantUpdate',
+  jobInterviewParticipantDelete = 'jobInterviewParticipantDelete',
+
+  /// Job Posting Publications
+  jobPostingPublicationEntity = 'jobPostingPublicationEntity',
+  jobPostingPublicationCreate = 'jobPostingPublicationCreate',
+  jobPostingPublicationUpdate = 'jobPostingPublicationUpdate',
+  jobPostingPublicationDelete = 'jobPostingPublicationDelete',
+
+  /// Job Posting Positions
+  jobPostingPositionEntity = 'jobPostingPositionEntity',
+  jobPostingPositionCreate = 'jobPostingPositionCreate',
+  jobPostingPositionUpdate = 'jobPostingPositionUpdate',
+  jobPostingPositionDelete = 'jobPostingPositionDelete',
+
   // Customer Relations
 
   /// Customer Leads
@@ -64,6 +133,8 @@ export enum FlowContextName {
 
   /// Customer Documents
   customerDocumentCreate = 'customerDocumentCreate',
+  customerDocumentUpdate = 'customerDocumentUpdate',
+  customerDocumentDelete = 'customerDocumentDelete',
 
   customerTaskEntity = 'customerTaskEntity',
   customerTaskCreate = 'customerTaskCreate',
@@ -156,7 +227,6 @@ export enum FlowContextName {
   investmentLiquidityForecastUpdate = 'investmentLiquidityForecastUpdate',
 
   /// Investment Reports
-  investmentReportUpload = 'investmentReportUpload',
   investmentReportEntity = 'investmentReportEntity', // Integrate
   investmentReportGenerate = 'investmentReportGenerate',
   investmentReportCreate = 'investmentReportCreate',
@@ -194,6 +264,7 @@ export enum FlowContextName {
   updateEmployeeSkill = 'updateEmployeeSkill',
   updateEmployeeWorkingCondition = 'updateEmployeeWorkingCondition',
   updateEmployeeWorkingHours = 'updateEmployeeWorkingHours',
+  changeTaxDetails = 'changeTaxDetails',
   adjustEmployeeSalary = 'adjustEmployeeSalary',
   grantEmployeeBonus = 'grantEmployeeBonus',
 

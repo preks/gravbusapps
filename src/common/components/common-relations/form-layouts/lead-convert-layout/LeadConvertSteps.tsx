@@ -16,7 +16,10 @@ export interface LeadConvertAccountStepProps {
     contacts: any[]
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
   loading?: boolean
   accountInformationCustomFields?: React.ReactNode
@@ -26,6 +29,8 @@ export interface LeadConvertAccountStepProps {
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
   avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
   isActive?: boolean
+  // REQUIRED: Must be explicitly set to 'crm' or 'irm' to ensure correct labels
+  accountContext: 'crm' | 'irm'
 }
 
 export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
@@ -42,7 +47,8 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
   communicationCustomFields,
   customSegments,
   avatarFileRef,
-  isActive = true
+  isActive = true,
+  accountContext
 }) => {
   const { t } = useTranslation(translations)
 
@@ -70,6 +76,7 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
             customSegments={customSegments}
             avatarFileRef={avatarFileRef}
             isStepActive={isActive}
+            accountContext={accountContext}
           />
         )}
       </div>
@@ -84,7 +91,10 @@ export interface LeadConvertContactStepProps {
     accounts: any[]
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
   loading?: boolean
   contactInformationCustomFields?: React.ReactNode
@@ -138,17 +148,23 @@ export interface LeadConvertOpportunityStepProps {
   ownerEmployee?: any
   useAccounts?: {
     accounts: any[]
-    total: number
+    total?: number
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
   useContacts?: {
     contacts: any[]
-    total: number
+    total?: number
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
   loading?: boolean
   opportunityInformationCustomFields?: React.ReactNode

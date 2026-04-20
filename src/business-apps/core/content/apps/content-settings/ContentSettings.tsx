@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { PiFileText, PiFolder, PiTag, PiSmiley } from 'react-icons/pi'
+import { FileTextIcon, FolderIcon, TagIcon, SmileyIcon } from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import CategoryDataPage from './pages/category-data/CategoryDataPage'
@@ -41,9 +41,21 @@ const ContentSettings: React.FC<ContentSettingsProps> = ({ className, prefixData
 
   const cards = [
     {
+      title: t('content.types', 'Content Types'),
+      description: t('content.types_description', 'Define different types of content entries'),
+      icon: FileTextIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: t('content.manage_types', 'Manage Types'),
+          onClick: () => setInlinePage({ key: 'types' })
+        }
+      ]
+    },
+    {
       title: t('content.categories', 'Content Categories'),
       description: t('content.categories_description', 'Organize articles and content with hierarchical categories'),
-      icon: PiFolder,
+      icon: FolderIcon,
       iconSize: 'md' as const,
       entries: [
         {
@@ -55,7 +67,7 @@ const ContentSettings: React.FC<ContentSettingsProps> = ({ className, prefixData
     {
       title: t('content.tags', 'Content Tags'),
       description: t('content.tags_description', 'Tag content for better discoverability and filtering'),
-      icon: PiTag,
+      icon: TagIcon,
       iconSize: 'md' as const,
       entries: [
         {
@@ -67,24 +79,12 @@ const ContentSettings: React.FC<ContentSettingsProps> = ({ className, prefixData
     {
       title: t('content.reactions', 'Content Reactions'),
       description: t('content.reactions_description', 'Configure emoji and custom reactions for user engagement'),
-      icon: PiSmiley,
+      icon: SmileyIcon,
       iconSize: 'md' as const,
       entries: [
         {
           label: t('content.manage_reactions', 'Manage Reactions'),
           onClick: () => setInlinePage({ key: 'reactions' })
-        }
-      ]
-    },
-    {
-      title: t('content.types', 'Content Types'),
-      description: t('content.types_description', 'Define different types of content entries'),
-      icon: PiFileText,
-      iconSize: 'md' as const,
-      entries: [
-        {
-          label: t('content.manage_types', 'Manage Types'),
-          onClick: () => setInlinePage({ key: 'types' })
         }
       ]
     }
@@ -133,7 +133,7 @@ const ContentSettings: React.FC<ContentSettingsProps> = ({ className, prefixData
   return (
     <SettingsLayout
       headerPhosphorIcon={{
-        icon: PiFileText,
+        icon: FileTextIcon,
         variant: 'info',
         size: 'lg',
         label: 'Content Settings'

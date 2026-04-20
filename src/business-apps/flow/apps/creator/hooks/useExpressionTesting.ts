@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import { FlowTemplate } from '../types/workflowTypes'
 
 export interface TestResult {
@@ -7,6 +7,9 @@ export interface TestResult {
   resolvedValue?: string
   error?: string
   resolvedIn?: string
+  info?: string // Backend message about placeholder replacement
+  warning?: string // Backend warning about null/undefined results
+  isNull?: boolean // Flag indicating if result is null/undefined
 }
 
 export interface ExpressionTestingHook {
@@ -23,7 +26,8 @@ export interface ExpressionTestingHook {
 export const useExpressionTesting = (
   template: FlowTemplate,
   stepIndex: number,
-  accessToken: string
+  accessToken: string,
+  authenticatedUserId?: string
 ): ExpressionTestingHook => {
   const [testResult, setTestResult] = useState<TestResult | null>(null)
   const [isTesting, setIsTesting] = useState(false)
@@ -37,7 +41,7 @@ export const useExpressionTesting = (
       workflow: {
         id: 'test-workflow-123',
         name: template.name,
-        initiator: 'test.user',
+        initiator: 'test.user', // Placeholder - backend will replace with authenticatedUserId if provided
         input: {},
         status: 'RUNNING'
       },
@@ -68,10 +72,10 @@ export const useExpressionTesting = (
 
       setIsTesting(true)
       try {
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+        const apiUrl = CUSTOM_FLOW_ENGINE_API_URL
         const mockContext = buildMockContext()
 
-        const response = await fetch(`${apiUrl}/api/expressions/test-resolve`, {
+        const response = await fetch(`${apiUrl}/expressions/test-resolve`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -79,7 +83,8 @@ export const useExpressionTesting = (
           },
           body: JSON.stringify({
             expression,
-            context: mockContext
+            context: mockContext,
+            authenticatedUserId // Pass authenticated user ID for orgchart expressions
           })
         })
 
@@ -88,13 +93,16 @@ export const useExpressionTesting = (
         if (result.success) {
           setTestResult({
             success: true,
-            resolvedValue: String(result.resolvedValue),
-            resolvedIn: result.resolvedIn
+            resolvedValue: result.resolvedValue !== null ? String(result.resolvedValue) : 'null',
+            resolvedIn: result.resolvedIn,
+            info: result.info, // Placeholder replacement message
+            warning: result.warning, // Null/undefined warning
+            isNull: result.isNull // Null flag
           })
         } else {
           setTestResult({
             success: false,
-            error: result.message || 'Failed to resolve expression'
+            error: result.message || result.error || 'Failed to resolve expression'
           })
         }
       } catch (error) {
@@ -106,7 +114,7 @@ export const useExpressionTesting = (
         setIsTesting(false)
       }
     },
-    [accessToken, buildMockContext]
+    [accessToken, authenticatedUserId, buildMockContext]
   )
 
   const clearResult = useCallback(() => {

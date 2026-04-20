@@ -26,12 +26,12 @@ import {
   Checkbox,
   DateInput
 } from '@newwork/nw-design-system'
-import { PiWarning } from 'react-icons/pi'
+import { WarningIcon } from '@phosphor-icons/react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
 import { createGeneralExpenseFormSchema, type GeneralExpenseFormSchema } from '../../schemas'
-import { formatDateForInput, checkPeriodUniqueness } from '../../utils'
+import { formatDateForInput, checkPeriodUniqueness, normalizeDateInputValue } from '../../utils'
 import { UsageInfo } from '../../types'
 
 export type GeneralExpenseFormData = GeneralExpenseFormSchema
@@ -323,7 +323,7 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
             className="gba:mb-4 gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-warning"
             data-testid="general-expense-restricted-alert"
           >
-            <PiWarning className="gba:h-4 gba:w-4" />
+            <WarningIcon className="gba:h-4 gba:w-4" />
             <AlertDescription>{usageInfo.message}</AlertDescription>
           </Alert>
         )}
@@ -507,7 +507,11 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                     <FormControl>
                       <DateInput
                         value={field.value || ''}
-                        onChange={date => field.onChange(date)}
+                        onChange={date => {
+                          const normalized = normalizeDateInputValue(date) ?? ''
+                          field.onChange(normalized)
+                        }}
+                        outputFormat="iso"
                         disabled={isRestrictedEdit}
                         data-testid="general-expense-active-from-input"
                       />
@@ -526,7 +530,10 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                     <FormControl>
                       <DateInput
                         value={field.value || ''}
-                        onChange={date => field.onChange(date)}
+                        onChange={date => {
+                          field.onChange(normalizeDateInputValue(date))
+                        }}
+                        outputFormat="iso"
                         data-testid="general-expense-active-to-input"
                       />
                     </FormControl>

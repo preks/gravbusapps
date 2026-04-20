@@ -1,8 +1,12 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { InputField, SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { Currency } from '../../../types'
-import { formatAmountForLocale, parseAndFormatAmount } from '@/business-apps/fin/expenses/utils/amountFormatting'
+import {
+  formatAmountForLocale,
+  parseAndFormatAmount,
+  sanitizeDecimalAmountInput
+} from '@/business-apps/fin/expenses/utils/amountFormatting'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface AmountFieldProps {
@@ -33,11 +37,22 @@ export const AmountField: React.FC<AmountFieldProps> = ({
   const t = getTranslationFromI18nKeyAndLabel
   const previousAmountValueRef = useRef<number | undefined>(amountValue)
   const isUserEditingRef = useRef(false)
+  const [inputValue, setInputValue] = useState<string>(() => {
+    const initialValue = form.getFieldValue(`amount-${index}`)
+    if (initialValue !== undefined && initialValue !== null && String(initialValue).trim() !== '') {
+      return String(initialValue)
+    }
+    return amountValue ? formatAmountForLocale(amountValue) : ''
+  })
 
   const handleAmountBlur = () => {
-    const currentValue = form.getFieldValue(`amount-${index}`)
+    const currentValue = inputValue
 
     if (currentValue === undefined || currentValue === null || String(currentValue).trim() === '') {
+      setInputValue('')
+      form.setFieldsValue({ [`amount-${index}`]: '' })
+      onAmountChange(0)
+      isUserEditingRef.current = false
       return
     }
 
@@ -46,6 +61,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
       return
     }
 
+    setInputValue(result.formattedValue)
     form.setFieldsValue({ [`amount-${index}`]: result.formattedValue })
     onAmountChange(result.numValue)
     isUserEditingRef.current = false
@@ -68,6 +84,8 @@ export const AmountField: React.FC<AmountFieldProps> = ({
 
     // Skip if no value
     if (!amountValue || amountValue === 0) {
+      setInputValue('')
+      form.setFieldsValue({ [`amount-${index}`]: '' })
       return
     }
 
@@ -75,6 +93,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
     const finalDisplay = formatAmountForLocale(amountValue)
 
     setTimeout(() => {
+      setInputValue(finalDisplay)
       form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
       onAmountChange(amountValue)
       form.validateFields([`amount-${index}`])
@@ -89,7 +108,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
       data-testid={`amount-input-${index}`}
       type="text"
       inputMode="decimal"
-      value={amountValue}
+      value={inputValue}
       placeholder={t(
         'lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder',
         'Enter Amount'
@@ -98,17 +117,9 @@ export const AmountField: React.FC<AmountFieldProps> = ({
         // Mark that user is actively editing (prevents useEffect from interfering)
         isUserEditingRef.current = true
 
-        let value = String(field.value)
+        const value = sanitizeDecimalAmountInput(field.value)
 
-        // Limit to 2 decimal places (accept both . and , as decimal separator)
-        if (value.includes('.') || value.includes(',')) {
-          const sep = value.includes('.') ? '.' : ','
-          const parts = value.split(sep)
-          if (parts[1] && parts[1].length > 2) {
-            value = `${parts[0]}${sep}${parts[1].substring(0, 2)}`
-          }
-        }
-
+        setInputValue(value)
         form.setFieldsValue({ [`amount-${index}`]: value })
 
         // Parse for immediate validation (normalize comma to period for Number.parseFloat)

@@ -61,6 +61,7 @@ export interface InvestmentOpportunity extends Opportunity {
   investmentStakeType?: CatalogEntry // IRM specific
   investmentStakeTypeRef?: string // IRM specific
   investmentType?: CatalogEntry // IRM specific
+  investmentTypeId?: string // Form-only leaf type ID used by investment prospect layouts
   investmentTypeRef?: string // IRM specific
   loanAmount?: number // IRM specific
   loanInterestRate?: number // IRM specific
@@ -370,7 +371,6 @@ export const buildInvestmentOpportunityContacts = (contactIds: string[] = [], op
  * Handles IRM-prefixed field name mappings (fallback only):
  * - investment → investments
  * - investmentActivity → activities
- * - investmentAddress → addresses
  * - investmentCommunicationChannel → communicationChannels
  * - investmentDocument → documents
  * - investmentLead → leads

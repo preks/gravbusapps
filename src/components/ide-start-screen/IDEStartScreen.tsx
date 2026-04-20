@@ -3,28 +3,22 @@ import { Card, CardContent, Button, Badge } from '@newwork/nw-design-system'
 import {
   PlayIcon,
   FolderIcon,
-  SquaresFourIcon,
+  GaugeIcon,
   ArticleIcon,
   ChatCircleIcon,
   ClockIcon,
   CaretDownIcon,
-  CaretRightIcon
+  CaretRightIcon,
+  PushPinIcon
 } from '@phosphor-icons/react'
 
 import { PageLayout } from '../layout/pageLayout'
+import type { BusinessAppInfo } from '@/components/ide-main-menu'
+import { STORAGE_KEY_PINNED_MODULE } from '@/common/constants/ideStorageKeys'
 
 // Removed antd Typography and Collapse imports - using nw-design-system instead
 
-type BusinessAppType = 'app' | 'form' | 'popup' | 'window'
-
-interface BusinessAppInfo {
-  name: string
-  path: string
-  module: string
-  subModule?: string
-  screenKey: string
-  type: BusinessAppType
-}
+type BusinessAppType = BusinessAppInfo['type']
 
 interface RecentlyUsedApp {
   name: string
@@ -35,12 +29,26 @@ interface RecentlyUsedApp {
 }
 
 interface IDEStartScreenProps {
-  businessApps: BusinessAppInfo[]
+  filteredBusinessApps: BusinessAppInfo[]
+  allBusinessApps: BusinessAppInfo[]
   onAppSelect: (app: BusinessAppInfo) => void
 }
 
-export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, onAppSelect }) => {
+export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
+  filteredBusinessApps,
+  allBusinessApps,
+  onAppSelect
+}) => {
   const [recentlyUsedApps, setRecentlyUsedApps] = React.useState<RecentlyUsedApp[]>([])
+  const [pinnedSubModule, setPinnedSubModule] = React.useState<string | null>(null)
+
+  // Load pinned submodule from localStorage
+  React.useEffect(() => {
+    const savedPinnedSubModule = localStorage.getItem(STORAGE_KEY_PINNED_MODULE)
+    if (savedPinnedSubModule) {
+      setPinnedSubModule(savedPinnedSubModule)
+    }
+  }, [])
 
   // Load and sync recently used apps from centralized tracking in BusinessAppIDE
   React.useEffect(() => {
@@ -94,8 +102,20 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     onAppSelect(app)
   }
 
+  const handlePinSubModule = (module: string, subModule: string, event: React.MouseEvent) => {
+    event.stopPropagation()
+    const subModuleId = `${module}/${subModule}`
+    if (pinnedSubModule === subModuleId) {
+      setPinnedSubModule(null)
+      localStorage.removeItem(STORAGE_KEY_PINNED_MODULE)
+    } else {
+      setPinnedSubModule(subModuleId)
+      localStorage.setItem(STORAGE_KEY_PINNED_MODULE, subModuleId)
+    }
+  }
+
   // Group business apps by module and sub-module
-  const groupedApps = businessApps.reduce(
+  const groupedApps = filteredBusinessApps.reduce(
     (acc, app) => {
       if (!acc[app.module]) {
         acc[app.module] = {}
@@ -131,7 +151,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
 
   const getRecentApps = (): BusinessAppInfo[] => {
     return recentlyUsedApps
-      .map(recent => businessApps.find(app => app.screenKey === recent.screenKey))
+      .map(recent => allBusinessApps.find(app => app.screenKey === recent.screenKey))
       .filter(Boolean) as BusinessAppInfo[]
   }
 
@@ -147,12 +167,14 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     switch (type) {
       case 'app':
         return <PlayIcon />
+      case 'record':
+        return <PlayIcon />
       case 'form':
         return <ArticleIcon />
       case 'popup':
         return <ChatCircleIcon />
       case 'window':
-        return <SquaresFourIcon />
+        return <GaugeIcon />
       default:
         return <PlayIcon />
     }
@@ -162,6 +184,8 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     switch (type) {
       case 'app':
         return 'App'
+      case 'record':
+        return 'Record'
       case 'form':
         return 'Form'
       case 'popup':
@@ -177,13 +201,15 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
   const getTypeTextClass = (type: BusinessAppType): string => {
     switch (type) {
       case 'app':
-        return 'gba:text-ext-1'
+        return 'gba:text-info'
+      case 'record':
+        return 'gba:text-destructive'
       case 'form':
-        return 'gba:text-ext-2'
+        return 'gba:text-success'
       case 'popup':
-        return 'gba:text-ext-3'
+        return 'gba:text-warning'
       case 'window':
-        return 'gba:text-ext-4'
+        return 'gba:text-destructive'
       default:
         return 'gba:text-primary'
     }
@@ -192,13 +218,15 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
   const getTypeBadgeClasses = (type: BusinessAppType): string => {
     switch (type) {
       case 'app':
-        return 'gba:bg-ext-1-secondary gba:text-ext-1-secondary-foreground'
+        return 'gba:bg-info-secondary gba:text-info-secondary-foreground'
+      case 'record':
+        return 'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground'
       case 'form':
-        return 'gba:bg-ext-2-secondary gba:text-ext-2-secondary-foreground'
+        return 'gba:bg-success-secondary gba:text-success-secondary-foreground'
       case 'popup':
-        return 'gba:bg-ext-3-secondary gba:text-ext-3-secondary-foreground'
+        return 'gba:bg-warning-secondary gba:text-warning-secondary-foreground'
       case 'window':
-        return 'gba:bg-ext-4-secondary gba:text-ext-4-secondary-foreground'
+        return 'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground'
       default:
         return 'gba:bg-primary-secondary gba:text-primary-secondary-foreground'
     }
@@ -242,9 +270,34 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
   const renderSubModuleContent = (module: string, subModules: Record<string, BusinessAppInfo[]>) => {
     const subModuleEntries = Object.entries(subModules)
 
-    // If only one sub-module and it's 'default', show apps directly
+    // If only one sub-module and it's 'default', show apps directly with pin button
     if (subModuleEntries.length === 1 && subModuleEntries[0][0] === 'default') {
-      return <div className="gba:space-y-1 gba:text-left">{subModuleEntries[0][1].map(renderAppButton)}</div>
+      const subModule = subModuleEntries[0][0]
+      const subModuleId = `${module}/${subModule}`
+      const isPinned = pinnedSubModule === subModuleId
+      return (
+        <div className="gba:space-y-1 gba:text-left">
+          <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+            <span className="gba:text-xs gba:font-medium gba:text-secondary-foreground">
+              {formatSubModuleName(subModule)}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={e => handlePinSubModule(module, subModule, e)}
+              className="gba:p-1 gba:h-auto"
+              data-testid={`IDE-PinSubModule-${subModuleId}`}
+            >
+              <PushPinIcon
+                size={14}
+                className={isPinned ? 'gba:text-primary' : 'gba:text-secondary-foreground'}
+                weight={isPinned ? 'fill' : 'regular'}
+              />
+            </Button>
+          </div>
+          {subModuleEntries[0][1].map(renderAppButton)}
+        </div>
+      )
     }
 
     // Show sub-modules with collapsible sections
@@ -253,20 +306,38 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
         {subModuleEntries.map(([subModule, apps]) => {
           const subModuleId = `${module}/${subModule}`
           const isExpanded = expandedSubModules.has(subModuleId)
+          const isPinned = pinnedSubModule === subModuleId
           return (
             <div key={subModule} className="gba:bg-secondary gba:rounded gba:mb-2">
-              <Button
-                variant="ghost"
-                onClick={() => toggleSubModule(subModuleId)}
-                className="gba:w-full gba:justify-between gba:px-4 gba:py-2 gba:text-left"
-              >
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <FolderIcon className="gba:text-blue-500" />
-                  <span className="gba:text-sm gba:font-medium">{formatSubModuleName(subModule)}</span>
-                  <Badge variant="secondary">{apps.length}</Badge>
-                </div>
-                {isExpanded ? <CaretDownIcon size={16} /> : <CaretRightIcon size={16} />}
-              </Button>
+              <div className="gba:flex gba:items-center gba:w-full">
+                <Button
+                  variant="ghost"
+                  onClick={() => toggleSubModule(subModuleId)}
+                  className="gba:flex-1 gba:justify-between gba:px-4 gba:py-2 gba:text-left"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <FolderIcon className="gba:text-blue-500" />
+                    <span className="gba:text-sm gba:font-medium">{formatSubModuleName(subModule)}</span>
+                    <Badge variant="secondary">{apps.length}</Badge>
+                  </div>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    {isExpanded ? <CaretDownIcon size={16} /> : <CaretRightIcon size={16} />}
+                  </div>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={e => handlePinSubModule(module, subModule, e)}
+                  className="gba:p-1 gba:h-auto gba:shrink-0"
+                  data-testid={`IDE-PinSubModule-${subModuleId}`}
+                >
+                  <PushPinIcon
+                    size={14}
+                    className={isPinned ? 'gba:text-primary' : 'gba:text-secondary-foreground'}
+                    weight={isPinned ? 'fill' : 'regular'}
+                  />
+                </Button>
+              </div>
               {isExpanded && (
                 <div className="gba:px-4 gba:pb-2 gba:space-y-1 gba:text-left">{apps.map(renderAppButton)}</div>
               )}
@@ -277,38 +348,192 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     )
   }
 
-  // Derive Examples from provided businessApps
+  // Derive Examples from the full business app catalog
   const exampleItems = React.useMemo(() => {
-    const items = businessApps.filter(app => app.module === 'examples')
+    const items = allBusinessApps.filter(app => app.module === 'examples')
+    const apps = items.filter(i => i.type === 'app')
+    const records = items.filter(i => i.type === 'record')
+    const forms = items.filter(i => i.type === 'form')
+    const popups = items.filter(i => i.type === 'popup')
+    const windows = items.filter(i => i.type === 'window')
+    return { items, apps, records, forms, popups, windows }
+  }, [allBusinessApps])
+
+  // Derive pinned submodule items from the filtered business app catalog
+  const pinnedSubModuleItems = React.useMemo(() => {
+    if (!pinnedSubModule) return null
+    const [module, subModule] = pinnedSubModule.split('/')
+    const items = filteredBusinessApps.filter(app => {
+      const appSubModule = app.subModule?.split('/')[0] || 'default'
+      return app.module === module && appSubModule === subModule
+    })
+    const records = items.filter(i => i.type === 'record')
     const apps = items.filter(i => i.type === 'app')
     const forms = items.filter(i => i.type === 'form')
     const popups = items.filter(i => i.type === 'popup')
     const windows = items.filter(i => i.type === 'window')
-    return { items, apps, forms, popups, windows }
-  }, [businessApps])
+    return { items, apps, forms, popups, windows, records, module, subModule }
+  }, [filteredBusinessApps, pinnedSubModule])
 
   return (
-    <div data-testid="IDE-StartScreen" className="gba:min-h-full gba:bg-gradient-decorative-1">
+    <div data-testid="IDE-StartScreen" className="gba:min-h-full gba:bg-background-decorative">
       <PageLayout
         variant="display"
-        headerIcon={<SquaresFourIcon className="gba:text-foreground" />}
+        headerIcon={<GaugeIcon className="gba:text-foreground" />}
         headerLabel="Business Applications"
         headerLabelClassName="gba:!text-black"
         className="gba:h-full gba:!bg-transparent gba:!shadow-none gba:!rounded-none"
         contentContainer={
           <div className="gba:p-6">
+            {/* Pinned SubModule Section */}
+            {pinnedSubModuleItems && pinnedSubModuleItems.items.length > 0 && (
+              <div className="gba:mb-8" data-testid="IDE-PinnedSubModule-Section">
+                <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
+                  <PushPinIcon className="gba:text-foreground" />
+                  {formatModuleName(pinnedSubModuleItems.module)} ›{' '}
+                  {formatSubModuleName(pinnedSubModuleItems.subModule)}
+                </h4>
+                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-6">
+                  {/* Apps */}
+                  {pinnedSubModuleItems.apps.length > 0 && (
+                    <Card
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      style={{ display: 'flex', flexDirection: 'column' }}
+                    >
+                      <CardContent
+                        className="gba:p-3"
+                        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+                      >
+                        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                          <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
+                            <PlayIcon className="gba:text-blue-600" />
+                            Apps
+                          </span>
+                          <Badge variant="secondary">{pinnedSubModuleItems.apps.length}</Badge>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                          <div className="gba:space-y-1 gba:text-left">
+                            {pinnedSubModuleItems.apps.map(renderAppButton)}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {/* Forms */}
+                  {pinnedSubModuleItems.forms.length > 0 && (
+                    <Card
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      style={{ display: 'flex', flexDirection: 'column' }}
+                    >
+                      <CardContent
+                        className="gba:p-3"
+                        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+                      >
+                        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                          <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
+                            <ArticleIcon className="gba:text-green-600" />
+                            Forms
+                          </span>
+                          <Badge variant="secondary">{pinnedSubModuleItems.forms.length}</Badge>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                          <div className="gba:space-y-1 gba:text-left">
+                            {pinnedSubModuleItems.forms.map(renderAppButton)}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {/* Popups */}
+                  {pinnedSubModuleItems.popups.length > 0 && (
+                    <Card
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      style={{ display: 'flex', flexDirection: 'column' }}
+                    >
+                      <CardContent
+                        className="gba:p-3"
+                        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+                      >
+                        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                          <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
+                            <ChatCircleIcon className="gba:text-orange-600" />
+                            Popups
+                          </span>
+                          <Badge variant="secondary">{pinnedSubModuleItems.popups.length}</Badge>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                          <div className="gba:space-y-1 gba:text-left">
+                            {pinnedSubModuleItems.popups.map(renderAppButton)}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {/* Windows */}
+                  {pinnedSubModuleItems.windows.length > 0 && (
+                    <Card
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      style={{ display: 'flex', flexDirection: 'column' }}
+                    >
+                      <CardContent
+                        className="gba:p-3"
+                        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+                      >
+                        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                          <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
+                            <GaugeIcon className="gba:text-purple-600" />
+                            Windows
+                          </span>
+                          <Badge variant="secondary">{pinnedSubModuleItems.windows.length}</Badge>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                          <div className="gba:space-y-1 gba:text-left">
+                            {pinnedSubModuleItems.windows.map(renderAppButton)}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {/* Records */}
+                  {pinnedSubModuleItems.records.length > 0 && (
+                    <Card
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      style={{ display: 'flex', flexDirection: 'column' }}
+                    >
+                      <CardContent
+                        className="gba:p-3"
+                        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+                      >
+                        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                          <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
+                            <PlayIcon className="gba:text-red-600" />
+                            Records
+                          </span>
+                          <Badge variant="secondary">{pinnedSubModuleItems.records.length}</Badge>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                          <div className="gba:space-y-1 gba:text-left">
+                            {pinnedSubModuleItems.records.map(renderAppButton)}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            )}
             {/* Examples Section */}
             {exampleItems.items.length > 0 && (
               <div className="gba:mb-8" data-testid="IDE-Examples-Section">
                 <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                  <SquaresFourIcon className="gba:text-foreground" />
+                  <GaugeIcon className="gba:text-foreground" />
                   Examples
                 </h4>
-                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-6">
+                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-6">
                   {/* Apps */}
                   {exampleItems.apps.length > 0 && (
                     <Card
-                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -328,10 +553,33 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                       </CardContent>
                     </Card>
                   )}
+                  {/* Records */}
+                  {exampleItems.records.length > 0 && (
+                    <Card
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      style={{ display: 'flex', flexDirection: 'column' }}
+                    >
+                      <CardContent
+                        className="gba:p-3"
+                        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+                      >
+                        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                          <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
+                            <PlayIcon className="gba:text-red-600" />
+                            Records
+                          </span>
+                          <Badge variant="secondary">{exampleItems.records.length}</Badge>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                          <div className="gba:space-y-1 gba:text-left">{exampleItems.records.map(renderAppButton)}</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                   {/* Forms */}
                   {exampleItems.forms.length > 0 && (
                     <Card
-                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -354,7 +602,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   {/* Popups */}
                   {exampleItems.popups.length > 0 && (
                     <Card
-                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -386,7 +634,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                       >
                         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                           <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                            <SquaresFourIcon className="gba:text-purple-600" />
+                            <GaugeIcon className="gba:text-purple-600" />
                             Windows
                           </span>
                           <Badge variant="secondary">{exampleItems.windows.length}</Badge>
@@ -407,11 +655,11 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   <ClockIcon className="gba:text-foreground" />
                   Recently Used
                 </h4>
-                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-4">
+                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-4">
                   {getRecentApps().map(app => (
                     <Card
                       key={app.screenKey}
-                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
                     >
                       <CardContent className="gba:p-3">
                         <a
@@ -452,12 +700,14 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {/* Module Cards */}
             <div className="gba:mb-4">
               <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                <SquaresFourIcon className="gba:text-foreground" />
+                <GaugeIcon className="gba:text-foreground" />
                 All Applications
               </h4>
               {Object.keys(groupedApps).length === 0 ? (
                 <div className="gba:py-12 gba:text-center">
-                  <div className="gba:text-secondary-foreground gba:text-lg">No business applications found</div>
+                  <div className="gba:text-secondary-foreground gba:text-lg">
+                    No business applications match the current filter
+                  </div>
                 </div>
               ) : (
                 <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-6">
@@ -472,7 +722,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                         <CardContent className="gba:p-3 gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:h-full">
                           <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                             <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                              <SquaresFourIcon className="gba:text-blue-600" />
+                              <GaugeIcon className="gba:text-blue-600" />
                               {formatModuleName(module)}
                             </span>
                             <Badge variant="secondary">{totalApps}</Badge>

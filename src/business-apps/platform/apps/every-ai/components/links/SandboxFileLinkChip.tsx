@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Card, CardContent, Button } from '@newwork/nw-design-system'
-import { env } from '@/common/env/EnvUtils'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 interface SandboxFileLinkChipProps {
   filePath: string
@@ -25,7 +25,7 @@ const SandboxFileLinkChip: React.FC<SandboxFileLinkChipProps> = ({ filePath, tok
     setError(null)
 
     try {
-      const baseUrl = env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
+      const baseUrl = resolveFlowbotBaseUrl()
       const response = await fetch(`${baseUrl}/flowbot/api/agent/download-sandbox-file`, {
         method: 'POST',
         headers: {

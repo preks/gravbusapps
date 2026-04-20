@@ -13,16 +13,14 @@ import {
   Alert,
   IconAvatar,
   ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent
+  useTranslation
 } from '@newwork/nw-design-system'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { BarChart, Bar, CartesianGrid } from 'recharts'
 import { MonthlyExpenseTrend } from '../../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatCurrencyForChart } from '../../utils/currencyUtils'
+import translations from '../../_i18n'
 import { ChartBarIcon } from '@phosphor-icons/react'
+import ExpenseBarChartDecorators from '../charts/ExpenseBarChartDecorators'
+import { getChartColor } from '../../utils/chartColorUtils'
 
 export interface MonthlyExpenseTrendsCardProps {
   loading: boolean
@@ -39,9 +37,9 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
   selectedCurrencyCode,
   moduleColor
 }) => {
+  const { t } = useTranslation(translations)
   const currentYear = new Date().getFullYear()
 
-  // Type guard for IconAvatar variant (from nw-design-system)
   type IconAvatarVariant =
     | 'default'
     | 'secondary'
@@ -61,7 +59,6 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
     | 'ext8'
     | 'pending'
 
-  // Validate and get safe variant with proper typing
   const safeVariant: IconAvatarVariant | undefined = (() => {
     const validVariants: IconAvatarVariant[] = [
       'default',
@@ -87,43 +84,47 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
       : undefined
   })()
 
-  // Helper function to translate month names
-  const getTranslatedMonthName = (monthName: string): string => {
-    const monthMap: { [key: string]: string } = {
-      Jan: 'lowcoder:absence_report.totals_table.jan',
-      Feb: 'lowcoder:absence_report.totals_table.feb',
-      Mar: 'lowcoder:absence_report.totals_table.mar',
-      Apr: 'lowcoder:absence_report.totals_table.apr',
-      May: 'lowcoder:absence_report.totals_table.may',
-      Jun: 'lowcoder:absence_report.totals_table.jun',
-      Jul: 'lowcoder:absence_report.totals_table.jul',
-      Aug: 'lowcoder:absence_report.totals_table.aug',
-      Sep: 'lowcoder:absence_report.totals_table.sep',
-      Oct: 'lowcoder:absence_report.totals_table.oct',
-      Nov: 'lowcoder:absence_report.totals_table.nov',
-      Dec: 'lowcoder:absence_report.totals_table.dec'
-    }
-
-    const translationKey = monthMap[monthName]
-    if (translationKey) {
-      return getTranslationFromI18nKeyAndLabel(translationKey, monthName)
-    }
-    return monthName
+  const monthKeyMap: Record<string, string> = {
+    Jan: 'month-short-jan',
+    Feb: 'month-short-feb',
+    Mar: 'month-short-mar',
+    Apr: 'month-short-apr',
+    May: 'month-short-may',
+    Jun: 'month-short-jun',
+    Jul: 'month-short-jul',
+    Aug: 'month-short-aug',
+    Sep: 'month-short-sep',
+    Oct: 'month-short-oct',
+    Nov: 'month-short-nov',
+    Dec: 'month-short-dec'
   }
+
+  const getTranslatedMonthName = (monthName: string): string => {
+    const ftlKey = monthKeyMap[monthName]
+    return ftlKey ? t(ftlKey) : monthName
+  }
+
+  const renderCardTitle = () => (
+    <CardTitle className="gba:flex gba:items-center gba:gap-2">
+      <IconAvatar icon={ChartBarIcon} variant={safeVariant} size="md" decorative />
+      {t('chart-monthly-expense-trends')} {currentYear}
+    </CardTitle>
+  )
+
+  const chartConfig = useMemo(
+    () => ({
+      totalAmount: {
+        label: t('chart-total-amount'),
+        color: getChartColor('chart1')
+      }
+    }),
+    [t]
+  )
 
   if (loading) {
     return (
       <Card data-testid="monthly-expense-trends-loading">
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <IconAvatar icon={ChartBarIcon} variant={safeVariant} size="md" decorative />
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
-              'Monthly Expense Trends'
-            )}{' '}
-            {currentYear}
-          </CardTitle>
-        </CardHeader>
+        <CardHeader>{renderCardTitle()}</CardHeader>
         <CardContent>
           <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
             <Spinner size="lg" />
@@ -136,20 +137,13 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
   if (error) {
     return (
       <Card data-testid="monthly-expense-trends-error">
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <IconAvatar icon={ChartBarIcon} variant={safeVariant} size="md" decorative />
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
-              'Monthly Expense Trends'
-            )}{' '}
-            {currentYear}
-          </CardTitle>
-        </CardHeader>
+        <CardHeader>{renderCardTitle()}</CardHeader>
         <CardContent>
           <Alert variant="destructive">
             <div>
-              <p className="gba:text-sm">Error: {error.message}</p>
+              <p className="gba:text-sm">
+                {t('common-error')}: {error.message}
+              </p>
             </div>
           </Alert>
         </CardContent>
@@ -157,34 +151,17 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
     )
   }
 
-  // Chart configuration for design system
-  const chartConfig = useMemo(
-    () => ({
-      totalAmount: {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total Amount')
-      }
-    }),
-    []
-  )
-
   return (
     <Card data-testid="monthly-expense-trends-card">
-      <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <IconAvatar icon={ChartBarIcon} variant={safeVariant as any} size="md" decorative />
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
-            'Monthly Expense Trends'
-          )}{' '}
-          {currentYear}
-        </CardTitle>
-      </CardHeader>
+      <CardHeader>{renderCardTitle()}</CardHeader>
       <CardContent>
         {monthlyTrends.length === 0 ? (
           <div className="gba:text-center gba:p-8" data-testid="monthly-expense-trends-empty-state">
-            <ChartBarIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
-            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-gray-900">No data available</h3>
-            <p className="gba:mt-1 gba:text-sm gba:text-gray-500">No expense trends data found for {currentYear}.</p>
+            <ChartBarIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-muted-foreground" />
+            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">{t('empty-no-data')}</h3>
+            <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
+              {t('empty-no-trends-data', { year: currentYear })}
+            </p>
           </div>
         ) : (
           <ChartContainer
@@ -194,13 +171,12 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
           >
             <BarChart data={monthlyTrends} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="monthName" tick={{ fontSize: 12 }} interval={0} tickFormatter={getTranslatedMonthName} />
-              <YAxis
-                tickFormatter={value => formatCurrencyForChart(value, selectedCurrencyCode)}
-                tick={{ fontSize: 12 }}
+              <ExpenseBarChartDecorators
+                xDataKey="monthName"
+                tooltipLabelKey="monthName"
+                selectedCurrencyCode={selectedCurrencyCode}
+                xTickFormatter={getTranslatedMonthName}
               />
-              <ChartTooltip content={<ChartTooltipContent labelKey="monthName" />} />
-              <ChartLegend content={<ChartLegendContent />} />
               <Bar
                 dataKey="totalAmount"
                 name="totalAmount"

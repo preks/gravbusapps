@@ -1,3 +1,4 @@
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils'
 import { RestClient, type RequestOptions } from '../rest/RestClient'
 
@@ -45,8 +46,9 @@ export interface ScheduledTaskListResponse {
 
 export class ScheduledTasksClient extends RestClient {
   constructor() {
-    const url = 'https://newwork-dev.newwork.com/flowbot'
-    super(url, {})
+    // Use environment-aware base URL (localhost → dev → env NEXT_PUBLIC_FLOWBOT_ENDPOINT / NEXT_PUBLIC_BASE_URL)
+    const baseUrl = resolveFlowbotBaseUrl()
+    super(baseUrl, {})
   }
 
   setAccessToken(accessToken: string) {

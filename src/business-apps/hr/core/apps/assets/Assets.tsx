@@ -1,34 +1,50 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { PageLayout, Button, Dialog, DialogContent, DialogTitle } from '@newwork/nw-design-system'
+import { PageLayout, Dialog, DialogContent, DialogTitle, Button, useTranslation } from '@newwork/nw-design-system'
 import { DesktopIcon, PlusIcon } from '@phosphor-icons/react'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useAssets } from './hooks/useAssets'
 import { useAssetDialogs } from './hooks/useAssetDialogs'
+import { useEmployeeFilterBackendSearch } from './hooks/useEmployeeFilterBackendSearch'
 import { useAssetProcessEvents } from './hooks/useAssetProcessEvents'
+import { useSiteLocationsForFilter } from './hooks/useSiteLocationsForFilter'
+import { useAssetFilterState } from './hooks/useAssetFilterState'
 import { AssetStatistics } from './components/AssetStatistics'
 import { AssetTable } from './components/AssetTable'
 import { AssetDetailPanel } from './components/AssetDetailPanel'
+import { AssetEmployeeFilter, buildAssetEmployeeCustomGroup } from './components/AssetEmployeeFilter'
+import { DeleteAssetDialog } from './components/DeleteAssetDialog'
 import { EquipmentRegistration } from '../../forms/equipment-registration/EquipmentRegistration'
 import { AllocateAsset } from '../../forms/allocate-asset/AllocateAsset'
 import { ReturnAsset } from '../../forms/return-asset/ReturnAsset'
+import { RetireAsset } from '../../forms/retire-asset/RetireAsset'
 import { Asset, AssetStatus } from './types'
-import { useAssetService } from './services/useAssetService'
 import { AssetProcessClient } from './services/AssetProcessClient'
+import { useAssetService } from './services/useAssetService'
+import { useAssetsCatalog } from '../../forms/equipment-registration/hooks/useAssetsCatalog'
+import { BackofficeDataDisplay } from '@/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeDataDisplay'
+import { BackofficeFilterSheet } from '@/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeFilterSheet'
+import { generateAssetDocumentPdf } from './utils/assetDocumentPdf'
+import assetsTranslations from './_i18n'
 
 const moduleColor = MODULE_COLORS.HR
 
 export const Assets: React.FC<BusinessAppContextProps> = props => {
+  const { t: tAssets } = useTranslation(assetsTranslations)
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
+  const [pendingAssetId, setPendingAssetId] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([])
+  const [employeeFilterSearch, setEmployeeFilterSearch] = useState('')
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false)
   const [sortField, setSortField] = useState<string>('')
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
   const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
+  const [isDeletingAsset, setIsDeletingAsset] = useState(false)
 
   useEffect(() => {
     const checkLocale = () => {
@@ -45,6 +61,50 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
   const dialogs = useAssetDialogs()
 
+  const { options: categoryOptions } = useAssetsCatalog(props)
+  const { locations: locationOptions } = useSiteLocationsForFilter(props.accessToken)
+  const { employeeOptions, isLoading: employeeSearchLoading } = useEmployeeFilterBackendSearch(
+    props.accessToken ?? '',
+    selectedEmployeeIds,
+    employeeFilterSearch
+  )
+  const { filterConfiguration, filtersObject, queryFilterState, handleFilterChangeFromDisplay, hasActiveFilters } =
+    useAssetFilterState({
+      statusOptions: Object.values(AssetStatus),
+      categoryOptions: categoryOptions.map(opt => ({ id: opt.value, label: opt.label })),
+      locationOptions: locationOptions.map(location => ({ id: location.id, label: location.name })),
+      employeeOptions,
+      employeeIds: selectedEmployeeIds,
+      setEmployeeIds: setSelectedEmployeeIds,
+      setCurrentPage
+    })
+
+  const activeStatusFilter = useMemo(() => {
+    const statusIds = queryFilterState.statusFilter
+    if (statusIds.length === 0) return 'all'
+    if (statusIds.length === 1) return statusIds[0]
+    return 'all'
+  }, [queryFilterState.statusFilter])
+
+  const assetsOptions = useMemo(
+    () => ({
+      page: currentPage,
+      pageSize,
+      search: searchQuery,
+      statusFilter: queryFilterState.statusFilter.length > 0 ? queryFilterState.statusFilter : undefined,
+      categoryFilter: queryFilterState.categoryFilter.length > 0 ? queryFilterState.categoryFilter : undefined,
+      locationFilter: queryFilterState.locationFilter.length > 0 ? queryFilterState.locationFilter : undefined,
+      employeeFilter: queryFilterState.employeeFilter.length > 0 ? queryFilterState.employeeFilter : undefined,
+      acquisitionDateFrom: queryFilterState.acquisitionDateFrom,
+      acquisitionDateTo: queryFilterState.acquisitionDateTo,
+      disposalDateFrom: queryFilterState.disposalDateFrom,
+      disposalDateTo: queryFilterState.disposalDateTo,
+      sortField: sortField || undefined,
+      sortOrder: sortField ? sortOrder : undefined
+    }),
+    [currentPage, pageSize, searchQuery, queryFilterState, sortField, sortOrder]
+  )
+
   const {
     assets,
     totalCount,
@@ -54,41 +114,179 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     statisticsError,
     refetch: refetchAssets,
     refetchStatistics
-  } = useAssets(props, {
-    page: currentPage,
-    pageSize,
-    search: searchQuery,
-    statusFilter,
-    sortField: sortField || undefined,
-    sortOrder: sortField ? sortOrder : undefined
-  })
+  } = useAssets(props, assetsOptions)
 
   const memoizedStatistics = useMemo(
     () => statistics,
-    [statistics.totalAssets, statistics.allocatedAssets, statistics.availableAssets, statistics.underRepairAssets]
+    [
+      statistics.totalAssets,
+      statistics.allocatedAssets,
+      statistics.availableAssets,
+      statistics.underRepairAssets,
+      statistics.retiredAssets
+    ]
   )
 
-  const { getAllocationsForAsset } = useAssetService(props)
+  const { getAllocationsForAsset, getAssetById, getAssetIdsWithAllocationHistory } = useAssetService(props)
+  const assetProcessClient = useMemo(() => {
+    const client = new AssetProcessClient()
+    if (props.accessToken) {
+      client.setAccessToken(props.accessToken)
+    }
+    return client
+  }, [props.accessToken])
+
+  const handleGenerateDocument = useCallback(
+    async (assetId: string) => {
+      try {
+        const asset = assets.find(a => a.id === assetId) ?? (await getAssetById(assetId))
+        if (!asset) return
+        const allocations = await getAllocationsForAsset(assetId)
+        await generateAssetDocumentPdf(asset, allocations)
+      } catch (error) {
+        console.error('Error generating asset document:', error)
+      }
+    },
+    [assets, getAssetById, getAllocationsForAsset]
+  )
   const [selectedAssetAllocations, setSelectedAssetAllocations] = useState<any[]>([])
+  const [selectedAssetAllocationsLoaded, setSelectedAssetAllocationsLoaded] = useState(false)
+  const [deletableAssetIds, setDeletableAssetIds] = useState<Set<string>>(new Set())
+
+  const getAssetIdFromUrl = useCallback((): string | null => {
+    if (typeof window === 'undefined') {
+      return null
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    const assetId = params.get('assetId')
+    return assetId && assetId.trim() ? assetId : null
+  }, [])
+
+  const updateAssetIdInUrl = useCallback((assetId: string | null) => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    if (assetId) {
+      params.set('assetId', assetId)
+    } else {
+      params.delete('assetId')
+    }
+
+    const search = params.toString()
+    const nextUrl = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash || ''}`
+    window.history.replaceState({}, '', nextUrl)
+  }, [])
+
+  useEffect(() => {
+    const assetId = getAssetIdFromUrl()
+    if (assetId) {
+      setPendingAssetId(assetId)
+    }
+  }, [getAssetIdFromUrl])
 
   useEffect(() => {
     if (!selectedAsset) {
       setSelectedAssetAllocations([])
+      setSelectedAssetAllocationsLoaded(false)
       return
     }
 
     const loadAllocations = async () => {
+      setSelectedAssetAllocationsLoaded(false)
       try {
         const allocations = await getAllocationsForAsset(selectedAsset.id)
         setSelectedAssetAllocations(allocations)
       } catch (error) {
         console.error('Error loading allocations:', error)
         setSelectedAssetAllocations([])
+      } finally {
+        setSelectedAssetAllocationsLoaded(true)
       }
     }
 
     loadAllocations()
   }, [selectedAsset, getAllocationsForAsset])
+
+  useEffect(() => {
+    const availableAssetIds = assets.filter(asset => asset.assetStatus === AssetStatus.AVAILABLE).map(asset => asset.id)
+
+    if (!availableAssetIds.length) {
+      setDeletableAssetIds(new Set())
+      return
+    }
+
+    let isActive = true
+
+    const loadDeleteEligibility = async () => {
+      try {
+        const assignedAssetIds = await getAssetIdsWithAllocationHistory(availableAssetIds)
+        if (!isActive) {
+          return
+        }
+
+        const assignedAssetIdSet = new Set(assignedAssetIds)
+        setDeletableAssetIds(new Set(availableAssetIds.filter(assetId => !assignedAssetIdSet.has(assetId))))
+      } catch (error) {
+        console.error('Error loading asset delete eligibility:', error)
+        if (isActive) {
+          setDeletableAssetIds(new Set())
+        }
+      }
+    }
+
+    void loadDeleteEligibility()
+
+    return () => {
+      isActive = false
+    }
+  }, [assets, getAssetIdsWithAllocationHistory])
+
+  useEffect(() => {
+    if (!pendingAssetId) {
+      return
+    }
+
+    const existing = assets.find(asset => asset.id === pendingAssetId)
+    if (existing) {
+      setSelectedAsset(existing)
+      setIsPanelOpen(true)
+      setPendingAssetId(null)
+      return
+    }
+
+    if (assetsLoading) {
+      return
+    }
+
+    let isActive = true
+
+    const loadAssetFromUrl = async () => {
+      try {
+        const asset = await getAssetById(pendingAssetId)
+        if (!isActive) {
+          return
+        }
+        if (asset) {
+          setSelectedAsset(asset)
+          setIsPanelOpen(true)
+        }
+      } catch (error) {
+        console.error('Error loading asset from URL:', error)
+      } finally {
+        if (isActive) {
+          setPendingAssetId(null)
+        }
+      }
+    }
+
+    loadAssetFromUrl()
+    return () => {
+      isActive = false
+    }
+  }, [pendingAssetId, assets, assetsLoading, getAssetById])
 
   const handleAssetClick = (asset: Asset) => {
     setSelectedAsset(asset)
@@ -100,10 +298,34 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     setTimeout(() => setSelectedAsset(null), 300)
   }, [])
 
-  const handleStatusFilterChange = useCallback((status: string) => {
-    setStatusFilter(status)
-    setCurrentPage(1)
-  }, [])
+  useEffect(() => {
+    if (pendingAssetId) {
+      return
+    }
+
+    if (isPanelOpen && selectedAsset?.id) {
+      updateAssetIdInUrl(selectedAsset.id)
+      return
+    }
+
+    if (!isPanelOpen) {
+      updateAssetIdInUrl(null)
+    }
+  }, [isPanelOpen, selectedAsset?.id, pendingAssetId, updateAssetIdInUrl])
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const assetId = getAssetIdFromUrl()
+      if (assetId) {
+        setPendingAssetId(assetId)
+      } else {
+        handlePanelClose()
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [getAssetIdFromUrl, handlePanelClose])
 
   const handleSearchChange = useCallback((search: string) => {
     setSearchQuery(search)
@@ -159,35 +381,91 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   )
 
   const handleRetireAsset = useCallback(
-    async (assetId: string) => {
+    (assetId: string) => {
       const asset = assets.find(a => a.id === assetId)
-      if (!asset) return
+      if (asset) setSelectedAsset(asset)
+      dialogs.openRetire(assetId)
+    },
+    [assets, dialogs]
+  )
 
+  const handleDeleteAsset = useCallback(
+    (assetId: string) => {
+      const asset = assets.find(item => item.id === assetId) || (selectedAsset?.id === assetId ? selectedAsset : null)
+      if (!asset || asset.assetStatus !== AssetStatus.AVAILABLE) {
+        return
+      }
+
+      const canDeleteAssetFromPanel =
+        selectedAsset?.id === assetId && selectedAssetAllocationsLoaded && selectedAssetAllocations.length === 0
+
+      if (!deletableAssetIds.has(asset.id) && !canDeleteAssetFromPanel) {
+        return
+      }
+
+      setSelectedAsset(asset)
+      dialogs.openDelete(assetId)
+    },
+    [assets, deletableAssetIds, dialogs, selectedAsset, selectedAssetAllocations, selectedAssetAllocationsLoaded]
+  )
+
+  const handleConfirmDeleteAsset = useCallback(
+    async (notes: string) => {
+      const trimmedNotes = notes.trim()
+
+      if (!dialogs.deletingAssetId || !trimmedNotes) {
+        return
+      }
+
+      const assetToDelete =
+        assets.find(item => item.id === dialogs.deletingAssetId) ||
+        (selectedAsset?.id === dialogs.deletingAssetId ? selectedAsset : null)
+
+      if (!assetToDelete) {
+        return
+      }
+
+      if (trimmedNotes === (assetToDelete.notes || '').trim()) {
+        return
+      }
+
+      setIsDeletingAsset(true)
       try {
-        const client = new AssetProcessClient()
-        client.setAccessToken(props.accessToken)
-
-        await client.updateAsset({
-          id: asset.id,
-          version: asset.version,
-          assetStatus: AssetStatus.RETIRED
+        await assetProcessClient.deleteAsset({
+          id: assetToDelete.id,
+          version: assetToDelete.version,
+          model: assetToDelete.model,
+          serialNumber: assetToDelete.serialNumber,
+          acquisitionDate: assetToDelete.acquisitionDate,
+          warrantyPeriodMonths: assetToDelete.warrantyPeriodMonths,
+          inventoryValue: assetToDelete.inventoryValue,
+          assetStatus: assetToDelete.assetStatus,
+          assetBrandRef: assetToDelete.assetBrandRef,
+          assetCategoryRef: assetToDelete.assetCategoryRef,
+          currencyRef: assetToDelete.currencyRef,
+          siteLocation: assetToDelete.siteLocationId,
+          notes: trimmedNotes,
+          disposalStatus: assetToDelete.disposalStatus,
+          disposalOutcomeRef: assetToDelete.disposalOutcomeRef,
+          disposalDate: assetToDelete.disposalDate,
+          disposalReason: assetToDelete.disposalReason,
+          requireSanitization: assetToDelete.requireSanitization,
+          sanitizationMethodRef: assetToDelete.sanitizationMethodRef,
+          sanitizationExecutionDate: assetToDelete.sanitizationExecutionDate,
+          responsibleEmployee: assetToDelete.responsibleEmployeeId,
+          performerEmployee: assetToDelete.performerEmployeeId
         })
-
-        const payload = {
-          resolution: 'success',
-          processName: 'updateAsset',
-          domain: 'employee',
-          response: { asset: { id: asset.id, assetStatus: AssetStatus.RETIRED } }
+        dialogs.closeDelete()
+        if (selectedAsset?.id === assetToDelete.id) {
+          handlePanelClose()
         }
-
-        window.dispatchEvent(new CustomEvent('com.newwork.process.processCompletion', { detail: payload }))
-        window.dispatchEvent(new CustomEvent('com.newwork.process.taskCompletion', { detail: payload }))
         refetchAssets()
-      } catch (error) {
-        console.error('Error retiring asset:', error)
+        refetchStatistics()
+      } finally {
+        setIsDeletingAsset(false)
       }
     },
-    [assets, props.accessToken, refetchAssets]
+    [assetProcessClient, assets, dialogs, handlePanelClose, refetchAssets, refetchStatistics, selectedAsset]
   )
 
   useAssetProcessEvents({
@@ -202,6 +480,10 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     },
     onReturnProcessComplete: () => {
       dialogs.closeReturn()
+      refetchAssets()
+    },
+    onRetireProcessComplete: () => {
+      dialogs.closeRetire()
       refetchAssets()
     },
     onUpdateAsset: handleUpdateAsset,
@@ -227,6 +509,11 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     [currentLocale]
   )
 
+  const retireDialogTitle = useMemo(
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retire_asset', 'Retire Asset'),
+    [currentLocale]
+  )
+
   const equipmentRegistrationAdditionalData = useMemo(
     () => ({
       ...props.additionalData,
@@ -242,6 +529,68 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     [props.additionalData, dialogs.editingAssetId, selectedAsset, refetchAssets, dialogs]
   )
 
+  const employeeFilterCustomGroup = useMemo(
+    () =>
+      buildAssetEmployeeCustomGroup(renderProps => (
+        <AssetEmployeeFilter
+          {...renderProps}
+          searchText={employeeFilterSearch}
+          setSearchText={setEmployeeFilterSearch}
+          showDropdown={showEmployeeDropdown}
+          setShowDropdown={setShowEmployeeDropdown}
+          employeeOptions={employeeOptions}
+          isLoading={employeeSearchLoading}
+          searchPlaceholder={tAssets('asset-employee-filter-search-placeholder')}
+          emptyLabel={tAssets('asset-employee-filter-empty')}
+          loadingLabel={tAssets('asset-employee-filter-loading')}
+        />
+      )),
+    [employeeFilterSearch, employeeOptions, employeeSearchLoading, showEmployeeDropdown, tAssets]
+  )
+
+  const tablePrimaryAction = useMemo(
+    () => (
+      <Button
+        onClick={() => dialogs.openRegister()}
+        data-testid="register-equipment-button"
+        className="gba:gap-2 gba:shrink-0"
+      >
+        <PlusIcon size={20} />
+        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment', 'Register Equipment')}
+      </Button>
+    ),
+    [dialogs]
+  )
+
+  const listEmptyMessage = useMemo(
+    () =>
+      hasActiveFilters || searchQuery.trim()
+        ? getTranslationFromI18nKeyAndLabel(
+            'lowcoder:hr_assets.no_assets_found',
+            'No assets found matching your criteria.'
+          )
+        : tAssets('asset-management-empty'),
+    [hasActiveFilters, searchQuery, tAssets]
+  )
+
+  const isAssetDeletable = useCallback(
+    (asset: Asset) => asset.assetStatus === AssetStatus.AVAILABLE && deletableAssetIds.has(asset.id),
+    [deletableAssetIds]
+  )
+
+  const canDeleteSelectedAsset = useMemo(() => {
+    if (!selectedAsset || selectedAsset.assetStatus !== AssetStatus.AVAILABLE) {
+      return false
+    }
+
+    const listedAsset = assets.find(asset => asset.id === selectedAsset.id)
+    if (listedAsset) {
+      return deletableAssetIds.has(selectedAsset.id)
+    }
+
+    return selectedAssetAllocationsLoaded && selectedAssetAllocations.length === 0
+  }, [assets, deletableAssetIds, selectedAsset, selectedAssetAllocations, selectedAssetAllocationsLoaded])
+
   return (
     <div data-testid="assets-app">
       <PageLayout
@@ -254,66 +603,113 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         className="gba:min-h-screen"
         variant={moduleColor}
       >
-        <div className="gba:space-y-6">
-          <AssetStatistics
-            statistics={memoizedStatistics}
-            isLoading={statisticsLoading}
-            error={statisticsError}
-            onRetry={refetchStatistics}
-            onStatusFilterChange={handleStatusFilterChange}
-            activeStatusFilter={statusFilter}
-          />
+        <div className="gba:flex gba:flex-col gba:h-full gba:w-full gba:min-w-0" data-testid="data-container">
+          <div className="gba:min-h-[400px] gba:overflow-auto gba:bg-white" data-testid="data-container-body">
+            <div className="gba:p-4 gba:space-y-6">
+              <AssetStatistics
+                statistics={memoizedStatistics}
+                isLoading={statisticsLoading}
+                error={statisticsError}
+                onRetry={refetchStatistics}
+                onStatusFilterChange={status => {
+                  if (status === 'all') {
+                    const restFilters = { ...filtersObject }
+                    delete restFilters.statusIds
+                    handleFilterChangeFromDisplay(restFilters)
+                    return
+                  }
 
-          <div className="gba:space-y-4">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <h3 className="gba:text-lg gba:font-semibold">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.all_assets', 'All Assets')}
-              </h3>
-              <Button
-                onClick={() => dialogs.openRegister()}
-                data-testid="register-equipment-button"
-                className="gba:gap-2"
+                  handleFilterChangeFromDisplay({ ...filtersObject, statusIds: [status] })
+                }}
+                activeStatusFilter={activeStatusFilter}
+              />
+
+              <BackofficeDataDisplay
+                titleSections={[
+                  {
+                    id: 'list',
+                    label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.all_assets', 'All Assets'),
+                    metadata: { count: totalCount, isLoading: assetsLoading }
+                  }
+                ]}
+                currentSection="list"
+                searchValue={searchQuery}
+                searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:hr_assets.search_assets',
+                  'Search assets...'
+                )}
+                onSearchChange={handleSearchChange}
+                filters={filtersObject}
+                filterConfiguration={filterConfiguration}
+                onFilterChange={handleFilterChangeFromDisplay}
+                primaryAction={tablePrimaryAction}
+                renderFilterSheet={(open, onOpenChange) => (
+                  <BackofficeFilterSheet
+                    open={open}
+                    onOpenChange={onOpenChange}
+                    configuration={filterConfiguration}
+                    values={filtersObject}
+                    onApply={handleFilterChangeFromDisplay}
+                    onChange={handleFilterChangeFromDisplay}
+                    title={tAssets('asset-filter-sheet-title')}
+                    description={tAssets('asset-filter-sheet-description')}
+                    customGroup={employeeFilterCustomGroup}
+                  />
+                )}
               >
-                <PlusIcon size={20} />
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment', 'Register Equipment')}
-              </Button>
+                <AssetTable
+                  {...props}
+                  assets={assets}
+                  totalCount={totalCount}
+                  isLoading={assetsLoading}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  searchQuery={searchQuery}
+                  sortField={sortField}
+                  sortOrder={sortOrder}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={handlePageSizeChange}
+                  onSearchChange={handleSearchChange}
+                  onSortChange={handleSortChange}
+                  onAssetClick={handleAssetClick}
+                  isAssetDeletable={isAssetDeletable}
+                  onAllocateAsset={handleAllocateAsset}
+                  onUpdateAsset={handleUpdateAsset}
+                  onRetireAsset={handleRetireAsset}
+                  onRetrieveAsset={handleRetrieveAsset}
+                  onDeleteAsset={handleDeleteAsset}
+                  onGenerateDocument={handleGenerateDocument}
+                  emptyMessage={listEmptyMessage}
+                />
+              </BackofficeDataDisplay>
             </div>
-            <AssetTable
-              {...props}
-              assets={assets}
-              totalCount={totalCount}
-              isLoading={assetsLoading}
-              currentPage={currentPage}
-              pageSize={pageSize}
-              statusFilter={statusFilter}
-              searchQuery={searchQuery}
-              sortField={sortField}
-              sortOrder={sortOrder}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={handlePageSizeChange}
-              onSearchChange={handleSearchChange}
-              onStatusFilterChange={handleStatusFilterChange}
-              onSortChange={handleSortChange}
-              onAssetClick={handleAssetClick}
-              onAllocateAsset={handleAllocateAsset}
-              onUpdateAsset={handleUpdateAsset}
-              onRetireAsset={handleRetireAsset}
-              onRetrieveAsset={handleRetrieveAsset}
-            />
           </div>
         </div>
       </PageLayout>
-
       <AssetDetailPanel
         asset={selectedAsset}
         allocations={selectedAssetAllocations}
         isOpen={isPanelOpen}
         onClose={handlePanelClose}
         accessToken={props.accessToken}
+        canDeleteAsset={canDeleteSelectedAsset}
         onAllocateAsset={handleAllocateAsset}
         onUpdateAsset={handleUpdateAsset}
         onRetireAsset={handleRetireAsset}
         onRetrieveAsset={handleRetrieveAsset}
+        onDeleteAsset={handleDeleteAsset}
+        onGenerateDocument={handleGenerateDocument}
+      />
+
+      <DeleteAssetDialog
+        open={dialogs.isDeleteOpen}
+        asset={
+          assets.find(item => item.id === dialogs.deletingAssetId) ||
+          (selectedAsset?.id === dialogs.deletingAssetId ? selectedAsset : null)
+        }
+        isSubmitting={isDeletingAsset}
+        onClose={dialogs.closeDelete}
+        onConfirm={handleConfirmDeleteAsset}
       />
 
       <Dialog open={dialogs.isRegisterOpen} onOpenChange={dialogs.closeRegister}>
@@ -341,7 +737,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         >
           <DialogTitle className="gba:sr-only">{allocateDialogTitle}</DialogTitle>
           <AllocateAsset
-            key={`allocate-asset-${currentLocale}`}
+            key={`allocate-asset-${dialogs.allocatingAssetId ?? ''}-${currentLocale}`}
             {...props}
             additionalData={{
               ...props.additionalData,
@@ -368,6 +764,27 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
               asset: selectedAsset || undefined
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogs.isRetireOpen} onOpenChange={dialogs.closeRetire}>
+        <DialogContent
+          className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto"
+          onInteractOutside={e => e.preventDefault()}
+          onEscapeKeyDown={e => e.preventDefault()}
+        >
+          <DialogTitle className="gba:sr-only">{retireDialogTitle}</DialogTitle>
+          {dialogs.isRetireOpen && (
+            <RetireAsset
+              key={`retire-asset-${dialogs.retiringAssetId ?? ''}-${currentLocale}`}
+              {...props}
+              additionalData={{
+                ...props.additionalData,
+                assetId: dialogs.retiringAssetId || undefined,
+                asset: selectedAsset || undefined
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

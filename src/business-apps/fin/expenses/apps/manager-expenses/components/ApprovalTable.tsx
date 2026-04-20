@@ -8,9 +8,11 @@ import {
   TableRow,
   Spinner,
   Alert,
-  AlertDescription
+  AlertDescription,
+  cn
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FlowExecutionTask } from '@/common/network/flow-metrics/FlowMetricsClient'
 import { ApprovalRequest } from '../types'
 import { mapFlowTasksToApprovalRequests } from '../utils/flowTaskMapper'
 import { validateTaskSelection } from '../utils/taskValidation'
@@ -35,8 +37,10 @@ interface ApprovalTableProps extends BusinessAppContextProps {
   validationError: string | null
   setValidationError: (error: string | null) => void
   dataTestIdPrefix: string
-  tabKey: string // The current tab key to determine approval process
-  onApprovalSuccess?: () => void // Callback after successful approval
+  tabKey: string
+  onApprovalSuccess?: () => void
+  onRowClick?: (task: FlowExecutionTask) => void
+  activeTaskId?: string | null
 }
 
 const ApprovalTable: React.FC<ApprovalTableProps> = ({
@@ -56,7 +60,9 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
   tabKey,
   userInfo,
   accessToken,
-  onApprovalSuccess
+  onApprovalSuccess,
+  onRowClick,
+  activeTaskId
 }) => {
   const rawTasks = tasks
   const approvalRequests = mapFlowTasksToApprovalRequests(tasks)
@@ -226,65 +232,71 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {approvalRequests.map((request: ApprovalRequest) => (
-                <TableRow
-                  key={request.id}
-                  className="gba:cursor-pointer gba:hover:bg-accent"
-                  onClick={() => handleTaskSelection(request)}
-                  data-testid={`${dataTestIdPrefix}-table-row-${request.id}`}
-                >
-                  <TableCell className="gba:py-3 gba:px-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedTasks.some(selected => selected.id === request.id)}
-                      onChange={e => {
-                        e.stopPropagation()
-                        handleTaskSelection(request)
-                      }}
-                      data-testid={`${dataTestIdPrefix}-select-checkbox-${request.id}`}
-                    />
-                  </TableCell>
-                  <TableCell className="gba:text-sm gba:py-3 gba:px-4">
-                    {request.requestDate
-                      ? new Intl.DateTimeFormat(getCurrentActiveUserLocale(), {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit'
-                        }).format(new Date(request.requestDate))
-                      : '-'}
-                  </TableCell>
-                  <TableCell className="gba:py-3 gba:px-4">
-                    <div className="gba:font-medium gba:text-sm">{request.title}</div>
-                  </TableCell>
-                  <TableCell className="gba:text-sm gba:py-3 gba:px-4">
-                    <div className="gba:text-muted-foreground">{request.taskGroup}</div>
-                  </TableCell>
-                  <TableCell className="gba:text-right gba:text-sm">
-                    {request.totalAmount > 0
-                      ? new Intl.NumberFormat(getCurrentActiveUserLocale(), {
-                          style: 'currency',
-                          currency: request.currency || 'EUR',
-                          currencyDisplay: 'code'
-                        }).format(request.totalAmount)
-                      : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="gba:text-sm">{request.employee.fullName}</div>
-                  </TableCell>
-                  <TableCell className="gba:pr-6">
-                    {(() => {
-                      const { type, label } = getExpenseRequestStatusDisplay(request.status)
-                      return (
-                        <Pill
-                          type={type as any}
-                          label={label}
-                          data-testid={`${dataTestIdPrefix}-status-pill-${request.status?.toLowerCase()}`}
-                        />
-                      )
-                    })()}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {approvalRequests.map((request: ApprovalRequest, index: number) => {
+                const rawTask = rawTasks[index] as FlowExecutionTask | undefined
+                const isActive = activeTaskId === request.id
+                return (
+                  <TableRow
+                    key={request.id}
+                    className={cn('gba:cursor-pointer gba:hover:bg-accent', isActive && 'gba:bg-accent')}
+                    onClick={() => {
+                      if (onRowClick && rawTask) {
+                        onRowClick(rawTask)
+                      }
+                    }}
+                    data-testid={`${dataTestIdPrefix}-table-row-${request.id}`}
+                  >
+                    <TableCell className="gba:py-3 gba:px-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedTasks.some(selected => selected.id === request.id)}
+                        onClick={e => e.stopPropagation()}
+                        onChange={() => handleTaskSelection(request)}
+                        data-testid={`${dataTestIdPrefix}-select-checkbox-${request.id}`}
+                      />
+                    </TableCell>
+                    <TableCell className="gba:text-sm gba:py-3 gba:px-4">
+                      {request.requestDate
+                        ? new Intl.DateTimeFormat(getCurrentActiveUserLocale(), {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit'
+                          }).format(new Date(request.requestDate))
+                        : '-'}
+                    </TableCell>
+                    <TableCell className="gba:py-3 gba:px-4">
+                      <div className="gba:font-medium gba:text-sm">{request.title}</div>
+                    </TableCell>
+                    <TableCell className="gba:text-sm gba:py-3 gba:px-4">
+                      <div className="gba:text-muted-foreground">{request.taskGroup}</div>
+                    </TableCell>
+                    <TableCell className="gba:text-right gba:text-sm">
+                      {request.totalAmount > 0
+                        ? new Intl.NumberFormat(getCurrentActiveUserLocale(), {
+                            style: 'currency',
+                            currency: request.currency || 'EUR',
+                            currencyDisplay: 'code'
+                          }).format(request.totalAmount)
+                        : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="gba:text-sm">{request.employee.fullName}</div>
+                    </TableCell>
+                    <TableCell className="gba:pr-6">
+                      {(() => {
+                        const { type, label } = getExpenseRequestStatusDisplay(request.status)
+                        return (
+                          <Pill
+                            type={type as any}
+                            label={label}
+                            data-testid={`${dataTestIdPrefix}-status-pill-${request.status?.toLowerCase()}`}
+                          />
+                        )
+                      })()}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

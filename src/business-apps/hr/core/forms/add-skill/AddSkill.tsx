@@ -1,200 +1,229 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import FormHeader from '../components/FormHeader'
-import flowIconUrl from '@/assets/icons/flowSmall.svg'
+import React, { useCallback, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import flowIconUrl from '@/assets/icons/flowSmall.svg'
+import translations from '@/business-apps/hr/core/apps/employee-record/_i18n'
+import FormHeader from '../components/FormHeader'
 import { AddSkillProvider, useAddSkill } from './AddSkillContext'
-import { DebouncedInput } from '@/components/debounced-input'
-import { getSkillValidationError, buildEmployeeSkillsPayload } from './utils/addSkillUtils'
-import { AddSkillSearchDropdown } from './components/AddSkillSearchDropdown'
-import { SelectedSkillsChips } from './components/SelectedSkillsChips'
+import { buildEmployeeSkillsPayload } from './utils/addSkillUtils'
+import { AddSkillFormSections } from './components/AddSkillFormSections'
+import { useAddSkillFormController } from './hooks/useAddSkillFormController'
+import { ACCEPTED_VERIFICATION_FILE_TYPES, AddSkillFormValues, DOCUMENT_GROUP_DEVELOPMENT } from './addSkill.types'
+import { useEmployeeDocumentSync } from '../document-sync/useEmployeeDocumentSync'
 
-interface AddSkillFormValues {
-  targetEmployeeId?: string
+const clampLevel = (level: string | number | null | undefined) => {
+  if (level === null || level === undefined) return 1
+  const parsed = typeof level === 'string' ? Number.parseInt(level, 10) : level
+  return Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
 }
 
-const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
-  const { data, searchSkills, createSkillAndFetchByNames, employeeId: ctxEmployeeId } = useAddSkill()
-  const [searchTerm, setSearchTerm] = useState('')
-  const [results, setResults] = useState<Array<any>>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [selectedSkills, setSelectedSkills] = useState<Array<{ id: string; name: string; isNew?: boolean }>>([])
-  const [inputKey, setInputKey] = useState(0)
-  const [addedNames, setAddedNames] = useState<string[]>([])
-  const [addError, setAddError] = useState<string | null>(null)
+const getFormTitle = (
+  t: (key: string, args?: Record<string, unknown>) => string,
+  flowFormParams: { mode?: string } | null | undefined,
+  changeLevelParams: unknown
+) => {
+  if (flowFormParams?.mode === 'deactivate') return t('add-skill-form-deactivate-title')
+  if (flowFormParams?.mode === 'activate') return t('add-skill-form-activate-title')
+  if (flowFormParams?.mode === 'attachVerification') return t('add-skill-form-attach-verification-title')
+  if (changeLevelParams) return t('skills-action-update-level')
+  return t('add-skill-form-title')
+}
 
-  // Filter search results to exclude already selected skills (by id or name)
-  const filteredResults = useMemo(() => {
-    const selectedIdSet = new Set(selectedSkills.map(s => s.id))
-    const selectedNameSet = new Set(selectedSkills.map(s => (s.name || '').trim().toLowerCase()))
-    return (results || []).filter((sk: any) => {
-      const id = sk?.id
-      const nameKey = (sk?.name || '').trim().toLowerCase()
-      if (id && selectedIdSet.has(id)) return false
-      if (nameKey && selectedNameSet.has(nameKey)) return false
-      return true
-    })
-  }, [results, selectedSkills])
+function toValidEmployeeDocumentId(value: unknown): string {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined') {
+    return ''
+  }
+
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  return uuidPattern.test(trimmed) ? trimmed : ''
+}
+
+function toDateInputValue(value: unknown): string {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  const isoDate = trimmed.split('T')[0]
+  return /^\d{4}-\d{2}-\d{2}$/.test(isoDate) ? isoDate : ''
+}
+
+const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData }) => {
+  const { t } = useTranslation(translations)
+  const {
+    data,
+    searchSkills,
+    createSkillAndFetchByNames,
+    employeeId: ctxEmployeeId,
+    changeLevelParams,
+    flowFormParams,
+    error: contextError,
+    isLoading: contextLoading
+  } = useAddSkill()
 
   const form = useForm<AddSkillFormValues>({
-    defaultValues: {
-      targetEmployeeId: undefined
-    },
+    defaultValues: { targetEmployeeId: undefined, documentTypeId: null, validTo: '' },
     mode: 'onChange',
     shouldUnregister: true
   })
 
-  const title = useMemo(
-    () =>
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_profile.details_layout.add_skill_form.form_title',
-        'Add Skill'
-      ),
-    []
-  )
-
   const employee = data?.employee
-
-  const normalizedDefaults: AddSkillFormValues = useMemo(
-    () => ({
-      targetEmployeeId: employee?.id
-    }),
-    [employee?.id]
+  const catalogs = data?.catalogs ?? { documentType: [] }
+  const developmentDocumentTypes = useMemo(
+    () =>
+      (catalogs.documentType || []).filter(
+        (entry: { parentEntryId?: string | null }) => entry.parentEntryId === DOCUMENT_GROUP_DEVELOPMENT
+      ),
+    [catalogs.documentType]
   )
+  const getCatalogValue = useCallback((entry: { translations?: { value?: string }[]; value?: string }) => {
+    return entry?.translations?.[0]?.value ?? entry?.value ?? ''
+  }, [])
 
-  // removed old disabled logic; computed inline based on changes
+  const controller = useAddSkillFormController({
+    employee,
+    flowFormParams,
+    changeLevelParams,
+    searchSkills,
+    createSkillAndFetchByNames,
+    t
+  })
 
-  // Initialize selected skills from employee existing skills
-  useEffect(() => {
-    const existing = ((employee?.skills || []) as Array<{ skill?: { id: string; name: string } }>).map(s => ({
-      id: (s.skill?.id || '') as string,
-      name: (s.skill?.name || '') as string,
-      isNew: false
-    }))
-    const deduped: Record<string, { id: string; name: string }> = {}
-    existing.forEach(s => {
-      if (s.id) deduped[s.id] = s
-    })
-    setSelectedSkills(Object.values(deduped))
-  }, [employee?.skills])
-
-  const suppressOpenRef = useRef(false)
-  const searchSeqRef = useRef(0)
-
-  const isSubmitDisabled = useMemo(() => {
-    const initial = ((employee?.skills || []) as Array<{ skill?: { id: string } }>)
-      .map(s => s.skill?.id)
-      .filter(Boolean)
-    const current = selectedSkills.map(s => s.id)
-    const changed = initial.length !== current.length || initial.some(id => !current.includes(id as string))
-    return !changed
-  }, [employee?.skills, selectedSkills])
-  useEffect(() => {
-    let isActive = true
-    const run = async () => {
-      // If we just selected an item, suppress one open cycle
-      if (suppressOpenRef.current) {
-        suppressOpenRef.current = false
-        if (isActive) {
-          setIsDropdownOpen(false)
-          setResults([])
-        }
-        return
-      }
-      const term = searchTerm.trim()
-      if (!term) {
-        if (isActive) setResults([])
-        if (isActive) setIsDropdownOpen(false)
-        return
-      }
-      setIsSearching(true)
-      const mySeq = ++searchSeqRef.current
-      try {
-        const r = await searchSkills(term)
-        if (!isActive || mySeq !== searchSeqRef.current) return
-        setResults(r)
-        setIsDropdownOpen(true)
-      } finally {
-        if (isActive && mySeq === searchSeqRef.current) setIsSearching(false)
-      }
+  const formTitle = getFormTitle(t, flowFormParams, changeLevelParams)
+  const employeeIdForDocuments =
+    ctxEmployeeId || additionalData?.employeeId || additionalData?.psi_taskPayload?.employeeId || data?.employee?.id
+  const selectedSkillForVerification = useMemo(() => {
+    if (flowFormParams?.mode !== 'attachVerification' || !flowFormParams?.skillId) {
+      return null
     }
-    run()
-    return () => {
-      isActive = false
+    return controller.existingSkillsList.find(skill => skill.skill?.id === flowFormParams.skillId) ?? null
+  }, [flowFormParams?.mode, flowFormParams?.skillId, controller.existingSkillsList])
+  const selectedVerificationDocumentId = toValidEmployeeDocumentId(
+    (selectedSkillForVerification as any)?.verificationDocumentId
+  )
+  const selectedVerificationDocumentTypeId = useMemo(() => {
+    const rawType = (selectedSkillForVerification as any)?.verificationDocument?.type
+    return typeof rawType === 'string' && rawType.trim().length > 0 ? rawType : ''
+  }, [selectedSkillForVerification])
+  const selectedVerificationDocumentValidTo = useMemo(() => {
+    const rawValidTo = (selectedSkillForVerification as any)?.verificationDocument?.validTo
+    return toDateInputValue(rawValidTo)
+  }, [selectedSkillForVerification])
+  const verificationDocumentSync = useEmployeeDocumentSync({
+    accessToken,
+    employeeId: employeeIdForDocuments,
+    existingDocumentIds: selectedVerificationDocumentId ? [selectedVerificationDocumentId] : [],
+    enabled: Boolean(
+      flowFormParams?.mode === 'attachVerification' &&
+        employeeIdForDocuments &&
+        selectedVerificationDocumentId &&
+        accessToken
+    ),
+    appName: 'employee-profile',
+    folderPath: employeeIdForDocuments ? `/documents/${employeeIdForDocuments}` : undefined
+  })
+  const watchedDocumentTypeId = form.watch('documentTypeId')
+  const watchedValidTo = form.watch('validTo')
+
+  const isAttachVerificationSubmitDisabled = useMemo(() => {
+    if (flowFormParams?.mode !== 'attachVerification') {
+      return controller.isSubmitDisabled
     }
-  }, [searchTerm, searchSkills])
 
-  const handleSelectSkill = (sk: { id: string; name: string }) => {
-    setSelectedSkills(prev => {
-      if (prev.find(x => x.id === sk.id)) return prev
-      return [...prev, { ...sk, isNew: false }]
-    })
-    // Close dropdown and clear search
-    suppressOpenRef.current = true
-    // Invalidate any in-flight searches to prevent re-open
-    searchSeqRef.current += 1
-    setIsDropdownOpen(false)
-    setSearchTerm('')
-    setResults([])
-    setIsSearching(false)
-    setInputKey(prev => prev + 1)
-  }
+    const hasDocumentChange =
+      verificationDocumentSync.hasPendingNewUpload || verificationDocumentSync.hasRemovedInitialFiles
+    const selectedDocumentTypeId = (watchedDocumentTypeId || '').toString().trim()
+    const selectedValidTo = toDateInputValue(watchedValidTo)
+    const hasMetadataChange =
+      Boolean(selectedVerificationDocumentId) &&
+      (selectedDocumentTypeId !== selectedVerificationDocumentTypeId ||
+        selectedValidTo !== selectedVerificationDocumentValidTo)
 
-  const nextNewIdRef = useRef(1)
+    if (!hasDocumentChange && !hasMetadataChange) {
+      return true
+    }
 
-  const handleAddNewSkill = async () => {
-    const name = searchTerm.trim()
-    if (!name) return
-    // validations
-    const validationError = getSkillValidationError(name)
-    if (validationError) {
-      setAddError(validationError)
+    const hasFile = verificationDocumentSync.managedFiles.length > 0
+    if (!hasFile) {
+      return false
+    }
+
+    return selectedDocumentTypeId.length === 0
+  }, [
+    flowFormParams?.mode,
+    controller.isSubmitDisabled,
+    verificationDocumentSync.hasPendingNewUpload,
+    verificationDocumentSync.hasRemovedInitialFiles,
+    verificationDocumentSync.managedFiles,
+    watchedDocumentTypeId,
+    watchedValidTo,
+    selectedVerificationDocumentId,
+    selectedVerificationDocumentTypeId,
+    selectedVerificationDocumentValidTo
+  ])
+
+  useEffect(() => {
+    if (flowFormParams?.mode !== 'attachVerification') {
       return
     }
-    setAddError(null)
-    setSelectedSkills(prev => {
-      const existsByName = prev.some(s => s.name.toLowerCase() === name.toLowerCase())
-      if (existsByName) return prev
-      const newId = `new-${nextNewIdRef.current++}`
-      return [...prev, { id: newId, name, isNew: true }]
-    })
-    setAddedNames(prev => Array.from(new Set([...prev, name])))
-    try {
-      const fetched = await createSkillAndFetchByNames(name, addedNames)
-      setSelectedSkills(prev => {
-        const byName: Record<string, any> = {}
-        fetched.forEach(sk => {
-          byName[sk.name.toLowerCase()] = sk
-        })
-        return prev.map(s => {
-          const resolved = byName[s.name.toLowerCase()]
-          return resolved ? { id: resolved.id, name: resolved.name, isNew: s.isNew ?? true } : s
-        })
-      })
-    } catch (e) {
-      setAddError(
-        e instanceof Error
-          ? e.message
-          : getTranslationFromI18nKeyAndLabel(
-              'lowcoder:employee_profile.details_layout.add_skill_form.skill_add_error',
-              'Failed to add skill'
-            )
-      )
+
+    const currentDocumentType = (form.getValues('documentTypeId') || '').toString().trim()
+    if (currentDocumentType) {
+      return
     }
-    suppressOpenRef.current = true
-    searchSeqRef.current += 1
-    setIsDropdownOpen(false)
-    setSearchTerm('')
-    setResults([])
-    setIsSearching(false)
-    setInputKey(prev => prev + 1)
+
+    if (selectedVerificationDocumentTypeId) {
+      form.setValue('documentTypeId', selectedVerificationDocumentTypeId, {
+        shouldDirty: false,
+        shouldTouch: false,
+        shouldValidate: true
+      })
+    }
+
+    const currentValidTo = (form.getValues('validTo') || '').toString().trim()
+    if (!currentValidTo && selectedVerificationDocumentValidTo) {
+      form.setValue('validTo', selectedVerificationDocumentValidTo, {
+        shouldDirty: false,
+        shouldTouch: false,
+        shouldValidate: true
+      })
+    }
+  }, [flowFormParams?.mode, selectedVerificationDocumentTypeId, selectedVerificationDocumentValidTo, form])
+
+  if (contextLoading) {
+    return (
+      <div
+        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:min-h-[320px] gba:items-center gba:justify-center"
+        data-testid="add-skill-loading"
+      >
+        <Spinner />
+      </div>
+    )
   }
 
-  const handleRemoveSkill = (id: string) => {
-    setSelectedSkills(prev => prev.filter(s => s.id !== id))
+  if (!contextLoading && contextError) {
+    return (
+      <div
+        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:p-4"
+        data-testid="flw_addSkills_addSkillsContainer"
+      >
+        <div className="gba:text-destructive gba:text-sm" data-testid="add-skill-context-error">
+          {contextError}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -203,7 +232,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
       data-testid="flw_addSkills_addSkillsContainer"
     >
       <FormHeader
-        title={title}
+        title={formTitle}
         flowIconUrl={flowIconUrl}
         employee={
           employee
@@ -226,82 +255,125 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
         <AppActionForm
           processType="update"
           form={form as any}
-          formData={normalizedDefaults}
+          formData={controller.normalizedDefaults}
           submitEventType="pse_submit"
           cancelEventType="pse_abort"
           submitButtonTestId="flw_addSkills_submitButton"
           cancelButtonTestId="flw_addSkills_cancelButton"
-          isSubmitDisabled={isSubmitDisabled}
+          isSubmitDisabled={isAttachVerificationSubmitDisabled}
           submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
           cancelButtonText={getTranslationFromI18nKeyAndLabel(
             'lowcoder:create_expense_request.initiate_cancel_button',
             'Cancel'
           )}
+          handlePreSubmit={
+            flowFormParams?.mode === 'attachVerification'
+              ? async (values: AddSkillFormValues) => {
+                  const shouldClearVerificationDocument =
+                    verificationDocumentSync.hasRemovedInitialFiles && !verificationDocumentSync.hasPendingNewUpload
+
+                  const syncResult = await verificationDocumentSync.syncDocuments({
+                    documentGroup: DOCUMENT_GROUP_DEVELOPMENT,
+                    documentType: values.documentTypeId || null,
+                    validTo: values.validTo ? new Date(values.validTo).toISOString() : null,
+                    deleteFirst: true
+                  })
+
+                  const uploadedVerificationDocumentId = shouldClearVerificationDocument
+                    ? null
+                    : syncResult.primaryDocumentId
+
+                  return { ...values, uploadedVerificationDocumentId }
+                }
+              : undefined
+          }
           onSubmit={async (values: AddSkillFormValues) => {
             const employeeId = ctxEmployeeId || values.targetEmployeeId
-            const existingSkills = employee?.skills || []
-            const selectedIds = selectedSkills.map(s => s.id)
+            let selectedIds: string[]
+            const selectedLevels = new Map<string, number>()
+            let skillValidTo: Record<string, string | null> | undefined
+            let skillVerificationDocumentId: Record<string, string | null> | undefined
 
-            const payload = buildEmployeeSkillsPayload({
+            if (flowFormParams?.mode === 'attachVerification') {
+              selectedIds = controller.existingSkillsList.map(s => s.skill?.id).filter(Boolean) as string[]
+              controller.existingSkillsList.forEach(s => {
+                if (s.skill?.id) selectedLevels.set(s.skill.id, clampLevel(s.level))
+              })
+              const normalizedVerificationDocumentId =
+                typeof values.uploadedVerificationDocumentId === 'string' ? values.uploadedVerificationDocumentId : null
+              skillVerificationDocumentId = { [flowFormParams.skillId]: normalizedVerificationDocumentId }
+            } else if (flowFormParams?.mode === 'deactivate' || flowFormParams?.mode === 'activate') {
+              selectedIds = controller.existingSkillsList.map(s => s.skill?.id).filter(Boolean) as string[]
+              controller.existingSkillsList.forEach(s => {
+                if (s.skill?.id) selectedLevels.set(s.skill.id, clampLevel(s.level))
+              })
+              skillValidTo = {
+                [flowFormParams.skillId]:
+                  flowFormParams.mode === 'deactivate' ? new Date(Date.now() - 1000).toISOString() : null
+              }
+            } else if (changeLevelParams?.skillId) {
+              selectedIds = controller.existingSkillsList.map(s => s.skill?.id).filter(Boolean) as string[]
+              controller.existingSkillsList.forEach(s => {
+                if (s.skill?.id) selectedLevels.set(s.skill.id, clampLevel(s.level))
+              })
+              selectedLevels.set(
+                changeLevelParams.skillId,
+                controller.selectedSkills.find(s => s.id === changeLevelParams.skillId)?.level ?? 1
+              )
+            } else {
+              selectedIds = controller.selectedSkills.map(s => s.id)
+              controller.selectedSkills.forEach(s => selectedLevels.set(s.id, s.level || 1))
+            }
+
+            return buildEmployeeSkillsPayload({
               employeeId,
               selectedSkillIds: selectedIds,
-              existingSkills: existingSkills as any,
+              selectedSkillLevels: selectedLevels,
+              existingSkills: controller.existingSkillsList as any,
+              skillValidTo,
+              skillVerificationDocumentId,
               event: 'pse_submit'
             })
-            return payload
           }}
           data-testid="add-skill-form"
         >
-          <div className="gba:flex-1 gba:space-y-3">
-            <div className="gba:space-y-2 gba:w-full" data-testid="add-skill-search-container">
-              <DebouncedInput
-                key={inputKey}
-                value={searchTerm}
-                onChange={setSearchTerm}
-                debounceDelay={300}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.details_layout.add_skill_form.search_skill_placeholder',
-                  'Search skill...'
-                )}
-                data-testid="flw_addSkills_searchInput"
-                className="gba:w-full"
-              />
-
-              {/* Results dropdown */}
-              <AddSkillSearchDropdown
-                isOpen={
-                  isDropdownOpen &&
-                  (isSearching ||
-                    filteredResults.length > 0 ||
-                    (searchTerm.trim().length > 0 && filteredResults.length === 0))
-                }
-                isSearching={isSearching}
-                filteredResults={filteredResults as any}
-                searchTerm={searchTerm}
-                onSelect={handleSelectSkill}
-                onAddNew={handleAddNewSkill}
-              />
-            </div>
-
-            {addError && (
-              <div className="gba:text-destructive" data-testid="add-skill-error">
-                {addError}
-              </div>
-            )}
-
-            <span
-              className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-4 gba:mt-5"
-              data-testid="add-skill-employee-skills-label"
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.add_skill_form.employee_skills_label',
-                'Employee Skills'
-              )}
-            </span>
-
-            {/* Selected Skills chips (includes existing and newly selected) */}
-            <SelectedSkillsChips skills={selectedSkills as any} onRemove={handleRemoveSkill} />
-          </div>
+          <AddSkillFormSections
+            t={t}
+            form={form}
+            flowFormParams={flowFormParams}
+            changeLevelParams={changeLevelParams}
+            employee={employee}
+            activeSelectedSkills={controller.activeSelectedSkills}
+            pendingSkills={controller.pendingSkills}
+            searchTerm={controller.searchTerm}
+            setSearchTerm={controller.setSearchTerm}
+            inputKey={controller.inputKey}
+            isDropdownOpen={controller.isDropdownOpen}
+            isSearching={controller.isSearching}
+            filteredResults={controller.filteredResults}
+            addError={controller.addError}
+            verificationFileList={verificationDocumentSync.managedFiles}
+            developmentDocumentTypes={developmentDocumentTypes}
+            getCatalogValue={getCatalogValue}
+            acceptedVerificationFileTypes={ACCEPTED_VERIFICATION_FILE_TYPES}
+            dropdownRef={controller.dropdownRef}
+            searchContainerRef={controller.searchContainerRef}
+            handleDesignSystemFilesChange={verificationDocumentSync.onFilesChange}
+            handleSearchBlur={controller.handleSearchBlur}
+            handleSearchFocus={controller.handleSearchFocus}
+            handleSelectSkill={controller.handleSelectSkill}
+            handleAddNewSkill={controller.handleAddNewSkill}
+            handleRemoveSkill={controller.handleRemoveSkill}
+            handleRemovePendingSkill={controller.handleRemovePendingSkill}
+            handleUpdatePendingSkillLevel={controller.handleUpdatePendingSkillLevel}
+            handleUpdateExistingSkillLevel={controller.handleUpdateExistingSkillLevel}
+            handleAddPendingSkillToEmployee={controller.handleAddPendingSkillToEmployee}
+            verificationInitialFiles={verificationDocumentSync.initialUploadFiles}
+            isLoadingVerificationInitialFiles={verificationDocumentSync.shouldShowInitialDocumentLoading}
+            isResolvingVerificationInitialDocuments={verificationDocumentSync.isResolvingInitialDocuments}
+            hasExistingVerificationDocumentHint={Boolean(selectedVerificationDocumentId)}
+            hasInitialVerificationDocumentCandidates={verificationDocumentSync.hasInitialDocumentCandidates}
+          />
         </AppActionForm>
       </div>
     </div>

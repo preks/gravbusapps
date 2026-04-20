@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { CalendarOutlined, ClockCircleOutlined, CheckCircleOutlined, RiseOutlined } from '@ant-design/icons'
+import { CalendarIcon, ClockIcon, CheckCircleIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 
 export interface ActivityStatisticItem {
@@ -46,7 +46,7 @@ export const ActivityStatisticsCard: React.FC<ActivityStatisticsCardProps> = ({
         key: 'total-activities',
         title: 'Total Activities',
         value: statistics.total.value,
-        prefix: <RiseOutlined />,
+        prefix: <TrendUpIcon size={16} />,
         color: '#1677ff',
         span: { xs: 24, sm: 12, md: 8, lg: 6, xl: 6 },
         description: 'All-time activities',
@@ -60,7 +60,7 @@ export const ActivityStatisticsCard: React.FC<ActivityStatisticsCardProps> = ({
         key: 'this-week',
         title: 'This Week',
         value: statistics.thisWeek.value,
-        prefix: <ClockCircleOutlined />,
+        prefix: <ClockIcon size={16} />,
         color: '#52c41a',
         span: { xs: 24, sm: 12, md: 8, lg: 6, xl: 6 },
         description: 'Recent activity',
@@ -74,7 +74,7 @@ export const ActivityStatisticsCard: React.FC<ActivityStatisticsCardProps> = ({
         key: 'this-month',
         title: 'This Month',
         value: statistics.thisMonth.value,
-        prefix: <CalendarOutlined />,
+        prefix: <CalendarIcon size={16} />,
         color: '#faad14',
         span: { xs: 24, sm: 12, md: 8, lg: 6, xl: 6 },
         description: 'Monthly progress',
@@ -88,7 +88,7 @@ export const ActivityStatisticsCard: React.FC<ActivityStatisticsCardProps> = ({
         key: 'this-quarter',
         title: 'This Quarter',
         value: statistics.thisQuarter.value,
-        prefix: <CheckCircleOutlined />,
+        prefix: <CheckCircleIcon size={16} />,
         color: '#722ed1',
         span: { xs: 24, sm: 12, md: 8, lg: 6, xl: 6 },
         description: 'Quarterly trend',

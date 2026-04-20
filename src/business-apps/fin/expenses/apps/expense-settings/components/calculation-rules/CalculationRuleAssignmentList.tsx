@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@newwork/nw-design-system'
-import { PiPlus, PiPencil, PiTrash, PiDotsThreeVertical } from 'react-icons/pi'
+import { PlusIcon, PencilIcon, TrashIcon, DotsThreeVerticalIcon } from '@phosphor-icons/react'
 import { ListBulletsIcon, SortAscendingIcon, SortDescendingIcon, CheckIcon, XIcon } from '@phosphor-icons/react'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
@@ -35,7 +35,7 @@ import {
 } from '../../types/ExpenseRuleTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
-import dayjs from 'dayjs'
+import { formatDate } from '../../utils'
 
 // Import filter components
 import TargetTypeFilter from './filters/TargetTypeFilter'
@@ -130,6 +130,13 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
         return [{ [sortField]: dir }]
     }
   }, [sortField, sortOrder])
+
+  // Compute used order numbers from existing assignments
+  const usedOrderNumbers = useMemo(() => {
+    return assignments
+      .map(a => a.assignmentOrder)
+      .filter((order): order is number => order !== null && order !== undefined)
+  }, [assignments])
 
   // Handle search, sorting, and pagination with debounce (500ms)
   useEffect(() => {
@@ -312,7 +319,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
     filterLabelMap: {},
     actions: (
       <Button onClick={() => setIsCreateModalVisible(true)} data-testid={`${PREFIX}-create-button`}>
-        <PiPlus className="gba:mr-2 gba:h-4 gba:w-4" />
+        <PlusIcon className="gba:mr-2 gba:h-4 gba:w-4" />
         {getTranslationFromI18nKeyAndLabel('expenseSettings.actions.createAssignment', 'Create Assignment')}
       </Button>
     )
@@ -414,7 +421,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                                       data-testid={`${PREFIX}-actions-trigger-${index}`}
                                       onClick={e => e.stopPropagation()}
                                     >
-                                      <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                      <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
@@ -425,7 +432,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                                       }}
                                       data-testid={`${PREFIX}-edit-assignment-${index}`}
                                     >
-                                      <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                                      <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                       {getTranslationFromI18nKeyAndLabel(
                                         'lowcoder:expense_calculation_rule.edit',
                                         'Edit'
@@ -440,7 +447,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                                       className="gba:text-destructive"
                                       data-testid={`${PREFIX}-delete-assignment-${index}`}
                                     >
-                                      <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                      <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                       {getTranslationFromI18nKeyAndLabel(
                                         'lowcoder:expense_calculation_rule.delete',
                                         'Delete'
@@ -490,11 +497,11 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                                 className="gba:py-3 gba:px-6"
                                 data-testid={`${PREFIX}-cell-valid-from-${index}`}
                               >
-                                <span className="gba:text-sm">{dayjs(assignment.activeFrom).format('DD/MM/YYYY')}</span>
+                                <span className="gba:text-sm">{formatDate(assignment.activeFrom)}</span>
                               </TableCell>
                               <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-valid-to-${index}`}>
                                 <span className="gba:text-sm">
-                                  {assignment.activeTo ? dayjs(assignment.activeTo).format('DD/MM/YYYY') : 'Ongoing'}
+                                  {assignment.activeTo ? formatDate(assignment.activeTo) : 'Ongoing'}
                                 </span>
                               </TableCell>
                               <TableCell
@@ -580,6 +587,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
           <AssignmentForm
             accessToken={accessToken}
             availableRules={rules}
+            usedOrderNumbers={usedOrderNumbers}
             onSave={handleCreateSubmit}
             onCancel={() => setIsCreateModalVisible(false)}
             isEditing={false}
@@ -602,6 +610,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
             <AssignmentForm
               accessToken={accessToken}
               availableRules={rules}
+              usedOrderNumbers={usedOrderNumbers}
               initialData={editingAssignment}
               onSave={handleEditSubmit}
               onCancel={() => {

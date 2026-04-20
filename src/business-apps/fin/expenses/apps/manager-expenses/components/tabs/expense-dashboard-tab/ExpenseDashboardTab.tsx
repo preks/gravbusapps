@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, IconAvatar } from '@newwork/nw-design-system'
-import { PiListChecks, PiChartLineUp, PiFileText, PiCalendar, PiClockAfternoon } from 'react-icons/pi'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, IconAvatar, useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../_i18n'
+import { ListChecksIcon, ChartLineUpIcon, FileTextIcon, CalendarIcon, ClockAfternoonIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import { standardizeCurrencyRef } from '../../../utils/currencyUtils'
@@ -39,6 +40,7 @@ interface RecentRequestItem {
 const getErrorMessage = getNormalizedErrorMessage
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
+  const { t } = useTranslation(translations)
   const { moduleColor } = props
   // Get manager ID from props
   const managerId = props.userInfo?.employeeDetails?.employeeId || props.userInfo?.id || ''
@@ -61,27 +63,56 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
     }
   }, [mostUsedCurrency, dashboardCurrency])
 
-  // Windows for aggregates/trends
-  const monthStart = dayjs().startOf('month').toISOString()
-  const monthEnd = dayjs().add(1, 'month').startOf('month').toISOString()
-  const yearStart = dayjs().startOf('year').toISOString()
+  // Stabilize CurrencyFilter onChange handler
+  const handleCurrencyChange = useCallback(
+    (value: string | null) => {
+      setDashboardCurrency(value || mostUsedCurrency || 'EUR')
+    },
+    [mostUsedCurrency]
+  )
 
-  // Page currency: use dashboard's own currency selection
-  const pageCurrency = dashboardCurrency || mostUsedCurrency || 'EUR'
+  // Windows for aggregates/trends (memoized so overview params stay stable)
+  const { monthStart, monthEnd, yearStart } = useMemo(
+    () => ({
+      monthStart: dayjs().startOf('month').toISOString(),
+      monthEnd: dayjs().add(1, 'month').startOf('month').toISOString(),
+      yearStart: dayjs().startOf('year').toISOString()
+    }),
+    []
+  )
 
-  // Consolidated overview with dashboard's currency filter
-  const selectedCurrencyRef = pageCurrency ? standardizeCurrencyRef(pageCurrency) : undefined
-  const overview = useManagerExpensesOverview(props, {
-    managerId,
-    currencyRef: selectedCurrencyRef,
-    searchTerm: undefined,
-    requests: { limit: 5, offset: 0 },
-    plans: { limit: 1, offset: 0 },
-    payments: { limit: 1, offset: 0 },
-    monthStart,
-    monthEnd,
-    yearStart
-  })
+  // Page currency: use dashboard's own currency selection (memoized to prevent unnecessary recalculations)
+  const pageCurrency = useMemo(
+    () => dashboardCurrency || mostUsedCurrency || 'EUR',
+    [dashboardCurrency, mostUsedCurrency]
+  )
+
+  // Consolidated overview with dashboard's currency filter (memoized to prevent duplicate queries)
+  const selectedCurrencyRef = useMemo(
+    () => (pageCurrency ? standardizeCurrencyRef(pageCurrency) : undefined),
+    [pageCurrency]
+  )
+
+  // Stable nested objects to prevent unnecessary re-renders
+  const requestsParams = useMemo(() => ({ limit: 5, offset: 0 }), [])
+  const plansParams = useMemo(() => ({ limit: 1, offset: 0 }), [])
+  const paymentsParams = useMemo(() => ({ limit: 1, offset: 0 }), [])
+
+  const overviewParams = useMemo(
+    () => ({
+      managerId,
+      currencyRef: selectedCurrencyRef,
+      searchTerm: undefined as string | undefined,
+      requests: requestsParams,
+      plans: plansParams,
+      payments: paymentsParams,
+      monthStart,
+      monthEnd,
+      yearStart
+    }),
+    [managerId, selectedCurrencyRef, requestsParams, plansParams, paymentsParams, monthStart, monthEnd, yearStart]
+  )
+  const overview = useManagerExpensesOverview(props, overviewParams)
 
   // Use the dashboard's currency for display
   const displayCurrency = pageCurrency
@@ -89,134 +120,192 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   // For chart display, use the same currency as display
   const chartCurrency = displayCurrency
 
-  // Get user locale for date formatting
-  const userLocale = getCurrentActiveUserLocale()
+  // Get user locale for date formatting (memoized once)
+  const userLocale = useMemo(() => getCurrentActiveUserLocale(), [])
 
-  // Quick actions data
-  const quickActions = [
-    {
-      key: 'approvals',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.review_approvals',
-        'Approvals Review'
+  // Stabilize WidgetGroup onRetry handler
+  const handleRetry = useCallback(() => {
+    globalThis.location?.reload?.()
+  }, [])
+
+  // Memoize chart data to prevent unnecessary re-renders
+  const chartData = useMemo(() => overview.data?.monthlyExpenseTrends ?? [], [overview.data?.monthlyExpenseTrends])
+
+  // Memoize chart title (translation is stable)
+  const chartTitle = useMemo(
+    () =>
+      getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
+        'Monthly Expense Trends'
       ),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.review_pending_expense_approvals',
-        'Review pending expense approvals.'
-      ),
-      icon: PiListChecks,
-      onClick: () => props.onNavigateToApprovals?.(),
-      testId: 'review-approvals-action',
-      iconColor: 'gba:text-primary'
-    },
-    {
-      key: 'analysis',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.team_spending_analysis',
-        'Team Spending Analysis'
-      ),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.view_spending_trends_and_reports',
-        'View spending trends and reports.'
-      ),
-      icon: PiChartLineUp,
-      onClick: () => props.onNavigateToAnalytics?.(),
-      testId: 'team-spending-analysis-action',
-      iconColor: 'gba:text-success'
-    },
-    {
-      key: 'reports',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn',
-        'Expense Reports'
-      ),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.generate_or_view_team_expense_reports',
-        'Generate or view team expense reports.'
-      ),
-      icon: PiFileText,
-      onClick: () => props.onNavigateToReports?.(),
-      testId: 'expense-reports-action',
-      iconColor: 'gba:text-accent'
+    []
+  )
+
+  // Quick actions data (memoized with stable nav callbacks)
+  const quickActions = useMemo(
+    () => [
+      {
+        key: 'approvals',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.review_approvals',
+          'Approvals Review'
+        ),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.review_pending_expense_approvals',
+          'Review pending expense approvals.'
+        ),
+        icon: ListChecksIcon,
+        onClick: props.onNavigateToApprovals,
+        testId: 'review-approvals-action',
+        iconColor: 'gba:text-primary'
+      },
+      {
+        key: 'analysis',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.team_spending_analysis',
+          'Team Spending Analysis'
+        ),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.view_spending_trends_and_reports',
+          'View spending trends and reports.'
+        ),
+        icon: ChartLineUpIcon,
+        onClick: props.onNavigateToAnalytics,
+        testId: 'team-spending-analysis-action',
+        iconColor: 'gba:text-success'
+      },
+      {
+        key: 'reports',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn',
+          'Expense Reports'
+        ),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.generate_or_view_team_expense_reports',
+          'Generate or view team expense reports.'
+        ),
+        icon: FileTextIcon,
+        onClick: props.onNavigateToReports,
+        testId: 'expense-reports-action',
+        iconColor: 'gba:text-accent'
+      }
+    ],
+    [props.onNavigateToApprovals, props.onNavigateToReports, props.onNavigateToAnalytics]
+  )
+
+  // Transform dashboard data into widgets format (memoized depending on overview data and display currency)
+  const widgets: WidgetItem[] = useMemo(() => {
+    // Compute pending sum only when overview data changes
+    const pendingApprovalsCount = (() => {
+      const pendingRequestsCount = overview.data?.pendingRequestsAll ?? 0
+      const pendingPlansCount = overview.data?.pendingPlansAll ?? 0
+      const pendingPaymentsCount = overview.data?.pendingPaymentsAll ?? 0
+      return pendingRequestsCount + pendingPlansCount + pendingPaymentsCount
+    })()
+
+    return [
+      {
+        key: 'team-members',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.team_members',
+          'Team Members'
+        ),
+        value: overview.data?.teamMembersCount ?? 0,
+        prefix: <ListChecksIcon />,
+        color: 'var(--nw-primary)',
+
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.total_team_members',
+          'Total team members'
+        )
+      },
+      {
+        key: 'pending-approvals',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.pending_approvals',
+          'Pending Approvals'
+        ),
+        // Unfiltered: sum pending across requests, plans, and payments
+        value: pendingApprovalsCount,
+        prefix: <ClockAfternoonIcon />,
+        color: 'var(--nw-warning)',
+
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.pending_requests_plans_payments',
+          'Requests, Plans and Advance Payments pending'
+        )
+      },
+      {
+        key: 'monthly-expenses',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.monthly_expenses',
+          'Monthly Expenses'
+        ),
+        value: overview.data?.monthlyExpensesAmount
+          ? formatCurrencyDisplay(overview.data.monthlyExpensesAmount, displayCurrency)
+          : formatCurrencyDisplay(0, displayCurrency),
+        prefix: (
+          <span className="gba:font-medium" data-testid="dashboard-monthly-expenses-currency-code">
+            {displayCurrency}
+          </span>
+        ),
+        color: 'var(--nw-success)',
+        valueIsString: true,
+
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.current_month',
+          'Current month'
+        )
+      },
+      // Removed legacy dashboardData usage; keep placeholder with zero until categories are added to overview
+      {
+        key: 'expense-categories',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.expense_categories',
+          'Expense Categories'
+        ),
+        value: 0,
+        prefix: <CalendarIcon />,
+        color: 'var(--nw-accent)',
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.dashboard_tab.categories_used',
+          'Categories used'
+        )
+      }
+    ]
+  }, [
+    overview.data?.teamMembersCount,
+    overview.data?.pendingRequestsAll,
+    overview.data?.pendingPlansAll,
+    overview.data?.pendingPaymentsAll,
+    overview.data?.monthlyExpensesAmount,
+    displayCurrency
+  ])
+
+  // Recent requests list (memoized - data only, no JSX)
+  const recentRequestsForDisplay = useMemo(() => {
+    if (!Array.isArray(overview.data?.expenseRequests) || overview.data.expenseRequests.length === 0) {
+      return []
     }
-  ]
 
-  // Transform dashboard data into widgets format
-  const widgets: WidgetItem[] = [
-    {
-      key: 'team-members',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.team_members',
-        'Team Members'
-      ),
-      value: overview.data?.teamMembersCount ?? 0,
-      prefix: <PiListChecks />,
-      color: 'var(--nw-primary)',
-
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.total_team_members',
-        'Total team members'
+    return overview.data.expenseRequests
+      .filter((req: any) => {
+        const code = req?.currencyRef ? String(req.currencyRef).split(':').pop() : undefined
+        return !pageCurrency || code === pageCurrency
+      })
+      .slice(0, 5)
+      .map(
+        (req: any): RecentRequestItem => ({
+          id: req.id,
+          title: req.title,
+          totalAmount: Number(req.totalAmount ?? 0),
+          requestDate: req.requestDate || req.createdAt,
+          status: req.status,
+          employeeName: req.employee?.fullName || req.employee?.displayName || '',
+          currency: req.currencyRef ? String(req.currencyRef).split(':').pop() : undefined
+        })
       )
-    },
-    {
-      key: 'pending-approvals',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.pending_approvals',
-        'Pending Approvals'
-      ),
-      // Unfiltered: sum pending across requests, plans, and payments
-      value: (() => {
-        const r = overview.data?.pendingRequestsAll ?? 0
-        const p = overview.data?.pendingPlansAll ?? 0
-        const a = overview.data?.pendingPaymentsAll ?? 0
-        return r + p + a
-      })(),
-      prefix: <PiClockAfternoon />,
-      color: 'var(--nw-warning)',
-
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.pending_requests_plans_payments',
-        'Requests, Plans and Advance Payments pending'
-      )
-    },
-    {
-      key: 'monthly-expenses',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.monthly_expenses',
-        'Monthly Expenses'
-      ),
-      value: overview.data?.monthlyExpensesAmount
-        ? formatCurrencyDisplay(overview.data.monthlyExpensesAmount, displayCurrency)
-        : formatCurrencyDisplay(0, displayCurrency),
-      prefix: (
-        <span className="gba:font-medium" data-testid="dashboard-monthly-expenses-currency-code">
-          {displayCurrency}
-        </span>
-      ),
-      color: 'var(--nw-success)',
-      valueIsString: true,
-
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.current_month',
-        'Current month'
-      )
-    },
-    // Removed legacy dashboardData usage; keep placeholder with zero until categories are added to overview
-    {
-      key: 'expense-categories',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_categories',
-        'Expense Categories'
-      ),
-      value: 0,
-      prefix: <PiCalendar />,
-      color: 'var(--nw-accent)',
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.categories_used',
-        'Categories used'
-      )
-    }
-  ]
+  }, [overview.data?.expenseRequests, pageCurrency])
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-dashboard-tab-container">
@@ -228,9 +317,10 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
           </span>
           <CurrencyFilter
             value={pageCurrency}
-            onChange={value => setDashboardCurrency(value || mostUsedCurrency || 'EUR')}
+            onChange={handleCurrencyChange}
             isLoading={currenciesLoading}
             currencies={availableCurrencies}
+            showAllOption={false}
             data-testid="expense-dashboard-currency-select"
           />
         </div>
@@ -241,7 +331,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
           widgets={widgets}
           isLoading={overview.isLoading}
           error={overview.error ? getErrorMessage(overview.error) : null}
-          onRetry={() => globalThis.location?.reload?.()}
+          onRetry={handleRetry}
           skeletonCount={4}
           emptyText={undefined}
           data-testid="expense-dashboard-statistics"
@@ -252,12 +342,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       <div className="gba:flex-1 gba:space-y-6">
         {/* Quick Actions Section */}
         <div>
-          <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.quick_actions',
-              'Quick Actions'
-            )}
-          </h3>
+          <h3 className="gba:text-lg gba:font-semibold gba:mb-4">{t('insights-reports-title')}</h3>
           <div className="gba:grid gba:grid-cols-3 gba:gap-4">
             {quickActions.map(action => {
               return (
@@ -299,53 +384,36 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {Array.isArray(overview.data?.expenseRequests) && overview.data.expenseRequests.length > 0 ? (
+              {recentRequestsForDisplay.length > 0 ? (
                 <div className="gba:space-y-4">
-                  {overview.data.expenseRequests
-                    .filter((req: any) => {
-                      const code = req?.currencyRef ? String(req.currencyRef).split(':').pop() : undefined
-                      return !pageCurrency || code === pageCurrency
-                    })
-                    .slice(0, 5)
-                    .map((req: any) => {
-                      const request: RecentRequestItem = {
-                        id: req.id,
-                        title: req.title,
-                        totalAmount: Number(req.totalAmount ?? 0),
-                        requestDate: req.requestDate || req.createdAt,
-                        status: req.status,
-                        employeeName: req.employee?.fullName || req.employee?.displayName || '',
-                        currency: req.currencyRef ? String(req.currencyRef).split(':').pop() : undefined
-                      }
-                      return (
-                        <div
-                          key={request.id}
-                          className="gba:flex gba:justify-between gba:items-start gba:pb-4 gba:border-b gba:border-border gba:last:border-0"
-                        >
-                          <div className="gba:flex-1">
-                            <p className="gba:font-medium gba:text-sm gba:mb-1">{request.title}</p>
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <p className="gba:text-sm gba:text-muted-foreground">{request.employeeName}</p>
-                              <span className="gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:bg-secondary gba:text-secondary-foreground">
-                                {getExpenseRequestStatusDisplay(request.status).label}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="gba:text-right gba:ml-4">
-                            <p className="gba:font-medium gba:text-sm">
-                              {typeof request.totalAmount === 'number'
-                                ? formatCurrencyDisplay(request.totalAmount, request.currency || displayCurrency)
-                                : formatCurrencyDisplay(request.totalAmount || 0, request.currency || displayCurrency)}
-                            </p>
-                            <p className="gba:text-sm gba:text-muted-foreground">
-                              {request.requestDate && request.requestDate !== 'N/A'
-                                ? dayjs(request.requestDate).locale(userLocale).format('L')
-                                : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                            </p>
-                          </div>
+                  {recentRequestsForDisplay.map(request => (
+                    <div
+                      key={request.id}
+                      className="gba:flex gba:justify-between gba:items-start gba:pb-4 gba:border-b gba:border-border gba:last:border-0"
+                    >
+                      <div className="gba:flex-1">
+                        <p className="gba:font-medium gba:text-sm gba:mb-1">{request.title}</p>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <p className="gba:text-sm gba:text-muted-foreground">{request.employeeName}</p>
+                          <span className="gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:bg-secondary gba:text-secondary-foreground">
+                            {getExpenseRequestStatusDisplay(request.status).label}
+                          </span>
                         </div>
-                      )
-                    })}
+                      </div>
+                      <div className="gba:text-right gba:ml-4">
+                        <p className="gba:font-medium gba:text-sm">
+                          {typeof request.totalAmount === 'number'
+                            ? formatCurrencyDisplay(request.totalAmount, request.currency || displayCurrency)
+                            : formatCurrencyDisplay(request.totalAmount || 0, request.currency || displayCurrency)}
+                        </p>
+                        <p className="gba:text-sm gba:text-muted-foreground">
+                          {request.requestDate && request.requestDate !== 'N/A'
+                            ? dayjs(request.requestDate).locale(userLocale).format('L')
+                            : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="gba:py-8 gba:text-center">
@@ -384,11 +452,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
         {/* Expense Trends Chart */}
         <div>
           <ExpenseTrendsChart
-            data={overview.data?.monthlyExpenseTrends || []}
-            title={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
-              'Monthly Expense Trends'
-            )}
+            data={chartData}
+            title={chartTitle}
             currencyFilter={chartCurrency}
             moduleColor={moduleColor}
           />

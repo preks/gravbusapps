@@ -95,9 +95,25 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
   // Extract personal information data from payload
   const newPersonalInformation: PersonalInformationData = taskPayload?.personalInformation || {}
   const oldPersonalInformation: PersonalInformationData = taskPayload?.oldPersonalInformation || {}
-  // Priority: 1) top-level employeeId, 2) nested in personalInformation object, 3) current user (fallback)
+
+  // Get the employee ID of the person whose data is being changed
+  // Check multiple possible sources for the employee ID
   const employeeIdFromPayload: string | undefined =
-    taskPayload?.employeeId || taskPayload?.personalInformation?.id || userInfo?.employeeDetails?.employeeId
+    taskPayload?.employeeId || // Top-level employeeId
+    taskPayload?.personalInformation?.id || // Nested in personalInformation
+    processMetadata?.creatorEmployeeId || // From process metadata
+    taskPayload?.creatorEmployeeId || // From task payload
+    undefined // No fallback - if we can't find it, validation won't block
+
+  // Debug logging to help troubleshoot
+  console.log('[ChangePersonalDataReview] Employee ID extraction:', {
+    fromPayload: taskPayload?.employeeId,
+    fromPersonalInfo: taskPayload?.personalInformation?.id,
+    fromProcessMetadata: processMetadata?.creatorEmployeeId,
+    fromTaskPayload: taskPayload?.creatorEmployeeId,
+    final: employeeIdFromPayload,
+    currentUser: userInfo?.employeeDetails?.employeeId
+  })
 
   // Fetch employee and catalog data
   const { employeeData, catalogMap, loading, error, refetch } = usePersonalDataReviewData({
@@ -185,11 +201,22 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
   }
 
   const handleAcknowledge = async () => {
+    // Prevent HR from approving their own changes
+    const currentEmployeeId = userInfo?.employeeDetails?.employeeId
+    if (currentEmployeeId && employeeIdFromPayload && currentEmployeeId === employeeIdFromPayload) {
+      alert(
+        t('error-cannot-approve-own-changes') ||
+          'You cannot approve your own personal data changes. Please ask another HR manager to review and approve.'
+      )
+      return
+    }
+
     setIsAcknowledging(true)
     try {
       dispatchProcessContinueEvent('pse_submit', {
         acknowledge: 'acknowledged',
-        approval: 'approved'
+        approval: 'approved',
+        personalInformation: newPersonalInformation
       })
     } catch (err) {
       console.error('Error acknowledging personal data change:', err)
@@ -230,6 +257,10 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
     ? employeeData.displayName || `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
     : 'Employee'
 
+  // Check if user is trying to approve their own change
+  const currentEmployeeId = userInfo?.employeeDetails?.employeeId
+  const isOwnChange = Boolean(currentEmployeeId && employeeIdFromPayload && currentEmployeeId === employeeIdFromPayload)
+
   return (
     <TaskFormLayout
       data-testid="change-personal-data-review-container"
@@ -264,7 +295,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                 label: t('action-acknowledge'),
                 onClick: handleAcknowledge,
                 variant: 'default' as const,
-                disabled: isAcknowledging,
+                disabled: isAcknowledging || isOwnChange,
                 loading: isAcknowledging,
                 icon: CheckCircle,
                 className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
@@ -276,6 +307,14 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
       }
       contentClassName="gba:space-y-4"
     >
+      {/* Self-Approval Warning Alert */}
+      {isOwnChange && (
+        <Alert variant="destructive" data-testid="self-approval-warning">
+          <AlertTitle>{t('warning-own-change-title') || 'Cannot Approve Own Changes'}</AlertTitle>
+          <AlertDescription>{t('error-cannot-approve-own-changes')}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Change Mode Alert */}
       <Alert>
         <FileText className="gba:h-4 gba:w-4" />

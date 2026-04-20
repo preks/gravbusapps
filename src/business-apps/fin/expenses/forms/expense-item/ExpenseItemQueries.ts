@@ -55,7 +55,6 @@ export const fetchEmployeeRule = async (employeeId: string, date: string, access
     const formattedDate = formatDateWithTimezone(date)
     const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`
 
-    // Use the getResource method
     return await flowClient.getResource(path)
   } catch {
     showToast(
@@ -211,7 +210,7 @@ export const fetchExpenseCatalogueData = `query fetchExpenseCatalogueData ($empl
     createdAt
     currencyRef
   }
-  expenseGroup: CatalogEntry(where: {catalog: {version: { _eq: "v1" }identifier: { _eq: "ExpenseGroup" }}objectValue: { _contains: $objectFilter }}, orderBy: {additionalValue2: ASC}) {
+  expenseGroup: CatalogEntry(where: {catalog: {version: { _eq: "v1" }identifier: { _eq: "ExpenseGroup" }}, isDeleted: { _eq: false }, objectValue: { _contains: $objectFilter }}, orderBy: {additionalValue2: ASC}) {
     id
      value
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -223,7 +222,7 @@ export const fetchExpenseCatalogueData = `query fetchExpenseCatalogueData ($empl
     }
     code
   }
-  currency: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}) {
+  currency: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}, isDeleted: { _eq: false }}) {
     id
      value
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -235,7 +234,7 @@ export const fetchExpenseCatalogueData = `query fetchExpenseCatalogueData ($empl
     }
     code
   }
-  expenceClass: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseClass"}}}) {
+  expenceClass: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseClass"}}, isDeleted: { _eq: false }}) {
     id
       value
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -280,6 +279,7 @@ export const getNewTypes = `query MyQuery($expenseRuleId: uuid, $objectFilter: j
     code
     name
     reimbursable
+    additionalProperties
     activeFrom
     activeTo
     expenseGroupRef
@@ -386,3 +386,12 @@ export const GET_EXPENSE_REQUESTS = `
     }
   }
 `
+
+/** Fetches the expense rule currency (id). Used only when expenseRuleId is present; variable is uuid! to satisfy schema. */
+export const getExpenseRuleCurrencyQuery = `query getExpenseRuleCurrency($expenseRuleId: uuid!) {
+  ExpenseRuleByPk(id: $expenseRuleId) {
+    currency {
+      id
+    }
+  }
+}`

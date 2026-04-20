@@ -99,6 +99,7 @@ export const employeeRegionLookupQuery = `
     employee: Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {
       id
       workingCondition {
+        regionRef
         region {
           id
           value
@@ -107,17 +108,66 @@ export const employeeRegionLookupQuery = `
         }
       }
     }
+    addresses: EmployeeAddress(
+      where: { employeeId: { _eq: $employeeId }, isDeleted: { _eq: false } }
+      orderBy: { type: ASC }
+    ) {
+      type
+      region {
+        id
+      }
+    }
   }
 `
 
-export const employmentRegionHolidaysQuery = `
-  query GetEmploymentRegionHolidays($activeUserLocale: String!, $regionIds: [String!]!) {
+/** Single-date bank holiday check: region (additionalValue2), year (additionalValue3), date YYYYMMDD (alternativeCode). */
+export const employmentRegionHolidayByDateQuery = `
+  query GetEmploymentRegionHolidayByDate(
+    $activeUserLocale: String!
+    $regionId: String!
+    $year: String!
+    $altCode: String!
+  ) {
     holidays: CatalogEntry(
       where: {
         catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegionHoliday" } }
-        additionalValue2: { _in: $regionIds }
+        isDeleted: { _eq: false }
+        additionalValue2: { _eq: $regionId }
+        additionalValue3: { _eq: $year }
+        alternativeCode: { _eq: $altCode }
       }
-      orderBy: { value: ASC }
+    ) {
+      id
+      value
+      additionalValue1
+      additionalValue2
+      additionalValue3
+      alternativeCode
+      translations(where: { localeCode: { _eq: $activeUserLocale } }) {
+        value
+      }
+      catalog {
+        defaultLocale
+      }
+    }
+  }
+`
+
+/** Holidays in a date range for working-days balance: alternativeCode between altCodeFrom and altCodeTo (YYYYMMDD). List required so weekends can be excluded when counting. */
+export const employmentRegionHolidaysInRangeQuery = `
+  query GetEmploymentRegionHolidaysInRange(
+    $regionId: String!
+    $altCodeFrom: String!
+    $altCodeTo: String!
+  ) {
+    holidays: CatalogEntry(
+      where: {
+        catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegionHoliday" } }
+        isDeleted: { _eq: false }
+        additionalValue2: { _eq: $regionId }
+        alternativeCode: { _gte: $altCodeFrom, _lte: $altCodeTo }
+      }
+      orderBy: { alternativeCode: ASC }
     ) {
       id
       value
@@ -126,13 +176,69 @@ export const employmentRegionHolidaysQuery = `
       additionalValue1
       additionalValue2
       additionalValue3
+    }
+  }
+`
+
+/** Per-day absence calendar view for a single employee — use for calendar painting. */
+export const employeeAbsenceCalendarRangeQuery = `
+  query GetEmployeeAbsenceCalendarRange($employeeId: uuid!, $from: date!, $to: date!) {
+    EmployeeAbsenceCalendarView(
+      where: {
+        employeeId: { _eq: $employeeId }
+        dayDate: { _gte: $from, _lte: $to }
+      }
+      orderBy: [{ dayDate: ASC }]
+    ) {
+      typeRef
+      status
+      dayDate
+    }
+  }
+`
+
+export const absenceTypePriorityQuery = `
+  query GetAbsenceTypePriority($typeRef: String!) {
+    CatalogEntry(
+      where: {
+        id: { _eq: $typeRef }
+        isDeleted: { _eq: false }
+        catalog: { version: { _eq: "v1" }, identifier: { _eq: "AbsenceType" } }
+      }
+      limit: 1
+    ) {
+      id
       objectValue
-      translations(where: { localeCode: { _eq: $activeUserLocale } }) {
-        value
+    }
+  }
+`
+
+/** Latest snapshot for one employee + absence type in an overlapping period window. */
+export const latestEntitlementSnapshotForRangeQuery = `
+  query GetLatestEntitlementSnapshotForRange(
+    $employeeId: uuid!
+    $typeRef: String!
+    $from: date!
+    $to: date!
+  ) {
+    EntitlementUsageSnapshotView(
+      where: {
+        employeeId: { _eq: $employeeId }
+        typeRef: { _eq: $typeRef }
+        periodStart: { _lte: $to }
+        periodEnd: { _gte: $from }
       }
-      catalog {
-        defaultLocale
-      }
+      orderBy: [{ snapshotAt: DESC }]
+      limit: 1
+    ) {
+      typeRef
+      periodStart
+      periodEnd
+      totalEntitlement
+      usedApproved
+      usedPending
+      remaining
+      snapshotAt
     }
   }
 `

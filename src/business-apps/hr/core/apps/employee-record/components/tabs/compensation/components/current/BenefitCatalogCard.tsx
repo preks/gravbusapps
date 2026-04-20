@@ -8,6 +8,7 @@ import { parseBenefitObjectValue } from '../../utils/benefitDetailsUtils'
 import AvailableBenefitLayout from './AvailableBenefitLayout'
 import ActiveBenefitLayout from './ActiveBenefitLayout'
 import ScheduledBenefitLayout from './ScheduledBenefitLayout'
+import NotApprovedBenefitLayout from './NotApprovedBenefitLayout'
 
 interface BenefitCatalogCardProps extends BusinessAppContextProps {
   /**
@@ -104,22 +105,47 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
     const baseClasses = 'gba:p-3 gba:transition-all gba:duration-200'
 
     if (benefit.isActive) {
-      return `${baseClasses} gba:border-success gba:bg-success-secondary/10`
+      return `${baseClasses} gba:bg-decorative-secondary`
     }
 
     if (benefit.isScheduled) {
-      return `${baseClasses} gba:border-info gba:bg-info-secondary/10`
+      return `${baseClasses} gba:bg-decorative-secondary`
     }
 
-    return `${baseClasses} gba:border-border gba:hover:border-accent`
+    if (benefit.isCancelled) {
+      return `${baseClasses} gba:border-border gba:bg-background`
+    }
+
+    return `${baseClasses} gba:border-border gba:bg-background gba:hover:border-accent`
   }
 
   const valueDisplay = benefit.isActive || benefit.isScheduled ? getBenefitValueDisplay() : null
 
+  const isScheduled = benefit.isScheduled
+  const cardClassName = [
+    getCardClassName(),
+    'gba:w-full',
+    isScheduled ? 'gba:flex gba:flex-col gba:h-full gba:min-h-0' : ''
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <Card className={getCardClassName()} data-testid={`benefit-catalog-card-${benefit.code}`}>
+    <Card className={cardClassName} data-testid={`benefit-catalog-card-${benefit.code}`}>
+      {/* Not approved benefits (CANCELLED_COMPENSATION) */}
+      {benefit.isCancelled && (
+        <NotApprovedBenefitLayout
+          t={t}
+          benefit={benefit}
+          employeeId={employeeId}
+          locale={locale}
+          onViewDetails={handleViewDetails}
+          accessToken={accessToken}
+        />
+      )}
+
       {/* Available Benefits Layout */}
-      {!benefit.isActive && !benefit.isScheduled && (
+      {!benefit.isActive && !benefit.isScheduled && !benefit.isCancelled && (
         <AvailableBenefitLayout
           t={t}
           benefit={benefit}
@@ -144,16 +170,18 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
         />
       )}
 
-      {/* Scheduled Benefits Layout */}
+      {/* Scheduled Benefits Layout - wrapper keeps "Scheduled" section fixed at bottom */}
       {benefit.isScheduled && (
-        <ScheduledBenefitLayout
-          t={t}
-          benefit={benefit}
-          currencyCode={currencyCode}
-          locale={locale}
-          onViewDetails={handleViewDetails}
-          valueDisplay={valueDisplay}
-        />
+        <div className="gba:flex gba:flex-col gba:min-h-0 gba:h-full">
+          <ScheduledBenefitLayout
+            t={t}
+            benefit={benefit}
+            currencyCode={currencyCode}
+            locale={locale}
+            onViewDetails={handleViewDetails}
+            valueDisplay={valueDisplay}
+          />
+        </div>
       )}
     </Card>
   )

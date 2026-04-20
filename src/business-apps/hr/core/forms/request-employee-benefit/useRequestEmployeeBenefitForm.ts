@@ -74,6 +74,26 @@ export const useRequestEmployeeBenefitForm = ({
     }
   }, [startDate])
 
+  // Initialize provider: prefer selection from modal (selectedBenefit.providerRef), then first from benefitProviders or availableProviders
+  useEffect(() => {
+    const fromModal = selectedBenefit?.providerRef
+    const providerIds = benefitProviders.map(p => p.id)
+    const fromAvailable = selectedBenefit?.availableProviders?.map(p => p.id) ?? []
+    const validIds = new Set([...providerIds, ...fromAvailable])
+
+    if (fromModal && validIds.has(fromModal)) {
+      setProvider(fromModal)
+      return
+    }
+    if (!provider) {
+      if (benefitProviders.length > 0) {
+        setProvider(benefitProviders[0].id)
+      } else if (selectedBenefit?.availableProviders && selectedBenefit.availableProviders.length > 0) {
+        setProvider(selectedBenefit.availableProviders[0].id)
+      }
+    }
+  }, [benefitProviders, selectedBenefit])
+
   const {
     includedValueDisplay,
     resolvedPeriodDisplay,
@@ -108,11 +128,19 @@ export const useRequestEmployeeBenefitForm = ({
 
   const isFormValid = useMemo(() => {
     const trimmedJustification = justification.trim()
-    return (
-      startDate.length > 0 &&
-      trimmedJustification.length >= BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH &&
-      trimmedJustification.length <= BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH
-    )
+    // Start date is required
+    if (startDate.length === 0) return false
+
+    // Justification is optional, but if provided, must meet min/max length requirements
+    if (trimmedJustification.length > 0) {
+      return (
+        trimmedJustification.length >= BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH &&
+        trimmedJustification.length <= BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH
+      )
+    }
+
+    // Form is valid if start date is present and justification is empty or meets requirements
+    return true
   }, [startDate, justification])
 
   const buildSubmitPayload = useCallback(

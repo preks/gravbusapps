@@ -199,12 +199,11 @@ export const getCompleteAggregationsQuery = (timeFilter: string, vacationGroupId
 
   const baseWhere = buildBaseWhere(dateFilters.startDate, dateFilters.endDate)
 
+  const currentYear = new Date().getFullYear()
+  const currentYearStart = `${currentYear}-01-01`
+  const currentYearEnd = `${currentYear}-12-31`
   let vacationWhereCondition = ''
   if (vacationGroupId) {
-    const currentYear = new Date().getFullYear()
-    const currentYearStart = `${currentYear}-01-01`
-    const currentYearEnd = `${currentYear}-12-31`
-
     vacationWhereCondition = `
     where: {
       _and: [
@@ -282,6 +281,23 @@ export const getCompleteAggregationsQuery = (timeFilter: string, vacationGroupId
     }
     `
         : ''
+    }
+
+    entitlementSnapshot: EntitlementUsageSnapshotView(
+      where: {
+        periodStart: { _lte: "${currentYearEnd}" }
+        periodEnd: { _gte: "${currentYearStart}" }
+        typeRef: { _eq: "AbsenceType:v1:A001" }
+      }
+    ) {
+      employeeId
+      typeRef
+      totalEntitlement
+      usedApproved
+      usedPending
+      remaining
+      periodStart
+      periodEnd
     }
 
     

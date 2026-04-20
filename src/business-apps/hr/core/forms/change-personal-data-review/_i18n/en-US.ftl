@@ -35,3 +35,7 @@ label-school-qualification = School Qualification
 
 # Error States
 error-loading-title = Error Loading Personal Data
+error-cannot-approve-own-changes = You cannot approve your own personal data changes. Please ask another HR manager to review and approve.
+
+# Warning States
+warning-own-change-title = Cannot Approve Own Changes

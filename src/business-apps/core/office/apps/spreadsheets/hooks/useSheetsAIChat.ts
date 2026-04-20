@@ -1,0 +1,109 @@
+import { useCallback, useMemo, useState } from 'react'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import { getPromptManagerDocumentId } from '../utils/promptManagerModelId'
+import type { SpreadsheetColumn } from '../types'
+import { SHEETS_AI_CHAT_SYSTEM_PROMPT, buildSheetsAIChatUserPrompt } from '../prompts/sheets-ai-chat'
+import { selectPreferredModel } from '../utils/aiModelSelection'
+
+export interface SheetsAIChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  createdAt: string
+}
+
+interface UseSheetsAIChatParams {
+  accessToken: string
+  sheetName: string
+  columns: SpreadsheetColumn[]
+  sheetData: Array<Record<string, unknown>>
+}
+
+interface UseSheetsAIChatResult {
+  messages: SheetsAIChatMessage[]
+  isSending: boolean
+  error: string | null
+  sendMessage: (question: string) => Promise<void>
+}
+
+const createId = () => `${Date.now()}_${Math.random().toString(16).slice(2)}`
+
+export const useSheetsAIChat = ({
+  accessToken,
+  sheetName,
+  columns,
+  sheetData
+}: UseSheetsAIChatParams): UseSheetsAIChatResult => {
+  const promptClient = usePromptManagerClient(accessToken)
+  const [messages, setMessages] = useState<SheetsAIChatMessage[]>([])
+  const [isSending, setIsSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const clippedRows = useMemo(() => sheetData.slice(0, 120), [sheetData])
+
+  const sendMessage = useCallback(
+    async (question: string) => {
+      const trimmed = question.trim()
+      if (!trimmed) return
+      const userMessage: SheetsAIChatMessage = {
+        id: createId(),
+        role: 'user',
+        content: trimmed,
+        createdAt: new Date().toISOString()
+      }
+      setMessages(prev => [...prev, userMessage])
+      setError(null)
+      setIsSending(true)
+      try {
+        const selectedModel = await selectPreferredModel(promptClient)
+        const modelId = getPromptManagerDocumentId(selectedModel)
+        if (!modelId) {
+          throw new Error('Selected AI model has no document id')
+        }
+
+        const formData = new FormData()
+        formData.append('model_id', modelId)
+        formData.append('system_content', SHEETS_AI_CHAT_SYSTEM_PROMPT)
+        formData.append('user_content', buildSheetsAIChatUserPrompt(trimmed, sheetName, columns, clippedRows))
+        formData.append('model_settings', JSON.stringify({}))
+
+        const response = await promptClient.executePrompt(formData)
+        const assistantText =
+          typeof response.content === 'string'
+            ? response.content
+            : JSON.stringify(response.content ?? 'No response content')
+
+        setMessages(prev => [
+          ...prev,
+          {
+            id: createId(),
+            role: 'assistant',
+            content: assistantText,
+            createdAt: new Date().toISOString()
+          }
+        ])
+      } catch (sendError) {
+        setError(sendError instanceof Error ? sendError.message : 'Failed to send message')
+        setMessages(prev => [
+          ...prev,
+          {
+            id: createId(),
+            role: 'assistant',
+            content: 'I could not answer right now. Please try again.',
+            createdAt: new Date().toISOString()
+          }
+        ])
+      } finally {
+        setIsSending(false)
+      }
+    },
+    [clippedRows, columns, promptClient, sheetName]
+  )
+
+  return {
+    messages,
+    isSending,
+    error,
+    sendMessage
+  }
+}

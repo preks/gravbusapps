@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_PLANS_BY_EMPLOYEE } from '../queries/expensePlans'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { buildExpensePlanOrderBy } from '../config/expensePlanOrderBy'
 
 // Translation interface for catalog entries
 export interface Translation {
@@ -169,33 +170,7 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
           offset: offset
         }
 
-        // Add orderBy for server-side sorting
-        if (sortField && sortOrder) {
-          // Map UI sort field to GraphQL field names - only include fields that exist in the schema
-          const fieldMap: Record<string, string> = {
-            code: 'code',
-            title: 'title',
-            planDate: 'planDate',
-            startDate: 'startDate',
-            endDate: 'endDate',
-            status: 'status',
-            reimbursableAmount: 'reimbursableAmount',
-            advancePaymentPaidAmount: 'advancePaymentPaidAmount',
-            totalAmount: 'totalAmount',
-            createdAt: 'createdAt',
-            updatedAt: 'updatedAt',
-            description: 'description',
-            currencyRef: 'currencyRef',
-            requestTypeRef: 'requestTypeRef'
-          }
-          const gqlField = fieldMap[sortField] || sortField
-          // Use proper null handling for better sorting, especially for numeric fields that can be null
-          const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
-          variables.orderBy = [{ [gqlField]: direction }]
-        } else {
-          // Default sorting by creation date descending
-          variables.orderBy = [{ createdAt: 'DESC_NULLS_LAST' }]
-        }
+        variables.orderBy = buildExpensePlanOrderBy(sortField, sortOrder)
 
         const result = await graphqlClient.request<any>(GET_EXPENSE_PLANS_BY_EMPLOYEE, variables)
         const count = result?.ExpensePlanAggregate?.aggregate?.count ?? 0

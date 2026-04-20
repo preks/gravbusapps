@@ -1,0 +1,896 @@
+# Hero
+slh-parent-label = Every Office
+slh-title = Folien
+slh-tabs-aria-label = Folienbereiche
+slh-tab-my-slides = Meine Folien
+slh-tab-shared = Geteilt
+slh-tab-favorites = Favoriten
+slh-tab-recent = Zuletzt verwendet
+slh-tab-trash = Papierkorb
+slh-refresh = Aktualisieren
+
+sidebar-back-to-desk = Zurück zum Schreibtisch
+sidebar-expand = Seitenleiste erweitern
+sidebar-collapse = Seitenleiste einklappen
+sidebar-brand-title = Folien
+sidebar-brand-subtitle = NEWWORK Apps
+sidebar-new = Neu
+sidebar-home = Startseite
+sidebar-my-items = Meine Folien
+sidebar-shared = Mit mir geteilt
+sidebar-favorites = Favoriten
+sidebar-recent = Zuletzt verwendet
+sidebar-trash = Papierkorb
+sidebar-storage = Speicher
+sidebar-storage-cloud = Cloud-Speicher
+sidebar-storage-slides = { $count } Folien
+
+menu-new-blank-title = Leere Folie
+menu-new-blank-description = Von Grund auf beginnen
+menu-new-ai-title = Mit KI generieren
+menu-new-ai-description = Präsentation mit KI erstellen
+menu-new-template-title = Aus Vorlage
+menu-new-template-description = Vorlage auswählen
+menu-new-import-title = PowerPoint importieren
+menu-new-import-description = .pptx-Datei hochladen
+
+header-sort = Sortieren
+slides-header-search-placeholder = Folien suchen...
+sort-name = Name
+sort-modified = Geändert
+sort-created = Erstellt
+sort-trashed = In den Papierkorb verschoben am
+table-owner = Besitzer
+table-trashed = In den Papierkorb verschoben am
+
+slides-empty-favorites-title = Noch keine Favoriten
+slides-empty-favorites-description = Markieren Sie häufig verwendete Folien mit einem Stern.
+slides-empty-shared-title = Nichts mit Ihnen geteilt
+slides-empty-shared-description = Geteilte Folien erscheinen hier.
+slides-empty-trash-title = Keine Folien im Papierkorb
+slides-empty-trash-description = In den Papierkorb verschobene Folien erscheinen hier.
+slides-empty-default-title = Noch keine Folien
+slides-empty-default-description = Erstellen Sie Ihre erste Folie.
+empty-create-slide = Folie erstellen
+trash-state-title = Diese Präsentation befindet sich im Papierkorb
+trash-state-description = Präsentationen im Papierkorb sind schreibgeschützt, bis Sie sie wiederherstellen. Sie können sie jetzt wiederherstellen oder dauerhaft löschen.
+trashed-readonly-title = Diese Präsentation befindet sich im Papierkorb
+trashed-readonly-description = „{ $title }“ befindet sich im Papierkorb. Sie können die Inhalte ansehen, aber weder bearbeiten noch daran zusammenarbeiten.
+trashed-readonly-owner-note = Stellen Sie diese Präsentation wieder her, um Bearbeitung und Zusammenarbeit fortzusetzen.
+trashed-readonly-shared-note = Nur der Eigentümer kann diese Präsentation wiederherstellen. Sie können die Inhalte hier weiterhin ansehen.
+trashed-readonly-go-home = Zu Folien
+trashed-readonly-restore = Wiederherstellen
+trashed-readonly-restoring = Wird wiederhergestellt...
+
+menu-open = Öffnen
+menu-share = Teilen
+menu-manage-sharing = Freigabe verwalten
+menu-copy-link = Link kopieren
+menu-duplicate = Duplizieren
+menu-remove-favorite = Aus Favoriten entfernen
+menu-add-favorite = Zu Favoriten hinzufügen
+menu-delete = Löschen
+
+label-shared = Geteilt
+owner-you = Sie
+owner-unknown = Unbekannt
+title-untitled = Unbenannt
+title-untitled-slide = Unbenannte Folie
+shared-with-count = Geteilt mit { $count } { $count ->
+  [one] Person
+ *[other] Personen
+}
+shared-click-manage = Klicken zum Verwalten
+
+confirm-delete = Diese Präsentation in den Papierkorb verschieben?
+delete-confirm-title = In den Papierkorb verschieben?
+delete-confirm-single = "{$name}" wird in den Papierkorb verschoben. Sie können es innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-multi = {$count} Elemente werden in den Papierkorb verschoben. Sie können sie innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-action = In den Papierkorb verschieben
+delete-confirm-cancel = Abbrechen
+toast-slide-duplicated = Folie dupliziert
+toast-link-copied = Link in Zwischenablage kopiert
+toast-favorite-removed = Aus Favoriten entfernt
+toast-favorite-added = Zu Favoriten hinzugefügt
+toast-imported-slides = { $count } Folien importiert
+toast-import-failed = PowerPoint-Import fehlgeschlagen
+toast-import-partial = Präsentation erstellt, aber Folieninhalte konnten nicht gespeichert werden. Versuchen Sie, sie erneut zu öffnen und zu speichern.
+import-saving = Präsentation wird gespeichert...
+toast-template-matched = Vorlage wird verwendet: { $name }
+toast-template-applied = Vorlage angewendet
+toast-restored = Präsentation wiederhergestellt
+toast-restore-failed = Wiederherstellung der Präsentation fehlgeschlagen
+
+# Editor
+editor-slide-saved = Folie gespeichert
+editor-save-failed = Speichern fehlgeschlagen
+editor-added-element = { $type } hinzugefügt
+editor-element-deleted = Element gelöscht
+editor-element-duplicated = Element dupliziert
+editor-slide-added = Folie hinzugefügt
+editor-delete-last-slide-error = Letzte Folie kann nicht gelöscht werden
+editor-delete-slide-confirm = Diese Folie löschen?
+editor-slide-deleted = Folie gelöscht
+editor-title-empty = Titel darf nicht leer sein
+editor-presentation-renamed = Präsentation umbenannt
+editor-rename-failed = Umbenennung fehlgeschlagen
+editor-export-pptx-success = Als PowerPoint exportiert
+editor-export-failed = Export fehlgeschlagen
+
+# Relative time & formatting
+time-just-now = Gerade eben
+time-yesterday = Gestern
+time-days-ago = { $count } Tage her
+time-minutes-ago = { $count }m her
+time-hours-ago = { $count }h her
+time-days-short-ago = { $count }d her
+
+# Editor UI
+editor-back-to-slides = Zurück zu den Folien
+editor-click-to-rename = Klicken zum Umbenennen
+editor-slide-count = { $count } { $count ->
+  [one] Folie
+ *[other] Folien
+}
+editor-slide-of = Folie { $current } von { $total }
+editor-saving = Wird gespeichert...
+editor-synced = Synchronisiert
+editor-connecting = Verbinde...
+editor-zoom-out = Vergrößern
+editor-zoom-in = Verkleinern
+editor-present = Präsentieren
+editor-export = Exportieren
+editor-save-now = Jetzt speichern
+editor-export-pptx = Als PowerPoint exportieren
+editor-export-pdf-coming = PDF-Export kommt bald
+editor-export-pdf-dialog-title = Als PDF exportieren
+editor-export-pdf-slides = Folien
+editor-export-pdf-slides-all = Alle Folien
+editor-export-pdf-slides-current = Nur aktuelle Folie
+editor-export-pdf-slides-range = Benutzerdefinierter Bereich
+editor-export-pdf-notes = Sprechernotizen einschließen
+editor-export-pdf-notes-separate = Separate Seite
+editor-export-pdf-notes-footer = Fußzeile auf Folie
+editor-export-pdf-page-numbers = Seitenzahlen einschließen
+editor-export-pdf-quality = Bildqualität
+editor-export-pdf-quality-low = Niedrig (schneller, kleinere Datei)
+editor-export-pdf-quality-medium = Mittel
+editor-export-pdf-quality-high = Hoch (beste Qualität)
+editor-export-pdf-handout = Folien pro Seite
+editor-export-pdf-slides-per-page = Folien pro Seite
+editor-export-pdf-options = Optionen
+editor-export-pdf-exporting = Exportieren...
+editor-export-pdf-success = PDF erfolgreich exportiert
+editor-export-pdf-failed = PDF-Export fehlgeschlagen
+editor-insert = Einfügen:
+editor-text = Text
+editor-shapes = Formen
+editor-rectangle = Rechteck
+editor-rounded-rectangle = Abgerundetes Rechteck
+editor-circle = Kreis
+editor-triangle = Dreieck
+editor-diamond = Raute
+editor-star = Stern
+editor-hexagon = Sechseck
+editor-arrow-right = Pfeil rechts
+editor-line = Linie
+editor-callout = Sprechblase
+editor-image = Bild
+editor-code = Code
+editor-video = Video
+editor-design = Design:
+editor-background = Hintergrund
+editor-theme = Designvorlage
+editor-theme-active = Aktiv
+editor-slides-label = Folien:
+editor-add = Hinzufügen
+editor-duplicate-slide = Folie duplizieren
+editor-delete-slide = Folie löschen
+editor-properties = Eigenschaften
+editor-show-properties = Eigenschaften anzeigen
+editor-select-element = Element auswählen, um seine Eigenschaften zu bearbeiten
+editor-edit-text = Text bearbeiten
+editor-done = Fertig
+editor-add-image = Bild einfügen
+editor-upload-from-computer = Vom Computer hochladen
+editor-paste-image-url = Oder Bild-URL einfügen
+editor-add-button = Hinzufügen
+editor-image-url-placeholder = https://example.com/bild.jpg
+editor-rename-presentation = Präsentation umbenennen
+editor-presentation-title = Präsentationstitel
+editor-enter-title-placeholder = Präsentationstitel eingeben
+editor-cancel = Abbrechen
+editor-rename = Umbenennen
+editor-add-video = Video einfügen
+editor-paste-video-url = Oder Video-URL einfügen
+editor-video-formats = Unterstützt MP4, WebM und andere Videoformate
+editor-slide-background = Folienhintergrund
+editor-current-background = Aktueller Hintergrund
+editor-solid-colors = Volltonfarben
+editor-gradient-presets = Verlauf-Vorlagen
+editor-create-custom-gradient = Benutzerdefinierten Verlauf erstellen
+editor-video-url-placeholder = Video-URL einfügen (MP4)
+editor-video-background = Videohintergrund
+editor-video-backgrounds-note = Videohintergründe werden automatisch und stumm abgespielt
+editor-previous = ← Zurück
+editor-next = Weiter →
+editor-exit = Beenden
+editor-new-slide = Neue Folie
+editor-user-fallback = Benutzer
+editor-placeholder-title = Klicken, um Titel hinzuzufügen
+editor-placeholder-subtitle = Klicken, um Untertitel hinzuzufügen
+editor-code-placeholder = // Ihr Code hier
+
+# Collaborators
+collaborators-viewing-now = Jetzt ansehen
+collaborators-more-viewing = { $count } weitere { $count ->
+  [one] Person
+ *[other] Personen
+} sehen zu
+
+# PowerPoint Import
+import-file-too-large = Datei zu groß. Maximale Größe: { $maxSize }
+toast-import-success = PowerPoint erfolgreich importiert
+toast-import-failed-generic = Import fehlgeschlagen
+import-drop-pptx = Bitte eine PowerPoint-Datei (.pptx) ablegen
+import-importing-title = PowerPoint wird importiert
+import-parsing = Folien werden geparst und Inhalte extrahiert...
+import-failed-title = Import fehlgeschlagen
+import-try-again = Erneut versuchen
+import-success-title = Import erfolgreich
+import-imported-count = { $count } { $count ->
+  [one] Folie importiert
+ *[other] Folien importiert
+}
+import-notes = Import-Hinweise
+import-powerpoint-title = PowerPoint importieren
+import-drag-drop = .pptx-Datei hier ablegen
+import-max-size = Maximale Dateigröße: { $size }
+import-choose-file = Datei auswählen
+import-cancel = Abbrechen
+import-supported-features = Unterstützte Funktionen:
+import-feature-text = Textfelder und Formatierung
+import-feature-images = Bilder und Formen
+import-feature-layouts = Folienlayouts
+import-feature-transitions = Basisübergänge (teilweise)
+
+# Share Dialog
+share-title = Folie teilen
+share-description = „{ $title }“ mit anderen teilen und Zugriffsstufe festlegen.
+share-success-title = Folie geteilt!
+share-notified-single = { $name } wurde benachrichtigt und kann jetzt auf diese Folie zugreifen.
+share-notified-multiple = { $count } Personen wurden benachrichtigt und können jetzt auf diese Folie zugreifen.
+share-default-permission = Standardberechtigung für neue Benutzer
+share-can-view = Kann ansehen
+share-can-comment = Kann kommentieren
+share-can-edit = Kann bearbeiten
+share-add-people = Personen hinzufügen
+share-search-placeholder = Personen suchen...
+share-no-results = Keine Personen gefunden für „{ $query }“
+share-people-with-access = Personen mit Zugriff ({ $count })
+share-message-optional = Nachricht (optional)
+share-message-placeholder = Nachricht für die Empfänger hinzufügen...
+share-info = Geteilte Personen erhalten eine Benachrichtigung und können je nach Berechtigungsstufe auf die Folie zugreifen.
+share-cancel = Abbrechen
+share-button = Teilen
+share-sharing = Wird geteilt...
+share-select-one = Bitte wählen Sie mindestens einen Benutzer
+share-failed = Teilen fehlgeschlagen
+share-success-toast = Folie geteilt
+share-success-description = Geteilt mit { $count } { $count ->
+  [one] Person
+ *[other] Personen
+}
+
+# Manage Shares
+manage-title = Freigaben verwalten
+manage-description = Verwalten, wer auf „{ $title }“ zugreifen kann
+manage-not-shared = Noch mit niemandem geteilt
+manage-add-users-hint = Klicken Sie auf „Benutzer hinzufügen“, um diese Präsentation zu teilen
+manage-can-view = Kann ansehen
+manage-can-comment = Kann kommentieren
+manage-can-edit = Kann bearbeiten
+manage-add-users = Benutzer hinzufügen
+manage-done = Fertig
+manage-remove-user = Benutzer entfernen
+manage-shared-at = Geteilt { $time }
+manage-confirm-remove = Zugriff für diesen Benutzer entfernen?
+manage-permission-updated = Berechtigung aktualisiert
+manage-permission-update-failed = Berechtigung konnte nicht aktualisiert werden
+manage-user-removed = Benutzer entfernt
+manage-remove-failed = Benutzer konnte nicht entfernt werden
+manage-load-failed = Freigaben konnten nicht geladen werden
+
+# Header Actions
+header-locked = Gesperrt
+header-slide = Folie
+header-version-history = Versionsverlauf
+header-save-checkpoint = Prüfpunkt speichern
+header-unlock-slide = Folie entsperren
+header-lock-slide = Folie sperren
+header-share = Teilen...
+header-manage-access = Zugriff verwalten...
+
+# Generate Presentation
+generate-title = Präsentation generieren
+generate-description = Beschreiben Sie, was Sie benötigen, und die KI erstellt die Folien.
+generate-presentation-title-label = Präsentationstitel
+generate-presentation-title-placeholder = z.B. Q4 Geschäftsbericht
+generate-topic = Thema
+generate-topic-placeholder = Quartalsgeschäftsprüfung mit Vertriebskennzahlen, Team-Highlights und Q2-Zielen...
+generate-length = Länge
+generate-length-short = Kurz
+generate-length-medium = Mittel
+generate-length-long = Lang
+generate-slides-short = 5–8 Folien
+generate-slides-medium = 9–14 Folien
+generate-slides-long = 15–25 Folien
+generate-web-search = Websuche
+generate-web-search-desc = Echtzeitdaten und Quellen einbeziehen
+generate-references = Referenzmaterialien
+generate-references-optional = (optional)
+generate-additional-instructions = Zusätzliche Anweisungen
+generate-requirements-placeholder = Zeitachse einbeziehen, minimalen Text pro Folie, nächste Schritte am Ende...
+generate-failed = Generierung fehlgeschlagen
+generate-error-validation-hint = Bitte überprüfen Sie Ihre Eingaben und versuchen Sie es erneut.
+generate-research = Recherche
+generate-generate = Generieren
+generate-validate = Validieren
+generate-cancel = Abbrechen
+generate-button = Generieren
+generate-generating = Wird generiert...
+generate-creating-slides = Ihre Präsentation wird erstellt
+generate-ai-working = KI erstellt professionelle Folien...
+generate-use-template = Vorlage verwenden
+generate-clear-template = Vorlagenauswahl löschen
+generate-advanced-options = Erweiterte Optionen
+generate-style = Stil
+generate-style-professional = Professionell
+generate-style-creative = Kreativ
+generate-style-minimal = Minimal
+generate-style-bold = Mutig
+generate-density = Inhaltsdichte
+generate-density-detailed = Detailliert
+generate-density-balanced = Ausgewogen
+generate-density-visual = Visuell
+generate-audience = Zielgruppe
+generate-audience-executive = Führungskräfte
+generate-audience-technical = Technisch
+generate-audience-sales = Vertrieb
+generate-audience-general = Allgemein
+generate-theme-preference = Thema
+generate-theme-auto = Auto
+generate-theme-auto-desc = Thema automatisch aus Referenzmaterial erkennen
+generate-theme-dark = Dunkel
+generate-theme-dark-desc = Dunkles Thema mit hellem Text verwenden
+generate-theme-light = Hell
+generate-theme-light-desc = Helles Thema mit dunklem Text verwenden
+generate-theme-branded = Marke
+generate-theme-branded-desc = NEWWORK-Markenthema verwenden
+generate-extract-style = Stil aus Referenzen extrahieren
+generate-toast-success = Präsentation generiert!
+generate-toast-description = { $count } Folien erstellt
+generate-brand-detected = Marke erkannt
+generate-brand-detected-desc = Markenvorlage wird automatisch angewendet
+generate-brand-dismiss = Andere Vorlage verwenden
+
+# Version History
+version-history-title = Versionsverlauf
+version-description = Vorherige Versionen von „{ $title }“ anzeigen und wiederherstellen
+version-no-history = Kein Versionsverlauf verfügbar
+version-current = Aktuell
+version-current-description = Aktuelle Version
+version-checkpoint = Prüfpunkt
+version-restore = Wiederherstellen
+version-close = Schließen
+version-restore-confirm = Diese Version wiederherstellen? Aktuelle Änderungen werden als neue Version gespeichert.
+version-restored = Version wiederhergestellt
+version-restore-failed = Version konnte nicht wiederhergestellt werden
+
+# Property Panel
+props-select-element = Element auswählen, um Eigenschaften zu bearbeiten
+props-position-size = Position & Größe
+props-position-x = X
+props-position-y = Y
+props-width = Breite
+props-height = Höhe
+props-rotation = Rotation
+props-opacity = Deckkraft
+props-layer = Ebene
+props-forward = Nach vorne
+props-back = Nach hinten
+props-text-formatting = Textformatierung
+props-font-family = Schriftart
+props-font-size = Schriftgröße
+props-text-color = Textfarbe
+props-background-color = Hintergrundfarbe
+props-line-height = Zeilenhöhe
+props-letter-spacing = Zeichenabstand
+props-gradient-fill = Verlauffüllung
+props-close = Schließen
+props-custom = Benutzerdefiniert
+props-no-gradient = Kein Verlauf
+props-shape-styling = Formgestaltung
+props-fill-color = Füllfarbe
+props-stroke-color = Konturfarbe
+props-stroke-width = Konturstärke
+props-stroke-style = Konturart
+props-solid = Durchgezogen
+props-dashed = Gestrichelt
+props-dotted = Gepunktet
+props-corner-radius = Eckenradius
+props-drop-shadow = Schlagschatten
+props-image-styling = Bildgestaltung
+props-object-fit = Objektanpassung
+props-cover = Bedecken
+props-contain = Enthalten
+props-fill = Füllen
+props-none = Keine
+props-border-radius = Rahmenradius
+props-border-width = Rahmenbreite
+props-border-color = Rahmenfarbe
+props-video-styling = Videogestaltung
+props-playback = Wiedergabe
+props-autoplay = Autoplay
+props-loop = Schleife
+props-muted = Stumm
+props-lock = Sperren
+props-unlock = Entsperren
+props-duplicate = Duplizieren
+props-delete = Löschen
+props-reset-rotation = Rotation zurücksetzen
+
+# Content Attachment Picker
+attachment-add-reference = Referenz hinzufügen
+attachment-search-placeholder = Inhalt suchen...
+attachment-documents = Dokumente
+attachment-notes = Notizen
+attachment-spreadsheets = Tabellen
+attachment-slides = Folien
+attachment-no-matching = Kein passender Inhalt gefunden
+attachment-no-documents = Keine Dokumente verfügbar
+attachment-no-notes = Keine Notizen verfügbar
+attachment-no-spreadsheets = Keine Tabellen verfügbar
+attachment-no-slides = Keine Folien verfügbar
+attachment-max-references = Maximal { $count } Referenzen erlaubt
+attachment-helper = Optional Dokumente, Notizen oder anderen Inhalt als Referenz für die KI anhängen
+attachment-open-new-tab = In neuem Tab öffnen
+
+# Gradient Builder
+gradient-quick-presets = Schnellvorlagen
+gradient-type = Typ
+gradient-linear = Linear
+gradient-radial = Radial
+gradient-angle = Winkel: { $angle }°
+gradient-color-stops = Farbstopps
+gradient-add = Hinzufügen
+gradient-remove = Verlauf entfernen
+
+# Slide Editor Toolbar
+toolbar-image = Bild
+toolbar-layout = Layout
+toolbar-theme = Designvorlage
+toolbar-layout-title = Titelfolie
+toolbar-layout-title-content = Titel & Inhalt
+toolbar-layout-two-column = Zwei Spalten
+toolbar-layout-content-image = Inhalt & Bild
+toolbar-layout-blank = Leer
+toolbar-theme-default = Standard
+toolbar-theme-dark = Dunkel
+toolbar-theme-nature = Natur
+toolbar-theme-sunset = Sonnenuntergang
+toolbar-theme-ocean = Ozean
+
+# Share fallbacks / errors
+share-some-failed = Einige Freigaben sind fehlgeschlagen
+share-notifications-failed = Benachrichtigungen konnten nicht gesendet werden
+
+# useSlides
+slides-error-not-authenticated = Nicht authentifiziert
+slides-error-load-failed = Folien konnten nicht geladen werden
+slides-toast-load-failed = Präsentation konnte nicht geladen werden
+slides-default-title = Unbenannte Präsentation
+slides-toast-created = Präsentation erstellt
+slides-toast-create-failed = Präsentation konnte nicht erstellt werden
+slides-toast-save-failed = Speichern fehlgeschlagen
+slides-toast-deleted = Präsentation gelöscht
+slides-toast-moved-to-trash = Präsentation in den Papierkorb verschoben
+slides-toast-delete-failed = Löschen fehlgeschlagen
+slides-toast-duplicated = Präsentation dupliziert
+slides-toast-duplicate-failed = Duplizieren fehlgeschlagen
+
+# useSlideGeneration progress
+progress-preparing = Ihre Präsentation wird vorbereitet...
+progress-ready = Präsentation fertig!
+progress-auth-required = Authentifizierung erforderlich
+progress-generate-failed = Folien konnten nicht generiert werden
+progress-initiating-search = Websuche wird gestartet...
+progress-search-info = Das Web wird nach Informationen durchsucht...
+progress-search-tool = Suche: { $name }...
+progress-processing = Suchergebnisse werden verarbeitet...
+progress-analyzing = Forschungsdaten werden analysiert...
+progress-research-complete = Recherche abgeschlossen!
+progress-generating = Präsentation wird generiert...
+progress-web-search-failed = Websuche fehlgeschlagen, es wird ohne Recherchedaten fortgefahren
+progress-building = Folien werden erstellt...
+progress-checking-templates = Passende Vorlagen werden gesucht...
+progress-using-template = Vorlage wird verwendet: { $templateName }
+progress-loading-references = Referenzmaterialien werden geladen...
+
+# SlideGenerationService fallbacks
+generation-option-a = Option A
+generation-option-b = Option B
+generation-unknown = Unbekannt
+generation-thank-you = Vielen Dank
+generation-agenda = Agenda
+
+# usePowerPointParser
+parser-invalid-type = Ungültiger Dateityp. Bitte laden Sie eine .pptx-Datei (PowerPoint 2007 oder neuer) hoch.
+parser-invalid-file = Ungültige PowerPoint-Datei: presentation.xml fehlt
+parser-slide-not-found = Folie { $number } nicht gefunden
+parser-no-slides-parsed = Keine Folien konnten geparst werden. Leere Folie erstellt.
+parser-failed = PowerPoint-Datei konnte nicht geparst werden
+parser-imported-slide = Importierte Folie
+parser-shape-unsupported = Formtyp „{ $type }" auf Folie { $slide } wurde als Rechteck importiert
+parser-chart-unsupported = Diagrammtyp „{ $type }" auf Folie { $slide } konnte nicht importiert werden
+parser-chart-imported = { $type }-Diagramm auf Folie { $slide } importiert
+parser-table-imported = Tabelle importiert ({ $rows } Zeilen, { $cols } Spalten) auf Folie { $slide }
+parser-notes-imported = Sprechernotizen für { $count } { $count ->
+    [one] Folie
+   *[other] Folien
+} importiert
+parser-transition-unsupported = Übergang „{ $type }" auf Folie { $slide } wurde angenähert
+parser-group-flattened = Gruppierte Formen auf Folie { $slide } wurden aufgelöst
+parser-theme-mapped = Präsentationsdesign wurde „{ $theme }" zugeordnet
+import-preview-title = Importvorschau
+import-preview-select-slides = Folien zum Import auswählen
+import-preview-selected = { $selected } von { $total } Folien ausgewählt
+import-preview-import-all = Alle importieren
+import-preview-import-selected = Auswahl importieren
+
+# SlidesApiService
+api-error = API-Fehler: { $status }
+api-slide-not-found = Folie nicht gefunden
+
+# Theme display names
+theme-corporate = Corporate Blau
+theme-dark = Dunkelmodus
+theme-nature = Natur Grün
+theme-sunset = Sonnenuntergang Orange
+theme-ocean = Ozean Breeze
+theme-minimal = Minimal
+theme-gradient = Verlauf Lila
+
+# Synced missing keys
+editor-export-pdf = Als PDF exportieren
+version-load-failed = Versionen konnten nicht geladen werden
+version-number = Version { $number }
+
+# Refine Slide
+refine-button-label = Verfeinern
+refine-title = Folie verfeinern
+refine-description = Beschreiben Sie, wie Sie diese Folie verbessern möchten
+refine-current-slide = Aktuelle Folie
+refine-instructions = Was möchten Sie ändern?
+refine-instructions-placeholder = z.B. Ein Kreisdiagramm hinzufügen, die Aufzählungspunkte vereinfachen, visueller gestalten...
+refine-web-search = Web nach aktuellen Daten durchsuchen
+refine-web-search-desc = Aktuelle Statistiken und Informationen finden
+refine-failed = Verfeinerung fehlgeschlagen
+refine-analyzing = Aktuelle Folie wird analysiert...
+refine-refining = Folie wird verfeinert...
+refine-building = Verfeinerte Folie wird erstellt...
+refine-preview = Vorschau der verfeinerten Folie
+refine-cancel = Abbrechen
+refine-apply = Änderungen übernehmen
+refine-button = Folie verfeinern
+refine-refining-button = Verfeinern...
+editor-slide-refined = Folie erfolgreich verfeinert
+
+# Templates
+template-save-button = Als Vorlage speichern
+template-save-title = Als Vorlage speichern
+template-save-description = Speichern Sie Ihre aktuellen Folien als wiederverwendbare Vorlage
+template-slides-preview = Folien
+template-name-label = Vorlagenname
+template-name-placeholder = z.B. Verkaufspräsentation Vorlage
+template-description-label = Beschreibung
+template-description-placeholder = Beschreiben Sie, wann diese Vorlage verwendet werden soll...
+template-category-label = Kategorie
+template-category-business = Geschäftlich
+template-category-creative = Kreativ
+template-category-minimal = Minimal
+template-category-custom = Benutzerdefiniert
+template-public-label = Mit Organisation teilen
+template-public-description = Diese Vorlage für alle Benutzer verfügbar machen
+template-cancel = Abbrechen
+template-save-btn = Vorlage speichern
+template-saving = Speichern...
+template-save-error = Vorlage konnte nicht gespeichert werden
+template-saved-title = Vorlage gespeichert
+template-saved-description = Ihre Vorlage wurde erfolgreich gespeichert
+
+template-brand-settings = Markeneinstellungen
+template-brand-company = Firmenname
+template-brand-company-placeholder = z.B. NEWWORK
+template-brand-company-required = Firmenname ist für Markenvorlagen erforderlich
+template-brand-keywords = Erkennungsschlüsselwörter
+template-brand-keywords-placeholder = z.B. newwork, gravity, everyoffice
+template-brand-keywords-help = Kommagetrennte Schlüsselwörter zur automatischen Erkennung dieser Marke in Präsentationsthemen
+
+template-browse-button = Vorlagen
+template-browser-title = Vorlagen-Browser
+template-browser-description = Wählen Sie eine Vorlage für Ihre Präsentation
+template-tab-all = Alle
+template-category-branded = Markenvorlagen
+template-tab-my-templates = Meine Vorlagen
+template-search-placeholder = Vorlagen suchen...
+template-loading = Vorlagen werden geladen...
+template-empty-title = Keine Vorlagen gefunden
+template-empty-search = Versuchen Sie einen anderen Suchbegriff
+template-empty-description = Erstellen Sie Ihre erste Vorlage, um zu beginnen
+template-selected = Ausgewählt
+template-select-hint = Wählen Sie eine Vorlage aus, um fortzufahren
+template-apply-btn = Vorlage verwenden
+template-applying = Anwenden...
+template-applied-title = Vorlage angewendet
+template-applied-description = Die Vorlage wurde zu Ihrer Präsentation hinzugefügt
+
+template-public = Öffentlich
+template-private = Privat
+template-ai-optimized = KI-optimierte Vorlage mit definierten Folienzwecken
+template-delete = Löschen
+template-delete-confirm = Diese Vorlage löschen?
+template-delete-title = Vorlage löschen
+template-delete-message = Möchten Sie „{ $name }" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+template-deleted-title = Vorlage gelöscht
+template-deleted-description = „{ $name }" wurde gelöscht.
+template-delete-error-title = Löschen fehlgeschlagen
+template-delete-error-description = Die Vorlage konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.
+
+# Speaker Notes
+editor-speaker-notes = Sprechernotizen
+editor-speaker-notes-placeholder = Sprechernotizen für diese Folie hinzufügen...
+editor-speaker-notes-chars = { $count } Zeichen
+editor-speaker-notes-empty = Keine Notizen für diese Folie
+
+# Presenter View
+presenter-view = Referentenansicht
+presenter-current-slide = Aktuelle Folie
+presenter-next-slide = Nächste Folie
+presenter-notes = Notizen
+presenter-no-notes = Keine Notizen für diese Folie
+presenter-last-slide = Letzte Folie
+presenter-time-elapsed = Vergangen
+presenter-exit = Beenden
+
+# Voice Input
+editor-voice-listening = Hört zu... Sprechen Sie jetzt
+editor-voice-not-supported = Spracheingabe wird in diesem Browser nicht unterstützt
+editor-voice-start = Spracheingabe starten
+editor-voice-stop = Spracheingabe stoppen
+editor-voice-recognizing = Erkannt
+editor-voice-recording = Aufnahme läuft...
+editor-voice-hint = Tipp: Klicken Sie auf "Spracheingabe", um zu diktieren
+editor-text-placeholder = Geben Sie hier Ihren Text ein...
+
+# Bilderweiterungen
+props-image-source = Bildquelle
+props-replace-image = Ersetzen
+props-alt-text = Alternativtext
+props-alt-text-placeholder = Beschreiben Sie dieses Bild...
+editor-image-pasted = Bild aus Zwischenablage eingefügt
+editor-image-background = Bild-Hintergrund
+editor-upload-background-image = Bild hochladen
+editor-background-image-url = Oder Bild-URL einfügen
+editor-image-load-error = Bild konnte nicht geladen werden
+
+# Spell Check
+spell-check-button = Rechtschreibprüfung
+spell-check-panel-title = Rechtschreib- und Grammatikprüfung
+spell-check-checking = Prüfung läuft...
+spell-check-recheck = Erneut prüfen
+spell-check-no-issues = Keine Probleme gefunden
+spell-check-all-good = Aller Text ist korrekt!
+spell-check-not-checked = Klicken Sie, um Ihre Präsentation zu überprüfen
+spell-check-click-to-start = Klicken Sie auf die Schaltfläche oben, um die Prüfung zu starten
+spell-check-issues-found = { $count ->
+    [one] { $count } Problem gefunden
+   *[other] { $count } Probleme gefunden
+}
+spell-check-slide = Folie { $number }
+spell-check-accept = Übernehmen
+spell-check-ignore = Ignorieren
+spell-check-ignore-all = Alle ignorieren
+spell-check-suggestion = Vorschlag:
+spell-check-add-to-dictionary = Zum Wörterbuch hinzufügen
+spell-check-error = Rechtschreibprüfung fehlgeschlagen. Bitte stellen Sie sicher, dass der Document Reviewer konfiguriert ist.
+spell-check-browser-mode = Verwende einfache Rechtschreibprüfung (wörterbuchbasiert)
+
+# Hyperlinks
+link-add = Link hinzufügen
+link-edit = Link bearbeiten
+link-remove = Link entfernen
+link-url-label = URL
+link-url-placeholder = https://beispiel.de
+link-url-required = URL ist erforderlich
+link-url-invalid = Ungültige URL
+link-click-to-open = Klicken zum Öffnen
+link-selected-text = Ausgewählter Text
+link-cancel = Abbrechen
+link-update = Aktualisieren
+link-add-btn = Link hinzufügen
+
+# Folienübergänge
+transition-title = Folienübergang
+transition-type = Typ
+transition-none = Keiner
+transition-fade = Ausblenden
+transition-slide-left = Nach links schieben
+transition-slide-right = Nach rechts schieben
+transition-slide-up = Nach oben schieben
+transition-slide-down = Nach unten schieben
+transition-push-left = Nach links drücken
+transition-push-right = Nach rechts drücken
+transition-zoom-in = Vergrößern
+transition-zoom-out = Verkleinern
+transition-flip = Umdrehen
+transition-cube = Würfel
+transition-dissolve = Auflösen
+transition-duration = Dauer
+transition-trigger = Auslöser
+transition-trigger-click = Bei Klick
+transition-trigger-auto = Automatisch
+transition-delay = Verzögerung
+transition-preview = Vorschau
+
+# Menüband-Symbolleiste
+ribbon-tab-home = Start
+ribbon-tab-insert = Einfügen
+ribbon-tab-slideshow = Bildschirmpräsentation
+ribbon-aria-label = Folieneditor-Menüband
+
+# Symbolleisten-Hinweise
+toolbar-select-element-hint = Element auswählen zum Formatieren
+toolbar-video-hint = Video im Eigenschaftenfenster bearbeiten
+toolbar-code-hint = Code im Eigenschaftenfenster bearbeiten
+toolbar-multi-hint = { $count } Elemente ausgewählt
+
+# Formatierungsbeschriftungen
+editor-undo = Rückgängig
+editor-redo = Wiederholen
+editor-copy = Kopieren
+editor-paste = Einfügen
+editor-bold = Fett
+editor-italic = Kursiv
+editor-underline = Unterstrichen
+editor-strikethrough = Durchgestrichen
+editor-align-left = Linksbündig
+editor-align-center = Zentriert
+editor-align-right = Rechtsbündig
+editor-text-color = Textfarbe
+editor-link = Link
+editor-code-placeholder = // Code hier
+
+# Einfügen-Tab-Gruppen
+insert-elements-group = Elemente
+insert-media-group = Medien
+insert-templates-group = Vorlagen
+insert-ai-group = KI-Tools
+
+# Bildschirmpräsentation-Tab
+slideshow-start-group = Starten
+slideshow-broadcast-group = Übertragen
+slideshow-view-group = Ansicht
+slideshow-export-group = Exportieren
+slideshow-present = Präsentieren
+slideshow-presenter-view = Referentenansicht
+slideshow-present-window = Im Fenster präsentieren
+slideshow-cast = Auf Anzeige übertragen
+slideshow-cast-connecting = Verbinden...
+slideshow-speaker-notes = Sprechernotizen
+slideshow-transitions = Übergänge
+slideshow-save-now = Jetzt speichern
+slideshow-export-pptx = Als PPTX exportieren
+slideshow-export-pdf = Als PDF exportieren
+
+# Folienzwecke
+slide-purpose-cover = Titelfolie
+slide-purpose-cover-desc = Titel- und Einführungsfolie
+slide-purpose-agenda = Agenda
+slide-purpose-agenda-desc = Inhaltsverzeichnis oder Übersicht
+slide-purpose-section-divider = Abschnittsteiler
+slide-purpose-section-divider-desc = Trenner zwischen Abschnitten
+slide-purpose-content = Inhalt
+slide-purpose-content-desc = Allgemeine Inhaltsfolie
+slide-purpose-key-point = Kernaussage
+slide-purpose-key-point-desc = Einzelne wichtige Botschaft
+slide-purpose-bullets = Aufzählungsliste
+slide-purpose-bullets-desc = Liste von Punkten
+slide-purpose-two-column = Zwei Spalten
+slide-purpose-two-column-desc = Nebeneinander angeordneter Inhalt
+slide-purpose-image-focus = Bildfokus
+slide-purpose-image-focus-desc = Bild mit Beschriftung
+slide-purpose-data-viz = Daten & Diagramme
+slide-purpose-data-viz-desc = Diagramme, Statistiken, Metriken
+slide-purpose-quote = Zitat
+slide-purpose-quote-desc = Testimonial oder Zitat
+slide-purpose-timeline = Zeitachse
+slide-purpose-timeline-desc = Chronologischer Inhalt
+slide-purpose-comparison = Vergleich
+slide-purpose-comparison-desc = Vorher/Nachher oder Gegenüberstellung
+slide-purpose-team = Team
+slide-purpose-team-desc = Teammitglieder
+slide-purpose-process = Prozess
+slide-purpose-process-desc = Schritte oder Arbeitsablauf
+slide-purpose-conclusion = Fazit
+slide-purpose-conclusion-desc = Zusammenfassung oder Erkenntnisse
+slide-purpose-cta = Handlungsaufforderung
+slide-purpose-cta-desc = Call-to-Action-Folie
+slide-purpose-thank-you = Vielen Dank
+slide-purpose-thank-you-desc = Abschlussfolie
+
+# Folienpositionen
+slide-position-first = Erste
+slide-position-first-desc = Erste Folie der Präsentation
+slide-position-early = Früh
+slide-position-early-desc = Nahe am Anfang
+slide-position-middle = Mitte
+slide-position-middle-desc = Mittlerer Abschnitt
+slide-position-late = Spät
+slide-position-late-desc = Nahe am Ende
+slide-position-last = Letzte
+slide-position-last-desc = Letzte Folie
+slide-position-any = Beliebig
+slide-position-any-desc = Kann überall erscheinen
+
+# Folienmetadaten-Benutzeroberfläche
+template-slide-roles = Folienrollen
+template-slide-roles-desc = Definieren Sie den Zweck jeder Folie
+template-slide-purpose = Folienzweck
+template-slide-position = Position
+template-slide-max-usage = Max. Verwendung
+template-slide-max-usage-hint = Wie oft die KI diese Folie verwenden kann (leer = unbegrenzt)
+template-slide-capabilities = Funktionen
+template-slide-content-hints = Inhaltshinweise
+template-slide-content-hints-placeholder = Schlüsselwörter zur Inhaltszuordnung durch die KI...
+template-auto-detect = Automatisch erkennen
+template-auto-detect-all = Alle erkennen
+template-auto-detect-desc = Zwecke automatisch aus Folieninhalt ableiten
+template-reset-defaults = Auf Standard zurücksetzen
+template-structured = Strukturiert
+template-structured-slides = { $count } Folien definiert
+template-configure-slides = Folien konfigurieren
+template-cap-title = Titel
+template-cap-subtitle = Untertitel
+template-cap-bullets = Aufzählungen
+template-cap-max-bullets = Max. Aufzählungen
+template-cap-image = Bild
+template-cap-chart = Diagramm
+template-cap-table = Tabelle
+template-cap-icons = Icons
+template-cap-multi-column = Mehrspaltig
+template-cap-column-count = Spalten
+template-hints-placeholder = Inhaltshinweise hinzufügen...
+template-hints-help = Schlüsselwörter zur Inhaltszuordnung durch die KI
+template-purpose-help = Definieren Sie den Zweck dieser Folie
+template-inferring = Folienzwecke werden erkannt...
+template-inference-complete = Folienzwecke erkannt
+template-inference-failed = Zwecke konnten nicht automatisch erkannt werden
+
+# Layoutauswahl
+layout-change = Layout
+layout-duplicate-slides = Ausgewählte Folien duplizieren
+layout-browse-templates = Vorlagen durchsuchen...
+
+# Folienmaster-Ansicht
+slideshow-slide-master = Folienmaster
+master-view-title = Folienmaster-Ansicht
+master-insert-layout = Layout einfügen
+master-close = Masteransicht schließen
+master-new-layout = Benutzerdefiniertes Layout
+master-layout-added = Layout hinzugefügt
+master-layout-duplicated = Layout dupliziert
+master-layout-deleted = Layout gelöscht
+master-delete-last-layout-error = Das letzte Layout kann nicht gelöscht werden
+master-editing-master = Bearbeitung: Folienmaster
+master-editing-layout = Layout bearbeiten

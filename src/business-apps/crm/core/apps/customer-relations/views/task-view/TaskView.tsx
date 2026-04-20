@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useCustomerTaskStatistics } from '@/common/data/customer/hooks/useCustomerTaskStatistics'
 import { TaskLayout, type TaskViewConfig } from '@/common/components/common-relations/view-layouts/task-layout'
@@ -13,6 +14,38 @@ import {
   taskFilterConfig
 } from '@/common/components/common-relations/view-layouts/task-layout/config'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import type { FilterConfiguration } from '@newwork/nw-design-system'
+
+// CRM-specific filter config (exclude investment reference type)
+const crmTaskFilterConfig: FilterConfiguration = {
+  ...taskFilterConfig,
+  groups: taskFilterConfig.groups.map(group => {
+    if (group.id === 'reference-group') {
+      return {
+        ...group,
+        filters: group.filters.map(filter => {
+          if (filter.id === 'referenceType') {
+            return {
+              ...filter,
+              config: {
+                ...filter.config,
+                options: [
+                  { id: 'lead', label: 'Lead' },
+                  { id: 'account', label: 'Account' },
+                  { id: 'contact', label: 'Contact' },
+                  { id: 'opportunity', label: 'Opportunity' }
+                  // investment removed - only for IRM
+                ]
+              }
+            }
+          }
+          return filter
+        })
+      }
+    }
+    return group
+  })
+}
 
 // Helper function to process reference type filter
 const processReferenceTypeFilter = (selectedFilters: Record<string, any>, vars: CustomerTaskQueryVariables): void => {
@@ -62,6 +95,8 @@ const copyTaskFilters = (
 export type TaskViewProps = BusinessAppContextProps
 
 export const TaskView: React.FC<TaskViewProps> = context => {
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('crm:customer-task-preferences:v1')
   const { fetchCustomerTasks } = useCustomerTasks(context)
   const taskStatistics = useCustomerTaskStatistics(context)
 
@@ -106,7 +141,7 @@ export const TaskView: React.FC<TaskViewProps> = context => {
         createdBy: 'Created By'
       },
 
-      baseFilterConfig: taskFilterConfig,
+      baseFilterConfig: crmTaskFilterConfig,
 
       buildQueryVariables: params => {
         const vars: CustomerTaskQueryVariables = {
@@ -192,6 +227,14 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       context={context}
       config={config}
       dataTestId="customer-task-view"
+      enableExport
+      exportFilenamePrefix="crm-tasks"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
     />
   )
 }

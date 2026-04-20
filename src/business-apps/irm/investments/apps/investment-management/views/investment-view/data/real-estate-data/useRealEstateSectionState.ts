@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { useInvestments } from '@/common/data/investment/hooks/useInvestments.new'
+import { useInvestments, type InvestmentListAggregates } from '@/common/data/investment/hooks/useInvestments.new'
 import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries.new'
 import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
 
@@ -12,6 +12,7 @@ export interface UseRealEstateSectionStateReturn {
   // Data
   investments: Investment[]
   totalCount: number
+  listAggregates: InvestmentListAggregates
   loading: boolean
   error: string | null
   refetch: () => Promise<void>
@@ -57,6 +58,13 @@ export const useRealEstateSectionState = ({
 
   // Query variables
   const queryVariables: InvestmentQueryVariables = useMemo(() => {
+    // Remove investment type filters from selectedFilters to avoid conflicts
+    const otherFilters = Object.fromEntries(
+      Object.entries(selectedFilters).filter(
+        ([key]) => !['realEstateInvestment', 'liquidFundInvestment', 'equityInvestment'].includes(key)
+      )
+    )
+
     return {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
@@ -65,13 +73,14 @@ export const useRealEstateSectionState = ({
         ? [
             {
               field: sortField,
-              direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
+              direction: sortOrder === 'ASC' ? ('ASC_NULLS_LAST' as const) : ('DESC_NULLS_LAST' as const)
             }
           ]
-        : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-      // Default filter for real estate investments
-      realEstateInvestment: { id: { _isNull: false } },
-      ...selectedFilters
+        : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' as const }],
+      ...otherFilters,
+      // Always enforce real estate investment filter for this tab
+      // Check that at least one related record exists (Hasura array relationship filter)
+      realEstateInvestment: { id: { _isNull: false } }
     }
   }, [currentPage, pageSize, search, sortField, sortOrder, selectedFilters])
 
@@ -79,6 +88,7 @@ export const useRealEstateSectionState = ({
   const {
     investments,
     total: totalCount,
+    listAggregates,
     loading,
     error,
     refetch
@@ -129,6 +139,7 @@ export const useRealEstateSectionState = ({
   return {
     investments,
     totalCount,
+    listAggregates,
     loading,
     error,
     refetch,

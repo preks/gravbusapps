@@ -1,5 +1,7 @@
-import React from 'react'
+import React, { useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
@@ -10,6 +12,25 @@ import NoteSection from '@/common/components/common-relations/record-sections/no
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/customer/constants/customerCatalogs'
+import {
+  APPROVAL_TASK_TYPE_REF,
+  FILE_CONTEXT,
+  APP_NAME,
+  getFileEntityFromType
+} from '@/common/data/customer/constants/customerConstants'
+import { buildCustomerTaskPayload } from '@/common/data/customer/types/customerTaskTypes'
+import { buildCustomerActivityPayload } from '@/common/data/customer/types/customerActivityTypes'
+import noteSectionI18n from '@/common/components/common-relations/record-sections/note-section/_i18n'
+import {
+  buildCustomerNotePayload,
+  buildCustomerNextStepNotePayload,
+  isCrmNoteNextStepType,
+  isCrmNoteRegularType
+} from '@/common/data/customer/types/customerNoteTypes'
+import { getReferenceEntityType } from '@/common/data/customer/utils/referenceEntityUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { useFileClient } from '@/common/network/files/useFileClient'
 
 interface HomeViewProps extends BusinessAppContextProps {
   opportunityId: string
@@ -56,11 +77,55 @@ export const HomeView: React.FC<HomeViewProps> = ({
   accessToken,
   ...props
 }) => {
+  const { t } = useTranslation(noteSectionI18n)
+  const regularOpportunityNotes = useMemo(() => (notes ?? []).filter(isCrmNoteRegularType), [notes])
+  const nextStepOpportunityNotes = useMemo(() => (notes ?? []).filter(isCrmNoteNextStepType), [notes])
+
+  const fileClient = useFileClient({ accessToken, userInfo: props.userInfo })
+  const taskPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.TASK,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient]
+  )
+  const activityPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.ACTIVITY,
+      appName: APP_NAME,
+      entityId: opportunityId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient, opportunityId]
+  )
+  const notePreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.NOTE,
+      appName: APP_NAME,
+      entityId: opportunityId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: false
+    }),
+    [props.userInfo, fileClient, opportunityId]
+  )
+
   return (
     <>
       {/* Account Information - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'account-section',
@@ -105,7 +170,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* Contact Information - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'contact-section',
@@ -145,7 +210,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* Stage Condition Card - 2/4 width (half) - matching IRM Lead Investment Section position */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'stage-condition-section',
@@ -190,7 +255,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 externalContextData: { opportunityId },
                 prefixDataTestId: 'opportunity-task-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildCustomerTaskPayload,
+              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit
             }
           },
           {
@@ -214,12 +284,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 externalContextData: {
                   opportunityId,
                   opportunity: opportunityId,
-                  typeRef: 'SalesTaskType:v1:APPROVAL',
-                  salesTask: { opportunity: opportunityId, type: 'SalesTaskType:v1:APPROVAL' }
+                  typeRef: APPROVAL_TASK_TYPE_REF,
+                  salesTask: { opportunity: opportunityId, type: APPROVAL_TASK_TYPE_REF }
                 },
                 prefixDataTestId: 'opportunity-approvals',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildCustomerTaskPayload,
+              isApprovalTaskSection: true,
+              approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit
             }
           }
         ]}
@@ -236,6 +313,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
+              opportunityId,
               activities: activities,
               activitiesLoading: activitiesLoading,
               activitiesError: activitiesError,
@@ -259,7 +337,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 externalContextData: { opportunityId },
                 prefixDataTestId: 'opportunity-activity-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              activityTypeCatalog: ACTIVITY_TYPE,
+              buildActivityPayload: buildCustomerActivityPayload,
+              alignment: 'right',
+              preSubmit: activityPreSubmit,
+              getRelatedRecordUrl: buildCrmRelatedEntityRecordUrl
             }
           },
           {
@@ -268,7 +351,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
-              notes: notes,
+              opportunityId,
+              notes: regularOpportunityNotes,
               noteActionProps: {
                 contextsArray: [FlowContextName.customerNoteCreate],
                 externalContextData: { opportunityId },
@@ -280,7 +364,41 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 externalContextData: { opportunityId },
                 prefixDataTestId: 'opportunity-note-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              buildNotePayload: buildCustomerNotePayload,
+              preSubmit: notePreSubmit
+            }
+          },
+          {
+            id: 'next-steps-section',
+            component: NoteSection as React.ComponentType<any>,
+            props: {
+              ...props,
+              accessToken,
+              opportunityId,
+              sectionTitle: t('notes-next-steps-section-title'),
+              emptyStateTitle: t('notes-next-steps-empty-title'),
+              emptyStateDescription: t('notes-next-steps-empty-description'),
+              quickAddTriggerLabel: t('notes-next-steps-add-quick'),
+              notes: nextStepOpportunityNotes,
+              noteActionProps: {
+                contextsArray: [FlowContextName.customerNoteCreate],
+                externalContextData: {
+                  opportunityId,
+                  opportunity: opportunityId,
+                  crmNote: { opportunity: opportunityId, noteType: 'NEXT_STEP_NOTE' }
+                },
+                prefixDataTestId: 'opportunity-next-steps',
+                emptyStateBehavior: 'enable'
+              },
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.customerNoteEntity],
+                externalContextData: { opportunityId },
+                prefixDataTestId: 'opportunity-next-step-entity',
+                emptyStateBehavior: 'enable'
+              },
+              buildNotePayload: buildCustomerNextStepNotePayload,
+              preSubmit: notePreSubmit
             }
           }
         ]}

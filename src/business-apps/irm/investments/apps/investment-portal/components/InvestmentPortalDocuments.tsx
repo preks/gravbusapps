@@ -5,8 +5,9 @@ import { DocumentSection } from '@/components/document-section'
 import { getIrmDocumentApiConfig } from '@/business-apps/irm/common/utils/documentUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 interface InvestmentPortalDocumentsProps {
   investmentId: string
@@ -37,6 +38,9 @@ const InvestmentPortalDocuments: React.FC<InvestmentPortalDocumentsProps> = ({ i
     errorMessage: getTranslationFromI18nKeyAndLabel('error.loading.documents', 'Failed to load documents')
   })
 
+  // REST client for document operations (IRM uses Kogito processes)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
+
   // Configure upload action button
   const documentUploadActionProps = useMemo(
     () => ({
@@ -65,17 +69,21 @@ const InvestmentPortalDocuments: React.FC<InvestmentPortalDocumentsProps> = ({ i
   // API configuration for document operations
   const apiConfig = useMemo(() => getIrmDocumentApiConfig('investment'), [])
 
-  // Use centralized document actions
-  const customActions = useMemo(
-    () =>
-      createDocumentSectionActions({
-        domain: 'investment-relations',
-        documentFieldName: 'investmentDocument',
-        entityType: 'investment',
-        updateProcessName: 'updateInvestmentDocument',
-        deleteEndpoint: '/investment-relations/deleteInvestmentDocument',
-        getTranslation: getTranslationFromI18nKeyAndLabel
-      }),
+  const documentUpdateActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentUpdate],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'investment-portal-document-update'
+    }),
+    []
+  )
+
+  const documentDeleteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentDelete],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'investment-portal-document-delete'
+    }),
     []
   )
 
@@ -87,9 +95,11 @@ const InvestmentPortalDocuments: React.FC<InvestmentPortalDocumentsProps> = ({ i
       error={error}
       onRefresh={refetch}
       apiConfig={apiConfig}
-      customActions={customActions}
+      restClient={restClient}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
+      updateActionProps={documentUpdateActionProps}
+      deleteActionProps={documentDeleteActionProps}
       data-testid="investment-portal-document-section"
       accessToken={context.accessToken}
       userInfo={context.userInfo}

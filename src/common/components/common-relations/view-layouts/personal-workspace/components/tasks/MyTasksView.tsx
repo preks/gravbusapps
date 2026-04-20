@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { useTaskExport } from '@/common/components/common-relations/view-layouts/task-layout/hooks/useTaskExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -68,7 +70,14 @@ export interface MyTasksViewProps<TTask extends Task = Task, TQueryVariables = a
   config: MyTasksViewConfig<TTask, TQueryVariables>
   dataTestId?: string
   initialFilters?: Record<string, any>
+  onFilterChange?: (filters: Record<string, any>) => void
+  initialSorting?: Array<{ id: string; desc: boolean }>
+  onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
+  initialVisibleColumns?: string[]
+  onVisibleColumnsChange?: (columns: string[]) => void
   hideFilters?: boolean
+  enableExport?: boolean
+  exportFilenamePrefix?: string
 }
 
 /**
@@ -106,6 +115,12 @@ const createRowActionsRenderer = <TTask extends Task = Task>(
   return (row: { original: TTask }) => <TaskRowActions row={row} config={config} accessToken={accessToken} />
 }
 
+const getTaskExportTitle = (isExporting: boolean, totalCount: number, format: string): string => {
+  if (isExporting) return 'Exporting…'
+  if (totalCount === 0) return 'No data to export'
+  return `Export ${totalCount} tasks as ${format}`
+}
+
 /**
  * Generic My Tasks View Component
  * Displays user's personal tasks with KPIs, filtering, sorting, and detail sheet
@@ -119,15 +134,24 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
     userInfo,
     dataTestId = 'my-tasks-view',
     initialFilters = {},
-    hideFilters = false
+    onFilterChange,
+    initialSorting,
+    onSortingChange,
+    initialVisibleColumns,
+    onVisibleColumnsChange,
+    hideFilters = false,
+    enableExport = false,
+    exportFilenamePrefix = 'my-tasks'
   } = props
 
-  // View State
+  // View State — initialized from props (localStorage)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'dueDate', desc: false }])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
+    () => initialSorting ?? [{ id: 'createdAt', desc: true }]
+  )
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => initialVisibleColumns ?? [])
 
   // Data State
   const [tasks, setTasks] = useState<TTask[]>([])
@@ -225,10 +249,30 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
-  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
-    setSelectedFilters(filters)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [])
+  const handleFilterUpdate = useCallback(
+    (filters: Record<string, any>) => {
+      setSelectedFilters(filters)
+      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+      onFilterChange?.(filters)
+    },
+    [onFilterChange]
+  )
+
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      setSorting(newSorting)
+      onSortingChange?.(newSorting)
+    },
+    [onSortingChange]
+  )
+
+  const handleVisibleColumnsChange = useCallback(
+    (newColumns: string[]) => {
+      setVisibleColumns(newColumns)
+      onVisibleColumnsChange?.(newColumns)
+    },
+    [onVisibleColumnsChange]
+  )
 
   const handleTaskClick = useCallback((task: TTask) => {
     setSelectedTask(task)
@@ -244,15 +288,53 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
     [config.descriptors, config.columnLabels, availableColumnIds]
   )
 
-  // Initialize visible columns from available columns if empty
+  // Initialize visible columns from defaults only when nothing is stored
   useEffect(() => {
-    if (visibleColumns.length === 0 && availableColumns.length > 0) {
+    if (visibleColumns.length === 0 && availableColumns.length > 0 && !initialVisibleColumns) {
       setVisibleColumns(availableColumns.map(col => col.id))
     }
-  }, [availableColumns, visibleColumns.length])
+  }, [availableColumns, visibleColumns.length, initialVisibleColumns])
 
   // Row actions
   const rowActions = useMemo(() => createRowActionsRenderer(config, accessToken || ''), [config, accessToken])
+
+  // Export hook — always called (hooks must not be conditional)
+  const { isExporting, handleExportCsv, handleExportExcel } = useTaskExport({
+    fetchTasks: config.fetchMyTasks as any,
+    queryVariables,
+    totalCount,
+    filenamePrefix: exportFilenamePrefix
+  })
+
+  const exportButtons = useMemo(() => {
+    if (!enableExport) return null
+    return (
+      <>
+        <Button
+          onClick={handleExportCsv}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="my-tasks-export-csv-button"
+          title={getTaskExportTitle(isExporting, totalCount, 'CSV')}
+        >
+          <DownloadIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'CSV'}
+        </Button>
+        <Button
+          onClick={handleExportExcel}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="my-tasks-export-excel-button"
+          title={getTaskExportTitle(isExporting, totalCount, 'Excel')}
+        >
+          <FileXlsIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'Excel'}
+        </Button>
+      </>
+    )
+  }, [enableExport, isExporting, totalCount, handleExportCsv, handleExportExcel])
 
   return (
     <div data-testid={dataTestId} className="gba:space-y-6">
@@ -285,10 +367,10 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
         onFilterChange={hideFilters ? undefined : handleFilterUpdate}
         sorting={sorting}
         sortableColumns={sortableColumns}
-        onSortingChange={setSorting}
+        onSortingChange={handleSortingChange}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
-        onVisibleColumnsChange={setVisibleColumns}
+        onVisibleColumnsChange={handleVisibleColumnsChange}
         primaryAction={
           config.flowContexts.createContext ? (
             <AppAction
@@ -309,6 +391,7 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
             </AppAction>
           ) : undefined
         }
+        secondaryActions={exportButtons}
         toolbarDensity="default"
         enableLiveFiltering={true}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterTasks', 'Filter Tasks')}
@@ -324,7 +407,7 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
           totalCount={totalCount}
           columns={columns.filter(col => visibleColumns.includes(col.id as string))}
           sorting={sorting}
-          onSortingChange={setSorting}
+          onSortingChange={handleSortingChange}
           pagination={pagination}
           onPaginationChange={setPagination}
           actions={rowActions}
@@ -344,7 +427,10 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
         data-testid={`${dataTestId}-detail-sheet`}
         businessAppContext={{ accessToken, userInfo } as BusinessAppContextProps}
         accessToken={accessToken}
+        assignedUserId={selectedTask?.taskAssignees?.[0]?.assignedUserId}
+        currentUserId={userInfo?.id}
         flowContext={config.flowContexts.entityContext}
+        onTaskCompleted={() => loadTasks(false)}
       />
     </div>
   )

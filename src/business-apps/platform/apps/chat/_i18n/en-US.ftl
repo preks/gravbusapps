@@ -1,11 +1,75 @@
 # Chat Translations - English
 
 # Main Component - ChatWithCalendar
+chat-tab-dashboard = Dashboard
 chat-fullscreen-button = Open in Fullscreen
 chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Calendar
 chat-tab-reminders = Reminders
+chat-shell-disabled-title = Chat unavailable
+chat-shell-disabled-description = This panel is currently disabled for your workspace.
+
+# Dashboard
+dashboard-error-loadData = Unable to load dashboard data
+dashboard-hero-goodMorning = Good morning
+dashboard-hero-goodAfternoon = Good afternoon
+dashboard-hero-goodEvening = Good evening
+dashboard-hero-goodNight = Good night
+dashboard-hero-tagline = Your communication hub. Connect, collaborate, and stay in sync with your team.
+dashboard-common-you = You
+dashboard-personalStats-title = Your activity
+dashboard-personalStats-messagesSent = Messages sent
+dashboard-personalStats-conversations = Conversations
+dashboard-personalStats-callMinutes = Call minutes
+dashboard-personalStats-avgPerDay = Avg per day
+dashboard-personalStats-memberDays = Member days
+dashboard-personalStats-active = Active
+dashboard-personalStats-longTimeMember = Long-time member
+dashboard-globalStats-title = Company activity
+dashboard-globalStats-activeNow = Active now
+dashboard-globalStats-live = Live
+dashboard-globalStats-messagesToday = Messages today
+dashboard-globalStats-totalUsers = Total users
+dashboard-globalStats-totalCallTime = Total call time
+dashboard-globalStats-totalPlatformMessages = Total platform messages
+dashboard-globalStats-todayDelta = +{$count} today
+dashboard-globalStats-allTime = All time across the platform
+dashboard-globalStats-topReactions = Top reactions
+dashboard-globalStats-noReactions = No reactions yet
+dashboard-topContacts-title = My people
+dashboard-topContacts-online = Online
+dashboard-topContacts-mostContacted = Most contacted
+dashboard-topContacts-maybeReachOut = Maybe reach out
+dashboard-topContacts-emptyTitle = No contacts yet
+dashboard-topContacts-emptyDescription = Start chatting with colleagues to see your contacts here.
+dashboard-topContacts-noSuggestions = No suggestions
+dashboard-topContacts-contactMeta = {$messageCount} msgs · {$relativeTime}
+dashboard-topContacts-today = Today
+dashboard-topContacts-yesterday = Yesterday
+dashboard-topContacts-daysAgo = {$count} days ago
+dashboard-topContacts-weeksAgo = {$count} weeks ago
+dashboard-topContacts-monthsAgo = {$count} months ago
+dashboard-upcomingMeetings-title = Upcoming meetings
+dashboard-upcomingMeetings-next7Days = Next 7 days
+dashboard-upcomingMeetings-emptyTitle = No upcoming meetings
+dashboard-upcomingMeetings-emptyDescription = Your schedule is clear
+dashboard-upcomingMeetings-error = Unable to load meetings
+dashboard-upcomingMeetings-open = Open
+dashboard-upcomingMeetings-join = Join
+dashboard-upcomingMeetings-now = Now
+dashboard-upcomingMeetings-started = Started
+dashboard-upcomingMeetings-startingNow = Starting now
+dashboard-upcomingMeetings-inMinutes = In {$minutes} min
+dashboard-upcomingMeetings-inHours = In {$hours}h
+dashboard-upcomingMeetings-tomorrow = Tomorrow
+dashboard-upcomingMeetings-agendaItems = {$count ->
+  [one] {$count} agenda item
+ *[other] {$count} agenda items
+}
+dashboard-upcomingMeetings-showMore = Show {$count} more
+dashboard-upcomingMeetings-showMoreWithTotal = Show {$count} more ({$total} total)
+dashboard-upcomingMeetings-showLess = Show less
 
 # Chat Main
 chat-appHeader = Chat
@@ -17,6 +81,13 @@ chat-offline = Reconnecting...
 chat-selectConversation = Select a conversation to start chatting
 chat-noConversationsFound = No conversations found
 chat-noConversationsYet = No conversations yet
+chat-filters = Filters
+chat-filterDirect = Direct
+chat-filterGroup = Group
+chat-filterMeetingChats = Meeting
+chat-filterUnreadOnly = Unread
+chat-filtersCollapse = Collapse filters
+chat-filtersExpand = Show all filters
 chat-searchForUsers = Search for users...
 chat-noUsersFound = No users found
 chat-noUsersAvailable = No users available
@@ -32,11 +103,19 @@ chat-authenticationFailed = Authentication failed. Please log in again.
 chat-connectionError = Failed to connect to the chat service. Please check your internet connection.
 chat-cannotLeaveAsLastOwner = You are the only owner of this group. Please transfer ownership to another member or delete the group from Group Settings.
 chat-failedToLeave = Failed to leave the conversation. Please try again.
+chat-failedToCreateConversation = Failed to create the conversation. Please try again.
 chat-nudgeCooldown = Please wait {$seconds} seconds before sending another nudge.
 
 # Messages
 chat-noMessages = No messages yet. Start the conversation!
 chat-loadOlderMessages = Load older messages
+
+# Message search (in-conversation)
+chat-searchInConversation = Search in conversation
+chat-searchMessagesPlaceholder = Search messages…
+chat-searchNoResults = No results
+chat-searchSearching = Searching…
+chat-searchClear = Clear
 common-loading = Loading...
 chat-preview-open = Open preview
 chat-preview-unsupported = Preview not available.
@@ -60,6 +139,25 @@ chat-input-attach = Attach file
 chat-input-emoji = Add emoji
 chat-attach = Attach file
 chat-mention = Mention entity
+
+# Quoted messages (reply = reply with quote)
+chat-reply = Reply
+chat-reply-with-quote = Reply with quote
+chat-quoting-name = Quoting {$name}
+chat-cancel-quote = Cancel quote
+chat-quoted-message-unavailable = Message unavailable
+
+# Edit message
+chat-edit-message = Edit message
+chat-save = Save
+chat-cancel = Cancel
+chat-edited = Edited
+chat-edited-at = Edited at { $time }
+
+# Reactions
+chat-reaction-picker-full = Pick a reaction
+chat-reaction-search-placeholder = Search emoji…
+chat-react-with-emoji = React with {$emoji}
 
 # Typing Indicator
 chat-someone = Someone
@@ -123,6 +221,9 @@ chat-lastSeenLongAgo = Last seen a while ago
 chat-viewProfile = View profile
 chat-participantsCount = {$count} participants
 chat-activeCallInGroup = Active call in this group
+chat-activeCallDirect = In a call
+chat-activeCallGroup = Active call in this group
+chat-activeCallMeeting = Meeting in progress
 chat-sendNudge = Send nudge
 chat-startAudioCall = Start audio call
 chat-startVideoCall = Start video call
@@ -185,10 +286,17 @@ chat-lastOwnerInfo = You are the only owner. To leave this group, first make ano
 # Call Features
 chat-audioCall = Audio Call
 chat-videoCall = Video Call
+chat-directCall = Call
+chat-meeting = Meeting
 chat-groupCall = Group Call
 chat-endCall = End Call
 chat-mute = Mute
 chat-unmute = Unmute
+chat-pinConversation = Pin conversation
+chat-unpinConversation = Unpin conversation
+chat-muteConversation = Mute conversation
+chat-unmuteConversation = Unmute conversation
+chat-markAsUnread = Mark as unread
 chat-startVideo = Start Video
 chat-stopVideo = Stop Video
 chat-turnOnCamera = Turn on camera
@@ -215,7 +323,38 @@ call-ringing = Ringing
 call-decline = Decline
 call-accept = Accept
 call-join = Join
+call-joining = Joining...
+call-joiningCall = Joining call...
+call-micOn = Mic
+call-micOff = Mic off
+call-cameraOn = Camera
+call-cameraOff = Camera off
+call-selectMicrophone = Select Microphone
+call-selectCamera = Select Camera
+call-selectSpeaker = Select Speaker
+call-deviceSettings = Device Settings
+call-audioSettings = Audio Settings
+call-videoSettings = Video Settings
+call-noDevicesFound = No devices found
+call-noiseSuppression = Noise suppression
+call-autoGainControl = Auto gain control
+call-speakerNotSupported = Speaker selection not supported in this browser
+call-speakerNotSupportedShort = not selectable
+call-testDevices = Test devices
+call-testDevicesDescription = Play a short sound and check your microphone level.
+call-testSpeaker = Test speaker
+call-testMicrophone = Test microphone
+call-microphoneLevel = Microphone level
+call-testing = Testing…
+call-stop = Stop
+call-close = Close
+call-testSpeakerError = Could not play test sound.
+call-testSpeakerSinkError = Could not route audio to the selected speaker.
+call-testMicrophoneError = Could not access microphone.
+call-backgroundOn = Background
+call-backgroundOff = Background off
 call-startedBy = Started by
+call-activeParticipants = active
 call-unmute = Unmute
 call-mute = Mute
 call-turnOnCamera = Turn on camera
@@ -225,11 +364,45 @@ call-shareScreen = Share screen
 call-endCall = End call
 call-initiating = Starting call...
 call-connecting = Connecting...
+call-startingCall = Starting Call
+call-startingVideoCall = Starting video call
+call-startingAudioCall = Starting audio call
+call-startVideoCall = Start Video Call
+call-startAudioCall = Start Audio Call
+call-setupYourCallSettings = Setup your call settings before joining
+call-readyToStart = Ready to start
+call-starting = Starting...
+call-start = Start
+call-cancel = Cancel
+call-backgroundWillBeApplied = Background will be applied in call
 call-ended = Call ended
 call-failed = Call failed
 call-disconnected = Disconnected
+call-internalMicAndSpeakers = Microphone & Speaker
+call-microphone = Microphone
+call-speaker = Speaker
+call-effectsAndAvatars = Effects and avatars
+call-moreAudioSettings = More audio settings
+call-advancedSettings = Advanced settings
+call-rnnoiseAI = Noise reduction
+call-rnnoiseDescription = Reduce background noise so others hear you more clearly.
+call-rnnoiseGentle = Gentle
+call-rnnoiseGentleDesc = Light touch – keeps your voice natural
+call-rnnoiseModerate = Moderate
+call-rnnoiseModerateDesc = Balanced – good for most calls
+call-rnnoiseAggressive = Aggressive
+call-rnnoiseAggressiveDesc = Strong – best for noisy rooms
+call-rnnoiseWarning = Using a headset can improve mic quality.
 
 # Call Settings
+call-video = video
+call-audio = audio
+call-typeLabelDirectVideo = 1-on-1 video call
+call-typeLabelDirectAudio = 1-on-1 audio call
+call-typeLabelGroupVideo = Group video call
+call-typeLabelGroupAudio = Group audio call
+call-typeLabelMeetingVideo = Meeting video call
+call-typeLabelMeetingAudio = Meeting audio call
 call-videoQuality = Video Quality
 call-highQuality = High Quality
 call-highQualityDesc = 720p, 30fps - Best for fast connections
@@ -251,6 +424,88 @@ call-reconnect = Reconnect
 call-retrying = Retrying...
 call-waitingForParticipants = Waiting for participants...
 
+# Group Call
+groupCall-title = Group Call
+groupCall-participants = Participants
+groupCall-audioOnly = Audio Only
+groupCall-minimize = Minimize call
+groupCall-waitingForParticipants = Waiting for participants...
+groupCall-unmute = Unmute
+groupCall-mute = Mute
+groupCall-turnOnVideo = Turn on camera
+groupCall-turnOffVideo = Turn off camera
+groupCall-endCall = End call
+groupCall-enableBackground = Enable background effect
+groupCall-disableBackground = Disable background effect
+groupCall-chat = Chat
+
+# Participants Panel
+participants-close = Close
+participants-in-this-call = In this call
+participants-available = Available
+participants-pending-invites = Pending invites
+participants-invite = Invite
+participants-inviting = Inviting...
+participants-no-available = No participants available to invite
+participants-host = Host
+participants-mute = Mute
+participants-kick = Kick
+participants-no-hands-raised = No one has their hand raised
+participants-hand-raised = Hand raised
+participants-screen-sharing = Screen sharing
+participants-audio-only = Audio only
+participants-speaking = Speaking
+participants-more-options = More options
+participants-mute-participant = Mute {$name}
+participants-mute-all = Mute all
+participants-no-results-found = No results found
+participants-try-different-search = Try a different search term or browse all participants
+participants-clear-search = Clear Search
+participants-everyones-here = Everyone's here!
+participants-all-members-in-call = All conversation members are either in the call or have been invited.
+participants-in-call = In Call
+participants-invited = Invited
+participants-not-in-this-meeting = Not in this meeting
+participants-left-call = Left call
+participants-unknown = Unknown
+participants-you = You
+participants-declined-invite = Declined invite
+participants-not-answered = Not answered
+participants-ringing = Ringing...
+participants-available-to-invite = Available to invite
+participants-mute-all-confirm-title = Mute all participants?
+participants-mute-all-confirm-message = Are you sure you want to mute all other participants? They will need to unmute themselves to speak.
+participants-muted-by = You were muted by {$name}
+participants-muted-by-all = You were muted by {$name} (mute all)
+participants-mute-failed = Failed to mute your microphone
+participants-cancel = Cancel
+participants-not-answered = Not answered
+participants-ringing = Ringing...
+participants-available-to-invite = Available to invite
+
+# Video Grid
+videogrid-page-info = Page {$current} of {$total}
+videogrid-previous-page = Previous page
+videogrid-next-page = Next page
+
+# Transcription
+chat-call-enableTranscription = Enable Transcription
+chat-call-transcriptionActive = Recording
+chat-call-recording = Recording
+chat-transcript-ready = Transcript Ready: { $sessionName }
+chat-transcript-view = View Transcript
+chat-transcript-saved = Your meeting transcript has been saved
+chat-transcript-create-minutes-description = Create meeting minutes from the call transcript in notes
+chat-transcript-create-minutes-button = Create Meeting Minutes
+chat-transcript-generating-minutes = Generating Meeting Minutes...
+chat-transcript-generating-minutes-status = Generating meeting minutes...
+chat-transcript-failed-create-minutes = Failed to create meeting minutes
+chat-transcript-retry = Retry
+chat-meeting-started-at = Started: { $startedAt }
+chat-call-recordingTranscriptNotice = Recording and transcription. By joining, you consent to being included.
+chat-call-recordingTranscriptActive = Audio is being recorded to create a transcript and meeting minutes.
+chat-call-transcriptRecordingHeader = Call transcript is being recorded
+
 # Notifications
 notifications-title = Notifications
 notifications-empty = No notifications at the moment
@@ -268,10 +523,23 @@ notifications-retry = Retry
 # Reminders
 reminders-myReminders = My Reminders
 reminders-noUpcoming = No upcoming reminders
-reminders-goToEveryAI = Go to the EveryAI tab and ask to set a reminder
+reminders-goToEveryAI = Create a reminder using the + button above
 reminders-loadingReminders = Loading reminders...
 reminders-failedToLoad = Failed to load reminders
 reminders-tryAgain = Try Again
+reminders-newReminder = New Reminder
+reminders-title = Title
+reminders-titlePlaceholder = What should you be reminded of?
+reminders-message = Message (optional)
+reminders-messagePlaceholder = Additional details...
+reminders-dateTime = Date & Time
+reminders-create = Create Reminder
+reminders-creating = Creating...
+reminders-cancel = Cancel
+reminders-created = Reminder created!
+reminders-createFailed = Failed to create reminder
+reminders-titleRequired = Please enter a title
+reminders-dateTimeRequired = Please select a date and time
 
 # Calendar
 calendar-title = Calendar
@@ -279,6 +547,78 @@ calendar-today = Today
 calendar-viewDay = Day
 calendar-viewWeek = Week
 calendar-viewMonth = Month
+calendar-threeDay = Three day
+calendar-workWeek = Work week
+calendar-layout-list = List
+calendar-view-menu-aria = Calendar view and layout
+calendar-list-no-events = No events
+calendar-refresh = Refresh calendar
+calendar-sidebar-title = Calendars
+calendar-sidebar-description = Choose what is visible and manage shared calendars
+calendar-sidebar-selectAll = All
+calendar-sidebar-clearAll = None
+calendar-sidebar-myCalendars = My calendars
+calendar-sidebar-personal = Personal
+calendar-sidebar-myCalendar = My calendar
+calendar-sidebar-myCalendarDescription = Meetings and invitations linked to you
+calendar-sidebar-shared = Shared
+calendar-sidebar-external = External
+calendar-mini-previousMonth = Previous month
+calendar-mini-nextMonth = Next month
+calendar-sidebar-noSharedCalendars = No shared calendars yet
+calendar-sidebar-noExternalCalendars = No external calendars connected
+calendar-sidebar-createFirstSharedCalendar = Create your first shared calendar
+calendar-sidebar-newSharedCalendar = New shared calendar
+calendar-sidebar-newSharedCalendarDescription = Create an internal calendar that can be selected in the shared calendar view.
+calendar-sidebar-editCalendar = Edit calendar
+calendar-sidebar-editCalendarDescription = Update the calendar name, description, and color.
+calendar-sidebar-manageAccess = Manage access
+calendar-sidebar-manageAccessDescription = Choose who can access {$name} and what they can do.
+calendar-sidebar-archiveCalendar = Archive calendar
+calendar-sidebar-archiveCalendarDescription = Archive {$name} and remove it from the active sidebar list.
+calendar-sidebar-archiveConfirm = Archive calendar
+calendar-sidebar-calendarName = Name
+calendar-sidebar-calendarNamePlaceholder = e.g., Product Team Calendar
+calendar-sidebar-calendarDescriptionPlaceholder = Optional context for who uses this calendar
+calendar-sidebar-createCalendar = Create calendar
+calendar-sidebar-addPeople = Add people
+calendar-sidebar-members = Members
+calendar-sidebar-noMembers = No members yet
+calendar-sidebar-membersLoadError = Could not load calendar members
+calendar-sidebar-owner = Owner
+calendar-sidebar-sharedCalendar = Shared calendar
+calendar-sidebar-spaceCalendar = Space calendar
+calendar-sidebar-busy = Busy
+calendar-sidebar-memberCount = {$count ->
+  [one] {$count} member
+ *[other] {$count} members
+}
+calendar-sidebar-permission-owner = Owner
+calendar-sidebar-permission-editor = Editor
+calendar-sidebar-permission-viewer = Viewer
+calendar-sidebar-permission-free_busy = Free/busy
+calendar-sidebar-calendarCreatedSuccess = Shared calendar created
+calendar-sidebar-calendarCreatedError = Could not create shared calendar
+calendar-sidebar-calendarUpdatedSuccess = Calendar updated
+calendar-sidebar-calendarUpdatedError = Could not update calendar
+calendar-sidebar-accessUpdatedSuccess = Calendar access updated
+calendar-sidebar-accessUpdatedError = Could not update calendar access
+calendar-sidebar-calendarArchivedSuccess = Calendar archived
+calendar-sidebar-calendarArchivedError = Could not archive calendar
+calendar-sidebar-personalColorSaveError = Could not update My calendar color
+calendar-sidebar-calendarColorSaveError = Could not update calendar color
+calendar-sidebar-resetToDefault = Use default color
+calendar-sidebar-openColorPicker = Change {$name} color
+calendar-sidebar-createManually = Create manually
+calendar-sidebar-createByGroup = By group
+calendar-sidebar-createCalendarByDimension = Create calendar by organization
+calendar-sidebar-dimensionDescription = Create a shared calendar for an organizational group and grant viewer access to its members.
+calendar-sidebar-dimensionViewerAccess = {$count ->
+  [one] 1 member will get viewer access
+ *[other] {$count} members will get viewer access
+}
+calendar-sidebar-membersPreview = Members
+calendar-sidebar-calendarExistsInfo = A shared calendar for this group already exists, so the existing calendar was selected.
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Schedule Meeting
@@ -289,6 +629,9 @@ calendar-meetingTitlePlaceholder = Meeting title
 calendar-date = Date
 calendar-dateRequired = Date *
 calendar-allDay = All day
+calendar-allDay-more-count = +{$count}
+calendar-allDay-expand-aria = Show {$count} more all-day events
+calendar-allDay-collapse-aria = Show fewer all-day events
 calendar-start = Start
 calendar-end = End
 calendar-location = Location
@@ -312,6 +655,8 @@ calendar-monthly = Monthly
 calendar-endDate = End date
 calendar-reminders = Reminders
 calendar-color = Color
+calendar-aiTranscription = AI Meeting Transcription
+calendar-aiTranscriptionDescription = Automatically transcribe and save meeting conversation for all participants
 calendar-cancel = Cancel
 calendar-createMeeting = Create Meeting
 calendar-saveChanges = Save Changes
@@ -330,6 +675,7 @@ calendar-reminder1Day = 1 day before
 calendar-allDayEvent = All day
 calendar-videoCallAvailable = Video Call
 calendar-joinLinkAvailable = Join link available
+calendar-sourceCalendar = Calendar
 calendar-viewProfile = View profile
 calendar-youOrganizer = You (Organizer)
 calendar-organizer = Organizer
@@ -346,6 +692,8 @@ calendar-accept = Accept
 calendar-maybe = Maybe
 calendar-decline = Decline
 calendar-joinCall = Join Call
+calendar-startMeeting = Start Meeting
+calendar-joinMeeting = Join Meeting
 calendar-chat = Chat
 calendar-edit = Edit
 
@@ -369,8 +717,63 @@ calendar-no-events = No events scheduled
 calendar-all-day = All day
 calendar-loading = Loading calendar...
 calendar-error = Failed to load calendar
+calendar-retry = Retry
 calendar-event-details = Event Details
 calendar-pending-invitations = Pending Invitations
 calendar-accept = Accept
 calendar-decline = Decline
 calendar-tentative = Tentative
+
+# Calendar - Agenda
+calendar-agenda = Agenda
+calendar-agendaOptional = Agenda (optional)
+calendar-addAgendaItem = Add agenda item
+calendar-agendaItemTitle = Topic
+calendar-agendaItemTitlePlaceholder = Enter topic...
+calendar-agendaItemDuration = Duration (min)
+calendar-agendaItemAssignee = Assign to
+calendar-agendaItemUnassigned = Unassigned
+calendar-agendaItemRemove = Remove item
+calendar-agendaItemMoveUp = Move up
+calendar-agendaItemMoveDown = Move down
+calendar-agendaItems = {$count ->
+  [one] {$count} agenda item
+  *[other] {$count} agenda items
+}
+calendar-agendaTotalDuration = Total: {$minutes} min
+calendar-agendaAssignedTo = Assigned to {$name}
+calendar-noAgenda = No agenda items
+
+# Call History
+chat-callHistory = Call History
+chat-callHistoryAll = All
+chat-callHistoryJoined = Joined
+chat-callHistoryMissed = Missed
+chat-callHistoryDeclined = Declined
+chat-callHistoryNotAnswered = Not answered
+chat-callHistoryOpenConversation = Open conversation
+chat-callHistoryCallBack = Call back
+chat-callHistoryGroupCall = Group call
+chat-callHistoryNoCalls = No calls yet
+chat-callHistoryNoCallsFiltered = No calls match this filter
+chat-callHistoryMissedFrom = You missed a call from {$name}
+chat-callHistoryDeclinedFrom = Declined call from {$name}
+chat-callHistoryNotAnsweredFrom = Not answered call from {$name}
+chat-callHistoryDuration = {$minutes} min
+chat-callHistoryBack = Back
+chat-callHistoryFilterStatus = Status
+chat-callHistoryFilterType = Type
+chat-callHistoryLoadMore = Load more
+chat-callHistoryCallName = Call: {$name}
+chat-callHistoryGroupCallName = Group Call: {$name}
+chat-callHistoryMeetingName = Meeting: {$name}
+chat-callHistoryIncoming = Incoming
+chat-callHistoryOutgoing = Outgoing
+chat-callHistoryMissedIncoming = Missed incoming
+chat-callHistoryAllTypes = All types
+chat-callHistoryTypeDirect = Direct
+chat-callHistoryTypeGroup = Group
+chat-callHistoryTypeMeeting = Meeting
+chat-callHistoryStartedAt = Started {$time}
+chat-callHistoryInvitedAt = Invite {$time}
+chat-callHistoryWhoInvited = {$name} invited you

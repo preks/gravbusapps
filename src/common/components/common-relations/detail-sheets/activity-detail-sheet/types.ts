@@ -1,3 +1,5 @@
+import { FileInfo } from '@/common/types/FileTypes'
+
 export interface Activity {
   id: string
   title: string
@@ -27,12 +29,14 @@ export interface Activity {
   account?: {
     id: string
     name: string
+    pictureThumbnail?: string | null
   }
   accountId?: string
   contact?: {
     id: string
     firstName?: string
     lastName?: string
+    pictureThumbnail?: string | null
   }
   contactId?: string
   lead?: {
@@ -48,19 +52,26 @@ export interface Activity {
     name: string
   }
   opportunityId?: string
+  investment?: {
+    id?: string
+    name?: string
+    pictureThumbnail?: string | null
+  }
+  investmentId?: string | null
   documents?: ActivityDocument[]
 }
 
 export interface ActivityDocument {
   id: string
   name: string
-  mimeType?: string
-  fileInfo?: string
+  mimeType?: string | null
+  fileSize?: number | null
+  fileInfo?: FileInfo
   description?: string
 }
 
 export interface ActivityReference {
-  type: 'account' | 'contact' | 'lead' | 'opportunity'
+  type: 'account' | 'contact' | 'lead' | 'opportunity' | 'investment'
   id: string
   name: string
 }

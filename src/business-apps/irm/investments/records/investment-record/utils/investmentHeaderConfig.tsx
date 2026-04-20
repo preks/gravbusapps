@@ -1,5 +1,26 @@
+/**
+ * Investment Header Configuration - Catalog-Driven Field Definitions
+ *
+ * This file is ALREADY correctly implemented with catalog-driven field lookups.
+ * Header fields come from catalog objectValue entries with proper priority:
+ *
+ * PRIORITY ORDER:
+ * 1. Liquid Fund Type objectValue (if liquidFundTypeCode exists)
+ * 2. Investment Type objectValue (if investmentTypeCode exists)
+ * 3. Investment Group objectValue (fallback)
+ *
+ * This logic is separate from recordGroupConfigurations.tsx which controls
+ * UI presentation (tabs, icons, labels) rather than data field definitions.
+ *
+ * KEY FUNCTIONS:
+ * - getInvestmentTypeFieldDefinition: Lookup fields by investment type
+ * - getLiquidFundTypeFieldDefinition: Lookup fields by liquid fund type
+ * - findFormFieldsDefinition: Priority-based field definition lookup
+ * - transformFormFieldsToHeaderItems: Convert catalog fields to header items
+ * - getTypeSpecificDetailGroups: Dynamic header groups with catalog fallback
+ */
+
 // Investment Header Configuration Utilities
-import React from 'react'
 import { Badge } from '@newwork/nw-design-system'
 import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -9,6 +30,7 @@ import { FormFieldsDefinition, FormFieldDefinition } from '@/common/data/investm
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { CalendarIcon, FlagIcon } from '@phosphor-icons/react'
+import { getInvestmentUiSubtypeFromData } from '@/common/data/investment/utils/investmentGroupRouting'
 
 /**
  * Format date helper
@@ -172,28 +194,35 @@ export const getInvestmentTypeFieldDefinition = (
 ): FormFieldsDefinition | null => {
   if (!catalogData || !investmentTypeCode) return null
 
-  // SPECIAL CASE FOR EQUITY: Check the EQUITY group level instead of individual type
-  // Find the investment type to get its parent group
+  const investmentGroups = catalogData.investmentGroups || []
   const investmentTypes = catalogData.investmentTypes || []
+
+  // Find the investment type first
   const matchingType = investmentTypes.find((type: any) => type.code === investmentTypeCode)
 
+  // CASE 1: If investmentTypeCode matches a group code directly (for groups with no child types)
+  // This handles generic groups like PRIVATE_EQUITY, TEST, etc.
+  const matchingGroup = investmentGroups.find((group: any) => group.code === investmentTypeCode)
+  if (matchingGroup?.objectValue && (!matchingGroup.childEntries || matchingGroup.childEntries.length === 0)) {
+    return matchingGroup.objectValue as FormFieldsDefinition
+  }
+
+  // CASE 2: SPECIAL CASE FOR EQUITY: Check the EQUITY group level instead of individual type
   const parentCode = matchingType?.parentEntryId?.split(':').pop()
   if (parentCode === 'EQUITY') {
     // For equity investments, use the EQUITY group's form fields
-    const investmentGroups = catalogData.investmentGroups || []
     const equityGroup = investmentGroups.find((group: any) => group.code === 'EQUITY')
     if (equityGroup?.objectValue) {
       return equityGroup.objectValue as FormFieldsDefinition
     }
   }
 
-  // For non-equity investments, check the type level first
+  // CASE 3: For investments with types, check the type level first
   if (matchingType?.objectValue) {
     return matchingType.objectValue as FormFieldsDefinition
   }
 
   // If not found in direct types, look in group's child entries
-  const investmentGroups = catalogData.investmentGroups || []
   for (const group of investmentGroups) {
     if (group.childEntries) {
       const childType = group.childEntries.find((child: any) => child.code === investmentTypeCode)
@@ -464,10 +493,11 @@ export const createHeaderMeta = (
     <div className="gba:flex gba:items-center gba:gap-2">
       <Badge variant="secondary" className="gba:text-sm">
         {investment?.investmentType?.value ||
+          investment?.investmentGroup?.value ||
           getTranslationFromI18nKeyAndLabel('investment.type.default', 'Investment')}
       </Badge>
       {/* Liquid Fund Type Badge - ONLY for liquid funds */}
-      {investment?.investmentGroup?.code?.includes('LIQUID_FUND') &&
+      {getInvestmentUiSubtypeFromData(investment) === 'liquid_fund' &&
         typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType && (
           <Badge
             variant={getLiquidFundTypeBadgeVariant(typeSpecificData.liquidFundInvestment.investmentLiquidFundType)}
@@ -558,6 +588,293 @@ export const createHeaderMeta = (
 }
 
 /**
+ * Helper: Get equity investment detail groups (static configuration)
+ */
+const getEquityDetailGroups = (investment: any, typeSpecificData: any, currencyCode: string) => {
+  const equity = typeSpecificData?.equityInvestment
+  return [
+    {
+      id: 'equity-details',
+      items: [
+        {
+          label: 'Initial Investment',
+          value: investment?.initialInvestmentAmount
+            ? formatCurrency(investment.initialInvestmentAmount, currencyCode)
+            : '-'
+        },
+        {
+          label: 'Total Investment',
+          value: investment?.totalInvestmentAmount
+            ? formatCurrency(investment.totalInvestmentAmount, currencyCode)
+            : '-'
+        },
+        {
+          label: 'Market Value',
+          value: investment?.investmentMarketValue
+            ? formatCurrency(investment.investmentMarketValue, currencyCode)
+            : '-'
+        },
+        {
+          label: 'Stake Percentage',
+          value: equity?.stakePercentage ? `${equity.stakePercentage}%` : '-'
+        },
+        {
+          label: 'Foundation Date',
+          value: formatDate(equity?.foundationDate)
+        }
+      ]
+    },
+    {
+      id: 'equity-details-2',
+      items: [
+        {
+          label: 'Turnover Amount',
+          value: equity?.turnoverAmount ? formatCurrency(equity.turnoverAmount, currencyCode) : '-'
+        },
+        {
+          label: 'EBITDA Amount',
+          value: equity?.ebitdaAmount ? formatCurrency(equity.ebitdaAmount, currencyCode) : '-'
+        },
+        {
+          label: 'Owner Employee',
+          value: investment?.ownerEmployee
+            ? `${investment.ownerEmployee.firstName || ''} ${investment.ownerEmployee.lastName || ''}`.trim()
+            : '-'
+        }
+      ]
+    }
+  ]
+}
+
+/**
+ * Helper: Get real estate investment detail groups (static configuration)
+ */
+const getRealEstateDetailGroups = (typeSpecificData: any, currencyCode: string) => {
+  const realEstate = typeSpecificData?.realEstateInvestment
+  return realEstate
+    ? [
+        {
+          id: 'real-estate-details',
+          items: [
+            {
+              label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.size', 'Size'),
+              value: realEstate.size
+                ? `${realEstate.size} ${realEstate.sizeMeasurementUnitRef?.split(':').pop() || 'm²'}`
+                : '-'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.buildingYear', 'Building Year'),
+              value: realEstate.buildingYear || '-'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel(
+                'crm.investments.realEstate.annualNetColdRent',
+                'Annual Net Cold Rent'
+              ),
+              value: realEstate.annualNetColdRent ? formatCurrency(realEstate.annualNetColdRent, currencyCode) : '-'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.funding', 'Funding'),
+              value: realEstate.funding ? formatCurrency(realEstate.funding, currencyCode) : '-'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.occupancyPercent', 'Occupancy %'),
+              value: realEstate.occupancyPercent ? `${realEstate.occupancyPercent}%` : '-'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.locality', 'Location'),
+              value: realEstate.locality || '-'
+            }
+          ]
+        }
+      ]
+    : []
+}
+
+/**
+ * Helper: Get liquid fund investment detail groups (static configuration)
+ */
+const getLiquidFundDetailGroups = (investment: any, typeSpecificData: any, currencyCode: string) => {
+  const liquidFund = typeSpecificData?.liquidFundInvestment
+  return [
+    {
+      id: 'liquid-fund-details',
+      items: [
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.initialInvestment', 'Initial Investment'),
+          value: investment?.initialInvestmentAmount
+            ? formatCurrency(investment.initialInvestmentAmount, currencyCode)
+            : '-'
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.totalInvestment', 'Total Investment'),
+          value: investment?.totalInvestmentAmount
+            ? formatCurrency(investment.totalInvestmentAmount, currencyCode)
+            : '-'
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.marketValue', 'Market Value'),
+          value: investment?.investmentMarketValue
+            ? formatCurrency(investment.investmentMarketValue, currencyCode)
+            : '-'
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.fundType', 'Fund Type'),
+          value: liquidFund?.investmentLiquidFundType?.value || '-'
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.isinCode', 'ISIN Code'),
+          value: investment?.isin || '-'
+        }
+      ]
+    },
+    {
+      id: 'liquid-fund-details-2',
+      items: [
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.bankName', 'Bank Name'),
+          value: liquidFund?.bankName || '-'
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.interestRate', 'Interest Rate'),
+          value: liquidFund?.interestRate ? `${liquidFund.interestRate}%` : '-'
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.acquisitionDate', 'Acquisition Date'),
+          value: formatDate(investment?.acquisitionDate)
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.ownerEmployee', 'Owner Employee'),
+          value: investment?.ownerEmployee
+            ? `${investment.ownerEmployee.firstName || ''} ${investment.ownerEmployee.lastName || ''}`.trim()
+            : '-'
+        }
+      ]
+    }
+  ]
+}
+
+/**
+ * Helper: Get generic investment detail groups (static configuration)
+ */
+const getGenericDetailGroups = (investment: any, currencyCode: string) => {
+  return [
+    {
+      id: 'general-details',
+      items: [
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.initialInvestment', 'Initial Investment'),
+          value: investment?.initialInvestmentAmount
+            ? formatCurrency(investment.initialInvestmentAmount, currencyCode)
+            : '-'
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.totalInvestment', 'Total Investment'),
+          value: investment?.totalInvestmentAmount
+            ? formatCurrency(investment.totalInvestmentAmount, currencyCode)
+            : '-'
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.marketValue', 'Market Value'),
+          value: investment?.investmentMarketValue
+            ? formatCurrency(investment.investmentMarketValue, currencyCode)
+            : '-'
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.acquisitionDate', 'Acquisition Date'),
+          value: formatDate(investment?.acquisitionDate)
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('investment.fields.ownerEmployee', 'Owner Employee'),
+          value: investment?.ownerEmployee
+            ? `${investment.ownerEmployee.firstName || ''} ${investment.ownerEmployee.lastName || ''}`.trim()
+            : '-'
+        }
+      ]
+    }
+  ]
+}
+
+/**
+ * Helper: Find form fields definition from catalog data
+ */
+export const findFormFieldsDefinition = ({
+  investment,
+  typeSpecificData,
+  catalogData,
+  investmentTypeCode,
+  liquidFundTypeCode,
+  investmentGroupCode
+}: {
+  investment?: any
+  typeSpecificData?: any
+  catalogData: any
+  investmentTypeCode?: string
+  liquidFundTypeCode?: string
+  investmentGroupCode?: string
+}): FormFieldsDefinition | null => {
+  const investmentGroups = catalogData.investmentGroups || []
+  const groupCode = investmentGroupCode || investment?.investmentGroup?.code
+
+  // PRIORITY 1: For groups with no child types - use group's objectValue directly
+  // This handles generic groups like PRIVATE_EQUITY, TEST, etc.
+  if (groupCode) {
+    const matchingGroup = investmentGroups.find((group: any) => group.code === groupCode)
+    if (matchingGroup?.objectValue && (!matchingGroup.childEntries || matchingGroup.childEntries.length === 0)) {
+      return matchingGroup.objectValue as FormFieldsDefinition
+    }
+  }
+
+  // PRIORITY 2: For liquid funds with liquid fund type - use liquid fund type fields
+  const resolvedLiquidFundTypeCode =
+    liquidFundTypeCode || typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType?.code
+  const isLiquidFundGroup = groupCode === 'LIQUID_FUND' || getInvestmentUiSubtypeFromData(investment) === 'liquid_fund'
+  if (isLiquidFundGroup && resolvedLiquidFundTypeCode) {
+    return getLiquidFundTypeFieldDefinition(resolvedLiquidFundTypeCode, catalogData)
+  }
+
+  // PRIORITY 3: Fallback to investment type fields (if type exists)
+  const resolvedInvestmentTypeCode = investmentTypeCode || investment?.investmentType?.code
+  if (resolvedInvestmentTypeCode) {
+    return getInvestmentTypeFieldDefinition(resolvedInvestmentTypeCode, catalogData)
+  }
+
+  return null
+}
+
+/**
+ * Helper: Build dynamic header items from form fields definition
+ */
+const buildDynamicHeaderItems = (
+  formFieldsDefinition: FormFieldsDefinition,
+  investment: any,
+  typeSpecificData: any
+) => {
+  const dynamicItems = transformFormFieldsToHeaderItems(formFieldsDefinition, investment, typeSpecificData)
+
+  if (dynamicItems.length > 0) {
+    // Add Owner Employee if not already provided by the form definition
+    const ownerEmployeeLabel = getTranslationFromI18nKeyAndLabel('crm.investments.ownerEmployee', 'Owner Employee')
+    const hasOwnerEmployeeField = formFieldsDefinition.formFields.some(group =>
+      group.fields.some(field => field.property?.includes('ownerEmployee'))
+    )
+    const hasOwnerEmployee = dynamicItems.some(item => item.label === ownerEmployeeLabel)
+
+    if (!hasOwnerEmployeeField && !hasOwnerEmployee && investment?.ownerEmployee) {
+      dynamicItems.push({
+        label: ownerEmployeeLabel,
+        value:
+          investment.ownerEmployee.firstName && investment.ownerEmployee.lastName
+            ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`.trim()
+            : investment.ownerEmployee.displayName || investment.ownerEmployee.fullName || '-'
+      })
+    }
+  }
+
+  return dynamicItems
+}
+
+/**
  * Gets type-specific detail groups for the header - now supports dynamic fields
  */
 export const getTypeSpecificDetailGroups = (
@@ -569,241 +886,27 @@ export const getTypeSpecificDetailGroups = (
   const currencyCode = extractCurrencyCode(investment?.currency?.code || '')
 
   // Try dynamic fields first if catalog data is available
-  if (catalogData && investment?.investmentType?.code) {
-    let formFieldsDefinition: FormFieldsDefinition | null = null
-
-    // PRIORITY 1: For liquid funds with liquid fund type - use liquid fund type fields
-    if (
-      investment.investmentGroup?.code?.includes('LIQUID_FUND') &&
-      typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType?.code
-    ) {
-      formFieldsDefinition = getLiquidFundTypeFieldDefinition(
-        typeSpecificData.liquidFundInvestment.investmentLiquidFundType.code,
-        catalogData
-      )
-    }
-
-    // PRIORITY 2: Fallback to investment type fields
-    if (!formFieldsDefinition) {
-      formFieldsDefinition = getInvestmentTypeFieldDefinition(investment.investmentType.code, catalogData)
-    }
+  if (catalogData) {
+    const formFieldsDefinition = findFormFieldsDefinition({ investment, typeSpecificData, catalogData })
 
     if (formFieldsDefinition) {
-      const dynamicItems = transformFormFieldsToHeaderItems(formFieldsDefinition, investment, typeSpecificData)
-
+      const dynamicItems = buildDynamicHeaderItems(formFieldsDefinition, investment, typeSpecificData)
       if (dynamicItems.length > 0) {
-        // Add Owner Employee if not already provided by the form definition
-        const ownerEmployeeLabel = getTranslationFromI18nKeyAndLabel('crm.investments.ownerEmployee', 'Owner Employee')
-        const hasOwnerEmployeeField = formFieldsDefinition.formFields.some(group =>
-          group.fields.some(field => field.property?.includes('ownerEmployee'))
-        )
-        const hasOwnerEmployee = dynamicItems.some(item => item.label === ownerEmployeeLabel)
-        if (!hasOwnerEmployeeField && !hasOwnerEmployee && investment?.ownerEmployee) {
-          dynamicItems.push({
-            label: ownerEmployeeLabel,
-            value:
-              investment.ownerEmployee.firstName && investment.ownerEmployee.lastName
-                ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`.trim()
-                : investment.ownerEmployee.displayName || investment.ownerEmployee.fullName || '-'
-          })
-        }
-
         return groupHeaderItems(dynamicItems)
       }
     }
   }
 
   // Fallback to static field configurations based on investment group
-  const group = investment?.investmentGroup?.code || ''
+  const resolvedSubtype = getInvestmentUiSubtypeFromData(investment)
 
-  if (group.includes('EQUITY') || investmentType === 'equity') {
-    const equity = typeSpecificData?.equityInvestment
-    return [
-      {
-        id: 'equity-details',
-        items: [
-          {
-            label: 'Initial Investment',
-            value: investment?.initialInvestmentAmount
-              ? formatCurrency(investment.initialInvestmentAmount, currencyCode)
-              : '-'
-          },
-          {
-            label: 'Total Investment',
-            value: investment?.totalInvestmentAmount
-              ? formatCurrency(investment.totalInvestmentAmount, currencyCode)
-              : '-'
-          },
-          {
-            label: 'Market Value',
-            value: investment?.investmentMarketValue
-              ? formatCurrency(investment.investmentMarketValue, currencyCode)
-              : '-'
-          },
-          {
-            label: 'Stake Percentage',
-            value: equity?.stakePercentage ? `${equity.stakePercentage}%` : '-'
-          },
-          {
-            label: 'Foundation Date',
-            value: formatDate(equity?.foundationDate)
-          }
-        ]
-      },
-      {
-        id: 'equity-details-2',
-        items: [
-          {
-            label: 'Turnover Amount',
-            value: equity?.turnoverAmount ? formatCurrency(equity.turnoverAmount, currencyCode) : '-'
-          },
-          {
-            label: 'EBITDA Amount',
-            value: equity?.ebitdaAmount ? formatCurrency(equity.ebitdaAmount, currencyCode) : '-'
-          },
-          {
-            label: 'Owner Employee',
-            value: investment?.ownerEmployee
-              ? `${investment.ownerEmployee.firstName || ''} ${investment.ownerEmployee.lastName || ''}`.trim()
-              : '-'
-          }
-        ]
-      }
-    ]
-  } else if (group.includes('REAL_ESTATE') || investmentType === 'real_estate') {
-    const realEstate = typeSpecificData?.realEstateInvestment
-    return realEstate
-      ? [
-          {
-            id: 'real-estate-details',
-            items: [
-              {
-                label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.size', 'Size'),
-                value: realEstate.size
-                  ? `${realEstate.size} ${realEstate.sizeMeasurementUnitRef?.split(':').pop() || 'm²'}`
-                  : '-'
-              },
-              {
-                label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.buildingYear', 'Building Year'),
-                value: realEstate.buildingYear || '-'
-              },
-              {
-                label: getTranslationFromI18nKeyAndLabel(
-                  'crm.investments.realEstate.annualNetColdRent',
-                  'Annual Net Cold Rent'
-                ),
-                value: realEstate.annualNetColdRent ? formatCurrency(realEstate.annualNetColdRent, currencyCode) : '-'
-              },
-              {
-                label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.funding', 'Funding'),
-                value: realEstate.funding ? formatCurrency(realEstate.funding, currencyCode) : '-'
-              },
-              {
-                label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.occupancyPercent', 'Occupancy %'),
-                value: realEstate.occupancyPercent ? `${realEstate.occupancyPercent}%` : '-'
-              },
-              {
-                label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.locality', 'Location'),
-                value: realEstate.locality || '-'
-              }
-            ]
-          }
-        ]
-      : []
-  } else if (group.includes('LIQUID_FUND') || investmentType === 'liquid_fund') {
-    const liquidFund = typeSpecificData?.liquidFundInvestment
-    return [
-      {
-        id: 'liquid-fund-details',
-        items: [
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.initialInvestment', 'Initial Investment'),
-            value: investment?.initialInvestmentAmount
-              ? formatCurrency(investment.initialInvestmentAmount, currencyCode)
-              : '-'
-          },
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.totalInvestment', 'Total Investment'),
-            value: investment?.totalInvestmentAmount
-              ? formatCurrency(investment.totalInvestmentAmount, currencyCode)
-              : '-'
-          },
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.marketValue', 'Market Value'),
-            value: investment?.investmentMarketValue
-              ? formatCurrency(investment.investmentMarketValue, currencyCode)
-              : '-'
-          },
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.fundType', 'Fund Type'),
-            value: liquidFund?.investmentLiquidFundType?.value || '-'
-          },
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.isinCode', 'ISIN Code'),
-            value: investment?.isin || '-'
-          }
-        ]
-      },
-      {
-        id: 'liquid-fund-details-2',
-        items: [
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.bankName', 'Bank Name'),
-            value: liquidFund?.bankName || '-'
-          },
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.interestRate', 'Interest Rate'),
-            value: liquidFund?.interestRate ? `${liquidFund.interestRate}%` : '-'
-          },
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.acquisitionDate', 'Acquisition Date'),
-            value: formatDate(investment?.acquisitionDate)
-          },
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.ownerEmployee', 'Owner Employee'),
-            value: investment?.ownerEmployee
-              ? `${investment.ownerEmployee.firstName || ''} ${investment.ownerEmployee.lastName || ''}`.trim()
-              : '-'
-          }
-        ]
-      }
-    ]
+  if (resolvedSubtype === 'equity' || investmentType === 'equity') {
+    return getEquityDetailGroups(investment, typeSpecificData, currencyCode)
+  } else if (resolvedSubtype === 'real_estate' || investmentType === 'real_estate') {
+    return getRealEstateDetailGroups(typeSpecificData, currencyCode)
+  } else if (resolvedSubtype === 'liquid_fund' || investmentType === 'liquid_fund') {
+    return getLiquidFundDetailGroups(investment, typeSpecificData, currencyCode)
   } else {
-    // Default/generic investment fields
-    return [
-      {
-        id: 'general-details',
-        items: [
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.initialInvestment', 'Initial Investment'),
-            value: investment?.initialInvestmentAmount
-              ? formatCurrency(investment.initialInvestmentAmount, currencyCode)
-              : '-'
-          },
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.totalInvestment', 'Total Investment'),
-            value: investment?.totalInvestmentAmount
-              ? formatCurrency(investment.totalInvestmentAmount, currencyCode)
-              : '-'
-          },
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.marketValue', 'Market Value'),
-            value: investment?.investmentMarketValue
-              ? formatCurrency(investment.investmentMarketValue, currencyCode)
-              : '-'
-          },
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.acquisitionDate', 'Acquisition Date'),
-            value: formatDate(investment?.acquisitionDate)
-          },
-          {
-            label: getTranslationFromI18nKeyAndLabel('investment.fields.ownerEmployee', 'Owner Employee'),
-            value: investment?.ownerEmployee
-              ? `${investment.ownerEmployee.firstName || ''} ${investment.ownerEmployee.lastName || ''}`.trim()
-              : '-'
-          }
-        ]
-      }
-    ]
+    return getGenericDetailGroups(investment, currencyCode)
   }
 }

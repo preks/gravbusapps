@@ -13,7 +13,9 @@ content = Content
 content-placeholder = Start writing...
 content-image = Content Image
 content-group = Content Group
+select-group = Select group
 content-type = Content Type
+select-type = Select type
 author = Author
 display-author = Display Author
 allow-comments = Allow Comments
@@ -28,7 +30,6 @@ summary-placeholder = Brief summary for search and listings...
 header-image = Header Image
 short-description = Short Description
 short-description-placeholder = Brief summary shown in the document portal...
-optional = Optional
 
 # Question-specific fields
 question-title = Question Title
@@ -61,6 +62,14 @@ glossary-examples-hint = Help others understand how this term is used in practic
 categories = Categories
 tags = Tags
 
+# Policy-specific fields
+policy-title-placeholder = Enter policy title...
+policy-preview-placeholder = Brief summary of the policy...
+policy-content-placeholder = Write the policy content here...
+policy-validity-period = Policy Validity Period
+policy-valid-from = Valid From
+policy-valid-to = Valid To
+
 # Validations
 title-required = Title is required
 preview-required = Preview text is required
@@ -69,4 +78,5 @@ group-required = Content group is required
 type-required = Content type is required
 start-date-required = Start date is required
 end-date-required = End date is required
+version-required = Version is required for updates
 

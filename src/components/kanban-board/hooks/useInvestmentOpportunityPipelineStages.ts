@@ -25,6 +25,7 @@ export const useInvestmentOpportunityPipelineStages = (
         where: {
           catalog: { identifier: { _eq: "InvestmentOpportunityPipelineStage" } }
           parentEntryId: { _eq: $pipelineRef }
+          isDeleted: { _eq: false }
         }
         orderBy: { additionalValue1: ASC }
       ) {

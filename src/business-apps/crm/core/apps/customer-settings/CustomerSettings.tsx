@@ -1,5 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import { useTranslation as useFluentTranslation } from '@newwork/nw-design-system'
+import customerSettingsI18n from './_i18n'
 import {
   UsersIcon,
   FlowArrowIcon,
@@ -8,9 +10,11 @@ import {
   CalendarIcon,
   BuildingsIcon,
   FileTextIcon,
-  MegaphoneIcon
+  MegaphoneIcon,
+  FunnelSimpleIcon
 } from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
+import { navigateTo } from '@/common/utils/navigationUtils'
 // inline pipeline card rendering moved to PipelineDataPage
 import LeadDataPage from './pages/lead-data/LeadDataPage'
 import EngagementDataPage from './pages/engagement-data/EngagementDataPage'
@@ -19,6 +23,7 @@ import AccountDataPage from './pages/account-data/AccountDataPage'
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
 import DocumentDataPage from './pages/document-data/DocumentDataPage'
 import CampaignDataPage from './pages/campaign-data/CampaignDataPage'
+import IdealCustomerProfilesPage from './pages/ideal-customer-profiles/IdealCustomerProfilesPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -31,6 +36,7 @@ export interface CustomerSettingsProps extends BusinessAppContextProps {
 
 const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDataTestId, ...context }) => {
   const { t } = useTranslation()
+  const { t: tIcp } = useFluentTranslation(customerSettingsI18n)
   const [inlinePage, setInlinePage] = React.useState<{ key: string; tab?: string } | null>(null)
 
   // Handle query parameters on component mount and browser back/forward
@@ -62,27 +68,29 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
     }
   }, [])
 
-  // Update URL when inline page changes
+  // Navigate to child page (forward) or back to settings home
   const handleInlinePageChange = (page: { key: string; tab?: string } | null) => {
+    if (page === null) {
+      // Going back to settings home - use replaceState to avoid creating new history entry
+      setInlinePage(null)
+      const settingsUrl = globalThis.location.pathname
+      globalThis.history.replaceState({}, '', settingsUrl)
+      return
+    }
+
+    // Going forward to child page - create new history entry
     setInlinePage(page)
 
     const newSearchParams = new URLSearchParams(globalThis.location.search)
-
-    if (page) {
-      newSearchParams.set('page', page.key)
-      if (page.tab) {
-        newSearchParams.set('tab', page.tab)
-      } else {
-        newSearchParams.delete('tab')
-      }
+    newSearchParams.set('page', page.key)
+    if (page.tab) {
+      newSearchParams.set('tab', page.tab)
     } else {
-      newSearchParams.delete('page')
       newSearchParams.delete('tab')
     }
 
-    // Update URL without page reload
-    const newURL = `${globalThis.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`
-    globalThis.history.replaceState({}, '', newURL)
+    const newURL = `${globalThis.location.pathname}?${newSearchParams.toString()}`
+    globalThis.history.pushState({}, '', newURL)
   }
 
   const cards = [
@@ -103,6 +111,10 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
         {
           label: t('crm.opportunity_forecasts', 'Forecasts'),
           onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'forecasts' })
+        },
+        {
+          label: t('crm.pipeline_stage_types', 'Stage Types'),
+          onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'stage-types' })
         }
       ]
     },
@@ -201,6 +213,18 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
           onClick: () => handleInlinePageChange({ key: 'campaign-data' })
         }
       ]
+    },
+    {
+      title: tIcp('icp-settings-card-title'),
+      description: tIcp('icp-settings-card-description'),
+      icon: FunnelSimpleIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: tIcp('icp-settings-card-entry'),
+          onClick: () => handleInlinePageChange({ key: 'ideal-customer-profiles' })
+        }
+      ]
     }
   ]
 
@@ -226,7 +250,7 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
   }
 
   if (inlinePage?.key === 'opportunity-data') {
-    const initialTab = inlinePage.tab as 'pipelines' | 'statuses' | 'forecasts' | undefined
+    const initialTab = inlinePage.tab as 'pipelines' | 'statuses' | 'forecasts' | 'stage-types' | undefined
     return (
       <OpportunityDataPage
         {...context}
@@ -290,6 +314,16 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
     )
   }
 
+  if (inlinePage?.key === 'ideal-customer-profiles') {
+    return (
+      <IdealCustomerProfilesPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerIcpSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
   return (
     <SettingsLayout
       headerPhosphorIcon={{
@@ -299,10 +333,15 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
         label: 'Customer Settings'
       }}
       headerLabel={t('crm.customer_settings', 'Customer Settings')}
+      headerDescription={t(
+        'crm.customer_settings_description',
+        'Configure and manage all customer relationship management settings'
+      )}
       cards={cards}
       className={className}
       prefixDataTestId={prefixDataTestId}
       searchPlaceholder={t('common.search_placeholder', 'Search settings...')}
+      onBack={() => navigateTo('/platform/use')}
     />
   )
 }

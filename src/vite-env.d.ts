@@ -23,6 +23,12 @@ declare module 'virtual:wrapped-entries' {
 interface ImportMetaEnv {
   readonly VITE_APP_TITLE: string
   readonly MODE: string
+  /** Optional URL for Space hero background video (e.g. Azure Blob/CDN). If unset, uses canvas fallback. */
+  readonly VITE_SPACE_HERO_VIDEO_URL?: string
+  /** Optional URL for Spaces Hub (listing page) background video. If unset, uses canvas fallback. */
+  readonly VITE_SPACES_HUB_VIDEO_URL?: string
+  /** Override default chat virtual-background poster (normally /platform/assets/... on the host). */
+  readonly VITE_CHAT_BACKGROUND_POSTER_URL?: string
   // Add other env variables as needed
 }
 

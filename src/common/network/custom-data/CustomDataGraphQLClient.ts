@@ -1,5 +1,6 @@
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
+import { FieldNameResolver } from './FieldNameResolver'
 
 type GraphQLResponse<T> = {
   data?: T
@@ -76,10 +77,112 @@ export class CustomDataGraphQLClient {
     const result = (await response.json()) as GraphQLResponse<T>
 
     if ((result as any).errors) {
-      console.error('Custom Data GraphQL errors:', (result as any).errors)
-      throw new Error(`GraphQL error: ${JSON.stringify((result as any).errors)}`)
+      const errors = (result as any).errors
+      console.error('Custom Data GraphQL errors:', errors)
+
+      // Try to provide helpful field name suggestions
+      const enhancedError = await this.enhanceFieldNameErrors(errors)
+
+      throw new Error(`GraphQL error: ${enhancedError}`)
     }
 
     return (result as any).data as T
+  }
+
+  /**
+   * Enhance GraphQL errors with field name suggestions for common field mismatch errors.
+   */
+  private async enhanceFieldNameErrors(errors: any[]): Promise<string> {
+    const fieldErrorPattern = /Cannot query field "(\w+)" on type "(\w+)"/
+    const errorMessages: string[] = []
+
+    for (const err of errors) {
+      const message = err.message || JSON.stringify(err)
+      const match = message.match(fieldErrorPattern)
+
+      if (match) {
+        const [, requestedField, entityType] = match
+
+        try {
+          const resolver = new FieldNameResolver(this)
+          const suggestion = await resolver.suggestFieldName(entityType, requestedField)
+
+          if (suggestion.suggestedField) {
+            errorMessages.push(
+              `Cannot query field "${requestedField}" on type "${entityType}". ` +
+                `Did you mean "${suggestion.suggestedField}"? ` +
+                `(Available fields: ${suggestion.allAvailableFields.slice(0, 5).join(', ')}...)`
+            )
+          } else {
+            errorMessages.push(
+              `Cannot query field "${requestedField}" on type "${entityType}". ` +
+                `Available fields: ${suggestion.allAvailableFields.join(', ')}`
+            )
+          }
+        } catch {
+          errorMessages.push(message)
+        }
+      } else {
+        errorMessages.push(message)
+      }
+    }
+
+    return errorMessages.join('; ')
+  }
+
+  /**
+   * Fetches the GraphQL schema metadata for a specific entity type.
+   * Returns field names and their types to help render appropriate input controls.
+   */
+  async introspectEntityType(entityTypeName: string): Promise<Record<string, string>> {
+    const introspectionQuery = `
+      query IntrospectEntityType($name: String!) {
+        __type(name: $name) {
+          name
+          fields(includeDeprecated: true) {
+            name
+            type {
+              name
+              kind
+              ofType {
+                name
+                kind
+              }
+            }
+          }
+        }
+      }
+    `
+
+    try {
+      const result = await this.request<{
+        __type: {
+          name: string
+          fields: Array<{
+            name: string
+            type: {
+              name: string | null
+              kind: string
+              ofType: { name: string | null; kind: string } | null
+            }
+          }>
+        }
+      }>(introspectionQuery, { name: entityTypeName })
+
+      if (!result.__type?.fields) {
+        return {}
+      }
+
+      const fieldTypes: Record<string, string> = {}
+      result.__type.fields.forEach(field => {
+        const typeName = field.type.name || field.type.ofType?.name || 'String'
+        fieldTypes[field.name] = typeName
+      })
+
+      return fieldTypes
+    } catch (error) {
+      console.warn('Failed to introspect entity type:', error)
+      return {}
+    }
   }
 }

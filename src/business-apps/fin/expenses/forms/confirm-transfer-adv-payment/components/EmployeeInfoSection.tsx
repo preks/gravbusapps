@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Badge } from '@newwork/nw-design-system'
-import { RightOutlined, FileTextOutlined } from '@ant-design/icons'
+import { CaretRightIcon, FileTextIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import DocumentPdfModal from './DocumentPdfModal'
@@ -133,7 +133,7 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
               onClick={handleExpensePlanClick}
               data-testid="expense-plan-link-button"
             >
-              <RightOutlined />
+              <CaretRightIcon size={16} />
               {expensePlan.title}
             </button>
             <button
@@ -147,7 +147,7 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
               data-testid="document-view-button"
               title={expensePlan.employeeDocument?.file ? 'View Document' : 'No document available'}
             >
-              <FileTextOutlined />
+              <FileTextIcon size={16} />
             </button>
           </div>
         </div>

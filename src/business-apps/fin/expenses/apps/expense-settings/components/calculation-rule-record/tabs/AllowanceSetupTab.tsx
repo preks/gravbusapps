@@ -44,18 +44,7 @@ import {
   DateInput
 } from '@newwork/nw-design-system'
 import { DeleteConfirmationDialog } from '../shared'
-import {
-  PiPlus,
-  PiPencil,
-  PiCalendar,
-  PiCheck,
-  PiX,
-  PiGear,
-  PiCode,
-  PiDotsThreeVertical,
-  PiTrash,
-  PiWarning
-} from 'react-icons/pi'
+import { PlusIcon, PencilIcon, CalendarIcon, CheckIcon, XIcon, GearIcon, CodeIcon, DotsThreeVerticalIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -66,13 +55,14 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
+import { formatDateForInput, findOverlappingPeriods, formatDate, normalizeDateInputValue } from '../../../utils'
+import { toISOEndOfDay, toISOStartOfDay } from '../../../utils/dateUtils'
 import {
   validateAllowanceSetupDates,
-  formatDateToISO,
   transformAllowanceSetupForRestrictedUpdate,
   transformAllowanceSetupForSave,
-  parseAllowanceSetupSaveError
+  parseAllowanceSetupSaveError,
+  getValidityDatesFromExisting
 } from '../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { UsageInfo } from '../../../types'
@@ -89,8 +79,8 @@ interface AllowanceSetup {
   name: string
   issue: string
   onlyTax: boolean
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   allowancePeriod: {
     id: string
     code: string
@@ -110,8 +100,8 @@ interface AllowanceSetupFormData {
   name: string
   issue: string
   onlyTax: boolean
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   allowancePeriodId: string
   allowanceCodeId: string
   version?: number
@@ -137,8 +127,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       allowanceCode: createFieldMappings.nested((a: AllowanceSetup) => a.allowanceCode),
       issue: createFieldMappings.string((a: AllowanceSetup) => a.issue),
       onlyTax: createFieldMappings.boolean((a: AllowanceSetup) => a.onlyTax),
-      activeFrom: createFieldMappings.date((a: AllowanceSetup) => a.validFrom),
-      activeTo: createFieldMappings.date((a: AllowanceSetup) => a.validTo, '9999-12-31')
+      activeFrom: createFieldMappings.date((a: AllowanceSetup) => a.activeFrom),
+      activeTo: createFieldMappings.date((a: AllowanceSetup) => a.activeTo, '9999-12-31')
     }),
     []
   )
@@ -158,8 +148,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       name: '',
       issue: 'DAILY_ALLOWANCE',
       onlyTax: false,
-      validFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-      validTo: formatDateForInput(activeTo) || '9999-12-31',
+      activeFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(activeTo) || '9999-12-31',
       allowancePeriodId: '',
       allowanceCodeId: ''
     }
@@ -334,6 +324,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
               id
               code
               name
+              calculationRef
             }
           }
         }
@@ -352,8 +343,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
         name: setup.name || '',
         issue: setup.issue || '',
         onlyTax: setup.onlyTax || false,
-        validFrom: setup.activeFrom,
-        validTo: setup.activeTo,
+        activeFrom: setup.activeFrom,
+        activeTo: setup.activeTo,
         allowancePeriod: setup.allowancePeriod || { id: '', code: '', name: '' },
         allowanceCode: setup.allowanceCode || { id: '', code: '', name: '' },
         version: setup.version,
@@ -383,6 +374,13 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
   // Sorted data is provided by useTableSorting hook (single source of truth)
   const sortedAllowanceSetups = sorting.sortedData || allowanceSetups
 
+  // Filter out allowance codes that have a calculation defined (they shouldn't appear in allowance setup form)
+  // When editing, include the currently selected code even if it has a calculation (for display consistency)
+  const filteredAllowanceCodes = useMemo(() => {
+    const currentAllowanceCodeId = editingItem?.allowanceCode?.id
+    return allowanceCodes.filter(code => !code.calculationRef || code.id === currentAllowanceCodeId)
+  }, [allowanceCodes, editingItem])
+
   useEffect(() => {
     if (ruleId && accessToken) {
       fetchAllowanceSetups()
@@ -410,16 +408,19 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
     setCurrentUsageInfo(null)
     setValidityError(null)
 
-    // ALWAYS inherit validity period from parent Expense Rule
-    const validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    const validToValue = formatDateForInput(activeTo) || '9999-12-31'
+    // Get validity dates using shared utility (copies from first existing entry if available)
+    const { activeFrom: entryActiveFrom, activeTo: entryActiveTo } = getValidityDatesFromExisting(
+      allowanceSetups,
+      activeFrom,
+      activeTo
+    )
 
     form.reset({
       name: '',
       issue: 'DAILY_ALLOWANCE',
       onlyTax: false,
-      validFrom: validFromValue,
-      validTo: validToValue,
+      activeFrom: entryActiveFrom,
+      activeTo: entryActiveTo,
       allowancePeriodId: '',
       allowanceCodeId: ''
     })
@@ -440,8 +441,9 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       name: record.name,
       issue: record.issue,
       onlyTax: record.onlyTax,
-      validFrom: formatDateForInput(record.validFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-      validTo: formatDateForInput(record.validTo),
+      activeFrom:
+        formatDateForInput(record.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(record.activeTo),
       allowancePeriodId: record.allowancePeriod.id,
       allowanceCodeId: record.allowanceCode.id,
       version: record.version
@@ -557,8 +559,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       const setupExists = await checkSetupUniqueness(
         formValues.allowanceCodeId,
         formValues.allowancePeriodId,
-        formValues.validFrom,
-        formValues.validTo,
+        formValues.activeFrom,
+        formValues.activeTo,
         editingItem?.id
       )
 
@@ -572,8 +574,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
       // Validate validity period
       const validationError = validateAllowanceSetupDates(
-        formValues.validFrom,
-        formValues.validTo,
+        formValues.activeFrom,
+        formValues.activeTo,
         activeFrom,
         activeTo
       )
@@ -587,8 +589,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       // IMPORTANT: Always use editingItem for id and version when updating
       const saveData =
         isRestrictedEdit && editingItem
-          ? transformAllowanceSetupForRestrictedUpdate(formValues, editingItem, ruleId, formatDateToISO)
-          : transformAllowanceSetupForSave(formValues, ruleId, editingItem, formatDateToISO)
+          ? transformAllowanceSetupForRestrictedUpdate(formValues, editingItem, ruleId, toISOStartOfDay, toISOEndOfDay)
+          : transformAllowanceSetupForSave(formValues, ruleId, editingItem, toISOStartOfDay, toISOEndOfDay)
 
       await expenseSettingsClient.saveExpenseRuleAllowanceSetup(saveData)
 
@@ -603,7 +605,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       } else {
         toast.error(`Failed to ${editingItem ? 'update' : 'create'} allowance setup`)
       }
-      console.error('Save error:', err)
+      console.error('Save error:', err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsSaving(false)
     }
@@ -659,7 +661,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
               </Badge>
             </div>
             <Button onClick={handleAdd} data-testid="add-allowance-setup-button">
-              <PiPlus className="gba:mr-2" />
+              <PlusIcon className="gba:mr-2" />
               Add Allowance Setup
             </Button>
           </div>
@@ -757,7 +759,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                             data-testid={`allowance-setup-action-${record.id}`}
                             onClick={e => e.stopPropagation()}
                           >
-                            <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                            <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -765,7 +767,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                             onClick={() => handleEdit(record)}
                             data-testid={`edit-allowance-setup-${record.id}`}
                           >
-                            <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                            <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                             Update
                           </DropdownMenuItem>
                           {!setupUsageMap[record.id] && (
@@ -776,7 +778,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                                 className="gba:text-destructive"
                                 data-testid={`delete-allowance-setup-${record.id}`}
                               >
-                                <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                 Delete
                               </DropdownMenuItem>
                             </>
@@ -787,7 +789,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
                     <TableCell data-testid={`allowance-setup-period-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiGear className="gba:text-primary" data-testid={`allowance-setup-period-icon-${record.id}`} />
+                        <GearIcon className="gba:text-primary" data-testid={`allowance-setup-period-icon-${record.id}`} />
                         <span
                           className="gba:font-mono gba:font-medium"
                           data-testid={`allowance-setup-period-code-${record.id}`}
@@ -799,7 +801,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
                     <TableCell data-testid={`allowance-setup-code-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCode className="gba:text-secondary" data-testid={`allowance-setup-code-icon-${record.id}`} />
+                        <CodeIcon className="gba:text-secondary" data-testid={`allowance-setup-code-icon-${record.id}`} />
                         <span
                           className="gba:font-mono gba:font-medium"
                           data-testid={`allowance-setup-code-text-${record.id}`}
@@ -831,12 +833,12 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
                     <TableCell className="gba:text-center" data-testid={`allowance-setup-tax-only-cell-${record.id}`}>
                       {record.onlyTax ? (
-                        <PiCheck
+                        <CheckIcon
                           className="gba:text-success gba:text-lg gba:inline-block"
                           data-testid={`allowance-setup-tax-only-check-${record.id}`}
                         />
                       ) : (
-                        <PiX
+                        <XIcon
                           className="gba:text-muted-foreground gba:text-lg gba:inline-block"
                           data-testid={`allowance-setup-tax-only-x-${record.id}`}
                         />
@@ -845,24 +847,24 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
                     <TableCell data-testid={`allowance-setup-valid-from-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-1">
-                        <PiCalendar
+                        <CalendarIcon
                           className="gba:text-muted-foreground"
                           data-testid={`allowance-setup-valid-from-icon-${record.id}`}
                         />
                         <span className="gba:text-sm" data-testid={`allowance-setup-valid-from-text-${record.id}`}>
-                          {formatDate(record.validFrom)}
+                          {formatDate(record.activeFrom)}
                         </span>
                       </div>
                     </TableCell>
 
                     <TableCell data-testid={`allowance-setup-valid-to-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-1">
-                        <PiCalendar
+                        <CalendarIcon
                           className="gba:text-muted-foreground"
                           data-testid={`allowance-setup-valid-to-icon-${record.id}`}
                         />
                         <span className="gba:text-sm" data-testid={`allowance-setup-valid-to-text-${record.id}`}>
-                          {record.validTo ? formatDate(record.validTo) : '∞'}
+                          {record.activeTo ? formatDate(record.activeTo) : '∞'}
                         </span>
                       </div>
                     </TableCell>
@@ -902,227 +904,244 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
       {/* Add/Edit Dialog */}
       <Dialog open={isModalVisible} onOpenChange={setIsModalVisible}>
-        <DialogContent className="gba:max-w-2xl" data-testid="allowance-setup-modal">
-          <DialogHeader data-testid="allowance-setup-modal-header">
+        <DialogContent
+          className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-hidden gba:flex gba:flex-col"
+          data-testid="allowance-setup-modal"
+        >
+          <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4" data-testid="allowance-setup-modal-header">
             <DialogTitle data-testid="allowance-setup-modal-title">
               {editingItem ? 'Edit' : 'Add'} Allowance Setup
             </DialogTitle>
           </DialogHeader>
 
-          <Form {...form}>
-            <div data-testid="allowance-setup-form" className="gba:space-y-4">
-              {isRestrictedEdit && currentUsageInfo && (
-                <Alert
-                  className="gba:border-warning gba:bg-warning-secondary"
-                  data-testid="allowance-setup-restricted-alert"
-                >
-                  <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
-                  <AlertDescription>{currentUsageInfo.message}</AlertDescription>
-                </Alert>
-              )}
-
-              {/* Allowance Period */}
-              <FormField
-                control={form.control}
-                name="allowancePeriodId"
-                rules={{ required: 'Allowance Period is required' }}
-                render={({ field }) => (
-                  <FormItem data-testid="allowance-setup-period-field">
-                    <FormLabel data-testid="allowance-setup-period-label">Allowance Period *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
-                      <FormControl>
-                        <SelectTrigger data-testid="allowance-setup-period-select">
-                          <SelectValue placeholder="Select allowance period" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent data-testid="allowance-setup-period-options">
-                        {allowancePeriods.map(period => (
-                          <SelectItem
-                            key={period.id}
-                            value={period.id}
-                            data-testid={`allowance-setup-period-option-${period.code}`}
-                          >
-                            {period.code} - {period.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+          <div className="gba:flex-1 gba:overflow-y-auto gba:px-6 gba:pb-6">
+            <Form {...form}>
+              <div data-testid="allowance-setup-form" className="gba:space-y-4">
+                {isRestrictedEdit && currentUsageInfo && (
+                  <Alert
+                    className="gba:border-warning gba:bg-warning-secondary"
+                    data-testid="allowance-setup-restricted-alert"
+                  >
+                    <WarningIcon className="gba:h-4 gba:w-4 gba:text-warning" />
+                    <AlertDescription>{currentUsageInfo.message}</AlertDescription>
+                  </Alert>
                 )}
-              />
 
-              {/* Allowance Code */}
-              <FormField
-                control={form.control}
-                name="allowanceCodeId"
-                rules={{ required: 'Allowance Code is required' }}
-                render={({ field }) => (
-                  <FormItem data-testid="allowance-setup-code-field">
-                    <FormLabel data-testid="allowance-setup-code-label">Allowance Code *</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={value => {
-                        field.onChange(value)
-                        // Auto-populate name field with selected allowance code's name
-                        const selectedCode = allowanceCodes.find(code => code.id === value)
-                        if (selectedCode && !editingItem) {
-                          form.setValue('name', selectedCode.name)
-                        }
-                      }}
-                      disabled={isRestrictedEdit}
+                {/* Allowance Period */}
+                <FormField
+                  control={form.control}
+                  name="allowancePeriodId"
+                  rules={{ required: 'Allowance Period is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-setup-period-field">
+                      <FormLabel data-testid="allowance-setup-period-label">Allowance Period *</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
+                        <FormControl>
+                          <SelectTrigger data-testid="allowance-setup-period-select">
+                            <SelectValue placeholder="Select allowance period" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent data-testid="allowance-setup-period-options">
+                          {allowancePeriods.map(period => (
+                            <SelectItem
+                              key={period.id}
+                              value={period.id}
+                              data-testid={`allowance-setup-period-option-${period.code}`}
+                            >
+                              {period.code} - {period.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Allowance Code */}
+                <FormField
+                  control={form.control}
+                  name="allowanceCodeId"
+                  rules={{ required: 'Allowance Code is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-setup-code-field">
+                      <FormLabel data-testid="allowance-setup-code-label">Allowance Code *</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={value => {
+                          field.onChange(value)
+                          // Auto-populate name field with selected allowance code's name
+                          const selectedCode = filteredAllowanceCodes.find(code => code.id === value)
+                          if (selectedCode && !editingItem) {
+                            form.setValue('name', selectedCode.name)
+                          }
+                        }}
+                        disabled={isRestrictedEdit}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="allowance-setup-code-select">
+                            <SelectValue placeholder="Select allowance code" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent data-testid="allowance-setup-code-options">
+                          {filteredAllowanceCodes.map(code => (
+                            <SelectItem
+                              key={code.id}
+                              value={code.id}
+                              data-testid={`allowance-setup-code-option-${code.code}`}
+                            >
+                              {code.code} - {code.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Name */}
+                <FormField
+                  control={form.control}
+                  name="name"
+                  rules={{ required: 'Name is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-setup-name-field">
+                      <FormLabel data-testid="allowance-setup-name-label">Name *</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          disabled={isRestrictedEdit}
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'expense-settings:allowance_setup_name_placeholder',
+                            'Enter allowance setup name'
+                          )}
+                          data-testid="allowance-setup-name-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Issue */}
+                <FormField
+                  control={form.control}
+                  name="issue"
+                  rules={{ required: 'Issue is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-setup-issue-field">
+                      <FormLabel data-testid="allowance-setup-issue-label">Issue *</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
+                        <FormControl>
+                          <SelectTrigger data-testid="allowance-setup-issue-select">
+                            <SelectValue placeholder="Select issue type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent data-testid="allowance-setup-issue-options">
+                          {issueOptions.map(option => (
+                            <SelectItem
+                              key={option.value}
+                              value={option.value}
+                              data-testid={`allowance-setup-issue-option-${option.value}`}
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Tax Only */}
+                <FormField
+                  control={form.control}
+                  name="onlyTax"
+                  render={({ field }) => (
+                    <FormItem
+                      className="gba:flex gba:items-center gba:gap-2"
+                      data-testid="allowance-setup-tax-only-field"
                     >
                       <FormControl>
-                        <SelectTrigger data-testid="allowance-setup-code-select">
-                          <SelectValue placeholder="Select allowance code" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent data-testid="allowance-setup-code-options">
-                        {allowanceCodes.map(code => (
-                          <SelectItem
-                            key={code.id}
-                            value={code.id}
-                            data-testid={`allowance-setup-code-option-${code.code}`}
-                          >
-                            {code.code} - {code.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Name */}
-              <FormField
-                control={form.control}
-                name="name"
-                rules={{ required: 'Name is required' }}
-                render={({ field }) => (
-                  <FormItem data-testid="allowance-setup-name-field">
-                    <FormLabel data-testid="allowance-setup-name-label">Name *</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        disabled={isRestrictedEdit}
-                        placeholder={getTranslationFromI18nKeyAndLabel(
-                          'expense-settings:allowance_setup_name_placeholder',
-                          'Enter allowance setup name'
-                        )}
-                        data-testid="allowance-setup-name-input"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Issue */}
-              <FormField
-                control={form.control}
-                name="issue"
-                rules={{ required: 'Issue is required' }}
-                render={({ field }) => (
-                  <FormItem data-testid="allowance-setup-issue-field">
-                    <FormLabel data-testid="allowance-setup-issue-label">Issue *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
-                      <FormControl>
-                        <SelectTrigger data-testid="allowance-setup-issue-select">
-                          <SelectValue placeholder="Select issue type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent data-testid="allowance-setup-issue-options">
-                        {issueOptions.map(option => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            data-testid={`allowance-setup-issue-option-${option.value}`}
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Tax Only */}
-              <FormField
-                control={form.control}
-                name="onlyTax"
-                render={({ field }) => (
-                  <FormItem
-                    className="gba:flex gba:items-center gba:gap-2"
-                    data-testid="allowance-setup-tax-only-field"
-                  >
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        disabled={isRestrictedEdit}
-                        data-testid="allowance-setup-tax-only-checkbox"
-                      />
-                    </FormControl>
-                    <FormLabel className="gba:text-sm gba:font-normal" data-testid="allowance-setup-tax-only-label">
-                      Tax Only
-                    </FormLabel>
-                  </FormItem>
-                )}
-              />
-
-              {/* Validity Period */}
-              <div className="gba:space-y-4">
-                <FormField
-                  control={form.control}
-                  name="validFrom"
-                  rules={{ required: 'Valid From is required' }}
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-setup-valid-from-field">
-                      <FormLabel data-testid="allowance-setup-valid-from-label">Valid From *</FormLabel>
-                      <FormControl>
-                        <DateInput
-                          value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
                           disabled={isRestrictedEdit}
-                          data-testid="allowance-setup-valid-from-input"
+                          data-testid="allowance-setup-tax-only-checkbox"
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormLabel className="gba:text-sm gba:font-normal" data-testid="allowance-setup-tax-only-label">
+                        Tax Only
+                      </FormLabel>
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="validTo"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-setup-valid-to-field">
-                      <FormLabel data-testid="allowance-setup-valid-to-label">Valid To</FormLabel>
-                      <FormControl>
-                        <DateInput
-                          value={field.value || ''}
-                          onChange={date => field.onChange(date)}
-                          data-testid="allowance-setup-valid-to-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
 
-              {/* Validity Error Message */}
-              {validityError && (
-                <div className="gba:text-sm gba:text-destructive gba:mt-2" data-testid="allowance-setup-validity-error">
-                  {validityError}
+                {/* Validity Period */}
+                <div className="gba:space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="activeFrom"
+                    rules={{ required: 'Valid From is required' }}
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-setup-valid-from-field">
+                        <FormLabel data-testid="allowance-setup-valid-from-label">Valid From *</FormLabel>
+                        <FormControl>
+                          <DateInput
+                            value={field.value || ''}
+                            onChange={date => {
+                              field.onChange(normalizeDateInputValue(date) ?? '')
+                            }}
+                            outputFormat="iso"
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-setup-valid-from-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="activeTo"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-setup-valid-to-field">
+                        <FormLabel data-testid="allowance-setup-valid-to-label">Valid To</FormLabel>
+                        <FormControl>
+                          <DateInput
+                            value={field.value || ''}
+                            onChange={date => {
+                              field.onChange(normalizeDateInputValue(date))
+                            }}
+                            outputFormat="iso"
+                            data-testid="allowance-setup-valid-to-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-              )}
-            </div>
-          </Form>
 
-          <DialogFooter data-testid="allowance-setup-modal-footer">
+                {/* Validity Error Message */}
+                {validityError && (
+                  <div
+                    className="gba:text-sm gba:text-destructive gba:mt-2"
+                    data-testid="allowance-setup-validity-error"
+                  >
+                    {validityError}
+                  </div>
+                )}
+              </div>
+            </Form>
+          </div>
+
+          <DialogFooter
+            className="gba:shrink-0 gba:border-t gba:border-border gba:bg-background gba:px-6 gba:py-4"
+            data-testid="allowance-setup-modal-footer"
+          >
             <Button
               variant="outline"
               onClick={() => setIsModalVisible(false)}

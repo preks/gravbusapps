@@ -9,6 +9,7 @@ import {
 } from '../types/analytics-context'
 import type { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { compactRecord, limitArray, normalizeEmail, normalizePhone } from './collectorUtils'
+import { mapCrmNoteRawToAnalyticsActivity } from '@/common/data/customer/types/customerNoteTypes'
 
 const GET_ACCOUNT_ANALYTICS = `
   query GetAccountAnalytics($id: uuid!) {
@@ -143,11 +144,13 @@ const GET_ACCOUNT_TASKS = `
       priority {
         value
       }
-      assignedEmployee {
-        id
-        firstName
-        lastName
-        displayName
+      taskAssignees(where: { isDeleted: { _eq: false } }) {
+        assignedEmployee {
+          id
+          firstName
+          lastName
+          displayName
+        }
       }
       creatorEmployee {
         id
@@ -169,6 +172,7 @@ const GET_ACCOUNT_NOTES = `
       id
       noteTitle
       noteText
+      noteType
       createdAt
       createdBy
     }
@@ -379,14 +383,17 @@ function buildAccountActivities(params: { activities: any[]; tasks: any[]; notes
       type: normalizedType,
       title: task.name || 'Task',
       occurredAt: task.dueDate || task.createdAt || undefined,
-      relationId: task.assignedEmployee?.id || undefined,
+      relationId: task.taskAssignees?.[0]?.assignedEmployee?.id || undefined,
       meta: compactRecord({
         statusRef: task.statusRef,
         timingType: task.timingType,
         priority: task.priority?.value || task.priorityRef,
         assignedEmployee:
-          task.assignedEmployee?.displayName ||
-          [task.assignedEmployee?.firstName, task.assignedEmployee?.lastName].filter(Boolean).join(' ').trim() ||
+          task.taskAssignees?.[0]?.assignedEmployee?.displayName ||
+          [task.taskAssignees?.[0]?.assignedEmployee?.firstName, task.taskAssignees?.[0]?.assignedEmployee?.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .trim() ||
           undefined,
         createdBy:
           task.creatorEmployee?.displayName ||
@@ -397,15 +404,13 @@ function buildAccountActivities(params: { activities: any[]; tasks: any[]; notes
   })
 
   const mappedNotes = limitArray(notes, 3).map(note => {
+    const mapped = mapCrmNoteRawToAnalyticsActivity(note)
     return {
-      id: note.id,
-      type: 'note',
-      title: note.noteTitle || 'Note',
-      occurredAt: note.createdAt || undefined,
-      meta: compactRecord({
-        author: note.createdBy,
-        text: note.noteText
-      })
+      id: mapped.id,
+      type: mapped.type,
+      title: mapped.title,
+      occurredAt: mapped.occurredAt,
+      meta: compactRecord(mapped.meta)
     } as AnalyticsActivity
   })
 

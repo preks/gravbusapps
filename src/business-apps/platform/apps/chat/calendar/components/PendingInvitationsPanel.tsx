@@ -8,7 +8,8 @@ import {
   Badge,
   IconAvatar,
   Spinner,
-  useLocale
+  useLocale,
+  useTranslation
 } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
@@ -18,8 +19,8 @@ import 'dayjs/locale/de'
 import 'dayjs/locale/en'
 import 'dayjs/locale/ro'
 import { Clock, User, Check, X, HelpCircle, Bell } from 'lucide-react'
-import { useChatTranslation } from '../../contexts/TranslationContext'
-import type { Meeting, InvitationStatus } from '../types'
+import translations from '../../_i18n'
+import { type Meeting, InvitationStatus } from '../types'
 
 dayjs.extend(localizedFormat)
 dayjs.extend(isToday)
@@ -52,7 +53,7 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
   onRespond,
   onViewDetails
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const { locale } = useLocale()
 
   if (isLoading) {
@@ -113,13 +114,28 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
                     <span>from {organizerName}</span>
                   </div>
 
+                  {(meeting.transcriptionEnabled === true || meeting.metadata?.aiTranscriptionEnabled === true) && (
+                    <div
+                      className="gba:flex gba:items-center gba:gap-2 gba:mt-2"
+                      data-testid="pending-invitations-recording-notice"
+                    >
+                      <span
+                        className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                        aria-hidden
+                      />
+                      <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                        {t('chat-call-recordingTranscriptNotice')}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Quick response buttons */}
                   <div className="gba:flex gba:gap-2 gba:mt-3">
                     <Button
                       size="sm"
                       variant="outline"
                       className="gba:h-7 gba:text-xs gba:flex-1 gba:text-success gba:border-success/30 gba:hover:bg-success/10"
-                      onClick={() => onRespond(meeting.id, 'accepted')}
+                      onClick={() => onRespond(meeting.id, InvitationStatus.ACCEPTED)}
                     >
                       <Check className="gba:h-3 gba:w-3 gba:mr-1" />
                       Accept
@@ -128,7 +144,7 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
                       size="sm"
                       variant="outline"
                       className="gba:h-7 gba:text-xs gba:flex-1"
-                      onClick={() => onRespond(meeting.id, 'tentative')}
+                      onClick={() => onRespond(meeting.id, InvitationStatus.TENTATIVE)}
                     >
                       <HelpCircle className="gba:h-3 gba:w-3 gba:mr-1" />
                       Maybe
@@ -137,7 +153,7 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
                       size="sm"
                       variant="outline"
                       className="gba:h-7 gba:text-xs gba:flex-1 gba:text-destructive gba:border-destructive/30 gba:hover:bg-destructive/10"
-                      onClick={() => onRespond(meeting.id, 'declined')}
+                      onClick={() => onRespond(meeting.id, InvitationStatus.DECLINED)}
                     >
                       <X className="gba:h-3 gba:w-3 gba:mr-1" />
                       Decline

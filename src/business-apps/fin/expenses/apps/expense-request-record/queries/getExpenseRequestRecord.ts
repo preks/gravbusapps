@@ -22,11 +22,16 @@ export const getExpenseRequestRecordQuery = `
       }
       status
       employee {
+        id
         fullName
+        firstName
+        lastName
         picture
         employeePosition {
           supervisor {
             fullName
+            firstName
+            lastName
           }
         }
       }
@@ -35,6 +40,12 @@ export const getExpenseRequestRecordQuery = `
       nonReimbursableAmount
       deductibleAmount
       nonDeductibleAmount
+      employeeDocument {
+        id
+        file
+        name
+        mimeType
+      }
       expensePlan {
         code
         planDate
@@ -68,8 +79,10 @@ export const getExpenseRequestRecordQuery = `
         }
       }
       expenseRequestItem:expenseItem(orderBy: {expenseDate: ASC, code: ASC}) {
+        id
         code
         title
+        status
         expenseGroup {
           value
           translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
@@ -81,10 +94,19 @@ export const getExpenseRequestRecordQuery = `
         currency {
           code
         }
-        expensePosition {
+        expensePosition(orderBy: {positionOrder: ASC}) {
+          positionOrder
+          totalAmount
+          reimbursableAmount
+          nonReimbursableAmount
+          deductibleAmount
+          nonDeductibleAmount
           expenseGroup {
             value
             translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
+          }
+          costCenter {
+            name
           }
         }
         expenseDate

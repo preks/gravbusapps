@@ -42,10 +42,12 @@ export interface LiquidFundInvestmentKPIs {
 
 interface LiquidFundInvestmentsReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  isActive?: boolean
 }
 
 export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportProps> = ({
   prefixDataTestId = 'LiquidFundInvestmentsReport',
+  isActive = true,
   ...context
 }) => {
   const [activeTab, setActiveTab] = useState('distribution')
@@ -67,7 +69,7 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
     isLoading: kpiLoading,
     error: kpiError,
     refetch: refetchKpis
-  } = useLiquidFundKPIIntegration(context, selectedCurrency)
+  } = useLiquidFundKPIIntegration(context, selectedCurrency, undefined, isActive)
 
   // Transform KPI data to component format (matches working pattern)
   const kpis: LiquidFundInvestmentKPIs = {

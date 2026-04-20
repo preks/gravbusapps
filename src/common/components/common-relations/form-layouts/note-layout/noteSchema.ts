@@ -23,6 +23,8 @@ export const noteSchema = z.object({
   text: z.string().min(1, 'Note text is required'),
   reminderDate: z.string().nullable().optional(),
   source: z.string().nullable().optional(),
+  /** CRM CrmNote.noteType; hidden in UI, preserved on update */
+  noteType: z.enum(['UNKNOWN_NOTE_TYPE', 'GENERAL_NOTE', 'NEXT_STEP_NOTE']).nullable().optional(),
 
   // Related entities (IDs only for form)
   accountId: z.string().nullable().optional(),
@@ -47,8 +49,8 @@ export const noteSchema = z.object({
         id: z.string(),
         name: z.string().optional(),
         version: z.number().optional(),
-        mimeType: z.string().optional(),
-        fileSize: z.number().optional(),
+        mimeType: z.string().nullable().optional(),
+        fileSize: z.number().nullable().optional(),
         fileInfo: z.any().optional()
       })
     )

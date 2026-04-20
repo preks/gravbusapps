@@ -1,4 +1,8 @@
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import { toISOStartOfDay, toISOEndOfDay } from '../../../utils/dateUtils'
+
+dayjs.extend(utc)
 
 export interface AllowanceCodeFormValues {
   code: string
@@ -13,8 +17,9 @@ export interface AllowanceCodeFormValues {
   secondAllowanceRegionRulePercent?: number
   firstWageCode?: string
   travelLocation?: string
-  validFrom: string
-  validTo?: string
+  additionalProperties?: Record<string, unknown>
+  activeFrom: string
+  activeTo?: string
 }
 
 export interface AllowanceCodeSaveData {
@@ -45,14 +50,14 @@ export interface AllowanceCodeSaveData {
  * Helper to format active date
  */
 const formatActiveFrom = (date: string | undefined): string | null => {
-  return date ? dayjs(date).startOf('day').toISOString() : null
+  return date ? toISOStartOfDay(date) || null : null
 }
 
 /**
  * Helper to format active to date
  */
 const formatActiveTo = (date: string | undefined): string | null => {
-  return date ? dayjs(date).endOf('day').toISOString() : null
+  return date ? toISOEndOfDay(date) || null : null
 }
 
 /**
@@ -68,7 +73,7 @@ export const transformAllowanceCodeForUnrestrictedUpdate = (
     version: editingItem.version,
     expenseRuleId: ruleId,
     businessKey: editingItem.businessKey,
-    additionalProperties: editingItem.additionalProperties || {},
+    additionalProperties: formValues.additionalProperties ?? editingItem.additionalProperties ?? {},
     codeOrder: editingItem.codeOrder,
     travelLocation: formValues.travelLocation || editingItem.travelLocation,
     secondWageCode: editingItem.secondWageCode || null,
@@ -83,13 +88,13 @@ export const transformAllowanceCodeForUnrestrictedUpdate = (
     secondAllowanceRegionRuleId: formValues.secondAllowanceRegionRuleId || null,
     secondAllowanceRegionRulePercent: formValues.secondAllowanceRegionRulePercent ?? 0,
     firstWageCode: formValues.firstWageCode || null,
-    activeFrom: formatActiveFrom(formValues.validFrom),
-    activeTo: formatActiveTo(formValues.validTo)
+    activeFrom: formatActiveFrom(formValues.activeFrom),
+    activeTo: formatActiveTo(formValues.activeTo)
   }
 }
 
 /**
- * Transforms form values to save data for restricted UPDATE operation (only validTo editable)
+ * Transforms form values to save data for restricted UPDATE operation (only activeTo editable)
  */
 export const transformAllowanceCodeForRestrictedUpdate = (
   formValues: AllowanceCodeFormValues,
@@ -101,7 +106,7 @@ export const transformAllowanceCodeForRestrictedUpdate = (
     version: editingItem.version,
     expenseRuleId: ruleId,
     businessKey: editingItem.businessKey,
-    additionalProperties: editingItem.additionalProperties || {},
+    additionalProperties: formValues.additionalProperties ?? editingItem.additionalProperties ?? {},
     codeOrder: editingItem.codeOrder,
     travelLocation: formValues.travelLocation || editingItem.travelLocation,
     secondWageCode: editingItem.secondWageCode || null,
@@ -116,8 +121,8 @@ export const transformAllowanceCodeForRestrictedUpdate = (
     secondAllowanceRegionRuleId: editingItem.secondAllowanceRegionRuleId || null,
     secondAllowanceRegionRulePercent: editingItem.secondAllowanceRegionRulePercent ?? 0,
     firstWageCode: editingItem.firstWageCode || null,
-    activeFrom: formatActiveFrom(editingItem.validFrom),
-    activeTo: formatActiveTo(formValues.validTo)
+    activeFrom: formatActiveFrom(editingItem.activeFrom),
+    activeTo: formatActiveTo(formValues.activeTo)
   }
 }
 
@@ -143,8 +148,9 @@ export const transformAllowanceCodeForCreate = (
     firstWageCode: formValues.firstWageCode || null,
     secondWageCode: null,
     travelLocation: formValues.travelLocation || null,
-    activeFrom: formatActiveFrom(formValues.validFrom),
-    activeTo: formatActiveTo(formValues.validTo)
+    additionalProperties: formValues.additionalProperties || {},
+    activeFrom: formatActiveFrom(formValues.activeFrom),
+    activeTo: formatActiveTo(formValues.activeTo)
   }
 }
 
@@ -168,8 +174,8 @@ export const transformAllowanceCodeFromAPI = (code: any): any => {
     secondAllowanceRegionRule: code.secondAllowanceRegionRule,
     firstWageCode: code.firstWageCode,
     secondWageCode: code.secondWageCode,
-    validFrom: code.activeFrom,
-    validTo: code.activeTo,
+    activeFrom: code.activeFrom,
+    activeTo: code.activeTo,
     version: code.version,
     businessKey: code.businessKey,
     additionalProperties: code.additionalProperties,
