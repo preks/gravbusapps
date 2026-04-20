@@ -6,15 +6,13 @@ import { extractCurrencyCode, formatCurrencyString } from '@/common/utils/number
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
+import type { CompensationBudgetPlanCompanyRow } from '../../compensation-planning/hooks/useBudgetSetupForCompany'
+import type { ManagerOrgUnitBudgetSnapshot } from '../hooks/useManagerTeamSalaryBudget'
 import { distributeToEmployees } from '../../../utils/budgetCalculations'
 import compensationPlanningTranslations from '../../compensation-planning/_i18n'
 import { roundMoney2 } from '../../compensation-planning/utils/parseCustomBudgetInputs'
 import { budgetDistributionMethodTitleKey } from '../../compensation-planning/components/views/BudgetDistributionMethodSelector'
 import { useManagerPlanningStore } from '../hooks/useManagerPlanningStore'
-import {
-  type ManagerEmployeeBudgetRowStateMap,
-  useManagerTeamProposalSubmit
-} from '../hooks/useManagerTeamProposalSubmit'
 import { useManagerTeamCompensationDataDisplay } from '../hooks/useManagerTeamCompensationDataDisplay'
 import { useManagerTeamEmployeeCustomBudgetMaps } from '../hooks/useManagerTeamEmployeeCustomBudgetMaps'
 import translations from '../_i18n'
@@ -37,19 +35,17 @@ export interface TeamCompensationDistributionPanelProps {
   salaryBudgetLoading: boolean
   salaryBudgetError: string | null
   selectedCompanyId: string | null
-  activeCompensationBudgetPlanId: string | null
   currencyCode: string
   accessToken: string | undefined
   managerEmployeeId: string | undefined
   planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
   managerOrganizationalUnitId: string | null
-  /** Local REST row ids and draft/submitted status from this session (after save allocations). */
-  employeeBudgetRowState: ManagerEmployeeBudgetRowStateMap
+  managerCompanyBudgetRow: CompensationBudgetPlanCompanyRow | null
+  orgUnitBudgetSnapshotsByPlanRowId: ReadonlyMap<string, ManagerOrgUnitBudgetSnapshot>
   /** Called after save dialog persists rows (merge returned ids into parent state). */
   onMergeSavedRowIds: (createdIdsByEmployeeId?: Record<string, string>) => void
-  /** After manager batch-submits drafts, parent locks editing. */
+  /** After manager submits proposals from the modal, parent locks editing. */
   proposalsLockedAfterSubmit: boolean
-  onDraftProposalsSubmitted: () => void
   onSaved?: () => void
 }
 
@@ -63,16 +59,15 @@ export function TeamCompensationDistributionPanel({
   salaryBudgetLoading,
   salaryBudgetError,
   selectedCompanyId,
-  activeCompensationBudgetPlanId,
   currencyCode,
   accessToken,
   managerEmployeeId,
   planOuRowIdByOrganizationalUnitId,
   managerOrganizationalUnitId,
-  employeeBudgetRowState,
+  managerCompanyBudgetRow,
+  orgUnitBudgetSnapshotsByPlanRowId,
   onMergeSavedRowIds,
   proposalsLockedAfterSubmit,
-  onDraftProposalsSubmitted,
   onSaved
 }: Readonly<TeamCompensationDistributionPanelProps>) {
   const { t } = useTranslation(translations)
@@ -169,30 +164,6 @@ export function TeamCompensationDistributionPanel({
     accessToken && managerEmployeeId && teamMembers.length > 0 && listsReady && !proposalsLockedAfterSubmit
   )
 
-  const {
-    submitDraftProposals,
-    submitting,
-    errorMessage: submitError,
-    draftCount
-  } = useManagerTeamProposalSubmit({
-    accessToken,
-    managerEmployeeId,
-    restClient,
-    companyId: selectedCompanyId,
-    activeCompensationBudgetPlanId,
-    teamMembers,
-    allocationByEmployeeId: allocationFullTeam,
-    planOuRowIdByOrganizationalUnitId,
-    managerOrganizationalUnitId,
-    employeeBudgetRowState,
-    onDraftsSubmitted: onDraftProposalsSubmitted,
-    tError: t
-  })
-
-  const canSubmitProposals = Boolean(
-    accessToken && managerEmployeeId && draftCount > 0 && !proposalsLockedAfterSubmit && !submitting && listsReady
-  )
-
   const teamBudgetKpiWidgets = useMemo((): WidgetItem[] | null => {
     if (activePool == null) {
       return null
@@ -285,6 +256,8 @@ export function TeamCompensationDistributionPanel({
         currencyCode={currencyCode}
         planOuRowIdByOrganizationalUnitId={planOuRowIdByOrganizationalUnitId}
         managerOrganizationalUnitId={managerOrganizationalUnitId}
+        managerCompanyBudgetRow={managerCompanyBudgetRow}
+        orgUnitBudgetSnapshotsByPlanRowId={orgUnitBudgetSnapshotsByPlanRowId}
         onSaved={createdIds => {
           onMergeSavedRowIds(createdIds)
           onSaved?.()
@@ -296,12 +269,6 @@ export function TeamCompensationDistributionPanel({
         {proposalsLockedAfterSubmit ? (
           <p className="gba:text-sm gba:text-muted-foreground" data-testid="manager-team-proposals-readonly-hint">
             {t('manager-team-proposals-readonly-hint')}
-          </p>
-        ) : null}
-
-        {submitError ? (
-          <p className="gba:text-sm gba:text-destructive" data-testid="manager-team-submit-proposals-error">
-            {submitError}
           </p>
         ) : null}
 
@@ -325,11 +292,8 @@ export function TeamCompensationDistributionPanel({
           totalSalaryCostAcrossEmployees={totalSalaryCostAcrossEmployees}
           grandTotalPositivePerformanceScores={grandTotalPositivePerformanceScores}
           dataDisplay={dataDisplay}
-          canSubmitProposals={canSubmitProposals}
-          submitting={submitting}
-          submitDraftProposals={submitDraftProposals}
           canShowSaveAction={canShowSaveAction}
-          onOpenSaveAllocations={() => setSaveAllocationsDialogOpen(true)}
+          onOpenSubmitProposals={() => setSaveAllocationsDialogOpen(true)}
         />
       </div>
     </>

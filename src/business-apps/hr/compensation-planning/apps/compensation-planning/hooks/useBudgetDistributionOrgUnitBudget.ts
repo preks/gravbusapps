@@ -14,6 +14,7 @@ import { useCompensationPlanningStore } from './useCompensationPlanningStore'
 /** Mirrors `nw_employee.compensation_budget_plan_organizational_unit`; names resolved via `companyOrgUnits`. */
 export interface CompensationBudgetPlanOrganizationalUnitRow {
   id: string
+  version: number
   compensationBudgetPlanId: string
   compensationBudgetPlanCompanyId: string
   organizationalUnitId: string
@@ -33,6 +34,7 @@ export interface CompanyBudgetPlanOption {
 
 interface CompensationBudgetPlanOrganizationalUnitGraphqlRow {
   id: string
+  version: unknown
   compensationBudgetPlanCompanyId: string
   organizationalUnitId: string
   salaryBudgetAmount: unknown
@@ -121,6 +123,7 @@ function mapGraphqlOrgUnitRow(
 ): CompensationBudgetPlanOrganizationalUnitRow {
   return {
     id: raw.id,
+    version: num(raw.version),
     compensationBudgetPlanId,
     compensationBudgetPlanCompanyId: raw.compensationBudgetPlanCompanyId,
     organizationalUnitId: raw.organizationalUnitId,
