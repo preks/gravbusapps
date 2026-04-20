@@ -89,7 +89,12 @@ export const useTeamCapacity = (
       const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
       const isFetchingCurrentMonth =
         today.getFullYear() === currentMonth.getFullYear() && today.getMonth() === currentMonth.getMonth()
-      const endDate = isFetchingCurrentMonth ? today : monthEnd
+      const comparisonEndDate = isFetchingCurrentMonth
+        ? new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)
+        : monthEnd
+      const hasComparisonRange = comparisonEndDate >= monthStart
+      const comparisonEndDateKey = hasComparisonRange ? toLocalDateKey(comparisonEndDate) : null
+      const includeAllWorkedInComparison = !isFetchingCurrentMonth
 
       const currentMembers = membersRef.current
       const capacityRows: CapacityRow[] = currentMembers.map(member => {
@@ -125,14 +130,19 @@ export const useTeamCapacity = (
         const empAttendance = attendanceRows.filter((r: any) => r.employeeId === member.id)
 
         let workedMinutes = 0
+        let workedMinutesForComparison = 0
         let missingEntries = 0
         empAttendance.forEach((r: any) => {
-          workedMinutes += parseDurationToMinutes(r.effectiveTime)
+          const effectiveMinutes = parseDurationToMinutes(r.effectiveTime)
+          workedMinutes += effectiveMinutes
+          if (includeAllWorkedInComparison || (comparisonEndDateKey && r.attendanceDate <= comparisonEndDateKey)) {
+            workedMinutesForComparison += effectiveMinutes
+          }
         })
 
         let targetUpToNow = 0
         const targetCursor = new Date(monthStart)
-        while (targetCursor <= endDate) {
+        while (targetCursor <= comparisonEndDate) {
           const dateStr = toLocalDateKey(targetCursor)
           const planned = getPlannedMinutesForDate(dateStr, member.workingHours)
           if (holidayDates.has(dateStr)) {
@@ -159,8 +169,9 @@ export const useTeamCapacity = (
           targetCursor.setDate(targetCursor.getDate() + 1)
         }
 
-        const overtimeMinutes = Math.max(0, workedMinutes - targetUpToNow)
-        const deficitMinutes = Math.max(0, targetUpToNow - workedMinutes)
+        const netBalanceMinutes = workedMinutesForComparison - targetUpToNow
+        const overtimeMinutes = Math.max(0, netBalanceMinutes)
+        const deficitMinutes = Math.max(0, -netBalanceMinutes)
 
         let ptoUsedDays = 0
         let sickDays = 0
@@ -187,8 +198,6 @@ export const useTeamCapacity = (
 
           monthlyCursor.setDate(monthlyCursor.getDate() + 1)
         }
-
-        const netBalanceMinutes = workedMinutes - targetUpToNow
 
         return {
           employee: member,
