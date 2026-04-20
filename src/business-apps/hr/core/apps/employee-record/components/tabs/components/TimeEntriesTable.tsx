@@ -50,6 +50,29 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
   } = props
   const { t } = useTranslation(hrI18n)
 
+  const sortableHeadProps = (field: keyof TimeEntry) =>
+    onSort
+      ? {
+          className: 'gba:cursor-pointer gba:select-none gba:hover:bg-muted/60 gba:transition-colors',
+          onClick: () => {
+            const nextDir: SortDirection = sortKey === field && sortDir === 'asc' ? 'desc' : 'asc'
+            onSort(field, nextDir)
+          }
+        }
+      : {}
+
+  const SortIcon: React.FC<{ field: keyof TimeEntry }> = ({ field }) => {
+    if (!onSort) return null
+    if (sortKey === field) {
+      return sortDir === 'asc' ? (
+        <CaretUp className="gba:ml-1 gba:h-4 gba:w-4 gba:shrink-0" aria-hidden />
+      ) : (
+        <CaretDown className="gba:ml-1 gba:h-4 gba:w-4 gba:shrink-0" aria-hidden />
+      )
+    }
+    return <ArrowsDownUpIcon className="gba:ml-1 gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground" aria-hidden />
+  }
+
   const statusToVariant: Record<string, string> = {
     in_progress: 'running',
     completed: 'success',
@@ -99,7 +122,12 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
       <Table className="gba:[&_th]:py-1.5 gba:[&_td]:py-1.5 gba:[&_tbody_tr]:h-10 gba:[&_tbody_td]:align-middle">
         <TableHeader>
           <TableRow>
-            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.date', 'Date')}</TableHead>
+            <TableHead {...sortableHeadProps('attendanceDateISO')}>
+              <div className="gba:flex gba:items-center gba:gap-1">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.date', 'Date')}
+                <SortIcon field="attendanceDateISO" />
+              </div>
+            </TableHead>
             <TableHead>
               {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking_table_workday', 'Day Type')}
             </TableHead>
@@ -115,34 +143,10 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
             <TableHead>
               {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.planned', 'Planned')}
             </TableHead>
-            <TableHead
-              className={
-                onSort ? 'gba:cursor-pointer gba:select-none gba:hover:bg-muted/60 gba:transition-colors' : undefined
-              }
-              onClick={
-                onSort
-                  ? () => {
-                      const nextDir: SortDirection = sortKey === 'differenceTime' && sortDir === 'asc' ? 'desc' : 'asc'
-                      onSort('differenceTime', nextDir)
-                    }
-                  : undefined
-              }
-            >
+            <TableHead {...sortableHeadProps('differenceTime')}>
               <div className="gba:flex gba:items-center gba:gap-1">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.diff', 'Diff')}
-                {onSort &&
-                  (sortKey === 'differenceTime' ? (
-                    sortDir === 'asc' ? (
-                      <CaretUp className="gba:ml-1 gba:h-4 gba:w-4 gba:shrink-0" aria-hidden />
-                    ) : (
-                      <CaretDown className="gba:ml-1 gba:h-4 gba:w-4 gba:shrink-0" aria-hidden />
-                    )
-                  ) : (
-                    <ArrowsDownUpIcon
-                      className="gba:ml-1 gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground"
-                      aria-hidden
-                    />
-                  ))}
+                <SortIcon field="differenceTime" />
               </div>
             </TableHead>
             <TableHead>
@@ -152,7 +156,12 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.label', 'Location')}
             </TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.notes', 'Notes')}</TableHead>
-            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.status', 'Status')}</TableHead>
+            <TableHead {...sortableHeadProps('status')}>
+              <div className="gba:flex gba:items-center gba:gap-1">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.status', 'Status')}
+                <SortIcon field="status" />
+              </div>
+            </TableHead>
             <TableHead className="gba:w-[60px]">{t('actions')}</TableHead>
           </TableRow>
         </TableHeader>

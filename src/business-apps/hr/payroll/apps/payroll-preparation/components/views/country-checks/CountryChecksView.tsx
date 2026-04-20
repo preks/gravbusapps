@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import type { PayrollEmployee, PayrollCountry } from '../../../types/payrollTypes'
+import { EmployeeDetailDrawer } from '../payroll-grid/EmployeeDetailDrawer'
 import { GermanyChecksView } from './GermanyChecksView'
 import { RomaniaChecksView } from './RomaniaChecksView'
 
@@ -10,11 +11,37 @@ interface CountryChecksViewProps {
 }
 
 export const CountryChecksView: React.FC<CountryChecksViewProps> = ({ employees, country, t }) => {
+  const [selectedEmployee, setSelectedEmployee] = useState<PayrollEmployee | null>(null)
+
   if (country === 'DE') {
-    return <GermanyChecksView employees={employees} t={t} />
+    return (
+      <>
+        <GermanyChecksView employees={employees} onSelectEmployee={setSelectedEmployee} t={t} />
+        {selectedEmployee && (
+          <EmployeeDetailDrawer
+            employee={selectedEmployee}
+            country={country}
+            onClose={() => setSelectedEmployee(null)}
+            t={t}
+          />
+        )}
+      </>
+    )
   }
   if (country === 'RO') {
-    return <RomaniaChecksView employees={employees} t={t} />
+    return (
+      <>
+        <RomaniaChecksView employees={employees} onSelectEmployee={setSelectedEmployee} t={t} />
+        {selectedEmployee && (
+          <EmployeeDetailDrawer
+            employee={selectedEmployee}
+            country={country}
+            onClose={() => setSelectedEmployee(null)}
+            t={t}
+          />
+        )}
+      </>
+    )
   }
 
   return (

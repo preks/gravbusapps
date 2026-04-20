@@ -11,6 +11,7 @@ export interface GroupDatum {
   label: string
   color?: string
   value: number
+  parentEntryId?: string
 }
 
 export function useTeamDailyFactsByType(
@@ -18,7 +19,7 @@ export function useTeamDailyFactsByType(
   employeeIds: string[] | undefined,
   from?: string,
   to?: string,
-  mapType?: (code: string) => { label?: string; color?: string },
+  mapType?: (code: string) => { label?: string; color?: string; parentEntryId?: string },
   statuses?: string[]
 ) {
   const client = useGraphQLClient(accessToken)
@@ -49,15 +50,19 @@ export function useTeamDailyFactsByType(
           grouped[key] = (grouped[key] || 0) + (Number(r.dayFraction) || 0)
         })
 
-        const mapped: GroupDatum[] = Object.entries(grouped).map(([code, value]) => {
-          const mapped = mapType ? mapType(code) : undefined
-          return {
-            code,
-            label: mapped?.label || code,
-            color: mapped?.color,
-            value
-          }
-        })
+        const mapped: GroupDatum[] = Object.entries(grouped)
+          .filter(([, value]) => Number(value) > 0)
+          .map(([code, value]) => {
+            const mapped = mapType ? mapType(code) : undefined
+            return {
+              code,
+              label: mapped?.label || code,
+              color: mapped?.color,
+              value,
+              parentEntryId: mapped?.parentEntryId
+            }
+          })
+          .sort((left, right) => right.value - left.value)
         setData(mapped)
       })
       .catch(err => setError(err as Error))

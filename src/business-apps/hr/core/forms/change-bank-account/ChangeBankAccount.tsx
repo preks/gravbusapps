@@ -111,6 +111,7 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
   }, [employeeAddresses])
 
   const defaultsAppliedRef = useRef(false)
+  const initialValidationTriggeredRef = useRef(false)
   const initialFormValuesRef = useRef<BankAccountFormValues | null>(null)
   useEffect(() => {
     if (defaultsAppliedRef.current) return
@@ -151,6 +152,15 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
   }, [catalogCountries, existingAccount, primaryAddress, data?.employee, form])
 
   useEffect(() => {
+    if (!defaultsAppliedRef.current || initialValidationTriggeredRef.current) {
+      return
+    }
+
+    initialValidationTriggeredRef.current = true
+    void form.trigger()
+  }, [form, selectedCountryId])
+
+  useEffect(() => {
     if (!selectedCountryId) return
     const dirtyCurrency = Boolean((form.formState as any)?.dirtyFields?.currencyId)
     if (dirtyCurrency) return
@@ -172,10 +182,11 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
   )
 
   const hasValidationErrors = Object.keys((form.formState as any)?.errors ?? {}).length > 0
+  const isFormInvalid = !form.formState.isValid
   const isSubmitDisabledFinal = useMemo(() => {
-    const disabled = isUSAndNoAddress || hasValidationErrors || isUnchangedExisting
+    const disabled = isUSAndNoAddress || isFormInvalid || hasValidationErrors || isUnchangedExisting
     return disabled
-  }, [isUSAndNoAddress, hasValidationErrors, isUnchangedExisting])
+  }, [isUSAndNoAddress, isFormInvalid, hasValidationErrors, isUnchangedExisting])
 
   if (!data) {
     return null

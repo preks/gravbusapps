@@ -4,6 +4,8 @@
 
 import { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 
+export type { CsvQuality } from '@/common/network/flowbot/FlowbotClient'
+
 // Field mapping between source CSV and target entity
 export interface FieldMapping {
   sourceField: string

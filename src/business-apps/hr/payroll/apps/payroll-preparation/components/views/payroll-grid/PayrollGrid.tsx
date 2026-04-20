@@ -16,6 +16,7 @@ import {
   TableHead
 } from '@newwork/nw-design-system'
 import { UserIcon, CaretUpIcon, CaretDownIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
+import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
 import type { PayrollEmployee, PayrollGridFilters as FilterState, PayrollCountry } from '../../../types/payrollTypes'
 import { useFilteredEmployees } from '../../../hooks/usePayrollEmployees'
 import { ReadinessStatusBadge, IssueCountBadge, ChangedBadge, FieldStatusBadge } from '../../shared/StatusBadge'
@@ -32,14 +33,14 @@ interface PayrollGridViewProps {
   t: (key: string) => string
 }
 
-type SortField = 'displayName' | 'department' | 'baseSalary' | 'readinessStatus' | 'issues'
+type SortField = 'fullName' | 'department' | 'baseSalary' | 'readinessStatus' | 'issues'
 type SortOrder = 'asc' | 'desc'
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100]
 
 function getVariablePayDisplay(employee: PayrollEmployee): string {
   if (employee.totalVariablePay === null || employee.totalVariablePay === undefined) {
-    return '—'
+    return '-'
   }
 
   return `${employee.totalVariablePay.toLocaleString()} ${employee.variablePayCurrency || ''}`
@@ -47,7 +48,7 @@ function getVariablePayDisplay(employee: PayrollEmployee): string {
 
 function formatHoursOrDash(value: number | null | undefined, unitHoursShort: string = 'h'): string {
   if (value === null || value === undefined) {
-    return '—'
+    return '-'
   }
 
   return `${value}${unitHoursShort}`
@@ -60,7 +61,7 @@ function formatHoursDaysOrDash(
   unitDaysShort: string = 'd'
 ): string {
   if (hours === null || hours === undefined) {
-    return '—'
+    return '-'
   }
 
   const safeDays = days ?? 0
@@ -69,10 +70,18 @@ function formatHoursDaysOrDash(
 
 function formatSalaryOrDash(value: number | null | undefined, currency: string): string {
   if (value === null || value === undefined) {
-    return '—'
+    return '-'
   }
 
   return `${value.toLocaleString()} ${currency}`
+}
+
+function formatDateOrDash(value: string | null | undefined): string {
+  if (!value) {
+    return '-'
+  }
+
+  return formatPlatformDate(value, 'date.short') || '-'
 }
 
 function hasNumberValue(value: number | null | undefined): value is number {
@@ -95,8 +104,8 @@ function getOpenIssuesCount(employee: PayrollEmployee): number {
 
 function compareEmployees(a: PayrollEmployee, b: PayrollEmployee, field: SortField): number {
   switch (field) {
-    case 'displayName':
-      return a.displayName.localeCompare(b.displayName)
+    case 'fullName':
+      return a.fullName.localeCompare(b.fullName)
     case 'department':
       return (a.department || '').localeCompare(b.department || '')
     case 'baseSalary':
@@ -184,13 +193,11 @@ const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmplo
             )}
           </div>
           <div>
-            <p className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
-              {employee.displayName}
-            </p>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">{employee.fullName}</p>
           </div>
         </div>
       </TableCell>
-      <TableCell className="gba:text-xs gba:text-muted-foreground gba:font-mono">{employee.code}</TableCell>
+      <TableCell className="gba:text-xs gba:text-muted-foreground gba:font-mono">{employee.code || '-'}</TableCell>
       <TableCell>
         <Badge variant={employee.employmentStatus === 'terminated' ? 'destructive' : 'success'}>
           {employee.employmentStatus}
@@ -198,16 +205,16 @@ const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmplo
       </TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.department}</TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-        {employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : '—'}
+        {formatDateOrDash(employee.hireDate)}
       </TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-        {employee.terminationDate ? new Date(employee.terminationDate).toLocaleDateString() : '—'}
+        {formatDateOrDash(employee.terminationDate)}
       </TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.costCenter}</TableCell>
-      <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.workLocation || '—'}</TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.workLocation || '-'}</TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.contractType}</TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground">
-        {employee.fte === null || employee.fte === undefined ? '—' : employee.fte.toFixed(2)}
+        {employee.fte === null || employee.fte === undefined ? '-' : employee.fte.toFixed(2)}
       </TableCell>
       <TableCell className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
         {formatSalaryOrDash(employee.baseSalary, employee.currency)}
@@ -234,7 +241,7 @@ const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmplo
           t('unit-days-short')
         )}
       </TableCell>
-      <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.unpaidLeaveDays || '—'}</TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.unpaidLeaveDays || '-'}</TableCell>
       <TableCell>
         {employee.missingPresenceDays > 0 ? (
           <Badge variant="destructive">
@@ -242,7 +249,7 @@ const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmplo
             {t('unit-days-short')}
           </Badge>
         ) : (
-          <span className="gba:text-sm gba:text-muted-foreground">—</span>
+          <span className="gba:text-sm gba:text-muted-foreground">-</span>
         )}
       </TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
@@ -259,7 +266,7 @@ const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmplo
             {t('unit-hours-short')}
           </Badge>
         ) : (
-          '—'
+          '-'
         )}
       </TableCell>
       <TableCell>
@@ -284,7 +291,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
   refreshing,
   t
 }) => {
-  const [sortField, setSortField] = useState<SortField>('displayName')
+  const [sortField, setSortField] = useState<SortField>('fullName')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -346,7 +353,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
             <TableHeader>
               <TableRow>
                 <PayrollGridSortableHead
-                  field="displayName"
+                  field="fullName"
                   label={t('grid-employee')}
                   sticky
                   activeField={sortField}
@@ -355,7 +362,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                   className="gba:min-w-[200px] gba:sticky gba:left-0 gba:z-20 gba:bg-card"
                   testId="payroll-prep-grid-sort-display-name"
                 />
-                <TableHead className="gba:whitespace-nowrap">{t('grid-employee-id')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('grid-employee-code')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-status')}</TableHead>
                 <PayrollGridSortableHead
                   field="department"
@@ -461,7 +468,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                 disabled={currentPage === 1}
                 data-testid="payroll-prep-grid-pagination-prev-button"
               >
-                Prev
+                {t('grid-pagination-prev')}
               </Button>
               <span className="gba:px-3">
                 {currentPage} / {totalPages || 1}
@@ -473,7 +480,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                 disabled={currentPage >= totalPages}
                 data-testid="payroll-prep-grid-pagination-next-button"
               >
-                Next
+                {t('grid-pagination-next')}
               </Button>
             </div>
           </div>

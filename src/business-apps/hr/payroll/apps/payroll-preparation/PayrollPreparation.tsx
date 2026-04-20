@@ -40,6 +40,14 @@ const moduleColor = MODULE_COLORS.HR
 
 type ViewKey = 'overview' | 'grid' | 'exceptions' | 'changes' | 'country-checks' | 'export'
 
+const DEFAULT_GRID_FILTERS: FilterState = {
+  search: '',
+  readinessStatus: 'all',
+  changedOnly: false,
+  issueCategory: 'all',
+  department: 'all'
+}
+
 export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => {
   const { accessToken, userInfo } = context
   const { t } = useTranslation(translations)
@@ -58,7 +66,14 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
     loading,
     error,
     refetch: refetchEmployees
-  } = usePayrollEmployees(accessToken, activeRun ? selectedCompanyId : null, activeMonth, activeYear, detectedCountry)
+  } = usePayrollEmployees(
+    accessToken,
+    activeRun ? selectedCompanyId : null,
+    activeMonth,
+    activeYear,
+    detectedCountry,
+    t
+  )
   const summary = usePayrollSummary(employees)
 
   const {
@@ -166,13 +181,11 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
     }
   }, [refetchEmployees])
 
-  const [gridFilters, setGridFilters] = useState<FilterState>({
-    search: '',
-    readinessStatus: 'all',
-    changedOnly: false,
-    issueCategory: 'all',
-    department: 'all'
-  })
+  const [gridFilters, setGridFilters] = useState<FilterState>(DEFAULT_GRID_FILTERS)
+
+  useEffect(() => {
+    setGridFilters(DEFAULT_GRID_FILTERS)
+  }, [activeRun?.id])
 
   const filteredEmployees = useFilteredEmployees(employees, gridFilters)
 
@@ -380,7 +393,15 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
           />
         )
       case 'exceptions':
-        return <ExceptionsView employees={employees} onRefresh={handleRefresh} refreshing={refreshing} t={t} />
+        return (
+          <ExceptionsView
+            employees={employees}
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
+            accessToken={accessToken}
+            t={t}
+          />
+        )
       case 'changes':
         return <ChangesView employees={employees} t={t} />
       case 'country-checks':
@@ -440,18 +461,15 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
                 {t('back-to-runs')}
               </Button>
             )}
-            <PayrollRunSelector
-              companies={companies}
-              companiesLoading={companiesLoading}
-              onCompanyChange={handleCompanyChange}
-              t={t}
-            />
+            {activeTab === 'overview' ? (
+              <PayrollRunSelector
+                companies={companies}
+                companiesLoading={companiesLoading}
+                onCompanyChange={handleCompanyChange}
+                t={t}
+              />
+            ) : null}
           </div>
-          {activeRun && (
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {t(`month-${activeRun.month}`)} {activeRun.year}
-            </div>
-          )}
         </div>
 
         <div className="gba:h-full gba:overflow-auto">{renderContent()}</div>

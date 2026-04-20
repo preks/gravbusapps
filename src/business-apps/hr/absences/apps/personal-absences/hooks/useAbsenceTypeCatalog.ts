@@ -8,10 +8,12 @@ export interface AbsenceTypePresentation {
   label: string
   color?: string
   objectValue?: any
+  parentEntryId?: string
 }
 
 export function useAbsenceTypeCatalog(accessToken?: string) {
   const client = useGraphQLClient(accessToken)
+  const activeUserLocale = getCurrentActiveUserLocale()
   const [types, setTypes] = useState<Record<string, AbsenceTypePresentation>>({})
   const [typesById, setTypesById] = useState<Record<string, AbsenceTypePresentation>>({})
   const [typesByParentId, setTypesByParentId] = useState<Record<string, AbsenceTypePresentation>>({})
@@ -45,7 +47,8 @@ export function useAbsenceTypeCatalog(accessToken?: string) {
             code,
             label: translation || code,
             color,
-            objectValue: row.objectValue
+            objectValue: row.objectValue,
+            parentEntryId: row.parentEntryId
           }
           map[code] = pres
           // Index by multiple identifiers that may appear in datasets
@@ -68,11 +71,19 @@ export function useAbsenceTypeCatalog(accessToken?: string) {
       })
       .catch(err => setError(err as Error))
       .finally(() => setLoading(false))
-  }, [client])
+  }, [activeUserLocale, client])
 
   const mapType = useMemo(
     () =>
-      (codeOrId: string): { label?: string; color?: string; display?: boolean; objectValue?: any } => {
+      (
+        codeOrId: string
+      ): {
+        label?: string
+        color?: string
+        display?: boolean
+        objectValue?: any
+        parentEntryId?: string
+      } => {
         if (!codeOrId) return { label: codeOrId }
         const byCode = types[codeOrId]
         if (byCode)
@@ -80,7 +91,8 @@ export function useAbsenceTypeCatalog(accessToken?: string) {
             label: byCode.label,
             color: byCode.color,
             display: byCode.objectValue?.display,
-            objectValue: byCode.objectValue
+            objectValue: byCode.objectValue,
+            parentEntryId: byCode.parentEntryId
           }
         const byId = typesById[codeOrId]
         if (byId)
@@ -88,7 +100,8 @@ export function useAbsenceTypeCatalog(accessToken?: string) {
             label: byId.label,
             color: byId.color,
             display: byId.objectValue?.display,
-            objectValue: byId.objectValue
+            objectValue: byId.objectValue,
+            parentEntryId: byId.parentEntryId
           }
         const byParent = typesByParentId[codeOrId]
         if (byParent)
@@ -96,7 +109,8 @@ export function useAbsenceTypeCatalog(accessToken?: string) {
             label: byParent.label,
             color: byParent.color,
             display: byParent.objectValue?.display,
-            objectValue: byParent.objectValue
+            objectValue: byParent.objectValue,
+            parentEntryId: byParent.parentEntryId
           }
         return { label: codeOrId }
       },
