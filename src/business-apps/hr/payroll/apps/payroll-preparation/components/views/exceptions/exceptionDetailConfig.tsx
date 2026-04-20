@@ -1,5 +1,6 @@
 import React from 'react'
 import { Badge } from '@newwork/nw-design-system'
+import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { PayrollEmployee, PayrollIssue } from '../../../types/payrollTypes'
 
@@ -18,7 +19,7 @@ function formatDate(value: string | null | undefined): string {
     return '-'
   }
 
-  return new Date(value).toLocaleDateString()
+  return formatPlatformDate(value, 'date.short') || '-'
 }
 
 function formatCurrency(value: number | null | undefined, currency: string): string {

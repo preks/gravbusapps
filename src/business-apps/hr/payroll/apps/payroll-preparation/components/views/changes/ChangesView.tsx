@@ -16,6 +16,7 @@ import {
   TableHead
 } from '@newwork/nw-design-system'
 import { ArrowsClockwiseIcon, MagnifyingGlassIcon, FunnelIcon } from '@phosphor-icons/react'
+import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
 import type { PayrollEmployee, PayrollChangeEvent, ChangeType } from '../../../types/payrollTypes'
 
 interface ChangesViewProps {
@@ -42,6 +43,14 @@ const CHANGE_TYPE_KEYS: Record<string, string> = {
 interface ChangeWithEmployee extends PayrollChangeEvent {
   employeeName: string
   employeeCode: string
+}
+
+function formatDateOrDash(value: string | null | undefined): string {
+  if (!value) {
+    return '-'
+  }
+
+  return formatPlatformDate(value, 'date.short') || '-'
 }
 
 export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
@@ -226,10 +235,10 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
                       <Badge variant="success">{change.newValue || '-'}</Badge>
                     </TableCell>
                     <TableCell className="gba:text-sm gba:text-muted-foreground">
-                      {change.effectiveDate ? new Date(change.effectiveDate).toLocaleDateString() : '-'}
+                      {formatDateOrDash(change.effectiveDate)}
                     </TableCell>
                     <TableCell className="gba:text-sm gba:text-muted-foreground">
-                      {change.changedAt ? new Date(change.changedAt).toLocaleDateString() : '-'}
+                      {formatDateOrDash(change.changedAt)}
                     </TableCell>
                     <TableCell className="gba:text-sm gba:text-muted-foreground">{change.changedBy || '-'}</TableCell>
                   </TableRow>

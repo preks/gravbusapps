@@ -1,5 +1,6 @@
 import React from 'react'
 import { Badge, Card, ScrollArea, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
+import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
 import type { PayrollEmployee, PayrollCountry } from '../../../types/payrollTypes'
 import { ReadinessStatusBadge, SeverityBadge } from '../../shared/StatusBadge'
 import { Navigation, navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -51,7 +52,7 @@ function formatChangeEffectiveDate(isoDate: string | undefined): string {
     return '-'
   }
 
-  return new Date(isoDate).toLocaleDateString()
+  return formatPlatformDate(isoDate, 'date.short') || '-'
 }
 
 export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ employee, country, onClose, t }) => {
@@ -81,7 +82,8 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
               testIdPrefix="payroll-prep-employee-drawer"
             />
 
-            <div className="gba:mb-6">
+            <div className="gba:mb-6 gba:space-y-2 gba:flex gba:justify-between">
+              <p className="gba:text-sm gba:font-medium gba:text-muted-foreground">{t('grid-readiness')}</p>
               <ReadinessStatusBadge status={employee.readinessStatus} t={t} />
             </div>
 
@@ -97,11 +99,13 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
               <Field label={t('grid-contract-type')} value={employee.contractType} />
               <Field
                 label={t('grid-hire-date')}
-                value={employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : null}
+                value={employee.hireDate ? formatPlatformDate(employee.hireDate, 'date.short') || '-' : null}
               />
               <Field
                 label={t('grid-termination-date')}
-                value={employee.terminationDate ? new Date(employee.terminationDate).toLocaleDateString() : null}
+                value={
+                  employee.terminationDate ? formatPlatformDate(employee.terminationDate, 'date.short') || '-' : null
+                }
               />
               <Field label={t('grid-fte')} value={formatOptionalValue(employee.fte)} />
               <Field label={t('grid-capacity')} value={formatHoursValue(employee.weeklyHours, t('unit-hours-short'))} />

@@ -16,6 +16,7 @@ import {
   TableHead
 } from '@newwork/nw-design-system'
 import { UserIcon, CaretUpIcon, CaretDownIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
+import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
 import type { PayrollEmployee, PayrollGridFilters as FilterState, PayrollCountry } from '../../../types/payrollTypes'
 import { useFilteredEmployees } from '../../../hooks/usePayrollEmployees'
 import { ReadinessStatusBadge, IssueCountBadge, ChangedBadge, FieldStatusBadge } from '../../shared/StatusBadge'
@@ -73,6 +74,14 @@ function formatSalaryOrDash(value: number | null | undefined, currency: string):
   }
 
   return `${value.toLocaleString()} ${currency}`
+}
+
+function formatDateOrDash(value: string | null | undefined): string {
+  if (!value) {
+    return '-'
+  }
+
+  return formatPlatformDate(value, 'date.short') || '-'
 }
 
 function hasNumberValue(value: number | null | undefined): value is number {
@@ -196,10 +205,10 @@ const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmplo
       </TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.department}</TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-        {employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : '-'}
+        {formatDateOrDash(employee.hireDate)}
       </TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-        {employee.terminationDate ? new Date(employee.terminationDate).toLocaleDateString() : '-'}
+        {formatDateOrDash(employee.terminationDate)}
       </TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.costCenter}</TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.workLocation || '-'}</TableCell>
