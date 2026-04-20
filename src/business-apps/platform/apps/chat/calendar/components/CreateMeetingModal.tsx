@@ -67,6 +67,7 @@ interface CreateMeetingModalProps {
     endTime: Date
     location?: string
     meetingLink?: string
+    conversationId?: string
     isAllDay?: boolean
     recurrence?: MeetingRecurrence
     recurrenceEndDate?: Date
@@ -190,6 +191,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const editableCalendars = useMemo(() => availableCalendars.filter(calendar => calendar.canEdit), [availableCalendars])
   const shouldShowCalendarSelect = includePersonal || editableCalendars.length > 0
+  const hasExistingConversation = Boolean(editMeeting?.conversationId)
   const previousOpenRef = useRef(false)
   const previousEditMeetingIdRef = useRef<string | null>(null)
 
@@ -249,11 +251,16 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
     (nextIsVideoCall: boolean) => {
       setIsVideoCall(nextIsVideoCall)
 
+      if (hasExistingConversation) {
+        setCreateConversation(true)
+        return
+      }
+
       if (!hasManualCreateConversationOverride) {
         setCreateConversation(getDefaultCreateConversation(nextIsVideoCall))
       }
     },
-    [hasManualCreateConversationOverride]
+    [hasExistingConversation, hasManualCreateConversationOverride]
   )
 
   const handleCalendarChange = useCallback((nextCalendarId: string) => {
@@ -310,7 +317,9 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       setEndTime(formatTimeForInput(editMeeting.endTime))
       setLocation(editMeeting.location || '')
       setIsVideoCall(!!editMeeting.meetingLink)
-      setCreateConversation(getDefaultCreateConversation(!!editMeeting.meetingLink))
+      setCreateConversation(
+        Boolean(editMeeting.conversationId) || getDefaultCreateConversation(!!editMeeting.meetingLink)
+      )
       setHasManualCreateConversationOverride(false)
       setIsAllDay(editMeeting.isAllDay || false)
       setRecurrence(editMeeting.recurrence || MeetingRecurrence.NONE)
@@ -498,7 +507,8 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           },
           // For updates, use addParticipantIds and removeParticipantIds
           ...(addParticipantIds.length > 0 && { addParticipantIds }),
-          ...(removeParticipantIds.length > 0 && { removeParticipantIds })
+          ...(removeParticipantIds.length > 0 && { removeParticipantIds }),
+          createConversation
         }
 
         await onUpdate(editMeeting.id, updateData)
@@ -677,29 +687,28 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             </div>
           </div>
 
-          {!isEditMode && (
-            <div className="gba:space-y-2">
-              <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:border-border gba:rounded-lg gba:bg-muted/50">
-                <div className="gba:flex-1">
-                  <Label htmlFor="meeting-create-chat" className="gba:font-medium gba:cursor-pointer">
-                    {t('calendar-createMeetingChat')}
-                  </Label>
-                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-                    {t('calendar-createMeetingChatDescription')}
-                  </p>
-                </div>
-                <Switch
-                  id="meeting-create-chat"
-                  checked={createConversation}
-                  onCheckedChange={checked => {
-                    setCreateConversation(checked)
-                    setHasManualCreateConversationOverride(true)
-                  }}
-                  data-testid="meeting-create-chat-toggle"
-                />
+          <div className="gba:space-y-2">
+            <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:border-border gba:rounded-lg gba:bg-muted/50">
+              <div className="gba:flex-1">
+                <Label htmlFor="meeting-create-chat" className="gba:font-medium gba:cursor-pointer">
+                  {t('calendar-createMeetingChat')}
+                </Label>
+                <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+                  {t('calendar-createMeetingChatDescription')}
+                </p>
               </div>
+              <Switch
+                id="meeting-create-chat"
+                checked={createConversation}
+                disabled={hasExistingConversation}
+                onCheckedChange={checked => {
+                  setCreateConversation(checked)
+                  setHasManualCreateConversationOverride(true)
+                }}
+                data-testid="meeting-create-chat-toggle"
+              />
             </div>
-          )}
+          </div>
 
           {/* Description */}
           <div className="gba:space-y-2">

@@ -75,7 +75,7 @@ describe('CreateMeetingModal', () => {
     expect(createChatToggle.checked).toBe(false)
   })
 
-  it('submits createConversation as false for non-video meetings by default', async () => {
+  it('submits createConversation as false for regular meetings by default', async () => {
     const onSubmit = jest.fn().mockResolvedValue(undefined)
 
     render(<CreateMeetingModal {...createProps({ onSubmit })} />)
@@ -98,7 +98,44 @@ describe('CreateMeetingModal', () => {
     fireEvent.click(screen.getByText('calendar-createMeeting'))
 
     await waitFor(() => {
-      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ createConversation: true }))
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          createConversation: true,
+          meetingLink: 'auto-generate'
+        })
+      )
+    })
+  })
+
+  it('submits createConversation on edit when enabling meeting chat for an existing meeting', async () => {
+    const onUpdate = jest.fn().mockResolvedValue(undefined)
+
+    render(
+      <CreateMeetingModal
+        {...createProps({
+          onUpdate,
+          editMeeting: {
+            id: 'meeting-1',
+            title: 'Planning sync',
+            startTime: new Date('2026-02-01T10:00:00Z'),
+            endTime: new Date('2026-02-01T11:00:00Z'),
+            meetingLink: 'auto-generate',
+            participants: []
+          }
+        })}
+      />
+    )
+
+    fireEvent.click(screen.getByText('calendar-saveChanges'))
+
+    await waitFor(() => {
+      expect(onUpdate).toHaveBeenCalledWith(
+        'meeting-1',
+        expect.objectContaining({
+          createConversation: true,
+          meetingLink: 'auto-generate'
+        })
+      )
     })
   })
 

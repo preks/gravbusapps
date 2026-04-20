@@ -302,6 +302,7 @@ export interface UpdateMeetingData {
   isAllDay?: boolean
   addParticipantIds?: string[]
   removeParticipantIds?: string[]
+  createConversation?: boolean
   conversationId?: string
   calendarId?: string
   metadata?: Record<string, any>

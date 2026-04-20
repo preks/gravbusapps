@@ -17,6 +17,7 @@ common-move-to-folder = Move to folder
 common-move-to-space = Move to Space
 common-try-again = Try Again
 common-open = Open
+common-join = Join
 common-open-chat = Open Chat
 common-view-all = View All
 common-schedule-meeting = Schedule Meeting

@@ -1237,6 +1237,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
                 endTime: editingMeeting.end,
                 location: editingMeeting.location,
                 meetingLink: editingMeeting.meetingLink,
+                conversationId: editingMeeting.conversationId,
                 isAllDay: editingMeeting.allDay,
                 calendarId: editingMeeting.calendarId,
                 recurrence: editingMeeting.recurrence,
