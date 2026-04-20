@@ -593,7 +593,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     clearCurrentApp,
     addRow,
     updateRow,
-    updateSheet
+    updateSheet,
+    addSheet,
+    deleteSheet
   } = useSpreadsheetApps(accessToken, currentUserId)
 
   const { ownerInfoMap, sharedUsersMap } = useSpreadsheetAppsHubUserLookup({
@@ -1401,6 +1403,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
             onAppRefreshNeeded={canEdit ? handleAppRefreshNeeded : undefined}
             onSheetUpdate={canEdit ? updateSheet : undefined}
+            onSheetAdd={canEdit ? addSheet : undefined}
+            onSheetDelete={canEdit ? deleteSheet : undefined}
             onRowAdd={canEdit ? addRow : undefined}
             onRowUpdate={canEdit ? updateRow : undefined}
             // Keep hub-level replay off: SpreadsheetAppViewer persists Univer edits via row/cell ops.
@@ -1452,6 +1456,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [
       accessToken,
       addRow,
+      addSheet,
+      deleteSheet,
       currentAppPermission,
       currentUserId,
       currentUserName,

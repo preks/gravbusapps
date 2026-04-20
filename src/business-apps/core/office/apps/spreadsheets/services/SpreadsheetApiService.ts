@@ -536,6 +536,7 @@ export const SpreadsheetApiService = {
     debugLog('createSheet', appId, sheet)
 
     const payload = {
+      ...(sheet.id ? { id: sheet.id } : {}),
       name: sheet.name || 'New Sheet',
       description: sheet.description,
       columns: sheet.columns || [],

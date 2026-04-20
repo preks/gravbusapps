@@ -493,6 +493,16 @@ export interface SpreadsheetAppViewerProps {
     sheetId: string,
     updates: Partial<SpreadsheetSheet>
   ) => Promise<SpreadsheetSheet | null>
+  /**
+   * Create a new real sheet on the backend. Called when Univer's native sheet-bar
+   * "+" fires InsertSheetCommand; the frontend passes the Univer-chosen id so the
+   * backend row and the in-memory workbook stay in sync.
+   */
+  onSheetAdd?: (appId: string, sheet?: Partial<SpreadsheetSheet>) => Promise<SpreadsheetSheet | null>
+  /**
+   * Delete a real sheet on the backend. Called when Univer fires RemoveSheetCommand.
+   */
+  onSheetDelete?: (appId: string, sheetId: string) => Promise<boolean>
   onBack?: () => void
   /** Header breadcrumb (Spreadsheets home): spreadsheet hub only. Falls back to onBack when omitted. */
   onNavigateToSpreadsheetHub?: () => void
