@@ -35,6 +35,8 @@ const COL = {
   status: { size: 180, minSize: 160 },
   money: { size: 200, minSize: 180 },
   percent: { size: 160, minSize: 140 },
+  proposedNewSalary: { size: 200, minSize: 180 },
+  ouCurrentSalary: { size: 200, minSize: 180 },
   review: { size: 140, minSize: 120 }
 } as const
 
@@ -101,7 +103,7 @@ export function buildSubmissionsOrgUnitTableColumns(
         if (v) {
           return (
             <div className="gba:flex gba:min-w-0 gba:w-full gba:justify-start gba:text-left gba:pl-2">
-              <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} />
+              <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} label={formatBudgetPlanStatus(v)} />
             </div>
           )
         }
@@ -135,6 +137,38 @@ export function buildSubmissionsOrgUnitTableColumns(
         <span className={TABLE_BODY_NUM_RIGHT}>{formatPercentCell(row.original.salaryBudgetPercent)}</span>
       )
     },
+    {
+      id: 'proposedNewSalary',
+      accessorKey: 'proposedNewSalary',
+      header: submissionsColumnHeader(t, 'submissions-table-col-proposed-new-salary', 'right'),
+      size: COL.proposedNewSalary.size,
+      minSize: COL.proposedNewSalary.minSize,
+      meta: { align: 'right', type: 'currency' },
+      accessorFn: row => sortNumberOrFallback(row.proposedNewSalary),
+      cell: ({ row }) => {
+        const r = row.original
+        return (
+          <span className={TABLE_BODY_NUM_RIGHT}>{formatCurrencyCell(r.proposedNewSalary, r.displayCurrency)}</span>
+        )
+      }
+    },
+    {
+      id: 'organizationalUnitCurrentTotalSalary',
+      accessorKey: 'organizationalUnitCurrentTotalSalary',
+      header: submissionsColumnHeader(t, 'submissions-table-col-org-unit-current-total-salary', 'right'),
+      size: COL.ouCurrentSalary.size,
+      minSize: COL.ouCurrentSalary.minSize,
+      meta: { align: 'right', type: 'currency' },
+      accessorFn: row => sortNumberOrFallback(row.organizationalUnitCurrentTotalSalary),
+      cell: ({ row }) => {
+        const r = row.original
+        return (
+          <span className={TABLE_BODY_NUM_RIGHT}>
+            {formatCurrencyCell(r.organizationalUnitCurrentTotalSalary, r.displayCurrency)}
+          </span>
+        )
+      }
+    },
     ...(reviewColumn == null ? [] : [reviewColumn])
   ]
 }
@@ -145,5 +179,7 @@ export const SUBMISSIONS_ORG_UNIT_TABLE_VISIBLE_COLUMN_IDS = [
   'budgetPlanStatus',
   'salaryBudgetAmount',
   'salaryBudgetPercent',
+  'proposedNewSalary',
+  'organizationalUnitCurrentTotalSalary',
   'reviewTeam'
 ] as const
