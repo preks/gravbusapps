@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
-import { InfoIcon, CheckCircleIcon } from '@phosphor-icons/react'
+import { WarningCircleIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { CsvQuality } from '@/common/components/common-relations/apps/data-import/types'
 import translations from './ConversionResultStep/_i18n'
 
@@ -23,11 +23,17 @@ export const CsvQualityBanner: React.FC<CsvQualityBannerProps> = ({
 
   if (!repairAttempted && csvQuality.repairAvailable) {
     return (
-      <div className="gba:bg-info-secondary gba:border gba:border-info gba:rounded-lg gba:p-4" data-testid={testId}>
+      <div
+        className="gba:bg-destructive-secondary gba:border gba:border-destructive gba:rounded-lg gba:p-4"
+        data-testid={testId}
+      >
         <div className="gba:flex gba:items-start gba:gap-3">
-          <InfoIcon className="gba:w-5 gba:h-5 gba:text-info gba:mt-0.5 gba:flex-shrink-0" weight="fill" />
+          <WarningCircleIcon
+            className="gba:w-5 gba:h-5 gba:text-destructive gba:mt-0.5 gba:flex-shrink-0"
+            weight="fill"
+          />
           <div className="gba:flex-1 gba:space-y-2">
-            <p className="gba:font-semibold gba:text-sm gba:text-info">{t('csv-quality-warning-title')}</p>
+            <p className="gba:font-semibold gba:text-sm gba:text-destructive">{t('csv-quality-warning-title')}</p>
             <p className="gba:text-sm gba:text-muted-foreground">
               {t('csv-quality-warning-message', {
                 shiftedRows: csvQuality.shiftedRows,
@@ -60,7 +66,10 @@ export const CsvQualityBanner: React.FC<CsvQualityBannerProps> = ({
     return (
       <div className="gba:bg-muted gba:border gba:border-border gba:rounded-lg gba:p-4" data-testid={testId}>
         <div className="gba:flex gba:items-start gba:gap-3">
-          <InfoIcon className="gba:w-5 gba:h-5 gba:text-muted-foreground gba:mt-0.5 gba:flex-shrink-0" weight="fill" />
+          <WarningCircleIcon
+            className="gba:w-5 gba:h-5 gba:text-muted-foreground gba:mt-0.5 gba:flex-shrink-0"
+            weight="fill"
+          />
           <p className="gba:text-sm gba:text-muted-foreground">
             {t('csv-quality-residual-message', { shiftedRows: csvQuality.shiftedRows })}
           </p>
