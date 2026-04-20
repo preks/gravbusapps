@@ -49,9 +49,7 @@ import {
   CheckCircle,
   Share2,
   Pin,
-  Archive,
   Copy,
-  Trash2,
   Download,
   Bold,
   Italic,
@@ -249,12 +247,11 @@ export interface NoteEditorProps extends Partial<BusinessAppContextProps> {
   onSave: (title: string, content: string, contentJson?: Record<string, unknown>) => Promise<void>
   onBack: () => void
   onTogglePin?: () => void
-  onArchive?: () => void
-  onDelete?: () => void
   onShare?: () => void
   onDuplicate?: () => void
   onColorChange?: (color: NoteColor) => void
   isReadOnly?: boolean
+  isTrashedNote?: boolean
   isSidebarCollapsed?: boolean
   onToggleSidebar?: () => void
   onTitleChanged?: (noteId: string, newTitle: string) => void
@@ -270,12 +267,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   onSave,
   onBack,
   onTogglePin,
-  onArchive,
-  onDelete,
   onShare,
   onDuplicate,
   onColorChange,
   isReadOnly = false,
+  isTrashedNote = false,
   isSidebarCollapsed,
   onToggleSidebar,
   onTitleChanged,
@@ -382,12 +378,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const scheduleSnapshotSaveRef = useRef<(editor: any) => void>(() => {})
 
   const collaborationExtension = React.useMemo(
-    () => (note.id ? Collaboration.configure({ document: ydoc }) : null),
-    [note.id, ydoc]
+    () => (note.id && !isTrashedNote ? Collaboration.configure({ document: ydoc }) : null),
+    [note.id, ydoc, isTrashedNote]
   )
   const yjsCursorExtension = React.useMemo(
-    () => (note.id ? createYjsCursorExtension(awareness) : null),
-    [note.id, awareness]
+    () => (note.id && !isTrashedNote ? createYjsCursorExtension(awareness) : null),
+    [note.id, awareness, isTrashedNote]
   )
 
   const onErrorCallback = useCallback((error: Error) => {
@@ -419,7 +415,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   } = useCollaboration({
     entityType: 'note',
     entityId: note.id,
-    enabled: !!note.id,
+    enabled: !!note.id && !isTrashedNote,
     accessToken,
     onError: onErrorCallback
   })
@@ -516,7 +512,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   // Initialize Yjs provider
   useEffect(() => {
-    if (!note.id || !collaborationSocket) return
+    if (!note.id || !collaborationSocket || isTrashedNote) return
 
     const provider = new SocketIoYjsProvider({
       socket: collaborationSocket,
@@ -554,7 +550,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       yjsProviderRef.current = null
       setIsYjsSynced(false)
     }
-  }, [note.id, collaborationSocket, ydoc, awareness])
+  }, [note.id, collaborationSocket, ydoc, awareness, isTrashedNote])
 
   // Set awareness state
   useEffect(() => {
@@ -715,7 +711,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     return createMentionSuggestion(accessToken)
   }, [accessToken])
 
-  const isCollaborationMode = Boolean(note.id)
+  const isCollaborationMode = Boolean(note.id && !isTrashedNote)
 
   // Initialize TipTap editor
   const editor = useEditor(
@@ -860,7 +856,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         ...(collaborationExtension ? [collaborationExtension] : []),
         ...(yjsCursorExtension ? [yjsCursorExtension] : [])
       ],
-      content: note.id ? '<p></p>' : note.content || '<p></p>', // Empty for synced notes (Yjs will populate)
+      content: isCollaborationMode ? '<p></p>' : note.content || '<p></p>',
       // Allow editing even if Yjs sync fails - user should be able to edit their own notes
       editable: !isReadOnly,
       onUpdate: () => {
@@ -2028,21 +2024,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <Download className="gba:w-4 gba:h-4 gba:mr-2" />
                     {t('editor-export')}
                   </DropdownMenuItem>
-                  {onArchive && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={onArchive}>
-                        <Archive className="gba:w-4 gba:h-4 gba:mr-2" />
-                        {t('editor-archive')}
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {onDelete && (
-                    <DropdownMenuItem onClick={onDelete} className="gba:text-destructive">
-                      <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                      {t('editor-delete')}
-                    </DropdownMenuItem>
-                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
 

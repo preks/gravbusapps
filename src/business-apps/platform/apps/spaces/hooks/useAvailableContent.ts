@@ -9,8 +9,10 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { SpaceContentItem } from '../types/space.types'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import translations from '../_i18n'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -44,6 +46,7 @@ export function useAvailableContent(
   accessToken: string | undefined,
   excludeSpaceId?: string
 ): UseAvailableContentResult {
+  const { t } = useTranslation(translations)
   const [documents, setDocuments] = useState<AvailableContentItem[]>([])
   const [notes, setNotes] = useState<AvailableContentItem[]>([])
   const [spreadsheets, setSpreadsheets] = useState<AvailableContentItem[]>([])
@@ -58,7 +61,7 @@ export function useAvailableContent(
   const fetchContent = useCallback(
     async (query: string = '') => {
       if (!accessToken) {
-        setError('Not authenticated')
+        setError(t('error-not-authenticated'))
         setIsLoading(false)
         return
       }
@@ -130,7 +133,7 @@ export function useAvailableContent(
             })
             .map((item: any) => ({
               id: item.id,
-              title: item.title || item.name || 'Untitled',
+              title: item.title || item.name || t('common-untitled'),
               name: item.name || item.title,
               description: item.description,
               type,
@@ -147,7 +150,7 @@ export function useAvailableContent(
       } catch (err) {
         // Only set error if this is still the latest request
         if (currentRequestId === requestIdRef.current) {
-          const message = err instanceof Error ? err.message : 'Failed to load content'
+          const message = err instanceof Error ? err.message : t('error-load-available-content')
           setError(message)
           console.error('[useAvailableContent] Error:', err)
         }
@@ -158,7 +161,7 @@ export function useAvailableContent(
         }
       }
     },
-    [accessToken, excludeSpaceId]
+    [accessToken, excludeSpaceId, t]
   )
 
   // Search with debounce

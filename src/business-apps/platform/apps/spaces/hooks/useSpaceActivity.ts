@@ -5,8 +5,10 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { SpaceActivity } from '../types/space.types'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import translations from '../_i18n'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -22,6 +24,7 @@ export function useSpaceActivity(
   accessToken: string | undefined,
   limit = 50
 ): UseSpaceActivityResult {
+  const { t } = useTranslation(translations)
   const [activities, setActivities] = useState<SpaceActivity[]>([])
   const [isLoading, setIsLoading] = useState(!!spaceId)
   const [error, setError] = useState<string | null>(null)
@@ -53,13 +56,13 @@ export function useSpaceActivity(
       const data = await response.json()
       setActivities(Array.isArray(data) ? data : [])
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load space activity'
+      const message = err instanceof Error ? err.message : t('error-load-space-activity')
       setError(message)
       console.error('[useSpaceActivity] Error:', err)
     } finally {
       setIsLoading(false)
     }
-  }, [spaceId, accessToken, limit])
+  }, [accessToken, limit, spaceId, t])
 
   useEffect(() => {
     if (spaceId && accessToken) {

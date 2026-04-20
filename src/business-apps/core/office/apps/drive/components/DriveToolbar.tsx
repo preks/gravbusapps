@@ -50,7 +50,7 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
       >
         <Search className="gba:w-5 gba:h-5 gba:text-muted-foreground/70 group-hover:gba:text-foreground gba:transition-colors" />
         <span className="gba:text-sm gba:text-muted-foreground/70 group-hover:gba:text-muted-foreground gba:transition-colors">
-          {t('header-search-placeholder')}
+          {t('drive-header-search-placeholder')}
         </span>
         <kbd className="gba:ml-auto gba:text-[11px] gba:text-muted-foreground/50 gba:px-2 gba:py-0.5 gba:rounded-md gba:bg-background gba:border gba:border-border/50 gba:font-medium gba:tracking-wide">
           ⌘K
@@ -95,7 +95,7 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
                   data-testid={`${testId}-create-folder`}
                 >
                   <FolderPlus className="gba:w-3.5 gba:h-3.5" />
-                  New folder
+                  {t('header-new-folder')}
                 </Button>
               </>
             )}
@@ -140,10 +140,10 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
               className="gba:text-xs gba:bg-transparent gba:border-0 gba:pr-1 gba:py-0.5 gba:text-muted-foreground gba:cursor-pointer focus:gba:outline-none"
               data-testid={`${testId}-sort-select`}
             >
-              <option value="updatedAt">Modified</option>
-              <option value="name">Name</option>
-              <option value="createdAt">Created</option>
-              <option value="size">Size</option>
+              <option value="updatedAt">{t('header-sort-modified')}</option>
+              <option value="name">{t('header-sort-name')}</option>
+              <option value="createdAt">{t('header-sort-created')}</option>
+              <option value="size">{t('header-sort-size')}</option>
             </select>
             <div className="gba:w-px gba:h-4 gba:bg-border/50" />
             <button

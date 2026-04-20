@@ -35,12 +35,9 @@ export function useExpensePlansTableSort({
       const payload = sorter && typeof sorter === 'object' && sorter !== null ? (sorter as TableSorterPayload) : {}
       const field = payload.field
       const order = payload.order
-      const hasExplicitSort =
-        typeof field === 'string' && field.length > 0 && (order === 'ascend' || order === 'descend')
-
-      if (hasExplicitSort) {
+      if (typeof field === 'string' && field.length > 0 && (order === 'ascend' || order === 'descend')) {
         setSortField(field)
-        setSortOrder(order as 'ascend' | 'descend')
+        setSortOrder(order)
       } else {
         setSortField(null)
         setSortOrder(null)

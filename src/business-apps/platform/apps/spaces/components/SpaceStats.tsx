@@ -6,7 +6,9 @@
  */
 
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { FileText, Table2, StickyNote, Presentation, Activity } from 'lucide-react'
+import translations from '../_i18n'
 
 export interface SpaceStatsProps {
   documents: number
@@ -17,14 +19,6 @@ export interface SpaceStatsProps {
   'data-testid'?: string
 }
 
-const stats = [
-  { key: 'documents', label: 'Documents', icon: FileText },
-  { key: 'spreadsheets', label: 'Spreadsheets', icon: Table2 },
-  { key: 'notes', label: 'Notes', icon: StickyNote },
-  { key: 'slides', label: 'Presentations', icon: Presentation },
-  { key: 'recentActivity', label: 'Recent Activity', icon: Activity }
-]
-
 export const SpaceStats: React.FC<SpaceStatsProps> = ({
   documents,
   spreadsheets,
@@ -33,6 +27,14 @@ export const SpaceStats: React.FC<SpaceStatsProps> = ({
   recentActivity,
   'data-testid': testId = 'space-stats'
 }) => {
+  const { t } = useTranslation(translations)
+  const stats = [
+    { key: 'documents', label: t('stats-documents'), icon: FileText },
+    { key: 'spreadsheets', label: t('stats-spreadsheets'), icon: Table2 },
+    { key: 'notes', label: t('stats-notes'), icon: StickyNote },
+    { key: 'slides', label: t('stats-presentations'), icon: Presentation },
+    { key: 'recentActivity', label: t('stats-recent-activity'), icon: Activity }
+  ]
   const values: Record<string, number> = { documents, spreadsheets, notes, slides, recentActivity }
 
   return (

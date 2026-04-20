@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import '@newwork/nw-design-system/style'
-import { Avatar, AvatarFallback, Button, Card } from '@newwork/nw-design-system'
+import { Avatar, AvatarFallback, Button, Card, CreateLayout } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
-import { CreateLayout } from '@/components/create-layout'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import { FunctionAssistantSidebar } from './FunctionAssistantSidebar'
 import { FunctionEditorHeaderBar } from './editor/FunctionEditorHeaderBar'
 import { FunctionDefinitionCard, type FunctionDefinitionTab } from './editor/FunctionDefinitionCard'
@@ -107,8 +107,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     buildTestIterationSnapshot,
 
     storedSecrets,
-    refreshSecrets,
-    onCreateStoredSecret,
+    credentialBindOptions,
     testOverrideRows,
     setTestOverrideRows
   } = useFunctionEditorState({ accessToken, mode, func })
@@ -177,10 +176,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
 
       <div className="gba:space-y-4 gba:mt-4">
         {canUndoAssistantApply ? (
-          <Card
-            className="gba:p-3 gba:border gba:border-border gba:bg-muted"
-            data-testid="function-editor-undo-banner"
-          >
+          <Card className="gba:p-3 gba:border gba:border-border gba:bg-muted" data-testid="function-editor-undo-banner">
             <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
               <div className="gba:flex gba:items-start gba:gap-2 gba:min-w-0">
                 <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
@@ -248,6 +244,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
           onOutputSchemaChange={setOutputSchema}
           onConfigKeysChange={setConfigKeys}
           storedSecrets={storedSecrets}
+          credentialBindOptions={credentialBindOptions}
           testOverrideRows={testOverrideRows}
           onTestOverrideRowsChange={setTestOverrideRows}
           testSchemaProperties={schemaProperties}
@@ -274,11 +271,12 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
   if (usesCreateLayoutHero) {
     return (
       <CreateLayout
-        testId={testId}
+        data-testid={testId}
         heroVariant="editor"
         heroIcon={Code}
         heroTitle={heroTitle}
         heroSubtitle={heroSubtitle}
+        heroBackground={<PremiumHeroBackground />}
         onBack={onBack}
         chatPanel={
           <FunctionAssistantSidebar

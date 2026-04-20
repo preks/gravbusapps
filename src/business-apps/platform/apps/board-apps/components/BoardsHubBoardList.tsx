@@ -6,12 +6,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { LayoutGrid, Plus, List, Star, Users, Sparkles, FolderClosed } from 'lucide-react'
 import type { BoardHubSidebarSection } from '../hooks/useBoardAppsHubFiltering'
 import type { BoardSummary } from '../types'
 import { BoardListItem, formatRelativeTime } from './BoardListItem'
+import translations from '../_i18n'
 
 export type CollectionInfo = { name: string; color?: string; icon?: string; memberCount?: number }
 
@@ -51,6 +53,7 @@ export const BoardsHubBoardList: React.FC<BoardsHubBoardListProps> = ({
   onMoveToCollection,
   testId
 }) => {
+  const { t } = useTranslation(translations)
   const [viewLayout, setViewLayout] = useState<'list' | 'grid'>('list')
 
   return (
@@ -58,7 +61,8 @@ export const BoardsHubBoardList: React.FC<BoardsHubBoardListProps> = ({
       {/* View toggle bar */}
       <div className="gba:shrink-0 gba:px-5 gba:py-2 gba:flex gba:items-center gba:justify-between">
         <span className="gba:text-xs gba:text-muted-foreground">
-          {filteredBoards.length} {filteredBoards.length === 1 ? 'board' : 'boards'}
+          {filteredBoards.length}{' '}
+          {filteredBoards.length === 1 ? t('common-board').toLowerCase() : t('common-boards').toLowerCase()}
         </span>
         <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:p-0.5">
           <button
@@ -116,10 +120,10 @@ export const BoardsHubBoardList: React.FC<BoardsHubBoardListProps> = ({
             <div className="gba:sticky gba:top-0 gba:bg-muted/50 gba:border-b gba:z-10">
               <div className="gba:flex gba:items-center gba:px-4 gba:py-1.5 gba:text-xs gba:font-medium gba:text-muted-foreground">
                 <div className="gba:w-8 gba:flex-shrink-0" />
-                <div className="gba:flex-1 gba:min-w-0">Name</div>
-                <div className="gba:w-36 gba:flex-shrink-0">Collection</div>
-                <div className="gba:w-28 gba:flex-shrink-0">Modified</div>
-                <div className="gba:w-16 gba:flex-shrink-0 gba:text-right">Rows</div>
+                <div className="gba:flex-1 gba:min-w-0">{t('hub-board-column-header')}</div>
+                <div className="gba:w-36 gba:flex-shrink-0">{t('hub-collection-column-header')}</div>
+                <div className="gba:w-28 gba:flex-shrink-0">{t('hub-modified-column-header')}</div>
+                <div className="gba:w-16 gba:flex-shrink-0 gba:text-right">{t('hub-rows-column-header')}</div>
                 <div className="gba:w-8 gba:flex-shrink-0" />
               </div>
             </div>
@@ -175,7 +179,11 @@ export const BoardsHubBoardList: React.FC<BoardsHubBoardListProps> = ({
                     })()}
                   <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground gba:mt-0.5">
                     <span>{formatRelativeTime(board.updatedAt)}</span>
-                    {board.rowCount > 0 && <span>{board.rowCount.toLocaleString()} rows</span>}
+                    {board.rowCount > 0 && (
+                      <span>
+                        {board.rowCount.toLocaleString()} {t('common-rows').toLowerCase()}
+                      </span>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -212,29 +220,50 @@ function SectionEmptyState({
   onAIOpen: () => void
   testId: string
 }) {
+  const { t } = useTranslation(translations)
   const copy = EMPTY_STATE_COPY[activeSection] || EMPTY_STATE_COPY['my-boards']
   const SectionIcon = activeSection === 'shared' ? Users : activeSection === 'favorites' ? Star : LayoutGrid
+
+  const translatedCopy = {
+    title:
+      activeSection === 'shared'
+        ? t('hub-empty-title-shared')
+        : activeSection === 'favorites'
+          ? t('hub-empty-title-favorites')
+          : activeSection === 'recent'
+            ? t('hub-empty-title-recent')
+            : t('hub-empty-title-default'),
+    description:
+      activeSection === 'shared'
+        ? t('hub-empty-description-shared')
+        : activeSection === 'favorites'
+          ? t('hub-empty-description-favorites')
+          : activeSection === 'recent'
+            ? t('hub-empty-description-recent')
+            : t('hub-empty-description-default'),
+    showCreate: copy.showCreate
+  }
 
   return (
     <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4">
       <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:mb-4">
         <SectionIcon className="gba:w-8 gba:h-8 gba:text-primary" />
       </div>
-      <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-1">{copy.title}</h3>
-      <p className="gba:text-muted-foreground gba:text-sm gba:mb-5">{copy.description}</p>
+      <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-1">{translatedCopy.title}</h3>
+      <p className="gba:text-muted-foreground gba:text-sm gba:mb-5">{translatedCopy.description}</p>
       {copy.showCreate && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="sm" data-testid={`${testId}-empty-create`}>
-              <Plus className="gba:w-3.5 gba:h-3.5 gba:mr-1" /> New Board
+              <Plus className="gba:w-3.5 gba:h-3.5 gba:mr-1" /> {t('common-new')} {t('common-board')}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center">
             <DropdownMenuItem onClick={onCreateOpen} data-testid={`${testId}-empty-create-manual`}>
-              <Plus className="gba:h-4 gba:w-4 gba:mr-2" /> Create manually
+              <Plus className="gba:h-4 gba:w-4 gba:mr-2" /> {t('common-create-manually')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onAIOpen} data-testid={`${testId}-empty-create-ai`}>
-              <Sparkles className="gba:h-4 gba:w-4 gba:mr-2" /> Create with AI
+              <Sparkles className="gba:h-4 gba:w-4 gba:mr-2" /> {t('common-create-with-ai')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

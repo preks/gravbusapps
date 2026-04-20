@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import type { EmailAssistantPolicy, EmailAssistantPolicyUpdateRequest } from '../../email-apps/types'
+import translations from '../_i18n'
 
 interface AssistantPolicyCardProps {
   policy: EmailAssistantPolicy | null
@@ -36,6 +37,7 @@ export const AssistantPolicyCard: React.FC<AssistantPolicyCardProps> = ({
   onSave,
   'data-testid': testId = 'assistant-policy-card'
 }) => {
+  const { t } = useTranslation(translations)
   const [cultureSummary, setCultureSummary] = useState(defaultPolicy.cultureSummary)
   const [preferredPhrasesText, setPreferredPhrasesText] = useState('')
   const [disallowedPhrasesText, setDisallowedPhrasesText] = useState('')
@@ -43,7 +45,7 @@ export const AssistantPolicyCard: React.FC<AssistantPolicyCardProps> = ({
   const [defaultFormality, setDefaultFormality] = useState<EmailAssistantPolicy['defaultFormality']>('neutral')
   const [advisoryOnly, setAdvisoryOnly] = useState(true)
   const [historyWindowSize, setHistoryWindowSize] = useState(3)
-  const [validationError, setValidationError] = useState<string | null>(null)
+  const [validationErrorKey, setValidationErrorKey] = useState<string | null>(null)
 
   useEffect(() => {
     const source = policy || defaultPolicy
@@ -79,22 +81,22 @@ export const AssistantPolicyCard: React.FC<AssistantPolicyCardProps> = ({
 
   const handleSave = async () => {
     if (payload.historyWindowSize < 1 || payload.historyWindowSize > 20) {
-      setValidationError('History window size must be between 1 and 20')
+      setValidationErrorKey('assistant-validation-history-window-size')
       return
     }
-    setValidationError(null)
+    setValidationErrorKey(null)
     await onSave(payload)
   }
 
   return (
     <div className="gba:p-4 gba:rounded-lg gba:border gba:bg-card gba:space-y-3" data-testid={testId}>
       <div>
-        <h2 className="gba:text-base gba:font-semibold">Email Assistant Policy</h2>
-        <p className="gba:text-sm gba:text-muted-foreground">Configure assistant behavior for your tenant.</p>
+        <h2 className="gba:text-base gba:font-semibold">{t('assistant-title')}</h2>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('assistant-description')}</p>
       </div>
 
       <label htmlFor={`${testId}-culture-summary`} className="gba:block gba:text-sm gba:font-medium">
-        <span className="gba:block gba:mb-1">Culture summary</span>
+        <span className="gba:block gba:mb-1">{t('assistant-label-culture-summary')}</span>
         <textarea
           id={`${testId}-culture-summary`}
           value={cultureSummary}
@@ -105,7 +107,7 @@ export const AssistantPolicyCard: React.FC<AssistantPolicyCardProps> = ({
       </label>
 
       <label htmlFor={`${testId}-preferred-phrases`} className="gba:block gba:text-sm gba:font-medium">
-        <span className="gba:block gba:mb-1">Preferred phrases (one per line)</span>
+        <span className="gba:block gba:mb-1">{t('assistant-label-preferred-phrases')}</span>
         <textarea
           id={`${testId}-preferred-phrases`}
           value={preferredPhrasesText}
@@ -116,7 +118,7 @@ export const AssistantPolicyCard: React.FC<AssistantPolicyCardProps> = ({
       </label>
 
       <label htmlFor={`${testId}-disallowed-phrases`} className="gba:block gba:text-sm gba:font-medium">
-        <span className="gba:block gba:mb-1">Disallowed phrases (one per line)</span>
+        <span className="gba:block gba:mb-1">{t('assistant-label-disallowed-phrases')}</span>
         <textarea
           id={`${testId}-disallowed-phrases`}
           value={disallowedPhrasesText}
@@ -127,7 +129,7 @@ export const AssistantPolicyCard: React.FC<AssistantPolicyCardProps> = ({
       </label>
 
       <label htmlFor={`${testId}-required-courtesy-markers`} className="gba:block gba:text-sm gba:font-medium">
-        <span className="gba:block gba:mb-1">Required courtesy markers (one per line)</span>
+        <span className="gba:block gba:mb-1">{t('assistant-label-required-courtesy-markers')}</span>
         <textarea
           id={`${testId}-required-courtesy-markers`}
           value={requiredCourtesyMarkersText}
@@ -139,7 +141,7 @@ export const AssistantPolicyCard: React.FC<AssistantPolicyCardProps> = ({
 
       <div className="gba:grid gba:grid-cols-2 gba:gap-3">
         <label htmlFor={`${testId}-default-formality`} className="gba:block gba:text-sm gba:font-medium">
-          <span className="gba:block gba:mb-1">Default formality</span>
+          <span className="gba:block gba:mb-1">{t('assistant-label-default-formality')}</span>
           <select
             id={`${testId}-default-formality`}
             value={defaultFormality}
@@ -147,14 +149,14 @@ export const AssistantPolicyCard: React.FC<AssistantPolicyCardProps> = ({
             className="gba:w-full gba:h-9 gba:px-2 gba:border gba:rounded gba:bg-background"
             data-testid={`${testId}-default-formality`}
           >
-            <option value="formal">Formal</option>
-            <option value="neutral">Neutral</option>
-            <option value="informal">Informal</option>
+            <option value="formal">{t('assistant-option-formal')}</option>
+            <option value="neutral">{t('assistant-option-neutral')}</option>
+            <option value="informal">{t('assistant-option-informal')}</option>
           </select>
         </label>
 
         <label htmlFor={`${testId}-history-window-size`} className="gba:block gba:text-sm gba:font-medium">
-          <span className="gba:block gba:mb-1">History window size</span>
+          <span className="gba:block gba:mb-1">{t('assistant-label-history-window-size')}</span>
           <input
             id={`${testId}-history-window-size`}
             type="number"
@@ -176,18 +178,18 @@ export const AssistantPolicyCard: React.FC<AssistantPolicyCardProps> = ({
           onChange={event => setAdvisoryOnly(event.target.checked)}
           data-testid={`${testId}-advisory-only`}
         />
-        <span>Advisory only (assistant never blocks sending)</span>
+        <span>{t('assistant-label-advisory-only')}</span>
       </label>
 
-      {validationError && (
+      {validationErrorKey && (
         <p className="gba:text-sm gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:p-2 gba:rounded">
-          {validationError}
+          {t(validationErrorKey, { min: 1, max: 20 })}
         </p>
       )}
 
       <div className="gba:flex gba:justify-end">
         <Button onClick={handleSave} disabled={isSaving} data-testid={`${testId}-save`}>
-          {isSaving ? 'Saving policy...' : 'Save policy'}
+          {isSaving ? t('assistant-button-saving') : t('assistant-button-save')}
         </Button>
       </div>
     </div>

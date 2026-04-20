@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildIrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -370,7 +371,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, investments
               activityTypeCatalog: ACTIVITY_TYPE,
               buildActivityPayload: buildInvestmentActivityPayload,
               alignment: 'right',
-              preSubmit: activityPreSubmit
+              preSubmit: activityPreSubmit,
+              getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl
             }
           },
           {

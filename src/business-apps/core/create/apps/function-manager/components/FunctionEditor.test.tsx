@@ -20,18 +20,7 @@ jest.mock('@newwork/nw-design-system', () => ({
       {children}
     </button>
   ),
-  Card: ({ children, ...props }: any) => <div {...props}>{children}</div>
-}))
-
-jest.mock('./editor/FunctionDefinitionCard', () => ({
-  FunctionDefinitionCard: ({ isFixingWithAi, fixWithAiError }: any) => (
-    <div data-testid="mock-function-definition-card">
-      {isFixingWithAi ? 'fixing' : 'idle'}|{fixWithAiError || ''}
-    </div>
-  )
-}))
-
-jest.mock('@/components/create-layout', () => ({
+  Card: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   CreateLayout: ({ onBack, canvasPanel, chatPanel }: any) => (
     <div data-testid="mock-create-layout">
       {onBack ? (
@@ -41,6 +30,14 @@ jest.mock('@/components/create-layout', () => ({
       ) : null}
       <div data-testid="mock-create-layout-chat">{chatPanel}</div>
       <div data-testid="mock-create-layout-canvas">{canvasPanel}</div>
+    </div>
+  )
+}))
+
+jest.mock('./editor/FunctionDefinitionCard', () => ({
+  FunctionDefinitionCard: ({ isFixingWithAi, fixWithAiError }: any) => (
+    <div data-testid="mock-function-definition-card">
+      {isFixingWithAi ? 'fixing' : 'idle'}|{fixWithAiError || ''}
     </div>
   )
 }))

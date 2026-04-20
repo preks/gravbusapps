@@ -58,6 +58,12 @@ interface ContactSelectProps {
 
   // Full account contacts with full contact data (for email/phone extraction)
   accountContacts?: any[]
+
+  /** When false, hides per-row contact-type catalog (e.g. activity “related contact” picker) */
+  showContactType?: boolean
+
+  /** Disables search combobox (e.g. no linked contacts) */
+  disabled?: boolean
 }
 
 const ContactSelect: React.FC<ContactSelectProps> = ({
@@ -71,7 +77,9 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
   searchContacts,
   hasMore,
   onLoadMore,
-  accountContacts = []
+  accountContacts = [],
+  showContactType = true,
+  disabled = false
 }) => {
   // Helper function to extract ID from value (string or object)
   const getContactId = (contactValue: string | ContactValue): string => {
@@ -501,28 +509,30 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
                 </div>
 
                 {/* Contact Type Select - fixed width, never shrink */}
-                <div className="gba:w-48 gba:flex-shrink-0">
-                  <Select
-                    value={contactType || ''}
-                    onValueChange={value => handleContactTypeChange(index, value)}
-                    data-testid={formatDataTestId(dataTestId || 'contact-list', `contact-type-${index}`)}
-                  >
-                    <SelectTrigger className="gba:w-full">
-                      <SelectValue placeholder="Select type..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ContactType.PRIMARY_CONTACT}>
-                        {getContactTypeLabel(ContactType.PRIMARY_CONTACT)}
-                      </SelectItem>
-                      <SelectItem value={ContactType.SECONDARY_CONTACT}>
-                        {getContactTypeLabel(ContactType.SECONDARY_CONTACT)}
-                      </SelectItem>
-                      <SelectItem value={ContactType.FOUNDER_CONTACT}>
-                        {getContactTypeLabel(ContactType.FOUNDER_CONTACT)}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {showContactType ? (
+                  <div className="gba:w-48 gba:flex-shrink-0">
+                    <Select
+                      value={contactType || ''}
+                      onValueChange={value => handleContactTypeChange(index, value)}
+                      data-testid={formatDataTestId(dataTestId || 'contact-list', `contact-type-${index}`)}
+                    >
+                      <SelectTrigger className="gba:w-full">
+                        <SelectValue placeholder="Select type..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ContactType.PRIMARY_CONTACT}>
+                          {getContactTypeLabel(ContactType.PRIMARY_CONTACT)}
+                        </SelectItem>
+                        <SelectItem value={ContactType.SECONDARY_CONTACT}>
+                          {getContactTypeLabel(ContactType.SECONDARY_CONTACT)}
+                        </SelectItem>
+                        <SelectItem value={ContactType.FOUNDER_CONTACT}>
+                          {getContactTypeLabel(ContactType.FOUNDER_CONTACT)}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
 
                 {/* Remove Button */}
                 <Button
@@ -550,7 +560,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
         placeholder="Search and select contact..."
         searchPlaceholder="Type to search..."
         emptyText={getEmptyText()}
-        disabled={contactsLoading}
+        disabled={Boolean(disabled) || contactsLoading}
         loading={contactsLoading}
         onSearch={searchContacts}
         searchDebounce={300}

@@ -187,6 +187,7 @@ export interface UseYjsDocumentSyncParams {
   suppressSnapshotSaveRef?: React.MutableRefObject<boolean>
   debugTablesEnabled?: boolean
   isReadOnly: boolean
+  isTrashedDocument?: boolean
   title: string
   onBootstrapEditorRebind?: () => void
   getFormattingForSave?: () => DocumentFormatting | undefined
@@ -210,6 +211,7 @@ export function useYjsDocumentSync({
   suppressSnapshotSaveRef,
   debugTablesEnabled = false,
   isReadOnly,
+  isTrashedDocument = false,
   title,
   onBootstrapEditorRebind,
   getFormattingForSave,
@@ -439,7 +441,7 @@ export function useYjsDocumentSync({
 
   // Drive Yjs sync over Socket.IO: create provider, start, cleanup
   useEffect(() => {
-    if (!documentId || !collaborationSocket) return
+    if (!documentId || !collaborationSocket || isTrashedDocument || isReadOnly) return
 
     readyStateInspectionCompletedRef.current = false
     recoveryAttemptedRef.current = false
@@ -490,7 +492,9 @@ export function useYjsDocumentSync({
     suppressSnapshotSaveRef,
     getEditorReadyPromise,
     applyNormalizedContentToEditor,
-    handleReadyStateApplied
+    handleReadyStateApplied,
+    isTrashedDocument,
+    isReadOnly
   ])
 
   // Cleanup snapshot timeout on unmount

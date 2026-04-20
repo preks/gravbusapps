@@ -6,6 +6,7 @@ import {
   useCrmCombinedCalendarAdapter
 } from '../hooks/usePersonalWorkspaceAdapters'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { UserIcon, TargetIcon, BuildingsIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MyTasksTab } from '../components/MyTasksTab'
@@ -140,7 +141,10 @@ const buildCrmWorkspaceConfig = (
     flowContexts: {
       entityContext: FlowContextName.customerActivityEntity,
       createContext: FlowContextName.customerActivityCreate
-    }
+    },
+    rowActionsContextArray: [FlowContextName.customerActivityEntity],
+    buildReferenceUrl: (entityType: string, entityId: string) =>
+      buildCrmRelatedEntityRecordUrl(entityType as Parameters<typeof buildCrmRelatedEntityRecordUrl>[0], entityId)
   } as any,
 
   myTasksConfig: {

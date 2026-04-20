@@ -303,6 +303,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
               controlId={controlId}
               label={label}
               fieldName={name}
+              fieldSchema={schema}
               accessToken={accessToken}
               disabled={disabled}
               value={typeof value === 'string' ? value : (value ?? '')}

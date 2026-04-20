@@ -282,16 +282,7 @@ const formatCatalogRef = (catalogData: CatalogRef | null | undefined): string =>
  * @returns The template name to use for report generation
  */
 const getTemplateNameByInvestmentType = (investment: BaseInvestment): string => {
-  // Primary logic: Use templateName from investmentType.objectValue
-  const templateName = investment.investmentType?.objectValue?.templateName
-
-  if (templateName) {
-    return templateName
-  }
-
-  // Default template for cases where templateName is not configured
-  const defaultTemplate = 'investment-one-pager-template'
-  return defaultTemplate
+  return investment.investmentType?.objectValue?.templateName ?? ''
 }
 
 /**

@@ -206,23 +206,23 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ components, userSummar
 
   return (
     <ResizablePanelGroup
-      direction="vertical"
+      orientation="vertical"
       className="gba:h-full gba:min-h-0 gba:w-full"
       data-testid={DATA_TEST_ID_PREFIX}
     >
       <ResizablePanel
-        defaultSize={40}
-        minSize={20}
-        maxSize={70}
+        defaultSize="40%"
+        minSize="20%"
+        maxSize="70%"
         className="gba:flex gba:flex-col gba:min-h-0 gba:overflow-hidden"
       >
         {topPane}
       </ResizablePanel>
       <ResizableHandle withHandle className="gba:bg-border" data-testid={`${DATA_TEST_ID_PREFIX}-resize-handle`} />
       <ResizablePanel
-        defaultSize={60}
-        minSize={30}
-        maxSize={80}
+        defaultSize="60%"
+        minSize="30%"
+        maxSize="80%"
         className="gba:flex gba:flex-col gba:min-h-0 gba:overflow-hidden"
       >
         {bottomPane}

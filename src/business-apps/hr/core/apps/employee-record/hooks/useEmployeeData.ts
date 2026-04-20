@@ -190,7 +190,10 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         }
       }
       relationship {
+        id
+        version
         isEmergencyContact
+        typeRef
         type {
           id
           value
@@ -214,6 +217,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
           value
           code
           additionalValue1
+          objectValue
         }
       }
       workingCondition {
@@ -691,7 +695,10 @@ interface Address {
 }
 
 interface Relationship {
+  id: string
+  version: number
   isEmergencyContact: boolean
+  typeRef: string
   type: CodeValue
   firstName: string
   lastName: string
@@ -713,6 +720,7 @@ interface Communication {
     value: string
     code: string
     additionalValue1: string
+    objectValue?: Record<string, unknown> | null
   }
 }
 

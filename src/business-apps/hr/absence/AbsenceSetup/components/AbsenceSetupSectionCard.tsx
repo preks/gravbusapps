@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ArrowDownAZ, ArrowUpAZ, Info, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { MagnifyingGlassIcon } from '@phosphor-icons/react'
+import { Info, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
   Alert,
@@ -13,12 +14,65 @@ import {
   CardHeader,
   CardTitle,
   EmptyState,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
-import type { SetupSectionItem } from '../utils/absenceSetup'
+import type { SetupSectionHighlight, SetupSectionItem, SetupSectionSortOption } from '../utils/absenceSetup'
+import { absenceTypeSetupIconMap } from '../utils/absenceTypeSetupIcons'
 import translations from '../_i18n'
+
+const isSupportedColorValue = (value: string) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(value.trim())
+
+const renderHighlightValue = (highlight: SetupSectionHighlight) => {
+  if (highlight.display === 'icon') {
+    const Icon = absenceTypeSetupIconMap[highlight.value as keyof typeof absenceTypeSetupIconMap]
+    if (!Icon) {
+      return null
+    }
+
+    return <Icon className="gba:h-4 gba:w-4" aria-hidden="true" />
+  }
+
+  if (highlight.display === 'color') {
+    if (!isSupportedColorValue(highlight.value)) {
+      return null
+    }
+
+    return (
+      <svg className="gba:h-4 gba:w-4 gba:text-border" viewBox="0 0 16 16" aria-hidden="true">
+        <rect x="1.5" y="1.5" width="13" height="13" rx="4" fill={highlight.value} stroke="currentColor" />
+      </svg>
+    )
+  }
+
+  return <span>{highlight.value}</span>
+}
+
+const compareSortValues = (
+  leftValue: string | number | undefined,
+  rightValue: string | number | undefined,
+  direction: 'asc' | 'desc'
+) => {
+  const resolvedLeftValue = leftValue ?? ''
+  const resolvedRightValue = rightValue ?? ''
+
+  const result =
+    typeof resolvedLeftValue === 'number' && typeof resolvedRightValue === 'number'
+      ? resolvedLeftValue - resolvedRightValue
+      : String(resolvedLeftValue).localeCompare(String(resolvedRightValue), undefined, {
+          numeric: true,
+          sensitivity: 'base'
+        })
+
+  return direction === 'desc' ? -result : result
+}
 
 interface AbsenceSetupSectionCardProps {
   icon: LucideIcon
@@ -34,6 +88,8 @@ interface AbsenceSetupSectionCardProps {
   items: SetupSectionItem[]
   isLoading?: boolean
   onAdd: () => void
+  onSelect?: (id: string) => void
+  sortOptions?: SetupSectionSortOption[]
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   addButtonTestId: string
@@ -56,6 +112,8 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
   items,
   isLoading = false,
   onAdd,
+  onSelect,
+  sortOptions = [],
   onEdit,
   onDelete,
   addButtonTestId,
@@ -65,23 +123,27 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
 }) => {
   const { t } = useTranslation(translations)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [selectedItemId, setSelectedItemId] = useState('')
+  const [activeSortOptionId, setActiveSortOptionId] = useState(sortOptions[0]?.id || '')
+  const lastNotifiedSelectionRef = useRef('')
+
+  const activeSortOption = useMemo(
+    () => sortOptions.find(option => option.id === activeSortOptionId) || sortOptions[0],
+    [activeSortOptionId, sortOptions]
+  )
+
+  useEffect(() => {
+    const nextSortOptionId = sortOptions[0]?.id || ''
+    if (!sortOptions.some(option => option.id === activeSortOptionId)) {
+      setActiveSortOptionId(nextSortOptionId)
+    }
+  }, [activeSortOptionId, sortOptions])
 
   const filteredItems = useMemo(() => {
     const normalizedSearchTerm = searchTerm.trim().toLowerCase()
 
     return [...items]
       .filter(item => {
-        if (statusFilter === 'active' && item.statusValue !== 'active') {
-          return false
-        }
-
-        if (statusFilter === 'inactive' && item.statusValue !== 'inactive') {
-          return false
-        }
-
         if (!normalizedSearchTerm) {
           return true
         }
@@ -93,13 +155,22 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
         return haystack.includes(normalizedSearchTerm)
       })
       .sort((leftItem, rightItem) => {
-        const leftValue = (leftItem.sortText || leftItem.title).toLowerCase()
-        const rightValue = (rightItem.sortText || rightItem.title).toLowerCase()
-        const result = leftValue.localeCompare(rightValue)
+        const result = compareSortValues(
+          activeSortOption ? leftItem.sortValues?.[activeSortOption.id] : leftItem.sortText || leftItem.title,
+          activeSortOption ? rightItem.sortValues?.[activeSortOption.id] : rightItem.sortText || rightItem.title,
+          activeSortOption?.direction || 'asc'
+        )
 
-        return sortOrder === 'asc' ? result : -result
+        if (result !== 0) {
+          return result
+        }
+
+        return String(leftItem.title).localeCompare(String(rightItem.title), undefined, {
+          numeric: true,
+          sensitivity: 'base'
+        })
       })
-  }, [items, searchTerm, sortOrder, statusFilter])
+  }, [activeSortOption, items, searchTerm])
 
   const selectedItem = useMemo(
     () => filteredItems.find(item => item.id === selectedItemId) || filteredItems[0] || null,
@@ -116,6 +187,20 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
       setSelectedItemId(selectedItem.id)
     }
   }, [selectedItem, selectedItemId])
+
+  useEffect(() => {
+    if (!selectedItem?.id || !onSelect) {
+      lastNotifiedSelectionRef.current = ''
+      return
+    }
+
+    if (lastNotifiedSelectionRef.current === selectedItem.id) {
+      return
+    }
+
+    lastNotifiedSelectionRef.current = selectedItem.id
+    onSelect(selectedItem.id)
+  }, [onSelect, selectedItem?.id])
 
   return (
     <Card
@@ -181,64 +266,44 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
 
         {!isLoading && !errorMessage && items.length > 0 && (
           <div className="gba:space-y-4">
-            <div className="gba:flex gba:flex-col gba:gap-3 gba:xl:flex-row gba:xl:items-center gba:xl:justify-between">
-              <DebouncedInput
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('section-search-placeholder', { entity: title })}
-                className="gba:w-full gba:xl:max-w-md"
-                data-testid={`${cardTestId}-search-input`}
-              />
-              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={statusFilter === 'all' ? 'default' : 'secondary'}
-                  onClick={() => setStatusFilter('all')}
-                  data-testid={`${cardTestId}-filter-all-button`}
-                >
-                  {t('filter-all-label')}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={statusFilter === 'active' ? 'default' : 'secondary'}
-                  onClick={() => setStatusFilter('active')}
-                  data-testid={`${cardTestId}-filter-active-button`}
-                >
-                  {t('status-active')}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={statusFilter === 'inactive' ? 'default' : 'secondary'}
-                  onClick={() => setStatusFilter('inactive')}
-                  data-testid={`${cardTestId}-filter-inactive-button`}
-                >
-                  {t('status-inactive')}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setSortOrder(current => (current === 'asc' ? 'desc' : 'asc'))}
-                  data-testid={`${cardTestId}-sort-button`}
-                  className="gba:gap-2"
-                >
-                  {sortOrder === 'asc' ? (
-                    <ArrowDownAZ className="gba:h-4 gba:w-4" />
-                  ) : (
-                    <ArrowUpAZ className="gba:h-4 gba:w-4" />
-                  )}
-                  {t(sortOrder === 'asc' ? 'sort-a-to-z-label' : 'sort-z-to-a-label')}
-                </Button>
+            <div className="gba:space-y-3">
+              <div className="gba:flex gba:flex-col gba:gap-3 gba:md:flex-row gba:md:items-end gba:md:gap-4">
+                <DebouncedInput
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder={t('section-search-placeholder', { entity: title })}
+                  containerClassName="gba:w-full gba:min-w-0 gba:md:w-auto gba:md:max-w-xl gba:md:flex-1"
+                  className="gba:w-full"
+                  icon={<MagnifyingGlassIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+                  data-testid={`${cardTestId}-search-input`}
+                />
+                {sortOptions.length ? (
+                  <div className="gba:w-full gba:md:w-64 gba:space-y-1">
+                    <Label htmlFor={`${cardTestId}-sort-select`}>{t('sort-by-label')}</Label>
+                    <Select value={activeSortOption?.id || ''} onValueChange={setActiveSortOptionId}>
+                      <SelectTrigger id={`${cardTestId}-sort-select`} data-testid={`${cardTestId}-sort-select`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sortOptions.map(option => (
+                          <SelectItem
+                            key={`${cardTestId}-sort-option-${option.id}`}
+                            value={option.id}
+                            data-testid={`${cardTestId}-sort-option-${option.id}`}
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
               </div>
-            </div>
-
-            <div className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:text-muted-foreground">
-              <span data-testid={`${cardTestId}-results-count`}>
-                {t('section-results-count', { count: String(filteredItems.length), total: String(items.length) })}
-              </span>
+              <div className="gba:flex gba:items-center gba:text-sm gba:text-muted-foreground">
+                <span data-testid={`${cardTestId}-results-count`}>
+                  {t('section-results-count', { count: String(filteredItems.length), total: String(items.length) })}
+                </span>
+              </div>
             </div>
 
             {filteredItems.length === 0 ? (
@@ -270,15 +335,22 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
                         </div>
                         {item.highlights?.length ? (
                           <div className="gba:flex gba:flex-wrap gba:gap-2">
-                            {item.highlights.map(highlight => (
-                              <div
-                                key={`${item.id}-${highlight.label}`}
-                                className="gba:flex gba:items-center gba:gap-2 gba:rounded-full gba:border gba:border-border gba:bg-muted/20 gba:px-2.5 gba:py-1 gba:text-xs gba:text-muted-foreground"
-                              >
-                                <span className="gba:font-medium">{highlight.label}:</span>
-                                <span>{highlight.value}</span>
-                              </div>
-                            ))}
+                            {item.highlights.map(highlight => {
+                              const highlightValue = renderHighlightValue(highlight)
+                              if (!highlightValue) {
+                                return null
+                              }
+
+                              return (
+                                <div
+                                  key={`${item.id}-${highlight.label}`}
+                                  className="gba:flex gba:items-center gba:gap-2 gba:rounded-full gba:border gba:border-border gba:bg-muted/20 gba:px-2.5 gba:py-1 gba:text-xs gba:text-muted-foreground"
+                                >
+                                  <span className="gba:font-medium">{highlight.label}:</span>
+                                  {highlightValue}
+                                </div>
+                              )
+                            })}
                           </div>
                         ) : null}
                         <p className="gba:text-sm gba:text-muted-foreground">{item.description}</p>

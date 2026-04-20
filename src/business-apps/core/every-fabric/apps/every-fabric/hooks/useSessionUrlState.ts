@@ -1,18 +1,28 @@
 import { useEffect, useCallback, useState } from 'react'
-import { buildPlatformUrl } from '@/common/utils/navigationUtils'
-
-const BASE_PATH = '/platform/every-fabric'
+import { getCurrentUrlWithUpdatedSearchParams } from '@/common/utils/navigationUtils'
 
 function getSessionIdFromUrl(): string | null {
   if (typeof globalThis.location === 'undefined') return null
   return new URLSearchParams(globalThis.location.search).get('sessionId')
 }
 
+function getViewFromUrl(): string | null {
+  if (typeof globalThis.location === 'undefined') return null
+  return new URLSearchParams(globalThis.location.search).get('view')
+}
+
+function getCurrentPathAndSearch(): string {
+  if (globalThis.location === undefined) return ''
+  return `${globalThis.location.pathname}${globalThis.location.search}`
+}
+
 export const useSessionUrlState = () => {
   const [urlSessionId, setUrlSessionId] = useState<string | null>(() => getSessionIdFromUrl())
+  const [urlView, setUrlView] = useState<string | null>(() => getViewFromUrl())
 
   const handlePopState = useCallback(() => {
     setUrlSessionId(getSessionIdFromUrl())
+    setUrlView(getViewFromUrl())
   }, [])
 
   useEffect(() => {
@@ -21,15 +31,25 @@ export const useSessionUrlState = () => {
     return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [handlePopState])
 
-  const updateUrl = useCallback((sessionId: string | null) => {
-    if (typeof globalThis.history === 'undefined') return
-    if (sessionId) {
-      const url = buildPlatformUrl(BASE_PATH, { sessionId })
-      globalThis.history.pushState(null, '', url)
-    } else {
-      globalThis.history.pushState(null, '', BASE_PATH)
-    }
+  const updateUrl = useCallback((params: { sessionId?: string | null; view?: string | null }) => {
+    if (globalThis.history === undefined || globalThis.location === undefined) return
+    const next = getCurrentUrlWithUpdatedSearchParams(params)
+    if (!next || next === getCurrentPathAndSearch()) return
+    const nextSessionId = 'sessionId' in params ? (params.sessionId ?? null) : getSessionIdFromUrl()
+    const nextView = 'view' in params ? (params.view ?? null) : getViewFromUrl()
+    const currentState = globalThis.history.state
+    globalThis.history.pushState(
+      {
+        ...(currentState !== null && currentState !== undefined ? currentState : {}),
+        sessionId: nextSessionId,
+        view: nextView
+      },
+      '',
+      next
+    )
+    setUrlSessionId(nextSessionId)
+    setUrlView(nextView)
   }, [])
 
-  return { urlSessionId, updateUrl }
+  return { urlSessionId, urlView, updateUrl }
 }

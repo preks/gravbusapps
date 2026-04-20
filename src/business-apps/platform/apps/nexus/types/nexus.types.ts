@@ -114,6 +114,22 @@ export interface NexusSession {
   updatedAt: string
 }
 
+export interface NexusActiveRunSnapshot {
+  sessionId: string
+  status: string | null
+  artifactId?: string
+  artifactType?: ArtifactType
+  startedAt: string
+}
+
+export interface NexusHistoryAck {
+  success: boolean
+  history?: NexusMessage[]
+  artifacts?: NexusArtifact[]
+  activeRun?: NexusActiveRunSnapshot | null
+  error?: string
+}
+
 export interface NexusMessage {
   id: string
   sessionId: string
@@ -140,13 +156,7 @@ export interface NexusSource {
 
 // ── Socket Event Types ─────────────────────────────────────────
 
-export type NexusIntent =
-  | 'chat'
-  | 'generate-document'
-  | 'generate-analysis'
-  | 'generate-slides'
-  | 'refine-artifact'
-  | 'fetch-data'
+export type NexusIntent = 'chat' | 'generate-document' | 'generate-analysis' | 'refine-artifact' | 'fetch-data'
 
 export interface NexusCompleteEvent {
   userMessage: NexusMessage

@@ -162,7 +162,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   const emptyMessage = useEmptyMessage(
     hasActiveFilters,
     'lowcoder:personal_expenses.no_expense_items_found',
-    'No expense items found. Create your first expense item to get started.'
+    'No expense items found. Create your first expense item to get started.',
+    tPersonal('table-empty-filtered')
   )
 
   const columns = useMemo<ColumnDef<ExpenseItem>[]>(

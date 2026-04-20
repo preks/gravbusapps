@@ -93,6 +93,9 @@ import { useDocumentAppsHubUserLookup } from './hooks/useDocumentAppsHubUserLook
 import { useDocumentAppsHubFavorites } from './hooks/useDocumentAppsHubFavorites'
 import { useDocumentAppsHubUrlState } from './hooks/useDocumentAppsHubUrlState'
 import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/components/HubPaginationFooter'
+import { OfficeTrashList } from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
+import { DriveApiService } from '@/business-apps/core/office/apps/drive/services/DriveApiService'
 
 // Entities / context
 import { getContextForCategory, getContextForEntityKeys } from './entities'
@@ -121,9 +124,16 @@ function getInitials(name: string): string {
 }
 
 /**
- * Format relative time (requires t from useTranslation)
+ * Format relative time (requires t from useTranslation).
+ *
+ * `locale` is the BCP 47 tag used to format the absolute-date fallback shown
+ * for timestamps older than 7 days (e.g. `de-DE` → `16.3.2026`).
  */
-function formatRelativeTime(dateString: string, t: (k: string, vars?: Record<string, number>) => string): string {
+function formatRelativeTime(
+  dateString: string,
+  t: (k: string, vars?: Record<string, number>) => string,
+  locale?: string
+): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -135,24 +145,32 @@ function formatRelativeTime(dateString: string, t: (k: string, vars?: Record<str
   if (diffMins < 60) return t('time-minutes-ago', { count: diffMins })
   if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
   if (diffDays < 7) return t('time-days-ago', { count: diffDays })
-  return date.toLocaleDateString()
+  return date.toLocaleDateString(locale || undefined)
 }
 
 /**
- * Format date for table display (requires t from useTranslation)
+ * Format date for table display (requires t from useTranslation).
+ *
+ * Uses the current UI locale so German users see `15:44` / `16. März` instead
+ * of `3:44 PM` / `Mar 16`.
  */
-function formatDate(dateString: string, t: (k: string, vars?: Record<string, number>) => string): string {
+function formatDate(
+  dateString: string,
+  t: (k: string, vars?: Record<string, number>) => string,
+  locale?: string
+): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const effectiveLocale = locale || undefined
 
   if (diffDays === 0) {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    return date.toLocaleTimeString(effectiveLocale, { hour: 'numeric', minute: '2-digit' })
   }
   if (diffDays === 1) return t('time-yesterday')
   if (diffDays < 7) return t('time-days-ago-count', { count: diffDays })
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(effectiveLocale, {
     month: 'short',
     day: 'numeric',
     year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
@@ -168,7 +186,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   entityContext,
   'data-testid': testId = 'document-apps-hub'
 }) => {
-  const { t } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
 
   // View state
   const [currentView, setCurrentView] = useState<HubView>('list')
@@ -194,6 +212,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [createWithAiDialogOpen, setCreateWithAiDialogOpen] = useState(false)
   const [createWithAiTitle, setCreateWithAiTitle] = useState('Untitled Document')
   const [createWithAiAbout, setCreateWithAiAbout] = useState('')
+  const [trashSearchQuery, setTrashSearchQuery] = useState('')
+  const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
+  const [pendingTrashDocument, setPendingTrashDocument] = useState<{ id: string; name: string } | null>(null)
+  const [isMovingToTrash, setIsMovingToTrash] = useState(false)
+  const [isRestoringTrashedDocument, setIsRestoringTrashedDocument] = useState(false)
   /** Context chosen in create modal; used only to pick entities in the editor (not sent to API). */
   const [sessionEntityContext, setSessionEntityContext] = useState<string | null>(null)
   const templateEditorRef = useRef<PagedDocumentEditorRef>(null)
@@ -272,7 +295,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
   useEffect(() => {
-    if (currentView === 'list' && !selectedDocumentId) {
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
+    const hasDeepLinkedDocument = Boolean(urlParams.get('docId'))
+
+    if (currentView === 'list' && !selectedDocumentId && !hasDeepLinkedDocument) {
       updateUrl(null)
     }
   }, [activeSection, currentView, selectedDocumentId, updateUrl])
@@ -290,6 +316,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
   const fetchPage = useCallback(
     (page: number) => {
+      if (activeSection === 'trash') {
+        return
+      }
       serverPageRef.current = page
       refreshDocuments({
         section: activeSection === 'templates' ? undefined : activeSection,
@@ -305,7 +334,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   )
 
   useEffect(() => {
-    if (activeSection !== 'templates') {
+    if (activeSection !== 'templates' && activeSection !== 'trash') {
       fetchPage(1)
     }
   }, [activeSection, searchQuery, sortBy, sortOrder, favorites, fetchPage])
@@ -429,26 +458,63 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     [loadDocument, updateUrl]
   )
 
+  const handleOpenTrashedDocument = useCallback(
+    async (id: string) => {
+      const doc = await loadDocument(id)
+      if (!doc) {
+        return
+      }
+      setSelectedDocumentId(id)
+      setCurrentView(doc.trashedAt ? 'trash' : 'editor')
+      updateUrl(id, doc.trashedAt ? 'trash' : 'editor')
+    },
+    [loadDocument, updateUrl]
+  )
+
   /**
    * Handle delete document
    */
   const handleDeleteDocument = useCallback(
-    async (id: string) => {
-      if (confirm(t('confirm-delete'))) {
-        const success = await deleteDocument(id)
-        if (success && selectedDocumentId === id) {
-          setSelectedDocumentId(null)
-          setCurrentView('list')
-          updateUrl(null)
-        }
-        setSelectedDocuments(prev => {
-          const next = new Set(prev)
-          next.delete(id)
-          return next
-        })
+    (id: string, name?: string) => {
+      setPendingTrashDocument({
+        id,
+        name: name || t('title-untitled-document')
+      })
+      setTrashConfirmOpen(true)
+    },
+    [t]
+  )
+
+  const confirmMoveToTrash = useCallback(async () => {
+    if (!pendingTrashDocument) return
+
+    setIsMovingToTrash(true)
+    try {
+      const success = await deleteDocument(pendingTrashDocument.id)
+      if (success && selectedDocumentId === pendingTrashDocument.id) {
+        setSelectedDocumentId(null)
+        setCurrentView('list')
+        updateUrl(null)
+      }
+      setSelectedDocuments(prev => {
+        const next = new Set(prev)
+        next.delete(pendingTrashDocument.id)
+        return next
+      })
+    } finally {
+      setIsMovingToTrash(false)
+      setPendingTrashDocument(null)
+    }
+  }, [deleteDocument, pendingTrashDocument, selectedDocumentId, updateUrl])
+
+  const handleTrashConfirmOpenChange = useCallback(
+    (open: boolean) => {
+      setTrashConfirmOpen(open)
+      if (!open && !isMovingToTrash) {
+        setPendingTrashDocument(null)
       }
     },
-    [deleteDocument, selectedDocumentId, updateUrl, t]
+    [isMovingToTrash]
   )
 
   /**
@@ -469,6 +535,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     setDocumentForApproval(id)
     setApprovalDialogOpen(true)
   }, [])
+
+  const handleNavigateToDocumentReview = useCallback(
+    (versionNumber: number) => {
+      if (!currentDocument?.id) {
+        return
+      }
+
+      updateUrl(currentDocument.id, 'review', undefined, String(versionNumber))
+      setCurrentView('review')
+    },
+    [currentDocument?.id, updateUrl]
+  )
 
   /**
    * Handle share document click
@@ -520,6 +598,57 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     setCurrentView('list')
     updateUrl(null)
   }, [clearCurrentDocument, resetLoadAttempt, updateUrl])
+
+  const handleGoToDocsHome = useCallback(() => {
+    clearCurrentDocument()
+    resetLoadAttempt()
+    setSelectedDocumentId(null)
+    setParsedWordDocument(null)
+    setCurrentView('list')
+    setActiveSection('my-documents')
+    updateUrl(null, undefined, 'my-documents')
+  }, [clearCurrentDocument, resetLoadAttempt, updateUrl])
+
+  const isTrashedDocument = Boolean(currentDocument?.trashedAt)
+  const canManageTrashedDocument = Boolean(
+    isTrashedDocument && currentDocumentPermission === 'owner' && !currentDocument?.spaceId
+  )
+
+  const handleRestoreTrashedDocument = useCallback(async () => {
+    if (!currentDocument?.id || !canManageTrashedDocument) {
+      return
+    }
+
+    setIsRestoringTrashedDocument(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      await DriveApiService.restoreItems([{ entityType: 'document', entityId: currentDocument.id }])
+      const restoredDocument = await loadDocument(currentDocument.id)
+      if (!restoredDocument) {
+        return
+      }
+      setSelectedDocumentId(currentDocument.id)
+      setActiveSection('my-documents')
+      setCurrentView('editor')
+      updateUrl(currentDocument.id, 'editor', 'my-documents')
+      toast.success(t('toast-restored'))
+      await refreshDocuments()
+    } catch (error) {
+      console.error('[DocumentAppsHub] Failed to restore trashed document:', error)
+      toast.error(t('toast-restore-failed'))
+    } finally {
+      setIsRestoringTrashedDocument(false)
+    }
+  }, [
+    accessToken,
+    canManageTrashedDocument,
+    currentDocument?.id,
+    currentDocumentPermission,
+    loadDocument,
+    refreshDocuments,
+    t,
+    updateUrl
+  ])
 
   /**
    * Start upload flow (Word)
@@ -607,47 +736,142 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   )
 
   const getEmptyStateTitle = () => {
-    if (activeSection === 'favorites') return t('empty-favorites-title')
-    if (activeSection === 'shared') return t('empty-shared-title')
-    if (activeSection === 'archived') return t('empty-archived-title')
-    return t('empty-default-title')
+    if (activeSection === 'favorites') return t('documents-empty-favorites-title')
+    if (activeSection === 'shared') return t('documents-empty-shared-title')
+    if (activeSection === 'trash') return t('documents-empty-trash-title')
+    return t('documents-empty-default-title')
   }
 
   const getEmptyStateDescription = () => {
-    if (activeSection === 'favorites') return t('empty-favorites-description')
-    if (activeSection === 'shared') return t('empty-shared-description')
-    if (activeSection === 'archived') return t('empty-archived-description')
-    return t('empty-default-description')
+    if (activeSection === 'favorites') return t('documents-empty-favorites-description')
+    if (activeSection === 'shared') return t('documents-empty-shared-description')
+    if (activeSection === 'trash') return t('documents-empty-trash-description')
+    return t('documents-empty-default-description')
   }
 
-  // Render editor view
-  if (currentView === 'editor') {
+  const shouldRenderEditorView =
+    currentView === 'editor' || (currentView === 'trash' && Boolean(currentDocument)) || currentView === 'review'
+
+  const sharedDocumentDialogs = (
+    <>
+      {/* Send for Approval Dialog */}
+      {documentForApproval && (
+        <SendForApprovalDialog
+          open={approvalDialogOpen}
+          onOpenChange={open => {
+            setApprovalDialogOpen(open)
+            if (!open) setDocumentForApproval(null)
+          }}
+          documentId={documentForApproval}
+          documentTitle={documents.find(d => d.id === documentForApproval)?.title || t('title-untitled-document')}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          accessToken={accessToken}
+          shareDocument={shareDocument}
+          onApprovalSent={async () => {
+            if (documentForApproval) {
+              await refreshDocuments()
+              if (currentDocument?.id === documentForApproval) {
+                await loadDocument(documentForApproval)
+              }
+            }
+            setDocumentForApproval(null)
+          }}
+          data-testid={`${testId}-approval-dialog`}
+        />
+      )}
+
+      {/* Share Document Dialog */}
+      {documentForShare && (
+        <ShareDocumentDialog
+          open={shareDialogOpen}
+          onOpenChange={open => {
+            setShareDialogOpen(open)
+            if (!open) setDocumentForShare(null)
+          }}
+          documentId={documentForShare}
+          documentTitle={documents.find(d => d.id === documentForShare)?.title || t('title-untitled-document')}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          accessToken={accessToken}
+          shareDocument={shareDocument}
+          onShareComplete={async () => {
+            refreshDocuments()
+            await refreshSharedUsersForDocument(documentForShare)
+          }}
+          data-testid={`${testId}-share-dialog`}
+        />
+      )}
+
+      {/* Manage Shares Dialog */}
+      {documentForManageShares && (
+        <ManageSharesDialog
+          open={manageSharesDialogOpen}
+          onOpenChange={open => {
+            setManageSharesDialogOpen(open)
+            if (!open) setDocumentForManageShares(null)
+          }}
+          documentId={documentForManageShares}
+          documentTitle={documents.find(d => d.id === documentForManageShares)?.title || t('title-untitled-document')}
+          accessToken={accessToken}
+          onSharesChanged={async () => {
+            refreshDocuments()
+            await refreshSharedUsersForDocument(documentForManageShares)
+          }}
+          onAddMoreUsers={() => {
+            setManageSharesDialogOpen(false)
+            setDocumentForShare(documentForManageShares)
+            setShareDialogOpen(true)
+          }}
+          data-testid={`${testId}-manage-shares-dialog`}
+        />
+      )}
+    </>
+  )
+
+  if (shouldRenderEditorView) {
     return (
-      <DocumentAppsHubEditorView
-        templateBeingEdited={templateBeingEdited}
-        setTemplateBeingEdited={setTemplateBeingEdited}
-        setSessionEntityContext={setSessionEntityContext}
-        parsedWordDocument={parsedWordDocument}
-        setParsedWordDocument={setParsedWordDocument}
-        setSelectedDocumentId={setSelectedDocumentId}
-        currentDocument={currentDocument}
-        currentDocumentPermission={currentDocumentPermission ?? ''}
-        createDocument={async opts => createDocument(opts as Parameters<typeof createDocument>[0])}
-        loadDocument={loadDocument}
-        updateDocument={updateDocument}
-        updateTemplate={updateTemplate}
-        updateUrl={(docId, view) => updateUrl(docId, view as HubView | undefined)}
-        setCurrentView={v => setCurrentView(v as HubView)}
-        setActiveSection={s => setActiveSection(s as SidebarSection)}
-        handleBack={handleBack}
-        handleSendForApprovalClick={handleSendForApprovalClick}
-        currentUserId={currentUserId}
-        accessToken={accessToken}
-        userInfo={userInfo}
-        templateEditorRef={templateEditorRef}
-        effectiveEntityContext={effectiveEntityContext ?? ''}
-        testId={testId}
-      />
+      <>
+        <DocumentAppsHubEditorView
+          currentView={currentView}
+          templateBeingEdited={templateBeingEdited}
+          setTemplateBeingEdited={setTemplateBeingEdited}
+          setSessionEntityContext={setSessionEntityContext}
+          parsedWordDocument={parsedWordDocument}
+          setParsedWordDocument={setParsedWordDocument}
+          setSelectedDocumentId={setSelectedDocumentId}
+          currentDocument={currentDocument}
+          currentDocumentPermission={currentDocumentPermission ?? ''}
+          createDocument={async opts => createDocument(opts as Parameters<typeof createDocument>[0])}
+          loadDocument={loadDocument}
+          updateDocument={updateDocument}
+          updateTemplate={updateTemplate}
+          updateUrl={(docId, view) => updateUrl(docId, view as HubView | undefined)}
+          onNavigateToDocumentReview={handleNavigateToDocumentReview}
+          setCurrentView={v => setCurrentView(v as HubView)}
+          setActiveSection={s => setActiveSection(s as SidebarSection)}
+          handleBack={handleBack}
+          handleSendForApprovalClick={handleSendForApprovalClick}
+          currentUserId={currentUserId}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          templateEditorRef={templateEditorRef}
+          effectiveEntityContext={effectiveEntityContext ?? ''}
+          isTrashedDocument={isTrashedDocument}
+          canRestoreTrashedDocument={canManageTrashedDocument}
+          isRestoringTrashedDocument={isRestoringTrashedDocument}
+          onGoToDocsHome={handleGoToDocsHome}
+          onRestoreTrashedDocument={handleRestoreTrashedDocument}
+          onApprovalResolved={async () => {
+            await refreshDocuments()
+            if (currentDocument?.id) {
+              await loadDocument(currentDocument.id)
+            }
+          }}
+          testId={testId}
+        />
+        {sharedDocumentDialogs}
+      </>
     )
   }
 
@@ -842,8 +1066,50 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           </>
         )}
 
+        {currentView === 'list' && activeSection === 'trash' && (
+          <>
+            <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5 gba:pb-4 gba:border-b gba:border-border/50">
+              <div className="gba:relative">
+                <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
+                <Input
+                  placeholder={t('documents-header-search-placeholder')}
+                  value={trashSearchQuery}
+                  onChange={e => setTrashSearchQuery(e.target.value)}
+                  className="gba:h-12 gba:pl-11 gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm"
+                  data-testid={`${testId}-trash-search`}
+                />
+              </div>
+            </div>
+            <div className="gba:flex-1 gba:overflow-auto gba:p-6">
+              <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+                <OfficeTrashList
+                  accessToken={accessToken}
+                  entityType="document"
+                  emptyTitle={t('documents-empty-trash-title')}
+                  emptyDescription={t('documents-empty-trash-description')}
+                  layout="list"
+                  searchQuery={trashSearchQuery}
+                  listControls={{
+                    refreshLabel: t('header-refresh'),
+                    sortNameLabel: t('sort-name'),
+                    sortTrashedOnLabel: t('sort-trashed'),
+                    trashedOnColumnLabel: t('table-trashed'),
+                    defaultSortBy: 'trashedAt',
+                    defaultSortOrder: 'desc'
+                  }}
+                  onOpenItem={item => handleOpenTrashedDocument(item.id)}
+                  onItemsChanged={() => {
+                    void refreshDocuments()
+                  }}
+                  data-testid={`${testId}-trash-list`}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
         {/* List View */}
-        {currentView === 'list' && activeSection !== 'templates' && (
+        {currentView === 'list' && activeSection !== 'templates' && activeSection !== 'trash' && (
           <>
             {/* Content Area */}
             <div className="gba:flex-1 gba:overflow-auto">
@@ -853,7 +1119,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                   <div className="gba:relative">
                     <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
                     <Input
-                      placeholder={t('header-search-placeholder')}
+                      placeholder={t('documents-header-search-placeholder')}
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                       className="gba:pl-12 gba:pr-4 gba:h-12 gba:text-base gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm hover:gba:shadow-md hover:gba:bg-muted/70 hover:gba:border-border gba:transition-all gba:duration-200"
@@ -952,7 +1218,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
                       {getEmptyStateDescription()}
                     </p>
-                    {activeSection !== 'favorites' && activeSection !== 'shared' && activeSection !== 'archived' && (
+                    {activeSection !== 'favorites' && activeSection !== 'shared' && (
                       <div className="gba:flex gba:gap-3">
                         <Button onClick={handleCreateNew}>
                           <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -1033,8 +1299,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                         const isFavorite = favorites.has(doc.id)
                         const ownerInfo = doc.createdBy ? ownerInfoMap.get(doc.createdBy) : undefined
                         const sharedWith = sharedUsersMap[doc.id] || []
-                        const canSendForApproval =
-                          isOwner && !['pending_approval', 'approved', 'rejected'].includes(doc.status)
+                        const approvalMetadata = doc.settings?.approvalMetadata
+                        const canSendForApproval = isOwner && !approvalMetadata?.hasOpenApproval
 
                         return (
                           <div
@@ -1083,12 +1349,12 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                   <span className="gba:font-medium gba:text-foreground gba:truncate">
                                     {doc.title || t('title-untitled')}
                                   </span>
-                                  {doc.status === 'pending_approval' && (
+                                  {doc.approvalStatus === 'pending' && (
                                     <Badge variant="default" className="gba:text-[10px] gba:px-1.5 gba:py-0">
                                       {t('status-pending')}
                                     </Badge>
                                   )}
-                                  {doc.status === 'approved' && (
+                                  {approvalMetadata?.currentApprovedVersion && (
                                     <Badge
                                       variant="secondary"
                                       className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:bg-success/20 gba:text-success"
@@ -1159,7 +1425,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
                             {/* Modified */}
                             <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                              {formatDate(doc.updatedAt, t)}
+                              {formatDate(doc.updatedAt, t, locale)}
                             </div>
 
                             {/* Owner */}
@@ -1183,7 +1449,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
                             {/* Created */}
                             <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                              {formatDate(doc.createdAt, t)}
+                              {formatDate(doc.createdAt, t, locale)}
                             </div>
 
                             {/* Actions */}
@@ -1238,7 +1504,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     className="gba:text-destructive"
-                                    onClick={() => handleDeleteDocument(doc.id)}
+                                    onClick={() => handleDeleteDocument(doc.id, doc.title)}
                                   >
                                     <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
                                     {t('menu-delete')}
@@ -1260,6 +1526,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                       const isOwner = doc.isOwner || doc.permission === 'owner'
                       const isSelected = selectedDocuments.has(doc.id)
                       const isFavorite = favorites.has(doc.id)
+                      const approvalMetadata = doc.settings?.approvalMetadata
 
                       return (
                         <Card
@@ -1311,9 +1578,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                             </button>
 
                             {/* Status badge */}
-                            {doc.status === 'pending_approval' && (
+                            {doc.approvalStatus === 'pending' && (
                               <Badge variant="default" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
                                 {t('menu-send-for-approval')}
+                              </Badge>
+                            )}
+
+                            {doc.approvalStatus !== 'pending' && approvalMetadata?.currentApprovedVersion && (
+                              <Badge
+                                variant="secondary"
+                                className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px] gba:bg-success/20 gba:text-success"
+                              >
+                                {t('status-approved')}
                               </Badge>
                             )}
 
@@ -1346,7 +1622,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                               {doc.title || t('title-untitled')}
                             </h3>
                             <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
-                              <span>{formatRelativeTime(doc.updatedAt, t)}</span>
+                              <span>{formatRelativeTime(doc.updatedAt, t, locale)}</span>
                             </div>
                           </div>
                         </Card>
@@ -1374,95 +1650,19 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
         )}
       </main>
 
-      {/* Send for Approval Dialog */}
-      {documentForApproval && (
-        <SendForApprovalDialog
-          open={approvalDialogOpen}
-          onOpenChange={open => {
-            setApprovalDialogOpen(open)
-            if (!open) setDocumentForApproval(null)
-          }}
-          documentId={documentForApproval}
-          documentTitle={documents.find(d => d.id === documentForApproval)?.title || t('title-untitled-document')}
-          currentUserId={currentUserId}
-          currentUserName={currentUserName}
-          accessToken={accessToken}
-          shareDocument={shareDocument}
-          onApprovalSent={async (approverIds, approverWorkflows) => {
-            if (documentForApproval) {
-              const workflowIds = approverWorkflows?.map(aw => aw.workflowId) || []
-              await updateDocument(documentForApproval, {
-                status: 'pending_approval',
-                approvalRequest: {
-                  id: `approval_${Date.now()}`,
-                  documentId: documentForApproval,
-                  status: 'pending',
-                  requestedBy: currentUserId,
-                  requestedAt: new Date().toISOString(),
-                  approvers: approverIds.map(id => {
-                    const workflow = approverWorkflows?.find(aw => aw.userId === id)
-                    return {
-                      userId: id,
-                      userName: workflow?.userName,
-                      status: 'pending' as const,
-                      workflowId: workflow?.workflowId
-                    }
-                  }),
-                  workflowIds
-                }
-              })
-            }
-            setDocumentForApproval(null)
-          }}
-          data-testid={`${testId}-approval-dialog`}
-        />
-      )}
+      <DeleteConfirmDialog
+        open={trashConfirmOpen}
+        onOpenChange={handleTrashConfirmOpenChange}
+        itemNames={pendingTrashDocument ? [pendingTrashDocument.name] : []}
+        onConfirm={() => {
+          void confirmMoveToTrash()
+        }}
+        isDeleting={isMovingToTrash}
+        t={t}
+        data-testid={`${testId}-trash-confirm`}
+      />
 
-      {/* Share Document Dialog */}
-      {documentForShare && (
-        <ShareDocumentDialog
-          open={shareDialogOpen}
-          onOpenChange={open => {
-            setShareDialogOpen(open)
-            if (!open) setDocumentForShare(null)
-          }}
-          documentId={documentForShare}
-          documentTitle={documents.find(d => d.id === documentForShare)?.title || t('title-untitled-document')}
-          currentUserId={currentUserId}
-          currentUserName={currentUserName}
-          accessToken={accessToken}
-          shareDocument={shareDocument}
-          onShareComplete={async () => {
-            refreshDocuments()
-            await refreshSharedUsersForDocument(documentForShare)
-          }}
-          data-testid={`${testId}-share-dialog`}
-        />
-      )}
-
-      {/* Manage Shares Dialog */}
-      {documentForManageShares && (
-        <ManageSharesDialog
-          open={manageSharesDialogOpen}
-          onOpenChange={open => {
-            setManageSharesDialogOpen(open)
-            if (!open) setDocumentForManageShares(null)
-          }}
-          documentId={documentForManageShares}
-          documentTitle={documents.find(d => d.id === documentForManageShares)?.title || t('title-untitled-document')}
-          accessToken={accessToken}
-          onSharesChanged={async () => {
-            refreshDocuments()
-            await refreshSharedUsersForDocument(documentForManageShares)
-          }}
-          onAddMoreUsers={() => {
-            setManageSharesDialogOpen(false)
-            setDocumentForShare(documentForManageShares)
-            setShareDialogOpen(true)
-          }}
-          data-testid={`${testId}-manage-shares-dialog`}
-        />
-      )}
+      {sharedDocumentDialogs}
 
       <Dialog open={createWithAiDialogOpen} onOpenChange={setCreateWithAiDialogOpen}>
         <DialogContent data-testid={`${testId}-create-with-ai-dialog`}>

@@ -5,10 +5,12 @@
  */
 
 import React, { useCallback } from 'react'
-import { Button, Card, CardContent, Badge, Spinner } from '@newwork/nw-design-system'
+import { Button, Card, CardContent, Badge, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { ChatCircle, Phone, VideoCamera, ArrowRight, UsersThree } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { LinkedConversation } from '../types/space.types'
+import translations from '../_i18n'
+import { formatConversationLastActivity } from '../utils/spaceLocalization'
 
 export interface SpaceTeamChatProps {
   /** The linked group conversation, if found */
@@ -35,6 +37,7 @@ export const SpaceTeamChat: React.FC<SpaceTeamChatProps> = ({
   memberCount,
   'data-testid': testId = 'space-team-chat'
 }) => {
+  const { t, locale } = useTranslation(translations)
   // Navigate to chat with the conversation selected
   const handleOpenChat = useCallback(() => {
     if (!conversation) return
@@ -67,31 +70,13 @@ export const SpaceTeamChat: React.FC<SpaceTeamChatProps> = ({
               <ChatCircle className="gba:w-6 gba:h-6 gba:text-muted-foreground" />
             </div>
             <div className="gba:flex-1">
-              <h3 className="gba:font-medium gba:text-foreground">Team Chat</h3>
-              <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-                {error || 'No group chat linked to this space yet'}
-              </p>
+              <h3 className="gba:font-medium gba:text-foreground">{t('chat-title')}</h3>
+              <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{error || t('chat-no-linked-title')}</p>
             </div>
           </div>
         </CardContent>
       </Card>
     )
-  }
-
-  // Format last message time
-  const formatLastActivity = (dateString?: string) => {
-    if (!dateString) return 'No recent activity'
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-    if (diffHours < 1) return 'Active just now'
-    if (diffHours < 24) return `Active ${diffHours}h ago`
-    if (diffDays === 1) return 'Active yesterday'
-    if (diffDays < 7) return `Active ${diffDays} days ago`
-    return date.toLocaleDateString()
   }
 
   return (
@@ -105,15 +90,15 @@ export const SpaceTeamChat: React.FC<SpaceTeamChatProps> = ({
                 <UsersThree className="gba:w-5 gba:h-5 gba:text-primary" weight="fill" />
               </div>
               <div>
-                <h3 className="gba:font-medium gba:text-foreground">{conversation.name || 'Team Chat'}</h3>
+                <h3 className="gba:font-medium gba:text-foreground">{conversation.name || t('chat-title')}</h3>
                 <p className="gba:text-xs gba:text-muted-foreground">
-                  {formatLastActivity(conversation.lastMessageAt)}
+                  {formatConversationLastActivity(conversation.lastMessageAt, locale, t)}
                 </p>
               </div>
             </div>
             {memberCount && (
               <Badge variant="secondary" className="gba:text-xs">
-                {memberCount} members
+                {t('common-member-count', { count: memberCount })}
               </Badge>
             )}
           </div>
@@ -132,7 +117,7 @@ export const SpaceTeamChat: React.FC<SpaceTeamChatProps> = ({
               data-testid={`${testId}-audio-call`}
             >
               <Phone className="gba:w-4 gba:h-4" />
-              Audio Call
+              {t('common-audio-call')}
             </Button>
             <Button
               variant="secondary"
@@ -143,7 +128,7 @@ export const SpaceTeamChat: React.FC<SpaceTeamChatProps> = ({
               data-testid={`${testId}-video-call`}
             >
               <VideoCamera className="gba:w-4 gba:h-4" />
-              Video Call
+              {t('common-video-call')}
             </Button>
           </div>
 
@@ -156,7 +141,7 @@ export const SpaceTeamChat: React.FC<SpaceTeamChatProps> = ({
           >
             <div className="gba:flex gba:items-center gba:gap-2">
               <ChatCircle className="gba:w-4 gba:h-4" />
-              Open Chat
+              {t('common-open-chat')}
             </div>
             <ArrowRight className="gba:w-4 gba:h-4" />
           </Button>

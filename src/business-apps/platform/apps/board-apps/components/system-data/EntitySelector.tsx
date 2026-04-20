@@ -9,11 +9,11 @@ import {
   SelectGroup,
   SelectLabel,
   SelectItem,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { getEntitiesByCategory, ENTITY_REGISTRY } from '../../queries/entityQueries'
-
-const GROUPED_ENTITIES = getEntitiesByCategory()
+import translations from '../../_i18n'
 
 export interface EntitySelectorProps {
   entity: string
@@ -30,6 +30,8 @@ export const EntitySelector: React.FC<EntitySelectorProps> = ({
   isLoading,
   'data-testid': testId = 'entity-selector'
 }) => {
+  const { t } = useTranslation(translations)
+  const groupedEntities = getEntitiesByCategory(t)
   const selected = entity ? ENTITY_REGISTRY[entity] : undefined
 
   return (
@@ -46,7 +48,7 @@ export const EntitySelector: React.FC<EntitySelectorProps> = ({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {GROUPED_ENTITIES.map(group => (
+            {groupedEntities.map(group => (
               <SelectGroup key={group.category}>
                 <SelectLabel>{group.label}</SelectLabel>
                 {group.entities.map(e => (

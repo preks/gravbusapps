@@ -10,8 +10,10 @@ import {
   Brain,
   CheckCircle2,
   ClipboardList,
+  Cloud,
   Code2,
   FileText,
+  FolderOpen,
   Info,
   Repeat2,
   Settings2,
@@ -82,6 +84,16 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
       return { Icon: Brain, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'AI' }
     }
     if (config.stepType === FlowStepType.FUNCTION) {
+      // Connector step = FUNCTION + categoryHint 'connectors' OR selected function is a connector.
+      const hint = config.functionConfig?.categoryHint
+      const selectedFn = config.functionConfig?.functionId
+        ? studioData.functions.find(f => f.id === config.functionConfig?.functionId)
+        : undefined
+      const isConnectorStep = hint === 'connectors' || selectedFn?.connectorEnabled === true
+      if (isConnectorStep) {
+        const ConnectorIcon = selectedFn?.connectorKind === 'unstructured' ? FolderOpen : Cloud
+        return { Icon: ConnectorIcon, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'Connector' }
+      }
       return { Icon: Code2, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'Automation' }
     }
     if (config.stepType === FlowStepType.APPROVAL) {
@@ -99,7 +111,7 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
       return { Icon: CheckCircle2, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'User' }
     }
     return { Icon: ClipboardList, bg: 'gba:bg-accent', fg: 'gba:text-accent-foreground', badge: 'User' }
-  }, [config.stepType])
+  }, [config.stepType, config.functionConfig?.categoryHint, config.functionConfig?.functionId, studioData.functions])
 
   const update = useCallback(
     (partial: Partial<TaskNodeConfig>) => {
@@ -109,7 +121,7 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
   )
 
   const applyStepType = useCallback(
-    (nextType: FlowStepType) => {
+    (nextType: FlowStepType, categoryHint?: 'connectors' | 'functions') => {
       const isAutomation = [FlowStepType.FUNCTION, FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT].includes(
         nextType
       )
@@ -120,6 +132,26 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
         targets: null,
         assignmentMode: AssignmentMode.ASSIGN,
         allowReassignment: true
+      }
+
+      // Build the next functionConfig so the studio-only categoryHint carries the user's
+      // intent ("this is a Connector step" vs "this is a Function step") across reopens.
+      // The hint lives purely in studio state; it is not serialized to the saved template.
+      let nextFunctionConfig: typeof config.functionConfig
+      if (nextType === FlowStepType.FUNCTION) {
+        if (keepFunctionConfig) {
+          nextFunctionConfig = {
+            ...config.functionConfig,
+            ...(categoryHint !== undefined ? { categoryHint } : {})
+          } as typeof config.functionConfig
+        } else if (categoryHint !== undefined) {
+          // Seed a minimal config so the hint survives even before a function is picked.
+          nextFunctionConfig = { functionId: '', categoryHint } as typeof config.functionConfig
+        } else {
+          nextFunctionConfig = undefined
+        }
+      } else {
+        nextFunctionConfig = undefined
       }
 
       update({
@@ -133,7 +165,7 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
         customStates: isAutomation ? undefined : config.customStates,
         eventSubscriptions: isAutomation ? undefined : config.eventSubscriptions,
         reworkConfig: isAutomation ? undefined : config.reworkConfig,
-        functionConfig: keepFunctionConfig ? config.functionConfig : undefined,
+        functionConfig: nextFunctionConfig,
         agentConfig: keepTaskExpertConfig ? config.agentConfig : undefined,
         permissionContext:
           nextType === FlowStepType.AI_AGENT
@@ -144,7 +176,22 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
           : {})
       })
     },
-    [config.permissionContext, config.simpleAIConfig?.instruction, mode, update]
+    [
+      config.assignment,
+      config.customStates,
+      config.defaultPriority,
+      config.dueInMinutes,
+      config.eventSubscriptions,
+      config.form,
+      config.functionConfig,
+      config.links,
+      config.permissionContext,
+      config.reworkConfig,
+      config.simpleAIConfig?.instruction,
+      config.stepType,
+      mode,
+      update
+    ]
   )
 
   // NOTE: Task-level rework/return is intentionally not configured here.

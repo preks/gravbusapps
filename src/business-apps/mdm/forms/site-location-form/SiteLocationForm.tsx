@@ -15,24 +15,25 @@ const DATA_TEST_ID_PREFIX = 'SiteLocationForm'
 
 interface SiteLocationFormProps extends BusinessAppContextProps {
   siteLocation?: SiteLocation
-  refetch: () => void
-  structureId: string
+  refetch?: () => void
+  structureId?: string
   open?: boolean
   setOpen?: Dispatch<SetStateAction<boolean>>
   isDrawerActive?: boolean
-  childAddButton: React.ReactNode
+  childAddButton?: React.ReactNode
   isEditSiteLocation?: boolean
   onCancel?: () => void
   prefixDataTestId?: string
-  countries: SiteLocationCountry[]
-  fetchRegionsForCountries: (_countryCodes: string[]) => Promise<void>
-  getRegionsForCountry: (_countryCode: string) => SiteLocationRegion[]
+  /** Parent loads catalog; `RenderRemoteComponent` omits — default `[]`. */
+  countries?: SiteLocationCountry[]
+  fetchRegionsForCountries?: (_countryCodes: string[]) => Promise<void>
+  getRegionsForCountry?: (_countryCode: string) => SiteLocationRegion[]
 }
 
 const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
   siteLocation,
-  refetch,
-  structureId,
+  refetch = () => {},
+  structureId = '',
   open: _open,
   setOpen,
   isDrawerActive,
@@ -41,9 +42,9 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
   onCancel,
   prefixDataTestId,
   accessToken,
-  countries,
-  fetchRegionsForCountries,
-  getRegionsForCountry
+  countries = [],
+  fetchRegionsForCountries = async () => {},
+  getRegionsForCountry = () => []
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const { t } = useTranslation('master-data')
@@ -77,7 +78,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
       }
 
       // First check if regions are already cached
-      const cachedRegions = getRegionsForCountry(countryCode)
+      const cachedRegions = getRegionsForCountry(countryCode) ?? []
       if (cachedRegions.length > 0) {
         const regionsOptions = cachedRegions.map(region => ({
           value: region.value,
@@ -93,7 +94,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
       try {
         await fetchRegionsForCountries([countryCode])
         // After fetching, get regions from cache again
-        const updatedRegions = getRegionsForCountry(countryCode)
+        const updatedRegions = getRegionsForCountry(countryCode) ?? []
         const regionsOptions = updatedRegions.map(region => ({
           value: region.value,
           label: region.value,
