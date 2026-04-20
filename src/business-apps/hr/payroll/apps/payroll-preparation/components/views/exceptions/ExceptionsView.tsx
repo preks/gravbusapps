@@ -96,11 +96,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
     }
     const query = search.trim().toLowerCase()
     if (query) {
-      result = result.filter(issue => {
-        const haystack = [issue.employeeName, issue.message, issue.recommendedAction].join(' ').toLowerCase()
-
-        return haystack.includes(query)
-      })
+      result = result.filter(issue => issue.employeeName.toLowerCase().includes(query))
     }
     return result
   }, [allIssues, severityFilter, categoryFilter, search, t])
@@ -179,7 +175,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
             <DebouncedInput
               value={search}
               onChange={(value: string | number) => setSearch(String(value))}
-              placeholder={t('exceptions-search-placeholder')}
+              placeholder={t('filter-search')}
               className="gba:pl-9"
               data-testid="payroll-prep-exceptions-search-input"
             />
