@@ -162,15 +162,16 @@ const AccountAiEnrichButton: React.FC<AccountAiEnrichButtonProps> = ({
         appliedCount += 1
       }
 
+      // 1. Country-independent scalar fields.
       setIfNotDirty('name', fields.name)
       setIfNotDirty('website', fields.website)
       setIfNotDirty('description', fields.description)
       setIfNotDirty('foundationDate', fields.foundationDate)
       setIfNotDirty('companySizeRef', fields.companySizeRef)
-      setIfNotDirty('legalFormRef', fields.legalFormRef)
       setIfNotDirty('industryClassRef', fields.industryClassRef)
       setIfNotDirty('accountAnnualRevenueBandRef', fields.accountAnnualRevenueBandRef)
 
+      // 2. Communication channels (independent of country).
       if (Array.isArray(fields.communicationChannels)) {
         const existing = form.getValues('communicationChannels') as CommunicationChannelRow[] | undefined
         const { merged, appliedCount: channelCount } = mergeCommunicationChannels(
@@ -183,6 +184,12 @@ const AccountAiEnrichButton: React.FC<AccountAiEnrichButtonProps> = ({
         }
       }
 
+      // 3. Addresses MUST be applied before any country-scoped catalog fields
+      //    (legalFormRef). The legal form CatalogSelect uses
+      //    parentField="addresses.0.countryRef" and requireSourceForEnable, so
+      //    setting legalFormRef before countryRef would either be no-op (field
+      //    disabled) or get cleared by the catalog dependency engine when the
+      //    country lands and triggers child-validity checks.
       if (Array.isArray(fields.addresses) && fields.addresses.length > 0) {
         const existing = form.getValues('addresses') as AddressRow[] | undefined
         const { merged, appliedCount: addrCount } = mergeFirstAddress(existing, (fields.addresses as AddressRow[])[0])
@@ -191,6 +198,11 @@ const AccountAiEnrichButton: React.FC<AccountAiEnrichButtonProps> = ({
           appliedCount += addrCount
         }
       }
+
+      // 4. Country-scoped catalog refs LAST, so the parent (countryRef) is
+      //    already in place and the catalog dependency engine accepts the
+      //    child value instead of clearing it.
+      setIfNotDirty('legalFormRef', fields.legalFormRef)
 
       return appliedCount
     },
