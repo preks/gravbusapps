@@ -1,6 +1,5 @@
 import React from 'react'
 import {
-  Button,
   Combobox,
   FormControl,
   FormField,
@@ -17,7 +16,7 @@ import type { UseFormReturn } from 'react-hook-form'
 import { DebouncedInput } from '@/components/debounced-input'
 import { AddSkillSearchDropdown } from './AddSkillSearchDropdown'
 import { SkillLevelRow } from './SkillLevelRow'
-import type { AddSkillFormValues, PendingSkill, SelectedSkill } from '../addSkill.types'
+import type { AddSkillFormValues, SelectedSkill } from '../addSkill.types'
 import { EmployeeDocumentUploadField } from '../../document-sync/EmployeeDocumentUploadField'
 
 interface AddSkillFormSectionsProps {
@@ -27,7 +26,7 @@ interface AddSkillFormSectionsProps {
   changeLevelParams: any
   employee: any
   activeSelectedSkills: SelectedSkill[]
-  pendingSkills: PendingSkill[]
+  skillsToAssign: SelectedSkill[]
   searchTerm: string
   setSearchTerm: (value: string) => void
   inputKey: number
@@ -45,12 +44,11 @@ interface AddSkillFormSectionsProps {
   handleSearchBlur: (e: React.FocusEvent<HTMLInputElement>) => void
   handleSearchFocus: () => void
   handleSelectSkill: (skill: { id: string; name: string }) => void
-  handleAddNewSkill: () => Promise<void>
+  handleAddNewSkill: () => void
   handleRemoveSkill: (id: string) => void
-  handleRemovePendingSkill: (id: string) => void
-  handleUpdatePendingSkillLevel: (id: string, level: number) => void
+  handleRemoveSkillToAssign: (id: string) => void
+  handleUpdateSkillToAssignLevel: (id: string, level: number) => void
   handleUpdateExistingSkillLevel: (id: string, level: number) => void
-  handleAddPendingSkillToEmployee: (skill: PendingSkill) => void
   verificationInitialFiles: any[]
   isLoadingVerificationInitialFiles?: boolean
   isResolvingVerificationInitialDocuments?: boolean
@@ -118,7 +116,7 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
   changeLevelParams,
   employee,
   activeSelectedSkills,
-  pendingSkills,
+  skillsToAssign,
   searchTerm,
   setSearchTerm,
   inputKey,
@@ -138,10 +136,9 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
   handleSelectSkill,
   handleAddNewSkill,
   handleRemoveSkill,
-  handleRemovePendingSkill,
-  handleUpdatePendingSkillLevel,
+  handleRemoveSkillToAssign,
+  handleUpdateSkillToAssignLevel,
   handleUpdateExistingSkillLevel,
-  handleAddPendingSkillToEmployee,
   verificationInitialFiles,
   isLoadingVerificationInitialFiles = false,
   isResolvingVerificationInitialDocuments = false,
@@ -149,11 +146,7 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
   hasInitialVerificationDocumentCandidates = false
 }) => {
   const mode = flowFormParams?.mode
-  const isFlowMode = mode === 'deactivate' || mode === 'activate' || mode === 'attachVerification'
   const isChangeLevelMode = changeLevelParams != null
-  const isAddOrEditMode = isFlowMode === false && isChangeLevelMode === false
-  const showExistingList = activeSelectedSkills.length > 0 && isAddOrEditMode
-  const showEmptyMessage = isAddOrEditMode && activeSelectedSkills.length === 0
 
   const modeContent = renderModeSection(mode, flowFormParams, t)
   if (modeContent) {
@@ -176,7 +169,6 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
             name="verificationFileUpload"
             render={() => (
               <FormItem>
-                {/* <FormLabel>{t('add-skill-form-attach-verification-upload-label')}</FormLabel> */}
                 <div data-testid="flw_addSkill_attachVerification_uploadFile">
                   <EmployeeDocumentUploadField
                     name="verificationFileUpload"
@@ -334,86 +326,59 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
         </div>
       )}
 
-      {pendingSkills.length > 0 && (
-        <div className="gba:space-y-2 gba:mt-5">
-          <span
-            className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-4"
-            data-testid="add-skill-selected-skills-label"
-          >
-            {t('add-skill-form-selected-skills-label')}
-          </span>
-          <div
-            className="gba:flex gba:flex-col gba:gap-2 gba:max-h-[350px] gba:overflow-y-auto"
-            data-testid="add-skill-pending-container"
-          >
-            {pendingSkills.map(skill => (
+      {skillsToAssign.some(s => !s.isNew) && (
+        <div
+          className="gba:flex gba:flex-col gba:gap-2 gba:mt-5 gba:max-h-[350px] gba:overflow-y-auto"
+          data-testid="add-skill-to-assign-container"
+        >
+          {skillsToAssign
+            .filter(s => !s.isNew)
+            .map(skill => (
               <SkillLevelRow
                 key={skill.id}
                 skillName={skill.name}
-                onRemove={() => handleRemovePendingSkill(skill.id)}
-                dataTestIdPrefix="add-skill-pending"
+                onRemove={() => handleRemoveSkillToAssign(skill.id)}
+                dataTestIdPrefix="add-skill-to-assign"
                 removeButtonTestId={`skill-level-row-remove-${skill.id}`}
                 rowId={skill.id}
                 levelContent={
                   <LevelSelect
-                    value={skill.level}
-                    onChange={level => handleUpdatePendingSkillLevel(skill.id, level)}
+                    value={skill.level ?? 1}
+                    onChange={level => handleUpdateSkillToAssignLevel(skill.id, level)}
                     dataTestId={`skill-level-select-${skill.id}`}
                   />
                 }
-                actionButton={
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleAddPendingSkillToEmployee(skill)}
-                    data-testid={`add-skill-pending-add-${skill.id}`}
-                  >
-                    {t('add-skill-form-add-button')}
-                  </Button>
-                }
               />
             ))}
-          </div>
         </div>
       )}
 
-      <span
-        className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-4 gba:mt-5"
-        data-testid="add-skill-employee-skills-label"
-      >
-        {t('add-skill-form-current-employee-skills-label')}
-      </span>
-
-      {showExistingList && (
+      {skillsToAssign.some(s => s.isNew) && (
         <div
-          className="gba:flex gba:flex-col gba:gap-2 gba:max-h-[350px] gba:overflow-y-auto"
-          data-testid="add-skill-existing-container"
+          className="gba:flex gba:flex-col gba:gap-2 gba:mt-3 gba:max-h-[350px] gba:overflow-y-auto"
+          data-testid="add-skill-to-create-container"
         >
-          {activeSelectedSkills.map(skill => (
-            <SkillLevelRow
-              key={skill.id}
-              skillName={skill.name}
-              onRemove={() => handleRemoveSkill(skill.id)}
-              dataTestIdPrefix="add-skill-existing"
-              removeButtonTestId={`skill-level-row-remove-${skill.id}`}
-              rowId={skill.id}
-              showRemove={changeLevelParams == null}
-              statusLabel={undefined}
-              levelContent={
-                <LevelSelect
-                  value={skill.level || 1}
-                  onChange={level => handleUpdateExistingSkillLevel(skill.id, level)}
-                  dataTestId={`skill-level-select-${skill.id}`}
-                />
-              }
-            />
-          ))}
+          {skillsToAssign
+            .filter(s => s.isNew)
+            .map(skill => (
+              <SkillLevelRow
+                key={skill.id}
+                skillName={skill.name}
+                onRemove={() => handleRemoveSkillToAssign(skill.id)}
+                dataTestIdPrefix="add-skill-to-create"
+                removeButtonTestId={`skill-level-row-remove-${skill.id}`}
+                rowId={skill.id}
+                levelContent={
+                  <LevelSelect
+                    value={skill.level ?? 1}
+                    onChange={level => handleUpdateSkillToAssignLevel(skill.id, level)}
+                    dataTestId={`skill-level-select-${skill.id}`}
+                  />
+                }
+                statusLabel={t('add-skill-form-new-skill-badge')}
+              />
+            ))}
         </div>
-      )}
-
-      {showEmptyMessage && (
-        <div className="gba:text-sm gba:text-muted-foreground gba:py-2">{t('add-skill-form-no-current-skills')}</div>
       )}
     </div>
   )
