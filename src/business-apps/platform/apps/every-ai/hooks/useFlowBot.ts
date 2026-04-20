@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import type { ConversationTurn, OutputItem, FileMeta, CurrentPageContext } from '../types/models'
 import { getCurrentPageContext } from '../utils/pageContext'
+import { getDefaultSkillsForPage } from '../utils/pageSkills'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
@@ -781,6 +782,13 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   const [cancelledMessageText, setCancelledMessageText] = useState<string | null>(null)
   const currentAgentOutputsRef = useRef<OutputItem[]>([])
 
+  const activePageSkills = useMemo(() => getDefaultSkillsForPage(currentPageContext), [currentPageContext])
+  const [pageSkillsEnabled, setPageSkillsEnabled] = useState(true)
+
+  const togglePageSkills = useCallback((enabled: boolean) => {
+    setPageSkillsEnabled(enabled)
+  }, [])
+
   const analyticsEntity = useMemo(() => resolveAnalyticsEntity(currentPageContext), [currentPageContext])
   const analyticsHookEntity = useMemo<AnalyticsEntityInput>(
     () => analyticsEntity ?? { type: 'unknown', id: '' },
@@ -1053,8 +1061,10 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         if (additionInfo !== undefined) {
           form.append('addition_info', additionInfo)
         }
-        if (skills !== undefined) {
-          skills.forEach(skill => {
+        const effectiveSkills =
+          skills ?? (pageSkillsEnabled && activePageSkills.length > 0 ? activePageSkills : undefined)
+        if (effectiveSkills !== undefined) {
+          effectiveSkills.forEach(skill => {
             form.append('skills', skill)
           })
         }
@@ -1234,7 +1244,9 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       appendOutputItemToLastAgentTurn,
       pruneEphemeralOutputsFromLastAgentTurn,
       updateSessionId,
-      buildCurrentPageContextPayload
+      buildCurrentPageContextPayload,
+      pageSkillsEnabled,
+      activePageSkills
     ]
   )
 
@@ -1632,6 +1644,9 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     clearCancelledMessage,
     getAllSessions,
     deleteSession,
-    loadSession
+    loadSession,
+    pageSkillsEnabled,
+    togglePageSkills,
+    activePageSkills
   }
 }

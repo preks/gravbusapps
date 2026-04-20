@@ -73,7 +73,10 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     cancelGeneration,
     cancelledMessageText,
     clearCancelledMessage,
-    loadSession
+    loadSession,
+    pageSkillsEnabled,
+    togglePageSkills,
+    activePageSkills
   } = useFlowBot(accessToken, { isActive })
 
   // Fetch current user's picture
@@ -728,6 +731,10 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                   accessToken={accessToken}
                   // User preferences
                   onOpenPreferences={userPreferences.openModal}
+                  // Page-context skill toggle
+                  pageSkillsEnabled={pageSkillsEnabled}
+                  onTogglePageSkills={togglePageSkills}
+                  activePageSkills={activePageSkills}
                 />
               </div>
             </div>
