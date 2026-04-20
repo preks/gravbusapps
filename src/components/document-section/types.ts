@@ -116,6 +116,7 @@ export interface DocumentSectionProps extends BusinessAppContextProps {
     buildExternalContextData: (document: DocumentItem) => Record<string, any>
     prefixDataTestId: string
   }
+  aiOrganizeConfig?: AiOrganizeConfig
   'data-testid'?: string
 }
 
@@ -171,4 +172,11 @@ export interface ApiConfig {
     update?: string
     delete?: string
   }
+}
+
+// AI document organization props
+export interface AiOrganizeConfig {
+  moduleType: 'CRM' | 'IRM'
+  entityType: 'LEAD' | 'CONTACT' | 'ACCOUNT' | 'OPPORTUNITY'
+  domain?: string
 }

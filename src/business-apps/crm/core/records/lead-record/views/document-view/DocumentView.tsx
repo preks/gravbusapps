@@ -80,6 +80,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ leadId, ...context }
         uploadActionProps={documentUploadActionProps}
         updateActionProps={documentUpdateActionProps}
         deleteActionProps={documentDeleteActionProps}
+        aiOrganizeConfig={{ moduleType: 'CRM', entityType: 'LEAD', domain: 'customer' }}
         data-testid="lead-document-section"
         accessToken={context.accessToken}
         userInfo={context.userInfo}

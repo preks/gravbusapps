@@ -96,6 +96,51 @@ function toFlowbotImportDomain(domain?: string): 'crm' | 'irm' | undefined {
 
 const FLOWBOT_IMPORT_MODEL_KIND_DEFAULT = 'default'
 
+export interface DocumentOrganizeRequest {
+  documents: Array<{
+    id: string
+    name: string
+    mimeType?: string | null
+    parentFolder?: string | null
+  }>
+  template?: {
+    folders: Array<{ name: string; folders: Array<any> }>
+  }
+  description?: string
+  entityType?: string
+  domain?: string
+}
+
+export interface OrganizationDecision {
+  documentId: string
+  documentName: string
+  targetFolder: string
+  reason: string
+}
+
+export interface DocumentOrganizeResponse {
+  decisions: OrganizationDecision[]
+  suggestedFolders: Array<{ name: string; folders: Array<any> }>
+  warnings: string[]
+}
+
+export interface SuggestStructureRequest {
+  documents: Array<{
+    id: string
+    name: string
+    mimeType?: string | null
+  }>
+  description?: string
+  entityType?: string
+  domain?: string
+}
+
+export interface SuggestStructureResponse {
+  suggestedStructure: Array<{ name: string; folders: Array<any> }>
+  reasoning: string
+  warnings: string[]
+}
+
 export interface DocumentAutocompleteRequest {
   document_id?: string
   title?: string
@@ -222,6 +267,20 @@ export class FlowbotClient extends RestClient {
     formData.append('max_rows', maxRows.toString())
 
     return this.post<ExtractFromFileResponse>('/flowbot/extraction/data/entities/extract-from-file', formData, options)
+  }
+
+  public async organizeDocuments(
+    request: DocumentOrganizeRequest,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<DocumentOrganizeResponse> {
+    return this.post<DocumentOrganizeResponse>('/flowbot/document-organization/organize', request, options)
+  }
+
+  public async suggestDocumentStructure(
+    request: SuggestStructureRequest,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<SuggestStructureResponse> {
+    return this.post<SuggestStructureResponse>('/flowbot/document-organization/suggest-structure', request, options)
   }
 
   public async getDocumentAutocomplete(

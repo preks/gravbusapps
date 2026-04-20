@@ -87,3 +87,26 @@ document.toast.error.moveToSelfOrDescendant = Cannot move a folder into itself o
 document.toast.error.moveConfigMissing = Cannot move document: missing configuration
 document.toast.error.moveFailed = Failed to move document
 document.toast.error.moveToRootFailed = Failed to move document to root
+
+# AI Document Organization
+document.ai.organize.button = Organize with AI
+document.ai.organize.title = Organize with AI
+document.ai.organize.byTemplate = By Template
+document.ai.organize.byDescription = By Description
+document.ai.organize.analyzing = AI is analyzing your documents...
+document.ai.organize.applying = Applying changes...
+document.ai.organize.proposedStructure = Proposed Folder Structure
+document.ai.organize.fileAssignments = File Assignments
+document.ai.organize.selectDocuments = Select documents
+document.ai.organize.selectAll = Select All
+document.ai.organize.deselectAll = Deselect All
+document.ai.organize.organizeBtn = Organize
+document.ai.organize.suggestBtn = Suggest & Apply
+document.ai.organize.confirm = Confirm & Apply
+document.ai.organize.cancel = Cancel
+document.ai.organize.back = Back
+document.ai.organize.tryAgain = Try Again
+document.ai.organize.success = Documents organized successfully
+document.ai.organize.noTemplate = No folder template configured for this entity type. Configure one in Settings > Folder Templates.
+document.ai.organize.templateHint = AI will organize your documents into this folder structure:
+document.ai.organize.descriptionPlaceholder = Describe how you want your documents organized, e.g. "Group invoices by year, separate contracts from correspondence..."

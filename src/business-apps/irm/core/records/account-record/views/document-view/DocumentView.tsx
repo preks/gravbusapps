@@ -81,6 +81,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}
       deleteActionProps={documentDeleteActionProps}
+      aiOrganizeConfig={{ moduleType: 'IRM', entityType: 'ACCOUNT', domain: 'investment' }}
       data-testid="account-document-section"
       {...context}
     />
