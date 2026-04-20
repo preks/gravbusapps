@@ -17,7 +17,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { TimeEntry, SortDirection } from '../hooks/useTimeTrackingData'
 import hrI18n from './_i18n'
 import { formatDurationToHHMM } from '@/business-apps/hr/core/apps/my-time/utils/duration'
-import { CaretUp, CaretDown } from '@phosphor-icons/react'
+import { CaretUp, CaretDown, ArrowsDownUpIcon } from '@phosphor-icons/react'
 
 export interface TimeEntriesTableProps {
   entries: TimeEntry[]
@@ -130,11 +130,18 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
             >
               <div className="gba:flex gba:items-center gba:gap-1">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.diff', 'Diff')}
-                {sortKey === 'differenceTime' &&
-                  (sortDir === 'asc' ? (
-                    <CaretUp className="gba:h-4 gba:w-4 gba:shrink-0" aria-hidden />
+                {onSort &&
+                  (sortKey === 'differenceTime' ? (
+                    sortDir === 'asc' ? (
+                      <CaretUp className="gba:ml-1 gba:h-4 gba:w-4 gba:shrink-0" aria-hidden />
+                    ) : (
+                      <CaretDown className="gba:ml-1 gba:h-4 gba:w-4 gba:shrink-0" aria-hidden />
+                    )
                   ) : (
-                    <CaretDown className="gba:h-4 gba:w-4 gba:shrink-0" aria-hidden />
+                    <ArrowsDownUpIcon
+                      className="gba:ml-1 gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground"
+                      aria-hidden
+                    />
                   ))}
               </div>
             </TableHead>
