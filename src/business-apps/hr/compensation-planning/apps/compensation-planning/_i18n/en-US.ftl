@@ -25,6 +25,8 @@ submissions-table-empty-no-org-unit-rows = No organizational unit budget rows ex
 submissions-table-empty-filtered = No org unit budgets match your search or filters.
 submissions-table-col-org-unit = Departments
 submissions-table-col-company-budget-plan = Company budget / plan
+submissions-table-col-proposed-new-salary = Proposed new salary
+submissions-table-col-org-unit-current-total-salary = Current total salary
 submissions-table-col-review = Review
 submissions-table-review-team = Review team
 
@@ -47,6 +49,9 @@ budget-plan-update-dialog-title = Edit compensation cycle
 budget-plan-update-submit = Update
 budget-plan-status-unknown = Unknown
 budget-plan-status-draft = Draft
+# Org-unit row after HR budget distribution (`BUDGET_PLAN_DRAFT` in API)
+budget-plan-status-org-unit-allocated = Allocated
+budget-plan-status-org-unit-proposals-submitted = Proposals submitted
 budget-plan-status-submitted = Submitted
 budget-plan-status-approved = Approved
 budget-plan-status-rejected = Rejected

@@ -3,6 +3,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCompanyOrganizationalUnits } from '@/common/data/orgchart/hooks/useCompanyOrganizationalUnits'
 import {
   LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY,
+  LIST_COMPENSATION_BUDGET_PLAN_EMPLOYEES_BY_ORG_UNIT_IDS,
   LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET_IDS,
   LIST_COMPENSATION_BUDGET_PLANS
 } from '../../../queries/budgetPlanQueries'
@@ -76,6 +77,19 @@ function mapOrgUnitRow(raw: Record<string, unknown>): SubmissionsOrgUnitGraphqlR
   }
 }
 
+function buildProposedNewSalarySumByOrgUnitBudgetRowId(employees: Record<string, unknown>[]): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const e of employees) {
+    const rowId = graphqlUnknownToString(e.compensationBudgetPlanOrganizationalUnitId)
+    if (rowId === '') {
+      continue
+    }
+    const pn = num(e.proposedNewSalary)
+    map.set(rowId, (map.get(rowId) ?? 0) + pn)
+  }
+  return map
+}
+
 const ORG_UNIT_LIMIT = 500
 
 export function useSubmissionsOrgUnitBudgetTable(
@@ -95,6 +109,9 @@ export function useSubmissionsOrgUnitBudgetTable(
   )
 
   const [orgRows, setOrgRows] = useState<SubmissionsOrgUnitGraphqlRow[]>([])
+  const [proposedNewSalarySumByOrgUnitBudgetRowId, setProposedNewSalarySumByOrgUnitBudgetRowId] = useState<
+    Map<string, number>
+  >(() => new Map())
   const [companyRowById, setCompanyRowById] = useState<Map<string, CompensationBudgetPlanCompanyRow>>(() => new Map())
   const [plans, setPlans] = useState<CompensationBudgetPlanListItem[]>([])
   const [loadingGraphql, setLoadingGraphql] = useState(false)
@@ -127,6 +144,20 @@ export function useSubmissionsOrgUnitBudgetTable(
     return map
   }, [teamMembers])
 
+  /** Sum of `currentAnnualSalary` for team members per org unit (same baseline as budget distribution). */
+  const orgUnitCurrentTotalSalaryById = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const m of teamMembers) {
+      const ouId = m.organizationalUnitId
+      if (ouId == null || ouId === '') {
+        continue
+      }
+      const add = m.currentAnnualSalary ?? 0
+      map.set(ouId, (map.get(ouId) ?? 0) + add)
+    }
+    return map
+  }, [teamMembers])
+
   const tableRows: SubmissionsOrgUnitTableRow[] = useMemo(
     () =>
       buildSubmissionsOrgUnitTableRows(
@@ -135,14 +166,26 @@ export function useSubmissionsOrgUnitBudgetTable(
         plans,
         orgUnitNameById,
         teamOrgUnitNameById,
+        orgUnitCurrentTotalSalaryById,
+        proposedNewSalarySumByOrgUnitBudgetRowId,
         defaultCurrencyCode
       ),
-    [companyRowById, defaultCurrencyCode, orgRows, orgUnitNameById, plans, teamOrgUnitNameById]
+    [
+      companyRowById,
+      defaultCurrencyCode,
+      orgRows,
+      orgUnitCurrentTotalSalaryById,
+      orgUnitNameById,
+      plans,
+      proposedNewSalarySumByOrgUnitBudgetRowId,
+      teamOrgUnitNameById
+    ]
   )
 
   const fetchData = useCallback(async () => {
     if (!accessToken || !companyId) {
       setOrgRows([])
+      setProposedNewSalarySumByOrgUnitBudgetRowId(new Map())
       setCompanyRowById(new Map())
       setPlans([])
       setError(null)
@@ -187,14 +230,30 @@ export function useSubmissionsOrgUnitBudgetTable(
         orgRaw = orgResult.CompensationBudgetPlanOrganizationalUnit ?? []
       }
 
+      const orgUnitBudgetRowIds = orgRaw.map(r => graphqlUnknownToString(r.id)).filter(id => id !== '')
+      let proposedSumByRowId = new Map<string, number>()
+      if (orgUnitBudgetRowIds.length > 0) {
+        const empResult = await graphqlClient.request<{
+          CompensationBudgetPlanEmployee: Record<string, unknown>[]
+        }>(LIST_COMPENSATION_BUDGET_PLAN_EMPLOYEES_BY_ORG_UNIT_IDS, { orgUnitBudgetIds: orgUnitBudgetRowIds })
+        if (companyIdRef.current !== companyIdForRequest) {
+          return
+        }
+        proposedSumByRowId = buildProposedNewSalarySumByOrgUnitBudgetRowId(
+          empResult.CompensationBudgetPlanEmployee ?? []
+        )
+      }
+
       setPlans(nextPlans)
       setCompanyRowById(nextCompanyRowById)
+      setProposedNewSalarySumByOrgUnitBudgetRowId(proposedSumByRowId)
       setOrgRows(orgRaw.map(mapOrgUnitRow))
     } catch (err) {
       logBudgetGraphqlFailure('SubmissionsOrgUnitBudgetTable', err)
       const message = err instanceof Error ? err.message : 'Failed to load submissions data'
       setError(message)
       setOrgRows([])
+      setProposedNewSalarySumByOrgUnitBudgetRowId(new Map())
       setCompanyRowById(new Map())
       setPlans([])
     } finally {

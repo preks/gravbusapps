@@ -24,10 +24,12 @@ const STATUS_LABELS: Record<BudgetPlanStatusApi, string> = {
 
 interface BudgetPlanStatusBadgeProps {
   status: string
+  /** When set (e.g. translated "Allocated" for org-unit DRAFT), shown instead of the default English label. */
+  label?: string
 }
 
-export const BudgetPlanStatusBadge: React.FC<BudgetPlanStatusBadgeProps> = ({ status }) => {
+export const BudgetPlanStatusBadge: React.FC<BudgetPlanStatusBadgeProps> = ({ status, label }) => {
   const variant = STATUS_VARIANTS[status as BudgetPlanStatusApi] ?? 'outline'
-  const label = STATUS_LABELS[status as BudgetPlanStatusApi] ?? status
-  return <Badge variant={variant}>{label}</Badge>
+  const labelText = label ?? STATUS_LABELS[status as BudgetPlanStatusApi] ?? status
+  return <Badge variant={variant}>{labelText}</Badge>
 }

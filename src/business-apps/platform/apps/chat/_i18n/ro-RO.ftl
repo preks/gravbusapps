@@ -191,6 +191,7 @@ chat-continue = Continuă
 chat-memberCount = {$count} membri selectați
 chat-createGroupError = Nu s-a putut crea grupul. Vă rugăm să încercați din nou.
 chat-groupCreationFailed = Nu s-a putut crea grupul. Vă rugăm să încercați din nou.
+chat-groupCreationDuplicate = Există deja un chat de grup pentru acest grup.
 
 # Dimension Picker
 chat-selectFrom = Selectează din
@@ -619,6 +620,7 @@ calendar-sidebar-dimensionViewerAccess = {$count ->
 }
 calendar-sidebar-membersPreview = Membri
 calendar-sidebar-calendarExistsInfo = Există deja un calendar partajat pentru acest grup, așa că a fost selectat calendarul existent.
+calendar-sidebar-calendarExistsError = Există deja un calendar partajat pentru acest grup.
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Programează Întâlnire

@@ -10,16 +10,7 @@ import { toast } from 'sonner'
 import {
   Card,
   Button,
-  AiButton,
   Input,
-  Label,
-  Textarea,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
   Spinner,
   DropdownMenu,
   DropdownMenuContent,
@@ -61,14 +52,11 @@ import {
   SortDesc,
   Send,
   Sparkles,
-  Wand2,
   FileType,
   ExternalLink
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { buildDocumentCreatePrompt } from '@/common/utils/buildDocumentCreatePrompt'
-import { openEveryAI } from '@/common/utils/openEveryAI'
 import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
 
 // Components
@@ -209,9 +197,6 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [documentForManageShares, setDocumentForManageShares] = useState<string | null>(null)
   const [createTemplateDialogOpen, setCreateTemplateDialogOpen] = useState(false)
   const [templateBeingEdited, setTemplateBeingEdited] = useState<DocumentTemplate | null>(null)
-  const [createWithAiDialogOpen, setCreateWithAiDialogOpen] = useState(false)
-  const [createWithAiTitle, setCreateWithAiTitle] = useState('Untitled Document')
-  const [createWithAiAbout, setCreateWithAiAbout] = useState('')
   const [trashSearchQuery, setTrashSearchQuery] = useState('')
   const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
   const [pendingTrashDocument, setPendingTrashDocument] = useState<{ id: string; name: string } | null>(null)
@@ -385,32 +370,6 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       updateUrl(newDoc.id, 'editor')
     }
   }, [createDocument, currentUserId, loadDocument, updateUrl, t])
-
-  const handleCreateWithAi = useCallback(() => {
-    setCreateWithAiDialogOpen(true)
-  }, [])
-
-  const handleSubmitCreateWithAi = useCallback(() => {
-    const instruction = createWithAiAbout.trim()
-    if (!instruction) return
-
-    const prompt = buildDocumentCreatePrompt({
-      title: createWithAiTitle.trim() || undefined,
-      userInstruction: instruction
-    })
-    setCreateWithAiDialogOpen(false)
-    setCreateWithAiTitle('Untitled Document')
-    setCreateWithAiAbout('')
-    openEveryAI({ prompt })
-
-    // Fallback: if this shell does not handle openEveryAI events, navigate directly.
-    globalThis.setTimeout(() => {
-      const everyAiMounted = Boolean(document.querySelector('[data-testid="every-ai-app"]'))
-      if (!everyAiMounted) {
-        navigateTo('/platform/every-ai')
-      }
-    }, 800)
-  }, [createWithAiAbout, createWithAiTitle])
 
   /**
    * Handle template selection
@@ -895,13 +854,6 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-blank-description')}</div>
           </div>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleCreateWithAi}>
-          <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
-          <div>
-            <div className="gba:font-medium">Create with AI</div>
-            <div className="gba:text-xs gba:text-muted-foreground">Draft a new document with Flowbot</div>
-          </div>
-        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleStartUpload}>
           <Upload className="gba:w-4 gba:h-4 gba:mr-2 gba:text-indigo-500" />
           <div>
@@ -1224,14 +1176,6 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                           <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
                           {t('empty-create-document')}
                         </Button>
-                        <AiButton
-                          showIcon
-                          icon={<Wand2 className="gba:w-4 gba:h-4 gba:text-purple-500" />}
-                          iconPosition="before"
-                          onClick={handleCreateWithAi}
-                        >
-                          Create with AI
-                        </AiButton>
                         <Button variant="outline" onClick={handleStartUpload}>
                           <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
                           {t('empty-upload-word')}
@@ -1663,54 +1607,6 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       />
 
       {sharedDocumentDialogs}
-
-      <Dialog open={createWithAiDialogOpen} onOpenChange={setCreateWithAiDialogOpen}>
-        <DialogContent data-testid={`${testId}-create-with-ai-dialog`}>
-          <DialogHeader>
-            <DialogTitle>Create document with AI</DialogTitle>
-            <DialogDescription>Provide a title and what this document should be about.</DialogDescription>
-          </DialogHeader>
-          <div className="gba:space-y-4">
-            <div className="gba:space-y-2">
-              <Label htmlFor="create-with-ai-title">Title</Label>
-              <Input
-                id="create-with-ai-title"
-                value={createWithAiTitle}
-                onChange={e => setCreateWithAiTitle(e.target.value)}
-                placeholder="e.g. CRM Account Summary"
-                data-testid={`${testId}-create-with-ai-title`}
-              />
-            </div>
-            <div className="gba:space-y-2">
-              <Label htmlFor="create-with-ai-about">What is it about?</Label>
-              <Textarea
-                id="create-with-ai-about"
-                value={createWithAiAbout}
-                onChange={e => setCreateWithAiAbout(e.target.value)}
-                placeholder="Describe the content and goal of the document..."
-                rows={4}
-                className="gba:resize-none"
-                data-testid={`${testId}-create-with-ai-about`}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setCreateWithAiDialogOpen(false)}>
-              Cancel
-            </Button>
-            <AiButton
-              showIcon
-              icon={<Wand2 className="gba:w-4 gba:h-4 gba:text-purple-500" />}
-              iconPosition="before"
-              onClick={handleSubmitCreateWithAi}
-              disabled={!createWithAiAbout.trim()}
-              data-testid={`${testId}-create-with-ai-submit`}
-            >
-              Create with AI
-            </AiButton>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
