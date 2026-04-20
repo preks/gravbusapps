@@ -8196,15 +8196,15 @@
     ]
   },
   "core/every/apps/every-box": {
-    "bitbucketBuildNumber": 11046,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11046/",
-    "chunkJsBytes": 2013227,
+    "bitbucketBuildNumber": 11048,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11048/",
+    "chunkJsBytes": 2013088,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1865572,
-        "gzip": 413559,
+        "rendered": 1865228,
+        "gzip": 413495,
         "leaves": [
           {
             "name": "src/business-apps/core/every/apps/every-box/components/UniversalCflowTaskDetails.tsx",
@@ -8432,8 +8432,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/types",
-        "rendered": 13744,
-        "gzip": 1874,
+        "rendered": 13651,
+        "gzip": 1853,
         "leaves": [
           {
             "name": "src/common/types/FlowRegistryTypes.ts",
@@ -8442,8 +8442,8 @@
           },
           {
             "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 402,
-            "gzip": 184
+            "rendered": 309,
+            "gzip": 163
           }
         ]
       },
@@ -9621,9 +9621,9 @@
     ]
   },
   "core/office/apps/documents": {
-    "bitbucketBuildNumber": 11046,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11046/",
-    "chunkJsBytes": 1716732,
+    "bitbucketBuildNumber": 11048,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11048/",
+    "chunkJsBytes": 1716729,
     "top": [
       {
         "kind": "bucket",
@@ -14599,9 +14599,9 @@
     ]
   },
   "crm/core/apps/data-import": {
-    "bitbucketBuildNumber": 11046,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11046/",
-    "chunkJsBytes": 554392,
+    "bitbucketBuildNumber": 11048,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11048/",
+    "chunkJsBytes": 554389,
     "top": [
       {
         "kind": "bucket",
@@ -24002,15 +24002,15 @@
     ]
   },
   "every/apps/every-box": {
-    "bitbucketBuildNumber": 11046,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11046/",
-    "chunkJsBytes": 2013222,
+    "bitbucketBuildNumber": 11048,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11048/",
+    "chunkJsBytes": 2013083,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1865572,
-        "gzip": 413559,
+        "rendered": 1865228,
+        "gzip": 413495,
         "leaves": [
           {
             "name": "src/business-apps/core/every/apps/every-box/components/UniversalCflowTaskDetails.tsx",
@@ -24238,8 +24238,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/types",
-        "rendered": 13744,
-        "gzip": 1874,
+        "rendered": 13651,
+        "gzip": 1853,
         "leaves": [
           {
             "name": "src/common/types/FlowRegistryTypes.ts",
@@ -24248,8 +24248,8 @@
           },
           {
             "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 402,
-            "gzip": 184
+            "rendered": 309,
+            "gzip": 163
           }
         ]
       },
@@ -29135,9 +29135,9 @@
     ]
   },
   "fin/expenses/apps/personal-expenses": {
-    "bitbucketBuildNumber": 11046,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11046/",
-    "chunkJsBytes": 2385452,
+    "bitbucketBuildNumber": 11048,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11048/",
+    "chunkJsBytes": 2385449,
     "top": [
       {
         "kind": "bucket",
@@ -41545,9 +41545,9 @@
     ]
   },
   "hr/core/apps/human-resources": {
-    "bitbucketBuildNumber": 11046,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11046/",
-    "chunkJsBytes": 2380900,
+    "bitbucketBuildNumber": 11048,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11048/",
+    "chunkJsBytes": 2380897,
     "top": [
       {
         "kind": "bucket",
@@ -66107,9 +66107,9 @@
     ]
   },
   "irm/core/apps/data-import": {
-    "bitbucketBuildNumber": 11046,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11046/",
-    "chunkJsBytes": 577599,
+    "bitbucketBuildNumber": 11048,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11048/",
+    "chunkJsBytes": 577596,
     "top": [
       {
         "kind": "bucket",
@@ -87986,9 +87986,9 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11046,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11046/",
-    "chunkJsBytes": 1805789,
+    "bitbucketBuildNumber": 11048,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11048/",
+    "chunkJsBytes": 1805786,
     "top": [
       {
         "kind": "bucket",
@@ -90783,9 +90783,9 @@
     ]
   },
   "platform/apps/flowbot-evals-dashboard": {
-    "bitbucketBuildNumber": 11046,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11046/",
-    "chunkJsBytes": 125416,
+    "bitbucketBuildNumber": 11048,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11048/",
+    "chunkJsBytes": 125413,
     "top": [
       {
         "kind": "bucket",
@@ -101651,7 +101651,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-20T14:08:03.848Z",
+    "generatedAt": "2026-04-20T14:09:42.748Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
