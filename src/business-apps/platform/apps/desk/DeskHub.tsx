@@ -444,6 +444,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
           activityData={activityDataWithoutWhiteboards}
           stats={activityStats}
           isLoading={isLoading}
+          showWhiteboards={previewEnabled}
           data-testid={`${testId}-activity`}
         />
 
