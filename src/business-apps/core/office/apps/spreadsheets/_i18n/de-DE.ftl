@@ -9,6 +9,8 @@ sidebar-brand-subtitle = NEWWORK Apps
 sidebar-new = Neu
 sidebar-blank-spreadsheet = Leere Tabelle
 sidebar-blank-spreadsheet-desc = Von Grund auf beginnen
+sidebar-generate-ai = Mit KI erstellen
+sidebar-generate-ai-desc = Tabelle mit Flowbot erstellen
 sidebar-upload-excel = Excel hochladen
 sidebar-upload-excel-desc = .xlsx- oder .xls-Datei importieren
 sidebar-home = Startseite
@@ -973,6 +975,13 @@ dialog-create-name-label = Name
 dialog-create-name-placeholder = Meine Tabelle
 dialog-create-cancel = Abbrechen
 dialog-create-submit = Erstellen
+dialog-generate-ai-title = Mit KI erstellen
+dialog-generate-ai-description = Beschreibe die Tabelle, die du erstellen möchtest, und Flowbot entwirft sie in EveryAI.
+dialog-generate-ai-name-label = Titel
+dialog-generate-ai-name-placeholder = Unbenannte Tabelle
+dialog-generate-ai-prompt-label = Was soll die Tabelle enthalten?
+dialog-generate-ai-prompt-placeholder = z. B. Erstelle einen Sales-Pipeline-Tracker mit Kundennamen, Verantwortlichen, Phasen, Forecast-Beträgen und Abschlussdaten.
+dialog-generate-ai-submit = In EveryAI öffnen
 
 # Toasts / Messages
 toast-removed-from-favorites = Aus Favoriten entfernt

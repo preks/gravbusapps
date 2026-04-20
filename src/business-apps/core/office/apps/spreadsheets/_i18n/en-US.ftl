@@ -9,6 +9,8 @@ sidebar-brand-subtitle = NEWWORK Apps
 sidebar-new = New
 sidebar-blank-spreadsheet = Blank Spreadsheet
 sidebar-blank-spreadsheet-desc = Start from scratch
+sidebar-generate-ai = Generate with AI
+sidebar-generate-ai-desc = Create spreadsheet with Flowbot
 sidebar-upload-excel = Upload Excel
 sidebar-upload-excel-desc = Import .xlsx or .xls file
 sidebar-home = Home
@@ -973,6 +975,13 @@ dialog-create-name-label = Name
 dialog-create-name-placeholder = My Spreadsheet
 dialog-create-cancel = Cancel
 dialog-create-submit = Create
+dialog-generate-ai-title = Generate with AI
+dialog-generate-ai-description = Describe the spreadsheet you want to create and Flowbot will draft it in EveryAI.
+dialog-generate-ai-name-label = Title
+dialog-generate-ai-name-placeholder = Untitled Spreadsheet
+dialog-generate-ai-prompt-label = What should the spreadsheet include?
+dialog-generate-ai-prompt-placeholder = e.g. Create a sales pipeline tracker with account names, owners, stages, forecast amounts, and close dates.
+dialog-generate-ai-submit = Open in EveryAI
 
 # Toasts / Messages
 toast-removed-from-favorites = Removed from favorites
