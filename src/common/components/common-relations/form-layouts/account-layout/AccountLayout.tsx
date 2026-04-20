@@ -2,7 +2,7 @@ import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation, Skeleton, FormSection } from '@newwork/nw-design-system'
 import { AccountInformationSegment } from '../../form-segments/account-information-segment'
-import { AccountDetailsSegment } from '../../form-segments/account-details-segment'
+import { CoreInformationSegment } from '../../form-segments/core-information-segment'
 import { AddressSegment } from '../../form-segments/address-segment'
 import { CommunicationSegment, DEFAULT_ACCOUNT_CHANNELS } from '../../form-segments/communication-segment'
 import translations from './_i18n'
@@ -39,8 +39,8 @@ interface AccountLayoutProps {
 
   // Custom fields injection for AccountInformationSegment
   accountInformationCustomFields?: React.ReactNode
-  // Custom fields injection for AccountDetailsSegment
-  accountDetailsCustomFields?: React.ReactNode
+  // Custom fields injection for CoreInformationSegment
+  coreInformationCustomFields?: React.ReactNode
   // Custom fields injection for AddressSegment
   addressCustomFields?: React.ReactNode
   // Custom fields injection for CommunicationSegment
@@ -75,7 +75,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
   accountPriorityCatalogIdentifier,
   useContacts,
   accountInformationCustomFields,
-  accountDetailsCustomFields,
+  coreInformationCustomFields,
   addressCustomFields,
   communicationCustomFields,
   customSegments = [],
@@ -131,9 +131,6 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
       />
 
       {/* Other Segments */}
-      <FormSection title={t('communication-title')} value="communication-channels">
-        <CommunicationSegment customFields={communicationCustomFields} defaultChannelCodes={DEFAULT_ACCOUNT_CHANNELS} />
-      </FormSection>
       <FormSection title={t('address-title')} value="address-information">
         <AddressSegment
           businessAppContext={businessAppContext}
@@ -141,12 +138,15 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
           isActive={isStepActive}
         />
       </FormSection>
-      <FormSection title={t('financial-title')} value="financial-information">
-        <AccountDetailsSegment
+      <FormSection title={t('core-information-title')} value="core-information">
+        <CoreInformationSegment
           annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
           companySizeCatalogIdentifier={companySizeCatalogIdentifier}
-          customFields={accountDetailsCustomFields}
+          customFields={coreInformationCustomFields}
         />
+      </FormSection>
+      <FormSection title={t('communication-title')} value="communication-channels">
+        <CommunicationSegment customFields={communicationCustomFields} defaultChannelCodes={DEFAULT_ACCOUNT_CHANNELS} />
       </FormSection>
       {customSegments.map(segment => (
         <FormSection key={segment.id} title={segment.title} value={segment.id}>

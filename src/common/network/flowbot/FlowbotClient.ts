@@ -73,6 +73,14 @@ export interface ExtractFromFileRequest {
   max_rows?: number
 }
 
+export interface CsvQuality {
+  totalRows: number
+  shiftedRows: number
+  smartMergedRows: number
+  paddedRows: number
+  repairAvailable: boolean
+}
+
 export interface ExtractFromFileResponse {
   entityType: 'Lead' | 'Contact' | 'Account' | 'Opportunity'
   records: Array<Record<string, any>>
@@ -86,6 +94,7 @@ export interface ExtractFromFileResponse {
   }>
   sourceFields: string[]
   unmappedSourceFields: string[]
+  csvQuality?: CsvQuality
 }
 
 function toFlowbotImportDomain(domain?: string): 'crm' | 'irm' | undefined {
@@ -204,6 +213,7 @@ export class FlowbotClient extends RestClient {
     modelKind: string = FLOWBOT_IMPORT_MODEL_KIND_DEFAULT,
     offset: number = 0,
     maxRows: number = 5000,
+    repairCsv: 'auto' | 'hard' = 'auto',
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ExtractFromFileResponse> {
     const formData = new FormData()
@@ -220,6 +230,7 @@ export class FlowbotClient extends RestClient {
     }
     formData.append('offset', offset.toString())
     formData.append('max_rows', maxRows.toString())
+    formData.append('repair_csv', repairCsv)
 
     return this.post<ExtractFromFileResponse>('/flowbot/extraction/data/entities/extract-from-file', formData, options)
   }
