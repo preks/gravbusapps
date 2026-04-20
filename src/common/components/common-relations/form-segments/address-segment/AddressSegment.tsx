@@ -236,7 +236,17 @@ const AddressItemComponent: React.FC<AddressItemProps> = ({
                 <CatalogSelect
                   catalogIdentifier={COUNTRY}
                   value={field.value || ''}
-                  onValueChange={v => field.onChange(v)}
+                  onValueChange={v => {
+                    field.onChange(v)
+                    const currentRegion = form.getValues(regionFieldName)
+                    if (currentRegion) {
+                      form.setValue(regionFieldName, '', {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: false
+                      })
+                    }
+                  }}
                   data-testid={`address-segment-country-${addressIndex}`}
                 />
               </FormControl>
@@ -255,6 +265,7 @@ const AddressItemComponent: React.FC<AddressItemProps> = ({
                 <CatalogSelect
                   catalogIdentifier={COUNTRY_REGION}
                   parentField={countryFieldName}
+                  requireSourceForEnable
                   value={field.value || ''}
                   onValueChange={field.onChange}
                   data-testid={`address-segment-region-${addressIndex}`}
