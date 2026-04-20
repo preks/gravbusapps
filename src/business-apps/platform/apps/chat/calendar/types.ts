@@ -281,6 +281,7 @@ export interface CreateMeetingData {
   isAllDay?: boolean
   participantIds: string[]
   optionalParticipantIds?: string[]
+  createConversation?: boolean
   conversationId?: string
   calendarId?: string
   metadata?: Record<string, any>

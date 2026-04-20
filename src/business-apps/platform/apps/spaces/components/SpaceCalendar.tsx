@@ -49,6 +49,8 @@ export interface SpaceCalendarProps {
   accessToken?: string
   /** Maximum number of meetings to show */
   maxMeetings?: number
+  /** Trigger a refetch after external meeting changes */
+  refreshToken?: number
   /** Callback to schedule a new meeting */
   onScheduleMeeting?: () => void
   'data-testid'?: string
@@ -58,6 +60,7 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   calendar,
   accessToken,
   maxMeetings = 5,
+  refreshToken = 0,
   onScheduleMeeting,
   'data-testid': testId = 'space-calendar'
 }) => {
@@ -109,7 +112,7 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
 
   useEffect(() => {
     fetchMeetings()
-  }, [fetchMeetings])
+  }, [fetchMeetings, refreshToken])
 
   // Navigate to full calendar
   const handleViewCalendar = useCallback(() => {
@@ -179,7 +182,12 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
             </div>
             <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('calendar-no-upcoming')}</p>
             {onScheduleMeeting && (
-              <Button variant="secondary" size="sm" onClick={onScheduleMeeting}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onScheduleMeeting}
+                data-testid={`${testId}-schedule-meeting`}
+              >
                 {t('common-schedule-meeting')}
               </Button>
             )}

@@ -37,6 +37,7 @@ import {
   EventParticipant
 } from './types'
 import { getDefaultCalendarColor } from './utils/calendarColors'
+import { getDefaultMeetingCalendarId, PERSONAL_CALENDAR_ID } from './utils/defaultMeetingCalendar'
 import type { CalendarEmployee } from './services/employeeSearchService'
 
 interface CalendarProps extends BusinessAppContextProps {
@@ -263,20 +264,13 @@ const CalendarInner: React.FC<CalendarProps> = ({
     return displayName || t('calendar-sidebar-myCalendar')
   }, [t, userInfo?.displayName])
   const defaultMeetingCalendarId = useMemo(() => {
-    if (requestedMeetingCalendarId) {
-      return requestedMeetingCalendarId
-    }
-
-    const selectedEditableCalendar = sharedCalendars.find(
-      calendar => selectedInternalCalendarIds.includes(calendar.id) && calendar.canEdit
-    )
-
-    if (selectedEditableCalendar) {
-      return selectedEditableCalendar.id
-    }
-
-    return sharedCalendars.find(calendar => calendar.canEdit)?.id
-  }, [requestedMeetingCalendarId, selectedInternalCalendarIds, sharedCalendars])
+    return getDefaultMeetingCalendarId({
+      includePersonal,
+      requestedMeetingCalendarId,
+      selectedInternalCalendarIds,
+      sharedCalendars
+    })
+  }, [includePersonal, requestedMeetingCalendarId, selectedInternalCalendarIds, sharedCalendars])
 
   useEffect(() => {
     const urlParams = new URLSearchParams(globalThis.window.location.search)
@@ -1227,7 +1221,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
         onUpdate={handleUpdateMeeting}
         accessToken={accessToken}
         availableCalendars={sharedCalendars}
-        includePersonal={includePersonal}
+        includePersonal={includePersonal || defaultMeetingCalendarId === PERSONAL_CALENDAR_ID}
         defaultCalendarId={defaultMeetingCalendarId}
         initialDate={createModalInitialDate}
         initialHour={createModalInitialHour}
