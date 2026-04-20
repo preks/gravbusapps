@@ -24,7 +24,7 @@ import {
 } from '@phosphor-icons/react'
 import type { ActivityEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
 import type { ArtifactFile, FabricSubAgent, FabricTaskNode } from '../../types/fabric'
-import { formatRelativeTime, toolCategoryColor } from '../../utils/renderUtils'
+import { toolCategoryColor } from '../../utils/renderUtils'
 import { FabricProgressTaskRow } from './fabricProgressShared'
 
 // ─── Shared card shell ────────────────────────────────────────────────────────
@@ -42,7 +42,7 @@ const Card: React.FC<CardProps> = ({ title, badge, extra, defaultOpen = true, ch
   const slug = title.toLowerCase().replace(/\s+/g, '-')
 
   return (
-    <div className="gba:rounded-[1.25rem] sm:gba:rounded-[1.5rem] gba:border gba:border-border/75 gba:bg-card/96 gba:backdrop-blur-sm gba:overflow-hidden gba:shadow-[0_4px_14px_rgba(15,23,42,0.03)]">
+    <div className="gba:flex gba:min-h-0 gba:flex-col gba:rounded-[1.25rem] sm:gba:rounded-[1.5rem] gba:border gba:border-border/75 gba:bg-card/96 gba:backdrop-blur-sm gba:overflow-hidden gba:shadow-[0_4px_14px_rgba(15,23,42,0.03)]">
       <div className="gba:flex gba:min-h-0 gba:items-stretch gba:border-b gba:border-border/50 gba:shrink-0">
         <button
           type="button"
@@ -89,6 +89,24 @@ function rightPanelProgressLabel(params: {
   return `${completedCount} of ${totalCount} done`
 }
 
+function activityTimestampSortValue(timestamp: string): number {
+  const date = new Date(timestamp)
+  const value = date.getTime()
+  return Number.isNaN(value) ? 0 : value
+}
+
+function formatActivityTimestamp(timestamp: string): string {
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return ''
+
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  })
+}
+
 // ─── Progress card ────────────────────────────────────────────────────────────
 
 interface ProgressCardProps {
@@ -131,37 +149,39 @@ const ProgressCard: React.FC<ProgressCardProps> = ({
 
   return (
     <Card title="Progress" extra={connectionBadge} defaultOpen>
-      <div className="gba:px-4 gba:pt-3 gba:pb-1">
-        {/* Mini progress bar */}
-        {totalCount > 0 && (
-          <div className="gba:mb-3">
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1.5">
-              <span className="gba:text-[11px] gba:text-muted-foreground/60">{progressLabel}</span>
-              <span className="gba:text-[11px] gba:font-semibold gba:text-foreground">{displayPercent}%</span>
+      <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain">
+        <div className="gba:px-4 gba:pt-3 gba:pb-1">
+          {/* Mini progress bar */}
+          {totalCount > 0 && (
+            <div className="gba:mb-3">
+              <div className="gba:flex gba:items-center gba:justify-between gba:mb-1.5">
+                <span className="gba:text-[11px] gba:text-muted-foreground/60">{progressLabel}</span>
+                <span className="gba:text-[11px] gba:font-semibold gba:text-foreground">{displayPercent}%</span>
+              </div>
+              <div className="gba:h-1 gba:w-full gba:rounded-full gba:bg-border gba:overflow-hidden">
+                <div
+                  className="gba:h-full gba:rounded-full gba:bg-primary gba:transition-all gba:duration-500"
+                  style={{ width: `${displayPercent}%` }}
+                />
+              </div>
             </div>
-            <div className="gba:h-1 gba:w-full gba:rounded-full gba:bg-border gba:overflow-hidden">
-              <div
-                className="gba:h-full gba:rounded-full gba:bg-primary gba:transition-all gba:duration-500"
-                style={{ width: `${displayPercent}%` }}
-              />
-            </div>
+          )}
+        </div>
+
+        {nodes.length === 0 ? (
+          <div className="gba:px-4 gba:pb-4">
+            <p className="gba:text-xs gba:text-muted-foreground/50 gba:italic">
+              Steps will appear once the agent starts…
+            </p>
+          </div>
+        ) : (
+          <div className="gba:min-h-0 gba:py-1 gba:space-y-0.5">
+            {nodes.map((node, i) => (
+              <FabricProgressTaskRow key={node.id} node={node} index={i} />
+            ))}
           </div>
         )}
       </div>
-
-      {nodes.length === 0 ? (
-        <div className="gba:px-4 gba:pb-4">
-          <p className="gba:text-xs gba:text-muted-foreground/50 gba:italic">
-            Steps will appear once the agent starts…
-          </p>
-        </div>
-      ) : (
-        <div className="gba:max-h-96 gba:min-h-0 gba:overflow-y-auto gba:py-1 gba:space-y-0.5">
-          {nodes.map((node, i) => (
-            <FabricProgressTaskRow key={node.id} node={node} index={i} />
-          ))}
-        </div>
-      )}
     </Card>
   )
 }
@@ -433,19 +453,23 @@ const isLikelyTaskText = (value?: string) => {
   return compact.length > 42 || compact.split(/\s+/).length > 5
 }
 
-const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => (
-  <Card title="Activity" badge={events.length} defaultOpen={false}>
-    <div className="gba:py-1">
-      {[...events]
-        .reverse()
-        .slice(0, 20)
-        .map(event => {
+const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
+  const sortedEvents = useMemo(
+    () => [...events].sort((a, b) => activityTimestampSortValue(b.timestamp) - activityTimestampSortValue(a.timestamp)),
+    [events]
+  )
+
+  return (
+    <Card title="Activity" badge={events.length} defaultOpen={false}>
+      <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain gba:py-1">
+        {sortedEvents.map(event => {
           const isSubagent = event.type === 'subagent_spawn'
           const showAgentBadge =
             isSubagent &&
             !!event.agent &&
             !isLikelyTaskText(event.agent) &&
             normalizeActivityText(event.agent) !== normalizeActivityText(event.summary)
+          const timestampLabel = formatActivityTimestamp(event.timestamp)
           return (
             <div
               key={event.id}
@@ -469,23 +493,21 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => (
                   </span>
                 )}
                 <p className="gba:text-xs gba:text-foreground gba:leading-snug">{event.summary}</p>
-                <div className="gba:flex gba:items-center gba:gap-2 gba:mt-0.5">
-                  <span className="gba:text-[11px] gba:text-muted-foreground/50">
-                    {formatRelativeTime(event.timestamp)}
-                  </span>
-                  {event.durationMs !== undefined && (
-                    <span className="gba:text-[11px] gba:text-muted-foreground/40">
-                      {(event.durationMs / 1000).toFixed(2)}s
-                    </span>
-                  )}
-                </div>
+                {(timestampLabel || event.durationMs !== undefined) && (
+                  <p className="gba:mt-1 gba:text-[10px] gba:leading-4 gba:text-muted-foreground/38">
+                    {timestampLabel}
+                    {timestampLabel && event.durationMs !== undefined ? ' · ' : ''}
+                    {event.durationMs !== undefined ? `${(event.durationMs / 1000).toFixed(2)}s` : ''}
+                  </p>
+                )}
               </div>
             </div>
           )
         })}
-    </div>
-  </Card>
-)
+      </div>
+    </Card>
+  )
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 

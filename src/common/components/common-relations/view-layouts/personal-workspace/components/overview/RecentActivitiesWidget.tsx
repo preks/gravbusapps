@@ -9,7 +9,6 @@ import {
   EmptyState,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ActivityBadge } from '../activities/ActivityBadge'
 import type { GenericActivity, PersonalWorkspaceConfig } from '../../types'
 import dayjs from 'dayjs'
 import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon } from '@phosphor-icons/react'
@@ -17,7 +16,14 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
 import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import activitySectionTranslations from '@/common/components/common-relations/record-sections/activity-section/_i18n'
+import personalWorkspaceTranslations from '@/common/components/common-relations/view-layouts/personal-workspace/_i18n'
 import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
+import { ActivityRelatedEntityHints } from '@/common/components/common-relations/record-sections/activity-section/ActivityRelatedEntityHints'
+import {
+  getActivityRelatedEntities,
+  type ActivityWithInvestment
+} from '@/common/components/common-relations/record-sections/activity-section/getActivityRelatedEntities'
+import { createWorkspaceModuleRelatedRecordUrlResolver } from '@/common/utils/relatedEntityRecordUrls'
 
 export interface RecentActivitiesWidgetProps {
   activities: GenericActivity[]
@@ -41,9 +47,8 @@ const getActivityIcon = (activityType: string) => {
 }
 
 /**
- * Generic Recent Activities Widget
- * Extends ActivitySection functionality with workspace-specific entity badges
- * Reuses document rendering pattern from ActivitySection
+ * Recent Activities on the personal workspace overview.
+ * Timeline matches ActivitySection: all related-entity chips (no record context — every link shown).
  */
 export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({
   activities,
@@ -52,6 +57,12 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({
   accessToken
 }) => {
   const { t } = useTranslation(activitySectionTranslations)
+  const { t: tPersonalWorkspace } = useTranslation(personalWorkspaceTranslations)
+
+  const getRelatedRecordUrl = useMemo(
+    () => createWorkspaceModuleRelatedRecordUrlResolver(config.module),
+    [config.module]
+  )
 
   const getOwnerName = (ownerEmployee: any) => {
     if (!ownerEmployee) return 'Unknown'
@@ -97,6 +108,14 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({
     [handleDocumentClick]
   )
 
+  const relatedEntitiesContext = useMemo(
+    () => ({
+      showAllRelatedEntityChips: true as const,
+      getRelatedRecordUrl
+    }),
+    [getRelatedRecordUrl]
+  )
+
   const timelineItems = useMemo(() => {
     const ordered = sortActivitiesByOccurredAtDesc(activities)
 
@@ -104,6 +123,7 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({
       const activityTypeLabel = activity.activityType?.value || 'Activity'
       const ownerName = getOwnerName(activity.ownerEmployee)
       const effectiveAt = activity.occurredAt || activity.createdAt
+      const relatedEntities = getActivityRelatedEntities(activity as ActivityWithInvestment, relatedEntitiesContext)
 
       return {
         id: activity.id,
@@ -123,22 +143,23 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({
           </a>
         ) : undefined,
         title: (
-          <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:gap-2">
-            <span className="gba:flex-1 gba:truncate">{activity.title}</span>
-            <ActivityBadge activity={activity} config={config} data-testid={`activity-badge-${activity.id}`} />
+          <div className="gba:flex gba:flex-col gba:gap-1.5 gba:w-full gba:min-w-0">
+            <ActivityRelatedEntityHints activityId={activity.id} entities={relatedEntities} t={t} />
+            <div className="gba:flex gba:items-center gba:w-full gba:min-w-0">
+              <span className="gba:flex-1 gba:truncate">{activity.title}</span>
+            </div>
           </div>
         ),
         description: (
           <div className="gba:flex gba:flex-col gba:gap-2">
             {activity.description && <span>{activity.description}</span>}
-            {/* Document rendering - reused pattern from ActivitySection */}
             {activity.documents && renderActivityDocuments(activity.id, activity.documents)}
           </div>
         ),
         icon: getActivityIcon(activityTypeLabel)
       } as any
     })
-  }, [activities, config, handleEmployeeClick, renderActivityDocuments, t])
+  }, [activities, handleEmployeeClick, renderActivityDocuments, relatedEntitiesContext, t])
 
   // Render content based on loading/data state
   const renderContent = () => {
@@ -154,8 +175,8 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({
       return (
         <EmptyState
           type="no-data"
-          title="No Activities"
-          description="No recent activities yet."
+          title={tPersonalWorkspace('personal-workspace-recent-activities-empty-title')}
+          description={tPersonalWorkspace('personal-workspace-recent-activities-empty-description')}
           data-testid="recent-activities-empty-state"
         />
       )
@@ -175,7 +196,7 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({
   return (
     <Card data-testid="recent-activities-widget">
       <CardHeader>
-        <CardTitle>Recent Activities</CardTitle>
+        <CardTitle>{tPersonalWorkspace('personal-workspace-recent-activities-title')}</CardTitle>
       </CardHeader>
 
       <CardContent className="gba:p-0">

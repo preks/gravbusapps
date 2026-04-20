@@ -6,7 +6,14 @@ import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/wi
 import { useTimeInterventions } from '../hooks/useTimeInterventions'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { CalendarXIcon, WarningCircleIcon, ArrowsClockwiseIcon, LightningIcon } from '@phosphor-icons/react'
+import {
+  CalendarXIcon,
+  WarningCircleIcon,
+  ArrowsClockwiseIcon,
+  LightningIcon,
+  HourglassIcon
+} from '@phosphor-icons/react'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 interface InterventionsTableProps {
   employeeId: string
@@ -37,10 +44,16 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({
   onReviewClick,
   defaultExpanded = false
 }) => {
-  const { items, isLoading, error } = useTimeInterventions({
+  const { items, isLoading, error, refresh } = useTimeInterventions({
     employeeId,
     accessToken,
     workingHours
+  })
+
+  useProcessCompletion({
+    onSuccess: () => {
+      refresh().catch(() => {})
+    }
   })
 
   const [isExpanded, setIsExpanded] = useState(defaultExpanded)
@@ -121,7 +134,7 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({
         <div className="gba:mb-3" data-testid="time-interventions-header" ref={headerRef}>
           <div className="gba:flex gba:items-start gba:gap-2">
             <div
-              className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-ai/10 gba:text-ai"
+              className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:text-muted-foreground"
               data-testid="time-interventions-assistant-icon"
             >
               <Icon icon={isExpanded ? LightningIcon : WarningCircleIcon} />
@@ -209,17 +222,26 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({
                           <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
                             <div className="gba:flex gba:items-center gba:gap-3">
                               <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:text-muted-foreground">
-                                <Icon icon={IconCmp} />
+                                <Icon icon={item.pendingCorrection ? HourglassIcon : IconCmp} />
                               </div>
                               <div className="gba:flex gba:flex-col">
                                 <div className="gba:flex gba:items-center gba:gap-2">
                                   <div className="gba:font-medium">{dateText}</div>
-                                  <Badge
-                                    variant={getBadgeVariant(item.reason)}
-                                    data-testid={`time-interventions-reason-${item.date}`}
-                                  >
-                                    {getReason(item.reason)}
-                                  </Badge>
+                                  {item.pendingCorrection ? (
+                                    <Badge variant="warning" data-testid={`time-interventions-pending-${item.date}`}>
+                                      {getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:time_tracking.interventions.manager_approval_pending',
+                                        'Manager approval pending'
+                                      )}
+                                    </Badge>
+                                  ) : (
+                                    <Badge
+                                      variant={getBadgeVariant(item.reason)}
+                                      data-testid={`time-interventions-reason-${item.date}`}
+                                    >
+                                      {getReason(item.reason)}
+                                    </Badge>
+                                  )}
                                 </div>
                                 <div className="gba:text-sm gba:text-muted-foreground">
                                   {getTranslationFromI18nKeyAndLabel(
@@ -238,25 +260,43 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({
                                 </div>
                               </div>
                             </div>
-                            <div className="gba:flex gba:justify-start">
-                              <AppAction
-                                variant="update-secondary"
-                                data-testid={`time-interventions-update-button-${item.date}`}
-                                contexts={[
-                                  {
-                                    context: FlowContextName.employeeAttendanceCorrectionRequest,
-                                    contextData: {
-                                      employeeId,
-                                      attendanceDateISO: new Date(item.date).toISOString().slice(0, 10),
-                                      reason: item.reason
+                            {!item.pendingCorrection && (
+                              <div className="gba:flex gba:justify-start">
+                                <AppAction
+                                  variant="update-secondary"
+                                  data-testid={`time-interventions-update-button-${item.date}`}
+                                  contexts={[
+                                    {
+                                      context: FlowContextName.employeeAttendanceCorrectionRequest,
+                                      contextData: {
+                                        employeeId,
+                                        employeeid: employeeId,
+                                        attendanceDateISO: new Date(item.date).toISOString().slice(0, 10),
+                                        reason: item.reason,
+                                        timeEntryId: item.entry?.id,
+                                        timeEntryVersion: item.entry?.version,
+                                        startTimeISO: item.entry?.startTime,
+                                        endTimeISO: item.entry?.endTime,
+                                        notes: item.entry?.notes,
+                                        recordedTime: item.entry?.recordedTime,
+                                        breakTime: item.entry?.breakTime,
+                                        effectiveTime: item.entry?.effectiveTime,
+                                        plannedTime: item.entry?.plannedTime,
+                                        differenceTime: item.entry?.differenceTime,
+                                        changeMode: 'INSERT',
+                                        employeeAttendanceCorrectionRequest: {
+                                          timeEntryId: item.entry?.id,
+                                          timeEntryVersion: item.entry?.version
+                                        }
+                                      }
                                     }
-                                  }
-                                ]}
-                                prefixDataTestId="time-interventions-update"
-                                accessToken={accessToken}
-                                onClick={e => e.stopPropagation()}
-                              />
-                            </div>
+                                  ]}
+                                  prefixDataTestId="time-interventions-update"
+                                  accessToken={accessToken}
+                                  onClick={e => e.stopPropagation()}
+                                />
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>

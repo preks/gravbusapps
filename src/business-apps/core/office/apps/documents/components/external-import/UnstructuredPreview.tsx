@@ -1,6 +1,7 @@
 import React from 'react'
-import { Button, Badge, Spinner } from '@newwork/nw-design-system'
+import { Button, Badge, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { ArrowLeft, ArrowRight, FileText, Globe } from 'lucide-react'
+import translations from '../../_i18n'
 import type { UnstructuredPreviewItem } from '../../types/externalUnstructuredConnector'
 
 export interface UnstructuredPreviewProps {
@@ -30,11 +31,13 @@ export const UnstructuredPreview: React.FC<UnstructuredPreviewProps> = ({
   onNext,
   'data-testid': testId = 'unstructured-preview'
 }) => {
+  const { t } = useTranslation(translations)
+
   if (isLoading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:py-12" data-testid={testId}>
         <Spinner size="md" />
-        <span className="gba:ml-2 gba:text-sm gba:text-muted-foreground">Loading preview...</span>
+        <span className="gba:ml-2 gba:text-sm gba:text-muted-foreground">{t('external-import-preview-loading')}</span>
       </div>
     )
   }
@@ -43,13 +46,13 @@ export const UnstructuredPreview: React.FC<UnstructuredPreviewProps> = ({
     return (
       <div className="gba:space-y-4" data-testid={testId}>
         <div className="gba:rounded-md gba:border gba:border-destructive/40 gba:bg-destructive-secondary gba:p-4">
-          <p className="gba:text-sm gba:font-medium gba:text-destructive">Preview failed</p>
+          <p className="gba:text-sm gba:font-medium gba:text-destructive">{t('external-import-preview-failed')}</p>
           <p className="gba:mt-1 gba:text-sm gba:text-destructive">{error}</p>
         </div>
 
         <div className="gba:flex gba:justify-start gba:pt-2">
           <Button variant="outline" size="sm" onClick={onBack} data-testid={`${testId}-back`}>
-            <ArrowLeft className="gba:w-3 gba:h-3 gba:mr-1" /> Back
+            <ArrowLeft className="gba:w-3 gba:h-3 gba:mr-1" /> {t('external-import-back')}
           </Button>
         </div>
       </div>
@@ -60,15 +63,17 @@ export const UnstructuredPreview: React.FC<UnstructuredPreviewProps> = ({
     <div className="gba:space-y-4" data-testid={testId}>
       <div>
         <p className="gba:text-sm gba:text-muted-foreground">
-          Preview of items from <strong>{connectorName}</strong>
-          {estimatedTotal != null && ` (~${estimatedTotal.toLocaleString()} total)`}.
+          {t('external-import-preview-intro', { connectorName })}
+          {estimatedTotal != null &&
+            ` ${t('external-import-preview-total', { count: estimatedTotal.toLocaleString() })}`}
+          .
         </p>
       </div>
 
       {items.length === 0 ? (
         <div className="gba:py-8 gba:text-center gba:space-y-2">
           <FileText className="gba:w-8 gba:h-8 gba:mx-auto gba:text-muted-foreground" />
-          <p className="gba:text-sm gba:text-muted-foreground">No items found.</p>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('external-import-preview-empty')}</p>
         </div>
       ) : (
         <div className="gba:space-y-2 gba:max-h-[400px] gba:overflow-y-auto gba:pr-1">
@@ -96,7 +101,7 @@ export const UnstructuredPreview: React.FC<UnstructuredPreviewProps> = ({
                     className="gba:flex gba:items-center gba:gap-1 gba:text-primary gba:hover:underline"
                     onClick={e => e.stopPropagation()}
                   >
-                    <Globe className="gba:w-3 gba:h-3" /> Open
+                    <Globe className="gba:w-3 gba:h-3" /> {t('external-import-open')}
                   </a>
                 )}
               </div>
@@ -108,10 +113,10 @@ export const UnstructuredPreview: React.FC<UnstructuredPreviewProps> = ({
 
       <div className="gba:flex gba:justify-between gba:pt-2">
         <Button variant="outline" size="sm" onClick={onBack} data-testid={`${testId}-back`}>
-          <ArrowLeft className="gba:w-3 gba:h-3 gba:mr-1" /> Back
+          <ArrowLeft className="gba:w-3 gba:h-3 gba:mr-1" /> {t('external-import-back')}
         </Button>
         <Button size="sm" onClick={onNext} disabled={items.length === 0} data-testid={`${testId}-next`}>
-          Configure import <ArrowRight className="gba:w-3 gba:h-3 gba:ml-1" />
+          {t('external-import-configure-import')} <ArrowRight className="gba:w-3 gba:h-3 gba:ml-1" />
         </Button>
       </div>
     </div>

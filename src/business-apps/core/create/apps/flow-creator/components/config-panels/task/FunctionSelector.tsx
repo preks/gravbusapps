@@ -13,7 +13,7 @@ import {
   PopoverTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Check, ChevronsUpDown, Code2, Loader2 } from 'lucide-react'
+import { Check, ChevronsUpDown, Cloud, Code2, ExternalLink, FolderOpen, Loader2 } from 'lucide-react'
 import translations from '../../../_i18n'
 import type { TaskNodeConfig } from '../../../types/studioTypes'
 import type { FlowStudioData } from '../../../hooks/useFlowStudioData'
@@ -21,7 +21,15 @@ import { useStudioExpressionSuggestions } from '../../../hooks/useStudioExpressi
 import { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 import type { ExpressionSuggestionItem } from '@/common/components/flow/expression-editor'
 import type { FunctionVersionMeta } from '@/common/network/functions/FunctionsServiceClient'
+import { Navigation } from '@/common/utils/navigationUtils'
 import { AutomationVersionSelect } from './AutomationVersionSelect'
+
+/**
+ * Build a link to the Function Manager editor for the given function id.
+ * Opens in a new tab so the user doesn't lose the FlowStudio edit state.
+ */
+const buildFunctionEditorUrl = (functionId: string): string =>
+  `${Navigation.CREATE_FUNCTION_MANAGER}?functionId=${encodeURIComponent(functionId)}`
 
 interface FunctionParamRowProps {
   paramName: string
@@ -100,11 +108,53 @@ interface FunctionSelectorProps {
   testId: string
 }
 
+/** Category filter shown as a segmented control above the dropdown. */
+type CategoryFilter = 'all' | 'connectors' | 'functions'
+
 export const FunctionSelector: React.FC<FunctionSelectorProps> = ({ config, update, studioData, testId }) => {
   const { t } = useTranslation(translations)
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
+  // Seed the category filter from the step's authored intent (Connector tile vs Function tile
+  // at the task-category level). Falls back to 'all' for legacy steps without a hint.
+  const hintFromConfig = config.functionConfig?.categoryHint
+  const categoryFromHint: CategoryFilter =
+    hintFromConfig === 'connectors' ? 'connectors' : hintFromConfig === 'functions' ? 'functions' : 'all'
+  const [category, setCategory] = useState<CategoryFilter>(categoryFromHint)
   const { functions, functionsLoading } = studioData
+
+  /**
+   * Keep the local filter state in sync with the persisted hint. This is what
+   * makes the Task Type sub-tile above (Connector / Function) actually drive the
+   * segmented control + grouped dropdown below — without this effect, useState
+   * only seeds once on mount and external hint changes wouldn't propagate.
+   *
+   * Writes from the segmented control are already handled by setCategoryAndPersist
+   * (which writes the hint back), and this effect then runs as a no-op because the
+   * local state already matches. Safe loop.
+   */
+  useEffect(() => {
+    setCategory(prev => (prev === categoryFromHint ? prev : categoryFromHint))
+  }, [categoryFromHint])
+
+  /**
+   * When the user clicks a pill in the local segmented control, persist the hint
+   * back into functionConfig so the Task Type sub-tile above, the segmented
+   * control, and the dropdown filter all share a single source of truth.
+   * 'all' clears the hint so the step isn't locked into a category.
+   */
+  const setCategoryAndPersist = (next: CategoryFilter) => {
+    setCategory(next)
+    const current = config.functionConfig ?? { functionId: '' }
+    const nextHint = next === 'connectors' ? 'connectors' : next === 'functions' ? 'functions' : undefined
+    if (current.categoryHint === nextHint) return
+    update({
+      functionConfig: {
+        ...current,
+        categoryHint: nextHint
+      }
+    })
+  }
   const suggestions = useStudioExpressionSuggestions()
   const stepValueSuggestions = useMemo(
     () =>
@@ -117,9 +167,32 @@ export const FunctionSelector: React.FC<FunctionSelectorProps> = ({ config, upda
   const [versionsLoading, setVersionsLoading] = useState(false)
   const [versions, setVersions] = useState<FunctionVersionMeta[]>([])
 
-  const filtered = search
+  // Counts are derived from the full list (pre-search, pre-category) so the segmented control
+  // always shows how many items exist in each category regardless of current filters.
+  const totalConnectors = useMemo(() => functions.filter(f => f.connectorEnabled === true).length, [functions])
+  const totalBusinessFunctions = useMemo(() => functions.filter(f => f.connectorEnabled !== true).length, [functions])
+
+  const searchFiltered = search
     ? functions.filter(f => (f.name ?? '').toLowerCase().includes(search.toLowerCase()))
     : functions
+
+  const filtered = useMemo(() => {
+    if (category === 'connectors') return searchFiltered.filter(f => f.connectorEnabled === true)
+    if (category === 'functions') return searchFiltered.filter(f => f.connectorEnabled !== true)
+    return searchFiltered
+  }, [searchFiltered, category])
+
+  // Split the filtered list into three peer groups so users see Connectors as a first-class
+  // category, matching the Task Expert builder's Capabilities layout (MCP / Connectors / Functions).
+  const anypointConnectors = useMemo(
+    () => filtered.filter(f => f.connectorEnabled === true && f.connectorKind === 'structured'),
+    [filtered]
+  )
+  const dataBridgeConnectors = useMemo(
+    () => filtered.filter(f => f.connectorEnabled === true && f.connectorKind === 'unstructured'),
+    [filtered]
+  )
+  const businessFunctions = useMemo(() => filtered.filter(f => f.connectorEnabled !== true), [filtered])
 
   const selectedFunction = functions.find(f => f.id === config.functionConfig?.functionId)
   const selectedVersion = config.functionConfig?.version
@@ -235,15 +308,123 @@ export const FunctionSelector: React.FC<FunctionSelectorProps> = ({ config, upda
     })
   }
 
+  const renderFunctionItem = (
+    fn: (typeof functions)[number],
+    LeadingIcon: React.ComponentType<{ className?: string }>
+  ) => {
+    const isConnector = fn.connectorEnabled === true
+    const configureLabel = isConnector ? 'Configure connector in Function Manager' : 'Edit function in Function Manager'
+    const editorUrl = buildFunctionEditorUrl(fn.id)
+    return (
+      <CommandItem
+        key={fn.id}
+        value={fn.id}
+        onSelect={() => {
+          update({
+            functionConfig: {
+              ...config.functionConfig,
+              functionId: fn.id,
+              functionName: fn.name,
+              version: fn.latestVersion?.version,
+              outputSchema: fn.latestVersion?.outputSchema
+            }
+          })
+          setOpen(false)
+        }}
+      >
+        <LeadingIcon className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-muted-foreground" />
+        <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
+          <span className="gba:truncate gba:text-foreground">{fn.name}</span>
+          {fn.description && (
+            <span className="gba:text-[10px] gba:text-muted-foreground gba:truncate">{fn.description}</span>
+          )}
+        </div>
+        <a
+          href={editorUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          // cmdk fires selection on pointerdown as well as click, so block both to ensure the
+          // Configure link never doubles as "select this function in the flow step".
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
+          title={configureLabel}
+          aria-label={configureLabel}
+          className="gba:flex gba:items-center gba:gap-1 gba:text-[10px] gba:text-muted-foreground gba:hover:text-foreground gba:px-1.5 gba:py-0.5 gba:rounded gba:border gba:border-transparent gba:hover:border-border gba:transition-colors gba:flex-shrink-0"
+          data-testid={`${testId}-function-configure-${fn.id}`}
+        >
+          <ExternalLink className="gba:h-3 gba:w-3" />
+          Configure
+        </a>
+        {config.functionConfig?.functionId === fn.id && (
+          <Check className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:flex-shrink-0 gba:ml-1" />
+        )}
+      </CommandItem>
+    )
+  }
+
   return (
     <div className="gba:flex gba:flex-col gba:gap-2 gba:p-3 gba:rounded-lg gba:bg-muted">
-      <Label className="gba:text-xs gba:font-semibold gba:text-foreground">
-        <Code2 className="gba:h-3.5 gba:w-3.5 gba:inline gba:mr-1" />
+      <Label className="gba:text-xs gba:font-semibold gba:text-foreground gba:flex gba:items-center gba:gap-1">
+        <Code2 className="gba:h-3.5 gba:w-3.5" />
         Function
+        <span className="gba:text-[10px] gba:font-normal gba:text-muted-foreground">
+          · call a <span className="gba:text-primary">connector</span> or a function
+        </span>
       </Label>
+      {/**
+       * Segmented category filter: promotes "Connectors" to a first-class, always-visible
+       * concept so users don't have to open the dropdown to learn that connectors exist.
+       * Pure UI filter — the underlying step type stays FUNCTION and the selection
+       * payload is identical across categories.
+       */}
+      <div
+        className="gba:inline-flex gba:items-center gba:gap-0.5 gba:p-0.5 gba:rounded-md gba:bg-background gba:border gba:border-border gba:self-start"
+        role="tablist"
+        aria-label="Filter by category"
+        data-testid={`${testId}-function-category-filter`}
+      >
+        {(
+          [
+            { id: 'all', label: 'All', count: totalConnectors + totalBusinessFunctions, icon: Code2 },
+            { id: 'connectors', label: 'Connectors', count: totalConnectors, icon: Cloud },
+            { id: 'functions', label: 'Functions', count: totalBusinessFunctions, icon: Code2 }
+          ] as const
+        ).map(opt => {
+          const Icon = opt.icon
+          const active = category === opt.id
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setCategoryAndPersist(opt.id)}
+              className={`gba:flex gba:items-center gba:gap-1 gba:text-[11px] gba:font-medium gba:px-2 gba:py-1 gba:rounded gba:transition-colors ${
+                active
+                  ? 'gba:bg-primary/10 gba:text-primary'
+                  : 'gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted'
+              }`}
+              data-testid={`${testId}-function-category-${opt.id}`}
+            >
+              <Icon className="gba:h-3 gba:w-3" />
+              {opt.label}
+              <span
+                className={`gba:text-[10px] gba:px-1 gba:rounded ${
+                  active ? 'gba:bg-primary/20 gba:text-primary' : 'gba:bg-muted gba:text-muted-foreground'
+                }`}
+              >
+                {opt.count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
       <div className={selectedFunction ? 'gba:grid gba:grid-cols-[minmax(0,1fr)_9rem] gba:gap-2 gba:items-end' : ''}>
         <div className="gba:flex gba:flex-col gba:gap-1.5">
-          <Label className="gba:text-xs gba:font-medium">Function</Label>
+          <Label className="gba:text-xs gba:font-medium">
+            {category === 'connectors' ? 'Connector' : category === 'functions' ? 'Function' : 'Connector or function'}
+          </Label>
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <Button
@@ -255,12 +436,31 @@ export const FunctionSelector: React.FC<FunctionSelectorProps> = ({ config, upda
               >
                 {selectedFunction ? (
                   <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-foreground gba:truncate">
-                    <Code2 className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:flex-shrink-0" />
-                    {selectedFunction.name}
+                    {selectedFunction.connectorEnabled === true ? (
+                      selectedFunction.connectorKind === 'unstructured' ? (
+                        <FolderOpen className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:flex-shrink-0" />
+                      ) : (
+                        <Cloud className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:flex-shrink-0" />
+                      )
+                    ) : (
+                      <Code2 className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:flex-shrink-0" />
+                    )}
+                    <span className="gba:truncate">{selectedFunction.name}</span>
+                    {selectedFunction.connectorEnabled === true && (
+                      <span className="gba:text-[10px] gba:px-1 gba:py-px gba:rounded gba:bg-primary/10 gba:text-primary gba:flex-shrink-0">
+                        {selectedFunction.connectorKind === 'unstructured' ? 'Data Bridge' : 'Anypoint Connect'}
+                      </span>
+                    )}
                   </span>
                 ) : (
                   <span className="gba:text-muted-foreground">
-                    {functionsLoading ? 'Loading functions...' : 'Select a function...'}
+                    {functionsLoading
+                      ? 'Loading...'
+                      : category === 'connectors'
+                        ? 'Select a connector...'
+                        : category === 'functions'
+                          ? 'Select a function...'
+                          : 'Select a connector or function...'}
                   </span>
                 )}
                 <ChevronsUpDown className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:flex-shrink-0" />
@@ -278,39 +478,21 @@ export const FunctionSelector: React.FC<FunctionSelectorProps> = ({ config, upda
                   ) : (
                     <>
                       <CommandEmpty>No workflow-enabled functions found.</CommandEmpty>
-                      <CommandGroup>
-                        {filtered.map(fn => (
-                          <CommandItem
-                            key={fn.id}
-                            value={fn.id}
-                            onSelect={() => {
-                              update({
-                                functionConfig: {
-                                  ...config.functionConfig,
-                                  functionId: fn.id,
-                                  functionName: fn.name,
-                                  version: fn.latestVersion?.version,
-                                  outputSchema: fn.latestVersion?.outputSchema
-                                }
-                              })
-                              setOpen(false)
-                            }}
-                          >
-                            <Code2 className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-muted-foreground" />
-                            <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
-                              <span className="gba:truncate gba:text-foreground">{fn.name}</span>
-                              {fn.description && (
-                                <span className="gba:text-[10px] gba:text-muted-foreground gba:truncate">
-                                  {fn.description}
-                                </span>
-                              )}
-                            </div>
-                            {config.functionConfig?.functionId === fn.id && (
-                              <Check className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:flex-shrink-0" />
-                            )}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
+                      {anypointConnectors.length > 0 && (
+                        <CommandGroup heading="Anypoint Connect (structured)">
+                          {anypointConnectors.map(fn => renderFunctionItem(fn, Cloud))}
+                        </CommandGroup>
+                      )}
+                      {dataBridgeConnectors.length > 0 && (
+                        <CommandGroup heading="Data Bridge (unstructured)">
+                          {dataBridgeConnectors.map(fn => renderFunctionItem(fn, FolderOpen))}
+                        </CommandGroup>
+                      )}
+                      {businessFunctions.length > 0 && (
+                        <CommandGroup heading="Functions">
+                          {businessFunctions.map(fn => renderFunctionItem(fn, Code2))}
+                        </CommandGroup>
+                      )}
                     </>
                   )}
                 </CommandList>
@@ -331,6 +513,23 @@ export const FunctionSelector: React.FC<FunctionSelectorProps> = ({ config, upda
       </div>
       {selectedFunction?.description && (
         <p className="gba:text-[10px] gba:text-muted-foreground">{selectedFunction.description}</p>
+      )}
+      {selectedFunction && (
+        <a
+          href={buildFunctionEditorUrl(selectedFunction.id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={
+            selectedFunction.connectorEnabled === true
+              ? 'Configure connector in Function Manager'
+              : 'Edit function in Function Manager'
+          }
+          className="gba:inline-flex gba:items-center gba:gap-1 gba:self-start gba:text-[10px] gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
+          data-testid={`${testId}-function-configure-selected`}
+        >
+          <ExternalLink className="gba:h-3 gba:w-3" />
+          {selectedFunction.connectorEnabled === true ? 'Configure connector' : 'Edit function'}
+        </a>
       )}
 
       {selectedFunction && (

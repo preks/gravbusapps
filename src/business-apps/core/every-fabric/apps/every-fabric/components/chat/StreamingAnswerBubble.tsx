@@ -1,21 +1,16 @@
 import type { FC } from 'react'
-import { useEffect, useRef, useState, useCallback } from 'react'
 import { StreamingMarkdown } from '@/common/components/markdown/StreamingMarkdown'
+import { ElegantStatusIndicator } from './ElegantStatusIndicator'
+import { AgentThinkingStream } from './AgentThinkingStream'
+import { useAnimatedGreeting } from './useAnimatedGreeting'
 
 interface StreamingAnswerBubbleProps {
-  content: string
+  greetingContent: string
+  responseContent: string
+  thinkingContent: string
   isStreaming: boolean
+  statusMessage?: string | null
 }
-
-const StreamingCursor: FC = () => (
-  <span
-    className="gba:inline-block gba:w-[3px] gba:h-[1.1em] gba:bg-primary gba:rounded-[1px] gba:ml-0.5 gba:align-text-bottom"
-    style={{
-      animation: 'cursor-blink 1s ease-in-out infinite'
-    }}
-    aria-hidden="true"
-  />
-)
 
 const ThinkingIndicator: FC = () => (
   <div className="gba:flex gba:items-center gba:gap-2.5">
@@ -37,76 +32,16 @@ const ThinkingIndicator: FC = () => (
   </div>
 )
 
-export const StreamingAnswerBubble: FC<StreamingAnswerBubbleProps> = ({ content, isStreaming }) => {
-  const [displayedContent, setDisplayedContent] = useState('')
-  const targetContentRef = useRef(content)
-  const animationFrameRef = useRef<number | null>(null)
-  const lastUpdateRef = useRef(0)
-  const isAnimatingRef = useRef(false)
+export const StreamingAnswerBubble: FC<StreamingAnswerBubbleProps> = ({
+  greetingContent,
+  responseContent,
+  thinkingContent,
+  isStreaming,
+  statusMessage
+}) => {
+  const { animatedGreetingContent, isGreetingAnimating } = useAnimatedGreeting(greetingContent)
 
-  const runAnimation = useCallback(() => {
-    const animate = (timestamp: number) => {
-      const elapsed = timestamp - lastUpdateRef.current
-      if (elapsed < 12) {
-        animationFrameRef.current = requestAnimationFrame(animate)
-        return
-      }
-      lastUpdateRef.current = timestamp
-
-      const target = targetContentRef.current
-      setDisplayedContent(prev => {
-        if (prev.length >= target.length) {
-          isAnimatingRef.current = false
-          return target
-        }
-
-        const remaining = target.length - prev.length
-        const speed = Math.max(2, Math.min(8, Math.ceil(remaining / 15)))
-        const charsToAdd = Math.min(speed, remaining)
-        const next = target.slice(0, prev.length + charsToAdd)
-
-        if (next.length < target.length) {
-          animationFrameRef.current = requestAnimationFrame(animate)
-        } else {
-          isAnimatingRef.current = false
-        }
-
-        return next
-      })
-    }
-
-    if (!isAnimatingRef.current) {
-      isAnimatingRef.current = true
-      animationFrameRef.current = requestAnimationFrame(animate)
-    }
-  }, [])
-
-  useEffect(() => {
-    targetContentRef.current = content
-
-    if (!content) {
-      setDisplayedContent('')
-      return
-    }
-
-    if (content.length > displayedContent.length) {
-      runAnimation()
-    } else if (content !== displayedContent) {
-      setDisplayedContent(content)
-    }
-  }, [content, displayedContent, runAnimation])
-
-  useEffect(() => {
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-      }
-    }
-  }, [])
-
-  if (!content && !isStreaming) return null
-
-  const showCursor = isStreaming || displayedContent.length < content.length
+  if (!greetingContent && !responseContent && !isStreaming) return null
 
   return (
     <div
@@ -114,10 +49,6 @@ export const StreamingAnswerBubble: FC<StreamingAnswerBubbleProps> = ({ content,
       data-testid="enterprise-agent-streaming-answer"
     >
       <style>{`
-        @keyframes cursor-blink {
-          0%, 50% { opacity: 1; }
-          51%, 100% { opacity: 0; }
-        }
         @keyframes thinking-dot {
           0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
           40% { transform: scale(1.1); opacity: 1; }
@@ -140,10 +71,24 @@ export const StreamingAnswerBubble: FC<StreamingAnswerBubbleProps> = ({ content,
       <div className="gba:border-t gba:border-border/70" />
 
       <div className="gba:pt-5 gba:min-h-[2.5rem]">
-        {displayedContent ? (
+        {greetingContent || responseContent || statusMessage || isStreaming ? (
           <div className="gba:relative">
-            <StreamingMarkdown content={displayedContent} isStreaming={isStreaming} />
-            {showCursor && <StreamingCursor />}
+            {greetingContent ? (
+              <div
+                className={`gba:transition-opacity gba:duration-200 ${
+                  animatedGreetingContent ? 'gba:opacity-100' : 'gba:opacity-0'
+                }`}
+              >
+                <StreamingMarkdown content={animatedGreetingContent} isStreaming={isGreetingAnimating} />
+              </div>
+            ) : null}
+            {thinkingContent ? <AgentThinkingStream thinkingText={thinkingContent} isStreaming={isStreaming} /> : null}
+            {isStreaming ? <ElegantStatusIndicator statusText={statusMessage || 'Processing your request...'} /> : null}
+            {responseContent ? (
+              <div className={greetingContent ? 'gba:mt-4' : undefined}>
+                <StreamingMarkdown content={responseContent} isStreaming={isStreaming} />
+              </div>
+            ) : null}
           </div>
         ) : (
           <ThinkingIndicator />

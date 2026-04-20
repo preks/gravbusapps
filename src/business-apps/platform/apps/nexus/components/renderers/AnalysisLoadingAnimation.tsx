@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Sparkles, Check, Search, BarChart3, Lightbulb, LineChart, FileText } from 'lucide-react'
+import translations from '../../_i18n'
 
 const STEPS = [
-  { label: 'Analyzing your content', icon: Search },
-  { label: 'Extracting key metrics', icon: BarChart3 },
-  { label: 'Generating insights', icon: Lightbulb },
-  { label: 'Building visualizations', icon: LineChart },
-  { label: 'Compiling report', icon: FileText }
+  { labelKey: 'analysis-loading-step-analyzing', icon: Search },
+  { labelKey: 'analysis-loading-step-metrics', icon: BarChart3 },
+  { labelKey: 'analysis-loading-step-insights', icon: Lightbulb },
+  { labelKey: 'analysis-loading-step-visualizations', icon: LineChart },
+  { labelKey: 'analysis-loading-step-compiling', icon: FileText }
 ]
 
 const STEP_INTERVAL_MS = 3200
@@ -16,6 +18,7 @@ interface AnalysisLoadingAnimationProps {
 }
 
 export const AnalysisLoadingAnimation = ({ testId = 'nexus-analysis-loading' }: AnalysisLoadingAnimationProps) => {
+  const { t } = useTranslation(translations)
   const [step, setStep] = useState(0)
 
   useEffect(() => {
@@ -63,7 +66,7 @@ export const AnalysisLoadingAnimation = ({ testId = 'nexus-analysis-loading' }: 
 
       {/* Title */}
       <h3 className="gba:font-funnel-display gba:text-xl gba:font-semibold gba:text-foreground gba:mb-8">
-        Building your analysis
+        {t('analysis-loading-title')}
       </h3>
 
       {/* Progress Steps */}
@@ -72,10 +75,11 @@ export const AnalysisLoadingAnimation = ({ testId = 'nexus-analysis-loading' }: 
           const Icon = s.icon
           const isActive = i === step
           const isComplete = i < step
+          const label = t(s.labelKey)
 
           return (
             <div
-              key={s.label}
+              key={s.labelKey}
               className={`gba:flex gba:items-center gba:gap-3 gba:transition-all gba:duration-500 ${
                 isActive ? 'gba:opacity-100' : isComplete ? 'gba:opacity-60' : 'gba:opacity-30'
               }`}
@@ -97,7 +101,7 @@ export const AnalysisLoadingAnimation = ({ testId = 'nexus-analysis-loading' }: 
                   isActive ? 'gba:text-foreground gba:font-medium' : 'gba:text-muted-foreground'
                 }`}
               >
-                {s.label}
+                {label}
                 {isActive && <span className="gba:animate-pulse">...</span>}
               </span>
             </div>

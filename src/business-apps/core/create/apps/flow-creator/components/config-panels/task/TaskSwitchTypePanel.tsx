@@ -48,6 +48,8 @@ export const TaskSwitchTypePanel: React.FC<TaskSwitchTypePanelProps> = ({
             onSwitch(FlowStepType.AI_AGENT)
             return
           }
+          // "Function" → FUNCTION family. Connector vs plain function is refined one
+          // level deeper inside the General tab (TaskStepTypeSelector).
           onSwitch(FlowStepType.FUNCTION)
         }}
         data-testid={`${testId}-tiles`}

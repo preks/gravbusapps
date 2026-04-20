@@ -1,4 +1,6 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 
 interface SaveIndicatorProps {
   isDirty: boolean
@@ -7,6 +9,8 @@ interface SaveIndicatorProps {
 }
 
 export function SaveIndicator({ isDirty, isSaving, hasPage }: SaveIndicatorProps) {
+  const { t } = useTranslation(translations)
+
   if (!hasPage) return null
 
   return (
@@ -17,7 +21,7 @@ export function SaveIndicator({ isDirty, isSaving, hasPage }: SaveIndicatorProps
         }`}
       />
       <span className="gba:text-[11px] gba:text-muted-foreground/60 gba:transition-opacity gba:duration-300">
-        {isSaving ? 'Saving' : isDirty ? 'Unsaved changes' : 'Saved'}
+        {isSaving ? t('board-sync-saving') : isDirty ? t('board-sync-unsaved') : t('board-sync-saved')}
       </span>
     </div>
   )

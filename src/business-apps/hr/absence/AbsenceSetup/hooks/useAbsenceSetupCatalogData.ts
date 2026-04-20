@@ -14,7 +14,13 @@ import {
   getAbsencePolicyEditorState,
   type AbsencePolicyObjectValue
 } from '../utils/absencePolicyObjectValue'
-import { getAbsenceGroupLabel, getAbsenceTypeTitle, type SetupSectionItem } from '../utils/absenceSetup'
+import {
+  getAbsenceGroupLabel,
+  getAbsenceTypeTitle,
+  type SetupSectionHighlight,
+  type SetupSectionItem,
+  type SetupSectionSortOption
+} from '../utils/absenceSetup'
 import { getAbsenceTypeObjectEditorState } from '../utils/absenceTypeObjectValue'
 import {
   canEditAbsenceTypeVersion,
@@ -33,6 +39,7 @@ export interface GenericCatalogConfig {
   title: string
   description: string
   items: SetupSectionItem[]
+  sortOptions: SetupSectionSortOption[]
   hook: ReturnType<typeof useAbsenceCatalogEntries>
   icon: LucideIcon
   addButtonTestId: string
@@ -50,6 +57,9 @@ const getMeasurementLabel = (measurement: string, t: TranslateFn) => {
 
   return t('measurement-working-days')
 }
+
+const getPriorityLabel = (priority: number | undefined, t: TranslateFn) =>
+  typeof priority === 'number' ? String(priority) : t('details-empty-value')
 
 export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) => {
   const absenceTypeState = useAbsenceTypes(accessToken)
@@ -75,6 +85,11 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
           statusValue: editorState.settings.display ? 'active' : 'inactive',
           canDelete: !isSystemType,
           sortText: `${type.value || type.code} ${type.code}`,
+          sortValues: {
+            name: getAbsenceTypeTitle(type, t('untitled-absence-type')),
+            group: getAbsenceGroupLabel(type.parentEntryId, t('no-group')),
+            measurement: getMeasurementLabel(editorState.settings.measurement, t)
+          },
           searchText: [type.code, type.value, getAbsenceGroupLabel(type.parentEntryId, t('no-group'))]
             .filter(Boolean)
             .join(' '),
@@ -87,7 +102,7 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
             },
             {
               label: t('details-label-priority'),
-              value: editorState.settings.priority || t('details-empty-value')
+              value: getPriorityLabel(editorState.settings.priority, t)
             },
             {
               label: t('details-label-working-time'),
@@ -101,7 +116,7 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
             },
             {
               label: t('details-label-priority'),
-              value: editorState.settings.priority || t('details-empty-value')
+              value: getPriorityLabel(editorState.settings.priority, t)
             }
           ]
         }
@@ -163,6 +178,17 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
               value: getMeasurementLabel(editorState.settings.measurement, t)
             }
           ]
+          const highlights: SetupSectionHighlight[] = [
+            ...(iconValue ? [{ label: t('details-label-icon'), value: iconValue, display: 'icon' as const }] : []),
+            ...(editorState.settings.color
+              ? [{ label: t('details-label-color'), value: editorState.settings.color, display: 'color' as const }]
+              : []),
+            { label: t('details-label-priority'), value: editorState.settings.priority || t('details-empty-value') },
+            {
+              label: t('details-label-measurement'),
+              value: getMeasurementLabel(editorState.settings.measurement, t)
+            }
+          ]
 
           return {
             id: entry.id,
@@ -172,19 +198,20 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
             statusValue: isActive ? 'active' : 'inactive',
             canEdit: canEditAbsenceTypeVersion(entry),
             sortText: `${linkedType?.value || linkedType?.code || ''} ${entry.code}`,
+            sortValues: {
+              'valid-from': getAbsenceTypeVersionSortValue(entry),
+              priority:
+                typeof editorState.settings.priority === 'number'
+                  ? editorState.settings.priority
+                  : Number.MAX_SAFE_INTEGER,
+              measurement: getMeasurementLabel(editorState.settings.measurement, t),
+              'absence-type': linkedType?.value || linkedType?.code || absenceTypeCode || t('details-empty-value')
+            },
             searchText: [entry.code, entry.value, absenceTypeCode, linkedType?.value, linkedType?.code]
               .filter(Boolean)
               .join(' '),
             fields,
-            highlights: [
-              ...(iconValue ? [{ label: t('details-label-icon'), value: iconValue }] : []),
-              { label: t('details-label-color'), value: editorState.settings.color || t('details-empty-value') },
-              { label: t('details-label-priority'), value: editorState.settings.priority || t('details-empty-value') },
-              {
-                label: t('details-label-measurement'),
-                value: getMeasurementLabel(editorState.settings.measurement, t)
-              }
-            ]
+            highlights
           }
         }),
     [absenceTypeState.absenceTypes, absenceTypeVersionsCatalog.entries, t]
@@ -206,6 +233,11 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
           statusLabel: editorState.settings.valid_to ? t('status-inactive') : t('status-active'),
           statusValue: editorState.settings.valid_to ? 'inactive' : 'active',
           sortText: `${entry.value || entry.code} ${entry.code}`,
+          sortValues: {
+            name: entry.value || entry.code || t('untitled-entitlement'),
+            type: editorState.settings.entitlement_type || t('details-empty-value'),
+            code: entry.code
+          },
           searchText: [entry.code, entry.value, editorState.settings.entitlement_type, editorState.settings.year_type]
             .filter(Boolean)
             .join(' '),
@@ -239,12 +271,20 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
         statusLabel: t('status-active'),
         statusValue: 'active',
         sortText: `${entry.value || entry.code} ${entry.code}`,
+        sortValues: {
+          name: entry.value || entry.code,
+          code: entry.code
+        },
         searchText: `${entry.code} ${entry.value || ''}`,
         fields: [
           { label: t('details-label-code'), value: entry.code },
           { label: t('details-label-name'), value: entry.value || entry.code }
         ]
       })),
+      sortOptions: [
+        { id: 'name', label: t('details-label-name') },
+        { id: 'code', label: t('details-label-code') }
+      ],
       hook: absenceGroupsCatalog,
       icon: FolderTree,
       addButtonTestId: 'absence-setup-add-group-button',
@@ -265,6 +305,10 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
           statusLabel: t('status-active'),
           statusValue: 'active',
           sortText: `${entry.value || entry.code} ${entry.code}`,
+          sortValues: {
+            name: entry.value || entry.code || t('absence-policy-entity-label'),
+            code: entry.code
+          },
           searchText: [
             entry.code,
             entry.value,
@@ -279,6 +323,10 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
           ]
         }
       }),
+      sortOptions: [
+        { id: 'name', label: t('details-label-name') },
+        { id: 'code', label: t('details-label-code') }
+      ],
       hook: absencePoliciesCatalog,
       icon: Shield,
       addButtonTestId: 'absence-setup-add-policy-button',

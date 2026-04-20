@@ -8,9 +8,11 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { createCollaborationClient, CollaborationClient } from '../../shared/services/CollaborationClient'
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 import type { SpaceContentItem } from '../types/space.types'
+import translations from '../_i18n'
 
 export type ActivityType = 'editing' | 'viewing'
 export type DocumentType = 'document' | 'note' | 'spreadsheet' | 'slide'
@@ -167,6 +169,7 @@ export function useSpaceDocumentActivity(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- API param for caller UI labeling
   _currentUserId?: string
 ): UseSpaceDocumentActivityResult {
+  const { t } = useTranslation(translations)
   const [activities, setActivities] = useState<DocumentActivity[]>([])
   const [isPresenceConnected, setIsPresenceConnected] = useState(false)
   const contentIdsRef = useRef<Set<string>>(new Set())
@@ -662,7 +665,7 @@ export function useSpaceDocumentActivity(
                 userName: participant.userName,
                 userAvatar: avatar,
                 documentId: entityId,
-                documentTitle: contentItem?.title || 'Unknown',
+                documentTitle: contentItem?.title || t('common-unknown'),
                 documentType: entityType as DocumentType,
                 activityType: 'editing', // Assume editing since they're connected
                 startedAt,
@@ -718,7 +721,7 @@ export function useSpaceDocumentActivity(
         clearInterval(presenceFetchIntervalRef.current)
       }
     }
-  }, [entitiesForPresence])
+  }, [entitiesForPresence, t])
 
   // Cleanup stale activities periodically
   useEffect(() => {

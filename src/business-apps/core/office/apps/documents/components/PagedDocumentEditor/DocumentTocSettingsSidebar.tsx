@@ -15,6 +15,12 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
+import { DocumentTocTextStyleSection } from './DocumentTocTextStyleSection'
+import {
+  DEFAULT_DOCUMENT_TOC_STYLES,
+  parseDocumentTocStyles,
+  stringifyDocumentTocStyles
+} from '../../utils/documentTocStyleUtils'
 
 interface DocumentTocSettingsSidebarProps {
   editor: Editor
@@ -26,6 +32,7 @@ interface DocumentTocSettingsSidebarProps {
 }
 
 type TocAttrs = {
+  stylesJson: string
   showPageNumbers: boolean
   rightAlignPageNumbers: boolean
   tabLeader: 'dot' | 'none'
@@ -41,6 +48,7 @@ function getCurrentTocAttrs(editor: Editor, tocNodePos: number): TocAttrs | null
 
   const maxHeadingLevel = Math.max(1, Math.min(6, Number(node.attrs.maxHeadingLevel ?? 3)))
   return {
+    stylesJson: stringifyDocumentTocStyles(parseDocumentTocStyles(String(node.attrs.stylesJson ?? ''))),
     showPageNumbers: node.attrs.showPageNumbers !== false,
     rightAlignPageNumbers: node.attrs.rightAlignPageNumbers !== false,
     tabLeader: node.attrs.tabLeader === 'none' ? 'none' : 'dot',
@@ -71,6 +79,8 @@ export function DocumentTocSettingsSidebar({
   const updateOptions = (next: Partial<TocAttrs>) => {
     editor.commands.setDocumentTableOfContentsOptions(next, tocNodePos)
   }
+  const styles = useMemo(() => parseDocumentTocStyles(attrs.stylesJson), [attrs.stylesJson])
+  const unifiedTextStyle = useMemo(() => styles.entries, [styles.entries])
 
   const selectContentProps = {
     'data-document-toc-sidebar-dropdown': '',
@@ -197,6 +207,26 @@ export function DocumentTocSettingsSidebar({
                 </SelectContent>
               </Select>
             </div>
+
+            <Separator />
+
+            <DocumentTocTextStyleSection
+              title={t('document-toc-settings-text-style')}
+              value={unifiedTextStyle}
+              defaultValue={DEFAULT_DOCUMENT_TOC_STYLES.entries}
+              onChange={nextValue =>
+                updateOptions({
+                  stylesJson: stringifyDocumentTocStyles({
+                    ...styles,
+                    title: nextValue,
+                    entries: nextValue
+                  })
+                })
+              }
+              onMouseDown={preventEditorBlurOnMouseDown}
+              selectContentProps={selectContentProps}
+              testIdPrefix={`${testId}-text-style`}
+            />
           </div>
         </ScrollArea>
       </div>

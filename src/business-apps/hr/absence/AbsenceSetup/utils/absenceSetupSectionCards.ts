@@ -2,7 +2,7 @@ import { Calendar, Clock3, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
-import type { SetupSectionItem } from './absenceSetup'
+import type { SetupSectionItem, SetupSectionSortOption } from './absenceSetup'
 import type { GenericCatalogConfig } from '../hooks/useAbsenceSetupCatalogData'
 
 type TranslateFn = (key: string, values?: Record<string, string>) => string
@@ -17,6 +17,8 @@ export interface AbsenceSetupSectionCardConfig {
   isLoading: boolean
   errorMessage?: string
   onAdd: () => void
+  onSelect?: (id: string) => void
+  sortOptions?: SetupSectionSortOption[]
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   addButtonTestId: string
@@ -44,6 +46,7 @@ interface BuildAbsenceSetupSectionCardsArgs {
   onEditAbsenceType: (entry: AbsenceType) => void
   onDeleteAbsenceType: (entry: AbsenceType) => void
   onAddAbsenceTypeVersion: () => void
+  onSelectAbsenceTypeVersion?: (entry: CatalogEntry) => void | Promise<void>
   onEditAbsenceTypeVersion: (entry: CatalogEntry) => void
   onDeleteAbsenceTypeVersion: (entry: CatalogEntry) => void
   onAddEntitlement: () => void
@@ -73,6 +76,7 @@ export const buildAbsenceSetupSectionCards = ({
   onEditAbsenceType,
   onDeleteAbsenceType,
   onAddAbsenceTypeVersion,
+  onSelectAbsenceTypeVersion,
   onEditAbsenceTypeVersion,
   onDeleteAbsenceTypeVersion,
   onAddEntitlement,
@@ -91,6 +95,7 @@ export const buildAbsenceSetupSectionCards = ({
     isLoading: genericCatalogConfigs.AbsenceGroup.hook.loading,
     errorMessage: genericCatalogConfigs.AbsenceGroup.hook.error?.message,
     onAdd: () => onAddGenericCatalog('AbsenceGroup'),
+    sortOptions: genericCatalogConfigs.AbsenceGroup.sortOptions,
     onEdit: itemId => {
       const entry = genericCatalogConfigs.AbsenceGroup.hook.entries.find(item => item.id === itemId)
       if (entry) onEditGenericCatalog('AbsenceGroup', entry)
@@ -113,6 +118,11 @@ export const buildAbsenceSetupSectionCards = ({
     isLoading: absenceTypeLoading,
     errorMessage: absenceTypeError,
     onAdd: onAddAbsenceType,
+    sortOptions: [
+      { id: 'name', label: t('details-label-name') },
+      { id: 'group', label: t('details-label-group') },
+      { id: 'measurement', label: t('details-label-measurement') }
+    ],
     onEdit: itemId => {
       const absenceType = absenceTypes.find(item => item.id === itemId)
       if (absenceType) onEditAbsenceType(absenceType)
@@ -133,6 +143,18 @@ export const buildAbsenceSetupSectionCards = ({
     isLoading: absenceTypeVersionLoading,
     errorMessage: absenceTypeVersionError,
     onAdd: onAddAbsenceTypeVersion,
+    sortOptions: [
+      { id: 'valid-from', label: t('field-valid-from-label'), direction: 'desc' },
+      { id: 'priority', label: t('details-label-priority') },
+      { id: 'measurement', label: t('details-label-measurement') },
+      { id: 'absence-type', label: t('absence-type-entity-label') }
+    ],
+    onSelect: itemId => {
+      const entry = absenceTypeVersions.find(item => item.id === itemId)
+      if (entry) {
+        void onSelectAbsenceTypeVersion?.(entry)
+      }
+    },
     onEdit: itemId => {
       const entry = absenceTypeVersions.find(item => item.id === itemId)
       if (entry) onEditAbsenceTypeVersion(entry)
@@ -153,6 +175,11 @@ export const buildAbsenceSetupSectionCards = ({
     isLoading: entitlementLoading,
     errorMessage: entitlementError,
     onAdd: onAddEntitlement,
+    sortOptions: [
+      { id: 'name', label: t('details-label-name') },
+      { id: 'type', label: t('field-entitlement-type-label') },
+      { id: 'code', label: t('details-label-code') }
+    ],
     onEdit: itemId => {
       const entry = entitlements.find(item => item.id === itemId)
       if (entry) onEditEntitlement(entry)
@@ -176,6 +203,7 @@ export const buildAbsenceSetupSectionCards = ({
       isLoading: config.hook.loading,
       errorMessage: config.hook.error?.message,
       onAdd: () => onAddGenericCatalog(catalogKey),
+      sortOptions: config.sortOptions,
       onEdit: itemId => {
         const entry = config.hook.entries.find(item => item.id === itemId)
         if (entry) onEditGenericCatalog(catalogKey, entry)

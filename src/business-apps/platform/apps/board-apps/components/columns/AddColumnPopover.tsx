@@ -1,9 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import { Popover, PopoverContent, PopoverTrigger, useTranslation } from '@newwork/nw-design-system'
 import type { BoardColumn, BoardColumnType } from '../../types'
 import { QUICK_ADD_TYPES, CONFIG_REQUIRED_TYPES } from './columnTypeDefs'
 import { ColumnTypeIcon } from '../table/ColumnTypeIcon'
 import { AddColumnDialog } from './AddColumnDialog'
+import translations from '../../_i18n'
 
 export interface AddColumnPopoverProps {
   existingColumns: BoardColumn[]
@@ -40,6 +41,7 @@ export const AddColumnPopover: React.FC<AddColumnPopoverProps> = ({
   children,
   'data-testid': testId = 'add-column-popover'
 }) => {
+  const { t } = useTranslation(translations)
   const [open, setOpen] = React.useState(false)
   const [dialogType, setDialogType] = useState<BoardColumnType | null>(null)
 
@@ -109,7 +111,7 @@ export const AddColumnPopover: React.FC<AddColumnPopoverProps> = ({
               data-testid={`${testId}-${ct.type}`}
             >
               <ColumnTypeIcon type={ct.type} />
-              {ct.label}
+              {t(ct.labelKey)}
               {ct.needsConfig && <span className="gba:ml-auto gba:text-[9px] gba:text-muted-foreground">⚙</span>}
             </button>
           ))}

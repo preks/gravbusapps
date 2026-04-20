@@ -45,6 +45,7 @@ sh-tab-tasks = Meine Aufgaben
 sh-tab-recent = Zuletzt verwendet
 sh-tab-automations = Automatisierungen
 sh-tab-favorites = Favoriten
+sh-tab-trash = Papierkorb
 
 # Upload view
 upload-cancel = Abbrechen
@@ -73,6 +74,11 @@ action-sort-name = Name
 action-sort-modified = Geändert
 action-sort-created = Erstellt
 action-search-placeholder = Suchen...
+spreadsheets-header-search-placeholder = Tabellen suchen...
+header-refresh = Aktualisieren
+sort-name = Name
+sort-trashed = In den Papierkorb verschoben am
+table-trashed = Papierkorb seit
 action-refresh = Liste aktualisieren
 action-refresh-sheet = Tabellendaten aktualisieren
 status-saving = Wird gespeichert...
@@ -80,6 +86,10 @@ status-saving = Wird gespeichert...
 # List view - table headers
 table-modified-by = Geändert von
 table-rows = Zeilen
+
+# Empty states
+spreadsheets-empty-trash-title = Keine Tabellen im Papierkorb
+spreadsheets-empty-trash-description = In den Papierkorb verschobene Tabellen werden hier angezeigt.
 rows-label = Zeilen
 
 # Empty states
@@ -724,6 +734,16 @@ header-breadcrumb-spreadsheets = Tabellen
 header-submitted-at = Eingereicht – { $date }
 header-rename-file-title = Klicken, um die Datei umzubenennen
 header-rename-file-placeholder = Tabellenname
+title-untitled = Unbenannte Tabelle
+trashed-readonly-title = Diese Tabelle befindet sich im Papierkorb
+trashed-readonly-description = "{ $title }" befindet sich im Papierkorb und wird bis zur Wiederherstellung nur im Ansichtsmodus geöffnet.
+trashed-readonly-owner-note = Um diese Tabelle wieder zu bearbeiten, stelle sie aus dem Papierkorb wieder her.
+trashed-readonly-shared-note = Um diese Tabelle wieder zu bearbeiten, bitte den Besitzer, sie aus dem Papierkorb wiederherzustellen.
+trashed-readonly-back = Zurück zum Papierkorb
+trashed-readonly-restore = Tabelle wiederherstellen
+trashed-readonly-restoring = Wird wiederhergestellt...
+trashed-readonly-delete = Endgültig löschen
+trashed-readonly-deleting = Wird gelöscht...
 
 # Version History (shared dialog)
 version-history-title = Versionsverlauf
@@ -984,9 +1004,16 @@ toast-review-comment-created = Review-Ergebnis wurde zu den Kommentaren hinzugef
 toast-file-name-required = Der Dateiname darf nicht leer sein.
 toast-file-rename-success = Dateiname wurde aktualisiert.
 toast-file-rename-failed = Datei konnte nicht umbenannt werden.
+toast-restored = Tabelle wiederhergestellt
+toast-restore-failed = Tabelle konnte nicht wiederhergestellt werden
+toast-delete-permanently-failed = Tabelle konnte nicht dauerhaft gelöscht werden
 
 # Delete confirmation
-delete-confirm = Möchtest du diese Tabelle wirklich löschen?
+delete-confirm-title = In den Papierkorb verschieben?
+delete-confirm-single = "{$name}" wird in den Papierkorb verschoben. Du kannst die Tabelle innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-multi = {$count} Tabellen werden in den Papierkorb verschoben. Du kannst sie innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-action = In den Papierkorb
+delete-confirm-cancel = Abbrechen
 action-retry = Erneut versuchen
 
 # Relative time
@@ -1095,6 +1122,7 @@ persist-rows-add-failed = Neue Zeilen konnten nicht gespeichert werden.
 persist-snapshot-failed = Das Tabellenlayout konnte nicht auf dem Server gespeichert werden.
 persist-recovery-failed = Speicherkonflikt konnte nicht behoben werden. Bitte die Seite neu laden.
 persist-snapshot-too-large = Die Formatierung konnte nicht gespeichert werden, da die Tabelle zu groß ist. Zelldaten werden weiterhin gespeichert.
+unsaved-leave-confirm = Es gibt ungespeicherte Änderungen, die noch nicht an den Server übertragen wurden. Die Tabelle trotzdem verlassen?
 
 # Share App Dialog
 share-dialog-title = „{ $name }" teilen

@@ -30,6 +30,16 @@ function normalizePath(value) {
   return value.replace(/\\/g, '/')
 }
 
+/**
+ * Folders named `_i18n` under `forms`/`apps`/etc. contain Fluent bundles (`export default { enUS, ... }`), not screens.
+ * A single path segment after `forms` (etc.) can be `_i18n`, so discovery picks up `forms/_i18n/index.ts` — exclude those paths.
+ */
+function isI18nBundleIndexPath(normalizedFilePath) {
+  const dir = path.posix.dirname(normalizedFilePath)
+  const lastSegment = dir.split('/').pop()
+  return lastSegment === '_i18n'
+}
+
 export function getScreenTypes() {
   return loadConfig().types
 }
@@ -47,7 +57,7 @@ export async function getScreenIndexFiles({ cwd = process.cwd() } = {}) {
     files.push(...matched)
   }
 
-  return Array.from(new Set(files.map(normalizePath))).sort()
+  return Array.from(new Set(files.map(normalizePath).filter(f => !isI18nBundleIndexPath(f)))).sort()
 }
 
 export async function getScreenDirectories({ cwd = process.cwd() } = {}) {

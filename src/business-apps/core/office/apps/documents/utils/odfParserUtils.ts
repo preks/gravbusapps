@@ -8,7 +8,7 @@
  * Uses jszip for ZIP extraction and the browser-native DOMParser for XML parsing.
  */
 
-import JSZip from 'jszip'
+import { JSZipCompat } from './jsZipCompat'
 
 export interface OdfParserMessage {
   type: 'error' | 'warning' | 'info'
@@ -67,7 +67,7 @@ export async function parseOdfToHtml(arrayBuffer: ArrayBuffer, t?: OdfParserTran
   }
 
   // Unzip the ODF archive
-  const zip = await JSZip.loadAsync(arrayBuffer)
+  const zip = await JSZipCompat.loadAsync(arrayBuffer)
 
   // Verify mimetype
   const mimetypeFile = zip.file('mimetype')

@@ -7,6 +7,7 @@ export interface ThreadComposeSurfaceProps {
   onClose: () => void
   mode: ComposeMode
   replyToMessage?: EmailMessage | null
+  draftMessage?: EmailMessage | null
   accounts: EmailAccount[]
   defaultAccountId?: string
   onSent: () => void

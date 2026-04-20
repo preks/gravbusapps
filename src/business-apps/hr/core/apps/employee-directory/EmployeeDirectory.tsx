@@ -3,16 +3,16 @@
 import React, { useEffect, useCallback, useState, useMemo } from 'react'
 import { useGetEmployees, Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
 import { useEmployeeFilters } from '@/business-apps/hr/core/hooks/useEmployeeFilters'
-import { PageLayout } from '@newwork/nw-design-system'
+import { PageLayout, useTranslation } from '@newwork/nw-design-system'
 import { DataContainer } from '@/components/layout/dataContainer'
 import { DataController, DataControllerProps } from '@/components/dataController'
 import { DataCards } from '@/components/dataCards'
 import { UserIcon, UsersIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import { EmployeeCard } from './components/EmployeeCard.component'
 import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details'
-//import { useTranslation } from 'react-i18next';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
+import translations from './_i18n'
 /**
  * Employee Directory page component. Renders the employee directory module with grid, infinite scroll, and alphabet filter.
  * @returns {JSX.Element}
@@ -21,6 +21,7 @@ const moduleColor = MODULE_COLORS.HR
 
 export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
   const { accessToken } = props
+  const { t } = useTranslation(translations)
   // Use the centralized employee filters hook
   const {
     search,
@@ -49,8 +50,6 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
 
   // Track selected employee for details panel
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
-
-  //const { t } = useTranslation('employee_directory', { keyPrefix: 'employee_directory' });
 
   // Memoize filters to prevent unnecessary re-renders
   const memoizedFilters = useMemo(
@@ -89,8 +88,8 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
     <div data-testid="employee-directory-app">
       <PageLayout
         headerIcon={UsersIcon}
-        headerTitle="Employee Directory"
-        headerDescription="Browse and connect with employees across your organization"
+        headerTitle={t('employee-directory-title')}
+        headerDescription={t('employee-directory-description')}
         className="gba:min-h-screen"
         variant={moduleColor}
       >
@@ -107,7 +106,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
             filter: selectedFilters,
             setFilter: setSelectedFilters,
             filterLabelMap: filterLabelMap,
-            listTitle: 'Employees',
+            listTitle: t('employee-directory-list-title'),
             listIcon: <UsersThreeIcon size={20} />,
             listAmount: total
           }}
@@ -138,10 +137,10 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
               )}
               hasMore={hasMore}
               loading={loading}
-              error={error ? 'Failed to load employees.' : null}
+              error={error ? t('employee-directory-error') : null}
               onLoadMore={loadMore}
               onRetry={retry}
-              emptyMessage="No employees found."
+              emptyMessage={t('employee-directory-empty')}
             />
           }
           floatingDetails={true}

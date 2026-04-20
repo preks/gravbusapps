@@ -2,7 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Typography, Pagination } from 'antd'
 import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  getCurrentActiveUserLocale,
+  getCurrentActiveStructureId,
+  getTranslationFromI18nKeyAndLabel
+} from '@/common/utils/windowUtils'
+import { resolvePrimaryEmployeePosition } from '../../expense-request/utils/resolvePrimaryEmployeePosition'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import AllowanceContainer from '../components/AllowanceContainer'
 import { CostCenter } from '../utils/types'
@@ -110,24 +115,29 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
           })
         )
         setTravelRegionsData(travelRegionsResponse)
-        if (
-          travelRegionsResponse?.EmployeePosition &&
-          travelRegionsResponse.EmployeePosition.length > 0 &&
-          travelRegionsResponse.EmployeePosition[0].structureId
-        ) {
-          const structureId = travelRegionsResponse.EmployeePosition[0].structureId
+        const positions = travelRegionsResponse?.EmployeePosition ?? []
+        const primaryPosition = resolvePrimaryEmployeePosition(positions, getCurrentActiveStructureId())
+        const structureId = primaryPosition?.structureId ?? positions[0]?.structureId ?? getCurrentActiveStructureId()
 
+        if (positions.length > 0 && structureId) {
           const costCentersCacheKey = `userCostCenters:${structureId}`
           const costCentersResponse = await getCachedOrFetch(costCentersCacheKey, () =>
             graphQLClient.request(getUserCostCenters, { structureId })
           )
 
           setCostCentersData(costCentersResponse)
-          if (travelRegionsResponse.EmployeePosition[0].costCenterId) {
-            setDefaultCostCenter(travelRegionsResponse.EmployeePosition[0].costCenterId || '')
+
+          let primaryCostCenterId = ''
+          if (primaryPosition?.costCenterId) {
+            primaryCostCenterId = String(primaryPosition.costCenterId)
+          } else if (positions[0]?.costCenterId) {
+            primaryCostCenterId = String(positions[0].costCenterId)
           }
+
           if (costCentersResponse?.userCostCenters && costCentersResponse.userCostCenters.length > 0) {
-            setDefaultCostCenter(travelRegionsResponse.EmployeePosition[0].costCenterId || '')
+            if (primaryCostCenterId) {
+              setDefaultCostCenter(primaryCostCenterId)
+            }
             const formattedCostCenters = costCentersResponse.userCostCenters.map((cc: any) => ({
               id: cc.id || cc,
               name: cc.name || '',

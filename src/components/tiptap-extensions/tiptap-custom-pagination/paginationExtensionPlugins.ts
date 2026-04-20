@@ -89,7 +89,7 @@ export function createPaginationExtensionPlugins(options: {
   let lastBuiltDecorationPageCount: number | null = null
   let pendingChromePresentationRefresh = false
   const COLLABORATION_REPAGINATION_DELAY_MS = 800
-  const LOCAL_REPAGINATION_DELAY_MS = 500
+  const LOCAL_REPAGINATION_DELAY_MS = 150
   let suppressPaginationOwnedDeferredScheduling = false
   const tablePaginationController = createTablePaginationController(options.paginationOwnedDocChangeMeta)
   const getDeferredStabilizationAttemptCount = (view: EditorView) =>
@@ -464,7 +464,9 @@ export function createPaginationExtensionPlugins(options: {
         update: updatedView => {
           if (lastDocChangeOrigin === 'collaboration-remote' || lastDocChangeOrigin === 'external') {
             const docChangeAnalysis = lastDocChangeAnalysis
-            const shouldStabilizeOnSettle = lastDocChangeOrigin === 'collaboration-remote'
+            const shouldStabilizeOnSettle =
+              lastDocChangeOrigin === 'collaboration-remote' ||
+              (lastDocChangeOrigin === 'external' && (docChangeAnalysis?.touchesTableRegion ?? false))
             const shouldScheduleSettledRefresh =
               lastDocChangeOrigin === 'collaboration-remote' ||
               (docChangeAnalysis?.shouldScheduleSettledRefresh ?? true)

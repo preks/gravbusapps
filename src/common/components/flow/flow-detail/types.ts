@@ -50,6 +50,8 @@ export interface FlowStep {
   status: string
   stepIndex: number
   assignedTo?: string
+  assignedToIds?: string[]
+  eligibleUserIds?: string[]
   completedBy?: string
   totalForks?: number
   completedForks?: number
@@ -90,9 +92,14 @@ export interface HistorySummary {
   participants: string[]
 }
 
+export interface StepAssignmentInfo {
+  assignedUserIds: string[]
+}
+
 export interface FlowDetailState {
   flowData: FlowDetailData | null
   flowSteps: FlowStep[]
+  stepAssignmentsByStepIndex: Record<number, StepAssignmentInfo>
   executionState: FlowExecutionState
   isLoading: boolean
   isRefreshing: boolean

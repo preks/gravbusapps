@@ -38,6 +38,7 @@ export interface NavigationPanelProps {
   >
   readonly onClose: () => void
   readonly requestedTab?: NavTab
+  readonly isReviewMode?: boolean
   readonly 'data-testid'?: string
 }
 
@@ -75,10 +76,12 @@ export function NavigationPanel({
   layoutViewportModel,
   onClose,
   requestedTab = 'headings',
+  isReviewMode = false,
   'data-testid': testId = 'navigation-panel'
 }: NavigationPanelProps) {
   const { t } = useTranslation(translations)
-  const [activeTab, setActiveTab] = useState<NavTab>(requestedTab)
+  const resolvedRequestedTab = isReviewMode && requestedTab === 'replace' ? 'find' : requestedTab
+  const [activeTab, setActiveTab] = useState<NavTab>(resolvedRequestedTab)
   const [searchTerm, setSearchTerm] = useState('')
   const [replaceTerm, setReplaceTerm] = useState('')
   const [caseSensitive, setCaseSensitive] = useState(false)
@@ -106,8 +109,8 @@ export function NavigationPanel({
   }, [editor, editor?.state.doc, matches])
 
   useEffect(() => {
-    setActiveTab(requestedTab)
-  }, [requestedTab])
+    setActiveTab(resolvedRequestedTab)
+  }, [resolvedRequestedTab])
 
   useEffect(() => {
     setSelectedMatchIndex(0)
@@ -259,19 +262,31 @@ export function NavigationPanel({
 
       <Tabs
         value={activeTab}
-        onValueChange={v => setActiveTab(v as NavTab)}
+        onValueChange={v => {
+          if (isReviewMode && v === 'replace') {
+            setActiveTab('find')
+            return
+          }
+          setActiveTab(v as NavTab)
+        }}
         className="gba:flex-1 gba:flex gba:flex-col gba:min-h-0"
       >
-        <TabsList className="gba:grid gba:grid-cols-3 gba:rounded-none gba:border-b gba:border-border gba:bg-muted/30 gba:w-full">
+        <TabsList
+          className={`gba:grid gba:rounded-none gba:border-b gba:border-border gba:bg-muted/30 gba:w-full ${
+            isReviewMode ? 'gba:grid-cols-2' : 'gba:grid-cols-3'
+          }`}
+        >
           <TabsTrigger value="headings" data-testid={`${testId}-headings-tab`} className="gba:text-xs">
             {t('navigation-panel-headings-tab')}
           </TabsTrigger>
           <TabsTrigger value="find" data-testid={`${testId}-find-tab`} className="gba:text-xs">
             {t('navigation-panel-find-tab')}
           </TabsTrigger>
-          <TabsTrigger value="replace" data-testid={`${testId}-replace-tab`} className="gba:text-xs">
-            {t('navigation-panel-replace-tab')}
-          </TabsTrigger>
+          {!isReviewMode && (
+            <TabsTrigger value="replace" data-testid={`${testId}-replace-tab`} className="gba:text-xs">
+              {t('navigation-panel-replace-tab')}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="headings" className="gba:flex-1 gba:min-h-0 gba:mt-0 gba:overflow-hidden">
@@ -412,136 +427,140 @@ export function NavigationPanel({
           )}
         </TabsContent>
 
-        <TabsContent
-          value="replace"
-          className="gba:flex-1 gba:min-h-0 gba:mt-0 gba:flex gba:flex-col gba:overflow-hidden"
-        >
-          <div className="gba:flex gba:flex-col gba:gap-2 gba:px-3 gba:py-2 gba:shrink-0">
-            <p className="gba:text-xs gba:text-muted-foreground">{t('navigation-panel-replace-hint')}</p>
-            <Input
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  if (e.shiftKey) handleFindPrev()
-                  else handleFindNext()
-                }
-              }}
-              placeholder={t('navigation-panel-search-placeholder')}
-              className="gba:text-foreground gba:placeholder:text-muted-foreground"
-              data-testid={`${testId}-replace-find-input`}
-            />
-            <Input
-              value={replaceTerm}
-              onChange={e => setReplaceTerm(e.target.value)}
-              placeholder={t('navigation-panel-replace-with-placeholder')}
-              className="gba:text-foreground gba:placeholder:text-muted-foreground"
-              data-testid={`${testId}-replace-input`}
-            />
-            <div className="gba:flex gba:flex-col gba:gap-1.5">
-              <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={caseSensitive}
-                  onChange={e => setCaseSensitive(e.target.checked)}
-                  data-testid={`${testId}-replace-case-sensitive`}
-                  className="gba:rounded gba:border-border"
-                />
-                {t('navigation-panel-case-sensitive')}
-              </label>
-              <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={wholeWordsOnly}
-                  onChange={e => setWholeWordsOnly(e.target.checked)}
-                  data-testid={`${testId}-replace-whole-words`}
-                  className="gba:rounded gba:border-border"
-                />
-                {t('navigation-panel-whole-words')}
-              </label>
-            </div>
-            {searchTerm.trim() && matches.length === 0 && (
-              <p className="gba:text-xs gba:text-muted-foreground">{t('navigation-panel-match-count', { count: 0 })}</p>
-            )}
-            {searchTerm.trim() && matches.length > 0 && (
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <div className="gba:flex gba:gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="gba:h-7 gba:w-7"
-                    onClick={handleFindPrev}
-                    aria-label={t('navigation-panel-find-prev')}
-                    data-testid={`${testId}-replace-find-prev`}
-                  >
-                    <ChevronUp className="gba:h-4 gba:w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="gba:h-7 gba:w-7"
-                    onClick={handleFindNext}
-                    aria-label={t('navigation-panel-find-next')}
-                    data-testid={`${testId}-replace-find-next`}
-                  >
-                    <ChevronDown className="gba:h-4 gba:w-4" />
-                  </Button>
-                </div>
-                <p className="gba:text-xs gba:text-muted-foreground">
-                  {t('navigation-panel-match-count', { count: matches.length })}
-                </p>
+        {!isReviewMode && (
+          <TabsContent
+            value="replace"
+            className="gba:flex-1 gba:min-h-0 gba:mt-0 gba:flex gba:flex-col gba:overflow-hidden"
+          >
+            <div className="gba:flex gba:flex-col gba:gap-2 gba:px-3 gba:py-2 gba:shrink-0">
+              <p className="gba:text-xs gba:text-muted-foreground">{t('navigation-panel-replace-hint')}</p>
+              <Input
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    if (e.shiftKey) handleFindPrev()
+                    else handleFindNext()
+                  }
+                }}
+                placeholder={t('navigation-panel-search-placeholder')}
+                className="gba:text-foreground gba:placeholder:text-muted-foreground"
+                data-testid={`${testId}-replace-find-input`}
+              />
+              <Input
+                value={replaceTerm}
+                onChange={e => setReplaceTerm(e.target.value)}
+                placeholder={t('navigation-panel-replace-with-placeholder')}
+                className="gba:text-foreground gba:placeholder:text-muted-foreground"
+                data-testid={`${testId}-replace-input`}
+              />
+              <div className="gba:flex gba:flex-col gba:gap-1.5">
+                <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={caseSensitive}
+                    onChange={e => setCaseSensitive(e.target.checked)}
+                    data-testid={`${testId}-replace-case-sensitive`}
+                    className="gba:rounded gba:border-border"
+                  />
+                  {t('navigation-panel-case-sensitive')}
+                </label>
+                <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={wholeWordsOnly}
+                    onChange={e => setWholeWordsOnly(e.target.checked)}
+                    data-testid={`${testId}-replace-whole-words`}
+                    className="gba:rounded gba:border-border"
+                  />
+                  {t('navigation-panel-whole-words')}
+                </label>
               </div>
-            )}
-            <div className="gba:flex gba:gap-2">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleReplace}
-                disabled={matches.length === 0}
-                data-testid={`${testId}-replace-btn`}
-              >
-                {t('navigation-panel-replace')}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleReplaceAll}
-                disabled={matches.length === 0}
-                data-testid={`${testId}-replace-all-btn`}
-              >
-                {t('navigation-panel-replace-all')}
-              </Button>
-            </div>
-          </div>
-          {searchTerm.trim() && matchItems.length > 0 && (
-            <ScrollArea className="gba:flex-1 gba:min-h-0 gba:border-t gba:border-border">
-              <ul className="gba:px-3 gba:py-2 gba:space-y-1" data-testid={`${testId}-replace-matches-list`}>
-                {matchItems.map(item => (
-                  <li key={`${item.from}-${item.to}-${item.index}`} className="gba:list-none">
-                    <button
-                      type="button"
-                      onClick={() => goToMatch(item.index)}
-                      className={`gba:w-full gba:text-left gba:px-2 gba:py-1.5 gba:rounded gba:text-sm gba:block gba:break-words ${
-                        item.index === selectedMatchIndex
-                          ? 'gba:bg-primary gba:text-primary-foreground'
-                          : 'gba:text-foreground hover:gba:bg-muted'
-                      }`}
-                      data-testid={`${testId}-replace-match-${item.index}`}
-                      title={item.snippet}
+              {searchTerm.trim() && matches.length === 0 && (
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  {t('navigation-panel-match-count', { count: 0 })}
+                </p>
+              )}
+              {searchTerm.trim() && matches.length > 0 && (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <div className="gba:flex gba:gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="gba:h-7 gba:w-7"
+                      onClick={handleFindPrev}
+                      aria-label={t('navigation-panel-find-prev')}
+                      data-testid={`${testId}-replace-find-prev`}
                     >
-                      <SnippetWithHighlight
-                        snippet={item.snippet}
-                        searchTerm={searchTerm}
-                        caseSensitive={caseSensitive}
-                      />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </ScrollArea>
-          )}
-        </TabsContent>
+                      <ChevronUp className="gba:h-4 gba:w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="gba:h-7 gba:w-7"
+                      onClick={handleFindNext}
+                      aria-label={t('navigation-panel-find-next')}
+                      data-testid={`${testId}-replace-find-next`}
+                    >
+                      <ChevronDown className="gba:h-4 gba:w-4" />
+                    </Button>
+                  </div>
+                  <p className="gba:text-xs gba:text-muted-foreground">
+                    {t('navigation-panel-match-count', { count: matches.length })}
+                  </p>
+                </div>
+              )}
+              <div className="gba:flex gba:gap-2">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleReplace}
+                  disabled={matches.length === 0}
+                  data-testid={`${testId}-replace-btn`}
+                >
+                  {t('navigation-panel-replace')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReplaceAll}
+                  disabled={matches.length === 0}
+                  data-testid={`${testId}-replace-all-btn`}
+                >
+                  {t('navigation-panel-replace-all')}
+                </Button>
+              </div>
+            </div>
+            {searchTerm.trim() && matchItems.length > 0 && (
+              <ScrollArea className="gba:flex-1 gba:min-h-0 gba:border-t gba:border-border">
+                <ul className="gba:px-3 gba:py-2 gba:space-y-1" data-testid={`${testId}-replace-matches-list`}>
+                  {matchItems.map(item => (
+                    <li key={`${item.from}-${item.to}-${item.index}`} className="gba:list-none">
+                      <button
+                        type="button"
+                        onClick={() => goToMatch(item.index)}
+                        className={`gba:w-full gba:text-left gba:px-2 gba:py-1.5 gba:rounded gba:text-sm gba:block gba:break-words ${
+                          item.index === selectedMatchIndex
+                            ? 'gba:bg-primary gba:text-primary-foreground'
+                            : 'gba:text-foreground hover:gba:bg-muted'
+                        }`}
+                        data-testid={`${testId}-replace-match-${item.index}`}
+                        title={item.snippet}
+                      >
+                        <SnippetWithHighlight
+                          snippet={item.snippet}
+                          searchTerm={searchTerm}
+                          caseSensitive={caseSensitive}
+                        />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            )}
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   )

@@ -14,11 +14,14 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { ChatCircle, ArrowRight } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useSpaceMessages, type ChatMessage } from '../hooks/useSpaceMessages'
+import translations from '../_i18n'
+import { formatCompactRelativeTime } from '../utils/spaceLocalization'
 
 export interface SpaceMessagePreviewProps {
   /** Conversation ID to fetch messages from */
@@ -36,6 +39,7 @@ export const SpaceMessagePreview: React.FC<SpaceMessagePreviewProps> = ({
   maxMessages = 5,
   'data-testid': testId = 'space-message-preview'
 }) => {
+  const { t, locale } = useTranslation(translations)
   const { messages, isLoading, error } = useSpaceMessages(conversationId, accessToken, maxMessages)
 
   // Navigate to the chat
@@ -46,23 +50,6 @@ export const SpaceMessagePreview: React.FC<SpaceMessagePreviewProps> = ({
     const chatPath = isProduction ? '/platform/chat' : '/platform/apps/chat'
     navigateTo(buildPlatformUrl(`${chatPath}?conversationId=${conversationId}&view=chat`))
   }, [conversationId])
-
-  // Format relative time
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / (1000 * 60))
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-    if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-    if (diffHours < 24) return `${diffHours}h ago`
-    if (diffDays === 1) return 'Yesterday'
-    if (diffDays < 7) return `${diffDays}d ago`
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  }
 
   // Get initials for avatar fallback
   const getInitials = (name?: string) => {
@@ -91,10 +78,10 @@ export const SpaceMessagePreview: React.FC<SpaceMessagePreviewProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:text-base gba:font-medium gba:flex gba:items-center gba:gap-2">
             <ChatCircle className="gba:w-4 gba:h-4" />
-            Recent Messages
+            {t('chat-recent-messages')}
           </CardTitle>
           <Button variant="ghost" size="sm" onClick={handleViewAll} data-testid={`${testId}-view-all`}>
-            View All
+            {t('common-view-all')}
             <ArrowRight className="gba:w-4 gba:h-4 gba:ml-1" />
           </Button>
         </div>
@@ -108,8 +95,8 @@ export const SpaceMessagePreview: React.FC<SpaceMessagePreviewProps> = ({
           <div className="gba:text-center gba:py-4 gba:text-sm gba:text-muted-foreground">{error}</div>
         ) : messages.length === 0 ? (
           <div className="gba:text-center gba:py-6">
-            <p className="gba:text-sm gba:text-muted-foreground">No messages yet</p>
-            <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">Start the conversation!</p>
+            <p className="gba:text-sm gba:text-muted-foreground">{t('chat-no-messages')}</p>
+            <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">{t('chat-start-conversation')}</p>
           </div>
         ) : (
           <div className="gba:space-y-3">
@@ -121,21 +108,21 @@ export const SpaceMessagePreview: React.FC<SpaceMessagePreviewProps> = ({
               >
                 <Avatar className="gba:w-8 gba:h-8 gba:flex-shrink-0">
                   {message.senderAvatar ? (
-                    <AvatarImage src={message.senderAvatar} alt={message.senderName || 'User'} />
+                    <AvatarImage src={message.senderAvatar} alt={message.senderName || t('common-unknown')} />
                   ) : null}
                   <AvatarFallback className="gba:text-xs">{getInitials(message.senderName)}</AvatarFallback>
                 </Avatar>
                 <div className="gba:flex-1 gba:min-w-0">
                   <div className="gba:flex gba:items-center gba:gap-2">
                     <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
-                      {message.senderName || 'Unknown'}
+                      {message.senderName || t('common-unknown')}
                     </span>
                     <span className="gba:text-xs gba:text-muted-foreground gba:flex-shrink-0">
-                      {formatTime(message.createdAt)}
+                      {formatCompactRelativeTime(message.createdAt, locale, t)}
                     </span>
                   </div>
                   <p className="gba:text-sm gba:text-muted-foreground gba:mt-0.5 gba:line-clamp-2">
-                    {message.type === 'file' ? '📎 Shared a file' : truncateMessage(message.content)}
+                    {message.type === 'file' ? t('chat-shared-file') : truncateMessage(message.content)}
                   </p>
                 </div>
               </div>

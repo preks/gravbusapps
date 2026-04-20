@@ -4,6 +4,7 @@ import { useStructuralAnalysisDataIntegration } from '../../../hooks/useStructur
 import { SunburstVisualization } from './components/SunburstVisualization'
 import { SpanOfControlChart } from './components/SpanOfControlChart'
 import { ReportingChainAnalysis } from './components/ReportingChainAnalysis'
+import OrganizationalHierarchyReport from './components/organizational-hierarchy-report/OrgHierarchyReport'
 import { AnalysisTab } from './types/structuralTypes'
 
 import {
@@ -12,14 +13,22 @@ import {
   TabsTrigger,
   TabsContent,
   useTranslation,
+  SectionKpiCards,
+  type KpiCardData,
   Icon,
   Spinner,
   Card,
   CardContent,
   Button
 } from '@newwork/nw-design-system'
-import { ChartPieIcon, ChartBarIcon, BuildingsIcon, UsersIcon } from '@phosphor-icons/react'
-import { ArrowClockwiseIcon } from '@phosphor-icons/react'
+import {
+  ArrowClockwiseIcon,
+  ChartPieIcon,
+  ChartBarIcon,
+  BuildingsIcon,
+  UsersIcon,
+  TreeStructureIcon
+} from '@phosphor-icons/react'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { exportTableToExcel, exportTableToPdf } from '../../../utils/exportUtils'
 import AnalyticsDataTable from '../../shared/AnalyticsDataTable'
@@ -34,7 +43,13 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
   const [exportingTable, setExportingTable] = useState<string | null>(null)
 
   // Define valid tabs
-  const validTabs = new Set<AnalysisTab>(['overview', 'span-control', 'depth-analysis', 'reporting-chains'])
+  const validTabs = new Set<AnalysisTab>([
+    'overview',
+    'span-control',
+    'depth-analysis',
+    'reporting-chains',
+    'organizational-hierarchy'
+  ])
   const defaultTab: AnalysisTab = 'overview'
 
   // Helper function to get tab from URL
@@ -149,18 +164,36 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
 
   // Overview Tab Content
   const renderOverviewTab = () => {
-    // Stat cards configuration
-    const statCards = [
-      { value: data.structuralStatistics.totalEmployees, label: 'hr-analytics-total-employees' },
-      { value: data.structuralStatistics.totalManagers, label: 'hr-analytics-total-managers' },
-      { value: data.structuralStatistics.hierarchyDepth, label: 'hr-analytics-hierarchy-depth' },
+    const statCards: KpiCardData[] = [
       {
-        value: data.structuralStatistics.averageSpanOfControl.toFixed(1),
-        label: 'hr-analytics-avg-span-of-control'
+        id: 'overview-total-employees',
+        title: t('hr-analytics-total-employees'),
+        value: data.structuralStatistics.totalEmployees,
+        footer: t('hr-analytics-structural-health-overview')
       },
       {
+        id: 'overview-total-managers',
+        title: t('hr-analytics-total-managers'),
+        value: data.structuralStatistics.totalManagers,
+        footer: t('hr-analytics-span-of-control-summary')
+      },
+      {
+        id: 'overview-hierarchy-depth',
+        title: t('hr-analytics-hierarchy-depth'),
+        value: data.structuralStatistics.hierarchyDepth,
+        footer: t('hr-analytics-levels-title')
+      },
+      {
+        id: 'overview-average-span',
+        title: t('hr-analytics-avg-span-of-control'),
+        value: data.structuralStatistics.averageSpanOfControl.toFixed(1),
+        footer: `${t('hr-analytics-recommended-span-range')}: ${data.spanOfControlSummary.recommendedSpanMin}-${data.spanOfControlSummary.recommendedSpanMax}`
+      },
+      {
+        id: 'overview-average-chain',
+        title: t('hr-analytics-avg-chain-length'),
         value: data.structuralStatistics.averageReportingChainLength.toFixed(1),
-        label: 'hr-analytics-avg-chain-length'
+        footer: t('hr-analytics-reporting-chain-summary')
       }
     ]
 
@@ -199,14 +232,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
           <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
             {t('hr-analytics-structural-health-overview')}
           </h3>
-          <div className="gba:grid gba:grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gba:gap-5">
-            {statCards.map((stat, index) => (
-              <div key={index} className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
-                <div className="gba:text-3xl gba:font-bold gba:text-foreground">{stat.value}</div>
-                <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t(stat.label)}</div>
-              </div>
-            ))}
-          </div>
+          <SectionKpiCards cards={statCards} />
         </div>
 
         {/* Quick Insights */}
@@ -240,6 +266,10 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
     level = 0,
     parent = '-'
   ): Array<{ unit: string; value: number; level: number; parent: string }> => {
+    if (node?.level === -1 && Array.isArray(node?.children)) {
+      return node.children.flatMap((child: any) => flattenSunburst(child, 0, '-'))
+    }
+
     const current = [{ unit: node?.name ?? '-', value: Number(node?.value ?? 0), level, parent }]
     const children = Array.isArray(node?.children)
       ? node.children.flatMap((child: any) => flattenSunburst(child, level + 1, String(node?.name ?? '-')))
@@ -260,12 +290,12 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       testId: 'span-control',
       rows: data.spanOfControlData.map(item => ({
         unit: item.organizationalUnit,
-        reports: item.directReports,
+        value: Number.isFinite(item.directReports) ? item.directReports : 0,
         efficiency: item.efficiency
       })),
       columns: [
         { key: 'unit', header: t('hr-analytics-entity-organizational-unit') },
-        { key: 'reports', header: t('hr-analytics-value') },
+        { key: 'value', header: t('hr-analytics-direct-reports') },
         { key: 'efficiency', header: t('hr-analytics-status') }
       ]
     }
@@ -286,16 +316,18 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       title: t('hr-analytics-reporting-chains'),
       testId: 'reporting-chains',
       rows: data.reportingChainData.map(item => ({
-        topManager: item.topManager,
+        topOrgUnit: item.topManager,
         levels: item.levels,
-        totalEmployees: item.totalEmployees,
-        averageSpan: item.averageSpanOfControl.toFixed(1)
+        chainPath: item.chainPath || '-',
+        bottlenecks: item.bottlenecks.length > 0 ? item.bottlenecks.join(', ') : t('hr-analytics-none'),
+        efficiency: `${item.efficiency}%`
       })),
       columns: [
-        { key: 'topManager', header: t('hr-analytics-top-manager') },
-        { key: 'levels', header: t('hr-analytics-levels') },
-        { key: 'totalEmployees', header: t('hr-analytics-employees') },
-        { key: 'averageSpan', header: t('hr-analytics-avg-span-of-control') }
+        { key: 'topOrgUnit', header: t('hr-analytics-top-org-unit') },
+        { key: 'levels', header: t('hr-analytics-levels-title') },
+        { key: 'chainPath', header: t('hr-analytics-reporting-chains') },
+        { key: 'bottlenecks', header: t('hr-analytics-bottlenecks') },
+        { key: 'efficiency', header: t('hr-analytics-efficiency') }
       ]
     }
   }
@@ -305,6 +337,12 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
     setExportingTable(`${selectedTableConfig.testId}-${format}`)
     try {
       const rows = selectedTableConfig.rows.map(row => ({ ...row })) as Record<string, unknown>[]
+      if (selectedTableConfig.testId === 'span-control') {
+        rows.forEach(row => {
+          const numericValue = Number(row.value)
+          row.value = Number.isFinite(numericValue) ? numericValue : 0
+        })
+      }
       if (format === 'excel') {
         await exportTableToExcel(selectedTableConfig.title, selectedTableConfig.columns, rows)
       } else {
@@ -367,6 +405,12 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
               icon: UsersIcon,
               label: 'hr-analytics-reporting-chains',
               testId: 'structural-reporting-chains-tab'
+            },
+            {
+              value: 'organizational-hierarchy',
+              icon: TreeStructureIcon,
+              label: 'hr-analytics-organizational-hierarchy',
+              testId: 'structural-organizational-hierarchy-tab'
             }
           ].map(tab => (
             <TabsTrigger
@@ -412,6 +456,10 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
                 prefixDataTestId={prefixDataTestId}
               />
             )
+          },
+          {
+            value: 'organizational-hierarchy',
+            content: <OrganizationalHierarchyReport {...props} />
           }
         ].map(tab => (
           <TabsContent key={tab.value} value={tab.value} className="gba:mt-6">

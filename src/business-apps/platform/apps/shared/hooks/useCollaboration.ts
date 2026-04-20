@@ -3,9 +3,11 @@ import type { Socket } from 'socket.io-client'
 import {
   CollaborationClient,
   createCollaborationClient,
+  createSpreadsheetCollaborationClient,
   DocumentParticipant,
   DocumentOperation
 } from '../services/CollaborationClient'
+import { getSpreadsheetServiceApiUrl } from '../utils/spreadsheetServiceUrl'
 
 const isCollabDebug = (): boolean => {
   try {
@@ -48,21 +50,24 @@ type CursorEventData = {
   userId: string
   userName?: string
   userColor?: string
+  socketId?: string
   position: DocumentParticipant['cursor']
 }
 type SelectionEventData = {
   userId: string
   userName?: string
   userColor?: string
+  socketId?: string
   selection: DocumentParticipant['selection']
 }
 
 function mapSocketParticipantToParticipant(p: SocketParticipant): DocumentParticipant {
+  const socketId = (p.socketId || p.id || '') as string
   return {
     userId: (p.odId || p.userId || p.id || '') as string,
     userName: p.userName || '',
     userColor: p.userColor || '',
-    socketId: p.socketId,
+    socketId,
     avatarUrl: p.avatarUrl || p.avatar,
     cursor: p.cursor as DocumentParticipant['cursor'],
     selection: p.selection as DocumentParticipant['selection'],
@@ -70,8 +75,13 @@ function mapSocketParticipantToParticipant(p: SocketParticipant): DocumentPartic
   }
 }
 
+function participantIdentity(data: Pick<DocumentParticipant, 'userId' | 'socketId'>): string {
+  return data.socketId || data.userId
+}
+
 function addParticipantIfMissing(prev: DocumentParticipant[], data: ParticipantEventData): DocumentParticipant[] {
-  if (prev.some(p => p.userId === data.userId)) return prev
+  const identity = participantIdentity({ userId: data.userId, socketId: data.socketId || '' })
+  if (prev.some(p => participantIdentity(p) === identity)) return prev
   return [
     ...prev,
     {
@@ -85,14 +95,22 @@ function addParticipantIfMissing(prev: DocumentParticipant[], data: ParticipantE
   ]
 }
 
-function removeParticipant(prev: DocumentParticipant[], userId: string): DocumentParticipant[] {
-  return prev.filter(p => p.userId !== userId)
+function removeParticipant(
+  prev: DocumentParticipant[],
+  data: Pick<ParticipantEventData, 'userId' | 'socketId'>
+): DocumentParticipant[] {
+  if (data.socketId) {
+    const identity = participantIdentity({ userId: data.userId, socketId: data.socketId })
+    return prev.filter(p => participantIdentity(p) !== identity)
+  }
+  return prev.filter(p => p.userId !== data.userId)
 }
 
 function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventData): DocumentParticipant[] {
+  const identity = participantIdentity({ userId: data.userId, socketId: data.socketId || '' })
   let found = false
   const next = prev.map(p => {
-    if (p.userId !== data.userId) return p
+    if (participantIdentity(p) !== identity) return p
     found = true
     return { ...p, cursor: data.position, lastActiveAt: new Date() }
   })
@@ -103,7 +121,7 @@ function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventD
       userId: data.userId,
       userName: data.userName || 'User',
       userColor: data.userColor || '#4ECDC4',
-      socketId: '',
+      socketId: data.socketId || '',
       cursor: data.position,
       lastActiveAt: new Date()
     }
@@ -111,9 +129,10 @@ function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventD
 }
 
 function updateParticipantSelection(prev: DocumentParticipant[], data: SelectionEventData): DocumentParticipant[] {
+  const identity = participantIdentity({ userId: data.userId, socketId: data.socketId || '' })
   let found = false
   const next = prev.map(p => {
-    if (p.userId !== data.userId) return p
+    if (participantIdentity(p) !== identity) return p
     found = true
     return { ...p, selection: data.selection, lastActiveAt: new Date() }
   })
@@ -124,7 +143,7 @@ function updateParticipantSelection(prev: DocumentParticipant[], data: Selection
       userId: data.userId,
       userName: data.userName || 'User',
       userColor: data.userColor || '#4ECDC4',
-      socketId: '',
+      socketId: data.socketId || '',
       selection: data.selection,
       lastActiveAt: new Date()
     }
@@ -211,7 +230,10 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   const hasJoinedRef = useRef(false)
   const isJoiningRef = useRef(false)
   const joinAckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
+  const pendingOperationsRef = useRef<DocumentOperation[]>([])
+  const pendingCursorRef = useRef<{ line?: number; column?: number; offset?: number; path?: string[] } | null>(null)
+  const lastSentCursorRef = useRef<{ line?: number; column?: number; offset?: number; path?: string[] } | null>(null)
+  const cursorReplayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onOperationReceivedRef = useRef(onOperationReceived)
   const onErrorRef = useRef(onError)
   onOperationReceivedRef.current = onOperationReceived
@@ -252,6 +274,13 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   useEffect(() => {
     if (!enabled || !entityId) return
 
+    pendingCursorRef.current = null
+    lastSentCursorRef.current = null
+    if (cursorReplayTimeoutRef.current) {
+      clearTimeout(cursorReplayTimeoutRef.current)
+      cursorReplayTimeoutRef.current = null
+    }
+
     const token = getAuthToken()
     if (!token) {
       console.error('[useCollaboration] No auth token available')
@@ -260,9 +289,11 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     }
 
     // Create client
-    const client = createCollaborationClient({
+    const createClient = entityType === 'spreadsheet' ? createSpreadsheetCollaborationClient : createCollaborationClient
+    const client = createClient({
       reconnectionAttempts: 10,
       connectionTimeout: 20000,
+      serviceApiUrl: entityType === 'spreadsheet' ? getSpreadsheetServiceApiUrl() : undefined,
       onReconnectFailed: () => setCollaborationHealth('failed')
     })
 
@@ -306,35 +337,60 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     const handleDisconnect = () => {
       if (isCollabDebug()) console.log('[useCollaboration] Disconnected from collaboration server')
       setIsConnected(false)
+      setParticipants([])
       setHasJoined(false)
       setCollaborationHealth('reconnecting')
       hasJoinedRef.current = false
       isJoiningRef.current = false
       clearJoinAckTimeout()
+      pendingCursorRef.current = null
+      lastSentCursorRef.current = null
+      if (cursorReplayTimeoutRef.current) {
+        clearTimeout(cursorReplayTimeoutRef.current)
+        cursorReplayTimeoutRef.current = null
+      }
       setSocket(null)
-    }
-
-    // Setup event listeners
-    client.getSocket()?.on('connect', handleConnect)
-    client.getSocket()?.on('disconnect', handleDisconnect)
-    // Avoid missing a fast initial connect before listeners are attached.
-    if (client.getSocket()?.connected) {
-      handleConnect()
     }
 
     // Handle user joined
     const handleUserJoined = (data: ParticipantEventData) => {
       if (isCollabDebug()) console.log('[useCollaboration] User joined:', data)
       setParticipants(prev => addParticipantIfMissing(prev, data))
+      if (
+        entityType === 'spreadsheet' &&
+        hasJoinedRef.current &&
+        client.getSocket()?.connected &&
+        data.socketId !== client.getSocket()?.id
+      ) {
+        if (cursorReplayTimeoutRef.current) {
+          clearTimeout(cursorReplayTimeoutRef.current)
+        }
+        cursorReplayTimeoutRef.current = setTimeout(() => {
+          cursorReplayTimeoutRef.current = null
+          const latestCursor = pendingCursorRef.current ?? lastSentCursorRef.current
+          if (!latestCursor || !hasJoinedRef.current || !client.getSocket()?.connected) return
+          client.sendCursorMove(entityType, entityId, latestCursor)
+        }, 1200)
+      }
     }
     client.onUserJoined(handleUserJoined)
 
     // Handle user left
-    const handleUserLeft = (data: { userId: string }) => {
+    const handleUserLeft = (data: { userId: string; socketId?: string }) => {
       if (isCollabDebug()) console.log('[useCollaboration] User left:', data)
-      setParticipants(prev => removeParticipant(prev, data.userId))
+      setParticipants(prev => removeParticipant(prev, data))
     }
     client.onUserLeft(handleUserLeft)
+
+    const handleParticipantsUpdated = (data: {
+      entityType: 'document' | 'spreadsheet' | 'note'
+      entityId: string
+      participants: SocketParticipant[]
+    }) => {
+      if (data.entityType !== entityType || data.entityId !== entityId) return
+      setParticipants(data.participants.map(mapSocketParticipantToParticipant))
+    }
+    client.onParticipantsUpdated(handleParticipantsUpdated)
 
     // Handle operation applied (read handler from ref so callback identity does not recreate the socket)
     const handleOperationApplied = (data: Parameters<NonNullable<typeof onOperationReceived>>[0]) => {
@@ -361,10 +417,23 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     }
     client.onSelectionUpdate(handleSelectionUpdate)
 
+    // Setup socket lifecycle listeners after collaboration listeners are ready.
+    client.getSocket()?.on('connect', handleConnect)
+    client.getSocket()?.on('disconnect', handleDisconnect)
+    if (client.getSocket()?.connected) {
+      handleConnect()
+    }
+
     // Cleanup
     return () => {
       clearJoinAckTimeout()
       isJoiningRef.current = false
+      pendingCursorRef.current = null
+      lastSentCursorRef.current = null
+      if (cursorReplayTimeoutRef.current) {
+        clearTimeout(cursorReplayTimeoutRef.current)
+        cursorReplayTimeoutRef.current = null
+      }
       if (hasJoinedRef.current) {
         client.leaveDocument(entityType, entityId)
         hasJoinedRef.current = false
@@ -397,9 +466,25 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
             clearTimeout(joinAckTimeoutRef.current)
             joinAckTimeoutRef.current = null
           }
+          if (entityType === 'spreadsheet' && clientRef.current?.isConnected()) {
+            const pendingOps = pendingOperationsRef.current
+            pendingOperationsRef.current = []
+            pendingOps.forEach(op => {
+              clientRef.current?.sendDocumentOperation(entityType, entityId, op)
+            })
+            const pendingCursor = pendingCursorRef.current
+            if (pendingCursor) {
+              pendingCursorRef.current = null
+              lastSentCursorRef.current = pendingCursor
+              clientRef.current.sendCursorMove(entityType, entityId, pendingCursor)
+            }
+          }
         })
-        return
-      } else if (!hasJoinedRef.current) {
+      } else if (!hasJoinedRef.current && entityType === 'spreadsheet') {
+        pendingOperationsRef.current.push(operation)
+        if (pendingOperationsRef.current.length > 100) {
+          pendingOperationsRef.current = pendingOperationsRef.current.slice(-100)
+        }
         return
       }
       clientRef.current.sendDocumentOperation(entityType, entityId, operation, onOperationAckFailure)
@@ -409,7 +494,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
 
   const emitDocumentOperationAsync = useCallback(
     async (operation: DocumentOperation): Promise<DocumentOperationAckResult> => {
-      const client = clientRef.current
+       const client = clientRef.current
       if (!client?.isConnected()) {
         return { success: false, error: 'not_connected' }
       }
@@ -452,6 +537,9 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   // Emit cursor position — pass-through to the socket
   const emitCursor = useCallback(
     (position: { line?: number; column?: number; offset?: number; path?: string[] }) => {
+      if (entityType === 'spreadsheet') {
+        pendingCursorRef.current = position
+      }
       if (!clientRef.current?.isConnected() || !hasJoinedRef.current) return
       clientRef.current.sendCursorMove(entityType, entityId, position)
     },

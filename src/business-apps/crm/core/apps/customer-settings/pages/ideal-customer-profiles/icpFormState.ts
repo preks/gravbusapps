@@ -6,6 +6,8 @@ import { getLeadCriterionDefinition, isKnownLeadCriterionKey } from './icpLeadCr
  * ICP catalog `objectValue` shape (per top-level key), e.g.:
  * `{ "industry": { "value": "…", "weight": 0.25 }, ... }`
  * Top-level keys are lead-field criterion ids (`icpLeadCriterionDefinitions`) or legacy custom keys.
+ * For catalog-backed criteria, `value` is the catalog entry display string (value / display / code),
+ * not the catalog row id.
  */
 
 /** Keys managed by the form; users cannot add specification rows with these names. */

@@ -15,7 +15,7 @@ import {
   filterAddresses,
   filterAddressLines
 } from '@/common/data/common/utils/entityPayloadHelpers'
-import { type Investment, type InvestmentReport } from './investmentTypes'
+import type { InvestmentReport } from './investmentTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
 import type { InvestmentCommunicationChannel } from './investmentCommunicationChannelTypes'
 import type { InvestmentOpportunity } from './investmentOpportunityTypes'
@@ -25,14 +25,15 @@ import type { InvestmentActivity } from './investmentActivityTypes'
 import type { InvestmentDocument } from './investmentDocumentTypes'
 import type { InvestmentNote } from './investmentNoteTypes'
 import type { InvestmentAccountContact } from './investmentAccountContactTypes'
+import type { InvestmentInvestmentAccount } from './investmentAccountAssociationTypes'
 
 /**
  * Investment Account Type
  * Extends Account with IRM-specific fields and proper type mappings
  */
 export interface InvestmentAccount extends Account {
-  // Investment-specific fields
-  investments?: Investment[]
+  // Investment-specific fields (GraphQL `investments` junction rows on InvestmentAccount)
+  investments?: InvestmentInvestmentAccount[]
   investmentReports?: InvestmentReport[]
 
   // Mapped from Account to Investment-specific types

@@ -1,4 +1,7 @@
 import React, { useState, useMemo } from 'react'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 import {
   Card,
   CardContent,
@@ -23,7 +26,8 @@ import {
   ScrollArea,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   CalendarIcon,
@@ -45,18 +49,22 @@ import { calculateActivityScore, getScoreBadgeVariant } from '../../utils/activi
 import { getActivityTypeVariant } from '../../utils/activityHelpers'
 import { ActivityDetailSheet } from '@/common/components/common-relations/detail-sheets/activity-detail-sheet'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
+import activitySectionTranslations from '@/common/components/common-relations/record-sections/activity-section/_i18n'
+import { ActivityRelatedEntityHints } from '@/common/components/common-relations/record-sections/activity-section/ActivityRelatedEntityHints'
+import {
+  getActivityRelatedEntities,
+  type ActivityWithInvestment
+} from '@/common/components/common-relations/record-sections/activity-section/getActivityRelatedEntities'
+
+dayjs.extend(weekday)
+dayjs.extend(localeData)
 
 const getInitials = (firstName: string, lastName: string): string => {
   const first = firstName?.charAt(0)?.toUpperCase() || ''
   const last = lastName?.charAt(0)?.toUpperCase() || ''
   return `${first}${last}` || '??'
 }
-import dayjs from 'dayjs'
-import weekday from 'dayjs/plugin/weekday'
-import localeData from 'dayjs/plugin/localeData'
-
-dayjs.extend(weekday)
-dayjs.extend(localeData)
 
 // Generic activity interface that works for both individual and team
 export interface CalendarActivity {
@@ -74,12 +82,36 @@ export interface CalendarActivity {
     pictureThumbnail?: string | null
   } | null
   ownerEmployeeId?: string | null
-  // Entity references
-  account?: { id?: string; name?: string } | null
-  contact?: { id?: string; firstName?: string; lastName?: string } | null
+  // Entity references (optional investment aligns with IRM-only data; CRM callers typically omit)
+  account?: { id?: string; name?: string; pictureThumbnail?: string | null } | null
+  contact?: { id?: string; firstName?: string; lastName?: string; pictureThumbnail?: string | null } | null
   lead?: { id?: string; name?: string; contact?: { firstName?: string; lastName?: string } } | null
   opportunity?: { id?: string; name?: string } | null
+  investment?: { id?: string; name?: string; pictureThumbnail?: string | null } | null
+  investmentId?: string | null
   description?: string | null
+}
+
+/** Map calendar row to detail sheet / getActivityRelatedEntities input */
+export function mapCalendarActivityToDetailSheetActivity(activity: CalendarActivity | null) {
+  if (!activity) return null
+  return {
+    ...activity,
+    accountId: activity.account?.id || null,
+    contactId: activity.contact?.id || null,
+    leadId: activity.lead?.id || null,
+    opportunityId: activity.opportunity?.id || null,
+    investmentId: activity.investment?.id ?? activity.investmentId ?? null,
+    investment: activity.investment ?? undefined,
+    ownerEmployee: activity.ownerEmployee
+      ? {
+          ...activity.ownerEmployee,
+          displayName:
+            activity.ownerEmployee.fullName ||
+            `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim()
+        }
+      : null
+  }
 }
 
 export interface MemberFilter {
@@ -134,6 +166,7 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
   compact = false,
   absences = []
 }) => {
+  const { t } = useTranslation(activitySectionTranslations)
   const [selectedActivity, setSelectedActivity] = useState<CalendarActivity | null>(null)
   const [activityDetailOpen, setActivityDetailOpen] = useState(false)
   const [dayActivities, setDayActivities] = useState<CalendarActivity[]>([])
@@ -217,6 +250,7 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
       return `${activity.lead.contact.firstName || ''} ${activity.lead.contact.lastName || ''}`.trim()
     }
     if (activity.opportunity?.name) return activity.opportunity.name
+    if (activity.investment?.name) return activity.investment.name
     return 'No reference'
   }
 
@@ -246,25 +280,14 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
     setDayListOpen(true)
   }
 
-  // Map CalendarActivity to the shape ActivityDetailSheet expects
-  const toActivityDetail = (activity: CalendarActivity | null) => {
-    if (!activity) return null
-    return {
-      ...activity,
-      accountId: activity.account?.id || null,
-      contactId: activity.contact?.id || null,
-      leadId: activity.lead?.id || null,
-      opportunityId: activity.opportunity?.id || null,
-      ownerEmployee: activity.ownerEmployee
-        ? {
-            ...activity.ownerEmployee,
-            displayName:
-              activity.ownerEmployee.fullName ||
-              `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim()
-          }
-        : null
-    }
-  }
+  const relatedEntitiesForCalendarActivity = (activity: CalendarActivity) =>
+    getActivityRelatedEntities(mapCalendarActivityToDetailSheetActivity(activity)! as ActivityWithInvestment, {
+      getRelatedRecordUrl: (kind, id) => {
+        const url = buildCrmRelatedEntityRecordUrl(kind, id)
+        return url.length > 0 ? url : undefined
+      },
+      showAllRelatedEntityChips: true
+    })
 
   if (error) {
     return (
@@ -478,7 +501,7 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
         </CardContent>
       </Card>
 
-      {/* Day Activities Sheet — same style as ActivityDetailSheet, one card per activity */}
+      {/* Day Activities Sheet — aligned with ActivityDetailSheet related row */}
       <Sheet open={dayListOpen} onOpenChange={setDayListOpen}>
         <SheetContent className="gba:w-[500px]! gba:sm:w-[500px]! gba:max-w-[90vw]! gba:p-0 gba:flex gba:flex-col gba:overflow-hidden">
           <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
@@ -494,8 +517,7 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
                   activity.ownerEmployee?.fullName ||
                   `${activity.ownerEmployee?.firstName || ''} ${activity.ownerEmployee?.lastName || ''}`.trim() ||
                   null
-                const entityName = getEntityName(activity)
-                const referenceName = entityName === 'No reference' ? null : entityName
+                const relatedEntities = relatedEntitiesForCalendarActivity(activity)
 
                 return (
                   <div
@@ -503,16 +525,13 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
                     className="gba:space-y-4"
                     data-testid={`${dataTestIdPrefix}-day-activity-${activity.id}`}
                   >
-                    {/* Title — matches SheetTitle in ActivityDetailSheet */}
                     <p className="gba:text-xl gba:font-semibold">{activity.title}</p>
 
-                    {/* Overview Card — identical structure to ActivityDetailSheet */}
                     <Card>
                       <CardHeader>
                         <CardTitle className="gba:text-base">Overview</CardTitle>
                       </CardHeader>
                       <CardContent className="gba:space-y-3">
-                        {/* Type */}
                         <div className="gba:flex gba:items-start gba:gap-3 gba:py-2">
                           <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground">
                             <TagIcon size={14} className="gba:text-muted-foreground" />
@@ -523,20 +542,20 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
                           </div>
                         </div>
 
-                        {/* Reference */}
-                        {referenceName && (
-                          <div className="gba:flex gba:items-start gba:gap-3 gba:py-2">
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground">
-                              <LinkIcon size={14} className="gba:text-muted-foreground" />
-                              <span>Reference</span>
-                            </div>
-                            <div className="gba:flex-1">
-                              <span className="gba:text-sm gba:font-medium">{referenceName}</span>
-                            </div>
+                        <div className="gba:flex gba:items-start gba:gap-3 gba:py-2">
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground">
+                            <LinkIcon size={14} className="gba:text-muted-foreground" />
+                            <span>{t('activities-detail-related')}</span>
                           </div>
-                        )}
+                          <div className="gba:flex-1 gba:min-w-0">
+                            {relatedEntities.length > 0 ? (
+                              <ActivityRelatedEntityHints activityId={activity.id} entities={relatedEntities} t={t} />
+                            ) : (
+                              <Badge variant="outline">{t('activities-detail-general')}</Badge>
+                            )}
+                          </div>
+                        </div>
 
-                        {/* Created By — same as ActivityDetailSheet: Avatar + Tooltip + ArrowSquareOut */}
                         {activity.ownerEmployee && (
                           <div className="gba:flex gba:items-start gba:gap-3 gba:py-2">
                             <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground">
@@ -583,7 +602,6 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
                           </div>
                         )}
 
-                        {/* Created */}
                         <div className="gba:flex gba:items-start gba:gap-3 gba:py-2">
                           <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground">
                             <CalendarIcon size={14} className="gba:text-muted-foreground" />
@@ -596,7 +614,6 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
                           </div>
                         </div>
 
-                        {/* Occurred */}
                         {activity.occurredAt && (
                           <div className="gba:flex gba:items-start gba:gap-3 gba:py-2">
                             <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground">
@@ -613,7 +630,6 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
                       </CardContent>
                     </Card>
 
-                    {/* Description Card */}
                     {activity.description && (
                       <Card>
                         <CardHeader>
@@ -630,7 +646,6 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
                       </Card>
                     )}
 
-                    {/* Divider between activities */}
                     <div className="gba:border-t gba:border-border" />
                   </div>
                 )
@@ -640,11 +655,13 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
         </SheetContent>
       </Sheet>
 
-      {/* Activity Detail Sheet */}
       <ActivityDetailSheet
-        activity={toActivityDetail(selectedActivity) as any}
+        activity={mapCalendarActivityToDetailSheetActivity(selectedActivity) as any}
         open={activityDetailOpen}
         onOpenChange={handleActivityDetailClose}
+        buildReferenceUrl={(entityType, entityId) =>
+          buildCrmRelatedEntityRecordUrl(entityType as Parameters<typeof buildCrmRelatedEntityRecordUrl>[0], entityId)
+        }
         accessToken={accessToken}
         data-testid={`${dataTestIdPrefix}-activity-detail`}
       />

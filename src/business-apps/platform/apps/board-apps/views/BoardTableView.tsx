@@ -8,7 +8,7 @@
  */
 
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react'
-import { Spinner, toast } from '@newwork/nw-design-system'
+import { Spinner, toast, useTranslation } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
 import { TableVirtuoso } from 'react-virtuoso'
 import type { TableVirtuosoHandle } from 'react-virtuoso'
@@ -24,6 +24,7 @@ import type { VirtuosoContext } from '../components/table/TableBodyRows'
 import { useTableFilterSort } from '../hooks/useTableFilterSort'
 import type { ServerFilterParams } from '../hooks/useTableFilterSort'
 import { useFlowExpandableRows } from '../hooks/useFlowExpandableRows'
+import translations from '../_i18n'
 
 export interface BoardTableViewProps {
   columns: BoardColumn[]
@@ -97,6 +98,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
   onCellBlur,
   testId
 }) => {
+  const { t } = useTranslation(translations)
   const virtuosoRef = useRef<TableVirtuosoHandle>(null)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const [settingsColumn, setSettingsColumn] = useState<BoardColumn | null>(null)
@@ -459,8 +461,8 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
   if (columns.length === 0)
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:text-muted-foreground gba:text-sm gba:gap-2">
-        <p>No columns yet.</p>
-        <p className="gba:text-xs">Add columns to start building your board.</p>
+        <p>{t('table-no-columns')}</p>
+        <p className="gba:text-xs">{t('table-add-columns-hint')}</p>
       </div>
     )
 
@@ -515,7 +517,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
                       className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors gba:py-0.5"
                       data-testid={`${testId}-quick-add`}
                     >
-                      <Plus className="gba:w-3 gba:h-3" /> New row
+                      <Plus className="gba:w-3 gba:h-3" /> {t('table-new-row')}
                     </button>
                   )}
                 </td>
@@ -569,14 +571,14 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
       >
         {displayRows.length === 0 ? (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:text-muted-foreground gba:text-sm gba:gap-2">
-            <p>{rows.length > 0 ? 'No rows match the current filters.' : 'No rows yet.'}</p>
+            <p>{rows.length > 0 ? t('table-no-rows-filtered') : t('table-no-rows')}</p>
             {onAddRow && (
               <button
                 onClick={handleQuickAddRow}
                 className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
                 data-testid={`${testId}-quick-add`}
               >
-                <Plus className="gba:w-3 gba:h-3" /> New row
+                <Plus className="gba:w-3 gba:h-3" /> {t('table-new-row')}
               </button>
             )}
           </div>

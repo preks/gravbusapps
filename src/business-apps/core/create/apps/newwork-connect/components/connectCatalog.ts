@@ -236,7 +236,12 @@ const providerCopyKeys: Record<string, { title: string; description: string }> =
   }
 }
 
+const fieldPlaceholderKeys: Record<string, string> = {
+  DOMAIN: 'connect-field-domain-placeholder'
+}
+
 const fieldLabelKeys: Record<string, string> = {
+  DOMAIN: 'connect-field-domain-label',
   [buildFieldKey('BASE', 'URL')]: 'connect-field-base-url-label',
   [buildFieldKey('API', 'KEY')]: 'connect-field-api-key-label',
   HOST: 'connect-field-host-label',
@@ -350,6 +355,8 @@ export const getFieldLabel = (t: Translate, key: string): string => {
 }
 
 export const getFieldPlaceholder = (t: Translate, key: string): string => {
+  const placeholderKey = fieldPlaceholderKeys[key]
+  if (placeholderKey) return t(placeholderKey)
   const labelKey = fieldLabelKeys[key]
   return labelKey ? t(labelKey) : humanizeKey(key)
 }

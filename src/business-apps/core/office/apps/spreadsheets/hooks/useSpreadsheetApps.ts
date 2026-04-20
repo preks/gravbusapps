@@ -23,7 +23,7 @@ export interface UseSpreadsheetAppsState {
 export interface UseSpreadsheetAppsResult extends UseSpreadsheetAppsState {
   loadApps: () => Promise<void>
   refreshApps: () => Promise<void>
-  loadApp: (id: string, directFilePath?: string) => Promise<SpreadsheetApp | null>
+  loadApp: (id: string, directFilePath?: string, options?: { allowTrashed?: boolean }) => Promise<SpreadsheetApp | null>
   createApp: (app: Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'>) => Promise<SpreadsheetApp | null>
   updateApp: (id: string, updates: Partial<SpreadsheetApp>) => Promise<SpreadsheetApp | null>
   deleteApp: (id: string) => Promise<boolean>
@@ -328,7 +328,11 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
    * Load a single app by ID
    */
   const loadApp = useCallback(
-    async (id: string): Promise<SpreadsheetApp | null> => {
+    async (
+      id: string,
+      _directFilePath?: string,
+      options?: { allowTrashed?: boolean }
+    ): Promise<SpreadsheetApp | null> => {
       if (!accessToken) {
         setState(prev => ({ ...prev, isLoading: false, error: 'Not authenticated' }))
         return null
@@ -337,7 +341,9 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       setState(prev => ({ ...prev, isLoading: true, error: null }))
 
       try {
-        const app = await SpreadsheetApiService.getApp(id)
+        const app = options?.allowTrashed
+          ? ((await SpreadsheetApiService.getTrashedPreview(id)) ?? (await SpreadsheetApiService.getApp(id)))
+          : await SpreadsheetApiService.getApp(id)
         if (!app) {
           setState(prev => ({
             ...prev,

@@ -75,6 +75,11 @@ export const evaluateDisplayCondition = (condition: any, formData: Record<string
  * Check if field is a searchable UUID field (for entity selection)
  */
 export const isSearchableUuidField = (fieldName: string, schema: any): boolean => {
+  // Flow engine / custom flows: entity picker from schema extension
+  if (schema?.['x-dataSource']?.type === 'ENTITY' && schema?.['x-dataSource']?.entity) {
+    return true
+  }
+
   const employeeTimeFields = ['substituteEmployee', 'approverId', 'employee']
   const crmFields = ['ownerEmployee', 'account', 'contact', 'lead', 'opportunity', 'assignedEmployee']
   const irmFields = ['ownerEmployee', 'investmentAccount', 'contact']

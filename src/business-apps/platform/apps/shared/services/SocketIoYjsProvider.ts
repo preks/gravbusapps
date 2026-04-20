@@ -376,11 +376,12 @@ export class SocketIoYjsProvider {
   }
 
   /**
-   * Rich-text entities bootstrap through TipTap's `default` XML fragment.
-   * Whiteboards use arrays/maps only, so waiting for that fragment would stall forever.
+   * Rich-text entities (document, note) bootstrap through TipTap's `default` XML fragment.
+   * Slides and whiteboards use Yjs arrays/maps only and never populate that fragment,
+   * so waiting for it would stall forever and block sync from completing.
    */
   private requiresDefaultXmlBootstrapGuard(): boolean {
-    return this.entityType !== 'whiteboard'
+    return this.entityType === 'document' || this.entityType === 'note'
   }
 
   private async handleBootstrapInitializer(

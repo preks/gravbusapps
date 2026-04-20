@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useLayoutEffect } from 'react'
 import type { ChatMessage } from '../../types/enterpriseAgent'
-import { AgentTypingIndicator } from '../chat/AgentTypingIndicator'
 import { MessageBubble } from '../chat/MessageBubble'
 import { StreamingAnswerBubble } from '../chat/StreamingAnswerBubble'
 import {
@@ -20,7 +19,10 @@ const SCROLL_FOLLOW_INTERVAL_MS = 50
 interface ConversationPanelProps {
   sessionId: string
   messages: ChatMessage[]
+  streamingGreeting: string
   streamingContent: string
+  streamingThinking: string
+  statusHeadline: string | null
   isStreaming: boolean
   isWaitingForInput: boolean
   hasFixedFollowUps?: boolean
@@ -36,12 +38,14 @@ const isTranscriptMessage = (message: ChatMessage) =>
   message.type === 'expert_call' ||
   message.type === 'final_answer' ||
   message.type === 'structured_input_request' ||
+  message.type === 'human_interrupt' ||
   message.type === 'error'
 
 function useSmartScroll(
   scrollRef: React.RefObject<HTMLDivElement>,
   endRef: React.RefObject<HTMLDivElement>,
   isStreaming: boolean,
+  streamingGreeting: string,
   streamingContent: string
 ) {
   const isUserScrolledRef = useRef(false)
@@ -97,7 +101,7 @@ function useSmartScroll(
     const intervalId = setInterval(followContent, SCROLL_FOLLOW_INTERVAL_MS)
 
     return () => clearInterval(intervalId)
-  }, [scrollRef, isStreaming, streamingContent])
+  }, [scrollRef, isStreaming, streamingGreeting, streamingContent])
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
@@ -122,7 +126,10 @@ function useSmartScroll(
 export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   sessionId,
   messages,
+  streamingGreeting,
   streamingContent,
+  streamingThinking,
+  statusHeadline,
   isStreaming,
   hasFixedFollowUps = false,
   hasStreamingIsland = false,
@@ -139,10 +146,23 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
     scrollRef,
     endRef,
     isStreaming,
+    streamingGreeting,
     streamingContent
   )
 
   const visibleMessages = messages.filter(isTranscriptMessage)
+
+  // When streaming, insert the streaming bubble at the end of all messages
+  // The streaming bubble represents the CURRENT agent turn, so it should always be last
+  const messagesBeforeStreaming = visibleMessages
+  const messagesAfterStreaming: ChatMessage[] = []
+
+  // Only show greeting on the very first turn
+  // Check if there are any prior human_interrupt (HITL questions) which indicate follow-up context
+  const hasHitlQuestions = messages.some(m => m.type === 'human_interrupt' || m.type === 'structured_input_request')
+  const hasCompletedResponses = messages.some(m => m.type === 'final_answer' || m.type === 'expert_call')
+  const isFollowup = hasHitlQuestions || hasCompletedResponses
+  const displayGreeting = isFollowup ? '' : streamingGreeting
 
   useLayoutEffect(() => {
     if (!hasFixedFollowUps) {
@@ -189,7 +209,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
         className={`gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:pt-12 sm:gba:pt-16 ${WORKSPACE_CHAT_GUTTER_CLASS} ${bottomPaddingClass}`}
       >
         <div className={`${WORKSPACE_CHAT_RAIL_CLASS} gba:mx-auto gba:space-y-4`}>
-          {visibleMessages.map(msg => (
+          {messagesBeforeStreaming.map(msg => (
             <MessageBubble
               key={msg.id}
               message={msg}
@@ -200,12 +220,26 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
             />
           ))}
 
-          {isStreaming &&
-            (streamingContent ? (
-              <StreamingAnswerBubble content={streamingContent} isStreaming={isStreaming} />
-            ) : (
-              <AgentTypingIndicator />
-            ))}
+          {isStreaming ? (
+            <StreamingAnswerBubble
+              greetingContent={displayGreeting}
+              responseContent={streamingContent}
+              thinkingContent={streamingThinking}
+              isStreaming={isStreaming}
+              statusMessage={statusHeadline}
+            />
+          ) : null}
+
+          {messagesAfterStreaming.map(msg => (
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              sessionId={sessionId}
+              onReply={onReply}
+              onViewArtifact={onViewArtifact}
+              accessToken={accessToken}
+            />
+          ))}
 
           <div ref={endRef} className={endSentinelMarginClass} aria-hidden />
         </div>

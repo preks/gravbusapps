@@ -83,10 +83,13 @@ export async function exportTableToPdf(
   })
 
   const margin = 40
-  const rowHeight = 18
+  const headerRowHeight = 18
+  const minRowHeight = 18
+  const cellPaddingX = 4
+  const cellPaddingY = 4
   const headerFontSize = 10
   const cellFontSize = 9
-  const maxCellChars = 60
+  const maxCellChars = 600
   const minColWidth = 64
   const maxColWidth = 220
   const availableWidth = doc.page.width - margin * 2
@@ -136,20 +139,20 @@ export async function exportTableToPdf(
       chunk.forEach(colIndex => {
         const width = colWidths[colIndex]
         const col = columns[colIndex]
-        doc.rect(x, y - 2, width, rowHeight).stroke()
-        doc.text(col.header, x + 4, y + 4, {
-          width: width - 8,
+        doc.rect(x, y - 2, width, headerRowHeight).stroke()
+        doc.text(col.header, x + cellPaddingX, y + cellPaddingY, {
+          width: width - cellPaddingX * 2,
           lineBreak: false,
           ellipsis: true
         })
         x += width
       })
-      y += rowHeight
+      y += headerRowHeight
     }
 
-    const ensureRowSpace = () => {
+    const ensureRowSpace = (targetRowHeight: number) => {
       const pageBottom = doc.page.height - margin
-      if (y + rowHeight > pageBottom) {
+      if (y + targetRowHeight > pageBottom) {
         doc.addPage()
         y = margin
         doc.fontSize(14).font('Helvetica-Bold').text(`${title}${suffix}`, margin, y)
@@ -162,16 +165,31 @@ export async function exportTableToPdf(
     drawHeader()
     doc.font('Helvetica').fontSize(cellFontSize)
     for (const row of data) {
-      ensureRowSpace()
-      let x = margin
-      chunk.forEach(colIndex => {
-        const width = colWidths[colIndex]
+      const rowValues = chunk.map(colIndex => {
         const col = columns[colIndex]
-        const value = formatCellValueForPdf(row[col.key])
+        return formatCellValueForPdf(row[col.key]).slice(0, maxCellChars)
+      })
+
+      const rowHeight = rowValues.reduce((currentMax, value, index) => {
+        const colIndex = chunk[index]
+        const width = colWidths[colIndex]
+        const textHeight = doc.heightOfString(value, {
+          width: width - cellPaddingX * 2,
+          lineBreak: true
+        })
+        return Math.max(currentMax, Math.ceil(textHeight) + cellPaddingY * 2)
+      }, minRowHeight)
+
+      ensureRowSpace(rowHeight)
+      let x = margin
+      chunk.forEach((colIndex, rowValueIndex) => {
+        const width = colWidths[colIndex]
+        const value = rowValues[rowValueIndex]
         doc.rect(x, y - 2, width, rowHeight).stroke()
-        doc.text(value.slice(0, maxCellChars), x + 4, y + 4, {
-          width: width - 8,
-          lineBreak: false,
+        doc.text(value, x + cellPaddingX, y + cellPaddingY, {
+          width: width - cellPaddingX * 2,
+          height: rowHeight - cellPaddingY * 2,
+          lineBreak: true,
           ellipsis: true
         })
         x += width
