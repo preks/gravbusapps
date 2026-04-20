@@ -31,6 +31,8 @@ import {
 } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 // Components
 import {
@@ -87,6 +89,8 @@ const navigateToApp = (appPath: string, params?: Record<string, string>) => {
  */
 export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-testid': testId = 'desk-hub' }) => {
   const { t } = useTranslation(deskTranslations)
+  const previewFeature = useFeature<boolean>(Feature.Preview.Enabled.Key)
+  const previewEnabled = previewFeature === true
   const [searchQuery, setSearchQuery] = useState('')
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [chatScope, setChatScope] = useState<'all' | 'space'>('all')
@@ -113,6 +117,22 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
     includeContent: true,
     autoLoad: true
   })
+
+  const activityStats = useMemo(
+    () =>
+      previewEnabled
+        ? stats
+        : {
+            ...stats,
+            whiteboards: { total: 0, shared: 0 }
+          },
+    [previewEnabled, stats]
+  )
+
+  const activityDataWithoutWhiteboards = useMemo(
+    () => (previewEnabled ? activityData : activityData.map(day => ({ ...day, whiteboards: 0 }))),
+    [activityData, previewEnabled]
+  )
 
   // Combine all items for search
   const allItems = useMemo(() => {
@@ -179,7 +199,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
   }, [])
 
   const toggleAppsCollapse = useCallback(() => {
-    setIsAppsCollapsed(prev => {
+    setIsAppsCollapsed((prev: boolean) => {
       const newValue = !prev
       localStorage.setItem('desk-apps-collapsed', JSON.stringify(newValue))
       return newValue
@@ -240,7 +260,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
         />
 
         {/* Nexus Teaser */}
-        <NexusTeaser data-testid={`${testId}-nexus-teaser`} />
+        {previewEnabled && <NexusTeaser data-testid={`${testId}-nexus-teaser`} />}
 
         {/* Spaces Section */}
         {spaces.length > 0 && (
@@ -387,19 +407,21 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                   animationDelay={0.4}
                   data-testid={`${testId}-app-slides`}
                 />
-                <AppCard
-                  title={t('app-whiteboards-title')}
-                  description={t('app-whiteboards-description')}
-                  icon={PenTool}
-                  count={stats.whiteboards.total}
-                  sharedCount={stats.whiteboards.shared}
-                  accentColor="accent"
-                  onOpen={handleOpenWhiteboards}
-                  onCreate={handleCreateWhiteboard}
-                  isLoading={isLoading}
-                  animationDelay={0.45}
-                  data-testid={`${testId}-app-whiteboards`}
-                />
+                {previewEnabled && (
+                  <AppCard
+                    title={t('app-whiteboards-title')}
+                    description={t('app-whiteboards-description')}
+                    icon={PenTool}
+                    count={stats.whiteboards.total}
+                    sharedCount={stats.whiteboards.shared}
+                    accentColor="secondary"
+                    onOpen={handleOpenWhiteboards}
+                    onCreate={handleCreateWhiteboard}
+                    isLoading={isLoading}
+                    animationDelay={0.45}
+                    data-testid={`${testId}-app-whiteboards`}
+                  />
+                )}
                 <AppCard
                   title={t('app-drive-title')}
                   description={t('app-drive-description')}
@@ -419,8 +441,8 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
 
         {/* Activity Visualization */}
         <ActivityVisualization
-          activityData={activityData}
-          stats={stats}
+          activityData={activityDataWithoutWhiteboards}
+          stats={activityStats}
           isLoading={isLoading}
           data-testid={`${testId}-activity`}
         />
@@ -450,7 +472,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
       </div>
 
       {/* Floating Chat Button */}
-      {!isChatOpen && (
+      {previewEnabled && !isChatOpen && (
         <Button
           onClick={() => setIsChatOpen(true)}
           className="gba:fixed gba:right-6 gba:bottom-6 gba:h-14 gba:w-14 gba:rounded-full gba:z-50"
@@ -462,7 +484,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
       )}
 
       {/* Document Chat Panel */}
-      {accessToken && currentUserId && (
+      {previewEnabled && accessToken && currentUserId && (
         <DocumentChat
           userId={currentUserId}
           userName={

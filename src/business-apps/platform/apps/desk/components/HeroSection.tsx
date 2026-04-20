@@ -4,11 +4,13 @@
  * Includes a row of glass-morphism app navigation icons.
  */
 
-import React, { useCallback, type LucideIcon } from 'react'
+import React, { useCallback, useMemo, type LucideIcon } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { Layers, FileText, FileSpreadsheet, StickyNote, Presentation, HardDrive, Users, Mail } from 'lucide-react'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background/PremiumHeroBackground'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import deskTranslations from '../_i18n'
 
 interface AppNavItem {
@@ -40,6 +42,12 @@ interface HeroSectionProps {
 
 export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId = 'desk-hero' }) => {
   const { t } = useTranslation(deskTranslations)
+  const previewFeature = useFeature<boolean>(Feature.Preview.Enabled.Key)
+  const previewEnabled = previewFeature === true
+  const visibleNavItems = useMemo(
+    () => APP_NAV_ITEMS.filter(item => previewEnabled || item.id !== 'emails'),
+    [previewEnabled]
+  )
 
   const handleAppClick = useCallback((path: string) => {
     navigateTo(buildPlatformUrl(path, { from: 'desk' }))
@@ -85,7 +93,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
           aria-label={t('hero-nav-aria-label')}
           data-testid={`${testId}-app-nav`}
         >
-          {APP_NAV_ITEMS.map(item => (
+          {visibleNavItems.map(item => (
             <HeroAppIcon
               key={item.id}
               item={item}
