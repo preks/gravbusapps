@@ -18,10 +18,11 @@ import { getPictureDataUrl } from '../../../utils/imageUtils'
 
 interface RomaniaChecksViewProps {
   employees: PayrollEmployee[]
+  onSelectEmployee: (employee: PayrollEmployee) => void
   t: (key: string) => string
 }
 
-export const RomaniaChecksView: React.FC<RomaniaChecksViewProps> = ({ employees, t }) => {
+export const RomaniaChecksView: React.FC<RomaniaChecksViewProps> = ({ employees, onSelectEmployee, t }) => {
   const roIssues = employees.reduce((sum, emp) => {
     return sum + emp.issues.filter(i => i.issueCode.startsWith('RO_') && i.status === 'open').length
   }, 0)
@@ -29,12 +30,12 @@ export const RomaniaChecksView: React.FC<RomaniaChecksViewProps> = ({ employees,
   return (
     <div className="gba:space-y-6" data-testid="payroll-prep-country-checks-ro-view">
       <Card
-        className="gba:p-4 gba:flex gba:items-center gba:justify-between"
+        className="gba:p-4 gba:flex gba:items-start gba:justify-between"
         data-testid="payroll-prep-country-checks-ro-summary-card"
       >
         <div>
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
-            {t('country-ro')} — {t('country-checks-title')}
+            {t('country-ro')} - {t('country-checks-title')}
           </h3>
           <p className="gba:text-sm gba:text-muted-foreground">
             {employees.length} {t('summary-total').toLowerCase()}, {roIssues} {t('grid-issues').toLowerCase()}
@@ -64,17 +65,22 @@ export const RomaniaChecksView: React.FC<RomaniaChecksViewProps> = ({ employees,
                 const hasBlockers = openIssues.some(i => i.severity === 'blocker')
 
                 return (
-                  <TableRow key={emp.id} data-testid={`payroll-prep-country-checks-ro-row-${emp.id}`}>
+                  <TableRow
+                    key={emp.id}
+                    className="gba:cursor-pointer gba:hover:bg-muted"
+                    data-testid={`payroll-prep-country-checks-ro-row-${emp.id}`}
+                    onClick={() => onSelectEmployee(emp)}
+                  >
                     <TableCell>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Avatar size="sm" className="gba:h-7 gba:w-7 gba:flex-shrink-0">
-                          <AvatarImage src={getPictureDataUrl(emp.pictureThumbnail)} alt={emp.displayName} />
+                          <AvatarImage src={getPictureDataUrl(emp.pictureThumbnail)} alt={emp.fullName} />
                           <AvatarFallback className="gba:text-xs gba:font-medium">
                             {emp.firstName?.charAt(0) || ''}
                             {emp.lastName?.charAt(0) || ''}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="gba:text-sm gba:font-medium gba:text-foreground">{emp.displayName}</span>
+                        <span className="gba:text-sm gba:font-medium gba:text-foreground">{emp.fullName}</span>
                       </div>
                     </TableCell>
                     <TableCell>
