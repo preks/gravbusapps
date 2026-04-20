@@ -31,7 +31,7 @@ import { useTeamOperationalStatus } from '../../hooks/useTeamOperationalStatus'
 import { useTeamPendingActions } from '../../hooks/useTeamPendingActions'
 import { useTeamCapacity } from '../../hooks/useTeamCapacity'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { TeamMember, TeamAbsenceToday, CapacityRow } from '../../types/types'
+import { TeamMember, TeamAbsenceToday, CapacityRow, AbsenceNetEntry } from '../../types/types'
 import {
   formatMinutes,
   toDateString,
@@ -43,10 +43,12 @@ import { toAvatarSrc, goToProfile } from '../../utils/employeeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { GET_TEAM_ABSENCE_NET_FOR_RANGE } from '../../queries/queries'
 import {
-  expandDateRange,
+  buildApprovedNonWorkTimeOffByEmployeeDate,
+  expandDetailedAbsencesToCalendarDays,
   fetchTeamDetailedAbsences,
   fetchTeamHolidayData,
   getActiveLocale,
+  getTimeOffFractionForEmployeeDate,
   isSickAbsence,
   isWorkAbsence
 } from '../../utils/teamTimeDomain'
@@ -252,8 +254,6 @@ const getProgressColor = (pct: number): string => {
   return 'var(--nw-destructive)'
 }
 
-const getForecastTimeOffKey = (employeeId: string, dayDate: string): string => `${employeeId}:${dayDate}`
-
 export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   const { members, memberIds, isLoading: membersLoading } = useTeamMembers(props)
   const {
@@ -330,52 +330,12 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
         })
       ])
 
-      const expandedForecastAbsences = detailedAbsences.flatMap(absence =>
-        expandDateRange(absence.startDate, absence.endDate, from, to).map(dayDate => ({
-          employeeId: absence.employeeId,
-          typeRef: absence.typeRef,
-          status: absence.status,
-          dayDate,
-          employeeAbsenceId: absence.id,
-          typeLabel: absence.typeLabel,
-          parentEntryId: absence.parentEntryId,
-          startDate: absence.startDate,
-          endDate: absence.endDate,
-          employeeName: absence.employeeName,
-          pictureThumbnail: absence.pictureThumbnail
-        }))
-      )
+      const expandedForecastAbsences = expandDetailedAbsencesToCalendarDays(detailedAbsences, from, to)
       setForecastAbsences(expandedForecastAbsences)
       setForecastHolidayDatesByEmployeeId(holidayData.datesByEmployeeId)
       setForecastHolidayNamesByEmployeeId(holidayData.namesByEmployeeId)
-
-      const nonWorkAbsenceDayKeys = new Set(
-        expandedForecastAbsences
-          .filter(absence => absence.status === 'APPROVED' && !isWorkAbsence(absence))
-          .map(absence => getForecastTimeOffKey(absence.employeeId, absence.dayDate))
-      )
-
-      const dailyTimeOffFraction = new Map<string, number>()
-      const absenceNetRows: any[] = absenceNetResult?.DailyAbsenceNetView ?? []
-      absenceNetRows.forEach(row => {
-        const dayKey = getForecastTimeOffKey(row.employeeId, row.dayDate)
-        if (!nonWorkAbsenceDayKeys.has(dayKey)) {
-          return
-        }
-
-        const value = Number(row.netSignedEps ?? row.netConsumed) || 0
-        if (value <= 0) {
-          return
-        }
-
-        dailyTimeOffFraction.set(dayKey, Math.min(1, (dailyTimeOffFraction.get(dayKey) ?? 0) + value))
-      })
-
-      nonWorkAbsenceDayKeys.forEach(dayKey => {
-        if (!dailyTimeOffFraction.has(dayKey)) {
-          dailyTimeOffFraction.set(dayKey, 1)
-        }
-      })
+      const absenceNetRows: AbsenceNetEntry[] = absenceNetResult?.DailyAbsenceNetView ?? []
+      const dailyTimeOffFraction = buildApprovedNonWorkTimeOffByEmployeeDate(expandedForecastAbsences, absenceNetRows)
       setForecastTimeOffByEmployeeDate(dailyTimeOffFraction)
     } catch {
       // secondary data, don't block
@@ -396,7 +356,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   }
 
   const getForecastTimeOffFraction = (employeeId: string, dayDate: string): number => {
-    return Math.min(1, forecastTimeOffByEmployeeDate.get(getForecastTimeOffKey(employeeId, dayDate)) ?? 0)
+    return getTimeOffFractionForEmployeeDate(forecastTimeOffByEmployeeDate, employeeId, dayDate)
   }
 
   const getForecastCell = (date: string): { available: number; total: number; pct: number } => {

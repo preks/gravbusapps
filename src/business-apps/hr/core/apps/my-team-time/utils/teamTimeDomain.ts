@@ -1,6 +1,7 @@
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { employmentRegionHolidaysQuery } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 import { GET_TEAM_ABSENCE_DETAILS_FOR_RANGE, GET_TEAM_MEMBER_REGIONS } from '../queries/queries'
+import type { AbsenceNetEntry, TeamAbsenceToday } from '../types/types'
 
 export const WORK_ABSENCE_GROUP = 'AbsenceGroup:v1:WORK'
 export const HEALTH_ABSENCE_GROUP = 'AbsenceGroup:v1:HEALTH'
@@ -169,6 +170,69 @@ export const getApprovedAbsencesForDate = (
       absence.status === 'APPROVED' &&
       isDateWithinRange(dateKey, absence.startDate, absence.endDate)
   )
+
+const getEmployeeDateKey = (employeeId: string, dayDate: string): string => `${employeeId}:${dayDate}`
+
+export const expandDetailedAbsencesToCalendarDays = (
+  absences: TeamDetailedAbsence[],
+  from: string,
+  to: string
+): TeamAbsenceToday[] =>
+  absences.flatMap(absence =>
+    expandDateRange(absence.startDate, absence.endDate, from, to).map(dayDate => ({
+      employeeId: absence.employeeId,
+      typeRef: absence.typeRef,
+      status: absence.status,
+      dayDate,
+      employeeAbsenceId: absence.id,
+      typeLabel: absence.typeLabel,
+      parentEntryId: absence.parentEntryId,
+      startDate: absence.startDate,
+      endDate: absence.endDate,
+      employeeName: absence.employeeName,
+      pictureThumbnail: absence.pictureThumbnail
+    }))
+  )
+
+export const buildApprovedNonWorkTimeOffByEmployeeDate = (
+  expandedAbsences: TeamAbsenceToday[],
+  absenceNetRows: AbsenceNetEntry[]
+): Map<string, number> => {
+  const nonWorkAbsenceDayKeys = new Set(
+    expandedAbsences
+      .filter(absence => absence.status === 'APPROVED' && !isWorkAbsence(absence))
+      .map(absence => getEmployeeDateKey(absence.employeeId, absence.dayDate))
+  )
+
+  const dailyTimeOffFraction = new Map<string, number>()
+  absenceNetRows.forEach(row => {
+    const dayKey = getEmployeeDateKey(row.employeeId, row.dayDate)
+    if (!nonWorkAbsenceDayKeys.has(dayKey)) {
+      return
+    }
+
+    const value = Number(row.netSignedEps ?? row.netConsumed) || 0
+    if (value <= 0) {
+      return
+    }
+
+    dailyTimeOffFraction.set(dayKey, Math.min(1, (dailyTimeOffFraction.get(dayKey) ?? 0) + value))
+  })
+
+  nonWorkAbsenceDayKeys.forEach(dayKey => {
+    if (!dailyTimeOffFraction.has(dayKey)) {
+      dailyTimeOffFraction.set(dayKey, 1)
+    }
+  })
+
+  return dailyTimeOffFraction
+}
+
+export const getTimeOffFractionForEmployeeDate = (
+  dailyTimeOffFraction: Map<string, number>,
+  employeeId: string,
+  dayDate: string
+): number => Math.min(1, dailyTimeOffFraction.get(getEmployeeDateKey(employeeId, dayDate)) ?? 0)
 
 export const fetchTeamDetailedAbsences = async (
   graphqlClient: GraphqlClient,
