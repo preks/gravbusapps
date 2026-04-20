@@ -9621,25 +9621,25 @@
     ]
   },
   "core/office/apps/documents": {
-    "bitbucketBuildNumber": 10993,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10993/",
-    "chunkJsBytes": 1719607,
+    "bitbucketBuildNumber": 11011,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11011/",
+    "chunkJsBytes": 1716698,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1694604,
-        "gzip": 371611,
+        "rendered": 1689918,
+        "gzip": 370786,
         "leaves": [
-          {
-            "name": "src/business-apps/core/office/apps/documents/DocumentAppsHub.tsx",
-            "rendered": 71362,
-            "gzip": 10679
-          },
           {
             "name": "src/business-apps/core/office/apps/documents/_i18n/de-DE.ftl?raw",
             "rendered": 68150,
             "gzip": 17451
+          },
+          {
+            "name": "src/business-apps/core/office/apps/documents/_i18n/ro-RO.ftl?raw",
+            "rendered": 67551,
+            "gzip": 17429
           }
         ]
       },
@@ -9767,8 +9767,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
-        "rendered": 13216,
-        "gzip": 4723,
+        "rendered": 12192,
+        "gzip": 4199,
         "leaves": [
           {
             "name": "src/common/utils/serviceResolver.ts",
@@ -87986,20 +87986,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11006,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11006/",
-    "chunkJsBytes": 1805805,
+    "bitbucketBuildNumber": 11011,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11011/",
+    "chunkJsBytes": 1805823,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1498966,
-        "gzip": 88381,
+        "rendered": 1498972,
+        "gzip": 88377,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1498966,
-            "gzip": 88381
+            "rendered": 1498972,
+            "gzip": 88377
           }
         ]
       },
@@ -101651,7 +101651,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-20T08:05:58.704Z",
+    "generatedAt": "2026-04-20T08:20:47.935Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
