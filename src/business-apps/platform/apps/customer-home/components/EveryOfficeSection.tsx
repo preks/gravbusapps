@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { Button, useTranslation } from '@newwork/nw-design-system'
 import {
   FileText,
@@ -11,6 +11,8 @@ import {
   ArrowRight
 } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import { FeatureCard } from './FeatureCard'
 import translations from '../_i18n'
 
@@ -75,6 +77,13 @@ export const EveryOfficeSection: React.FC<EveryOfficeSectionProps> = ({
   'data-testid': testId = 'customer-home-office'
 }) => {
   const { t } = useTranslation(translations)
+  const previewFeature = useFeature<boolean>(Feature.Preview.Enabled.Key)
+  const previewEnabled = previewFeature === true
+
+  const visibleOfficeFeatures = useMemo(
+    () => OFFICE_FEATURES.filter(feature => previewEnabled || (feature.id !== 'whiteboards' && feature.id !== 'nexus')),
+    [previewEnabled]
+  )
 
   const handleFeatureClick = useCallback((path: string) => {
     navigateTo(buildPlatformUrl(path, { from: 'customer-home' }))
@@ -101,7 +110,7 @@ export const EveryOfficeSection: React.FC<EveryOfficeSectionProps> = ({
         </div>
 
         <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:xl:grid-cols-4 gba:gap-4 gba:mb-6">
-          {OFFICE_FEATURES.map((feature, index) => (
+          {visibleOfficeFeatures.map((feature, index) => (
             <FeatureCard
               key={feature.id}
               title={t(feature.titleKey)}
