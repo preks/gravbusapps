@@ -56,6 +56,8 @@ interface CreateMeetingModalProps {
   defaultCalendarId?: string
   initialDate?: Date
   initialHour?: number
+  initialTitle?: string
+  initialParticipants?: CalendarEmployee[]
   // For editing existing meeting
   editMeeting?: {
     id: string
@@ -122,6 +124,8 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   defaultCalendarId,
   initialDate,
   initialHour,
+  initialTitle,
+  initialParticipants = [],
   editMeeting
 }) => {
   const { t } = useTranslation(translations)
@@ -243,7 +247,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       editableCalendars
     })
 
-    setTitle('')
+    setTitle(initialTitle || '')
     setDescription('')
     setDate(formatDateForInput(new Date()))
     setStartTime(formatTimeForInput(new Date()))
@@ -257,10 +261,10 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
     setSelectedCalendarId(nextCalendarId)
     setEnableAITranscription(false)
     setAgendaItems([])
-    setSelectedParticipants([])
+    setSelectedParticipants(initialParticipants.map(participant => ({ ...participant })))
     setSearchQuery('')
     setSearchResults([])
-  }, [defaultCalendarId, editableCalendars, includePersonal])
+  }, [defaultCalendarId, editableCalendars, includePersonal, initialParticipants, initialTitle])
 
   // Initialize form when editMeeting changes
   useEffect(() => {

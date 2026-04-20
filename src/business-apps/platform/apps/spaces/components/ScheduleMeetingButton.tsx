@@ -8,8 +8,12 @@ import React, { useCallback } from 'react'
 import { Button, useTranslation } from '@newwork/nw-design-system'
 import { CalendarPlus } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import type { SpaceMember } from '../types/space.types'
+import type { LinkedCalendar, SpaceMember } from '../types/space.types'
 import translations from '../_i18n'
+
+type ScheduleMeetingMember = SpaceMember & {
+  userName?: string
+}
 
 export interface ScheduleMeetingButtonProps {
   /** Space ID for context */
@@ -17,7 +21,9 @@ export interface ScheduleMeetingButtonProps {
   /** Space name for meeting title suggestion */
   spaceName: string
   /** Members to invite to the meeting */
-  members: SpaceMember[]
+  members: ScheduleMeetingMember[]
+  /** Shared calendar linked to this space dimension */
+  linkedCalendar: LinkedCalendar | null
   /** Button variant */
   variant?: 'default' | 'outline' | 'secondary' | 'ghost'
   /** Button size */
@@ -33,6 +39,7 @@ export const ScheduleMeetingButton: React.FC<ScheduleMeetingButtonProps> = ({
   spaceId,
   spaceName,
   members,
+  linkedCalendar,
   variant = 'secondary',
   size = 'sm',
   className,
@@ -47,19 +54,34 @@ export const ScheduleMeetingButton: React.FC<ScheduleMeetingButtonProps> = ({
 
     // Build URL params for meeting creation
     const params = new URLSearchParams({
-      tab: 'calendar',
+      view: 'calendar',
       action: 'createMeeting',
       spaceId,
       meetingTitle: t('calendar-meeting-title', { spaceName })
     })
 
+    if (linkedCalendar?.id) {
+      params.set('calendarId', linkedCalendar.id)
+      params.set('calendarIds', linkedCalendar.id)
+      params.set('includePersonal', 'false')
+    }
+
     // Add member IDs as comma-separated list
     if (members.length > 0) {
       params.set('participantIds', members.map(m => m.userId).join(','))
+      params.set(
+        'participantDrafts',
+        JSON.stringify(
+          members.map(member => ({
+            userId: member.userId,
+            displayName: member.userName
+          }))
+        )
+      )
     }
 
     navigateTo(buildPlatformUrl(`${chatPath}?${params.toString()}`))
-  }, [members, spaceId, spaceName, t])
+  }, [linkedCalendar?.id, members, spaceId, spaceName, t])
 
   return (
     <Button
@@ -67,7 +89,7 @@ export const ScheduleMeetingButton: React.FC<ScheduleMeetingButtonProps> = ({
       size={size}
       className={className}
       onClick={handleScheduleMeeting}
-      disabled={disabled || members.length === 0}
+      disabled={disabled || members.length === 0 || !linkedCalendar?.id || !linkedCalendar.canEdit}
       data-testid={testId}
     >
       <CalendarPlus className="gba:w-4 gba:h-4 gba:mr-2" />

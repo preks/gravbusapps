@@ -19,7 +19,7 @@ import {
 import { Calendar, Clock, Video, ArrowRight, CalendarBlank, Users } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useChatClient } from '@/common/network/chat/useChatClient'
-import type { SpaceMember } from '../types/space.types'
+import type { LinkedCalendar } from '../types/space.types'
 import translations from '../_i18n'
 import { formatMeetingTimeRange } from '../utils/spaceLocalization'
 
@@ -43,10 +43,8 @@ export interface SpaceMeeting {
 }
 
 export interface SpaceCalendarProps {
-  /** Space ID for filtering meetings */
-  spaceId: string
-  /** Space members to filter meetings by */
-  members: SpaceMember[]
+  /** Shared calendar linked to the space dimension */
+  calendar: LinkedCalendar | null
   /** Access token for API calls */
   accessToken?: string
   /** Maximum number of meetings to show */
@@ -57,8 +55,7 @@ export interface SpaceCalendarProps {
 }
 
 export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
-  spaceId,
-  members,
+  calendar,
   accessToken,
   maxMeetings = 5,
   onScheduleMeeting,
@@ -71,8 +68,9 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   const [error, setError] = useState<string | null>(null)
 
   const fetchMeetings = useCallback(async () => {
-    if (!accessToken || members.length === 0) {
+    if (!accessToken || !calendar?.id) {
       setMeetings([])
+      setError(null)
       return
     }
 
@@ -84,21 +82,17 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
       const endDate = new Date()
       endDate.setDate(endDate.getDate() + 30)
 
-      const data = await chatClient.getCalendarEvents<{ events: SpaceMeeting[] }>(
+      const data = await chatClient.getCalendarEventsFiltered<{ events: SpaceMeeting[] }>(
         startDate.toISOString(),
-        endDate.toISOString()
+        endDate.toISOString(),
+        {
+          calendarIds: [calendar.id],
+          includePersonal: false
+        }
       )
       const allMeetings: SpaceMeeting[] = data?.events || []
 
-      const memberIds = new Set(members.map(m => m.userId))
-      const spaceMeetings = allMeetings.filter(meeting => {
-        if (meeting.organizer?.id && memberIds.has(meeting.organizer.id)) {
-          return true
-        }
-        return true
-      })
-
-      const sortedMeetings = spaceMeetings
+      const sortedMeetings = allMeetings
         .filter(m => new Date(m.start) > new Date())
         .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
         .slice(0, maxMeetings)
@@ -111,7 +105,7 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, chatClient, maxMeetings, members, t])
+  }, [accessToken, calendar?.id, chatClient, maxMeetings, t])
 
   useEffect(() => {
     fetchMeetings()
@@ -121,8 +115,18 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   const handleViewCalendar = useCallback(() => {
     const isProduction = process.env.NODE_ENV === 'production'
     const chatPath = isProduction ? '/platform/chat' : '/platform/apps/chat'
-    navigateTo(buildPlatformUrl(`${chatPath}?tab=calendar&spaceId=${spaceId}`))
-  }, [spaceId])
+    const params = new URLSearchParams({
+      view: 'calendar',
+      includePersonal: 'false'
+    })
+
+    if (calendar?.id) {
+      params.set('calendarIds', calendar.id)
+      params.set('calendarId', calendar.id)
+    }
+
+    navigateTo(buildPlatformUrl(`${chatPath}?${params.toString()}`))
+  }, [calendar?.id])
 
   // Format meeting time
   // Check if meeting is live
@@ -141,7 +145,13 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
             <Calendar className="gba:w-4 gba:h-4" />
             {t('calendar-title')}
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={handleViewCalendar} data-testid={`${testId}-view-all`}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleViewCalendar}
+            disabled={!calendar?.id}
+            data-testid={`${testId}-view-all`}
+          >
             {t('common-view-all')}
             <ArrowRight className="gba:w-4 gba:h-4 gba:ml-1" />
           </Button>
@@ -151,6 +161,14 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
         {isLoading ? (
           <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
             <Spinner size="sm" />
+          </div>
+        ) : !calendar ? (
+          <div className="gba:text-center gba:py-8" data-testid={`${testId}-unlinked`}>
+            <div className="gba:w-12 gba:h-12 gba:mx-auto gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-3">
+              <CalendarBlank className="gba:w-6 gba:h-6 gba:text-muted-foreground" />
+            </div>
+            <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('calendar-no-linked-title')}</p>
+            <p className="gba:text-xs gba:text-muted-foreground">{t('calendar-no-linked-description')}</p>
           </div>
         ) : error ? (
           <div className="gba:text-center gba:py-6 gba:text-sm gba:text-muted-foreground">{error}</div>
