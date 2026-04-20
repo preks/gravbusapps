@@ -66,6 +66,7 @@ type PanelType =
   | 'forecast-day'
   | null
 
+type PanelKey = Exclude<PanelType, null>
 type KpiTone = 'success' | 'warning' | 'info' | 'destructive' | 'muted'
 
 const t = (key: string, fallback: string, vars?: Record<string, unknown>) =>
@@ -112,6 +113,42 @@ const formatAbsencePeriod = (absence: Pick<TeamAbsenceToday, 'startDate' | 'endD
   const startLabel = new Date(absence.startDate).toLocaleDateString()
   const endLabel = new Date(absence.endDate).toLocaleDateString()
   return startLabel === endLabel ? startLabel : `${startLabel} – ${endLabel}`
+}
+
+const splitEmployeeName = (employeeName?: string): { firstName?: string; lastName?: string } => {
+  const [firstName, ...rest] = String(employeeName || '').split(' ')
+  return { firstName, lastName: rest.join(' ') }
+}
+
+interface AbsenceMemberListProps {
+  absences: TeamAbsenceToday[]
+  emptyText: string
+}
+
+const AbsenceMemberList: React.FC<AbsenceMemberListProps> = ({ absences, emptyText }) => {
+  if (absences.length === 0) {
+    return <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">{emptyText}</div>
+  }
+
+  return (
+    <div className="gba:divide-y gba:divide-border">
+      {absences.map(absence => {
+        const { firstName, lastName } = splitEmployeeName(absence.employeeName)
+        const periodLabel = formatAbsencePeriod(absence)
+        return (
+          <div key={absence.employeeAbsenceId} className="gba:flex gba:items-center gba:gap-3 gba:py-3">
+            <EmployeeAvatar firstName={firstName} lastName={lastName} pictureThumbnail={absence.pictureThumbnail} />
+            <div className="gba:min-w-0">
+              <EmployeeName id={absence.employeeId} firstName={firstName} lastName={lastName} />
+              <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                {absence.typeLabel || absence.typeRef} {periodLabel ? `· ${periodLabel}` : ''}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 interface KpiCardProps {
@@ -532,107 +569,80 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
       })
     : []
 
-  const getPanelTitle = (): string => {
-    switch (activePanel) {
-      case 'team-size':
-        return t('total_subordinate_employees', 'Total Subordinate Employees')
-      case 'working-now':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.working_now', 'Working Now')
-      case 'not-clocked-in':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.not_clocked_in', 'Not Clocked In')
-      case 'on-leave':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.on_leave_today', 'On Leave Today')
-      case 'work-away':
-        return t('work_away_today', 'Work Away Today')
-      case 'sick-today':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.sick_today', 'Sick Today')
-      case 'overtime-mtd':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.overtime_mtd', 'Overtime MTD')
-      case 'anomalies':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.active_anomalies', 'Active Anomalies')
-      case 'pending':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.pending_actions', 'Pending Actions')
-      case 'forecast-day':
-        return t('forecast_day_details', 'Capacity Forecast Details')
-      default:
-        return ''
+  const panelMeta: Record<PanelKey, { title: string; description: string; icon: React.ReactNode }> = {
+    'team-size': {
+      title: t('total_subordinate_employees', 'Total Subordinate Employees'),
+      description: t('desc_total_subordinates', 'Direct reports included in this dashboard'),
+      icon: <UsersThreeIcon size={20} />
+    },
+    'working-now': {
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.working_now', 'Working Now'),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:my_team_time.desc_working_now',
+        'Team members currently clocked in'
+      ),
+      icon: <UsersThreeIcon size={20} />
+    },
+    'not-clocked-in': {
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.not_clocked_in', 'Not Clocked In'),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:my_team_time.desc_not_clocked_in',
+        'Expected today but no attendance record yet'
+      ),
+      icon: <ClockIcon size={20} />
+    },
+    'on-leave': {
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.on_leave_today', 'On Leave Today'),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:my_team_time.desc_on_leave',
+        'On approved leave today (excluding sick and WORK absences)'
+      ),
+      icon: <CalendarIcon size={20} />
+    },
+    'work-away': {
+      title: t('work_away_today', 'Work Away Today'),
+      description: t('desc_work_away', 'Employees marked with WORK absences such as remote work or business trips'),
+      icon: <BriefcaseIcon size={20} />
+    },
+    'sick-today': {
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.sick_today', 'Sick Today'),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:my_team_time.desc_sick_today',
+        'On approved sick leave today'
+      ),
+      icon: <HeartbeatIcon size={20} />
+    },
+    'overtime-mtd': {
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.overtime_mtd', 'Overtime MTD'),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:my_team_time.desc_overtime_mtd',
+        'Total overtime accumulated across the team this month'
+      ),
+      icon: <TimerIcon size={20} />
+    },
+    anomalies: {
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.active_anomalies', 'Active Anomalies'),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:my_team_time.desc_anomalies',
+        'Missing logs, unclosed clock-outs, and other issues'
+      ),
+      icon: <WarningIcon size={20} />
+    },
+    pending: {
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.pending_actions', 'Pending Actions'),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:my_team_time.desc_pending',
+        'Absence requests and time corrections awaiting your review'
+      ),
+      icon: <FileTextIcon size={20} />
+    },
+    'forecast-day': {
+      title: t('forecast_day_details', 'Capacity Forecast Details'),
+      description: selectedForecastDateLabel,
+      icon: <CalendarIcon size={20} />
     }
   }
-
-  const getPanelDescription = (): string => {
-    switch (activePanel) {
-      case 'team-size':
-        return t('desc_total_subordinates', 'Direct reports included in this dashboard')
-      case 'working-now':
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:my_team_time.desc_working_now',
-          'Team members currently clocked in'
-        )
-      case 'not-clocked-in':
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:my_team_time.desc_not_clocked_in',
-          'Expected today but no attendance record yet'
-        )
-      case 'on-leave':
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:my_team_time.desc_on_leave',
-          'On approved leave today (excluding sick and WORK absences)'
-        )
-      case 'work-away':
-        return t('desc_work_away', 'Employees marked with WORK absences such as remote work or business trips')
-      case 'sick-today':
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:my_team_time.desc_sick_today',
-          'On approved sick leave today'
-        )
-      case 'overtime-mtd':
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:my_team_time.desc_overtime_mtd',
-          'Total overtime accumulated across the team this month'
-        )
-      case 'anomalies':
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:my_team_time.desc_anomalies',
-          'Missing logs, unclosed clock-outs, and other issues'
-        )
-      case 'pending':
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:my_team_time.desc_pending',
-          'Absence requests and time corrections awaiting your review'
-        )
-      case 'forecast-day':
-        return selectedForecastDateLabel
-      default:
-        return ''
-    }
-  }
-
-  const getPanelIcon = (): React.ReactNode => {
-    switch (activePanel) {
-      case 'team-size':
-        return <UsersThreeIcon size={20} />
-      case 'working-now':
-        return <UsersThreeIcon size={20} />
-      case 'not-clocked-in':
-        return <ClockIcon size={20} />
-      case 'on-leave':
-        return <CalendarIcon size={20} />
-      case 'work-away':
-        return <BriefcaseIcon size={20} />
-      case 'sick-today':
-        return <HeartbeatIcon size={20} />
-      case 'overtime-mtd':
-        return <TimerIcon size={20} />
-      case 'anomalies':
-        return <WarningIcon size={20} />
-      case 'pending':
-        return <FileTextIcon size={20} />
-      case 'forecast-day':
-        return <CalendarIcon size={20} />
-      default:
-        return undefined
-    }
-  }
+  const activePanelMeta = activePanel ? panelMeta[activePanel] : null
 
   const renderPanelContent = () => {
     switch (activePanel) {
@@ -725,102 +735,30 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
         )
       case 'on-leave':
         return (
-          <div className="gba:divide-y gba:divide-border">
-            {leaveAbsences.length === 0 ? (
-              <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:my_team_time.no_one_on_leave',
-                  'No one is on leave today.'
-                )}
-              </div>
-            ) : (
-              leaveAbsences.map(absence => (
-                <div key={absence.employeeAbsenceId} className="gba:flex gba:items-center gba:gap-3 gba:py-3">
-                  <EmployeeAvatar
-                    firstName={absence.employeeName?.split(' ')[0]}
-                    lastName={absence.employeeName?.split(' ').slice(1).join(' ')}
-                    pictureThumbnail={absence.pictureThumbnail}
-                  />
-                  <div className="gba:min-w-0">
-                    <EmployeeName
-                      id={absence.employeeId}
-                      firstName={absence.employeeName?.split(' ')[0]}
-                      lastName={absence.employeeName?.split(' ').slice(1).join(' ')}
-                    />
-                    <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                      {absence.typeLabel || absence.typeRef}{' '}
-                      {formatAbsencePeriod(absence) ? `· ${formatAbsencePeriod(absence)}` : ''}
-                    </div>
-                  </div>
-                </div>
-              ))
+          <AbsenceMemberList
+            absences={leaveAbsences}
+            emptyText={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:my_team_time.no_one_on_leave',
+              'No one is on leave today.'
             )}
-          </div>
+          />
         )
       case 'work-away':
         return (
-          <div className="gba:divide-y gba:divide-border">
-            {workAbsences.length === 0 ? (
-              <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
-                {t('no_one_work_away', 'No one has a WORK absence today.')}
-              </div>
-            ) : (
-              workAbsences.map(absence => (
-                <div key={absence.employeeAbsenceId} className="gba:flex gba:items-center gba:gap-3 gba:py-3">
-                  <EmployeeAvatar
-                    firstName={absence.employeeName?.split(' ')[0]}
-                    lastName={absence.employeeName?.split(' ').slice(1).join(' ')}
-                    pictureThumbnail={absence.pictureThumbnail}
-                  />
-                  <div className="gba:min-w-0">
-                    <EmployeeName
-                      id={absence.employeeId}
-                      firstName={absence.employeeName?.split(' ')[0]}
-                      lastName={absence.employeeName?.split(' ').slice(1).join(' ')}
-                    />
-                    <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                      {absence.typeLabel || absence.typeRef}{' '}
-                      {formatAbsencePeriod(absence) ? `· ${formatAbsencePeriod(absence)}` : ''}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <AbsenceMemberList
+            absences={workAbsences}
+            emptyText={t('no_one_work_away', 'No one has a WORK absence today.')}
+          />
         )
       case 'sick-today':
         return (
-          <div className="gba:divide-y gba:divide-border">
-            {sickAbsences.length === 0 ? (
-              <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:my_team_time.no_one_sick',
-                  'No one is on sick leave today.'
-                )}
-              </div>
-            ) : (
-              sickAbsences.map(absence => (
-                <div key={absence.employeeAbsenceId} className="gba:flex gba:items-center gba:gap-3 gba:py-3">
-                  <EmployeeAvatar
-                    firstName={absence.employeeName?.split(' ')[0]}
-                    lastName={absence.employeeName?.split(' ').slice(1).join(' ')}
-                    pictureThumbnail={absence.pictureThumbnail}
-                  />
-                  <div className="gba:min-w-0">
-                    <EmployeeName
-                      id={absence.employeeId}
-                      firstName={absence.employeeName?.split(' ')[0]}
-                      lastName={absence.employeeName?.split(' ').slice(1).join(' ')}
-                    />
-                    <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                      {absence.typeLabel || absence.typeRef}{' '}
-                      {formatAbsencePeriod(absence) ? `· ${formatAbsencePeriod(absence)}` : ''}
-                    </div>
-                  </div>
-                </div>
-              ))
+          <AbsenceMemberList
+            absences={sickAbsences}
+            emptyText={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:my_team_time.no_one_sick',
+              'No one is on sick leave today.'
             )}
-          </div>
+          />
         )
       case 'overtime-mtd':
         if (overtimeRows.length === 0) {
@@ -1123,81 +1061,92 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
     )
   }
 
+  const kpiCards: Array<{
+    panel: Exclude<PanelKey, 'forecast-day'>
+    icon: React.ReactNode
+    label: string
+    value: number | string
+    tone: KpiTone
+  }> = [
+    {
+      panel: 'team-size',
+      icon: <UsersThreeIcon />,
+      label: t('total_subordinate_employees', 'Total Subordinate Employees'),
+      value: members.length,
+      tone: 'muted'
+    },
+    {
+      panel: 'working-now',
+      icon: <UsersThreeIcon />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.working_now', 'Working Now'),
+      value: status.workingNow.length,
+      tone: 'success'
+    },
+    {
+      panel: 'not-clocked-in',
+      icon: <ClockIcon />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.not_clocked_in', 'Not Clocked In'),
+      value: status.notClockedIn.length,
+      tone: status.notClockedIn.length > 0 ? 'warning' : 'muted'
+    },
+    {
+      panel: 'on-leave',
+      icon: <CalendarIcon />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.on_leave', 'On Leave'),
+      value: status.onLeaveToday.length,
+      tone: 'info'
+    },
+    {
+      panel: 'work-away',
+      icon: <BriefcaseIcon />,
+      label: t('work_away', 'Work Away'),
+      value: workAbsences.length,
+      tone: workAbsences.length > 0 ? 'warning' : 'muted'
+    },
+    {
+      panel: 'sick-today',
+      icon: <HeartbeatIcon />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.sick_today', 'Sick Today'),
+      value: status.sickToday.length,
+      tone: status.sickToday.length > 0 ? 'destructive' : 'muted'
+    },
+    {
+      panel: 'overtime-mtd',
+      icon: <TimerIcon />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.overtime_mtd', 'Overtime MTD'),
+      value: formatMinutes(status.overtimeMinutesMTD),
+      tone: status.overtimeMinutesMTD > 0 ? 'warning' : 'muted'
+    },
+    {
+      panel: 'anomalies',
+      icon: <WarningIcon />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.anomalies', 'Anomalies'),
+      value: status.anomalies.length,
+      tone: status.anomalies.length > 0 ? 'destructive' : 'muted'
+    },
+    {
+      panel: 'pending',
+      icon: <FileTextIcon />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.pending_actions', 'Pending Actions'),
+      value: pendingLoading ? '…' : pendingActionCount,
+      tone: pendingActionCount > 0 ? 'warning' : 'muted'
+    }
+  ]
+
   return (
     <div className="gba:space-y-6" data-testid="my-team-time-dashboard">
       <div className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:lg:grid-cols-5 gba:xl:grid-cols-9 gba:gap-3">
-        <KpiCard
-          icon={<UsersThreeIcon />}
-          label={t('total_subordinate_employees', 'Total Subordinate Employees')}
-          value={members.length}
-          tone="muted"
-          active={activePanel === 'team-size'}
-          onClick={() => togglePanel('team-size')}
-        />
-        <KpiCard
-          icon={<UsersThreeIcon />}
-          label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.working_now', 'Working Now')}
-          value={status.workingNow.length}
-          tone="success"
-          active={activePanel === 'working-now'}
-          onClick={() => togglePanel('working-now')}
-        />
-        <KpiCard
-          icon={<ClockIcon />}
-          label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.not_clocked_in', 'Not Clocked In')}
-          value={status.notClockedIn.length}
-          tone={status.notClockedIn.length > 0 ? 'warning' : 'muted'}
-          active={activePanel === 'not-clocked-in'}
-          onClick={() => togglePanel('not-clocked-in')}
-        />
-        <KpiCard
-          icon={<CalendarIcon />}
-          label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.on_leave', 'On Leave')}
-          value={status.onLeaveToday.length}
-          tone="info"
-          active={activePanel === 'on-leave'}
-          onClick={() => togglePanel('on-leave')}
-        />
-        <KpiCard
-          icon={<BriefcaseIcon />}
-          label={t('work_away', 'Work Away')}
-          value={workAbsences.length}
-          tone={workAbsences.length > 0 ? 'warning' : 'muted'}
-          active={activePanel === 'work-away'}
-          onClick={() => togglePanel('work-away')}
-        />
-        <KpiCard
-          icon={<HeartbeatIcon />}
-          label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.sick_today', 'Sick Today')}
-          value={status.sickToday.length}
-          tone={status.sickToday.length > 0 ? 'destructive' : 'muted'}
-          active={activePanel === 'sick-today'}
-          onClick={() => togglePanel('sick-today')}
-        />
-        <KpiCard
-          icon={<TimerIcon />}
-          label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.overtime_mtd', 'Overtime MTD')}
-          value={formatMinutes(status.overtimeMinutesMTD)}
-          tone={status.overtimeMinutesMTD > 0 ? 'warning' : 'muted'}
-          active={activePanel === 'overtime-mtd'}
-          onClick={() => togglePanel('overtime-mtd')}
-        />
-        <KpiCard
-          icon={<WarningIcon />}
-          label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.anomalies', 'Anomalies')}
-          value={status.anomalies.length}
-          tone={status.anomalies.length > 0 ? 'destructive' : 'muted'}
-          active={activePanel === 'anomalies'}
-          onClick={() => togglePanel('anomalies')}
-        />
-        <KpiCard
-          icon={<FileTextIcon />}
-          label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.pending_actions', 'Pending Actions')}
-          value={pendingLoading ? '…' : pendingActionCount}
-          tone={pendingActionCount > 0 ? 'warning' : 'muted'}
-          active={activePanel === 'pending'}
-          onClick={() => togglePanel('pending')}
-        />
+        {kpiCards.map(card => (
+          <KpiCard
+            key={card.panel}
+            icon={card.icon}
+            label={card.label}
+            value={card.value}
+            tone={card.tone}
+            active={activePanel === card.panel}
+            onClick={() => togglePanel(card.panel)}
+          />
+        ))}
       </div>
 
       <Card data-testid="capacity-forecast-weekly">
@@ -1348,15 +1297,15 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
       </Card>
 
       <DataDetailsDrawer
-        title={getPanelTitle()}
-        icon={getPanelIcon()}
+        title={activePanelMeta?.title || ''}
+        icon={activePanelMeta?.icon}
         open={activePanel !== null}
         onClose={() => setActivePanel(null)}
         width={440}
         placement="right"
         dataTestId="dashboard-details-drawer"
       >
-        <div className="gba:mb-2 gba:text-sm gba:text-muted-foreground">{getPanelDescription()}</div>
+        <div className="gba:mb-2 gba:text-sm gba:text-muted-foreground">{activePanelMeta?.description || ''}</div>
         {renderPanelContent()}
       </DataDetailsDrawer>
     </div>
