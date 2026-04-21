@@ -1003,18 +1003,6 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 />
               </div>
             </div>
-            <CreateTemplateDialog
-              open={createTemplateDialogOpen}
-              onOpenChange={setCreateTemplateDialogOpen}
-              createTemplate={createTemplate}
-              currentUserId={currentUserId}
-              onCreated={(template, options) => {
-                setSessionEntityContext(options?.entityContext ?? null)
-                setTemplateBeingEdited(template)
-                setCurrentView('editor')
-              }}
-              data-testid={`${testId}-create-template-dialog`}
-            />
           </>
         )}
 
@@ -1592,6 +1580,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             )}
           </>
         )}
+
+        <CreateTemplateDialog
+          open={createTemplateDialogOpen}
+          onOpenChange={setCreateTemplateDialogOpen}
+          createTemplate={createTemplate}
+          onCreated={(template, options) => {
+            setSessionEntityContext(options?.entityContext ?? null)
+            setTemplateBeingEdited(template)
+            setCurrentView('editor')
+          }}
+          data-testid={`${testId}-create-template-dialog`}
+        />
       </main>
 
       <DeleteConfirmDialog
