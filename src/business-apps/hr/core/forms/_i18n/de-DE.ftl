@@ -314,10 +314,18 @@ notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten 
 notification-feedback-request-sent-success = Ihre Feedbackanfrage wurde gesendet
 notification-feedback-request-sent-success-on-behalf = Die Feedbackanfrage wurde gesendet
 feedback-request-missing-user-id = Einige ausgewaehlte Mitarbeiter haben keine User-ID. Bitte waehlen Sie sie erneut aus und versuchen Sie es erneut.
-entitlements-valid-from-month-start-hint = Das eingereichte Datum ist immer der erste Tag des ausgewaehlten Monats, unabhaengig vom ausgewaehlten Tag.
-entitlements-valid-from = Gueltig ab
-entitlements-effective-from = Wirksam ab
-entitlements-effective-to = Wirksam bis
+entitlements-valid-from-month-start-hint = Das übermittelte Datum ist immer der erste Tag des ausgewählten Monats, unabhängig vom gewählten Datum.
+entitlements-valid-from = Gültig ab
+entitlements-update-title = Ansprüche anpassen
+entitlements-add-title = Anspruch hinzufügen
+entitlements-total = Jährlicher Anspruch / Kontingent
+entitlements-total-annual = Jährlicher Anspruch / Kontingent
+entitlements-effective-from = Gültig ab
+entitlements-effective-to = Gültig bis
+entitlements-valid-from-hire-date-error = Das „Gültig ab”-Datum darf nicht vor dem Eintrittsdatum des Mitarbeiters liegen.
+entitlements-duplicate-error = Ein Anspruch mit demselben Typ und demselben Gültigkeitsdatum existiert bereits.
+entitlements-in-between-error = Das „Gültig ab”-Datum darf nicht vor dem neuesten vorhandenen Eintrag für diesen Anspruchstyp liegen.
+entitlements-hire-date-hint = Fruehestes erlaubtes Datum
 
 # ============================================
 # Create Employee Form

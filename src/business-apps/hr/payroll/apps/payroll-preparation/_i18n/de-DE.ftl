@@ -93,7 +93,7 @@ grid-pagination-prev = Zurück
 grid-pagination-next = Weiter
 
 filter-all = Alle
-filter-search = Nach vollem Namen suchen...
+filter-search = Nach Mitarbeiter oder Code suchen...
 filter-readiness = Bereitschaftsstatus
 filter-changed-only = Nur Geänderte
 filter-department = Abteilung
@@ -105,7 +105,7 @@ export-include-issues = Problemzusammenfassung einschließen
 export-button = Exportieren
 export-exceptions-button = Ausnahmenbericht exportieren
 export-success = Abrechnungsdaten erfolgreich exportiert.
-export-mark-complete = Abschluss bestätigen
+export-mark-complete = Als abgeschlossen markieren
 export-complete-hint = Nachdem Sie die Datei erfolgreich exportiert haben, bestätigen Sie den Abschluss mit der Schaltfläche unten.
 
 signoff-prepared-by = Vorbereitet von
@@ -168,7 +168,7 @@ audit-trail = Audit-Protokoll
 audit-empty = Noch keine Audit-Ereignisse vorhanden.
 
 audit-payroll-created = Abrechnungslauf erstellt
-audit-marked-ready = Zur Prüfung markiert
+audit-marked-ready = Als bereit zur Prüfung markiert
 audit-status-changed = { $description }
 audit-review-approved = { $description }
 audit-review-rejected = { $description }
@@ -227,7 +227,7 @@ step-3-review-comment = Prüfkommentar
 step-4-description = Der Abrechnungslauf wurde abgeschlossen.
 signoff-decision-approved = Genehmigt
 signoff-decision-not-approved = Nicht genehmigt
-signoff-mark-ready = Zur Prüfung markieren
+signoff-mark-ready = Als bereit zur Prüfung markieren
 signoff-current-user = Angemeldet als
 action-cancel = Abbrechen
 

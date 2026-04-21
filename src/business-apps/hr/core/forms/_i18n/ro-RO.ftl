@@ -316,8 +316,16 @@ notification-feedback-request-sent-success-on-behalf = Cererea de feedback a fos
 feedback-request-missing-user-id = Unii angajati selectati nu au user ID. Selectati-i din nou si incercati din nou.
 entitlements-valid-from-month-start-hint = Data trimisa va fi intotdeauna prima zi a lunii selectate, indiferent de ziua aleasa.
 entitlements-valid-from = Valabil de la
+entitlements-update-title = Actualizează drepturile
+entitlements-add-title = Adaugă drept
+entitlements-total = Drept / Alocare anuală
+entitlements-total-annual = Drept / Alocare anuală
 entitlements-effective-from = Efectiv de la
 entitlements-effective-to = Efectiv pana la
+entitlements-valid-from-hire-date-error = Efectiv de la nu poate fi mai devreme decat data angajarii angajatului
+entitlements-duplicate-error = Exista deja un drept cu acelasi tip si aceeasi data de intrare in vigoare.
+entitlements-in-between-error = Efectiv de la nu poate fi mai devreme decat cea mai recenta intrare existenta pentru acest tip de drept
+entitlements-hire-date-hint = Cea mai devreme data permisa
 
 # ============================================
 # Create Employee Form

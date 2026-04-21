@@ -1,9 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import dayjs from 'dayjs'
-import type { DataFilterGroup, DataFilter } from '@/components/data-filter/DataFilter'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { ExpenseStatus, getAdvancePaymentStatusDisplay } from '../utils'
-import { ExpenseAmountRangeFilter } from '@/business-apps/fin/expenses/common/components/filters/ExpenseAmountRangeFilter'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getTranslatedMonthName } from '../utils/monthTranslationUtils'
 import {
@@ -25,7 +23,6 @@ export interface UseAdvancePaymentFiltersReturn {
   cardCreatedAtRange: { gte: string; lte: string } | null
   setCardCreatedAtRange: (range: { gte: string; lte: string } | null) => void
   applyStatisticsCardFilter: (widgetKey: string | null) => void
-  filterGroups: DataFilterGroup[]
   handleDataFilterChange: (filterId: string, selected: boolean) => void
   filterLabelMap: Record<string, string>
   selectedFilters: string[]
@@ -273,66 +270,10 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     setAmountRange(null)
     setAdvanceRange(null)
     setCardCreatedAtRange(null)
-    setSearchTermState('')
+    commitSearchTerm('')
     setCurrencyTokens([])
     setFiltersVersion(v => v + 1)
-  }, [])
-
-  // Create the custom components for range filters
-  const amountRangeComponent = useMemo(
-    () => (
-      <ExpenseAmountRangeFilter
-        amountRange={amountRange}
-        onAmountRangeChange={commitAmountRange}
-        dataTestIdPrefix="amount-range"
-      />
-    ),
-    [amountRange, commitAmountRange]
-  )
-
-  const advanceRangeComponent = useMemo(
-    () => (
-      <ExpenseAmountRangeFilter
-        amountRange={advanceRange}
-        onAmountRangeChange={commitAdvanceRange}
-        dataTestIdPrefix="advance-range"
-      />
-    ),
-    [advanceRange, commitAdvanceRange]
-  )
-
-  // Filter groups (legacy DataFilter sidebar; status id kept as status-* so handleDataFilterChange still works)
-  const filterGroups = useMemo<DataFilterGroup[]>(() => {
-    const statusItems: DataFilter[] = ADVANCE_PAYMENT_SIDEBAR_FILTER_STATUSES.map(status => ({
-      id: `status-${status}`,
-      label: filterLabelMap[status],
-      selected: statusFilter.includes(status)
-    }))
-
-    return [
-      {
-        id: 'statusGroup',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:manager_expense_request_list.expense_table.status',
-          'Status'
-        ),
-        filters: statusItems,
-        selectionMode: 'multiple'
-      },
-      {
-        id: 'amountGroup',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
-        customComponent: amountRangeComponent,
-        hideSearch: true // Hide search since we have custom component
-      },
-      {
-        id: 'advanceGroup',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_range_filter', 'Advance Range'),
-        customComponent: advanceRangeComponent,
-        hideSearch: true // Hide search since we have custom component
-      }
-    ]
-  }, [filterLabelMap, statusFilter, amountRangeComponent, advanceRangeComponent])
+  }, [commitSearchTerm])
 
   return {
     searchTerm,
@@ -347,7 +288,6 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     cardCreatedAtRange,
     setCardCreatedAtRange: commitCardCreatedAtRange,
     applyStatisticsCardFilter,
-    filterGroups,
     handleDataFilterChange,
     filterLabelMap,
     selectedFilters: getAllSelectedFilters,

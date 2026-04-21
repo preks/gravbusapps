@@ -3,6 +3,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   createDateRangeFilterGroup,
   createExpenseTripMultiSelectOptions,
+  createNumberRangeFilterGroup,
   createStatusFilterGroup
 } from '../../../../../../common/config/filterConfigHelpers'
 
@@ -63,7 +64,19 @@ export function createExpensePlanFilterConfig({
           config: { options: topDestinationOptions }
         }
       ]
-    }
+    },
+    createNumberRangeFilterGroup(
+      'reimbursable-amount',
+      'reimbursableAmount',
+      'lowcoder:approve_expense_request.reimbursable',
+      'Reimbursable Amount'
+    ),
+    createNumberRangeFilterGroup(
+      'paid-advance',
+      'paidAdvance',
+      'lowcoder:expense_plan_list.expense_plan_table.paid_advance',
+      'Paid Advance'
+    )
   ]
 
   return { id: 'expense-plans-filters', name: 'Expense Plans Filters', groups }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Sheet, SheetContent } from '@newwork/nw-design-system'
+import { Sheet, SheetContent, SheetTitle } from '@newwork/nw-design-system'
 import ExpensePlanDetails from '../../expense-plans-tab/details/ExpensePlanDetails'
 import ExpenseRequestDetails from '../../expense-requests-tab/details/ExpenseRequestDetails'
 import ExpenseDetailsShell from '../../../../../../common/components/details-panel/ExpenseDetailsShell'
@@ -24,7 +24,8 @@ const DetailsSheet: React.FC<DetailsSheetProps> = props => {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} data-testid="details-sheet">
-      <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
+      <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none" aria-describedby={undefined}>
+        <SheetTitle className="gba:sr-only">{headerTitle}</SheetTitle>
         <ExpenseDetailsShell title={headerTitle}>
           {selectedPlanForDetails && (
             <ExpensePlanDetails selectedItem={selectedPlanForDetails} onClose={onClose} {...context} />

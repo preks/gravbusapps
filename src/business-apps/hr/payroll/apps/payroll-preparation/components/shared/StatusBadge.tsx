@@ -72,6 +72,11 @@ export const PayrollRunStatusBadge: React.FC<PayrollRunStatusBadgeProps> = ({ st
   return <Badge variant={config.variant}>{resolveLabel(config.labelKey, translatedLabel, t)}</Badge>
 }
 
+export function getPayrollRunStatusLabel(status: PayrollRunStatus, t: TranslateFn): string {
+  const config = RUN_STATUS_VARIANTS[status]
+  return config ? t(config.labelKey) : status
+}
+
 interface ChangedBadgeProps {
   changed: boolean
   label: string

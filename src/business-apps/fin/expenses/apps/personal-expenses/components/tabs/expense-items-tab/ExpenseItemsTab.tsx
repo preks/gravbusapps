@@ -45,7 +45,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
     removeFilter,
     clearFilters,
     selectedFilters,
-    filterGroups,
     filterLabelMap,
     getFilters,
     setFilters,
@@ -410,7 +409,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
       addFilter={addFilter}
       removeFilter={removeFilter}
       clearFilters={handleClearAllFilters}
-      filterGroups={filterGroups}
       filterLabelMap={filterLabelMap}
       getFilters={getFiltersWithDateRange}
       setFilters={setFilters}
