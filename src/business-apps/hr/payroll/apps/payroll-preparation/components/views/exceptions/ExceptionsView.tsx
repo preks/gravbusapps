@@ -94,7 +94,11 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
     }
     const query = search.trim().toLowerCase()
     if (query) {
-      result = result.filter(issue => issue.employeeName.toLowerCase().includes(query))
+      result = result.filter(issue => {
+        const matchesName = issue.employeeName.toLowerCase().includes(query)
+        const matchesCode = issue.employeeCode.toLowerCase().includes(query)
+        return matchesName || matchesCode
+      })
     }
     return result
   }, [allIssues, severityFilter, categoryFilter, search, t])

@@ -762,7 +762,11 @@ export function useFilteredEmployees(employees: PayrollEmployee[], filters: Payr
 
     if (filters.search) {
       const q = filters.search.toLowerCase()
-      filtered = filtered.filter(e => e.fullName.toLowerCase().includes(q))
+      filtered = filtered.filter(e => {
+        const matchesName = e.fullName.toLowerCase().includes(q)
+        const matchesCode = e.code.toLowerCase().includes(q)
+        return matchesName || matchesCode
+      })
     }
 
     if (filters.readinessStatus !== 'all') {
