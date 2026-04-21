@@ -435,7 +435,7 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('descr="Styled alt"')
   })
 
-  it('exports document ToC blocks as static Word paragraphs without live fields', async () => {
+  it('exports document ToC blocks as native Word fields with cached result paragraphs', async () => {
     const html = `
       <div
         data-document-toc=""
@@ -461,11 +461,12 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('Table of contents')
     expect(documentXml).toContain('Overview')
     expect(documentXml).toContain('<w:pStyle w:val="TOCHeading"/>')
+    expect(documentXml).toContain('<w:fldChar w:fldCharType="begin"/>')
+    expect(documentXml).toContain('<w:instrText xml:space="preserve"> TOC \\o "1-3" \\h </w:instrText>')
+    expect(documentXml).toContain('<w:fldChar w:fldCharType="separate"/>')
     expect(documentXml).toContain('<w:pStyle w:val="TOC1"/>')
     expect(documentXml).toContain('<w:tab/>')
-    expect(documentXml).not.toContain('TOC \\o')
-    expect(documentXml).not.toContain('fldCharType=')
-    expect(documentXml).not.toContain('<w:instrText')
+    expect(documentXml).toContain('<w:fldChar w:fldCharType="end"/>')
     expect(documentXml).toContain('<w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>')
     expect(documentXml).toContain('<w:sz w:val="28"/>')
     expect(documentXml).toContain('<w:i/>')
@@ -475,12 +476,47 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('<w:b/>')
     expect(documentXml).toContain('<w:color w:val="123456"/>')
     expect(documentXml).toContain('<w:pStyle w:val="Heading1"/>')
+    expect(documentXml).toContain('<w:bookmarkStart w:id="1" w:name="_Toc1"/>')
+    expect(documentXml).toContain('<w:bookmarkEnd w:id="1"/>')
     expect(stylesXml).toContain('<w:style w:type="paragraph" w:styleId="TOCHeading">')
     expect(stylesXml).toContain('<w:style w:type="paragraph" w:styleId="TOC1">')
     expect(stylesXml).toContain('<w:style w:type="paragraph" w:styleId="TOC6">')
     expect(stylesXml).toContain('<w:basedOn w:val="Normal"/>')
     expect(stylesXml).toContain('<w:tabs><w:tab w:val="right" w:leader="dot" w:pos="9350"/></w:tabs>')
     expect(stylesXml).toContain('<w:ind w:left="1800"/>')
+    expect(stylesXml).toContain(
+      '<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:pPr><w:outlineLvl w:val="0"/>'
+    )
+  })
+
+  it('maps Word TOC field switches from current block settings', async () => {
+    const html = `
+      <div
+        data-document-toc=""
+        data-toc-snapshot='{"version":2,"entries":[],"updatedAt":"2026-04-14T10:00:00.000Z","updateMode":"entire","layoutVersion":1}'
+        data-toc-styles='{"title":{"fontFamily":"Arial","fontSizePt":14,"bold":false,"italic":true,"color":"#990000"},"entries":{"fontFamily":"Calibri","fontSizePt":11,"bold":true,"italic":false,"color":"#123456"}}'
+        data-toc-show-page-numbers="false"
+        data-toc-right-align-page-numbers="true"
+        data-toc-tab-leader="none"
+        data-toc-heading-links="false"
+        data-toc-max-heading-level="2"
+      >
+        <div class="document-toc-print-inner">
+          <div class="document-toc-print-title">Contents</div>
+        </div>
+      </div>
+    `
+
+    const blob = await buildDocxBlob('ToC doc', html)
+    const documentXml = await readDocumentXml(blob)
+    const stylesXml = await readStylesXml(blob)
+    const settingsXml = await readZipText(blob, 'word/settings.xml')
+
+    expect(documentXml).toContain('<w:instrText xml:space="preserve"> TOC \\o "1-2" \\n </w:instrText>')
+    expect(documentXml).not.toContain(' TOC \\o "1-2" \\h ')
+    expect(stylesXml).toContain('<w:style w:type="paragraph" w:styleId="TOC1">')
+    expect(stylesXml).not.toContain('<w:tabs><w:tab w:val="right" w:pos="9350"/></w:tabs>')
+    expect(settingsXml).not.toContain('<w:updateFields w:val="true"/>')
   })
 
   it('writes live page setup values into the DOCX section properties', async () => {

@@ -86,6 +86,7 @@ interface DocxTocStyleSettings {
 
 interface DocxBuildState {
   nextDocPrId: number
+  nextBookmarkId: number
 }
 
 interface DocxFieldConfig {
@@ -952,6 +953,12 @@ function allocateDocPrId(ctx: DocxBuildContext): number {
   return nextId
 }
 
+function allocateBookmarkId(ctx: DocxBuildContext): number {
+  const nextId = ctx.buildState.nextBookmarkId
+  ctx.buildState.nextBookmarkId += 1
+  return nextId
+}
+
 function registerImage(ctx: DocxBuildContext, src: string, width: number, height: number): EmbeddedImage | null {
   const parts = extractDataUrlParts(src)
   if (!parts) return null
@@ -1320,6 +1327,16 @@ function buildSimpleFieldXml(instruction: string, displayText: string, props?: s
   return `<w:fldSimple w:instr="${escapeXml(instruction)}"><w:r>${buildRunInnerXml(displayText, props)}</w:r></w:fldSimple>`
 }
 
+function buildHeadingParagraphXml(el: HTMLElement, ctx: DocxBuildContext, level: string): string {
+  const bookmarkId = allocateBookmarkId(ctx)
+  const bookmarkName = `_Toc${bookmarkId}`
+
+  return `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/></w:pPr><w:bookmarkStart w:id="${bookmarkId}" w:name="${bookmarkName}"/>${convertInline(
+    el,
+    ctx
+  )}<w:bookmarkEnd w:id="${bookmarkId}"/></w:p>`
+}
+
 const DOCX_FIELD_TOKEN_REGEX = /\{(page|total|title)\}/g
 
 function wrapTextWithFieldTokens(text: string, ctx: DocxBuildContext, props?: string): string {
@@ -1474,7 +1491,7 @@ async function convertBlock(parent: Node, parts: string[], ctx: DocxBuildContext
         case 'h5':
         case 'h6': {
           const level = tag.charAt(1)
-          parts.push(`<w:p><w:pPr><w:pStyle w:val="Heading${level}"/></w:pPr>${convertInline(el, ctx)}</w:p>`)
+          parts.push(buildHeadingParagraphXml(el, ctx, level))
           break
         }
         case 'ul':
@@ -2054,12 +2071,12 @@ function buildStylesXml(formatting?: DocumentFormatting | null, tocSettings?: Do
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
 <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:pPr><w:spacing w:before="0" w:after="0" w:line="${typography.bodyLineSpacing}" w:lineRule="auto"/></w:pPr><w:rPr>${bodyFontProps}</w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:pPr><w:spacing w:before="0" w:after="320" w:line="288" w:lineRule="auto"/></w:pPr><w:rPr>${h1FontProps}<w:b/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:pPr><w:spacing w:before="400" w:after="240" w:line="312" w:lineRule="auto"/></w:pPr><w:rPr>${h2FontProps}<w:b/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:pPr><w:spacing w:before="320" w:after="200" w:line="336" w:lineRule="auto"/></w:pPr><w:rPr>${h3FontProps}<w:b/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading4"><w:name w:val="heading 4"/><w:pPr><w:spacing w:before="280" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr>${h4FontProps}<w:b/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading5"><w:name w:val="heading 5"/><w:pPr><w:spacing w:before="280" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr>${h4FontProps}<w:b/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading6"><w:name w:val="heading 6"/><w:pPr><w:spacing w:before="280" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr>${h4FontProps}<w:b/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:pPr><w:outlineLvl w:val="0"/><w:spacing w:before="0" w:after="320" w:line="288" w:lineRule="auto"/></w:pPr><w:rPr>${h1FontProps}<w:b/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:pPr><w:outlineLvl w:val="1"/><w:spacing w:before="400" w:after="240" w:line="312" w:lineRule="auto"/></w:pPr><w:rPr>${h2FontProps}<w:b/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:pPr><w:outlineLvl w:val="2"/><w:spacing w:before="320" w:after="200" w:line="336" w:lineRule="auto"/></w:pPr><w:rPr>${h3FontProps}<w:b/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading4"><w:name w:val="heading 4"/><w:pPr><w:outlineLvl w:val="3"/><w:spacing w:before="280" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr>${h4FontProps}<w:b/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading5"><w:name w:val="heading 5"/><w:pPr><w:outlineLvl w:val="4"/><w:spacing w:before="280" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr>${h4FontProps}<w:b/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading6"><w:name w:val="heading 6"/><w:pPr><w:outlineLvl w:val="5"/><w:spacing w:before="280" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr>${h4FontProps}<w:b/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:pPr><w:ind w:left="720"/><w:spacing w:before="0" w:after="0" w:line="${typography.bodyLineSpacing}" w:lineRule="auto"/></w:pPr><w:rPr>${bodyFontProps}</w:rPr></w:style>
 ${tocStylesXml}
 <w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="0066CC"/><w:u w:val="single"/></w:rPr></w:style>
@@ -2135,7 +2152,7 @@ export async function buildDocxBlob(
   formatting?: DocumentFormatting | null
 ): Promise<Blob> {
   const typography = resolveDocxTypographySettings(formatting)
-  const buildState: DocxBuildState = { nextDocPrId: 1 }
+  const buildState: DocxBuildState = { nextDocPrId: 1, nextBookmarkId: 1 }
   const safeHtml = sanitizeHtmlForExport(htmlContent, {
     preserveBlockSpacing: true,
     preserveTextStyles: true,
