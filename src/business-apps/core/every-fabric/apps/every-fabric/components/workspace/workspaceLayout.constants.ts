@@ -28,6 +28,13 @@ export const WORKSPACE_RIGHT_RAIL_DESKTOP_BREAKPOINT_PX = 1500
 
 export const WORKSPACE_RIGHT_RAIL_WIDTH_CLASS = 'gba:w-[min(22rem,calc(100%-2rem))] 2xl:gba:w-[24rem]'
 
+export const WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_CLASS = 'gba:w-[min(32rem,calc(100%-2rem))] 2xl:gba:w-[38rem]'
+
+/** Pixel widths for desktop flex-flow right panel (must match CSS classes above) */
+export const WORKSPACE_RIGHT_RAIL_DEFAULT_WIDTH_PX = 352
+export const WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_PX = 512
+export const WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_2XL_PX = 608
+
 /** Non-desktop right rail: clears fixed bottom composer (no follow-ups) */
 export const WORKSPACE_RIGHT_RAIL_BOTTOM_DEFAULT_CLASS = 'gba:bottom-[10rem] sm:gba:bottom-[11.5rem]'
 
