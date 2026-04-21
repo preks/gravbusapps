@@ -1,9 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   ArrowsClockwiseIcon,
   BrainIcon,
-  CaretDownIcon,
-  CaretUpIcon,
   CheckCircleIcon,
   DatabaseIcon,
   DownloadSimpleIcon,
@@ -22,59 +20,13 @@ import {
   WrenchIcon,
   XCircleIcon
 } from '@phosphor-icons/react'
+import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
 import type { ActivityEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
 import type { ArtifactFile, FabricSubAgent, FabricTaskNode } from '../../types/fabric'
 import { toolCategoryColor } from '../../utils/renderUtils'
 import { FabricProgressTaskRow } from './fabricProgressShared'
-
-// ─── Shared card shell ────────────────────────────────────────────────────────
-
-interface CardProps {
-  title: string
-  badge?: number
-  extra?: React.ReactNode
-  defaultOpen?: boolean
-  children: React.ReactNode
-}
-
-const Card: React.FC<CardProps> = ({ title, badge, extra, defaultOpen = true, children }) => {
-  const [open, setOpen] = useState(defaultOpen)
-  const slug = title.toLowerCase().replace(/\s+/g, '-')
-
-  return (
-    <div className="gba:flex gba:min-h-0 gba:flex-col gba:rounded-[1.25rem] sm:gba:rounded-[1.5rem] gba:border gba:border-border/75 gba:bg-card/96 gba:backdrop-blur-sm gba:overflow-hidden gba:shadow-[0_4px_14px_rgba(15,23,42,0.03)]">
-      <div className="gba:flex gba:min-h-0 gba:items-stretch gba:border-b gba:border-border/50 gba:shrink-0">
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => setOpen(v => !v)}
-          className="gba:flex gba:flex-1 gba:min-w-0 gba:items-center gba:justify-between gba:gap-2 gba:px-3.5 sm:gba:px-4 gba:py-2.5 sm:gba:py-3 gba:text-left gba:hover:bg-muted/15 gba:transition-colors"
-          data-testid={`fabric-panel-card-${slug}`}
-        >
-          <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2">
-            <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:tracking-wide">{title}</span>
-            {badge !== undefined && badge > 0 && (
-              <span className="gba:inline-flex gba:shrink-0 gba:items-center gba:justify-center gba:min-w-[18px] gba:h-[18px] gba:px-1 gba:rounded-full gba:text-[10px] gba:font-semibold gba:bg-muted gba:text-muted-foreground">
-                {badge}
-              </span>
-            )}
-          </div>
-          {open ? (
-            <CaretUpIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-muted-foreground/60" aria-hidden />
-          ) : (
-            <CaretDownIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-muted-foreground/60" aria-hidden />
-          )}
-        </button>
-        {extra != null && (
-          <div className="gba:flex gba:shrink-0 gba:items-center gba:border-l gba:border-border/40 gba:px-3 sm:gba:px-3.5">
-            {extra}
-          </div>
-        )}
-      </div>
-      {open && children}
-    </div>
-  )
-}
+import { LivePreviewCard } from './LivePreviewCard'
+import { PanelCard } from './PanelCard'
 
 function rightPanelProgressLabel(params: {
   totalCount: number
@@ -116,6 +68,7 @@ interface ProgressCardProps {
   progressPercent: number
   isConnected: boolean
   isStreaming: boolean
+  defaultCollapsed?: boolean
 }
 
 const ProgressCard: React.FC<ProgressCardProps> = ({
@@ -124,7 +77,8 @@ const ProgressCard: React.FC<ProgressCardProps> = ({
   totalCount,
   progressPercent,
   isConnected,
-  isStreaming
+  isStreaming,
+  defaultCollapsed = false
 }) => {
   const hasActiveWork = nodes.some(node => node.status === 'active' || node.status === 'pending')
   const displayPercent = isStreaming && totalCount > 0 && completedCount >= totalCount ? 96 : progressPercent
@@ -148,7 +102,7 @@ const ProgressCard: React.FC<ProgressCardProps> = ({
   )
 
   return (
-    <Card title="Progress" extra={connectionBadge} defaultOpen>
+    <PanelCard title="Progress" extra={connectionBadge} defaultOpen={!defaultCollapsed}>
       <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain">
         <div className="gba:px-4 gba:pt-3 gba:pb-1">
           {/* Mini progress bar */}
@@ -182,7 +136,7 @@ const ProgressCard: React.FC<ProgressCardProps> = ({
           </div>
         )}
       </div>
-    </Card>
+    </PanelCard>
   )
 }
 
@@ -215,7 +169,7 @@ const workspaceDocPanelIcon = (type: WorkspaceDocument['type']) => {
 }
 
 const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[] }> = ({ docs }) => (
-  <Card title="Workspace Documents" badge={docs.length} defaultOpen>
+  <PanelCard title="Workspace Documents" badge={docs.length} defaultOpen>
     <div className="gba:py-1">
       {docs.map(doc => (
         <a
@@ -234,14 +188,14 @@ const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[] }> = ({ docs 
         </a>
       ))}
     </div>
-  </Card>
+  </PanelCard>
 )
 
 const ArtifactsCard: React.FC<{ artifacts: ArtifactFile[]; onView: (id: string) => void }> = ({
   artifacts,
   onView
 }) => (
-  <Card title="Artifacts" badge={artifacts.length} defaultOpen>
+  <PanelCard title="Artifacts" badge={artifacts.length} defaultOpen>
     <div className="gba:py-1">
       {artifacts.map(file => (
         <div
@@ -276,7 +230,7 @@ const ArtifactsCard: React.FC<{ artifacts: ArtifactFile[]; onView: (id: string) 
         </div>
       ))}
     </div>
-  </Card>
+  </PanelCard>
 )
 
 const ENTERPRISE_EXPERT_ACCENT = {
@@ -405,7 +359,7 @@ const EnterpriseExpertsCard: React.FC<{
   if (experts.length === 0) return null
 
   return (
-    <Card title="Enterprise experts" badge={experts.length} defaultOpen>
+    <PanelCard title="Enterprise experts" badge={experts.length} defaultOpen>
       <div className="gba:py-1 gba:space-y-1">
         {experts.map(expert => (
           <div
@@ -431,7 +385,7 @@ const EnterpriseExpertsCard: React.FC<{
           </div>
         ))}
       </div>
-    </Card>
+    </PanelCard>
   )
 }
 
@@ -460,7 +414,7 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
   )
 
   return (
-    <Card title="Activity" badge={events.length} defaultOpen={false}>
+    <PanelCard title="Activity" badge={events.length} defaultOpen={false}>
       <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain gba:py-1">
         {sortedEvents.map(event => {
           const isSubagent = event.type === 'subagent_spawn'
@@ -505,7 +459,7 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
           )
         })}
       </div>
-    </Card>
+    </PanelCard>
   )
 }
 
@@ -522,6 +476,9 @@ interface WorkspaceRightPanelProps {
   isConnected: boolean
   isStreaming: boolean
   onViewArtifact: (name: string) => void
+  latestPreview?: ArtifactPreview | null
+  accessToken?: string
+  sessionId?: string
 }
 
 export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
@@ -534,27 +491,46 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   workspaceDocs,
   isConnected,
   isStreaming,
-  onViewArtifact
-}) => (
-  <div
-    className="gba:flex gba:h-full gba:max-h-full gba:min-h-0 gba:flex-col gba:overflow-y-auto gba:rounded-[1.5rem] sm:gba:rounded-[2rem] gba:bg-transparent gba:p-0 sm:gba:p-1 gba:space-y-2 sm:gba:space-y-3"
-    data-testid="fabric-right-panel"
-  >
-    <ProgressCard
-      nodes={taskNodes}
-      completedCount={completedCount}
-      totalCount={totalCount}
-      progressPercent={progressPercent}
-      isConnected={isConnected}
-      isStreaming={isStreaming}
-    />
+  onViewArtifact,
+  latestPreview,
+  accessToken = '',
+  sessionId = ''
+}) => {
+  const showPreview =
+    !!latestPreview &&
+    (latestPreview.status === 'generating' ||
+      latestPreview.status === 'draft_ready' ||
+      latestPreview.status === 'ready' ||
+      latestPreview.status === 'error')
 
-    <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} isStreaming={isStreaming} />
+  return (
+    <div
+      className="gba:flex gba:h-full gba:max-h-full gba:min-h-0 gba:flex-col gba:overflow-y-auto gba:rounded-[1.5rem] sm:gba:rounded-[2rem] gba:bg-transparent gba:p-0 sm:gba:p-1 gba:space-y-2 sm:gba:space-y-3"
+      data-testid="fabric-right-panel"
+    >
+      {showPreview && (
+        <div className="gba:flex-1 gba:min-h-[60%]">
+          <LivePreviewCard preview={latestPreview} accessToken={accessToken} sessionId={sessionId} />
+        </div>
+      )}
 
-    {artifacts.length > 0 && <ArtifactsCard artifacts={artifacts} onView={onViewArtifact} />}
+      <ProgressCard
+        nodes={taskNodes}
+        completedCount={completedCount}
+        totalCount={totalCount}
+        progressPercent={progressPercent}
+        isConnected={isConnected}
+        isStreaming={isStreaming}
+        defaultCollapsed={showPreview}
+      />
 
-    {workspaceDocs && workspaceDocs.length > 0 && <WorkspaceDocumentsCard docs={workspaceDocs} />}
+      <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} isStreaming={isStreaming} />
 
-    {activityEvents.length > 0 && <ActivityCard events={activityEvents} />}
-  </div>
-)
+      {artifacts.length > 0 && <ArtifactsCard artifacts={artifacts} onView={onViewArtifact} />}
+
+      {workspaceDocs && workspaceDocs.length > 0 && <WorkspaceDocumentsCard docs={workspaceDocs} />}
+
+      {activityEvents.length > 0 && <ActivityCard events={activityEvents} />}
+    </div>
+  )
+}

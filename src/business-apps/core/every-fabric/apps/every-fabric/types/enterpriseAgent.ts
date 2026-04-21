@@ -215,6 +215,19 @@ export interface SkillDetectionSkippedEvent {
   reason: string
 }
 
+export interface ArtifactPreviewEvent {
+  type: 'artifact_preview'
+  seq: number
+  event_id: string
+  timestamp: string
+  subtype: 'start' | 'progress' | 'draft_ready' | 'complete' | 'error'
+  artifact_id: string
+  artifact_type: 'slides' | 'document' | 'note' | 'chart'
+  title: string
+  content?: Record<string, unknown>
+  error?: string
+}
+
 export type AgentStreamEvent =
   | AgentChunkEvent
   | AgentTerminalEvent
@@ -229,6 +242,7 @@ export type AgentStreamEvent =
   | StructuredInputRequestEvent
   | SkillLoadedEvent
   | SkillDetectionSkippedEvent
+  | ArtifactPreviewEvent
 
 export interface ReflectionResult {
   complete: boolean
