@@ -14,7 +14,9 @@ jest.mock('../utils/docxImportUtils', () => ({
   enhanceImportedHtmlWithImageLayouts: jest.fn((html: string) => html),
   parseDocxPageFormatting: jest.fn(async () => undefined),
   parseDocxPageBreaks: jest.fn(async () => []),
-  enhanceImportedHtmlWithPageBreaks: jest.fn((html: string) => html)
+  enhanceImportedHtmlWithPageBreaks: jest.fn((html: string) => html),
+  parseDocxTableLayouts: jest.fn(async () => []),
+  enhanceImportedHtmlWithTableLayouts: jest.fn((html: string) => html)
 }))
 
 jest.mock('../utils/docxTocImportUtils', () => ({
@@ -110,10 +112,12 @@ describe('useWordParser', () => {
   })
 
   it('preserves imported manual page breaks in the parsed html', async () => {
-    const { enhanceImportedHtmlWithPageBreaks, parseDocxPageBreaks } = jest.requireMock('../utils/docxImportUtils') as {
-      enhanceImportedHtmlWithPageBreaks: jest.Mock
-      parseDocxPageBreaks: jest.Mock
-    }
+    const { enhanceImportedHtmlWithPageBreaks, parseDocxPageBreaks, enhanceImportedHtmlWithTableLayouts } =
+      jest.requireMock('../utils/docxImportUtils') as {
+        enhanceImportedHtmlWithPageBreaks: jest.Mock
+        parseDocxPageBreaks: jest.Mock
+        enhanceImportedHtmlWithTableLayouts: jest.Mock
+      }
 
     jest.mocked(mammoth.convertToHtml).mockResolvedValue({
       value: '<p>First</p><p></p><p>Second</p>',
@@ -141,6 +145,7 @@ describe('useWordParser', () => {
       await result.current.parseFile(file)
     })
 
+    expect(enhanceImportedHtmlWithTableLayouts).toHaveBeenCalledWith('<p>First</p><p></p><p>Second</p>', [])
     expect(enhanceImportedHtmlWithPageBreaks).toHaveBeenCalledWith('<p>First</p><p></p><p>Second</p>', [1])
     expect(result.current.parsedDocument?.html).toContain('data-page-break=""')
   })

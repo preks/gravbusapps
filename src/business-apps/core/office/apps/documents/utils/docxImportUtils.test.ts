@@ -2,11 +2,14 @@ import JSZip from 'jszip'
 import {
   enhanceImportedHtmlWithImageLayouts,
   enhanceImportedHtmlWithPageBreaks,
+  enhanceImportedHtmlWithTableLayouts,
   parseDocumentXmlForImageLayouts,
   parseDocumentXmlForPageBreakIndexes,
+  parseDocumentXmlForTableLayouts,
   parseDocxPageBreaks,
   parseDocumentXmlForPageFormatting,
   parseDocxPageFormatting,
+  parseDocxTableLayouts,
   parseStylesXmlForTypography
 } from './docxImportUtils'
 
@@ -183,6 +186,87 @@ describe('parseDocumentXmlForPageBreakIndexes', () => {
   })
 })
 
+describe('parseDocumentXmlForTableLayouts', () => {
+  it('parses explicit table widths, grid widths, borders, fills, alignments, and rowspans', () => {
+    const xml = minimalDocumentXml(`
+      <w:tbl>
+        <w:tblPr>
+          <w:tblW w:w="5000" w:type="pct"/>
+          <w:tblLayout w:type="fixed"/>
+          <w:jc w:val="center"/>
+          <w:tblBorders>
+            <w:top w:val="single" w:sz="8" w:color="123456"/>
+            <w:right w:val="single" w:sz="8" w:color="123456"/>
+            <w:bottom w:val="single" w:sz="8" w:color="123456"/>
+            <w:left w:val="single" w:sz="8" w:color="123456"/>
+          </w:tblBorders>
+        </w:tblPr>
+        <w:tblGrid>
+          <w:gridCol w:w="1440"/>
+          <w:gridCol w:w="2160"/>
+        </w:tblGrid>
+        <w:tr>
+          <w:tc>
+            <w:tcPr>
+              <w:gridSpan w:val="2"/>
+              <w:shd w:fill="FFEEAA"/>
+            </w:tcPr>
+            <w:p>
+              <w:pPr><w:jc w:val="center"/></w:pPr>
+              <w:r><w:t>Head</w:t></w:r>
+            </w:p>
+          </w:tc>
+        </w:tr>
+        <w:tr>
+          <w:tc>
+            <w:tcPr>
+              <w:vMerge w:val="restart"/>
+              <w:tcBorders><w:left w:val="dashed" w:sz="16" w:color="ABCDEF"/></w:tcBorders>
+              <w:vAlign w:val="center"/>
+            </w:tcPr>
+            <w:p><w:r><w:t>A</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="2160" w:type="dxa"/></w:tcPr>
+            <w:p><w:r><w:t>B</w:t></w:r></w:p>
+          </w:tc>
+        </w:tr>
+        <w:tr>
+          <w:tc><w:tcPr><w:vMerge/></w:tcPr><w:p><w:r><w:t></w:t></w:r></w:p></w:tc>
+          <w:tc><w:p><w:r><w:t>C</w:t></w:r></w:p></w:tc>
+        </w:tr>
+      </w:tbl>
+    `)
+
+    const layouts = parseDocumentXmlForTableLayouts(xml)
+
+    expect(layouts).toHaveLength(1)
+    expect(layouts[0]).toMatchObject({
+      width: '240px',
+      align: 'center',
+      widthMode: 'manual',
+      borderStyle: 'solid',
+      borderWidth: '1pt',
+      borderColor: '#123456',
+      gridColumnWidths: ['96px', '144px']
+    })
+    expect(layouts[0]?.rows[0]?.[0]).toMatchObject({
+      colspan: 2,
+      backgroundColor: '#FFEEAA',
+      textAlign: 'center'
+    })
+    expect(layouts[0]?.rows[1]?.[0]).toMatchObject({
+      rowspan: 2,
+      verticalAlign: 'middle'
+    })
+    expect(layouts[0]?.rows[1]?.[0]?.borders.left).toMatchObject({
+      style: 'dashed',
+      width: '2pt',
+      color: '#ABCDEF'
+    })
+  })
+})
+
 describe('parseStylesXmlForTypography', () => {
   it('parses default body font family, size, and line height from styles xml', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -279,6 +363,30 @@ describe('parseDocxPageBreaks', () => {
   })
 })
 
+describe('parseDocxTableLayouts', () => {
+  it('reads table layouts from word/document.xml in the docx zip', async () => {
+    const zip = new JSZip()
+    zip.file(
+      'word/document.xml',
+      minimalDocumentXml(`
+        <w:tbl>
+          <w:tblPr><w:tblLayout w:type="fixed"/></w:tblPr>
+          <w:tblGrid><w:gridCol w:w="1440"/></w:tblGrid>
+          <w:tr><w:tc><w:p><w:r><w:t>A</w:t></w:r></w:p></w:tc></w:tr>
+        </w:tbl>
+      `)
+    )
+
+    const arrayBuffer = await zip.generateAsync({ type: 'arraybuffer' })
+    await expect(parseDocxTableLayouts(arrayBuffer)).resolves.toMatchObject([
+      {
+        widthMode: 'manual',
+        gridColumnWidths: ['96px']
+      }
+    ])
+  })
+})
+
 describe('enhanceImportedHtmlWithImageLayouts', () => {
   it('wraps images with figure and data-image-wrap from layouts', () => {
     const html = '<p><img src="data:image/png;base64,xx" alt=""></p>'
@@ -348,5 +456,59 @@ describe('enhanceImportedHtmlWithPageBreaks', () => {
     expect(out).toContain('<p>First</p>')
     expect(out).toContain('<p>Second</p>')
     expect(out).not.toContain('<p></p>')
+  })
+})
+
+describe('enhanceImportedHtmlWithTableLayouts', () => {
+  it('enriches Mammoth tables with table and cell attrs used by the editor model', () => {
+    const html = '<table><tr><td>Head</td><td>Cell</td></tr></table>'
+    const out = enhanceImportedHtmlWithTableLayouts(html, [
+      {
+        width: '240px',
+        align: 'center',
+        widthMode: 'manual',
+        backgroundColor: null,
+        borderHidden: false,
+        borderStyle: 'solid',
+        borderWidth: '1pt',
+        borderColor: '#333333',
+        gridColumnWidths: ['96px', '144px'],
+        rows: [
+          [
+            {
+              colspan: 1,
+              rowspan: 1,
+              width: '96px',
+              textAlign: 'center',
+              verticalAlign: 'middle',
+              backgroundColor: '#FFEEAA',
+              borderColor: '#123456',
+              borders: {
+                top: { style: 'dashed', width: '1pt', color: '#123456' }
+              }
+            },
+            {
+              colspan: 1,
+              rowspan: 1,
+              width: '144px',
+              textAlign: null,
+              verticalAlign: null,
+              backgroundColor: null,
+              borderColor: null,
+              borders: {}
+            }
+          ]
+        ]
+      }
+    ])
+
+    expect(out).toContain('data-table-width="240px"')
+    expect(out).toContain('data-table-align="center"')
+    expect(out).toContain('data-table-width-mode="manual"')
+    expect(out).toContain('<colgroup><col style="width: 96px;"><col style="width: 144px;"></colgroup>')
+    expect(out).toContain('data-cell-text-align="center"')
+    expect(out).toContain('data-cell-vertical-align="middle"')
+    expect(out).toContain('data-cell-background="#FFEEAA"')
+    expect(out).toContain('data-cell-border-top-style="dashed"')
   })
 })
