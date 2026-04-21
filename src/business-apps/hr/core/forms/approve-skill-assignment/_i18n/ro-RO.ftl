@@ -1,0 +1,11 @@
+approve-skill-assignment-title = Aprobare atribuire competență
+approve-skill-assignment-details-title = Modificări competențe
+approve-skill-assignment-no-changes = Nu s-au detectat modificări în această cerere.
+approve-skill-assignment-valid-from = Valabil din
+approve-skill-assignment-level = Nivel
+approve-skill-assignment-approve = Aprobă
+approve-skill-assignment-reject = Respinge
+approve-skill-assignment-change-new = Nou
+approve-skill-assignment-change-to-create = De creat
+approve-skill-assignment-change-modified = Modificat
+approve-skill-assignment-change-deleted = Eliminat
