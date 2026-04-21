@@ -146,7 +146,11 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
   hasInitialVerificationDocumentCandidates = false
 }) => {
   const mode = flowFormParams?.mode
+  const isFlowMode = mode === 'deactivate' || mode === 'activate' || mode === 'attachVerification'
   const isChangeLevelMode = changeLevelParams != null
+  const isAddOrEditMode = !isFlowMode && !isChangeLevelMode
+  const showExistingList = activeSelectedSkills.length > 0 && isAddOrEditMode
+  const showEmptyMessage = isAddOrEditMode && activeSelectedSkills.length === 0
 
   const modeContent = renderModeSection(mode, flowFormParams, t)
   if (modeContent) {
@@ -378,6 +382,44 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
                 statusLabel={t('add-skill-form-new-skill-badge')}
               />
             ))}
+        </div>
+      )}
+
+      <span
+        className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-2 gba:mt-5"
+        data-testid="add-skill-employee-skills-label"
+      >
+        {t('add-skill-form-current-employee-skills-label')}
+      </span>
+
+      {showExistingList && (
+        <div
+          className="gba:flex gba:flex-col gba:gap-2 gba:max-h-[350px] gba:overflow-y-auto"
+          data-testid="add-skill-existing-container"
+        >
+          {activeSelectedSkills.map(skill => (
+            <SkillLevelRow
+              key={skill.id}
+              skillName={skill.name}
+              onRemove={() => handleRemoveSkill(skill.id)}
+              dataTestIdPrefix="add-skill-existing"
+              removeButtonTestId={`skill-level-row-remove-${skill.id}`}
+              rowId={skill.id}
+              levelContent={
+                <LevelSelect
+                  value={skill.level || 1}
+                  onChange={level => handleUpdateExistingSkillLevel(skill.id, level)}
+                  dataTestId={`skill-level-select-${skill.id}`}
+                />
+              }
+            />
+          ))}
+        </div>
+      )}
+
+      {showEmptyMessage && (
+        <div className="gba:text-sm gba:text-muted-foreground gba:py-2" data-testid="add-skill-no-current-skills">
+          {t('add-skill-form-no-current-skills')}
         </div>
       )}
     </div>

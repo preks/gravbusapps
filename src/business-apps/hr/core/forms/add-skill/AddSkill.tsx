@@ -321,7 +321,13 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
               const existingToAssign = controller.skillsToAssign.filter(s => !s.isNew)
               const newSkillsToCreate = controller.skillsToAssign.filter(s => s.isNew)
 
-              selectedIds = existingToAssign.map(s => s.id)
+              // Use activeSelectedSkills (reflects UI removes) instead of existingSkillsList (raw GraphQL)
+              const alreadyAssignedIds = controller.activeSelectedSkills.map(s => s.id)
+
+              selectedIds = [...alreadyAssignedIds, ...existingToAssign.map(s => s.id)]
+
+              // Levels: keep current level for already-assigned, use selected level for new
+              controller.activeSelectedSkills.forEach(s => selectedLevels.set(s.id, s.level || 1))
               existingToAssign.forEach(s => selectedLevels.set(s.id, s.level || 1))
 
               const newSkills =
@@ -331,7 +337,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
                 employeeId,
                 selectedSkillIds: selectedIds,
                 selectedSkillLevels: selectedLevels,
-                existingSkills: [],
+                existingSkills: controller.existingSkillsList as any,
                 skillValidTo,
                 skillVerificationDocumentId,
                 ...(newSkills ? { newSkills } : {}),
