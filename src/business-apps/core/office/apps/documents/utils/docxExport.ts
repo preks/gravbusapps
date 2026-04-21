@@ -11,7 +11,6 @@ import {
 } from '@/components/tiptap-extensions/tiptap-custom-image'
 import {
   CUSTOM_IMAGE_TAG,
-  getImageFigureAttributesFromElement,
   normalizeImageBorderColor,
   normalizeImageBorderDash,
   normalizeImageBorderWidthPt
@@ -21,11 +20,12 @@ import {
   hasImageCrop,
   normalizeImageCrop
 } from '@/components/tiptap-extensions/tiptap-custom-image/cropUtils'
-import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-custom-image/sizeUtils'
+import type { ImageMeasurementContext } from '@/components/tiptap-extensions/tiptap-custom-image/sizeUtils'
 import {
   DEFAULT_IMAGE_BORDER_COLOR,
   DEFAULT_IMAGE_BORDER_DASH,
   DEFAULT_IMAGE_BORDER_WIDTH_PT,
+  type CustomImageAttributes,
   type ImageBorderDash
 } from '@/components/tiptap-extensions/tiptap-custom-image/types'
 import type { DocumentFormatting } from '../types'
@@ -34,6 +34,13 @@ import {
   getPagesConfigFromFormatting,
   getPrintStyleConfigFromFormatting
 } from './pageLayoutUtils'
+import {
+  DOCX_IMAGE_EXPORT_DEFAULTS,
+  normalizeDocxCustomImageMarkup,
+  normalizeDocxCustomImageForExport,
+  normalizeDocxInlineImageForExport,
+  resolveDocxImageMeasurementContext
+} from './docxImageExportUtils'
 import { buildWordTocXmlFromElement } from './docxTocExportUtils'
 import { DEFAULT_DOCUMENT_TOC_STYLES, type DocumentTocStyles, parseDocumentTocStyles } from './documentTocStyleUtils'
 import { sanitizeHtmlForExport } from './exportUtils'
@@ -60,6 +67,7 @@ interface DocxBuildContext {
   buildState: DocxBuildState
   typography: DocxTypographySettings
   fieldConfig?: DocxFieldConfig
+  imageMeasurementContext: ImageMeasurementContext
 }
 
 interface DocxTypographySettings {
@@ -87,6 +95,53 @@ interface DocxFieldConfig {
   totalDisplayText: string
 }
 
+type DocxJcValue = 'left' | 'center' | 'right' | 'both'
+type DocxVAlignValue = 'top' | 'center' | 'bottom'
+type DocxWidthType = 'pct' | 'dxa'
+type DocxBorderTag = 'top' | 'right' | 'bottom' | 'left' | 'insideH' | 'insideV'
+
+interface DocxWidthValue {
+  type: DocxWidthType
+  value: number
+}
+
+interface DocxBorderDefinition {
+  value: string
+  size: number
+  color: string
+}
+
+interface DocxTableCellDefinition {
+  element: HTMLElement | null
+  columnIndex: number
+  colspan: number
+  rowspan: number
+  isHeader: boolean
+  isMergeContinuation: boolean
+  textAlign: DocxJcValue | null
+  verticalAlign: DocxVAlignValue | null
+  backgroundColor: string | null
+  textColor: string | null
+  bold: boolean
+  width: DocxWidthValue | null
+  borders: Partial<Record<'top' | 'right' | 'bottom' | 'left', DocxBorderDefinition | null>>
+}
+
+interface DocxTableDefinition {
+  width: DocxWidthValue
+  alignment: DocxJcValue | null
+  borders: Record<DocxBorderTag, DocxBorderDefinition>
+  gridWidths: number[]
+  useFixedLayout: boolean
+  rows: DocxTableCellDefinition[][]
+}
+
+interface DocxActiveMerge {
+  remainingRows: number
+  gridSpan: number
+  cell: DocxTableCellDefinition
+}
+
 interface DocxPageNumberSlot {
   alignment: 'left' | 'center' | 'right'
 }
@@ -95,7 +150,8 @@ function newContext(
   typography: DocxTypographySettings,
   partKey: string,
   buildState: DocxBuildState,
-  fieldConfig?: DocxFieldConfig
+  fieldConfig?: DocxFieldConfig,
+  imageMeasurementContext: ImageMeasurementContext = {}
 ): DocxBuildContext {
   return {
     images: [],
@@ -105,7 +161,8 @@ function newContext(
     partKey,
     buildState,
     typography,
-    fieldConfig
+    fieldConfig,
+    imageMeasurementContext
   }
 }
 
@@ -120,14 +177,23 @@ const DEFAULT_DOCX_LINE_HEIGHT = 1.15
 const DOCX_SINGLE_LINE_SPACING = 240
 const DOCX_TABLE_FONT_SIZE_PX = 14
 const DOCX_TABLE_LINE_HEIGHT = 1.3
-const DOCX_IMAGE_DEFAULTS = {
-  align: 'left' as const,
-  wrapMode: 'inline' as const,
-  anchorMode: 'inline' as const,
-  display: 'inline' as const,
-  distance: 0
+const DOCX_TABLE_CELL_PADDING_TOP_BOTTOM = 80
+const DOCX_TABLE_CELL_PADDING_LEFT_RIGHT = 120
+const DEFAULT_TABLE_BACKGROUND_COLOR_HEX = 'FFFFFF'
+const DEFAULT_DOCX_TABLE_WIDTH: DocxWidthValue = { type: 'pct', value: 5000 }
+const DEFAULT_DOCX_TABLE_BORDER: DocxBorderDefinition = {
+  value: 'single',
+  size: 4,
+  color: '333333'
 }
-
+const DOCX_TABLE_THEME_PALETTES = {
+  blue: { solid: '2563EB', soft: 'DBEAFE', softAlt: 'EFF6FF' },
+  teal: { solid: '0F766E', soft: 'CCFBF1', softAlt: 'F0FDFA' },
+  green: { solid: '15803D', soft: 'DCFCE7', softAlt: 'F0FDF4' },
+  orange: { solid: 'C2410C', soft: 'FFEDD5', softAlt: 'FFF7ED' },
+  purple: { solid: '7C3AED', soft: 'EDE9FE', softAlt: 'F5F3FF' },
+  gray: { solid: '4B5563', soft: 'E5E7EB', softAlt: 'F3F4F6' }
+} as const
 function extractPrimaryWordFontFamily(fontFamily?: string): string {
   const primary = fontFamily
     ?.split(',')
@@ -143,6 +209,636 @@ function pxToHalfPoints(px: number): number {
 
 function lineHeightToWordSpacing(lineHeight: number): number {
   return Math.max(DOCX_SINGLE_LINE_SPACING, Math.round(lineHeight * DOCX_SINGLE_LINE_SPACING))
+}
+
+function normalizeHexColor(value?: string | null): string | null {
+  if (!value) {
+    return null
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  const hexMatch = trimmed.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)
+  if (hexMatch) {
+    const normalized =
+      hexMatch[1].length === 3
+        ? hexMatch[1]
+            .split('')
+            .map(char => char + char)
+            .join('')
+        : hexMatch[1]
+    return normalized.toUpperCase()
+  }
+
+  const rgbMatch = trimmed.match(/^rgba?\(([^)]+)\)$/i)
+  if (!rgbMatch) {
+    return null
+  }
+
+  const [red, green, blue] = rgbMatch[1]
+    .split(',')
+    .slice(0, 3)
+    .map(channel => Number.parseInt(channel.trim(), 10))
+
+  if ([red, green, blue].some(channel => Number.isNaN(channel) || channel < 0 || channel > 255)) {
+    return null
+  }
+
+  return [red, green, blue].map(channel => channel.toString(16).padStart(2, '0').toUpperCase()).join('')
+}
+
+function parseCssLength(value?: string | null): { amount: number; unit: string } | null {
+  if (!value) {
+    return null
+  }
+
+  const match = value.trim().match(/^(-?\d+(?:\.\d+)?)(px|pt|%|cm|mm|in)?$/i)
+  if (!match) {
+    return null
+  }
+
+  const amount = Number.parseFloat(match[1])
+  if (!Number.isFinite(amount)) {
+    return null
+  }
+
+  return {
+    amount,
+    unit: (match[2] ?? 'px').toLowerCase()
+  }
+}
+
+function cssLengthToTwips(value?: string | null): number | null {
+  const parsed = parseCssLength(value)
+  if (!parsed || parsed.unit === '%') {
+    return null
+  }
+
+  switch (parsed.unit) {
+    case 'pt':
+      return Math.max(1, Math.round(parsed.amount * 20))
+    case 'cm':
+      return Math.max(1, Math.round((parsed.amount / 2.54) * 1440))
+    case 'mm':
+      return Math.max(1, Math.round((parsed.amount / 25.4) * 1440))
+    case 'in':
+      return Math.max(1, Math.round(parsed.amount * 1440))
+    case 'px':
+    default:
+      return Math.max(1, Math.round((parsed.amount / 96) * 1440))
+  }
+}
+
+function cssLengthToWordWidth(value?: string | null): DocxWidthValue | null {
+  const parsed = parseCssLength(value)
+  if (!parsed) {
+    return null
+  }
+
+  if (parsed.unit === '%') {
+    return {
+      type: 'pct',
+      value: Math.max(1, Math.round(parsed.amount * 50))
+    }
+  }
+
+  const twips = cssLengthToTwips(value)
+  if (twips == null) {
+    return null
+  }
+
+  return {
+    type: 'dxa',
+    value: twips
+  }
+}
+
+function cssLengthToBorderSize(value?: string | null): number | null {
+  const parsed = parseCssLength(value)
+  if (!parsed || parsed.unit === '%') {
+    return null
+  }
+
+  const points =
+    parsed.unit === 'pt'
+      ? parsed.amount
+      : parsed.unit === 'px'
+        ? (parsed.amount * 72) / 96
+        : parsed.unit === 'in'
+          ? parsed.amount * 72
+          : parsed.unit === 'cm'
+            ? (parsed.amount * 72) / 2.54
+            : (parsed.amount * 72) / 25.4
+
+  return Math.max(2, Math.round(points * 8))
+}
+
+function mapTextAlignToWordValue(value?: string | null): DocxJcValue | null {
+  switch (value?.trim().toLowerCase()) {
+    case 'center':
+      return 'center'
+    case 'right':
+    case 'end':
+      return 'right'
+    case 'justify':
+      return 'both'
+    case 'left':
+    case 'start':
+      return 'left'
+    default:
+      return null
+  }
+}
+
+function mapVerticalAlignToWordValue(value?: string | null): DocxVAlignValue | null {
+  switch (value?.trim().toLowerCase()) {
+    case 'middle':
+    case 'center':
+      return 'center'
+    case 'bottom':
+      return 'bottom'
+    case 'top':
+      return 'top'
+    default:
+      return null
+  }
+}
+
+function mapCssBorderStyleToWordValue(value?: string | null): string | null {
+  switch (value?.trim().toLowerCase()) {
+    case 'none':
+      return 'nil'
+    case 'dashed':
+      return 'dashed'
+    case 'dotted':
+      return 'dotted'
+    case 'double':
+      return 'double'
+    case 'solid':
+      return 'single'
+    default:
+      return null
+  }
+}
+
+function buildDocxBorderDefinition(params: {
+  style?: string | null
+  width?: string | null
+  color?: string | null
+  fallback?: DocxBorderDefinition | null
+}): DocxBorderDefinition | null {
+  const value = mapCssBorderStyleToWordValue(params.style)
+  if (value === 'nil') {
+    return { value: 'nil', size: 0, color: 'auto' }
+  }
+
+  const normalizedColor = normalizeHexColor(params.color)
+  const size = cssLengthToBorderSize(params.width)
+  if (value || normalizedColor || size != null) {
+    return {
+      value: value ?? params.fallback?.value ?? 'single',
+      size: size ?? params.fallback?.size ?? DEFAULT_DOCX_TABLE_BORDER.size,
+      color: normalizedColor ?? params.fallback?.color ?? DEFAULT_DOCX_TABLE_BORDER.color
+    }
+  }
+
+  return params.fallback ?? null
+}
+
+function buildDocxBorderXml(
+  tag: DocxBorderTag | 'right' | 'bottom' | 'left',
+  border: DocxBorderDefinition | null
+): string {
+  if (!border) {
+    return ''
+  }
+
+  if (border.value === 'nil') {
+    return `<w:${tag} w:val="nil"/>`
+  }
+
+  return `<w:${tag} w:val="${border.value}" w:sz="${border.size}" w:space="0" w:color="${border.color}"/>`
+}
+
+function buildDefaultTableCellMarginXml(): string {
+  return `<w:tcMar><w:top w:w="${DOCX_TABLE_CELL_PADDING_TOP_BOTTOM}" w:type="dxa"/><w:bottom w:w="${DOCX_TABLE_CELL_PADDING_TOP_BOTTOM}" w:type="dxa"/><w:left w:w="${DOCX_TABLE_CELL_PADDING_LEFT_RIGHT}" w:type="dxa"/><w:right w:w="${DOCX_TABLE_CELL_PADDING_LEFT_RIGHT}" w:type="dxa"/></w:tcMar>`
+}
+
+function readElementStyleValue(element: HTMLElement, dataAttr: string, styleValue?: string | null): string | null {
+  return element.getAttribute(dataAttr) ?? styleValue ?? null
+}
+
+function getTableThemePalette(tableEl: HTMLElement) {
+  const themeKey = (tableEl.getAttribute('data-table-theme') ?? 'blue').trim().toLowerCase()
+  return DOCX_TABLE_THEME_PALETTES[themeKey as keyof typeof DOCX_TABLE_THEME_PALETTES] ?? DOCX_TABLE_THEME_PALETTES.blue
+}
+
+function getTableColumnCount(tableEl: HTMLElement): number {
+  const htmlTable = tableEl as HTMLTableElement
+  const rowSpanWidth = Array.from(htmlTable.rows ?? []).reduce((max, row) => {
+    const width = Array.from(row.cells).reduce(
+      (sum, cell) => sum + Math.max(1, Number(cell.getAttribute('colspan') ?? 1)),
+      0
+    )
+    return Math.max(max, width)
+  }, 0)
+
+  const colGroupWidth = Array.from(tableEl.children).reduce((count, child) => {
+    if (child.tagName.toLowerCase() !== 'colgroup') {
+      return count
+    }
+
+    return Math.max(count, Array.from(child.children).filter(col => col.tagName.toLowerCase() === 'col').length)
+  }, 0)
+
+  return Math.max(rowSpanWidth, colGroupWidth)
+}
+
+function getTableGridWidths(tableEl: HTMLElement): number[] {
+  const widths: number[] = []
+
+  for (const child of Array.from(tableEl.children)) {
+    if (child.tagName.toLowerCase() !== 'colgroup') {
+      continue
+    }
+
+    for (const col of Array.from(child.children)) {
+      if (col.tagName.toLowerCase() !== 'col') {
+        continue
+      }
+
+      const width =
+        cssLengthToTwips((col as HTMLElement).style.width) ??
+        cssLengthToTwips((col as HTMLElement).style.minWidth) ??
+        cssLengthToTwips((col as HTMLElement).getAttribute('width')) ??
+        null
+
+      if (width != null) {
+        widths.push(width)
+      }
+    }
+  }
+
+  return widths
+}
+
+function getTablePreferredWidth(tableEl: HTMLElement): DocxWidthValue | null {
+  return (
+    cssLengthToWordWidth(tableEl.getAttribute('data-table-width')) ??
+    cssLengthToWordWidth(tableEl.style.width) ??
+    cssLengthToWordWidth(tableEl.style.minWidth) ??
+    cssLengthToWordWidth(tableEl.getAttribute('width')) ??
+    null
+  )
+}
+
+function getTableWidthMode(tableEl: HTMLElement): string | null {
+  const mode = tableEl.getAttribute('data-table-width-mode')?.trim().toLowerCase()
+  return mode || null
+}
+
+function buildFallbackGridWidths(columnCount: number, tableWidth: DocxWidthValue): number[] {
+  if (columnCount <= 0 || tableWidth.type !== 'dxa') {
+    return []
+  }
+
+  const baseWidth = Math.floor(tableWidth.value / columnCount)
+  const remainder = tableWidth.value - baseWidth * columnCount
+
+  return Array.from({ length: columnCount }, (_, index) => baseWidth + (index < remainder ? 1 : 0))
+}
+
+function shouldPreferGridDrivenTableWidth(
+  preferredWidth: DocxWidthValue | null,
+  gridWidths: number[],
+  widthMode: string | null
+): boolean {
+  if (gridWidths.length === 0 || widthMode === 'auto-fit-window') {
+    return false
+  }
+
+  if (widthMode === 'auto-fit-content' || preferredWidth == null) {
+    return true
+  }
+
+  return preferredWidth.type === 'pct' && preferredWidth.value === DEFAULT_DOCX_TABLE_WIDTH.value
+}
+
+function getThemeDrivenCellBackground(
+  tableEl: HTMLElement,
+  rowIndex: number,
+  columnIndex: number,
+  colspan: number,
+  totalColumns: number,
+  isHeader: boolean
+): string | null {
+  const palette = getTableThemePalette(tableEl)
+
+  if (tableEl.getAttribute('data-table-style-header-row') === 'true' && rowIndex === 0) {
+    return palette.solid
+  }
+  if (tableEl.getAttribute('data-table-style-first-column') === 'true' && columnIndex === 0) {
+    return palette.soft
+  }
+  if (tableEl.getAttribute('data-table-style-last-column') === 'true' && columnIndex + colspan === totalColumns) {
+    return palette.soft
+  }
+  if (tableEl.getAttribute('data-table-style-banded-rows') === 'true' && rowIndex % 2 === 1) {
+    return palette.softAlt
+  }
+  if (tableEl.getAttribute('data-table-style-banded-columns') === 'true' && columnIndex % 2 === 1) {
+    return palette.softAlt
+  }
+
+  return isHeader ? 'F0F0F0' : null
+}
+
+function getThemeDrivenCellTextColor(tableEl: HTMLElement, rowIndex: number): string | null {
+  return tableEl.getAttribute('data-table-style-header-row') === 'true' && rowIndex === 0 ? 'FFFFFF' : null
+}
+
+function hasThemeDrivenTableStyling(tableEl: HTMLElement): boolean {
+  return (
+    tableEl.getAttribute('data-table-style-header-row') === 'true' ||
+    tableEl.getAttribute('data-table-style-first-column') === 'true' ||
+    tableEl.getAttribute('data-table-style-last-column') === 'true' ||
+    tableEl.getAttribute('data-table-style-banded-rows') === 'true' ||
+    tableEl.getAttribute('data-table-style-banded-columns') === 'true'
+  )
+}
+
+function getThemeDrivenCellBold(
+  tableEl: HTMLElement,
+  rowIndex: number,
+  columnIndex: number,
+  colspan: number,
+  totalColumns: number,
+  isHeader: boolean
+): boolean {
+  return (
+    isHeader ||
+    (tableEl.getAttribute('data-table-style-header-row') === 'true' && rowIndex === 0) ||
+    (tableEl.getAttribute('data-table-style-first-column') === 'true' && columnIndex === 0) ||
+    (tableEl.getAttribute('data-table-style-last-column') === 'true' && columnIndex + colspan === totalColumns)
+  )
+}
+
+function getTableCellWidth(
+  cell: HTMLTableCellElement,
+  columnIndex: number,
+  colspan: number,
+  gridWidths: number[]
+): DocxWidthValue | null {
+  const gridWidth = gridWidths.slice(columnIndex, columnIndex + colspan).reduce((sum, width) => sum + width, 0)
+  if (gridWidth > 0) {
+    return { type: 'dxa', value: gridWidth }
+  }
+
+  return cssLengthToWordWidth(cell.style.width || cell.getAttribute('width'))
+}
+
+function buildDocxTableDefinition(tableEl: HTMLElement): DocxTableDefinition {
+  const tableBorderHidden = tableEl.getAttribute('data-table-border-hidden') === 'true'
+  const rawTableBackgroundColor =
+    normalizeHexColor(tableEl.getAttribute('data-table-background-color')) ??
+    normalizeHexColor(tableEl.style.backgroundColor)
+  const themeDrivenStylingEnabled = hasThemeDrivenTableStyling(tableEl)
+  const tableBackgroundColor =
+    rawTableBackgroundColor &&
+    (!themeDrivenStylingEnabled || rawTableBackgroundColor !== DEFAULT_TABLE_BACKGROUND_COLOR_HEX)
+      ? rawTableBackgroundColor
+      : null
+  const preferredTableWidth = getTablePreferredWidth(tableEl)
+  const tableWidthMode = getTableWidthMode(tableEl)
+  const detectedGridWidths = getTableGridWidths(tableEl)
+  const totalColumns = Math.max(getTableColumnCount(tableEl), detectedGridWidths.length)
+  const provisionalTableWidth = preferredTableWidth ?? DEFAULT_DOCX_TABLE_WIDTH
+  const fallbackGridWidths =
+    detectedGridWidths.length > 0 ? detectedGridWidths : buildFallbackGridWidths(totalColumns, provisionalTableWidth)
+  const tableWidth = shouldPreferGridDrivenTableWidth(preferredTableWidth, fallbackGridWidths, tableWidthMode)
+    ? { type: 'dxa' as const, value: fallbackGridWidths.reduce((sum, width) => sum + width, 0) }
+    : provisionalTableWidth
+  const useFixedLayout = fallbackGridWidths.length > 0
+  const fallbackBorder = tableBorderHidden ? { value: 'nil', size: 0, color: 'auto' } : DEFAULT_DOCX_TABLE_BORDER
+  const tableBorder =
+    buildDocxBorderDefinition({
+      style: readElementStyleValue(tableEl, 'data-table-border-style', tableEl.style.borderStyle),
+      width: readElementStyleValue(tableEl, 'data-table-border-width', tableEl.style.borderWidth),
+      color: readElementStyleValue(tableEl, 'data-table-border-color', tableEl.style.borderColor),
+      fallback: fallbackBorder
+    }) ?? fallbackBorder
+  const borders: Record<DocxBorderTag, DocxBorderDefinition> = {
+    top: tableBorder,
+    right: tableBorder,
+    bottom: tableBorder,
+    left: tableBorder,
+    insideH: tableBorder,
+    insideV: tableBorder
+  }
+  const rows: DocxTableCellDefinition[][] = []
+  const activeMerges: Array<DocxActiveMerge | null> = []
+  const htmlTable = tableEl as HTMLTableElement
+
+  Array.from(htmlTable.rows ?? []).forEach((row, rowIndex) => {
+    const rowCells: DocxTableCellDefinition[] = []
+    const sourceCells = Array.from(row.cells)
+    const mergesCreatedThisRow = new Set<DocxActiveMerge>()
+    let sourceIndex = 0
+    let columnIndex = 0
+
+    while (sourceIndex < sourceCells.length || activeMerges.slice(columnIndex).some(Boolean)) {
+      const activeMerge = activeMerges[columnIndex]
+      if (activeMerge) {
+        if (columnIndex === 0 || activeMerges[columnIndex - 1] !== activeMerge) {
+          rowCells.push({
+            ...activeMerge.cell,
+            element: null,
+            isMergeContinuation: true,
+            rowspan: 1,
+            columnIndex
+          } as DocxTableCellDefinition)
+          columnIndex += activeMerge.gridSpan
+          continue
+        }
+
+        columnIndex += 1
+        continue
+      }
+
+      const cell = sourceCells[sourceIndex]
+      if (!cell) {
+        break
+      }
+
+      sourceIndex += 1
+
+      const colspan = Math.max(1, Number(cell.getAttribute('colspan') ?? 1))
+      const rowspan = Math.max(1, Number(cell.getAttribute('rowspan') ?? 1))
+      const explicitBackground = normalizeHexColor(
+        readElementStyleValue(cell, 'data-cell-background', cell.style.backgroundColor)
+      )
+      const textColor = normalizeHexColor(cell.style.color) ?? getThemeDrivenCellTextColor(tableEl, rowIndex)
+      const fallbackThemeBackground = getThemeDrivenCellBackground(
+        tableEl,
+        rowIndex,
+        columnIndex,
+        colspan,
+        totalColumns,
+        cell.tagName.toLowerCase() === 'th'
+      )
+      const definition: DocxTableCellDefinition = {
+        element: cell,
+        columnIndex,
+        colspan,
+        rowspan,
+        isHeader: cell.tagName.toLowerCase() === 'th',
+        isMergeContinuation: false,
+        textAlign:
+          mapTextAlignToWordValue(readElementStyleValue(cell, 'data-cell-text-align', cell.style.textAlign)) ??
+          mapTextAlignToWordValue(cell.getAttribute('align')),
+        verticalAlign: mapVerticalAlignToWordValue(
+          readElementStyleValue(cell, 'data-cell-vertical-align', cell.style.verticalAlign)
+        ),
+        backgroundColor: explicitBackground ?? tableBackgroundColor ?? fallbackThemeBackground,
+        textColor,
+        bold: getThemeDrivenCellBold(
+          tableEl,
+          rowIndex,
+          columnIndex,
+          colspan,
+          totalColumns,
+          cell.tagName.toLowerCase() === 'th'
+        ),
+        width: getTableCellWidth(cell, columnIndex, colspan, fallbackGridWidths),
+        borders: {
+          top: buildDocxBorderDefinition({
+            style: readElementStyleValue(cell, 'data-cell-border-top-style', cell.style.borderTopStyle),
+            width: readElementStyleValue(cell, 'data-cell-border-top-width', cell.style.borderTopWidth),
+            color:
+              readElementStyleValue(cell, 'data-cell-border-top-color', cell.style.borderTopColor) ??
+              readElementStyleValue(cell, 'data-cell-border-color', cell.style.borderColor)
+          }),
+          right: buildDocxBorderDefinition({
+            style: readElementStyleValue(cell, 'data-cell-border-right-style', cell.style.borderRightStyle),
+            width: readElementStyleValue(cell, 'data-cell-border-right-width', cell.style.borderRightWidth),
+            color:
+              readElementStyleValue(cell, 'data-cell-border-right-color', cell.style.borderRightColor) ??
+              readElementStyleValue(cell, 'data-cell-border-color', cell.style.borderColor)
+          }),
+          bottom: buildDocxBorderDefinition({
+            style: readElementStyleValue(cell, 'data-cell-border-bottom-style', cell.style.borderBottomStyle),
+            width: readElementStyleValue(cell, 'data-cell-border-bottom-width', cell.style.borderBottomWidth),
+            color:
+              readElementStyleValue(cell, 'data-cell-border-bottom-color', cell.style.borderBottomColor) ??
+              readElementStyleValue(cell, 'data-cell-border-color', cell.style.borderColor)
+          }),
+          left: buildDocxBorderDefinition({
+            style: readElementStyleValue(cell, 'data-cell-border-left-style', cell.style.borderLeftStyle),
+            width: readElementStyleValue(cell, 'data-cell-border-left-width', cell.style.borderLeftWidth),
+            color:
+              readElementStyleValue(cell, 'data-cell-border-left-color', cell.style.borderLeftColor) ??
+              readElementStyleValue(cell, 'data-cell-border-color', cell.style.borderColor)
+          })
+        }
+      }
+
+      rowCells.push(definition)
+
+      if (rowspan > 1) {
+        const merge: DocxActiveMerge = {
+          remainingRows: rowspan - 1,
+          gridSpan: colspan,
+          cell: definition
+        }
+        mergesCreatedThisRow.add(merge)
+
+        for (let spanIndex = 0; spanIndex < colspan; spanIndex += 1) {
+          activeMerges[columnIndex + spanIndex] = merge
+        }
+      }
+
+      columnIndex += colspan
+    }
+
+    const seenMerges = new Set<DocxActiveMerge>()
+    for (let index = 0; index < activeMerges.length; index += 1) {
+      const merge = activeMerges[index]
+      if (!merge || seenMerges.has(merge)) {
+        continue
+      }
+      if (mergesCreatedThisRow.has(merge)) {
+        continue
+      }
+
+      seenMerges.add(merge)
+      merge.remainingRows -= 1
+      if (merge.remainingRows <= 0) {
+        for (let clearIndex = 0; clearIndex < activeMerges.length; clearIndex += 1) {
+          if (activeMerges[clearIndex] === merge) {
+            activeMerges[clearIndex] = null
+          }
+        }
+      }
+    }
+
+    rows.push(rowCells)
+  })
+
+  return {
+    width: tableWidth,
+    alignment:
+      mapTextAlignToWordValue(tableEl.getAttribute('data-table-align')) ??
+      mapTextAlignToWordValue(tableEl.getAttribute('align')),
+    borders,
+    gridWidths: fallbackGridWidths,
+    useFixedLayout,
+    rows
+  }
+}
+
+function buildInlineStyleRunProps(element: HTMLElement): string {
+  const props: string[] = []
+  const color = normalizeHexColor(element.style.color)
+  const backgroundColor = normalizeHexColor(element.style.backgroundColor)
+  const fontFamily = extractPrimaryWordFontFamily(element.style.fontFamily)
+  const fontSize = cssLengthToTwips(element.style.fontSize)
+
+  if (color) {
+    props.push(`<w:color w:val="${color}"/>`)
+  }
+  if (backgroundColor) {
+    props.push(`<w:shd w:val="clear" w:fill="${backgroundColor}"/>`)
+  }
+  if (element.style.fontFamily) {
+    props.push(`<w:rFonts w:ascii="${escapeXml(fontFamily)}" w:hAnsi="${escapeXml(fontFamily)}"/>`)
+  }
+  if (fontSize != null) {
+    const halfPoints = Math.max(2, Math.round(fontSize / 10))
+    props.push(`<w:sz w:val="${halfPoints}"/>`)
+  }
+
+  const fontWeight = element.style.fontWeight.trim().toLowerCase()
+  const numericWeight = Number.parseInt(fontWeight, 10)
+  if (fontWeight === 'bold' || (!Number.isNaN(numericWeight) && numericWeight >= 600)) {
+    props.push('<w:b/>')
+  }
+
+  if (element.style.fontStyle.trim().toLowerCase() === 'italic') {
+    props.push('<w:i/>')
+  }
+
+  const textDecoration = element.style.textDecoration.toLowerCase()
+  if (textDecoration.includes('underline')) {
+    props.push('<w:u w:val="single"/>')
+  }
+  if (textDecoration.includes('line-through')) {
+    props.push('<w:strike/>')
+  }
+
+  return props.join('')
 }
 
 function buildFontRunProps(fontFamily: string, halfPoints: number): string {
@@ -302,7 +998,7 @@ function mapImageBorderDashToOoxml(dash: ImageBorderDash): string | null {
   }
 }
 
-function getPictureBorderXml(layout?: ReturnType<typeof getImageFigureAttributesFromElement>): string {
+function getPictureBorderXml(layout?: CustomImageAttributes): string {
   if (!layout || !layout.borderVisible) {
     return ''
   }
@@ -363,7 +1059,7 @@ function getWrapXml(layout: ReturnType<typeof resolveWordLikeImageLayout>): stri
 }
 
 function getHorizontalAlignmentXml(
-  layout: ReturnType<typeof getImageFigureAttributesFromElement>,
+  layout: CustomImageAttributes,
   horizontalRef: string,
   offsetX: number,
   wordLayout?: ReturnType<typeof resolveWordLikeImageLayout>
@@ -412,7 +1108,7 @@ async function loadImageForWrapContour(src: string): Promise<HTMLImageElement | 
 }
 
 async function resolveDocxWordLayout(
-  layout: ReturnType<typeof getImageFigureAttributesFromElement>,
+  layout: CustomImageAttributes,
   src: string
 ): Promise<ReturnType<typeof resolveWordLikeImageLayout>> {
   if (layout.wrapMode !== 'tight' && layout.wrapMode !== 'through') {
@@ -424,7 +1120,7 @@ async function resolveDocxWordLayout(
   return resolveWordLikeImageLayout(layout, { wrapContour })
 }
 
-function getCropXml(layout?: ReturnType<typeof getImageFigureAttributesFromElement>) {
+function getCropXml(layout?: CustomImageAttributes) {
   if (!layout || !hasImageCrop(layout)) {
     return ''
   }
@@ -439,15 +1135,24 @@ function imageInlineDrawingXml(
   img: EmbeddedImage,
   docPrId: number,
   rotation: number,
-  layout?: ReturnType<typeof getImageFigureAttributesFromElement>
+  layout?: CustomImageAttributes,
+  metadata?: { alt?: string | null; title?: string | null }
 ): string {
   const pictureBorderXml = getPictureBorderXml(layout)
+  const altText = metadata?.alt?.trim()
+  const title = metadata?.title?.trim()
+  const docPrAttributes = [
+    `id="${docPrId}"`,
+    `name="${escapeXml(img.fileName)}"`,
+    ...(title ? [`title="${escapeXml(title)}"`] : []),
+    ...(altText ? [`descr="${escapeXml(altText)}"`] : [])
+  ].join(' ')
 
   return (
     `<w:drawing>` +
     `<wp:inline distT="0" distB="0" distL="0" distR="0">` +
     `<wp:extent cx="${img.widthEmu}" cy="${img.heightEmu}"/>` +
-    `<wp:docPr id="${docPrId}" name="${escapeXml(img.fileName)}"/>` +
+    `<wp:docPr ${docPrAttributes}/>` +
     `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
     `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
     `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
@@ -462,14 +1167,15 @@ function imageInlineDrawingXml(
 function imageAnchorDrawingXml(
   img: EmbeddedImage,
   docPrId: number,
-  layout: ReturnType<typeof getImageFigureAttributesFromElement>,
+  layout: CustomImageAttributes,
   wordLayout: ReturnType<typeof resolveWordLikeImageLayout>,
-  rotation: number
+  rotation: number,
+  metadata?: { alt?: string | null; title?: string | null }
 ): string {
-  const distT = pxToEmu(layout.distanceTop ?? DOCX_IMAGE_DEFAULTS.distance)
-  const distR = pxToEmu(layout.distanceRight ?? DOCX_IMAGE_DEFAULTS.distance)
-  const distB = pxToEmu(layout.distanceBottom ?? DOCX_IMAGE_DEFAULTS.distance)
-  const distL = pxToEmu(layout.distanceLeft ?? DOCX_IMAGE_DEFAULTS.distance)
+  const distT = pxToEmu(layout.distanceTop ?? DOCX_IMAGE_EXPORT_DEFAULTS.distance)
+  const distR = pxToEmu(layout.distanceRight ?? DOCX_IMAGE_EXPORT_DEFAULTS.distance)
+  const distB = pxToEmu(layout.distanceBottom ?? DOCX_IMAGE_EXPORT_DEFAULTS.distance)
+  const distL = pxToEmu(layout.distanceLeft ?? DOCX_IMAGE_EXPORT_DEFAULTS.distance)
   const offsetX = pxToEmu(layout.offsetX ?? 0)
   const offsetY = pxToEmu(layout.offsetY ?? 0)
   const relativeHeight = Math.max(0, Math.round((layout.zIndex ?? 1) * 1000))
@@ -481,6 +1187,14 @@ function imageAnchorDrawingXml(
   const positionH = getHorizontalAlignmentXml(layout, horizontalRef, offsetX, wordLayout)
   const positionV = `<wp:positionV relativeFrom="${verticalRef}"><wp:posOffset>${offsetY}</wp:posOffset></wp:positionV>`
   const pictureBorderXml = getPictureBorderXml(layout)
+  const altText = metadata?.alt?.trim()
+  const title = metadata?.title?.trim()
+  const docPrAttributes = [
+    `id="${docPrId}"`,
+    `name="${escapeXml(img.fileName)}"`,
+    ...(title ? [`title="${escapeXml(title)}"`] : []),
+    ...(altText ? [`descr="${escapeXml(altText)}"`] : [])
+  ].join(' ')
 
   return (
     `<w:drawing>` +
@@ -493,7 +1207,7 @@ function imageAnchorDrawingXml(
     `<wp:extent cx="${img.widthEmu}" cy="${img.heightEmu}"/>` +
     `<wp:effectExtent l="0" t="0" r="0" b="0"/>` +
     wrapXml +
-    `<wp:docPr id="${docPrId}" name="${escapeXml(img.fileName)}"/>` +
+    `<wp:docPr ${docPrAttributes}/>` +
     `<wp:cNvGraphicFramePr/>` +
     `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
     `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
@@ -510,17 +1224,53 @@ function imageAnchorDrawingXml(
 function imageDrawingXml(
   img: EmbeddedImage,
   docPrId: number,
-  layout?: ReturnType<typeof getImageFigureAttributesFromElement>,
+  layout?: CustomImageAttributes,
   wordLayout?: ReturnType<typeof resolveWordLikeImageLayout>,
-  rotation = 0
+  rotation = 0,
+  metadata?: { alt?: string | null; title?: string | null }
 ): string {
   return layout && layout.wrapMode !== 'inline'
-    ? imageAnchorDrawingXml(img, docPrId, layout, wordLayout ?? resolveWordLikeImageLayout(layout), rotation)
-    : imageInlineDrawingXml(img, docPrId, rotation, layout)
+    ? imageAnchorDrawingXml(img, docPrId, layout, wordLayout ?? resolveWordLikeImageLayout(layout), rotation, metadata)
+    : imageInlineDrawingXml(img, docPrId, rotation, layout, metadata)
 }
 
 function wrapDrawingRun(drawingXml: string): string {
   return `<w:r>${drawingXml}</w:r>`
+}
+
+function convertInlineCustomImage(el: HTMLElement, ctx: DocxBuildContext): string {
+  const normalizedImage = normalizeDocxCustomImageForExport(el, ctx.imageMeasurementContext)
+  if (!normalizedImage) {
+    return convertInline(el, ctx)
+  }
+
+  const { alt, caption, layout, resolvedDimensions, src, title } = normalizedImage
+  const width = resolvedDimensions.width ?? DEFAULT_IMG_WIDTH
+  const height = resolvedDimensions.height ?? DEFAULT_IMG_HEIGHT
+  const img = registerImage(ctx, src, width, height)
+  if (!img) {
+    return ''
+  }
+
+  let result = wrapDrawingRun(
+    imageDrawingXml(
+      img,
+      allocateDocPrId(ctx),
+      layout,
+      resolveWordLikeImageLayout(layout),
+      resolvedDimensions.rotation,
+      {
+        alt,
+        title
+      }
+    )
+  )
+
+  if (caption) {
+    result += `<w:r><w:br/></w:r>${wrapRun(caption, '<w:i/><w:color w:val="666666"/><w:sz w:val="18"/>')}`
+  }
+
+  return result
 }
 
 function getWordAlignmentValue(align: string | null | undefined): 'left' | 'center' | 'right' {
@@ -530,27 +1280,28 @@ function getWordAlignmentValue(align: string | null | undefined): 'left' | 'cent
 }
 
 async function convertFigure(el: HTMLElement, parts: string[], ctx: DocxBuildContext): Promise<void> {
-  const imgEl = el.querySelector('img[src]')
-  if (!imgEl) return
+  const normalizedImage = normalizeDocxCustomImageForExport(el, ctx.imageMeasurementContext)
+  if (!normalizedImage) return
 
-  const layout = getImageFigureAttributesFromElement(el, DOCX_IMAGE_DEFAULTS)
-  const src = imgEl.getAttribute('src') || ''
+  const { alt, caption, layout, resolvedDimensions, src, title } = normalizedImage
   const wordLayout = await resolveDocxWordLayout(layout, src)
-  const resolvedDimensions = resolveImageDimensions(layout)
   const width = resolvedDimensions.width ?? DEFAULT_IMG_WIDTH
   const height = resolvedDimensions.height ?? DEFAULT_IMG_HEIGHT
   const img = registerImage(ctx, src, width, height)
   if (!img) return
   const docPrId = allocateDocPrId(ctx)
+  const jc = getWordAlignmentValue(layout.align)
+  const imageParagraphProps = `<w:pPr><w:jc w:val="${jc}"/><w:spacing w:before="0" w:after="0"/></w:pPr>`
 
   parts.push(
-    `<w:p>${wrapDrawingRun(imageDrawingXml(img, docPrId, layout, wordLayout, resolvedDimensions.rotation))}</w:p>`
+    `<w:p>${imageParagraphProps}${wrapDrawingRun(
+      imageDrawingXml(img, docPrId, layout, wordLayout, resolvedDimensions.rotation, { alt, title })
+    )}</w:p>`
   )
 
-  if (layout.caption?.trim()) {
-    const jc = getWordAlignmentValue(layout.align)
+  if (caption) {
     parts.push(
-      `<w:p><w:pPr><w:jc w:val="${jc}"/><w:spacing w:before="0" w:after="120"/></w:pPr>${wrapRun(layout.caption.trim(), '<w:i/><w:color w:val="666666"/><w:sz w:val="18"/>')}</w:p>`
+      `<w:p><w:pPr><w:jc w:val="${jc}"/><w:spacing w:before="0" w:after="120"/></w:pPr>${wrapRun(caption, '<w:i/><w:color w:val="666666"/><w:sz w:val="18"/>')}</w:p>`
     )
   }
 }
@@ -626,33 +1377,37 @@ function convertInline(el: HTMLElement, ctx: DocxBuildContext, inheritProps?: st
       if (text) result += wrapTextWithFieldTokens(text, ctx, inheritProps)
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const child = node as HTMLElement
+      if (child.getAttribute('data-node-type') === CUSTOM_IMAGE_TAG) {
+        result += convertInlineCustomImage(child, ctx)
+        continue
+      }
       const tag = child.tagName.toLowerCase()
+      const styledProps = `${inheritProps || ''}${buildInlineStyleRunProps(child)}`
       switch (tag) {
         case 'strong':
         case 'b':
-          result += convertInline(child, ctx, (inheritProps || '') + '<w:b/>')
+          result += convertInline(child, ctx, `${styledProps}<w:b/>`)
           break
         case 'em':
         case 'i':
-          result += convertInline(child, ctx, (inheritProps || '') + '<w:i/>')
+          result += convertInline(child, ctx, `${styledProps}<w:i/>`)
           break
         case 'u':
-          result += convertInline(child, ctx, (inheritProps || '') + '<w:u w:val="single"/>')
+          result += convertInline(child, ctx, `${styledProps}<w:u w:val="single"/>`)
           break
         case 's':
         case 'del':
         case 'strike':
-          result += convertInline(child, ctx, (inheritProps || '') + '<w:strike/>')
+          result += convertInline(child, ctx, `${styledProps}<w:strike/>`)
           break
         case 'a': {
           const href = child.getAttribute('href') || ''
           if (href) {
             const rId = registerHyperlink(ctx, href)
-            const linkProps =
-              (inheritProps || '') + '<w:rStyle w:val="Hyperlink"/><w:color w:val="0066CC"/><w:u w:val="single"/>'
+            const linkProps = `${styledProps}<w:rStyle w:val="Hyperlink"/><w:color w:val="0066CC"/><w:u w:val="single"/>`
             result += `<w:hyperlink r:id="${rId}">${convertInline(child, ctx, linkProps)}</w:hyperlink>`
           } else {
-            result += convertInline(child, ctx, inheritProps)
+            result += convertInline(child, ctx, styledProps)
           }
           break
         }
@@ -660,22 +1415,39 @@ function convertInline(el: HTMLElement, ctx: DocxBuildContext, inheritProps?: st
           result += '<w:r><w:br/></w:r>'
           break
         case 'img': {
-          const src = child.getAttribute('src') || ''
-          const w = parseInt(child.getAttribute('width') || '0', 10) || DEFAULT_IMG_WIDTH
-          const h = parseInt(child.getAttribute('height') || '0', 10) || DEFAULT_IMG_HEIGHT
-          const img = registerImage(ctx, src, w, h)
-          if (img) result += wrapDrawingRun(imageDrawingXml(img, allocateDocPrId(ctx)))
+          const normalizedImage = normalizeDocxInlineImageForExport(child)
+          if (!normalizedImage) {
+            break
+          }
+          const width = normalizedImage.resolvedDimensions.width ?? DEFAULT_IMG_WIDTH
+          const height = normalizedImage.resolvedDimensions.height ?? DEFAULT_IMG_HEIGHT
+          const img = registerImage(ctx, normalizedImage.src, width, height)
+          if (img) {
+            result += wrapDrawingRun(
+              imageDrawingXml(
+                img,
+                allocateDocPrId(ctx),
+                normalizedImage.layout,
+                resolveWordLikeImageLayout(normalizedImage.layout),
+                normalizedImage.resolvedDimensions.rotation,
+                {
+                  alt: normalizedImage.alt,
+                  title: normalizedImage.title
+                }
+              )
+            )
+          }
           break
         }
         case 'code':
           result += convertInline(
             child,
             ctx,
-            (inheritProps || '') + '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="20"/>'
+            `${styledProps}<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="20"/>`
           )
           break
         default:
-          result += convertInline(child, ctx, inheritProps)
+          result += convertInline(child, ctx, styledProps)
           break
       }
     }
@@ -801,31 +1573,102 @@ function convertList(
 }
 
 function convertTable(tableEl: HTMLElement, parts: string[], ctx: DocxBuildContext): void {
+  const table = buildDocxTableDefinition(tableEl)
   const borderXml =
-    '<w:top w:val="single" w:sz="4" w:space="0" w:color="333333"/>' +
-    '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="333333"/>' +
-    '<w:left w:val="single" w:sz="4" w:space="0" w:color="333333"/>' +
-    '<w:right w:val="single" w:sz="4" w:space="0" w:color="333333"/>' +
-    '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="333333"/>' +
-    '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="333333"/>'
-  parts.push(`<w:tbl><w:tblPr><w:tblBorders>${borderXml}</w:tblBorders><w:tblW w:w="5000" w:type="pct"/></w:tblPr>`)
-  const rows = tableEl.querySelectorAll('tr')
-  rows.forEach(row => {
+    buildDocxBorderXml('top', table.borders.top) +
+    buildDocxBorderXml('bottom', table.borders.bottom) +
+    buildDocxBorderXml('left', table.borders.left) +
+    buildDocxBorderXml('right', table.borders.right) +
+    buildDocxBorderXml('insideH', table.borders.insideH) +
+    buildDocxBorderXml('insideV', table.borders.insideV)
+  const alignmentXml = table.alignment ? `<w:jc w:val="${table.alignment}"/>` : ''
+  const layoutXml = table.useFixedLayout ? '<w:tblLayout w:type="fixed"/>' : ''
+  const gridXml =
+    table.gridWidths.length > 0
+      ? `<w:tblGrid>${table.gridWidths.map(width => `<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>`
+      : ''
+
+  parts.push(
+    `<w:tbl><w:tblPr><w:tblBorders>${borderXml}</w:tblBorders><w:tblW w:w="${table.width.value}" w:type="${table.width.type}"/>${layoutXml}${alignmentXml}</w:tblPr>${gridXml}`
+  )
+  table.rows.forEach(row => {
     parts.push('<w:tr>')
-    const cells = row.querySelectorAll('td, th')
-    cells.forEach(cell => {
-      const isHeader = cell.tagName.toLowerCase() === 'th'
-      const shd = isHeader ? '<w:shd w:val="clear" w:fill="F0F0F0"/>' : ''
-      const pPr = `<w:pPr><w:spacing w:before="0" w:after="0" w:line="${ctx.typography.tableLineSpacing}" w:lineRule="auto"/></w:pPr>`
-      const rProps =
-        buildFontRunProps(ctx.typography.fontFamily, ctx.typography.tableFontHalfPoints) + (isHeader ? '<w:b/>' : '')
-      parts.push(
-        `<w:tc><w:tcPr>${shd}</w:tcPr><w:p>${pPr}${convertInline(cell as HTMLElement, ctx, rProps)}</w:p></w:tc>`
-      )
+    row.forEach(cell => {
+      const tcPrParts: string[] = []
+      const pPrParts = [
+        `<w:spacing w:before="0" w:after="0" w:line="${ctx.typography.tableLineSpacing}" w:lineRule="auto"/>`
+      ]
+      const rPropsParts = [buildFontRunProps(ctx.typography.fontFamily, ctx.typography.tableFontHalfPoints)]
+
+      if (cell.backgroundColor) {
+        tcPrParts.push(`<w:shd w:val="clear" w:fill="${cell.backgroundColor}"/>`)
+      }
+      if (cell.textAlign) {
+        pPrParts.push(`<w:jc w:val="${cell.textAlign}"/>`)
+      }
+      if (cell.verticalAlign) {
+        tcPrParts.push(`<w:vAlign w:val="${cell.verticalAlign}"/>`)
+      }
+      if (cell.colspan > 1) {
+        tcPrParts.push(`<w:gridSpan w:val="${cell.colspan}"/>`)
+      }
+      if (cell.rowspan > 1 || cell.isMergeContinuation) {
+        tcPrParts.push(cell.isMergeContinuation ? '<w:vMerge/>' : '<w:vMerge w:val="restart"/>')
+      }
+      if (cell.width) {
+        tcPrParts.push(`<w:tcW w:w="${cell.width.value}" w:type="${cell.width.type}"/>`)
+      }
+      tcPrParts.push(buildDefaultTableCellMarginXml())
+
+      const cellBorderXml = [
+        buildDocxBorderXml('top', cell.borders.top ?? null),
+        buildDocxBorderXml('right', cell.borders.right ?? null),
+        buildDocxBorderXml('bottom', cell.borders.bottom ?? null),
+        buildDocxBorderXml('left', cell.borders.left ?? null)
+      ]
+        .filter(Boolean)
+        .join('')
+      if (cellBorderXml) {
+        tcPrParts.push(`<w:tcBorders>${cellBorderXml}</w:tcBorders>`)
+      }
+
+      if (cell.bold) {
+        rPropsParts.push('<w:b/>')
+      }
+      if (cell.textColor) {
+        rPropsParts.push(`<w:color w:val="${cell.textColor}"/>`)
+      }
+
+      const paragraphPropertiesXml = `<w:pPr>${pPrParts.join('')}</w:pPr>`
+      const paragraphXml = cell.isMergeContinuation
+        ? '<w:p/>'
+        : buildTableCellParagraphsXml(cell.element ?? tableEl, ctx, paragraphPropertiesXml, rPropsParts.join(''))
+
+      parts.push(`<w:tc><w:tcPr>${tcPrParts.join('')}</w:tcPr>${paragraphXml}</w:tc>`)
     })
     parts.push('</w:tr>')
   })
   parts.push('</w:tbl>')
+}
+
+function buildTableCellParagraphsXml(
+  cellEl: HTMLElement,
+  ctx: DocxBuildContext,
+  paragraphPropertiesXml: string,
+  runPropertiesXml: string
+): string {
+  const directParagraphs = Array.from(cellEl.children).filter(child => child.tagName.toLowerCase() === 'p')
+
+  if (directParagraphs.length === 0) {
+    return `<w:p>${paragraphPropertiesXml}${convertInline(cellEl, ctx, runPropertiesXml)}</w:p>`
+  }
+
+  return directParagraphs
+    .map(
+      paragraph =>
+        `<w:p>${paragraphPropertiesXml}${convertInline(paragraph as HTMLElement, ctx, runPropertiesXml)}</w:p>`
+    )
+    .join('')
 }
 
 type DocxHeaderFooterReferenceType = 'default' | 'first' | 'even'
@@ -1014,6 +1857,7 @@ async function buildHeaderFooterPart(params: {
   const { kind, referenceType, page, title, html, slot, formatting, typography, buildState, index } = params
   const safeHtml = sanitizeHtmlForExport(html, {
     preserveBlockSpacing: true,
+    preserveTextStyles: true,
     preserveVisualStyles: true,
     allowDataUriInImg: true
   })
@@ -1025,13 +1869,15 @@ async function buildHeaderFooterPart(params: {
       FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
       ALLOW_DATA_ATTR: true
     }) || ''
+  normalizeDocxCustomImageMarkup(tempDiv)
 
   const requiresFieldConfig = slot !== null || hasDocxFieldTokens(html)
   const ctx = newContext(
     typography,
     `${kind}-${referenceType}-${index}`,
     buildState,
-    requiresFieldConfig ? buildFieldConfig(title, formatting, page) : undefined
+    requiresFieldConfig ? buildFieldConfig(title, formatting, page) : undefined,
+    resolveDocxImageMeasurementContext(formatting)
   )
   const bodyParts: string[] = []
 
@@ -1292,10 +2138,11 @@ export async function buildDocxBlob(
   const buildState: DocxBuildState = { nextDocPrId: 1 }
   const safeHtml = sanitizeHtmlForExport(htmlContent, {
     preserveBlockSpacing: true,
+    preserveTextStyles: true,
     preserveVisualStyles: true,
     allowDataUriInImg: true
   })
-  const ctx = newContext(typography, 'body', buildState)
+  const ctx = newContext(typography, 'body', buildState, undefined, resolveDocxImageMeasurementContext(formatting))
 
   const tempDiv = document.createElement('div')
   // CWE-79: use a recognized sanitizer directly at the sink for SAST tools.
@@ -1305,6 +2152,7 @@ export async function buildDocxBlob(
       FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
       ALLOW_DATA_ATTR: true
     }) || ''
+  normalizeDocxCustomImageMarkup(tempDiv)
   const bodyParts: string[] = []
   await convertBlock(tempDiv, bodyParts, ctx)
   if (bodyParts.length === 0) bodyParts.push('<w:p/>')
