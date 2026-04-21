@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { CheckCircle, XCircle, ArrowRight } from '@phosphor-icons/react'
+import { CheckCircleIcon, XCircleIcon, ArrowRightIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
@@ -36,7 +36,7 @@ function getChangeBadge(change: SkillChange, t: (key: string) => string) {
   }
 }
 
-function SkillChangeRow({ change, t }: { change: SkillChange; t: (key: string) => string }) {
+function SkillChangeRow({ change, t }: Readonly<{ change: SkillChange; t: (key: string) => string }>) {
   const isDeleted = change.type === 'deleted'
   const testId = change.skillId ?? change.skillName
 
@@ -59,7 +59,7 @@ function SkillChangeRow({ change, t }: { change: SkillChange; t: (key: string) =
             data-testid={`skill-change-level-${testId}`}
           >
             {t('approve-skill-assignment-level')} {change.oldLevel}
-            <ArrowRight size={12} />
+            <ArrowRightIcon size={12} />
             {t('approve-skill-assignment-level')} {change.newLevel}
           </span>
         )}
@@ -95,17 +95,15 @@ export const ApproveSkillAssignment: React.FC<ApproveSkillAssignmentProps> = ({
 
   const taskPayload = additionalData?.psi_taskPayload || {}
   const processMetadata = additionalData?.psi_processMetadata || {}
-  const taskStatus = additionalData?.psi_taskStatus || (processMetadata as any)?.status || 'IN_PROGRESS'
+  const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const isTaskCompleted = taskStatus === 'COMPLETED'
 
-  const taskTitle =
-    ((processMetadata as any)?.referenceTaskName as string | undefined) ?? t('approve-skill-assignment-title')
+  const taskTitle = (processMetadata?.referenceTaskName as string | undefined) ?? t('approve-skill-assignment-title')
   const creatorName =
-    ((taskPayload as any)?.creatorName as string | undefined) ??
-    ((processMetadata as any)?.creatorName as string | undefined)
-  const creatorUserId = (processMetadata as any)?.creatorUserId as string | undefined
+    (taskPayload?.creatorName as string | undefined) ?? (processMetadata?.creatorName as string | undefined)
+  const creatorUserId = processMetadata?.creatorUserId as string | undefined
 
-  const employeeSkills = (taskPayload as any)?.employeeSkills as
+  const employeeSkills = taskPayload?.employeeSkills as
     | { employeeId?: string; skills?: SkillPayloadItem[]; newSkills?: { name: string }[] }
     | undefined
 
@@ -178,7 +176,7 @@ export const ApproveSkillAssignment: React.FC<ApproveSkillAssignmentProps> = ({
                 variant: 'default' as const,
                 disabled: isSubmitting,
                 loading: isSubmitting,
-                icon: XCircle,
+                icon: XCircleIcon,
                 className: 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90',
                 testId: 'reject-skill-assignment-button'
               },
@@ -188,7 +186,7 @@ export const ApproveSkillAssignment: React.FC<ApproveSkillAssignmentProps> = ({
                 variant: 'default' as const,
                 disabled: isSubmitting,
                 loading: isSubmitting,
-                icon: CheckCircle,
+                icon: CheckCircleIcon,
                 className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
                 testId: 'approve-skill-assignment-button'
               }
