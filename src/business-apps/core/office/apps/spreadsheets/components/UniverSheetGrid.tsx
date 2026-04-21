@@ -439,10 +439,115 @@ function readWorksheetCellValue(
   col: number
 ): unknown {
   const cellRange = worksheet?.getRange?.(row, col)
-  return (
-    (cellRange as { getValue?: () => unknown })?.getValue?.() ??
-    (cellRange as { getCellData?: () => { v?: unknown } })?.getCellData?.()?.v
-  )
+  // Preserve formulas: when the live cell carries a formula, return the full
+  // cell data so downstream persistence keeps `f`. Otherwise fall back to the
+  // rendered scalar value. Without this, range-derived SheetValueChanged
+  // payloads (e.g. recalculations) would store only the computed value and
+  // overwrite the persisted formula on the next batch flush.
+  const liveCellData = (cellRange as { getCellData?: () => Record<string, unknown> | undefined })?.getCellData?.()
+  if (liveCellData && typeof liveCellData === 'object') {
+    const liveFormula = (liveCellData as { f?: unknown }).f
+    if (typeof liveFormula === 'string' && liveFormula.length > 0) {
+      return liveCellData
+    }
+  }
+  return (cellRange as { getValue?: () => unknown })?.getValue?.() ?? liveCellData?.v
+}
+
+function readFormulaFromUnknown(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed.startsWith('=') ? trimmed : null
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const f = (value as { f?: unknown }).f
+  if (typeof f !== 'string') return null
+  const trimmed = f.trim()
+  if (trimmed.length === 0) return null
+  return trimmed.startsWith('=') ? trimmed : `=${trimmed}`
+}
+
+function readPayloadFormula(
+  payloadCellValue: SheetCellMatrix | undefined,
+  rowIndex: number,
+  colIndex: number
+): string | null {
+  if (!payloadCellValue) return null
+  const row = payloadCellValue[rowIndex]
+  if (!row || typeof row !== 'object') return null
+  if (!Object.prototype.hasOwnProperty.call(row, colIndex)) return null
+  return readFormulaFromUnknown((row as Record<number, unknown>)[colIndex])
+}
+
+function readLiveWorksheetFormula(
+  worksheet: { getRange?: (row: number, col: number) => unknown } | undefined,
+  rowIndex: number,
+  colIndex: number
+): string | null {
+  if (!worksheet?.getRange) return null
+  const liveCellData = (
+    worksheet.getRange?.(rowIndex, colIndex) as { getCellData?: () => Record<string, unknown> } | undefined
+  )?.getCellData?.()
+  if (!liveCellData || typeof liveCellData !== 'object') return null
+  return readFormulaFromUnknown(liveCellData)
+}
+
+/**
+ * Preserve `f` (formula) on every cell in `cellValue` whenever the original
+ * mutation payload OR the live worksheet still carries one. Two scenarios
+ * silently drop formulas without this:
+ *
+ * 1. User-typed formulas: SetRangeValuesMutation payload has `{f, v}`, but
+ *    `handleDetectedCellMutation` rebuilds `cellValue` via
+ *    `deriveCellMatrixFromRanges` (which prefers the live scalar value via
+ *    Univer's facade `getRange().getValue()`), discarding the payload's `f`
+ *    and persisting only the rendered number.
+ * 2. Recompute echoes: dependency change re-fires `SheetValueChanged` for the
+ *    formula cell with only the new `v`. The live cell still has `f`, but the
+ *    derived matrix carries only the scalar.
+ *
+ * Cells whose entry already declares `f` (including explicit `f: null` to
+ * intentionally clear a formula when typing a literal value) are left
+ * untouched so user clears still work.
+ */
+export function enrichCellMatrixWithLiveFormulas(
+  worksheet: { getRange?: (row: number, col: number) => unknown } | undefined,
+  cellValue: SheetCellMatrix,
+  payloadCellValue?: SheetCellMatrix | undefined
+): SheetCellMatrix {
+  let nextValue: SheetCellMatrix | null = null
+  for (const rowKey of Object.keys(cellValue)) {
+    const rowIndex = Number(rowKey)
+    if (!Number.isFinite(rowIndex)) continue
+    const rowCells = cellValue[rowIndex]
+    if (!rowCells || typeof rowCells !== 'object') continue
+    for (const colKey of Object.keys(rowCells)) {
+      const colIndex = Number(colKey)
+      if (!Number.isFinite(colIndex)) continue
+      const entry = (rowCells as Record<number, unknown>)[colIndex]
+      if (entry === null) continue
+      if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+        if (Object.prototype.hasOwnProperty.call(entry, 'f')) continue
+      }
+      const formula =
+        readPayloadFormula(payloadCellValue, rowIndex, colIndex) ??
+        readLiveWorksheetFormula(worksheet, rowIndex, colIndex)
+      if (!formula) continue
+      if (!nextValue) nextValue = { ...cellValue }
+      const nextRow = { ...(nextValue[rowIndex] ?? {}) } as Record<number, unknown>
+      let merged: Record<string, unknown>
+      if (entry && typeof entry === 'object') {
+        merged = { ...(entry as Record<string, unknown>), f: formula }
+      } else if (entry === undefined) {
+        merged = { f: formula }
+      } else {
+        merged = { v: entry, f: formula }
+      }
+      nextRow[colIndex] = merged as unknown
+      nextValue[rowIndex] = nextRow as Record<number, unknown>
+    }
+  }
+  return nextValue ?? cellValue
 }
 
 export function deriveCellMatrixFromRanges(
@@ -2994,10 +3099,16 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         // collaboration to briefly show stale data until the later authoritative
         // persistence broadcast arrives.
         const worksheetCellValue = deriveCellMatrixFromRanges(worksheet, ranges)
-        const cellValue = buildAbsoluteCellMatrixForRanges(ranges, worksheetCellValue, payloadCellValue)
-        if (!cellValue) {
+        const baseCellValue = buildAbsoluteCellMatrixForRanges(ranges, worksheetCellValue, payloadCellValue)
+        if (!baseCellValue) {
           return false
         }
+        // Preserve formulas across both user-typed edits (payload carries `{f, v}`
+        // but `worksheetCellValue` overwrote it with the rendered scalar) and
+        // recompute echoes (payload carries only `v`; live worksheet still has
+        // `f`). Without this, persistence drops `f` and reload shows only the
+        // computed value — also leaking to collaborators.
+        const cellValue = enrichCellMatrixWithLiveFormulas(worksheet, baseCellValue, payloadCellValue)
 
         const rowOffset = 0
         const colOffset = 0
@@ -3637,6 +3748,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           cellValue = deriveCellMatrixFromRanges(worksheet, ranges)
         }
         if (!cellValue) return
+        // Formula preservation happens centrally inside handleDetectedCellMutation
+        // (covers both this path and the command-executed path).
         handleDetectedCellMutation({
           source: 'sheet-value-changed',
           payloadCellValue: cellValue,
