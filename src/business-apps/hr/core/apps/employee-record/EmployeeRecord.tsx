@@ -204,7 +204,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const servicesFeatureFlag = useFeature('services.enabled')
   const attendanceFeatureFlag = useFeature('human-resources.attendance.enabled')
   const hrAdminFeatureFlag = useFeature('human-resources.enabled')
-  const absencesFeatureFlag = useFeature('human-resources.absence.enabeld')
+  const absencesFeatureFlag = useFeature('human-resources.absence.enabled')
   const compensationFeatureFlagRaw = useFeature<boolean>(Feature.HCM.Compensation.Key)
   const hrDevelopmentFeatureFlag = useFeature<boolean>(Feature.HCM.HRDevelopment.Key)
 
