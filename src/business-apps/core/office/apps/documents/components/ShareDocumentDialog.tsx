@@ -58,6 +58,22 @@ interface SelectedUser extends EmployeeLiteOption {
   permission: Permission
 }
 
+type TranslationVars = Record<string, string | number>
+
+const translateWithFallback = (
+  t: (key: string, vars?: TranslationVars) => string,
+  key: string,
+  fallback: string,
+  vars?: TranslationVars
+): string => {
+  try {
+    return t(key, vars)
+  } catch (error) {
+    console.error(`[ShareDocument] Failed to translate "${key}"`, error)
+    return fallback
+  }
+}
+
 /**
  * Helper to create assignment targets for Flow Engine
  */
@@ -221,6 +237,31 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sentSuccess, setSentSuccess] = useState(false)
+
+  const dialogTitle = translateWithFallback(t, 'share-dialog-title', 'Share Document')
+  const dialogDescription = translateWithFallback(
+    t,
+    'share-dialog-description',
+    `Share "${documentTitle}" with others and set their access level.`,
+    { title: documentTitle }
+  )
+  const singleRecipientName =
+    selectedUsers[0]?.displayName?.trim() || translateWithFallback(t, 'share-task-someone', 'Someone')
+  const successTitle = translateWithFallback(t, 'share-dialog-success-title', 'Document Shared!')
+  const successMessage =
+    selectedUsers.length === 1
+      ? translateWithFallback(
+          t,
+          'share-dialog-success-single',
+          `${singleRecipientName} has been notified and can now access this document.`,
+          { name: singleRecipientName }
+        )
+      : translateWithFallback(
+          t,
+          'share-dialog-success-multi',
+          `${selectedUsers.length} people have been notified and can now access this document.`,
+          { count: selectedUsers.length }
+        )
 
   // Employee search
   const { employees: searchResults, loading: isSearching, search: searchEmployees } = useEmployeeSearch(accessToken)
@@ -405,9 +446,9 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
-            {t('share-dialog-title')}
+            {dialogTitle}
           </DialogTitle>
-          <DialogDescription>{t('share-dialog-description', { title: documentTitle })}</DialogDescription>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
 
         {sentSuccess ? (
@@ -415,12 +456,8 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
             <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-success/10 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
               <CheckCircle className="gba:w-8 gba:h-8 gba:text-success" />
             </div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{t('share-dialog-success-title')}</h3>
-            <p className="gba:text-muted-foreground">
-              {selectedUsers.length === 1
-                ? t('share-dialog-success-single', { name: selectedUsers[0].displayName })
-                : t('share-dialog-success-multi', { count: selectedUsers.length })}
-            </p>
+            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{successTitle}</h3>
+            <p className="gba:text-muted-foreground">{successMessage}</p>
           </div>
         ) : (
           <div className="gba:space-y-5 gba:py-2 gba:overflow-y-auto gba:flex-1 gba:-mx-6 gba:px-6">
