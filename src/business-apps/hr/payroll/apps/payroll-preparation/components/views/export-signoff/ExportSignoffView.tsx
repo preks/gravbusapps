@@ -381,6 +381,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
             <Button
               onClick={handleMarkReady}
               disabled={saving || summary.blockedCount > 0}
+              className="gba:w-full gba:justify-center"
               data-testid="payroll-prep-export-mark-ready-button"
             >
               {t('signoff-mark-ready')}
@@ -634,12 +635,13 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
               </div>
 
               {awaitingExportConfirmation && (
-                <div className="gba:rounded-md gba:border gba:border-border gba:bg-muted/30 gba:p-4 gba:space-y-3">
+                <div className="gba:space-y-3">
                   <p className="gba:text-sm gba:text-muted-foreground">{t('export-complete-hint')}</p>
                   <div className="gba:flex gba:gap-3">
                     <Button
                       onClick={handleConfirmExportCompleted}
                       disabled={saving}
+                      className="gba:w-full gba:justify-center"
                       data-testid="payroll-prep-export-mark-complete-button"
                     >
                       {t('export-mark-complete')}
