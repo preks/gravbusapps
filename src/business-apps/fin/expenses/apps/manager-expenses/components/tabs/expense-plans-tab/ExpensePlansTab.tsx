@@ -22,24 +22,19 @@ import ExpensePlansTable from './ExpensePlansTable'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { DetailsSheet } from '../../../common/components/DetailsSheet'
 import { createExpensePlanFilterConfig } from './config/expensePlanFilterConfig'
+import { EXPENSE_PLAN_DEFAULT_VISIBLE_COLUMN_IDS } from './config/expensePlanColumnDefinitions'
 import { expensePlanSortableColumns } from './config/expensePlanSortableColumns'
 import { expensePlanAvailableColumns } from './config/expensePlanAvailableColumns'
 import { formatDateRangeForChip, applyDateRangeFromFilter } from '../../../../../common/utils/dateRangeFilterUtils'
+import {
+  applyAmountRangeFromFilters,
+  isAmountRangeFilterActive,
+  type ExpenseAmountRangeValue
+} from '../../../../../common/utils/amountRangeFilterUtils'
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   employeeId?: string
 }
-
-const DEFAULT_VISIBLE_COLUMN_IDS = [
-  'title',
-  'requestCode',
-  'startDate',
-  'endDate',
-  'employee',
-  'createdAt',
-  'totalAmount',
-  'status'
-]
 
 const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const { t } = useTranslation(translations)
@@ -71,7 +66,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   })
 
   const [pageSize, setPageSize] = useState<number>(20)
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...DEFAULT_VISIBLE_COLUMN_IDS])
+  const [totalAmountRange, setTotalAmountRange] = useState<ExpenseAmountRangeValue>(null)
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...EXPENSE_PLAN_DEFAULT_VISIBLE_COLUMN_IDS])
 
   const DEFAULT_SORT: { field: SortField | null; order: 'ASC' | 'DESC' | null; lastField: SortField | null } = useMemo(
     () => ({ field: 'createdAt', order: 'DESC', lastField: 'createdAt' }),
@@ -85,6 +81,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     lastField: SortField | null
   }>(DEFAULT_SORT)
 
+  /** Sort `field` values come from TanStack column ids (see expensePlanColumnDefinitions.ts). */
   const buildOrderByClause = useCallback((field: string, order: 'ASC' | 'DESC') => {
     if (field === 'employee' || field === 'employee.fullName') {
       return [{ employee: { fullName: order } } as any]
@@ -114,7 +111,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       endDateRange,
       pageSize,
       currentPage,
-      planOrderBy
+      planOrderBy,
+      totalAmountRange
     })
 
   const filterSignature = useMemo(
@@ -126,7 +124,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       planDateRange,
       startDateRange,
       endDateRange,
-      planTypeFilter
+      planTypeFilter,
+      totalAmountRange
     }),
     [
       searchTerm,
@@ -136,7 +135,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       planDateRange,
       startDateRange,
       endDateRange,
-      planTypeFilter
+      planTypeFilter,
+      totalAmountRange
     ]
   )
 
@@ -199,8 +199,11 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     if (startStr) obj.startDateRange = startStr
     const endStr = formatDateRangeForChip(endDateRange)
     if (endStr) obj.endDateRange = endStr
+    if (isAmountRangeFilterActive(totalAmountRange)) {
+      obj.totalAmount = { min: totalAmountRange?.min, max: totalAmountRange?.max }
+    }
     return obj
-  }, [statusFilter, planTypeFilter, planDateRange, effectiveDateRange, startDateRange, endDateRange])
+  }, [statusFilter, planTypeFilter, planDateRange, effectiveDateRange, startDateRange, endDateRange, totalAmountRange])
 
   const handleFilterChangeFromDisplay = useCallback(
     (filters: Record<string, unknown>) => {
@@ -212,6 +215,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       applyDateRangeFromFilter(filters.effectiveDateRange, setEffectiveDateRange)
       applyDateRangeFromFilter(filters.startDateRange, setStartDateRange)
       applyDateRangeFromFilter(filters.endDateRange, setEndDateRange)
+      applyAmountRangeFromFilters(
+        filters.totalAmount as { min?: number; max?: number } | undefined,
+        setTotalAmountRange
+      )
       setCurrentPage(1)
     },
     [setPlanDateRange, setEffectiveDateRange, setStartDateRange, setEndDateRange]
@@ -238,7 +245,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       (planDateRange && (planDateRange[0] || planDateRange[1])) ||
       (startDateRange && (startDateRange[0] || startDateRange[1])) ||
       (endDateRange && (endDateRange[0] || endDateRange[1]))
-    return hasSearch || hasStatus || hasPlanType || hasCurrency || !!hasDate
+    const hasAmount = isAmountRangeFilterActive(totalAmountRange)
+    return hasSearch || hasStatus || hasPlanType || hasCurrency || !!hasDate || hasAmount
   }, [
     searchTerm,
     statusFilter,
@@ -247,7 +255,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     effectiveDateRange,
     planDateRange,
     startDateRange,
-    endDateRange
+    endDateRange,
+    totalAmountRange
   ])
 
   const emptyMessage = useEmptyMessage(

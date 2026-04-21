@@ -6,6 +6,7 @@ import { extractCurrencyCode } from '../utils/currencyUtils'
 import { PLAN_TAB_HIDDEN_STATUSES } from '../constants/expenseStatus'
 import { convertDateRangeToGraphQL } from '../utils/dateUtils'
 import { useCurrencyRefs, usePaginationParams, useStatsFromOverview, extractLoadingError } from './overviewHelpers'
+import type { ExpenseAmountRangeValue } from '../../../common/utils/amountRangeFilterUtils'
 
 export interface ExpensePlansOverviewDataParams {
   managerId: string
@@ -21,6 +22,7 @@ export interface ExpensePlansOverviewDataParams {
   pageSize: number
   currentPage: number
   planOrderBy: unknown[]
+  totalAmountRange?: ExpenseAmountRangeValue
 }
 
 export interface PlanStats {
@@ -44,7 +46,8 @@ export function useExpensePlansOverviewData(context: BusinessAppContextProps, pa
     endDateRange,
     pageSize,
     currentPage,
-    planOrderBy
+    planOrderBy,
+    totalAmountRange
   } = params
 
   const { currencyRef, statsCurrencyRef: planStatsCurrencyRef } = useCurrencyRefs(primaryCurrency, mostUsedCurrency)
@@ -70,7 +73,8 @@ export function useExpensePlansOverviewData(context: BusinessAppContextProps, pa
       plansStartDateRange,
       plansEndDateRange,
       plansPlanDateRange,
-      plansTypeFilter: planTypeFilter
+      plansTypeFilter: planTypeFilter,
+      plansTotalAmountRange: totalAmountRange
     }),
     [
       managerId,
@@ -83,7 +87,9 @@ export function useExpensePlansOverviewData(context: BusinessAppContextProps, pa
       plansStartDateRange,
       plansEndDateRange,
       plansPlanDateRange,
-      planTypeFilter
+      planTypeFilter,
+      totalAmountRange?.min,
+      totalAmountRange?.max
     ]
   )
 
