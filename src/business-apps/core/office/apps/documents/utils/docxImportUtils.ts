@@ -5,8 +5,11 @@
 
 import type { DocumentFormatting, PageSizeId } from '../types'
 import type {
+  CustomImageAttributes,
   ImageAlignment,
+  ImageAnchorMode,
   ImageBorderDash,
+  ImageDisplayMode,
   ImageWrapMode,
   ImageWrapTextSide
 } from '@/components/tiptap-extensions/tiptap-custom-image/types'
@@ -50,12 +53,77 @@ interface DocxImageBorder {
   borderDash: ImageBorderDash
 }
 
+export type DocxPictureImportSupportStatus = 'imported' | 'available-in-ooxml' | 'unsupported'
+
+export const DOCX_PICTURE_IMPORT_SUPPORT: Record<keyof CustomImageAttributes, DocxPictureImportSupportStatus> = {
+  src: 'imported',
+  alt: 'imported',
+  title: 'imported',
+  originalWidth: 'imported',
+  originalHeight: 'imported',
+  width: 'imported',
+  height: 'imported',
+  widthUnit: 'imported',
+  heightUnit: 'imported',
+  widthPercent: 'unsupported',
+  heightPercent: 'unsupported',
+  widthRelativeTo: 'unsupported',
+  heightRelativeTo: 'unsupported',
+  scaleWidthPercent: 'unsupported',
+  scaleHeightPercent: 'unsupported',
+  rotation: 'imported',
+  cropTop: 'imported',
+  cropRight: 'imported',
+  cropBottom: 'imported',
+  cropLeft: 'imported',
+  align: 'imported',
+  caption: 'unsupported',
+  display: 'imported',
+  wrapMode: 'imported',
+  wrapTextSide: 'imported',
+  anchorMode: 'imported',
+  lockAspectRatio: 'unsupported',
+  distanceTop: 'imported',
+  distanceRight: 'imported',
+  distanceBottom: 'imported',
+  distanceLeft: 'imported',
+  offsetX: 'imported',
+  offsetY: 'imported',
+  allowOverlap: 'imported',
+  zIndex: 'imported',
+  borderVisible: 'imported',
+  borderColor: 'imported',
+  borderWidthPt: 'imported',
+  borderDash: 'imported'
+}
+
 export interface DocxImageLayout {
   wrapMode: ImageWrapMode
   wrapTextSide?: ImageWrapTextSide | null
   align: ImageAlignment
   widthPx: number | null
   heightPx: number | null
+  originalWidthPx?: number | null
+  originalHeightPx?: number | null
+  widthUnit?: 'px' | null
+  heightUnit?: 'px' | null
+  rotation?: number | null
+  cropTop?: number | null
+  cropRight?: number | null
+  cropBottom?: number | null
+  cropLeft?: number | null
+  alt?: string | null
+  title?: string | null
+  anchorMode?: ImageAnchorMode | null
+  display?: ImageDisplayMode | null
+  distanceTop?: number | null
+  distanceRight?: number | null
+  distanceBottom?: number | null
+  distanceLeft?: number | null
+  offsetX?: number | null
+  offsetY?: number | null
+  allowOverlap?: boolean | null
+  zIndex?: number | null
   borderVisible?: boolean
   borderColor?: string | null
   borderWidthPt?: number | null
@@ -420,45 +488,172 @@ function readPictureBorder(drawing: Element): DocxImageBorder {
   }
 }
 
+function readRotationDegrees(drawing: Element): number | null {
+  const picture = descendantsByLocalName(drawing, 'pic')[0]
+  const shapeProps = picture ? firstChildByLocalName(picture, 'spPr') : null
+  const transform = shapeProps ? firstChildByLocalName(shapeProps, 'xfrm') : null
+  const rotation = transform?.getAttribute('rot')
+  if (!rotation) {
+    return null
+  }
+
+  const parsed = Number.parseInt(rotation, 10)
+  if (!Number.isFinite(parsed)) {
+    return null
+  }
+
+  return Math.round((parsed / 60000) * 100) / 100
+}
+
+function readCropRatio(value: string | null | undefined): number | null {
+  const parsed = Number.parseInt(value ?? '', 10)
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return null
+  }
+
+  return Math.min(0.95, Math.max(0, parsed / 100000))
+}
+
+function readPictureCrop(drawing: Element): Pick<DocxImageLayout, 'cropTop' | 'cropRight' | 'cropBottom' | 'cropLeft'> {
+  const picture = descendantsByLocalName(drawing, 'pic')[0]
+  const blipFill = picture ? firstChildByLocalName(picture, 'blipFill') : null
+  const srcRect = blipFill ? firstChildByLocalName(blipFill, 'srcRect') : null
+  if (!srcRect) {
+    return {}
+  }
+
+  return {
+    cropTop: readCropRatio(srcRect.getAttribute('t')),
+    cropRight: readCropRatio(srcRect.getAttribute('r')),
+    cropBottom: readCropRatio(srcRect.getAttribute('b')),
+    cropLeft: readCropRatio(srcRect.getAttribute('l'))
+  }
+}
+
+function readDocPrMetadata(container: Element): Pick<DocxImageLayout, 'alt' | 'title'> {
+  const docPr = descendantsByLocalName(container, 'docPr')[0]
+  return {
+    alt: docPr?.getAttribute('descr')?.trim() || null,
+    title: docPr?.getAttribute('title')?.trim() || null
+  }
+}
+
+function readAnchorMode(anchor: Element): ImageAnchorMode {
+  const horizontalRef = readAttributeValue(descendantsByLocalName(anchor, 'positionH')[0] ?? null, 'relativeFrom')
+  const verticalRef = readAttributeValue(descendantsByLocalName(anchor, 'positionV')[0] ?? null, 'relativeFrom')
+  return horizontalRef === 'page' || verticalRef === 'page' ? 'fixed' : 'move-with-text'
+}
+
+function emuToCoordinatePx(value: string | null | undefined): number | null {
+  if (value == null || value === '') {
+    return null
+  }
+
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isFinite(parsed)) {
+    return null
+  }
+
+  return Math.round(parsed / PX_TO_EMU)
+}
+
+function readPositionOffsetPx(positionElement: Element | null): number | null {
+  const posOffset = positionElement ? firstChildByLocalName(positionElement, 'posOffset') : null
+  return emuToCoordinatePx(posOffset?.textContent?.trim())
+}
+
+function readDistancePx(anchor: Element, attributeName: 'distT' | 'distR' | 'distB' | 'distL'): number | null {
+  return emuToPx(anchor.getAttribute(attributeName))
+}
+
+function relativeHeightToZIndex(value: string | null | undefined): number | null {
+  const parsed = Number.parseInt(value ?? '', 10)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null
+  }
+
+  return Math.max(1, Math.min(100, Math.round(parsed / 1000)))
+}
+
+function readAnchorPositioning(
+  anchor: Element
+): Pick<
+  DocxImageLayout,
+  | 'anchorMode'
+  | 'display'
+  | 'distanceTop'
+  | 'distanceRight'
+  | 'distanceBottom'
+  | 'distanceLeft'
+  | 'offsetX'
+  | 'offsetY'
+  | 'allowOverlap'
+  | 'zIndex'
+> {
+  const positionH = descendantsByLocalName(anchor, 'positionH')[0] ?? null
+  const positionV = descendantsByLocalName(anchor, 'positionV')[0] ?? null
+  return {
+    anchorMode: readAnchorMode(anchor),
+    display: 'block',
+    distanceTop: readDistancePx(anchor, 'distT'),
+    distanceRight: readDistancePx(anchor, 'distR'),
+    distanceBottom: readDistancePx(anchor, 'distB'),
+    distanceLeft: readDistancePx(anchor, 'distL'),
+    offsetX: readPositionOffsetPx(positionH),
+    offsetY: readPositionOffsetPx(positionV),
+    allowOverlap: anchor.getAttribute('allowOverlap') === '1',
+    zIndex: relativeHeightToZIndex(anchor.getAttribute('relativeHeight'))
+  }
+}
+
 function resolveAnchorLayout(anchor: Element): DocxImageLayout {
   const align = readHorizontalAlign(anchor)
   const { widthPx, heightPx } = readExtentPx(anchor)
   const behindDoc = anchor.getAttribute('behindDoc') === '1'
+  const baseLayout: DocxImageLayout = {
+    align,
+    widthPx,
+    heightPx,
+    originalWidthPx: widthPx,
+    originalHeightPx: heightPx,
+    widthUnit: 'px',
+    heightUnit: 'px',
+    ...readDocPrMetadata(anchor),
+    ...readAnchorPositioning(anchor)
+  }
 
   if (descendantsByLocalName(anchor, 'wrapTopAndBottom').length > 0) {
-    return { wrapMode: 'top-bottom', align, widthPx, heightPx }
+    return { ...baseLayout, wrapMode: 'top-bottom' }
   }
 
   if (descendantsByLocalName(anchor, 'wrapTight').length > 0) {
-    return { wrapMode: 'tight', align, widthPx, heightPx }
+    return { ...baseLayout, wrapMode: 'tight', wrapTextSide: 'bothSides' }
   }
 
   if (descendantsByLocalName(anchor, 'wrapThrough').length > 0) {
-    return { wrapMode: 'through', align, widthPx, heightPx }
+    return { ...baseLayout, wrapMode: 'through', wrapTextSide: 'bothSides' }
   }
 
   const wrapSquare = descendantsByLocalName(anchor, 'wrapSquare')[0]
   if (wrapSquare) {
     const wrapText = wrapSquare.getAttribute('wrapText')
     return {
+      ...baseLayout,
       wrapMode: 'square',
       wrapTextSide: normalizeSquareWrapTextSide(wrapText, align),
-      align,
-      widthPx,
-      heightPx
+      align
     }
   }
 
   if (descendantsByLocalName(anchor, 'wrapNone').length > 0) {
     return {
+      ...baseLayout,
       wrapMode: behindDoc ? 'behind' : 'front',
-      align,
-      widthPx,
-      heightPx
+      align
     }
   }
 
-  return { wrapMode: 'inline', align: 'left', widthPx, heightPx }
+  return { ...baseLayout, wrapMode: 'inline', align: 'left' }
 }
 
 function drawingContainsPicture(drawing: Element): boolean {
@@ -488,16 +683,35 @@ export function parseDocumentXmlForImageLayouts(xml: string): DocxImageLayout[] 
       const inline = descendantsByLocalName(drawing, 'inline')[0]
       const anchor = descendantsByLocalName(drawing, 'anchor')[0]
       const pictureBorder = readPictureBorder(drawing)
+      const pictureCrop = readPictureCrop(drawing)
+      const rotation = readRotationDegrees(drawing)
 
       if (inline) {
         const { widthPx, heightPx } = readExtentPx(inline)
-        layouts.push({ wrapMode: 'inline', align: 'left', widthPx, heightPx, ...pictureBorder })
+        layouts.push({
+          wrapMode: 'inline',
+          align: 'left',
+          widthPx,
+          heightPx,
+          originalWidthPx: widthPx,
+          originalHeightPx: heightPx,
+          widthUnit: 'px',
+          heightUnit: 'px',
+          anchorMode: 'inline',
+          display: 'inline',
+          rotation,
+          ...pictureCrop,
+          ...readDocPrMetadata(inline),
+          ...pictureBorder
+        })
         continue
       }
 
       if (anchor) {
         layouts.push({
           ...resolveAnchorLayout(anchor),
+          rotation,
+          ...pictureCrop,
           ...pictureBorder
         })
         continue
@@ -1045,8 +1259,59 @@ function applyLayoutToFigure(figure: HTMLElement, layout: DocxImageLayout): void
   figure.setAttribute('data-image-wrap', layout.wrapMode)
   figure.setAttribute('data-image-align', layout.align)
   figure.setAttribute('data-image-border-visible', String(layout.borderVisible ?? false))
+  if (layout.widthUnit) {
+    figure.setAttribute('data-image-width-unit', layout.widthUnit)
+  }
+  if (layout.heightUnit) {
+    figure.setAttribute('data-image-height-unit', layout.heightUnit)
+  }
+  if (layout.originalWidthPx != null) {
+    figure.setAttribute('data-image-original-width', String(layout.originalWidthPx))
+  }
+  if (layout.originalHeightPx != null) {
+    figure.setAttribute('data-image-original-height', String(layout.originalHeightPx))
+  }
   if (layout.wrapTextSide) {
     figure.setAttribute('data-image-wrap-text-side', layout.wrapTextSide)
+  }
+  if (layout.rotation != null) {
+    figure.setAttribute('data-image-rotation', String(layout.rotation))
+  }
+  if (layout.cropTop != null) {
+    figure.setAttribute('data-image-crop-top', String(layout.cropTop))
+  }
+  if (layout.cropRight != null) {
+    figure.setAttribute('data-image-crop-right', String(layout.cropRight))
+  }
+  if (layout.cropBottom != null) {
+    figure.setAttribute('data-image-crop-bottom', String(layout.cropBottom))
+  }
+  if (layout.cropLeft != null) {
+    figure.setAttribute('data-image-crop-left', String(layout.cropLeft))
+  }
+  if (layout.distanceTop != null) {
+    figure.setAttribute('data-image-distance-top', String(layout.distanceTop))
+  }
+  if (layout.distanceRight != null) {
+    figure.setAttribute('data-image-distance-right', String(layout.distanceRight))
+  }
+  if (layout.distanceBottom != null) {
+    figure.setAttribute('data-image-distance-bottom', String(layout.distanceBottom))
+  }
+  if (layout.distanceLeft != null) {
+    figure.setAttribute('data-image-distance-left', String(layout.distanceLeft))
+  }
+  if (layout.offsetX != null) {
+    figure.setAttribute('data-image-offset-x', String(layout.offsetX))
+  }
+  if (layout.offsetY != null) {
+    figure.setAttribute('data-image-offset-y', String(layout.offsetY))
+  }
+  if (layout.allowOverlap != null) {
+    figure.setAttribute('data-image-allow-overlap', String(layout.allowOverlap))
+  }
+  if (layout.zIndex != null) {
+    figure.setAttribute('data-image-z-index', String(layout.zIndex))
   }
   if (layout.borderColor) {
     figure.setAttribute('data-image-border-color', layout.borderColor)
@@ -1057,8 +1322,12 @@ function applyLayoutToFigure(figure: HTMLElement, layout: DocxImageLayout): void
   if (layout.borderDash) {
     figure.setAttribute('data-image-border-dash', layout.borderDash)
   }
-
-  if (layout.wrapMode !== 'inline') {
+  if (layout.anchorMode) {
+    figure.setAttribute('data-image-anchor', layout.anchorMode)
+  }
+  if (layout.display) {
+    figure.setAttribute('data-image-display', layout.display)
+  } else if (layout.wrapMode !== 'inline') {
     figure.setAttribute('data-image-anchor', 'move-with-text')
     figure.setAttribute('data-image-display', 'block')
   }
@@ -1095,6 +1364,12 @@ export function enhanceImportedHtmlWithImageLayouts(html: string, layouts: DocxI
       }
       if (layout.heightPx != null) {
         img.setAttribute('height', String(layout.heightPx))
+      }
+      if (layout.alt) {
+        img.setAttribute('alt', layout.alt)
+      }
+      if (layout.title) {
+        img.setAttribute('title', layout.title)
       }
 
       const parent = img.parentElement
