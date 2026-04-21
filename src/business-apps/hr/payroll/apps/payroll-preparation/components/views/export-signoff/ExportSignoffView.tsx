@@ -45,7 +45,7 @@ import {
   DEFAULT_PAYROLL_COUNTRY
 } from '../../../utils/payrollDefaults'
 import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
-import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
+import { PayrollRunStatusBadge, getPayrollRunStatusLabel } from '../../shared/StatusBadge'
 
 const STATUS_ORDER: PayrollRunStatus[] = [
   'PAYROLL_IN_PROGRESS',
@@ -106,23 +106,6 @@ function getAuditDescriptionLabel(
       return t('audit-export-generated', { description: event.description })
     default:
       return event.description
-  }
-}
-
-function getRunStatusLabel(status: PayrollRunStatus, t: (key: string) => string): string {
-  switch (status) {
-    case 'PAYROLL_IN_PROGRESS':
-      return t('status-in-progress')
-    case 'PAYROLL_READY_FOR_REVIEW':
-      return t('status-ready-for-review')
-    case 'PAYROLL_APPROVED_FOR_EXPORT':
-      return t('status-approved')
-    case 'PAYROLL_EXPORTED':
-      return t('status-exported')
-    case 'PAYROLL_CLOSED':
-      return t('status-closed')
-    default:
-      return status
   }
 }
 
@@ -371,7 +354,10 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
           </h3>
           {isCompleted && <CompletedStepBadge label={t('step-completed')} />}
           {isActive && (
-            <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
+            <PayrollRunStatusBadge
+              status={currentStatus}
+              translatedLabel={getPayrollRunStatusLabel(currentStatus, t)}
+            />
           )}
         </div>
 
@@ -431,7 +417,10 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
             </span>
           )}
           {isActive && (
-            <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
+            <PayrollRunStatusBadge
+              status={currentStatus}
+              translatedLabel={getPayrollRunStatusLabel(currentStatus, t)}
+            />
           )}
         </div>
 
@@ -521,7 +510,10 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
           </h3>
           {isCompleted && <CompletedStepBadge label={t('step-completed')} />}
           {isActive && (
-            <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
+            <PayrollRunStatusBadge
+              status={currentStatus}
+              translatedLabel={getPayrollRunStatusLabel(currentStatus, t)}
+            />
           )}
         </div>
 
@@ -677,7 +669,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
                   <span className="gba:text-muted-foreground">{t('signoff-status')}</span>
                   <PayrollRunStatusBadge
                     status={payrollRun.status}
-                    translatedLabel={getRunStatusLabel(payrollRun.status, t)}
+                    translatedLabel={getPayrollRunStatusLabel(payrollRun.status, t)}
                   />
                 </div>
                 {payrollRun.preparedBy && (

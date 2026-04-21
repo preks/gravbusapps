@@ -20,9 +20,9 @@ import {
   PlusIcon,
   FolderOpenIcon
 } from '@phosphor-icons/react'
-import type { PayrollSummary, PayrollRun, PayrollEmployee, PayrollRunStatus } from '../../../types/payrollTypes'
+import type { PayrollSummary, PayrollRun, PayrollEmployee } from '../../../types/payrollTypes'
 import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
-import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
+import { PayrollRunStatusBadge, getPayrollRunStatusLabel } from '../../shared/StatusBadge'
 
 interface OverviewViewProps {
   activeRun: PayrollRun | null
@@ -103,23 +103,6 @@ function formatDate(dateStr: string | null | undefined): string {
   return formatted ?? '-'
 }
 
-function getRunStatusLabel(status: PayrollRunStatus, t: (key: string) => string): string {
-  switch (status) {
-    case 'PAYROLL_IN_PROGRESS':
-      return t('status-in-progress')
-    case 'PAYROLL_READY_FOR_REVIEW':
-      return t('status-ready-for-review')
-    case 'PAYROLL_APPROVED_FOR_EXPORT':
-      return t('status-approved')
-    case 'PAYROLL_EXPORTED':
-      return t('status-exported')
-    case 'PAYROLL_CLOSED':
-      return t('status-closed')
-    default:
-      return status
-  }
-}
-
 function RunsListView({
   runs,
   runsLoading,
@@ -194,7 +177,10 @@ function RunsListView({
                   {t(`month-${run.month}`)} {run.year}
                 </TableCell>
                 <TableCell>
-                  <PayrollRunStatusBadge status={run.status} translatedLabel={getRunStatusLabel(run.status, t)} />
+                  <PayrollRunStatusBadge
+                    status={run.status}
+                    translatedLabel={getPayrollRunStatusLabel(run.status, t)}
+                  />
                 </TableCell>
                 <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.cutOffDate)}</TableCell>
                 <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.paymentDate)}</TableCell>
