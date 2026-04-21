@@ -57531,9 +57531,9 @@
     ]
   },
   "hr/payroll/apps/payroll-preparation": {
-    "bitbucketBuildNumber": 11055,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11055/",
-    "chunkJsBytes": 650007,
+    "bitbucketBuildNumber": 11122,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11122/",
+    "chunkJsBytes": 649788,
     "top": [
       {
         "kind": "bucket",
@@ -57556,18 +57556,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 278451,
-        "gzip": 66114,
+        "rendered": 278828,
+        "gzip": 66455,
         "leaves": [
           {
             "name": "src/business-apps/hr/payroll/apps/payroll-preparation/components/views/export-signoff/ExportSignoffView.tsx",
-            "rendered": 31955,
-            "gzip": 5159
+            "rendered": 31774,
+            "gzip": 5086
           },
           {
             "name": "src/business-apps/hr/payroll/apps/payroll-preparation/hooks/usePayrollEmployees.ts",
-            "rendered": 21473,
-            "gzip": 5443
+            "rendered": 21617,
+            "gzip": 5479
           }
         ]
       },
@@ -88032,20 +88032,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11107,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11107/",
-    "chunkJsBytes": 1806483,
+    "bitbucketBuildNumber": 11122,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11122/",
+    "chunkJsBytes": 1806521,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1499695,
-        "gzip": 88830,
+        "rendered": 1499740,
+        "gzip": 88917,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1499695,
-            "gzip": 88830
+            "rendered": 1499740,
+            "gzip": 88917
           }
         ]
       },
@@ -101697,7 +101697,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-21T14:15:25.865Z",
+    "generatedAt": "2026-04-21T15:07:35.300Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
