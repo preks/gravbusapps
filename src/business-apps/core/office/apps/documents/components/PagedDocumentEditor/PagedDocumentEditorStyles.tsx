@@ -1,9 +1,14 @@
+import React from 'react'
+
 export interface PagedDocumentEditorStylesProps {
   pageColor: string
   proseMinHeight: number
 }
 
-export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonly<PagedDocumentEditorStylesProps>) {
+export function PagedDocumentEditorStyles({
+  pageColor,
+  proseMinHeight
+}: Readonly<PagedDocumentEditorStylesProps>): React.JSX.Element {
   return (
     <style>{`
       .document-editor-viewport {
@@ -491,15 +496,17 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         border-radius: 4pt;
       }
 
-      .paged-document-editor .ProseMirror p.is-editor-empty:first-child {
+      .paged-document-editor .ProseMirror p.is-editor-empty:first-child,
+      .paged-document-editor .ProseMirror p:has(> br.ProseMirror-trailingBreak:only-child) {
         min-height: 1em;
         cursor: text;
       }
 
-      .paged-document-editor .ProseMirror p.is-editor-empty:first-child::before {
-        content: '';
+      .paged-document-editor .ProseMirror p.is-editor-empty:first-child::before,
+      .paged-document-editor .ProseMirror p:has(> br.ProseMirror-trailingBreak:only-child)::before {
+        content: '\\00a0';
+        visibility: hidden;
         pointer-events: none;
-        height: 0;
       }
 
       /* Only style selection while the editor is focused. A global ::selection rule also paints
