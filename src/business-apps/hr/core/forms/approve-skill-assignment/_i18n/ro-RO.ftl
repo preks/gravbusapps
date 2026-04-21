@@ -9,3 +9,4 @@ approve-skill-assignment-change-new = Nou
 approve-skill-assignment-change-to-create = De creat
 approve-skill-assignment-change-modified = Modificat
 approve-skill-assignment-change-deleted = Eliminat
+approve-skill-assignment-info = Angajatul a solicitat modificări ale competențelor atribuite. Vă rugăm să revizuiți modificările de mai jos și să aprobați sau să respingeți cererea.

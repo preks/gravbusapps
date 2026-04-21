@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { CheckCircleIcon, XCircleIcon, ArrowRightIcon } from '@phosphor-icons/react'
+import { CheckCircleIcon, XCircleIcon, ArrowRightIcon, InfoIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
@@ -128,8 +128,7 @@ export const ApproveSkillAssignment: React.FC<ApproveSkillAssignmentProps> = ({
     setIsSubmitting(true)
     try {
       dispatchProcessContinueEvent('pse_approve', {
-        managerApproval: 'approved',
-        event: 'pse_approve'
+        managerApproval: 'approved'
       })
     } catch (err) {
       console.error('Error approving skill assignment:', err)
@@ -142,8 +141,7 @@ export const ApproveSkillAssignment: React.FC<ApproveSkillAssignmentProps> = ({
     setIsSubmitting(true)
     try {
       dispatchProcessContinueEvent('pse_reject', {
-        managerApproval: 'rejected',
-        event: 'pse_reject'
+        managerApproval: 'rejected'
       })
     } catch (err) {
       console.error('Error rejecting skill assignment:', err)
@@ -197,7 +195,15 @@ export const ApproveSkillAssignment: React.FC<ApproveSkillAssignmentProps> = ({
       contentClassName="gba:space-y-4"
     >
       <div
-        className="gba:bg-card gba:text-card-foreground gba:rounded-md gba:p-6"
+        className="gba:flex gba:items-start gba:gap-3 gba:rounded-md gba:border gba:border-border gba:bg-card/50 gba:px-4 gba:py-3"
+        data-testid="skill-assignment-info-banner"
+      >
+        <InfoIcon size={16} className="gba:mt-0.5 gba:shrink-0 gba:text-muted-foreground" />
+        <p className="gba:text-sm gba:text-muted-foreground">{t('approve-skill-assignment-info')}</p>
+      </div>
+
+      <div
+        className="gba:bg-card/50 gba:text-card-foreground gba:rounded-md gba:p-6 gba:border gba:border-border"
         data-testid="skill-assignment-details"
       >
         <div className="gba:text-lg gba:font-semibold gba:mb-4">{t('approve-skill-assignment-details-title')}</div>
