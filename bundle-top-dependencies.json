@@ -11075,15 +11075,15 @@
     ]
   },
   "core/office/apps/office-launcher": {
-    "bitbucketBuildNumber": 11020,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11020/",
-    "chunkJsBytes": 289563,
+    "bitbucketBuildNumber": 11073,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11073/",
+    "chunkJsBytes": 290245,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 288783,
-        "gzip": 73381,
+        "rendered": 290420,
+        "gzip": 73807,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/desk/components/QuickActions.tsx",
@@ -11298,6 +11298,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 241,
+        "gzip": 136,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 241,
+            "gzip": 136
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/core",
         "rendered": 161,
         "gzip": 137,
@@ -11306,19 +11319,6 @@
             "name": "src/wrapped-entries/core/office/apps/office-launcher.ts",
             "rendered": 161,
             "gzip": 137
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       },
@@ -87996,20 +87996,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11068,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11068/",
-    "chunkJsBytes": 1805942,
+    "bitbucketBuildNumber": 11073,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11073/",
+    "chunkJsBytes": 1805958,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1499119,
-        "gzip": 88694,
+        "gzip": 88695,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1499119,
-            "gzip": 88694
+            "gzip": 88695
           }
         ]
       },
@@ -89388,15 +89388,15 @@
     ]
   },
   "platform/apps/desk": {
-    "bitbucketBuildNumber": 10985,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10985/",
-    "chunkJsBytes": 288099,
+    "bitbucketBuildNumber": 11073,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11073/",
+    "chunkJsBytes": 290146,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 287119,
-        "gzip": 72979,
+        "rendered": 290420,
+        "gzip": 73807,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/desk/components/QuickActions.tsx",
@@ -89612,13 +89612,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
+        "rendered": 241,
+        "gzip": 136,
         "leaves": [
           {
             "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "rendered": 241,
+            "gzip": 136
           }
         ]
       },
@@ -90530,15 +90530,15 @@
     ]
   },
   "platform/apps/every-office": {
-    "bitbucketBuildNumber": 10985,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10985/",
-    "chunkJsBytes": 288115,
+    "bitbucketBuildNumber": 11073,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11073/",
+    "chunkJsBytes": 290162,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 287119,
-        "gzip": 72979,
+        "rendered": 290420,
+        "gzip": 73807,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/desk/components/QuickActions.tsx",
@@ -90753,6 +90753,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 241,
+        "gzip": 136,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 241,
+            "gzip": 136
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/platform",
         "rendered": 152,
         "gzip": 135,
@@ -90761,19 +90774,6 @@
             "name": "src/wrapped-entries/platform/apps/every-office.ts",
             "rendered": 152,
             "gzip": 135
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       },
@@ -101397,15 +101397,15 @@
     ]
   },
   "platform/apps/customer-home": {
-    "bitbucketBuildNumber": 10985,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10985/",
-    "chunkJsBytes": 116333,
+    "bitbucketBuildNumber": 11073,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11073/",
+    "chunkJsBytes": 116499,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 50970,
-        "gzip": 14578,
+        "rendered": 51284,
+        "gzip": 14689,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/customer-home/components/QuickSearch.tsx",
@@ -101620,6 +101620,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 241,
+        "gzip": 136,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 241,
+            "gzip": 136
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/platform",
         "rendered": 159,
         "gzip": 133,
@@ -101628,19 +101641,6 @@
             "name": "src/wrapped-entries/platform/apps/customer-home.ts",
             "rendered": 159,
             "gzip": 133
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       },
@@ -101661,7 +101661,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-20T23:04:58.875Z",
+    "generatedAt": "2026-04-21T07:21:44.873Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
