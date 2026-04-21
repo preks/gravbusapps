@@ -1,11 +1,5 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import {
-  createDateRangeConfig,
-  createDateRangeFilterGroup,
-  createNumberRangeFilterGroup,
-  createStatusFilterGroup,
-  createTypeFilterGroup
-} from '../../../../common/config/filterConfigHelpers'
+import { createNumberRangeFilterGroup } from '../../../../common/config/filterConfigHelpers'
 
 export {
   createDateRangeConfig,
@@ -13,7 +7,7 @@ export {
   createNumberRangeFilterGroup,
   createStatusFilterGroup,
   createTypeFilterGroup
-}
+} from '../../../../common/config/filterConfigHelpers'
 
 export function createExpenseAmountRangeFilterGroup(
   groupId: string,

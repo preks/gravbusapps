@@ -1,10 +1,14 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { defineManagerTableColumns } from '../../../../utils/managerTableColumnDefinitions'
 
 /**
  * Single source of truth for manager Advance Payments table column ids and header copy.
  * Sortable / column-picker configs derive from this list; TanStack column defs use {@link getAdvancePaymentColumnHeader}.
  */
-export const ADVANCE_PAYMENT_COLUMN_DEFINITIONS = [
+export const {
+  columnDefinitions: ADVANCE_PAYMENT_COLUMN_DEFINITIONS,
+  defaultVisibleColumnIds: ADVANCE_PAYMENT_DEFAULT_VISIBLE_COLUMN_IDS,
+  getColumnHeader: getAdvancePaymentColumnHeader
+} = defineManagerTableColumns([
   {
     id: 'expensePlan.title',
     i18nKey: 'lowcoder:create_expense_request.initial_expense_plan_select_label',
@@ -40,20 +44,6 @@ export const ADVANCE_PAYMENT_COLUMN_DEFINITIONS = [
     i18nKey: 'lowcoder:expense_item_list.expense_table.status',
     fallback: 'Status'
   }
-] as const
+] as const)
 
 export type AdvancePaymentColumnId = (typeof ADVANCE_PAYMENT_COLUMN_DEFINITIONS)[number]['id']
-
-export const ADVANCE_PAYMENT_DEFAULT_VISIBLE_COLUMN_IDS: AdvancePaymentColumnId[] =
-  ADVANCE_PAYMENT_COLUMN_DEFINITIONS.map(column => column.id)
-
-type AdvancePaymentColumnDefinition = (typeof ADVANCE_PAYMENT_COLUMN_DEFINITIONS)[number]
-
-const HEADER_BY_ID = Object.fromEntries(
-  ADVANCE_PAYMENT_COLUMN_DEFINITIONS.map(column => [column.id, column])
-) as Record<AdvancePaymentColumnId, AdvancePaymentColumnDefinition>
-
-export function getAdvancePaymentColumnHeader(id: AdvancePaymentColumnId): string {
-  const column = HEADER_BY_ID[id]
-  return getTranslationFromI18nKeyAndLabel(column.i18nKey, column.fallback)
-}

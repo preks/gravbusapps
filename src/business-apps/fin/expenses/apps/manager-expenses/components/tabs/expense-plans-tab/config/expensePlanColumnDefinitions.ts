@@ -1,10 +1,14 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { defineManagerTableColumns } from '../../../../utils/managerTableColumnDefinitions'
 
 /**
  * Single source of truth for manager Expense Plans table column ids and header copy.
  * Sortable / column-picker configs derive from this list; TanStack column defs use {@link getExpensePlanColumnHeader}.
  */
-export const EXPENSE_PLAN_COLUMN_DEFINITIONS = [
+export const {
+  columnDefinitions: EXPENSE_PLAN_COLUMN_DEFINITIONS,
+  defaultVisibleColumnIds: EXPENSE_PLAN_DEFAULT_VISIBLE_COLUMN_IDS,
+  getColumnHeader: getExpensePlanColumnHeader
+} = defineManagerTableColumns([
   {
     id: 'title',
     i18nKey: 'lowcoder:expense_item_list.expense_table.title',
@@ -45,22 +49,6 @@ export const EXPENSE_PLAN_COLUMN_DEFINITIONS = [
     i18nKey: 'lowcoder:expense_request_list.expense_plan_table.status',
     fallback: 'Status'
   }
-] as const
+] as const)
 
 export type ExpensePlanColumnId = (typeof EXPENSE_PLAN_COLUMN_DEFINITIONS)[number]['id']
-
-export const EXPENSE_PLAN_DEFAULT_VISIBLE_COLUMN_IDS: ExpensePlanColumnId[] = EXPENSE_PLAN_COLUMN_DEFINITIONS.map(
-  column => column.id
-)
-
-type ExpensePlanColumnDefinition = (typeof EXPENSE_PLAN_COLUMN_DEFINITIONS)[number]
-
-const HEADER_BY_ID = Object.fromEntries(EXPENSE_PLAN_COLUMN_DEFINITIONS.map(column => [column.id, column])) as Record<
-  ExpensePlanColumnId,
-  ExpensePlanColumnDefinition
->
-
-export function getExpensePlanColumnHeader(id: ExpensePlanColumnId): string {
-  const column = HEADER_BY_ID[id]
-  return getTranslationFromI18nKeyAndLabel(column.i18nKey, column.fallback)
-}

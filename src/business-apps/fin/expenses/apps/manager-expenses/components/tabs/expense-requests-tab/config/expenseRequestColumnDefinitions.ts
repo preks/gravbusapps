@@ -1,10 +1,14 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { defineManagerTableColumns } from '../../../../utils/managerTableColumnDefinitions'
 
 /**
  * Single source of truth for manager Expense Requests table column ids and header copy.
  * Sortable / column-picker configs derive from this list; TanStack column defs use {@link getExpenseRequestColumnHeader}.
  */
-export const EXPENSE_REQUEST_COLUMN_DEFINITIONS = [
+export const {
+  columnDefinitions: EXPENSE_REQUEST_COLUMN_DEFINITIONS,
+  defaultVisibleColumnIds: EXPENSE_REQUEST_DEFAULT_VISIBLE_COLUMN_IDS,
+  getColumnHeader: getExpenseRequestColumnHeader
+} = defineManagerTableColumns([
   {
     id: 'title',
     i18nKey: 'lowcoder:expense_request_list.expense_plan_table.title',
@@ -45,20 +49,6 @@ export const EXPENSE_REQUEST_COLUMN_DEFINITIONS = [
     i18nKey: 'lowcoder:expense_request_details.status',
     fallback: 'Status'
   }
-] as const
+] as const)
 
 export type ExpenseRequestColumnId = (typeof EXPENSE_REQUEST_COLUMN_DEFINITIONS)[number]['id']
-
-export const EXPENSE_REQUEST_DEFAULT_VISIBLE_COLUMN_IDS: ExpenseRequestColumnId[] =
-  EXPENSE_REQUEST_COLUMN_DEFINITIONS.map(column => column.id)
-
-type ExpenseRequestColumnDefinition = (typeof EXPENSE_REQUEST_COLUMN_DEFINITIONS)[number]
-
-const HEADER_BY_ID = Object.fromEntries(
-  EXPENSE_REQUEST_COLUMN_DEFINITIONS.map(column => [column.id, column])
-) as Record<ExpenseRequestColumnId, ExpenseRequestColumnDefinition>
-
-export function getExpenseRequestColumnHeader(id: ExpenseRequestColumnId): string {
-  const column = HEADER_BY_ID[id]
-  return getTranslationFromI18nKeyAndLabel(column.i18nKey, column.fallback)
-}
