@@ -341,4 +341,142 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('<w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:sz w:val="21"/><w:b/>')
     expect(documentXml).toContain('<w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:sz w:val="21"/>')
   })
+
+  it('maps explicit table and cell styling into Word table OOXML', async () => {
+    const html = `
+      <table data-table-width="75%" data-table-align="center" data-table-background-color="#EE1B1B">
+        <colgroup>
+          <col style="width: 120px" />
+          <col style="width: 240px" />
+        </colgroup>
+        <tr>
+          <td
+            data-cell-background="#FFEEAA"
+            data-cell-text-align="center"
+            data-cell-vertical-align="middle"
+            data-cell-border-top-style="dashed"
+            data-cell-border-top-width="2pt"
+            data-cell-border-top-color="#123456"
+          >
+            <span
+              style="color: #AA0000; background-color: #00FF00; font-size: 18pt; font-family: Calibri; font-style: italic; font-weight: 700; text-decoration: underline line-through;"
+            >
+              Styled
+            </span>
+          </td>
+          <td>Plain</td>
+        </tr>
+      </table>
+    `
+    const blob = await buildDocxBlob('Styled table doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain(
+      '<w:tblW w:w="3750" w:type="pct"/><w:tblLayout w:type="fixed"/><w:jc w:val="center"/>'
+    )
+    expect(documentXml).toContain('<w:tblGrid><w:gridCol w:w="1800"/><w:gridCol w:w="3600"/></w:tblGrid>')
+    expect(documentXml).toContain('<w:shd w:val="clear" w:fill="FFEEAA"/>')
+    expect(documentXml).toContain('<w:shd w:val="clear" w:fill="EE1B1B"/><w:tcW w:w="3600" w:type="dxa"/>')
+    expect(documentXml).toContain(
+      '<w:tcMar><w:top w:w="80" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar>'
+    )
+    expect(documentXml).toContain('<w:vAlign w:val="center"/>')
+    expect(documentXml).toContain('<w:tcW w:w="1800" w:type="dxa"/>')
+    expect(documentXml).toContain('<w:top w:val="dashed" w:sz="16" w:space="0" w:color="123456"/>')
+    expect(documentXml).toContain(
+      '<w:pPr><w:spacing w:before="0" w:after="0" w:line="312" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>'
+    )
+    expect(documentXml).toContain('<w:color w:val="AA0000"/>')
+    expect(documentXml).toContain('<w:shd w:val="clear" w:fill="00FF00"/>')
+    expect(documentXml).toContain('<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>')
+    expect(documentXml).toContain('<w:sz w:val="36"/>')
+    expect(documentXml).toContain('<w:i/>')
+    expect(documentXml).toContain('<w:u w:val="single"/>')
+    expect(documentXml).toContain('<w:strike/>')
+  })
+
+  it('exports merged cells and theme-driven table styling fallbacks', async () => {
+    const html = `
+      <table
+        data-table-theme="purple"
+        data-table-style-header-row="true"
+        data-table-style-banded-rows="true"
+        data-table-background-color="#FFFFFF"
+      >
+        <tr>
+          <td colspan="2">Head</td>
+        </tr>
+        <tr>
+          <td rowspan="2">Merged</td>
+          <td>Row A</td>
+        </tr>
+        <tr>
+          <td>Row B</td>
+        </tr>
+      </table>
+    `
+    const blob = await buildDocxBlob('Merged table doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain('<w:gridSpan w:val="2"/>')
+    expect(documentXml).toContain('<w:vMerge w:val="restart"/>')
+    expect(documentXml).toContain('<w:vMerge/>')
+    expect(documentXml).toContain('<w:shd w:val="clear" w:fill="7C3AED"/>')
+    expect(documentXml).toContain('<w:color w:val="FFFFFF"/>')
+    expect(documentXml).toContain('<w:shd w:val="clear" w:fill="F5F3FF"/>')
+  })
+
+  it('preserves multiple paragraphs inside a single table cell', async () => {
+    const html = '<table><tr><td><p>Line 1</p><p>Line 2</p></td></tr></table>'
+    const blob = await buildDocxBlob('Cell paragraph doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain(
+      '<w:tc><w:tcPr><w:tcMar><w:top w:w="80" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr><w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="312" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="21"/></w:rPr><w:t xml:space="preserve">Line 1</w:t></w:r></w:p><w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="312" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="21"/></w:rPr><w:t xml:space="preserve">Line 2</w:t></w:r></w:p></w:tc>'
+    )
+  })
+
+  it('uses fixed layout and fallback grid widths for min-width sized tables', async () => {
+    const html = `
+      <table style="min-width: 480px">
+        <tr>
+          <td>A</td>
+          <td>B</td>
+          <td>C</td>
+        </tr>
+      </table>
+    `
+    const blob = await buildDocxBlob('Width doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain('<w:tblW w:w="7200" w:type="dxa"/><w:tblLayout w:type="fixed"/>')
+    expect(documentXml).toContain(
+      '<w:tblGrid><w:gridCol w:w="2400"/><w:gridCol w:w="2400"/><w:gridCol w:w="2400"/></w:tblGrid>'
+    )
+    expect(documentXml).toContain('<w:tcW w:w="2400" w:type="dxa"/>')
+  })
+
+  it('prefers resized grid width over default 100 percent table width', async () => {
+    const html = `
+      <table data-table-width="100%" data-table-width-mode="manual">
+        <colgroup>
+          <col style="width: 110px" />
+          <col style="width: 150px" />
+          <col style="width: 170px" />
+        </colgroup>
+        <tr>
+          <td>A</td>
+          <td>B</td>
+          <td>C</td>
+        </tr>
+      </table>
+    `
+    const blob = await buildDocxBlob('Grid width doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain('<w:tblW w:w="6450" w:type="dxa"/><w:tblLayout w:type="fixed"/>')
+    expect(documentXml).toContain(
+      '<w:tblGrid><w:gridCol w:w="1650"/><w:gridCol w:w="2250"/><w:gridCol w:w="2550"/></w:tblGrid>'
+    )
+  })
 })
