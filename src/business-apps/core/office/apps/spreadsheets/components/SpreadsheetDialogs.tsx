@@ -21,7 +21,8 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Columns, Eye, EyeOff, Trash2, Plus, Save } from 'lucide-react'
 import { DynamicFormGenerator } from '@/business-apps/ser/components/DynamicFormGenerator'
@@ -34,6 +35,7 @@ import { CommentPanel } from '../../../../../platform/apps/shared/components/Com
 import type { useVersioning } from '../../../../../platform/apps/shared/hooks/useVersioning'
 import type { useComments } from '../../../../../platform/apps/shared/hooks/useComments'
 import type { usePublishing } from '../../../../../platform/apps/shared/hooks/usePublishing'
+import translations from '../_i18n'
 
 const getEditableColumns = (columns: SpreadsheetColumn[], fallbackColumns: SpreadsheetColumn[]) =>
   columns.length > 0 ? columns : fallbackColumns
@@ -117,6 +119,7 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
   currentUserName,
   currentUserAvatar
 }) => {
+  const { t } = useTranslation(translations)
   const columnsToEdit = editingColumns.length > 0 ? editingColumns : activeSheetColumns
 
   return (
@@ -125,14 +128,14 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
       <Dialog open={!!editingRow} onOpenChange={() => setEditingRow(null)}>
         <DialogContent className="gba:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Row</DialogTitle>
+            <DialogTitle>{t('edit-row-title')}</DialogTitle>
           </DialogHeader>
           {editingRow && (
             <DynamicFormGenerator
               schema={formFields}
               initialValues={editingRow}
               onSubmit={onUpdateRow}
-              submitButtonText="Save Changes"
+              submitButtonText={t('edit-row-save')}
               showCard={false}
               accessToken={accessToken}
             />
@@ -156,14 +159,12 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
           <DialogHeader>
             <DialogTitle className="gba:flex gba:items-center gba:gap-2">
               <Columns className="gba:w-5 gba:h-5" />
-              Manage Columns
+              {t('manage-columns-title')}
             </DialogTitle>
           </DialogHeader>
           <div className="gba:space-y-3 gba:max-h-[500px] gba:overflow-y-auto">
             {columnsToEdit.length === 0 ? (
-              <p className="gba:text-muted-foreground gba:text-center gba:py-4">
-                No custom columns. Click "Add Column" to create one.
-              </p>
+              <p className="gba:text-muted-foreground gba:text-center gba:py-4">{t('manage-columns-empty')}</p>
             ) : (
               columnsToEdit.map(column => {
                 const updateColumnField = (field: keyof SpreadsheetColumn, value: unknown) => {
@@ -178,16 +179,16 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
                     <div className="gba:space-y-4">
                       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
                         <div className="gba:space-y-2">
-                          <Label htmlFor={`column-label-${column.id}`}>Column Name</Label>
+                          <Label htmlFor={`column-label-${column.id}`}>{t('manage-columns-column-name')}</Label>
                           <Input
                             id={`column-label-${column.id}`}
                             value={column.label}
                             onChange={e => updateColumnField('label', e.target.value)}
-                            placeholder="Column name"
+                            placeholder={t('manage-columns-column-name-placeholder')}
                           />
                         </div>
                         <div className="gba:space-y-2">
-                          <Label htmlFor={`column-type-${column.id}`}>Data Type</Label>
+                          <Label htmlFor={`column-type-${column.id}`}>{t('manage-columns-data-type')}</Label>
                           <Select
                             value={column.type}
                             onValueChange={(value: ColumnType) => updateColumnField('type', value)}
@@ -196,20 +197,20 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="text">Text</SelectItem>
-                              <SelectItem value="number">Number</SelectItem>
-                              <SelectItem value="currency">Currency</SelectItem>
-                              <SelectItem value="percentage">Percentage</SelectItem>
-                              <SelectItem value="date">Date</SelectItem>
-                              <SelectItem value="datetime">Date & Time</SelectItem>
-                              <SelectItem value="email">Email</SelectItem>
-                              <SelectItem value="phone">Phone</SelectItem>
-                              <SelectItem value="url">URL</SelectItem>
-                              <SelectItem value="select">Single Select</SelectItem>
-                              <SelectItem value="multiselect">Multi Select</SelectItem>
-                              <SelectItem value="boolean">Checkbox</SelectItem>
-                              <SelectItem value="calculated">Calculated</SelectItem>
-                              <SelectItem value="reference">Reference</SelectItem>
+                              <SelectItem value="text">{t('manage-columns-type-text')}</SelectItem>
+                              <SelectItem value="number">{t('manage-columns-type-number')}</SelectItem>
+                              <SelectItem value="currency">{t('manage-columns-type-currency')}</SelectItem>
+                              <SelectItem value="percentage">{t('manage-columns-type-percentage')}</SelectItem>
+                              <SelectItem value="date">{t('manage-columns-type-date')}</SelectItem>
+                              <SelectItem value="datetime">{t('manage-columns-type-datetime')}</SelectItem>
+                              <SelectItem value="email">{t('manage-columns-type-email')}</SelectItem>
+                              <SelectItem value="phone">{t('manage-columns-type-phone')}</SelectItem>
+                              <SelectItem value="url">{t('manage-columns-type-url')}</SelectItem>
+                              <SelectItem value="select">{t('manage-columns-type-select')}</SelectItem>
+                              <SelectItem value="multiselect">{t('manage-columns-type-multiselect')}</SelectItem>
+                              <SelectItem value="boolean">{t('manage-columns-type-boolean')}</SelectItem>
+                              <SelectItem value="calculated">{t('manage-columns-type-calculated')}</SelectItem>
+                              <SelectItem value="reference">{t('manage-columns-type-reference')}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -228,12 +229,12 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
                             {column.isVisible ? (
                               <>
                                 <Eye className="gba:w-3 gba:h-3 gba:mr-1" />
-                                Visible
+                                {t('manage-columns-visible')}
                               </>
                             ) : (
                               <>
                                 <EyeOff className="gba:w-3 gba:h-3 gba:mr-1" />
-                                Hidden
+                                {t('manage-columns-hidden')}
                               </>
                             )}
                           </Button>
@@ -251,7 +252,7 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
                             className="gba:text-destructive hover:gba:text-destructive"
                           >
                             <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
-                            Delete
+                            {t('manage-columns-delete')}
                           </Button>
                         )}
                       </div>
@@ -269,7 +270,7 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
                 setIsManageColumnsDialogOpen(false)
               }}
             >
-              Cancel
+              {t('manage-columns-cancel')}
             </Button>
             <Button
               variant="outline"
@@ -279,7 +280,7 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
               }}
             >
               <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-              Add Column
+              {t('manage-columns-add-column')}
             </Button>
             <Button
               onClick={() => {
@@ -290,7 +291,7 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
               }}
             >
               <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-              Save Changes
+              {t('manage-columns-save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -304,6 +305,22 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
           onRestore={onRestoreVersion}
           onClose={() => setShowVersionHistory(false)}
           currentVersion={versioning.currentVersion?.version}
+          messages={{
+            title: t('version-history-title'),
+            compareMode: t('version-history-compare-mode'),
+            cancelCompare: t('version-history-cancel-compare'),
+            compareSelected: t('version-history-compare-selected'),
+            loading: t('version-history-loading'),
+            empty: t('version-history-empty'),
+            versionLabel: (num: number) => t('version-history-version', { num }),
+            current: t('version-history-current'),
+            checkpoint: t('version-history-checkpoint'),
+            autosave: t('version-history-autosave'),
+            restoreTitle: t('version-history-restore-title'),
+            restoreConfirm: (num: number) => t('version-history-restore-confirm', { num }),
+            compareHint: t('version-history-compare-hint'),
+            unknownUser: t('version-history-unknown-user')
+          }}
           showAutoSaves={false}
           data-testid="spreadsheet-version-history"
         />
@@ -318,6 +335,15 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
             await versioning.createCheckpoint(description)
           }}
           isSaving={versioning.isSaving}
+          messages={{
+            title: t('checkpoint-title'),
+            descriptionLabel: t('checkpoint-description-label'),
+            descriptionPlaceholder: t('checkpoint-description-placeholder'),
+            descriptionHint: t('checkpoint-description-hint'),
+            cancel: t('checkpoint-cancel'),
+            save: t('checkpoint-save'),
+            saving: t('checkpoint-saving')
+          }}
           data-testid="spreadsheet-checkpoint-dialog"
         />
       )}
@@ -332,6 +358,17 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
           }}
           isPublishing={publishing.isPublishing}
           entityType="spreadsheet"
+          messages={{
+            title: t('publish-title', { entity: t('publish-entity-spreadsheet') }),
+            alert: t('publish-alert', { entity: t('publish-entity-spreadsheet') }),
+            notesLabel: t('publish-notes-label'),
+            notesPlaceholder: t('publish-notes-placeholder'),
+            notesHint: t('publish-notes-hint'),
+            createCheckpointLabel: t('publish-create-checkpoint'),
+            cancel: t('publish-cancel'),
+            confirm: t('publish-confirm'),
+            publishing: t('publish-publishing')
+          }}
           data-testid="spreadsheet-publish-dialog"
         />
       )}
@@ -360,9 +397,37 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
           onDeleteComment={async commentId => {
             await comments.deleteComment(commentId)
           }}
+          messages={{
+            title: t('shared-comment-panel-title'),
+            unresolvedCount: t('shared-comment-unresolved'),
+            unresolvedTab: t('shared-comment-unresolved-tab'),
+            resolvedTab: t('shared-comment-resolved-tab'),
+            allCaughtUp: t('shared-comment-all-caught-up'),
+            allResolved: t('shared-comment-all-resolved'),
+            noResolved: t('shared-comment-no-resolved'),
+            resolvedHere: t('shared-comment-resolved-here'),
+            loading: t('shared-comment-loading'),
+            addPlaceholder: t('shared-comment-placeholder')
+          }}
+          threadMessages={{
+            reply: t('shared-comment-reply'),
+            edit: t('shared-comment-edit'),
+            resolve: t('shared-comment-resolve'),
+            delete: t('shared-comment-delete'),
+            resolved: t('shared-comment-resolved'),
+            confirmDelete: t('shared-comment-confirm-delete'),
+            editPlaceholder: t('shared-comment-edit-placeholder'),
+            replyPlaceholder: t('shared-comment-reply-placeholder')
+          }}
+          editorMessages={{
+            cancel: t('shared-comment-cancel'),
+            send: t('shared-comment-send'),
+            sending: t('shared-comment-sending'),
+            sendHint: t('shared-comment-send-hint')
+          }}
           onClose={() => setShowComments(false)}
           currentUserId={userId}
-          currentUserName={currentUserName || 'User'}
+          currentUserName={currentUserName || t('editor-user-fallback')}
           currentUserAvatar={currentUserAvatar}
           accessToken={accessToken}
           headerHeight={100}
