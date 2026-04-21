@@ -14,17 +14,15 @@ export type IssueStatus = 'open' | 'ignored' | 'resolved'
 export type PayrollCountry = 'DE' | 'RO'
 
 export type IssueCategory =
-  | 'missing_personal_data'
+  | 'missing_contract_data'
   | 'missing_bank_details'
-  | 'missing_contract_salary'
+  | 'missing_salary_data'
   | 'missing_tax_social'
-  | 'missing_country_specific'
-  | 'missing_approvals'
+  | 'missing_contract_master_data'
   | 'missing_absence_data'
-  | 'overlapping_absences'
-  | 'retroactive_changes'
+  | 'missing_working_hours'
   | 'pending_final_payroll'
-  | 'invalid_effective_dates'
+  | 'other_exceptions'
 
 export type ChangeType =
   | 'new_hire'
@@ -71,6 +69,7 @@ export interface PayrollEmployee {
   code: string
   firstName: string
   lastName: string
+  fullName: string
   displayName: string
   pictureThumbnail?: string
   country: PayrollCountry

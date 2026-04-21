@@ -217,6 +217,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
           value
           code
           additionalValue1
+          objectValue
         }
       }
       workingCondition {
@@ -719,6 +720,7 @@ interface Communication {
     value: string
     code: string
     additionalValue1: string
+    objectValue?: Record<string, unknown> | null
   }
 }
 

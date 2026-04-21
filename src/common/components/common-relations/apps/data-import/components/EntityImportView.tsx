@@ -1,23 +1,50 @@
 /**
- * EntityImportView (Shared)
- * Generic 3-step import view: Upload → Mapping → Result
- * Used by all entity import views across CRM and IRM modules.
+ * EntityImportView (Shared core)
+ *
+ * Generic 3-step import shell (Upload → Mapping → Result) used by both the
+ * CRM and IRM import wrappers. This component is intentionally
+ * domain-agnostic: it knows only about the import state machine, never
+ * about leads, campaigns, or investment types.
+ *
+ * Domain-specific behavior is injected via:
+ *  - `submissionStrategy`: how the converted entities are POSTed to the
+ *    backend, per-domain error normalization, per-domain record
+ *    post-processing (e.g. IRM flattening).
+ *  - `enableCampaignSelection`: toggles the CRM-only campaign picker.
+ *
+ * Enforced catalog selects (lead status/source/rating, investment type,
+ * liquid fund type, …) are driven entirely by `ImportConfig.enforcedSelects`.
+ * The set of configs is wrapped in a `react-hook-form` instance and a
+ * `CatalogSelect.Provider`, then rendered as `CatalogSelect` dropdowns
+ * inside `FileUploadStep`. Cascading (group → type → liquid fund type) is
+ * handled natively by `CatalogSelect.parentField`.
+ *
+ * Prefer `CrmEntityImportView` / `IrmEntityImportView` over using this file
+ * directly — they fill in the strategy slot with the correct defaults.
  */
 
 import React from 'react'
-import { PageLayout, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
-import { XCircleIcon, SparkleIcon } from '@phosphor-icons/react'
+import { Form, PageLayout, useTranslation } from '@newwork/nw-design-system'
+import { SparkleIcon } from '@phosphor-icons/react'
+import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { CatalogSelect } from '@/components/catalog-select'
 import { ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
 import {
   useEntityImport,
   useEntityMappings,
-  useLeadImportDefaults,
-  useInvestmentTypeDefaults
+  type ImportSubmissionStrategy
 } from '@/common/components/common-relations/apps/data-import/hooks'
+import {
+  allEnforcedRequiredSatisfied,
+  buildEnforcedSelectDefaults,
+  buildEnforcedSelectMap,
+  type EnforcedSelectValues
+} from '@/common/components/common-relations/apps/data-import/utils'
 import { FileUploadStep } from './FileUploadStep'
 import { MappingReviewStep } from './MappingReviewStep'
 import { ConversionResultStep } from './ConversionResultStep'
+import { ImportErrorCard } from './ImportErrorCard'
 import fileUploadTranslations from './FileUploadStep/_i18n'
 import mappingReviewTranslations from './MappingReviewStep/_i18n'
 import conversionResultTranslations from './ConversionResultStep/_i18n'
@@ -30,8 +57,14 @@ export interface EntityImportViewProps extends BusinessAppContextProps {
   entityType: string
   /** Singular label used in result step, e.g. "lead" */
   entityTypeSingular: string
-  /** When true, shows the campaign selection dropdown on the upload step */
+  /** When true, shows the CRM campaign selection dropdown on the upload step */
   enableCampaignSelection?: boolean
+  /**
+   * Domain-specific submission strategy. REQUIRED: the core view never
+   * decides which domain to target. Use `CrmEntityImportView` /
+   * `IrmEntityImportView` unless you need to inject a custom strategy.
+   */
+  submissionStrategy: ImportSubmissionStrategy
   onBack?: () => void
   'data-testid'?: string
 }
@@ -43,13 +76,13 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
   entityType,
   entityTypeSingular,
   enableCampaignSelection = false,
+  submissionStrategy,
   onBack,
   'data-testid': testId = 'entity-import-view',
   ...context
 }) => {
-  // Pre-register all step translation bundles so they are available before each step mounts.
-  // This ensures translations are in the global registry during the LocalizationProvider's
-  // initial re-render cycle, preventing raw keys from showing on first render.
+  // Pre-register all step translation bundles so they are available before
+  // each step mounts. Prevents raw keys on first render.
   useTranslation(fileUploadTranslations)
   useTranslation(mappingReviewTranslations)
   useTranslation(conversionResultTranslations)
@@ -65,13 +98,15 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
     isLoading,
     error,
     importResult,
+    csvQuality,
     handleFileChange,
     analyzeWithAgent,
     convertData,
+    retryWithHardRepair,
     importToBackend,
     downloadJSON,
     reset
-  } = useEntityImport(context, config)
+  } = useEntityImport(context, config, submissionStrategy)
 
   const {
     mappings,
@@ -87,6 +122,18 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
     agentResponse?.unmappedSourceFields || []
   )
 
+  const enforcedSelectConfigs = config.enforcedSelects
+  const enforcedFormDefaults = React.useMemo(
+    () => buildEnforcedSelectDefaults(enforcedSelectConfigs),
+    [enforcedSelectConfigs]
+  )
+  const enforcedForm = useForm<EnforcedSelectValues>({ defaultValues: enforcedFormDefaults })
+  const enforcedValues = enforcedForm.watch()
+  const allRequiredEnforcedSatisfied = React.useMemo(
+    () => allEnforcedRequiredSatisfied(enforcedSelectConfigs, enforcedValues),
+    [enforcedSelectConfigs, enforcedValues]
+  )
+
   React.useEffect(() => {
     if (agentResponse) {
       setMappings(agentResponse.fieldMappings)
@@ -94,40 +141,11 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
     }
   }, [agentResponse, setMappings, setUnmappedSourceFields])
 
-  // Lead-specific defaults (Status, Source, Rating) — only for lead entity type
-  const isLeadImport = config.entityType === 'lead'
-  const isInvestmentEntityImport = config.domain === 'investment' && config.entityType.endsWith('-investment')
-  const leadDefaults = useLeadImportDefaults(context.accessToken, config.domain)
-  const investmentTypeDefaults = useInvestmentTypeDefaults(context.accessToken)
-
-  const handleAnalyze = React.useCallback(async () => {
-    await analyzeWithAgent()
-  }, [analyzeWithAgent])
-
-  const handleConvert = async () => {
-    let enforcedFieldsJson: string | undefined
-
-    if (isLeadImport) {
-      const enforced: Record<string, string> = {}
-      if (leadDefaults.selectedStatus) enforced.leadStatusRef = leadDefaults.selectedStatus
-      if (leadDefaults.selectedSource) enforced.leadSourceRef = leadDefaults.selectedSource
-      if (leadDefaults.selectedRating) enforced.leadRatingRef = leadDefaults.selectedRating
-
-      if (Object.keys(enforced).length > 0) {
-        enforcedFieldsJson = JSON.stringify(enforced)
-      }
-    }
-
-    if (isInvestmentEntityImport && investmentTypeDefaults.selectedType) {
-      const currentEnforced = enforcedFieldsJson
-        ? (JSON.parse(enforcedFieldsJson) as Record<string, string>)
-        : ({} as Record<string, string>)
-      currentEnforced['investment.investmentTypeRef'] = investmentTypeDefaults.selectedType
-      enforcedFieldsJson = JSON.stringify(currentEnforced)
-    }
-
+  const handleConvert = React.useCallback(async () => {
+    const enforced = buildEnforcedSelectMap(enforcedSelectConfigs, enforcedForm.getValues())
+    const enforcedFieldsJson = enforced ? JSON.stringify(enforced) : undefined
     await convertData(mappings, enforcedFieldsJson)
-  }
+  }, [convertData, mappings, enforcedSelectConfigs, enforcedForm])
 
   return (
     <PageLayout
@@ -137,38 +155,28 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
       onBack={onBack}
       data-testid={testId}
     >
-      {error && (
-        <Card className="gba:mb-6 gba:border-destructive-ring" data-testid={`${testId}-error`}>
-          <CardContent className="gba:py-10">
-            <div className="gba:flex gba:flex-col gba:items-center gba:text-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:justify-center gba:w-16 gba:h-16 gba:rounded-full gba:bg-destructive-secondary">
-                <XCircleIcon className="gba:w-8 gba:h-8 gba:text-destructive" weight="fill" />
-              </div>
-              <div className="gba:space-y-2">
-                <p className="gba:font-semibold gba:text-base gba:text-destructive">Analysis Failed</p>
-                <p className="gba:text-sm gba:text-muted-foreground">{error}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {error && <ImportErrorCard step={step} error={error} data-testid={`${testId}-error`} />}
 
       {step === 'upload' && (
-        <FileUploadStep
-          file={file}
-          isLoading={isLoading}
-          onFileChange={handleFileChange}
-          onAnalyze={handleAnalyze}
-          {...(enableCampaignSelection && {
-            campaignId,
-            onCampaignChange: (campaign: { id: string; name: string } | null) =>
-              setCampaign(campaign?.id ?? null, campaign?.name),
-            businessAppContext: context
-          })}
-          {...(isLeadImport && { leadDefaults })}
-          {...(isInvestmentEntityImport && { investmentTypeDefaults })}
-          data-testid={`${testId}-upload-step`}
-        />
+        <CatalogSelect.Provider {...context} form={enforcedForm}>
+          <Form {...enforcedForm}>
+            <FileUploadStep
+              file={file}
+              isLoading={isLoading}
+              onFileChange={handleFileChange}
+              onAnalyze={analyzeWithAgent}
+              {...(enableCampaignSelection && {
+                campaignId,
+                onCampaignChange: (campaign: { id: string; name: string } | null) =>
+                  setCampaign(campaign?.id ?? null, campaign?.name),
+                businessAppContext: context
+              })}
+              enforcedSelectConfigs={enforcedSelectConfigs}
+              allRequiredEnforcedSatisfied={allRequiredEnforcedSatisfied}
+              data-testid={`${testId}-upload-step`}
+            />
+          </Form>
+        </CatalogSelect.Provider>
       )}
 
       {step === 'mapping' && agentResponse && (
@@ -196,6 +204,8 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
           isLoading={isLoading}
           importResult={importResult}
           campaignName={campaignName || undefined}
+          csvQuality={csvQuality}
+          onHardRepair={retryWithHardRepair}
           onDownloadJSON={downloadJSON}
           onImportToBackend={importToBackend}
           onReset={reset}

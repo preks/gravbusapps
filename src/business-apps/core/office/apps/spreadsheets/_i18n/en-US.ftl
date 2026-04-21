@@ -91,6 +91,36 @@ table-rows = Rows
 spreadsheets-empty-trash-title = No trashed spreadsheets
 spreadsheets-empty-trash-description = Spreadsheets moved to trash will appear here.
 rows-label = rows
+app-preview-sheet-count = { $count } { $count ->
+  [one] sheet
+ *[other] sheets
+}
+app-preview-row-count = { $count } { $count ->
+  [one] row
+ *[other] rows
+}
+app-preview-status-draft = Draft
+app-preview-status-file-based = File-based
+app-preview-status-database = Database
+app-preview-status-archived = Archived
+app-preview-manage-sharing = Manage Sharing
+app-preview-promote-database = Promote to Database
+app-preview-owner-tooltip = Owner: { $name }
+app-preview-shared-with-you = Shared with you
+app-preview-shared-by = by { $name }
+app-preview-can-edit = Can edit
+app-preview-view-only = View only
+app-preview-permission-view = view
+app-preview-permission-comment = comment
+app-preview-permission-edit = edit
+app-preview-shared = Shared
+app-preview-shared-with-count = Shared with { $count } { $count ->
+  [one] person
+ *[other] people
+}
+app-preview-more-people = { $count } more people
+app-preview-no-apps-title = No apps yet
+app-preview-no-apps-description = Upload an Excel file to transform it into a powerful business application. AI will analyze your data and suggest the best app structure.
 
 # Empty states
 empty-no-favorites = No favorites yet
@@ -118,6 +148,7 @@ action-delete-spreadsheet = Delete
 
 # Spreadsheet Actions Menu (dropdown under Spreadsheet button)
 menu-spreadsheet = Spreadsheet
+menu-coming-soon = Coming soon
 menu-version-history = Version History
 menu-save-checkpoint = Save Checkpoint
 menu-lock-spreadsheet = Lock Spreadsheet
@@ -130,6 +161,10 @@ menu-manage-columns = Manage Columns
 menu-ai-analytics = AI Analytics
 menu-automations = Automations
 menu-check-collection-responses = Check collection responses
+status-indicator-live = Live
+status-indicator-active-count = { $count } active
+status-indicator-collaboration-live = Real-time collaboration active. Others will appear when they join.
+status-indicator-data-source-connected = Connected to { $name } data source
 menu-settings = Settings
 
 # AI Capability Menu
@@ -225,6 +260,19 @@ sheets-ai-no-review = No review yet
 sheets-ai-review-empty-description = Run smart review to assess sheet quality and highlight improvements.
 sheets-ai-no-insights = No insights yet
 sheets-ai-run-insights = Run AI insights
+ai-default-unknown = Unknown
+ai-default-view-name = Default View
+ai-default-sheet-name = Sheet
+ai-default-purpose = Data storage
+ai-default-view-table-name = Table View
+ai-default-view-table-description = View and edit all data in a table format
+ai-default-view-form-name = Form View
+ai-default-view-form-description = Add and edit records using a form
+ai-default-view-kanban-name = Kanban Board
+ai-default-view-kanban-description = Visualize by { $column }
+ai-default-view-dashboard-name = Dashboard
+ai-default-view-dashboard-description = Visualize key metrics and trends
+ai-analysis-failed = Analysis failed. Please try again or upload a different file.
 slides-load-failed = Failed to load presentations
 slides-select-presentation = Please select a presentation
 slides-chart-export-failed = Could not export chart as image
@@ -346,6 +394,8 @@ link-editor-title-placeholder = Enter link title
 link-editor-url-label = URL
 link-editor-url-placeholder = https://example.com
 link-editor-open-new-tab = Open link in new tab
+link-editor-open-link = Open link
+univer-link-view-response = View Response
 link-editor-save = Save Link
 column-type-edit-column = Edit Column
 column-type-display-label = Display Label
@@ -1023,6 +1073,11 @@ time-hours-ago = { $count } hours ago
 time-yesterday = Yesterday
 time-days-ago = { $count } days ago
 
+# User fallback
+editor-user-fallback = User
+editor-user-unknown = Unknown
+editor-user-id-fallback = User { $id }
+
 # Table - unknown owner
 table-unknown-owner = Unknown
 
@@ -1122,6 +1177,7 @@ persist-rows-add-failed = Could not save new rows.
 persist-snapshot-failed = Could not save sheet layout to the server.
 persist-recovery-failed = Could not recover from a save conflict. Please refresh the page.
 persist-snapshot-too-large = Sheet formatting could not be saved because the spreadsheet is too large. Cell data is still saved.
+unsaved-leave-confirm = You have unsaved changes that have not yet been saved to the server. Leave the sheet anyway?
 
 # Share App Dialog
 share-dialog-title = Share "{ $name }"

@@ -50,10 +50,10 @@ sh-tab-trash = Papierkorb
 # Upload view
 upload-cancel = Abbrechen
 upload-title = Excel-Datei hochladen
-upload-subtitle = Verwandle deine Tabelle mit KI in eine leistungsstarke App
-upload-mode-label = Upload-Modus
+upload-subtitle = Lade deine .xlsx- oder .csv-Datei hoch und beginne sofort mit der Bearbeitung.
+upload-mode-label = Upload
 upload-mode-simple-title = Einfacher Upload
-upload-mode-simple-desc = Importiere die Datei und erstelle die Tabellen-App direkt ohne Analyse.
+upload-mode-simple-desc = Wir importieren deine Tabelle mit erhaltener Formatierung und öffnen sie im Bearbeitungsmodus.
 upload-mode-create-app-title = App-Erstellungsfluss
 upload-mode-create-app-desc = Analysiere die Datei zuerst und bestätige danach die erzeugte App-Struktur.
 upload-analyzing = Tabelle wird analysiert...
@@ -78,7 +78,7 @@ spreadsheets-header-search-placeholder = Tabellen suchen...
 header-refresh = Aktualisieren
 sort-name = Name
 sort-trashed = In den Papierkorb verschoben am
-table-trashed = Papierkorb seit
+table-trashed = In den Papierkorb verschoben am
 action-refresh = Liste aktualisieren
 action-refresh-sheet = Tabellendaten aktualisieren
 status-saving = Wird gespeichert...
@@ -91,6 +91,36 @@ table-rows = Zeilen
 spreadsheets-empty-trash-title = Keine Tabellen im Papierkorb
 spreadsheets-empty-trash-description = In den Papierkorb verschobene Tabellen werden hier angezeigt.
 rows-label = Zeilen
+app-preview-sheet-count = { $count } { $count ->
+  [one] Blatt
+ *[other] Blätter
+}
+app-preview-row-count = { $count } { $count ->
+  [one] Zeile
+ *[other] Zeilen
+}
+app-preview-status-draft = Entwurf
+app-preview-status-file-based = Dateibasiert
+app-preview-status-database = Datenbank
+app-preview-status-archived = Archiviert
+app-preview-manage-sharing = Freigaben verwalten
+app-preview-promote-database = In Datenbank umwandeln
+app-preview-owner-tooltip = Eigentümer: { $name }
+app-preview-shared-with-you = Mit dir geteilt
+app-preview-shared-by = von { $name }
+app-preview-can-edit = Kann bearbeiten
+app-preview-view-only = Nur ansehen
+app-preview-permission-view = ansehen
+app-preview-permission-comment = kommentieren
+app-preview-permission-edit = bearbeiten
+app-preview-shared = Geteilt
+app-preview-shared-with-count = Mit { $count } { $count ->
+  [one] Person
+ *[other] Personen
+} geteilt
+app-preview-more-people = { $count } weitere Personen
+app-preview-no-apps-title = Noch keine Apps
+app-preview-no-apps-description = Lade eine Excel-Datei hoch, um sie in eine leistungsstarke Business-Anwendung zu verwandeln. Die KI analysiert deine Daten und schlägt die passende App-Struktur vor.
 
 # Empty states
 empty-no-favorites = Noch keine Favoriten
@@ -118,6 +148,7 @@ action-delete-spreadsheet = Löschen
 
 # Spreadsheet Actions Menu (dropdown under Spreadsheet button)
 menu-spreadsheet = Tabelle
+menu-coming-soon = Demnächst
 menu-version-history = Versionsverlauf
 menu-save-checkpoint = Checkpoint speichern
 menu-lock-spreadsheet = Tabelle sperren
@@ -130,6 +161,10 @@ menu-manage-columns = Spalten verwalten
 menu-ai-analytics = KI-Analytik
 menu-automations = Automatisierungen
 menu-check-collection-responses = Sammlungsantworten prüfen
+status-indicator-live = Live
+status-indicator-active-count = { $count } aktiv
+status-indicator-collaboration-live = Echtzeit-Zusammenarbeit ist aktiv. Andere erscheinen, sobald sie beitreten.
+status-indicator-data-source-connected = Mit der Datenquelle „{ $name }“ verbunden
 menu-settings = Einstellungen
 
 # AI Capability Menu
@@ -225,6 +260,19 @@ sheets-ai-no-review = Noch keine Überprüfung
 sheets-ai-review-empty-description = Starte eine intelligente Überprüfung, um die Blattqualität zu bewerten und Verbesserungen hervorzuheben.
 sheets-ai-no-insights = Noch keine Erkenntnisse
 sheets-ai-run-insights = KI-Erkenntnisse ausführen
+ai-default-unknown = Unbekannt
+ai-default-view-name = Standardansicht
+ai-default-sheet-name = Tabelle
+ai-default-purpose = Datenspeicher
+ai-default-view-table-name = Tabellenansicht
+ai-default-view-table-description = Alle Daten in einer Tabellenansicht anzeigen und bearbeiten
+ai-default-view-form-name = Formularansicht
+ai-default-view-form-description = Datensätze über ein Formular hinzufügen und bearbeiten
+ai-default-view-kanban-name = Kanban-Board
+ai-default-view-kanban-description = Nach { $column } visualisieren
+ai-default-view-dashboard-name = Dashboard
+ai-default-view-dashboard-description = Wichtige Kennzahlen und Trends visualisieren
+ai-analysis-failed = Die Analyse ist fehlgeschlagen. Bitte versuche es erneut oder lade eine andere Datei hoch.
 slides-load-failed = Präsentationen konnten nicht geladen werden
 slides-select-presentation = Bitte wähle eine Präsentation aus
 slides-chart-export-failed = Diagramm konnte nicht als Bild exportiert werden
@@ -346,6 +394,8 @@ link-editor-title-placeholder = Linktitel eingeben
 link-editor-url-label = URL
 link-editor-url-placeholder = https://example.com
 link-editor-open-new-tab = Link in neuem Tab öffnen
+link-editor-open-link = Link öffnen
+univer-link-view-response = Antwort anzeigen
 link-editor-save = Link speichern
 column-type-edit-column = Spalte bearbeiten
 column-type-display-label = Anzeigename
@@ -521,7 +571,7 @@ wizard-field-type-date = Datum
 wizard-field-type-select = Dropdown
 wizard-select-options-custom = Eigene Liste
 wizard-select-options-entity = Aus Entität
-wizard-select-options-custom-help = Geben Sie jede Auswahl in einer eigenen Zeile ein.
+wizard-select-options-custom-help = Gib jede Auswahl in einer eigenen Zeile ein.
 wizard-select-option-placeholder = Optionstext
 wizard-select-add-option = Option hinzufügen
 wizard-select-entity-type = Entität
@@ -552,7 +602,7 @@ wizard-no-columns-mapped-help-bulk = Ordne Spalten zu, um Antworten in deiner Ta
 wizard-no-columns-mapped-help-workflow = Optional: Überspringen, wenn keine Daten an den Workflow übergeben werden müssen
 wizard-add-manually = Manuell hinzufügen
 wizard-parameter-placeholder-bulk = z. B. Betrag
-wizard-parameter-placeholder-workflow = z. B. amount
+wizard-parameter-placeholder-workflow = z. B. Betrag
 wizard-direction-send = -> Senden
 wizard-direction-receive = <- Empfangen
 wizard-direction-both = <-> Beide
@@ -622,7 +672,7 @@ wizard-automation-type-row-workflow = Zeilen-Workflow
 wizard-automation-type-bulk-collection = Formular
 wizard-automation-type-excel-collection = Tabellenvorlage
 wizard-automation-type-sheet-approval = Blattgenehmigung
-wizard-automation-type-line-approval = Positionsgenehmigung
+wizard-automation-type-line-approval = Zeilengenehmigung
 wizard-placeholder-name-row-workflow = z. B. Kundenanfragen verarbeiten
 wizard-placeholder-name-bulk-collection = z. B. Q4-Mitarbeiterumfrage
 wizard-placeholder-name-excel-collection = z. B. Q4-Statusbericht
@@ -921,7 +971,7 @@ automation-type-row-workflow = Zeilen-Workflow
 automation-type-bulk-collection = Datenerfassung (Formular)
 automation-type-excel-collection = Datenerfassung (Vorlage)
 automation-type-sheet-approval = Tabellen-Genehmigung
-automation-type-line-approval = Zeilen-Genehmigung
+automation-type-line-approval = Zeilengenehmigung
 
 # Automation triggers
 automation-trigger-manual = Manuell
@@ -1023,6 +1073,11 @@ time-hours-ago = Vor { $count } Std.
 time-yesterday = Gestern
 time-days-ago = Vor { $count } Tagen
 
+# User fallback
+editor-user-fallback = Benutzer
+editor-user-unknown = Unbekannt
+editor-user-id-fallback = Benutzer { $id }
+
 # Table - unknown owner
 table-unknown-owner = Unbekannt
 
@@ -1047,25 +1102,25 @@ excel-file-size-exceeds = Dateigröße überschreitet das Limit von { $maxMb } M
 
 # Comments (shared - matches document app)
 shared-error-create-comment = Kommentar konnte nicht erstellt werden
-shared-error-resolve-comment = Kommentar konnte nicht gelöst werden
+shared-error-resolve-comment = Kommentar konnte nicht als erledigt markiert werden
 shared-error-restore-version = Version konnte nicht wiederhergestellt werden. Es wurden keine Änderungen übernommen.
 shared-error-restore-version-owner-only = Du kannst diese Version nur wiederherstellen, wenn du Eigentümer der App bist oder sie selbst erstellt hast.
 shared-comment-panel-title = Kommentare
-shared-comment-unresolved = ungelöst
-shared-comment-unresolved-tab = Ungelöst
-shared-comment-resolved-tab = Gelöst
+shared-comment-unresolved = offen
+shared-comment-unresolved-tab = Offen
+shared-comment-resolved-tab = Erledigt
 shared-comment-all-caught-up = Alles erledigt!
-shared-comment-all-resolved = Alle Kommentare wurden gelöst
-shared-comment-no-resolved = Keine gelösten Kommentare
-shared-comment-resolved-here = Gelöste Kommentare werden hier angezeigt
+shared-comment-all-resolved = Alle Kommentare wurden erledigt
+shared-comment-no-resolved = Keine erledigten Kommentare
+shared-comment-resolved-here = Erledigte Kommentare werden hier angezeigt
 shared-comment-loading = Kommentare werden geladen...
 shared-comment-placeholder = Kommentar hinzufügen...
 shared-comment-reply = Antworten
 shared-comment-edit = Bearbeiten
-shared-comment-resolve = Lösen
+shared-comment-resolve = Erledigen
 shared-comment-delete = Löschen
-shared-comment-resolved = Gelöst
-shared-comment-confirm-delete = Möchten Sie diesen Kommentar wirklich löschen?
+shared-comment-resolved = Erledigt
+shared-comment-confirm-delete = Möchtest du diesen Kommentar wirklich löschen?
 shared-comment-edit-placeholder = Kommentar bearbeiten...
 shared-comment-reply-placeholder = Antwort schreiben...
 shared-comment-cancel = Abbrechen
@@ -1122,10 +1177,11 @@ persist-rows-add-failed = Neue Zeilen konnten nicht gespeichert werden.
 persist-snapshot-failed = Das Tabellenlayout konnte nicht auf dem Server gespeichert werden.
 persist-recovery-failed = Speicherkonflikt konnte nicht behoben werden. Bitte die Seite neu laden.
 persist-snapshot-too-large = Die Formatierung konnte nicht gespeichert werden, da die Tabelle zu groß ist. Zelldaten werden weiterhin gespeichert.
+unsaved-leave-confirm = Es gibt ungespeicherte Änderungen, die noch nicht an den Server übertragen wurden. Die Tabelle trotzdem verlassen?
 
 # Share App Dialog
 share-dialog-title = „{ $name }" teilen
-share-dialog-description = Teile diese App mit Teammitgliedern. Sie können sie über ihr Dashboard aufrufen.
+share-dialog-description = Teile diese App mit Teammitgliedern. Sie ist dann über ihr Dashboard erreichbar.
 share-dialog-add-people = Personen hinzufügen
 share-dialog-search-placeholder = Nach Name oder E-Mail suchen...
 share-dialog-searching = Suche läuft...

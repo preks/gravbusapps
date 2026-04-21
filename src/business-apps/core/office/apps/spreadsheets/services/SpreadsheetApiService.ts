@@ -536,6 +536,7 @@ export const SpreadsheetApiService = {
     debugLog('createSheet', appId, sheet)
 
     const payload = {
+      ...(sheet.id ? { id: sheet.id } : {}),
       name: sheet.name || 'New Sheet',
       description: sheet.description,
       columns: sheet.columns || [],
@@ -844,7 +845,8 @@ export const SpreadsheetApiService = {
     payload: {
       version: number
       snapshot: Record<string, unknown>
-    }
+    },
+    requestOptions?: { keepalive?: boolean }
   ): Promise<{ sheetId: string; version: number; saved: boolean }> {
     debugLog('saveUniverSnapshot', appId, sheetId, { version: payload.version })
     if (supportsUniverSnapshotEndpoint === false) {
@@ -852,15 +854,21 @@ export const SpreadsheetApiService = {
     }
 
     try {
+      const body = JSON.stringify({
+        ...payload,
+        snapshot: cloneSnapshot(payload.snapshot)
+      })
+      // Browsers only allow fetch keepalive with small bodies (~64 KiB); larger snapshots must use a normal request.
+      const bodyBytes = new Blob([body]).size
+      const useKeepalive = requestOptions?.keepalive === true && bodyBytes > 0 && bodyBytes <= 60_000
+
       const response = await apiRequestToBase<{ sheetId: string; version: number; saved: boolean }>(
         SPREADSHEET_CORE_API_URL,
         spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/univer-snapshot`),
         {
           method: 'POST',
-          body: JSON.stringify({
-            ...payload,
-            snapshot: cloneSnapshot(payload.snapshot)
-          })
+          body,
+          ...(useKeepalive ? { keepalive: true } : {})
         }
       )
       supportsUniverSnapshotEndpoint = true

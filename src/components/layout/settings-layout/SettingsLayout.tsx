@@ -150,8 +150,11 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
                   )}
                 </div>
 
-                {/* Separator */}
-                <div className="gba:border-t gba:border-slate-200"></div>
+                {/* Separator — `mt-auto` pushes the separator and the
+                    entries below it to the bottom of the flex column so
+                    every card's action row aligns regardless of how tall
+                    the description is. */}
+                <div className="gba:mt-auto gba:border-t gba:border-slate-200"></div>
 
                 {/* Card Entries */}
                 {card.entries && card.entries.length > 0 && (

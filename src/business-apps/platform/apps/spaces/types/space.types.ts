@@ -181,3 +181,23 @@ export interface LinkedConversation {
   createdAt: string
   updatedAt: string
 }
+
+/**
+ * Linked calendar interface for team collaboration
+ * Represents a shared calendar linked to a space via dimension context.
+ */
+export interface LinkedCalendar {
+  id: string
+  name: string
+  description?: string
+  color: string
+  defaultColor: string
+  type: 'shared' | 'space'
+  contextEntity?: string
+  contextEntityId?: string
+  permission: 'owner' | 'editor' | 'viewer' | 'free_busy'
+  memberCount: number
+  canEdit: boolean
+  isOwner: boolean
+  hasColorOverride: boolean
+}

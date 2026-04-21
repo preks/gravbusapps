@@ -10,6 +10,8 @@ export interface PaginationState {
 
 export interface UseFunctionsDataReturn {
   data: LatestFunctionItem[]
+  /** Full, unpaginated, unfiltered list. Useful for deep-link lookups by id. */
+  allItems: LatestFunctionItem[]
   total: number
   loading: boolean
   error: string | null
@@ -28,7 +30,11 @@ export const useFunctionsData = (accessToken?: string, sorting?: SortingState): 
   const client = useMemo(() => new FunctionsServiceClient(accessToken), [accessToken])
 
   const [allItems, setAllItems] = useState<LatestFunctionItem[]>([])
-  const [loading, setLoading] = useState(false)
+  // Initial loading is `true` (not false) so the consumer's "invalid functionId" cleanup effect
+  // doesn't fire in the tiny mount window before the first fetchData() call has started and
+  // flipped this flag. Without this, deep-links like ?functionId=<id> get their URL stripped
+  // before allItems is populated, silently bouncing the user back to the list.
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [pagination, setPagination] = useState<PaginationState>({
@@ -114,6 +120,7 @@ export const useFunctionsData = (accessToken?: string, sorting?: SortingState): 
 
   return {
     data: paginatedItems,
+    allItems,
     total: sortedItems.length,
     loading,
     error,

@@ -25,7 +25,7 @@ export interface HoursDiscrepancy {
   type: 'under' | 'over' // Type of discrepancy for this specific day
 }
 
-export type DiscrepancyType = 'under' | 'over' | 'mixed'
+export type DiscrepancyType = 'under' | 'over' | 'mixed' | 'ok'
 
 export interface SubmitConfirmationDialogProps {
   open: boolean
@@ -48,6 +48,11 @@ const SubmitConfirmationDialog: React.FC<SubmitConfirmationDialogProps> = ({
 }) => {
   const getTitle = () => {
     switch (discrepancyType) {
+      case 'ok':
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_tracking.smart_booking.confirm_submission_title',
+          'Confirm Submission'
+        )
       case 'under':
         return getTranslationFromI18nKeyAndLabel(
           'lowcoder:time_tracking.smart_booking.undistributed_hours_title',
@@ -68,6 +73,11 @@ const SubmitConfirmationDialog: React.FC<SubmitConfirmationDialogProps> = ({
 
   const getDescription = () => {
     switch (discrepancyType) {
+      case 'ok':
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_tracking.smart_booking.confirm_submission_description',
+          'Are you sure you want to submit your working hours?'
+        )
       case 'under':
         return getTranslationFromI18nKeyAndLabel(
           'lowcoder:time_tracking.smart_booking.undistributed_hours_description',
@@ -91,42 +101,46 @@ const SubmitConfirmationDialog: React.FC<SubmitConfirmationDialogProps> = ({
       <DialogContent className="gba:max-w-lg">
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-            <WarningCircleIcon className="gba:h-5 gba:w-5 gba:text-warning" weight="fill" />
+            {discrepancyType !== 'ok' && (
+              <WarningCircleIcon className="gba:h-5 gba:w-5 gba:text-warning" weight="fill" />
+            )}
             {getTitle()}
           </DialogTitle>
           <DialogDescription>{getDescription()}</DialogDescription>
         </DialogHeader>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.date', 'Date')}
-              </TableHead>
-              <TableHead className="gba:text-center">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.recorded', 'Recorded')}
-              </TableHead>
-              <TableHead className="gba:text-center">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.distributed', 'Distributed')}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {discrepancies.map(discrepancy => (
-              <TableRow key={discrepancy.date}>
-                <TableCell className="gba:font-medium">{discrepancy.dateFormatted}</TableCell>
-                <TableCell className="gba:text-center">{discrepancy.recordedHours}</TableCell>
-                <TableCell
-                  className={`gba:text-center gba:font-semibold ${
-                    discrepancy.type === 'under' ? 'gba:text-warning' : 'gba:text-info'
-                  }`}
-                >
-                  {discrepancy.allocatedHours}
-                </TableCell>
+        {discrepancyType !== 'ok' && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.date', 'Date')}
+                </TableHead>
+                <TableHead className="gba:text-center">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.recorded', 'Recorded')}
+                </TableHead>
+                <TableHead className="gba:text-center">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.distributed', 'Distributed')}
+                </TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {discrepancies.map(discrepancy => (
+                <TableRow key={discrepancy.date}>
+                  <TableCell className="gba:font-medium">{discrepancy.dateFormatted}</TableCell>
+                  <TableCell className="gba:text-center">{discrepancy.recordedHours}</TableCell>
+                  <TableCell
+                    className={`gba:text-center gba:font-semibold ${
+                      discrepancy.type === 'under' ? 'gba:text-warning' : 'gba:text-info'
+                    }`}
+                  >
+                    {discrepancy.allocatedHours}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>

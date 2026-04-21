@@ -97,10 +97,6 @@ const updateViewUrl = (view: ViewType) => {
 export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-box', ...context }) => {
   const { t } = useTranslation(translations)
 
-  // Feature flag guard - EveryBox only available when preview.enabled is true
-  const previewFeature = useFeature(Feature.Preview.Enabled.Key)
-  const isPreviewEnabled = previewFeature !== false // true if undefined (development) or 'true'
-
   // AI feature flag and capabilities (enabled by default in development when flag is undefined)
   const aiFeature = useFeature(Feature.EveryBox.AiEnabled.Key)
   const isAiFeatureEnabled = aiFeature === true || aiFeature === 'true' || aiFeature === undefined
@@ -434,24 +430,21 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     sortBy,
     sortOrder,
     dueFilter: dueDateFilter,
-    enabled: isPreviewEnabled && !bootstrapLoading,
+    enabled: !bootstrapLoading,
     startDelayMs: 3000,
     onInvalidate: handleStreamInvalidation
   })
 
   // Initialize URL with view parameter if not present
   useEffect(() => {
-    if (!isPreviewEnabled) return
     const urlParams = new URLSearchParams(globalThis.location.search)
     if (!urlParams.has('view')) {
       updateViewUrl(activeTab)
     }
-  }, [isPreviewEnabled, activeTab])
+  }, [activeTab])
 
   // Handle browser back/forward navigation
   useEffect(() => {
-    if (!isPreviewEnabled) return
-
     const handlePopState = () => {
       const newView = getInitialView()
       setActiveTab(newView)
@@ -459,7 +452,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
     globalThis.addEventListener('popstate', handlePopState)
     return () => globalThis.removeEventListener('popstate', handlePopState)
-  }, [isPreviewEnabled])
+  }, [])
 
   // Handler to change tab and update URL
   // PERF: Wrapped in useCallback — all captured values are stable (state setters + updateViewUrl)
@@ -528,8 +521,6 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
   // Listen for process completion events to refresh task lists
   useEffect(() => {
-    if (!isPreviewEnabled) return
-
     const handleProcessCompletion = (event: Event) => {
       const customEvent = event as CustomEvent<{ resolution?: string }>
       const resolution = customEvent.detail?.resolution
@@ -547,7 +538,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     return () => {
       window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
     }
-  }, [isPreviewEnabled, selectedFilter])
+  }, [selectedFilter])
 
   // Dropdown counts: "All" uses API totalCount; blinks uses blink API total; completed uses completed API total.
   // Approvals = same predicate as InboxView filter, counted over **loaded** inbox tasks only (subset until load-more).
@@ -621,11 +612,6 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
       blinkEnabled
     ]
   )
-
-  // Feature flag guard - render null if preview is disabled (after all hooks)
-  if (!isPreviewEnabled) {
-    return null
-  }
 
   return (
     <ThemeProvider defaultTheme="light">

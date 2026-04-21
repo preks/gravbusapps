@@ -14,17 +14,17 @@ const MyTeamTime: React.FC<BusinessAppContextProps> = props => {
   const viewOptions = [
     {
       key: 'dashboard' as TabKey,
-      icon: <GaugeIcon className="w-5 h-5" />,
+      icon: <GaugeIcon className="gba:h-5 gba:w-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.dashboard', 'Dashboard')
     },
     {
       key: 'attendance' as TabKey,
-      icon: <ClockIcon className="w-5 h-5" />,
+      icon: <ClockIcon className="gba:h-5 gba:w-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.attendance', 'Attendance')
     },
     {
       key: 'insights' as TabKey,
-      icon: <LightbulbIcon className="w-5 h-5" />,
+      icon: <LightbulbIcon className="gba:h-5 gba:w-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.insights', 'Insights')
     }
   ]

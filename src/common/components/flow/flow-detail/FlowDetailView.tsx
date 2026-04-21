@@ -25,6 +25,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
   const {
     flowData,
     flowSteps,
+    stepAssignmentsByStepIndex,
     executionState,
     isLoading,
     isRefreshing,
@@ -119,7 +120,12 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
           </div>
 
           {showDataSection ? (
-            <FlowDetailDataSection flowData={flowData} flowSteps={flowSteps} accessToken={accessToken} />
+            <FlowDetailDataSection
+              flowData={flowData}
+              flowSteps={flowSteps}
+              stepAssignmentsByStepIndex={stepAssignmentsByStepIndex}
+              accessToken={accessToken}
+            />
           ) : null}
         </div>
       </div>

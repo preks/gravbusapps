@@ -12,7 +12,7 @@ export const InsightsAbsenceAnalytics: React.FC<BusinessAppContextProps> = props
   return (
     <>
       <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6">
-        <AbsenceDistributionSection {...props} />
+        <AbsenceDistributionSection {...props} displayVariant="insights" />
         <UsagePatternsSection data={absenceStatistics} />
       </div>
       <AbsenceTrendsSection {...props} />

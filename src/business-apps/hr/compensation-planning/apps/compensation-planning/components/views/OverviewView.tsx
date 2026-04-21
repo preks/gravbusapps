@@ -1,5 +1,5 @@
 import { Button, useTranslation } from '@newwork/nw-design-system'
-import { FolderOpenIcon, PlusIcon } from '@phosphor-icons/react'
+import { FolderOpenIcon } from '@phosphor-icons/react'
 import { OverviewPlansTable } from './OverviewPlansTable'
 import type { CompensationBudgetPlanRow } from '../../hooks/useBudgetPlansTable'
 import translations from '../../_i18n'
@@ -45,7 +45,6 @@ function PlansListView({
         <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">{t('overview-plans-empty-title')}</h3>
         <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('overview-plans-empty-hint')}</p>
         <Button onClick={onCreatePlan} data-testid="overview-create-plan-empty-button">
-          <PlusIcon size={16} className="gba:mr-2" />
           {t('overview-plans-new-button')}
         </Button>
       </div>

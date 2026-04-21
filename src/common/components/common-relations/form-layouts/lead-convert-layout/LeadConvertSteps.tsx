@@ -23,7 +23,7 @@ export interface LeadConvertAccountStepProps {
   }
   loading?: boolean
   accountInformationCustomFields?: React.ReactNode
-  accountDetailsCustomFields?: React.ReactNode
+  coreInformationCustomFields?: React.ReactNode
   addressCustomFields?: React.ReactNode
   communicationCustomFields?: React.ReactNode
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
@@ -42,7 +42,7 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
   useContacts,
   loading = false,
   accountInformationCustomFields,
-  accountDetailsCustomFields,
+  coreInformationCustomFields,
   addressCustomFields,
   communicationCustomFields,
   customSegments,
@@ -70,7 +70,7 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
             accountPriorityCatalogIdentifier={accountPriorityCatalogIdentifier}
             useContacts={useContacts}
             accountInformationCustomFields={accountInformationCustomFields}
-            accountDetailsCustomFields={accountDetailsCustomFields}
+            coreInformationCustomFields={coreInformationCustomFields}
             addressCustomFields={addressCustomFields}
             communicationCustomFields={communicationCustomFields}
             customSegments={customSegments}

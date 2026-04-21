@@ -562,8 +562,30 @@ export function useOpportunitySearch(accessToken: string, params: { search?: str
 // Entity type for generic use
 export type EntityType = 'employee' | 'account' | 'contact' | 'lead' | 'opportunity'
 
-// Helper to determine entity type from field name
-export function getEntityTypeFromFieldName(fieldName: string): EntityType {
+const DS_ENTITY: Record<string, EntityType> = {
+  employee: 'employee',
+  account: 'account',
+  investment_account: 'account',
+  contact: 'contact',
+  investment_contact: 'contact',
+  lead: 'lead',
+  investment_lead: 'lead',
+  opportunity: 'opportunity',
+  investment_opportunity: 'opportunity'
+}
+
+/** Field name heuristics; optional `fieldSchema` supplies `x-dataSource.entity` (e.g. custom flow "New Field" → opportunity). */
+export function getEntityTypeFromFieldName(fieldName: string, fieldSchema?: any): EntityType {
+  const ds = fieldSchema?.['x-dataSource']
+  if (ds?.type === 'ENTITY' && typeof ds?.entity === 'string') {
+    const k = ds.entity
+      .trim()
+      .replace(/-/g, '_')
+      .replace(/([a-z])([A-Z])/g, '$1_$2')
+      .toLowerCase()
+    if (DS_ENTITY[k]) return DS_ENTITY[k]
+  }
+
   const lowerName = fieldName.toLowerCase()
   if (lowerName === 'account' || lowerName.includes('accountid')) return 'account'
   if (lowerName === 'contact' || lowerName.includes('contactid')) return 'contact'

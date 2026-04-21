@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { useEmployeeById } from '@/common/data/employee/hooks/useEmployeeById'
-import { getProcessIdFromEndpoint } from './useNominatedPeersFromProcess'
+import { resolveProcessId } from './useNominatedPeersFromProcess'
 import type { EmployeeForHeader } from '../context/PerformanceEvaluationPeerApproveContext'
 
 interface ProcessGetResponse {
@@ -42,14 +42,12 @@ export function useEmployeeForPeerApproveHeader(
       return
     }
 
-    const metadata = additionalData?.psi_processMetadata as Record<string, unknown> | undefined
-    const endpoint = metadata?.endpoint as string | undefined
-    const processId = getProcessIdFromEndpoint(endpoint)
+    const processId = resolveProcessId(additionalData)
 
     if (!processId) {
       setEmployeeIdFromProcess(null)
       setProcessLoading(false)
-      setProcessFetchError('Could not determine process ID from endpoint')
+      setProcessFetchError('Could not determine process ID from payload or endpoint')
       return
     }
 

@@ -8,6 +8,7 @@ const createFunctionsColumnsMock = jest.fn()
 
 jest.mock('@newwork/nw-design-system', () => ({
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+  CreateLayout: (props: any) => createLayoutMock(props),
   DataDisplay: ({ children, primaryAction }: any) => (
     <div data-testid="mock-data-display">
       {primaryAction && typeof primaryAction === 'object' && 'label' in primaryAction ? (
@@ -37,10 +38,6 @@ jest.mock('@newwork/nw-design-system', () => ({
   })
 }))
 
-jest.mock('@/components/create-layout', () => ({
-  CreateLayout: (props: any) => createLayoutMock(props)
-}))
-
 jest.mock('./hooks/useFunctionsData', () => ({
   useFunctionsData: (...args: unknown[]) => useFunctionsDataMock(...args)
 }))
@@ -59,8 +56,8 @@ jest.mock('./components/FunctionEditor', () => ({
 
 describe('FunctionManager', () => {
   beforeEach(() => {
-    createLayoutMock.mockImplementation(({ heroVariant, heroExtra, canvasPanel, testId }: any) => (
-      <div data-testid="mock-create-layout" data-hero-variant={heroVariant} data-layout-testid={testId}>
+    createLayoutMock.mockImplementation(({ heroVariant, heroExtra, canvasPanel, 'data-testid': dataTestId }: any) => (
+      <div data-testid="mock-create-layout" data-hero-variant={heroVariant} data-layout-testid={dataTestId}>
         <div data-testid="mock-create-layout-extra">{heroExtra}</div>
         <div data-testid="mock-create-layout-canvas">{canvasPanel}</div>
       </div>

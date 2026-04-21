@@ -41,6 +41,23 @@ export const GET_TEAM_MEMBER_THUMBNAILS = `
   }
 `
 
+export const GET_TEAM_MEMBER_REGIONS = `
+  query GetTeamMemberRegions($employeeIds: [uuid!]!, $activeUserLocale: String!) {
+    Employee(where: { id: { _in: $employeeIds }, isDeleted: { _eq: false } }) {
+      id
+      workingCondition {
+        region {
+          id
+          value
+          translations(where: { localeCode: { _eq: $activeUserLocale } }) {
+            value
+          }
+        }
+      }
+    }
+  }
+`
+
 export const GET_TEAM_ATTENDANCE_FOR_RANGE = `
   query GetTeamAttendanceForRange($employeeIds: [uuid!]!, $dateFrom: date!, $dateTo: date!) {
     EmployeeAttendance(
@@ -98,6 +115,46 @@ export const GET_TEAM_ABSENCES_CALENDAR_RANGE = `
       status
       dayDate
       employeeAbsenceId
+    }
+  }
+`
+
+export const GET_TEAM_ABSENCE_DETAILS_FOR_RANGE = `
+  query GetTeamAbsenceDetailsForRange($employeeIds: [uuid!]!, $from: timestamp!, $to: timestamp!, $activeUserLocale: String!) {
+    EmployeeAbsence(
+      where: {
+        employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
+        startDate: { _lte: $to }
+        endDate: { _gte: $from }
+      }
+      orderBy: [{ startDate: ASC }, { createdAt: DESC }]
+    ) {
+      id
+      employeeId
+      startDate
+      endDate
+      status
+      typeRef
+      effectiveDays
+      workingDays
+      calendarDays
+      createdAt
+      type {
+        id
+        value
+        parentEntryId
+        translations(where: { localeCode: { _eq: $activeUserLocale } }) {
+          localeCode
+          value
+        }
+      }
+      employee {
+        id
+        firstName
+        lastName
+        pictureThumbnail
+      }
     }
   }
 `

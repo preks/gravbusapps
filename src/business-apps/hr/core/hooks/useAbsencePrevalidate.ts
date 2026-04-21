@@ -4,6 +4,7 @@ import { env } from '@/common/env/EnvUtils'
 export interface PrevalidateResult {
   effectiveDays: number | null
   workingDays: number | null
+  calendarDays: number | null
   errorCode: string | null
   errorTitle: string | null
   errorDetail: string | null
@@ -21,6 +22,7 @@ export interface UseAbsencePrevalidateParams {
 const IDLE_RESULT: PrevalidateResult = {
   effectiveDays: null,
   workingDays: null,
+  calendarDays: null,
   errorCode: null,
   errorTitle: null,
   errorDetail: null,
@@ -155,6 +157,7 @@ export const useAbsencePrevalidateShared = ({
           setResult({
             effectiveDays: null,
             workingDays: null,
+            calendarDays: null,
             errorCode: 'INTERNAL_ERROR',
             errorTitle: null,
             errorDetail: null,
@@ -168,6 +171,7 @@ export const useAbsencePrevalidateShared = ({
           setResult({
             effectiveDays: toFiniteNumber(data?.effectiveDays),
             workingDays: toFiniteNumber(data?.workingDays),
+            calendarDays: toFiniteNumber(data?.calendarDays),
             errorCode: null,
             errorTitle: null,
             errorDetail: null,
@@ -181,6 +185,7 @@ export const useAbsencePrevalidateShared = ({
         setResult({
           effectiveDays: null,
           workingDays: null,
+          calendarDays: null,
           errorCode: errorInfo.errorCode,
           errorTitle: errorInfo.errorTitle,
           errorDetail: errorInfo.errorDetail,
@@ -191,6 +196,7 @@ export const useAbsencePrevalidateShared = ({
         setResult({
           effectiveDays: null,
           workingDays: null,
+          calendarDays: null,
           errorCode: 'INTERNAL_ERROR',
           errorTitle: null,
           errorDetail: null,

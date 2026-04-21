@@ -545,7 +545,7 @@ export class SpreadsheetAppDatabaseService {
         const user = userMap.get(share.userId)
         return {
           userId: share.userId,
-          userName: user?.displayName || 'Unknown User',
+          userName: user?.displayName || '',
           userEmail: user?.workEmail || '',
           permission: share.permission,
           sharedAt: share.sharedAt
