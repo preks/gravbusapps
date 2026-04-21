@@ -45,7 +45,7 @@ export interface ConversionResultStepProps<T = ConvertedEntity> {
   'data-testid'?: string
 }
 
-export const ConversionResultStep = <T = ConvertedEntity,>({
+export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity>({
   convertedEntities,
   targetFieldsConfig,
   entityType,
@@ -120,6 +120,7 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
             {/* Import in Progress Message */}
             {importStarted && (
               <Card variant="surface" className="gba:border-primary">
+
                 <CardContent className="gba:p-6">
                   <div className="gba:flex gba:flex-col gba:items-center gba:gap-4 gba:text-center">
                     <div className="gba:relative">

@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { EntityImportView } from '@/common/components/common-relations/apps/data-import/components'
+import { IrmEntityImportView } from '@/common/components/common-relations/apps/data-import/components'
 import { investmentLeadImportConfig } from '@/common/data/investment/types/investmentLeadImportConfig'
 import translations from './_i18n'
 
@@ -18,7 +18,7 @@ export const LeadImportView: React.FC<LeadImportViewProps> = ({
   const { t } = useTranslation(translations)
 
   return (
-    <EntityImportView
+    <IrmEntityImportView
       config={investmentLeadImportConfig}
       headerTitle={t('lead-page-title')}
       headerDescription={t('lead-page-description')}
