@@ -16,5 +16,6 @@ export type {
   EmployeeLike,
   DateColumnOptions,
   CurrencyColumnOptions,
-  StatusBadgeColumnOptions
+  StatusBadgeColumnOptions,
+  EmployeeColumnOptions
 } from '../../../../common/columns/expenseColumnHelpers'

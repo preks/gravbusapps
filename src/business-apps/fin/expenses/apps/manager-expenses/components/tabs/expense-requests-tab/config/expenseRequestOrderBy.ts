@@ -1,6 +1,6 @@
 /**
  * Builds GraphQL orderBy clause for manager expense requests list.
- * Maps UI sort field/order to ManagerExpensesOverview requests orderBy shape.
+ * Sort field ids must match expenseRequestColumnDefinitions.ts. Maps UI sort field/order to overview requests orderBy.
  */
 
 const DEFAULT_ORDER: unknown[] = [{ requestDate: 'DESC' }]
