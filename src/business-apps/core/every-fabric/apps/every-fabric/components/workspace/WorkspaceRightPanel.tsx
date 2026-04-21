@@ -509,7 +509,7 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
       data-testid="fabric-right-panel"
     >
       {showPreview && (
-        <div className="gba:flex-1 gba:min-h-[60%]">
+        <div>
           <LivePreviewCard preview={latestPreview} accessToken={accessToken} sessionId={sessionId} />
         </div>
       )}

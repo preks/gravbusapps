@@ -20,28 +20,48 @@ export const WORKSPACE_END_SENTINEL_SCROLL_MARGIN_WITH_FOLLOWUPS_CLASS =
 export const WORKSPACE_END_SENTINEL_SCROLL_MARGIN_STREAMING_ISLAND_CLASS =
   'gba:scroll-mb-[17rem] sm:gba:scroll-mb-[19rem] lg:gba:scroll-mb-[20rem]'
 
-export const WORKSPACE_TOP_CONTROLS_OFFSET_CLASS = 'gba:top-20 sm:gba:top-20 lg:gba:top-[5rem]'
+// Sits above the right-panel header (overlay mode starts at `top-24`, desktop at `top-36`)
+// so the panel-toggle button never collides with the panel chrome.
+export const WORKSPACE_TOP_CONTROLS_OFFSET_CLASS = 'gba:top-4 sm:gba:top-5 lg:gba:top-6'
+
+/**
+ * Right padding applied to the chat rail wrappers (scroll region, clarification
+ * modal, bottom composer stack) when the right panel is docked + open. Keeps
+ * the rail from being centered under the floating right panel. Values track
+ * `WORKSPACE_RIGHT_RAIL_WIDTH_CLASS` plus the panel's right gutter.
+ */
+export const WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS =
+  'gba:pr-[calc(20rem+2rem)] xl:gba:pr-[calc(22rem+2.5rem)] 2xl:gba:pr-[calc(24rem+2.5rem)]'
+
+/**
+ * Wide variant used when the right panel is showing a live document/slide
+ * canvas preview — tracks `WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_CLASS` plus the
+ * panel's right gutter so the chat rail doesn't slide under the canvas.
+ */
+export const WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_OPEN_CLASS =
+  'gba:pr-[calc(32rem+2rem)] 2xl:gba:pr-[calc(38rem+2.5rem)]'
+
+/** Smooth slide when the panel toggles so chat + composer + modal move as one unit. */
+export const WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS = 'gba:transition-[padding] gba:duration-300 gba:ease-out'
 
 export const WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS = 'gba:top-36 sm:gba:top-36 lg:gba:top-[9.5rem]'
 
-export const WORKSPACE_RIGHT_RAIL_DESKTOP_BREAKPOINT_PX = 1500
+/**
+ * First-paint default: on viewports ≥ this width we open the right panel
+ * automatically because there is room for chat + panel side-by-side. On
+ * narrower screens we start closed and let the user toggle it on demand.
+ *
+ * The panel is always rendered the same way (small floating right rail, no
+ * backdrop) — this threshold only controls the initial `isRightPanelOpen`
+ * value, not any visual mode.
+ */
+export const WORKSPACE_RIGHT_RAIL_AUTO_OPEN_BREAKPOINT_PX = 1280
 
-export const WORKSPACE_RIGHT_RAIL_WIDTH_CLASS = 'gba:w-[min(22rem,calc(100%-2rem))] 2xl:gba:w-[24rem]'
+export const WORKSPACE_RIGHT_RAIL_WIDTH_CLASS = 'gba:w-[min(20rem,calc(100%-2rem))] xl:gba:w-[22rem] 2xl:gba:w-[24rem]'
 
 export const WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_CLASS = 'gba:w-[min(32rem,calc(100%-2rem))] 2xl:gba:w-[38rem]'
 
 /** Pixel widths for desktop flex-flow right panel (must match CSS classes above) */
-export const WORKSPACE_RIGHT_RAIL_DEFAULT_WIDTH_PX = 352
+export const WORKSPACE_RIGHT_RAIL_DEFAULT_WIDTH_PX = 320
 export const WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_PX = 512
 export const WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_2XL_PX = 608
-
-/** Non-desktop right rail: clears fixed bottom composer (no follow-ups) */
-export const WORKSPACE_RIGHT_RAIL_BOTTOM_DEFAULT_CLASS = 'gba:bottom-[10rem] sm:gba:bottom-[11.5rem]'
-
-/** Non-desktop right rail: clears composer + follow-ups stack */
-export const WORKSPACE_RIGHT_RAIL_BOTTOM_WITH_FOLLOWUPS_CLASS =
-  'gba:bottom-[19rem] sm:gba:bottom-[21rem] lg:gba:bottom-[22rem]'
-
-/** Non-desktop right rail: clears composer + streaming island */
-export const WORKSPACE_RIGHT_RAIL_BOTTOM_STREAMING_ISLAND_CLASS =
-  'gba:bottom-[18rem] sm:gba:bottom-[20rem] lg:gba:bottom-[21rem]'
