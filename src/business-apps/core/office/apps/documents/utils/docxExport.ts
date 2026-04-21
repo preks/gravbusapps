@@ -11,7 +11,6 @@ import {
 } from '@/components/tiptap-extensions/tiptap-custom-image'
 import {
   CUSTOM_IMAGE_TAG,
-  getImageFigureAttributesFromElement,
   normalizeImageBorderColor,
   normalizeImageBorderDash,
   normalizeImageBorderWidthPt
@@ -21,11 +20,12 @@ import {
   hasImageCrop,
   normalizeImageCrop
 } from '@/components/tiptap-extensions/tiptap-custom-image/cropUtils'
-import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-custom-image/sizeUtils'
+import type { ImageMeasurementContext } from '@/components/tiptap-extensions/tiptap-custom-image/sizeUtils'
 import {
   DEFAULT_IMAGE_BORDER_COLOR,
   DEFAULT_IMAGE_BORDER_DASH,
   DEFAULT_IMAGE_BORDER_WIDTH_PT,
+  type CustomImageAttributes,
   type ImageBorderDash
 } from '@/components/tiptap-extensions/tiptap-custom-image/types'
 import type { DocumentFormatting } from '../types'
@@ -34,6 +34,13 @@ import {
   getPagesConfigFromFormatting,
   getPrintStyleConfigFromFormatting
 } from './pageLayoutUtils'
+import {
+  DOCX_IMAGE_EXPORT_DEFAULTS,
+  normalizeDocxCustomImageMarkup,
+  normalizeDocxCustomImageForExport,
+  normalizeDocxInlineImageForExport,
+  resolveDocxImageMeasurementContext
+} from './docxImageExportUtils'
 import { buildWordTocXmlFromElement } from './docxTocExportUtils'
 import { DEFAULT_DOCUMENT_TOC_STYLES, type DocumentTocStyles, parseDocumentTocStyles } from './documentTocStyleUtils'
 import { sanitizeHtmlForExport } from './exportUtils'
@@ -60,6 +67,7 @@ interface DocxBuildContext {
   buildState: DocxBuildState
   typography: DocxTypographySettings
   fieldConfig?: DocxFieldConfig
+  imageMeasurementContext: ImageMeasurementContext
 }
 
 interface DocxTypographySettings {
@@ -142,7 +150,8 @@ function newContext(
   typography: DocxTypographySettings,
   partKey: string,
   buildState: DocxBuildState,
-  fieldConfig?: DocxFieldConfig
+  fieldConfig?: DocxFieldConfig,
+  imageMeasurementContext: ImageMeasurementContext = {}
 ): DocxBuildContext {
   return {
     images: [],
@@ -152,7 +161,8 @@ function newContext(
     partKey,
     buildState,
     typography,
-    fieldConfig
+    fieldConfig,
+    imageMeasurementContext
   }
 }
 
@@ -184,14 +194,6 @@ const DOCX_TABLE_THEME_PALETTES = {
   purple: { solid: '7C3AED', soft: 'EDE9FE', softAlt: 'F5F3FF' },
   gray: { solid: '4B5563', soft: 'E5E7EB', softAlt: 'F3F4F6' }
 } as const
-const DOCX_IMAGE_DEFAULTS = {
-  align: 'left' as const,
-  wrapMode: 'inline' as const,
-  anchorMode: 'inline' as const,
-  display: 'inline' as const,
-  distance: 0
-}
-
 function extractPrimaryWordFontFamily(fontFamily?: string): string {
   const primary = fontFamily
     ?.split(',')
@@ -996,7 +998,7 @@ function mapImageBorderDashToOoxml(dash: ImageBorderDash): string | null {
   }
 }
 
-function getPictureBorderXml(layout?: ReturnType<typeof getImageFigureAttributesFromElement>): string {
+function getPictureBorderXml(layout?: CustomImageAttributes): string {
   if (!layout || !layout.borderVisible) {
     return ''
   }
@@ -1057,7 +1059,7 @@ function getWrapXml(layout: ReturnType<typeof resolveWordLikeImageLayout>): stri
 }
 
 function getHorizontalAlignmentXml(
-  layout: ReturnType<typeof getImageFigureAttributesFromElement>,
+  layout: CustomImageAttributes,
   horizontalRef: string,
   offsetX: number,
   wordLayout?: ReturnType<typeof resolveWordLikeImageLayout>
@@ -1106,7 +1108,7 @@ async function loadImageForWrapContour(src: string): Promise<HTMLImageElement | 
 }
 
 async function resolveDocxWordLayout(
-  layout: ReturnType<typeof getImageFigureAttributesFromElement>,
+  layout: CustomImageAttributes,
   src: string
 ): Promise<ReturnType<typeof resolveWordLikeImageLayout>> {
   if (layout.wrapMode !== 'tight' && layout.wrapMode !== 'through') {
@@ -1118,7 +1120,7 @@ async function resolveDocxWordLayout(
   return resolveWordLikeImageLayout(layout, { wrapContour })
 }
 
-function getCropXml(layout?: ReturnType<typeof getImageFigureAttributesFromElement>) {
+function getCropXml(layout?: CustomImageAttributes) {
   if (!layout || !hasImageCrop(layout)) {
     return ''
   }
@@ -1133,15 +1135,24 @@ function imageInlineDrawingXml(
   img: EmbeddedImage,
   docPrId: number,
   rotation: number,
-  layout?: ReturnType<typeof getImageFigureAttributesFromElement>
+  layout?: CustomImageAttributes,
+  metadata?: { alt?: string | null; title?: string | null }
 ): string {
   const pictureBorderXml = getPictureBorderXml(layout)
+  const altText = metadata?.alt?.trim()
+  const title = metadata?.title?.trim()
+  const docPrAttributes = [
+    `id="${docPrId}"`,
+    `name="${escapeXml(img.fileName)}"`,
+    ...(title ? [`title="${escapeXml(title)}"`] : []),
+    ...(altText ? [`descr="${escapeXml(altText)}"`] : [])
+  ].join(' ')
 
   return (
     `<w:drawing>` +
     `<wp:inline distT="0" distB="0" distL="0" distR="0">` +
     `<wp:extent cx="${img.widthEmu}" cy="${img.heightEmu}"/>` +
-    `<wp:docPr id="${docPrId}" name="${escapeXml(img.fileName)}"/>` +
+    `<wp:docPr ${docPrAttributes}/>` +
     `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
     `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
     `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
@@ -1156,14 +1167,15 @@ function imageInlineDrawingXml(
 function imageAnchorDrawingXml(
   img: EmbeddedImage,
   docPrId: number,
-  layout: ReturnType<typeof getImageFigureAttributesFromElement>,
+  layout: CustomImageAttributes,
   wordLayout: ReturnType<typeof resolveWordLikeImageLayout>,
-  rotation: number
+  rotation: number,
+  metadata?: { alt?: string | null; title?: string | null }
 ): string {
-  const distT = pxToEmu(layout.distanceTop ?? DOCX_IMAGE_DEFAULTS.distance)
-  const distR = pxToEmu(layout.distanceRight ?? DOCX_IMAGE_DEFAULTS.distance)
-  const distB = pxToEmu(layout.distanceBottom ?? DOCX_IMAGE_DEFAULTS.distance)
-  const distL = pxToEmu(layout.distanceLeft ?? DOCX_IMAGE_DEFAULTS.distance)
+  const distT = pxToEmu(layout.distanceTop ?? DOCX_IMAGE_EXPORT_DEFAULTS.distance)
+  const distR = pxToEmu(layout.distanceRight ?? DOCX_IMAGE_EXPORT_DEFAULTS.distance)
+  const distB = pxToEmu(layout.distanceBottom ?? DOCX_IMAGE_EXPORT_DEFAULTS.distance)
+  const distL = pxToEmu(layout.distanceLeft ?? DOCX_IMAGE_EXPORT_DEFAULTS.distance)
   const offsetX = pxToEmu(layout.offsetX ?? 0)
   const offsetY = pxToEmu(layout.offsetY ?? 0)
   const relativeHeight = Math.max(0, Math.round((layout.zIndex ?? 1) * 1000))
@@ -1175,6 +1187,14 @@ function imageAnchorDrawingXml(
   const positionH = getHorizontalAlignmentXml(layout, horizontalRef, offsetX, wordLayout)
   const positionV = `<wp:positionV relativeFrom="${verticalRef}"><wp:posOffset>${offsetY}</wp:posOffset></wp:positionV>`
   const pictureBorderXml = getPictureBorderXml(layout)
+  const altText = metadata?.alt?.trim()
+  const title = metadata?.title?.trim()
+  const docPrAttributes = [
+    `id="${docPrId}"`,
+    `name="${escapeXml(img.fileName)}"`,
+    ...(title ? [`title="${escapeXml(title)}"`] : []),
+    ...(altText ? [`descr="${escapeXml(altText)}"`] : [])
+  ].join(' ')
 
   return (
     `<w:drawing>` +
@@ -1187,7 +1207,7 @@ function imageAnchorDrawingXml(
     `<wp:extent cx="${img.widthEmu}" cy="${img.heightEmu}"/>` +
     `<wp:effectExtent l="0" t="0" r="0" b="0"/>` +
     wrapXml +
-    `<wp:docPr id="${docPrId}" name="${escapeXml(img.fileName)}"/>` +
+    `<wp:docPr ${docPrAttributes}/>` +
     `<wp:cNvGraphicFramePr/>` +
     `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
     `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
@@ -1204,17 +1224,53 @@ function imageAnchorDrawingXml(
 function imageDrawingXml(
   img: EmbeddedImage,
   docPrId: number,
-  layout?: ReturnType<typeof getImageFigureAttributesFromElement>,
+  layout?: CustomImageAttributes,
   wordLayout?: ReturnType<typeof resolveWordLikeImageLayout>,
-  rotation = 0
+  rotation = 0,
+  metadata?: { alt?: string | null; title?: string | null }
 ): string {
   return layout && layout.wrapMode !== 'inline'
-    ? imageAnchorDrawingXml(img, docPrId, layout, wordLayout ?? resolveWordLikeImageLayout(layout), rotation)
-    : imageInlineDrawingXml(img, docPrId, rotation, layout)
+    ? imageAnchorDrawingXml(img, docPrId, layout, wordLayout ?? resolveWordLikeImageLayout(layout), rotation, metadata)
+    : imageInlineDrawingXml(img, docPrId, rotation, layout, metadata)
 }
 
 function wrapDrawingRun(drawingXml: string): string {
   return `<w:r>${drawingXml}</w:r>`
+}
+
+function convertInlineCustomImage(el: HTMLElement, ctx: DocxBuildContext): string {
+  const normalizedImage = normalizeDocxCustomImageForExport(el, ctx.imageMeasurementContext)
+  if (!normalizedImage) {
+    return convertInline(el, ctx)
+  }
+
+  const { alt, caption, layout, resolvedDimensions, src, title } = normalizedImage
+  const width = resolvedDimensions.width ?? DEFAULT_IMG_WIDTH
+  const height = resolvedDimensions.height ?? DEFAULT_IMG_HEIGHT
+  const img = registerImage(ctx, src, width, height)
+  if (!img) {
+    return ''
+  }
+
+  let result = wrapDrawingRun(
+    imageDrawingXml(
+      img,
+      allocateDocPrId(ctx),
+      layout,
+      resolveWordLikeImageLayout(layout),
+      resolvedDimensions.rotation,
+      {
+        alt,
+        title
+      }
+    )
+  )
+
+  if (caption) {
+    result += `<w:r><w:br/></w:r>${wrapRun(caption, '<w:i/><w:color w:val="666666"/><w:sz w:val="18"/>')}`
+  }
+
+  return result
 }
 
 function getWordAlignmentValue(align: string | null | undefined): 'left' | 'center' | 'right' {
@@ -1224,27 +1280,28 @@ function getWordAlignmentValue(align: string | null | undefined): 'left' | 'cent
 }
 
 async function convertFigure(el: HTMLElement, parts: string[], ctx: DocxBuildContext): Promise<void> {
-  const imgEl = el.querySelector('img[src]')
-  if (!imgEl) return
+  const normalizedImage = normalizeDocxCustomImageForExport(el, ctx.imageMeasurementContext)
+  if (!normalizedImage) return
 
-  const layout = getImageFigureAttributesFromElement(el, DOCX_IMAGE_DEFAULTS)
-  const src = imgEl.getAttribute('src') || ''
+  const { alt, caption, layout, resolvedDimensions, src, title } = normalizedImage
   const wordLayout = await resolveDocxWordLayout(layout, src)
-  const resolvedDimensions = resolveImageDimensions(layout)
   const width = resolvedDimensions.width ?? DEFAULT_IMG_WIDTH
   const height = resolvedDimensions.height ?? DEFAULT_IMG_HEIGHT
   const img = registerImage(ctx, src, width, height)
   if (!img) return
   const docPrId = allocateDocPrId(ctx)
+  const jc = getWordAlignmentValue(layout.align)
+  const imageParagraphProps = `<w:pPr><w:jc w:val="${jc}"/><w:spacing w:before="0" w:after="0"/></w:pPr>`
 
   parts.push(
-    `<w:p>${wrapDrawingRun(imageDrawingXml(img, docPrId, layout, wordLayout, resolvedDimensions.rotation))}</w:p>`
+    `<w:p>${imageParagraphProps}${wrapDrawingRun(
+      imageDrawingXml(img, docPrId, layout, wordLayout, resolvedDimensions.rotation, { alt, title })
+    )}</w:p>`
   )
 
-  if (layout.caption?.trim()) {
-    const jc = getWordAlignmentValue(layout.align)
+  if (caption) {
     parts.push(
-      `<w:p><w:pPr><w:jc w:val="${jc}"/><w:spacing w:before="0" w:after="120"/></w:pPr>${wrapRun(layout.caption.trim(), '<w:i/><w:color w:val="666666"/><w:sz w:val="18"/>')}</w:p>`
+      `<w:p><w:pPr><w:jc w:val="${jc}"/><w:spacing w:before="0" w:after="120"/></w:pPr>${wrapRun(caption, '<w:i/><w:color w:val="666666"/><w:sz w:val="18"/>')}</w:p>`
     )
   }
 }
@@ -1320,6 +1377,10 @@ function convertInline(el: HTMLElement, ctx: DocxBuildContext, inheritProps?: st
       if (text) result += wrapTextWithFieldTokens(text, ctx, inheritProps)
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const child = node as HTMLElement
+      if (child.getAttribute('data-node-type') === CUSTOM_IMAGE_TAG) {
+        result += convertInlineCustomImage(child, ctx)
+        continue
+      }
       const tag = child.tagName.toLowerCase()
       const styledProps = `${inheritProps || ''}${buildInlineStyleRunProps(child)}`
       switch (tag) {
@@ -1354,11 +1415,28 @@ function convertInline(el: HTMLElement, ctx: DocxBuildContext, inheritProps?: st
           result += '<w:r><w:br/></w:r>'
           break
         case 'img': {
-          const src = child.getAttribute('src') || ''
-          const w = parseInt(child.getAttribute('width') || '0', 10) || DEFAULT_IMG_WIDTH
-          const h = parseInt(child.getAttribute('height') || '0', 10) || DEFAULT_IMG_HEIGHT
-          const img = registerImage(ctx, src, w, h)
-          if (img) result += wrapDrawingRun(imageDrawingXml(img, allocateDocPrId(ctx)))
+          const normalizedImage = normalizeDocxInlineImageForExport(child)
+          if (!normalizedImage) {
+            break
+          }
+          const width = normalizedImage.resolvedDimensions.width ?? DEFAULT_IMG_WIDTH
+          const height = normalizedImage.resolvedDimensions.height ?? DEFAULT_IMG_HEIGHT
+          const img = registerImage(ctx, normalizedImage.src, width, height)
+          if (img) {
+            result += wrapDrawingRun(
+              imageDrawingXml(
+                img,
+                allocateDocPrId(ctx),
+                normalizedImage.layout,
+                resolveWordLikeImageLayout(normalizedImage.layout),
+                normalizedImage.resolvedDimensions.rotation,
+                {
+                  alt: normalizedImage.alt,
+                  title: normalizedImage.title
+                }
+              )
+            )
+          }
           break
         }
         case 'code':
@@ -1791,13 +1869,15 @@ async function buildHeaderFooterPart(params: {
       FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
       ALLOW_DATA_ATTR: true
     }) || ''
+  normalizeDocxCustomImageMarkup(tempDiv)
 
   const requiresFieldConfig = slot !== null || hasDocxFieldTokens(html)
   const ctx = newContext(
     typography,
     `${kind}-${referenceType}-${index}`,
     buildState,
-    requiresFieldConfig ? buildFieldConfig(title, formatting, page) : undefined
+    requiresFieldConfig ? buildFieldConfig(title, formatting, page) : undefined,
+    resolveDocxImageMeasurementContext(formatting)
   )
   const bodyParts: string[] = []
 
@@ -2062,7 +2142,7 @@ export async function buildDocxBlob(
     preserveVisualStyles: true,
     allowDataUriInImg: true
   })
-  const ctx = newContext(typography, 'body', buildState)
+  const ctx = newContext(typography, 'body', buildState, undefined, resolveDocxImageMeasurementContext(formatting))
 
   const tempDiv = document.createElement('div')
   // CWE-79: use a recognized sanitizer directly at the sink for SAST tools.
@@ -2072,6 +2152,7 @@ export async function buildDocxBlob(
       FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
       ALLOW_DATA_ATTR: true
     }) || ''
+  normalizeDocxCustomImageMarkup(tempDiv)
   const bodyParts: string[] = []
   await convertBlock(tempDiv, bodyParts, ctx)
   if (bodyParts.length === 0) bodyParts.push('<w:p/>')

@@ -1,6 +1,17 @@
 import JSZip from 'jszip'
+import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-custom-image/sizeUtils'
 import { buildDocxBlob } from './docxExport'
+import {
+  DOCX_IMPORTED_ONLY_PICTURE_STATES,
+  DOCX_NON_PERSISTED_PICTURE_STATES,
+  DOCX_PICTURE_ATTR_SUPPORT,
+  resolveDocxImageMeasurementContext
+} from './docxImageExportUtils'
 import { JSZipCompat, resolveJsZipConstructor } from './jsZipCompat'
+
+const PX_TO_EMU = 9525
+const BASE64_PNG =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sWwaP8AAAAASUVORK5CYII='
 
 async function readBlobAsArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
   return await new Promise<ArrayBuffer>((resolve, reject) => {
@@ -65,7 +76,9 @@ describe('docxExport image layout', () => {
     expectXmlToParse(documentRelsXml)
     expectXmlToParse(contentTypesXml)
 
-    expect(documentXml).toContain('<w:p><w:r><w:drawing>')
+    expect(documentXml).toContain(
+      '<w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:drawing>'
+    )
     expect(documentXml).not.toContain('<w:p><w:drawing>')
     expect(documentXml).not.toContain('mc:Ignorable=')
     expect(documentRelsXml).toContain('Target="media/body-image1.png"')
@@ -239,6 +252,187 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('<wp:anchor')
     expect(documentXml).toContain('behindDoc="1"')
     expect(documentXml).toContain('<wp:wrapNone/>')
+  })
+
+  it('classifies persisted, imported-only, and non-persisted picture states explicitly', () => {
+    expect(DOCX_PICTURE_ATTR_SUPPORT.src).toBe('supported')
+    expect(DOCX_PICTURE_ATTR_SUPPORT.display).toBe('normalized')
+    expect(DOCX_PICTURE_ATTR_SUPPORT.alt).toBe('metadata')
+    expect(DOCX_PICTURE_ATTR_SUPPORT.title).toBe('metadata')
+    expect(DOCX_IMPORTED_ONLY_PICTURE_STATES).toEqual(
+      expect.arrayContaining(['wrapMode:tight', 'wrapMode:through', 'wrapMode:top-bottom'])
+    )
+    expect(DOCX_NON_PERSISTED_PICTURE_STATES).toEqual(
+      expect.arrayContaining(['crop-mode', 'drag-preview', 'resize-preview', 'rotate-preview', 'wrap-contour'])
+    )
+  })
+
+  it('exports centered inline figures with picture metadata and caption paragraphs', async () => {
+    const html = [
+      '<figure data-node-type="custom-image" data-image-align="center" data-image-wrap="inline" data-image-caption="Centered caption">',
+      `<img src="${BASE64_PNG}" alt="Inline alt text" title="Inline title" width="240" height="120" />`,
+      '</figure>'
+    ].join('')
+
+    const blob = await buildDocxBlob('Inline figure doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain(
+      '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:drawing>'
+    )
+    expect(documentXml).toContain('<wp:inline')
+    expect(documentXml).toContain('title="Inline title"')
+    expect(documentXml).toContain('descr="Inline alt text"')
+    expect(documentXml).toContain('Centered caption')
+    expect(documentXml).toContain('<w:spacing w:before="0" w:after="120"/>')
+  })
+
+  it('preserves rich picture styling from the real inline custom-image editor markup', async () => {
+    const html = [
+      '<p>',
+      '<span',
+      ' data-node-type="custom-image"',
+      ' data-image-wrap="inline"',
+      ' data-image-align="left"',
+      ' data-image-rotation="30"',
+      ' data-image-crop-top="0.1"',
+      ' data-image-crop-right="0.2"',
+      ' data-image-crop-bottom="0.05"',
+      ' data-image-crop-left="0.15"',
+      ' data-image-border-visible="true"',
+      ' data-image-border-color="#1F4E79"',
+      ' data-image-border-width-pt="2.25"',
+      ' data-image-border-dash="dash-dot"',
+      ' data-image-caption="Sample image">',
+      `<img src="${BASE64_PNG}" alt="Inline editor alt" title="Inline editor title" width="240" height="120" class="editor-image" />`,
+      '<span class="editor-image-caption" data-image-caption-text="true">Sample image</span>',
+      '</span>',
+      '</p>'
+    ].join('')
+
+    const blob = await buildDocxBlob('Inline editor markup doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain('<a:srcRect l="15000" t="10000" r="20000" b="5000"/>')
+    expect(documentXml).toContain('rot="1800000"')
+    expect(documentXml).toContain('<a:srgbClr val="1F4E79"/>')
+    expect(documentXml).toContain('<a:prstDash val="dashDot"/>')
+    expect(documentXml).toContain('title="Inline editor title"')
+    expect(documentXml).toContain('descr="Inline editor alt"')
+    expect(documentXml).toContain('Sample image')
+  })
+
+  it('exports floating picture spacing, offsets, overlap, z-order, and wrap-side settings', async () => {
+    const html = [
+      '<figure data-node-type="custom-image"',
+      ' data-image-wrap="square"',
+      ' data-image-wrap-text-side="left"',
+      ' data-image-anchor="fixed"',
+      ' data-image-distance-top="12"',
+      ' data-image-distance-right="18"',
+      ' data-image-distance-bottom="24"',
+      ' data-image-distance-left="30"',
+      ' data-image-offset-x="10"',
+      ' data-image-offset-y="20"',
+      ' data-image-allow-overlap="true"',
+      ' data-image-z-index="7"',
+      ' data-image-align="right">',
+      `<img src="${BASE64_PNG}" alt="Floating alt" title="Floating title" width="180" height="90" />`,
+      '</figure>'
+    ].join('')
+
+    const blob = await buildDocxBlob('Floating figure doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain('<wp:anchor')
+    expect(documentXml).toContain('distT="114300"')
+    expect(documentXml).toContain('distR="171450"')
+    expect(documentXml).toContain('distB="228600"')
+    expect(documentXml).toContain('distL="285750"')
+    expect(documentXml).toContain('relativeHeight="7000"')
+    expect(documentXml).toContain('allowOverlap="1"')
+    expect(documentXml).toContain('<wp:positionH relativeFrom="page"><wp:posOffset>95250</wp:posOffset></wp:positionH>')
+    expect(documentXml).toContain(
+      '<wp:positionV relativeFrom="page"><wp:posOffset>190500</wp:posOffset></wp:positionV>'
+    )
+    expect(documentXml).toContain('<wp:wrapSquare wrapText="left"/>')
+    expect(documentXml).toContain('title="Floating title"')
+    expect(documentXml).toContain('descr="Floating alt"')
+  })
+
+  it('uses page-relative measurement context for percent-based picture sizing', async () => {
+    const html = [
+      '<figure data-node-type="custom-image"',
+      ' data-image-wrap="inline"',
+      ' data-image-width-unit="percent"',
+      ' data-image-width-percent="50"',
+      ' data-image-width-relative-to="page"',
+      ' data-image-height-unit="percent"',
+      ' data-image-height-percent="25"',
+      ' data-image-height-relative-to="page">',
+      `<img src="${BASE64_PNG}" width="400" height="200" />`,
+      '</figure>'
+    ].join('')
+
+    const measurementContext = resolveDocxImageMeasurementContext(undefined)
+    const resolved = resolveImageDimensions(
+      {
+        width: 400,
+        height: 200,
+        widthUnit: 'percent',
+        heightUnit: 'percent',
+        widthPercent: 50,
+        heightPercent: 25,
+        widthRelativeTo: 'page',
+        heightRelativeTo: 'page',
+        scaleWidthPercent: 100,
+        scaleHeightPercent: 100,
+        wrapMode: 'inline',
+        align: 'left',
+        anchorMode: 'inline',
+        display: 'inline'
+      },
+      measurementContext
+    )
+    const blob = await buildDocxBlob('Percent figure doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain(
+      `<wp:extent cx="${(resolved.width ?? 0) * PX_TO_EMU}" cy="${(resolved.height ?? 0) * PX_TO_EMU}"/>`
+    )
+  })
+
+  it('keeps plain inline image fallback intentionally limited to size and metadata', async () => {
+    const html = `<p>Before <img src="${BASE64_PNG}" alt="Plain alt" title="Plain title" width="48" height="24" style="border: 2pt solid #1F4E79; transform: rotate(45deg);" /> after</p>`
+
+    const blob = await buildDocxBlob('Plain img doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain('title="Plain title"')
+    expect(documentXml).toContain('descr="Plain alt"')
+    expect(documentXml).toContain(`<wp:extent cx="${48 * PX_TO_EMU}" cy="${24 * PX_TO_EMU}"/>`)
+    expect(documentXml).not.toContain('<a:prstDash val="dash"/>')
+    expect(documentXml).not.toContain('<a:srgbClr val="1F4E79"/>')
+    expect(documentXml).not.toContain('rot="2700000"')
+  })
+
+  it('normalizes common inline style fallbacks for custom-image figures', async () => {
+    const html = [
+      '<figure data-node-type="custom-image" style="text-align: center; border-color: #1F4E79; border-width: 2pt; border-style: dashed;">',
+      `<img src="${BASE64_PNG}" alt="Styled alt" title="Styled title" width="160" height="80" />`,
+      '</figure>'
+    ].join('')
+
+    const blob = await buildDocxBlob('Styled figure doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain(
+      '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:drawing>'
+    )
+    expect(documentXml).toContain('<a:srgbClr val="1F4E79"/>')
+    expect(documentXml).toContain('<a:prstDash val="dash"/>')
+    expect(documentXml).toContain('title="Styled title"')
+    expect(documentXml).toContain('descr="Styled alt"')
   })
 
   it('exports document ToC blocks as static Word paragraphs without live fields', async () => {
