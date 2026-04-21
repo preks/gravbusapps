@@ -4,7 +4,7 @@ nh-title = Notizen
 nh-tabs-aria-label = Notizbereiche
 nh-tab-my-notes = Meine Notizen
 nh-tab-shared = Geteilt
-nh-tab-pinned = Angepinnt
+nh-tab-pinned = Angeheftet
 nh-tab-recent = Zuletzt verwendet
 nh-tab-archived = Papierkorb
 nh-tab-trash = Papierkorb
@@ -69,7 +69,7 @@ menu-add-favorite = Zu Favoriten hinzufügen
 menu-archive = Löschen
 menu-delete = Löschen
 delete-confirm-title = In den Papierkorb verschieben?
-delete-confirm-single = "{$name}" wird in den Papierkorb verschoben. Sie können es innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-single = "{$name}" wird in den Papierkorb verschoben. Sie können die Notiz innerhalb von 30 Tagen wiederherstellen.
 delete-confirm-multi = {$count} Elemente werden in den Papierkorb verschoben. Sie können sie innerhalb von 30 Tagen wiederherstellen.
 delete-confirm-cancel = Abbrechen
 delete-confirm-action = In den Papierkorb verschieben
@@ -129,7 +129,7 @@ folder-create-to-start = Erstellen Sie eine Notiz zum Start
 folder-settings = Einstellungen
 
 # ShareNoteDialog
-share-title = „{ $title }" teilen
+share-title = „{ $title }“ teilen
 share-description = Diese Notiz mit Teammitgliedern teilen. Echtzeit-Zusammenarbeit möglich.
 share-add-people = Personen hinzufügen
 share-search-placeholder = Nach Name oder E-Mail suchen...
@@ -158,14 +158,14 @@ share-add-above = Personen oben hinzufügen zum Teilen
 share-done = Fertig
 share-error-select = Bitte mindestens einen Benutzer auswählen
 share-error-failed = Notiz konnte nicht geteilt werden. Bitte erneut versuchen.
-share-toast-success = „{ $title }" mit { $count } { $count ->
+share-toast-success = „{ $title }“ mit { $count } { $count ->
   [one] Person
  *[other] Personen
 } geteilt!
 
 # ManageSharesDialog
 manage-title = Freigabe verwalten
-manage-description = Verwalten, wer Zugriff auf „{ $title }" hat
+manage-description = Verwalten, wer Zugriff auf „{ $title }“ hat
 manage-retry = Erneut versuchen
 manage-load-failed = Freigabeinformationen konnten nicht geladen werden
 manage-people-tab = Personen ({ $count })
@@ -489,7 +489,7 @@ translation-language-ar = Arabisch
 # Quick Access
 qa-all-notes = Alle Notizen
 qa-favorites = Favoriten
-qa-pinned = Angepinnt
+qa-pinned = Angeheftet
 qa-shared = Mit mir geteilt
 qa-recent = Zuletzt verwendet
 qa-archived = Papierkorb

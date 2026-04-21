@@ -55,5 +55,29 @@ const irmLeadSpecificFields: TargetFieldDefinition[] = [
 export const investmentLeadImportConfig: ImportConfig = {
   entityType: 'lead',
   domain: 'investment',
-  targetFields: [...sharedLeadImportFields, ...irmLeadSpecificFields]
+  targetFields: [...sharedLeadImportFields, ...irmLeadSpecificFields],
+  enforcedSelects: [
+    {
+      id: 'leadStatus',
+      targetField: 'leadStatusRef',
+      catalogIdentifier: 'InvestmentLeadStatus',
+      required: true,
+      defaultValueRef: 'InvestmentLeadStatus:v1:OPEN',
+      labelKey: 'lead-status-label'
+    },
+    {
+      id: 'leadSource',
+      targetField: 'leadSourceRef',
+      catalogIdentifier: 'InvestmentLeadSource',
+      required: true,
+      labelKey: 'lead-source-label'
+    },
+    {
+      id: 'leadRating',
+      targetField: 'leadRatingRef',
+      catalogIdentifier: 'InvestmentLeadRating',
+      required: true,
+      labelKey: 'lead-rating-label'
+    }
+  ]
 }

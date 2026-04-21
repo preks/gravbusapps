@@ -11,7 +11,13 @@ import { toast } from 'sonner'
 import { useTranslation } from '@newwork/nw-design-system'
 import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import translations from '../_i18n'
-import type { Document, DocumentTemplate, TemplateSummary, TemplateCategory } from '../types'
+import type {
+  Document,
+  DocumentTemplate,
+  DocumentTemplateMutationInput,
+  TemplateSummary,
+  TemplateCategory
+} from '../types'
 import {
   getDocumentById,
   getDocumentTemplate,
@@ -28,10 +34,8 @@ interface UseDocumentTemplatesState {
 interface UseDocumentTemplatesResult extends UseDocumentTemplatesState {
   // Template operations
   loadTemplate: (id: string) => Promise<DocumentTemplate | null>
-  createTemplate: (
-    template: Omit<DocumentTemplate, 'id' | 'createdAt' | 'updatedAt' | 'usageCount'>
-  ) => Promise<DocumentTemplate | null>
-  updateTemplate: (id: string, updates: Partial<DocumentTemplate>) => Promise<DocumentTemplate | null>
+  createTemplate: (template: DocumentTemplateMutationInput) => Promise<DocumentTemplate | null>
+  updateTemplate: (id: string, updates: Partial<DocumentTemplateMutationInput>) => Promise<DocumentTemplate | null>
   deleteTemplate: (id: string) => Promise<boolean>
 
   // Document-Template operations
@@ -46,6 +50,30 @@ interface UseDocumentTemplatesResult extends UseDocumentTemplatesState {
   // Utilities
   refreshTemplates: () => Promise<void>
   getTemplatesByCategory: (category: TemplateCategory) => TemplateSummary[]
+}
+
+function buildTemplateMutationPayload(
+  template: Partial<DocumentTemplateMutationInput>,
+  options?: { useDefaults?: boolean }
+): Partial<DocumentTemplateMutationInput> {
+  const payload: Partial<DocumentTemplateMutationInput> = {
+    name: options?.useDefaults ? template.name || 'Untitled Template' : template.name,
+    description: template.description,
+    content: options?.useDefaults ? template.content || '' : template.content,
+    category: options?.useDefaults ? template.category || 'other' : template.category,
+    tags: template.tags,
+    isPublic: options?.useDefaults ? template.isPublic || false : template.isPublic,
+    formatting: template.formatting,
+    placeholders: template.placeholders
+  }
+
+  Object.keys(payload).forEach(key => {
+    if (payload[key as keyof typeof payload] === undefined) {
+      delete payload[key as keyof typeof payload]
+    }
+  })
+
+  return payload
 }
 
 /**
@@ -103,15 +131,15 @@ function useDocumentTemplatesImpl(
   )
 
   const createTemplate = useCallback(
-    async (
-      template: Omit<DocumentTemplate, 'id' | 'createdAt' | 'updatedAt' | 'usageCount'>
-    ): Promise<DocumentTemplate | null> => {
+    async (template: DocumentTemplateMutationInput): Promise<DocumentTemplate | null> => {
       if (!accessToken) {
         toast.error(t('doc-templates-toast-sign-in-create'))
         return null
       }
       try {
-        const newTemplate = mapApiTemplateToTemplate(await officeClient.documents.createTemplate(template))
+        const newTemplate = mapApiTemplateToTemplate(
+          await officeClient.documents.createTemplate(buildTemplateMutationPayload(template, { useDefaults: true }))
+        )
         toast.success(t('doc-templates-toast-created'))
         await refreshTemplates()
         return newTemplate
@@ -125,10 +153,12 @@ function useDocumentTemplatesImpl(
   )
 
   const updateTemplate = useCallback(
-    async (id: string, updates: Partial<DocumentTemplate>): Promise<DocumentTemplate | null> => {
+    async (id: string, updates: Partial<DocumentTemplateMutationInput>): Promise<DocumentTemplate | null> => {
       if (!accessToken) return null
       try {
-        const updated = mapApiTemplateToTemplate(await officeClient.documents.updateTemplate(id, updates))
+        const updated = mapApiTemplateToTemplate(
+          await officeClient.documents.updateTemplate(id, buildTemplateMutationPayload(updates))
+        )
         await refreshTemplates()
         return updated
       } catch (error) {
@@ -198,16 +228,20 @@ function useDocumentTemplatesImpl(
           return null
         }
         const newTemplate = mapApiTemplateToTemplate(
-          await officeClient.documents.createTemplate({
-            name: templateName,
-            description: `Template created from: ${document.title}`,
-            content: document.content,
-            category,
-            tags: document.tags,
-            formatting: document.formatting,
-            isPublic,
-            createdBy: document.createdBy
-          })
+          await officeClient.documents.createTemplate(
+            buildTemplateMutationPayload(
+              {
+                name: templateName,
+                description: `Template created from: ${document.title}`,
+                content: document.content,
+                category,
+                tags: document.tags,
+                formatting: document.formatting,
+                isPublic
+              },
+              { useDefaults: true }
+            )
+          )
         )
         toast.success(t('doc-templates-toast-saved-as-template'))
         await refreshTemplates()
