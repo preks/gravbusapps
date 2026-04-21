@@ -18,8 +18,6 @@ import { FileSpreadsheet, History, Save, Lock, Unlock, Share2, Download, Zap, Ba
 import { ArrowsClockwise } from '@phosphor-icons/react'
 import translations from '../_i18n'
 
-const COMING_SOON_LABEL = 'coming soon'
-
 export interface SpreadsheetActionsMenuProps {
   // Version/lock actions
   onShowVersionHistory: () => void
@@ -72,14 +70,14 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
             <History className="gba:w-4 gba:h-4 gba:mr-2" />
             <span className="gba:flex-1">{t('menu-version-history')}</span>
             <span className="gba:ml-2 gba:rounded-full gba:bg-muted gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-              {COMING_SOON_LABEL}
+              {t('menu-coming-soon')}
             </span>
           </DropdownMenuItem>
           <DropdownMenuItem disabled>
             <Save className="gba:w-4 gba:h-4 gba:mr-2" />
             <span className="gba:flex-1">{t('menu-save-checkpoint')}</span>
             <span className="gba:ml-2 gba:rounded-full gba:bg-muted gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-              {COMING_SOON_LABEL}
+              {t('menu-coming-soon')}
             </span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />

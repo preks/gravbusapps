@@ -44,7 +44,7 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
   userInfo,
   'data-testid': testId = 'drive-apps-hub'
 }) => {
-  const { t } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
   const [urlState, setUrlState] = useDriveHubUrlState()
   const { section: activeSection, folderId: currentFolderId, viewMode, sortBy, page } = urlState
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
@@ -323,6 +323,7 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
               onShareItem={handleShareItem}
               onShareFolder={handleShareFolder}
               t={t}
+              locale={locale}
               data-testid={`${testId}-content`}
             />
           )}

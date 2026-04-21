@@ -1549,6 +1549,19 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       }),
       [t]
     )
+
+    const checkpointDialogMessages = useMemo(
+      () => ({
+        title: t('checkpoint-dialog-title'),
+        descriptionLabel: t('checkpoint-dialog-description-label'),
+        descriptionPlaceholder: t('checkpoint-dialog-placeholder'),
+        descriptionHint: t('checkpoint-dialog-hint'),
+        cancel: t('checkpoint-dialog-cancel'),
+        save: t('checkpoint-dialog-save'),
+        saving: t('checkpoint-dialog-saving')
+      }),
+      [t]
+    )
     const handleOpenApprovalReview = useCallback(
       (versionNumber: number) => {
         setShowVersionHistory(false)
@@ -1738,6 +1751,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             onOpenFind={() => openNavigationPanelTab('find')}
             onOpenReplace={() => openNavigationPanelTab('replace')}
             onTranslate={t}
+            currentLocale={currentLocale}
             headerExtra={headerExtra}
             approvalRequest={document?.approvalRequest}
             isLocked={Boolean(fileLock.lock?.isLocked)}
@@ -1853,6 +1867,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           onCloseCheckpointDialog={() => setShowCheckpointDialog(false)}
           onSaveCheckpoint={handleSaveCheckpoint}
           isSavingCheckpoint={versioning.isSaving}
+          checkpointDialogMessages={checkpointDialogMessages}
           showPublishDialog={showPublishDialog}
           onClosePublishDialog={() => setShowPublishDialog(false)}
           onPublish={handlePublishDocument}

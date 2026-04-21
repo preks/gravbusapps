@@ -74,9 +74,165 @@ const NUMFMT_MENU_ITEM_ROW_SELECTOR = 'div.univer-flex.univer-h-7'
 
 /**
  * Univer locale overlay for German (the library ships no de-DE bundle).
- * Only the `sheet.numfmt.*` keys are needed for the number-format dropdown menu.
+ * We keep this scoped to the user-visible toolbar and number-format chrome that
+ * otherwise falls back to English inside the spreadsheet canvas.
  */
-const UNIVER_NUMFMT_DE_LOCALE = {
+const UNIVER_DE_LOCALE = {
+  design: {
+    CascaderList: {
+      empty: 'Keine'
+    },
+    Select: {
+      empty: 'Keine'
+    }
+  },
+  align: {
+    left: 'Links',
+    center: 'Zentriert',
+    right: 'Rechts',
+    top: 'Oben',
+    middle: 'Mittig',
+    bottom: 'Unten'
+  },
+  textWrap: {
+    overflow: 'Überlauf',
+    wrap: 'Umbruch',
+    clip: 'Abschneiden'
+  },
+  textRotate: {
+    none: 'Keine',
+    angleUp: 'Nach oben neigen',
+    angleDown: 'Nach unten neigen',
+    vertical: 'Vertikal stapeln',
+    rotationUp: 'Nach oben drehen',
+    rotationDown: 'Nach unten drehen'
+  },
+  merge: {
+    all: 'Alles verbinden',
+    vertical: 'Vertikal verbinden',
+    horizontal: 'Horizontal verbinden',
+    cancel: 'Verbindung aufheben'
+  },
+  rightClick: {
+    clearAll: 'Alles löschen',
+    clearContent: 'Inhalte löschen',
+    clearFormat: 'Formatierungen löschen',
+    clearSelection: 'Löschen'
+  },
+  'common-edit': 'Allgemeine Bearbeitungs-Shortcuts',
+  'sheet-view': 'Blattansicht',
+  shortcut: {
+    undo: 'Rückgängig',
+    redo: 'Wiederholen',
+    cut: 'Ausschneiden',
+    copy: 'Kopieren',
+    paste: 'Einfügen',
+    'shortcut-panel': 'Shortcut-Panel umschalten',
+    sheet: {
+      'zoom-in': 'Vergrößern',
+      'zoom-out': 'Verkleinern',
+      'reset-zoom': 'Zoomstufe zurücksetzen',
+      'select-up-cell': 'Zelle darüber auswählen',
+      'select-below-cell': 'Zelle darunter auswählen',
+      'select-left-cell': 'Linke Zelle auswählen',
+      'select-right-cell': 'Rechte Zelle auswählen',
+      'select-next-cell': 'Nächste Zelle auswählen',
+      'select-previous-cell': 'Vorherige Zelle auswählen',
+      'select-up-value-cell': 'Darüberliegende Zelle mit Wert auswählen',
+      'select-below-value-cell': 'Darunterliegende Zelle mit Wert auswählen',
+      'select-left-value-cell': 'Linke Zelle mit Wert auswählen',
+      'select-right-value-cell': 'Rechte Zelle mit Wert auswählen',
+      'expand-selection-down': 'Auswahl nach unten erweitern',
+      'expand-selection-up': 'Auswahl nach oben erweitern',
+      'expand-selection-left': 'Auswahl nach links erweitern',
+      'expand-selection-right': 'Auswahl nach rechts erweitern',
+      'expand-selection-to-left-gap': 'Auswahl bis zur linken Lücke erweitern',
+      'expand-selection-to-below-gap': 'Auswahl bis zur unteren Lücke erweitern',
+      'expand-selection-to-right-gap': 'Auswahl bis zur rechten Lücke erweitern',
+      'expand-selection-to-up-gap': 'Auswahl bis zur oberen Lücke erweitern',
+      'select-all': 'Alles auswählen',
+      'toggle-editing': 'Bearbeitung umschalten',
+      'delete-and-start-editing': 'Löschen und Bearbeitung starten',
+      'abort-editing': 'Bearbeitung abbrechen',
+      'break-line': 'Zeilenumbruch einfügen',
+      'set-bold': 'Fett umschalten',
+      'start-editing': 'Bearbeitung starten (Auswahl im Editor)',
+      'set-italic': 'Kursiv umschalten',
+      'set-underline': 'Unterstreichen umschalten',
+      'set-strike-through': 'Durchgestrichen umschalten'
+    }
+  },
+  'shortcut-panel': {
+    title: 'Tastenkürzel'
+  },
+  'toggle-shortcut-panel': 'Shortcut-Panel umschalten',
+  ribbon: {
+    start: 'Start',
+    startDesc: 'Arbeitsblatt einrichten und grundlegende Einstellungen festlegen.',
+    formulas: 'Formeln',
+    formulasDesc: 'Funktionen und Formeln für Datenberechnungen verwenden.'
+  },
+  formula: {
+    insert: {
+      more: 'Weitere Funktionen...',
+      tooltip: 'Funktionen'
+    },
+    moreFunctions: {
+      allFunctions: 'Alle Funktionen',
+      searchFunctionPlaceholder: 'Funktion suchen',
+      syntax: 'SYNTAX'
+    },
+    prompt: {
+      helpExample: 'BEISPIEL',
+      required: 'Erforderlich.'
+    }
+  },
+  toolbar: {
+    font: 'Schriftart',
+    undo: 'Rückgängig',
+    redo: 'Wiederholen',
+    bold: 'Fett',
+    italic: 'Kursiv',
+    underline: 'Unterstrichen',
+    strikethrough: 'Durchgestrichen',
+    fontSize: 'Schriftgröße',
+    fontSizeDecrease: 'Schriftgröße verkleinern',
+    fontSizeIncrease: 'Schriftgröße vergrößern',
+    formatPainter: 'Format übertragen',
+    alignLeft: 'Linksbündig',
+    alignCenter: 'Zentriert',
+    alignRight: 'Rechtsbündig',
+    alignJustify: 'Blocksatz',
+    border: {
+      main: 'Rahmen',
+      right: 'Rahmenstil'
+    },
+    fillColor: {
+      main: 'Füllfarbe',
+      right: 'Farbe auswählen'
+    },
+    textColor: {
+      main: 'Textfarbe',
+      right: 'Farbe auswählen'
+    },
+    resetColor: 'Zurücksetzen',
+    horizontalAlignMode: {
+      main: 'Horizontal ausrichten',
+      right: 'Ausrichtung'
+    },
+    verticalAlignMode: {
+      main: 'Vertikal ausrichten',
+      right: 'Ausrichtung'
+    },
+    textRotateMode: {
+      main: 'Text drehen',
+      right: 'Textdrehung'
+    },
+    mergeCell: {
+      main: 'Zellen verbinden',
+      right: 'Verbindungsart auswählen'
+    }
+  },
   sheet: {
     numfmt: {
       title: 'Zahlenformat',
@@ -1518,7 +1674,7 @@ function patchChineseDateLabels(): void {
 
 export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGridProps>(
   function UniverSheetGrid(props, ref) {
-    const { locale: appLocale } = useTranslation(spreadsheetTranslations)
+    const { t, locale: appLocale } = useTranslation(spreadsheetTranslations)
     activeAppLocale = appLocale
 
     const {
@@ -1687,7 +1843,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             if (!parsed) return null
             return {
               id: `${participant.socketId || participant.userId}`,
-              userName: participant.userName || 'User',
+              userName: participant.userName || t('editor-user-fallback'),
               userColor: participant.userColor || '#4ECDC4',
               row: parsed.row,
               col: parsed.col
@@ -2465,7 +2621,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         const url = getHyperlinkUrlFromSelection(active.row, active.col, data, columns, cellFormula)
         if (!url) return false
         return tryInjectContextMenuItem(x, y, openLinkMarkerAttr, (template: HTMLElement) =>
-          createContextMenuItem(template, openLinkMarkerAttr, openLinkClassName, 'Open link', () => {
+          createContextMenuItem(template, openLinkMarkerAttr, openLinkClassName, t('link-editor-open-link'), () => {
             window.open(url, '_blank', 'noopener,noreferrer')
           })
         )
@@ -2873,7 +3029,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
       const univerLocaleData =
         appLocale === 'de-DE'
-          ? mergeLocales(UniverPresetSheetsCoreEnUS, UNIVER_NUMFMT_DE_LOCALE)
+          ? mergeLocales(UniverPresetSheetsCoreEnUS, UNIVER_DE_LOCALE)
           : mergeLocales(UniverPresetSheetsCoreEnUS)
 
       const { univerAPI } = createUniver({
@@ -4183,7 +4339,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             if (!rect) return null
             const top = rect.top
             const left = rect.left
-            const author = marker.createdByName || 'User'
+            const author = marker.createdByName || t('editor-user-fallback')
             const avatar = marker.createdByAvatar
             const time = formatCommentTime(marker.createdAt)
             return (
