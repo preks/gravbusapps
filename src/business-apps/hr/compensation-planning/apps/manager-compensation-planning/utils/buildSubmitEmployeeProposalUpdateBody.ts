@@ -33,6 +33,7 @@ export function buildSubmitEmployeeProposalUpdateBodyFromRow(
     compensationBudgetPlanEmployee: {
       id: employeeBudgetRowId,
       version: rowVersion,
+      allocationAmount: proposedSalaryIncreaseAmount,
       proposedSalaryIncreaseAmount,
       proposedSalaryIncreasePercent,
       proposedNewSalary,

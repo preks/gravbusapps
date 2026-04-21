@@ -9,21 +9,10 @@ import {
   LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET
 } from '../../../queries/budgetPlanQueries'
 import { logBudgetGraphqlFailure } from '../../../utils/budgetPlanGraphqlDebug'
+import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
+import { resolveCompanySalaryIncreasePool } from '../../../utils/budgetCalculations'
 import { graphqlUnknownToString, graphqlUnknownToStringOrNull } from '../../../utils/graphqlUnknownToString'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
-
-/** Snapshot of one `compensation_budget_plan_organizational_unit` row (same fields as LIST by company budget). */
-export interface ManagerOrgUnitBudgetSnapshot {
-  id: string
-  version: number
-  compensationBudgetPlanCompanyId: string
-  organizationalUnitId: string
-  salaryBudgetAmount: number
-  salaryBudgetPercent: number
-  bonusBudgetAmount: number
-  bonusBudgetPercent: number
-  budgetPlanStatus: string
-}
 
 interface CompanyBudgetPlanOption {
   id: string
@@ -72,6 +61,7 @@ function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanComp
     companyId: graphqlUnknownToString(raw.companyId),
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
     salaryBudgetPercent: num(raw.salaryBudgetPercent),
+    allocationAmount: num(raw.allocationAmount),
     bonusBudgetAmount: num(raw.bonusBudgetAmount),
     bonusBudgetPercent: num(raw.bonusBudgetPercent),
     budgetPlanStatus: graphqlUnknownToString(raw.budgetPlanStatus),
@@ -139,35 +129,19 @@ function orgUnitIdsFromTeamMembers(teamMembers: TeamMemberCompensationData[]): S
   return ids
 }
 
-function buildManagerOrgUnitMapsFromRows(rows: Array<Record<string, unknown>>): {
-  ouPlanRowMap: Map<string, string>
-  snapshotByPlanRowId: Map<string, ManagerOrgUnitBudgetSnapshot>
-} {
+function buildManagerOrgUnitPlanRowMap(rows: Array<Record<string, unknown>>): Map<string, string> {
   const ouPlanRowMap = new Map<string, string>()
-  const snapshotByPlanRowId = new Map<string, ManagerOrgUnitBudgetSnapshot>()
   for (const r of rows) {
     const ouId = graphqlUnknownToString(r.organizationalUnitId)
     const rowId = graphqlUnknownToString(r.id)
     if (ouId && rowId && !ouPlanRowMap.has(ouId)) {
       ouPlanRowMap.set(ouId, rowId)
     }
-    if (rowId) {
-      snapshotByPlanRowId.set(rowId, {
-        id: rowId,
-        version: num(r.version),
-        compensationBudgetPlanCompanyId: graphqlUnknownToString(r.compensationBudgetPlanCompanyId),
-        organizationalUnitId: ouId,
-        salaryBudgetAmount: num(r.salaryBudgetAmount),
-        salaryBudgetPercent: num(r.salaryBudgetPercent),
-        bonusBudgetAmount: num(r.bonusBudgetAmount),
-        bonusBudgetPercent: num(r.bonusBudgetPercent),
-        budgetPlanStatus: graphqlUnknownToString(r.budgetPlanStatus)
-      })
-    }
   }
-  return { ouPlanRowMap, snapshotByPlanRowId }
+  return ouPlanRowMap
 }
 
+/** Department salary budget from HR (`salary_budget_amount`); `allocation_amount` is employee-level only. */
 function sumSalaryBudgetAmountForRelevantOrgUnits(
   rows: Array<Record<string, unknown>>,
   relevantOuIds: Set<string>
@@ -181,6 +155,10 @@ function sumSalaryBudgetAmountForRelevantOrgUnits(
   return amount
 }
 
+function sumSalaryBudgetAmountAllOrgUnits(rows: Array<Record<string, unknown>>): number {
+  return rows.reduce((sum, r) => roundMoney2(sum + roundMoney2(num(r.salaryBudgetAmount))), 0)
+}
+
 interface ManagerBudgetContextResponse {
   managerEmployeePosition: Array<{ organizationalUnitId: string | null } | null> | null
   compensationBudgetPlans: CompensationBudgetPlanListItem[] | null
@@ -188,9 +166,7 @@ interface ManagerBudgetContextResponse {
 }
 
 /**
- * Sums `salary_budget_amount` from `compensation_budget_plan_organizational_unit` for org units on listed team
- * members (fallback: manager position OU). Uses two GraphQL round-trips: one combined context query, then org-unit
- * rows for the chosen `compensation_budget_plan_company` id.
+ * Sums `salary_budget_amount` (HR slice per department) for team org units. Uses two GraphQL round-trips.
  */
 export function useManagerTeamSalaryBudget(params: {
   accessToken: string | undefined
@@ -212,13 +188,12 @@ export function useManagerTeamSalaryBudget(params: {
   )
 
   const [totalSalaryBudget, setTotalSalaryBudget] = useState<number | null>(null)
+  /** Sum of OU `salary_budget_amount` for the active company budget (HR deployment across all departments). */
+  const [companyWideOuSalaryBudgetSum, setCompanyWideOuSalaryBudgetSum] = useState<number | null>(null)
   const [loadingBudget, setLoadingBudget] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [planOuRowIdByOrganizationalUnitId, setPlanOuRowIdByOrganizationalUnitId] = useState<
     ReadonlyMap<string, string>
-  >(() => new Map())
-  const [orgUnitBudgetSnapshotsByPlanRowId, setOrgUnitBudgetSnapshotsByPlanRowId] = useState<
-    ReadonlyMap<string, ManagerOrgUnitBudgetSnapshot>
   >(() => new Map())
   const [managerCompanyBudgetRow, setManagerCompanyBudgetRow] = useState<CompensationBudgetPlanCompanyRow | null>(null)
   const [managerOrganizationalUnitId, setManagerOrganizationalUnitId] = useState<string | null>(null)
@@ -226,8 +201,8 @@ export function useManagerTeamSalaryBudget(params: {
 
   const clearBudgetPlanSlice = useCallback(() => {
     setTotalSalaryBudget(null)
+    setCompanyWideOuSalaryBudgetSum(null)
     setPlanOuRowIdByOrganizationalUnitId(new Map())
-    setOrgUnitBudgetSnapshotsByPlanRowId(new Map())
     setManagerCompanyBudgetRow(null)
     setActiveCompensationBudgetPlanId(null)
   }, [])
@@ -235,9 +210,9 @@ export function useManagerTeamSalaryBudget(params: {
   const fetchBudgetTotal = useCallback(async () => {
     if (!accessToken || !companyId || !managerEmployeeId) {
       setTotalSalaryBudget(null)
+      setCompanyWideOuSalaryBudgetSum(null)
       setError(null)
       setPlanOuRowIdByOrganizationalUnitId(new Map())
-      setOrgUnitBudgetSnapshotsByPlanRowId(new Map())
       setManagerCompanyBudgetRow(null)
       setManagerOrganizationalUnitId(null)
       setActiveCompensationBudgetPlanId(null)
@@ -290,18 +265,17 @@ export function useManagerTeamSalaryBudget(params: {
       })
 
       const rows = ouResult.CompensationBudgetPlanOrganizationalUnit ?? []
-      const { ouPlanRowMap, snapshotByPlanRowId } = buildManagerOrgUnitMapsFromRows(rows)
-      setPlanOuRowIdByOrganizationalUnitId(ouPlanRowMap)
-      setOrgUnitBudgetSnapshotsByPlanRowId(snapshotByPlanRowId)
+      setPlanOuRowIdByOrganizationalUnitId(buildManagerOrgUnitPlanRowMap(rows))
 
+      setCompanyWideOuSalaryBudgetSum(sumSalaryBudgetAmountAllOrgUnits(rows))
       setTotalSalaryBudget(sumSalaryBudgetAmountForRelevantOrgUnits(rows, relevantOuIds))
     } catch (err) {
       logBudgetGraphqlFailure('useManagerTeamSalaryBudget', err)
       const message = err instanceof Error ? err.message : 'Failed to load manager team salary budget'
       setError(message)
       setTotalSalaryBudget(null)
+      setCompanyWideOuSalaryBudgetSum(null)
       setPlanOuRowIdByOrganizationalUnitId(new Map())
-      setOrgUnitBudgetSnapshotsByPlanRowId(new Map())
       setManagerCompanyBudgetRow(null)
       setActiveCompensationBudgetPlanId(null)
     } finally {
@@ -313,14 +287,42 @@ export function useManagerTeamSalaryBudget(params: {
     void fetchBudgetTotal()
   }, [fetchBudgetTotal])
 
+  /** Same resolution as HR Budget distribution: company `salary_budget_*` vs baseline (full increase pool). */
+  const companySalaryIncreasePoolResolved = useMemo(() => {
+    if (!managerCompanyBudgetRow) {
+      return null
+    }
+    const total = resolveCompanySalaryIncreasePool({
+      salaryBudgetAmount: managerCompanyBudgetRow.salaryBudgetAmount,
+      salaryBudgetPercent: managerCompanyBudgetRow.salaryBudgetPercent,
+      currentTotalSalaryCost: managerCompanyBudgetRow.currentTotalSalaryCost
+    })
+    if (total <= 0) {
+      return null
+    }
+    return roundMoney2(total)
+  }, [managerCompanyBudgetRow])
+
+  /** Remaining company salary-increase pool not yet deployed to departments (sum of OU `salary_budget_amount`). */
+  const companyUndistributedSalaryPool = useMemo(() => {
+    if (
+      managerCompanyBudgetRow == null ||
+      companySalaryIncreasePoolResolved == null ||
+      companyWideOuSalaryBudgetSum == null
+    ) {
+      return null
+    }
+    return Math.max(0, roundMoney2(companySalaryIncreasePoolResolved - companyWideOuSalaryBudgetSum))
+  }, [managerCompanyBudgetRow, companySalaryIncreasePoolResolved, companyWideOuSalaryBudgetSum])
+
   return {
     totalSalaryBudget,
+    companySalaryIncreasePoolResolved,
+    companyUndistributedSalaryPool,
     loading: loadingBudget,
     error,
     refetch: fetchBudgetTotal,
     planOuRowIdByOrganizationalUnitId,
-    orgUnitBudgetSnapshotsByPlanRowId,
-    managerCompanyBudgetRow,
     managerOrganizationalUnitId,
     activeCompensationBudgetPlanId
   }

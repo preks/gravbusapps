@@ -6,8 +6,6 @@ import { extractCurrencyCode, formatCurrencyString } from '@/common/utils/number
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
-import type { CompensationBudgetPlanCompanyRow } from '../../compensation-planning/hooks/useBudgetSetupForCompany'
-import type { ManagerOrgUnitBudgetSnapshot } from '../hooks/useManagerTeamSalaryBudget'
 import { distributeToEmployees } from '../../../utils/budgetCalculations'
 import compensationPlanningTranslations from '../../compensation-planning/_i18n'
 import { roundMoney2 } from '../../compensation-planning/utils/parseCustomBudgetInputs'
@@ -32,6 +30,10 @@ export interface TeamCompensationDistributionPanelProps {
   loading: boolean
   error: string | null
   totalSalaryBudget: number | null
+  /** Resolved company salary-increase pool (same as HR budget distribution); optional KPI source. */
+  companySalaryIncreasePoolResolved?: number | null
+  /** Company salary-increase pool minus sum of OU `salary_budget_amount` (HR deployment still available company-wide). */
+  companyUndistributedSalaryPool?: number | null
   salaryBudgetLoading: boolean
   salaryBudgetError: string | null
   selectedCompanyId: string | null
@@ -40,12 +42,14 @@ export interface TeamCompensationDistributionPanelProps {
   managerEmployeeId: string | undefined
   planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
   managerOrganizationalUnitId: string | null
-  managerCompanyBudgetRow: CompensationBudgetPlanCompanyRow | null
-  orgUnitBudgetSnapshotsByPlanRowId: ReadonlyMap<string, ManagerOrgUnitBudgetSnapshot>
   /** Called after save dialog persists rows (merge returned ids into parent state). */
   onMergeSavedRowIds: (createdIdsByEmployeeId?: Record<string, string>) => void
   /** After manager submits proposals from the modal, parent locks editing. */
   proposalsLockedAfterSubmit: boolean
+  /** Count of team employee rows with `BUDGET_PLAN_SENT_BACK` (for toolbar badge). */
+  sentBackProposalCount?: number
+  /** Opens full-page sent-back proposals table (URL `sentBackProposals=1`). */
+  onOpenSentBackProposals?: () => void
   onSaved?: () => void
 }
 
@@ -56,6 +60,8 @@ export function TeamCompensationDistributionPanel({
   loading,
   error,
   totalSalaryBudget,
+  companySalaryIncreasePoolResolved = null,
+  companyUndistributedSalaryPool = null,
   salaryBudgetLoading,
   salaryBudgetError,
   selectedCompanyId,
@@ -64,10 +70,10 @@ export function TeamCompensationDistributionPanel({
   managerEmployeeId,
   planOuRowIdByOrganizationalUnitId,
   managerOrganizationalUnitId,
-  managerCompanyBudgetRow,
-  orgUnitBudgetSnapshotsByPlanRowId,
   onMergeSavedRowIds,
   proposalsLockedAfterSubmit,
+  sentBackProposalCount = 0,
+  onOpenSentBackProposals,
   onSaved
 }: Readonly<TeamCompensationDistributionPanelProps>) {
   const { t } = useTranslation(translations)
@@ -174,18 +180,28 @@ export function TeamCompensationDistributionPanel({
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }
+    const companyTotalForKpi =
+      companySalaryIncreasePoolResolved != null && companySalaryIncreasePoolResolved > 0
+        ? companySalaryIncreasePoolResolved
+        : totalSalaryBudget
     return [
       {
         key: 'manager-team-total-budget',
         title: t('budget-summary-total-available'),
         value:
-          totalSalaryBudget == null
+          companyTotalForKpi == null
             ? t('budget-summary-placeholder-value')
-            : formatCurrencyString(totalSalaryBudget, kpiMoney),
+            : formatCurrencyString(companyTotalForKpi, kpiMoney),
         valueIsString: true,
         prefix: <CurrencyCircleDollarIcon size={24} />,
         color: TEAM_BUDGET_KPI_COLORS.totalBudget,
-        span: { xs: 24, sm: 8, lg: 8 }
+        span: { xs: 24, sm: 8, lg: 8 },
+        description:
+          companyUndistributedSalaryPool != null && companyUndistributedSalaryPool >= 0
+            ? t('manager-team-kpi-company-undistributed-after-allocation', {
+                amount: formatCurrencyString(companyUndistributedSalaryPool, kpiMoney)
+              })
+            : undefined
       },
       {
         key: 'manager-team-distribution-pool-summary',
@@ -209,7 +225,17 @@ export function TeamCompensationDistributionPanel({
         span: { xs: 24, sm: 8, lg: 8 }
       }
     ]
-  }, [activePool, currencyCode, distributionMethod, t, tBudget, totalPreviewAllocated, totalSalaryBudget])
+  }, [
+    activePool,
+    companySalaryIncreasePoolResolved,
+    companyUndistributedSalaryPool,
+    currencyCode,
+    distributionMethod,
+    t,
+    tBudget,
+    totalPreviewAllocated,
+    totalSalaryBudget
+  ])
 
   const contextPoolSection = useMemo(() => {
     if (salaryBudgetLoading) {
@@ -256,8 +282,6 @@ export function TeamCompensationDistributionPanel({
         currencyCode={currencyCode}
         planOuRowIdByOrganizationalUnitId={planOuRowIdByOrganizationalUnitId}
         managerOrganizationalUnitId={managerOrganizationalUnitId}
-        managerCompanyBudgetRow={managerCompanyBudgetRow}
-        orgUnitBudgetSnapshotsByPlanRowId={orgUnitBudgetSnapshotsByPlanRowId}
         onSaved={createdIds => {
           onMergeSavedRowIds(createdIds)
           onSaved?.()
@@ -294,6 +318,9 @@ export function TeamCompensationDistributionPanel({
           dataDisplay={dataDisplay}
           canShowSaveAction={canShowSaveAction}
           onOpenSubmitProposals={() => setSaveAllocationsDialogOpen(true)}
+          selectedCompanyId={selectedCompanyId}
+          sentBackProposalCount={sentBackProposalCount}
+          onOpenSentBackProposals={onOpenSentBackProposals}
         />
       </div>
     </>

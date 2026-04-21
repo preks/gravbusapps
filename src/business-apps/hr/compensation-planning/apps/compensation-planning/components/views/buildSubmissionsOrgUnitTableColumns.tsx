@@ -20,8 +20,9 @@ function submissionsColumnHeader(t: TranslateFn, messageKey: string, align: 'lef
   }
 }
 
-function formatPercentCell(value: number): string {
-  if (value == null || Number.isNaN(value) || value === 0) {
+/** Computed allocation share: show percent including 0%; em dash only when unknown (no company pool). */
+function formatAllocationSharePercentCell(value: number | null): string {
+  if (value == null || Number.isNaN(value)) {
     return '—'
   }
   return `${formatNumberFunction(String(value), '0.00[,]00')}%`
@@ -113,7 +114,7 @@ export function buildSubmissionsOrgUnitTableColumns(
     {
       id: 'salaryBudgetAmount',
       accessorKey: 'salaryBudgetAmount',
-      header: submissionsColumnHeader(t, 'budget-setup-table-col-salary-budget-amount', 'right'),
+      header: submissionsColumnHeader(t, 'submissions-table-col-department-salary-budget', 'right'),
       size: COL.money.size,
       minSize: COL.money.minSize,
       meta: { align: 'right', type: 'currency' },
@@ -126,15 +127,30 @@ export function buildSubmissionsOrgUnitTableColumns(
       }
     },
     {
-      id: 'salaryBudgetPercent',
-      accessorKey: 'salaryBudgetPercent',
-      header: submissionsColumnHeader(t, 'budget-setup-table-col-salary-budget-percent', 'right'),
+      id: 'allocationAmount',
+      accessorKey: 'allocationAmount',
+      header: submissionsColumnHeader(t, 'submissions-table-col-org-unit-allocation-amount', 'right'),
+      size: COL.money.size,
+      minSize: COL.money.minSize,
+      meta: { align: 'right', type: 'currency' },
+      accessorFn: row => sortNumberOrFallback(row.allocationAmount),
+      cell: ({ row }) => {
+        const r = row.original
+        return <span className={TABLE_BODY_NUM_RIGHT}>{formatCurrencyCell(r.allocationAmount, r.displayCurrency)}</span>
+      }
+    },
+    {
+      id: 'allocationShareOfCompanyPoolPercent',
+      accessorKey: 'allocationShareOfCompanyPoolPercent',
+      header: submissionsColumnHeader(t, 'submissions-table-col-allocation-share-percent', 'right'),
       size: COL.percent.size,
       minSize: COL.percent.minSize,
       meta: { align: 'right', type: 'number' },
-      accessorFn: row => sortNumberOrFallback(row.salaryBudgetPercent),
+      accessorFn: row => sortNumberOrFallback(row.allocationShareOfCompanyPoolPercent),
       cell: ({ row }) => (
-        <span className={TABLE_BODY_NUM_RIGHT}>{formatPercentCell(row.original.salaryBudgetPercent)}</span>
+        <span className={TABLE_BODY_NUM_RIGHT}>
+          {formatAllocationSharePercentCell(row.original.allocationShareOfCompanyPoolPercent)}
+        </span>
       )
     },
     {
@@ -178,7 +194,8 @@ export const SUBMISSIONS_ORG_UNIT_TABLE_VISIBLE_COLUMN_IDS = [
   'budgetPlanLabel',
   'budgetPlanStatus',
   'salaryBudgetAmount',
-  'salaryBudgetPercent',
+  'allocationAmount',
+  'allocationShareOfCompanyPoolPercent',
   'proposedNewSalary',
   'organizationalUnitCurrentTotalSalary',
   'reviewTeam'

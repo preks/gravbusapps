@@ -60,6 +60,7 @@ export const GET_BUDGET_SETUP_PLANS_AND_COMPANY_BUDGET_ROWS = `
       companyId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus
@@ -108,6 +109,7 @@ export const GET_MANAGER_COMPENSATION_BUDGET_CONTEXT = `
       companyId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus
@@ -133,6 +135,7 @@ export const LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY = `
       companyId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus
@@ -167,6 +170,7 @@ export const LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET
       organizationalUnitId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus
@@ -195,6 +199,7 @@ export const LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET
       organizationalUnitId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus
@@ -226,6 +231,24 @@ export const LIST_COMPENSATION_BUDGET_PLAN_EMPLOYEES_BY_ORG_UNIT_IDS = `
       reviewNotes
       compensationBudgetPlanOrganizationalUnitId
       submittedByEmployeeId
+      allocationAmount
+    }
+  }
+`
+
+/** Sum driver for OU `allocation_amount`: must match total of employee `allocationAmount` on that org-unit budget row. */
+export const GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_ALLOCATION_AMOUNTS_BY_ORG_UNIT_BUDGET_ID = `
+  query GetCompensationBudgetPlanEmployeeAllocationAmountsByOrgUnitBudgetId($orgUnitBudgetId: uuid!) {
+    CompensationBudgetPlanEmployee(
+      where: {
+        _and: [
+          { compensationBudgetPlanOrganizationalUnitId: { _eq: $orgUnitBudgetId } },
+          { isDeleted: { _eq: false } }
+        ]
+      }
+      limit: 5000
+    ) {
+      allocationAmount
     }
   }
 `
@@ -246,6 +269,7 @@ export const GET_COMPENSATION_BUDGET_PLAN_COMPANY = `
       companyId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus
@@ -270,21 +294,10 @@ export const GET_COMPENSATION_BUDGET_PLAN_ORG_UNIT_BUDGET_ROW_BY_ID = `
       organizationalUnitId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus
-    }
-  }
-`
-
-/** Sum driver for supervisor rollup — read amounts from DB after employee rows were saved. */
-export const GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_INCREASE_AMOUNTS_BY_ROW_IDS = `
-  query GetCompensationBudgetPlanEmployeeIncreaseAmountsByRowIds($ids: [uuid!]!) {
-    CompensationBudgetPlanEmployee(
-      where: { id: { _in: $ids }, isDeleted: { _eq: false } }
-      limit: 500
-    ) {
-      proposedSalaryIncreaseAmount
     }
   }
 `
@@ -299,6 +312,7 @@ export const GET_COMPENSATION_BUDGET_PLAN_COMPANY_ROW_BY_ID = `
       companyId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus

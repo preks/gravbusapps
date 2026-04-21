@@ -31,14 +31,6 @@ function percentOfPool(amount: number, pool: number): number {
   return Math.round((10000 * amount) / pool) / 100
 }
 
-/** Increase budget as % of payroll baseline (aligns company row amount/percent after Distribute). */
-function salaryIncreasePercentOfPayrollBaseline(amount: number, currentTotalSalaryCost: number): number {
-  if (currentTotalSalaryCost <= 0 || !Number.isFinite(amount) || !Number.isFinite(currentTotalSalaryCost)) {
-    return 0
-  }
-  return Math.round((10000 * amount) / currentTotalSalaryCost) / 100
-}
-
 export interface BudgetDistributionDistributeDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -149,17 +141,23 @@ export function BudgetDistributionDistributeDialog({
     setErrorMessage(null)
 
     try {
+      const selectedSet = new Set(ids)
+
       for (const ouId of ids) {
         const row = rowByOuId.get(ouId)
         const rawAmount = allocationByOrgUnitId.get(ouId) ?? 0
-        const salaryBudgetAmount = roundMoney2(rawAmount)
-        const salaryBudgetPercent = percentOfPool(salaryBudgetAmount, distributionPool)
+        const sliceAmount = roundMoney2(rawAmount)
         const isInsert = row == null
 
-        /** Org-unit slice after HR distribute starts as DRAFT; department submissions UI labels this "Allocated". */
+        /**
+         * HR → org unit: slice on `salary_budget_*`. OU `allocation_amount` stays 0 until employee-level distribution.
+         */
+        const slicePercent =
+          distributionPool != null && distributionPool > 0 ? percentOfPool(sliceAmount, distributionPool) : 0
         const unitPayload: CompensationBudgetPlanOrganizationalUnitRestPayload = {
-          salaryBudgetAmount,
-          salaryBudgetPercent,
+          salaryBudgetAmount: sliceAmount,
+          salaryBudgetPercent: slicePercent,
+          allocationAmount: 0,
           bonusBudgetAmount: 0,
           bonusBudgetPercent: 0,
           budgetPlanStatus: 'BUDGET_PLAN_DRAFT',
@@ -178,23 +176,27 @@ export function BudgetDistributionDistributeDialog({
         })
       }
 
-      /** Undistributed company pool: current pool minus amounts assigned to org units in this save (supports later batches). */
-      const sumAllocatedThisBatch = roundMoney2(
-        ids.reduce((sum, ouId) => sum + roundMoney2(allocationByOrgUnitId.get(ouId) ?? 0), 0)
-      )
-      const poolBefore = roundMoney2(distributionPool ?? 0)
-      const nextCompanySalaryAmount = roundMoney2(Math.max(0, poolBefore - sumAllocatedThisBatch))
-      const nextCompanySalaryPercent = salaryIncreasePercentOfPayrollBaseline(
-        nextCompanySalaryAmount,
-        companyBudgetRow.currentTotalSalaryCost
-      )
+      /** Total deployed to departments: new slices for selected OUs + unchanged `salary_budget_amount` on other OU rows. */
+      let totalAllocatedToOrgUnits = 0
+      for (const ouId of ids) {
+        totalAllocatedToOrgUnits = roundMoney2(
+          totalAllocatedToOrgUnits + roundMoney2(allocationByOrgUnitId.get(ouId) ?? 0)
+        )
+      }
+      for (const r of orgUnitBudgetRows) {
+        if (!selectedSet.has(r.organizationalUnitId)) {
+          totalAllocatedToOrgUnits = roundMoney2(totalAllocatedToOrgUnits + roundMoney2(r.salaryBudgetAmount))
+        }
+      }
+
       const companyBody = buildSaveCompensationBudgetPlanCompanyUpdateBody({
         id: companyBudgetRow.id,
         version: companyBudgetRow.version,
         compensationBudgetPlanId: companyBudgetRow.compensationBudgetPlanId,
         companyId: companyBudgetRow.companyId,
-        salaryBudgetAmount: nextCompanySalaryAmount,
-        salaryBudgetPercent: nextCompanySalaryPercent,
+        salaryBudgetAmount: roundMoney2(companyBudgetRow.salaryBudgetAmount),
+        salaryBudgetPercent: roundMoney2(companyBudgetRow.salaryBudgetPercent),
+        allocationAmount: roundMoney2(totalAllocatedToOrgUnits),
         currentTotalSalaryCost: companyBudgetRow.currentTotalSalaryCost,
         currencyRef: companyBudgetRow.currencyRef
       })
