@@ -99,7 +99,11 @@ function getTriggerLabel(trigger: AutomationTrigger, t: (key: string) => string)
 /**
  * Format relative time
  */
-function formatRelativeTime(dateString: string): string {
+function formatRelativeTime(
+  dateString: string,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  locale?: string
+): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -107,11 +111,11 @@ function formatRelativeTime(dateString: string): string {
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins} min ago`
-  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
-  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
-  return date.toLocaleDateString()
+  if (diffMins < 1) return t('automations-time-just-now')
+  if (diffMins < 60) return t('automations-time-min-ago', { count: diffMins })
+  if (diffHours < 24) return t('automations-time-hours-ago', { count: diffHours })
+  if (diffDays < 7) return t('automations-time-days-ago', { count: diffDays })
+  return date.toLocaleDateString(locale || undefined)
 }
 
 /**
@@ -129,7 +133,7 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({
   compact = false,
   'data-testid': testId
 }) => {
-  const { t } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
   const Icon = getAutomationTypeIcon(automation.type)
 
   if (compact) {
@@ -202,7 +206,7 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({
                 {automation.lastRunAt && (
                   <span className="gba:flex gba:items-center gba:gap-1">
                     <Clock className="gba:w-3 gba:h-3" />
-                    {t('automations-hub-last-run')}: {formatRelativeTime(automation.lastRunAt)}
+                    {t('automations-hub-last-run')}: {formatRelativeTime(automation.lastRunAt, t, locale)}
                   </span>
                 )}
                 <span className="gba:flex gba:items-center gba:gap-1">

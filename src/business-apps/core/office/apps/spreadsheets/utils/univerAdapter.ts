@@ -239,7 +239,15 @@ function toHyperlinkCell(raw: string, column: SpreadsheetColumn, linkColumn: boo
     return null
   }
   const safeUrl = raw.replaceAll('"', '""')
-  return { f: `=HYPERLINK("${safeUrl}","View Response")` }
+  return { f: `=HYPERLINK("${safeUrl}","${getViewResponseLabel().replaceAll('"', '""')}")` }
+}
+
+function getViewResponseLabel(): string {
+  const locale =
+    (typeof document !== 'undefined' && document.documentElement.lang) || globalThis.navigator?.language || 'en-US'
+  if (locale.startsWith('de')) return 'Antwort anzeigen'
+  if (locale.startsWith('ro')) return 'Vezi răspunsul'
+  return 'View Response'
 }
 
 function toImageCell(raw: string, column: SpreadsheetColumn, avatarColumn: boolean): UniverCellData | null {

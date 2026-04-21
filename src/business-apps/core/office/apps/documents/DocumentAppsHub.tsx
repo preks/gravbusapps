@@ -150,12 +150,14 @@ function formatDate(
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
   const effectiveLocale = locale || undefined
 
-  if (diffDays === 0) {
-    return date.toLocaleTimeString(effectiveLocale, { hour: 'numeric', minute: '2-digit' })
-  }
+  if (diffMins < 1) return t('time-just-now')
+  if (diffMins < 60) return t('time-minutes-ago', { count: diffMins })
+  if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
   if (diffDays === 1) return t('time-yesterday')
   if (diffDays < 7) return t('time-days-ago-count', { count: diffDays })
   return date.toLocaleDateString(effectiveLocale, {
