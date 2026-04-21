@@ -47,6 +47,3 @@ export const sharedLeadImportFields: TargetFieldDefinition[] = [
   { value: 'description', label: 'Description', type: 'direct' },
   { value: 'sensitive', label: 'Sensitive/Confidential', type: 'direct' }
 ]
-
-/** @deprecated use sharedLeadImportFields */
-export const baseLeadImportFields = sharedLeadImportFields
