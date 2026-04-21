@@ -251,7 +251,10 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-2xl" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-lg gba:max-h-[90vh] gba:flex gba:flex-col gba:overflow-hidden"
+        data-testid={testId}
+      >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Users className="gba:w-5 gba:h-5" />
@@ -260,7 +263,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
           <DialogDescription>{t('manage-description', { title: slideTitle })}</DialogDescription>
         </DialogHeader>
 
-        <div className="gba:py-4">
+        <div className="gba:py-2 gba:overflow-y-auto gba:flex-1 gba:-mx-6 gba:px-6">
           {error && (
             <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:rounded-lg gba:bg-destructive/10 gba:text-destructive gba:mb-4">
               <AlertCircle className="gba:w-4 gba:h-4 gba:shrink-0" />
@@ -279,83 +282,84 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
               <p className="gba:text-sm gba:text-muted-foreground">{t('manage-add-users-hint')}</p>
             </div>
           ) : (
-            <div className="gba:space-y-2 gba:max-h-96 gba:overflow-y-auto">
+            <div className="gba:border gba:rounded-md gba:divide-y">
               {shares.map(share => (
                 <div
                   key={share.id}
-                  className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-lg gba:bg-muted/30 gba:border"
+                  className="gba:flex gba:items-center gba:gap-2 gba:p-2"
                   data-testid={`${testId}-share-${share.id}`}
                 >
-                  {share.isLoading ? (
-                    <Spinner size="sm" />
-                  ) : (
-                    <Avatar className="gba:w-10 gba:h-10">
-                      {share.userAvatar && <AvatarImage src={share.userAvatar} />}
-                      <AvatarFallback>{share.userName ? getInitials(share.userName) : '?'}</AvatarFallback>
-                    </Avatar>
-                  )}
+                  <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+                    {share.userAvatar && <AvatarImage src={share.userAvatar} />}
+                    <AvatarFallback className="gba:text-xs">
+                      {share.isLoading ? <Spinner size="sm" /> : share.userName ? getInitials(share.userName) : '?'}
+                    </AvatarFallback>
+                  </Avatar>
 
                   <div className="gba:flex-1 gba:min-w-0">
                     <p className="gba:text-sm gba:font-medium gba:truncate">
                       {share.userName || `User ${share.userId.slice(0, 8)}`}
                     </p>
-                    <p className="gba:text-xs gba:text-muted-foreground">
+                    <p className="gba:text-xs gba:text-muted-foreground gba:truncate">
                       {t('manage-shared-at', { time: formatRelativeDate(share.sharedAt) })}
                     </p>
                   </div>
 
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Select
-                      value={share.permission}
-                      onValueChange={p => handleUpdatePermission(share.id, p as Permission)}
-                      disabled={updatingShareId === share.id}
+                  <Select
+                    value={share.permission}
+                    onValueChange={p => handleUpdatePermission(share.id, p as Permission)}
+                    disabled={updatingShareId === share.id}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      className="gba:flex-shrink-0"
+                      data-testid={`${testId}-permission-${share.id}`}
                     >
-                      <SelectTrigger className="gba:w-32" data-testid={`${testId}-permission-${share.id}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="view">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Eye className="gba:w-3 gba:h-3" />
-                            {t('manage-can-view')}
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="comment">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <MessageSquare className="gba:w-3 gba:h-3" />
-                            {t('manage-can-comment')}
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="edit">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Pencil className="gba:w-3 gba:h-3" />
-                            {t('manage-can-edit')}
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                      {updatingShareId === share.id ? <Spinner size="sm" /> : <SelectValue />}
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="view">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Eye className="gba:w-3 gba:h-3" />
+                          {t('manage-can-view')}
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="comment">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <MessageSquare className="gba:w-3 gba:h-3" />
+                          {t('manage-can-comment')}
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="edit">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Pencil className="gba:w-3 gba:h-3" />
+                          {t('manage-can-edit')}
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
 
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRemoveShare(share.id)}
-                            disabled={removingShareId === share.id}
-                            data-testid={`${testId}-remove-${share.id}`}
-                          >
-                            {removingShareId === share.id ? (
-                              <Spinner size="sm" />
-                            ) : (
-                              <Trash2 className="gba:w-4 gba:h-4" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t('manage-remove-user')}</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="gba:h-8 gba:w-8 gba:flex-shrink-0 hover:gba:bg-destructive/10 hover:gba:text-destructive"
+                          onClick={() => handleRemoveShare(share.id)}
+                          disabled={removingShareId === share.id}
+                          data-testid={`${testId}-remove-${share.id}`}
+                        >
+                          {removingShareId === share.id ? (
+                            <Spinner size="sm" />
+                          ) : (
+                            <Trash2 className="gba:w-4 gba:h-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('manage-remove-user')}</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               ))}
             </div>
