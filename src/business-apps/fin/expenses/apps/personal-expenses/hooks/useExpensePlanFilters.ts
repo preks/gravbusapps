@@ -1,23 +1,13 @@
-import React, { useState, useMemo, useCallback } from 'react'
-import { DataFilterGroup } from '@/components/data-filter/DataFilter'
+import { useState, useMemo, useCallback } from 'react'
 import { ExpenseStatus } from '../utils'
-import { DateRangeFilter } from '../components/tabs/expense-plans-tab/filters/DateRangeFilter'
-import { EndDateRangeFilter } from '../components/tabs/expense-plans-tab/filters/EndDateRangeFilter'
-import PlanDateRangeFilter from '../components/tabs/expense-plans-tab/filters/PlanDateRangeFilter'
 import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import EffectiveDateRangeFilter from '../components/tabs/expense-plans-tab/filters/EffectiveDateRangeFilter'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import {
   addScalarNumericRangeConditions,
   formatExpenseAmountRangeChipLabel,
   type ExpenseAmountRangeValue
 } from '@/business-apps/fin/expenses/common/utils/amountRangeFilterUtils'
-
-export enum DataFilterType {
-  CHECKBOX_GROUP = 'checkbox-group',
-  DATE_RANGE = 'date-range'
-}
 
 const PLAN_VIRTUAL_RANGE_FILTER_IDS = [
   'planDateRange',
@@ -38,122 +28,6 @@ export const useExpensePlanFilters = () => {
   const [effectiveDateRange, setEffectiveDateRange] = useState<[Date | null, Date | null] | null>(null)
   const [reimbursableAmountRange, setReimbursableAmountRange] = useState<ExpenseAmountRangeValue>(null)
   const [paidAdvanceAmountRange, setPaidAdvanceAmountRange] = useState<ExpenseAmountRangeValue>(null)
-
-  const filterGroups = useMemo<DataFilterGroup[]>(
-    () => [
-      {
-        id: 'effectiveDateRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
-        type: DataFilterType.DATE_RANGE,
-        customComponent: React.createElement(EffectiveDateRangeFilter, {
-          effectiveDateRange: effectiveDateRange,
-          onDateRangeChange: setEffectiveDateRange,
-          placeholder: [
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
-          ]
-        }),
-        hideSearch: true
-      },
-      {
-        id: 'planDateRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date'),
-        type: DataFilterType.DATE_RANGE,
-        customComponent: React.createElement(PlanDateRangeFilter, {
-          planDateRange: planDateRange,
-          onDateRangeChange: setPlanDateRange,
-          placeholder: [
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
-          ]
-        }),
-        hideSearch: true
-      },
-      {
-        id: 'startDateRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
-        type: DataFilterType.DATE_RANGE,
-        customComponent: React.createElement(DateRangeFilter, {
-          startDateRange: startDateRange,
-          onDateRangeChange: setStartDateRange,
-          placeholder: [
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
-          ]
-        }),
-        hideSearch: true
-      },
-      {
-        id: 'endDateRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
-        type: DataFilterType.DATE_RANGE,
-        customComponent: React.createElement(EndDateRangeFilter, {
-          endDateRange: endDateRange,
-          onDateRangeChange: setEndDateRange,
-          placeholder: [
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
-          ]
-        }),
-        hideSearch: true
-      },
-      {
-        id: 'status',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-        type: DataFilterType.CHECKBOX_GROUP,
-        filters: [
-          {
-            id: ExpenseStatus.CREATED,
-            label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.created', 'Created')})`,
-            selected: selectedFilters.includes(ExpenseStatus.CREATED)
-          },
-          {
-            id: ExpenseStatus.ASSIGNED,
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
-            selected: selectedFilters.includes(ExpenseStatus.ASSIGNED)
-          },
-          {
-            id: ExpenseStatus.PENDING,
-            label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')})`,
-            selected: selectedFilters.includes(ExpenseStatus.PENDING)
-          },
-          {
-            id: ExpenseStatus.APPROVED,
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
-            selected: selectedFilters.includes(ExpenseStatus.APPROVED)
-          },
-          {
-            id: ExpenseStatus.REJECTED,
-            label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')})`,
-            selected: selectedFilters.includes(ExpenseStatus.REJECTED)
-          },
-          {
-            id: ExpenseStatus.CLOSED,
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
-            selected: selectedFilters.includes(ExpenseStatus.CLOSED)
-          }
-        ]
-      },
-      {
-        id: 'planType',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
-        type: DataFilterType.CHECKBOX_GROUP,
-        filters: [
-          {
-            id: 'planType:EXPENSES',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense'),
-            selected: selectedFilters.includes('planType:EXPENSES')
-          },
-          {
-            id: 'planType:TRIP',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip'),
-            selected: selectedFilters.includes('planType:TRIP')
-          }
-        ]
-      }
-    ],
-    [selectedFilters, startDateRange, endDateRange, planDateRange, effectiveDateRange]
-  )
 
   // Helper function to format date for start of range (beginning of day)
   const formatStartDate = useCallback((date: Date): string => {
@@ -349,14 +223,17 @@ export const useExpensePlanFilters = () => {
   const filterLabelMap = useMemo<Record<string, string>>(() => {
     const map: Record<string, string> = {}
 
-    // Add standard filter labels
-    filterGroups.forEach(group => {
-      if (group.filters) {
-        group.filters.forEach(filter => {
-          map[filter.id] = filter.label
-        })
-      }
-    })
+    map[ExpenseStatus.CREATED] =
+      `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.created', 'Created')})`
+    map[ExpenseStatus.ASSIGNED] = getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned')
+    map[ExpenseStatus.PENDING] =
+      `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')})`
+    map[ExpenseStatus.APPROVED] = getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved')
+    map[ExpenseStatus.REJECTED] =
+      `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')})`
+    map[ExpenseStatus.CLOSED] = getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed')
+    map['planType:EXPENSES'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
+    map['planType:TRIP'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
 
     // Add date range labels if active
     const planDateLabel = formatDateRangeLabel(planDateRange)
@@ -403,7 +280,6 @@ export const useExpensePlanFilters = () => {
     // Currency filters are injected at table level; here we just preserve any provided labels
     return map
   }, [
-    filterGroups,
     formatDateRangeLabel,
     planDateRange,
     startDateRange,
@@ -490,7 +366,6 @@ export const useExpensePlanFilters = () => {
     debouncedSearch,
     selectedFilters: getAllSelectedFilters, // Return the enhanced list including date ranges
     setFilters, // Use the enhanced setFilters function
-    filterGroups,
     filterLabelMap,
     handleFilterChange,
     clearFilters: clearAllFilters,

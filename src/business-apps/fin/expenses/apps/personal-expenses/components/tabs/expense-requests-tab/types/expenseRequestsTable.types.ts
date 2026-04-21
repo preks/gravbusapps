@@ -12,7 +12,6 @@ export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   onSearchChange?: (search: string) => void
   selectedFilters?: string[]
   setFilters?: (filters: string[]) => void
-  filterGroups?: any[]
   handleFilterChange?: (filterId: string, selected: boolean) => void
   clearFilters?: () => void
   filterLabelMap?: Record<string, string>

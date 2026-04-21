@@ -1,9 +1,6 @@
-import React, { useState, useCallback, useMemo } from 'react'
-import { DataFilterGroup } from '@/components/data-filter/DataFilter'
+import { useState, useCallback, useMemo } from 'react'
 import { ExpenseFilter } from './useGetExpenseItems'
 import { ExpenseStatus } from '../utils'
-import { ExpenseDateRangeFilter } from '../components/tabs/expense-items-tab/filters/ExpenseDateRangeFilter'
-import { ExpenseAmountRangeFilter } from '@/business-apps/fin/expenses/common/components/filters/ExpenseAmountRangeFilter'
 import { formatExpenseAmountRangeChipLabel } from '@/business-apps/fin/expenses/common/utils/amountRangeFilterUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { CurrencyStat } from './useExpenseCurrencies'
@@ -11,18 +8,11 @@ import { CurrencyStat } from './useExpenseCurrencies'
 // Define these as constants for stable references outside the hook
 const OTHER_OPTIONS: string[] = []
 
-export enum DataFilterType {
-  CHECKBOX_GROUP = 'checkbox-group',
-  DATE_RANGE = 'date-range',
-  NUMBER_RANGE = 'number-range'
-}
-
 // Interface for the return type of useExpenseItemsFilters
 export interface UseExpenseItemsFiltersReturn {
   search: string
   setSearch: (search: string) => void
   selectedFilters: string[]
-  filterGroups: DataFilterGroup[]
   filterLabelMap: Record<string, string>
   addFilter: (filterId: string) => void
   removeFilter: (filterId: string) => void
@@ -110,90 +100,19 @@ export const useExpenseItemsFilters = (
     return ['CREATED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'TRANSFERRED']
   }, [availableStatuses])
 
-  // Define filter groups - memoized so they don't cause re-renders
-  const filterGroups = useMemo<DataFilterGroup[]>(() => {
-    const groups: DataFilterGroup[] = [
-      {
-        id: 'expenseDateRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_range', 'Expense Date'),
-        type: DataFilterType.DATE_RANGE,
-        customComponent: React.createElement(ExpenseDateRangeFilter, {
-          expenseDateRange: expenseDateRange,
-          onDateRangeChange: setExpenseDateRange,
-          placeholder: [
-            getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start date'),
-            getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End date')
-          ]
-        }),
-        hideSearch: true
-      },
-      {
-        id: 'status',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.status', 'Status'),
-        filters: allStatuses.map(status => ({
-          id: status.toLowerCase(),
-          label: formatStatusName(status),
-          selected: selectedFilters.includes(status.toLowerCase())
-        }))
-      },
-      {
-        id: 'amountRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
-        type: DataFilterType.NUMBER_RANGE,
-        customComponent: React.createElement(ExpenseAmountRangeFilter, {
-          amountRange: amountRange,
-          onAmountRangeChange: setAmountRange,
-          dataTestIdPrefix: 'expense-amount-range'
-        }),
-        hideSearch: true
-      }
-    ]
-
-    // Add currency filter group if we have currency stats
-    if (currencyStats.length > 0) {
-      groups.unshift({
-        id: 'currency',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-          'Currency'
-        ),
-        filters: currencyStats.map(cs => ({
-          id: `currency:${cs.ref}`,
-          label: cs.code,
-          selected: selectedFilters.includes(`currency:${cs.ref}`)
-        }))
-      })
-    }
-
-    return groups
-  }, [selectedFilters, expenseDateRange, allStatuses, amountRange, currencyStats])
-
   // Create filter label map including date range and amount range
   const filterLabelMap = useMemo<Record<string, string>>(() => {
     const map: Record<string, string> = {}
 
-    // Add standard filter labels
-    filterGroups.forEach(group => {
-      if (group.filters) {
-        group.filters.forEach(filter => {
-          map[filter.id] = filter.label
-        })
-      }
-    })
-
-    // Add status labels with proper mapping for pills
     allStatuses.forEach(status => {
       const statusKey = status.toLowerCase()
-      const displayName = formatStatusName(status)
-      map[statusKey] = displayName
+      map[statusKey] = formatStatusName(status)
     })
 
-    // Add currency labels
     currencyStats.forEach(cs => {
       map[`currency:${cs.ref}`] = cs.code
     })
 
-    // Add date range label if active
     const dateRangeLabel = formatDateRangeLabel(expenseDateRange)
     if (dateRangeLabel) {
       map['expenseDateRange'] =
@@ -211,7 +130,7 @@ export const useExpenseItemsFilters = (
     }
 
     return map
-  }, [filterGroups, expenseDateRange, amountRange, allStatuses, formatStatusName, currencyStats])
+  }, [expenseDateRange, amountRange, allStatuses, formatStatusName, currencyStats])
 
   // Get all selected filters including amount range when active (exclude date range to prevent duplicate pills)
   const getAllSelectedFilters = useMemo(() => {
@@ -370,7 +289,6 @@ export const useExpenseItemsFilters = (
     search,
     setSearch,
     selectedFilters: getAllSelectedFilters,
-    filterGroups,
     filterLabelMap,
     addFilter,
     removeFilter: removeFilter,

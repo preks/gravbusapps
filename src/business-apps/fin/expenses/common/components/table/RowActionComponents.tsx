@@ -6,8 +6,7 @@ export interface RowActionsWrapperProps {
 
 export const RowActionsWrapper = React.memo(function RowActionsWrapper({ children }: RowActionsWrapperProps) {
   return (
-    <button
-      type="button"
+    <div
       className="gba:flex gba:justify-end gba:gap-2 gba:border-0 gba:bg-transparent gba:p-0 gba:cursor-default"
       onClick={e => e.stopPropagation()}
       onKeyDown={e => {
@@ -15,7 +14,7 @@ export const RowActionsWrapper = React.memo(function RowActionsWrapper({ childre
       }}
     >
       {children}
-    </button>
+    </div>
   )
 })
 

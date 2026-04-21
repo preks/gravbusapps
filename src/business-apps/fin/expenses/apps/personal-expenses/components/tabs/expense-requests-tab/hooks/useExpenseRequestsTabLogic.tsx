@@ -33,7 +33,6 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0)
 
   const {
-    filterGroups,
     selectedFilters,
     setFilters,
     handleFilterChange,
@@ -287,7 +286,6 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
     onSearchChange,
     selectedFilters,
     setFilters: setFiltersForTable,
-    filterGroups,
     handleFilterChange: handleTableFilterChange,
     clearFilters,
     filterLabelMap: { ...filterLabelMap },

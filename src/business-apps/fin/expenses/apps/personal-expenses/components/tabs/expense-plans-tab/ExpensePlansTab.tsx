@@ -35,7 +35,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const [suppressCurrencyAutoSelect, setSuppressCurrencyAutoSelect] = useState<boolean>(false)
 
   const {
-    filterGroups,
     selectedFilters,
     setFilters,
     handleFilterChange,
@@ -273,7 +272,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       onSearchChange={setSearch}
       selectedFilters={uiSelectedFilters}
       setFilters={setFiltersForTable}
-      filterGroups={filterGroups}
       handleFilterChange={(filterId: string, selected: boolean) => {
         if (filterId.startsWith('currency:')) {
           const nonCurrency = selectedFilters.filter(f => !f.startsWith('currency:'))
