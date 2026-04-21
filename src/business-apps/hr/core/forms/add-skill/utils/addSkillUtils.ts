@@ -39,6 +39,7 @@ export const buildEmployeeSkillsPayload = (args: {
   skillValidTo?: Record<string, string | null>
   /** Optional: per-skill verification document id (e.g. for attach verification) */
   skillVerificationDocumentId?: Record<string, string | null>
+  newSkills?: { name: string }[]
   event?: string
 }) => {
   const {
@@ -48,6 +49,7 @@ export const buildEmployeeSkillsPayload = (args: {
     existingSkills,
     skillValidTo,
     skillVerificationDocumentId,
+    newSkills,
     event
   } = args
 
@@ -62,7 +64,7 @@ export const buildEmployeeSkillsPayload = (args: {
     const level = selectedSkillLevels.get(skillId) || 1
     const validToValue = skillValidTo?.[skillId]
     const verificationDocId = skillVerificationDocumentId?.[skillId]
-    const isNewSkill = !existing?.id || existing?.version === undefined
+    const isNewAssignment = !existing?.id || existing?.version === undefined
     let item: Record<string, unknown> =
       existing?.id && existing?.version !== undefined
         ? (() => {
@@ -71,7 +73,7 @@ export const buildEmployeeSkillsPayload = (args: {
             return { id: existing.id, version: versionToSend, employeeId, skill: skillId, level }
           })()
         : { employeeId, skill: skillId, level }
-    if (isNewSkill) {
+    if (isNewAssignment) {
       item = { ...item, validFrom: new Date().toISOString() }
     }
     if (validToValue !== undefined) {
@@ -86,8 +88,15 @@ export const buildEmployeeSkillsPayload = (args: {
     }
     return item
   })
+
+  const employeeSkills: Record<string, unknown> = { employeeId, skills: skillsPayload }
+  if (newSkills && newSkills.length > 0) {
+    employeeSkills.newSkills = newSkills
+  }
+
   return {
-    employeeSkills: { employeeId, skills: skillsPayload },
+    employeeId,
+    employeeSkills,
     event: event || 'pse_submit'
   } as any
 }
