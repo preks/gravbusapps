@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { EntityImportView } from '@/common/components/common-relations/apps/data-import/components'
+import { IrmEntityImportView } from '@/common/components/common-relations/apps/data-import/components'
 import { investmentOpportunityImportConfig } from '@/common/data/investment/types/investmentOpportunityImportConfig'
 import translations from './_i18n'
 
@@ -18,7 +18,7 @@ export const OpportunityImportView: React.FC<OpportunityImportViewProps> = ({
   const { t } = useTranslation(translations)
 
   return (
-    <EntityImportView
+    <IrmEntityImportView
       config={investmentOpportunityImportConfig}
       headerTitle={t('opportunity-page-title')}
       headerDescription={t('opportunity-page-description')}

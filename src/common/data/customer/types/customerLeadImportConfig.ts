@@ -25,5 +25,29 @@ export const customerLeadImportConfig: ImportConfig = {
     { value: 'leadStatusRef', label: 'Lead Status (Catalog)', type: 'catalog', catalog: 'SalesLeadStatus' },
     { value: 'leadSourceRef', label: 'Lead Source (Catalog)', type: 'catalog', catalog: 'SalesLeadSource' },
     { value: 'leadRatingRef', label: 'Lead Rating (Catalog)', type: 'catalog', catalog: 'SalesLeadRating' }
+  ],
+  enforcedSelects: [
+    {
+      id: 'leadStatus',
+      targetField: 'leadStatusRef',
+      catalogIdentifier: 'SalesLeadStatus',
+      required: true,
+      defaultValueRef: 'SalesLeadStatus:v1:OPEN',
+      labelKey: 'lead-status-label'
+    },
+    {
+      id: 'leadSource',
+      targetField: 'leadSourceRef',
+      catalogIdentifier: 'SalesLeadSource',
+      required: true,
+      labelKey: 'lead-source-label'
+    },
+    {
+      id: 'leadRating',
+      targetField: 'leadRatingRef',
+      catalogIdentifier: 'SalesLeadRating',
+      required: true,
+      labelKey: 'lead-rating-label'
+    }
   ]
 }

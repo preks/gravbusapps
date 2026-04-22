@@ -281,15 +281,8 @@ export const useAgentBuilderState = (
             setDecisionOptions([])
           }
 
-          // Parse tool codes
-          if (loadedPrompt.tools) {
-            const toolCodes =
-              typeof loadedPrompt.tools === 'string'
-                ? loadedPrompt.tools
-                    .split(',')
-                    .map(t => t.trim())
-                    .filter(Boolean)
-                : loadedPrompt.tools
+          if (loadedPrompt.tools && loadedPrompt.tools.length > 0) {
+            const toolCodes = loadedPrompt.tools
             const toolIds = capabilities.filter(c => toolCodes.includes(c.code)).map(c => c.id)
             setSelectedToolIds(toolIds)
           }

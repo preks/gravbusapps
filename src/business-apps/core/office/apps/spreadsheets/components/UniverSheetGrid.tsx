@@ -74,9 +74,165 @@ const NUMFMT_MENU_ITEM_ROW_SELECTOR = 'div.univer-flex.univer-h-7'
 
 /**
  * Univer locale overlay for German (the library ships no de-DE bundle).
- * Only the `sheet.numfmt.*` keys are needed for the number-format dropdown menu.
+ * We keep this scoped to the user-visible toolbar and number-format chrome that
+ * otherwise falls back to English inside the spreadsheet canvas.
  */
-const UNIVER_NUMFMT_DE_LOCALE = {
+const UNIVER_DE_LOCALE = {
+  design: {
+    CascaderList: {
+      empty: 'Keine'
+    },
+    Select: {
+      empty: 'Keine'
+    }
+  },
+  align: {
+    left: 'Links',
+    center: 'Zentriert',
+    right: 'Rechts',
+    top: 'Oben',
+    middle: 'Mittig',
+    bottom: 'Unten'
+  },
+  textWrap: {
+    overflow: 'Überlauf',
+    wrap: 'Umbruch',
+    clip: 'Abschneiden'
+  },
+  textRotate: {
+    none: 'Keine',
+    angleUp: 'Nach oben neigen',
+    angleDown: 'Nach unten neigen',
+    vertical: 'Vertikal stapeln',
+    rotationUp: 'Nach oben drehen',
+    rotationDown: 'Nach unten drehen'
+  },
+  merge: {
+    all: 'Alles verbinden',
+    vertical: 'Vertikal verbinden',
+    horizontal: 'Horizontal verbinden',
+    cancel: 'Verbindung aufheben'
+  },
+  rightClick: {
+    clearAll: 'Alles löschen',
+    clearContent: 'Inhalte löschen',
+    clearFormat: 'Formatierungen löschen',
+    clearSelection: 'Löschen'
+  },
+  'common-edit': 'Allgemeine Bearbeitungs-Shortcuts',
+  'sheet-view': 'Blattansicht',
+  shortcut: {
+    undo: 'Rückgängig',
+    redo: 'Wiederholen',
+    cut: 'Ausschneiden',
+    copy: 'Kopieren',
+    paste: 'Einfügen',
+    'shortcut-panel': 'Shortcut-Panel umschalten',
+    sheet: {
+      'zoom-in': 'Vergrößern',
+      'zoom-out': 'Verkleinern',
+      'reset-zoom': 'Zoomstufe zurücksetzen',
+      'select-up-cell': 'Zelle darüber auswählen',
+      'select-below-cell': 'Zelle darunter auswählen',
+      'select-left-cell': 'Linke Zelle auswählen',
+      'select-right-cell': 'Rechte Zelle auswählen',
+      'select-next-cell': 'Nächste Zelle auswählen',
+      'select-previous-cell': 'Vorherige Zelle auswählen',
+      'select-up-value-cell': 'Darüberliegende Zelle mit Wert auswählen',
+      'select-below-value-cell': 'Darunterliegende Zelle mit Wert auswählen',
+      'select-left-value-cell': 'Linke Zelle mit Wert auswählen',
+      'select-right-value-cell': 'Rechte Zelle mit Wert auswählen',
+      'expand-selection-down': 'Auswahl nach unten erweitern',
+      'expand-selection-up': 'Auswahl nach oben erweitern',
+      'expand-selection-left': 'Auswahl nach links erweitern',
+      'expand-selection-right': 'Auswahl nach rechts erweitern',
+      'expand-selection-to-left-gap': 'Auswahl bis zur linken Lücke erweitern',
+      'expand-selection-to-below-gap': 'Auswahl bis zur unteren Lücke erweitern',
+      'expand-selection-to-right-gap': 'Auswahl bis zur rechten Lücke erweitern',
+      'expand-selection-to-up-gap': 'Auswahl bis zur oberen Lücke erweitern',
+      'select-all': 'Alles auswählen',
+      'toggle-editing': 'Bearbeitung umschalten',
+      'delete-and-start-editing': 'Löschen und Bearbeitung starten',
+      'abort-editing': 'Bearbeitung abbrechen',
+      'break-line': 'Zeilenumbruch einfügen',
+      'set-bold': 'Fett umschalten',
+      'start-editing': 'Bearbeitung starten (Auswahl im Editor)',
+      'set-italic': 'Kursiv umschalten',
+      'set-underline': 'Unterstreichen umschalten',
+      'set-strike-through': 'Durchgestrichen umschalten'
+    }
+  },
+  'shortcut-panel': {
+    title: 'Tastenkürzel'
+  },
+  'toggle-shortcut-panel': 'Shortcut-Panel umschalten',
+  ribbon: {
+    start: 'Start',
+    startDesc: 'Arbeitsblatt einrichten und grundlegende Einstellungen festlegen.',
+    formulas: 'Formeln',
+    formulasDesc: 'Funktionen und Formeln für Datenberechnungen verwenden.'
+  },
+  formula: {
+    insert: {
+      more: 'Weitere Funktionen...',
+      tooltip: 'Funktionen'
+    },
+    moreFunctions: {
+      allFunctions: 'Alle Funktionen',
+      searchFunctionPlaceholder: 'Funktion suchen',
+      syntax: 'SYNTAX'
+    },
+    prompt: {
+      helpExample: 'BEISPIEL',
+      required: 'Erforderlich.'
+    }
+  },
+  toolbar: {
+    font: 'Schriftart',
+    undo: 'Rückgängig',
+    redo: 'Wiederholen',
+    bold: 'Fett',
+    italic: 'Kursiv',
+    underline: 'Unterstrichen',
+    strikethrough: 'Durchgestrichen',
+    fontSize: 'Schriftgröße',
+    fontSizeDecrease: 'Schriftgröße verkleinern',
+    fontSizeIncrease: 'Schriftgröße vergrößern',
+    formatPainter: 'Format übertragen',
+    alignLeft: 'Linksbündig',
+    alignCenter: 'Zentriert',
+    alignRight: 'Rechtsbündig',
+    alignJustify: 'Blocksatz',
+    border: {
+      main: 'Rahmen',
+      right: 'Rahmenstil'
+    },
+    fillColor: {
+      main: 'Füllfarbe',
+      right: 'Farbe auswählen'
+    },
+    textColor: {
+      main: 'Textfarbe',
+      right: 'Farbe auswählen'
+    },
+    resetColor: 'Zurücksetzen',
+    horizontalAlignMode: {
+      main: 'Horizontal ausrichten',
+      right: 'Ausrichtung'
+    },
+    verticalAlignMode: {
+      main: 'Vertikal ausrichten',
+      right: 'Ausrichtung'
+    },
+    textRotateMode: {
+      main: 'Text drehen',
+      right: 'Textdrehung'
+    },
+    mergeCell: {
+      main: 'Zellen verbinden',
+      right: 'Verbindungsart auswählen'
+    }
+  },
   sheet: {
     numfmt: {
       title: 'Zahlenformat',
@@ -439,10 +595,115 @@ function readWorksheetCellValue(
   col: number
 ): unknown {
   const cellRange = worksheet?.getRange?.(row, col)
-  return (
-    (cellRange as { getValue?: () => unknown })?.getValue?.() ??
-    (cellRange as { getCellData?: () => { v?: unknown } })?.getCellData?.()?.v
-  )
+  // Preserve formulas: when the live cell carries a formula, return the full
+  // cell data so downstream persistence keeps `f`. Otherwise fall back to the
+  // rendered scalar value. Without this, range-derived SheetValueChanged
+  // payloads (e.g. recalculations) would store only the computed value and
+  // overwrite the persisted formula on the next batch flush.
+  const liveCellData = (cellRange as { getCellData?: () => Record<string, unknown> | undefined })?.getCellData?.()
+  if (liveCellData && typeof liveCellData === 'object') {
+    const liveFormula = (liveCellData as { f?: unknown }).f
+    if (typeof liveFormula === 'string' && liveFormula.length > 0) {
+      return liveCellData
+    }
+  }
+  return (cellRange as { getValue?: () => unknown })?.getValue?.() ?? liveCellData?.v
+}
+
+function readFormulaFromUnknown(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed.startsWith('=') ? trimmed : null
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const f = (value as { f?: unknown }).f
+  if (typeof f !== 'string') return null
+  const trimmed = f.trim()
+  if (trimmed.length === 0) return null
+  return trimmed.startsWith('=') ? trimmed : `=${trimmed}`
+}
+
+function readPayloadFormula(
+  payloadCellValue: SheetCellMatrix | undefined,
+  rowIndex: number,
+  colIndex: number
+): string | null {
+  if (!payloadCellValue) return null
+  const row = payloadCellValue[rowIndex]
+  if (!row || typeof row !== 'object') return null
+  if (!Object.prototype.hasOwnProperty.call(row, colIndex)) return null
+  return readFormulaFromUnknown((row as Record<number, unknown>)[colIndex])
+}
+
+function readLiveWorksheetFormula(
+  worksheet: { getRange?: (row: number, col: number) => unknown } | undefined,
+  rowIndex: number,
+  colIndex: number
+): string | null {
+  if (!worksheet?.getRange) return null
+  const liveCellData = (
+    worksheet.getRange?.(rowIndex, colIndex) as { getCellData?: () => Record<string, unknown> } | undefined
+  )?.getCellData?.()
+  if (!liveCellData || typeof liveCellData !== 'object') return null
+  return readFormulaFromUnknown(liveCellData)
+}
+
+/**
+ * Preserve `f` (formula) on every cell in `cellValue` whenever the original
+ * mutation payload OR the live worksheet still carries one. Two scenarios
+ * silently drop formulas without this:
+ *
+ * 1. User-typed formulas: SetRangeValuesMutation payload has `{f, v}`, but
+ *    `handleDetectedCellMutation` rebuilds `cellValue` via
+ *    `deriveCellMatrixFromRanges` (which prefers the live scalar value via
+ *    Univer's facade `getRange().getValue()`), discarding the payload's `f`
+ *    and persisting only the rendered number.
+ * 2. Recompute echoes: dependency change re-fires `SheetValueChanged` for the
+ *    formula cell with only the new `v`. The live cell still has `f`, but the
+ *    derived matrix carries only the scalar.
+ *
+ * Cells whose entry already declares `f` (including explicit `f: null` to
+ * intentionally clear a formula when typing a literal value) are left
+ * untouched so user clears still work.
+ */
+export function enrichCellMatrixWithLiveFormulas(
+  worksheet: { getRange?: (row: number, col: number) => unknown } | undefined,
+  cellValue: SheetCellMatrix,
+  payloadCellValue?: SheetCellMatrix | undefined
+): SheetCellMatrix {
+  let nextValue: SheetCellMatrix | null = null
+  for (const rowKey of Object.keys(cellValue)) {
+    const rowIndex = Number(rowKey)
+    if (!Number.isFinite(rowIndex)) continue
+    const rowCells = cellValue[rowIndex]
+    if (!rowCells || typeof rowCells !== 'object') continue
+    for (const colKey of Object.keys(rowCells)) {
+      const colIndex = Number(colKey)
+      if (!Number.isFinite(colIndex)) continue
+      const entry = (rowCells as Record<number, unknown>)[colIndex]
+      if (entry === null) continue
+      if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+        if (Object.prototype.hasOwnProperty.call(entry, 'f')) continue
+      }
+      const formula =
+        readPayloadFormula(payloadCellValue, rowIndex, colIndex) ??
+        readLiveWorksheetFormula(worksheet, rowIndex, colIndex)
+      if (!formula) continue
+      if (!nextValue) nextValue = { ...cellValue }
+      const nextRow = { ...(nextValue[rowIndex] ?? {}) } as Record<number, unknown>
+      let merged: Record<string, unknown>
+      if (entry && typeof entry === 'object') {
+        merged = { ...(entry as Record<string, unknown>), f: formula }
+      } else if (entry === undefined) {
+        merged = { f: formula }
+      } else {
+        merged = { v: entry, f: formula }
+      }
+      nextRow[colIndex] = merged as unknown
+      nextValue[rowIndex] = nextRow as Record<number, unknown>
+    }
+  }
+  return nextValue ?? cellValue
 }
 
 export function deriveCellMatrixFromRanges(
@@ -1413,7 +1674,7 @@ function patchChineseDateLabels(): void {
 
 export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGridProps>(
   function UniverSheetGrid(props, ref) {
-    const { locale: appLocale } = useTranslation(spreadsheetTranslations)
+    const { t, locale: appLocale } = useTranslation(spreadsheetTranslations)
     activeAppLocale = appLocale
 
     const {
@@ -1582,7 +1843,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             if (!parsed) return null
             return {
               id: `${participant.socketId || participant.userId}`,
-              userName: participant.userName || 'User',
+              userName: participant.userName || t('editor-user-fallback'),
               userColor: participant.userColor || '#4ECDC4',
               row: parsed.row,
               col: parsed.col
@@ -2360,7 +2621,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         const url = getHyperlinkUrlFromSelection(active.row, active.col, data, columns, cellFormula)
         if (!url) return false
         return tryInjectContextMenuItem(x, y, openLinkMarkerAttr, (template: HTMLElement) =>
-          createContextMenuItem(template, openLinkMarkerAttr, openLinkClassName, 'Open link', () => {
+          createContextMenuItem(template, openLinkMarkerAttr, openLinkClassName, t('link-editor-open-link'), () => {
             window.open(url, '_blank', 'noopener,noreferrer')
           })
         )
@@ -2768,7 +3029,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
       const univerLocaleData =
         appLocale === 'de-DE'
-          ? mergeLocales(UniverPresetSheetsCoreEnUS, UNIVER_NUMFMT_DE_LOCALE)
+          ? mergeLocales(UniverPresetSheetsCoreEnUS, UNIVER_DE_LOCALE)
           : mergeLocales(UniverPresetSheetsCoreEnUS)
 
       const { univerAPI } = createUniver({
@@ -2994,10 +3255,16 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         // collaboration to briefly show stale data until the later authoritative
         // persistence broadcast arrives.
         const worksheetCellValue = deriveCellMatrixFromRanges(worksheet, ranges)
-        const cellValue = buildAbsoluteCellMatrixForRanges(ranges, worksheetCellValue, payloadCellValue)
-        if (!cellValue) {
+        const baseCellValue = buildAbsoluteCellMatrixForRanges(ranges, worksheetCellValue, payloadCellValue)
+        if (!baseCellValue) {
           return false
         }
+        // Preserve formulas across both user-typed edits (payload carries `{f, v}`
+        // but `worksheetCellValue` overwrote it with the rendered scalar) and
+        // recompute echoes (payload carries only `v`; live worksheet still has
+        // `f`). Without this, persistence drops `f` and reload shows only the
+        // computed value — also leaking to collaborators.
+        const cellValue = enrichCellMatrixWithLiveFormulas(worksheet, baseCellValue, payloadCellValue)
 
         const rowOffset = 0
         const colOffset = 0
@@ -3637,6 +3904,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           cellValue = deriveCellMatrixFromRanges(worksheet, ranges)
         }
         if (!cellValue) return
+        // Formula preservation happens centrally inside handleDetectedCellMutation
+        // (covers both this path and the command-executed path).
         handleDetectedCellMutation({
           source: 'sheet-value-changed',
           payloadCellValue: cellValue,
@@ -4070,7 +4339,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             if (!rect) return null
             const top = rect.top
             const left = rect.left
-            const author = marker.createdByName || 'User'
+            const author = marker.createdByName || t('editor-user-fallback')
             const avatar = marker.createdByAvatar
             const time = formatCommentTime(marker.createdAt)
             return (

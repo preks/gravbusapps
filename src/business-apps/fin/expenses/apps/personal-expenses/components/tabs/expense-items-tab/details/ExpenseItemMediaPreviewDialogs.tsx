@@ -21,7 +21,7 @@ export function ExpenseItemMediaPreviewDialogs({
   return (
     <>
       <Dialog open={previewOpen} onOpenChange={onPreviewOpenChange}>
-        <DialogContent className="gba:max-w-6xl gba:max-h-screen">
+        <DialogContent className="gba:max-w-6xl gba:max-h-screen" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.imagePreview', 'Image Preview')}
@@ -39,7 +39,7 @@ export function ExpenseItemMediaPreviewDialogs({
       </Dialog>
 
       <Dialog open={pdfPreviewOpen} onOpenChange={onPdfPreviewOpenChange}>
-        <DialogContent className="gba:max-w-6xl gba:max-h-screen">
+        <DialogContent className="gba:max-w-6xl gba:max-h-screen" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.pdfPreview', 'PDF Preview')}

@@ -148,7 +148,7 @@ function buildPreparedAuditEvent(activeRun: PayrollRun): AuditEvent | null {
   return {
     id: `audit-prepared-${activeRun.id}`,
     eventType: 'marked_ready',
-    description: `Marked ready for review`,
+    description: `Marked as ready for review`,
     userId: '',
     userName: activeRun.preparedBy,
     timestamp: activeRun.preparedAt

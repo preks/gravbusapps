@@ -8,9 +8,10 @@ const GREETING_MAX_STEPS = 48
  * Typewriter-style reveal for greeting markdown; complexity lives here so the bubble stays simple.
  */
 export function useAnimatedGreeting(greetingContent: string) {
-  const [animatedGreetingContent, setAnimatedGreetingContent] = useState(greetingContent)
+  const [animatedGreetingContent, setAnimatedGreetingContent] = useState('')
   const greetingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const animatedGreetingRef = useRef('')
+  const renderedRef = useRef('')
   const lastGreetingRef = useRef('')
 
   useEffect(() => {
@@ -22,26 +23,35 @@ export function useAnimatedGreeting(greetingContent: string) {
     if (!greetingContent) {
       animatedGreetingRef.current = ''
       lastGreetingRef.current = ''
+      renderedRef.current = ''
       setAnimatedGreetingContent('')
       return
     }
 
     if (lastGreetingRef.current === greetingContent) {
+      renderedRef.current = greetingContent
       setAnimatedGreetingContent(greetingContent)
       return
     }
 
     if (animatedGreetingRef.current === greetingContent) {
+      renderedRef.current = greetingContent
       setAnimatedGreetingContent(greetingContent)
       return
     }
 
-    let visibleChars = 0
+    // Continue typing forward when the new target extends what's already on screen
+    // (e.g. REST trace → SSE events handoff, or progressive chunks). This prevents a
+    // visible "wipe + restart" that reads as the greeting flashing twice.
+    const canContinueForward = renderedRef.current.length > 0 && greetingContent.startsWith(renderedRef.current)
+
+    let visibleChars = canContinueForward ? renderedRef.current.length : 0
     const stepSize = Math.max(1, Math.ceil(greetingContent.length / GREETING_MAX_STEPS))
 
     const revealNextChunk = () => {
       visibleChars = Math.min(greetingContent.length, visibleChars + stepSize)
       const nextContent = greetingContent.slice(0, visibleChars)
+      renderedRef.current = nextContent
       setAnimatedGreetingContent(nextContent)
 
       if (visibleChars < greetingContent.length) {
@@ -54,9 +64,14 @@ export function useAnimatedGreeting(greetingContent: string) {
       greetingTimerRef.current = null
     }
 
-    animatedGreetingRef.current = ''
-    setAnimatedGreetingContent('')
-    greetingTimerRef.current = setTimeout(revealNextChunk, GREETING_INITIAL_DELAY_MS)
+    if (!canContinueForward) {
+      animatedGreetingRef.current = ''
+      renderedRef.current = ''
+      setAnimatedGreetingContent('')
+    }
+
+    const initialDelay = canContinueForward ? GREETING_STEP_MS : GREETING_INITIAL_DELAY_MS
+    greetingTimerRef.current = setTimeout(revealNextChunk, initialDelay)
 
     return () => {
       if (greetingTimerRef.current) {

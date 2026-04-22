@@ -525,6 +525,14 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
   },
 
   // -------------------------------------------------------------------------
+  // Reminder entities (deep-link into EveryBox inbox at the exact task)
+  // -------------------------------------------------------------------------
+  reminder: {
+    urlTemplate: '/platform/task-manager?view=inbox&taskId={id}',
+    icon: createEmojiIcon('⏰')
+  },
+
+  // -------------------------------------------------------------------------
   // Notes and documents
   // -------------------------------------------------------------------------
   note: {

@@ -118,7 +118,7 @@ grid-pagination-prev = Previous
 grid-pagination-next = Next
 
 filter-all = All
-filter-search = Search employees...
+filter-search = Search employees or code...
 filter-readiness = Readiness Status
 filter-changed-only = Changed Only
 filter-department = Department
@@ -135,7 +135,7 @@ export-format-xlsx = Excel (.xlsx)
 export-button = Export
 export-exceptions-button = Export Exceptions Report
 export-success = Payroll data exported successfully.
-export-mark-complete = Confirm completion
+export-mark-complete = Mark as Completed
 export-complete-hint = After exporting the file successfully, confirm completion using the button below.
 
 signoff-prepared-by = Prepared By
@@ -145,7 +145,7 @@ signoff-reviewed-at = Reviewed At
 signoff-comments = Comments
 signoff-approve = Approve for Export
 signoff-reject = Reject
-signoff-mark-ready = Mark Ready for Review
+signoff-mark-ready = Mark as Ready for Review
 signoff-current-user = Signed in as
 
 step-1-label = Preparation
@@ -330,7 +330,7 @@ audit-trail = Audit Trail
 audit-empty = No audit events yet.
 
 audit-payroll-created = Payroll run created
-audit-marked-ready = Marked ready for review
+audit-marked-ready = Marked as ready for review
 audit-status-changed = { $description }
 audit-review-approved = { $description }
 audit-review-rejected = { $description }

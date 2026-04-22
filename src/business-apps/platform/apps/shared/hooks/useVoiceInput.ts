@@ -13,6 +13,7 @@ export interface VoiceInputState {
   transcript: string
   interimTranscript: string
   error: string | null
+  errorCode: string | null
   volume: number // 0-1 for visualizations
 }
 
@@ -96,6 +97,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     transcript: '',
     interimTranscript: '',
     error: null,
+    errorCode: null,
     volume: 0
   })
 
@@ -205,7 +207,11 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     nativeBridgeModeRef.current = nativeMode
 
     if (!SpeechRecognition && nativeMode === 'none') {
-      setState(prev => ({ ...prev, error: 'Speech recognition not supported in this browser' }))
+      setState(prev => ({
+        ...prev,
+        error: 'Speech recognition not supported in this browser',
+        errorCode: 'not-supported'
+      }))
       return
     }
 
@@ -222,6 +228,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       transcript: '',
       interimTranscript: '',
       error: null,
+      errorCode: null,
       isListening: true
     }))
 
@@ -245,7 +252,12 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
         started = true
       }
       if (started === false) {
-        setState(prev => ({ ...prev, error: 'Native speech recognition is unavailable', isListening: false }))
+        setState(prev => ({
+          ...prev,
+          error: 'Native speech recognition is unavailable',
+          errorCode: 'native-unavailable',
+          isListening: false
+        }))
         stopVolumeAnalysis()
       }
       return
@@ -258,7 +270,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     recognition.lang = language
 
     recognition.onstart = () => {
-      setState(prev => ({ ...prev, isListening: true, error: null }))
+      setState(prev => ({ ...prev, isListening: true, error: null, errorCode: null }))
     }
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -341,7 +353,12 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       }
 
       const message = errorMessages[event.error] || `Speech recognition error: ${event.error}`
-      setState(prev => ({ ...prev, error: message, isListening: false }))
+      setState(prev => ({
+        ...prev,
+        error: message,
+        errorCode: event.error,
+        isListening: false
+      }))
       stopVolumeAnalysis()
     }
 
@@ -403,7 +420,8 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       ...prev,
       isListening: false,
       transcript: '',
-      interimTranscript: ''
+      interimTranscript: '',
+      errorCode: null
     }))
   }, [stopVolumeAnalysis, stopNativeBridge])
 
@@ -433,7 +451,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   useEffect(() => {
     const handleNativeStart = () => {
       void startVolumeAnalysis()
-      setState(prev => ({ ...prev, isListening: true, error: null }))
+      setState(prev => ({ ...prev, isListening: true, error: null, errorCode: null }))
     }
     const handleNativeStop = () => {
       stopVolumeAnalysis()

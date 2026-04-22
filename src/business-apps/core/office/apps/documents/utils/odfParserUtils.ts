@@ -42,6 +42,13 @@ interface StyleProperties {
   color?: string
   backgroundColor?: string
   textAlign?: string
+  verticalAlign?: string
+  width?: string
+  border?: string
+  borderTop?: string
+  borderRight?: string
+  borderBottom?: string
+  borderLeft?: string
 }
 
 /**
@@ -212,8 +219,14 @@ function parseAutomaticStyles(doc: Document): Map<string, StyleProperties> {
         const fontSize = tp.getAttributeNS(foNs, 'font-size')
         if (fontSize) props.fontSize = fontSize
 
+        const fontFamily = tp.getAttributeNS(foNs, 'font-family')
+        if (fontFamily) props.fontFamily = fontFamily
+
         const color = tp.getAttributeNS(foNs, 'color')
         if (color) props.color = color
+
+        const backgroundColor = tp.getAttributeNS(foNs, 'background-color')
+        if (backgroundColor) props.backgroundColor = backgroundColor
       }
 
       // Get paragraph-properties
@@ -222,6 +235,27 @@ function parseAutomaticStyles(doc: Document): Map<string, StyleProperties> {
         const pp = paraProps[0]
         const textAlign = pp.getAttributeNS(foNs, 'text-align')
         if (textAlign) props.textAlign = textAlign
+      }
+
+      const tableProps = style.getElementsByTagNameNS(ns, 'table-properties')
+      if (tableProps.length > 0) {
+        const tableProperty = tableProps[0]
+        props.width =
+          tableProperty.getAttributeNS(ns, 'width') ?? tableProperty.getAttributeNS(foNs, 'width') ?? undefined
+      }
+
+      const tableCellProps = style.getElementsByTagNameNS(ns, 'table-cell-properties')
+      if (tableCellProps.length > 0) {
+        const cellProperty = tableCellProps[0]
+        const backgroundColor = cellProperty.getAttributeNS(foNs, 'background-color')
+        if (backgroundColor) props.backgroundColor = backgroundColor
+        const verticalAlign = cellProperty.getAttributeNS(ns, 'vertical-align')
+        if (verticalAlign) props.verticalAlign = verticalAlign
+        props.border = cellProperty.getAttributeNS(foNs, 'border') ?? props.border
+        props.borderTop = cellProperty.getAttributeNS(foNs, 'border-top') ?? props.borderTop
+        props.borderRight = cellProperty.getAttributeNS(foNs, 'border-right') ?? props.borderRight
+        props.borderBottom = cellProperty.getAttributeNS(foNs, 'border-bottom') ?? props.borderBottom
+        props.borderLeft = cellProperty.getAttributeNS(foNs, 'border-left') ?? props.borderLeft
       }
 
       styleMap.set(styleName, props)
@@ -359,6 +393,17 @@ function applyStyleWrapping(content: string, props?: StyleProperties): string {
 
   let result = content
 
+  const inlineStyles = [
+    props.color ? `color: ${props.color}` : null,
+    props.backgroundColor ? `background-color: ${props.backgroundColor}` : null,
+    props.fontSize ? `font-size: ${props.fontSize}` : null,
+    props.fontFamily ? `font-family: ${props.fontFamily}` : null
+  ].filter(Boolean)
+
+  if (inlineStyles.length > 0) {
+    result = `<span style="${inlineStyles.join('; ')}">${result}</span>`
+  }
+
   if (props.bold) result = `<strong>${result}</strong>`
   if (props.italic) result = `<em>${result}</em>`
   if (props.underline) result = `<u>${result}</u>`
@@ -445,6 +490,9 @@ function convertTable(
 ): void {
   const rows: string[] = []
   let isFirstRow = true
+  const tableStyleName =
+    tableElement.getAttributeNS('urn:oasis:names:tc:opendocument:xmlns:table:1.0', 'style-name') || ''
+  const tableProps = tableStyleName ? styleMap.get(tableStyleName) : undefined
 
   for (let i = 0; i < tableElement.childNodes.length; i++) {
     const child = tableElement.childNodes[i]
@@ -471,7 +519,7 @@ function convertTable(
     }
   }
 
-  htmlParts.push(`<table class="document-table">${rows.join('')}</table>`)
+  htmlParts.push(`<table class="document-table"${buildTableStyleAttr(tableProps)}>${rows.join('')}</table>`)
 }
 
 /**
@@ -495,10 +543,14 @@ function convertTableRow(
 
     if (el.localName === 'table-cell' && isTableNs(el.namespaceURI)) {
       const cellContent: string[] = []
+      const styleName = el.getAttributeNS('urn:oasis:names:tc:opendocument:xmlns:table:1.0', 'style-name') || ''
+      const cellProps = styleName ? styleMap.get(styleName) : undefined
 
       // Handle column span
       const colSpan = el.getAttributeNS('urn:oasis:names:tc:opendocument:xmlns:table:1.0', 'number-columns-spanned')
       const spanAttr = colSpan && parseInt(colSpan, 10) > 1 ? ` colspan="${colSpan}"` : ''
+      const rowSpan = el.getAttributeNS('urn:oasis:names:tc:opendocument:xmlns:table:1.0', 'number-rows-spanned')
+      const rowSpanAttr = rowSpan && parseInt(rowSpan, 10) > 1 ? ` rowspan="${rowSpan}"` : ''
 
       for (let j = 0; j < el.childNodes.length; j++) {
         const cellChild = el.childNodes[j]
@@ -506,25 +558,55 @@ function convertTableRow(
         const cellEl = cellChild as Element
 
         if (cellEl.localName === 'p' && isTextNs(cellEl.namespaceURI)) {
-          cellContent.push(convertInlineContent(cellEl, styleMap, imageMap, imageAlt))
+          cellContent.push(`<p>${convertInlineContent(cellEl, styleMap, imageMap, imageAlt)}</p>`)
           textParts.push(extractPlainText(cellEl))
         }
       }
 
-      cells.push(`<${cellTag}${spanAttr}>${cellContent.join('<br>')}</${cellTag}>`)
+      cells.push(
+        `<${cellTag}${spanAttr}${rowSpanAttr}${buildCellStyleAttr(cellProps)}>${cellContent.join('')}</${cellTag}>`
+      )
 
       // Handle repeated empty cells
       const repeat = el.getAttributeNS('urn:oasis:names:tc:opendocument:xmlns:table:1.0', 'number-columns-repeated')
       if (repeat) {
         const repeatCount = Math.min(parseInt(repeat, 10) - 1, 50) // Safety limit
         for (let r = 0; r < repeatCount; r++) {
-          cells.push(`<${cellTag}>${cellContent.join('<br>')}</${cellTag}>`)
+          cells.push(`<${cellTag}${buildCellStyleAttr(cellProps)}>${cellContent.join('')}</${cellTag}>`)
         }
       }
+    } else if (el.localName === 'covered-table-cell' && isTableNs(el.namespaceURI)) {
+      continue
     }
   }
 
   return `<tr>${cells.join('')}</tr>`
+}
+
+function buildStyleAttribute(styles: Array<string | null | undefined>): string {
+  const filtered = styles.map(style => style?.trim()).filter((style): style is string => Boolean(style))
+  return filtered.length > 0 ? ` style="${escapeAttr(filtered.join('; '))}"` : ''
+}
+
+function buildTableStyleAttr(props?: StyleProperties): string {
+  return buildStyleAttribute([
+    props?.width ? `width: ${props.width}` : null,
+    props?.backgroundColor ? `background-color: ${props.backgroundColor}` : null,
+    props?.border ? `border: ${props.border}` : null
+  ])
+}
+
+function buildCellStyleAttr(props?: StyleProperties): string {
+  return buildStyleAttribute([
+    props?.backgroundColor ? `background-color: ${props.backgroundColor}` : null,
+    props?.textAlign ? `text-align: ${props.textAlign}` : null,
+    props?.verticalAlign ? `vertical-align: ${props.verticalAlign}` : null,
+    props?.border ? `border: ${props.border}` : null,
+    props?.borderTop ? `border-top: ${props.borderTop}` : null,
+    props?.borderRight ? `border-right: ${props.borderRight}` : null,
+    props?.borderBottom ? `border-bottom: ${props.borderBottom}` : null,
+    props?.borderLeft ? `border-left: ${props.borderLeft}` : null
+  ])
 }
 
 /**
