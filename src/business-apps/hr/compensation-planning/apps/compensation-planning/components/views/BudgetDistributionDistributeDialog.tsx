@@ -31,6 +31,61 @@ function percentOfPool(amount: number, pool: number): number {
   return Math.round((10000 * amount) / pool) / 100
 }
 
+/** Selected OUs get new slices; unselected OUs keep their current department `salary_budget_amount` in the total. */
+function totalSalaryBudgetDeployedToDepartments(
+  selectedOuIds: string[],
+  selectedSet: Set<string>,
+  allocationByOrgUnitId: ReadonlyMap<string, number>,
+  orgUnitBudgetRows: CompensationBudgetPlanOrganizationalUnitRow[]
+): number {
+  let total = 0
+  for (const ouId of selectedOuIds) {
+    total = roundMoney2(total + roundMoney2(allocationByOrgUnitId.get(ouId) ?? 0))
+  }
+  for (const r of orgUnitBudgetRows) {
+    if (!selectedSet.has(r.organizationalUnitId)) {
+      total = roundMoney2(total + roundMoney2(r.salaryBudgetAmount))
+    }
+  }
+  return total
+}
+
+async function saveDistributedOrgUnitRows(
+  restClient: RestClient,
+  accessToken: string,
+  selectedOuIds: string[],
+  rowByOuId: ReadonlyMap<string, CompensationBudgetPlanOrganizationalUnitRow>,
+  allocationByOrgUnitId: ReadonlyMap<string, number>,
+  distributionPool: number,
+  companyBudgetRow: CompensationBudgetPlanCompanyRow
+): Promise<void> {
+  for (const ouId of selectedOuIds) {
+    const row = rowByOuId.get(ouId)
+    const rawAmount = allocationByOrgUnitId.get(ouId) ?? 0
+    const sliceAmount = roundMoney2(rawAmount)
+    const isInsert = row == null
+    const slicePercent = distributionPool > 0 ? percentOfPool(sliceAmount, distributionPool) : 0
+    const unitPayload: CompensationBudgetPlanOrganizationalUnitRestPayload = {
+      salaryBudgetAmount: sliceAmount,
+      salaryBudgetPercent: slicePercent,
+      allocationAmount: 0,
+      bonusBudgetAmount: 0,
+      bonusBudgetPercent: 0,
+      budgetPlanStatus: 'BUDGET_PLAN_DRAFT',
+      compensationBudgetPlanCompany: companyBudgetRow.id,
+      organizationalUnit: ouId
+    }
+    if (!isInsert && row) {
+      unitPayload.id = row.id
+      unitPayload.version = row.version
+    }
+    await saveCompensationBudgetPlanOrganizationalUnit(restClient, accessToken, {
+      changeMode: isInsert ? 'INSERT' : 'UPDATE',
+      compensationBudgetPlanOrganizationalUnit: unitPayload
+    })
+  }
+}
+
 export interface BudgetDistributionDistributeDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -142,52 +197,24 @@ export function BudgetDistributionDistributeDialog({
 
     try {
       const selectedSet = new Set(ids)
+      const pool = distributionPool
 
-      for (const ouId of ids) {
-        const row = rowByOuId.get(ouId)
-        const rawAmount = allocationByOrgUnitId.get(ouId) ?? 0
-        const sliceAmount = roundMoney2(rawAmount)
-        const isInsert = row == null
+      await saveDistributedOrgUnitRows(
+        restClient,
+        accessToken,
+        ids,
+        rowByOuId,
+        allocationByOrgUnitId,
+        pool,
+        companyBudgetRow
+      )
 
-        /**
-         * HR → org unit: slice on `salary_budget_*`. OU `allocation_amount` stays 0 until employee-level distribution.
-         */
-        const slicePercent =
-          distributionPool != null && distributionPool > 0 ? percentOfPool(sliceAmount, distributionPool) : 0
-        const unitPayload: CompensationBudgetPlanOrganizationalUnitRestPayload = {
-          salaryBudgetAmount: sliceAmount,
-          salaryBudgetPercent: slicePercent,
-          allocationAmount: 0,
-          bonusBudgetAmount: 0,
-          bonusBudgetPercent: 0,
-          budgetPlanStatus: 'BUDGET_PLAN_DRAFT',
-          compensationBudgetPlanCompany: companyBudgetRow.id,
-          organizationalUnit: ouId
-        }
-
-        if (!isInsert && row) {
-          unitPayload.id = row.id
-          unitPayload.version = row.version
-        }
-
-        await saveCompensationBudgetPlanOrganizationalUnit(restClient, accessToken, {
-          changeMode: isInsert ? 'INSERT' : 'UPDATE',
-          compensationBudgetPlanOrganizationalUnit: unitPayload
-        })
-      }
-
-      /** Total deployed to departments: new slices for selected OUs + unchanged `salary_budget_amount` on other OU rows. */
-      let totalAllocatedToOrgUnits = 0
-      for (const ouId of ids) {
-        totalAllocatedToOrgUnits = roundMoney2(
-          totalAllocatedToOrgUnits + roundMoney2(allocationByOrgUnitId.get(ouId) ?? 0)
-        )
-      }
-      for (const r of orgUnitBudgetRows) {
-        if (!selectedSet.has(r.organizationalUnitId)) {
-          totalAllocatedToOrgUnits = roundMoney2(totalAllocatedToOrgUnits + roundMoney2(r.salaryBudgetAmount))
-        }
-      }
+      const totalAllocatedToOrgUnits = totalSalaryBudgetDeployedToDepartments(
+        ids,
+        selectedSet,
+        allocationByOrgUnitId,
+        orgUnitBudgetRows
+      )
 
       const companyBody = buildSaveCompensationBudgetPlanCompanyUpdateBody({
         id: companyBudgetRow.id,
@@ -217,6 +244,7 @@ export function BudgetDistributionDistributeDialog({
     distributionPool,
     onOpenChange,
     onSaved,
+    orgUnitBudgetRows,
     restClient,
     rowByOuId,
     selectedOuIds,

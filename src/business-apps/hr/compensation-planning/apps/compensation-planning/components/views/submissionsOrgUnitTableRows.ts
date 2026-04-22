@@ -71,13 +71,13 @@ export function buildSubmissionsOrgUnitTableRows(
     const salaryBudget = roundMoney2(raw.salaryBudgetAmount)
     const alloc = roundMoney2(raw.allocationAmount)
     const companyPool =
-      companyRow != null
-        ? resolveCompanySalaryIncreasePool({
+      companyRow == null
+        ? 0
+        : resolveCompanySalaryIncreasePool({
             salaryBudgetAmount: companyRow.salaryBudgetAmount,
             salaryBudgetPercent: companyRow.salaryBudgetPercent,
             currentTotalSalaryCost: companyRow.currentTotalSalaryCost
           })
-        : 0
     const allocationShareOfCompanyPoolPercent =
       companyPool > 0 && Number.isFinite(salaryBudget) ? Math.round((10000 * salaryBudget) / companyPool) / 100 : null
 

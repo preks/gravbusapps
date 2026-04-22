@@ -147,12 +147,12 @@ export function SentBackProposalEditDialog({
           {t('sent-back-edit-description', { name: row.employeeDisplayName })}
         </p>
 
-        {(row.reviewNotes ?? '').trim() !== '' ? (
+        {(row.reviewNotes ?? '').trim() === '' ? null : (
           <div className="gba:rounded-md gba:border gba:border-border gba:bg-muted/40 gba:p-3">
             <p className="gba:text-xs gba:font-medium gba:text-muted-foreground">{t('sent-back-edit-review-notes')}</p>
             <p className="gba:mt-1 gba:text-sm gba:text-foreground">{row.reviewNotes}</p>
           </div>
-        ) : null}
+        )}
 
         <div className="gba:space-y-2">
           <Label htmlFor="sent-back-increase">{t('sent-back-edit-increase-label')}</Label>
@@ -184,7 +184,7 @@ export function SentBackProposalEditDialog({
           </div>
         ) : null}
 
-        {!teamMember ? <p className="gba:text-sm gba:text-destructive">{t('sent-back-edit-missing-member')}</p> : null}
+        {teamMember ? null : <p className="gba:text-sm gba:text-destructive">{t('sent-back-edit-missing-member')}</p>}
 
         <div className="gba:space-y-2">
           <Label htmlFor="sent-back-justification">{t('sent-back-edit-justification-label')}</Label>

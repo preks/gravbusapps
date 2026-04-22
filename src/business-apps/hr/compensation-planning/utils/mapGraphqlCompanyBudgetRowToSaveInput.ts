@@ -55,14 +55,29 @@ export function mapGraphqlCompanyBudgetRowToSaveInputWithFallback(
   raw: Record<string, unknown>,
   prior: SaveCompensationBudgetPlanCompanyRowInput
 ): SaveCompensationBudgetPlanCompanyRowInput {
-  const pickNum = (primary: unknown, fallback: number) =>
-    primary !== undefined && primary !== null && String(primary).trim() !== '' ? num(primary) : fallback
+  const pickNum = (primary: unknown, fallback: number) => {
+    if (primary === undefined || primary === null) {
+      return fallback
+    }
+    if (typeof primary === 'string' && primary.trim() === '') {
+      return fallback
+    }
+    return num(primary)
+  }
+
+  const strFromRawOrPrior = (key: 'id' | 'compensationBudgetPlanId' | 'companyId') => {
+    const v = raw[key]
+    if (v === undefined || v === null) {
+      return prior[key]
+    }
+    return graphqlUnknownToStringOrNull(v) ?? prior[key]
+  }
 
   return {
-    id: String(raw.id ?? prior.id),
+    id: strFromRawOrPrior('id'),
     version: pickNum(raw.version, prior.version),
-    compensationBudgetPlanId: String(raw.compensationBudgetPlanId ?? prior.compensationBudgetPlanId),
-    companyId: String(raw.companyId ?? prior.companyId),
+    compensationBudgetPlanId: strFromRawOrPrior('compensationBudgetPlanId'),
+    companyId: strFromRawOrPrior('companyId'),
     salaryBudgetAmount: roundMoney2(pickNum(raw.salaryBudgetAmount, prior.salaryBudgetAmount)),
     salaryBudgetPercent: roundMoney2(pickNum(raw.salaryBudgetPercent, prior.salaryBudgetPercent)),
     allocationAmount: Math.max(0, roundMoney2(pickNum(raw.allocationAmount, prior.allocationAmount))),

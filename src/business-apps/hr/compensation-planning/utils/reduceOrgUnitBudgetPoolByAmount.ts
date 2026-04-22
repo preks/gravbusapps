@@ -76,7 +76,7 @@ export async function reduceOrgUnitBudgetPoolByAmount(
     throw new Error('Company budget row not found')
   }
 
-  const companySavePrior = mapGraphqlCompanyBudgetRowToSaveInputStrict(company as Record<string, unknown>)
+  const companySavePrior = mapGraphqlCompanyBudgetRowToSaveInputStrict(company)
 
   const companyBaseline = roundMoney2(num(company.currentTotalSalaryCost))
   const nextOuSalary = roundMoney2(num(ou.salaryBudgetAmount))
@@ -128,7 +128,7 @@ export async function reduceOrgUnitBudgetPoolByAmount(
   }
 
   const companyBody = buildSaveCompensationBudgetPlanCompanyUpdateBody(
-    mapGraphqlCompanyBudgetRowToSaveInputWithFallback(companyAfterOu as Record<string, unknown>, companySavePrior)
+    mapGraphqlCompanyBudgetRowToSaveInputWithFallback(companyAfterOu, companySavePrior)
   )
   await saveCompensationBudgetPlanCompany(restClient, accessToken, companyBody)
 }
