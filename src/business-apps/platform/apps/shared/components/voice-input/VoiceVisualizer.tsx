@@ -8,6 +8,7 @@ export interface VoiceVisualizerProps {
   volume: number
   isListening: boolean
   interimText?: string
+  listeningLabel?: string
   className?: string
   'data-testid'?: string
 }
@@ -16,6 +17,7 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
   volume,
   isListening,
   interimText,
+  listeningLabel,
   className,
   'data-testid': testId = 'voice-visualizer'
 }) => {
@@ -55,7 +57,9 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
         <div className="gba:flex-1 gba:min-w-0">
           <div className="gba:flex gba:items-center gba:gap-3">
             <WaveformBars volume={volume} />
-            <span className="gba:text-sm gba:font-medium gba:text-primary gba:animate-pulse">Listening...</span>
+            <span className="gba:text-sm gba:font-medium gba:text-primary gba:animate-pulse">
+              {listeningLabel ?? 'Listening...'}
+            </span>
           </div>
 
           {interimText && (
