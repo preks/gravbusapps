@@ -41,6 +41,18 @@ function computePercentFilterMax(rows: readonly BudgetSetupPlanTableRow[]): numb
   return Math.max(PERCENT_FILTER_MIN_MAX, scaled)
 }
 
+function computeAllocationAmountFilterMax(rows: readonly BudgetSetupPlanTableRow[]): number {
+  const amounts = rows.map(r => r.allocationAmount).filter(n => Number.isFinite(n))
+  if (amounts.length === 0) {
+    return AMOUNT_FILTER_MAX_FALLBACK
+  }
+  const peak = Math.max(0, ...amounts)
+  if (peak === 0) {
+    return AMOUNT_FILTER_MAX_FALLBACK
+  }
+  return Math.ceil(peak * FILTER_RANGE_HEADROOM_RATIO)
+}
+
 export function buildBudgetSetupPlansFilterConfiguration(
   t: TranslateFn,
   companyBudgetStatusOptions: { id: string; label: string }[],
@@ -48,6 +60,7 @@ export function buildBudgetSetupPlansFilterConfiguration(
 ): FilterConfiguration {
   const amountMax = computeAmountFilterMax(rows)
   const percentMax = computePercentFilterMax(rows)
+  const allocationAmountMax = computeAllocationAmountFilterMax(rows)
 
   return {
     id: 'budget-setup-plans-filters',
@@ -108,6 +121,28 @@ export function buildBudgetSetupPlansFilterConfiguration(
               step: 0.01,
               placeholderMin: t('budget-setup-table-filter-salary-percent-min-placeholder'),
               placeholderMax: t('budget-setup-table-filter-salary-percent-max-placeholder')
+            }
+          }
+        ]
+      },
+      {
+        id: 'allocation-amount-group',
+        label: t('budget-setup-table-filter-allocation-amount-range-group'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'allocationAmount',
+            field: 'allocationAmount',
+            label: t('budget-setup-table-filter-allocation-amount-range-label'),
+            type: 'number',
+            config: {
+              mode: 'range',
+              min: 0,
+              max: allocationAmountMax,
+              step: 1,
+              placeholderMin: t('budget-setup-table-filter-allocation-amount-min-placeholder'),
+              placeholderMax: t('budget-setup-table-filter-allocation-amount-max-placeholder')
             }
           }
         ]

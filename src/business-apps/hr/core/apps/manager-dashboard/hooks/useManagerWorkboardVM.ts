@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useDirectReports } from './useDirectReports'
 import { useMatrixTeams } from './useMatrixTeams'
@@ -9,12 +9,26 @@ import { useCurrentUserProfile } from './useCurrentUserProfile'
 import { useCurrentUserOrgData } from './useCurrentUserOrgData'
 import { useTeamAvailability } from './useTeamAvailability'
 import { useTeamProjectAllocation } from './useTeamProjectAllocation'
-import { useTeamPerformance } from './useTeamPerformance'
+import { useTeamPerformance, TeamMemberPerformance, PerformanceGoal } from './useTeamPerformance'
 import { useTeamAttendance } from './useTeamAttendance'
 import { useManagerFeedback } from './useManagerFeedback'
 import { useAIInsights } from './useAIInsights'
 import { useFlightRiskPrediction } from './useFlightRiskPrediction'
+import { useTeamSkills } from './useTeamSkills'
+import { useTeamFeedbackOverview } from './useTeamFeedbackOverview'
+import { useTeamEvaluations } from './useTeamEvaluations'
+import { useTeamPerformanceInsights } from './useTeamPerformanceInsights'
+import { usePerformanceCycles } from '../../performance-evaluation/hooks/usePerformanceCycles'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import {
+  computeScoreDistribution,
+  computeTrendSeries,
+  generateAlerts,
+  detectEmployeeSignals,
+  detectTeamSignals,
+  computeTeamDimensionAverages
+} from '../utils/dashboardComputations'
+import { computeContainedGoalRollup } from '../utils/managerPerformanceGoalMetrics'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 type TeamTab = 'my-team' | 'my-teams'
@@ -28,6 +42,7 @@ type CurrentView =
   | 'anniversaries'
   | 'open-positions'
   | 'team-performance'
+  | 'team-performance-overview'
   | 'not-clocked-in'
 type GoalStatusFilter = 'ALL' | 'ON_TRACK' | 'AT_RISK' | 'BEHIND_TARGET' | 'ACHIEVED'
 
@@ -100,6 +115,10 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     setCurrentView('team-performance')
     setFilterGoalsBehindOnly(false)
     setInitialPerformanceStatusFilter('AT_RISK')
+  }
+
+  const handleNavigateToTeamPerformanceOverview = () => {
+    setCurrentView('team-performance-overview')
   }
 
   const handleNavigateToNotClockedIn = () => {
@@ -228,6 +247,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     goalsOnTrack,
     goalsAtRisk,
     goalsBehindTarget,
+    goalsAchieved,
     loading: loadingTeamPerformance,
     refetch: refetchTeamPerformance
   } = useTeamPerformance({
@@ -254,7 +274,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
 
   const directReportIds = useMemo(() => directReports.map(r => r.id), [directReports])
 
-  const { daysSinceLastFeedback, hasFeedbackRecently } = useManagerFeedback({
+  const { daysSinceLastFeedback, hasFeedbackRecently, lastFeedbackByEmployeeId } = useManagerFeedback({
     accessToken: accessToken || '',
     managerId: employeeId || '',
     directReportIds
@@ -276,6 +296,283 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     enableAISentiment
   })
 
+  const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null)
+
+  const { cycles: performanceCycles, loading: loadingPerformanceCycles } = usePerformanceCycles(accessToken)
+
+  const dashboardAvailableCycles = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    return performanceCycles
+      .filter(c => {
+        const evalEnd = c.evaluationPeriodEndDate || c.endDate
+        if (!evalEnd) return false
+        return (
+          c.status !== 'Inactive' ||
+          c.apiStatus !== 'DEACTIVATED_PERFORMANCE_CYCLE_STATUS' ||
+          (() => {
+            const end = new Date(evalEnd)
+            end.setHours(23, 59, 59, 999)
+            return today <= end
+          })()
+        )
+      })
+      .sort((a, b) => {
+        const aEnd = a.evaluationPeriodEndDate ?? a.endDate
+        const bEnd = b.evaluationPeriodEndDate ?? b.endDate
+        return bEnd.localeCompare(aEnd)
+      })
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        apiStatus: c.apiStatus,
+        evaluationPeriodStartDate: c.evaluationPeriodStartDate,
+        evaluationPeriodEndDate: c.evaluationPeriodEndDate
+      }))
+  }, [performanceCycles])
+
+  useEffect(() => {
+    if (!loadingPerformanceCycles && selectedCycleId === null && dashboardAvailableCycles.length > 0) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      const currentCycle = dashboardAvailableCycles.find(c => {
+        const start = c.evaluationPeriodStartDate || ''
+        const end = c.evaluationPeriodEndDate || ''
+        if (!start || !end) return false
+        const s = new Date(start)
+        const e = new Date(end)
+        s.setHours(0, 0, 0, 0)
+        e.setHours(23, 59, 59, 999)
+        return today >= s && today <= e
+      })
+
+      if (currentCycle) {
+        setSelectedCycleId(currentCycle.id)
+      } else if (dashboardAvailableCycles.length > 0) {
+        setSelectedCycleId(dashboardAvailableCycles[0].id)
+      }
+    }
+  }, [loadingPerformanceCycles, dashboardAvailableCycles, selectedCycleId])
+
+  const selectedCyclePeriod = useMemo(() => {
+    const cycle = performanceCycles.find(c => c.id === selectedCycleId)
+    if (!cycle || !selectedCycleId) return null
+    const start = cycle.evaluationPeriodStartDate || cycle.startDate
+    const end = cycle.evaluationPeriodEndDate || cycle.endDate
+    if (!start || !end) return null
+    return {
+      start,
+      end,
+      name: cycle.name,
+      cycleId: selectedCycleId,
+      evaluationPeriodStartDate: cycle.evaluationPeriodStartDate ?? start,
+      evaluationPeriodEndDate: cycle.evaluationPeriodEndDate ?? end
+    }
+  }, [performanceCycles, selectedCycleId])
+
+  const {
+    members: teamSkillsMembers,
+    skillGrowth: teamSkillGrowth,
+    teamSkillCoverage,
+    employeesWithoutProfile,
+    topSkillGaps,
+    topTeamStrengths,
+    loading: loadingTeamSkills,
+    error: teamSkillsError
+  } = useTeamSkills({
+    accessToken: accessToken || '',
+    managerId: employeeId || '',
+    periodStart: selectedCyclePeriod?.start,
+    periodEnd: selectedCyclePeriod?.end
+  })
+
+  const {
+    members: teamFeedbackMembers,
+    teamAvgRating,
+    totalReceivedCount: totalFeedbackCount,
+    totalGivenCount: totalFeedbackGivenCount,
+    feedbackCoverage: teamFeedbackCoverage,
+    recognitionRatio: teamRecognitionRatio,
+    membersWithNoRecentFeedback,
+    loading: loadingTeamFeedback,
+    error: teamFeedbackError
+  } = useTeamFeedbackOverview({
+    accessToken: accessToken || '',
+    managerId: employeeId || '',
+    periodStart: selectedCyclePeriod?.start,
+    periodEnd: selectedCyclePeriod?.end
+  })
+
+  const {
+    members: teamEvaluationMembers,
+    teamAvgScore: teamEvalAvgScore,
+    teamCompanyValuesAvg: teamEvalCompanyValuesAvg,
+    teamSkillsAvg: teamEvalSkillsAvg,
+    pendingEvaluations,
+    completedEvaluations,
+    loading: loadingTeamEvaluations,
+    error: teamEvaluationsError
+  } = useTeamEvaluations({
+    accessToken: accessToken || '',
+    managerId: employeeId || '',
+    selectedCycleId
+  })
+
+  // Dashboard-specific goals fetch (separate from main dashboard's useTeamPerformance)
+  const [dashboardGoals, setDashboardGoals] = useState<TeamMemberPerformance[]>([])
+  const [dashboardGoalStats, setDashboardGoalStats] = useState({
+    totalGoals: 0,
+    goalsOnTrack: 0,
+    goalsAtRisk: 0,
+    goalsBehindTarget: 0,
+    goalsAchieved: 0,
+    averageProgress: 0
+  })
+  const [loadingDashboardGoals, setLoadingDashboardGoals] = useState(false)
+
+  const fetchDashboardGoals = useCallback(async () => {
+    if (!selectedCycleId || !accessToken || directReports.length === 0) {
+      setDashboardGoals([])
+      setDashboardGoalStats({
+        totalGoals: 0,
+        goalsOnTrack: 0,
+        goalsAtRisk: 0,
+        goalsBehindTarget: 0,
+        goalsAchieved: 0,
+        averageProgress: 0
+      })
+      return
+    }
+
+    setLoadingDashboardGoals(true)
+    try {
+      const employeeIds = directReports.map(r => r.id)
+      const goalsQuery = `
+        query GetDashboardGoals($employeeIds: [uuid!]!, $cycleId: uuid!) {
+          EmployeePerformanceGoal(
+            where: {
+              employeeId: { _in: $employeeIds },
+              isDeleted: { _eq: false },
+              performanceCycleId: { _eq: $cycleId }
+            },
+            orderBy: { progressPercent: DESC }
+          ) {
+            id
+            title
+            startDate
+            dueDate
+            completionDate
+            progressPercent
+            status
+            employeeId
+            updatedAt
+            employeePerformanceGoalUpdate(orderBy: { updateTime: ASC }) {
+              id
+              progressPercent
+              comment
+              updateTime
+              employee {
+                firstName
+                lastName
+              }
+            }
+          }
+        }
+      `
+      const goalsResponse = await graphQLClient.request(goalsQuery, {
+        employeeIds,
+        cycleId: selectedCycleId
+      })
+      const allGoals = goalsResponse?.EmployeePerformanceGoal || []
+
+      const cycleMeta = performanceCycles.find(c => c.id === selectedCycleId)
+      const cycleStart = cycleMeta?.startDate || cycleMeta?.evaluationPeriodStartDate || ''
+      const cycleEnd = cycleMeta?.endDate || cycleMeta?.evaluationPeriodEndDate || ''
+
+      const goalsByEmployee = new Map<string, typeof allGoals>()
+      for (const empId of employeeIds) goalsByEmployee.set(empId, [])
+      for (const goal of allGoals) {
+        const empGoals = goalsByEmployee.get(goal.employeeId)
+        if (empGoals) empGoals.push(goal)
+      }
+
+      let totalProgress = 0,
+        totalCount = 0,
+        onTrack = 0,
+        atRisk = 0,
+        behind = 0,
+        achieved = 0
+
+      const memberData: TeamMemberPerformance[] = directReports.map(emp => {
+        const rawGoals = goalsByEmployee.get(emp.id) || []
+        const rollup =
+          cycleStart && cycleEnd
+            ? computeContainedGoalRollup(rawGoals, cycleStart, cycleEnd)
+            : {
+                goals: [] as PerformanceGoal[],
+                totalGoals: 0,
+                goalsOnTrack: 0,
+                goalsAtRisk: 0,
+                goalsBehindTarget: 0,
+                goalsAchieved: 0,
+                averageProgress: 0
+              }
+
+        totalCount += rollup.totalGoals
+        totalProgress += rollup.totalGoals > 0 ? rollup.averageProgress * rollup.totalGoals : 0
+        onTrack += rollup.goalsOnTrack
+        atRisk += rollup.goalsAtRisk
+        behind += rollup.goalsBehindTarget
+        achieved += rollup.goalsAchieved
+
+        return {
+          employeeId: emp.id,
+          userId: emp.userId || emp.id,
+          firstName: emp.firstName,
+          lastName: emp.lastName,
+          pictureThumbnail: emp.pictureThumbnail,
+          jobPositionName: emp.jobPositionName || '',
+          goals: rollup.goals,
+          averageProgress: rollup.averageProgress,
+          totalGoals: rollup.totalGoals,
+          goalsOnTrack: rollup.goalsOnTrack,
+          goalsAtRisk: rollup.goalsAtRisk,
+          goalsBehindTarget: rollup.goalsBehindTarget,
+          goalsAchieved: rollup.goalsAchieved
+        }
+      })
+
+      setDashboardGoals(memberData)
+      setDashboardGoalStats({
+        totalGoals: totalCount,
+        goalsOnTrack: onTrack,
+        goalsAtRisk: atRisk,
+        goalsBehindTarget: behind,
+        goalsAchieved: achieved,
+        averageProgress: totalCount > 0 ? Math.round(totalProgress / totalCount) : 0
+      })
+    } catch (err) {
+      console.error('Error fetching dashboard goals:', err)
+      setDashboardGoals([])
+      setDashboardGoalStats({
+        totalGoals: 0,
+        goalsOnTrack: 0,
+        goalsAtRisk: 0,
+        goalsBehindTarget: 0,
+        goalsAchieved: 0,
+        averageProgress: 0
+      })
+    } finally {
+      setLoadingDashboardGoals(false)
+    }
+  }, [selectedCycleId, accessToken, directReports, graphQLClient, performanceCycles])
+
+  useEffect(() => {
+    fetchDashboardGoals()
+  }, [fetchDashboardGoals])
+
   const { userProfile } = useCurrentUserProfile({
     accessToken: accessToken || '',
     employeeId: employeeId || ''
@@ -284,6 +581,171 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
   const { orgData: userOrgData } = useCurrentUserOrgData({
     accessToken: accessToken || '',
     employeeId: employeeId || ''
+  })
+
+  const teamPerformanceSnapshotParams = useMemo(() => {
+    const allLoaded = !loadingTeamSkills && !loadingTeamFeedback && !loadingTeamEvaluations && !loadingDashboardGoals
+    if (!allLoaded || !employeeId || !selectedCyclePeriod) return null
+
+    return {
+      goals: {
+        teamPerformance: dashboardGoals,
+        averageTeamProgress: dashboardGoalStats.averageProgress,
+        totalGoals: dashboardGoalStats.totalGoals,
+        goalsOnTrack: dashboardGoalStats.goalsOnTrack,
+        goalsAtRisk: dashboardGoalStats.goalsAtRisk,
+        goalsBehindTarget: dashboardGoalStats.goalsBehindTarget,
+        goalsAchieved: dashboardGoalStats.goalsAchieved
+      },
+      skills: {
+        members: teamSkillsMembers,
+        teamSkillCoverage,
+        topSkillGaps,
+        topTeamStrengths
+      },
+      feedback: {
+        members: teamFeedbackMembers,
+        teamAvgRating,
+        totalReceivedCount: totalFeedbackCount,
+        totalGivenCount: totalFeedbackGivenCount,
+        feedbackCoverage: teamFeedbackCoverage,
+        recognitionRatio: teamRecognitionRatio,
+        membersWithNoRecentFeedback
+      },
+      evaluations: {
+        members: teamEvaluationMembers,
+        teamAvgScore: teamEvalAvgScore,
+        teamCompanyValuesAvg: teamEvalCompanyValuesAvg,
+        teamSkillsAvg: teamEvalSkillsAvg,
+        pendingEvaluations,
+        completedEvaluations
+      },
+      performanceCycle: {
+        id: selectedCyclePeriod.cycleId,
+        name: selectedCyclePeriod.name,
+        evaluation_period_start_date: selectedCyclePeriod.evaluationPeriodStartDate,
+        evaluation_period_end_date: selectedCyclePeriod.evaluationPeriodEndDate
+      },
+      managerName: userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : 'Manager',
+      teamSize: directReports.length
+    }
+  }, [
+    loadingTeamSkills,
+    loadingTeamFeedback,
+    loadingTeamEvaluations,
+    loadingDashboardGoals,
+    employeeId,
+    selectedCyclePeriod,
+    dashboardGoals,
+    dashboardGoalStats,
+    teamSkillsMembers,
+    teamSkillCoverage,
+    topSkillGaps,
+    topTeamStrengths,
+    teamFeedbackMembers,
+    teamAvgRating,
+    totalFeedbackCount,
+    totalFeedbackGivenCount,
+    teamFeedbackCoverage,
+    teamRecognitionRatio,
+    membersWithNoRecentFeedback,
+    teamEvaluationMembers,
+    teamEvalAvgScore,
+    teamEvalCompanyValuesAvg,
+    teamEvalSkillsAvg,
+    pendingEvaluations,
+    completedEvaluations,
+    userProfile,
+    directReports.length
+  ])
+
+  const teamPerformanceInsights = useTeamPerformanceInsights({
+    accessToken: accessToken || '',
+    managerId: employeeId || '',
+    snapshotParams: teamPerformanceSnapshotParams,
+    performanceCycleId: selectedCycleId
+  })
+
+  const currentCycleSnapshotParams = useMemo(() => {
+    if (!loadingTeamPerformance && !loadingTeamSkills && !loadingTeamFeedback && employeeId && selectedCyclePeriod) {
+      return {
+        goals: {
+          teamPerformance,
+          averageTeamProgress,
+          totalGoals: totalPerformanceGoals,
+          goalsOnTrack,
+          goalsAtRisk,
+          goalsBehindTarget,
+          goalsAchieved
+        },
+        skills: {
+          members: teamSkillsMembers,
+          teamSkillCoverage,
+          topSkillGaps,
+          topTeamStrengths
+        },
+        feedback: {
+          members: teamFeedbackMembers,
+          teamAvgRating,
+          totalReceivedCount: totalFeedbackCount,
+          totalGivenCount: totalFeedbackGivenCount,
+          feedbackCoverage: teamFeedbackCoverage,
+          recognitionRatio: teamRecognitionRatio,
+          membersWithNoRecentFeedback
+        },
+        evaluations: {
+          members: [],
+          teamAvgScore: null,
+          teamCompanyValuesAvg: null,
+          teamSkillsAvg: null,
+          pendingEvaluations: 0,
+          completedEvaluations: 0
+        },
+        managerName: userProfile ? `${userProfile.firstName ?? ''} ${userProfile.lastName ?? ''}`.trim() : 'Manager',
+        teamSize: directReports.length,
+        performanceCycle: {
+          id: selectedCyclePeriod.cycleId,
+          name: selectedCyclePeriod.name,
+          evaluation_period_start_date: selectedCyclePeriod.evaluationPeriodStartDate,
+          evaluation_period_end_date: selectedCyclePeriod.evaluationPeriodEndDate
+        }
+      }
+    }
+    return null
+  }, [
+    loadingTeamPerformance,
+    loadingTeamSkills,
+    loadingTeamFeedback,
+    employeeId,
+    selectedCyclePeriod,
+    selectedCycleId,
+    teamPerformance,
+    averageTeamProgress,
+    totalPerformanceGoals,
+    goalsOnTrack,
+    goalsAtRisk,
+    goalsBehindTarget,
+    goalsAchieved,
+    teamSkillsMembers,
+    teamSkillCoverage,
+    topSkillGaps,
+    topTeamStrengths,
+    teamFeedbackMembers,
+    teamAvgRating,
+    totalFeedbackCount,
+    totalFeedbackGivenCount,
+    teamFeedbackCoverage,
+    teamRecognitionRatio,
+    membersWithNoRecentFeedback,
+    userProfile,
+    directReports.length
+  ])
+
+  const currentCycleInsights = useTeamPerformanceInsights({
+    accessToken: accessToken || '',
+    managerId: employeeId || '',
+    snapshotParams: currentCycleSnapshotParams,
+    performanceCycleId: selectedCycleId ? `current_${selectedCycleId}` : null
   })
 
   const refreshManagerDashboardData = async () => {
@@ -331,16 +793,31 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
   const goalsBehindData = useMemo(() => {
     if (!teamPerformance || teamPerformance.length === 0) return []
 
+    const isBehindTargetGoal = (goal: {
+      status: string
+      progressPercent: number
+      trackState?: 'ON_TRACK' | 'BEHIND_TARGET'
+    }) => {
+      const isAchieved = goal.status === 'ACHIEVED' || goal.progressPercent >= 100
+      if (isAchieved) return false
+
+      if (goal.trackState === 'BEHIND_TARGET') return true
+      return goal.status === 'BEHIND_TARGET' || goal.status === 'NOT_ACHIEVED'
+    }
+
     const employeesWithGoalsBehind = teamPerformance.filter(member => member.goalsBehindTarget > 0)
 
     return employeesWithGoalsBehind
       .map(member => {
-        const goalsBehind = member.goals.filter(g => g.status === 'BEHIND_TARGET' || g.status === 'NOT_ACHIEVED')
+        const goalsBehind = member.goals.filter(isBehindTargetGoal)
 
         return {
           employeeId: member.employeeId,
           employeeName: `${member.firstName} ${member.lastName}`,
           employeeUserId: member.userId || '',
+          firstName: member.firstName,
+          lastName: member.lastName,
+          pictureThumbnail: member.pictureThumbnail,
           goals: goalsBehind.map(g => ({
             id: g.id,
             title: g.title,
@@ -348,8 +825,13 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
           }))
         }
       })
-      .filter(emp => emp.goals.length > 0 && emp.employeeUserId) // Only include with userId and goals
+      .filter(emp => emp.goals.length > 0) // Keep all behind-goal rows; reminder action is disabled without userId
   }, [teamPerformance])
+
+  const goalsBehindPanelCount = useMemo(
+    () => goalsBehindData.reduce((total, employee) => total + employee.goals.length, 0),
+    [goalsBehindData]
+  )
 
   // Not clocked in employees with userId for chat nudges
   const notClockedInEmployeesWithUserId = useMemo(() => {
@@ -370,6 +852,9 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
       .map(report => ({
         id: report.id,
         name: `${report.firstName} ${report.lastName}`,
+        firstName: report.firstName,
+        lastName: report.lastName,
+        pictureThumbnail: report.pictureThumbnail,
         userId: report.userId || report.id // Fallback to employee ID if userId doesn't exist
       }))
       .filter(emp => emp.userId) // Only include those with some ID
@@ -407,6 +892,9 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         .map(report => ({
           id: report.id,
           name: `${report.firstName} ${report.lastName}`,
+          firstName: report.firstName,
+          lastName: report.lastName,
+          pictureThumbnail: report.pictureThumbnail,
           allocationPercent: employeeAllocations.find(allocation => allocation.id === report.id)?.allocationPercent || 0
         })),
     [directReports, unallocatedEmployeeIds, employeeAllocations]
@@ -532,18 +1020,92 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     fetchUnallocatedSalaryCost()
   }, [unallocatedEmployeeIds, graphQLClient])
 
+  // Dashboard computed data
+  const dashboardScoreDistribution = useMemo(
+    () => computeScoreDistribution(teamEvaluationMembers),
+    [teamEvaluationMembers]
+  )
+
+  const dashboardTrendSeries = useMemo(() => computeTrendSeries(teamEvaluationMembers), [teamEvaluationMembers])
+
+  const dashboardAlerts = useMemo(
+    () => generateAlerts(teamEvaluationMembers, teamPerformance, teamFeedbackMembers, teamSkillsMembers),
+    [teamEvaluationMembers, teamPerformance, teamFeedbackMembers, teamSkillsMembers]
+  )
+
+  const dashboardEmployeeSignals = useMemo(
+    () => detectEmployeeSignals(teamEvaluationMembers, teamPerformance, teamFeedbackMembers, teamSkillsMembers),
+    [teamEvaluationMembers, teamPerformance, teamFeedbackMembers, teamSkillsMembers]
+  )
+
+  const dashboardTeamSignals = useMemo(
+    () => detectTeamSignals(teamEvaluationMembers, teamPerformance, teamFeedbackMembers, dashboardEmployeeSignals),
+    [teamEvaluationMembers, teamPerformance, teamFeedbackMembers, dashboardEmployeeSignals]
+  )
+
+  const dashboardTalentSignals = useMemo(
+    () =>
+      dashboardEmployeeSignals.map(signal => ({
+        employeeId: signal.employeeId,
+        employeeName: signal.employeeName,
+        pictureThumbnail: signal.pictureThumbnail,
+        signalType: signal.signalType,
+        description: signal.description,
+        supportingData: signal.supportingData
+      })),
+    [dashboardEmployeeSignals]
+  )
+
+  const dashboardCompanyValuesDimensionAvgs = useMemo(
+    () => computeTeamDimensionAverages(teamEvaluationMembers, 'companyValues'),
+    [teamEvaluationMembers]
+  )
+
+  const dashboardSkillsDimensionAvgs = useMemo(
+    () => computeTeamDimensionAverages(teamEvaluationMembers, 'skills'),
+    [teamEvaluationMembers]
+  )
+
+  const dashboardRatingScaleLimit = useMemo(() => {
+    for (const m of teamEvaluationMembers) {
+      if (m.ratingScaleLimit != null) return m.ratingScaleLimit
+    }
+    return 5
+  }, [teamEvaluationMembers])
+
+  const dashboardSkillGrowthRate = useMemo(() => {
+    const withChange = teamEvaluationMembers.filter(m => m.changeSkills != null && m.changeSkills > 0)
+    return teamEvaluationMembers.length > 0 ? Math.round((withChange.length / teamEvaluationMembers.length) * 100) : 0
+  }, [teamEvaluationMembers])
+
+  const dashboardChangeOverall = useMemo(() => {
+    const changes = teamEvaluationMembers.filter(m => m.changeOverall != null).map(m => m.changeOverall!)
+    return changes.length > 0 ? Math.round((changes.reduce((a, b) => a + b, 0) / changes.length) * 10) / 10 : null
+  }, [teamEvaluationMembers])
+
+  const dashboardChangeCompanyValues = useMemo(() => {
+    const changes = teamEvaluationMembers.filter(m => m.changeCompanyValues != null).map(m => m.changeCompanyValues!)
+    return changes.length > 0 ? Math.round((changes.reduce((a, b) => a + b, 0) / changes.length) * 10) / 10 : null
+  }, [teamEvaluationMembers])
+
+  const dashboardChangeSkills = useMemo(() => {
+    const changes = teamEvaluationMembers.filter(m => m.changeSkills != null).map(m => m.changeSkills!)
+    return changes.length > 0 ? Math.round((changes.reduce((a, b) => a + b, 0) / changes.length) * 10) / 10 : null
+  }, [teamEvaluationMembers])
+
   // Structured return object organized by UI sections
   return {
     // Section 1: Today's Priorities (AI-driven insights)
+    // Do not gate the whole card on allocation or AI — show a dedicated row while project data loads.
     priorities: {
       items: aiInsightItems,
-      loading: loadingAI,
+      loading: false,
       counts: {
         onLeave: onLeaveCount,
         sickLeaves: sickLeavesCount,
         unallocated: unallocatedCount,
         withoutGoals: employeesWithoutGoalsCount,
-        goalsBehind: goalsBehindTarget,
+        goalsBehind: goalsBehindPanelCount,
         notClockedIn: notClockedInCount,
         remote: remoteCount,
         upcomingAnniversaries: upcomingAnniversaries.length
@@ -555,7 +1117,8 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
       notClockedInEmployees: notClockedInEmployeesWithUserId,
       feedback: {
         daysSince: daysSinceLastFeedback,
-        hasRecently: hasFeedbackRecently
+        hasRecently: hasFeedbackRecently,
+        lastByEmployeeId: lastFeedbackByEmployeeId
       }
     },
 
@@ -602,13 +1165,78 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
       onTrack: goalsOnTrack,
       atRisk: goalsAtRisk,
       behind: goalsBehindTarget,
+      completed: goalsAchieved,
       totalGoals: totalPerformanceGoals,
       averageProgress: averageTeamProgress,
       details: teamPerformance,
       loading: loadingTeamPerformance
     },
 
-    // Section 6: People & Moments (Insights)
+    // Section 6: Team Performance Dashboard (multi-dimensional)
+    teamPerformanceOverview: {
+      goals: {
+        teamPerformance: dashboardGoals,
+        totalGoals: dashboardGoalStats.totalGoals,
+        goalsOnTrack: dashboardGoalStats.goalsOnTrack,
+        goalsAtRisk: dashboardGoalStats.goalsAtRisk,
+        goalsBehindTarget: dashboardGoalStats.goalsBehindTarget,
+        goalsAchieved: dashboardGoalStats.goalsAchieved,
+        averageProgress: dashboardGoalStats.averageProgress,
+        loading: loadingDashboardGoals
+      },
+      skills: {
+        members: teamSkillsMembers,
+        skillGrowth: teamSkillGrowth,
+        teamSkillCoverage,
+        employeesWithoutProfile,
+        topSkillGaps,
+        topTeamStrengths,
+        loading: loadingTeamSkills,
+        error: teamSkillsError
+      },
+      feedback: {
+        members: teamFeedbackMembers,
+        teamAvgRating,
+        totalFeedbackCount,
+        totalGivenCount: totalFeedbackGivenCount,
+        feedbackCoverage: teamFeedbackCoverage,
+        recognitionRatio: teamRecognitionRatio,
+        membersWithNoRecentFeedback,
+        loading: loadingTeamFeedback,
+        error: teamFeedbackError
+      },
+      evaluations: {
+        members: teamEvaluationMembers,
+        teamAvgScore: teamEvalAvgScore,
+        teamCompanyValuesAvg: teamEvalCompanyValuesAvg,
+        teamSkillsAvg: teamEvalSkillsAvg,
+        availableCycles: dashboardAvailableCycles,
+        pendingEvaluations,
+        completedEvaluations,
+        loading: loadingTeamEvaluations,
+        error: teamEvaluationsError
+      },
+      insights: teamPerformanceInsights,
+      dashboard: {
+        selectedCycleId,
+        setSelectedCycleId,
+        scoreDistribution: dashboardScoreDistribution,
+        trendSeries: dashboardTrendSeries,
+        alerts: dashboardAlerts,
+        talentSignals: dashboardTalentSignals,
+        employeeSignals: dashboardEmployeeSignals,
+        teamSignals: dashboardTeamSignals,
+        companyValuesDimensionAverages: dashboardCompanyValuesDimensionAvgs,
+        skillsDimensionAverages: dashboardSkillsDimensionAvgs,
+        ratingScaleLimit: dashboardRatingScaleLimit,
+        skillGrowthRate: dashboardSkillGrowthRate,
+        changeOverall: dashboardChangeOverall,
+        changeCompanyValues: dashboardChangeCompanyValues,
+        changeSkills: dashboardChangeSkills
+      }
+    },
+
+    // Section 7: People & Moments (Insights)
     peopleMoments: {
       birthdays: upcomingBirthdays,
       anniversaries: upcomingAnniversaries,
@@ -653,6 +1281,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
       navigateToTeamPerformance: handleNavigateToTeamPerformance,
       navigateToGoalsBehind: handleNavigateToGoalsBehind,
       navigateToGoalsAtRisk: handleNavigateToGoalsAtRisk,
+      navigateToTeamPerformanceOverview: handleNavigateToTeamPerformanceOverview,
       navigateToNotClockedIn: handleNavigateToNotClockedIn,
       navigateToBirthdays: handleNavigateToBirthdays,
       navigateToAnniversaries: handleNavigateToAnniversaries,
@@ -699,10 +1328,12 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     goalsOnTrack,
     goalsAtRisk,
     goalsBehindTarget,
+    goalsAchieved,
     remoteCount,
     notClockedInCount,
     daysSinceLastFeedback,
     hasFeedbackRecently,
+    lastFeedbackByEmployeeId,
     flightRiskSummary,
     flightRiskEmployees,
     loadingDirectReports,
@@ -742,6 +1373,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     handleNavigateToTeamPerformance,
     handleNavigateToGoalsBehind,
     handleNavigateToGoalsAtRisk,
+    handleNavigateToTeamPerformanceOverview,
     handleNavigateToNotClockedIn,
     handleNavigateToBirthdays,
     handleNavigateToAnniversaries,
@@ -752,6 +1384,25 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     handleNavigateToEmployee,
     handleOpenMemberPanel,
     handleCloseMemberPanel,
+
+    // Feedback & Skills for team-performance view
+    teamFeedbackSummary: {
+      teamAvgRating,
+      totalFeedbackCount,
+      totalGivenCount: totalFeedbackGivenCount,
+      feedbackCoverage: teamFeedbackCoverage,
+      recognitionRatio: teamRecognitionRatio,
+      membersWithNoRecentFeedback,
+      loading: loadingTeamFeedback
+    },
+    teamSkillsSummary: {
+      teamSkillCoverage,
+      employeesWithoutProfile,
+      topSkillGaps,
+      topTeamStrengths,
+      loading: loadingTeamSkills
+    },
+    currentCycleInsights,
 
     // Internal use
     _legacy: {

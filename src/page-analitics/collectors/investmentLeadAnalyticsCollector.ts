@@ -120,15 +120,15 @@ const GET_INVESTMENT_LEAD_TASKS = `
       description
       createdAt
       dueDate
-      typeRef
-      statusRef
-      timingType
-      priorityRef
-      type {
+      taskTypeRef
+      taskStatusRef
+      taskTiming
+      taskPriorityRef
+      taskType {
         code
         value
       }
-      priority {
+      taskPriority {
         value
       }
       taskAssignees(where: { isDeleted: { _eq: false } }) {
@@ -157,8 +157,8 @@ const GET_INVESTMENT_LEAD_NOTES = `
       limit: $limit
     ) {
       id
-      noteTitle
-      noteText
+      title
+      text
       createdAt
       createdBy
     }
@@ -324,7 +324,7 @@ function buildInvestmentLeadActivities(params: { activities: any[]; tasks: any[]
   })
 
   const mappedTasks = limitArray(tasks, 5).map(task => {
-    const typeValue = task.type?.value || task.typeRef || ''
+    const typeValue = task.taskType?.value || task.taskTypeRef || ''
     const normalizedType = typeValue.toLowerCase() === 'approval' ? 'approval' : 'task'
 
     return {
@@ -334,9 +334,9 @@ function buildInvestmentLeadActivities(params: { activities: any[]; tasks: any[]
       occurredAt: task.dueDate || task.createdAt || undefined,
       relationId: task.taskAssignees?.[0]?.assignedEmployee?.id || undefined,
       meta: compactRecord({
-        statusRef: task.statusRef,
-        timingType: task.timingType,
-        priority: task.priority?.value || task.priorityRef,
+        statusRef: task.taskStatusRef,
+        timingType: task.taskTiming,
+        priority: task.taskPriority?.value || task.taskPriorityRef,
         assignedEmployee:
           task.taskAssignees?.[0]?.assignedEmployee?.displayName ||
           [task.taskAssignees?.[0]?.assignedEmployee?.firstName, task.taskAssignees?.[0]?.assignedEmployee?.lastName]
@@ -356,11 +356,11 @@ function buildInvestmentLeadActivities(params: { activities: any[]; tasks: any[]
     return {
       id: note.id,
       type: 'note',
-      title: note.noteTitle || 'Note',
+      title: note.title || 'Note',
       occurredAt: note.createdAt || undefined,
       meta: compactRecord({
         author: note.createdBy,
-        text: note.noteText
+        text: note.text
       })
     } as AnalyticsActivity
   })

@@ -1,5 +1,20 @@
 import { useState, useEffect } from 'react'
-import { InvestmentDataConfiguration, CatalogEntryWithConfig, TargetLevel } from '../pages/investment-data/types'
+import {
+  CatalogEntryWithConfig,
+  CatalogReferenceField,
+  FieldDefinition,
+  FieldGroup,
+  InvestmentDataConfiguration,
+  ProspectField,
+  RequiredSubtypeKey,
+  TargetLevel
+} from '../pages/investment-data/types'
+import {
+  coerceRequiredSubtypeKey,
+  DEFAULT_REQUIRED_SUBTYPE_KEY,
+  inferRequiredSubtypeKeyFromFormFields,
+  isRequiredSubtypeKey
+} from '../pages/investment-data/utils/formLayoutChoice'
 
 interface UseInvestmentConfigurationProps {
   selectedEntry: CatalogEntryWithConfig | null
@@ -54,7 +69,8 @@ export const useInvestmentConfiguration = ({
   const [configuration, setConfiguration] = useState<InvestmentDataConfiguration>({
     formFields: [],
     prospectFields: [],
-    tileFields: []
+    tileFields: [],
+    requiredSubtypeKey: DEFAULT_REQUIRED_SUBTYPE_KEY
   })
   const [isInherited, setIsInherited] = useState({
     formFields: false,
@@ -64,52 +80,42 @@ export const useInvestmentConfiguration = ({
 
   useEffect(() => {
     if (selectedEntry?.objectValue) {
-      // Determine parent for inheritance based on target level
       const isTypeLevel = targetLevel === 'type'
       const isLiquidFundTypeLevel = targetLevel === 'liquidFundType'
       const parentEntry =
         isLiquidFundTypeLevel && selectedType ? selectedType : isTypeLevel && selectedGroup ? selectedGroup : null
 
-      // Helper to check if a property is explicitly defined (even if empty array)
-      const isDefined = (obj: any, key: string) => obj && obj.hasOwnProperty(key)
+      // Distinguishes "explicitly empty" (own value, even []) from "missing" (inherit from parent).
+      const hasOwnKey = (obj: object | undefined | null, key: string): boolean =>
+        Boolean(obj) && Object.prototype.hasOwnProperty.call(obj, key)
 
-      // Initialize inheritance tracking
       const inheritanceStatus = {
         formFields: false,
         prospectFields: false,
         tileFields: false
       }
 
-      // Form Fields - with inheritance fallback
-      // Only inherit if the property is NOT defined at all (undefined/missing), not if it's an empty array
-      let formFields = (selectedEntry.objectValue.formFields || []).map((group: any) => ({
-        ...group,
-        fields: (group.fields || []).map((field: any, fieldIndex: number) => ({
-          ...field,
-          id: field.id || `field-${Date.now()}-${fieldIndex}-${Math.random()}`
-        }))
-      }))
-
-      if (
-        (isTypeLevel || isLiquidFundTypeLevel) &&
-        !isDefined(selectedEntry.objectValue, 'formFields') &&
-        parentEntry?.objectValue?.formFields
-      ) {
-        formFields = (parentEntry.objectValue.formFields || []).map((group: any) => ({
+      const ensureFieldIds = (groups: FieldGroup[]): FieldGroup[] =>
+        groups.map(group => ({
           ...group,
-          fields: (group.fields || []).map((field: any, fieldIndex: number) => ({
+          fields: (group.fields || []).map((field: FieldDefinition, fieldIndex: number) => ({
             ...field,
             id: field.id || `field-${Date.now()}-${fieldIndex}-${Math.random()}`
           }))
         }))
+
+      let formFields: FieldGroup[] = ensureFieldIds(selectedEntry.objectValue.formFields || [])
+
+      if (
+        (isTypeLevel || isLiquidFundTypeLevel) &&
+        !hasOwnKey(selectedEntry.objectValue, 'formFields') &&
+        parentEntry?.objectValue?.formFields
+      ) {
+        formFields = ensureFieldIds(parentEntry.objectValue.formFields || [])
         inheritanceStatus.formFields = true
       }
 
-      // Prospect Fields - with inheritance fallback
-      // Only inherit if referenceFields is NOT defined at all
-      const hasReferenceFields = isDefined(selectedEntry.objectValue, 'referenceFields')
-      const catalogReferenceFields = (selectedEntry.objectValue as any).referenceFields || []
-      let prospectFields = catalogReferenceFields.map((refField: any, index: number) => ({
+      const mapReferenceFieldToProspect = (refField: CatalogReferenceField, index: number): ProspectField => ({
         key: refField.property || `field-${index}`,
         label: refField.label,
         property: refField.property,
@@ -117,43 +123,53 @@ export const useInvestmentConfiguration = ({
           typeof refField.displayOrder === 'string'
             ? parseFloat(refField.displayOrder)
             : refField.displayOrder || index + 1,
-        section: 'overview', // Default section
+        section: 'overview',
         type: mapCatalogTypeToProspectType(refField.type)
-      }))
+      })
+
+      const hasReferenceFields = hasOwnKey(selectedEntry.objectValue, 'referenceFields')
+      let prospectFields: ProspectField[] = (selectedEntry.objectValue.referenceFields || []).map(
+        mapReferenceFieldToProspect
+      )
 
       if ((isTypeLevel || isLiquidFundTypeLevel) && !hasReferenceFields && parentEntry?.objectValue) {
-        const parentReferenceFields = (parentEntry.objectValue as any).referenceFields || []
-        prospectFields = parentReferenceFields.map((refField: any, index: number) => ({
-          key: refField.property || `field-${index}`,
-          label: refField.label,
-          property: refField.property,
-          displayOrder:
-            typeof refField.displayOrder === 'string'
-              ? parseFloat(refField.displayOrder)
-              : refField.displayOrder || index + 1,
-          section: 'overview',
-          type: mapCatalogTypeToProspectType(refField.type)
-        }))
+        prospectFields = (parentEntry.objectValue.referenceFields || []).map(mapReferenceFieldToProspect)
         inheritanceStatus.prospectFields = true
       }
 
-      // Tile Fields - with inheritance fallback
-      // Only inherit if tileFields is NOT defined at all
       let tileFields = selectedEntry.objectValue.tileFields || []
 
       if (
         (isTypeLevel || isLiquidFundTypeLevel) &&
-        !isDefined(selectedEntry.objectValue, 'tileFields') &&
+        !hasOwnKey(selectedEntry.objectValue, 'tileFields') &&
         parentEntry?.objectValue?.tileFields
       ) {
         tileFields = parentEntry.objectValue.tileFields || []
         inheritanceStatus.tileFields = true
       }
 
+      let requiredSubtypeKey: RequiredSubtypeKey = DEFAULT_REQUIRED_SUBTYPE_KEY
+      const ownSubtype = selectedEntry.objectValue.requiredSubtypeKey
+      const parentSubtype = parentEntry?.objectValue?.requiredSubtypeKey
+
+      if (isRequiredSubtypeKey(ownSubtype)) {
+        requiredSubtypeKey = ownSubtype
+      } else if (inheritanceStatus.formFields && isRequiredSubtypeKey(parentSubtype)) {
+        requiredSubtypeKey = parentSubtype
+      } else {
+        const inferred = inferRequiredSubtypeKeyFromFormFields(formFields)
+        if (isRequiredSubtypeKey(inferred)) {
+          requiredSubtypeKey = inferred
+        }
+      }
+
+      requiredSubtypeKey = coerceRequiredSubtypeKey(requiredSubtypeKey)
+
       setConfiguration({
         formFields,
         prospectFields,
-        tileFields
+        tileFields,
+        requiredSubtypeKey
       })
 
       setIsInherited(inheritanceStatus)
@@ -161,7 +177,8 @@ export const useInvestmentConfiguration = ({
       setConfiguration({
         formFields: [],
         prospectFields: [],
-        tileFields: []
+        tileFields: [],
+        requiredSubtypeKey: DEFAULT_REQUIRED_SUBTYPE_KEY
       })
       setIsInherited({
         formFields: false,

@@ -12,7 +12,7 @@ import { COMMON_INVESTMENT_FIELDS } from '../commonInvestmentFields'
 import { parseRealEstateLiquidityForecast } from '../extensions/investmentGroupTransformExtensions'
 import type { InvestmentGroupImportOverridePatch } from '../groupImportConfigurations'
 
-const REAL_ESTATE_SPECIFIC_FIELDS: TargetFieldDefinition[] = [
+export const REAL_ESTATE_SPECIFIC_FIELDS: TargetFieldDefinition[] = [
   // Property Information
   { value: 'realEstateInvestment.buildingYear', label: 'Building Year', type: 'direct' },
   { value: 'realEstateInvestment.numberOfUnits', label: 'Number of Units', type: 'direct' },

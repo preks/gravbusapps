@@ -17,6 +17,7 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useCompanyOrganizationalUnits } from '@/common/data/orgchart/hooks/useCompanyOrganizationalUnits'
 import { useTeamCompensationData } from '../../../manager-compensation-planning/hooks/useTeamCompensationData'
 import { useTeamMemberPerformanceScores } from '../../../manager-compensation-planning/hooks/useTeamMemberPerformanceScores'
+import { roundMoney2 } from '../../../../utils/budgetAmountPercentSync'
 import { distributeToOrgUnits, resolveCompanySalaryIncreasePool } from '../../../../utils/budgetCalculations'
 import { buildOrgUnitDistributionInputsFromTeamMembers } from '../../../../utils/buildOrgUnitDistributionInputs'
 import translations from '../../_i18n'
@@ -96,21 +97,6 @@ export function BudgetDistributionView({
     refetchCompanyBudgetPlans
   } = useBudgetDistributionOrgUnitBudget(accessToken, companyId, companyOrgUnits)
 
-  const handleDistributeSaved = useCallback(async () => {
-    await Promise.all([refetchOrgUnitRows(), refetchCompanyBudgetPlans()])
-  }, [refetchCompanyBudgetPlans, refetchOrgUnitRows])
-
-  const salaryIncreasePool = useMemo(() => {
-    if (!selectedCompanyBudgetRow) return null
-    return resolveCompanySalaryIncreasePool({
-      salaryBudgetAmount: selectedCompanyBudgetRow.salaryBudgetAmount,
-      salaryBudgetPercent: selectedCompanyBudgetRow.salaryBudgetPercent,
-      currentTotalSalaryCost: selectedCompanyBudgetRow.currentTotalSalaryCost
-    })
-  }, [selectedCompanyBudgetRow])
-
-  const activeDistributionPool = salaryIncreasePool
-
   /** Same basis as Overview: org units implied by positions in this company (plus Unassigned when needed). */
   const orgUnitDistributionInputs = useMemo(
     () =>
@@ -130,13 +116,40 @@ export function BudgetDistributionView({
     [orgUnitDistributionInputs]
   )
 
+  /**
+   * Undistributed company salary-increase pool = total minus sum of OU `salary_budget_amount` (HR distribution).
+   * Company `allocation_amount` is updated on distribute to match total deployed to OUs (see distribute dialog).
+   */
+  const salaryIncreasePool = useMemo(() => {
+    if (!selectedCompanyBudgetRow) return null
+    const total = resolveCompanySalaryIncreasePool({
+      salaryBudgetAmount: selectedCompanyBudgetRow.salaryBudgetAmount,
+      salaryBudgetPercent: selectedCompanyBudgetRow.salaryBudgetPercent,
+      currentTotalSalaryCost: selectedCompanyBudgetRow.currentTotalSalaryCost
+    })
+    if (total <= 0) return null
+    const deployedToOrgUnits = distributionOrgUnitRows.reduce(
+      (sum, r) => roundMoney2(sum + roundMoney2(r.salaryBudgetAmount)),
+      0
+    )
+    return Math.max(0, roundMoney2(total - deployedToOrgUnits))
+  }, [selectedCompanyBudgetRow, distributionOrgUnitRows])
+
+  const activeDistributionPool = salaryIncreasePool
+
   const {
     customBudgetByOrgUnitId,
     previewCustomAllocationByOrgUnit,
     handleCustomAmountRawChange,
     handleCustomPercentRawChange,
-    handleCustomModeChange
+    handleCustomModeChange,
+    clearCustomBudgetInputs
   } = useBudgetDistributionCustomBudgetMaps(companyId, selectedMethod, salaryIncreasePool, distributionOrgUnitsForList)
+
+  const handleDistributeSaved = useCallback(async () => {
+    clearCustomBudgetInputs()
+    await Promise.all([refetchOrgUnitRows(), refetchCompanyBudgetPlans()])
+  }, [clearCustomBudgetInputs, refetchCompanyBudgetPlans, refetchOrgUnitRows])
 
   const headcountByOrgUnitId = useMemo(() => {
     const map = new Map<string, number>()

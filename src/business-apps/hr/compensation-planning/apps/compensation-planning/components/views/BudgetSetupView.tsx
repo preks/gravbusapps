@@ -81,6 +81,7 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({
       return updateCompanyBudgetRow(row, {
         salaryBudgetAmount: values.salaryBudgetAmount,
         salaryBudgetPercent: values.salaryBudgetPercent,
+        allocationAmount: row.allocationAmount,
         currencyRef
       })
     },

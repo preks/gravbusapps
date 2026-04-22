@@ -20,6 +20,7 @@ export interface CompensationBudgetPlanOrganizationalUnitRow {
   organizationalUnitId: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
+  allocationAmount: number
   bonusBudgetAmount: number
   bonusBudgetPercent: number
   budgetPlanStatus: string
@@ -39,6 +40,7 @@ interface CompensationBudgetPlanOrganizationalUnitGraphqlRow {
   organizationalUnitId: string
   salaryBudgetAmount: unknown
   salaryBudgetPercent: unknown
+  allocationAmount?: unknown
   bonusBudgetAmount: unknown
   bonusBudgetPercent: unknown
   budgetPlanStatus: string | null
@@ -81,6 +83,7 @@ function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanComp
     companyId: graphqlUnknownToString(raw.companyId),
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
     salaryBudgetPercent: num(raw.salaryBudgetPercent),
+    allocationAmount: num(raw.allocationAmount),
     bonusBudgetAmount: num(raw.bonusBudgetAmount),
     bonusBudgetPercent: num(raw.bonusBudgetPercent),
     budgetPlanStatus: graphqlUnknownToString(raw.budgetPlanStatus),
@@ -129,6 +132,7 @@ function mapGraphqlOrgUnitRow(
     organizationalUnitId: raw.organizationalUnitId,
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
     salaryBudgetPercent: num(raw.salaryBudgetPercent),
+    allocationAmount: num(raw.allocationAmount),
     bonusBudgetAmount: num(raw.bonusBudgetAmount),
     bonusBudgetPercent: num(raw.bonusBudgetPercent),
     budgetPlanStatus: raw.budgetPlanStatus ?? '',
