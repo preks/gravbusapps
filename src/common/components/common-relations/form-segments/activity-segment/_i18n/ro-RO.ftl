@@ -11,6 +11,7 @@ activity-description-placeholder = Vă rugăm să introduceți...
 activity-owner-label = Proprietar
 activity-entity-label = Entitate asociată
 activity-upload-label = Atașați documente
+activity-attached-documents-label = Documente atașate
 
 # Common
 please-select = Vă rugăm să selectați...

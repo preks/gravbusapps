@@ -280,6 +280,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, addit
         isSubmitDisabled={noteLoading}
       >
         <NoteLayout
+          accessToken={accessToken}
           // Use controlled entity search from hook
           entities={entities.filter(e => e.type !== 'investment') as any}
           entitiesLoading={entitiesLoading}
