@@ -36,6 +36,7 @@ export interface SidebarProps {
   onNewSession: () => void
   onSelectSession: (id: string) => void
   onDeleteSession: (id: string) => void
+  onStopSession: (id: string) => void
   onOpenSettings: () => void
 }
 
@@ -62,6 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNewSession,
   onSelectSession,
   onDeleteSession,
+  onStopSession,
   onOpenSettings
 }) => {
   const [query, setQuery] = useState('')
@@ -96,6 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               sessions={filteredActive}
               activeSessionId={activeSessionId}
               onSelect={onSelectSession}
+              onStop={onStopSession}
               forceExpanded={query.trim().length > 0}
             />
             <SidebarRecentsSection

@@ -227,136 +227,134 @@ export const ChangeWorkingHoursForm: React.FC = () => {
   }
 
   return (
-    <div
-      className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[600px] gba:p-0 gba:[&>div[data-testid='change-working-hours-form']]:!pt-0"
-      data-testid="flw_updateWorkingHours_mainContainer"
-    >
-      <AppActionForm
-        processType="update"
-        form={form as any}
-        formData={defaults || {}}
-        submitEventType="pse_submit"
-        cancelEventType="pse_abort"
-        submitButtonTestId="flw_updateWorkingHours_submitBtn"
-        cancelButtonTestId="flw_updateWorkingHours_cancelBtn"
-        submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
-        cancelButtonText={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_request.initiate_cancel_button',
-          'Cancel'
-        )}
-        isSubmitDisabled={
-          !form.formState.isValid ||
-          !areAllDaysValid ||
-          Boolean(firstDayErrorMessage) ||
-          !form.formState.isDirty ||
-          exceedsWeeklyLimit ||
-          exceedsWorkingDaysLimit ||
-          isEmployeeSelectionMissing
+    <AppActionForm
+      processType="update"
+      form={form as any}
+      formData={defaults || {}}
+      submitEventType="pse_submit"
+      cancelEventType="pse_abort"
+      submitButtonTestId="flw_updateWorkingHours_submitBtn"
+      cancelButtonTestId="flw_updateWorkingHours_cancelBtn"
+      submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
+      cancelButtonText={getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_request.initiate_cancel_button',
+        'Cancel'
+      )}
+      isSubmitDisabled={
+        !form.formState.isValid ||
+        !areAllDaysValid ||
+        Boolean(firstDayErrorMessage) ||
+        !form.formState.isDirty ||
+        exceedsWeeklyLimit ||
+        exceedsWorkingDaysLimit ||
+        isEmployeeSelectionMissing
+      }
+      data-testid="change-working-hours-form"
+      onSubmit={async (values: WorkingHoursFormValues) => {
+        const payload = buildSubmitPayload(values, {
+          weeklySum: typeof weeklySum === 'number' ? weeklySum : 0,
+          workingDays: typeof workingDays === 'number' ? workingDays : 0,
+          fte: typeof fte === 'number' ? fte : 0
+        })
+        return {
+          ...payload
         }
-        data-testid="change-working-hours-form"
-        onSubmit={async (values: WorkingHoursFormValues) => {
-          const payload = buildSubmitPayload(values, {
-            weeklySum: typeof weeklySum === 'number' ? weeklySum : 0,
-            workingDays: typeof workingDays === 'number' ? workingDays : 0,
-            fte: typeof fte === 'number' ? fte : 0
-          })
-          return {
-            ...payload
-          }
-        }}
+      }}
+    >
+      <div
+        className="gba:flex-1 gba:flex gba:flex-col gba:justify-between"
+        data-testid="flw_updateWorkingHours_mainContainer"
       >
-        <div className="gba:flex-1 gba:flex gba:flex-col gba:justify-between">
-          <div>
-            <div className="gba:flex gba:items-center gba:mb-6">{renderEmployeeHeader()}</div>
-            <div className="gba:border-t gba:mb-6" />
+        <div>
+          <div className="gba:flex gba:items-center gba:mb-6">{renderEmployeeHeader()}</div>
+          <div className="gba:border-t gba:mb-6" />
 
-            <div
-              className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-7 gba:gap-4"
-              data-testid="flw_updateWorkingHours_columnLayout"
-            >
-              {dayOrder.map(({ key }) => {
-                const label = dayLabel(key)
-                const hasError = Boolean(form.formState.errors[key])
-                return (
-                  <div
-                    key={key}
-                    className="gba:flex gba:flex-col gba:items-start gba:space-y-2"
-                    data-testid={`working-hours-${key}`}
-                  >
-                    <label className="gba:block gba:font-semibold">
-                      {label}
-                      <span className="gba:text-destructive"> *</span>
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      className={`gba:w-12 gba:h-12 gba:border ${hasError ? 'gba:border-destructive' : 'gba:border-input'} gba:rounded-md gba:text-center gba:text-base gba:shrink-0`}
-                      aria-invalid={hasError}
-                      aria-label={label}
-                      defaultValue={defaults ? (defaults[key] as number) : undefined}
-                      data-testid={dayInputTestIds[key]}
-                      onChange={e => {
-                        const raw = e.target.value
-                        const numericOrEmpty: number | '' = raw === '' ? '' : Number(raw)
-                        form.setValue(key, numericOrEmpty as any, { shouldValidate: true, shouldDirty: true })
-                        const val = numericOrEmpty
-                        if (
-                          val === '' ||
-                          Number.isNaN(val as any) ||
-                          (val as number) < minHours ||
-                          (val as number) > maxHours
-                        ) {
-                          form.setError(key, { type: 'validate', message: buildErrorMessage(key) })
-                        } else {
-                          form.clearErrors(key)
-                        }
-                      }}
-                      onBlur={e => {
-                        const raw = e.currentTarget.value
-                        const val: number | '' = raw === '' ? '' : Number(raw)
-                        if (
-                          val === '' ||
-                          Number.isNaN(val as any) ||
-                          (val as number) < minHours ||
-                          (val as number) > maxHours
-                        ) {
-                          form.setError(key, { type: 'validate', message: buildErrorMessage(key) })
-                        } else {
-                          form.clearErrors(key)
-                        }
-                      }}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-
-            <div
-              className={`${firstDayErrorMessage ? 'gba:mt-2' : ''} gba:flex gba:flex-col gba:gap-2`}
-              data-testid="working-hours-errors"
-            >
-              {firstDayErrorMessage ? (
+          <div
+            className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-7 gba:gap-4"
+            data-testid="flw_updateWorkingHours_columnLayout"
+          >
+            {dayOrder.map(({ key }) => {
+              const label = dayLabel(key)
+              const hasError = Boolean(form.formState.errors[key])
+              return (
                 <div
-                  className="gba:text-destructive gba:text-sm"
-                  data-testid="flw_updateWorkingHours_dailyHoursValidationMessage"
+                  key={key}
+                  className="gba:flex gba:flex-col gba:items-start gba:space-y-2"
+                  data-testid={`working-hours-${key}`}
                 >
-                  {firstDayErrorMessage}
+                  <label className="gba:block gba:font-semibold">
+                    {label}
+                    <span className="gba:text-destructive"> *</span>
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    className={`gba:w-12 gba:h-12 gba:border ${hasError ? 'gba:border-destructive' : 'gba:border-input'} gba:rounded-md gba:text-center gba:text-base gba:shrink-0`}
+                    aria-invalid={hasError}
+                    aria-label={label}
+                    defaultValue={defaults ? (defaults[key] as number) : undefined}
+                    data-testid={dayInputTestIds[key]}
+                    onChange={e => {
+                      const raw = e.target.value
+                      const numericOrEmpty: number | '' = raw === '' ? '' : Number(raw)
+                      form.setValue(key, numericOrEmpty as any, { shouldValidate: true, shouldDirty: true })
+                      const val = numericOrEmpty
+                      if (
+                        val === '' ||
+                        Number.isNaN(val as any) ||
+                        (val as number) < minHours ||
+                        (val as number) > maxHours
+                      ) {
+                        form.setError(key, { type: 'validate', message: buildErrorMessage(key) })
+                      } else {
+                        form.clearErrors(key)
+                      }
+                    }}
+                    onBlur={e => {
+                      const raw = e.currentTarget.value
+                      const val: number | '' = raw === '' ? '' : Number(raw)
+                      if (
+                        val === '' ||
+                        Number.isNaN(val as any) ||
+                        (val as number) < minHours ||
+                        (val as number) > maxHours
+                      ) {
+                        form.setError(key, { type: 'validate', message: buildErrorMessage(key) })
+                      } else {
+                        form.clearErrors(key)
+                      }
+                    }}
+                  />
                 </div>
-              ) : null}
-            </div>
-
-            <WorkingHoursSummary
-              fte={areAllDaysValid ? fte : undefined}
-              weeklySum={areAllDaysValid ? weeklySum : undefined}
-              workingDays={areAllDaysValid ? workingDays : undefined}
-              exceedsWeeklyLimit={areAllDaysValid && exceedsWeeklyLimit}
-              exceedsWorkingDaysLimit={areAllDaysValid && exceedsWorkingDaysLimit}
-            />
+              )
+            })}
           </div>
+
+          <div
+            className={`${firstDayErrorMessage ? 'gba:mt-2' : ''} gba:flex gba:flex-col gba:gap-2`}
+            data-testid="working-hours-errors"
+          >
+            {firstDayErrorMessage ? (
+              <div
+                className="gba:text-destructive gba:text-sm"
+                data-testid="flw_updateWorkingHours_dailyHoursValidationMessage"
+              >
+                {firstDayErrorMessage}
+              </div>
+            ) : null}
+          </div>
+
+          <WorkingHoursSummary
+            fte={areAllDaysValid ? fte : undefined}
+            weeklySum={areAllDaysValid ? weeklySum : undefined}
+            workingDays={areAllDaysValid ? workingDays : undefined}
+            exceedsWeeklyLimit={areAllDaysValid && exceedsWeeklyLimit}
+            exceedsWorkingDaysLimit={areAllDaysValid && exceedsWorkingDaysLimit}
+          />
         </div>
-      </AppActionForm>
-    </div>
+      </div>
+    </AppActionForm>
   )
 }
 
