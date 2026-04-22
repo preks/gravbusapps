@@ -14,7 +14,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { ImportAnalyzer } from '@/common/components/common-relations/apps/data-import/services'
+import {
+  ImportAnalyzer,
+  type ImportAnalyzerContext
+} from '@/common/components/common-relations/apps/data-import/services'
 import { transformCommunicationChannels } from '@/common/components/common-relations/apps/data-import/utils'
 import type {
   ConvertedEntity,
@@ -79,7 +82,14 @@ export interface UseEntityImportReturn<T> {
 export function useEntityImport<T = ConvertedEntity>(
   props: BusinessAppContextProps,
   config: ImportConfig,
-  strategy: ImportSubmissionStrategy
+  strategy: ImportSubmissionStrategy,
+  /**
+   * Optional LLM-only context forwarded verbatim to Flowbot's
+   * `map-from-file` endpoint. The hook never inspects or transforms it —
+   * computing it (for IRM imports: `aggregateInvestmentGroupContext`)
+   * is the caller's responsibility.
+   */
+  analyzerContext?: ImportAnalyzerContext
 ): UseEntityImportReturn<T> {
   const { accessToken } = props
 
@@ -145,7 +155,7 @@ export function useEntityImport<T = ConvertedEntity>(
     setError(null)
 
     try {
-      const agentResult = await aiServiceRef.current.analyzeImport(file)
+      const agentResult = await aiServiceRef.current.analyzeImport(file, analyzerContext)
       const targetFieldValues = config.targetFields.map(f => f.value)
       const adapters = buildTargetFieldAdapters(targetFieldValues, config.domain === 'investment')
       const resolvedMappings = agentResult.fieldMappings.map(mapping => ({
@@ -209,7 +219,7 @@ export function useEntityImport<T = ConvertedEntity>(
     } finally {
       setIsLoading(false)
     }
-  }, [file, config.targetFields, config.domain])
+  }, [file, config.targetFields, config.domain, analyzerContext])
 
   const convertData = useCallback(
     async (mappings: FieldMapping[], enforcedFieldsJson?: string, transformFn?: (entity: ConvertedEntity) => T) => {
@@ -242,13 +252,11 @@ export function useEntityImport<T = ConvertedEntity>(
           config.domain === 'investment'
         )
 
-        const { records, usedUiMappings, csvQuality: extractedCsvQuality } = await extractWithRetry(
-          file,
-          config,
-          filteredMappings,
-          enforcedFieldsJson,
-          adapters
-        )
+        const {
+          records,
+          usedUiMappings,
+          csvQuality: extractedCsvQuality
+        } = await extractWithRetry(file, config, filteredMappings, enforcedFieldsJson, adapters)
 
         const responseRecords = usedUiMappings ? records : restoreUiTargetFieldNames(records, adapters)
 
@@ -292,22 +300,18 @@ export function useEntityImport<T = ConvertedEntity>(
       const enforcedKeys = enforcedFieldsJson
         ? new Set(Object.keys(JSON.parse(enforcedFieldsJson) as Record<string, string>))
         : new Set<string>()
-      const filteredMappings =
-        enforcedKeys.size > 0 ? mappings.filter(m => !enforcedKeys.has(m.targetField)) : mappings
+      const filteredMappings = enforcedKeys.size > 0 ? mappings.filter(m => !enforcedKeys.has(m.targetField)) : mappings
 
       const adapters = buildTargetFieldAdapters(
         config.targetFields.map(targetField => targetField.value),
         config.domain === 'investment'
       )
 
-      const { records, usedUiMappings, csvQuality: repairedCsvQuality } = await extractWithRetry(
-        file,
-        config,
-        filteredMappings,
-        enforcedFieldsJson,
-        adapters,
-        'hard'
-      )
+      const {
+        records,
+        usedUiMappings,
+        csvQuality: repairedCsvQuality
+      } = await extractWithRetry(file, config, filteredMappings, enforcedFieldsJson, adapters, 'hard')
 
       const responseRecords = usedUiMappings ? records : restoreUiTargetFieldNames(records, adapters)
       const processedRecords = strategy.postProcessExtractedRecords?.(responseRecords) ?? responseRecords
