@@ -90,8 +90,75 @@ export class UserManagementClient extends RestClient {
     await this.delete(`/users/${userId}`)
   }
 
+  /**
+   * POST /users/{id}/upsert-password — User Management returns 200/204 with an empty body.
+   * Bypasses {@link RestClient} so we never call `response.json()` on an empty success body.
+   */
   public async upsertUserPassword(userId: string, payload: UpsertPasswordPayload): Promise<void> {
-    await this.post(`/users/${userId}/upsert-password`, payload)
+    const url = UserManagementClient.buildRequestUrl(this.baseUrl, `/users/${userId}/upsert-password`)
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...this.headers
+    }
+
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      credentials: 'same-origin',
+      mode: 'cors'
+    })
+
+    if (!response.ok) {
+      throw await UserManagementClient.errorFromFailedResponse(response)
+    }
+
+    if (response.status === 204) {
+      return
+    }
+
+    await response.text().catch(() => undefined)
+  }
+
+  private static buildRequestUrl(baseUrl: string, path: string): URL {
+    const fullPath = baseUrl + path
+    return fullPath.startsWith('http') ? new URL(fullPath) : new URL(fullPath, globalThis.location.origin)
+  }
+
+  /** Mirrors RestClient error handling for failed HTTP responses. */
+  private static extractHttpErrorMessage(errorData: any, statusFallback: string): string {
+    let message = statusFallback
+    if (errorData.detail === undefined) {
+      message = errorData.message || errorData.error || message
+    } else if (typeof errorData.detail === 'string') {
+      message = errorData.detail
+    } else if (Array.isArray(errorData.detail)) {
+      message = errorData.detail.map((e: any) => (e.msg ? `${e.loc?.join('.')} — ${e.msg}` : String(e))).join('; ')
+    }
+    if (errorData.errors && Array.isArray(errorData.errors)) {
+      const details = errorData.errors.map((e: any) => e.detail || e.title).join('; ')
+      if (details) {
+        message = details
+      }
+    }
+    return message
+  }
+
+  private static async errorFromFailedResponse(response: Response): Promise<Error> {
+    const defaultMessage = `HTTP error! status: ${response.status}`
+    let errorMessage = defaultMessage
+    let errorData: any = null
+    try {
+      errorData = await response.json()
+      errorMessage = UserManagementClient.extractHttpErrorMessage(errorData, defaultMessage)
+    } catch {
+      errorMessage = response.statusText || errorMessage
+    }
+    const error = new Error(`REST request failed: ${response.status} - ${errorMessage}`)
+    if (errorData) {
+      ;(error as any).responseData = errorData
+    }
+    return error
   }
 
   public async getUserGroups(

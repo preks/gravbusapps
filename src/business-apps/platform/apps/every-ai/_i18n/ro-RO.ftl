@@ -18,4 +18,5 @@ chat-menu-my-preferences = Preferințele mele
 chat-upload-error-max-files = Puteți încărca maximum 5 fișiere.
 chat-upload-error-max-size = Dimensiunea totală a fișierelor depășește 100 MB.
 chat-upload-error-failed = Încărcarea fișierului a eșuat. Verificați dimensiunea/formatul.
+chat-drop-files-here = Trageți fișierele aici
 everyai-thinking = EveryAI se gândește...
