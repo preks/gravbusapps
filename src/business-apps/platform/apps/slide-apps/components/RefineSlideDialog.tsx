@@ -22,10 +22,10 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { AlertCircle, Globe, Sparkles, Check } from 'lucide-react'
-import type { SlideData, TextElement, ShapeElement } from './slideElements'
+import type { SlideData } from './slideElements'
 import type { SlideTheme } from './slideThemes'
 import { refineSlide, serializeSlideForAI } from '../services/SlideRefinementService'
-import { gradientToCss } from './slideElements'
+import { SlideThumbnail } from './SlideThumbnail'
 import translations from '../_i18n'
 
 export interface RefineSlideDialogProps {
@@ -141,62 +141,8 @@ export const RefineSlideDialog: React.FC<RefineSlideDialogProps> = ({
           <div className="gba:space-y-2">
             <Label className="gba:text-sm gba:font-medium">{t('refine-current-slide') || 'Current Slide'}</Label>
             <div className="gba:flex gba:gap-4">
-              {/* Thumbnail */}
-              <div
-                className="gba:w-40 gba:flex-shrink-0 gba:relative gba:overflow-hidden gba:rounded-lg gba:border"
-                style={{ aspectRatio: '16 / 9' }}
-              >
-                <div
-                  className="gba:absolute gba:inset-0"
-                  style={{
-                    backgroundColor: currentSlide.background?.color || '#fff',
-                    background: currentSlide.background?.gradient
-                      ? gradientToCss(currentSlide.background.gradient)
-                      : undefined
-                  }}
-                >
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: 1280,
-                      height: 720,
-                      transform: 'scale(0.125)',
-                      transformOrigin: 'top left'
-                    }}
-                  >
-                    {(currentSlide.elements || []).map(el => (
-                      <div
-                        key={el.id}
-                        className="gba:absolute gba:overflow-hidden"
-                        style={{
-                          left: el.position.x,
-                          top: el.position.y,
-                          width: el.size.width,
-                          height: el.size.height,
-                          backgroundColor: el.type === 'shape' ? (el as ShapeElement).fill : 'transparent'
-                        }}
-                      >
-                        {el.type === 'text' && (
-                          <div
-                            className="gba:w-full gba:h-full gba:overflow-hidden gba:whitespace-pre-wrap"
-                            style={{
-                              color: (el as TextElement).color,
-                              fontSize: (el as TextElement).fontSize,
-                              fontWeight: (el as TextElement).fontWeight,
-                              fontFamily: (el as TextElement).fontFamily,
-                              textAlign: (el as TextElement).textAlign,
-                              lineHeight: (el as TextElement).lineHeight || 1.2
-                            }}
-                          >
-                            {(el as TextElement).content}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <div className="gba:w-40 gba:flex-shrink-0 gba:rounded-lg gba:border gba:overflow-hidden">
+                <SlideThumbnail slide={currentSlide} index={-1} thumbScale={0.125} />
               </div>
 
               {/* Content summary */}
@@ -285,61 +231,8 @@ export const RefineSlideDialog: React.FC<RefineSlideDialogProps> = ({
                   {t('refine-preview') || 'Refined Slide Preview'}
                 </Label>
               </div>
-              <div
-                className="gba:w-full gba:relative gba:overflow-hidden gba:rounded-lg gba:border-2 gba:border-success/30"
-                style={{ aspectRatio: '16 / 9' }}
-              >
-                <div
-                  className="gba:absolute gba:inset-0"
-                  style={{
-                    backgroundColor: previewSlide.background?.color || '#fff',
-                    background: previewSlide.background?.gradient
-                      ? gradientToCss(previewSlide.background.gradient)
-                      : undefined
-                  }}
-                >
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: 1280,
-                      height: 720,
-                      transform: 'scale(0.45)',
-                      transformOrigin: 'top left'
-                    }}
-                  >
-                    {(previewSlide.elements || []).map(el => (
-                      <div
-                        key={el.id}
-                        className="gba:absolute gba:overflow-hidden"
-                        style={{
-                          left: el.position.x,
-                          top: el.position.y,
-                          width: el.size.width,
-                          height: el.size.height,
-                          backgroundColor: el.type === 'shape' ? (el as ShapeElement).fill : 'transparent'
-                        }}
-                      >
-                        {el.type === 'text' && (
-                          <div
-                            className="gba:w-full gba:h-full gba:overflow-hidden gba:whitespace-pre-wrap"
-                            style={{
-                              color: (el as TextElement).color,
-                              fontSize: (el as TextElement).fontSize,
-                              fontWeight: (el as TextElement).fontWeight,
-                              fontFamily: (el as TextElement).fontFamily,
-                              textAlign: (el as TextElement).textAlign,
-                              lineHeight: (el as TextElement).lineHeight || 1.2
-                            }}
-                          >
-                            {(el as TextElement).content}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <div className="gba:w-full gba:rounded-lg gba:border-2 gba:border-success/30 gba:overflow-hidden">
+                <SlideThumbnail slide={previewSlide} index={-1} thumbScale={0.45} />
               </div>
             </div>
           )}

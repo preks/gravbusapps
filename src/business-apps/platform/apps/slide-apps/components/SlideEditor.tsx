@@ -1203,7 +1203,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   // Slide management - use collaborative methods
   const addSlideWithLayout = useCallback(
     (layoutId: string) => {
-      const effectiveMasters = getEffectiveMasters(masters, currentTheme)
+      const effectiveMasters = getEffectiveMasters(masters, currentTheme, t)
       const found = findLayoutById(effectiveMasters, layoutId)
 
       let newSlide: SlideData
@@ -1248,7 +1248,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const handleChangeLayout = useCallback(
     (layoutId: string) => {
-      const effectiveMasters = getEffectiveMasters(masters, currentTheme)
+      const effectiveMasters = getEffectiveMasters(masters, currentTheme, t)
       const found = findLayoutById(effectiveMasters, layoutId)
       if (!found) return
 
@@ -2333,7 +2333,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       {/* Slide Master View */}
       {editorView === 'master' && (
         <SlideMasterView
-          masters={getEffectiveMasters(masters, currentTheme)}
+          masters={getEffectiveMasters(masters, currentTheme, t)}
           currentTheme={currentTheme}
           onUpdateMasters={newMasters => {
             setMasters(newMasters)
@@ -2666,6 +2666,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 onSendBackward={sendBackward}
                 slideTransition={currentSlide.transition}
                 onSlideTransitionChange={canEdit ? updateCurrentSlideTransition : undefined}
+                slideIndex={currentSlideIndex}
               />
             </div>
           )}

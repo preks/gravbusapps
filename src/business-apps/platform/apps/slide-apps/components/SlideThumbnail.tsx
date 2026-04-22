@@ -341,9 +341,11 @@ export const SlideThumbnail = React.memo(function SlideThumbnail({ slide, index,
             ))}
           </div>
         </div>
-        <div className="gba:absolute gba:bottom-1 gba:left-1 gba:min-w-5 gba:h-5 gba:px-1 gba:flex gba:items-center gba:justify-center gba:rounded gba:bg-black/50">
-          <span className="gba:text-[10px] gba:font-medium gba:text-white gba:leading-none">{index + 1}</span>
-        </div>
+        {index >= 0 && (
+          <div className="gba:absolute gba:bottom-1 gba:left-1 gba:min-w-5 gba:h-5 gba:px-1 gba:flex gba:items-center gba:justify-center gba:rounded gba:bg-black/50">
+            <span className="gba:text-[10px] gba:font-medium gba:text-white gba:leading-none">{index + 1}</span>
+          </div>
+        )}
       </div>
     </>
   )

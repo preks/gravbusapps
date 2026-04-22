@@ -221,6 +221,32 @@ editor-placeholder-title = Klicken, um Titel hinzuzufügen
 editor-placeholder-subtitle = Klicken, um Untertitel hinzuzufügen
 editor-code-placeholder = // Ihr Code hier
 
+# Layout-Platzhalterinhalte
+layout-presentation-title = Präsentationstitel
+layout-section-title = Abschnittstitel
+layout-section-description = Beschreibung oder Kontext für diesen Abschnitt
+layout-key-points = - Erster Kernpunkt\n- Zweiter Kernpunkt\n- Dritter Kernpunkt
+layout-left-column-points = - Linke Spalte Punkt 1\n- Linke Spalte Punkt 2\n- Linke Spalte Punkt 3
+layout-right-column-points = - Rechte Spalte Punkt 1\n- Rechte Spalte Punkt 2\n- Rechte Spalte Punkt 3
+layout-strengths = - Stärke eins\n- Stärke zwei\n- Stärke drei
+layout-main-content-points = - Hauptinhalt Punkt 1\n- Hauptinhalt Punkt 2\n- Hauptinhalt Punkt 3
+layout-caption-text = Fügen Sie eine Beschriftung oder zusätzlichen Kontext hinzu.
+layout-image-caption = Bildbeschriftung
+layout-image-description = Fügen Sie eine Beschreibung für das links gezeigte Bild hinzu.
+layout-option-a = Option A
+layout-option-b = Option B
+layout-image-alt = Klicken, um Bild hinzuzufügen
+layout-name-title-slide = Titelfolie
+layout-name-title-content = Titel und Inhalt
+layout-name-section-header = Abschnittsüberschrift
+layout-name-two-content = Zwei Inhalte
+layout-name-comparison = Vergleich
+layout-name-title-only = Nur Titel
+layout-name-blank = Leer
+layout-name-content-caption = Inhalt mit Beschriftung
+layout-name-picture-caption = Bild mit Beschriftung
+layout-name-default-theme = Standarddesign
+
 # Collaborators
 collaborators-viewing-now = Jetzt ansehen
 collaborators-more-viewing = { $count } weitere { $count ->
@@ -305,7 +331,7 @@ manage-load-failed = Freigaben konnten nicht geladen werden
 header-locked = Gesperrt
 header-slide = Folie
 header-version-history = Versionsverlauf
-header-save-checkpoint = Prüfpunkt speichern
+header-save-checkpoint = Sicherungspunkt speichern
 header-unlock-slide = Folie entsperren
 header-lock-slide = Folie sperren
 header-share = Teilen...
@@ -380,12 +406,31 @@ version-description = Vorherige Versionen von „{ $title }“ anzeigen und wied
 version-no-history = Kein Versionsverlauf verfügbar
 version-current = Aktuell
 version-current-description = Aktuelle Version
-version-checkpoint = Prüfpunkt
+version-checkpoint = Sicherungspunkt
 version-restore = Wiederherstellen
 version-close = Schließen
 version-restore-confirm = Diese Version wiederherstellen? Aktuelle Änderungen werden als neue Version gespeichert.
 version-restored = Version wiederhergestellt
 version-restore-failed = Version konnte nicht wiederhergestellt werden
+version-no-history-yet = Noch kein Versionsverlauf
+version-autosave = Automatische Speicherung
+version-restore-title = Diese Version wiederherstellen
+version-restore-confirm-msg = Möchten Sie wirklich Version { $number } wiederherstellen? Es wird eine neue Version mit dem wiederhergestellten Inhalt erstellt.
+version-loading = Versionen werden geladen...
+version-compare-mode = Versionen vergleichen
+version-cancel-compare = Vergleich abbrechen
+version-compare-selected = Ausgewählte vergleichen
+version-compare-hint = Wählen Sie zwei Versionen zum Vergleichen aus. Klicken Sie auf eine Version, um sie auszuwählen.
+version-unknown-user = Unbekannt
+
+# Checkpoint Dialog
+checkpoint-title = Sicherungspunkt speichern
+checkpoint-description-label = Beschreibung (Optional)
+checkpoint-description-placeholder = z. B. Neuen Abschnitt hinzugefügt, Tippfehler korrigiert, Große Überarbeitung
+checkpoint-description-hint = Fügen Sie eine Beschreibung hinzu, um sich zu merken, was sich in dieser Version geändert hat.
+checkpoint-cancel = Abbrechen
+checkpoint-save = Sicherungspunkt speichern
+checkpoint-saving = Wird gespeichert...
 
 # Property Panel
 props-select-element = Element auswählen, um Eigenschaften zu bearbeiten
@@ -447,6 +492,9 @@ props-code-theme-light = Hell
 props-code-font-size = Schriftgröße
 props-code-show-line-numbers = Zeilennummern
 props-code-padding = Innenabstand
+
+props-legend = Legende
+props-display-options = Anzeigeoptionen
 
 props-chart-data = Diagrammdaten
 props-chart-series = Datenreihen
@@ -761,11 +809,17 @@ transition-trigger-click = Bei Klick
 transition-trigger-auto = Automatisch
 transition-delay = Verzögerung
 transition-preview = Vorschau
+transition-play-preview = Vorschau abspielen
+transition-playing = Wird abgespielt...
+transition-slide-number = Folie { $number }
 
 # Menüband-Symbolleiste
 ribbon-tab-home = Start
+ribbon-tab-home-desc = Formatierung, Layout und Design-Werkzeuge.
 ribbon-tab-insert = Einfügen
+ribbon-tab-insert-desc = Text, Bilder, Formen und Diagramme hinzufügen.
 ribbon-tab-slideshow = Bildschirmpräsentation
+ribbon-tab-slideshow-desc = Präsentieren, übertragen und exportieren.
 ribbon-aria-label = Folieneditor-Menüband
 
 # Symbolleisten-Hinweise

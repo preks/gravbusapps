@@ -386,6 +386,7 @@ interface PropertyPanelProps {
   onSendBackward: () => void
   slideTransition?: SlideTransition
   onSlideTransitionChange?: (transition: SlideTransition) => void
+  slideIndex?: number
 }
 
 export const PropertyPanel: React.FC<PropertyPanelProps> = ({
@@ -396,7 +397,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onBringForward,
   onSendBackward,
   slideTransition,
-  onSlideTransitionChange
+  onSlideTransitionChange,
+  slideIndex = 0
 }) => {
   const { t } = useTranslation(translations)
   const replaceImageInputRef = useRef<HTMLInputElement>(null)
@@ -516,7 +518,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 {/* Preview */}
                 <div>
                   <Label className="gba:text-xs gba:mb-2 gba:block">{t('transition-preview')}</Label>
-                  <TransitionPreview transition={currentTransition} />
+                  <TransitionPreview transition={currentTransition} slideIndex={slideIndex + 1} />
                 </div>
               </CollapsibleContent>
             </Collapsible>

@@ -202,6 +202,32 @@ editor-placeholder-title = Apăsați pentru a adăuga titlul
 editor-placeholder-subtitle = Apăsați pentru a adăuga subtitlul
 editor-code-placeholder = // Codul dvs. aici
 
+# Conținut substituent pentru layout-uri
+layout-presentation-title = Titlul prezentării
+layout-section-title = Titlul secțiunii
+layout-section-description = Descriere sau context pentru această secțiune
+layout-key-points = - Primul punct cheie\n- Al doilea punct cheie\n- Al treilea punct cheie
+layout-left-column-points = - Coloana stângă punct 1\n- Coloana stângă punct 2\n- Coloana stângă punct 3
+layout-right-column-points = - Coloana dreaptă punct 1\n- Coloana dreaptă punct 2\n- Coloana dreaptă punct 3
+layout-strengths = - Punct forte unu\n- Punct forte doi\n- Punct forte trei
+layout-main-content-points = - Conținut principal punct 1\n- Conținut principal punct 2\n- Conținut principal punct 3
+layout-caption-text = Adăugați o legendă sau context suplimentar pentru conținutul principal.
+layout-image-caption = Legenda imaginii
+layout-image-description = Adăugați o descriere pentru imaginea afișată în stânga.
+layout-option-a = Opțiunea A
+layout-option-b = Opțiunea B
+layout-image-alt = Apăsați pentru a adăuga o imagine
+layout-name-title-slide = Diapozitiv cu titlu
+layout-name-title-content = Titlu și conținut
+layout-name-section-header = Antet de secțiune
+layout-name-two-content = Două coloane
+layout-name-comparison = Comparație
+layout-name-title-only = Doar titlu
+layout-name-blank = Gol
+layout-name-content-caption = Conținut cu legendă
+layout-name-picture-caption = Imagine cu legendă
+layout-name-default-theme = Temă implicită
+
 # Collaborators
 collaborators-viewing-now = Vizualizare în curs
 collaborators-more-viewing = încă { $count } { $count ->
@@ -367,6 +393,25 @@ version-close = Închidere
 version-restore-confirm = Restaurați această versiune? Modificările curente vor fi salvate ca versiune nouă.
 version-restored = Versiune restaurată
 version-restore-failed = Restaurare versiune eșuată
+version-no-history-yet = Niciun istoric al versiunilor încă
+version-autosave = Salvare automată
+version-restore-title = Restaurați această versiune
+version-restore-confirm-msg = Sigur doriți să restaurați versiunea { $number }? Se va crea o versiune nouă cu conținutul restaurat.
+version-loading = Se încarcă versiunile...
+version-compare-mode = Comparare versiuni
+version-cancel-compare = Anulare comparare
+version-compare-selected = Comparare selectate
+version-compare-hint = Selectați două versiuni pentru comparare. Faceți clic pe o versiune pentru a o selecta.
+version-unknown-user = Necunoscut
+
+# Checkpoint Dialog
+checkpoint-title = Salvare punct de control
+checkpoint-description-label = Descriere (Opțional)
+checkpoint-description-placeholder = de ex., Secțiune nouă adăugată, Greșeli de tipar corectate, Revizuire majoră
+checkpoint-description-hint = Adăugați o descriere pentru a vă aminti ce s-a schimbat în această versiune.
+checkpoint-cancel = Anulare
+checkpoint-save = Salvare punct de control
+checkpoint-saving = Se salvează...
 
 # Property Panel
 props-select-element = Selectați un element pentru a edita proprietățile
@@ -428,6 +473,9 @@ props-code-theme-light = Luminos
 props-code-font-size = Dimensiune font
 props-code-show-line-numbers = Numere de linie
 props-code-padding = Spațiere interioară
+
+props-legend = Legendă
+props-display-options = Opțiuni afișare
 
 props-chart-data = Date grafic
 props-chart-series = Serii de date
@@ -717,11 +765,17 @@ transition-trigger-click = La click
 transition-trigger-auto = Automat
 transition-delay = Întârziere
 transition-preview = Previzualizare
+transition-play-preview = Redare previzualizare
+transition-playing = Se redă...
+transition-slide-number = Diapozitiv { $number }
 
 # Bară de instrumente Panglică
 ribbon-tab-home = Pornire
+ribbon-tab-home-desc = Instrumente de formatare, aspect și design.
 ribbon-tab-insert = Inserare
+ribbon-tab-insert-desc = Adăugați text, imagini, forme și diagrame.
 ribbon-tab-slideshow = Prezentare
+ribbon-tab-slideshow-desc = Prezentați, transmiteți și exportați.
 ribbon-aria-label = Bara de instrumente editor slide
 
 # Indicii bara de instrumente
