@@ -9,6 +9,10 @@ import {
 } from '../services/CollaborationClient'
 import { getSpreadsheetServiceApiUrl } from '../utils/spreadsheetServiceUrl'
 
+const TOKEN_REFRESH_EVENT = 'com.newwork.token.shouldRefreshAuthorizationHeader'
+
+type TokenRefreshEventDetail = string | boolean | { accessToken?: string } | undefined
+
 const isCollabDebug = (): boolean => {
   try {
     if (
@@ -21,6 +25,33 @@ const isCollabDebug = (): boolean => {
     /* SSR guard */
   }
   return false
+}
+
+function normalizeToken(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const normalized = value.trim()
+  return normalized || null
+}
+
+function resolveAccessTokenFromRefreshEvent(event: Event, fallbackAccessToken: string): string {
+  if (!(event instanceof CustomEvent)) {
+    return fallbackAccessToken
+  }
+
+  const eventDetail = event.detail as TokenRefreshEventDetail
+
+  if (typeof eventDetail === 'string') {
+    return normalizeToken(eventDetail) ?? fallbackAccessToken
+  }
+
+  if (eventDetail && typeof eventDetail === 'object' && 'accessToken' in eventDetail) {
+    return normalizeToken(eventDetail.accessToken) ?? fallbackAccessToken
+  }
+
+  return fallbackAccessToken
 }
 
 type SocketParticipant = {
@@ -58,7 +89,7 @@ type SelectionEventData = {
   userName?: string
   userColor?: string
   socketId?: string
-  selection: DocumentParticipant['selection']
+  selection: DocumentParticipant['selection'] | null
 }
 
 function mapSocketParticipantToParticipant(p: SocketParticipant): DocumentParticipant {
@@ -88,7 +119,7 @@ function addParticipantIfMissing(prev: DocumentParticipant[], data: ParticipantE
       userId: data.userId,
       userName: data.userName,
       userColor: data.userColor,
-      socketId: data.socketId,
+      socketId: data.socketId || '',
       avatarUrl: data.avatarUrl || data.avatar,
       lastActiveAt: new Date()
     }
@@ -130,11 +161,12 @@ function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventD
 
 function updateParticipantSelection(prev: DocumentParticipant[], data: SelectionEventData): DocumentParticipant[] {
   const identity = participantIdentity({ userId: data.userId, socketId: data.socketId || '' })
+  const selection = data.selection ?? undefined
   let found = false
   const next = prev.map(p => {
     if (participantIdentity(p) !== identity) return p
     found = true
-    return { ...p, selection: data.selection, lastActiveAt: new Date() }
+    return { ...p, selection, lastActiveAt: new Date() }
   })
   if (found) return next
   return [
@@ -144,7 +176,7 @@ function updateParticipantSelection(prev: DocumentParticipant[], data: Selection
       userName: data.userName || 'User',
       userColor: data.userColor || '#4ECDC4',
       socketId: data.socketId || '',
-      selection: data.selection,
+      selection,
       lastActiveAt: new Date()
     }
   ]
@@ -238,37 +270,9 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   const onErrorRef = useRef(onError)
   onOperationReceivedRef.current = onOperationReceived
   onErrorRef.current = onError
+  const normalizedAccessToken = normalizeToken(accessToken)
 
-  // Get auth token - prefer passed accessToken, then try localStorage
-  const getAuthToken = useCallback((): string | null => {
-    // Use passed accessToken first
-    if (accessToken) return accessToken
-
-    try {
-      // Check IDE token
-      const ideToken = localStorage.getItem('business-app-ide-access-token')
-      if (ideToken) return ideToken
-
-      // Check keycloak token
-      const authData = localStorage.getItem('keycloak-token')
-      if (authData) {
-        try {
-          const parsed = JSON.parse(authData)
-          return parsed.token || parsed.access_token || null
-        } catch {
-          return authData
-        }
-      }
-
-      // Check session storage
-      const sessionToken = sessionStorage.getItem('auth_token')
-      if (sessionToken) return sessionToken
-
-      return null
-    } catch {
-      return null
-    }
-  }, [accessToken])
+  // Match documents websocket auth semantics: realtime auth must come from the injected token.
 
   // Initialize client and connect
   useEffect(() => {
@@ -281,7 +285,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       cursorReplayTimeoutRef.current = null
     }
 
-    const token = getAuthToken()
+    const token = normalizedAccessToken
     if (!token) {
       console.error('[useCollaboration] No auth token available')
       onErrorRef.current?.(new Error('No authentication token available'))
@@ -331,6 +335,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       if (isCollabDebug()) console.log('[useCollaboration] Connected to collaboration server')
       setIsConnected(true)
       setCollaborationHealth('connected')
+      setSocket(client.getSocket())
       joinRoomIfNeeded()
     }
 
@@ -443,7 +448,24 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       clientRef.current = null
       setSocket(null)
     }
-  }, [enabled, entityType, entityId, getAuthToken])
+  }, [enabled, entityType, entityId, normalizedAccessToken])
+
+  useEffect(() => {
+    if (!enabled || !normalizedAccessToken) {
+      return
+    }
+
+    const handleTokenRefresh: EventListener = event => {
+      const nextAccessToken = resolveAccessTokenFromRefreshEvent(event, normalizedAccessToken)
+      clientRef.current?.setAccessToken(nextAccessToken)
+    }
+
+    globalThis.addEventListener(TOKEN_REFRESH_EVENT, handleTokenRefresh)
+
+    return () => {
+      globalThis.removeEventListener(TOKEN_REFRESH_EVENT, handleTokenRefresh)
+    }
+  }, [enabled, normalizedAccessToken])
 
   // Emit operation — pass-through to the socket. Queuing is handled by entity-specific
   // managers (e.g. SpreadsheetCollaborationManager) for types that need it.
@@ -494,7 +516,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
 
   const emitDocumentOperationAsync = useCallback(
     async (operation: DocumentOperation): Promise<DocumentOperationAckResult> => {
-       const client = clientRef.current
+      const client = clientRef.current
       if (!client?.isConnected()) {
         return { success: false, error: 'not_connected' }
       }
