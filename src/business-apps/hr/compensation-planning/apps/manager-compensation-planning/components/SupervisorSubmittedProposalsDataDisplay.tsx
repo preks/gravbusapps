@@ -46,8 +46,7 @@ export function SupervisorSubmittedProposalsDataDisplay({
   onSendBackOpen
 }: Readonly<SupervisorSubmittedProposalsDataDisplayProps>) {
   return (
-    <div className="gba:mt-4 gba:space-y-3">
-      <p className="gba:text-sm gba:text-muted-foreground">{t('supervisor-review-selection-hint')}</p>
+    <div className="gba:mt-4">
       <DataDisplay
         data-testid="supervisor-submitted-proposals-display"
         titleSections={[

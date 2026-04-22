@@ -521,7 +521,7 @@ trashed-readonly-deleting = Se șterge...
 
 # Tree sidebar
 tree-label = Note
-tree-empty = Nu există note în arbore
+tree-empty = Încă nu există note
 tree-drag-hint = Trageți pentru a reordona sau grupa notițele
 tree-drop-inside = Plasează în interior
 tree-drop-after = Plasează după

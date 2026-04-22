@@ -1,30 +1,45 @@
 /**
  * File Upload Step Component
- * Generic file upload for any entity import
+ *
+ * Generic upload step used by all import flows. The set of catalog
+ * dropdowns rendered here is driven by `enforcedSelectConfigs` (from
+ * `ImportConfig.enforcedSelects`), which the surrounding
+ * `EntityImportView` wraps in a `CatalogSelect.Provider` and a
+ * react-hook-form instance. Each visible config becomes a `FormField` +
+ * `CatalogSelect`; cascading and "disabled until parent picked" are
+ * handled natively by `CatalogSelect.parentField` /
+ * `requireSourceForEnable`.
+ *
+ * Hidden configs (e.g. the synthetic `investmentGroup` root pre-seeded
+ * with the import view's group ref) live in form state only — they exist
+ * so cascading children can resolve a parent value via `parentField`
+ * without rendering a duplicate dropdown.
+ *
+ * Adding a new enforced field is a config-only change.
  */
 
-import React, { useRef } from 'react'
+import React from 'react'
 import {
+  Button,
   Card,
+  CardContent,
   CardHeader,
   CardTitle,
-  CardContent,
-  Button,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
   Input,
   Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
+import { useFormContext } from 'react-hook-form'
 import { SparkleIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import CampaignSelect from '@/common/components/customer/selects/campaign-select/CampaignSelect'
-import { LeadImportDefaults } from '@/common/components/common-relations/apps/data-import/hooks/useLeadImportDefaults'
-import { InvestmentTypeDefaults } from '@/common/components/common-relations/apps/data-import/hooks/useInvestmentTypeDefaults'
+import { CatalogSelect } from '@/components/catalog-select'
+import type { EnforcedSelectConfig } from '@/common/components/common-relations/apps/data-import/types'
 import translations from './FileUploadStep/_i18n'
 
 export interface FileUploadStepProps {
@@ -35,9 +50,45 @@ export interface FileUploadStepProps {
   campaignId?: string
   onCampaignChange?: (campaign: { id: string; name: string } | null) => void
   businessAppContext?: BusinessAppContextProps
-  leadDefaults?: LeadImportDefaults
-  investmentTypeDefaults?: InvestmentTypeDefaults
+  enforcedSelectConfigs?: EnforcedSelectConfig[]
+  allRequiredEnforcedSatisfied?: boolean
   'data-testid'?: string
+}
+
+interface EnforcedCatalogFieldProps {
+  config: EnforcedSelectConfig
+  testId: string
+}
+
+const EnforcedCatalogField: React.FC<EnforcedCatalogFieldProps> = ({ config, testId }) => {
+  const { t } = useTranslation(translations)
+  const form = useFormContext()
+  return (
+    <FormField
+      control={form.control}
+      name={config.id}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>
+            {t(config.labelKey)}
+            {config.required && <span className="gba:text-destructive gba:ml-1">*</span>}
+          </FormLabel>
+          <FormControl>
+            <CatalogSelect
+              catalogIdentifier={`${config.catalogIdentifier}:v1`}
+              variant="combobox"
+              parentField={config.parentSelectId}
+              requireSourceForEnable={Boolean(config.parentSelectId)}
+              value={field.value || ''}
+              onValueChange={field.onChange}
+              allowClear={true}
+              data-testid={`${testId}-enforced-${config.id}-select`}
+            />
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  )
 }
 
 export const FileUploadStep: React.FC<FileUploadStepProps> = ({
@@ -48,22 +99,19 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
   campaignId,
   onCampaignChange,
   businessAppContext,
-  leadDefaults,
-  investmentTypeDefaults,
+  enforcedSelectConfigs,
+  allRequiredEnforcedSatisfied = true,
   'data-testid': testId = 'file-upload-step'
 }) => {
   const { t } = useTranslation(translations)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null
     onFileChange(selectedFile)
   }
 
-  const leadDefaultsComplete =
-    !leadDefaults || (!!leadDefaults.selectedStatus && !!leadDefaults.selectedSource && !!leadDefaults.selectedRating)
-
-  const canAnalyze = !!file && !isLoading && leadDefaultsComplete
+  const canAnalyze = !!file && !isLoading && allRequiredEnforcedSatisfied
+  const visibleEnforcedConfigs = enforcedSelectConfigs?.filter(cfg => !cfg.hidden) ?? []
 
   return (
     <Card data-testid={testId}>
@@ -78,7 +126,6 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
               id="file-upload"
               type="file"
               accept=".csv"
-              ref={fileInputRef}
               onChange={handleFileInputChange}
               className="gba:mt-2"
               data-testid={`${testId}-file-input`}
@@ -109,132 +156,14 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
             </div>
           )}
 
-          {leadDefaults && (
-            <>
-              <div>
-                <Label htmlFor="lead-status-select">
-                  {t('lead-status-label')}
-                  <span className="gba:text-destructive gba:ml-1">*</span>
-                </Label>
-                <Select
-                  value={leadDefaults.selectedStatus || undefined}
-                  onValueChange={leadDefaults.onStatusChange}
-                  disabled={leadDefaults.isLoading}
-                >
-                  <SelectTrigger
-                    id="lead-status-select"
-                    className="gba:mt-2 gba:w-full"
-                    data-testid={`${testId}-lead-status-select`}
-                  >
-                    <SelectValue
-                      placeholder={leadDefaults.isLoading ? t('loading-placeholder') : t('lead-status-placeholder')}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leadDefaults.statusOptions.map(opt => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {visibleEnforcedConfigs.map(cfg => (
+            <EnforcedCatalogField key={cfg.id} config={cfg} testId={testId} />
+          ))}
 
-              <div>
-                <Label htmlFor="lead-source-select">
-                  {t('lead-source-label')}
-                  <span className="gba:text-destructive gba:ml-1">*</span>
-                </Label>
-                <Select
-                  value={leadDefaults.selectedSource || undefined}
-                  onValueChange={leadDefaults.onSourceChange}
-                  disabled={leadDefaults.isLoading}
-                >
-                  <SelectTrigger
-                    id="lead-source-select"
-                    className="gba:mt-2 gba:w-full"
-                    data-testid={`${testId}-lead-source-select`}
-                  >
-                    <SelectValue
-                      placeholder={leadDefaults.isLoading ? t('loading-placeholder') : t('lead-source-placeholder')}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leadDefaults.sourceOptions.map(opt => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="lead-rating-select">
-                  {t('lead-rating-label')}
-                  <span className="gba:text-destructive gba:ml-1">*</span>
-                </Label>
-                <Select
-                  value={leadDefaults.selectedRating || undefined}
-                  onValueChange={leadDefaults.onRatingChange}
-                  disabled={leadDefaults.isLoading}
-                >
-                  <SelectTrigger
-                    id="lead-rating-select"
-                    className="gba:mt-2 gba:w-full"
-                    data-testid={`${testId}-lead-rating-select`}
-                  >
-                    <SelectValue
-                      placeholder={leadDefaults.isLoading ? t('loading-placeholder') : t('lead-rating-placeholder')}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leadDefaults.ratingOptions.map(opt => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {!leadDefaultsComplete && file && (
-                <p className="gba:text-xs gba:text-destructive" data-testid={`${testId}-lead-defaults-required`}>
-                  {t('lead-defaults-required-hint')}
-                </p>
-              )}
-            </>
-          )}
-
-          {investmentTypeDefaults && (
-            <div>
-              <Label htmlFor="investment-type-select">{t('investment-type-label')}</Label>
-              <Select
-                value={investmentTypeDefaults.selectedType || undefined}
-                onValueChange={value => investmentTypeDefaults.onTypeChange(value === '__none__' ? '' : value)}
-                disabled={investmentTypeDefaults.isLoading}
-              >
-                <SelectTrigger
-                  id="investment-type-select"
-                  className="gba:mt-2 gba:w-full"
-                  data-testid={`${testId}-investment-type-select`}
-                >
-                  <SelectValue
-                    placeholder={
-                      investmentTypeDefaults.isLoading ? t('loading-placeholder') : t('investment-type-placeholder')
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">{t('investment-type-none-option')}</SelectItem>
-                  {investmentTypeDefaults.options.map(opt => (
-                    <SelectItem key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {!allRequiredEnforcedSatisfied && file && (
+            <p className="gba:text-xs gba:text-destructive" data-testid={`${testId}-enforced-required`}>
+              {t('enforced-required-hint')}
+            </p>
           )}
 
           <Button

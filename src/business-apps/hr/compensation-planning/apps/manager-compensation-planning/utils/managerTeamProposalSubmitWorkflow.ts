@@ -8,6 +8,7 @@ import {
   computeManagerProposalAmountsFromIncrease,
   resolvePlanOrganizationalUnitRowIdForTeamMember
 } from './buildManagerEmployeeBudgetSaveBody'
+import { promoteOrgUnitBudgetRowToSubmittedAfterManagerSubmit } from './teamCompensationSaveAllocationsWorkflow'
 import type { DraftEmployeeRowForSubmit } from './resolveDraftEmployeeRowsForSubmit'
 import { resolveDraftEmployeeRowsForSubmit } from './resolveDraftEmployeeRowsForSubmit'
 import { buildSubmitEmployeeProposalUpdateBodyFromRow } from './buildSubmitEmployeeProposalUpdateBody'
@@ -160,6 +161,8 @@ export async function executeManagerTeamDraftSubmit(
     serverDraftRowsByEmployeeId = loaded.serverDraftRowsByEmployeeId
   }
 
+  const planOuRowIdsToPromote = new Set<string>()
+
   for (const employeeId of input.draftEmployeeIds) {
     const entry = input.employeeBudgetRowState[employeeId]
     const member = input.memberById.get(employeeId)
@@ -183,6 +186,24 @@ export async function executeManagerTeamDraftSubmit(
     if (!result.ok) {
       return result
     }
+    const planOuId = resolvePlanOrganizationalUnitRowIdForTeamMember(
+      member,
+      input.planOuRowIdByOrganizationalUnitId,
+      input.managerOrganizationalUnitId
+    )
+    if (planOuId) {
+      planOuRowIdsToPromote.add(planOuId)
+    }
   }
+
+  for (const planOuRowId of planOuRowIdsToPromote) {
+    await promoteOrgUnitBudgetRowToSubmittedAfterManagerSubmit(
+      input.graphqlClient,
+      input.restClient,
+      input.accessToken,
+      planOuRowId
+    )
+  }
+
   return { ok: true }
 }

@@ -24,7 +24,7 @@ import {
   Textarea,
   useTranslation
 } from '@newwork/nw-design-system'
-import type { DocumentTemplate, TemplateCategory } from '../types'
+import type { DocumentTemplate, DocumentTemplateMutationInput, TemplateCategory } from '../types'
 import { TEMPLATE_CATEGORY_API_VALUES } from '../types'
 import { TEMPLATE_CONTEXTS, getContextForCategory } from '../entities/templateContextConfig'
 import translations from '../_i18n'
@@ -44,10 +44,7 @@ const CATEGORY_KEYS: Record<TemplateCategory, string> = {
 export interface CreateTemplateDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  createTemplate: (
-    template: Omit<DocumentTemplate, 'id' | 'createdAt' | 'updatedAt' | 'usageCount'>
-  ) => Promise<DocumentTemplate | null>
-  currentUserId: string
+  createTemplate: (template: DocumentTemplateMutationInput) => Promise<DocumentTemplate | null>
   /** Called after create; pass chosen context so the editor can show the right entities (not persisted). */
   onCreated?: (template: DocumentTemplate, options?: { entityContext?: string }) => void
   'data-testid'?: string
@@ -57,7 +54,6 @@ export function CreateTemplateDialog({
   open,
   onOpenChange,
   createTemplate,
-  currentUserId,
   onCreated,
   'data-testid': testId = 'create-template-dialog'
 }: Readonly<CreateTemplateDialogProps>) {
@@ -84,8 +80,7 @@ export function CreateTemplateDialog({
         description: description.trim() || undefined,
         category,
         content: '<p></p>',
-        isPublic: false,
-        createdBy: currentUserId
+        isPublic: false
       })
       if (newTemplate) {
         setName('')

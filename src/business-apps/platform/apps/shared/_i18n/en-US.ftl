@@ -2,6 +2,9 @@
 inline-comment-add = Add Comment
 inline-comment-placeholder = Add a comment...
 inline-comment-button = Comment
+inline-comment-selection-actions = Selection Actions
+inline-comment-ai-edit = AI Edit
+inline-comment-back = Back
 
 # CommentEditor
 comment-editor-cancel = Cancel
@@ -16,6 +19,7 @@ comment-thread-edit = Edit
 comment-thread-resolve = Resolve
 comment-thread-delete = Delete
 comment-thread-resolved = Resolved
+comment-thread-cell-reference = Cell { $reference }
 comment-thread-confirm-delete = Are you sure you want to delete this comment?
 comment-thread-edit-placeholder = Edit comment...
 comment-thread-reply-placeholder = Write a reply...

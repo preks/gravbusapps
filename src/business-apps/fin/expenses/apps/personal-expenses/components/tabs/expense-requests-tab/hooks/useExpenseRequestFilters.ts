@@ -1,13 +1,13 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { getExpenseRequestStatusDisplay } from '../../../../utils'
 import type { ExpenseRequestWhereClause } from '../utils/expenseRequestWhereClause.types'
-import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { StartDateRangeFilter } from '../filters/StartDateRangeFilter'
-import { EndDateRangeFilter } from '../filters/EndDateRangeFilter'
-import RequestDateRangeFilter from '../filters/RequestDateRangeFilter'
 import { buildExpenseRequestWhereConditions } from '../utils/buildExpenseRequestWhereConditions'
 import { EXPENSE_REQUEST_FILTER_STATUSES } from '../utils/expenseRequestFilterConstants'
+import {
+  formatExpenseAmountRangeChipLabel,
+  type ExpenseAmountRangeValue
+} from '@/business-apps/fin/expenses/common/utils/amountRangeFilterUtils'
 
 export {
   EXPENSE_REQUEST_FILTER_STATUSES,
@@ -28,11 +28,13 @@ export interface ExpenseRequestFilter {
 
 export type { ExpenseRequestWhereClause } from '../utils/expenseRequestWhereClause.types'
 
-const EXPENSE_REQUEST_DATE_RANGE_FILTER_IDS = new Set<string>([
+const EXPENSE_REQUEST_VIRTUAL_FILTER_IDS = new Set<string>([
   'requestDateRange',
   'startDateRange',
   'endDateRange',
-  'effectiveDateRange'
+  'effectiveDateRange',
+  'reimbursableAmountRange',
+  'advanceAmountRange'
 ])
 
 // Interface for the return type of useExpenseRequestFilters
@@ -41,7 +43,6 @@ export interface UseExpenseRequestFiltersReturn {
   setSearch: (search: string) => void
   selectedFilters: string[]
   setFilters: (filters: string[]) => void
-  filterGroups: DataFilterGroup[]
   handleFilterChange: (filterId: string, selected: boolean) => void
   clearFilters: () => void
   getFilters: () => ExpenseRequestWhereClause
@@ -56,6 +57,10 @@ export interface UseExpenseRequestFiltersReturn {
   filterLabelMap: Record<string, string>
   addFilter: (filterId: string) => void
   removeFilter: (filterId: string) => void
+  reimbursableAmountRange: ExpenseAmountRangeValue
+  setReimbursableAmountRange: (range: ExpenseAmountRangeValue) => void
+  advanceAmountRange: ExpenseAmountRangeValue
+  setAdvanceAmountRange: (range: ExpenseAmountRangeValue) => void
 }
 
 /**
@@ -69,6 +74,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   const [endDateRange, setEndDateRange] = useState<[Date | null, Date | null] | null>(null)
   const [requestDateRange, setRequestDateRange] = useState<[Date | null, Date | null] | null>(null)
   const [effectiveDateRange, setEffectiveDateRange] = useState<[Date | null, Date | null] | null>(null)
+  const [reimbursableAmountRange, setReimbursableAmountRange] = useState<ExpenseAmountRangeValue>(null)
+  const [advanceAmountRange, setAdvanceAmountRange] = useState<ExpenseAmountRangeValue>(null)
 
   // Define these as constants for stable references
   // const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
@@ -89,108 +96,6 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       return `${statusConfig.label} (${translatedStatus})`
     }
   }
-
-  // Define filter groups - memoized so they don't cause re-renders
-  const filterGroups = useMemo<DataFilterGroup[]>(
-    () => [
-      {
-        id: 'effectiveDateRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
-        type: 'date-range' as any,
-        customComponent: React.createElement(RequestDateRangeFilter, {
-          requestDateRange: effectiveDateRange as any,
-          onDateRangeChange: setEffectiveDateRange,
-          placeholder: [
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
-          ],
-          isEffectiveDateRange: true
-        }),
-        hideSearch: true
-      },
-      {
-        id: 'requestDateRange',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:confirm_transfer_advance_payment.request_date_label',
-          'Request Date'
-        ),
-        type: 'date-range' as any,
-        customComponent: React.createElement(RequestDateRangeFilter, {
-          requestDateRange: requestDateRange,
-          onDateRangeChange: setRequestDateRange,
-          placeholder: [
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
-          ]
-        }),
-        hideSearch: true
-      },
-      {
-        id: 'startDateRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
-        type: 'date-range' as any,
-        customComponent: React.createElement(StartDateRangeFilter, {
-          startDateRange: startDateRange,
-          onDateRangeChange: setStartDateRange,
-          placeholder: [
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
-          ]
-        }),
-        hideSearch: true
-      },
-      {
-        id: 'endDateRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
-        type: 'date-range' as any,
-        customComponent: React.createElement(EndDateRangeFilter, {
-          endDateRange: endDateRange,
-          onDateRangeChange: setEndDateRange,
-          placeholder: [
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-            getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
-          ]
-        }),
-        hideSearch: true
-      },
-      {
-        id: 'status',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:manager_expense_request_list.expense_table.status',
-          'Status'
-        ),
-        filters: EXPENSE_REQUEST_FILTER_STATUSES.map(status => {
-          const id = status
-          return {
-            id,
-            label: getStatusDisplayName(status),
-            selected: selectedFilters.includes(id)
-          }
-        })
-      },
-      {
-        id: 'requestType',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
-          'Request Type'
-        ),
-        type: 'radio' as any,
-        filters: [
-          {
-            id: 'ExpenseRequestType:v1:EXPENSES',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense'),
-            selected: selectedFilters.includes('ExpenseRequestType:v1:EXPENSES')
-          },
-          {
-            id: 'ExpenseRequestType:v1:TRIP',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip'),
-            selected: selectedFilters.includes('ExpenseRequestType:v1:TRIP')
-          }
-        ]
-      }
-    ],
-    [selectedFilters, startDateRange, endDateRange, requestDateRange, effectiveDateRange]
-  )
 
   // Helper function to format date range for display
   const formatDateRangeLabel = useCallback((dateRange: [Date | null, Date | null] | null): string => {
@@ -255,8 +160,33 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
         `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date')}: ${endDateLabel}`
     }
 
+    const reimbursableChip = formatExpenseAmountRangeChipLabel(
+      reimbursableAmountRange,
+      `${getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')}: `
+    )
+    if (reimbursableChip) {
+      labelMap['reimbursableAmountRange'] = reimbursableChip
+    }
+
+    const advanceChip = formatExpenseAmountRangeChipLabel(
+      advanceAmountRange,
+      `${getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.advance', 'Advance')}: `
+    )
+    if (advanceChip) {
+      labelMap['advanceAmountRange'] = advanceChip
+    }
+
     return labelMap
-  }, [getStatusDisplayName, formatDateRangeLabel, requestDateRange, startDateRange, endDateRange, effectiveDateRange])
+  }, [
+    getStatusDisplayName,
+    formatDateRangeLabel,
+    requestDateRange,
+    startDateRange,
+    endDateRange,
+    effectiveDateRange,
+    reimbursableAmountRange,
+    advanceAmountRange
+  ])
 
   // Get all selected filters including active date ranges
   const getAllSelectedFilters = useMemo(() => {
@@ -275,9 +205,26 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     if (effectiveDateRange && (effectiveDateRange[0] || effectiveDateRange[1])) {
       filters.push('effectiveDateRange')
     }
+    if (
+      reimbursableAmountRange &&
+      (reimbursableAmountRange.min !== undefined || reimbursableAmountRange.max !== undefined)
+    ) {
+      filters.push('reimbursableAmountRange')
+    }
+    if (advanceAmountRange && (advanceAmountRange.min !== undefined || advanceAmountRange.max !== undefined)) {
+      filters.push('advanceAmountRange')
+    }
 
     return filters
-  }, [selectedFilters, requestDateRange, startDateRange, endDateRange, effectiveDateRange])
+  }, [
+    selectedFilters,
+    requestDateRange,
+    startDateRange,
+    endDateRange,
+    effectiveDateRange,
+    reimbursableAmountRange,
+    advanceAmountRange
+  ])
 
   // Add filter with proper dependency handling - returns the new filters array for immediate use
   const addFilter = useCallback((filterId: string): string[] => {
@@ -314,6 +261,10 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       setEndDateRange(null)
     } else if (filterId === 'effectiveDateRange') {
       setEffectiveDateRange(null)
+    } else if (filterId === 'reimbursableAmountRange') {
+      setReimbursableAmountRange(null)
+    } else if (filterId === 'advanceAmountRange') {
+      setAdvanceAmountRange(null)
     } else {
       setSelectedFilters(prev => prev.filter(id => id !== filterId))
     }
@@ -327,29 +278,35 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       setRequestDateRange(null)
       setStartDateRange(null)
       setEndDateRange(null)
+      setEffectiveDateRange(null)
+      setReimbursableAmountRange(null)
+      setAdvanceAmountRange(null)
       setSearch('')
       return
     }
 
-    // Separate date range filters from regular filters
-    const regularFilters = filters.filter(f => !EXPENSE_REQUEST_DATE_RANGE_FILTER_IDS.has(f))
-    const newDateRangeFilterIds = new Set(filters.filter(f => EXPENSE_REQUEST_DATE_RANGE_FILTER_IDS.has(f)))
+    const regularFilters = filters.filter(f => !EXPENSE_REQUEST_VIRTUAL_FILTER_IDS.has(f))
+    const newVirtualFilterIds = new Set(filters.filter(f => EXPENSE_REQUEST_VIRTUAL_FILTER_IDS.has(f)))
 
-    // Set regular filters
     setSelectedFilters(regularFilters)
 
-    // Clear date ranges that are not in the new filter list
-    if (!newDateRangeFilterIds.has('requestDateRange')) {
+    if (!newVirtualFilterIds.has('requestDateRange')) {
       setRequestDateRange(null)
     }
-    if (!newDateRangeFilterIds.has('startDateRange')) {
+    if (!newVirtualFilterIds.has('startDateRange')) {
       setStartDateRange(null)
     }
-    if (!newDateRangeFilterIds.has('endDateRange')) {
+    if (!newVirtualFilterIds.has('endDateRange')) {
       setEndDateRange(null)
     }
-    if (!newDateRangeFilterIds.has('effectiveDateRange')) {
+    if (!newVirtualFilterIds.has('effectiveDateRange')) {
       setEffectiveDateRange(null)
+    }
+    if (!newVirtualFilterIds.has('reimbursableAmountRange')) {
+      setReimbursableAmountRange(null)
+    }
+    if (!newVirtualFilterIds.has('advanceAmountRange')) {
+      setAdvanceAmountRange(null)
     }
   }, [])
 
@@ -360,6 +317,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     setStartDateRange(null)
     setEndDateRange(null)
     setEffectiveDateRange(null)
+    setReimbursableAmountRange(null)
+    setAdvanceAmountRange(null)
     setSearch('')
   }, [])
 
@@ -371,9 +330,20 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       startDateRange,
       endDateRange,
       requestDateRange,
-      effectiveDateRange
+      effectiveDateRange,
+      reimbursableAmountRange,
+      advanceAmountRange
     )
-  }, [search, selectedFilters, startDateRange, endDateRange, requestDateRange, effectiveDateRange])
+  }, [
+    search,
+    selectedFilters,
+    startDateRange,
+    endDateRange,
+    requestDateRange,
+    effectiveDateRange,
+    reimbursableAmountRange,
+    advanceAmountRange
+  ])
 
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
     setSelectedFilters(prev => {
@@ -399,7 +369,6 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     setSearch,
     selectedFilters: getAllSelectedFilters,
     setFilters,
-    filterGroups,
     handleFilterChange,
     clearFilters: clearAllFilters,
     getFilters,
@@ -413,6 +382,10 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     setEffectiveDateRange,
     filterLabelMap,
     addFilter,
-    removeFilter
+    removeFilter,
+    reimbursableAmountRange,
+    setReimbursableAmountRange,
+    advanceAmountRange,
+    setAdvanceAmountRange
   }
 }

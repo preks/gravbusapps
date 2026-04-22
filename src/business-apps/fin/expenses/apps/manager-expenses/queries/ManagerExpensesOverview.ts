@@ -20,6 +20,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     $reqStatusWhere: ExpenseRequestBoolExp = {},
     $planStatusWhere: ExpensePlanBoolExp = {},
     $payStatusWhere: AdvancePaymentBoolExp = {},
+    $payAmountWhere: AdvancePaymentBoolExp = {},
     $planDateWhere: ExpensePlanBoolExp = {},
     $reqDateWhere: ExpenseRequestBoolExp = {}
   ) {
@@ -397,7 +398,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
           { expensePlan: { title: { _ilike: $searchTerm } } },
           { expensePlan: { employee: { fullName: { _ilike: $searchTerm } } } }
         ],
-        _and: [ $payCurrencyWhere, $payStatusWhere ]
+        _and: [ $payCurrencyWhere, $payStatusWhere, $payAmountWhere ]
       }
     ) { aggregate { count } }
 
@@ -415,7 +416,8 @@ export const MANAGER_EXPENSES_OVERVIEW = `
         ],
         _and: [ 
           $payCurrencyWhere,
-          $payStatusWhere
+          $payStatusWhere,
+          $payAmountWhere
         ]
       }
     ) {

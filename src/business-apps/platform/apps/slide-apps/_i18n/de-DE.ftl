@@ -84,7 +84,7 @@ shared-click-manage = Klicken zum Verwalten
 
 confirm-delete = Diese Präsentation in den Papierkorb verschieben?
 delete-confirm-title = In den Papierkorb verschieben?
-delete-confirm-single = "{$name}" wird in den Papierkorb verschoben. Sie können es innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-single = „{ $name }“ wird in den Papierkorb verschoben. Sie können es innerhalb von 30 Tagen wiederherstellen.
 delete-confirm-multi = {$count} Elemente werden in den Papierkorb verschoben. Sie können sie innerhalb von 30 Tagen wiederherstellen.
 delete-confirm-action = In den Papierkorb verschieben
 delete-confirm-cancel = Abbrechen
@@ -136,8 +136,8 @@ editor-slide-of = Folie { $current } von { $total }
 editor-saving = Wird gespeichert...
 editor-synced = Synchronisiert
 editor-connecting = Verbinde...
-editor-zoom-out = Vergrößern
-editor-zoom-in = Verkleinern
+editor-zoom-out = Verkleinern
+editor-zoom-in = Vergrößern
 editor-present = Präsentieren
 editor-export = Exportieren
 editor-save-now = Jetzt speichern
@@ -256,7 +256,7 @@ import-feature-transitions = Basisübergänge (teilweise)
 
 # Share Dialog
 share-title = Folie teilen
-share-description = „{ $title }“ mit anderen teilen und Zugriffsstufe festlegen.
+share-description = Teilen Sie „{ $title }“ mit anderen und legen Sie deren Zugriffsstufe fest.
 share-success-title = Folie geteilt!
 share-notified-single = { $name } wurde benachrichtigt und kann jetzt auf diese Folie zugreifen.
 share-notified-multiple = { $count } Personen wurden benachrichtigt und können jetzt auf diese Folie zugreifen.
@@ -266,11 +266,11 @@ share-can-comment = Kann kommentieren
 share-can-edit = Kann bearbeiten
 share-add-people = Personen hinzufügen
 share-search-placeholder = Personen suchen...
-share-no-results = Keine Personen gefunden für „{ $query }“
+share-no-results = Keine Personen gefunden, die zu „{ $query }“ passen
 share-people-with-access = Personen mit Zugriff ({ $count })
 share-message-optional = Nachricht (optional)
 share-message-placeholder = Nachricht für die Empfänger hinzufügen...
-share-info = Geteilte Personen erhalten eine Benachrichtigung und können je nach Berechtigungsstufe auf die Folie zugreifen.
+share-info = Personen, mit denen Sie teilen, erhalten eine Benachrichtigung und können je nach Berechtigungsstufe auf die Folie zugreifen.
 share-cancel = Abbrechen
 share-button = Teilen
 share-sharing = Wird geteilt...
@@ -284,7 +284,7 @@ share-success-description = Geteilt mit { $count } { $count ->
 
 # Manage Shares
 manage-title = Freigaben verwalten
-manage-description = Verwalten, wer auf „{ $title }“ zugreifen kann
+manage-description = Verwalten Sie, wer auf „{ $title }“ zugreifen kann
 manage-not-shared = Noch mit niemandem geteilt
 manage-add-users-hint = Klicken Sie auf „Benutzer hinzufügen“, um diese Präsentation zu teilen
 manage-can-view = Kann ansehen
@@ -531,17 +531,17 @@ parser-slide-not-found = Folie { $number } nicht gefunden
 parser-no-slides-parsed = Keine Folien konnten geparst werden. Leere Folie erstellt.
 parser-failed = PowerPoint-Datei konnte nicht geparst werden
 parser-imported-slide = Importierte Folie
-parser-shape-unsupported = Formtyp „{ $type }" auf Folie { $slide } wurde als Rechteck importiert
-parser-chart-unsupported = Diagrammtyp „{ $type }" auf Folie { $slide } konnte nicht importiert werden
+parser-shape-unsupported = Formtyp „{ $type }“ auf Folie { $slide } wurde als Rechteck importiert
+parser-chart-unsupported = Diagrammtyp „{ $type }“ auf Folie { $slide } konnte nicht importiert werden
 parser-chart-imported = { $type }-Diagramm auf Folie { $slide } importiert
 parser-table-imported = Tabelle importiert ({ $rows } Zeilen, { $cols } Spalten) auf Folie { $slide }
 parser-notes-imported = Sprechernotizen für { $count } { $count ->
     [one] Folie
    *[other] Folien
 } importiert
-parser-transition-unsupported = Übergang „{ $type }" auf Folie { $slide } wurde angenähert
+parser-transition-unsupported = Übergang „{ $type }“ auf Folie { $slide } wurde angenähert
 parser-group-flattened = Gruppierte Formen auf Folie { $slide } wurden aufgelöst
-parser-theme-mapped = Präsentationsdesign wurde „{ $theme }" zugeordnet
+parser-theme-mapped = Präsentationsdesign wurde „{ $theme }“ zugeordnet
 import-preview-title = Importvorschau
 import-preview-select-slides = Folien zum Import auswählen
 import-preview-selected = { $selected } von { $total } Folien ausgewählt
@@ -641,9 +641,9 @@ template-ai-optimized = KI-optimierte Vorlage mit definierten Folienzwecken
 template-delete = Löschen
 template-delete-confirm = Diese Vorlage löschen?
 template-delete-title = Vorlage löschen
-template-delete-message = Möchten Sie „{ $name }" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+template-delete-message = Möchten Sie „{ $name }“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
 template-deleted-title = Vorlage gelöscht
-template-deleted-description = „{ $name }" wurde gelöscht.
+template-deleted-description = „{ $name }“ wurde gelöscht.
 template-delete-error-title = Löschen fehlgeschlagen
 template-delete-error-description = Die Vorlage konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.
 
@@ -670,7 +670,7 @@ editor-voice-start = Spracheingabe starten
 editor-voice-stop = Spracheingabe stoppen
 editor-voice-recognizing = Erkannt
 editor-voice-recording = Aufnahme läuft...
-editor-voice-hint = Tipp: Klicken Sie auf "Spracheingabe", um zu diktieren
+editor-voice-hint = Tipp: Klicken Sie auf „Spracheingabe“, um zu diktieren
 editor-text-placeholder = Geben Sie hier Ihren Text ein...
 
 # Bilderweiterungen

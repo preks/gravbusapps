@@ -12,20 +12,20 @@ file-loaded-text = Fișier încărcat: { $fileName } ({ $fileSize } KB)
 # Campaign
 campaign-id-label = Campanie (Opțional)
 
+# Shared
+enforced-required-hint = Vă rugăm completați toate câmpurile obligatorii înainte de analiză.
+
 # Lead Defaults
 lead-status-label = Default Status Lead 
 lead-source-label = Default Sursă Lead 
 lead-rating-label = Default Evaluare Lead 
-lead-status-placeholder = Selectați statusul lead-ului...
-lead-source-placeholder = Selectați sursa lead-ului...
-lead-rating-placeholder = Selectați evaluarea lead-ului...
-loading-placeholder = Se încarcă...
-lead-defaults-required-hint = Vă rugăm selectați Status Lead Default, Sursă Lead Default și Evaluare Lead Default înainte de analiză.
 
 # Investment Defaults
+investment-group-label = Grup de investiții
 investment-type-label = Tip investiție (Opțional)
-investment-type-placeholder = Selectați un tip pentru toate rândurile...
-investment-type-none-option = Detectare automată pe fiecare rând (Flowbot)
+
+# Liquid Fund Defaults
+liquid-fund-type-label = Tip fond lichid (Opțional)
 
 # Button Labels
 analyze-button = Analizare cu Agent AI

@@ -6,7 +6,6 @@ export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   activeFilter?: string[]
   onFilterChange?: (filter: string[]) => void
   onClearFilters?: () => void
-  filterGroups?: unknown[]
   handleFilterChange?: (filterId: string, selected: boolean) => void
   filterLabelMap?: Record<string, string>
   amountRange?: { min?: number; max?: number } | null

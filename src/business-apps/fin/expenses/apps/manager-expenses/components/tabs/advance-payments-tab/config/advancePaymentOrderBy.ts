@@ -6,7 +6,7 @@
 const DEFAULT_ORDER: unknown[] = [{ createdAt: 'DESC' }]
 
 /**
- * Maps sort field id (from advancePaymentSortableColumns) and order to orderBy for the overview query.
+ * Maps sort field id (must match ids in advancePaymentColumnDefinitions.ts) and order to orderBy for the overview query.
  */
 export function buildAdvancePaymentOrderBy(field: string | null, order: 'ASC' | 'DESC' | null): unknown[] {
   if (!field || !order) return DEFAULT_ORDER

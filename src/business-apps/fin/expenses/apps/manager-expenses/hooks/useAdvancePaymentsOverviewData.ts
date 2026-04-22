@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { AdvancePayment } from './useMainViewAdvancePayments'
 import { useManagerExpensesOverview } from './useManagerExpensesOverview'
 import { useCurrencyRefs, usePaginationParams, useStatsFromOverview, extractLoadingError } from './overviewHelpers'
+import type { ExpenseAmountRangeValue } from '../../../common/utils/amountRangeFilterUtils'
 
 export interface AdvancePaymentsOverviewDataParams {
   managerId: string
@@ -13,6 +14,7 @@ export interface AdvancePaymentsOverviewDataParams {
   pageSize: number
   currentPage: number
   payOrderBy: unknown[]
+  amountRange?: ExpenseAmountRangeValue
 }
 
 export interface PaymentStats {
@@ -26,8 +28,17 @@ export function useAdvancePaymentsOverviewData(
   context: BusinessAppContextProps,
   params: AdvancePaymentsOverviewDataParams
 ) {
-  const { managerId, primaryCurrency, mostUsedCurrency, searchTerm, statusFilter, pageSize, currentPage, payOrderBy } =
-    params
+  const {
+    managerId,
+    primaryCurrency,
+    mostUsedCurrency,
+    searchTerm,
+    statusFilter,
+    pageSize,
+    currentPage,
+    payOrderBy,
+    amountRange
+  } = params
 
   const { currencyRef, statsCurrencyRef: payStatsCurrencyRef } = useCurrencyRefs(primaryCurrency, mostUsedCurrency)
   const paymentsParams = usePaginationParams(pageSize, currentPage, payOrderBy)
@@ -41,9 +52,19 @@ export function useAdvancePaymentsOverviewData(
       payments: paymentsParams,
       paymentsStatus: statusFilter.length > 0 ? statusFilter : undefined,
       requests: { limit: 0, offset: 0 },
-      plans: { limit: 0, offset: 0 }
+      plans: { limit: 0, offset: 0 },
+      paymentsAmountRange: amountRange
     }),
-    [managerId, currencyRef, payStatsCurrencyRef, searchTerm, paymentsParams, statusFilter]
+    [
+      managerId,
+      currencyRef,
+      payStatsCurrencyRef,
+      searchTerm,
+      paymentsParams,
+      statusFilter,
+      amountRange?.min,
+      amountRange?.max
+    ]
   )
 
   const overview = useManagerExpensesOverview(context, overviewParams)

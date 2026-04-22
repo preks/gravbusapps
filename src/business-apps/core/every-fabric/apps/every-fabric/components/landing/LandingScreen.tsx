@@ -1,4 +1,3 @@
-import { ClockCounterClockwiseIcon, GearIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import type { SessionConfig } from '../../types/enterpriseAgent'
 import { useFabricConnectors } from '../../hooks/useFabricConnectors'
@@ -17,8 +16,6 @@ interface LandingScreenProps {
     activeEnterpriseSkillId?: string,
     fallbackSkillId?: string
   ) => void | Promise<unknown>
-  onOpenHistory: () => void
-  onOpenSettings: () => void
 }
 
 // ─── Radial glow background (CSS-in-JS since Tailwind can't express this) ────
@@ -42,12 +39,7 @@ const GlowStyle: React.FC = () => (
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export const LandingScreen: React.FC<LandingScreenProps> = ({
-  accessToken,
-  onStartSession,
-  onOpenHistory,
-  onOpenSettings
-}) => {
+export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onStartSession }) => {
   const { userInfo } = useFabric()
   const {
     availableConnectors,
@@ -79,28 +71,6 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
       className="gba:relative gba:flex gba:flex-col gba:flex-1 gba:h-full gba:min-h-0 gba:bg-background gba:overflow-hidden"
       data-testid="fabric-landing"
     >
-      <div className="gba:absolute gba:top-5 gba:left-0 gba:right-0 gba:z-20 gba:flex gba:items-center gba:justify-between gba:px-4 sm:gba:px-6 lg:gba:px-8">
-        <button
-          onClick={onOpenHistory}
-          className="gba:inline-flex gba:items-center gba:gap-2 gba:h-10 gba:px-4 gba:rounded-full gba:border gba:border-border/70 gba:bg-card/95 gba:text-sm gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-card gba:transition-colors"
-          data-testid="fabric-landing-history-button"
-        >
-          <ClockCounterClockwiseIcon className="gba:h-4 gba:w-4" />
-          History
-        </button>
-
-        <h2 className="gba:text-xl gba:font-bold gba:tracking-tight gba:text-foreground">NEWWORK Enterprise Agents</h2>
-
-        <button
-          onClick={onOpenSettings}
-          className="gba:inline-flex gba:items-center gba:gap-2 gba:h-10 gba:px-4 gba:rounded-full gba:border gba:border-border/70 gba:bg-card/95 gba:text-sm gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-card gba:transition-colors"
-          data-testid="fabric-landing-settings-button"
-        >
-          <GearIcon className="gba:h-4 gba:w-4" />
-          Settings
-        </button>
-      </div>
-
       <GlowStyle />
 
       <div className="gba:flex-1 gba:min-h-0 gba:overflow-auto">

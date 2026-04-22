@@ -15,10 +15,6 @@ export interface SkillOption {
   name: string
 }
 
-export interface PendingSkill extends SkillOption {
-  level: number
-}
-
 export interface SelectedSkill extends SkillOption {
   isNew?: boolean
   level?: number
