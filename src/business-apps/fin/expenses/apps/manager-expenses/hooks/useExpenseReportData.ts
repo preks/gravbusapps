@@ -135,8 +135,12 @@ export const useExpenseReportData = ({
   const [pageSize, setPageSize] = useState<number>(10)
   const [searchTerm, setSearchTerm] = useState<string>('')
 
-  // State for selected report type
-  const [selectedReportType, setSelectedReportType] = useState<ReportType | null>(ReportType.EXPENSE_ITEM)
+  // State for selected report type (use setter that resets page so a new type never reuses a stale high page)
+  const [selectedReportType, setSelectedReportTypeState] = useState<ReportType | null>(ReportType.EXPENSE_ITEM)
+  const setSelectedReportType = useCallback((type: ReportType) => {
+    setSelectedReportTypeState(type)
+    setCurrentPage(1)
+  }, [])
 
   // Shared helper to build a human-readable employee name
   const buildEmployeeDisplayName = (e: any): string => {
@@ -243,6 +247,12 @@ export const useExpenseReportData = ({
     })
   }, [])
 
+  const offsetIsPastEnd = useCallback((rowCount: number, total: number, page: number, size: number) => {
+    if (rowCount > 0) return false
+    if (total <= 0) return false
+    return (page - 1) * size >= total
+  }, [])
+
   const mapPaymentsFromOverview = useCallback((rows: any[]): AdvancePaymentReport[] => {
     return (rows || []).map((p: any) => {
       const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
@@ -272,23 +282,38 @@ export const useExpenseReportData = ({
     if (!overview.isLoading) {
       switch (selectedReportType) {
         case ReportType.EXPENSE_REQUEST: {
+          const total = overview.data?.expenseRequestsTotal || 0
           const rows = mapRequestsFromOverview(overview.data?.expenseRequests || [])
+          if (offsetIsPastEnd(rows.length, total, currentPage, pageSize)) {
+            setCurrentPage(1)
+            return
+          }
           setReportData(rows)
-          setTotalCount(overview.data?.expenseRequestsTotal || 0)
+          setTotalCount(total)
           setError(null)
           break
         }
         case ReportType.EXPENSE_PLAN: {
+          const total = overview.data?.expensePlansTotal || 0
           const rows = mapPlansFromOverview(overview.data?.expensePlans || [])
+          if (offsetIsPastEnd(rows.length, total, currentPage, pageSize)) {
+            setCurrentPage(1)
+            return
+          }
           setReportData(rows)
-          setTotalCount(overview.data?.expensePlansTotal || 0)
+          setTotalCount(total)
           setError(null)
           break
         }
         case ReportType.ADVANCE_PAYMENT: {
+          const total = overview.data?.advancePaymentsTotal || 0
           const rows = mapPaymentsFromOverview(overview.data?.advancePayments || [])
+          if (offsetIsPastEnd(rows.length, total, currentPage, pageSize)) {
+            setCurrentPage(1)
+            return
+          }
           setReportData(rows)
-          setTotalCount(overview.data?.advancePaymentsTotal || 0)
+          setTotalCount(total)
           setError(null)
           break
         }
@@ -301,7 +326,8 @@ export const useExpenseReportData = ({
     overview.error,
     mapRequestsFromOverview,
     mapPlansFromOverview,
-    mapPaymentsFromOverview
+    mapPaymentsFromOverview,
+    offsetIsPastEnd
   ])
 
   /**
@@ -432,15 +458,20 @@ export const useExpenseReportData = ({
         searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
       })
 
+      const itemTotal = result?.ExpenseItemAggregate?.aggregate?.count || 0
       const processedData = processExpenseItemsData(result)
+      if (offsetIsPastEnd(processedData.length, itemTotal, currentPage, pageSize)) {
+        setCurrentPage(1)
+        return
+      }
       setReportData(processedData)
-      setTotalCount(result?.ExpenseItemAggregate?.aggregate?.count || 0)
+      setTotalCount(itemTotal)
     } catch {
       setError('Failed to load expense items data')
     } finally {
       setIsLoading(false)
     }
-  }, [graphqlClient, pageSize, currentPage, searchTerm, managerId])
+  }, [graphqlClient, pageSize, currentPage, searchTerm, managerId, offsetIsPastEnd])
 
   // (legacy list fetchers for plans/requests/payments removed; overview handles lists)
 
@@ -585,19 +616,21 @@ export const useExpenseReportData = ({
     }
   }, [selectedReportType, fetchExpenseItems])
 
-  // StrictMode-safe: run once per parameter signature
+  // Deduplicate strict-mode / identical-param runs; `managerId` is in the signature so a later
+  // `userInfo`-driven id change is not treated as a duplicate and skips the real fetch.
   const lastFetchSignatureRef = useRef<string | null>(null)
   useEffect(() => {
     const signature = JSON.stringify({
       selectedReportType,
       currentPage,
       pageSize,
-      searchTerm
+      searchTerm,
+      managerId
     })
     if (lastFetchSignatureRef.current === signature) return
     lastFetchSignatureRef.current = signature
     void fetchReportData()
-  }, [selectedReportType, currentPage, pageSize, searchTerm, fetchReportData])
+  }, [selectedReportType, currentPage, pageSize, searchTerm, managerId, fetchReportData])
 
   return {
     reportTypes,
