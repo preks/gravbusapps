@@ -11,7 +11,7 @@ import { TargetFieldDefinition } from '@/common/components/common-relations/apps
 import { COMMON_INVESTMENT_FIELDS } from '../commonInvestmentFields'
 import type { InvestmentGroupImportOverridePatch } from '../groupImportConfigurations'
 
-const EQUITY_SPECIFIC_FIELDS: TargetFieldDefinition[] = [
+export const EQUITY_SPECIFIC_FIELDS: TargetFieldDefinition[] = [
   // Company Information
   { value: 'equityInvestment.foundationDate', label: 'Foundation Date', type: 'direct' },
 
