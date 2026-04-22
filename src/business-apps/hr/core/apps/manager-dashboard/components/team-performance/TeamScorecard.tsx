@@ -26,7 +26,7 @@ const computeHealthScore = (
   const goalsScore = goalsProgress
   const skillsScore = skillsCoverage
   const feedbackScore = feedbackCoverage
-  const evalScore = evaluationsAvgScore != null ? Math.round((evaluationsAvgScore / 5) * 100) : null
+  const evalScore = evaluationsAvgScore === null ? null : Math.round((evaluationsAvgScore / 5) * 100)
 
   const scores = [goalsScore, skillsScore, feedbackScore, evalScore].filter((s): s is number => s != null)
   if (scores.length === 0) return 0
@@ -45,6 +45,19 @@ const getProgressColor = (score: number): string => {
   if (score >= 60) return 'gba:bg-info'
   if (score >= 40) return 'gba:bg-warning'
   return 'gba:bg-destructive'
+}
+
+const SCORECARD_SKELETON_IDS = [
+  'scorecard-skeleton-1',
+  'scorecard-skeleton-2',
+  'scorecard-skeleton-3',
+  'scorecard-skeleton-4'
+]
+
+const skillsDetailText = (employeesWithoutProfile: number, skillGapsCount: number): string => {
+  if (employeesWithoutProfile > 0) return `${employeesWithoutProfile} no profile`
+  if (skillGapsCount > 0) return `${skillGapsCount} gaps`
+  return 'No gaps'
 }
 
 export const TeamScorecard: React.FC<TeamScorecardProps> = ({
@@ -68,8 +81,8 @@ export const TeamScorecard: React.FC<TeamScorecardProps> = ({
           <div className="gba:animate-pulse gba:space-y-4">
             <div className="gba:h-8 gba:bg-muted gba:rounded gba:w-48" />
             <div className="gba:grid gba:grid-cols-4 gba:gap-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="gba:h-24 gba:bg-muted gba:rounded-lg" />
+              {SCORECARD_SKELETON_IDS.map(id => (
+                <div key={id} className="gba:h-24 gba:bg-muted gba:rounded-lg" />
               ))}
             </div>
           </div>
@@ -81,7 +94,7 @@ export const TeamScorecard: React.FC<TeamScorecardProps> = ({
   const healthScore =
     teamHealthScore ?? computeHealthScore(goalsProgress, skillsCoverage, feedbackCoverage, evaluationsAvgScore)
 
-  const evaluationsNormalized = evaluationsAvgScore != null ? Math.round((evaluationsAvgScore / 5) * 100) : 0
+  const evaluationsNormalized = evaluationsAvgScore === null ? 0 : Math.round((evaluationsAvgScore / 5) * 100)
 
   const dimensions = [
     {
@@ -97,12 +110,7 @@ export const TeamScorecard: React.FC<TeamScorecardProps> = ({
       label: 'Skills',
       icon: BookOpen,
       score: skillsCoverage,
-      detail:
-        employeesWithoutProfile > 0
-          ? `${employeesWithoutProfile} no profile`
-          : skillGapsCount > 0
-            ? `${skillGapsCount} gaps`
-            : 'No gaps',
+      detail: skillsDetailText(employeesWithoutProfile, skillGapsCount),
       color: getProgressColor(skillsCoverage)
     },
     {

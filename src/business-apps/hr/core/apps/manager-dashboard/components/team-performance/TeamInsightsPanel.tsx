@@ -43,11 +43,14 @@ const impactColors: Record<string, string> = {
   low: 'gba:text-muted-foreground'
 }
 
+const INSIGHTS_SKELETON_WIDTHS = [85, 75, 65, 55]
+
 export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
   data,
   isAnalyzing,
   error,
   onAnalyze,
+  onClear,
   onActionClick
 }) => {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['priorities']))
@@ -98,11 +101,11 @@ export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
             </div>
           </div>
           <div className="gba:space-y-2">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {INSIGHTS_SKELETON_WIDTHS.map(width => (
               <div
-                key={i}
+                key={`insight-skeleton-${width}`}
                 className="gba:animate-pulse gba:h-4 gba:bg-muted gba:rounded"
-                style={{ width: `${85 - i * 10}%` }}
+                style={{ width: `${width}%` }}
               />
             ))}
           </div>
@@ -136,10 +139,15 @@ export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
             <Sparkles size={16} className="gba:text-primary" />
             <CardTitle className="gba:text-base">AI Team Insights</CardTitle>
           </div>
-          <Button onClick={onAnalyze} variant="ghost" size="sm" className="gba:h-7 gba:gap-1">
-            <RefreshCw size={12} />
-            Refresh
-          </Button>
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <Button onClick={onClear} variant="ghost" size="sm" className="gba:h-7">
+              Clear
+            </Button>
+            <Button onClick={onAnalyze} variant="ghost" size="sm" className="gba:h-7 gba:gap-1">
+              <RefreshCw size={12} />
+              Refresh
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="gba:space-y-3">
@@ -163,8 +171,11 @@ export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="gba:space-y-2 gba:mt-1 gba:pl-6">
-                {data.top_priorities.map((priority, i) => (
-                  <div key={i} className="gba:p-2.5 gba:rounded-lg gba:bg-surface gba:border gba:border-border">
+                {data.top_priorities.map(priority => (
+                  <div
+                    key={`${priority.priority}-${priority.recommended_action}`}
+                    className="gba:p-2.5 gba:rounded-lg gba:bg-surface gba:border gba:border-border"
+                  >
                     <div className="gba:flex gba:items-start gba:justify-between gba:gap-2 gba:mb-1">
                       <p className="gba:text-xs gba:font-medium gba:flex-1">{priority.priority}</p>
                       <Badge
@@ -218,8 +229,11 @@ export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="gba:space-y-2 gba:mt-1 gba:pl-6">
-                {data.recommended_actions.map((action, i) => (
-                  <div key={i} className="gba:flex gba:items-start gba:gap-2 gba:p-2 gba:rounded-lg gba:bg-surface">
+                {data.recommended_actions.map(action => (
+                  <div
+                    key={`${action.action}-${action.impact}-${action.effort}`}
+                    className="gba:flex gba:items-start gba:gap-2 gba:p-2 gba:rounded-lg gba:bg-surface"
+                  >
                     <CheckCircle2 size={12} className="gba:mt-0.5 gba:text-muted-foreground gba:shrink-0" />
                     <div className="gba:flex-1">
                       <p className="gba:text-xs">{action.action}</p>
@@ -260,8 +274,8 @@ export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
                 <span className="gba:text-xs gba:font-medium gba:text-success">Strengths</span>
               </div>
               <ul className="gba:space-y-0.5">
-                {data.team_strengths.map((s, i) => (
-                  <li key={i} className="gba:text-[11px] gba:text-muted-foreground">
+                {data.team_strengths.map(s => (
+                  <li key={`strength-${s}`} className="gba:text-[11px] gba:text-muted-foreground">
                     • {s}
                   </li>
                 ))}
@@ -275,8 +289,8 @@ export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
                 <span className="gba:text-xs gba:font-medium gba:text-destructive">Risks</span>
               </div>
               <ul className="gba:space-y-0.5">
-                {data.team_risks.map((r, i) => (
-                  <li key={i} className="gba:text-[11px] gba:text-muted-foreground">
+                {data.team_risks.map(r => (
+                  <li key={`risk-${r}`} className="gba:text-[11px] gba:text-muted-foreground">
                     • {r}
                   </li>
                 ))}

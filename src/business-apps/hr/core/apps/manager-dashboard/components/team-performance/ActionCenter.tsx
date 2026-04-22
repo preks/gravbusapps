@@ -65,17 +65,67 @@ const SkeletonRow: React.FC = () => (
   </div>
 )
 
+interface ActionCenterAlertRowProps {
+  alert: DashboardAlert
+  onEmployeeClick: (employeeId: string) => void
+}
+
+const ActionCenterAlertRow: React.FC<ActionCenterAlertRowProps> = ({ alert, onEmployeeClick }) => {
+  const actions = categoryActions[alert.category] ?? []
+  const primary = primaryAction[alert.category]
+
+  return (
+    <div className="gba:flex gba:items-start gba:gap-4 gba:px-6 gba:py-4 hover:gba:bg-muted/40 gba:transition-colors">
+      <button
+        type="button"
+        className="gba:flex gba:items-start gba:gap-4 gba:flex-1 gba:min-w-0 gba:text-left"
+        onClick={() => onEmployeeClick(alert.employeeId)}
+      >
+        <Avatar className="gba:h-10 gba:w-10 gba:shrink-0">
+          <AvatarImage src={avatarSrc(alert.pictureThumbnail)} alt={alert.employeeName} />
+          <AvatarFallback>{initialsFromName(alert.employeeName)}</AvatarFallback>
+        </Avatar>
+
+        <div className="gba:flex-1 gba:min-w-0">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-0.5">
+            <span className="gba:text-sm gba:font-semibold">{alert.employeeName}</span>
+            <Badge variant={severityVariant(alert.severity)} className="gba:text-[10px] gba:px-1.5 gba:py-0">
+              {alert.severity}
+            </Badge>
+          </div>
+          <p className="gba:text-sm gba:font-medium">{alert.reason}</p>
+          <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+            <span className="gba:font-medium">Suggested:</span> {alert.suggestedAction}
+          </p>
+        </div>
+      </button>
+
+      <div className="gba:flex gba:flex-col gba:items-end gba:gap-2 gba:shrink-0">
+        <div className="gba:flex gba:flex-wrap gba:justify-end gba:gap-1.5">
+          {actions.map(action => (
+            <Button key={action} type="button" variant="outline" size="sm" className="gba:h-7 gba:text-xs gba:px-2.5">
+              {action}
+            </Button>
+          ))}
+        </div>
+        <Button
+          type="button"
+          variant="default"
+          size="sm"
+          className="gba:shrink-0 gba:text-xs"
+          onClick={() => onEmployeeClick(alert.employeeId)}
+        >
+          {primary}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export const ActionCenter: React.FC<ActionCenterProps> = ({ alerts, onEmployeeClick, loading }) => {
   const highCount = alerts.filter(a => a.severity === 'high').length
   const highPriorityLabel = highCount === 1 ? 'alert' : 'alerts'
   const statusText = loading ? 'Loading…' : `${highCount} high-priority ${highPriorityLabel}`
-
-  const handleAlertKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, employeeId: string): void => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      onEmployeeClick(employeeId)
-    }
-  }
 
   const renderContent = (): React.ReactNode => {
     if (loading) {
@@ -98,65 +148,13 @@ export const ActionCenter: React.FC<ActionCenterProps> = ({ alerts, onEmployeeCl
 
     return (
       <div className="gba:divide-y gba:divide-border">
-        {alerts.map(alert => {
-          const actions = categoryActions[alert.category] ?? []
-          const primary = primaryAction[alert.category]
-          return (
-            <div
-              key={`${alert.employeeId}-${alert.category}-${alert.reason}`}
-              className="gba:flex gba:items-center gba:gap-4 gba:px-6 gba:py-4 hover:gba:bg-muted/40 gba:transition-colors gba:cursor-pointer"
-              onClick={() => onEmployeeClick(alert.employeeId)}
-              onKeyDown={event => handleAlertKeyDown(event, alert.employeeId)}
-              role="button"
-              tabIndex={0}
-            >
-              <Avatar className="gba:h-10 gba:w-10 gba:shrink-0">
-                <AvatarImage src={avatarSrc(alert.pictureThumbnail)} alt={alert.employeeName} />
-                <AvatarFallback>{initialsFromName(alert.employeeName)}</AvatarFallback>
-              </Avatar>
-
-              <div className="gba:flex-1 gba:min-w-0">
-                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-0.5">
-                  <span className="gba:text-sm gba:font-semibold">{alert.employeeName}</span>
-                  <Badge variant={severityVariant(alert.severity)} className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                    {alert.severity}
-                  </Badge>
-                </div>
-                <p className="gba:text-sm gba:font-medium">{alert.reason}</p>
-                <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-                  <span className="gba:font-medium">Suggested:</span> {alert.suggestedAction}
-                </p>
-                <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:mt-2">
-                  {actions.map(action => (
-                    <Button
-                      key={action}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="gba:h-7 gba:text-xs gba:px-2.5"
-                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                    >
-                      {action}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                className="gba:shrink-0 gba:text-xs"
-                onClick={(e: React.MouseEvent) => {
-                  e.stopPropagation()
-                  onEmployeeClick(alert.employeeId)
-                }}
-              >
-                {primary}
-              </Button>
-            </div>
-          )
-        })}
+        {alerts.map(alert => (
+          <ActionCenterAlertRow
+            key={`${alert.employeeId}-${alert.category}-${alert.reason}`}
+            alert={alert}
+            onEmployeeClick={onEmployeeClick}
+          />
+        ))}
       </div>
     )
   }

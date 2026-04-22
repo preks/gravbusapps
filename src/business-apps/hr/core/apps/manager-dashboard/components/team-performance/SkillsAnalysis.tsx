@@ -240,11 +240,12 @@ const SkillsTable: React.FC<SkillsTableProps> = ({ skillNames, rows, averages, s
             </TableCell>
             {skillNames.map(sn => {
               const avg = averages.get(sn) ?? null
+              const avgStyle = avg === null ? {} : chartBandBg(avg, scaleMax)
               return (
                 <TableCell
                   key={`avg-${sn}`}
                   className="gba:text-center gba:text-xs gba:font-bold gba:tabular-nums"
-                  style={{ ...AVG_ROW_BG, ...(avg != null ? chartBandBg(avg, scaleMax) : {}) }}
+                  style={{ ...AVG_ROW_BG, ...avgStyle }}
                 >
                   {formatScore(avg)}
                 </TableCell>
@@ -258,6 +259,24 @@ const SkillsTable: React.FC<SkillsTableProps> = ({ skillNames, rows, averages, s
 }
 
 export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({ skillsMembers, evaluationMembers, loading }) => {
+  const hasStandaloneSkills = skillsMembers.some(m => m.topSkills.length > 0)
+  const topSkills = topSkillsByFrequency(skillsMembers)
+  const eSkillNames = evalSkillNames(evaluationMembers)
+  const eRows = evalSkillRows(evaluationMembers)
+  const ratingLimit = evaluationMembers.find(m => m.ratingScaleLimit != null)?.ratingScaleLimit ?? 5
+  const useEvalFallback = !hasStandaloneSkills && eSkillNames.length > 0
+
+  const memberSkillMaps = useMemo(
+    () => new Map(skillsMembers.map(m => [m.employeeId, memberSkillMap(m)])),
+    [skillsMembers]
+  )
+
+  const evalScoreMaps = useMemo(() => new Map(eRows.map(r => [r.employeeId, r.scores])), [eRows])
+
+  const standaloneAvgs = useMemo(() => computeAverages(memberSkillMaps, topSkills), [memberSkillMaps, topSkills])
+
+  const evalAvgs = useMemo(() => computeAverages(evalScoreMaps, eSkillNames), [evalScoreMaps, eSkillNames])
+
   if (loading) {
     return (
       <Card className="gba:rounded-xl gba:h-full">
@@ -274,31 +293,13 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({ skillsMembers, e
     )
   }
 
-  const hasStandaloneSkills = skillsMembers.some(m => m.topSkills.length > 0)
-  const topSkills = topSkillsByFrequency(skillsMembers)
-  const eSkillNames = evalSkillNames(evaluationMembers)
-  const eRows = evalSkillRows(evaluationMembers)
-  const ratingLimit = evaluationMembers.find(m => m.ratingScaleLimit != null)?.ratingScaleLimit ?? 5
-  const useEvalFallback = !hasStandaloneSkills && eSkillNames.length > 0
-
-  const memberSkillMaps = useMemo(
-    () => new Map(skillsMembers.map(m => [m.employeeId, memberSkillMap(m)])),
-    [skillsMembers]
-  )
-
-  const evalScoreMaps = useMemo(() => new Map(eRows.map(r => [r.employeeId, r.scores as Map<string, number>])), [eRows])
-
-  const standaloneAvgs = useMemo(() => computeAverages(memberSkillMaps, topSkills), [memberSkillMaps, topSkills])
-
-  const evalAvgs = useMemo(() => computeAverages(evalScoreMaps, eSkillNames), [evalScoreMaps, eSkillNames])
-
   if (useEvalFallback) {
     const rows = eRows.map(r => ({
       key: r.employeeId,
       firstName: r.firstName,
       lastName: r.lastName,
       pictureThumbnail: r.pictureThumbnail,
-      scoreMap: r.scores as Map<string, number | null>
+      scoreMap: r.scores
     }))
 
     return (
@@ -338,7 +339,7 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({ skillsMembers, e
     firstName: m.firstName,
     lastName: m.lastName,
     pictureThumbnail: m.pictureThumbnail,
-    scoreMap: (memberSkillMaps.get(m.employeeId) as Map<string, number | null>) ?? new Map<string, number | null>()
+    scoreMap: memberSkillMaps.get(m.employeeId) ?? new Map<string, number | null>()
   }))
 
   return (

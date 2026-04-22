@@ -51,6 +51,188 @@ interface MemberDeepDiveSheetProps {
   onNavigateToEmployee: (employeeId: string) => void
 }
 
+interface GoalsSectionProps {
+  memberGoals: TeamMemberPerformance | undefined
+}
+
+const GoalsSection: React.FC<GoalsSectionProps> = ({ memberGoals }) => (
+  <Card>
+    <CardContent className="gba:p-4">
+      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+        <Target size={16} className="gba:text-primary" />
+        <h4 className="gba:text-sm gba:font-semibold">Goals</h4>
+        {memberGoals && (
+          <Badge variant="outline" className="gba:ml-auto gba:text-[10px]">
+            {memberGoals.totalGoals} total
+          </Badge>
+        )}
+      </div>
+      {memberGoals && memberGoals.goals.length > 0 ? (
+        <div className="gba:space-y-2">
+          <div className="gba:flex gba:gap-2 gba:mb-2">
+            <Badge variant="secondary" className="gba:text-[10px]">
+              {memberGoals.goalsOnTrack} on track
+            </Badge>
+            {memberGoals.goalsAtRisk > 0 && (
+              <Badge variant="default" className="gba:text-[10px]">
+                {memberGoals.goalsAtRisk} at risk
+              </Badge>
+            )}
+            {memberGoals.goalsBehindTarget > 0 && (
+              <Badge variant="destructive" className="gba:text-[10px]">
+                {memberGoals.goalsBehindTarget} behind
+              </Badge>
+            )}
+          </div>
+          {memberGoals.goals.slice(0, 5).map(goal => (
+            <div key={goal.id} className="gba:p-2 gba:rounded gba:bg-surface">
+              <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                <span className="gba:text-xs gba:font-medium gba:flex-1 gba:mr-2 gba:truncate">{goal.title}</span>
+                <span
+                  className={`gba:text-[10px] gba:px-1.5 gba:py-0.5 gba:rounded-full ${getStatusColor(goal.status)}`}
+                >
+                  {goal.status.replace('_', ' ')}
+                </span>
+              </div>
+              <Progress value={goal.progressPercent} className="gba:h-1" />
+              <span className="gba:text-[10px] gba:text-muted-foreground">{goal.progressPercent}%</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="gba:text-xs gba:text-muted-foreground">No goals set</p>
+      )}
+    </CardContent>
+  </Card>
+)
+
+interface SkillsSectionProps {
+  memberSkills: TeamMemberSkills | undefined
+  skillChange: number | null | undefined
+}
+
+const SkillsSection: React.FC<SkillsSectionProps> = ({ memberSkills, skillChange }) => {
+  const skillChangeSign = (skillChange ?? 0) > 0 ? '+' : ''
+
+  return (
+    <Card>
+      <CardContent className="gba:p-4">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+          <BookOpen size={16} className="gba:text-primary" />
+          <h4 className="gba:text-sm gba:font-semibold">Skills</h4>
+          {memberSkills && (
+            <Badge variant="outline" className="gba:ml-auto gba:text-[10px]">
+              {memberSkills.skillCount} skills · avg {memberSkills.avgLevel}
+            </Badge>
+          )}
+        </div>
+        {memberSkills ? (
+          <div className="gba:space-y-2">
+            {!memberSkills.hasJobProfile && (
+              <div className="gba:p-2 gba:rounded gba:bg-destructive/10 gba:text-destructive gba:text-[11px]">
+                No job profile skills defined — coverage cannot be measured
+              </div>
+            )}
+            {memberSkills.topSkills.length > 0 && (
+              <div>
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mb-1">Top Skills</p>
+                <div className="gba:flex gba:gap-1 gba:flex-wrap">
+                  {memberSkills.topSkills.map(s => (
+                    <Badge key={`${s.name}-${s.level}`} variant="secondary" className="gba:text-[10px]">
+                      {s.name} ({s.level})
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {memberSkills.missingRequired.length > 0 && (
+              <div>
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mb-1">Missing Required</p>
+                <div className="gba:flex gba:gap-1 gba:flex-wrap">
+                  {memberSkills.missingRequired.map(s => (
+                    <Badge key={s.name} variant="destructive" className="gba:text-[10px]">
+                      {s.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {memberSkills.belowLevel.length > 0 && (
+              <div>
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mb-1">Below Required Level</p>
+                <div className="gba:space-y-1">
+                  {memberSkills.belowLevel.map(s => (
+                    <div
+                      key={`${s.skillName}-${s.employeeLevel}-${s.profileLevel}`}
+                      className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:p-1.5 gba:rounded gba:bg-warning/5"
+                    >
+                      <span>{s.skillName}</span>
+                      <span className="gba:text-muted-foreground">
+                        Level {s.employeeLevel} / {s.profileLevel} required
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {skillChange != null && (
+              <div className="gba:flex gba:items-center gba:gap-1 gba:mt-2">
+                {skillTrendIcon(skillChange)}
+                <span className="gba:text-xs gba:text-muted-foreground">
+                  Skill eval change: {skillChangeSign}
+                  {skillChange.toFixed(1)}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="gba:text-xs gba:text-muted-foreground">No skills data</p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+interface FeedbackSectionProps {
+  memberFeedback: TeamMemberFeedback | undefined
+}
+
+const FeedbackSection: React.FC<FeedbackSectionProps> = ({ memberFeedback }) => (
+  <Card>
+    <CardContent className="gba:p-4">
+      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+        <MessageSquare size={16} className="gba:text-primary" />
+        <h4 className="gba:text-sm gba:font-semibold">Feedback</h4>
+      </div>
+      {memberFeedback ? (
+        <div className="gba:grid gba:grid-cols-3 gba:gap-2">
+          <div className="gba:text-center gba:p-2 gba:rounded gba:bg-surface">
+            <div className="gba:text-lg gba:font-bold">{memberFeedback.feedbackReceivedCount}</div>
+            <div className="gba:text-[10px] gba:text-muted-foreground">Received</div>
+          </div>
+          <div className="gba:text-center gba:p-2 gba:rounded gba:bg-surface">
+            <div className="gba:text-lg gba:font-bold">{memberFeedback.feedbackGivenCount}</div>
+            <div className="gba:text-[10px] gba:text-muted-foreground">Given</div>
+          </div>
+          <div className="gba:text-center gba:p-2 gba:rounded gba:bg-surface">
+            <div className="gba:text-xs gba:font-medium gba:mt-1">
+              {memberFeedback.lastFeedbackDate
+                ? new Date(memberFeedback.lastFeedbackDate).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                  })
+                : '-'}
+            </div>
+            <div className="gba:text-[10px] gba:text-muted-foreground">Last</div>
+          </div>
+        </div>
+      ) : (
+        <p className="gba:text-xs gba:text-muted-foreground">No feedback data</p>
+      )}
+    </CardContent>
+  </Card>
+)
+
 const getStatusColor = (status: string): string => {
   switch (status) {
     case 'ON_TRACK':
@@ -70,19 +252,37 @@ const ChangeIndicator = ({ value, label }: { value: number | null; label: string
   if (value == null) return null
   const isPositive = value > 0
   const isNegative = value < 0
+  let valueClass = 'gba:text-muted-foreground'
+  if (isPositive) {
+    valueClass = 'gba:text-success'
+  } else if (isNegative) {
+    valueClass = 'gba:text-destructive'
+  }
+
+  const sign = value > 0 ? '+' : ''
   return (
     <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs">
       <span className="gba:text-muted-foreground">{label}:</span>
       {isPositive && <ArrowUp size={10} className="gba:text-success" />}
       {isNegative && <ArrowDown size={10} className="gba:text-destructive" />}
-      <span
-        className={isPositive ? 'gba:text-success' : isNegative ? 'gba:text-destructive' : 'gba:text-muted-foreground'}
-      >
-        {value > 0 ? '+' : ''}
+      <span className={valueClass}>
+        {sign}
         {value.toFixed(1)}
       </span>
     </div>
   )
+}
+
+const skillTrendIcon = (changeSkills: number): React.ReactNode => {
+  if (changeSkills > 0.05) {
+    return <TrendingUp size={12} className="gba:text-success" />
+  }
+
+  if (changeSkills < -0.05) {
+    return <TrendingDown size={12} className="gba:text-destructive" />
+  }
+
+  return <Minus size={12} className="gba:text-muted-foreground" />
 }
 
 export const MemberDeepDiveSheet: React.FC<MemberDeepDiveSheetProps> = ({
@@ -135,6 +335,8 @@ export const MemberDeepDiveSheet: React.FC<MemberDeepDiveSheetProps> = ({
       : []
 
   const radarMax = memberEval?.ratingScaleLimit ?? 5
+  const perspectiveTitle = memberEval?.companyValues.length ? 'Company Values' : 'Skills'
+  const skillChange = memberEval?.changeSkills
 
   return (
     <Sheet
@@ -219,30 +421,28 @@ export const MemberDeepDiveSheet: React.FC<MemberDeepDiveSheetProps> = ({
           {radarData.length > 0 && (
             <Card>
               <CardContent className="gba:p-4">
-                <h4 className="gba:text-sm gba:font-semibold gba:mb-2">
-                  {memberEval!.companyValues.length > 0 ? 'Company Values' : 'Skills'} — Perspective
-                </h4>
+                <h4 className="gba:text-sm gba:font-semibold gba:mb-2">{perspectiveTitle} — Perspective</h4>
                 <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2 gba:text-[10px] gba:text-muted-foreground">
                   <span className="gba:flex gba:items-center gba:gap-1">
                     <span
                       className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full"
                       style={{ backgroundColor: 'var(--nw-chart-1)' }}
                     />
-                    Self
+                    <span>Self</span>
                   </span>
                   <span className="gba:flex gba:items-center gba:gap-1">
                     <span
                       className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full"
                       style={{ backgroundColor: 'var(--nw-chart-2)' }}
                     />
-                    Peer
+                    <span>Peer</span>
                   </span>
                   <span className="gba:flex gba:items-center gba:gap-1">
                     <span
                       className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full"
                       style={{ backgroundColor: 'var(--nw-chart-3)' }}
                     />
-                    Manager
+                    <span>Manager</span>
                   </span>
                 </div>
                 <div className="gba:h-[240px]">
@@ -334,8 +534,8 @@ export const MemberDeepDiveSheet: React.FC<MemberDeepDiveSheetProps> = ({
                   <h4 className="gba:text-sm gba:font-semibold">Company Values</h4>
                 </div>
                 <div className="gba:space-y-2">
-                  {memberEval.companyValues.map((v, i) => (
-                    <div key={i} className="gba:p-2 gba:rounded gba:bg-surface">
+                  {memberEval.companyValues.map(v => (
+                    <div key={`${v.name}-${v.overallAvg ?? 'none'}`} className="gba:p-2 gba:rounded gba:bg-surface">
                       <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
                         <span className="gba:text-xs gba:font-medium">{v.name}</span>
                         <span className="gba:text-xs gba:text-muted-foreground">{v.overallAvg?.toFixed(1) ?? '-'}</span>
@@ -358,9 +558,9 @@ export const MemberDeepDiveSheet: React.FC<MemberDeepDiveSheetProps> = ({
               <CardContent className="gba:p-4">
                 <h4 className="gba:text-sm gba:font-semibold gba:mb-3">Score Across Cycles</h4>
                 <div className="gba:space-y-1">
-                  {memberEval.cycleScores.map((cs, i) => (
+                  {memberEval.cycleScores.map(cs => (
                     <div
-                      key={i}
+                      key={`${cs.cycleName}-${cs.overallScore ?? 'none'}`}
                       className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:p-1.5 gba:rounded gba:bg-surface"
                     >
                       <span className="gba:text-muted-foreground">{cs.cycleName}</span>
@@ -372,175 +572,9 @@ export const MemberDeepDiveSheet: React.FC<MemberDeepDiveSheetProps> = ({
             </Card>
           )}
 
-          {/* Goals Section */}
-          <Card>
-            <CardContent className="gba:p-4">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-                <Target size={16} className="gba:text-primary" />
-                <h4 className="gba:text-sm gba:font-semibold">Goals</h4>
-                {memberGoals && (
-                  <Badge variant="outline" className="gba:ml-auto gba:text-[10px]">
-                    {memberGoals.totalGoals} total
-                  </Badge>
-                )}
-              </div>
-              {memberGoals && memberGoals.goals.length > 0 ? (
-                <div className="gba:space-y-2">
-                  <div className="gba:flex gba:gap-2 gba:mb-2">
-                    <Badge variant="secondary" className="gba:text-[10px]">
-                      {memberGoals.goalsOnTrack} on track
-                    </Badge>
-                    {memberGoals.goalsAtRisk > 0 && (
-                      <Badge variant="default" className="gba:text-[10px]">
-                        {memberGoals.goalsAtRisk} at risk
-                      </Badge>
-                    )}
-                    {memberGoals.goalsBehindTarget > 0 && (
-                      <Badge variant="destructive" className="gba:text-[10px]">
-                        {memberGoals.goalsBehindTarget} behind
-                      </Badge>
-                    )}
-                  </div>
-                  {memberGoals.goals.slice(0, 5).map(goal => (
-                    <div key={goal.id} className="gba:p-2 gba:rounded gba:bg-surface">
-                      <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-                        <span className="gba:text-xs gba:font-medium gba:flex-1 gba:mr-2 gba:truncate">
-                          {goal.title}
-                        </span>
-                        <span
-                          className={`gba:text-[10px] gba:px-1.5 gba:py-0.5 gba:rounded-full ${getStatusColor(goal.status)}`}
-                        >
-                          {goal.status.replace('_', ' ')}
-                        </span>
-                      </div>
-                      <Progress value={goal.progressPercent} className="gba:h-1" />
-                      <span className="gba:text-[10px] gba:text-muted-foreground">{goal.progressPercent}%</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="gba:text-xs gba:text-muted-foreground">No goals set</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Skills Section */}
-          <Card>
-            <CardContent className="gba:p-4">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-                <BookOpen size={16} className="gba:text-primary" />
-                <h4 className="gba:text-sm gba:font-semibold">Skills</h4>
-                {memberSkills && (
-                  <Badge variant="outline" className="gba:ml-auto gba:text-[10px]">
-                    {memberSkills.skillCount} skills · avg {memberSkills.avgLevel}
-                  </Badge>
-                )}
-              </div>
-              {memberSkills ? (
-                <div className="gba:space-y-2">
-                  {!memberSkills.hasJobProfile && (
-                    <div className="gba:p-2 gba:rounded gba:bg-destructive/10 gba:text-destructive gba:text-[11px]">
-                      No job profile skills defined — coverage cannot be measured
-                    </div>
-                  )}
-                  {memberSkills.topSkills.length > 0 && (
-                    <div>
-                      <p className="gba:text-[10px] gba:text-muted-foreground gba:mb-1">Top Skills</p>
-                      <div className="gba:flex gba:gap-1 gba:flex-wrap">
-                        {memberSkills.topSkills.map((s, i) => (
-                          <Badge key={i} variant="secondary" className="gba:text-[10px]">
-                            {s.name} ({s.level})
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {memberSkills.missingRequired.length > 0 && (
-                    <div>
-                      <p className="gba:text-[10px] gba:text-muted-foreground gba:mb-1">Missing Required</p>
-                      <div className="gba:flex gba:gap-1 gba:flex-wrap">
-                        {memberSkills.missingRequired.map((s, i) => (
-                          <Badge key={i} variant="destructive" className="gba:text-[10px]">
-                            {s.name}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {memberSkills.belowLevel.length > 0 && (
-                    <div>
-                      <p className="gba:text-[10px] gba:text-muted-foreground gba:mb-1">Below Required Level</p>
-                      <div className="gba:space-y-1">
-                        {memberSkills.belowLevel.map((s, i) => (
-                          <div
-                            key={i}
-                            className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:p-1.5 gba:rounded gba:bg-warning/5"
-                          >
-                            <span>{s.skillName}</span>
-                            <span className="gba:text-muted-foreground">
-                              Level {s.employeeLevel} / {s.profileLevel} required
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {memberEval && memberEval.changeSkills != null && (
-                    <div className="gba:flex gba:items-center gba:gap-1 gba:mt-2">
-                      {memberEval.changeSkills > 0.05 ? (
-                        <TrendingUp size={12} className="gba:text-success" />
-                      ) : memberEval.changeSkills < -0.05 ? (
-                        <TrendingDown size={12} className="gba:text-destructive" />
-                      ) : (
-                        <Minus size={12} className="gba:text-muted-foreground" />
-                      )}
-                      <span className="gba:text-xs gba:text-muted-foreground">
-                        Skill eval change: {memberEval.changeSkills > 0 ? '+' : ''}
-                        {memberEval.changeSkills.toFixed(1)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="gba:text-xs gba:text-muted-foreground">No skills data</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Feedback Section */}
-          <Card>
-            <CardContent className="gba:p-4">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-                <MessageSquare size={16} className="gba:text-primary" />
-                <h4 className="gba:text-sm gba:font-semibold">Feedback</h4>
-              </div>
-              {memberFeedback ? (
-                <div className="gba:grid gba:grid-cols-3 gba:gap-2">
-                  <div className="gba:text-center gba:p-2 gba:rounded gba:bg-surface">
-                    <div className="gba:text-lg gba:font-bold">{memberFeedback.feedbackReceivedCount}</div>
-                    <div className="gba:text-[10px] gba:text-muted-foreground">Received</div>
-                  </div>
-                  <div className="gba:text-center gba:p-2 gba:rounded gba:bg-surface">
-                    <div className="gba:text-lg gba:font-bold">{memberFeedback.feedbackGivenCount}</div>
-                    <div className="gba:text-[10px] gba:text-muted-foreground">Given</div>
-                  </div>
-                  <div className="gba:text-center gba:p-2 gba:rounded gba:bg-surface">
-                    <div className="gba:text-xs gba:font-medium gba:mt-1">
-                      {memberFeedback.lastFeedbackDate
-                        ? new Date(memberFeedback.lastFeedbackDate).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric'
-                          })
-                        : '-'}
-                    </div>
-                    <div className="gba:text-[10px] gba:text-muted-foreground">Last</div>
-                  </div>
-                </div>
-              ) : (
-                <p className="gba:text-xs gba:text-muted-foreground">No feedback data</p>
-              )}
-            </CardContent>
-          </Card>
+          <GoalsSection memberGoals={memberGoals} />
+          <SkillsSection memberSkills={memberSkills} skillChange={skillChange} />
+          <FeedbackSection memberFeedback={memberFeedback} />
         </div>
       </SheetContent>
     </Sheet>

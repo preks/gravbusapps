@@ -56,6 +56,8 @@ interface AiSummaryState {
   generated: boolean
 }
 
+const LOADING_ROW_IDS = ['loading-row-1', 'loading-row-2', 'loading-row-3', 'loading-row-4', 'loading-row-5']
+
 const SortIndicator = ({
   column,
   sortColumn,
@@ -64,14 +66,131 @@ const SortIndicator = ({
   column: SortColumn
   sortColumn: SortColumn
   sortDirection: SortDirection
-}) =>
-  sortColumn === column ? (
-    sortDirection === 'asc' ? (
-      <ChevronUp className="gba:inline gba:h-4 gba:w-4 gba:shrink-0" />
-    ) : (
-      <ChevronDown className="gba:inline gba:h-4 gba:w-4 gba:shrink-0" />
-    )
-  ) : null
+}) => {
+  if (sortColumn !== column) return null
+  if (sortDirection === 'asc') {
+    return <ChevronUp className="gba:inline gba:h-4 gba:w-4 gba:shrink-0" />
+  }
+  return <ChevronDown className="gba:inline gba:h-4 gba:w-4 gba:shrink-0" />
+}
+
+const toProgressValue = (value: number | null | undefined, limit: number): number => {
+  if (value == null || limit <= 0) return 0
+  return Math.min(100, Math.round((value / limit) * 100))
+}
+
+const changeTone = (change: number): string => {
+  if (change > 0) return 'gba:text-green-600'
+  if (change < 0) return 'gba:text-red-600'
+  return 'gba:text-muted-foreground'
+}
+
+const changeIcon = (change: number): React.ReactNode => {
+  if (change > 0) return <ArrowUp className="gba:h-3.5 gba:w-3.5" />
+  if (change < 0) return <ArrowDown className="gba:h-3.5 gba:w-3.5" />
+  return null
+}
+
+const signedChangeText = (change: number): string => {
+  const prefix = change > 0 ? '+' : ''
+  return `${prefix}${change.toFixed(1)}`
+}
+
+const metricCellContent = (value: number | null | undefined, progress: number): React.ReactNode => {
+  if (value == null) {
+    return <span className="gba:text-sm gba:text-muted-foreground">—</span>
+  }
+
+  return (
+    <div className="gba:flex gba:max-w-[100px] gba:flex-col gba:gap-1">
+      <span className="gba:text-sm gba:tabular-nums">{value.toFixed(1)}</span>
+      <Progress value={progress} className="gba:h-1.5" />
+    </div>
+  )
+}
+
+interface TeamMemberDataRowProps {
+  row: RowModel
+  onEmployeeClick: (employeeId: string) => void
+  aiState: AiSummaryState
+}
+
+const TeamMemberDataRow: React.FC<TeamMemberDataRowProps> = ({ row, onEmployeeClick, aiState }) => {
+  const ev = row.evaluation
+  const g = row.goalRow
+  const fb = row.feedbackRow
+  const limit = ev.ratingScaleLimit ?? 5
+  const scoreProgress = toProgressValue(ev.latestScore, limit)
+  const cvProgress = toProgressValue(ev.companyValuesAvg, limit)
+  const skProgress = toProgressValue(ev.skillsAvg, limit)
+  const fullName = `${ev.firstName} ${ev.lastName}`.trim()
+  const summary = aiState.summaries.get(ev.employeeId)
+
+  return (
+    <TableRow className="gba:cursor-pointer gba:hover:bg-muted/50" onClick={() => onEmployeeClick(ev.employeeId)}>
+      <TableCell className="gba:w-px">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
+          <Avatar className="gba:h-8 gba:w-8 gba:shrink-0">
+            <AvatarImage src={avatarSrc(ev.pictureThumbnail)} alt={fullName} />
+            <AvatarFallback>{employeeInitials(ev.firstName, ev.lastName)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <div className="gba:text-sm gba:font-medium">{fullName}</div>
+            {ev.jobPositionName ? (
+              <div className="gba:text-xs gba:text-muted-foreground">{ev.jobPositionName}</div>
+            ) : null}
+          </div>
+        </div>
+      </TableCell>
+
+      <TableCell>{metricCellContent(ev.latestScore, scoreProgress)}</TableCell>
+
+      <TableCell>
+        {ev.changeOverall == null ? (
+          <span className="gba:text-sm gba:text-muted-foreground">—</span>
+        ) : (
+          <span
+            className={`gba:inline-flex gba:items-center gba:gap-0.5 gba:text-sm gba:tabular-nums ${changeTone(ev.changeOverall)}`}
+          >
+            {changeIcon(ev.changeOverall)}
+            {signedChangeText(ev.changeOverall)}
+          </span>
+        )}
+      </TableCell>
+
+      <TableCell>{metricCellContent(ev.companyValuesAvg, cvProgress)}</TableCell>
+
+      <TableCell>{metricCellContent(ev.skillsAvg, skProgress)}</TableCell>
+
+      <TableCell className="gba:text-sm gba:tabular-nums">
+        {g && g.totalGoals > 0 ? (
+          <div className="gba:flex gba:max-w-[100px] gba:flex-col gba:gap-1">
+            <span>{Math.round(g.averageProgress)}%</span>
+            <Progress value={Math.round(g.averageProgress)} className="gba:h-1.5" />
+          </div>
+        ) : (
+          <span className="gba:text-muted-foreground">—</span>
+        )}
+      </TableCell>
+
+      <TableCell className="gba:text-sm gba:tabular-nums">{fb ? `${row.feedbackPct}%` : '—'}</TableCell>
+
+      <TableCell className="gba:max-w-[200px]">
+        {aiState.loading ? (
+          <div className="gba:h-4 gba:w-32 gba:rounded gba:bg-muted gba:animate-pulse" />
+        ) : summary ? (
+          <span className="gba:text-xs gba:text-muted-foreground gba:line-clamp-2">{summary}</span>
+        ) : aiState.error ? (
+          <Badge variant="destructive" className="gba:text-[10px]">
+            Error
+          </Badge>
+        ) : (
+          <span className="gba:text-xs gba:text-muted-foreground gba:italic">Click AI Insights</span>
+        )}
+      </TableCell>
+    </TableRow>
+  )
+}
 
 export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
   evaluations,
@@ -312,8 +431,8 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
             </TableHeader>
             <TableBody>
               {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
+                LOADING_ROW_IDS.map(rowId => (
+                  <TableRow key={rowId}>
                     <TableCell>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <div className="gba:h-9 gba:w-9 gba:rounded-full gba:bg-muted gba:animate-pulse" />
@@ -323,8 +442,8 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
                         </div>
                       </div>
                     </TableCell>
-                    {Array.from({ length: 7 }).map((_, j) => (
-                      <TableCell key={j}>
+                    {[...columns.slice(1).map(col => col.key), 'ai-summary'].map(cellKey => (
+                      <TableCell key={`${rowId}-${cellKey}`}>
                         <div className="gba:h-4 gba:w-12 gba:rounded gba:bg-muted gba:animate-pulse" />
                       </TableCell>
                     ))}
@@ -340,131 +459,14 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedRows.map(row => {
-                  const ev = row.evaluation
-                  const g = row.goalRow
-                  const fb = row.feedbackRow
-                  const limit = ev.ratingScaleLimit ?? 5
-                  const scoreProgress =
-                    ev.latestScore != null && limit > 0 ? Math.min(100, Math.round((ev.latestScore / limit) * 100)) : 0
-                  const fullName = `${ev.firstName} ${ev.lastName}`.trim()
-
-                  const cvProgress =
-                    ev.companyValuesAvg != null && limit > 0
-                      ? Math.min(100, Math.round((ev.companyValuesAvg / limit) * 100))
-                      : 0
-                  const skProgress =
-                    ev.skillsAvg != null && limit > 0 ? Math.min(100, Math.round((ev.skillsAvg / limit) * 100)) : 0
-
-                  const summary = aiState.summaries.get(ev.employeeId)
-
-                  return (
-                    <TableRow
-                      key={ev.employeeId}
-                      className="gba:cursor-pointer gba:hover:bg-muted/50"
-                      onClick={() => onEmployeeClick(ev.employeeId)}
-                    >
-                      <TableCell className="gba:w-px">
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-                          <Avatar className="gba:h-8 gba:w-8 gba:shrink-0">
-                            <AvatarImage src={avatarSrc(ev.pictureThumbnail)} alt={fullName} />
-                            <AvatarFallback>{employeeInitials(ev.firstName, ev.lastName)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="gba:text-sm gba:font-medium">{fullName}</div>
-                            {ev.jobPositionName ? (
-                              <div className="gba:text-xs gba:text-muted-foreground">{ev.jobPositionName}</div>
-                            ) : null}
-                          </div>
-                        </div>
-                      </TableCell>
-
-                      <TableCell>
-                        {ev.latestScore != null ? (
-                          <div className="gba:flex gba:max-w-[100px] gba:flex-col gba:gap-1">
-                            <span className="gba:text-sm gba:tabular-nums">{ev.latestScore.toFixed(1)}</span>
-                            <Progress value={scoreProgress} className="gba:h-1.5" />
-                          </div>
-                        ) : (
-                          <span className="gba:text-sm gba:text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-
-                      <TableCell>
-                        {ev.changeOverall == null ? (
-                          <span className="gba:text-sm gba:text-muted-foreground">—</span>
-                        ) : (
-                          <span
-                            className={`gba:inline-flex gba:items-center gba:gap-0.5 gba:text-sm gba:tabular-nums ${
-                              ev.changeOverall > 0
-                                ? 'gba:text-green-600'
-                                : ev.changeOverall < 0
-                                  ? 'gba:text-red-600'
-                                  : 'gba:text-muted-foreground'
-                            }`}
-                          >
-                            {ev.changeOverall > 0 ? (
-                              <ArrowUp className="gba:h-3.5 gba:w-3.5" />
-                            ) : ev.changeOverall < 0 ? (
-                              <ArrowDown className="gba:h-3.5 gba:w-3.5" />
-                            ) : null}
-                            {ev.changeOverall > 0 ? '+' : ''}
-                            {ev.changeOverall.toFixed(1)}
-                          </span>
-                        )}
-                      </TableCell>
-
-                      <TableCell>
-                        {ev.companyValuesAvg != null ? (
-                          <div className="gba:flex gba:max-w-[100px] gba:flex-col gba:gap-1">
-                            <span className="gba:text-sm gba:tabular-nums">{ev.companyValuesAvg.toFixed(1)}</span>
-                            <Progress value={cvProgress} className="gba:h-1.5" />
-                          </div>
-                        ) : (
-                          <span className="gba:text-sm gba:text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-
-                      <TableCell>
-                        {ev.skillsAvg != null ? (
-                          <div className="gba:flex gba:max-w-[100px] gba:flex-col gba:gap-1">
-                            <span className="gba:text-sm gba:tabular-nums">{ev.skillsAvg.toFixed(1)}</span>
-                            <Progress value={skProgress} className="gba:h-1.5" />
-                          </div>
-                        ) : (
-                          <span className="gba:text-sm gba:text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="gba:text-sm gba:tabular-nums">
-                        {g && g.totalGoals > 0 ? (
-                          <div className="gba:flex gba:max-w-[100px] gba:flex-col gba:gap-1">
-                            <span>{Math.round(g.averageProgress)}%</span>
-                            <Progress value={Math.round(g.averageProgress)} className="gba:h-1.5" />
-                          </div>
-                        ) : (
-                          <span className="gba:text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="gba:text-sm gba:tabular-nums">{fb ? `${row.feedbackPct}%` : '—'}</TableCell>
-
-                      <TableCell className="gba:max-w-[200px]">
-                        {aiState.loading ? (
-                          <div className="gba:h-4 gba:w-32 gba:rounded gba:bg-muted gba:animate-pulse" />
-                        ) : summary ? (
-                          <span className="gba:text-xs gba:text-muted-foreground gba:line-clamp-2">{summary}</span>
-                        ) : aiState.error ? (
-                          <Badge variant="destructive" className="gba:text-[10px]">
-                            Error
-                          </Badge>
-                        ) : (
-                          <span className="gba:text-xs gba:text-muted-foreground gba:italic">Click AI Insights</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
+                sortedRows.map(row => (
+                  <TeamMemberDataRow
+                    key={row.evaluation.employeeId}
+                    row={row}
+                    onEmployeeClick={onEmployeeClick}
+                    aiState={aiState}
+                  />
+                ))
               )}
             </TableBody>
           </Table>

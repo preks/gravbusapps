@@ -96,6 +96,8 @@ const categoryBadgeVariant = (category: SignalCategory): 'destructive' | 'defaul
   return 'secondary'
 }
 
+const SKELETON_ROWS = ['signal-skeleton-1', 'signal-skeleton-2', 'signal-skeleton-3', 'signal-skeleton-4']
+
 export const TalentSignals: React.FC<TalentSignalsProps> = ({
   employeeSignals,
   teamSignals,
@@ -104,11 +106,110 @@ export const TalentSignals: React.FC<TalentSignalsProps> = ({
 }) => {
   const primarySignals = employeeSignals.filter(s => s.isPrimary)
   const supportingTags = employeeSignals.filter(s => !s.isPrimary)
+  const hasSignals = teamSignals.length > 0 || primarySignals.length > 0
   const supportingByEmployee = new Map<string, EmployeeSignal[]>()
   for (const s of supportingTags) {
     const list = supportingByEmployee.get(s.employeeId) ?? []
     list.push(s)
     supportingByEmployee.set(s.employeeId, list)
+  }
+
+  const renderContent = (): React.ReactNode => {
+    if (loading) {
+      return (
+        <div className="gba:space-y-3">
+          {SKELETON_ROWS.map(rowId => (
+            <div key={rowId} className="gba:flex gba:items-center gba:gap-3">
+              <div className="gba:h-4 gba:w-4 gba:rounded gba:bg-muted gba:animate-pulse gba:shrink-0" />
+              <div className="gba:h-4 gba:w-full gba:max-w-xs gba:rounded gba:bg-muted gba:animate-pulse" />
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    if (hasSignals === false) {
+      return (
+        <p className="gba:text-sm gba:text-muted-foreground gba:py-2 gba:text-center">
+          No notable signals detected for this period.
+        </p>
+      )
+    }
+
+    return (
+      <>
+        {/* Team-level signals */}
+        {teamSignals.length > 0 && (
+          <div>
+            <h4 className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-3">
+              Team Patterns
+            </h4>
+            <ul className="gba:list-none gba:space-y-3 gba:p-0 gba:m-0">
+              {teamSignals.map(s => (
+                <li key={`team-${s.signalType}-${s.description}`} className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:mt-0.5">{teamSignalIcon(s.signalType)}</span>
+                  <div className="gba:min-w-0">
+                    <p className="gba:text-sm">{s.description}</p>
+                    <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{s.suggestedAction}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Employee-level signals */}
+        {primarySignals.length > 0 && (
+          <div className={teamSignals.length > 0 ? 'gba:pt-3 gba:border-t gba:border-border' : ''}>
+            <h4 className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-3">
+              Individual Signals
+            </h4>
+            <ul className="gba:list-none gba:space-y-2 gba:p-0 gba:m-0">
+              {primarySignals.map(signal => {
+                const tags = supportingByEmployee.get(signal.employeeId) ?? []
+                return (
+                  <li key={`${signal.employeeId}-${signal.signalType}`}>
+                    <button
+                      type="button"
+                      className="gba:flex gba:items-center gba:justify-between gba:w-full gba:gap-2 gba:group gba:rounded-lg gba:p-2 hover:gba:bg-muted/40 gba:transition-colors gba:cursor-pointer"
+                      onClick={() => onEmployeeClick(signal.employeeId)}
+                    >
+                      <div className="gba:flex gba:items-start gba:gap-2.5 gba:min-w-0 gba:text-left">
+                        <span className="gba:mt-0.5">{employeeSignalIcon(signal.signalType)}</span>
+                        <div className="gba:min-w-0">
+                          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5">
+                            <span className="gba:text-sm gba:font-medium">{signal.employeeName}</span>
+                            <Badge
+                              variant={categoryBadgeVariant(signal.category)}
+                              className="gba:text-[10px] gba:px-1.5 gba:py-0"
+                            >
+                              {EMPLOYEE_SIGNAL_LABEL[signal.signalType]}
+                            </Badge>
+                            {tags.map(t => (
+                              <Badge
+                                key={`${signal.employeeId}-${t.signalType}`}
+                                variant="secondary"
+                                className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:opacity-70"
+                              >
+                                {EMPLOYEE_SIGNAL_LABEL[t.signalType]}
+                              </Badge>
+                            ))}
+                          </div>
+                          <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5 gba:truncate">
+                            {signal.supportingData[0] ?? signal.description}
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity" />
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
+      </>
+    )
   }
 
   return (
@@ -121,93 +222,7 @@ export const TalentSignals: React.FC<TalentSignalsProps> = ({
           </CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="gba:space-y-5">
-        {loading ? (
-          <div className="gba:space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="gba:flex gba:items-center gba:gap-3">
-                <div className="gba:h-4 gba:w-4 gba:rounded gba:bg-muted gba:animate-pulse gba:shrink-0" />
-                <div className="gba:h-4 gba:w-full gba:max-w-xs gba:rounded gba:bg-muted gba:animate-pulse" />
-              </div>
-            ))}
-          </div>
-        ) : teamSignals.length === 0 && primarySignals.length === 0 ? (
-          <p className="gba:text-sm gba:text-muted-foreground gba:py-2 gba:text-center">
-            No notable signals detected for this period.
-          </p>
-        ) : (
-          <>
-            {/* Team-level signals */}
-            {teamSignals.length > 0 && (
-              <div>
-                <h4 className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-3">
-                  Team Patterns
-                </h4>
-                <ul className="gba:list-none gba:space-y-3 gba:p-0 gba:m-0">
-                  {teamSignals.map((s, i) => (
-                    <li key={`team-${s.signalType}-${i}`} className="gba:flex gba:items-start gba:gap-3">
-                      <span className="gba:mt-0.5">{teamSignalIcon(s.signalType)}</span>
-                      <div className="gba:min-w-0">
-                        <p className="gba:text-sm">{s.description}</p>
-                        <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{s.suggestedAction}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Employee-level signals */}
-            {primarySignals.length > 0 && (
-              <div className={teamSignals.length > 0 ? 'gba:pt-3 gba:border-t gba:border-border' : ''}>
-                <h4 className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-3">
-                  Individual Signals
-                </h4>
-                <ul className="gba:list-none gba:space-y-2 gba:p-0 gba:m-0">
-                  {primarySignals.map((signal, idx) => {
-                    const tags = supportingByEmployee.get(signal.employeeId) ?? []
-                    return (
-                      <li
-                        key={`${signal.employeeId}-${idx}`}
-                        className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:group gba:rounded-lg gba:p-2 hover:gba:bg-muted/40 gba:transition-colors gba:cursor-pointer"
-                        onClick={() => onEmployeeClick(signal.employeeId)}
-                      >
-                        <div className="gba:flex gba:items-start gba:gap-2.5 gba:min-w-0">
-                          <span className="gba:mt-0.5">{employeeSignalIcon(signal.signalType)}</span>
-                          <div className="gba:min-w-0">
-                            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5">
-                              <span className="gba:text-sm gba:font-medium">{signal.employeeName}</span>
-                              <Badge
-                                variant={categoryBadgeVariant(signal.category)}
-                                className="gba:text-[10px] gba:px-1.5 gba:py-0"
-                              >
-                                {EMPLOYEE_SIGNAL_LABEL[signal.signalType]}
-                              </Badge>
-                              {tags.map((t, ti) => (
-                                <Badge
-                                  key={ti}
-                                  variant="secondary"
-                                  className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:opacity-70"
-                                >
-                                  {EMPLOYEE_SIGNAL_LABEL[t.signalType]}
-                                </Badge>
-                              ))}
-                            </div>
-                            <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5 gba:truncate">
-                              {signal.supportingData[0] ?? signal.description}
-                            </p>
-                          </div>
-                        </div>
-                        <ChevronRight className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity" />
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
+      <CardContent className="gba:space-y-5">{renderContent()}</CardContent>
     </Card>
   )
 }

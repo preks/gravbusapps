@@ -32,7 +32,7 @@ const employeeLabel = (m: { firstName: string; lastName: string }): string => {
 }
 
 const daysSinceLastFeedback = (iso: string | null): number | null => {
-  if (!iso) return null
+  if (iso === null || iso.length === 0) return null
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
   return Math.floor((Date.now() - d.getTime()) / 86_400_000)
@@ -172,11 +172,11 @@ export const FeedbackHealth: React.FC<FeedbackHealthProps> = ({
               <p className="gba:text-xs gba:text-muted-foreground">
                 {totalReceivedCount} received · {totalGivenCount} given organization-wide
               </p>
-              {recognitionRatio !== null ? (
+              {recognitionRatio === null ? null : (
                 <p className="gba:text-xs gba:text-muted-foreground">
                   Recognition share (typed feedback): {recognitionRatio}%
                 </p>
-              ) : null}
+              )}
             </div>
           </div>
         </section>

@@ -26,7 +26,6 @@ import {
   generateAlerts,
   detectEmployeeSignals,
   detectTeamSignals,
-  detectTalentSignals,
   computeTeamDimensionAverages
 } from '../utils/dashboardComputations'
 import { computeContainedGoalRollup } from '../utils/managerPerformanceGoalMetrics'
@@ -413,8 +412,6 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     teamSkillsAvg: teamEvalSkillsAvg,
     pendingEvaluations,
     completedEvaluations,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    availableCycles: evalAvailableCycles,
     loading: loadingTeamEvaluations,
     error: teamEvaluationsError
   } = useTeamEvaluations({
@@ -1047,8 +1044,16 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
   )
 
   const dashboardTalentSignals = useMemo(
-    () => detectTalentSignals(teamEvaluationMembers, teamPerformance, teamFeedbackMembers, teamSkillsMembers),
-    [teamEvaluationMembers, teamPerformance, teamFeedbackMembers, teamSkillsMembers]
+    () =>
+      dashboardEmployeeSignals.map(signal => ({
+        employeeId: signal.employeeId,
+        employeeName: signal.employeeName,
+        pictureThumbnail: signal.pictureThumbnail,
+        signalType: signal.signalType,
+        description: signal.description,
+        supportingData: signal.supportingData
+      })),
+    [dashboardEmployeeSignals]
   )
 
   const dashboardCompanyValuesDimensionAvgs = useMemo(
