@@ -1,10 +1,11 @@
 import { Editor, type Extension } from '@tiptap/core'
 import { handleTiptapTabKey } from '../tiptapTabKeyHandler'
 import type { HeaderFooterEditorType, PagesHeaderFooter, PagesOptions, PagesStorage, PageVariantKey } from './types'
-import { isEmptyHeaderFooterHtml, renderHeaderFooterDisplayContent } from './dom'
+import { renderHeaderFooterDisplayContent } from './dom'
 import { layoutPageNumberSlots } from './pageNumberSlotLayout'
 import {
   getHeaderFooterExtensions,
+  isEmptyHeaderFooterHtml,
   replaceTemplateTokens,
   resolveVariantForPage,
   setStoredVariantContent
@@ -29,6 +30,8 @@ interface ActiveOverlay {
   type: HeaderFooterEditorType
   variant: PageVariantKey
   cleanup: (runOnClose?: boolean) => void
+  /** Same as open params onClose; used when recoverStaleOverlayState runs cleanup(false) to still refresh host layout. */
+  onCloseHandler: () => void
   previousEditable: boolean
   target: HTMLElement
   contentHost: HTMLElement
@@ -50,9 +53,7 @@ export class HeaderFooterOverlayManager {
 
     const { target, type, pageNumber, clickPosition, initialContent, storage, options } = params
     const contentSelector = type === 'header' ? '.rm-page-header-content' : '.rm-page-footer-content'
-    const shellSelector = type === 'header' ? '.rm-page-header' : '.rm-page-footer'
     const contentHost = target.querySelector(contentSelector) as HTMLElement | null
-    const shellHost = target.querySelector(shellSelector) as HTMLElement | null
     const hint = target.querySelector('.rm-page-region-hint') as HTMLElement | null
     const pageNumberSlot = target.querySelector('[data-rm-page-number-slot="true"]') as HTMLElement | null
     const variant = resolveVariantForPage(pageNumber, options)
@@ -71,19 +72,10 @@ export class HeaderFooterOverlayManager {
 
     const previousEditable = this.hostEditor.isEditable
     this.hostEditor.setEditable(false, false)
-    const shellEditableElements = [target, shellHost].filter(
-      (element): element is HTMLElement => element instanceof HTMLElement
-    )
-    const shellEditableSnapshot = shellEditableElements.map(element => ({
-      element,
-      contentEditable: element.getAttribute('contenteditable')
-    }))
+    const shellEditableSnapshot: Array<{ element: HTMLElement; contentEditable: string | null }> = []
 
     target.dataset.rmOverlayActive = 'true'
     target.dataset.rmHasVisibleContent = 'true'
-    shellEditableElements.forEach(element => {
-      element.setAttribute('contenteditable', 'true')
-    })
     contentHost.classList.add('rm-page-inline-editor')
     contentHost.style.setProperty('--rm-overlay-accent', accentColor)
     contentHost.setAttribute('contenteditable', 'true')
@@ -266,6 +258,7 @@ export class HeaderFooterOverlayManager {
       type,
       variant,
       cleanup,
+      onCloseHandler: params.onClose,
       previousEditable,
       target,
       contentHost,
@@ -351,6 +344,7 @@ export class HeaderFooterOverlayManager {
     this.suppressNextCloseNotification = false
     this.activeOverlay = null
     activeOverlay.cleanup(false)
+    activeOverlay.onCloseHandler()
     this.getOptions().onActiveEditorChange?.({
       activeEditor: null,
       activeEditorType: null,

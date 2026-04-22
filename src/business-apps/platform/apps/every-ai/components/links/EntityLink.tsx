@@ -91,19 +91,14 @@ export function resolveEntityLink(link: string): ResolvedEntityLink | null {
   const config = ENTITY_CONFIG[effectiveProtocol]
   if (!config) return null
 
-  // Workflow links can include creator query params in the custom-protocol id.
-  // Resolve those explicitly to the creator manage route instead of treating them as raw id text.
+  // Workflow links must resolve to Flow Studio with flowId.
   if (effectiveProtocol === 'service_workflow' || effectiveProtocol === 'workflow_template') {
-    const templateId = embeddedParams.get('templateId') || effectiveId
-    const app = embeddedParams.get('app')
-    const shouldOpenCreator = app === 'flow/apps/creator' || app === null
-
-    if (templateId && shouldOpenCreator) {
-      const hash = fragment || '#manage'
+    const flowId = embeddedParams.get('flowId') || embeddedParams.get('templateId') || effectiveId
+    if (flowId) {
       return {
-        url: `/platform/apps/flow/apps/creator?templateId=${encodeURIComponent(templateId)}${hash}`,
+        url: `/platform/create/flow-studio?flowId=${encodeURIComponent(flowId)}#flows`,
         protocol: effectiveProtocol,
-        id: templateId,
+        id: flowId,
         alternateId: metadata?.alternateId,
         icon: config.icon(),
         variant: config.variant,
@@ -112,8 +107,26 @@ export function resolveEntityLink(link: string): ResolvedEntityLink | null {
     }
   }
 
+  let resolvedUrl = config.urlTemplate.replace('{id}', effectiveId)
+
+  if (effectiveProtocol === 'chat_conversation' && metadata?.messageId) {
+    const [path, queryString = ''] = resolvedUrl.split('?')
+    const baseParams = new URLSearchParams(queryString)
+    const view = baseParams.get('view')
+    const orderedParams = new URLSearchParams()
+
+    orderedParams.set('conversationId', effectiveId)
+    orderedParams.set('messageId', metadata.messageId)
+
+    if (view) {
+      orderedParams.set('view', view)
+    }
+
+    resolvedUrl = `${path}?${orderedParams.toString()}`
+  }
+
   return {
-    url: config.urlTemplate.replace('{id}', effectiveId),
+    url: resolvedUrl,
     protocol: effectiveProtocol,
     id: effectiveId,
     alternateId: metadata?.alternateId,
@@ -211,12 +224,14 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children }) 
   if (href) {
     const resolved = resolveEntityLink(href)
     if (resolved?.url) {
+      const forceWorkflowReload = resolved.protocol === 'service_workflow' || resolved.protocol === 'workflow_template'
       return (
         <BaseEntityLinkChip
           url={resolved.url}
           icon={resolved.icon}
           variant={resolved.variant}
           showBorder={resolved.showBorder}
+          forceReload={forceWorkflowReload}
         >
           {children}
         </BaseEntityLinkChip>

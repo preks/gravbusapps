@@ -4,25 +4,13 @@
  */
 
 import React, { useMemo } from 'react'
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  Button,
-  Spinner,
-  Badge,
-  useTranslation
-} from '@newwork/nw-design-system'
+import { Card, CardHeader, CardTitle, CardContent, Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import {
   CheckCircleIcon,
   DownloadIcon,
   UploadIcon,
   WarningIcon,
   EnvelopeIcon,
-  PhoneIcon,
-  BuildingsIcon,
-  MapPinIcon,
   ArrowCounterClockwiseIcon,
   MegaphoneSimpleIcon,
   ClockIcon
@@ -30,10 +18,13 @@ import {
 import {
   ConvertedEntity,
   TargetFieldDefinition,
-  ImportResult
+  ImportResult,
+  CsvQuality
 } from '@/common/components/common-relations/apps/data-import/types'
 import { calculateDataQuality } from '@/common/components/common-relations/apps/data-import/utils/dataQualityCalculator'
 import { pluralize } from '@/common/utils/pluralize'
+import { CsvQualityBanner } from './CsvQualityBanner'
+import { EntityPreviewCard } from './EntityPreviewCard'
 import translations from './ConversionResultStep/_i18n'
 
 export interface ConversionResultStepProps<T = ConvertedEntity> {
@@ -44,6 +35,10 @@ export interface ConversionResultStepProps<T = ConvertedEntity> {
   importResult: ImportResult | null
   /** Name of the campaign to associate with the import (CRM only) */
   campaignName?: string
+  /** CSV structural quality info from the backend (absent for Excel files) */
+  csvQuality?: CsvQuality | null
+  /** Re-extract the file with hard repair mode */
+  onHardRepair?: () => Promise<void>
   onDownloadJSON: () => void
   onImportToBackend: () => Promise<void>
   onReset: () => void
@@ -56,6 +51,8 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
   entityType,
   isLoading,
   campaignName,
+  csvQuality,
+  onHardRepair,
   onDownloadJSON,
   onImportToBackend,
   onReset,
@@ -67,15 +64,32 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
   const [showAllWarnings, setShowAllWarnings] = React.useState(false)
   // Flip immediately on click so the "in progress" screen shows without waiting for the API
   const [importStarted, setImportStarted] = React.useState(false)
+  const [repairAttempted, setRepairAttempted] = React.useState(false)
+  const [isRepairing, setIsRepairing] = React.useState(false)
+
+  const handleHardRepair = async () => {
+    if (!onHardRepair) return
+    setIsRepairing(true)
+    try {
+      await onHardRepair()
+      setRepairAttempted(true)
+    } finally {
+      setIsRepairing(false)
+    }
+  }
 
   const handleImportToBackend = async () => {
     setImportStarted(true)
-    await onImportToBackend()
+    try {
+      await onImportToBackend()
+    } catch {
+      setImportStarted(false)
+    }
   }
 
   // Calculate data quality metrics
   const dataQuality = useMemo(
-    () => calculateDataQuality(convertedEntities, targetFieldsConfig),
+    () => calculateDataQuality(convertedEntities as ConvertedEntity[], targetFieldsConfig),
     [convertedEntities, targetFieldsConfig]
   )
 
@@ -83,11 +97,6 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
   const previewEntities = convertedEntities.slice(0, 3)
   const entityLabel = pluralize(entityType)
   const entityLabelSingular = entityType.charAt(0).toUpperCase() + entityType.slice(1)
-  const getRefCode = (ref?: unknown) => {
-    if (typeof ref !== 'string') return undefined
-    const parts = ref.split(':')
-    return parts.length ? parts[parts.length - 1] : undefined
-  }
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
@@ -110,7 +119,7 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
           <div className="gba:space-y-4">
             {/* Import in Progress Message */}
             {importStarted && (
-              <Card variant="outlined" className="gba:border-primary">
+              <Card variant="surface" className="gba:border-primary">
                 <CardContent className="gba:p-6">
                   <div className="gba:flex gba:flex-col gba:items-center gba:gap-4 gba:text-center">
                     <div className="gba:relative">
@@ -169,6 +178,17 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
               </div>
             )}
 
+            {/* CSV Quality Banner (shown when not yet imported and quality data available) */}
+            {!importStarted && csvQuality && onHardRepair && (
+              <CsvQualityBanner
+                csvQuality={csvQuality}
+                isRepairing={isRepairing}
+                repairAttempted={repairAttempted}
+                onRepair={handleHardRepair}
+                data-testid={`${testId}-csv-quality-banner`}
+              />
+            )}
+
             {/* Preview, Warnings, and Import Button (shown when not yet imported) */}
             {!importStarted && (
               <>
@@ -178,79 +198,11 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
                     {t('preview-title', { count: previewEntities.length, entityType: entityLabel })}
                   </h3>
                   {previewEntities.map((entity, idx) => (
-                    <Card key={idx} data-testid={`${testId}-preview-${idx}`}>
-                      <CardContent className="gba:p-3">
-                        <div className="gba:space-y-2">
-                          {/* Name and Position */}
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-                            <span className="gba:font-medium">
-                              {(entity as any).name ||
-                                [entity.firstName, entity.lastName].filter(Boolean).join(' ') ||
-                                entity.companyName ||
-                                ''}
-                            </span>
-                            {(entity.position || entity.jobPosition || (entity as any).opportunityPipelineStageRef) && (
-                              <Badge variant="secondary" size="sm">
-                                {entity.position ||
-                                  entity.jobPosition ||
-                                  getRefCode((entity as any).salesPipelineStageRef) ||
-                                  getRefCode((entity as any).opportunityPipelineStageRef)}
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* Company (for leads) */}
-                          {entity.companyName && (
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                              <BuildingsIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                              <span>{entity.companyName}</span>
-                              {entity.industryRef && (
-                                <Badge variant="success" size="sm">
-                                  {t('industry-badge')}
-                                </Badge>
-                              )}
-                              {entity.numberOfEmployeesRef && (
-                                <Badge variant="info" size="sm">
-                                  {t('size-badge')}
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Location */}
-                          {(entity.city || entity.countryRef) && (
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                              <MapPinIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                              <span>
-                                {entity.city}
-                                {entity.city && entity.countryRef && ', '}
-                                {entity.countryRef && (
-                                  <Badge variant="secondary" size="sm">
-                                    {entity.countryRef.split(':').pop()}
-                                  </Badge>
-                                )}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Contact */}
-                          <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
-                            {entity.email && (
-                              <div className="gba:flex gba:items-center gba:gap-1">
-                                <EnvelopeIcon className="gba:w-4 gba:h-4" />
-                                <span className="gba:text-xs">{entity.email}</span>
-                              </div>
-                            )}
-                            {entity.phoneNumber && (
-                              <div className="gba:flex gba:items-center gba:gap-1">
-                                <PhoneIcon className="gba:w-4 gba:h-4" />
-                                <span className="gba:text-xs">{entity.phoneNumber}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <EntityPreviewCard
+                      key={idx}
+                      entity={entity as ConvertedEntity}
+                      data-testid={`${testId}-preview-${idx}`}
+                    />
                   ))}
                   {convertedEntities.length > 3 && (
                     <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">

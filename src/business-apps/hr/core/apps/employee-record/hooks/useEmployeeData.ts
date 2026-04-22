@@ -15,7 +15,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
  query GetEmployeeData($employeeId: uuid!, $structureId: uuid, $hasStructureId: Boolean!, $activeUserLocale: String!) {
  Catalog(where: {identifier: {_eq: "AcademicTitle"}}) {
     id
-    catalogEntries {
+    catalogEntries(where: {isDeleted: {_eq: false}}) {
       id
       value
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -122,6 +122,9 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         recordState
         processInstanceId
         verificationDocumentId
+        verificationDocument {
+          id
+        }
         additionalProperties
         synchronizedAt
         validFrom
@@ -187,7 +190,10 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         }
       }
       relationship {
+        id
+        version
         isEmergencyContact
+        typeRef
         type {
           id
           value
@@ -211,6 +217,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
           value
           code
           additionalValue1
+          objectValue
         }
       }
       workingCondition {
@@ -502,6 +509,9 @@ interface EmployeeSkill {
   recordState?: string | null
   processInstanceId?: string | null
   verificationDocumentId?: string | null
+  verificationDocument?: {
+    id?: string | null
+  } | null
   acl?: unknown
   additionalProperties?: unknown
   synchronizedAt: string | null
@@ -685,7 +695,10 @@ interface Address {
 }
 
 interface Relationship {
+  id: string
+  version: number
   isEmergencyContact: boolean
+  typeRef: string
   type: CodeValue
   firstName: string
   lastName: string
@@ -707,6 +720,7 @@ interface Communication {
     value: string
     code: string
     additionalValue1: string
+    objectValue?: Record<string, unknown> | null
   }
 }
 

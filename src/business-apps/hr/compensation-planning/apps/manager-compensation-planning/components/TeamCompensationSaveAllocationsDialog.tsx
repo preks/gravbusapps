@@ -1,0 +1,306 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import type { RestClient } from '@/common/network/rest/RestClient'
+import type { DistributionMethod, TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
+import compensationPlanningTranslations from '../../compensation-planning/_i18n'
+import type { CompensationBudgetPlanCompanyRow } from '../../compensation-planning/hooks/useBudgetSetupForCompany'
+import type { ManagerOrgUnitBudgetSnapshot } from '../hooks/useManagerTeamSalaryBudget'
+import { persistManagerTeamBudgetAfterAllocations } from '../utils/persistManagerTeamBudgetAfterAllocations'
+import {
+  persistAllocationsForSelectedEmployees,
+  validateCustomPoolForSelected,
+  validatePlanOuForAllSelected
+} from '../utils/teamCompensationSaveAllocationsWorkflow'
+import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
+import translations from '../_i18n'
+import { TeamCompensationSaveAllocationsDialogRows } from './TeamCompensationSaveAllocationsDialogRows'
+
+export interface TeamCompensationSaveAllocationsDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  accessToken: string | undefined
+  managerEmployeeId: string | undefined
+  restClient: RestClient
+  teamMembers: TeamMemberCompensationData[]
+  allocationByEmployeeId: ReadonlyMap<string, number>
+  distributionMethod: DistributionMethod
+  distributionPool: number | null
+  currencyCode: string
+  planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
+  managerOrganizationalUnitId: string | null
+  managerCompanyBudgetRow: CompensationBudgetPlanCompanyRow | null
+  orgUnitBudgetSnapshotsByPlanRowId: ReadonlyMap<string, ManagerOrgUnitBudgetSnapshot>
+  /** Called after successful saves; includes REST row ids keyed by employee id when returned by the API. */
+  onSaved?: (createdIdsByEmployeeId?: Record<string, string>) => void | Promise<void>
+}
+
+export function TeamCompensationSaveAllocationsDialog({
+  open,
+  onOpenChange,
+  accessToken,
+  managerEmployeeId,
+  restClient,
+  teamMembers,
+  allocationByEmployeeId,
+  distributionMethod,
+  distributionPool,
+  currencyCode,
+  planOuRowIdByOrganizationalUnitId,
+  managerOrganizationalUnitId,
+  managerCompanyBudgetRow,
+  orgUnitBudgetSnapshotsByPlanRowId,
+  onSaved
+}: Readonly<TeamCompensationSaveAllocationsDialogProps>) {
+  const { t } = useTranslation(translations)
+  const { t: tBudget } = useTranslation(compensationPlanningTranslations)
+  const graphqlClient = useGraphQLClient(accessToken ?? '')
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(new Set())
+  const [saving, setSaving] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  /** Avoid resetting checkbox state when parent re-renders while the dialog stays open. */
+  const hasInitializedSelectionForOpenRef = useRef(false)
+
+  const sortedMembers = useMemo(
+    () => [...teamMembers].sort((a, b) => a.displayName.localeCompare(b.displayName)),
+    [teamMembers]
+  )
+
+  const memberById = useMemo(() => {
+    const map = new Map<string, TeamMemberCompensationData>()
+    for (const m of teamMembers) {
+      map.set(m.employeeId, m)
+    }
+    return map
+  }, [teamMembers])
+
+  useEffect(() => {
+    if (!open) {
+      hasInitializedSelectionForOpenRef.current = false
+      return
+    }
+    setErrorMessage(null)
+    if (hasInitializedSelectionForOpenRef.current) {
+      return
+    }
+    if (sortedMembers.length === 0) {
+      return
+    }
+    hasInitializedSelectionForOpenRef.current = true
+    const next = new Set<string>()
+    for (const m of sortedMembers) {
+      const raw = allocationByEmployeeId.get(m.employeeId) ?? 0
+      if (roundMoney2(raw) > 0) {
+        next.add(m.employeeId)
+      }
+    }
+    setSelectedEmployeeIds(next)
+  }, [open, sortedMembers, allocationByEmployeeId])
+
+  const toggleEmployee = useCallback((employeeId: string, checked: boolean) => {
+    setSelectedEmployeeIds(prev => {
+      const next = new Set(prev)
+      if (checked) {
+        next.add(employeeId)
+      } else {
+        next.delete(employeeId)
+      }
+      return next
+    })
+  }, [])
+
+  const selectAll = useCallback(() => {
+    setSelectedEmployeeIds(new Set(sortedMembers.map(m => m.employeeId)))
+  }, [sortedMembers])
+
+  const selectNone = useCallback(() => {
+    setSelectedEmployeeIds(new Set())
+  }, [])
+
+  const poolOk = distributionPool != null && distributionPool > 0
+
+  const handleConfirmSave = useCallback(async () => {
+    setErrorMessage(null)
+    if (!accessToken) {
+      setErrorMessage(t('manager-team-save-no-token'))
+      return
+    }
+    if (!managerEmployeeId) {
+      setErrorMessage(t('manager-team-save-no-employee'))
+      return
+    }
+    if (!poolOk) {
+      setErrorMessage(t('manager-team-save-dialog-no-pool'))
+      return
+    }
+
+    const ids = [...selectedEmployeeIds]
+    if (ids.length === 0) {
+      setErrorMessage(t('manager-team-save-dialog-none-selected'))
+      return
+    }
+
+    if (!validateCustomPoolForSelected(distributionMethod, distributionPool, ids, allocationByEmployeeId)) {
+      setErrorMessage(t('manager-team-save-dialog-custom-exceeds-pool-selected'))
+      return
+    }
+
+    const planOuCheck = validatePlanOuForAllSelected(
+      ids,
+      memberById,
+      planOuRowIdByOrganizationalUnitId,
+      managerOrganizationalUnitId
+    )
+    if (!planOuCheck.ok) {
+      setErrorMessage(t('manager-team-save-missing-plan-ou', { name: planOuCheck.displayName }))
+      return
+    }
+
+    if (!managerCompanyBudgetRow) {
+      setErrorMessage(t('manager-team-save-missing-budget-context'))
+      return
+    }
+
+    setSaving(true)
+    try {
+      const createdIdsByEmployeeId = await persistAllocationsForSelectedEmployees({
+        restClient,
+        accessToken,
+        selectedIds: ids,
+        memberById,
+        allocationByEmployeeId,
+        planOuRowIdByOrganizationalUnitId,
+        managerOrganizationalUnitId,
+        managerEmployeeId
+      })
+      await persistManagerTeamBudgetAfterAllocations({
+        graphqlClient,
+        restClient,
+        accessToken,
+        companyBudgetRow: managerCompanyBudgetRow,
+        orgUnitBudgetSnapshotsByPlanRowId,
+        selectedEmployeeIds: ids,
+        memberById,
+        allocationByEmployeeId,
+        planOuRowIdByOrganizationalUnitId,
+        managerOrganizationalUnitId
+      })
+      await onSaved?.(createdIdsByEmployeeId)
+      onOpenChange(false)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : t('manager-team-save-error-generic')
+      setErrorMessage(t('manager-team-save-error', { message: msg }))
+    } finally {
+      setSaving(false)
+    }
+  }, [
+    accessToken,
+    allocationByEmployeeId,
+    distributionMethod,
+    distributionPool,
+    graphqlClient,
+    managerCompanyBudgetRow,
+    managerEmployeeId,
+    memberById,
+    managerOrganizationalUnitId,
+    orgUnitBudgetSnapshotsByPlanRowId,
+    onOpenChange,
+    onSaved,
+    planOuRowIdByOrganizationalUnitId,
+    poolOk,
+    restClient,
+    selectedEmployeeIds,
+    t
+  ])
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="gba:max-h-[85vh] gba:max-w-2xl gba:overflow-y-auto"
+        data-testid="manager-team-save-allocations-dialog"
+      >
+        <DialogHeader>
+          <DialogTitle>{t('manager-team-save-dialog-title')}</DialogTitle>
+        </DialogHeader>
+
+        <p className="gba:text-sm gba:text-muted-foreground">{t('manager-team-save-dialog-description')}</p>
+
+        <div className="gba:flex gba:flex-wrap gba:gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={selectAll}
+            data-testid="manager-team-save-dialog-select-all"
+          >
+            {t('manager-team-save-dialog-select-all')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={selectNone}
+            data-testid="manager-team-save-dialog-select-none"
+          >
+            {t('manager-team-save-dialog-select-none')}
+          </Button>
+        </div>
+
+        {poolOk === false ? (
+          <p className="gba:text-sm gba:text-destructive" data-testid="manager-team-save-dialog-pool-warning">
+            {t('manager-team-save-dialog-no-pool')}
+          </p>
+        ) : null}
+
+        {errorMessage ? (
+          <p className="gba:text-sm gba:text-destructive" data-testid="manager-team-save-dialog-error">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        <TeamCompensationSaveAllocationsDialogRows
+          sortedMembers={sortedMembers}
+          allocationByEmployeeId={allocationByEmployeeId}
+          selectedEmployeeIds={selectedEmployeeIds}
+          distributionPool={distributionPool}
+          poolOk={poolOk}
+          currencyCode={currencyCode}
+          saving={saving}
+          onToggle={toggleEmployee}
+          t={t}
+          tBudget={tBudget}
+        />
+
+        <DialogFooter className="gba:gap-2 sm:gba:gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+            data-testid="manager-team-save-dialog-cancel"
+          >
+            {t('manager-team-save-dialog-cancel')}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              handleConfirmSave().catch(() => {})
+            }}
+            disabled={saving || !poolOk || selectedEmployeeIds.size === 0}
+            data-testid="manager-team-save-dialog-confirm"
+          >
+            {saving ? t('manager-team-save-dialog-saving') : t('manager-team-save-dialog-confirm')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { DetailsPanelContent, type DetailsPanelField } from './DetailsPanelContent'
 import { useExpenseRequestAnalysis } from '../../hooks/useExpenseRequestAnalysis'
-import AIAnalysisSection from '../AIAnalysisSection'
+import AIAnalysisSection from '../ai-analysis/AIAnalysisSection'
 
 type CurrencyLike = { code?: string | null } | string | null | undefined
 

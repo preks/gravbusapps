@@ -19,19 +19,17 @@ import {
 import { AlertCircle, Users, Target, Clock, Send } from 'lucide-react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { env } from '@/common/env/EnvUtils'
+import { useChatClient } from '@/common/network/chat/useChatClient'
 import { EmployeePanelHeader } from '../shared/EmployeePanelHeader'
 import { PrefilledMessageDialog } from '../shared/PrefilledMessageDialog'
 
 /**
  * Check if current time is after 10:30 AM on a working day (Mon-Fri)
- * Memoized to avoid recalculation on every render
  */
 const shouldShowNotClockedInAlert = (): boolean => {
   const now = new Date()
-  const dayOfWeek = now.getDay() // 0 = Sunday, 6 = Saturday
+  const dayOfWeek = now.getDay()
 
-  // Only show on working days (Monday = 1 to Friday = 5)
   if (dayOfWeek === 0 || dayOfWeek === 6) {
     return false
   }
@@ -39,7 +37,6 @@ const shouldShowNotClockedInAlert = (): boolean => {
   const hours = now.getHours()
   const minutes = now.getMinutes()
 
-  // Show only after 10:30 AM
   return hours > 10 || (hours === 10 && minutes >= 30)
 }
 
@@ -51,146 +48,6 @@ const avatarSrc = (pictureThumbnail?: string): string | undefined =>
 
 const initialsFromName = (firstName?: string, lastName?: string): string =>
   `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase() || '??'
-
-/**
- * Send a chat message reminder about a goal behind target
- */
-const sendGoalReminderMessage = async (
-  accessToken: string,
-  payload: {
-    employeeUserId: string
-    currentUserId: string
-    message: string
-  }
-): Promise<{ success: boolean; error?: string }> => {
-  try {
-    const baseUrl = env('NEXT_PUBLIC_CHAT_API') || `${env('NEXT_PUBLIC_BASE_URL')}/chat-service/api/v1`
-
-    // Step 1: Create or get direct conversation with the employee
-    const conversationResponse = await fetch(`${baseUrl}/conversations/direct`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({ userId: payload.employeeUserId })
-    })
-
-    if (!conversationResponse.ok) {
-      const errorText = await conversationResponse.text()
-      console.error('Goal reminder conversation creation failed')
-      throw new Error(`Failed to create conversation: ${conversationResponse.statusText} - ${errorText}`)
-    }
-
-    const conversation = await conversationResponse.json()
-
-    // Extract conversation ID - check different possible response structures
-    const conversationId = conversation.id || conversation.conversationId || conversation.data?.id
-
-    if (!conversationId) {
-      console.error('Goal reminder conversation ID missing')
-      throw new Error('No conversation ID returned from API')
-    }
-
-    const messagePayload = {
-      conversationId,
-      content: payload.message,
-      senderId: payload.currentUserId
-    }
-
-    const messageResponse = await fetch(`${baseUrl}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`
-      },
-      body: JSON.stringify(messagePayload)
-    })
-
-    if (!messageResponse.ok) {
-      const errorText = await messageResponse.text()
-      console.error('Goal reminder message send failed')
-      throw new Error(`Failed to send message: ${messageResponse.statusText} - ${errorText}`)
-    }
-    await messageResponse.json()
-
-    return { success: true }
-  } catch (err) {
-    console.error('Goal reminder flow failed')
-    return { success: false, error: err instanceof Error ? err.message : 'Failed to send message' }
-  }
-}
-
-/**
- * Send a chat nudge to remind employee to clock in
- */
-const sendClockInNudge = async (
-  accessToken: string,
-  payload: {
-    employeeUserId: string
-    currentUserId: string
-    message: string
-  }
-): Promise<{ success: boolean; error?: string }> => {
-  try {
-    const baseUrl = env('NEXT_PUBLIC_CHAT_API') || `${env('NEXT_PUBLIC_BASE_URL')}/chat-service/api/v1`
-
-    // Step 1: Create or get direct conversation with the employee
-    const conversationResponse = await fetch(`${baseUrl}/conversations/direct`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({ userId: payload.employeeUserId })
-    })
-
-    if (!conversationResponse.ok) {
-      const errorText = await conversationResponse.text()
-      console.error('Clock-in nudge conversation creation failed')
-      throw new Error(`Failed to create conversation: ${conversationResponse.statusText} - ${errorText}`)
-    }
-
-    const conversation = await conversationResponse.json()
-
-    // Extract conversation ID - check different possible response structures
-    const conversationId = conversation.id || conversation.conversationId || conversation.data?.id
-
-    if (!conversationId) {
-      console.error('Clock-in nudge conversation ID missing')
-      throw new Error('No conversation ID returned from API')
-    }
-
-    // Step 2: Send the nudge message with explicit senderId
-    const messagePayload = {
-      conversationId,
-      content: payload.message,
-      senderId: payload.currentUserId
-    }
-
-    const messageResponse = await fetch(`${baseUrl}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`
-      },
-      body: JSON.stringify(messagePayload)
-    })
-
-    if (!messageResponse.ok) {
-      const errorText = await messageResponse.text()
-      console.error('Clock-in nudge message send failed')
-      throw new Error(`Failed to send message: ${messageResponse.statusText} - ${errorText}`)
-    }
-    await messageResponse.json()
-
-    return { success: true }
-  } catch (err) {
-    console.error('Clock-in nudge flow failed')
-    return { success: false, error: err instanceof Error ? err.message : 'Failed to send nudge' }
-  }
-}
-
 interface PriorityItem {
   id: number
   text: string
@@ -278,6 +135,7 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
   const [isNoGoalsPanelOpen, setIsNoGoalsPanelOpen] = useState(false)
   const [isGoalsBehindPanelOpen, setIsGoalsBehindPanelOpen] = useState(false)
   const [isNotClockedInPanelOpen, setIsNotClockedInPanelOpen] = useState(false)
+  const chatClient = useChatClient(accessToken)
   const [sendingBlinkFor, setSendingBlinkFor] = useState<string | null>(null)
   const [sendingNudgeFor, setSendingNudgeFor] = useState<string | null>(null)
   const unallocatedDailyCost = Math.round(unallocatedMonthlyCost / 30)
@@ -297,25 +155,25 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
       setSendingBlinkFor(goalId)
 
       try {
-        const result = await sendGoalReminderMessage(accessToken, {
-          employeeUserId,
-          currentUserId,
-          message
-        })
-
-        if (result.success) {
-          toast.success(`Reminder sent to ${employeeName}`)
-          setGoalReminderDraft(null)
-        } else {
-          toast.error(result.error || 'Failed to send reminder')
+        const conversation = await chatClient.getOrCreateDirectConversation<{ id?: string; conversationId?: string }>(
+          employeeUserId
+        )
+        const conversationId = conversation.id || conversation.conversationId
+        if (!conversationId) {
+          throw new Error('No conversation ID returned from API')
         }
-      } catch {
+
+        await chatClient.sendMessage(conversationId, message, currentUserId)
+        toast.success(`Reminder sent to ${employeeName}`)
+        setGoalReminderDraft(null)
+      } catch (error) {
+        console.error('[TodaysPriorities] Error sending goal reminder:', error)
         toast.error('Failed to send reminder - please try again')
       } finally {
         setSendingBlinkFor(null)
       }
     },
-    [accessToken, currentUserId]
+    [accessToken, currentUserId, chatClient]
   )
 
   const handleSendClockInNudge = useCallback(
@@ -333,25 +191,25 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
       setSendingNudgeFor(employeeUserId)
 
       try {
-        const result = await sendClockInNudge(accessToken, {
-          employeeUserId,
-          currentUserId,
-          message
-        })
-
-        if (result.success) {
-          toast.success(`Nudge sent to ${employeeName}`)
-          setClockInNudgeDraft(null)
-        } else {
-          toast.error(result.error || 'Failed to send nudge')
+        const conversation = await chatClient.getOrCreateDirectConversation<{ id?: string; conversationId?: string }>(
+          employeeUserId
+        )
+        const conversationId = conversation.id || conversation.conversationId
+        if (!conversationId) {
+          throw new Error('No conversation ID returned from API')
         }
-      } catch {
+
+        await chatClient.sendMessage(conversationId, message, currentUserId)
+        toast.success(`Nudge sent to ${employeeName}`)
+        setClockInNudgeDraft(null)
+      } catch (error) {
+        console.error('[TodaysPriorities] Error sending clock-in nudge:', error)
         toast.error('Failed to send nudge - please try again')
       } finally {
         setSendingNudgeFor(null)
       }
     },
-    [accessToken, currentUserId]
+    [accessToken, currentUserId, chatClient]
   )
 
   const openGoalReminderDialog = useCallback(

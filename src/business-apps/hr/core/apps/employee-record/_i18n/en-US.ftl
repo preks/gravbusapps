@@ -290,7 +290,7 @@ error-end-date-after-start-date = End date must be on or after the benefit start
 notification-address-updated-success = Address updates are done.
 notification-bank-account-updated-success = Bank account updates are done.
 notification-personal-data-updated-success = Personal data updates are sent for HR approval
-notification-communication-updated-success = Communication details updates are sent for HR approval
+notification-communication-updated-success = Communication details updated. HR has been notified.
 notification-profile-picture-updated-success = Profile picture updates are sent for HR approval
 notification-relationship-updated-success = Relationship status updates are sent for HR approval
 notification-expense-created-success = Expense created successfully
@@ -304,7 +304,8 @@ notification-working-hours-updated-success = Working hours updates are sent for 
 notification-address-updated-success = Address updates are done.
 notification-bank-account-updated-success = Bank account updates are done.
 notification-personal-data-updated-success = Personal data updates sent to be approved by the HR department.
-notification-communication-updated-success = Communication details updates sent to be approved by the HR department.
+notification-communication-updated-success = Communication details updated. HR has been notified.
+notification-communication-deleted-success = Communication entry deleted successfully.
 
 # Employee Record - Errors and states
 employee-record-error-title = Error
@@ -332,6 +333,11 @@ employee-record-tab-hr-growth = HR Development
 hr-growth-skills = Skills
 hr-growth-feedback = Feedback Hub
 hr-growth-performance = Goals
+
+# My Development (self-service screen — same content as HR Development tab)
+my-development-page-title = My Development
+my-development-page-description = Skills, feedback, goals, and performance — the same experience as HR Development in My Profile.
+my-development-unavailable = Your development area could not be loaded. Try again later.
 
 # Feedback Hub (sub-page under HR Development)
 feedback-hub-title = Feedback Hub
@@ -553,6 +559,7 @@ add-skill-form-attach-verification-message-prefix = Upload a document to verify 
 add-skill-form-attach-verification-message-suffix = .
 add-skill-form-update-level-for-prefix = Update level for skill 
 add-skill-form-attach-verification-upload-label = Upload document
+add-skill-form-loading-verification-document = Loading document...
 add-skill-form-document-group = Document Category
 add-skill-form-document-type = Document Type
 add-skill-form-select-document-group = Select Document Category
@@ -738,6 +745,11 @@ details-private-communication = Private Communication
 details-emergency-contact = Emergency Contact
 details-additional-attributes = Additional Attributes
 details-no-emergency-contact = No emergency contact information available
+details-communication-no-entries = No communication entries
+details-communication-add = Add communication
+delete-communication-confirm-title = Delete communication entry
+delete-communication-confirm-description = Are you sure you want to delete this communication entry? This action cannot be undone.
+delete-communication-confirm-button = Delete
 details-label-salutation = Salutation
 details-label-academic-titles = Academic Titles
 details-label-first-name = First Name
@@ -761,6 +773,17 @@ details-label-private-mobile = Private Mobile
 details-label-private-email = Private Email
 details-label-contact-name = Contact Name
 details-label-phone-number = Phone Number
+
+# Relationships Card
+details-relationships = Relationships
+details-relationships-no-entries = No relationships registered
+details-relationships-emergency = Emergency Contact
+details-label-relationship-type = Type
+details-label-relationship-birth-date = Date of Birth
+details-label-relationship-email = Email
+delete-relationship-confirm-title = Delete relationship
+delete-relationship-confirm-description = Are you sure you want to delete this relationship? This action cannot be undone.
+delete-relationship-confirm-button = Delete
 
 # Employment Tab
 employment-overview = Employment Data
@@ -803,7 +826,7 @@ employment-label-tax-bracket = Tax Bracket
 employment-label-church-affiliation = Church Affiliation
 employment-label-child-tax-allowance = Child Tax Allowance
 employment-label-health-insurance = Health Insurance
-employment-label-type-of-health-insurance = Type Of Health Insurance
+employment-label-type-of-health-insurance = Type of Health Insurance
 employment-label-request-at-office = Request at tax office
 employment-label-last-updated = Last Updated
 employment-label-employee-tax-office = Employee's Tax Office
@@ -892,3 +915,6 @@ service-requests-status-canceled = Canceled
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
 change-personal-data-pending-message = HR is currently reviewing your recent updates. You’ll be able to make further changes as soon as they have approved the request.
 change-personal-data-pending-ok = OK
+
+# Change Address - Loading
+change-address-loading-form = Loading address form...

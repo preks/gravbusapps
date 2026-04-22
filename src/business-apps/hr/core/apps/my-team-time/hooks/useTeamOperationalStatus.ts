@@ -1,8 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_TEAM_ATTENDANCE_FOR_RANGE, GET_TEAM_ABSENCES_CALENDAR_TODAY } from '../queries/queries'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { GET_TEAM_ATTENDANCE_FOR_RANGE } from '../queries/queries'
 import { TeamMember, OperationalStatus, TeamAttendanceEntry, TeamAbsenceToday, Anomaly } from '../types/types'
 import { toLocalDateKey, isWorkingDay, parseDurationToMinutes, toDateString } from '../utils/timeUtils'
+import {
+  fetchTeamDetailedAbsences,
+  fetchTeamHolidayData,
+  getActiveLocale,
+  getApprovedAbsencesForDate,
+  isSickAbsence,
+  isWorkAbsence
+} from '../utils/teamTimeDomain'
 
 interface UseTeamOperationalStatusReturn {
   status: OperationalStatus
@@ -37,6 +46,20 @@ export const useTeamOperationalStatus = (
   const membersRef = useRef(members)
   membersRef.current = members
 
+  const getAnomalyDescription = useCallback((key: 'missing_log' | 'no_clock_out'): string => {
+    if (key === 'missing_log') {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:my_team_time.anomaly_missing_log',
+        'No attendance record for yesterday'
+      )
+    }
+
+    return getTranslationFromI18nKeyAndLabel(
+      'lowcoder:my_team_time.anomaly_missing_clock_out',
+      'Missing clock-out from yesterday'
+    )
+  }, [])
+
   const fetchStatus = useCallback(async () => {
     if (!graphqlClient || memberIds.length === 0) {
       setIsLoading(false)
@@ -49,19 +72,21 @@ export const useTeamOperationalStatus = (
     try {
       const today = new Date()
       const todayStr = toLocalDateKey(today)
+      const yesterdayDate = new Date(today)
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+      const yesterdayStr = toLocalDateKey(yesterdayDate)
       const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
       const monthStartStr = toDateString(monthStart)
+      const locale = getActiveLocale()
 
-      const [attendanceResult, absenceResult] = await Promise.all([
+      const [attendanceResult, detailedAbsences, holidayData] = await Promise.all([
         graphqlClient.request<any>(GET_TEAM_ATTENDANCE_FOR_RANGE, {
           employeeIds: memberIds,
           dateFrom: monthStartStr,
           dateTo: todayStr
         }),
-        graphqlClient.request<any>(GET_TEAM_ABSENCES_CALENDAR_TODAY, {
-          employeeIds: memberIds,
-          today: todayStr
-        })
+        fetchTeamDetailedAbsences(graphqlClient, memberIds, yesterdayStr, todayStr, locale),
+        fetchTeamHolidayData(graphqlClient, memberIds, yesterdayStr, todayStr, locale)
       ])
 
       const allAttendance: TeamAttendanceEntry[] = (attendanceResult?.EmployeeAttendance ?? []).map((r: any) => ({
@@ -79,13 +104,23 @@ export const useTeamOperationalStatus = (
         attendanceLocation: r.attendanceLocation
       }))
 
-      const absences: TeamAbsenceToday[] = (absenceResult?.EmployeeAbsenceCalendarView ?? []).map((r: any) => ({
-        employeeId: r.employeeId,
-        typeRef: r.typeRef,
-        status: r.status,
-        dayDate: r.dayDate,
-        employeeAbsenceId: r.employeeAbsenceId
-      }))
+      const absences: TeamAbsenceToday[] = detailedAbsences
+        .filter(absence => absence.status === 'APPROVED')
+        .flatMap(absence =>
+          getApprovedAbsencesForDate([absence], absence.employeeId, todayStr).map(() => ({
+            employeeId: absence.employeeId,
+            typeRef: absence.typeRef,
+            status: absence.status,
+            dayDate: todayStr,
+            employeeAbsenceId: absence.id,
+            typeLabel: absence.typeLabel,
+            parentEntryId: absence.parentEntryId,
+            startDate: absence.startDate,
+            endDate: absence.endDate,
+            employeeName: absence.employeeName,
+            pictureThumbnail: absence.pictureThumbnail
+          }))
+        )
 
       setMonthAttendance(allAttendance)
       const todayEntries = allAttendance.filter(a => a.attendanceDate === todayStr)
@@ -96,13 +131,7 @@ export const useTeamOperationalStatus = (
       const memberMap = new Map(currentMembers.map(m => [m.id, m]))
       const absentEmployeeIds = new Set(absences.filter(a => a.status === 'APPROVED').map(a => a.employeeId))
       const sickEmployeeIds = new Set(
-        absences
-          .filter(a => {
-            if (a.status !== 'APPROVED') return false
-            const upper = (a.typeRef || '').toUpperCase()
-            return upper.includes('ILLNESS') || upper.includes('SICK')
-          })
-          .map(a => a.employeeId)
+        absences.filter(a => a.status === 'APPROVED' && isSickAbsence(a)).map(a => a.employeeId)
       )
 
       const clockedInIds = new Set<string>()
@@ -124,7 +153,11 @@ export const useTeamOperationalStatus = (
       })
 
       const onLeaveToday = Array.from(absentEmployeeIds)
-        .filter(id => !sickEmployeeIds.has(id))
+        .filter(id => {
+          if (sickEmployeeIds.has(id)) return false
+          const employeeAbsences = absences.filter(absence => absence.employeeId === id)
+          return employeeAbsences.some(absence => !isWorkAbsence(absence))
+        })
         .map(id => memberMap.get(id))
         .filter(Boolean) as TeamMember[]
 
@@ -139,13 +172,13 @@ export const useTeamOperationalStatus = (
       })
 
       const anomalies: Anomaly[] = []
-      const yesterdayDate = new Date(today)
-      yesterdayDate.setDate(yesterdayDate.getDate() - 1)
-      const yesterdayStr = toLocalDateKey(yesterdayDate)
 
       currentMembers.forEach(m => {
-        if (absentEmployeeIds.has(m.id)) return
         if (!isWorkingDay(yesterdayStr, m.workingHours)) return
+        if (holidayData.datesByEmployeeId.get(m.id)?.has(yesterdayStr)) return
+
+        const yesterdayAbsences = getApprovedAbsencesForDate(detailedAbsences, m.id, yesterdayStr)
+        if (yesterdayAbsences.some(absence => !isWorkAbsence(absence))) return
 
         const yesterdayEntries = allAttendance.filter(a => a.employeeId === m.id && a.attendanceDate === yesterdayStr)
         if (yesterdayEntries.length === 0) {
@@ -153,7 +186,7 @@ export const useTeamOperationalStatus = (
             employeeId: m.id,
             employeeName: `${m.firstName} ${m.lastName}`,
             type: 'missing_log',
-            description: 'No attendance record for yesterday',
+            description: getAnomalyDescription('missing_log'),
             date: yesterdayStr
           })
         } else {
@@ -163,7 +196,7 @@ export const useTeamOperationalStatus = (
               employeeId: m.id,
               employeeName: `${m.firstName} ${m.lastName}`,
               type: 'no_clock_out',
-              description: 'Missing clock-out from yesterday',
+              description: getAnomalyDescription('no_clock_out'),
               date: yesterdayStr
             })
           }
@@ -179,18 +212,27 @@ export const useTeamOperationalStatus = (
         anomalies
       })
     } catch (err) {
-      console.error('Error fetching operational status:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch operational status')
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      console.error('Error fetching operational status:', errorMessage)
+      setError(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:my_team_time.operational_status_fetch_failed',
+          'Failed to fetch operational status'
+        )
+      )
     } finally {
       setIsLoading(false)
     }
-  }, [graphqlClient, memberIds.join(',')])
+  }, [getAnomalyDescription, graphqlClient, memberIds.join(',')])
 
   useEffect(() => {
-    if (accessToken && memberIds.length > 0) {
-      fetchStatus()
+    if (!accessToken) {
+      setIsLoading(false)
+      return
     }
-  }, [accessToken, memberIds.join(','), fetchStatus])
+
+    fetchStatus()
+  }, [accessToken, fetchStatus])
 
   return { status, todayAttendance, todayAbsences, monthAttendance, isLoading, error }
 }

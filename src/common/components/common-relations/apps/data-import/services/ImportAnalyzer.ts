@@ -9,13 +9,14 @@ import { ImportAnalyzerResponse } from '../types'
 export class ImportAnalyzer {
   constructor(
     private readonly accessToken: string,
-    private readonly entityType: string
+    private readonly entityType: string,
+    private readonly domain: 'customer' | 'investment'
   ) {
     flowbotClient.setAccessToken(accessToken)
   }
 
-  async analyzeImport(file: File, llmModel?: string): Promise<ImportAnalyzerResponse> {
-    const response = await flowbotClient.mapFromFile(this.entityType, file, llmModel)
+  async analyzeImport(file: File, modelKind: string = 'default'): Promise<ImportAnalyzerResponse> {
+    const response = await flowbotClient.mapFromFile(this.entityType, file, modelKind, this.domain)
 
     return {
       fieldMappings: response.fieldMappings.map(mapping => ({

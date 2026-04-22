@@ -24,19 +24,7 @@ import {
   TooltipProvider,
   useTranslation
 } from '@newwork/nw-design-system'
-import {
-  MoreHorizontal,
-  Pin,
-  PinOff,
-  Archive,
-  Copy,
-  Trash2,
-  Share2,
-  FolderInput,
-  Users,
-  FileText,
-  Folder
-} from 'lucide-react'
+import { MoreHorizontal, Pin, PinOff, Copy, Trash2, Share2, FolderInput, Users, FileText, Folder } from 'lucide-react'
 import type { NoteSummary, NoteColor } from '../types'
 import translations from '../_i18n'
 
@@ -57,7 +45,6 @@ export interface NotePreviewCardProps {
   onDelete?: (id: string) => void
   onDuplicate?: (id: string) => void
   onTogglePin?: (id: string) => void
-  onArchive?: (id: string) => void
   onShare?: (id: string) => void
   onManageShares?: (id: string) => void
   onMove?: (id: string) => void
@@ -125,7 +112,6 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
   onDelete,
   onDuplicate,
   onTogglePin,
-  onArchive,
   onShare,
   onManageShares,
   onMove,
@@ -329,24 +315,17 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
                 </DropdownMenuItem>
               )}
 
-              {isOwner && onArchive && (
+              {isOwner && onDelete && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onArchive(note.id)}>
-                    <Archive className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {t('menu-archive')}
+                  <DropdownMenuItem
+                    onClick={() => onDelete(note.id)}
+                    className="gba:text-destructive focus:gba:text-destructive"
+                  >
+                    <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {t('menu-delete')}
                   </DropdownMenuItem>
                 </>
-              )}
-
-              {isOwner && onDelete && (
-                <DropdownMenuItem
-                  onClick={() => onDelete(note.id)}
-                  className="gba:text-destructive focus:gba:text-destructive"
-                >
-                  <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('menu-delete')}
-                </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -365,8 +344,8 @@ export const NoNotesState: React.FC<{
   description?: string
 }> = ({ onCreateNew, title, description }) => {
   const { t } = useTranslation(translations)
-  const resolvedTitle = title ?? t('empty-default-title')
-  const resolvedDesc = description ?? t('empty-default-description')
+  const resolvedTitle = title ?? t('notes-empty-default-title')
+  const resolvedDesc = description ?? t('notes-empty-default-description')
   return (
     <Card className="gba:p-12 gba:text-center">
       <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">

@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, GET_EXPENSE_ITEM_BY_ID } from '../queries/expenseItems'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { normalize } from '../utils/cacheUtils'
+import { buildExpenseItemOrderBy } from '../config/expenseItemOrderBy'
 
 // Type aliases for union types
 type SortField = string | null
@@ -185,27 +186,6 @@ export const useGetExpenseItems = (
     }
   }, [])
 
-  // Helper function to build orderBy clause
-  const buildOrderBy = useCallback((sortField?: SortField, sortOrder?: SortOrder): any[] => {
-    if (sortField && sortOrder) {
-      const fieldMap: Record<string, string> = {
-        title: 'title',
-        expenseDate: 'expenseDate',
-        status: 'status',
-        reimbursableAmount: 'reimbursableAmount',
-        totalAmount: 'totalAmount',
-        createdAt: 'createdAt',
-        updatedAt: 'updatedAt',
-        code: 'code',
-        description: 'description'
-      }
-      const gqlField = fieldMap[sortField] || sortField
-      const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC'
-      return [{ [gqlField]: direction }]
-    }
-    return [{ expenseDate: 'DESC' }]
-  }, [])
-
   /**
    * Helper function to build GraphQL variables for the query
    */
@@ -229,12 +209,12 @@ export const useGetExpenseItems = (
         limit: pageSize,
         offset,
         where,
-        orderBy: buildOrderBy(sortField, sortOrder)
+        orderBy: buildExpenseItemOrderBy(sortField, sortOrder)
       }
 
       return variables
     },
-    [buildBaseWhereClause, addSearchFilters, addFilterConditions, buildOrderBy]
+    [buildBaseWhereClause, addSearchFilters, addFilterConditions]
   )
 
   /**

@@ -9,11 +9,13 @@ interface AssetTableRowProps {
   asset: Asset
   accessToken: string
   dataTestIdPrefix: string
+  canDeleteAsset?: boolean
   onAssetClick?: (asset: Asset) => void
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
   onRetrieveAsset?: (assetId: string) => void
+  onDeleteAsset?: (assetId: string) => void
   onGenerateDocument?: (assetId: string) => void
 }
 
@@ -21,11 +23,13 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
   asset,
   accessToken,
   dataTestIdPrefix,
+  canDeleteAsset = false,
   onAssetClick,
   onAllocateAsset,
   onUpdateAsset,
   onRetireAsset,
   onRetrieveAsset,
+  onDeleteAsset,
   onGenerateDocument
 }) => {
   const hasValidWarrantyData =
@@ -61,12 +65,14 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
             key={`action-button-${asset.id}-${asset.assetStatus}`}
             assetId={asset.id}
             assetStatus={asset.assetStatus}
+            canDeleteAsset={canDeleteAsset}
             accessToken={accessToken}
             dataTestIdPrefix={dataTestIdPrefix}
             onAllocateAsset={onAllocateAsset}
             onUpdateAsset={onUpdateAsset}
             onRetireAsset={onRetireAsset}
             onRetrieveAsset={onRetrieveAsset}
+            onDeleteAsset={onDeleteAsset}
             onGenerateDocument={onGenerateDocument}
           />
         </div>

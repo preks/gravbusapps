@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { LeadLayout, type LeadViewConfig } from '@/common/components/common-relations/view-layouts/lead-layout'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { type CustomerLead, CUSTOMER_LEAD_DESCRIPTORS } from '@/common/data/customer/types/customerLeadTypes'
 import {
   commonLeadColumns,
@@ -79,6 +80,8 @@ const processSorting = (sorting: Array<{ id: string; desc: boolean }>, vars: Cus
 
 export const LeadView: React.FC<LeadViewProps> = context => {
   const { accessToken } = context
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('crm:customer-lead-preferences:v1')
 
   // Data Hooks
   const { fetchCustomerLeads } = useCustomerLeads(context)
@@ -98,10 +101,11 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         lead: 'Lead',
         firstName: 'First Name',
         lastName: 'Last Name',
-        status: 'Status',
-        rating: 'Rating',
-        source: 'Source',
-        industry: 'Industry',
+        address: 'Location',
+        leadStatus: 'Status',
+        leadRating: 'Rating',
+        leadSource: 'Source',
+        industryClass: 'Industry',
         ownerEmployee: 'Owner',
         createdAt: 'Created Date',
         updatedAt: 'Updated Date'
@@ -151,7 +155,20 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   )
 
   return (
-    <LeadLayout context={context} config={config} leadStatistics={leadStatistics} dataTestId="customer-lead-view" />
+    <LeadLayout
+      context={context}
+      config={config}
+      leadStatistics={leadStatistics}
+      dataTestId="customer-lead-view"
+      enableExport
+      exportFilenamePrefix="leads"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
+    />
   )
 }
 

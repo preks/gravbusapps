@@ -35,13 +35,25 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers
   }
-  const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers })
+  const url = `${API_URL}${endpoint}`
+  const response = await fetch(url, { ...options, headers })
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }))
     throw new Error(error.message || `API Error: ${response.status}`)
   }
+  const contentType = response.headers.get('content-type') || ''
+  if (contentType.includes('text/html')) {
+    console.warn(`[SlidesApi] Endpoint returned HTML instead of JSON: ${endpoint}`)
+    throw new Error(`API endpoint not available: ${endpoint}`)
+  }
   const text = await response.text()
-  return text ? JSON.parse(text) : null
+  if (!text) return null as T
+  try {
+    return JSON.parse(text)
+  } catch {
+    console.warn(`[SlidesApi] Invalid JSON from ${endpoint}:`, text.slice(0, 200))
+    throw new Error(`Invalid response from API: ${endpoint}`)
+  }
 }
 
 interface PaginatedResponse<T> {
@@ -72,7 +84,29 @@ function mapApiSlideToSlide(api: Record<string, unknown>): Slide {
     status: api.status as SlideStatus | undefined,
     permission: mapPermission((api.permission as string) || 'view'),
     isShared: api.isShared as boolean | undefined,
-    sharedBy: api.sharedBy as string | undefined
+    sharedBy: api.sharedBy as string | undefined,
+    isOwner: api.isOwner as boolean | undefined,
+    spaceId: (api.spaceId as string | null | undefined) ?? null,
+    trashedAt: (api.trashedAt as string | null | undefined) ?? null
+  }
+}
+
+function mapApiSlideToSummary(api: Record<string, unknown>): SlideSummary {
+  return {
+    id: api.id as string,
+    title: api.title as string,
+    description: api.description as string | undefined,
+    createdAt: api.createdAt as string,
+    updatedAt: api.updatedAt as string,
+    createdBy: api.ownerId as string,
+    currentVersion: (api.currentVersion as number) || 1,
+    status: api.status as SlideStatus | undefined,
+    isShared: api.isShared as boolean | undefined,
+    sharedBy: api.sharedBy as string | undefined,
+    permission: mapPermission((api.permission as string) || 'view'),
+    isOwner: api.isOwner as boolean | undefined,
+    spaceId: (api.spaceId as string | null | undefined) ?? null,
+    trashedAt: (api.trashedAt as string | null | undefined) ?? null
   }
 }
 
@@ -97,20 +131,7 @@ export const SlidesApiService = {
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(
       `/slides${queryString ? `?${queryString}` : ''}`
     )
-    return response.items.map(item => ({
-      id: item.id as string,
-      title: item.title as string,
-      description: item.description as string | undefined,
-      createdAt: item.createdAt as string,
-      updatedAt: item.updatedAt as string,
-      createdBy: item.ownerId as string,
-      currentVersion: (item.currentVersion as number) || 1,
-      status: item.status as SlideStatus | undefined,
-      isShared: item.isShared as boolean | undefined,
-      sharedBy: item.sharedBy as string | undefined,
-      permission: mapPermission((item.permission as string) || 'view'),
-      isOwner: item.isOwner as boolean | undefined
-    }))
+    return response.items.map(mapApiSlideToSummary)
   },
 
   async getSlide(id: string): Promise<Slide | null> {
@@ -122,20 +143,32 @@ export const SlidesApiService = {
     }
   },
 
+  async getTrashedPreview(id: string): Promise<Slide | null> {
+    try {
+      const api = await apiRequest<Record<string, unknown>>(`/slides/${id}/trashed-preview`)
+      return mapApiSlideToSlide(api)
+    } catch {
+      return null
+    }
+  },
+
   async createSlide(payload: {
     title: string
     description?: string
     content?: string
+    contentJson?: Record<string, unknown>
     spaceId?: string
   }): Promise<Slide> {
+    const body: Record<string, unknown> = {
+      title: payload.title || 'Untitled presentation',
+      description: payload.description,
+      content: payload.content || '',
+      spaceId: payload.spaceId
+    }
+    if (payload.contentJson) body.contentJson = payload.contentJson
     const created = await apiRequest<Record<string, unknown>>('/slides', {
       method: 'POST',
-      body: JSON.stringify({
-        title: payload.title || 'Untitled presentation',
-        description: payload.description,
-        content: payload.content || '',
-        spaceId: payload.spaceId
-      })
+      body: JSON.stringify(body)
     })
     return mapApiSlideToSlide(created)
   },
@@ -695,6 +728,29 @@ export const SlidesApiService = {
     }
 
     return fullTemplates
+  },
+
+  async uploadImageFromBase64(base64DataUrl: string, filename: string): Promise<string> {
+    const token = currentAccessToken
+    const mimeMatch = base64DataUrl.match(/^data:([^;]+);/)
+    const mime = mimeMatch?.[1] || 'image/png'
+    const raw = atob(base64DataUrl.split(',')[1])
+    const bytes = new Uint8Array(raw.length)
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i)
+    const blob = new Blob([bytes], { type: mime })
+    const file = new File([blob], filename, { type: mime })
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await fetch(`${API_URL}/drive/files/upload`, {
+      method: 'POST',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: formData
+    })
+    if (!response.ok) throw new Error(`Image upload failed: ${response.status}`)
+    const result: { id: string } = await response.json()
+    return `${API_URL}/drive/files/${result.id}/download`
   }
 }
 

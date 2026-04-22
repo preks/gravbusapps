@@ -10,7 +10,7 @@ import {
   Label
 } from '@newwork/nw-design-system'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
-import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/constants/contentConstants'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
@@ -55,7 +55,7 @@ const GlossarySection: React.FC<GlossarySectionProps> = ({ accessToken, userInfo
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: ContentGroup.GLOSSARY,
+      contentGroup: ContentGroup.GLOSSARY,
       search: searchQuery,
       limit: PAGE_SIZE,
       offset: 0,

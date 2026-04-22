@@ -1,8 +1,10 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
-import { DataDisplay, Spinner } from '@newwork/nw-design-system'
+import { DataDisplay, Spinner, Button } from '@newwork/nw-design-system'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { InvestmentReportTable } from './shared/InvestmentReportTable'
+import { InvestmentReportTable, type InvestmentReportExportHelpers } from './shared/InvestmentReportTable'
 import { UseReportFiltersReturn, useReportFilters } from '../hooks'
+import { useInvestmentReportExport } from '../hooks/useInvestmentReportExport'
 import { getReportGroupConfiguration } from '../config/reportGroupConfigurations'
 import { getSubSectionsForStrategy, type SubSection } from '../utils/subSectionHelpers'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -344,14 +346,11 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
     [localReportFilters]
   )
 
-  // Generate columnsOverride for Liquid Fund (catalog hierarchy fallback)
-  const columnsOverride = useMemo(() => {
-    // Only for LIQUID_FUND group
+  // Raw DynamicTableColumn[] for the current liquid fund section — used by both the table and the export hook
+  const rawDynamicColumns = useMemo(() => {
     if (investmentGroup !== 'LIQUID_FUND') return undefined
 
-    // Get the liquid fund type code for current section
     const liquidFundTypeCode = config.sectionToTypeMapping?.[subSections.find(s => s.code === currentSection)?.id || '']
-
     if (!liquidFundTypeCode || !liquidFundCatalogData) return undefined
 
     // LEVEL 1: Try investmentLiquidFundTypes (most specific)
@@ -367,17 +366,7 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
       dynamicCols = getGroupLevelColumns(liquidFundCatalogData)
     }
 
-    // LEVEL 4: If all catalog levels failed, return undefined (NO static fallback)
-    if (dynamicCols.length === 0) {
-      return undefined
-    }
-
-    // Convert dynamic columns to render format
-    const convertedDynamicCols = convertDynamicColumnsToConfig(dynamicCols)
-
-    // Combine static columns (Investment, Date) with dynamic columns
-    const staticCols = createLiquidFundStaticColumns()
-    return [...staticCols, ...convertedDynamicCols]
+    return dynamicCols.length > 0 ? dynamicCols : undefined
   }, [
     investmentGroup,
     config.sectionToTypeMapping,
@@ -387,29 +376,89 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
     liquidFundCatalogData
   ])
 
+  // Generate columnsOverride for Liquid Fund (catalog hierarchy fallback)
+  const columnsOverride = useMemo(() => {
+    if (!rawDynamicColumns) return undefined
+
+    // Convert dynamic columns to render format
+    const convertedDynamicCols = convertDynamicColumnsToConfig(rawDynamicColumns)
+
+    // Combine static columns (Investment, Date) with dynamic columns
+    const staticCols = createLiquidFundStaticColumns()
+    return [...staticCols, ...convertedDynamicCols]
+  }, [rawDynamicColumns])
+
+  // Export helpers — supplied by the active InvestmentReportTable via onExportReady
+  const [exportHelpers, setExportHelpers] = useState<InvestmentReportExportHelpers | null>(null)
+
+  // Reset export helpers whenever the active sub-section changes so the newly
+  // active table can register its own helpers (columns + fetchAll) fresh.
+  useEffect(() => {
+    setExportHelpers(null)
+  }, [currentSection])
+
+  const currentSectionSlug = useMemo(() => {
+    const label = subSections.find(s => s.code === currentSection)?.label || currentSection
+    return label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+  }, [subSections, currentSection])
+
+  const { isExporting, handleExportCsv, handleExportExcel } = useInvestmentReportExport({
+    exportHelpers,
+    groupLabel,
+    filenamePrefix: `investment-reports-${investmentGroup.toLowerCase()}-${currentSectionSlug}`,
+    dynamicColumns: rawDynamicColumns
+  })
+
   // Filter change handler
   const handleFilterChange = useCallback((newFilters: Record<string, any>) => {
     setSelectedFilters(newFilters)
   }, [])
 
-  // Primary action for "Add Report"
+  // Primary action slot: export buttons + "Add Report"
   const primaryAction = useMemo(
     () => (
-      <AppAction
-        variant="create-primary"
-        contexts={[
-          {
-            context: FlowContextName.investmentReportCreate,
-            contextData: {}
-          }
-        ]}
-        accessToken={accessToken || ''}
-        data-testid="report-view-add-report-action"
-      >
-        {getTranslationFromI18nKeyAndLabel('investment.reports.addReport', 'Add Report')}
-      </AppAction>
+      <>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportCsv}
+          disabled={isExporting || !exportHelpers || exportHelpers.totalCount === 0}
+          title={isExporting ? 'Exporting…' : 'Export as CSV'}
+          data-testid="report-export-csv-button"
+        >
+          <DownloadIcon size={16} />
+          CSV
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportExcel}
+          disabled={isExporting || !exportHelpers || exportHelpers.totalCount === 0}
+          title={isExporting ? 'Exporting…' : 'Export as Excel'}
+          data-testid="report-export-excel-button"
+        >
+          <FileXlsIcon size={16} />
+          Excel
+        </Button>
+        <AppAction
+          variant="create-primary"
+          contexts={[
+            {
+              context: FlowContextName.investmentReportCreate,
+              contextData: {}
+            }
+          ]}
+          accessToken={accessToken || ''}
+          data-testid="report-view-add-report-action"
+        >
+          {getTranslationFromI18nKeyAndLabel('investment.reports.addReport', 'Add Report')}
+        </AppAction>
+      </>
     ),
-    [accessToken]
+    [accessToken, handleExportCsv, handleExportExcel, isExporting, exportHelpers]
   )
 
   // Don't render until filters are initialized
@@ -467,6 +516,7 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
               catalogData={catalogData}
               visibleColumns={visibleColumns}
               onCurrenciesChange={onCurrenciesUpdate}
+              onExportReady={currentSection === section.code ? setExportHelpers : undefined}
               enabled={enabled && currentSection === section.code}
               dataTransformer={config.dataTransformer}
               columnsOverride={columnsOverride}

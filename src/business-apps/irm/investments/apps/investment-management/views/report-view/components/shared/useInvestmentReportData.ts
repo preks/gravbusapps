@@ -42,6 +42,8 @@ export interface UseInvestmentReportDataReturn {
   totalCount: number
   initialLoadDone: boolean
   refetch: () => Promise<void>
+  /** Fetches all matching reports (no pagination) for CSV/Excel export. */
+  fetchAll: () => Promise<InvestmentReport[]>
   // Pagination
   page: number
   pageSize: number
@@ -113,6 +115,33 @@ const getInvestmentTypeFilterStrategy = (
   ]
 }
 
+/** Builds the GraphQL where clause for investment report queries. */
+export const buildInvestmentReportWhereClause = (
+  investmentGroup: string,
+  filters: Record<string, any>
+): Record<string, any> => {
+  const customConditions: Record<string, any>[] = []
+
+  customConditions.push({
+    investment: {
+      investmentGroup: { id: { _eq: `InvestmentGroup:v1:${investmentGroup}` } }
+    }
+  })
+
+  const groupConfig = getReportGroupConfiguration(investmentGroup)
+  if (filters.investmentType && filters.investmentType !== 'all' && filters.investmentType !== investmentGroup) {
+    const typeFilterStrategy = getInvestmentTypeFilterStrategy(groupConfig, filters.investmentType)
+    customConditions.push(...typeFilterStrategy)
+  }
+
+  return buildWhere({
+    variables: filters,
+    descriptors: INVESTMENT_REPORT_DESCRIPTORS,
+    isDeleted: true,
+    customConditions
+  })
+}
+
 /**
  * Shared hook for fetching investment report data across all investment groups
  * Uses NEW pattern with proper GraphQL variables instead of string templates
@@ -182,34 +211,8 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
       // Build fragment for investment reports
       const fragment = buildInvestmentReportFragment(INVESTMENT_REPORT_QUERY_CONFIGS.record)
 
-      // Build where condition using descriptors and custom conditions
-      const customConditions: Record<string, any>[] = []
-
-      // Add investment group filter
-      customConditions.push({
-        investment: {
-          investmentGroup: { id: { _eq: `InvestmentGroup:v1:${investmentGroup}` } }
-        }
-      })
-
-      // Get investment type filter strategy from configuration
-      const config = getReportGroupConfiguration(investmentGroup)
-
-      // Only add investment type filter if it's different from the group code
-      // When investmentType === investmentGroup, it means we're using 'none' strategy (no types)
-      // In that case, we already filtered by investmentGroup above, no need to filter by type
-      if (filters.investmentType && filters.investmentType !== 'all' && filters.investmentType !== investmentGroup) {
-        const typeFilterStrategy = getInvestmentTypeFilterStrategy(config, filters.investmentType)
-        customConditions.push(...typeFilterStrategy)
-      }
-
-      // Build where using descriptors (handles date, currency, search, etc.)
-      const whereObj = buildWhere({
-        variables: filters,
-        descriptors: INVESTMENT_REPORT_DESCRIPTORS,
-        isDeleted: true,
-        customConditions
-      })
+      // Build where using the shared helper
+      const whereObj = buildInvestmentReportWhereClause(investmentGroup, filters)
 
       // Map column IDs to sortable field paths
       // Some columns need mapping (e.g., 'investment' -> 'investment.name')
@@ -364,6 +367,38 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
     dataTransformer
   ])
 
+  // Fetch all reports without pagination — used by the export hook
+  const fetchAll = useCallback(async (): Promise<InvestmentReport[]> => {
+    if (!accessToken) return []
+
+    const fragment = buildInvestmentReportFragment(INVESTMENT_REPORT_QUERY_CONFIGS.record)
+    const whereObj = buildInvestmentReportWhereClause(investmentGroup, filters)
+
+    const query = `
+      query GetAllInvestmentReportsForExport(
+        $where: InvestmentReportBoolExp
+        $orderBy: [InvestmentReportOrderBy!]
+        $limit: Int
+      ) {
+        InvestmentReport(
+          where: $where
+          orderBy: $orderBy
+          limit: $limit
+        ) {
+          ${fragment}
+        }
+      }
+    `
+
+    const result = await graphqlClient.request<{ InvestmentReport: InvestmentReport[] }>(query, {
+      where: whereObj,
+      orderBy: [{ date: 'DESC_NULLS_LAST' }],
+      limit: totalCount
+    })
+
+    return result.InvestmentReport || []
+  }, [accessToken, graphqlClient, investmentGroup, filterKey, totalCount])
+
   // Reset to page 1 when filters, investment type, or page size changes
   useEffect(() => {
     if (externalPage === undefined) {
@@ -383,6 +418,7 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
     totalCount,
     initialLoadDone: initialLoadDone.current,
     refetch: loadReports,
+    fetchAll,
     page,
     pageSize,
     totalPages,

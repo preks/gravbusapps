@@ -76,7 +76,11 @@ import { SpreadsheetAppEditor } from './SpreadsheetAppEditor'
 import { ShareAppDialog } from './components/ShareAppDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
 import { SpreadsheetAutomationsSection } from './components/automations/SpreadsheetAutomationsSection'
+import { TrashedSpreadsheetReadonlyDialog } from './components/TrashedSpreadsheetReadonlyDialog'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { OfficeTrashList } from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
+import { DriveApiService } from '@/business-apps/core/office/apps/drive/services/DriveApiService'
 
 // Hooks
 import { useSpreadsheetApps } from './hooks/useSpreadsheetApps'
@@ -105,9 +109,23 @@ export interface SpreadsheetAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-type HubView = 'list' | 'upload' | 'viewer' | 'editor'
+type HubView = 'list' | 'upload' | 'viewer' | 'editor' | 'trash'
 type SidebarSection = SpreadsheetSection
 const TASK_DEBUG_PREFIX = '[SpreadsheetTasksDebug]'
+
+const isTaskDebugEnabled = (): boolean => {
+  try {
+    return globalThis.localStorage?.getItem('debug:spreadsheet-apps') === '1'
+  } catch {
+    return false
+  }
+}
+
+const taskDebugLog = (...args: unknown[]) => {
+  if (isTaskDebugEnabled()) {
+    console.debug(...args)
+  }
+}
 
 function maskIdentifier(id: string | null | undefined): string {
   const normalized = String(id || '').trim()
@@ -263,7 +281,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
 }): Promise<{ pendingIds: Set<string>; completedIds: Set<string> }> {
   const { accessToken, currentUserId } = params
   if (!accessToken || !currentUserId) {
-    console.warn(`${TASK_DEBUG_PREFIX} Skipping task fetch due to missing auth/user`, {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Skipping task fetch due to missing auth/user`, {
       hasAccessToken: Boolean(accessToken),
       hasUserId: Boolean(currentUserId)
     })
@@ -272,7 +290,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
 
   const apiBase = getFlowEngineApiBaseUrl().replace(/\/+$/, '')
   const headers: HeadersInit = { Authorization: `Bearer ${accessToken}` }
-  console.info(`${TASK_DEBUG_PREFIX} Fetching task app ids`, {
+  taskDebugLog(`${TASK_DEBUG_PREFIX} Fetching task app ids`, {
     apiBase,
     userId: maskIdentifier(currentUserId)
   })
@@ -285,7 +303,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
     method: 'GET',
     headers
   })
-  console.info(`${TASK_DEBUG_PREFIX} Task API responses`, {
+  taskDebugLog(`${TASK_DEBUG_PREFIX} Task API responses`, {
     openStatus: openTaskResponse.status,
     openOk: openTaskResponse.ok,
     completedStatus: completedTaskResponse.status,
@@ -313,7 +331,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
     (!Array.isArray(openTasks) || openTasks.length === 0) &&
     (!Array.isArray(completedTasks) || completedTasks.length === 0)
   ) {
-    console.info(`${TASK_DEBUG_PREFIX} No open/completed tasks returned`, {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} No open/completed tasks returned`, {
       openTasks: Array.isArray(openTasks) ? openTasks.length : 0,
       completedTasks: Array.isArray(completedTasks) ? completedTasks.length : 0
     })
@@ -339,7 +357,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
   if (Array.isArray(completedTasks)) {
     completedTasks.forEach(task => collectFromTask(task, completedIds, completedFlowIds))
   }
-  console.info(`${TASK_DEBUG_PREFIX} Parsed task payload`, {
+  taskDebugLog(`${TASK_DEBUG_PREFIX} Parsed task payload`, {
     openTasks: Array.isArray(openTasks) ? openTasks.length : 0,
     completedTasks: Array.isArray(completedTasks) ? completedTasks.length : 0,
     pendingFlowIds: pendingFlowIds.size,
@@ -353,7 +371,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
     completedIds.forEach(id => {
       if (pendingIds.has(id)) completedIds.delete(id)
     })
-    console.info(`${TASK_DEBUG_PREFIX} Resolved copy app ids without flow lookup`, {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Resolved copy app ids without flow lookup`, {
       pendingIds: pendingIds.size,
       completedIds: completedIds.size,
       pendingSamples: summarizeIdSet(pendingIds),
@@ -367,7 +385,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
     headers
   })
   if (!flowsResponse.ok) {
-    console.warn(`${TASK_DEBUG_PREFIX} Flow list request failed, returning task-derived ids only`, {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Flow list request failed, returning task-derived ids only`, {
       status: flowsResponse.status
     })
     completedIds.forEach(id => {
@@ -382,7 +400,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
   }
   const flows = flowsPayload.flows || flowsPayload.data?.flows || []
   if (!Array.isArray(flows) || flows.length === 0) {
-    console.warn(`${TASK_DEBUG_PREFIX} Flow list is empty, returning task-derived ids only`)
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Flow list is empty, returning task-derived ids only`)
     completedIds.forEach(id => {
       if (pendingIds.has(id)) completedIds.delete(id)
     })
@@ -413,7 +431,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
     if (pendingIds.has(id)) completedIds.delete(id)
   })
 
-  console.info(`${TASK_DEBUG_PREFIX} Final task app id resolution`, {
+  taskDebugLog(`${TASK_DEBUG_PREFIX} Final task app id resolution`, {
     totalFlows: flows.length,
     pendingIds: pendingIds.size,
     completedIds: completedIds.size,
@@ -427,7 +445,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
 /**
  * Format relative time
  */
-function formatRelativeTime(dateString: string, t: TranslationFn): string {
+function formatRelativeTime(dateString: string, t: TranslationFn, locale: string): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -440,7 +458,7 @@ function formatRelativeTime(dateString: string, t: TranslationFn): string {
   if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
   if (diffDays === 1) return t('time-yesterday')
   if (diffDays < 7) return t('time-days-ago', { count: diffDays })
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric'
@@ -450,18 +468,18 @@ function formatRelativeTime(dateString: string, t: TranslationFn): string {
 /**
  * Format date for table display
  */
-function formatDate(dateString: string, t: TranslationFn): string {
+function formatDate(dateString: string, t: TranslationFn, locale: string): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
   if (diffDays === 0) {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    return date.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })
   }
   if (diffDays === 1) return t('time-yesterday')
   if (diffDays < 7) return t('time-days-ago', { count: diffDays })
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric'
@@ -476,12 +494,13 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   userInfo,
   'data-testid': testId = 'spreadsheet-apps-hub'
 }) => {
-  const { t } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
 
   // View state
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
+  const [trashSearchQuery, setTrashSearchQuery] = useState('')
   const [taskStatusFilter, setTaskStatusFilter] = useState<'pending' | 'completed'>('pending')
   const [pendingTaskAppIds, setPendingTaskAppIds] = useState<Set<string>>(new Set())
   const [completedTaskAppIds, setCompletedTaskAppIds] = useState<Set<string>>(new Set())
@@ -509,6 +528,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [newAppName, setNewAppName] = useState('')
   const [activeSection, setActiveSection] = useState<SidebarSection>('my-files')
   const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set())
+  const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
+  const [pendingTrashApps, setPendingTrashApps] = useState<Array<{ id: string; name: string }>>([])
+  const [isMovingAppsToTrash, setIsMovingAppsToTrash] = useState(false)
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const { favorites, setFavorites } = useSpreadsheetAppsHubFavorites()
@@ -516,6 +538,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // Data state
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null)
   const [appToPromote, setAppToPromote] = useState<SpreadsheetApp | null>(null)
+  const [isRestoringTrashedApp, setIsRestoringTrashedApp] = useState(false)
+  const [isDeletingTrashedApp, setIsDeletingTrashedApp] = useState(false)
 
   // Get current user ID
   const currentUserId = resolveCurrentUserId(userInfo)
@@ -566,12 +590,15 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     revokeAccess,
     getSharedUsers,
     refreshApps,
+    clearCurrentApp,
     addRow,
     updateRow,
-    updateSheet
+    updateSheet,
+    addSheet,
+    deleteSheet
   } = useSpreadsheetApps(accessToken, currentUserId)
 
-  const { ownerInfoMap, sharedUsersMap, invalidateSharedUsersForApp } = useSpreadsheetAppsHubUserLookup({
+  const { ownerInfoMap, sharedUsersMap } = useSpreadsheetAppsHubUserLookup({
     apps,
     currentUserId,
     graphqlClient,
@@ -629,7 +656,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           currentUserId: flowTaskUserId
         })
         if (disposed) return
-        console.info(`${TASK_DEBUG_PREFIX} Refresh cycle complete`, {
+        taskDebugLog(`${TASK_DEBUG_PREFIX} Refresh cycle complete`, {
           pendingIds: next.pendingIds.size,
           completedIds: next.completedIds.size,
           pendingSamples: summarizeIdSet(next.pendingIds),
@@ -639,7 +666,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         setCompletedTaskAppIds(prev => (areStringSetsEqual(prev, next.completedIds) ? prev : next.completedIds))
       } catch {
         if (disposed) return
-        console.error(`${TASK_DEBUG_PREFIX} Refresh cycle failed; clearing cached task ids`)
+        taskDebugLog(`${TASK_DEBUG_PREFIX} Refresh cycle failed; clearing cached task ids`)
         setPendingTaskAppIds(prev => (prev.size === 0 ? prev : new Set<string>()))
         setCompletedTaskAppIds(prev => (prev.size === 0 ? prev : new Set<string>()))
       }
@@ -687,6 +714,12 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         : 0,
     [activeSection, filteredApps, completedTaskAppIds, pendingTaskAppIds]
   )
+  const heroTabBadges = useMemo(
+    () => ({
+      tasks: { count: pendingTaskCount, highlight: pendingTaskCount > 0 }
+    }),
+    [pendingTaskCount]
+  )
   const taskDisplayedApps = useMemo(
     () =>
       filterTaskDisplayedApps(activeSection, taskStatusFilter, filteredApps, pendingTaskAppIds, completedTaskAppIds),
@@ -694,7 +727,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   )
   useEffect(() => {
     if (currentView !== 'list') return
-    console.info(`${TASK_DEBUG_PREFIX} Hub task state snapshot`, {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Hub task state snapshot`, {
       activeSection,
       taskStatusFilter,
       filteredApps: filteredApps.length,
@@ -736,10 +769,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const handleSharesChanged = useCallback(async () => {
     await refreshApps()
-    if (selectedAppForManageShares) {
-      invalidateSharedUsersForApp(selectedAppForManageShares.id)
-    }
-  }, [refreshApps, selectedAppForManageShares, invalidateSharedUsersForApp])
+  }, [refreshApps])
 
   const finishCreatedAppNavigation = useCallback(
     async (createdApp: SpreadsheetApp, preferredView: 'viewer' | 'editor' = 'editor') => {
@@ -786,6 +816,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [loadApp, updateUrl, apps]
   )
 
+  const handleOpenTrashedApp = useCallback(
+    async (id: string) => {
+      const app = await loadApp(id, undefined, { allowTrashed: true })
+      if (app) {
+        setSelectedAppId(id)
+        setCurrentView('trash')
+        updateUrl(id, 'trash', app.filePath, 'trash')
+      }
+    },
+    [loadApp, updateUrl]
+  )
+
   const handleEditApp = useCallback(
     async (id: string) => {
       const appSummary = apps.find(a => a.id === id)
@@ -828,23 +870,68 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [updateApp, updateSheet, loadApp, updateUrl]
   )
 
+  const requestMoveAppsToTrash = useCallback((appsToTrash: Array<{ id: string; name: string }>) => {
+    if (appsToTrash.length === 0) {
+      return
+    }
+
+    setPendingTrashApps(appsToTrash)
+    setTrashConfirmOpen(true)
+  }, [])
+
   const handleDeleteApp = useCallback(
-    async (id: string) => {
-      if (confirm(t('delete-confirm'))) {
-        const success = await deleteApp(id)
-        if (success && selectedAppId === id) {
-          setSelectedAppId(null)
-          setCurrentView('list')
-          updateUrl(null)
+    (id: string, name?: string) => {
+      const appName = name || apps.find(app => app.id === id)?.name || currentApp?.name || t('title-untitled')
+      requestMoveAppsToTrash([{ id, name: appName }])
+    },
+    [apps, currentApp?.name, requestMoveAppsToTrash, t]
+  )
+
+  const confirmMoveAppsToTrash = useCallback(async () => {
+    if (pendingTrashApps.length === 0) {
+      return
+    }
+
+    setIsMovingAppsToTrash(true)
+
+    try {
+      const trashedAppIds = new Set<string>()
+
+      for (const pendingApp of pendingTrashApps) {
+        const success = await deleteApp(pendingApp.id)
+        if (success) {
+          trashedAppIds.add(pendingApp.id)
         }
+      }
+
+      if (selectedAppId && trashedAppIds.has(selectedAppId)) {
+        setSelectedAppId(null)
+        setCurrentView('list')
+        updateUrl(null)
+      }
+
+      if (trashedAppIds.size > 0) {
         setSelectedApps(prev => {
           const next = new Set(prev)
-          next.delete(id)
+          trashedAppIds.forEach(id => next.delete(id))
           return next
         })
       }
+    } finally {
+      setIsMovingAppsToTrash(false)
+      setPendingTrashApps([])
+    }
+  }, [deleteApp, pendingTrashApps, selectedAppId, updateUrl])
+
+  const handleTrashConfirmOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open && !isMovingAppsToTrash) {
+        setPendingTrashApps([])
+      }
+
+      setTrashConfirmOpen(open)
     },
-    [deleteApp, selectedAppId, updateUrl, t]
+    [isMovingAppsToTrash]
   )
 
   const handleDuplicateApp = useCallback(
@@ -1088,7 +1175,70 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [promoteToDatabase, updateApp]
   )
 
+  const isTrashedApp = Boolean(currentApp?.trashedAt)
+  const canManageTrashedApp = Boolean(isTrashedApp && currentAppPermission === 'owner')
+
+  const handleRestoreTrashedApp = useCallback(async () => {
+    if (!currentApp?.id || !canManageTrashedApp) {
+      return
+    }
+
+    setIsRestoringTrashedApp(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      await DriveApiService.restoreItems([{ entityType: 'spreadsheet_app', entityId: currentApp.id }])
+      const restoredApp = await loadApp(currentApp.id)
+      if (!restoredApp) {
+        return
+      }
+
+      setSelectedAppId(currentApp.id)
+      setActiveSection('my-files')
+      setCurrentView('viewer')
+      updateUrl(currentApp.id, 'viewer', restoredApp.filePath, 'my-files')
+      toast.success(t('toast-restored'))
+      await refreshApps()
+    } catch (error) {
+      console.error('[SpreadsheetAppsHub] Failed to restore trashed spreadsheet:', error)
+      toast.error(t('toast-restore-failed'))
+    } finally {
+      setIsRestoringTrashedApp(false)
+    }
+  }, [accessToken, canManageTrashedApp, currentApp?.id, loadApp, refreshApps, t, updateUrl])
+
+  const handleDeleteTrashedAppPermanently = useCallback(async () => {
+    if (!currentApp?.id || !canManageTrashedApp) {
+      return
+    }
+
+    setIsDeletingTrashedApp(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      await DriveApiService.deleteTrashedItem('spreadsheet_app', currentApp.id)
+      clearCurrentApp()
+      setSelectedAppId(null)
+      setCurrentView('list')
+      setActiveSection('trash')
+      updateUrl(null, undefined, undefined, 'trash')
+      await refreshApps()
+    } catch (error) {
+      console.error('[SpreadsheetAppsHub] Failed to permanently delete trashed spreadsheet:', error)
+      toast.error(t('toast-delete-permanently-failed'))
+    } finally {
+      setIsDeletingTrashedApp(false)
+    }
+  }, [accessToken, canManageTrashedApp, clearCurrentApp, currentApp?.id, refreshApps, t, updateUrl])
+
   const handleBack = useCallback(() => {
+    if (currentView === 'trash') {
+      clearCurrentApp()
+      setSelectedAppId(null)
+      setCurrentView('list')
+      setActiveSection('trash')
+      updateUrl(null, undefined, undefined, 'trash')
+      return
+    }
+
     // Check if there's a space return URL in sessionStorage (takes priority)
     try {
       const spaceReturnUrl = sanitizeSameOriginReturnUrl(sessionStorage.getItem('space_return_url'))
@@ -1110,8 +1260,20 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       return
     }
 
-    // Default behavior inside spreadsheets: navigate to spreadsheets hub route.
-    navigateTo(Navigation.OFFICE_SPREADSHEETS)
+    // Full page navigation matches prod host routing and avoids dev-only history + popstate gaps.
+    navigateTo(Navigation.OFFICE_SPREADSHEETS, { fullPage: true })
+  }, [clearCurrentApp, currentView, updateUrl])
+
+  /** Header Spreadsheets breadcrumb: hub route only (does not consume space_return_url / returnUrl). */
+  const handleSpreadsheetHubHome = useCallback(() => {
+    try {
+      sessionStorage.removeItem('space_return_url')
+    } catch (e) {
+      console.warn('Failed to clear space_return_url:', e)
+    }
+    // Same as handleBack default: fullPage avoids host nwNavigate only updating the URL while the
+    // viewer stays mounted (first click short URL, second click reload → hub).
+    navigateTo(Navigation.OFFICE_SPREADSHEETS, { fullPage: true })
   }, [])
 
   const handleStartUpload = useCallback(() => {
@@ -1227,29 +1389,51 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const renderViewerContent = useCallback(
     (app: SpreadsheetApp) => {
-      const canEdit = currentAppPermission === 'owner' || currentAppPermission === 'edit'
+      const isReadonlyTrashView = Boolean(app.trashedAt)
+      const canEdit = !isReadonlyTrashView && (currentAppPermission === 'owner' || currentAppPermission === 'edit')
 
       return (
         <>
           <SpreadsheetAppViewer
             app={app}
             onBack={handleBack}
-            onShare={() => handleShareApp(app.id)}
+            onNavigateToSpreadsheetHub={handleSpreadsheetHubHome}
+            onShare={isReadonlyTrashView ? undefined : () => handleShareApp(app.id)}
             onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
             onAppRefreshNeeded={canEdit ? handleAppRefreshNeeded : undefined}
             onSheetUpdate={canEdit ? updateSheet : undefined}
+            onSheetAdd={canEdit ? addSheet : undefined}
+            onSheetDelete={canEdit ? deleteSheet : undefined}
             onRowAdd={canEdit ? addRow : undefined}
             onRowUpdate={canEdit ? updateRow : undefined}
             // Keep hub-level replay off: SpreadsheetAppViewer persists Univer edits via row/cell ops.
             onDataChange={undefined}
             isEditing={canEdit}
+            isTrashedApp={isReadonlyTrashView}
             accessToken={accessToken}
             userId={currentUserId}
             data-testid={`${testId}-viewer`}
           />
 
-          {selectedAppForShare && (
+          {isReadonlyTrashView ? (
+            <TrashedSpreadsheetReadonlyDialog
+              spreadsheetTitle={app.name}
+              canManage={canManageTrashedApp}
+              isRestoring={isRestoringTrashedApp}
+              isDeleting={isDeletingTrashedApp}
+              onBackToTrash={handleBack}
+              onRestore={() => {
+                void handleRestoreTrashedApp()
+              }}
+              onDeletePermanently={() => {
+                void handleDeleteTrashedAppPermanently()
+              }}
+              data-testid={`${testId}-trashed-spreadsheet-dialog`}
+            />
+          ) : null}
+
+          {selectedAppForShare && !isReadonlyTrashView && (
             <ShareAppDialog
               open={shareDialogOpen}
               onOpenChange={handleShareDialogOpenChange}
@@ -1272,16 +1456,24 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [
       accessToken,
       addRow,
+      addSheet,
+      deleteSheet,
       currentAppPermission,
       currentUserId,
       currentUserName,
       handleAppRefreshNeeded,
       handleBack,
+      handleDeleteTrashedAppPermanently,
       handleOpenViewerEditor,
       handleRefreshShares,
+      handleRestoreTrashedApp,
       handleShare,
       handleShareApp,
+      handleSpreadsheetHubHome,
       handleUnshare,
+      isDeletingTrashedApp,
+      isRestoringTrashedApp,
+      canManageTrashedApp,
       selectedAppForShare,
       setShareDialogOpen,
       sharedUsers,
@@ -1315,12 +1507,26 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   )
 
   const renderCurrentView = () => {
-    if (currentView === 'viewer' && currentApp) {
-      return renderViewerContent(currentApp)
+    if ((currentView === 'viewer' || currentView === 'trash') && currentApp) {
+      return (
+        <div
+          className="gba:flex gba:w-full gba:flex-col gba:overflow-hidden gba:h-dvh gba:min-h-0"
+          data-testid={testId}
+        >
+          {renderViewerContent(currentApp)}
+        </div>
+      )
     }
 
     if (currentView === 'editor' && currentApp) {
-      return renderEditorContent(currentApp)
+      return (
+        <div
+          className="gba:flex gba:w-full gba:flex-col gba:overflow-hidden gba:h-dvh gba:min-h-0"
+          data-testid={testId}
+        >
+          {renderEditorContent(currentApp)}
+        </div>
+      )
     }
 
     const heroNewButton = (
@@ -1354,14 +1560,64 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       </DropdownMenu>
     )
 
+    if (currentView === 'list' && activeSection === 'trash') {
+      return (
+        <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+          <SpreadsheetHero
+            activeSection={activeSection as SpreadsheetSection}
+            onSectionChange={s => setActiveSection(s as SidebarSection)}
+            tabBadges={heroTabBadges}
+            newButton={heroNewButton}
+            t={t}
+            data-testid={`${testId}-hero`}
+          />
+          <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5 gba:pb-4 gba:border-b gba:border-border/50">
+            <div className="gba:relative">
+              <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
+              <Input
+                placeholder={t('spreadsheets-header-search-placeholder')}
+                value={trashSearchQuery}
+                onChange={e => setTrashSearchQuery(e.target.value)}
+                className="gba:h-12 gba:pl-11 gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm"
+                data-testid={`${testId}-trash-search`}
+              />
+            </div>
+          </div>
+          <main className="gba:flex-1 gba:overflow-auto gba:p-6">
+            <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+              <OfficeTrashList
+                accessToken={accessToken}
+                entityType="spreadsheet_app"
+                emptyTitle={t('spreadsheets-empty-trash-title')}
+                emptyDescription={t('spreadsheets-empty-trash-description')}
+                layout="list"
+                searchQuery={trashSearchQuery}
+                listControls={{
+                  refreshLabel: t('header-refresh'),
+                  sortNameLabel: t('sort-name'),
+                  sortTrashedOnLabel: t('sort-trashed'),
+                  trashedOnColumnLabel: t('table-trashed'),
+                  defaultSortBy: 'trashedAt',
+                  defaultSortOrder: 'desc'
+                }}
+                onOpenItem={item => handleOpenTrashedApp(item.id)}
+                onItemsChanged={() => {
+                  void refreshApps()
+                }}
+                data-testid={`${testId}-trash-list`}
+              />
+            </div>
+          </main>
+        </div>
+      )
+    }
+
     return (
       <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
         <SpreadsheetHero
           activeSection={activeSection}
           onSectionChange={s => setActiveSection(s)}
-          tabBadges={{
-            tasks: { count: pendingTaskCount, highlight: pendingTaskCount > 0 }
-          }}
+          tabBadges={heroTabBadges}
           newButton={heroNewButton}
           t={t}
           data-testid={`${testId}-hero`}
@@ -1426,7 +1682,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     <div className="gba:relative">
                       <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
                       <Input
-                        placeholder={t('action-search-placeholder')}
+                        placeholder={t('spreadsheets-header-search-placeholder')}
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         className="gba:pl-12 gba:pr-4 gba:h-12 gba:text-base gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm hover:gba:shadow-md hover:gba:bg-muted/70 hover:gba:border-border gba:transition-all gba:duration-200"
@@ -1475,9 +1731,19 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                             size="sm"
                             className="gba:h-7 gba:text-xs gba:text-destructive"
                             onClick={() => {
-                              if (confirm(t('action-delete-confirm', { count: selectedApps.size }))) {
-                                selectedApps.forEach(id => handleDeleteApp(id))
-                              }
+                              requestMoveAppsToTrash(
+                                Array.from(selectedApps)
+                                  .map(id => {
+                                    const app = apps.find(item => item.id === id)
+                                    if (!app) return null
+
+                                    return {
+                                      id: app.id,
+                                      name: app.name
+                                    }
+                                  })
+                                  .filter((app): app is { id: string; name: string } => app !== null)
+                              )
                             }}
                           >
                             <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
@@ -1563,7 +1829,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           data-testid="spreadsheet-apps-hub-retry"
                         >
                           <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
-                          Retry
+                          {t('action-retry')}
                         </Button>
                       </Card>
                     </div>
@@ -1816,7 +2082,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
                                 {/* Modified */}
                                 <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                                  {formatDate(app.updatedAt, t)}
+                                  {formatDate(app.updatedAt, t, locale)}
                                 </div>
 
                                 {/* Modified By */}
@@ -1840,7 +2106,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
                                 {/* Created */}
                                 <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                                  {formatDate(app.createdAt, t)}
+                                  {formatDate(app.createdAt, t, locale)}
                                 </div>
 
                                 {/* Rows */}
@@ -1902,7 +2168,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
                                         className="gba:text-destructive"
-                                        onClick={() => handleDeleteApp(app.id)}
+                                        onClick={() => handleDeleteApp(app.id, app.name)}
                                       >
                                         <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
                                         {t('action-delete-spreadsheet')}
@@ -1981,7 +2247,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                     variant="success"
                                     className="gba:absolute gba:bottom-2 gba:right-2 gba:text-[10px]"
                                   >
-                                    Submitted
+                                    {t('badge-submitted')}
                                   </Badge>
                                 )}
                               </div>
@@ -1992,7 +2258,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                   {app.name}
                                 </h3>
                                 <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
-                                  <span>{formatRelativeTime(app.updatedAt, t)}</span>
+                                  <span>{formatRelativeTime(app.updatedAt, t, locale)}</span>
                                   <span>
                                     {app.rowCount} {t('rows-label')}
                                   </span>
@@ -2021,11 +2287,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuItem onClick={() => handleEditApp(app.id)}>
                                       <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-                                      Settings
+                                      {t('action-settings')}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleDuplicateApp(app.id)}>
                                       <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                                      Duplicate
+                                      {t('action-duplicate')}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleExportApp(app.id)}>
                                       <Download className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -2034,7 +2300,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
                                       className="gba:text-destructive"
-                                      onClick={() => handleDeleteApp(app.id)}
+                                      onClick={() => handleDeleteApp(app.id, app.name)}
                                     >
                                       <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
                                       {t('action-delete-spreadsheet')}
@@ -2094,6 +2360,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             onRefreshShares={handleRefreshShares}
           />
         )}
+
+        <DeleteConfirmDialog
+          open={trashConfirmOpen}
+          onOpenChange={handleTrashConfirmOpenChange}
+          itemNames={pendingTrashApps.map(app => app.name)}
+          onConfirm={() => {
+            void confirmMoveAppsToTrash()
+          }}
+          isDeleting={isMovingAppsToTrash}
+          t={t}
+          data-testid={`${testId}-trash-confirm`}
+        />
 
         {/* Manage {t('action-share')}s Dialog */}
         {selectedAppForManageShares && (

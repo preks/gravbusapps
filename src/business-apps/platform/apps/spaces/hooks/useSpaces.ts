@@ -5,8 +5,10 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { Space, CreateSpaceInput, UpdateSpaceInput, SpaceMemberRole } from '../types/space.types'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import translations from '../_i18n'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -29,6 +31,7 @@ export interface UseSpacesResult {
 }
 
 export function useSpaces(accessToken: string | undefined, options: UseSpacesOptions = {}): UseSpacesResult {
+  const { t } = useTranslation(translations)
   const { includeMembers = true, includeContent = true, autoLoad = true } = options
   const [spaces, setSpaces] = useState<Space[]>([])
   const [isLoading, setIsLoading] = useState(autoLoad)
@@ -36,7 +39,7 @@ export function useSpaces(accessToken: string | undefined, options: UseSpacesOpt
 
   const refresh = useCallback(async () => {
     if (!accessToken) {
-      setError('Not authenticated')
+      setError(t('error-not-authenticated'))
       setIsLoading(false)
       return
     }
@@ -60,28 +63,30 @@ export function useSpaces(accessToken: string | undefined, options: UseSpacesOpt
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch spaces: ${response.statusText}`)
+        throw new Error(t('error-load-spaces'))
       }
 
       const data = await response.json()
       setSpaces(data)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load spaces'
+      const message = err instanceof Error ? err.message : t('error-load-spaces')
       setError(message)
       console.error('[useSpaces] Error:', err)
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, includeMembers, includeContent, options.ownedOnly, options.sharedOnly])
+  }, [accessToken, includeContent, includeMembers, options.ownedOnly, options.sharedOnly, t])
 
   const createSpace = useCallback(
     async (input: CreateSpaceInput): Promise<Space | null> => {
       if (!accessToken) {
-        setError('Not authenticated')
+        setError(t('error-not-authenticated'))
         return null
       }
 
       try {
+        setError(null)
+
         // Prepare the create payload - store dimension info in settings
         const createPayload = {
           name: input.name,
@@ -112,7 +117,28 @@ export function useSpaces(accessToken: string | undefined, options: UseSpacesOpt
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to create space: ${response.statusText}`)
+          let errorMessage =
+            response.status === 409 && input.dimension ? t('error-create-space-duplicate') : t('error-create-space')
+
+          try {
+            const errorData = await response.json()
+            const backendMessage =
+              typeof errorData?.message === 'string'
+                ? errorData.message
+                : Array.isArray(errorData?.message)
+                  ? errorData.message.join(', ')
+                  : typeof errorData?.error === 'string'
+                    ? errorData.error
+                    : null
+
+            if (response.status !== 409 && backendMessage) {
+              errorMessage = backendMessage
+            }
+          } catch {
+            // fall back to translated defaults
+          }
+
+          throw new Error(errorMessage)
         }
 
         let space = await response.json()
@@ -155,19 +181,19 @@ export function useSpaces(accessToken: string | undefined, options: UseSpacesOpt
         setSpaces(prev => [space, ...prev])
         return space
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to create space'
+        const message = err instanceof Error ? err.message : t('error-create-space')
         setError(message)
         console.error('[useSpaces] Create error:', err)
         return null
       }
     },
-    [accessToken]
+    [accessToken, t]
   )
 
   const updateSpace = useCallback(
     async (id: string, input: UpdateSpaceInput): Promise<Space | null> => {
       if (!accessToken) {
-        setError('Not authenticated')
+        setError(t('error-not-authenticated'))
         return null
       }
 
@@ -182,26 +208,26 @@ export function useSpaces(accessToken: string | undefined, options: UseSpacesOpt
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to update space: ${response.statusText}`)
+          throw new Error(t('error-update-space'))
         }
 
         const space = await response.json()
         setSpaces(prev => prev.map(s => (s.id === id ? space : s)))
         return space
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to update space'
+        const message = err instanceof Error ? err.message : t('error-update-space')
         setError(message)
         console.error('[useSpaces] Update error:', err)
         return null
       }
     },
-    [accessToken]
+    [accessToken, t]
   )
 
   const deleteSpace = useCallback(
     async (id: string): Promise<boolean> => {
       if (!accessToken) {
-        setError('Not authenticated')
+        setError(t('error-not-authenticated'))
         return false
       }
 
@@ -214,19 +240,19 @@ export function useSpaces(accessToken: string | undefined, options: UseSpacesOpt
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to delete space: ${response.statusText}`)
+          throw new Error(t('error-delete-space'))
         }
 
         setSpaces(prev => prev.filter(s => s.id !== id))
         return true
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to delete space'
+        const message = err instanceof Error ? err.message : t('error-delete-space')
         setError(message)
         console.error('[useSpaces] Delete error:', err)
         return false
       }
     },
-    [accessToken]
+    [accessToken, t]
   )
 
   useEffect(() => {

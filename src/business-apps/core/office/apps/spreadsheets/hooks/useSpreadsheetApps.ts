@@ -23,13 +23,15 @@ export interface UseSpreadsheetAppsState {
 export interface UseSpreadsheetAppsResult extends UseSpreadsheetAppsState {
   loadApps: () => Promise<void>
   refreshApps: () => Promise<void>
-  loadApp: (id: string, directFilePath?: string) => Promise<SpreadsheetApp | null>
+  loadApp: (id: string, directFilePath?: string, options?: { allowTrashed?: boolean }) => Promise<SpreadsheetApp | null>
   createApp: (app: Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'>) => Promise<SpreadsheetApp | null>
   updateApp: (id: string, updates: Partial<SpreadsheetApp>) => Promise<SpreadsheetApp | null>
   deleteApp: (id: string) => Promise<boolean>
   duplicateApp: (id: string, newName?: string) => Promise<SpreadsheetApp | null>
   updateSheetData: (appId: string, sheetId: string, data: Record<string, unknown>[]) => Promise<SpreadsheetSheet | null>
   updateSheet: (appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>) => Promise<SpreadsheetSheet | null>
+  addSheet: (appId: string, sheet?: Partial<SpreadsheetSheet>) => Promise<SpreadsheetSheet | null>
+  deleteSheet: (appId: string, sheetId: string) => Promise<boolean>
   addRow: (appId: string, sheetId: string, row: Record<string, unknown>) => Promise<Record<string, unknown> | null>
   updateRow: (
     appId: string,
@@ -137,15 +139,42 @@ function updateSheetRowsForRowDelete(sheets: SpreadsheetSheet[], sheetId: string
 
 async function fetchAllAppsPaginated(): Promise<Awaited<ReturnType<typeof SpreadsheetApiService.listApps>>> {
   const PAGE_SIZE = 100
+  const MAX_PAGES = 100
   const allApps: Awaited<ReturnType<typeof SpreadsheetApiService.listApps>> = []
+  const seenAppIds = new Set<string>()
+  const seenPageSignatures = new Set<string>()
   let page = 1
   let hasMore = true
 
-  while (hasMore) {
+  while (hasMore && page <= MAX_PAGES) {
     const pageItems = await SpreadsheetApiService.listApps({ limit: PAGE_SIZE, page })
-    allApps.push(...pageItems)
-    hasMore = pageItems.length === PAGE_SIZE
+    const pageSignature = pageItems.map(app => app.id).join(',')
+
+    if (pageItems.length > 0 && seenPageSignatures.has(pageSignature)) {
+      console.warn('[useSpreadsheetApps] Detected repeated list page; stopping pagination early', {
+        page,
+        pageSize: pageItems.length
+      })
+      break
+    }
+
+    seenPageSignatures.add(pageSignature)
+
+    const uniquePageItems = pageItems.filter(app => {
+      if (seenAppIds.has(app.id)) return false
+      seenAppIds.add(app.id)
+      return true
+    })
+
+    allApps.push(...uniquePageItems)
+    hasMore = pageItems.length === PAGE_SIZE && uniquePageItems.length > 0
     page++
+  }
+
+  if (hasMore) {
+    console.warn('[useSpreadsheetApps] Stopped list pagination after reaching safety page limit', {
+      maxPages: MAX_PAGES
+    })
   }
 
   return allApps
@@ -171,6 +200,78 @@ async function persistSheetRows(appId: string, sheetId: string, data: Record<str
         error: updateErr instanceof Error ? updateErr.message : String(updateErr)
       })
       await SpreadsheetApiService.addRow(appId, sheetId, stripLocalRowId(row))
+    }
+  }
+}
+
+function remapUniverSnapshotSheetId(
+  snapshot: Record<string, unknown>,
+  sourceSheetId: string,
+  targetSheetId: string
+): Record<string, unknown> {
+  const cloned = structuredClone(snapshot) as Record<string, unknown>
+  const sheets = cloned.sheets as Record<string, unknown> | undefined
+  if (sheets) {
+    const sourceWorksheet = sheets[sourceSheetId]
+    if (sourceWorksheet && sheets[targetSheetId] == null) {
+      const worksheet = sourceWorksheet as Record<string, unknown>
+      delete sheets[sourceSheetId]
+      sheets[targetSheetId] = {
+        ...worksheet,
+        id: targetSheetId
+      }
+    } else if (sheets[targetSheetId] && typeof sheets[targetSheetId] === 'object') {
+      sheets[targetSheetId] = {
+        ...(sheets[targetSheetId] as Record<string, unknown>),
+        id: targetSheetId
+      }
+    }
+  }
+
+  if (Array.isArray(cloned.sheetOrder)) {
+    cloned.sheetOrder = (cloned.sheetOrder as unknown[]).map(sheetId =>
+      sheetId === sourceSheetId ? targetSheetId : sheetId
+    )
+  }
+
+  return cloned
+}
+
+async function copyUniverSnapshotsAfterDuplicate(sourceAppId: string, duplicatedApp: SpreadsheetApp): Promise<void> {
+  const sourceApp = await SpreadsheetApiService.getApp(sourceAppId)
+  if (!sourceApp) return
+
+  const sourceSheets = sourceApp.sheets || []
+  const duplicatedSheets = duplicatedApp.sheets || []
+  const pairCount = Math.min(sourceSheets.length, duplicatedSheets.length)
+
+  for (let i = 0; i < pairCount; i++) {
+    const sourceSheet = sourceSheets[i]
+    const duplicatedSheet = duplicatedSheets[i]
+    if (!sourceSheet?.id || !duplicatedSheet?.id) continue
+
+    try {
+      const sourceSnapshotData = await SpreadsheetApiService.getUniverSnapshot(sourceAppId, sourceSheet.id)
+      if (!sourceSnapshotData.snapshot || typeof sourceSnapshotData.snapshot !== 'object') continue
+
+      const targetSnapshotState = await SpreadsheetApiService.getUniverSnapshot(duplicatedApp.id, duplicatedSheet.id)
+      const expectedVersion = Number(targetSnapshotState.version ?? 0)
+      const remappedSnapshot = remapUniverSnapshotSheetId(
+        sourceSnapshotData.snapshot,
+        sourceSheet.id,
+        duplicatedSheet.id
+      )
+
+      await SpreadsheetApiService.saveUniverSnapshot(duplicatedApp.id, duplicatedSheet.id, {
+        version: expectedVersion,
+        snapshot: remappedSnapshot
+      })
+    } catch (error) {
+      console.warn('[useSpreadsheetApps] duplicate snapshot copy skipped for one sheet', {
+        sourceSheetId: sourceSheet.id,
+        duplicatedSheetId: duplicatedSheet.id,
+        error: error instanceof Error ? error.message : String(error)
+      })
     }
   }
 }
@@ -229,7 +330,11 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
    * Load a single app by ID
    */
   const loadApp = useCallback(
-    async (id: string): Promise<SpreadsheetApp | null> => {
+    async (
+      id: string,
+      _directFilePath?: string,
+      options?: { allowTrashed?: boolean }
+    ): Promise<SpreadsheetApp | null> => {
       if (!accessToken) {
         setState(prev => ({ ...prev, isLoading: false, error: 'Not authenticated' }))
         return null
@@ -238,7 +343,9 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       setState(prev => ({ ...prev, isLoading: true, error: null }))
 
       try {
-        const app = await SpreadsheetApiService.getApp(id)
+        const app = options?.allowTrashed
+          ? ((await SpreadsheetApiService.getTrashedPreview(id)) ?? (await SpreadsheetApiService.getApp(id)))
+          : await SpreadsheetApiService.getApp(id)
         if (!app) {
           setState(prev => ({
             ...prev,
@@ -335,16 +442,31 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
 
       try {
         const updatedApp = await SpreadsheetApiService.updateApp(id, updates)
+        let mergedCurrentApp: SpreadsheetApp | null = updatedApp
         if (updatedApp) {
-          setState(prev => ({
-            ...prev,
-            currentApp: prev.currentApp?.id === id ? updatedApp : prev.currentApp,
-            apps: mergeAppIntoList(prev.apps, id, updatedApp),
-            isSaving: false,
-            storageMode: 'database'
-          }))
+          setState(prev => {
+            const nextCurrentApp =
+              prev.currentApp?.id === id
+                ? {
+                    ...prev.currentApp,
+                    ...updatedApp,
+                    // `updateApp` is app-metadata-only; never let a partial PATCH response
+                    // replace the live workbook sheets currently loaded in the viewer.
+                    sheets: prev.currentApp.sheets,
+                    relationships: updatedApp.relationships ?? prev.currentApp.relationships
+                  }
+                : prev.currentApp
+            mergedCurrentApp = nextCurrentApp ?? updatedApp
+            return {
+              ...prev,
+              currentApp: nextCurrentApp,
+              apps: mergeAppIntoList(prev.apps, id, mergedCurrentApp as SpreadsheetApp),
+              isSaving: false,
+              storageMode: 'database'
+            }
+          })
         }
-        return updatedApp
+        return mergedCurrentApp
       } catch (error) {
         console.error('[useSpreadsheetApps] Failed to update app:', error)
         setState(prev => ({
@@ -410,6 +532,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       try {
         const duplicatedApp = await SpreadsheetApiService.duplicateApp(id)
         if (duplicatedApp) {
+          await copyUniverSnapshotsAfterDuplicate(id, duplicatedApp)
           toast.success('App duplicated')
           await loadApps()
         }
@@ -503,6 +626,109 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       } catch (error) {
         console.error('[useSpreadsheetApps] Failed to update sheet:', error)
         return null
+      }
+    },
+    [accessToken, state.currentApp]
+  )
+
+  /**
+   * Create a new real sheet on the app via the backend.
+   *
+   * A real SpreadsheetSheet row must exist in the database for:
+   *   - /operations/batch to target it via its sheetId
+   *   - GET /spreadsheets/:id/univer-snapshot/:sheetId to load its own snapshot on reload
+   *
+   * Creating sheets only inside the Univer canvas does NOT persist and leads to
+   * ghost-tab data bleed on reload.
+   */
+  const addSheet = useCallback(
+    async (appId: string, sheet?: Partial<SpreadsheetSheet>): Promise<SpreadsheetSheet | null> => {
+      if (!accessToken) {
+        toast.error('Not authenticated')
+        return null
+      }
+
+      try {
+        const currentApp = state.currentApp?.id === appId ? state.currentApp : null
+        const existingNames = new Set((currentApp?.sheets ?? []).map(s => s.name))
+        let autoName = sheet?.name
+        if (!autoName) {
+          let index = (currentApp?.sheets.length ?? 0) + 1
+          autoName = `Sheet ${index}`
+          while (existingNames.has(autoName)) {
+            index += 1
+            autoName = `Sheet ${index}`
+          }
+        }
+
+        const templateSheet = currentApp?.sheets[0]
+        const templateColumns = sheet?.columns ?? templateSheet?.columns ?? []
+
+        const created = await SpreadsheetApiService.createSheet(appId, {
+          ...sheet,
+          name: autoName,
+          columns: templateColumns.map(col => ({ ...col })),
+          data: sheet?.data ?? []
+        })
+
+        if (state.currentApp?.id === appId) {
+          setState(prev => {
+            if (!prev.currentApp) return prev
+            // If the caller pre-seeded the sheet into currentApp (Univer already
+            // inserted the worksheet on its side), just replace that entry with
+            // the server-confirmed one; otherwise append.
+            const nextSheet = { ...created, data: created.data ?? [] }
+            const existingIdx = prev.currentApp.sheets.findIndex(s => s.id === created.id)
+            const nextSheets =
+              existingIdx >= 0
+                ? prev.currentApp.sheets.map((s, i) => (i === existingIdx ? nextSheet : s))
+                : [...prev.currentApp.sheets, nextSheet]
+            return {
+              ...prev,
+              currentApp: {
+                ...prev.currentApp,
+                sheets: nextSheets
+              }
+            }
+          })
+        }
+
+        return created
+      } catch (error) {
+        console.error('[useSpreadsheetApps] Failed to add sheet:', error)
+        const message = error instanceof Error ? error.message : 'Failed to create sheet'
+        toast.error(message)
+        return null
+      }
+    },
+    [accessToken, state.currentApp]
+  )
+
+  const deleteSheet = useCallback(
+    async (appId: string, sheetId: string): Promise<boolean> => {
+      if (!accessToken) {
+        toast.error('Not authenticated')
+        return false
+      }
+
+      try {
+        const ok = await SpreadsheetApiService.deleteSheet(appId, sheetId)
+        if (ok && state.currentApp?.id === appId) {
+          setState(prev => ({
+            ...prev,
+            currentApp: prev.currentApp
+              ? {
+                  ...prev.currentApp,
+                  sheets: prev.currentApp.sheets.filter(s => s.id !== sheetId)
+                }
+              : null
+          }))
+        }
+        return ok
+      } catch (error) {
+        console.error('[useSpreadsheetApps] Failed to delete sheet:', error)
+        toast.error(error instanceof Error ? error.message : 'Failed to delete sheet')
+        return false
       }
     },
     [accessToken, state.currentApp]
@@ -800,6 +1026,8 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
     duplicateApp,
     updateSheetData,
     updateSheet,
+    addSheet,
+    deleteSheet,
     addRow,
     updateRow,
     deleteRow,

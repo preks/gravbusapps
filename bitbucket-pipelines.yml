@@ -101,8 +101,8 @@ definitions:
           - apt-get update && apt-get install gettext -y
           - npm install
           - |
-            # Pre-install native dependencies to avoid rebuilds later
-            npm install @rollup/rollup-linux-x64-gnu lightningcss-linux-x64-gnu || true
+            # Pre-install native deps (optionalDependency resolution on Linux CI can skip these; see npm/cli#4828)
+            npm install @rollup/rollup-linux-x64-gnu lightningcss-linux-x64-gnu @tailwindcss/oxide-linux-x64-gnu || true
         artifacts:
           - pipeline/scripts/**
           - envs/**
@@ -137,6 +137,7 @@ definitions:
           - nodecustom
         script:
           - export RC_UPLOAD="true"
+          - export BUNDLE_REPORT_IN_PIPELINE="true"
           - bash scripts/build-hash-detect-and-publish-screens.sh
         artifacts:
           - changed-tsx.txt

@@ -3,7 +3,10 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { NodeSelection } from '@tiptap/pm/state'
 import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { CustomTableView } from './CustomTableView'
+import { createTableColumnWidthMigrationPlugin } from './tableColumnWidthMigrationPlugin'
+import { createLinkedTableResizePlugin } from './tableLinkedResizePlugin'
 import { createTablePaginationMetadataPlugin } from './tablePaginationMetadata'
+import { createTableRowIdentityPlugin } from './tableRowIdentityPlugin'
 import {
   applyBorderPresetToSelection,
   setSelectedColumnsWidthPx,
@@ -116,7 +119,7 @@ function getRenderedTableStyle(
   attributes: Record<string, unknown>,
   defaults: Pick<CustomTableOptions, 'defaultTableWidth' | 'defaultTableAlign' | 'defaultTableWidthMode'>
 ) {
-  const width = normalizeTableWidth(attributes.tableWidth as string | null) ?? defaults.defaultTableWidth
+  const width = normalizeTableWidth(attributes.tableWidth as string | null)
   const align = normalizeTableAlign(attributes.tableAlign as string | null) ?? defaults.defaultTableAlign
   const mode = normalizeTableWidthMode(attributes.tableWidthMode as string | null) ?? defaults.defaultTableWidthMode
   const surfaceStyle = getTableSurfaceStyle(
@@ -177,21 +180,26 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
   addAttributes() {
     return {
       ...this.parent?.(),
+      /** @deprecated Yjs/legacy only; identity is `id` from UniqueID. Cleared after migration. */
+      tableId: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-table-id') || element.getAttribute('tableid'),
+        renderHTML: () => ({})
+      },
       tableWidth: {
-        default: this.options.defaultTableWidth,
+        default: null,
         parseHTML: element => {
           return (
             element.getAttribute('data-table-width') ??
             (element instanceof HTMLElement ? element.style.width : null) ??
-            element.getAttribute('width') ??
-            this.options.defaultTableWidth
+            element.getAttribute('width')
           )
         },
         renderHTML: attributes => {
-          const width = normalizeTableWidth(attributes.tableWidth) ?? this.options.defaultTableWidth
+          const width = normalizeTableWidth(attributes.tableWidth)
 
           return {
-            'data-table-width': width,
+            ...(width ? { 'data-table-width': width } : {}),
             style: getRenderedTableStyle(attributes, this.options)
           }
         }
@@ -376,7 +384,27 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
   },
 
   addProseMirrorPlugins() {
-    return [...(this.parent?.() ?? []), createTablePaginationMetadataPlugin(this.name)]
+    const isResizable = this.options.resizable && this.editor.isEditable
+
+    return [
+      ...(this.parent?.() ?? []),
+      createTableColumnWidthMigrationPlugin({
+        tableNodeName: this.name,
+        cellMinWidth: this.options.cellMinWidth,
+        defaultTableWidth: this.options.defaultTableWidth
+      }),
+      ...(isResizable
+        ? [
+            createLinkedTableResizePlugin({
+              tableNodeName: this.name,
+              cellMinWidth: this.options.cellMinWidth,
+              defaultCellMinWidth: this.options.cellMinWidth
+            })
+          ]
+        : []),
+      createTableRowIdentityPlugin('tableRow'),
+      createTablePaginationMetadataPlugin(this.name)
+    ]
   },
 
   addCommands() {

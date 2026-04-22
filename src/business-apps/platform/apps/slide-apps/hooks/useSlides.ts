@@ -19,9 +19,20 @@ interface UseSlidesState {
   error: string | null
 }
 
+export interface ImportSlideResult {
+  slide: Slide
+  contentSaved: boolean
+}
+
 interface UseSlidesResult extends UseSlidesState {
   loadSlide: (id: string) => Promise<Slide | null>
-  createSlide: (payload: { title: string; description?: string }) => Promise<Slide | null>
+  loadTrashedSlide: (id: string) => Promise<Slide | null>
+  createSlide: (payload: {
+    title: string
+    description?: string
+    contentJson?: Record<string, unknown>
+  }) => Promise<Slide | null>
+  importSlide: (payload: { title: string; contentJson: Record<string, unknown> }) => Promise<ImportSlideResult | null>
   updateSlide: (
     id: string,
     updates: Partial<Pick<Slide, 'title' | 'description' | 'content'>>,
@@ -100,19 +111,77 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
     [accessToken, t]
   )
 
+  const loadTrashedSlide = useCallback(
+    async (id: string): Promise<Slide | null> => {
+      if (!accessToken) return null
+      try {
+        const slide = await SlidesApiService.getTrashedPreview(id)
+        const resolvedSlide = slide ?? (await SlidesApiService.getSlide(id))
+        if (resolvedSlide) {
+          setState(prev => ({ ...prev, currentSlide: resolvedSlide }))
+        }
+        return resolvedSlide
+      } catch (err) {
+        console.error('[useSlides] loadTrashedSlide:', err)
+        toast.error(t('slides-toast-load-failed'))
+        return null
+      }
+    },
+    [accessToken, t]
+  )
+
   const createSlide = useCallback(
-    async (payload: { title: string; description?: string }): Promise<Slide | null> => {
+    async (payload: {
+      title: string
+      description?: string
+      contentJson?: Record<string, unknown>
+    }): Promise<Slide | null> => {
       if (!accessToken) return null
       try {
         const created = await SlidesApiService.createSlide({
           title: payload.title || t('slides-default-title'),
-          description: payload.description
+          description: payload.description,
+          contentJson: payload.contentJson
         })
         await refreshSlides()
         toast.success(t('slides-toast-created'))
         return created
       } catch (err) {
         console.error('[useSlides] createSlide:', err)
+        toast.error(t('slides-toast-create-failed'))
+        return null
+      }
+    },
+    [accessToken, refreshSlides, t]
+  )
+
+  const importSlide = useCallback(
+    async (payload: { title: string; contentJson: Record<string, unknown> }): Promise<ImportSlideResult | null> => {
+      if (!accessToken) return null
+      try {
+        const created = await SlidesApiService.createSlide({
+          title: payload.title || t('slides-default-title')
+        })
+        await refreshSlides()
+
+        let contentSaved = false
+        let finalSlide = created
+        try {
+          finalSlide = await SlidesApiService.updateSlide(created.id, {
+            contentJson: payload.contentJson
+          })
+          contentSaved = true
+        } catch (err) {
+          console.error('[useSlides] importSlide content update failed:', err)
+        }
+
+        // Set currentSlide immediately so the editor gets correct contentJson
+        // without depending on a separate GET that might return stale data
+        setState(prev => ({ ...prev, currentSlide: finalSlide }))
+
+        return { slide: finalSlide, contentSaved }
+      } catch (err) {
+        console.error('[useSlides] importSlide create failed:', err)
         toast.error(t('slides-toast-create-failed'))
         return null
       }
@@ -152,7 +221,7 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
             slides: prev.slides.filter(s => s.id !== id),
             currentSlide: prev.currentSlide?.id === id ? null : prev.currentSlide
           }))
-          toast.success(t('slides-toast-deleted'))
+          toast.success(t('slides-toast-moved-to-trash') || t('slides-toast-deleted'))
         }
         return ok
       } catch (err) {
@@ -206,7 +275,9 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
   return {
     ...state,
     loadSlide,
+    loadTrashedSlide,
     createSlide,
+    importSlide,
     updateSlide,
     deleteSlide,
     duplicateSlide,

@@ -1,84 +1,78 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { PageHeader, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CategoryTable } from './components/CategoryTable'
-import {
-  useCatalogEntries,
-  useCreateCatalogEntry,
-  useUpdateCatalogEntry,
-  useDeleteCatalogEntry,
-  type CatalogEntry
-} from '@/common/data/catalog'
+import { useContentCategoryOptions } from '@/common/data/content/hooks/useContentCategoryOptions'
+import { useContentClient } from '@/common/network/content'
 
 export interface CategoryDataPageProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   onBack?: () => void
 }
 
-const CATALOG_IDENTIFIER = 'ContentCategory'
-const CATALOG_VERSION = 'v1'
-
 const CategoryDataPage: React.FC<CategoryDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
-  const [categories, setCategories] = useState<CatalogEntry[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [mutationError, setMutationError] = useState<string | null>(null)
+  const { options: categories, isLoading, error: fetchError, refetch } = useContentCategoryOptions(context.accessToken)
+  const contentClient = useContentClient(context.accessToken)
 
-  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken: context.accessToken })
-  const { createCatalogEntry } = useCreateCatalogEntry({ accessToken: context.accessToken })
-  const { updateCatalogEntry } = useUpdateCatalogEntry({ accessToken: context.accessToken })
-  const { deleteCatalogEntry } = useDeleteCatalogEntry({ accessToken: context.accessToken })
+  const error = mutationError || (fetchError ? fetchError.message : null)
 
-  const loadCategories = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const result = await fetchCatalogEntriesByIdentifier(CATALOG_IDENTIFIER, {
-        limit: 100,
-        offset: 0
-      })
-      setCategories(result.entries)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load categories')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [fetchCatalogEntriesByIdentifier])
-
-  useEffect(() => {
-    loadCategories()
-  }, [loadCategories])
-
-  const handleCreate = async (data: any) => {
-    await createCatalogEntry({
-      catalogIdentifier: CATALOG_IDENTIFIER,
-      catalogVersion: CATALOG_VERSION,
-      entry: {
-        code: data.code,
-        value: data.value,
-        displayOrder: data.displayOrder,
-        translations: []
+  const handleCreate = useCallback(
+    async (data: { name: string }) => {
+      setMutationError(null)
+      try {
+        await contentClient.createContentCategory({ name: data.name })
+        await refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to create category'
+        setMutationError(message)
+        throw err
       }
-    })
-    await loadCategories()
-  }
+    },
+    [contentClient, refetch]
+  )
 
-  const handleUpdate = async (id: string, data: any) => {
-    await updateCatalogEntry({
-      entryId: id,
-      entry: {
-        code: data.code,
-        value: data.value,
-        displayOrder: data.displayOrder,
-        translations: []
+  const handleUpdate = useCallback(
+    async (id: string, data: { name: string }) => {
+      setMutationError(null)
+      try {
+        const categoryToUpdate = categories.find(category => category.id === id)
+        if (categoryToUpdate?.version == null) {
+          throw new Error('Failed to update category: version is missing')
+        }
+        await contentClient.updateContentCategory({
+          id,
+          version: categoryToUpdate.version,
+          name: data.name
+        })
+        await refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to update category'
+        setMutationError(message)
+        throw err
       }
-    })
-    await loadCategories()
-  }
+    },
+    [categories, contentClient, refetch]
+  )
 
-  const handleDelete = async (id: string) => {
-    await deleteCatalogEntry({ entryId: id })
-    await loadCategories()
-  }
+  const handleDelete = useCallback(
+    async (id: string) => {
+      setMutationError(null)
+      try {
+        const categoryToDelete = categories.find(category => category.id === id)
+        if (categoryToDelete?.version == null) {
+          throw new Error('Failed to delete category: version is missing')
+        }
+        await contentClient.deleteContentCategory(id, categoryToDelete.version)
+        await refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to delete category'
+        setMutationError(message)
+        throw err
+      }
+    },
+    [categories, contentClient, refetch]
+  )
 
   if (isLoading && categories.length === 0) {
     return (
@@ -104,7 +98,7 @@ const CategoryDataPage: React.FC<CategoryDataPageProps> = ({ prefixDataTestId, o
           onCreate={handleCreate}
           onUpdate={handleUpdate}
           onDelete={handleDelete}
-          onRetry={loadCategories}
+          onRetry={refetch}
           prefixDataTestId={`${prefixDataTestId}-table`}
         />
       </div>

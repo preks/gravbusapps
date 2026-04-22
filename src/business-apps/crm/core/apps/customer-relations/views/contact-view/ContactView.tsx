@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ContactLayout, type ContactViewConfig } from '@/common/components/common-relations/view-layouts/contact-layout'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
 import {
   commonContactColumns,
@@ -86,6 +87,9 @@ const processSorting = (sorting: Array<{ id: string; desc: boolean }>, vars: Cus
 }
 
 export const ContactView: React.FC<ContactViewProps> = context => {
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('crm:customer-contact-preferences:v1')
+
   // Data Hooks
   const { fetchCustomerContacts } = useCustomerContacts(context)
   const contactStatistics = useCustomerContactStatistics(context)
@@ -160,6 +164,14 @@ export const ContactView: React.FC<ContactViewProps> = context => {
       config={config}
       contactStatistics={contactStatistics}
       dataTestId="customer-contact-view"
+      enableExport
+      exportFilenamePrefix="contacts"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
     />
   )
 }

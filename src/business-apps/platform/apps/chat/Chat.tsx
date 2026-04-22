@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
-import { Alert, AlertDescription, Spinner, Toaster } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Spinner, Toaster, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useChatClient } from './hooks/useChatClient'
-import { useChatEnv } from './hooks/useChatEnv'
+import { useChat } from './hooks/useChat'
 import { useChatCallHandlers } from './hooks/useChatCallHandlers'
 import { useChatConversationHandlers } from './hooks/useChatConversationHandlers'
 import { useChatMessageHandlers, type UseChatMessageHandlersParams } from './hooks/useChatMessageHandlers'
@@ -26,7 +25,7 @@ import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/
 // import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
 import type { CallParticipant } from './services/webrtcClient'
 import type { GroupCallParticipant } from './services/groupWebrtcClient'
-import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
+import translations from './_i18n'
 import { seedTestParticipants, TestParticipantPresets } from './utils/seedTestParticipants'
 
 // Presence info type for sharing with other components
@@ -91,7 +90,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     calendarApiClient,
     initialOpenWithUser
   }) => {
-    const t = useChatTranslation()
+    const { t } = useTranslation(translations)
     const containerRef = useRef<HTMLDivElement>(null)
     const chatViewRef = useRef<HTMLDivElement>(null)
     const [showConversationList, setShowConversationList] = useState(!initialOpenWithUser)
@@ -115,6 +114,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const urlContextProcessed = useRef(false)
     const conversationIdFromUrlProcessed = useRef(false)
     const urlCallActionProcessed = useRef(false)
+    const [pendingMessageId, setPendingMessageId] = useState<string | null>(null)
     const activeConversationIdRef = useRef<string | null>(null)
     const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
     const lastNudgeTimeRef = useRef<number>(0)
@@ -159,14 +159,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Use the stable token throughout the component
     const accessToken = stableAccessToken
 
-    const { apiUrl, wsUrl, wsSocketPath, realtimeKitApiClient } = useChatEnv({ accessToken })
-
-    const chatClient = useChatClient({
-      accessToken,
-      apiUrl,
-      wsUrl,
-      wsSocketPath
-    })
+    const chatClient = useChat({ accessToken })
 
     const {
       isConnected,
@@ -434,7 +427,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Group call functionality - Realtime Kit (RTK) only
     const realtimeKitGroupCall = useRealtimeKitGroupCall({
       wsClient: wsClient || null,
-      apiClient: realtimeKitApiClient,
+      apiClient: apiClient,
       chatApiClient: apiClient, // Pass ChatApiClient for in-call chat functionality
       calendarApiClient: calendarApiClient, // Pass CalendarApiClient for AI transcription settings
       callConversation: null, // Computed in hook's effect using conversationsRef
@@ -828,6 +821,7 @@ const ChatInner: React.FC<ChatProps> = memo(
 
       const urlParams = new URLSearchParams(window.location.search)
       const conversationIdParam = urlParams.get('conversationId')
+      const messageIdParam = urlParams.get('messageId')
 
       if (!conversationIdParam) {
         return
@@ -839,6 +833,7 @@ const ChatInner: React.FC<ChatProps> = memo(
         conversationIdFromUrlProcessed.current = true
         setActiveConversation(conversation)
         setShowConversationList(false)
+        if (messageIdParam) setPendingMessageId(messageIdParam)
         return
       }
 
@@ -854,6 +849,7 @@ const ChatInner: React.FC<ChatProps> = memo(
             if (fetchedConversation) {
               setActiveConversation(fetchedConversation)
               setShowConversationList(false)
+              if (messageIdParam) setPendingMessageId(messageIdParam)
             }
           })
           .catch(() => {
@@ -1037,7 +1033,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       groupCallState,
       groupParticipants: groupParticipantsRaw,
       joinGroupCall: joinGroupCall as (roomId: string, callType: 'audio' | 'video', prefs?: unknown) => void,
-      realtimeKitApiClient,
+      realtimeKitApiClient: apiClient,
       calendarApiClient,
       getUserPresence,
       currentUserId: currentUser?.id ?? null
@@ -1053,10 +1049,21 @@ const ChatInner: React.FC<ChatProps> = memo(
       return t('chat-connectionError')
     }
 
+    // Mobile webview fix: the webview viewport can be wider than the device
+    // screen (e.g. 671px vs 430px), causing content to be clipped on the right.
+    // Constrain this component to the screen width when a mismatch is detected.
+    const [webviewMaxWidth, setWebviewMaxWidth] = useState<number | undefined>(undefined)
+    useEffect(() => {
+      if (typeof screen !== 'undefined' && window.innerWidth > screen.width * 1.1) {
+        setWebviewMaxWidth(screen.width)
+      }
+    }, [])
+
     return (
       <div
         ref={containerRef}
         className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:overflow-hidden"
+        style={webviewMaxWidth ? { maxWidth: webviewMaxWidth, width: webviewMaxWidth } : undefined}
         data-testid={`${prefixDataTestId}-container`}
       >
         {connectionError && (
@@ -1209,6 +1216,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                     onMarkAsUnread={handleMarkAsUnread}
                     isSingleViewMode={isSingleViewMode}
                     viewMode={viewMode}
+                    initialMessageId={pendingMessageId}
                     onBack={handleBack}
                     onCloseConversation={handleCloseConversation}
                     onRemoveConversation={handleRemoveConversation}
@@ -1322,12 +1330,11 @@ const ChatInner: React.FC<ChatProps> = memo(
   }
 )
 
-// Wrap Chat component with TranslationProvider for performance optimization
 export const Chat: React.FC<ChatProps> = props => {
   return (
-    <TranslationProvider>
+    <>
       <Toaster />
       <ChatInner {...props} />
-    </TranslationProvider>
+    </>
   )
 }

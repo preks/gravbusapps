@@ -18,8 +18,6 @@ customer-description = Client activ cu relație de afaceri stabilită
 portfolio-description = Companie de portofoliu activă cu participații
 
 # Company Information
-legal-form-label = Formă juridică
-legal-form-placeholder = Vă rugăm să selectați...
 priority-label = Prioritate
 priority-placeholder = Vă rugăm să selectați...
 industry-label = Industrie

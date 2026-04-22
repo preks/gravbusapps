@@ -30,24 +30,30 @@ const mapEvaluation = (evaluation: PerformanceEvaluationItemApi): PerformanceEva
 export const mapPerformanceEvaluationsOverview = (
   response: EmployeePerformanceEvaluationsAnalysisResponse
 ): EmployeePerformanceEvaluationsOverview => {
-  const performanceCycles = (response.performanceCycles ?? []).map(cycle => {
-    const mappedEvaluations = (cycle.evaluations ?? []).map(mapEvaluation)
-    const completedEvaluations = mappedEvaluations.filter(item => item.statusCode === 'COMPLETED').length
-    const inProgressEvaluations = mappedEvaluations.filter(item => item.statusCode === 'IN_PROGRESS').length
+  const performanceCycles = (response.performanceCycles ?? [])
+    .map(cycle => {
+      const mappedEvaluations = (cycle.evaluations ?? []).map(mapEvaluation)
+      const completedEvaluations = mappedEvaluations.filter(item => item.statusCode === 'COMPLETED').length
+      const inProgressEvaluations = mappedEvaluations.filter(item => item.statusCode === 'IN_PROGRESS').length
 
-    return {
-      performanceCycleId: cycle.performanceCycleId,
-      performanceCycleName: cycle.performanceCycleName || '-',
-      performanceCycleStartDate: cycle.performanceCycleStartDate,
-      performanceCycleEndDate: cycle.performanceCycleEndDate,
-      evaluationPeriodStartDate: cycle.evaluationPeriodStartDate ?? null,
-      evaluationPeriodEndDate: cycle.evaluationPeriodEndDate ?? null,
-      totalEvaluations: mappedEvaluations.length,
-      completedEvaluations,
-      inProgressEvaluations,
-      evaluations: mappedEvaluations
-    }
-  })
+      return {
+        performanceCycleId: cycle.performanceCycleId,
+        performanceCycleName: cycle.performanceCycleName || '-',
+        performanceCycleStartDate: cycle.performanceCycleStartDate,
+        performanceCycleEndDate: cycle.performanceCycleEndDate,
+        evaluationPeriodStartDate: cycle.evaluationPeriodStartDate ?? null,
+        evaluationPeriodEndDate: cycle.evaluationPeriodEndDate ?? null,
+        totalEvaluations: mappedEvaluations.length,
+        completedEvaluations,
+        inProgressEvaluations,
+        evaluations: mappedEvaluations
+      }
+    })
+    .sort((a, b) => {
+      const dateA = toComparableTimestamp(a.evaluationPeriodStartDate ?? a.performanceCycleStartDate) ?? 0
+      const dateB = toComparableTimestamp(b.evaluationPeriodStartDate ?? b.performanceCycleStartDate) ?? 0
+      return dateB - dateA
+    })
 
   return {
     performanceCycles
@@ -76,7 +82,7 @@ const toComparableTimestamp = (value: string | null): number | null => {
   return Number.isNaN(timestamp) ? null : timestamp
 }
 
-const getLatestComparableTimestamp = (item: FlattenedPerformanceEvaluationItem): number => {
+export const getLatestComparableTimestamp = (item: FlattenedPerformanceEvaluationItem): number => {
   return (
     toComparableTimestamp(item.evaluation.actualCompletionDate) ??
     toComparableTimestamp(item.evaluation.startDate) ??
@@ -120,23 +126,7 @@ export const findLatestPerformanceCycleId = (
 ): string | null => {
   if (!overview?.performanceCycles?.length) return null
 
-  const [firstCycle, ...remainingCycles] = overview.performanceCycles
-  const cycleWithLatestEvaluation = remainingCycles.reduce((currentLatest, currentCycle) => {
-    const currentLatestEvaluation = getLatestEvaluationForCycle(currentLatest)
-    const currentCycleEvaluation = getLatestEvaluationForCycle(currentCycle)
-    const currentLatestTimestamp =
-      toComparableTimestamp(currentLatestEvaluation?.actualCompletionDate ?? null) ??
-      toComparableTimestamp(currentLatestEvaluation?.startDate ?? null) ??
-      -1
-    const currentCycleTimestamp =
-      toComparableTimestamp(currentCycleEvaluation?.actualCompletionDate ?? null) ??
-      toComparableTimestamp(currentCycleEvaluation?.startDate ?? null) ??
-      -1
-
-    return currentCycleTimestamp > currentLatestTimestamp ? currentCycle : currentLatest
-  }, firstCycle)
-
-  return cycleWithLatestEvaluation.performanceCycleId
+  return overview.performanceCycles[0].performanceCycleId
 }
 
 export const findLatestEvaluationIdByCycleId = (

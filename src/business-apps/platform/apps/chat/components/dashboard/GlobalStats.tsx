@@ -6,10 +6,12 @@ import {
   CardContent,
   CardDescription,
   CardTitle,
-  CountingNumber
+  CountingNumber,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Globe, Users, MessageSquare, Activity, Smile, Phone } from 'lucide-react'
-import type { GlobalStatsResponse, EmojiCount } from '../../services/chatApiClient'
+import type { GlobalStatsResponse, EmojiCount } from '../../types'
+import translations from '../../_i18n'
 
 interface GlobalStatsProps {
   stats: GlobalStatsResponse | null
@@ -52,6 +54,8 @@ interface EmojiGridProps {
  * EmojiGrid - Display top reactions
  */
 const EmojiGrid: React.FC<EmojiGridProps> = ({ reactions, isLoading, 'data-testid': testId }) => {
+  const { t } = useTranslation(translations)
+
   if (isLoading) {
     return (
       <div className="gba:flex gba:gap-4" data-testid={testId}>
@@ -68,7 +72,7 @@ const EmojiGrid: React.FC<EmojiGridProps> = ({ reactions, isLoading, 'data-testi
   if (reactions.length === 0) {
     return (
       <p className="gba:text-sm gba:text-muted-foreground" data-testid={testId}>
-        No reactions yet
+        {t('dashboard-globalStats-noReactions')}
       </p>
     )
   }
@@ -144,64 +148,66 @@ export const GlobalStats: React.FC<GlobalStatsProps> = ({
   isLoading = false,
   'data-testid': testId = 'global-stats'
 }) => {
+  const { t } = useTranslation(translations)
+
   // Build secondary stats cards
   const secondaryCards: KpiCardData[] = useMemo(() => {
     if (isLoading) {
       return [
-        { id: 'active-now', title: 'Active now', value: 0 },
-        { id: 'today', title: 'Messages today', value: 0 },
-        { id: 'total-users', title: 'Total users', value: 0 },
-        { id: 'call-minutes', title: 'Call minutes', value: '0m' }
+        { id: 'active-now', title: t('dashboard-globalStats-activeNow'), value: 0 },
+        { id: 'today', title: t('dashboard-globalStats-messagesToday'), value: 0 },
+        { id: 'total-users', title: t('dashboard-globalStats-totalUsers'), value: 0 },
+        { id: 'call-minutes', title: t('dashboard-globalStats-totalCallTime'), value: '0m' }
       ]
     }
 
     return [
       {
         id: 'active-now',
-        title: 'Active now',
+        title: t('dashboard-globalStats-activeNow'),
         value: stats?.activeUsersNow ?? 0,
         icon: <Activity className="gba:size-4" />,
         trend:
           stats?.activeUsersNow && stats.activeUsersNow > 0
-            ? { value: 'Live', badgeVariant: 'warning' as const, trendIcon: 'none' as const }
+            ? { value: t('dashboard-globalStats-live'), badgeVariant: 'warning' as const, trendIcon: 'none' as const }
             : undefined
       },
       {
         id: 'today',
-        title: 'Messages today',
+        title: t('dashboard-globalStats-messagesToday'),
         value: stats?.messagesLast24h ?? 0,
         icon: <MessageSquare className="gba:size-4" />
       },
       {
         id: 'total-users',
-        title: 'Total users',
+        title: t('dashboard-globalStats-totalUsers'),
         value: stats?.totalUsers ?? 0,
         icon: <Users className="gba:size-4" />
       },
       {
         id: 'call-minutes',
-        title: 'Total call time',
+        title: t('dashboard-globalStats-totalCallTime'),
         value: formatMinutes(stats?.totalCallMinutes ?? 0),
         icon: <Phone className="gba:size-4" />
       }
     ]
-  }, [stats, isLoading])
+  }, [isLoading, stats, t])
 
   return (
     <section data-testid={testId}>
       <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4 gba:uppercase gba:tracking-wide">
-        Company activity
+        {t('dashboard-globalStats-title')}
       </h3>
 
       <div className="gba:space-y-4">
         {/* Highlight Card - Total Messages with decorative background */}
         <HighlightStatCard
-          title="Total platform messages"
+          title={t('dashboard-globalStats-totalPlatformMessages')}
           value={stats?.totalMessages ?? 0}
           subtitle={
             stats?.messagesLast24h
-              ? `+${formatCompactNumber(stats.messagesLast24h)} today`
-              : 'All time across the platform'
+              ? t('dashboard-globalStats-todayDelta', { count: formatCompactNumber(stats.messagesLast24h) })
+              : t('dashboard-globalStats-allTime')
           }
           isLoading={isLoading}
           data-testid={`${testId}-highlight`}
@@ -214,7 +220,9 @@ export const GlobalStats: React.FC<GlobalStatsProps> = ({
         <div className="gba:rounded-xl gba:bg-card gba:p-6">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
             <Smile className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-            <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Top reactions</span>
+            <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">
+              {t('dashboard-globalStats-topReactions')}
+            </span>
           </div>
           <EmojiGrid reactions={stats?.topReactions ?? []} isLoading={isLoading} data-testid={`${testId}-reactions`} />
         </div>

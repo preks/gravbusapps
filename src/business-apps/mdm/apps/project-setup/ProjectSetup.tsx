@@ -14,7 +14,8 @@ import {
   WallIcon,
   DotsThreeIcon,
   TrashIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  ArrowSquareOutIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useProjects, useCreateTeam, useTeamAssignments } from '../project-management/hooks'
@@ -69,6 +70,8 @@ import { PersonDisplay } from '@/common/components/person-display/PersonDisplay'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { useProjectBoard } from './hooks/useProjectBoard'
 
 export interface ProjectSetupProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -200,7 +203,17 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
   })
 
   // Hook for team assignments (used when closing/deleting project)
-  const { resetTeamAllocations } = useTeamAssignments(context.accessToken)
+  const { resetTeamAllocations, getTeamEmployees } = useTeamAssignments(context.accessToken)
+
+  // Hook for project board integration
+  const {
+    hasBoard,
+    getBoardInfo,
+    getBoardUrl,
+    createProjectBoard,
+    syncProjectBoard,
+    isCreating: isCreatingBoard
+  } = useProjectBoard({ accessToken: context.accessToken, projects })
 
   // Callback for ProjectForm when status changes to CANCELLED/COMPLETED
   const handleProjectClosed = useCallback(
@@ -250,18 +263,73 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
     return 'gba:text-[#fa8c16]'
   }, [])
 
+  const handleCreateProjectBoard = useCallback(
+    async (targetProject: Project) => {
+      if (!targetProject.validFrom || !targetProject.validTo) return
+      let members: Array<{ employeeId: string; name?: string }> = []
+      if (targetProject.matrixTeam?.matrixId) {
+        try {
+          const teamEmployees = await getTeamEmployees(targetProject.matrixTeam.matrixId)
+          members = teamEmployees.map(e => ({ employeeId: e.employeeId, name: e.fullName }))
+        } catch {
+          // proceed without members
+        }
+      }
+      await createProjectBoard(targetProject, members)
+    },
+    [createProjectBoard, getTeamEmployees]
+  )
+
+  const handleOpenProjectBoard = useCallback(
+    async (targetProject: Project) => {
+      const boardInfo = getBoardInfo(targetProject.id)
+      if (!boardInfo) return
+
+      let members: Array<{ employeeId: string }> = []
+      if (targetProject.matrixTeam?.matrixId) {
+        try {
+          const teamEmployees = await getTeamEmployees(targetProject.matrixTeam.matrixId)
+          members = teamEmployees.map(e => ({ employeeId: e.employeeId }))
+        } catch {
+          // proceed without sync
+        }
+      }
+
+      await syncProjectBoard(targetProject, members, boardInfo.boardId)
+      navigateTo(getBoardUrl(boardInfo.boardId))
+    },
+    [getBoardInfo, getBoardUrl, syncProjectBoard, getTeamEmployees]
+  )
+
   const actions = useMemo(() => {
     return [
       {
         id: 'edit',
         label: 'Edit Project',
         icon: PencilSimpleLineIcon,
-        // disabled: (targetProject: Project) =>
-        //   targetProject.status === ProjectStatusUI.Canceled || targetProject.status === ProjectStatusUI.Completed,
         onClick: (targetProject: Project) => {
           setSelectedProject(targetProject)
           setIsEditProjectOpen(true)
         }
+      },
+      {
+        id: 'board',
+        label: 'Project Board',
+        icon: KanbanIcon,
+        disabled: (targetProject: Project) => {
+          if (hasBoard(targetProject.id)) return false
+          return !targetProject.validFrom || !targetProject.validTo || isCreatingBoard
+        },
+        onClick: (targetProject: Project) => {
+          if (hasBoard(targetProject.id)) {
+            handleOpenProjectBoard(targetProject)
+          } else {
+            handleCreateProjectBoard(targetProject)
+          }
+        },
+        dynamicLabel: (targetProject: Project) =>
+          hasBoard(targetProject.id) ? 'Open Project Board' : 'Create Project Board',
+        dynamicIcon: (targetProject: Project) => (hasBoard(targetProject.id) ? ArrowSquareOutIcon : KanbanIcon)
       },
       {
         id: 'addTeam',
@@ -284,7 +352,6 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
           targetProject.status === ProjectStatusUI.Canceled || targetProject.status === ProjectStatusUI.Completed,
         onClick: (targetProject: Project) => {
           setSelectedProject(targetProject)
-          // Set default status based on planned end date (validTo)
           const currentDate = new Date()
           const plannedEndDate = targetProject.validTo ? new Date(targetProject.validTo) : null
           if (plannedEndDate && currentDate > plannedEndDate) {
@@ -305,7 +372,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         }
       }
     ]
-  }, [])
+  }, [hasBoard, isCreatingBoard, handleCreateProjectBoard, handleOpenProjectBoard])
 
   const dataTable = useMemo(
     () =>
@@ -522,6 +589,14 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                 {actions.map(action => {
                   const isDisabled =
                     typeof action.disabled === 'function' ? action.disabled(targetProject) : (action.disabled ?? false)
+                  const label =
+                    'dynamicLabel' in action && typeof action.dynamicLabel === 'function'
+                      ? action.dynamicLabel(targetProject)
+                      : action.label
+                  const icon =
+                    'dynamicIcon' in action && typeof action.dynamicIcon === 'function'
+                      ? action.dynamicIcon(targetProject)
+                      : action.icon
                   return (
                     <DropdownMenuItem
                       key={action.id}
@@ -534,10 +609,8 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                       disabled={isDisabled}
                       className={isDisabled ? 'gba:cursor-not-allowed gba:opacity-50' : 'nw:cursor-pointer'}
                     >
-                      {action.icon && (
-                        <Icon icon={action.icon} size="sm" variant="regular" decorative className="nw:mr-2" />
-                      )}
-                      {action.label}
+                      {icon && <Icon icon={icon} size="sm" variant="regular" decorative className="nw:mr-2" />}
+                      {label}
                     </DropdownMenuItem>
                   )
                 })}
@@ -1012,6 +1085,23 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
               </ScrollArea>
               <SheetFooter>
                 <div className="gba:flex gba:justify-end gba:gap-2">
+                  {hasBoard(selectedProject.id) ? (
+                    <Button variant="outline" onClick={() => handleOpenProjectBoard(selectedProject)}>
+                      <KanbanIcon /> Open Board
+                    </Button>
+                  ) : (
+                    selectedProject.validFrom &&
+                    selectedProject.validTo && (
+                      <Button
+                        variant="outline"
+                        disabled={isCreatingBoard}
+                        onClick={() => handleCreateProjectBoard(selectedProject)}
+                      >
+                        <KanbanIcon /> {isCreatingBoard ? 'Creating...' : 'Create Board'}
+                      </Button>
+                    )
+                  )}
+
                   <ProjectForm
                     childAddButton={
                       <Button

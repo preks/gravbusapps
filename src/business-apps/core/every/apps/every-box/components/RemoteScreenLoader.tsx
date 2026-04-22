@@ -4,11 +4,8 @@ import ReactJSXRuntime from 'react/jsx-runtime'
 import ReactJSXDevRuntime from 'react/jsx-dev-runtime'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import isPropValid from '@emotion/is-prop-valid'
-import {
-  injectImportProxy,
-  installDependenciesBootstrap,
-  loadRemoteComponentSimple
-} from '@newwork/remote-component-loader'
+import { injectImportProxy, installDependenciesBootstrap, loadRemoteComponentSimple } from '@newwork/remote-component-loader'
+import { appendRemoteAssetCacheBust } from '@/common/remoteAssetCacheBust'
 import type { RemoteComponentProps } from '@newwork/remote-component-loader'
 import { Spinner, Alert, AlertDescription, AlertTitle, Button, useTranslation } from '@newwork/nw-design-system'
 import { AlertCircle, RefreshCw, X } from 'lucide-react'
@@ -407,10 +404,14 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     const versionSuffix = version ? `-${version}` : ''
     const linkId = `remote-component-css-${componentName}${versionSuffix}`
 
-    // Check if this exact version's CSS is already loaded
-    const existingLink = document.getElementById(linkId)
+    const stylesheetHref = version ? cssUrl : appendRemoteAssetCacheBust(cssUrl)
+
+    const existingLink = document.getElementById(linkId) as HTMLLinkElement | null
     if (existingLink) {
-      return // CSS for this exact version is already loaded
+      if (!version) {
+        existingLink.href = stylesheetHref
+      }
+      return
     }
 
     // Clean up any existing CSS for this component (different versions only)
@@ -425,7 +426,7 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     // Create a link element for the CSS with version-specific ID
     const linkElement = document.createElement('link')
     linkElement.rel = 'stylesheet'
-    linkElement.href = cssUrl
+    linkElement.href = stylesheetHref
     linkElement.id = linkId
     linkElement.dataset.componentPath = componentPath
     linkElement.dataset.componentName = componentName
@@ -497,8 +498,10 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     setNotFound(false)
     setComponentLoaded(false)
 
+    const scriptUrl = version ? componentUrl : appendRemoteAssetCacheBust(componentUrl)
+
     loadRemoteComponentSimple({
-      componentUrl,
+      componentUrl: scriptUrl,
       componentName,
       cacheKey,
       timeout: 15000

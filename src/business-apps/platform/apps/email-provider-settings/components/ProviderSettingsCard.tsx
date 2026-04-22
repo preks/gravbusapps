@@ -15,7 +15,8 @@ import {
   Button,
   Input,
   Label,
-  Badge
+  Badge,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Globe, Mail, Save, Eye, EyeOff, Loader2, Check, ExternalLink, Copy } from 'lucide-react'
 import type {
@@ -23,6 +24,7 @@ import type {
   UpsertProviderSettingsRequest
 } from '../../email-apps/services/EmailProviderSettingsApi'
 import { PermissionToggles } from './ScopesEditor'
+import translations from '../_i18n'
 
 interface ProviderSettingsCardProps {
   provider: 'microsoft' | 'google'
@@ -39,11 +41,10 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
   redirectUri,
   'data-testid': testId = `provider-card-${provider}`
 }) => {
+  const { t } = useTranslation(translations)
   const isMicrosoft = provider === 'microsoft'
-  const title = isMicrosoft ? 'Microsoft 365 / Outlook' : 'Google / Gmail'
-  const description = isMicrosoft
-    ? 'Configure Azure App Registration for Microsoft OAuth. Users will be able to connect their Microsoft email accounts.'
-    : 'Configure Google OAuth credentials. Users will be able to connect their Gmail/Google Workspace accounts.'
+  const providerName = t(isMicrosoft ? 'provider-name-microsoft' : 'provider-name-google')
+  const description = t(isMicrosoft ? 'provider-description-microsoft' : 'provider-description-google')
 
   const [clientId, setClientId] = useState((existingSettings?.publicConfig?.clientId as string) || '')
   const [authority, setAuthority] = useState(
@@ -60,7 +61,6 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
   const [isEnabled, setIsEnabled] = useState(existingSettings?.isEnabled ?? true)
   const [isSaving, setIsSaving] = useState(false)
 
-  // Admin consent URL for Microsoft (helps when users see "Need admin approval")
   const adminConsentUrl = useMemo(() => {
     if (!isMicrosoft) return null
     const cid = clientId.trim()
@@ -90,7 +90,7 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
 
   const handleSave = useCallback(async () => {
     if (!clientId.trim()) {
-      toast.error('Client ID is required')
+      toast.error(t('provider-toast-client-id-required'))
       return
     }
 
@@ -110,14 +110,14 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
       }
 
       await onSave(data)
-      setClientSecret('') // Clear secret field after save
-      toast.success(`${title} settings saved successfully`)
+      setClientSecret('')
+      toast.success(t('provider-toast-settings-saved', { providerName }))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save settings')
+      toast.error(err instanceof Error ? err.message : t('provider-toast-save-failed'))
     } finally {
       setIsSaving(false)
     }
-  }, [clientId, authority, scopes, clientSecret, isEnabled, provider, isMicrosoft, title, onSave])
+  }, [clientId, authority, scopes, clientSecret, isEnabled, provider, isMicrosoft, onSave, providerName, t])
 
   return (
     <Card data-testid={testId}>
@@ -130,20 +130,20 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
               <Mail className="gba:w-6 gba:h-6 gba:text-primary" />
             )}
             <div>
-              <CardTitle>{title}</CardTitle>
+              <CardTitle>{providerName}</CardTitle>
               <CardDescription>{description}</CardDescription>
             </div>
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
             {existingSettings && (
               <Badge variant={existingSettings.isEnabled ? 'success' : 'secondary'}>
-                {existingSettings.isEnabled ? 'Enabled' : 'Disabled'}
+                {existingSettings.isEnabled ? t('common-enabled') : t('common-disabled')}
               </Badge>
             )}
             {existingSettings?.hasClientSecret && (
               <Badge variant="outline">
                 <Check className="gba:w-3 gba:h-3 gba:mr-1" />
-                Secret configured
+                {t('common-secret-configured')}
               </Badge>
             )}
           </div>
@@ -151,9 +151,10 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
       </CardHeader>
 
       <CardContent className="gba:space-y-4">
-        {/* Client ID */}
         <div className="gba:space-y-2">
-          <Label htmlFor={`${testId}-client-id`}>{isMicrosoft ? 'Application (Client) ID' : 'OAuth Client ID'}</Label>
+          <Label htmlFor={`${testId}-client-id`}>
+            {t(isMicrosoft ? 'provider-label-client-id-microsoft' : 'provider-label-client-id-google')}
+          </Label>
           <Input
             id={`${testId}-client-id`}
             value={clientId}
@@ -164,33 +165,26 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
             data-testid={`${testId}-client-id`}
           />
           <p className="gba:text-xs gba:text-muted-foreground">
-            {isMicrosoft
-              ? 'From Azure Portal > App Registrations > Your App > Overview'
-              : 'From Google Cloud Console > APIs & Services > Credentials'}
+            {t(isMicrosoft ? 'provider-hint-client-id-microsoft' : 'provider-hint-client-id-google')}
           </p>
         </div>
 
-        {/* Authority (Microsoft only) */}
         {isMicrosoft && (
           <div className="gba:space-y-2">
-            <Label htmlFor={`${testId}-authority`}>Authority / Tenant</Label>
+            <Label htmlFor={`${testId}-authority`}>{t('provider-label-authority')}</Label>
             <Input
               id={`${testId}-authority`}
               value={authority}
               onChange={e => setAuthority(e.target.value)}
-              placeholder="organizations"
+              placeholder={t('provider-placeholder-authority')}
               data-testid={`${testId}-authority`}
             />
-            <p className="gba:text-xs gba:text-muted-foreground">
-              Use &quot;organizations&quot; for work/school accounts, &quot;common&quot; for all accounts, or a specific
-              tenant ID.
-            </p>
+            <p className="gba:text-xs gba:text-muted-foreground">{t('provider-hint-authority')}</p>
           </div>
         )}
 
-        {/* Client Secret */}
         <div className="gba:space-y-2">
-          <Label htmlFor={`${testId}-client-secret`}>Client Secret</Label>
+          <Label htmlFor={`${testId}-client-secret`}>{t('provider-label-client-secret')}</Label>
           <div className="gba:flex gba:gap-2">
             <div className="gba:flex-1 gba:relative">
               <Input
@@ -200,24 +194,26 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
                 onChange={e => setClientSecret(e.target.value)}
                 placeholder={
                   existingSettings?.hasClientSecret
-                    ? '(secret already configured — leave empty to keep)'
-                    : 'Enter client secret'
+                    ? t('provider-placeholder-client-secret-existing')
+                    : t('provider-placeholder-client-secret-empty')
                 }
                 data-testid={`${testId}-client-secret`}
               />
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setShowSecret(!showSecret)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowSecret(!showSecret)}
+              aria-label={t(showSecret ? 'common-hide-secret' : 'common-show-secret')}
+            >
               {showSecret ? <EyeOff className="gba:w-4 gba:h-4" /> : <Eye className="gba:w-4 gba:h-4" />}
             </Button>
           </div>
           <p className="gba:text-xs gba:text-muted-foreground">
-            {isMicrosoft
-              ? 'Required for background email sync (confidential app). From Azure Portal > Certificates & secrets.'
-              : 'Required for server-side token exchange. From Google Cloud Console > Credentials.'}
+            {t(isMicrosoft ? 'provider-hint-client-secret-microsoft' : 'provider-hint-client-secret-google')}
           </p>
         </div>
 
-        {/* Permissions */}
         <PermissionToggles
           provider={provider}
           scopes={scopes}
@@ -226,18 +222,16 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
           testId={testId}
         />
 
-        {/* Redirect URI (read-only display) */}
         <div className="gba:space-y-2">
-          <Label>Redirect URI (add this to your app registration)</Label>
+          <Label>{t('provider-label-redirect-uri')}</Label>
           <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:rounded-md gba:bg-muted gba:text-sm gba:font-mono gba:break-all">
             {redirectUri}
           </div>
         </div>
 
-        {/* Admin consent URL (Microsoft only) */}
         {isMicrosoft && adminConsentUrl && (
           <div className="gba:space-y-2">
-            <Label>Admin Consent URL</Label>
+            <Label>{t('provider-label-admin-consent-url')}</Label>
             <div className="gba:flex gba:gap-2">
               <Input value={adminConsentUrl} readOnly data-testid={`${testId}-admin-consent-url`} />
               <Button
@@ -246,6 +240,7 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
                 size="icon"
                 onClick={() => window.open(adminConsentUrl, '_blank', 'noopener,noreferrer')}
                 data-testid={`${testId}-admin-consent-open`}
+                aria-label={t('common-open-link')}
               >
                 <ExternalLink className="gba:w-4 gba:h-4" />
               </Button>
@@ -256,23 +251,21 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(adminConsentUrl)
-                    toast.success('Copied to clipboard')
+                    toast.success(t('common-copied-to-clipboard'))
                   } catch {
-                    // URL is visible for manual copy
+                    return
                   }
                 }}
                 data-testid={`${testId}-admin-consent-copy`}
+                aria-label={t('common-copy-link')}
               >
                 <Copy className="gba:w-4 gba:h-4" />
               </Button>
             </div>
-            <p className="gba:text-xs gba:text-muted-foreground">
-              If users see &quot;Need admin approval&quot;, open this link to grant consent for the configured scopes.
-            </p>
+            <p className="gba:text-xs gba:text-muted-foreground">{t('provider-hint-admin-consent')}</p>
           </div>
         )}
 
-        {/* Enable/Disable toggle */}
         <div className="gba:flex gba:items-center gba:gap-3">
           <input
             type="checkbox"
@@ -282,7 +275,7 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
             className="gba:w-4 gba:h-4"
             data-testid={`${testId}-enabled`}
           />
-          <Label htmlFor={`${testId}-enabled`}>Enable this provider for users</Label>
+          <Label htmlFor={`${testId}-enabled`}>{t('provider-label-enable-provider')}</Label>
         </div>
       </CardContent>
 
@@ -293,7 +286,7 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
           ) : (
             <Save className="gba:w-4 gba:h-4 gba:mr-2" />
           )}
-          Save {title} settings
+          {t('provider-button-save-settings', { providerName })}
         </Button>
       </CardFooter>
     </Card>

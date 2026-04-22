@@ -111,7 +111,7 @@ export const InvestmentProspectLayout: React.FC<InvestmentProspectLayoutProps> =
         name="investmentName"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Investment Name</FormLabel>
+            <FormLabel className="gba:text-foreground">Investment Name</FormLabel>
             <FormControl>
               <Input
                 placeholder="Enter investment name..."
@@ -131,7 +131,7 @@ export const InvestmentProspectLayout: React.FC<InvestmentProspectLayoutProps> =
         name="investmentTypeId"
         render={() => (
           <FormItem>
-            <FormLabel>Investment Group</FormLabel>
+            <FormLabel className="gba:text-foreground">Investment Group</FormLabel>
             <FormControl>
               <Select
                 value={baseTypeId || ''}

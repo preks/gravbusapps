@@ -9,7 +9,7 @@ type YjsSyncResponse =
   | { success: true; status: 'already_ready' }
   | { success: false; error: string }
 
-type YjsEntityType = 'document' | 'note' | 'slide'
+type YjsEntityType = 'document' | 'note' | 'slide' | 'whiteboard'
 
 type YjsSyncResponseEvent = {
   documentId: string
@@ -62,17 +62,20 @@ export interface SocketIoYjsProviderOptions {
   onSyncedChange?: (isSynced: boolean) => void
   onBootstrapRequired?: (html: string) => Promise<void> | void
   onReadyStateApplied?: (info: {
-    source: 'sync' | 'event' | 'remote-update'
+    source: 'sync' | 'event'
     status: 'ready' | 'already_ready'
     fragmentLength: number
-    fragmentContent: unknown
   }) => Promise<void> | void
   onLocalDocumentChange?: () => void
   onRemoteDocumentChange?: () => void
   onRemoteAwarenessChange?: () => void
   /** Resolve before first apply of doc/awareness state so the editor view can mount. */
   onBeforeFirstSync?: () => Promise<void>
+  /** Max wait for `yjs_sync_request` ack (large docs / busy main thread need more time). Default 60s. */
+  syncAckTimeoutMs?: number
 }
+
+const DEFAULT_YJS_SYNC_ACK_TIMEOUT_MS = 60_000
 
 /**
  * SocketIoYjsProvider
@@ -97,10 +100,9 @@ export class SocketIoYjsProvider {
   private onSyncedChange?: (isSynced: boolean) => void
   private onBootstrapRequired?: (html: string) => Promise<void> | void
   private readonly onReadyStateApplied?: (info: {
-    source: 'sync' | 'event' | 'remote-update'
+    source: 'sync' | 'event'
     status: 'ready' | 'already_ready'
     fragmentLength: number
-    fragmentContent: unknown
   }) => Promise<void> | void
   private onLocalDocumentChange?: () => void
   private onRemoteDocumentChange?: () => void
@@ -109,6 +111,14 @@ export class SocketIoYjsProvider {
   private hasWaitedForReady = false
 
   private retrySyncTimeout: number | null = null
+  private pendingLocalDocUpdates: Uint8Array[] = []
+  private pendingLocalAwarenessUpdates: Uint8Array[] = []
+  private pendingRemoteDocUpdates: Uint8Array[] = []
+  private remoteDocFlushTimerId: ReturnType<typeof setTimeout> | null = null
+  private pendingLocalDocFlush: Uint8Array[] = []
+  private localDocFlushTimerId: ReturnType<typeof setTimeout> | null = null
+  private isApplyingRemoteDocUpdate = false
+  private readonly syncAckTimeoutMs: number
 
   constructor(options: SocketIoYjsProviderOptions) {
     this.socket = options.socket
@@ -123,6 +133,10 @@ export class SocketIoYjsProvider {
     this.onRemoteDocumentChange = options.onRemoteDocumentChange
     this.onRemoteAwarenessChange = options.onRemoteAwarenessChange
     this.onBeforeFirstSync = options.onBeforeFirstSync
+    this.syncAckTimeoutMs =
+      typeof options.syncAckTimeoutMs === 'number' && options.syncAckTimeoutMs > 0
+        ? options.syncAckTimeoutMs
+        : DEFAULT_YJS_SYNC_ACK_TIMEOUT_MS
   }
 
   private async waitReadyIfNeeded(): Promise<void> {
@@ -155,6 +169,18 @@ export class SocketIoYjsProvider {
       window.clearTimeout(this.retrySyncTimeout)
       this.retrySyncTimeout = null
     }
+    if (this.remoteDocFlushTimerId !== null) {
+      clearTimeout(this.remoteDocFlushTimerId)
+      this.remoteDocFlushTimerId = null
+    }
+    if (this.localDocFlushTimerId !== null) {
+      clearTimeout(this.localDocFlushTimerId)
+      this.localDocFlushTimerId = null
+    }
+    this.pendingLocalDocUpdates = []
+    this.pendingLocalDocFlush = []
+    this.pendingLocalAwarenessUpdates = []
+    this.pendingRemoteDocUpdates = []
 
     this.socket.off('connect', this.handleSocketConnect)
     this.socket.off('yjs_update', this.handleRemoteYjsUpdate)
@@ -173,6 +199,44 @@ export class SocketIoYjsProvider {
     if (this.synced === next) return
     this.synced = next
     this.onSyncedChange?.(next)
+
+    if (!next) {
+      if (this.localDocFlushTimerId !== null) {
+        clearTimeout(this.localDocFlushTimerId)
+        this.localDocFlushTimerId = null
+      }
+      const buffered = this.pendingLocalDocFlush.splice(0)
+      if (buffered.length > 0) {
+        const merged = buffered.length === 1 ? buffered[0] : Y.mergeUpdates(buffered)
+        this.socket.emit('yjs_update', {
+          documentId: this.documentId,
+          entityType: this.entityType,
+          update: uint8ArrayToBase64(merged)
+        })
+      }
+      return
+    }
+
+    if (this.pendingLocalDocUpdates.length > 0) {
+      const updates = this.pendingLocalDocUpdates.splice(0)
+      updates.forEach(update => {
+        this.socket.emit('yjs_update', {
+          documentId: this.documentId,
+          entityType: this.entityType,
+          update: uint8ArrayToBase64(update)
+        })
+      })
+    }
+    if (this.pendingLocalAwarenessUpdates.length > 0) {
+      const updates = this.pendingLocalAwarenessUpdates.splice(0)
+      updates.forEach(update => {
+        this.socket.emit('yjs_awareness_update', {
+          documentId: this.documentId,
+          entityType: this.entityType,
+          update: uint8ArrayToBase64(update)
+        })
+      })
+    }
   }
 
   private triggerSync() {
@@ -200,7 +264,7 @@ export class SocketIoYjsProvider {
         this.socket,
         'yjs_sync_request',
         { documentId: this.documentId, entityType: this.entityType },
-        10000
+        this.syncAckTimeoutMs
       )
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
@@ -233,12 +297,12 @@ export class SocketIoYjsProvider {
     if (this.destroyed) return false
 
     if (response.status === 'ready') {
-      const applyResult = this.applyDocState(response.state)
+      const fragmentLength = this.applyDocState(response.state)
+      this.queueLocalDiffAfterFullSync(response.state)
       await this.onReadyStateApplied?.({
         source: 'sync',
         status: response.status,
-        fragmentLength: applyResult.fragmentLength,
-        fragmentContent: applyResult.fragmentContent
+        fragmentLength
       })
       const awarenessPayload = response.awareness
       if (awarenessPayload) {
@@ -254,10 +318,79 @@ export class SocketIoYjsProvider {
     return true
   }
 
+  /**
+   * After applying a full server snapshot, compute whatever the local ydoc has
+   * that the server state didn't know about (e.g. TipTap's initial empty paragraph,
+   * written to the ydoc before the provider listener was registered) and queue it
+   * for sending so other peers can resolve Yjs predecessor dependencies.
+   */
+  private queueLocalDiffAfterFullSync(serverStateBase64: string): void {
+    try {
+      const serverStateBytes = base64ToUint8Array(serverStateBase64)
+      const tempDoc = new Y.Doc()
+      Y.applyUpdate(tempDoc, serverStateBytes)
+      const serverSV = Y.encodeStateVector(tempDoc)
+      tempDoc.destroy()
+      const localDiff = Y.encodeStateAsUpdate(this.ydoc, serverSV)
+      if (localDiff.length > 2) {
+        this.pendingLocalDocUpdates.push(localDiff)
+      }
+    } catch (error) {
+      console.error('[SocketIoYjsProvider] queueLocalDiffAfterFullSync failed:', error)
+    }
+  }
+
+  private async flushLayoutAfterBootstrap(): Promise<void> {
+    await new Promise<void>(resolve => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => resolve())
+      })
+    })
+  }
+
+  /**
+   * TipTap Collaboration mirrors the document into Y.XmlFragment("default").
+   * Encoding the Y.Doc before that fragment is populated produces a persisted snapshot
+   * that reopens as a blank editor; wait until the fragment has at least one node.
+   */
+  private async waitForDefaultXmlFragment(maxWaitMs: number): Promise<boolean> {
+    const deadline = Date.now() + maxWaitMs
+    while (Date.now() < deadline) {
+      if (this.destroyed) return false
+      try {
+        if (this.ydoc.getXmlFragment('default').length > 0) {
+          return true
+        }
+      } catch {
+        // ignore — treat as not ready yet
+      }
+      await new Promise<void>(resolve => {
+        window.setTimeout(resolve, 40)
+      })
+    }
+    try {
+      return this.ydoc.getXmlFragment('default').length > 0
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Rich-text entities (document, note) bootstrap through TipTap's `default` XML fragment.
+   * Slides and whiteboards use Yjs arrays/maps only and never populate that fragment,
+   * so waiting for it would stall forever and block sync from completing.
+   */
+  private requiresDefaultXmlBootstrapGuard(): boolean {
+    return this.entityType === 'document' || this.entityType === 'note'
+  }
+
   private async handleBootstrapInitializer(
     response: Extract<YjsSyncResponse, { success: true; status: 'bootstrap'; role: 'initializer' }>
   ): Promise<boolean> {
     if (response.status !== 'bootstrap' || response.role !== 'initializer') return false
+
+    await this.waitReadyIfNeeded()
+    if (this.destroyed) return true
 
     try {
       await this.onBootstrapRequired?.(response.initialHtml)
@@ -268,6 +401,18 @@ export class SocketIoYjsProvider {
     }
 
     if (this.destroyed) return true
+
+    await this.flushLayoutAfterBootstrap()
+    if (this.requiresDefaultXmlBootstrapGuard()) {
+      const fragmentReady = await this.waitForDefaultXmlFragment(8000)
+      if (!fragmentReady) {
+        console.error(
+          '[SocketIoYjsProvider] Collaborative default fragment still empty after bootstrap; will retry sync instead of sending poisoned Yjs state'
+        )
+        this.scheduleSyncRetry()
+        return true
+      }
+    }
 
     const fullStateBase64 = uint8ArrayToBase64(Y.encodeStateAsUpdate(this.ydoc))
     const bootstrapResp = await emitWithAck<{ success: boolean; error?: string }>(
@@ -321,24 +466,20 @@ export class SocketIoYjsProvider {
     this.handleWaitingStatus(response as Extract<YjsSyncResponse, { success: true; status: 'waiting' }>)
   }
 
-  private applyDocState(stateBase64: string): { fragmentLength: number; fragmentContent: unknown } {
+  private applyDocState(stateBase64: string): number {
     try {
       const stateBytes = base64ToUint8Array(stateBase64)
-      Y.applyUpdate(this.ydoc, stateBytes, 'remote')
-      this.onRemoteDocumentChange?.()
-
-      const fragment = this.ydoc.getXmlFragment('default')
-      const fragmentContent = fragment.toJSON()
-      return {
-        fragmentLength: fragment.length,
-        fragmentContent
+      this.isApplyingRemoteDocUpdate = true
+      try {
+        Y.applyUpdate(this.ydoc, stateBytes)
+      } finally {
+        this.isApplyingRemoteDocUpdate = false
       }
+      this.onRemoteDocumentChange?.()
+      return this.ydoc.getXmlFragment('default').length
     } catch (error) {
       console.error('[SocketIoYjsProvider] Failed applying doc state:', error)
-      return {
-        fragmentLength: -1,
-        fragmentContent: null
-      }
+      return -1
     }
   }
 
@@ -360,18 +501,49 @@ export class SocketIoYjsProvider {
 
     void this.waitReadyIfNeeded().then(() => {
       if (this.destroyed) return
-      const applyResult = this.applyDocState(event.state)
+      const fragmentLength = this.applyDocState(event.state)
+      this.queueLocalDiffAfterFullSync(event.state)
       void this.onReadyStateApplied?.({
         source: 'event',
         status: 'ready',
-        fragmentLength: applyResult.fragmentLength,
-        fragmentContent: applyResult.fragmentContent
+        fragmentLength
       })
       if (event.awareness) {
         this.applyAwarenessState(event.awareness)
       }
       this.setSynced(true)
     })
+  }
+
+  private scheduleRemoteDocFlush() {
+    if (this.remoteDocFlushTimerId !== null) return
+    this.remoteDocFlushTimerId = setTimeout(() => {
+      this.remoteDocFlushTimerId = null
+      this.flushRemoteDocUpdates()
+    }, 50)
+  }
+
+  private flushRemoteDocUpdates() {
+    const updates = this.pendingRemoteDocUpdates.splice(0)
+    if (updates.length === 0) return
+    const merged = updates.length === 1 ? updates[0] : Y.mergeUpdates(updates)
+    this.isApplyingRemoteDocUpdate = true
+    try {
+      Y.applyUpdate(this.ydoc, merged)
+    } finally {
+      this.isApplyingRemoteDocUpdate = false
+    }
+    this.onRemoteDocumentChange?.()
+  }
+
+  private flushLocalDocUpdates = () => {
+    this.localDocFlushTimerId = null
+    if (this.destroyed || !this.synced) return
+    const updates = this.pendingLocalDocFlush.splice(0)
+    if (updates.length === 0) return
+    const merged = updates.length === 1 ? updates[0] : Y.mergeUpdates(updates)
+    const updateBase64 = uint8ArrayToBase64(merged)
+    this.socket.emit('yjs_update', { documentId: this.documentId, entityType: this.entityType, update: updateBase64 })
   }
 
   private readonly handleRemoteYjsUpdate = (event: {
@@ -385,13 +557,8 @@ export class SocketIoYjsProvider {
     if (eventEntityType !== this.entityType) return
     void this.waitReadyIfNeeded().then(() => {
       if (this.destroyed) return
-      const applyResult = this.applyDocState(event.update)
-      void this.onReadyStateApplied?.({
-        source: 'remote-update',
-        status: 'ready',
-        fragmentLength: applyResult.fragmentLength,
-        fragmentContent: applyResult.fragmentContent
-      })
+      this.pendingRemoteDocUpdates.push(base64ToUint8Array(event.update))
+      this.scheduleRemoteDocFlush()
     })
   }
 
@@ -406,13 +573,18 @@ export class SocketIoYjsProvider {
     })
   }
 
-  private handleLocalYjsUpdate = (_update: Uint8Array, origin: unknown) => {
+  private handleLocalYjsUpdate = (_update: Uint8Array) => {
     if (this.destroyed) return
-    if (!this.synced) return
-    if (origin === 'remote') return
+    if (this.isApplyingRemoteDocUpdate) return
 
-    const updateBase64 = uint8ArrayToBase64(_update)
-    this.socket.emit('yjs_update', { documentId: this.documentId, entityType: this.entityType, update: updateBase64 })
+    if (this.synced) {
+      this.pendingLocalDocFlush.push(_update)
+      if (this.localDocFlushTimerId === null) {
+        this.localDocFlushTimerId = setTimeout(this.flushLocalDocUpdates, 50)
+      }
+    } else {
+      this.pendingLocalDocUpdates.push(_update)
+    }
     this.onLocalDocumentChange?.()
   }
 
@@ -429,17 +601,20 @@ export class SocketIoYjsProvider {
     origin: unknown
   ) => {
     if (this.destroyed) return
-    if (!this.synced) return
     if (origin === 'remote') return
 
     const changed = [...added, ...updated, ...removed]
     if (changed.length === 0) return
 
     const update = encodeAwarenessUpdate(this.awareness, changed)
-    this.socket.emit('yjs_awareness_update', {
-      documentId: this.documentId,
-      entityType: this.entityType,
-      update: uint8ArrayToBase64(update)
-    })
+    if (this.synced) {
+      this.socket.emit('yjs_awareness_update', {
+        documentId: this.documentId,
+        entityType: this.entityType,
+        update: uint8ArrayToBase64(update)
+      })
+    } else {
+      this.pendingLocalAwarenessUpdates.push(update)
+    }
   }
 }

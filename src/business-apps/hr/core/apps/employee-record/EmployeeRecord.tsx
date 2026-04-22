@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useEmployeeData } from './hooks/useEmployeeData'
+import { useSilentRefetchOnProcessCompletion } from './hooks/useSilentRefetchOnProcessCompletion'
 import { useEmployeePermissions } from './hooks/useEmployeePermissions'
 import { useCompensationPermissions } from './components/tabs/compensation/hooks/useCompensationPermissions'
 import ProfileHeader, { ProfileHeaderActions } from './components/ProfileHeader'
@@ -202,7 +203,10 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
   const servicesFeatureFlag = useFeature('services.enabled')
   const attendanceFeatureFlag = useFeature('human-resources.attendance.enabled')
+  const hrAdminFeatureFlag = useFeature('human-resources.enabled')
+  const absencesFeatureFlag = useFeature('human-resources.absence.enabeld')
   const compensationFeatureFlagRaw = useFeature<boolean>(Feature.HCM.Compensation.Key)
+  const hrDevelopmentFeatureFlag = useFeature<boolean>(Feature.HCM.HRDevelopment.Key)
 
   // Handle undefined as true (enabled by default until FeatureHub loads)
   const compensationFeatureFlag = compensationFeatureFlagRaw !== false
@@ -234,30 +238,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     employeeIdToShow
   )
 
-  useEffect(() => {
-    const pendingRefetchTimers = new Set<number>()
-
-    const handleProcessCompletion = (event: Event) => {
-      const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
-      const resolution = customEvent.detail.resolution
-      if (resolution === 'success') {
-        // Use silent refetch — avoids the full-page loading spinner for background saves
-        silentRefetch()
-        const followUpRefetchTimer = window.setTimeout(() => {
-          pendingRefetchTimers.delete(followUpRefetchTimer)
-          silentRefetch()
-        }, 1200)
-        pendingRefetchTimers.add(followUpRefetchTimer)
-      }
-    }
-
-    globalThis.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
-
-    return () => {
-      pendingRefetchTimers.forEach(timerId => window.clearTimeout(timerId))
-      globalThis.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
-    }
-  }, [silentRefetch])
+  useSilentRefetchOnProcessCompletion(silentRefetch)
 
   // Use the hook to fetch employee work communications
   const { employee: employeeWithComms, loading: commsLoading } = useEmployeeWorkCommunications({
@@ -489,62 +470,70 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           </div>
         )
       },
-      {
-        value: TAB_KEYS.hrAdmin,
-        label: t('employee-record-tab-hr-admin'),
-        icon: <BriefcaseIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
-        content: (() => {
-          let hasHrNotesAccess = false
-          if (!scopePermissionLoading && !isSelfView) {
-            const hasRegularPermission = tabPermissions?.['hrNotes']?.hasAccess === true
-            const hasScope = hasNotesScopePermission === true
-            if (scopePermissionError && hasRegularPermission) {
-              hasHrNotesAccess = true
-            } else {
-              hasHrNotesAccess = hasRegularPermission && hasScope
-            }
-          }
-          if (isDirectManagerWithPermission) {
-            hasHrNotesAccess = true
-          }
+      ...(hrAdminFeatureFlag
+        ? [
+            {
+              value: TAB_KEYS.hrAdmin,
+              label: t('employee-record-tab-hr-admin'),
+              icon: <BriefcaseIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
+              content: (() => {
+                let hasHrNotesAccess = false
+                if (!scopePermissionLoading && !isSelfView) {
+                  const hasRegularPermission = tabPermissions?.['hrNotes']?.hasAccess === true
+                  const hasScope = hasNotesScopePermission === true
+                  if (scopePermissionError && hasRegularPermission) {
+                    hasHrNotesAccess = true
+                  } else {
+                    hasHrNotesAccess = hasRegularPermission && hasScope
+                  }
+                }
+                if (isDirectManagerWithPermission) {
+                  hasHrNotesAccess = true
+                }
 
-          return (
-            <div className="gba:col-span-full">
-              <HrAdminTab
-                employee={employee}
-                employeeId={employeeIdToShow}
-                accessToken={accessToken}
-                userInfo={userInfo}
-                isSelfView={isSelfView}
-                changeLogTabFeatureFlag={changeLogFeatureFlag as boolean}
-                hasHrNotesAccess={hasHrNotesAccess}
-                scopePermissionLoading={scopePermissionLoading || employeeRecordHrBackoffice.loading}
-                employeeRecordHrBackoffice={employeeRecordHrBackoffice}
-                additionalData={additionalData}
-              />
-            </div>
-          )
-        })()
-      },
-      {
-        value: TAB_KEYS.hrGrowth,
-        label: t('employee-record-tab-hr-growth'),
-        icon: <ChartBarIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
-        content: (
-          <div className="gba:col-span-full">
-            <HrGrowthTab
-              employee={employee}
-              employeeId={employeeIdToShow}
-              accessToken={accessToken}
-              userInfo={userInfo}
-              isSelfView={isSelfView}
-              devFeatureFlag={devFeatureFlag as boolean}
-              employeePerformanceGoals={performanceGoals}
-              feedback={feedback}
-            />
-          </div>
-        )
-      },
+                return (
+                  <div className="gba:col-span-full">
+                    <HrAdminTab
+                      employee={employee}
+                      employeeId={employeeIdToShow}
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      isSelfView={isSelfView}
+                      changeLogTabFeatureFlag={changeLogFeatureFlag as boolean}
+                      hasHrNotesAccess={hasHrNotesAccess}
+                      scopePermissionLoading={scopePermissionLoading || employeeRecordHrBackoffice.loading}
+                      employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+                      additionalData={additionalData}
+                    />
+                  </div>
+                )
+              })()
+            }
+          ]
+        : []),
+      ...(hrDevelopmentFeatureFlag
+        ? [
+            {
+              value: TAB_KEYS.hrGrowth,
+              label: t('employee-record-tab-hr-growth'),
+              icon: <ChartBarIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
+              content: (
+                <div className="gba:col-span-full">
+                  <HrGrowthTab
+                    employee={employee}
+                    employeeId={employeeIdToShow}
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    isSelfView={isSelfView}
+                    devFeatureFlag={devFeatureFlag as boolean}
+                    employeePerformanceGoals={performanceGoals}
+                    feedback={feedback}
+                  />
+                </div>
+              )
+            }
+          ]
+        : []),
       ...(compensationFeatureFlag
         ? [
             {
@@ -589,16 +578,25 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-      {
-        value: TAB_KEYS.absences,
-        label: t('employee-record-tab-absences'),
-        icon: <CalendarIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
-        content: (
-          <div className="gba:col-span-full">
-            <PersonalAbsences accessToken={accessToken} userInfo={userInfo} employeeIdOverride={employee.id} embedded />
-          </div>
-        )
-      },
+      ...(absencesFeatureFlag
+        ? [
+            {
+              value: TAB_KEYS.absences,
+              label: t('employee-record-tab-absences'),
+              icon: <CalendarIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
+              content: (
+                <div className="gba:col-span-full">
+                  <PersonalAbsences
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    employeeIdOverride={employee.id}
+                    embedded
+                  />
+                </div>
+              )
+            }
+          ]
+        : []),
       ...(assetsFeatureFlag
         ? [
             {

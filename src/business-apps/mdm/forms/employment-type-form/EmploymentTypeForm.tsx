@@ -16,10 +16,17 @@ import {
   EMPLOYMENT_TYPE_CATALOG,
   EMPLOYMENT_TYPE_VERSION
 } from '@/business-apps/hr/core/forms/job-position/hooks/useEmploymentTypes'
+import { useUserLocale } from '@/common/locale/useUserLocale'
 import { useCodeError } from '@/business-apps/mdm/hooks/useCodeError'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import translations from './_i18n'
+import {
+  mergeCatalogEntryForPut,
+  isEmploymentTypeMarkedDeleted,
+  upsertCatalogTranslationForLocale
+} from '@/business-apps/mdm/apps/employment-data/utils/catalogEntryMetadata'
+import type { CatalogEntry } from '@/common/types/CatalogTypes'
 
 const noLeadingWhitespace = (value: string) => value === value.trimStart()
 
@@ -66,6 +73,7 @@ export interface EmploymentTypeFormProps extends BusinessAppContextProps {
     value: string
     code: string
     description: string
+    additionalValue2?: string
   }
   onCancel?: () => void
   childAddButton: React.ReactNode
@@ -89,6 +97,7 @@ const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
   const dataTestId = formatDataTestId(prefixDataTestId, 'EmploymentTypeForm')
   const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
   const catalogClient = useCatalogManagerClient(accessToken)
+  const userLocale = useUserLocale() ?? 'en-US'
 
   const validationMsgs = useMemo(
     () => ({
@@ -119,27 +128,38 @@ const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
       description: data.description?.trim() || ''
     }
 
+    const codeForSave = employmentType?.code?.trim() || trimmedData.code
+
     if (!validateCode(trimmedData.code) && !employmentType) {
       return
     }
 
-    const payload = {
-      ...(employmentType ? { id: employmentType.id } : {}),
-      code: trimmedData.code,
-      value: trimmedData.value,
-      additionalValue1: trimmedData.description,
-      translations: []
-    }
-
     if (employmentType) {
+      const fresh = await catalogClient.getCatalogEntryById(employmentType.id)
+      const translations = upsertCatalogTranslationForLocale(fresh.translations, userLocale, {
+        value: trimmedData.value,
+        additionalValue1: trimmedData.description
+      })
+      const payload = mergeCatalogEntryForPut(fresh, {
+        value: trimmedData.value,
+        additionalValue1: trimmedData.description,
+        isDeleted: isEmploymentTypeMarkedDeleted(fresh),
+        translations
+      })
       await catalogClient.updateCatalogEntry(
         EMPLOYMENT_TYPE_CATALOG,
         EMPLOYMENT_TYPE_VERSION,
         employmentType.id ?? '',
-        payload
+        payload as Partial<Omit<CatalogEntry, 'id' | 'type'>>
       )
     } else {
-      await catalogClient.createCatalogEntry(EMPLOYMENT_TYPE_CATALOG, EMPLOYMENT_TYPE_VERSION, payload)
+      await catalogClient.createCatalogEntry(EMPLOYMENT_TYPE_CATALOG, EMPLOYMENT_TYPE_VERSION, {
+        code: codeForSave,
+        value: trimmedData.value,
+        additionalValue1: trimmedData.description,
+        isDeleted: false,
+        translations: []
+      } as Omit<CatalogEntry, 'id' | 'type'>)
     }
 
     refetch()

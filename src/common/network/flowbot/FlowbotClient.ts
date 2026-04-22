@@ -47,7 +47,8 @@ export interface EvalsDashboardQueryParams {
 export interface MapFromFileRequest {
   entity_type: string
   import_file: File
-  llm_model?: string
+  model_kind?: string
+  domain?: 'crm' | 'irm'
 }
 
 export interface MapFromFileResponse {
@@ -64,10 +65,20 @@ export interface MapFromFileResponse {
 
 export interface ExtractFromFileRequest {
   entity_type: string
+  domain?: 'crm' | 'irm'
   import_file: File
+  model_kind?: string
   mapping_json: string
   offset?: number
   max_rows?: number
+}
+
+export interface CsvQuality {
+  totalRows: number
+  shiftedRows: number
+  smartMergedRows: number
+  paddedRows: number
+  repairAvailable: boolean
 }
 
 export interface ExtractFromFileResponse {
@@ -83,7 +94,16 @@ export interface ExtractFromFileResponse {
   }>
   sourceFields: string[]
   unmappedSourceFields: string[]
+  csvQuality?: CsvQuality
 }
+
+function toFlowbotImportDomain(domain?: string): 'crm' | 'irm' | undefined {
+  if (domain === 'customer' || domain === 'crm') return 'crm'
+  if (domain === 'investment' || domain === 'irm') return 'irm'
+  return undefined
+}
+
+const FLOWBOT_IMPORT_MODEL_KIND_DEFAULT = 'default'
 
 export interface DocumentAutocompleteRequest {
   document_id?: string
@@ -168,15 +188,18 @@ export class FlowbotClient extends RestClient {
   public async mapFromFile(
     entityType: string,
     importFile: File,
-    llmModel?: string,
+    modelKind: string = FLOWBOT_IMPORT_MODEL_KIND_DEFAULT,
+    domain?: string,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<MapFromFileResponse> {
     const formData = new FormData()
     formData.append('entity_type', entityType)
-    formData.append('import_file', importFile)
-    if (llmModel) {
-      formData.append('llm_model', llmModel)
+    const flowbotDomain = toFlowbotImportDomain(domain)
+    if (flowbotDomain) {
+      formData.append('domain', flowbotDomain)
     }
+    formData.append('import_file', importFile)
+    formData.append('model_kind', modelKind)
 
     return this.post<MapFromFileResponse>('/flowbot/extraction/data/entities/map-from-file', formData, options)
   }
@@ -186,19 +209,28 @@ export class FlowbotClient extends RestClient {
     importFile: File,
     mappingJson: string,
     enforcedFieldsJson?: string,
+    domain?: string,
+    modelKind: string = FLOWBOT_IMPORT_MODEL_KIND_DEFAULT,
     offset: number = 0,
     maxRows: number = 5000,
+    repairCsv: 'auto' | 'hard' = 'auto',
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ExtractFromFileResponse> {
     const formData = new FormData()
     formData.append('entity_type', entityType)
+    const flowbotDomain = toFlowbotImportDomain(domain)
+    if (flowbotDomain) {
+      formData.append('domain', flowbotDomain)
+    }
     formData.append('import_file', importFile)
+    formData.append('model_kind', modelKind)
     formData.append('mapping_json', mappingJson)
     if (enforcedFieldsJson) {
       formData.append('enforced_fields_json', enforcedFieldsJson)
     }
     formData.append('offset', offset.toString())
     formData.append('max_rows', maxRows.toString())
+    formData.append('repair_csv', repairCsv)
 
     return this.post<ExtractFromFileResponse>('/flowbot/extraction/data/entities/extract-from-file', formData, options)
   }

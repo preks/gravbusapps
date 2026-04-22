@@ -2,17 +2,19 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import type { ConversationTurn, OutputItem, FileMeta, CurrentPageContext } from '../types/models'
 import { getCurrentPageContext } from '../utils/pageContext'
+import { getDefaultSkillsForPage } from '../utils/pageSkills'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { env } from '@/common/env/EnvUtils'
 
 const STORAGE_KEY = 'newwork_every_ai'
-const LLM_MODEL = 'gpt-4.1'
+const FLOWBOT_MODEL_KIND_DEFAULT = 'default'
 const SUBMITTING_FORM_MESSAGE = 'Submitting form data...'
 const PRECHAT_CACHE_PREFIX = 'everyai_prechat_cache'
 const PRECHAT_CACHE_TTL_MS = 10 * 60 * 1000
 const PRECHAT_MIN_REFETCH_MS = 3000
-const PRECHAT_LLM_MODEL = LLM_MODEL
+const PRECHAT_MODEL_KIND = FLOWBOT_MODEL_KIND_DEFAULT
 const DOCUMENT_REALTIME_EDIT_INTENT_PATTERN =
   /\b(edit|rewrite|revise|improve|fix|update|rephrase|shorten|expand|draft|polish|refine)\b/i
 const DOCUMENT_UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i
@@ -41,7 +43,9 @@ function buildPrechatContextKey(context: CurrentPageContext): string {
 }
 
 function getPrechatStorageKey(cacheKey: string): string {
-  return `${PRECHAT_CACHE_PREFIX}:${cacheKey}`
+  const realm = getCurrentRealm()
+  const prefix = realm ? `${PRECHAT_CACHE_PREFIX}:${realm}` : PRECHAT_CACHE_PREFIX
+  return `${prefix}:${cacheKey}`
 }
 
 function readPrechatCache(cacheKey: string): PrechatCacheEntry | null {
@@ -79,7 +83,18 @@ function isPrechatCacheFresh(entry: PrechatCacheEntry): boolean {
 type ConversationState = {
   conversation: ConversationTurn[]
   sessionId: string | null
+  /** Oldest message id currently loaded into `conversation` (cursor for Load more). */
+  oldestMessageId: number | null
+  /** Whether the server reports more (older) messages exist beyond the loaded window. */
+  hasMoreHistory: boolean
 }
+
+/**
+ * Default number of messages loaded per page when restoring a session or
+ * paginating older history. Matches the backend's
+ * `DEFAULT_SESSION_HISTORY_LIMIT` (~10 user + 10 assistant messages).
+ */
+export const SESSION_HISTORY_PAGE_SIZE = 20
 
 type UseFlowBotOptions = {
   isActive?: boolean
@@ -212,10 +227,19 @@ function processSSEFrame(
   }
 }
 
+function getCurrentRealm(): string | undefined {
+  try {
+    return env('NEXT_PUBLIC_OIDC_REALM') || undefined
+  } catch {
+    return undefined
+  }
+}
+
 function saveState(state: ConversationState) {
   if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessionId: state.sessionId }))
+      const realm = getCurrentRealm()
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessionId: state.sessionId, realm }))
       if (state.sessionId) {
         console.log('[FlowBot] Saved session to localStorage:', state.sessionId)
       }
@@ -261,6 +285,14 @@ function getInitialSessionId(): string | null {
       return null
     }
     const parsed = JSON.parse(raw)
+
+    const currentRealm = getCurrentRealm()
+    if (currentRealm && parsed.realm && parsed.realm !== currentRealm) {
+      console.log('[FlowBot] Stored session belongs to different tenant, discarding')
+      localStorage.removeItem(STORAGE_KEY)
+      return null
+    }
+
     const sessionId = parsed.sessionId || null
     if (isValidSessionId(sessionId)) {
       console.log('[FlowBot] Restored session from localStorage:', sessionId)
@@ -277,17 +309,42 @@ function getInitialSessionId(): string | null {
 
 function loadState(): ConversationState {
   const sessionId = getInitialSessionId()
-  return { conversation: [], sessionId }
+  return { conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false }
 }
 
-async function loadHistory(accessToken: string, sessionId: string | null): Promise<ConversationState> {
+type LoadHistoryOptions = {
+  /** Maximum messages to return. Defaults to `SESSION_HISTORY_PAGE_SIZE`. */
+  limit?: number
+  /** Cursor — return messages with id strictly less than `beforeId` (older page). */
+  beforeId?: number | null
+}
+
+/**
+ * Fetch a paginated window of conversation history from Flowbot.
+ *
+ * The first call for a session returns the most recent `limit` messages
+ * along with `hasMoreHistory` / `oldestMessageId` metadata. Subsequent calls
+ * can pass `beforeId` = the previous `oldestMessageId` to load older pages.
+ */
+async function loadHistory(
+  accessToken: string,
+  sessionId: string | null,
+  options: LoadHistoryOptions = {}
+): Promise<ConversationState> {
   if (!isValidSessionId(sessionId)) {
-    return { conversation: [], sessionId: null }
+    return { conversation: [], sessionId: null, oldestMessageId: null, hasMoreHistory: false }
   }
+
+  const limit = options.limit ?? SESSION_HISTORY_PAGE_SIZE
+  const beforeId = options.beforeId ?? null
 
   try {
     const baseUrl = resolveFlowbotBaseUrl()
-    const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sessionId}/history`, {
+    const params = new URLSearchParams({ limit: String(limit) })
+    if (beforeId !== null && Number.isFinite(beforeId)) {
+      params.set('before_id', String(beforeId))
+    }
+    const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sessionId}/history?${params.toString()}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -300,12 +357,12 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
       if (res.status === 404) {
         console.warn('Session not found on server, clearing invalid session:', sessionId)
         clearInvalidSession()
-        return { conversation: [], sessionId: null }
+        return { conversation: [], sessionId: null, oldestMessageId: null, hasMoreHistory: false }
       }
       if (res.status === 401 || res.status === 403) {
         console.warn('Session unauthorized, clearing invalid session:', sessionId)
         clearInvalidSession()
-        return { conversation: [], sessionId: null }
+        return { conversation: [], sessionId: null, oldestMessageId: null, hasMoreHistory: false }
       }
       throw new Error(`${res.status} ${res.statusText}`)
     }
@@ -313,10 +370,14 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
     const payload = await res.json()
 
     const backendConversation: any[] = Array.isArray(payload?.conversation) ? payload.conversation : []
+    const hasMoreHistory = Boolean(payload?.hasMore)
+    const payloadOldestId = typeof payload?.oldestMessageId === 'number' ? payload.oldestMessageId : null
 
     const historyState: ConversationState = {
       conversation: [],
-      sessionId
+      sessionId,
+      oldestMessageId: payloadOldestId,
+      hasMoreHistory
     }
 
     // Process conversation history
@@ -409,7 +470,7 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
     return historyState
   } catch (error) {
     console.error('Failed to load FlowBot history:', error)
-    return { conversation: [], sessionId }
+    return { conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false }
   }
 }
 
@@ -424,15 +485,19 @@ export interface FlowBotSession {
   shortInfo?: string
 }
 
-const CHAT_LIST_LIMIT = 50
+const CHAT_LIST_LIMIT = 15
 
 /**
- * Fetch chat list from FlowBot: GET /flowbot/chat/user/chats?limit=...
+ * Fetch chat list from FlowBot: GET /flowbot/chat/user/chats?limit=...&offset=...
  */
-async function fetchChatListFromApi(accessToken: string, limit: number = CHAT_LIST_LIMIT): Promise<FlowBotSession[]> {
+export async function fetchChatListFromApi(
+  accessToken: string,
+  limit: number = CHAT_LIST_LIMIT,
+  offset: number = 0
+): Promise<FlowBotSession[]> {
   try {
     const baseUrl = resolveFlowbotBaseUrl()
-    const url = `${baseUrl}/flowbot/chat/user/chats?limit=${limit}`
+    const url = `${baseUrl}/flowbot/chat/user/chats?limit=${limit}&offset=${offset}`
 
     const res = await fetch(url, {
       method: 'GET',
@@ -476,7 +541,7 @@ async function getAllFlowBotSessions(accessToken: string): Promise<FlowBotSessio
 /**
  * Delete a chat session on the server: DELETE /flowbot/chat/sessions/:sessionId
  */
-async function deleteChatSession(sessionId: string, accessToken: string): Promise<void> {
+export async function deleteChatSession(sessionId: string, accessToken: string): Promise<void> {
   try {
     const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/chat/sessions/${sessionId}`
@@ -498,7 +563,8 @@ async function deleteChatSession(sessionId: string, accessToken: string): Promis
 }
 
 /**
- * Save user message to the server for persistence using the existing /chat/messages endpoint
+ * Save user message to the server for persistence using the existing /chat/messages endpoint.
+ * Content is stored as structured JSON so history restores with full fidelity.
  */
 async function saveUserMessage(
   sessionId: string,
@@ -513,20 +579,28 @@ async function saveUserMessage(
     const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/chat/messages`
 
-    // Prepare content with mentions and files info if present
-    let content = userInputText
-    if (mentions && mentions.length > 0) {
-      content += `\n\n[Mentions: ${mentions.map(m => m.display).join(', ')}]`
+    const fileMetas = files.map(f => ({
+      id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
+      name: f.name,
+      size: f.size,
+      type: f.type
+    }))
+
+    const content: Record<string, any> = {
+      type: 'user_input',
+      text: userInputText,
+      files: fileMetas
     }
-    if (files && files.length > 0) {
-      content += `\n\n[Files: ${files.map(f => f.name).join(', ')}]`
+
+    if (mentions && mentions.length > 0) {
+      content.mentions = mentions
     }
 
     const requestBody = {
       session_id: sessionId,
       role: 'user',
-      content: content,
-      short_info: '' // Let the backend auto-generate from content
+      content,
+      short_info: ''
     }
 
     const res = await fetch(url, {
@@ -549,44 +623,21 @@ async function saveUserMessage(
 }
 
 /**
- * Save agent response to the server for persistence using the existing /chat/messages endpoint
+ * Save agent response to the server for persistence using the existing /chat/messages endpoint.
+ * Stores the full OutputItem[] as JSONB so rich content (scatter plots, tables, entities)
+ * is preserved and can be faithfully restored from chat history.
  */
 async function saveAgentMessage(sessionId: string, outputs: OutputItem[], accessToken: string): Promise<void> {
   try {
     const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/chat/messages`
 
-    // Convert outputs to readable content
-    let content = ''
-    for (const output of outputs) {
-      if (output.type === 'answer' && output.displayData) {
-        for (const data of output.displayData) {
-          if (data.type === 'textBlock') {
-            content += data.text + '\n\n'
-          } else if (data.type === 'table') {
-            content += `[Table: ${data.title || 'Data Table'}]\n`
-          } else if (data.type === 'entity') {
-            content += `[Entity: ${data.entity} - ${data.id}]\n`
-          } else {
-            content += `[${data.type}]\n`
-          }
-        }
-      } else if (output.type === 'flow_proposal') {
-        content += `[Flow Proposal: ${output.flow_name || 'Unknown'}]\n`
-      } else if (output.type !== 'tool' && output.type !== 'loading') {
-        content += `[${output.type}]\n`
-      }
-    }
-
-    // If no readable content, create a summary
-    if (!content.trim()) {
-      content = `[Agent Response: ${outputs.length} output(s)]`
-    }
+    const persistableOutputs = outputs.filter(o => o.type !== 'tool' && o.type !== 'loading')
 
     const requestBody = {
       session_id: sessionId,
       role: 'assistant',
-      content: content.trim(),
+      content: persistableOutputs,
       short_info: ''
     }
 
@@ -747,9 +798,11 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
 
   const [state, setState] = useState<ConversationState>(loadState)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const sessionIdRef = useRef<string | null>(null)
   const lastFetchedSessionIdRef = useRef<string | null>(null)
+  const isLoadingMoreHistoryRef = useRef(false)
   const [prechatSuggestions, setPrechatSuggestions] = useState<string[]>([])
   const [isPrechatLoading, setIsPrechatLoading] = useState(false)
   const isPrechatLoadingRef = useRef(false)
@@ -770,6 +823,13 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   const abortControllerRef = useRef<AbortController | null>(null)
   const [cancelledMessageText, setCancelledMessageText] = useState<string | null>(null)
   const currentAgentOutputsRef = useRef<OutputItem[]>([])
+
+  const activePageSkills = useMemo(() => getDefaultSkillsForPage(currentPageContext), [currentPageContext])
+  const [pageSkillsEnabled, setPageSkillsEnabled] = useState(true)
+
+  const togglePageSkills = useCallback((enabled: boolean) => {
+    setPageSkillsEnabled(enabled)
+  }, [])
 
   const analyticsEntity = useMemo(() => resolveAnalyticsEntity(currentPageContext), [currentPageContext])
   const analyticsHookEntity = useMemo<AnalyticsEntityInput>(
@@ -968,7 +1028,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           ) {
             console.warn('Clearing problematic session due to persistent error')
             clearInvalidSession()
-            setState({ conversation: [], sessionId: null })
+            setState({ conversation: [], sessionId: null, oldestMessageId: null, hasMoreHistory: false })
           }
         }
       } finally {
@@ -1036,15 +1096,17 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         // Always send session_id as string (empty if null) to match terminal client behavior
         form.append('session_id', effectiveSessionId || '')
         form.append('user_input_text', userInputText)
-        form.append('llm_model', isThinking ? 'o4-mini' : LLM_MODEL)
+        form.append('model_kind', FLOWBOT_MODEL_KIND_DEFAULT)
         form.append('use_web_search_tool', (isSearching ?? false).toString())
         // Append when explicitly provided (including empty string) so callers can
         // force inclusion of the multipart field for document-edit flows.
         if (additionInfo !== undefined) {
           form.append('addition_info', additionInfo)
         }
-        if (skills !== undefined) {
-          skills.forEach(skill => {
+        const effectiveSkills =
+          skills ?? (pageSkillsEnabled && activePageSkills.length > 0 ? activePageSkills : undefined)
+        if (effectiveSkills !== undefined) {
+          effectiveSkills.forEach(skill => {
             form.append('skills', skill)
           })
         }
@@ -1060,7 +1122,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         const baseUrl = resolveFlowbotBaseUrl()
         const realtimeDocumentId = resolveRealtimeDocumentId({
           userInputText,
-          currentPagePayload,
+          currentPagePayload: currentPagePayload as RealtimeDocumentContext,
           hasFiles: files.length > 0,
           isThinking,
           isSearching
@@ -1224,7 +1286,9 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       appendOutputItemToLastAgentTurn,
       pruneEphemeralOutputsFromLastAgentTurn,
       updateSessionId,
-      buildCurrentPageContextPayload
+      buildCurrentPageContextPayload,
+      pageSkillsEnabled,
+      activePageSkills
     ]
   )
 
@@ -1358,7 +1422,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     if (!isActiveRef.current) return
     if (state.conversation.length > 0 || isPrechatLoadingRef.current) return
 
-    const cacheKey = `${PRECHAT_LLM_MODEL}:${prechatContextKey}`
+    const cacheKey = `${PRECHAT_MODEL_KIND}:${prechatContextKey}`
     const cachedEntry = readPrechatCache(cacheKey)
     if (cachedEntry?.suggestions?.length) {
       setPrechatSuggestions(cachedEntry.suggestions.slice(0, 4))
@@ -1425,7 +1489,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         currentPage: baseCurrentPage
       })
       form.append('current_page_context', JSON.stringify(prechatContext))
-      form.append('llm_model', PRECHAT_LLM_MODEL)
+      form.append('model_kind', PRECHAT_MODEL_KIND)
 
       const baseUrl = resolveFlowbotBaseUrl()
       const res = await fetch(`${baseUrl}/flowbot/api/agent/prechat-suggestions`, {
@@ -1484,7 +1548,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   }, [accessToken, currentPageContext, prechatContextKey, state.conversation.length, waitForIdle])
 
   const clearConversation = useCallback(() => {
-    setState({ conversation: [], sessionId: null })
+    setState({ conversation: [], sessionId: null, oldestMessageId: null, hasMoreHistory: false })
     resetAnalytics()
     if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY)
     setPrechatSuggestions([])
@@ -1576,7 +1640,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   /** Load a chat session by id: persist sessionId and fetch conversation from flowbot */
   const loadSession = useCallback(
     async (sessionId: string) => {
-      saveState({ conversation: [], sessionId })
+      saveState({ conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false })
       sessionIdRef.current = sessionId
       lastFetchedSessionIdRef.current = sessionId
       setIsLoading(true)
@@ -1586,13 +1650,56 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         lastFetchedSessionIdRef.current = history.sessionId ?? null
       } catch (error) {
         console.error('[FlowBot] Failed to load session:', error)
-        setState({ conversation: [], sessionId })
+        setState({ conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false })
       } finally {
         setIsLoading(false)
       }
     },
     [accessToken]
   )
+
+  /**
+   * Load the previous (older) page of messages for the current session and
+   * prepend them to the conversation. Used by the "Load more" affordance at
+   * the top of the chat transcript.
+   *
+   * Returns the number of turns that were prepended so callers can preserve
+   * scroll position across the layout shift.
+   */
+  const loadMoreHistory = useCallback(async (): Promise<number> => {
+    if (isLoadingMoreHistoryRef.current) return 0
+    const activeSessionId = sessionIdRef.current ?? state.sessionId
+    if (!isValidSessionId(activeSessionId)) return 0
+    if (!state.hasMoreHistory) return 0
+    if (state.oldestMessageId === null || state.oldestMessageId === undefined) return 0
+
+    isLoadingMoreHistoryRef.current = true
+    setIsLoadingMoreHistory(true)
+    try {
+      const older = await loadHistory(accessToken, activeSessionId, {
+        beforeId: state.oldestMessageId
+      })
+      const prependedCount = older.conversation.length
+      if (prependedCount === 0 && !older.hasMoreHistory) {
+        setState(prev => ({ ...prev, hasMoreHistory: false }))
+        return 0
+      }
+
+      setState(prev => ({
+        ...prev,
+        conversation: [...older.conversation, ...prev.conversation],
+        oldestMessageId: older.oldestMessageId ?? prev.oldestMessageId,
+        hasMoreHistory: older.hasMoreHistory
+      }))
+      return prependedCount
+    } catch (error) {
+      console.error('[FlowBot] Failed to load older history:', error)
+      return 0
+    } finally {
+      isLoadingMoreHistoryRef.current = false
+      setIsLoadingMoreHistory(false)
+    }
+  }, [accessToken, state.sessionId, state.hasMoreHistory, state.oldestMessageId])
 
   const getAllSessions = useCallback(async () => {
     return getAllFlowBotSessions(accessToken)
@@ -1622,6 +1729,12 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     clearCancelledMessage,
     getAllSessions,
     deleteSession,
-    loadSession
+    loadSession,
+    loadMoreHistory,
+    hasMoreHistory: state.hasMoreHistory,
+    isLoadingMoreHistory,
+    pageSkillsEnabled,
+    togglePageSkills,
+    activePageSkills
   }
 }

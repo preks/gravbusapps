@@ -1,12 +1,21 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Button, Textarea, Popover, PopoverContent, PopoverTrigger, useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
-import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt, Camera, At, UserCircle } from '@phosphor-icons/react'
+import {
+  PlusIcon,
+  PaperclipIcon,
+  GlobeIcon,
+  PaperPlaneTiltIcon,
+  CameraIcon,
+  AtIcon,
+  UserCircleIcon,
+  LightningIcon
+} from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
 import { VoiceModeButton } from './voice/VoiceModeButton'
 import { useEntityMentions, type EntityReference } from '@/common/hooks/useEntityMentions'
 import { EntityMentionPopover } from '@/common/components/entity-mentions'
-import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
+import { DocumentApiService } from '@/business-apps/core/office/apps/documents/services/DocumentApiService'
 
 // Detect if running on a mobile device with camera capabilities
 function useIsMobileWithCamera(): boolean {
@@ -83,6 +92,56 @@ interface ChatInputProps {
   compactSuggestions?: boolean
   /** Callback to open the user preferences modal */
   onOpenPreferences?: () => void
+  /** Whether page-context skills are active */
+  pageSkillsEnabled?: boolean
+  /** Callback to toggle page-context skills on/off */
+  onTogglePageSkills?: (enabled: boolean) => void
+  /** Skill names currently resolved from the page context */
+  activePageSkills?: string[]
+}
+
+interface StandardMenuOptionProps {
+  onClick: () => void
+  darkMode: boolean
+  goldRgb: string
+  disabled?: boolean
+  label: React.ReactNode
+  icon: React.ReactNode
+  badge?: React.ReactNode
+}
+
+function StandardMenuOption({
+  onClick,
+  darkMode,
+  goldRgb,
+  disabled,
+  label,
+  icon,
+  badge
+}: StandardMenuOptionProps): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`gba:group/option gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-xl gba:px-3 gba:py-2.5 gba:text-left gba:text-sm gba:transition-all gba:duration-200 ${darkMode ? 'gba:text-white/90 hover:gba:bg-white/10' : 'gba:text-foreground'}`}
+      onMouseEnter={e => {
+        if (!darkMode) (e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
+      }}
+      onMouseLeave={e => {
+        if (!darkMode) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+      }}
+      disabled={disabled}
+    >
+      <div
+        className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
+        style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
+      >
+        {icon}
+      </div>
+      <span className="gba:font-medium">{label}</span>
+      {badge}
+    </button>
+  )
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -107,7 +166,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   accessToken = '',
   darkMode = false,
   compactSuggestions = false,
-  onOpenPreferences
+  onOpenPreferences,
+  pageSkillsEnabled = false,
+  onTogglePageSkills,
+  activePageSkills = []
 }) => {
   const { t } = useTranslation(translations)
   const effectivePlaceholder = placeholder ?? t('chat-input-placeholder')
@@ -128,11 +190,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     async (query: string): Promise<EntityReference[]> => {
       if (!accessToken) return []
       DocumentApiService.setAccessToken(accessToken)
-      const docs = await DocumentApiService.listDocuments({
+      const response = await DocumentApiService.listDocuments({
         search: query || undefined,
         limit: 5,
         includeShared: true
       })
+      const docs = response.items ?? []
       const lowerQuery = query.toLowerCase()
       return docs
         .filter(doc => !query || (doc.title || '').toLowerCase().includes(lowerQuery))
@@ -262,7 +325,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const getContentEditableCaretPosition = useCallback((): number => {
     if (!contentEditableRef.current) return value.length
-    const selection = window.getSelection()
+    const selection = globalThis.getSelection()
     if (!selection?.rangeCount) return value.length
 
     const range = selection.getRangeAt(0)
@@ -336,7 +399,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       setTimeout(() => {
         if (contentEditableRef.current) {
           contentEditableRef.current.focus()
-          const selection = window.getSelection()
+          const selection = globalThis.getSelection()
           if (selection) {
             const range = document.createRange()
             range.selectNodeContents(contentEditableRef.current)
@@ -393,7 +456,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLDivElement>) => {
       if (e.key === 'Backspace' && selectedEntities.length > 0 && contentEditableRef.current) {
-        const selection = window.getSelection()
+        const selection = globalThis.getSelection()
         const range = selection?.rangeCount ? selection.getRangeAt(0) : null
         if (range) {
           const container = range.startContainer
@@ -614,6 +677,37 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             </div>
           )}
 
+          {/* Page Skills toggle pill */}
+          {activePageSkills.length > 0 && onTogglePageSkills && (
+            <div className="gba:flex gba:items-center gba:gap-1.5">
+              <button
+                type="button"
+                className={`gba:flex gba:items-center gba:justify-center gba:gap-1.5 gba:h-7 gba:rounded-full gba:text-[11px] gba:font-semibold gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none ${
+                  pageSkillsEnabled
+                    ? darkMode
+                      ? 'gba:px-2.5 gba:bg-white/20 gba:text-white gba:border gba:border-white/25'
+                      : 'gba:px-2.5 gba:bg-primary/15 gba:text-primary'
+                    : darkMode
+                      ? 'gba:w-7 gba:bg-white/10 gba:text-white/50 hover:gba:bg-white/20'
+                      : 'gba:w-7 gba:bg-muted gba:text-muted-foreground hover:gba:bg-accent'
+                }`}
+                onClick={() => onTogglePageSkills(!pageSkillsEnabled)}
+                title={
+                  pageSkillsEnabled
+                    ? `Page Skills active: ${activePageSkills.join(', ')}. Click to use general assistant.`
+                    : 'Enable page-context skills for faster, focused replies'
+                }
+                data-testid="page-skills-toggle"
+              >
+                <LightningIcon
+                  className="gba:h-3.5 gba:w-3.5 gba:flex-shrink-0"
+                  weight={pageSkillsEnabled ? 'fill' : 'regular'}
+                />
+                {pageSkillsEnabled && <span>Page Skills</span>}
+              </button>
+            </div>
+          )}
+
           {/* Premium File Chips with golden styling */}
           {files.length > 0 && (
             <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="uploaded-files">
@@ -680,22 +774,42 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="gba:h-10 gba:w-10 gba:rounded-full gba:transition-all gba:duration-300 gba:flex-shrink-0 gba:border-0"
+                      className="gba:relative gba:h-10 gba:w-10 gba:rounded-full gba:transition-all gba:duration-300 gba:flex-shrink-0 gba:border-0"
                       style={{
                         background:
                           isSearching || files.length > 0
                             ? `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`
-                            : darkMode
-                              ? 'rgba(255,255,255,0.1)'
-                              : 'rgba(0,0,0,0.04)',
-                        color: isSearching || files.length > 0 ? 'white' : darkMode ? 'rgba(255,255,255,0.7)' : '#666',
-                        boxShadow: isSearching || files.length > 0 ? `0 2px 12px rgba(${goldRgb}, 0.3)` : 'none'
+                            : pageSkillsEnabled
+                              ? darkMode
+                                ? 'hsl(var(--primary) / 0.25)'
+                                : 'hsl(var(--primary) / 0.12)'
+                              : darkMode
+                                ? 'rgba(255,255,255,0.1)'
+                                : 'rgba(0,0,0,0.04)',
+                        color:
+                          isSearching || files.length > 0
+                            ? 'white'
+                            : pageSkillsEnabled
+                              ? 'hsl(var(--primary))'
+                              : darkMode
+                                ? 'rgba(255,255,255,0.7)'
+                                : '#666',
+                        boxShadow:
+                          isSearching || files.length > 0
+                            ? `0 2px 12px rgba(${goldRgb}, 0.3)`
+                            : pageSkillsEnabled
+                              ? '0 0 0 2px hsl(var(--primary) / 0.35)'
+                              : 'none'
                       }}
                       aria-label="More options"
-                      title="More options"
+                      title={pageSkillsEnabled ? `Page Skills active: ${activePageSkills.join(', ')}` : 'More options'}
                       disabled={disabled}
                     >
-                      <Plus className="gba:h-5 gba:w-5" weight="bold" />
+                      {pageSkillsEnabled ? (
+                        <LightningIcon className="gba:h-5 gba:w-5" weight="fill" />
+                      ) : (
+                        <PlusIcon className="gba:h-5 gba:w-5" weight="bold" />
+                      )}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent
@@ -713,70 +827,52 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   >
                     <div className="gba:flex gba:flex-col gba:gap-1">
                       {/* Attach File */}
-                      <button
+                      <StandardMenuOption
                         onClick={() => fileInputRef.current?.click()}
-                        className={`gba:group/option gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-xl gba:px-3 gba:py-2.5 gba:text-left gba:text-sm gba:transition-all gba:duration-200 ${darkMode ? 'gba:text-white/90 hover:gba:bg-white/10' : 'gba:text-foreground'}`}
-                        onMouseEnter={e => {
-                          if (!darkMode)
-                            (e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
-                        }}
-                        onMouseLeave={e => {
-                          if (!darkMode) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
-                        }}
+                        darkMode={darkMode}
+                        goldRgb={goldRgb}
                         disabled={disabled}
-                      >
-                        <div
-                          className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
-                          style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
-                        >
-                          <Paperclip
+                        icon={
+                          <PaperclipIcon
                             className="gba:h-4 gba:w-4"
                             style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
                             weight="bold"
                           />
-                        </div>
-                        <span className="gba:font-medium">{t('chat-menu-attach-file')}</span>
-                        {files.length > 0 && (
-                          <span
-                            className="gba:ml-auto gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-semibold"
-                            style={{
-                              background: darkMode
-                                ? 'rgba(96, 165, 250, 0.3)'
-                                : `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`,
-                              color: darkMode ? 'white' : 'var(--nw-ai-foreground)'
-                            }}
-                          >
-                            {files.length}
-                          </span>
-                        )}
-                      </button>
+                        }
+                        label={t('chat-menu-attach-file')}
+                        badge={
+                          files.length > 0 ? (
+                            <span
+                              className="gba:ml-auto gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-semibold"
+                              style={{
+                                background: darkMode
+                                  ? 'rgba(96, 165, 250, 0.3)'
+                                  : `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`,
+                                color: darkMode ? 'white' : 'var(--nw-ai-foreground)'
+                              }}
+                            >
+                              {files.length}
+                            </span>
+                          ) : null
+                        }
+                      />
 
                       {/* Take Photo - only on mobile with camera */}
                       {isMobileWithCamera && (
-                        <button
+                        <StandardMenuOption
                           onClick={() => cameraInputRef.current?.click()}
-                          className={`gba:group/option gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-xl gba:px-3 gba:py-2.5 gba:text-left gba:text-sm gba:transition-all gba:duration-200 ${darkMode ? 'gba:text-white/90 hover:gba:bg-white/10' : 'gba:text-foreground'}`}
-                          onMouseEnter={e => {
-                            if (!darkMode)
-                              (e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
-                          }}
-                          onMouseLeave={e => {
-                            if (!darkMode) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
-                          }}
+                          darkMode={darkMode}
+                          goldRgb={goldRgb}
                           disabled={disabled}
-                        >
-                          <div
-                            className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
-                            style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
-                          >
-                            <Camera
+                          icon={
+                            <CameraIcon
                               className="gba:h-4 gba:w-4"
                               style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
                               weight="bold"
                             />
-                          </div>
-                          <span className="gba:font-medium">{t('chat-menu-take-photo')}</span>
-                        </button>
+                          }
+                          label={t('chat-menu-take-photo')}
+                        />
                       )}
 
                       {/* Mention Entity */}
@@ -810,7 +906,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                           className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
                           style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
                         >
-                          <At
+                          <AtIcon
                             className="gba:h-4 gba:w-4"
                             style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
                             weight="bold"
@@ -852,7 +948,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                                 : `rgba(${goldRgb}, 0.12)`
                           }}
                         >
-                          <Globe
+                          <GlobeIcon
                             className="gba:h-4 gba:w-4"
                             style={{
                               color: isSearching
@@ -872,36 +968,86 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         )}
                       </button>
 
+                      {/* Page Skills Toggle */}
+                      {activePageSkills.length > 0 && onTogglePageSkills && (
+                        <button
+                          onClick={() => onTogglePageSkills(!pageSkillsEnabled)}
+                          className={`gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:transition-all gba:duration-200 gba:w-full gba:text-left ${darkMode && !pageSkillsEnabled ? 'gba:text-white/90 hover:gba:bg-white/10' : ''}`}
+                          style={{
+                            background: pageSkillsEnabled ? 'hsl(var(--primary) / 0.1)' : 'transparent',
+                            color: pageSkillsEnabled
+                              ? 'hsl(var(--primary))'
+                              : darkMode
+                                ? undefined
+                                : 'var(--nw-foreground)'
+                          }}
+                          onMouseEnter={e => {
+                            if (!pageSkillsEnabled && !darkMode) {
+                              ;(e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
+                            }
+                          }}
+                          onMouseLeave={e => {
+                            if (!pageSkillsEnabled && !darkMode) {
+                              ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                            }
+                          }}
+                          disabled={disabled}
+                          data-testid="page-skills-toggle"
+                        >
+                          <div
+                            className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
+                            style={{
+                              background: pageSkillsEnabled
+                                ? 'hsl(var(--primary) / 0.2)'
+                                : darkMode
+                                  ? 'rgba(96, 165, 250, 0.2)'
+                                  : `rgba(${goldRgb}, 0.12)`
+                            }}
+                          >
+                            <LightningIcon
+                              className="gba:h-4 gba:w-4"
+                              style={{
+                                color: pageSkillsEnabled
+                                  ? 'hsl(var(--primary))'
+                                  : darkMode
+                                    ? 'rgb(147, 197, 253)'
+                                    : `rgb(${goldRgb})`
+                              }}
+                              weight={pageSkillsEnabled ? 'fill' : 'bold'}
+                            />
+                          </div>
+                          <span className="gba:font-medium">Page Skills</span>
+                          {pageSkillsEnabled && (
+                            <span
+                              className="gba:ml-auto gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-semibold"
+                              style={{
+                                background: 'hsl(var(--primary) / 0.2)',
+                                color: 'hsl(var(--primary))'
+                              }}
+                            >
+                              ON
+                            </span>
+                          )}
+                        </button>
+                      )}
+
                       {/* My Preferences */}
-                      <button
+                      <StandardMenuOption
                         onClick={() => {
                           onOpenPreferences?.()
                         }}
-                        className={`gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:transition-all gba:duration-200 gba:w-full gba:text-left ${darkMode ? 'gba:text-white/90 hover:gba:bg-white/10' : 'gba:text-foreground'}`}
-                        onMouseEnter={e => {
-                          if (!darkMode) {
-                            ;(e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
-                          }
-                        }}
-                        onMouseLeave={e => {
-                          if (!darkMode) {
-                            ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
-                          }
-                        }}
+                        darkMode={darkMode}
+                        goldRgb={goldRgb}
                         disabled={disabled}
-                      >
-                        <div
-                          className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
-                          style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
-                        >
-                          <UserCircle
+                        icon={
+                          <UserCircleIcon
                             className="gba:h-4 gba:w-4"
                             style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
                             weight="bold"
                           />
-                        </div>
-                        <span className="gba:font-medium">{t('chat-menu-my-preferences')}</span>
-                      </button>
+                        }
+                        label={t('chat-menu-my-preferences')}
+                      />
 
                       {/* Divider */}
                       <div
@@ -913,8 +1059,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         }}
                       />
 
-                      {/* Clear Conversation */}
-                      <button
+                      {/* New Chat */}
+                      <StandardMenuOption
                         onClick={() => {
                           setValue('')
                           clearFiles()
@@ -922,14 +1068,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                           onClear()
                           focusTextarea()
                         }}
-                        className="gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:text-destructive gba:transition-all gba:duration-200 gba:w-full gba:text-left hover:gba:bg-destructive/10"
+                        darkMode={darkMode}
+                        goldRgb={goldRgb}
                         disabled={disabled}
-                      >
-                        <div className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:bg-destructive/10 gba:flex gba:items-center gba:justify-center gba:transition-all">
-                          <Trash className="gba:h-4 gba:w-4 gba:text-destructive" weight="bold" />
-                        </div>
-                        <span className="gba:font-medium">{t('chat-menu-clear-chat')}</span>
-                      </button>
+                        icon={
+                          <PlusIcon
+                            className="gba:h-4 gba:w-4"
+                            style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
+                            weight="bold"
+                          />
+                        }
+                        label={t('chat-menu-new-chat')}
+                      />
                     </div>
                   </PopoverContent>
                 </Popover>
@@ -1022,7 +1172,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       transform: !disabled && (value.trim() || files.length > 0) ? 'scale(1)' : 'scale(0.95)'
                     }}
                   >
-                    <PaperPlaneTilt className="gba:h-5 gba:w-5" weight="fill" />
+                    <PaperPlaneTiltIcon className="gba:h-5 gba:w-5" weight="fill" />
                   </Button>
                 </div>
               </div>

@@ -7,6 +7,7 @@ import { startProcess } from '@/common/utils/start-process'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 import { ExpenseData } from '../../../../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getErrorMessage } from '../../../../utils/errorUtils'
 import translations from '../../../../_i18n'
 
 export const useExpenseRequestActions = (props: Readonly<BusinessAppContextProps>) => {
@@ -38,8 +39,8 @@ export const useExpenseRequestActions = (props: Readonly<BusinessAppContextProps
         link.click()
         document.body.removeChild(link)
         window.URL.revokeObjectURL(url)
-      } catch {
-        console.error('Error downloading accounting note:', error)
+      } catch (error) {
+        console.error('Error downloading accounting note:', getErrorMessage(error))
       }
     },
     [restClient, props.accessToken]
@@ -88,7 +89,7 @@ export const useExpenseRequestActions = (props: Readonly<BusinessAppContextProps
     const trimmedValue = value.trim()
     // Replace all decimal numbers: digits followed by period followed by digits
     // This handles cases like 57.50, 123.45, -10.00, 307.5
-    return trimmedValue.replaceAll(/(\d)\.(\d)/g, '$1,$2')
+    return trimmedValue.replace(/(\d)\.(\d)/g, '$1,$2')
   }
 
   const handleTriggerCSV = useCallback(
@@ -105,8 +106,8 @@ export const useExpenseRequestActions = (props: Readonly<BusinessAppContextProps
 
         // Show success toast
         showToast(t('csv-trigger-success'), 'success')
-      } catch {
-        console.error('Failed to trigger CSV process:', error)
+      } catch (error) {
+        console.error('Failed to trigger CSV process:', getErrorMessage(error))
 
         // Show error toast
         showToast(t('csv-trigger-error'), 'error')

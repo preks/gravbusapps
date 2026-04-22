@@ -9,9 +9,19 @@ actions = Acțiuni
 today = Astăzi
 holiday = Zi liberă
 manual_entry = Introducere manuală
+absence-request-option-sick = Concediu medical
+absence-request-option-special = Concediu special
+absence-request-option-vacation = Concediu de odihna
+absence-request-option-work = Concediu de munca
 
 # Day Type column (attendance page only; absences use catalog translations)
 time_tracking_day_type_weekend = Weekend
 time_tracking_day_type_not_working = Nu este zi lucrătoare
 time_tracking_day_type_work_day = Zi lucrătoare
 manual_entry = Introducere manuală
+
+# Attendance status badges
+status_in_progress = În curs
+status_completed = Finalizat
+status_incomplete = Incomplet
+status_under_review = În verificare

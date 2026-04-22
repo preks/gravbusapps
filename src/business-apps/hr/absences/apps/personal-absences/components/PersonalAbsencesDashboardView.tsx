@@ -1,28 +1,20 @@
-import {
-  PageLayout,
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@newwork/nw-design-system'
-import { CalendarBlankIcon, CaretDownIcon, PlusIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { PageLayout, Button, useTranslation } from '@newwork/nw-design-system'
+import { CalendarBlankIcon, PlusIcon } from '@phosphor-icons/react'
 import { BalanceCard } from './BalanceCard'
 import { UpcomingAbsencesCard } from './UpcomingAbsencesCard'
 import { PendingRequestsCard } from './PendingRequestsCard'
 import { AbsenceHistoryCard } from './AbsenceHistoryCard'
+import { AbsenceRequestMenuButton } from './AbsenceRequestMenuButton'
+import translations from '../_i18n'
 
 type TFunction = (key: string) => string
 
 interface PersonalAbsencesDashboardViewProps {
   onShowCalendar: () => void
-  absenceGroups: any[]
-  getAbsenceGroupDisplayValue: (group: any) => string
-  onCreateAbsence: (absenceType: string) => void
+  employeeId?: string
   isLoading: boolean
-  displayEntitlements: { type: string; used: number; total: number }[]
-  otherEntitlements: { type: string; used: number; total: number }[]
+  displayEntitlements: { type: string; used: number; total: number; labelMode?: 'with-total' | 'approved-only' }[]
+  otherEntitlements: { type: string; used: number; total: number; labelMode?: 'with-total' | 'approved-only' }[]
   ytdAbsentDays: number
   ytdTotalWorkingDays: number
   wellnessInsight: string | null
@@ -52,9 +44,7 @@ interface PersonalAbsencesDashboardViewProps {
 
 export function PersonalAbsencesDashboardView({
   onShowCalendar,
-  absenceGroups,
-  getAbsenceGroupDisplayValue,
-  onCreateAbsence,
+  employeeId,
   isLoading,
   displayEntitlements,
   otherEntitlements,
@@ -84,9 +74,7 @@ export function PersonalAbsencesDashboardView({
   canAddEntitlements = false,
   onAddEntitlement
 }: Readonly<PersonalAbsencesDashboardViewProps>) {
-  const handleCreateAbsence = (absenceType: string) => {
-    onCreateAbsence(absenceType)
-  }
+  const { t: tLocal } = useTranslation(translations)
 
   const content = (
     <div className="gba:p-4 gba:space-y-6 gba:max-w-[1400px] gba:mx-auto">
@@ -96,34 +84,20 @@ export function PersonalAbsencesDashboardView({
           {canAddEntitlements && (
             <Button variant="outline" onClick={onAddEntitlement}>
               <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')}
+              {tLocal('change-entitlement')}
             </Button>
           )}
           <Button variant="outline" onClick={onShowCalendar}>
             <CalendarBlankIcon className="gba:w-4 gba:h-4 gba:mr-2" />
             {t('calendar')}
           </Button>
-          {absenceGroups.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="default"
-                  className="gba:w-auto gba:bg-primary gba:text-primary-foreground gba:hover:bg-primary/90"
-                >
-                  <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('request-absence')}
-                  <CaretDownIcon className="gba:w-4 gba:h-4 gba:ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {absenceGroups.map(group => (
-                  <DropdownMenuItem key={group.id} onClick={() => handleCreateAbsence(group.id)}>
-                    {getAbsenceGroupDisplayValue(group)}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <AbsenceRequestMenuButton
+            employeeId={employeeId}
+            label={t('request-absence')}
+            buttonTestId="personal-absence-request-button"
+            menuTestIdPrefix="personal-absence-request"
+            className="gba:w-auto gba:bg-primary gba:text-primary-foreground gba:hover:bg-primary/90"
+          />
         </div>
       </div>
 

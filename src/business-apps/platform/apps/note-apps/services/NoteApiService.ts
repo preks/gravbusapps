@@ -137,6 +137,9 @@ function mapApiNoteToNote(apiNote: Record<string, unknown>): Note {
     title: apiNote.title as string | undefined,
     content: apiNote.content as string | undefined,
     contentJson: apiNote.contentJson as Record<string, unknown> | undefined,
+    noteType:
+      (apiNote.noteType as string | undefined) ||
+      ((apiNote.contentJson as Record<string, unknown> | undefined)?._noteType as string | undefined),
     tags: apiNote.tags as string[] | undefined,
     color: apiNote.color as Note['color'],
     icon: apiNote.icon as string | undefined,
@@ -146,9 +149,11 @@ function mapApiNoteToNote(apiNote: Record<string, unknown>): Note {
     position: (apiNote.position as number) || 0,
     settings: apiNote.settings as Note['settings'],
     ownerId: apiNote.ownerId as string,
+    spaceId: (apiNote.spaceId as string | null | undefined) ?? null,
     currentVersion: (apiNote.currentVersion as number) || 1,
     createdAt: apiNote.createdAt as string,
     updatedAt: apiNote.updatedAt as string,
+    trashedAt: (apiNote.trashedAt as string | null | undefined) ?? null,
     children: apiNote.children ? (apiNote.children as Record<string, unknown>[]).map(mapApiNoteToNote) : undefined,
     permission,
     isShared: apiNote.isShared as boolean | undefined,
@@ -189,8 +194,10 @@ function mapApiNoteToSummary(apiNote: Record<string, unknown>): NoteSummary {
     parentId: apiNote.parentId as string | undefined,
     position: (apiNote.position as number) || 0,
     ownerId: apiNote.ownerId as string,
+    spaceId: (apiNote.spaceId as string | null | undefined) ?? null,
     createdAt: apiNote.createdAt as string,
     updatedAt: apiNote.updatedAt as string,
+    trashedAt: (apiNote.trashedAt as string | null | undefined) ?? null,
     hasChildren: Array.isArray(apiNote.children) && (apiNote.children as unknown[]).length > 0,
     childCount: Array.isArray(apiNote.children) ? (apiNote.children as unknown[]).length : 0,
     isShared: apiNote.isShared as boolean | undefined,
@@ -300,6 +307,20 @@ export const NoteApiService = {
     } catch (error) {
       console.error('Failed to get note:', error)
       return null
+    }
+  },
+
+  /**
+   * Get a single note by ID for opening, including trashed readonly access.
+   */
+  async getNoteForOpenById(id: string): Promise<Note | null> {
+    try {
+      debugLog('getNoteForOpenById', id)
+      const note = await apiRequest<Record<string, unknown>>(`/notes/${id}/trashed-preview`)
+      return mapApiNoteToNote(note)
+    } catch (error) {
+      debugLog('getNoteForOpenById fallback to getNote', error)
+      return NoteApiService.getNote(id)
     }
   },
 

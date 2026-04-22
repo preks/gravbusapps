@@ -1,3 +1,31 @@
 export { UserManagementClient, userManagementClient } from './UserManagementClient'
 export { useUserManagementClient } from './useUserManagementClient'
-export type { User, UserGroup, GetUsersResponse, GetUsersParams, PagingInfo } from './types'
+export type {
+  User,
+  UserGroup,
+  GetUsersResponse,
+  GetUsersParams,
+  PagingInfo,
+  CreateUserPayload,
+  UpdateUserPayload,
+  UpsertPasswordPayload,
+  ActivateUserPayload,
+  UserProfilePayload,
+  GroupRecord,
+  GetGroupsParams,
+  GetGroupsResponse,
+  CreateGroupPayload,
+  UpdateGroupPayload,
+  CreateSubGroupPayload,
+  GroupMember,
+  GetGroupMembersResponse,
+  GetGroupRolesResponse,
+  GetGroupChildrenResponse,
+  RoleRecord,
+  GetRolesParams,
+  GetRolesResponse,
+  CreateRolePayload,
+  UpdateRolePayload,
+  GetUserRolesResponse,
+  GetCompositeRolesResponse
+} from './types'

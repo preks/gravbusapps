@@ -3,12 +3,14 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   GET_PERFORMANCE_CYCLES,
   type GetPerformanceCyclesResponse,
-  type PerformanceCycleApi
+  type PerformanceCycleApi,
+  type PerformanceCycleParticipantApi,
+  type PerformanceCycleCompanyValueApi
 } from '../queries/performanceCycleQueries'
 
-export type FrequencyType = 'Annual' | 'Quarterly' | 'Custom'
+export type FrequencyType = 'Annual' | 'Quarterly' | 'Monthly'
 export type ParticipantType = 'Self' | 'Peer' | 'Manager'
-export type CycleStatus = 'Active' | 'Upcoming' | 'Inactive'
+export type CycleStatus = 'Active' | 'Upcoming' | 'Inactive' | 'Completed' | 'In Progress'
 
 export interface EvaluationStage {
   id: string
@@ -55,7 +57,7 @@ function apiParticipantToUi(apiParticipant: string | null): ParticipantType | nu
 function apiFrequencyToUi(apiFrequency: string | null): FrequencyType {
   const freq = String(apiFrequency || '').toUpperCase()
   if (freq.includes('QUARTERLY')) return 'Quarterly'
-  if (freq.includes('CUSTOM')) return 'Custom'
+  if (freq.includes('CUSTOM')) return 'Monthly'
   return 'Annual'
 }
 
@@ -69,30 +71,22 @@ function formatDateOnly(isoOrTimestamp: string | null): string {
   return `${y}-${m}-${day}`
 }
 
-/** Map API status to UI CycleStatus. Check recordState, then status, then dates. */
+/** Map API status to UI CycleStatus using DB completed flag + evaluation period dates. */
 function apiStatusToUiStatus(
   apiStatus: string | null,
-  recordState: string | null,
-  startDate: string,
-  endDate: string,
-  active: boolean | null
+  evaluationPeriodStartDate: string | undefined,
+  evaluationPeriodEndDate: string | undefined
 ): CycleStatus {
-  // Check recordState first - inactive/deleted cycles are always Inactive
-  if (recordState && recordState.toLowerCase() !== 'active') return 'Inactive'
+  if (apiStatus === 'COMPLETED_PERFORMANCE_CYCLE_STATUS') return 'Completed'
+  if (apiStatus === 'ACTIVE_PERFORMANCE_CYCLE_STATUS') return 'In Progress'
 
-  // Check explicit status - map status enum to UI status
-  if (apiStatus === 'ACTIVE_PERFORMANCE_CYCLE_STATUS') return 'Active'
-  if (apiStatus === 'DRAFT_PERFORMANCE_CYCLE_STATUS') return 'Active'
-  if (apiStatus === 'DEACTIVATED_PERFORMANCE_CYCLE_STATUS') return 'Inactive'
-  if (apiStatus === 'COMPLETED_PERFORMANCE_CYCLE_STATUS') return 'Inactive'
-  if (active === false) return 'Inactive'
+  if (evaluationPeriodStartDate && evaluationPeriodEndDate) {
+    const today = new Date()
+    const start = new Date(evaluationPeriodStartDate)
+    const end = new Date(evaluationPeriodEndDate)
+    if (today >= start && today <= end) return 'Active'
+  }
 
-  // For other statuses, use date-based determination
-  const today = new Date()
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  if (today < start) return 'Upcoming'
-  if (today >= start && today <= end) return 'Active'
   return 'Inactive'
 }
 
@@ -103,13 +97,16 @@ function mapApiCycleToUi(api: PerformanceCycleApi): PerformanceCycleFromApi {
     .filter(p => p.enabled === true)
     .map(p => apiParticipantToUi(p.participantType))
     .filter((p): p is ParticipantType => p !== null)
-  const active = true
-  const status = apiStatusToUiStatus(api.status, api.recordState, startDate, endDate, active)
   const valueIds = (api.performanceCycleCompanyValue ?? [])
     .map(pc => pc.companyValueId)
     .filter((id): id is string => id != null && id !== '')
   const evaluationPeriodStartDate = formatDateOnly(api.evaluationPeriodStartDate ?? '')
   const evaluationPeriodEndDate = formatDateOnly(api.evaluationPeriodEndDate ?? '')
+  const status = apiStatusToUiStatus(
+    api.status,
+    evaluationPeriodStartDate || undefined,
+    evaluationPeriodEndDate || undefined
+  )
   return {
     id: api.id,
     version: api.version ?? 0,
@@ -123,7 +120,7 @@ function mapApiCycleToUi(api: PerformanceCycleApi): PerformanceCycleFromApi {
     stages: [],
     status,
     apiStatus: api.status ?? undefined,
-    deactivated: status === 'Inactive',
+    deactivated: status === 'Inactive' || status === 'Completed' || status === 'In Progress',
     recordState: api.recordState ?? undefined,
     ratingScaleId: api.ratingScaleId ?? undefined,
     valueIds,

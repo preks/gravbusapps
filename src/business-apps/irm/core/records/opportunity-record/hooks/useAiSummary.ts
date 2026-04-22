@@ -7,6 +7,7 @@ import {
   useGetInvestmentTasksByOpportunityId
 } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
+import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
 
 const taskDescription = `You are an investment deal assistant analyzing an investment opportunity.
 
@@ -40,9 +41,7 @@ export function useAiSummary(
   const generateInputData = useCallback(async () => {
     // get activity data
     const activityResult = await fetchInvestmentActivitiesByOpportunityId(opportunityId)
-    const sortedActivities = (activityResult || []).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
+    const sortedActivities = sortActivitiesByOccurredAtDesc(activityResult || [])
 
     // get notes data
     const notesResult = await fetchInvestmentNotesByOpportunityId(opportunityId)

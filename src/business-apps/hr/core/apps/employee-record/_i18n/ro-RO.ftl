@@ -290,7 +290,7 @@ error-end-date-after-start-date = Data de încheiere trebuie să fie în sau dup
 notification-address-updated-success = Actualizările adresei sunt finalizate
 notification-bank-account-updated-success = Actualizările contului bancar sunt finalizate.
 notification-personal-data-updated-success = Actualizările datelor personale au fost trimise spre aprobare departamentului HR.
-notification-communication-updated-success = Actualizările detaliilor de comunicare au fost trimise spre aprobare departamentului HR.
+notification-communication-updated-success = Detaliile de comunicare au fost actualizate. HR a fost notificat.
 notification-profile-picture-updated-success = Actualizările fotografiei de profil au fost trimise spre aprobare departamentului HR.
 notification-relationship-updated-success = Actualizările statutului relației au fost trimise spre aprobare departamentului HR.
 notification-expense-created-success = Cheltuiala a fost creată cu succes
@@ -298,6 +298,7 @@ notification-sick-leave-reported-success = Concediul medical a fost raportat cu 
 notification-special-leave-requested-success = Concediul special a fost solicitat cu succes
 notification-vacation-requested-success = Concediul de odihnă a fost solicitat cu succes
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
+notification-communication-deleted-success = Înregistrarea de comunicare a fost ștearsă cu succes.
 
 # Employee Record - Errors and states
 employee-record-error-title = Eroare
@@ -325,6 +326,11 @@ employee-record-tab-hr-growth = Dezvoltare HR
 hr-growth-skills = Competențe
 hr-growth-feedback = Hub Feedback
 hr-growth-performance = Obiective
+
+# My Development (self-service screen — same content as HR Development tab)
+my-development-page-title = Dezvoltarea mea
+my-development-page-description = Competențe, feedback, obiective și performanță — aceeași experiență ca Dezvoltare HR din Profilul meu.
+my-development-unavailable = Zona de dezvoltare nu a putut fi încărcată. Încearcă din nou mai târziu.
 
 # Feedback Hub (sub-pagină sub Dezvoltare HR)
 feedback-hub-title = Hub Feedback
@@ -546,6 +552,7 @@ add-skill-form-attach-verification-message-prefix = Încarcă un document pentru
 add-skill-form-attach-verification-message-suffix = .
 add-skill-form-update-level-for-prefix = Actualizează nivelul pentru competența 
 add-skill-form-attach-verification-upload-label = Încarcă document
+add-skill-form-loading-verification-document = Se încarcă documentul...
 add-skill-form-document-group = Categorie document
 add-skill-form-document-type = Tip document
 add-skill-form-select-document-group = Selectează categoria document
@@ -731,6 +738,11 @@ details-private-communication = Comunicare privată
 details-emergency-contact = Contact de urgență
 details-additional-attributes = Atribute suplimentare
 details-no-emergency-contact = Nu sunt disponibile informații despre contactul de urgență
+details-communication-no-entries = Nu există înregistrări de comunicare
+details-communication-add = Adaugă comunicare
+delete-communication-confirm-title = Șterge înregistrarea de comunicare
+delete-communication-confirm-description = Sigur doriți să ștergeți această înregistrare de comunicare? Această acțiune nu poate fi anulată.
+delete-communication-confirm-button = Șterge
 details-label-salutation = Salutare
 details-label-academic-titles = Titluri academice
 details-label-first-name = Prenume
@@ -754,6 +766,17 @@ details-label-private-mobile = Mobil privat
 details-label-private-email = E-mail privat
 details-label-contact-name = Nume contact
 details-label-phone-number = Număr telefon
+
+# Relationships Card
+details-relationships = Relații
+details-relationships-no-entries = Nu există relații înregistrate
+details-relationships-emergency = Contact de urgență
+details-label-relationship-type = Tip
+details-label-relationship-birth-date = Data nașterii
+details-label-relationship-email = E-mail
+delete-relationship-confirm-title = Șterge relația
+delete-relationship-confirm-description = Sigur doriți să ștergeți această relație? Această acțiune nu poate fi anulată.
+delete-relationship-confirm-button = Șterge
 
 # Employment Tab
 employment-overview = Date angajare
@@ -885,3 +908,6 @@ service-requests-status-canceled = Anulat
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
 change-personal-data-pending-message = Departamentul HR examinează în prezent actualizările recente. Veți putea efectua modificări suplimentare imediat ce cererea va fi aprobată.
 change-personal-data-pending-ok = OK
+
+# Change Address - Loading
+change-address-loading-form = Se încarcă formularul de adresă...

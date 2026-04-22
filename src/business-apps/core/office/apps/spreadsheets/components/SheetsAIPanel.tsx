@@ -1,12 +1,14 @@
 import React, { memo, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Button, Tabs, TabsContent, TabsList, TabsTrigger, Badge } from '@newwork/nw-design-system'
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger, Badge, useTranslation } from '@newwork/nw-design-system'
 import { Sparkles, X, AlertTriangle, Clipboard, Wand2, RefreshCw, ClipboardCheck } from 'lucide-react'
 import type { SpreadsheetColumn } from '../types'
 import { useSheetsAIFormula } from '../hooks/useSheetsAIFormula'
 import { useSheetsAIAnalyze } from '../hooks/useSheetsAIAnalyze'
 import { useSheetsAIReview } from '../hooks/useSheetsAIReview'
 import { useSpreadsheetAnalyticsAI } from '../hooks/useSpreadsheetAnalyticsAI'
+import { useSpreadsheetPromptManagerClient } from '../hooks/useSpreadsheetPromptManagerClient'
+import translations from '../_i18n'
 
 export interface SheetsAIPanelProps {
   isOpen: boolean
@@ -60,22 +62,24 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
   getSheetDataFromGrid,
   'data-testid': testId = 'sheets-ai-panel'
 }) {
+  const { t } = useTranslation(translations)
+  const spreadsheetPromptClient = useSpreadsheetPromptManagerClient(accessToken)
   const [activeTab, setActiveTab] = useState('formula')
   const showTabs = initialTab === 'analyze' || initialTab === 'review' || initialTab === 'insights'
   const panelTitle = useMemo(() => {
     switch (activeTab) {
       case 'formula':
-        return 'Generate a formula'
+        return t('sheets-ai-title-formula')
       case 'analyze':
-        return 'Analyze data'
+        return t('sheets-ai-title-analyze')
       case 'review':
-        return 'Smart review'
+        return t('sheets-ai-title-review')
       case 'insights':
-        return 'AI insights'
+        return t('sheets-ai-title-insights')
       default:
-        return 'Sheets AI'
+        return t('sheets-ai-title-default')
     }
-  }, [activeTab])
+  }, [activeTab, t])
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialTab)
@@ -127,25 +131,25 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
   }, [columnsForAI, normalizedRows])
 
   const formula = useSheetsAIFormula({
-    accessToken,
+    promptClient: spreadsheetPromptClient,
     columns: aiContext.columns,
     sheetData: aiContext.rows,
     onApplyFormula
   })
   const analyze = useSheetsAIAnalyze({
-    accessToken,
+    promptClient: spreadsheetPromptClient,
     sheetName,
     columns: aiContext.columns,
     sheetData: aiContext.rows
   })
   const review = useSheetsAIReview({
-    accessToken,
+    promptClient: spreadsheetPromptClient,
     sheetName,
     columns: aiContext.columns,
     sheetData: aiContext.rows
   })
   const { insights, insightsError, isLoadingInsights, generateInsights } = useSpreadsheetAnalyticsAI({
-    accessToken,
+    promptClient: spreadsheetPromptClient,
     sheetName,
     columns: aiContext.columns,
     sheetData: aiContext.rows
@@ -220,7 +224,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
               <div>
                 <h2 className="gba:font-semibold gba:text-sm">{panelTitle}</h2>
                 <p className="gba:text-xs gba:text-muted-foreground">
-                  {normalizedRows.length} rows x {columns.length} cols
+                  {t('analytics-rows-cols', { rows: normalizedRows.length, cols: columns.length })}
                 </p>
               </div>
             </div>
@@ -242,19 +246,19 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                     value="analyze"
                     className="gba:flex-1 gba:rounded-lg gba:px-3 gba:py-1.5 gba:text-sm gba:font-medium gba:transition-all data-[state=active]:gba:bg-background data-[state=active]:gba:text-foreground data-[state=active]:gba:shadow-sm data-[state=inactive]:gba:text-muted-foreground data-[state=inactive]:hover:gba:text-foreground data-[state=inactive]:hover:gba:bg-background/50"
                   >
-                    Analyze
+                    {t('sheets-ai-tab-analyze')}
                   </TabsTrigger>
                   <TabsTrigger
                     value="review"
                     className="gba:flex-1 gba:rounded-lg gba:px-3 gba:py-1.5 gba:text-sm gba:font-medium gba:transition-all data-[state=active]:gba:bg-background data-[state=active]:gba:text-foreground data-[state=active]:gba:shadow-sm data-[state=inactive]:gba:text-muted-foreground data-[state=inactive]:hover:gba:text-foreground data-[state=inactive]:hover:gba:bg-background/50"
                   >
-                    Review
+                    {t('sheets-ai-tab-review')}
                   </TabsTrigger>
                   <TabsTrigger
                     value="insights"
                     className="gba:flex-1 gba:rounded-lg gba:px-3 gba:py-1.5 gba:text-sm gba:font-medium gba:transition-all data-[state=active]:gba:bg-background data-[state=active]:gba:text-foreground data-[state=active]:gba:shadow-sm data-[state=inactive]:gba:text-muted-foreground data-[state=inactive]:hover:gba:text-foreground data-[state=inactive]:hover:gba:bg-background/50"
                   >
-                    Insights
+                    {t('sheets-ai-tab-insights')}
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -262,18 +266,18 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
 
             <div className="gba:flex-1 gba:overflow-auto gba:p-3">
               <TabsContent value="formula" className="gba:space-y-4">
-                <p className="gba:text-sm gba:text-primary">Describe the formula you need in plain language.</p>
+                <p className="gba:text-sm gba:text-primary">{t('sheets-ai-formula-description')}</p>
                 <p className="gba:text-xs gba:text-primary/80">
-                  Columns:{' '}
+                  {t('sheets-ai-columns-label')}{' '}
                   {columns
                     .slice(0, 5)
                     .map(column => headerMap?.get(column.name) ?? column.label ?? column.name)
                     .join(', ')}
-                  {columns.length > 5 ? '...' : ''}
+                  {columns.length > 5 ? t('sheets-ai-ellipsis') : ''}
                 </p>
                 <textarea
                   className="gba:w-full gba:min-h-[96px] gba:rounded-md gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-3 gba:py-2 gba:text-sm"
-                  placeholder='e.g., "Sum sales where region is EMEA"'
+                  placeholder={t('sheets-ai-formula-placeholder')}
                   value={formula.intent}
                   onChange={event => formula.setIntent(event.target.value)}
                 />
@@ -283,7 +287,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                   className="gba:w-full gba:bg-primary enabled:gba:bg-primary enabled:gba:text-primary-foreground"
                 >
                   <Wand2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {formula.isGenerating ? 'Generating...' : 'Generate Formula'}
+                  {formula.isGenerating ? t('analytics-generating') : t('sheets-ai-generate-formula')}
                 </Button>
                 {formula.error && (
                   <p className="gba:text-xs gba:text-amber-700 gba:bg-amber-50 gba:border gba:border-amber-200 gba:rounded-md gba:p-2">
@@ -296,13 +300,13 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                       <code className="gba:text-sm gba:text-primary">{formula.generatedFormula}</code>
                       <Button variant="secondary" size="sm" onClick={() => void copyGeneratedFormula()}>
                         <Clipboard className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Copy
+                        {t('sheets-ai-copy')}
                       </Button>
                     </div>
                     <p className="gba:text-xs gba:text-muted-foreground">{formula.explanation}</p>
                     {formula.previewValue && (
                       <p className="gba:text-xs gba:text-muted-foreground">
-                        Preview result (sample row): {formula.previewValue}
+                        {t('sheets-ai-preview-result', { value: formula.previewValue })}
                       </p>
                     )}
                   </div>
@@ -314,11 +318,11 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                   <div className="gba:space-y-4">
                     <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
                       <p className="gba:text-sm gba:text-muted-foreground">
-                        {normalizedRows.length} rows x {columns.length} columns detected
+                        {t('sheets-ai-columns-detected', { rows: normalizedRows.length, columns: columns.length })}
                       </p>
                       <Button onClick={() => void analyze.runAnalysis()} disabled={analyze.isLoading}>
                         <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
-                        {analyze.isLoading ? 'Analyzing...' : 'Analyze Sheet'}
+                        {analyze.isLoading ? t('sheets-ai-analyzing') : t('sheets-ai-analyze-sheet')}
                       </Button>
                     </div>
                     {analyze.error && (
@@ -328,24 +332,24 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                     )}
                     <div className="gba:grid gba:grid-cols-3 gba:gap-2">
                       <Badge variant={getScoreVariant(analyze.result.metrics.completeness)}>
-                        Completeness: {analyze.result.metrics.completeness}
+                        {t('sheets-ai-completeness', { score: analyze.result.metrics.completeness })}
                       </Badge>
                       <Badge variant={getScoreVariant(analyze.result.metrics.consistency)}>
-                        Consistency: {analyze.result.metrics.consistency}
+                        {t('sheets-ai-consistency', { score: analyze.result.metrics.consistency })}
                       </Badge>
                       <Badge variant={getScoreVariant(analyze.result.metrics.validity)}>
-                        Validity: {analyze.result.metrics.validity}
+                        {t('sheets-ai-validity', { score: analyze.result.metrics.validity })}
                       </Badge>
                     </div>
                     <div className="gba:border gba:border-primary/20 gba:bg-primary/5 gba:rounded-md gba:p-3">
-                      <h4 className="gba:text-sm gba:font-medium gba:mb-2">Narrative</h4>
+                      <h4 className="gba:text-sm gba:font-medium gba:mb-2">{t('sheets-ai-narrative')}</h4>
                       <p className="gba:text-sm gba:text-foreground/90">{analyze.result.narrative}</p>
                     </div>
                     <div className="gba:space-y-2">
-                      <h4 className="gba:text-sm gba:font-medium">Anomalies</h4>
+                      <h4 className="gba:text-sm gba:font-medium">{t('sheets-ai-anomalies')}</h4>
                       {analyze.result.anomalies.length === 0 ? (
                         <div className="gba:border gba:border-success/30 gba:bg-success/5 gba:rounded-md gba:p-3">
-                          <p className="gba:text-sm gba:text-success-foreground">No high-impact anomalies detected.</p>
+                          <p className="gba:text-sm gba:text-success-foreground">{t('sheets-ai-no-anomalies')}</p>
                         </div>
                       ) : (
                         analyze.result.anomalies.map((anomaly, index) => {
@@ -372,9 +376,11 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                     <div className="gba:w-12 gba:h-12 gba:rounded-xl gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-3">
                       <RefreshCw className="gba:h-6 gba:w-6 gba:text-muted-foreground/60" />
                     </div>
-                    <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">No analysis yet</p>
+                    <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
+                      {t('sheets-ai-no-analysis')}
+                    </p>
                     <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[220px] gba:mb-4">
-                      Run AI quality checks and summary narrative.
+                      {t('sheets-ai-analysis-empty-description')}
                     </p>
                     {analyze.error && (
                       <p className="gba:w-full gba:max-w-[260px] gba:text-xs gba:text-amber-700 gba:bg-amber-50 gba:border gba:border-amber-200 gba:rounded-md gba:p-2 gba:mb-3">
@@ -387,7 +393,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                       className="gba:min-w-[180px]"
                     >
                       <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
-                      {analyze.isLoading ? 'Analyzing...' : 'Analyze Sheet'}
+                      {analyze.isLoading ? t('sheets-ai-analyzing') : t('sheets-ai-analyze-sheet')}
                     </Button>
                   </div>
                 )}
@@ -399,7 +405,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                     <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
                       {review.lastReviewedAt ? (
                         <p className="gba:text-xs gba:text-muted-foreground">
-                          Last reviewed:{' '}
+                          {t('sheets-ai-last-reviewed')}{' '}
                           {new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'medium' }).format(
                             new Date(review.lastReviewedAt)
                           )}
@@ -413,7 +419,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                         className="gba:bg-success enabled:gba:bg-success enabled:gba:text-success-foreground"
                       >
                         <ClipboardCheck className="gba:w-4 gba:h-4 gba:mr-2" />
-                        {review.isRunning ? 'Running Smart Review...' : 'Run Smart Review'}
+                        {review.isRunning ? t('sheets-ai-running-review') : t('sheets-ai-run-review')}
                       </Button>
                     </div>
                     {review.error && (
@@ -426,7 +432,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                         {review.review.overallScore}
                       </div>
                       <div>
-                        <p className="gba:text-sm gba:font-medium">Overall Quality Score</p>
+                        <p className="gba:text-sm gba:font-medium">{t('sheets-ai-overall-quality-score')}</p>
                         <p className="gba:text-sm gba:text-muted-foreground">{review.review.summary}</p>
                       </div>
                     </div>
@@ -451,10 +457,10 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                         disabled={!review.review?.summary}
                       >
                         <Clipboard className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Add Summary to Comments
+                        {t('sheets-ai-add-summary-to-comments')}
                       </Button>
                       <Button variant="secondary" onClick={onOpenCheckpointDialog}>
-                        Save Checkpoint
+                        {t('menu-save-checkpoint')}
                       </Button>
                     </div>
                   </div>
@@ -463,9 +469,11 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                     <div className="gba:w-12 gba:h-12 gba:rounded-xl gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-3">
                       <ClipboardCheck className="gba:h-6 gba:w-6 gba:text-muted-foreground/60" />
                     </div>
-                    <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">No review yet</p>
+                    <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
+                      {t('sheets-ai-no-review')}
+                    </p>
                     <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[220px] gba:mb-4">
-                      Run smart review to assess sheet quality and highlight improvements.
+                      {t('sheets-ai-review-empty-description')}
                     </p>
                     {review.error && (
                       <p className="gba:w-full gba:max-w-[260px] gba:text-xs gba:text-amber-700 gba:bg-amber-50 gba:border gba:border-amber-200 gba:rounded-md gba:p-2 gba:mb-3">
@@ -478,7 +486,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                       className="gba:min-w-[180px] gba:bg-success enabled:gba:bg-success enabled:gba:text-success-foreground"
                     >
                       <ClipboardCheck className="gba:w-4 gba:h-4 gba:mr-2" />
-                      {review.isRunning ? 'Running Smart Review...' : 'Run Smart Review'}
+                      {review.isRunning ? t('sheets-ai-running-review') : t('sheets-ai-run-review')}
                     </Button>
                   </div>
                 )}
@@ -493,7 +501,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                         className="gba:flex-1"
                       >
                         <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
-                        {isLoadingInsights ? 'Generating...' : 'AI insights'}
+                        {isLoadingInsights ? t('analytics-generating') : t('sheets-ai-title-insights')}
                       </Button>
                       <Button
                         variant="secondary"
@@ -507,7 +515,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
 
                     {insightsError && (
                       <p className="gba:text-xs gba:text-warning-foreground gba:bg-warning/10 gba:border gba:border-warning/30 gba:rounded-md gba:p-2">
-                        {`Using local fallback: ${insightsError}`}
+                        {t('analytics-using-local-fallback', { error: insightsError })}
                       </p>
                     )}
                     <div className="gba:space-y-2">
@@ -526,13 +534,15 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                     <div className="gba:w-12 gba:h-12 gba:rounded-xl gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-3">
                       <Sparkles className="gba:h-6 gba:w-6 gba:text-muted-foreground/60" />
                     </div>
-                    <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">No insights yet</p>
+                    <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
+                      {t('sheets-ai-no-insights')}
+                    </p>
                     <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[220px] gba:mb-4">
-                      Generate business summary, trend interpretation, and executive direction.
+                      {t('analytics-insights-empty')}
                     </p>
                     {insightsError && (
                       <p className="gba:w-full gba:max-w-[260px] gba:text-xs gba:text-warning-foreground gba:bg-warning/10 gba:border gba:border-warning/30 gba:rounded-md gba:p-2 gba:mb-3">
-                        {`Using local fallback: ${insightsError}`}
+                        {t('analytics-using-local-fallback', { error: insightsError })}
                       </p>
                     )}
                     <Button
@@ -541,7 +551,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                       className="gba:min-w-[180px]"
                     >
                       <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
-                      {isLoadingInsights ? 'Generating...' : 'Run AI insights'}
+                      {isLoadingInsights ? t('analytics-generating') : t('sheets-ai-run-insights')}
                     </Button>
                   </div>
                 )}

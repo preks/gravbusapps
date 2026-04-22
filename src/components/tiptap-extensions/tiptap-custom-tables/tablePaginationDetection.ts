@@ -1,6 +1,10 @@
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { EditorView } from '@tiptap/pm/view'
 import type { PaginationLayoutTableFragment } from '../tiptap-custom-pagination/layoutTableFragmentsBridge'
+import {
+  incrementPaginationInstrumentationCounter,
+  startPaginationInstrumentationTimer
+} from '../tiptap-custom-pagination/paginationInstrumentation'
 import { logPaginationDebug } from '../tiptap-custom-pagination/utils'
 import { getTablePaginationSplitId, getTableRuntimeChainKey } from './tablePaginationIdentity'
 import {
@@ -103,21 +107,36 @@ function resolveLayoutFragmentSplitTablePositions(
   const tablePositions = new Set<number>()
 
   groupPaginationLayoutTableFragments(layoutTableFragments).forEach(chainFragments => {
-    const hasCrossPagePressure = chainFragments.some(fragment => fragment.pageNumbers.length > 1)
-    if (!hasCrossPagePressure) {
-      return
-    }
-
     if (chainFragments.length === 1) {
       const onlyFragment = chainFragments[0]
-      if (onlyFragment) {
+      if (onlyFragment?.pageNumbers.length && onlyFragment.pageNumbers.length > 1) {
         tablePositions.add(onlyFragment.tablePos)
       }
       return
     }
 
-    chainFragments.forEach(fragment => {
-      tablePositions.add(fragment.tablePos)
+    const pressuredFragmentIndexes = chainFragments.reduce<number[]>((indexes, fragment, fragmentIndex) => {
+      if (fragment.pageNumbers.length > 1) {
+        indexes.push(fragmentIndex)
+      }
+
+      return indexes
+    }, [])
+
+    pressuredFragmentIndexes.forEach(fragmentIndex => {
+      const previousFragment = chainFragments[fragmentIndex - 1]
+      const currentFragment = chainFragments[fragmentIndex]
+      const nextFragment = chainFragments[fragmentIndex + 1]
+
+      if (previousFragment) {
+        tablePositions.add(previousFragment.tablePos)
+      }
+      if (currentFragment) {
+        tablePositions.add(currentFragment.tablePos)
+      }
+      if (nextFragment) {
+        tablePositions.add(nextFragment.tablePos)
+      }
     })
   })
 
@@ -268,21 +287,18 @@ function getTableMeasurementElement(element: HTMLElement): HTMLElement {
     return element
   }
 
-  const firstChild = element.firstElementChild
-  if (firstChild instanceof HTMLTableElement) {
-    return firstChild
+  // Prefer a child <table> for measurement; wrapper heights can be inflated by CSS.
+  const directTable = Array.from(element.children).find(child => child instanceof HTMLTableElement)
+  if (directTable instanceof HTMLTableElement) {
+    return directTable
   }
 
-  let tableElement: HTMLTableElement | null = null
-  for (let index = 0; index < element.children.length; index += 1) {
-    const child = element.children.item(index)
-    if (child instanceof HTMLTableElement) {
-      tableElement = child
-      break
-    }
+  const nestedTable = element.querySelector('table')
+  if (nestedTable instanceof HTMLTableElement) {
+    return nestedTable
   }
 
-  return tableElement instanceof HTMLElement ? tableElement : element
+  return element
 }
 
 function getMeasuredTableRows(tableMeasurementElement: HTMLElement): HTMLTableRowElement[] {
@@ -317,41 +333,75 @@ function createTableRowElementResolver(view: EditorView, tableMeasurementElement
 }
 
 export function hasPendingTableMeasurements(view: EditorView): boolean {
+  incrementPaginationInstrumentationCounter('table-pending-measurement-check-total')
+  const finishInstrumentation = startPaginationInstrumentationTimer('table-pending-measurement-check')
   let pending = false
+  const seenTableIds = new Set<string>()
+  let duplicateLogged = false
+  let duplicateWrapperCount = 0
+  let visitedTableCount = 0
 
-  view.state.doc.descendants((node, pos) => {
-    if (node.type.name !== 'table') return true
+  try {
+    view.state.doc.descendants((node, pos) => {
+      if (node.type.name !== 'table') return true
+      visitedTableCount += 1
 
-    const rowEntries = getTableRowEntries(node, pos)
-    const columnCount = getTableColumnCount(node)
-    if (rowEntries.length < 2 || columnCount < 1) {
-      return true
-    }
+      const rowEntries = getTableRowEntries(node, pos)
+      const columnCount = getTableColumnCount(node)
+      if (rowEntries.length < 2 || columnCount < 1) {
+        return true
+      }
 
-    const tableDom = view.nodeDOM(pos)
-    if (!(tableDom instanceof HTMLElement)) {
-      pending = true
-      return false
-    }
-
-    const tableMeasurementElement = getTableMeasurementElement(tableDom)
-    if (getElementLayoutHeight(tableMeasurementElement) <= 0) {
-      pending = true
-      return false
-    }
-
-    const resolveRowElement = createTableRowElementResolver(view, tableMeasurementElement)
-    for (const rowEntry of rowEntries) {
-      if (!(resolveRowElement(rowEntry) instanceof HTMLTableRowElement)) {
+      const tableDom = view.nodeDOM(pos)
+      if (!(tableDom instanceof HTMLElement)) {
         pending = true
         return false
       }
-    }
 
-    return true
-  })
+      const wrapper = tableDom.classList.contains('tableWrapper') ? tableDom : tableDom.closest('.tableWrapper')
+      const tableId =
+        (tableDom as HTMLElement).dataset.tableId ??
+        (tableDom as HTMLElement).dataset.id ??
+        (wrapper as HTMLElement | null)?.dataset?.tableId ??
+        (wrapper as HTMLElement | null)?.dataset?.id
+      if (tableId) {
+        if (seenTableIds.has(tableId)) {
+          duplicateWrapperCount += 1
+          if (!duplicateLogged) {
+            console.warn('[tablePagination] Duplicate table wrapper detected for tableId', tableId)
+            duplicateLogged = true
+          }
+          // Skip measuring duplicates to avoid runaway height
+          return true
+        }
+        seenTableIds.add(tableId)
+      }
 
-  return pending
+      const tableMeasurementElement = getTableMeasurementElement(tableDom)
+      if (getElementLayoutHeight(tableMeasurementElement) <= 0) {
+        pending = true
+        return false
+      }
+
+      const resolveRowElement = createTableRowElementResolver(view, tableMeasurementElement)
+      for (const rowEntry of rowEntries) {
+        if (!(resolveRowElement(rowEntry) instanceof HTMLTableRowElement)) {
+          pending = true
+          return false
+        }
+      }
+
+      return true
+    })
+
+    return pending
+  } finally {
+    finishInstrumentation({
+      duplicateWrapperCount,
+      pending,
+      visitedTableCount
+    })
+  }
 }
 
 function getRepeatedHeaderHeight(
@@ -644,13 +694,24 @@ export function findOverflowingTableSplitCandidates(
   view: EditorView,
   bodyBands: TablePaginationBodyBand[]
 ): TableOverflowSplitCandidate[] {
-  const candidates = scanOverflowingTableSplitCandidates(view, bodyBands)
-  logPaginationDebug('table-detection-split-candidates', {
+  incrementPaginationInstrumentationCounter('table-split-candidate-scan-total')
+  const finishInstrumentation = startPaginationInstrumentationTimer('table-split-candidate-scan', {
     bodyBandCount: bodyBands.length,
-    candidateCount: candidates.length,
-    candidates: candidates.map(summarizeSplitCandidate)
+    strategy: 'legacy-dom'
   })
-  return candidates
+  try {
+    const candidates = scanOverflowingTableSplitCandidates(view, bodyBands)
+    logPaginationDebug('table-detection-split-candidates', {
+      bodyBandCount: bodyBands.length,
+      candidateCount: candidates.length,
+      candidates: candidates.map(summarizeSplitCandidate)
+    })
+    return candidates
+  } finally {
+    finishInstrumentation({
+      bodyBandCount: bodyBands.length
+    })
+  }
 }
 
 export function findOverflowingTableSplitCandidatesFromLayoutFragments(
@@ -658,6 +719,12 @@ export function findOverflowingTableSplitCandidatesFromLayoutFragments(
   bodyBands: TablePaginationBodyBand[],
   layoutTableFragments: readonly PaginationLayoutTableFragment[]
 ): TableOverflowSplitCandidate[] {
+  incrementPaginationInstrumentationCounter('table-split-candidate-scan-fragment-guided-total')
+  const finishInstrumentation = startPaginationInstrumentationTimer('table-split-candidate-scan-fragment-guided', {
+    bodyBandCount: bodyBands.length,
+    layoutTableFragmentCount: layoutTableFragments.length,
+    strategy: 'layout-fragment-guided'
+  })
   const allowedTablePositions = resolveLayoutFragmentSplitTablePositions(layoutTableFragments)
   const candidates =
     allowedTablePositions.size === 0
@@ -672,6 +739,12 @@ export function findOverflowingTableSplitCandidatesFromLayoutFragments(
     scannedTableCount: allowedTablePositions.size,
     candidateCount: candidates.length,
     candidates: candidates.map(summarizeSplitCandidate)
+  })
+
+  finishInstrumentation({
+    bodyBandCount: bodyBands.length,
+    layoutTableFragmentCount: layoutTableFragments.length,
+    scannedTableCount: allowedTablePositions.size
   })
 
   return candidates
@@ -774,13 +847,24 @@ export function findMergeableTableFragmentCandidates(
   view: EditorView,
   bodyBands: TablePaginationBodyBand[]
 ): MergeableTableFragmentsCandidate[] {
-  const candidates = scanMergeableTableFragmentCandidates(view, bodyBands)
-  logPaginationDebug('table-detection-merge-candidates', {
+  incrementPaginationInstrumentationCounter('table-merge-candidate-scan-total')
+  const finishInstrumentation = startPaginationInstrumentationTimer('table-merge-candidate-scan', {
     bodyBandCount: bodyBands.length,
-    candidateCount: candidates.length,
-    candidates: candidates.map(summarizeMergeCandidate)
+    strategy: 'legacy-dom'
   })
-  return candidates
+  try {
+    const candidates = scanMergeableTableFragmentCandidates(view, bodyBands)
+    logPaginationDebug('table-detection-merge-candidates', {
+      bodyBandCount: bodyBands.length,
+      candidateCount: candidates.length,
+      candidates: candidates.map(summarizeMergeCandidate)
+    })
+    return candidates
+  } finally {
+    finishInstrumentation({
+      bodyBandCount: bodyBands.length
+    })
+  }
 }
 
 export function findMergeableTableFragmentCandidatesFromLayoutFragments(
@@ -788,6 +872,12 @@ export function findMergeableTableFragmentCandidatesFromLayoutFragments(
   bodyBands: TablePaginationBodyBand[],
   layoutTableFragments: readonly PaginationLayoutTableFragment[]
 ): MergeableTableFragmentsCandidate[] {
+  incrementPaginationInstrumentationCounter('table-merge-candidate-scan-fragment-guided-total')
+  const finishInstrumentation = startPaginationInstrumentationTimer('table-merge-candidate-scan-fragment-guided', {
+    bodyBandCount: bodyBands.length,
+    layoutTableFragmentCount: layoutTableFragments.length,
+    strategy: 'layout-fragment-guided'
+  })
   const allowedChainKeys = resolveLayoutFragmentMergeChainKeys(layoutTableFragments)
   const candidates =
     allowedChainKeys.size === 0
@@ -802,6 +892,12 @@ export function findMergeableTableFragmentCandidatesFromLayoutFragments(
     scannedChainCount: allowedChainKeys.size,
     candidateCount: candidates.length,
     candidates: candidates.map(summarizeMergeCandidate)
+  })
+
+  finishInstrumentation({
+    bodyBandCount: bodyBands.length,
+    layoutTableFragmentCount: layoutTableFragments.length,
+    scannedChainCount: allowedChainKeys.size
   })
 
   return candidates

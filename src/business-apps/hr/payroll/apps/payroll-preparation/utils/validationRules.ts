@@ -2,6 +2,9 @@ import type { PayrollEmployee, PayrollIssue, IssueSeverity, IssueCategory } from
 import { runGermanyValidation } from './germanyValidation'
 import { runRomaniaValidation } from './romaniaValidation'
 
+export type IssueTranslationValues = Record<string, string | number>
+export type IssueTranslator = (key: string, values?: IssueTranslationValues) => string
+
 let issueIdCounter = 0
 function nextIssueId(): string {
   issueIdCounter += 1
@@ -12,14 +15,18 @@ export function resetIssueIdCounter(): void {
   issueIdCounter = 0
 }
 
+function getIssueTranslationKey(prefix: 'message' | 'action', issueCode: string): string {
+  return `issue-${prefix}-${issueCode.toLowerCase().replace(/_/g, '-')}`
+}
+
 export function createIssue(
   employeeId: string,
   issueCode: string,
   category: IssueCategory,
   severity: IssueSeverity,
-  message: string,
-  recommendedAction: string,
-  fieldPath?: string
+  translate: IssueTranslator,
+  fieldPath?: string,
+  values?: IssueTranslationValues
 ): PayrollIssue {
   return {
     id: nextIssueId(),
@@ -27,15 +34,15 @@ export function createIssue(
     issueCode,
     category,
     severity,
-    message,
+    message: translate(getIssueTranslationKey('message', issueCode), values),
     fieldPath,
     status: 'open',
-    recommendedAction,
+    recommendedAction: translate(getIssueTranslationKey('action', issueCode), values),
     createdAt: new Date().toISOString()
   }
 }
 
-export function runGenericValidation(employee: PayrollEmployee): PayrollIssue[] {
+export function runGenericValidation(employee: PayrollEmployee, translate: IssueTranslator): PayrollIssue[] {
   const issues: PayrollIssue[] = []
 
   if (!employee.bankDetailsPresent) {
@@ -45,8 +52,7 @@ export function runGenericValidation(employee: PayrollEmployee): PayrollIssue[] 
         'MISSING_BANK_DETAILS',
         'missing_bank_details',
         'blocker',
-        'Bank details are missing. Payroll cannot be processed without valid bank information.',
-        'Navigate to employee profile and add bank account details.',
+        translate,
         'bankAccounts'
       )
     )
@@ -54,15 +60,7 @@ export function runGenericValidation(employee: PayrollEmployee): PayrollIssue[] 
 
   if (employee.baseSalary == null || employee.baseSalary <= 0) {
     issues.push(
-      createIssue(
-        employee.employeeId,
-        'MISSING_BASE_SALARY',
-        'missing_contract_salary',
-        'blocker',
-        'No active approved salary record found for the current period.',
-        'Ensure an approved salary adjustment exists for this employee.',
-        'baseSalary'
-      )
+      createIssue(employee.employeeId, 'MISSING_BASE_SALARY', 'missing_salary_data', 'blocker', translate, 'baseSalary')
     )
   }
 
@@ -71,10 +69,9 @@ export function runGenericValidation(employee: PayrollEmployee): PayrollIssue[] 
       createIssue(
         employee.employeeId,
         'MISSING_CONTRACT_TYPE',
-        'missing_contract_salary',
+        'missing_contract_data',
         'blocker',
-        'Contract type is not specified.',
-        'Update the employment working condition with the correct contract type.',
+        translate,
         'contractType'
       )
     )
@@ -82,30 +79,12 @@ export function runGenericValidation(employee: PayrollEmployee): PayrollIssue[] 
 
   if (!employee.hireDate) {
     issues.push(
-      createIssue(
-        employee.employeeId,
-        'MISSING_HIRE_DATE',
-        'missing_personal_data',
-        'blocker',
-        'Hire date is missing.',
-        'Set the hire date in the employee position record.',
-        'hireDate'
-      )
+      createIssue(employee.employeeId, 'MISSING_HIRE_DATE', 'missing_contract_data', 'blocker', translate, 'hireDate')
     )
   }
 
   if (employee.fte == null) {
-    issues.push(
-      createIssue(
-        employee.employeeId,
-        'MISSING_FTE',
-        'missing_contract_salary',
-        'warning',
-        'Full-time equivalent (FTE) is not specified.',
-        'Update working hours to include FTE value.',
-        'fte'
-      )
-    )
+    issues.push(createIssue(employee.employeeId, 'MISSING_FTE', 'missing_working_hours', 'warning', translate, 'fte'))
   }
 
   if (employee.payrollRelevant === null) {
@@ -113,26 +92,49 @@ export function runGenericValidation(employee: PayrollEmployee): PayrollIssue[] 
       createIssue(
         employee.employeeId,
         'PAYROLL_RELEVANT_NOT_SET',
-        'missing_contract_salary',
+        'missing_contract_master_data',
         'warning',
-        'The "payroll_relevant" attribute is not maintained in the contract type configuration.',
-        'Update the contract type catalog entry to include the "payroll_relevant" attribute in its JSON configuration.',
+        translate,
         'contractType.objectValue.payroll_relevant'
       )
+    )
+  }
+
+  if (employee.missingPresenceDays > 0) {
+    issues.push(
+      createIssue(
+        employee.employeeId,
+        'MISSING_PRESENCE_DAYS',
+        'missing_absence_data',
+        'warning',
+        translate,
+        'attendance',
+        { count: employee.missingPresenceDays }
+      )
+    )
+  }
+
+  if (employee.variablePayStatus === 'pending' && employee.totalVariablePay != null && employee.totalVariablePay > 0) {
+    issues.push(
+      createIssue(employee.employeeId, 'PENDING_VARIABLE_PAY', 'other_exceptions', 'warning', translate, 'variablePay')
     )
   }
 
   return issues
 }
 
-export function runAllValidations(employee: PayrollEmployee, country: 'DE' | 'RO'): PayrollIssue[] {
+export function runAllValidations(
+  employee: PayrollEmployee,
+  country: 'DE' | 'RO',
+  translate: IssueTranslator
+): PayrollIssue[] {
   resetIssueIdCounter()
-  const issues = runGenericValidation(employee)
+  const issues = runGenericValidation(employee, translate)
 
   if (country === 'DE') {
-    issues.push(...runGermanyValidation(employee))
+    issues.push(...runGermanyValidation(employee, translate))
   } else if (country === 'RO') {
-    issues.push(...runRomaniaValidation(employee))
+    issues.push(...runRomaniaValidation(employee, translate))
   }
 
   return issues

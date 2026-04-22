@@ -9,11 +9,12 @@ import { Button, useTranslation } from '@newwork/nw-design-system'
 import { toast } from 'sonner'
 import { LayoutTemplate } from 'lucide-react'
 import type { SlideData } from './slideElements'
+import type { SlideMaster } from '../types/slideMaster'
 import { TemplateBrowserDialog } from './TemplateBrowserDialog'
 import translations from '../_i18n'
 
 export interface TemplateBrowserButtonProps {
-  onApplyTemplate: (slides: SlideData[], themeId: string) => void
+  onApplyTemplate: (slides: SlideData[], themeId: string, masters?: SlideMaster[]) => void
   disabled?: boolean
   'data-testid'?: string
 }
@@ -26,8 +27,8 @@ export const TemplateBrowserButton: React.FC<TemplateBrowserButtonProps> = ({
   const { t } = useTranslation(translations)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const handleApplyTemplate = (slides: SlideData[], themeId: string) => {
-    onApplyTemplate(slides, themeId)
+  const handleApplyTemplate = (slides: SlideData[], themeId: string, masters?: SlideMaster[]) => {
+    onApplyTemplate(slides, themeId, masters)
     toast.success(t('template-applied-title') || 'Template Applied')
   }
 

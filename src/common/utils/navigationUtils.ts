@@ -42,7 +42,16 @@ export const Navigation = {
 
   // HR
   HR_EMPLOYEE_RECORD: `${NAVIGATION_BASE_PATH}/employee-record`,
+  /** Self-service: same HR Development content as My Profile, dedicated route */
+  /** Same URL shape as other Self-Service HR apps (e.g. My Time in hub: `/platform/hr/core/apps/my-time`). */
+  HR_MY_DEVELOPMENT: `${NAVIGATION_BASE_PATH}/hr/core/apps/my-development`,
+  HR_PERFORMANCE_TRACKING: `${NAVIGATION_BASE_PATH}/hr/core/apps/performance-tracking`,
+  /** HR compensation planning (overview, budget setup, distribution, department submissions). */
+  HR_COMPENSATION_PLANNING: `${NAVIGATION_BASE_PATH}/hr/compensation-planning/apps/compensation-planning`,
+  /** Manager / supervisor team salary proposal workspace (compensation planning). */
+  HR_COMPENSATION_MANAGER_PLANNING: `${NAVIGATION_BASE_PATH}/hr/compensation-planning/apps/manager-compensation-planning`,
   HR_ABSENCES_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/absences/manager-absences`,
+  HR_ABSENCE_SETUP: `${NAVIGATION_BASE_PATH}/hr/absence/apps/absence-setup`,
   HR_RECRUITING_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-manager`,
   HR_RECRUITING_PORTAL: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-portal`,
   HR_RECRUITING_JOB_POSTING_RECORD: `${NAVIGATION_BASE_PATH}/hr/recruiting/job-posting-record`,
@@ -66,7 +75,9 @@ export const Navigation = {
   CONTENT_MANAGER: `${NAVIGATION_BASE_PATH}/content/manager`,
 
   // Manage
+  MANAGE_BRANDING: `${NAVIGATION_BASE_PATH}/manage/branding`,
   MANAGE_CATALOGS: `${NAVIGATION_BASE_PATH}/catalog-manager`,
+  MANAGE_USERS: `${NAVIGATION_BASE_PATH}/manage/user-manager`,
 
   // Platform
   PLATFORM_TASK_MANAGER: `${NAVIGATION_BASE_PATH}/task-manager`,
@@ -87,6 +98,10 @@ export const Navigation = {
   OFFICE_SLIDES: `${NAVIGATION_BASE_PATH}/every-office/slides`,
   OFFICE_SPACES: `${NAVIGATION_BASE_PATH}/every-office/spaces`,
   OFFICE_SPREADSHEETS: `${NAVIGATION_BASE_PATH}/every-office/spreadsheets`,
+  OFFICE_WHITEBOARDS: `${NAVIGATION_BASE_PATH}/every-office/whiteboards`,
+
+  // Core Apps
+  EVERY_FABRIC: `${NAVIGATION_BASE_PATH}/every-fabric`,
 
   // Create
   CREATE: `${NAVIGATION_BASE_PATH}/create`,
@@ -103,7 +118,7 @@ export const Navigation = {
   CREATE_DEBUG_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/generated-resource-urls`,
   CREATE_DEBUG_APPS_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/apps/generated-resource-urls`,
   CREATE_PROMPT_MESH: `${NAVIGATION_BASE_PATH}/apps/agent-mesh`,
-  CREATE_FLOW_CREATOR: `${NAVIGATION_BASE_PATH}/apps/flow/apps/creator`
+  CREATE_FLOW_CREATOR: `${NAVIGATION_BASE_PATH}/create/flow-creator`
 } as const
 
 // Mapping of platform URLs to app paths (exported for BusinessAppIDE path resolution)
@@ -145,7 +160,13 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // HR
   [Navigation.HR_EMPLOYEE_RECORD]: 'hr/core/apps/employee-record',
+  [Navigation.HR_MY_DEVELOPMENT]: 'hr/core/apps/my-development',
+  [Navigation.HR_PERFORMANCE_TRACKING]: 'hr/core/apps/performance-tracking',
+  [Navigation.HR_COMPENSATION_PLANNING]: 'hr/compensation-planning/apps/compensation-planning',
+  [Navigation.HR_COMPENSATION_MANAGER_PLANNING]: 'hr/compensation-planning/apps/manager-compensation-planning',
   [Navigation.HR_ABSENCES_MANAGER_ROLE]: 'hr/absences/apps/manager-absences',
+  [Navigation.HR_ABSENCE_SETUP]: 'hr/absence/apps/absence-setup',
+  [`${NAVIGATION_BASE_PATH}/hr/absence/apps/AbsenceSetup`]: 'hr/absence/apps/absence-setup',
   [Navigation.HR_RECRUITING_MANAGER_ROLE]: 'hr/recruiting/apps/recruiting-manager',
   [Navigation.HR_RECRUITING_PORTAL]: 'hr/recruiting/apps/recruiting-portal',
   [Navigation.HR_RECRUITING_JOB_POSTING_RECORD]: 'hr/recruiting/records/job-posting-record',
@@ -169,7 +190,9 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.CONTENT_MANAGER]: 'core/content/apps/content-manager',
 
   // Manage
+  [Navigation.MANAGE_BRANDING]: 'core/manage/apps/branding',
   [Navigation.MANAGE_CATALOGS]: 'core/manage/apps/catalog-manager',
+  [Navigation.MANAGE_USERS]: 'core/manage/apps/user-manager',
 
   // Platform
   [Navigation.PLATFORM_TASK_MANAGER]: 'core/every/apps/every-box',
@@ -190,13 +213,17 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.OFFICE_SLIDES]: 'core/office/apps/slides',
   [Navigation.OFFICE_SPACES]: 'core/office/apps/spaces',
   [Navigation.OFFICE_SPREADSHEETS]: 'core/office/apps/spreadsheets',
+  [Navigation.OFFICE_WHITEBOARDS]: 'core/office/apps/whiteboards',
+
+  // EveryFabric
+  [Navigation.EVERY_FABRIC]: 'core/every-fabric/apps/every-fabric',
 
   // Create
   [Navigation.CREATE]: 'core/create/apps/create-workspace',
   [Navigation.CREATE_CONNECT]: 'core/create/apps/newwork-connect',
   [Navigation.CREATE_FUNCTION_MANAGER]: 'core/create/apps/function-manager',
   [Navigation.CREATE_PROMPT_MANAGER]: 'core/create/apps/prompt-manager',
-  [Navigation.CREATE_SCREEN_BUILDER]: 'core/create/apps/ai-builder',
+  [Navigation.CREATE_SCREEN_BUILDER]: 'core/create/apps/screen-builder',
   [Navigation.CREATE_AI_BUILDER]: 'core/create/apps/ai-orchestrator',
   [Navigation.CREATE_AI_BUILDER_ADMIN]: 'core/create/apps/ai-builder-admin',
   [Navigation.CREATE_AI_ORCHESTRATOR_ADMIN]: 'core/create/apps/ai-builder-admin',
@@ -206,7 +233,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.CREATE_DEBUG_GENERATED_RESOURCE_URLS]: 'core/create/debug/apps/generated-resource-urls-debug',
   [Navigation.CREATE_DEBUG_APPS_GENERATED_RESOURCE_URLS]: 'core/create/debug/apps/generated-resource-urls-debug',
   [Navigation.CREATE_PROMPT_MESH]: 'platform/apps/agent-mesh',
-  [Navigation.CREATE_FLOW_CREATOR]: 'flow/apps/creator'
+  [Navigation.CREATE_FLOW_CREATOR]: 'core/create/apps/flow-creator'
 }
 
 /**
@@ -215,6 +242,37 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 const isPlatformUrl = (url: string): boolean => {
   const urlPath = url.split('?')[0] // Remove query parameters to check the base path
   return Object.keys(PLATFORM_URL_TO_APP_MAPPING).some(platformPath => urlPath === platformPath)
+}
+
+type NwNavigateFn = (path: string, options?: { replace?: boolean; scroll?: boolean }) => void
+
+function getNwNavigate(): NwNavigateFn | undefined {
+  const fn = (window as unknown as { nwNavigate?: NwNavigateFn }).nwNavigate
+  return typeof fn === 'function' ? fn : undefined
+}
+
+/**
+ * Prefer host SPA navigation when available (same logic in dev and prod).
+ * @returns true if navigation was handled via host or reload
+ */
+function navigateWithNwNavigateOrReload(pathAndQueryHash: string): boolean {
+  const nwNavigate = getNwNavigate()
+  if (!nwNavigate) {
+    return false
+  }
+  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  if (currentUrl === pathAndQueryHash) {
+    window.location.reload()
+  } else {
+    nwNavigate(pathAndQueryHash)
+  }
+  return true
+}
+
+function dispatchPopStateAfterHistoryUpdate(): void {
+  queueMicrotask(() => {
+    window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }))
+  })
 }
 
 /**
@@ -230,6 +288,11 @@ export const navigateTo = (
      * Adds a cache-busting parameter to ensure content refreshes when it has changed
      */
     forceReload?: boolean
+    /**
+     * Full page navigation via `location.assign`. Same in dev and prod; use when
+     * in-app history + synthetic `popstate` does not match host router behavior.
+     */
+    fullPage?: boolean
   }
 ): void => {
   if (typeof window === 'undefined') {
@@ -237,7 +300,7 @@ export const navigateTo = (
     return
   }
 
-  const { forceReload = false } = options || {}
+  const { forceReload = false, fullPage = false } = options || {}
   const isProduction = process.env.NODE_ENV === 'production'
 
   // Helper to get the target URL. In dev we use the real platform path so the URL bar shows e.g. /platform/every-office.
@@ -251,6 +314,20 @@ export const navigateTo = (
     return url
   }
 
+  if (fullPage && !forceReload) {
+    try {
+      const baseTargetUrl = getTargetUrl()
+      const urlObj = new URL(baseTargetUrl, window.location.origin)
+      window.location.assign(urlObj.href)
+    } catch {
+      const fallback = url.startsWith('http')
+        ? url
+        : `${window.location.origin}${url.startsWith('/') ? url : `/${url}`}`
+      window.location.assign(fallback)
+    }
+    return
+  }
+
   // If force reload is requested, add cache-busting parameter to ensure content refresh
   if (forceReload) {
     const baseTargetUrl = getTargetUrl()
@@ -258,25 +335,19 @@ export const navigateTo = (
     // Parse URL and add cache-busting parameter
     try {
       const urlObj = new URL(baseTargetUrl, window.location.origin)
-      // Add cache-busting parameter to force content refresh via SPA navigation
       urlObj.searchParams.set('_refresh', Date.now().toString())
       const urlToNavigate = urlObj.pathname + urlObj.search + (urlObj.hash || '')
 
       if (isProduction) {
-        const nwNavigate = (window as any).nwNavigate as
-          | undefined
-          | ((path: string, options?: { replace?: boolean; scroll?: boolean }) => void)
-        if (typeof nwNavigate === 'function') {
-          // Use SPA navigation to refresh window content without full page reload
-          nwNavigate(urlToNavigate)
-        } else {
+        if (!navigateWithNwNavigateOrReload(urlToNavigate)) {
           window.location.href = urlToNavigate
         }
       } else {
-        // Development: SPA navigation with refresh param so auth is preserved
         const targetPathAndSearch = urlObj.pathname + urlObj.search + (urlObj.hash || '')
-        window.history.pushState(null, '', targetPathAndSearch)
-        window.dispatchEvent(new PopStateEvent('popstate'))
+        if (!navigateWithNwNavigateOrReload(targetPathAndSearch)) {
+          window.history.pushState(null, '', targetPathAndSearch)
+          dispatchPopStateAfterHistoryUpdate()
+        }
       }
     } catch {
       // Fallback if URL parsing fails
@@ -288,24 +359,12 @@ export const navigateTo = (
   }
 
   if (isProduction) {
-    // Production: use host-provided SPA navigation if available, otherwise fallback
-    const nwNavigate = (window as any).nwNavigate as
-      | undefined
-      | ((path: string, options?: { replace?: boolean; scroll?: boolean }) => void)
-    if (typeof nwNavigate === 'function') {
-      // Check if we're already on the same URL - if so, force reload
-      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`
-      if (currentUrl === url) {
-        // Same URL - force reload to refresh content
-        window.location.reload()
-      } else {
-        nwNavigate(url)
-      }
-    } else {
+    if (!navigateWithNwNavigateOrReload(url)) {
       window.location.href = url
     }
   } else {
-    // Development: SPA navigation (pushState + popstate) so auth state and token are preserved
+    // Development: prefer host SPA navigation when available (same as production).
+    // Otherwise pushState + popstate on a microtask so listeners see an up-to-date history.
     const targetUrl = getTargetUrl()
     const fullUrl = targetUrl.startsWith('http') ? targetUrl : `${window.location.origin}${targetUrl}`
 
@@ -315,6 +374,10 @@ export const navigateTo = (
         window.location.href = fullUrl
         return
       }
+      const pathToNavigate = urlObj.pathname + urlObj.search + (urlObj.hash || '')
+      if (navigateWithNwNavigateOrReload(pathToNavigate)) {
+        return
+      }
       const targetPath = urlObj.pathname.replace(/\/$/, '') || '/'
       const currentPath = window.location.pathname.replace(/\/$/, '') || '/'
       const targetPathAndSearch = targetPath + urlObj.search + (urlObj.hash || '')
@@ -322,8 +385,8 @@ export const navigateTo = (
       if (currentPathAndSearchNorm === targetPathAndSearch) {
         return
       }
-      window.history.pushState(null, '', urlObj.pathname + urlObj.search + (urlObj.hash || ''))
-      window.dispatchEvent(new PopStateEvent('popstate'))
+      window.history.pushState(null, '', pathToNavigate)
+      dispatchPopStateAfterHistoryUpdate()
     } catch {
       window.location.href = fullUrl
     }

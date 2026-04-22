@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import dayjs from 'dayjs'
 import {
   Avatar,
@@ -17,8 +17,7 @@ import {
 import { ChevronLeft, MessageSquare } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TeamAnniversary } from '../hooks/useTeamAnniversaries'
-import { ChatApiClient } from '@/business-apps/platform/apps/chat/services/chatApiClient'
-import { getChatServiceApiUrl } from '@/business-apps/platform/apps/chat/utils/chatServiceUrl'
+import { useChatClient } from '@/common/network/chat/useChatClient'
 import { toast } from 'sonner'
 import { PrefilledMessageDialog } from '../components/shared/PrefilledMessageDialog'
 
@@ -57,7 +56,7 @@ export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
   const [sendingToUserId, setSendingToUserId] = useState<string | null>(null)
   const [messageDraft, setMessageDraft] = useState<{ person: TeamAnniversary; message: string } | null>(null)
 
-  const chatClient = useMemo(() => new ChatApiClient(getChatServiceApiUrl(), accessToken), [accessToken])
+  const chatClient = useChatClient(accessToken)
 
   const sendAnniversaryMessage = useCallback(
     async (person: TeamAnniversary, message: string) => {

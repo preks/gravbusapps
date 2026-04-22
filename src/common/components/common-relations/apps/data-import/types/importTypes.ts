@@ -4,6 +4,8 @@
 
 import { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 
+export type { CsvQuality } from '@/common/network/flowbot/FlowbotClient'
+
 // Field mapping between source CSV and target entity
 export interface FieldMapping {
   sourceField: string
@@ -30,7 +32,7 @@ export interface CommunicationChannel {
 // Generic converted entity (can have any fields)
 // NOTE: Supports arrays (e.g., communicationChannels) and objects for complex field transformations
 export interface ConvertedEntity {
-  [key: string]: string | boolean | number | null | CommunicationChannel[] | Record<string, unknown>
+  [key: string]: string | boolean | number | null | undefined | CommunicationChannel[] | Record<string, unknown>
   communicationChannels?: CommunicationChannel[]
 }
 
@@ -46,6 +48,8 @@ export interface ImportConfig {
   entityType: string
   domain: 'customer' | 'investment' // Domain for endpoint routing
   targetFields: TargetFieldDefinition[]
+  investmentPayloadKey?: string
+  investmentGroupCodeHint?: string
 }
 
 // Target field definition

@@ -3,7 +3,7 @@ import { Button, Input } from '@newwork/nw-design-system'
 import { PaperPlaneTilt, Paperclip, At, XIcon, File } from '@phosphor-icons/react'
 import { useEntityMentions, type EntityReference, type MessageEntityReference } from '@/common/hooks/useEntityMentions'
 import { EntityMentionPopover } from '@/common/components/entity-mentions'
-import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
+import { DocumentApiService } from '@/business-apps/core/office/apps/documents/services/DocumentApiService'
 import type { ActiveExpert } from '../hooks/useConversationExperts'
 import type { Message } from '../types'
 
@@ -85,11 +85,12 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       async (query: string): Promise<EntityReference[]> => {
         if (!accessToken) return []
         DocumentApiService.setAccessToken(accessToken)
-        const docs = await DocumentApiService.listDocuments({
+        const response = await DocumentApiService.listDocuments({
           search: query || undefined,
           limit: 5,
           includeShared: true
         })
+        const docs = response.items ?? []
         const lowerQuery = query.toLowerCase()
         return docs
           .filter(doc => !query || (doc.title || '').toLowerCase().includes(lowerQuery))

@@ -566,7 +566,7 @@ export async function gatherResearch(
   const form = new FormData()
   form.append('session_id', '') // New session
   form.append('user_input_text', prompt)
-  form.append('llm_model', 'gpt-5.4')
+  form.append('model_kind', 'default')
   form.append('use_web_search_tool', 'true')
   form.append('current_page_context', JSON.stringify({ type: 'unknown' }))
 

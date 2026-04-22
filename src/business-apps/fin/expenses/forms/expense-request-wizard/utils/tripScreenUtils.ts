@@ -3,10 +3,24 @@ import { combineDateTimeToISOString } from './locationTimeUtils'
 import { LocationData, LogObject, TripData } from './types'
 import { showToast } from '../../../utils/notificationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { ADDRESS_TYPES_ENUM, PointTypeEnum, SCREEN_NAMES_ENUM, TripDirectionDefaultValue } from '../constants/constants'
+import { PointTypeEnum, SCREEN_NAMES_ENUM, TripDirectionDefaultValue } from '../constants/constants'
 import { mergeUniqueById } from '../../../utils/functionUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { EVENTS } from '../../../utils/constants'
+import {
+  applyDefaultLocalitiesFromEmployeeAddresses,
+  checkTripExistsWithEntityPredicate,
+  createBorderCrossingTransformer,
+  getLatestRejectCommentFromCommentList,
+  preserveTripIdsIfCountsMatch
+} from '../../shared/utils/tripScreenSharedUtils'
+
+export {
+  createBorderCrossingTransformer,
+  getValidLocality,
+  prepareTripData,
+  preserveTripIdsIfCountsMatch
+} from '../../shared/utils/tripScreenSharedUtils'
 
 /**
  * Parse an ISO date-time string into a local date-only Date at midnight.
@@ -21,45 +35,6 @@ const parseDateOnlyLocal = (isoDateTime?: string): Date | undefined => {
     return new Date(y, m - 1, d, 0, 0, 0, 0) // local midnight
   } catch {
     return undefined
-  }
-}
-
-/**
- * Prepares trip data for saving
- * @param startLocation - Start location data
- * @param destinations - Destinations data
- * @param endLocation - End location data
- * @param expenseRulesData - Expense rules data
- * @returns Prepared trip data
- */
-export const prepareTripData = (
-  startLocation: LocationData,
-  destinations: LocationData[],
-  endLocation: LocationData,
-  expenseRulesData: any
-) => {
-  return {
-    startLocation: {
-      ...startLocation,
-      travelRegionRef:
-        !startLocation.isAbroad && expenseRulesData?.homeRegionRule?.length > 0
-          ? expenseRulesData.homeRegionRule[0].travelRegionRef
-          : startLocation.travelRegionRef
-    },
-    destinations: destinations.map(destination => ({
-      ...destination,
-      travelRegionRef:
-        !destination.isAbroad && expenseRulesData?.homeRegionRule?.length > 0
-          ? expenseRulesData.homeRegionRule[0].travelRegionRef
-          : destination.travelRegionRef
-    })),
-    endLocation: {
-      ...endLocation,
-      travelRegionRef:
-        !endLocation.isAbroad && expenseRulesData?.homeRegionRule?.length > 0
-          ? expenseRulesData.homeRegionRule[0].travelRegionRef
-          : endLocation.travelRegionRef
-    }
   }
 }
 
@@ -277,54 +252,6 @@ export const getAllowanceRegionRuleDetailId = (travelRegionRef: string, expenseR
 }
 
 /**
- * Create border crossing transformer function
- * @returns Border crossing transformer function
- */
-export const createBorderCrossingTransformer = () => {
-  return function addBorderCrossing(locations: TripData[]): TripData[] {
-    const locationsWithBorderCrossing: TripData[] = []
-    let previousLocation: TripData | null = null
-
-    for (const location of locations) {
-      if (!(location && location.tripDateTime)) {
-        location.tripDateTime = (previousLocation && previousLocation.tripDateTime) || '' // use the previous location's date time
-      }
-      if (previousLocation && location && location.countryRef !== previousLocation.countryRef) {
-        switch (location.pointType) {
-          case PointTypeEnum.start:
-            break
-          case PointTypeEnum.destination:
-            locationsWithBorderCrossing.push({
-              ...location,
-              pointType: PointTypeEnum.border,
-              tripDateTime: previousLocation.tripDateTime
-            })
-            break
-          case PointTypeEnum.end:
-            locationsWithBorderCrossing.push({
-              ...location,
-              pointType: PointTypeEnum.border,
-              tripDateTime: location.tripDateTime
-            })
-            break
-          default:
-            console.error('Unsupported pointType: ' + location.pointType)
-        }
-      }
-      locationsWithBorderCrossing.push(location)
-      previousLocation = location
-    }
-
-    let indexTripOrder = 1
-
-    return locationsWithBorderCrossing.map(trip => {
-      trip.tripOrder = indexTripOrder++
-      return trip
-    })
-  }
-}
-
-/**
  * Check if trip exists in array
  * @param array - Array of trips
  * @param pointType - Point type
@@ -335,76 +262,13 @@ export const checkTripExists = (
   array: any[] | undefined,
   pointType: string,
   objectToCheck: TripData
-): TripData | null => {
-  if (!array) return null
-
-  const filteredArray = array.filter(item => item.pointType === pointType)
-
-  const objectToCheckKey = dayjs(objectToCheck.tripDateTime).format('YYYY-MM-DDTHH:mm')
-  const found =
-    filteredArray.find(item => {
-      const itemKey = dayjs(item.tripDateTime).format('YYYY-MM-DDTHH:mm')
-      return (
-        item.address === objectToCheck.address &&
-        itemKey === objectToCheckKey &&
-        item.pointType === objectToCheck.pointType &&
-        item.tripDirection === objectToCheck.tripDirection &&
-        item.costCenterId === objectToCheck.costCenter &&
-        item.tripOrder === objectToCheck.tripOrder &&
-        item.travelRegionRef === objectToCheck.travelRegionRef &&
-        item.countryRef === objectToCheck.countryRef &&
-        item.expenseRequestId === objectToCheck.expenseRequest &&
-        item.allowanceRegionRuleDetailId === objectToCheck.allowanceRegionRuleDetail
-      )
-    }) || null
-  if (found) {
-    const merged: TripData = {
-      ...objectToCheck,
-      id: found.id,
-      version: found.version
-    } as TripData
-    return merged
-  }
-
-  return null
-}
-
-/**
- * Preserve existing trip ids/versions when the number of computed trips matches existing trips.
- * This is a fallback for backend matching issues: if counts align, we map by pointType and tripOrder
- * and copy id/version from existing to the corresponding new trips.
- */
-const preserveTripIdsIfCountsMatch = (existingTrips: TripData[] | undefined, newTrips: TripData[]): TripData[] => {
-  if (!existingTrips || !Array.isArray(existingTrips)) return newTrips
-  if (!Array.isArray(newTrips) || newTrips.length === 0) return newTrips
-
-  if (existingTrips.length !== newTrips.length) return newTrips
-
-  const result = newTrips.map(trip => ({ ...trip }))
-
-  const pointTypes = Array.from(new Set([...existingTrips.map(t => t.pointType), ...newTrips.map(t => t.pointType)]))
-
-  pointTypes.forEach(type => {
-    const existingGroup = existingTrips
-      .filter(t => t.pointType === type)
-      .slice()
-      .sort((a, b) => (a.tripOrder || 0) - (b.tripOrder || 0))
-
-    const incomingGroup = result
-      .filter(t => t.pointType === type)
-      .slice()
-      .sort((a, b) => (a.tripOrder || 0) - (b.tripOrder || 0))
-
-    if (existingGroup.length === incomingGroup.length && incomingGroup.length > 0) {
-      for (let i = 0; i < incomingGroup.length; i += 1) {
-        incomingGroup[i].id = existingGroup[i].id
-        incomingGroup[i].version = existingGroup[i].version
-      }
-    }
-  })
-
-  return result
-}
+): TripData | null =>
+  checkTripExistsWithEntityPredicate(
+    array,
+    pointType,
+    objectToCheck,
+    (item, o) => item.expenseRequestId === o.expenseRequest
+  )
 
 export const handleTripSubmitAction = (
   startLocation: LocationData,
@@ -564,20 +428,6 @@ export const handleTripSubmitAction = (
   }
 }
 
-export const getValidLocality = (employeeAddresses: any[]) => {
-  if (!Array.isArray(employeeAddresses) || employeeAddresses.length === 0) {
-    return ''
-  }
-  const primary = employeeAddresses.find(address => address.type === ADDRESS_TYPES_ENUM.value.PRIMARY)
-  if (primary && primary.locality && primary.locality.trim()) {
-    return primary.locality
-  }
-  const secondary = employeeAddresses.find(
-    address => address.type === ADDRESS_TYPES_ENUM.value.SECONDARY && address.locality && address.locality.trim()
-  )
-  return secondary ? secondary.locality : ''
-}
-
 /**
  * Sets trip data from external component data
  * @param expenseRequestData - Expense request data
@@ -712,42 +562,16 @@ export const setLocalitiesDefault = (
   setEndLocation: React.Dispatch<React.SetStateAction<LocationData>>,
   setLocationsAreSynced: React.Dispatch<React.SetStateAction<boolean>>
 ) => {
-  try {
-    const employeeAddresses = expenseRequestData?.EmployeeAddress || []
-    const localityToSet = getValidLocality(employeeAddresses)
-
-    if (localityToSet) {
-      setStartLocation(prevLocation => ({
-        ...prevLocation,
-        location: localityToSet
-      }))
-      setEndLocation(prevLocation => ({
-        ...prevLocation,
-        location: localityToSet
-      }))
-    }
-    setLocationsAreSynced(true)
-  } catch {}
+  applyDefaultLocalitiesFromEmployeeAddresses(
+    expenseRequestData?.EmployeeAddress,
+    setStartLocation,
+    setEndLocation,
+    setLocationsAreSynced
+  )
 }
 
-export const getLatestRejectComment = (expenseRequestData: any) => {
-  if (
-    expenseRequestData &&
-    expenseRequestData.ExpenseRequestByPk &&
-    expenseRequestData.ExpenseRequestByPk.expenseRequestComment
-  ) {
-    const filteredArray = expenseRequestData.ExpenseRequestByPk.expenseRequestComment.filter(
-      (comment: any) => comment.commentType && comment.commentType.toUpperCase().includes('REJECT')
-    )
-
-    return filteredArray && filteredArray.length > 0
-      ? [...filteredArray].sort(
-          (a: any, b: any) => new Date(b.commentDate).getTime() - new Date(a.commentDate).getTime()
-        )[0]
-      : null
-  }
-  return null
-}
+export const getLatestRejectComment = (expenseRequestData: any) =>
+  getLatestRejectCommentFromCommentList(expenseRequestData?.ExpenseRequestByPk?.expenseRequestComment)
 
 export const setInitialScreen = (
   additionalData: any,

@@ -3,7 +3,7 @@ import { Badge, Button, Spinner, useTranslation } from '@newwork/nw-design-syste
 import { openEveryAI } from '@/common/utils/openEveryAI'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole } from '@/common/data/content/constants/contentConstants'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AppAction } from '@/components/app-action'
 import type { ContentEntry } from '@/common/data/content/types/contentTypes'
@@ -150,7 +150,7 @@ export const PolicyInsightsPanel: React.FC<PolicyInsightsPanelProps> = ({
               {
                 context: FlowContextName.contentEntryCreate,
                 contextData: {
-                  contentGroup: policy.contentGroupRef,
+                  contentGroup: policy.contentGroup,
                   rootContentEntryId: policyRootId,
                   parentContentEntryId: policyVersionId
                 }

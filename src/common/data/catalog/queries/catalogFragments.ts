@@ -22,6 +22,7 @@ export const CATALOG_REF = `
   schemaDefinition
   parentId
   isDeleted
+  isCustomerManaged
   recordState
   validFrom
   validTo

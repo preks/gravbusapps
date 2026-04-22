@@ -1,25 +1,16 @@
 import type { Extension } from '@tiptap/core'
 import type { HeaderFooterEditorType, PageFormat, PagesOptions, PagesStorage } from './types'
 import { layoutPageNumberSlots } from './pageNumberSlotLayout'
+import { ensurePagesStyles as ensureSharedPagesStyles } from './paginationStyles'
 import {
   getHeaderFooterExtensions,
   getPageLayoutHeights,
   getPageSpacerHeight,
+  isEmptyHeaderFooterHtml,
+  resolveDefaultHeaderFooterMeasurement,
   resolveDisplayContent,
   resolvePageNumberSlot
 } from './utils'
-
-const STYLE_ATTR = 'data-rm-pages-style'
-
-export function isEmptyHeaderFooterHtml(html: string | null | undefined) {
-  if (!html) return true
-
-  const container = document.createElement('div')
-  container.innerHTML = html
-  if ((container.textContent ?? '').length > 0) return false
-
-  return container.querySelector('img, table, hr, iframe, svg, video, audio, canvas, object, embed') === null
-}
 
 function normalizeHeaderFooterDisplayHtml(html: string) {
   const container = document.createElement('div')
@@ -80,16 +71,13 @@ export type PageBreakerPlaceholderMetrics = {
   nextHeaderHeight: number
 }
 
+export type PageShellState = 'hydrated' | 'placeholder'
+
 export type WindowedPaginationRendererState = {
   activeRange: PaginationWindowRange | null
   mountedRange: PaginationWindowRange | null
   windowKey: string | null
   placeholderBreakerMetricsByPage: Map<number, PageBreakerPlaceholderMetrics>
-  spacerHeightsByRange: Map<string, number>
-}
-
-function createPageRangeKey(startPage: number, endPage: number) {
-  return `${startPage}-${endPage}`
 }
 
 function resolveMountedPageRange(
@@ -124,7 +112,7 @@ function resolveMountedPageRange(
 
 function shouldRenderFullPageBreaker(pageNumber: number, activeRange: PaginationWindowRange | null | undefined) {
   if (!activeRange) return true
-  return pageNumber >= activeRange.startPage - 1 && pageNumber <= activeRange.endPage
+  return pageNumber >= activeRange.startPage && pageNumber <= activeRange.endPage
 }
 
 export function resolvePaginationWindowRange(editorDom: HTMLElement): PaginationWindowRange | null {
@@ -179,42 +167,6 @@ function resolvePaginationRootElement(editorDom: HTMLElement): HTMLElement | nul
   }
 
   return null
-}
-
-function resolvePageRangeSpacerHeights(editorDom: HTMLElement): Map<string, number> {
-  const spacerHeights = new Map<string, number>()
-  const paginationRoot = resolvePaginationRootElement(editorDom)
-  if (!(paginationRoot instanceof HTMLElement)) {
-    return spacerHeights
-  }
-
-  Array.from(paginationRoot.children).forEach(child => {
-    if (!(child instanceof HTMLElement) || !child.classList.contains('rm-page-spacer')) {
-      return
-    }
-
-    const startPage = Number(child.dataset.rmPageRangeStart ?? '')
-    const endPage = Number(child.dataset.rmPageRangeEnd ?? '')
-    if (!Number.isInteger(startPage) || !Number.isInteger(endPage) || startPage < 1 || endPage < startPage) {
-      return
-    }
-
-    const dataHeight = Number.parseFloat(child.dataset.rmPageRangeHeight ?? '')
-    const styleHeight = Number.parseFloat(child.style.height || '')
-    let resolvedHeight = child.offsetHeight
-    if (Number.isFinite(dataHeight) && dataHeight >= 0) {
-      resolvedHeight = dataHeight
-    } else if (Number.isFinite(styleHeight) && styleHeight >= 0) {
-      resolvedHeight = styleHeight
-    }
-    if (!Number.isFinite(resolvedHeight) || resolvedHeight < 0) {
-      return
-    }
-
-    spacerHeights.set(createPageRangeKey(startPage, endPage), resolvedHeight)
-  })
-
-  return spacerHeights
 }
 
 export function findPaginationPageBreakElement(editorDom: HTMLElement, pageNumber: number): HTMLElement | null {
@@ -290,6 +242,24 @@ function resolvePageBreakNumber(pageBreakEl: HTMLElement) {
   return Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : null
 }
 
+export function resolvePageBreakShellState(pageBreakEl: HTMLElement): PageShellState {
+  const explicitState = pageBreakEl.dataset.rmPageShellState
+  if (explicitState === 'hydrated' || explicitState === 'placeholder') {
+    return explicitState
+  }
+
+  const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
+  return breaker?.dataset.rmBreakerMode === 'placeholder' ? 'placeholder' : 'hydrated'
+}
+
+export function isHydratedPageBreakShell(pageBreakEl: HTMLElement): boolean {
+  return resolvePageBreakShellState(pageBreakEl) === 'hydrated'
+}
+
+function setPageBreakShellState(pageBreakEl: HTMLElement, shellState: PageShellState) {
+  pageBreakEl.dataset.rmPageShellState = shellState
+}
+
 export function resolvePageBreakerPlaceholderMetrics(
   editorDom: HTMLElement
 ): Map<number, PageBreakerPlaceholderMetrics> {
@@ -351,8 +321,7 @@ export function resolveWindowedPaginationRendererState(editorDom: HTMLElement): 
     activeRange: resolvePaginationWindowRange(editorDom),
     mountedRange: resolvePaginationMountedRange(editorDom),
     windowKey: viewport?.dataset.layoutWindowKey ?? null,
-    placeholderBreakerMetricsByPage: resolvePageBreakerPlaceholderMetrics(editorDom),
-    spacerHeightsByRange: resolvePageRangeSpacerHeights(editorDom)
+    placeholderBreakerMetricsByPage: resolvePageBreakerPlaceholderMetrics(editorDom)
   }
 }
 
@@ -378,77 +347,51 @@ function resolveDefaultBreakerHeight(params: {
   storage: PagesStorage
 }) {
   const { pageNumber, totalPages, pageFormat, options, storage } = params
-  const currentLayout = getPageLayoutHeights(pageFormat, storage, options.headerHeight, options.footerHeight)
+  const currentHeaderHeight = resolveDefaultHeaderFooterMeasurement(storage, options, 'header', pageNumber, totalPages)
+  const currentFooterHeight = resolveDefaultHeaderFooterMeasurement(storage, options, 'footer', pageNumber, totalPages)
+  const currentLayout = getPageLayoutHeights(pageFormat, storage, currentHeaderHeight, currentFooterHeight)
   if (pageNumber >= totalPages) {
     return currentLayout.footerReserved
   }
 
-  const nextLayout = getPageLayoutHeights(pageFormat, storage, options.headerHeight, options.footerHeight)
+  const nextHeaderHeight = resolveDefaultHeaderFooterMeasurement(storage, options, 'header', pageNumber + 1, totalPages)
+  const nextFooterHeight = resolveDefaultHeaderFooterMeasurement(storage, options, 'footer', pageNumber + 1, totalPages)
+  const nextLayout = getPageLayoutHeights(pageFormat, storage, nextHeaderHeight, nextFooterHeight)
   return currentLayout.footerReserved + storage.pageGap + nextLayout.headerReserved
 }
 
-function createPageRangeSpacer(params: {
-  startPage: number
-  endPage: number
+function resolveDefaultPlaceholderBreakerMetrics(params: {
+  pageNumber: number
   totalPages: number
   pageFormat: PageFormat
   options: PagesOptions
   storage: PagesStorage
-  placeholderBreakerMetricsByPage: Map<number, PageBreakerPlaceholderMetrics>
-  spacerHeightsByRange: Map<string, number>
 }) {
-  const {
-    startPage,
-    endPage,
-    totalPages,
-    pageFormat,
-    options,
-    storage,
-    placeholderBreakerMetricsByPage,
-    spacerHeightsByRange
-  } = params
-  const spacer = document.createElement('div')
-  spacer.className = 'rm-page-spacer'
-  spacer.dataset.rmPageRangeStart = String(startPage)
-  spacer.dataset.rmPageRangeEnd = String(endPage)
-  const pageSegmentHeights: number[] = []
+  const { pageNumber, totalPages, pageFormat, options, storage } = params
+  const currentHeaderHeight = resolveDefaultHeaderFooterMeasurement(storage, options, 'header', pageNumber, totalPages)
+  const currentFooterHeight = resolveDefaultHeaderFooterMeasurement(storage, options, 'footer', pageNumber, totalPages)
+  const currentLayout = getPageLayoutHeights(pageFormat, storage, currentHeaderHeight, currentFooterHeight)
+  const nextLayout =
+    pageNumber >= totalPages
+      ? currentLayout
+      : getPageLayoutHeights(
+          pageFormat,
+          storage,
+          resolveDefaultHeaderFooterMeasurement(storage, options, 'header', pageNumber + 1, totalPages),
+          resolveDefaultHeaderFooterMeasurement(storage, options, 'footer', pageNumber + 1, totalPages)
+        )
 
-  const preservedHeight = spacerHeightsByRange.get(createPageRangeKey(startPage, endPage))
-  let totalHeight = Number.isFinite(preservedHeight) ? (preservedHeight ?? 0) : 0
-  if (!Number.isFinite(totalHeight) || totalHeight <= 0) {
-    totalHeight = 0
+  return {
+    breakerHeight: resolveDefaultBreakerHeight(params),
+    footerHeight: currentLayout.footerReserved,
+    nextHeaderHeight: pageNumber >= totalPages ? 0 : nextLayout.headerReserved
   }
-
-  for (let pageNumber = startPage; pageNumber <= endPage; pageNumber += 1) {
-    const pageHeight =
-      getPageSpacerHeight(pageFormat, storage, pageNumber, options.headerHeight, options.footerHeight) +
-      Math.max(
-        0,
-        placeholderBreakerMetricsByPage.get(pageNumber)?.breakerHeight ??
-          resolveDefaultBreakerHeight({
-            pageNumber,
-            totalPages,
-            pageFormat,
-            options,
-            storage
-          })
-      )
-    pageSegmentHeights.push(pageHeight)
-
-    if (!Number.isFinite(preservedHeight) || preservedHeight <= 0) {
-      totalHeight += pageHeight
-    }
-  }
-
-  if (totalHeight > 0) {
-    spacer.style.height = `${totalHeight}px`
-  }
-  spacer.dataset.rmPageRangeHeight = String(Math.max(0, totalHeight))
-  spacer.dataset.rmPageSegmentHeights = pageSegmentHeights.join(',')
-
-  return spacer
 }
 
+/**
+ * Page N break footer is for page N; the header in the same breaker is for page N+1.
+ * Physical page 1’s header is not here — it is a separate `.rm-first-page-header` (see `createFirstPageHeader`).
+ */
 function createFullPageBreaker(params: {
   pageNumber: number
   totalPages: number
@@ -563,482 +506,23 @@ export function refreshHeaderFooterRegionDisplay(params: {
   requestAnimationFrame(() => layoutPageNumberSlots(region))
 }
 
-export function ensurePagesStyles(targetDocument: Document) {
-  if (targetDocument.head.querySelector(`[${STYLE_ATTR}]`)) return
+function createPageImageOverlayLayer(params: {
+  pageNumber: number
+  pageBodyHeight: number
+  layer: 'behind' | 'floating' | 'front'
+}): HTMLElement {
+  const overlayLayer = document.createElement('div')
+  overlayLayer.className = 'rm-page-image-overlay-layer'
+  overlayLayer.dataset.rmPageImageOverlay = 'true'
+  overlayLayer.dataset.rmPageNumber = String(params.pageNumber)
+  overlayLayer.dataset.rmImageLayer = params.layer
+  overlayLayer.style.height = `var(--rm-page-body-${params.pageNumber}, ${params.pageBodyHeight}px)`
+  overlayLayer.style.top = `calc(-1 * var(--rm-page-body-${params.pageNumber}, ${params.pageBodyHeight}px))`
+  return overlayLayer
+}
 
-  const style = targetDocument.createElement('style')
-  style.setAttribute(STYLE_ATTR, '')
-  style.textContent = `
-    .rm-pages-root {
-      position: relative;
-      box-sizing: border-box;
-      background: #fff;
-      overflow: visible;
-    }
-    .rm-pages-root .rm-page-break {
-      position: relative;
-    }
-    .rm-pages-root .rm-page-spacer {
-      position: relative;
-      float: left;
-      clear: both;
-      width: 100%;
-      height: 0;
-    }
-    .rm-pages-root .page {
-      position: relative;
-      float: left;
-      clear: both;
-      width: 0;
-      height: 0;
-      overflow: visible;
-    }
-    .rm-pages-root .rm-page-body-layer {
-      position: absolute;
-      left: calc(-1 * var(--rm-page-margin-left));
-      width: calc(var(--rm-page-width) + var(--rm-page-margin-left) + var(--rm-page-margin-right));
-      box-sizing: border-box;
-      pointer-events: none;
-      background: transparent;
-      z-index: 1;
-    }
-    .rm-pages-root .breaker {
-      position: relative;
-      float: left;
-      clear: both;
-      width: calc(100% + var(--rm-page-margin-left) + var(--rm-page-margin-right));
-      margin-left: calc(-1 * var(--rm-page-margin-left));
-      margin-right: calc(-1 * var(--rm-page-margin-right));
-      z-index: 2;
-    }
-    .rm-pages-root .rm-page-gap {
-      position: relative;
-      width: 100%;
-      background: var(--rm-page-break-background);
-      box-sizing: border-box;
-    }
-    .rm-pages-root .rm-page-break:last-child .rm-page-gap,
-    .rm-pages-root .rm-page-break:last-child .rm-page-header-region {
-      display: none;
-    }
-    .rm-pages-root .rm-page-header-region,
-    .rm-pages-root .rm-page-footer-region,
-    .rm-pages-root .rm-first-page-header {
-      position: relative;
-      width: 100%;
-      box-sizing: border-box;
-      overflow: hidden;
-      background: inherit;
-      color: #5f6368;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-    .rm-pages-root .rm-first-page-header {
-      width: calc(100% + var(--rm-page-margin-left) + var(--rm-page-margin-right));
-      margin-left: calc(-1 * var(--rm-page-margin-left));
-      margin-right: calc(-1 * var(--rm-page-margin-right));
-      z-index: 2;
-      pointer-events: none;
-    }
-    .rm-pages-root .rm-first-page-header > .rm-page-header {
-      pointer-events: auto;
-    }
-    .rm-pages-root .rm-page-header,
-    .rm-pages-root .rm-page-footer {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      box-sizing: border-box;
-      overflow: hidden;
-      background: inherit;
-      color: #202124;
-      font: inherit;
-      padding-left: var(--rm-page-margin-left);
-      padding-right: var(--rm-page-margin-right);
-      padding-bottom: 0;
-    }
-    .rm-pages-root .rm-page-header {
-      justify-content: flex-start;
-      padding-top: var(--rm-header-top-margin);
-      padding-bottom: 0;
-    }
-    .rm-pages-root .rm-page-footer {
-      justify-content: flex-end;
-      padding-top: 0;
-      padding-bottom: var(--rm-footer-bottom-margin);
-    }
-    .rm-pages-root .rm-page-header-content,
-    .rm-pages-root .rm-page-footer-content {
-      width: 100%;
-      min-height: 0;
-      outline: none;
-      word-break: break-word;
-      white-space: break-spaces;
-      tab-size: 4;
-      overflow: hidden;
-      pointer-events: none;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-    .rm-pages-root .rm-page-header-content .tableWrapper,
-    .rm-pages-root .rm-page-footer-content .tableWrapper {
-      overflow: visible;
-      max-width: 100%;
-      margin: 0;
-      border: 0;
-      border-radius: 0;
-      background: transparent;
-    }
-    .rm-pages-root .rm-page-header-content table,
-    .rm-pages-root .rm-page-footer-content table {
-      max-width: 100%;
-      margin: 0;
-      border-collapse: collapse;
-      table-layout: fixed;
-    }
-    .rm-pages-root .rm-page-header-content td,
-    .rm-pages-root .rm-page-footer-content td,
-    .rm-pages-root .rm-page-header-content th,
-    .rm-pages-root .rm-page-footer-content th {
-      border: 1pt solid #333;
-      padding: 4pt 6pt;
-      text-align: start;
-      vertical-align: top;
-      font-size: 0.875rem;
-      line-height: 1.3;
-      overflow-wrap: anywhere;
-      word-break: break-word;
-    }
-    .rm-pages-root .rm-page-header-content th,
-    .rm-pages-root .rm-page-footer-content th {
-      background: #f5f5f5;
-      font-weight: bold;
-    }
-    .rm-pages-root .rm-page-header-content table[data-table-theme="blue"],
-    .rm-pages-root .rm-page-footer-content table[data-table-theme="blue"] {
-      --editor-table-theme-solid: #2563eb;
-      --editor-table-theme-soft: #dbeafe;
-      --editor-table-theme-soft-alt: #eff6ff;
-    }
-    .rm-pages-root .rm-page-header-content table[data-table-theme="teal"],
-    .rm-pages-root .rm-page-footer-content table[data-table-theme="teal"] {
-      --editor-table-theme-solid: #0f766e;
-      --editor-table-theme-soft: #ccfbf1;
-      --editor-table-theme-soft-alt: #f0fdfa;
-    }
-    .rm-pages-root .rm-page-header-content table[data-table-theme="green"],
-    .rm-pages-root .rm-page-footer-content table[data-table-theme="green"] {
-      --editor-table-theme-solid: #15803d;
-      --editor-table-theme-soft: #dcfce7;
-      --editor-table-theme-soft-alt: #f0fdf4;
-    }
-    .rm-pages-root .rm-page-header-content table[data-table-theme="orange"],
-    .rm-pages-root .rm-page-footer-content table[data-table-theme="orange"] {
-      --editor-table-theme-solid: #c2410c;
-      --editor-table-theme-soft: #ffedd5;
-      --editor-table-theme-soft-alt: #fff7ed;
-    }
-    .rm-pages-root .rm-page-header-content table[data-table-theme="purple"],
-    .rm-pages-root .rm-page-footer-content table[data-table-theme="purple"] {
-      --editor-table-theme-solid: #7c3aed;
-      --editor-table-theme-soft: #ede9fe;
-      --editor-table-theme-soft-alt: #f5f3ff;
-    }
-    .rm-pages-root .rm-page-header-content table[data-table-theme="gray"],
-    .rm-pages-root .rm-page-footer-content table[data-table-theme="gray"] {
-      --editor-table-theme-solid: #4b5563;
-      --editor-table-theme-soft: #e5e7eb;
-      --editor-table-theme-soft-alt: #f3f4f6;
-    }
-    .rm-pages-root .rm-page-header-content table[data-table-style-header-row="true"] > tbody > tr:first-child > td,
-    .rm-pages-root .rm-page-header-content table[data-table-style-header-row="true"] > tbody > tr:first-child > th,
-    .rm-pages-root .rm-page-footer-content table[data-table-style-header-row="true"] > tbody > tr:first-child > td,
-    .rm-pages-root .rm-page-footer-content table[data-table-style-header-row="true"] > tbody > tr:first-child > th {
-      background: var(--editor-table-theme-solid, #2563eb);
-      color: #fff;
-      border-color: var(--editor-table-theme-solid, #2563eb);
-      font-weight: 600;
-    }
-    .rm-pages-root .rm-page-header-content table[data-table-style-first-column="true"] > tbody > tr > :first-child,
-    .rm-pages-root .rm-page-footer-content table[data-table-style-first-column="true"] > tbody > tr > :first-child {
-      background: var(--editor-table-theme-soft, #dbeafe);
-      font-weight: 600;
-    }
-    .rm-pages-root .rm-page-header-content table[data-table-style-last-column="true"] > tbody > tr > :last-child,
-    .rm-pages-root .rm-page-footer-content table[data-table-style-last-column="true"] > tbody > tr > :last-child {
-      background: var(--editor-table-theme-soft, #dbeafe);
-      font-weight: 600;
-    }
-    .rm-pages-root .rm-page-header-content table[data-table-style-banded-rows="true"] > tbody > tr:nth-child(even) > td,
-    .rm-pages-root .rm-page-header-content table[data-table-style-banded-rows="true"] > tbody > tr:nth-child(even) > th,
-    .rm-pages-root .rm-page-footer-content table[data-table-style-banded-rows="true"] > tbody > tr:nth-child(even) > td,
-    .rm-pages-root .rm-page-footer-content table[data-table-style-banded-rows="true"] > tbody > tr:nth-child(even) > th {
-      background: var(--editor-table-theme-soft-alt, #eff6ff);
-    }
-    .rm-pages-root .rm-page-header-content table[data-table-style-banded-columns="true"] > tbody > tr > :nth-child(even),
-    .rm-pages-root .rm-page-footer-content table[data-table-style-banded-columns="true"] > tbody > tr > :nth-child(even) {
-      background: var(--editor-table-theme-soft-alt, #eff6ff);
-    }
-    .rm-pages-root .rm-page-region-layout {
-      position: relative;
-      width: 100%;
-      min-height: var(--rm-page-number-layout-min-height, 20px);
-    }
-    .rm-pages-root .rm-page-region-layout[data-rm-page-number-active="true"][data-rm-page-number-align="left"] .rm-page-header-content,
-    .rm-pages-root .rm-page-region-layout[data-rm-page-number-active="true"][data-rm-page-number-align="left"] .rm-page-footer-content {
-      box-sizing: border-box;
-      padding-left: 48px;
-    }
-    .rm-pages-root .rm-page-region-layout[data-rm-page-number-active="true"][data-rm-page-number-align="right"] .rm-page-header-content,
-    .rm-pages-root .rm-page-region-layout[data-rm-page-number-active="true"][data-rm-page-number-align="right"] .rm-page-footer-content {
-      box-sizing: border-box;
-      padding-right: 48px;
-    }
-    .rm-pages-root .rm-page-number-slot {
-      position: absolute;
-      top: 0;
-      min-width: 24px;
-      color: inherit;
-      font: inherit;
-      line-height: inherit;
-      pointer-events: none;
-      user-select: none;
-      -webkit-user-select: none;
-      white-space: nowrap;
-    }
-    .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"] .rm-page-number-slot,
-    .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"] .rm-page-number-slot,
-    .rm-pages-root .rm-first-page-header[data-rm-overlay-active="true"] .rm-page-number-slot {
-      z-index: 6;
-    }
-    .rm-pages-root .rm-page-region-layout[data-rm-page-number-align="left"] .rm-page-number-slot {
-      left: 0;
-      text-align: left;
-    }
-    .rm-pages-root .rm-page-region-layout[data-rm-page-number-align="right"] .rm-page-number-slot {
-      right: 0;
-      text-align: right;
-    }
-    .rm-pages-root .rm-page-region-layout[data-rm-page-number-align="center"] .rm-page-number-slot {
-      left: 50%;
-      transform: translateX(-50%);
-      text-align: center;
-    }
-    .rm-pages-root .rm-page-region-layout[data-rm-page-number-below="true"] .rm-page-number-slot {
-      top: var(--rm-page-number-center-top, 20px);
-    }
-    .rm-pages-root .rm-page-region-layout[data-rm-page-number-below="true"] .rm-page-header-content,
-    .rm-pages-root .rm-page-region-layout[data-rm-page-number-below="true"] .rm-page-footer-content {
-      padding-left: 0;
-      padding-right: 0;
-    }
-    .rm-pages-root .rm-page-header-region[data-rm-editable="true"],
-    .rm-pages-root .rm-page-footer-region[data-rm-editable="true"],
-    .rm-pages-root .rm-first-page-header[data-rm-editable="true"] {
-      cursor: text;
-    }
-    .rm-pages-root .rm-page-header-region[data-rm-editable="true"]:hover,
-    .rm-pages-root .rm-page-footer-region[data-rm-editable="true"]:hover,
-    .rm-pages-root .rm-first-page-header[data-rm-editable="true"]:hover {
-      background: transparent;
-    }
-    .rm-pages-root .rm-page-header-region[data-rm-has-visible-content="true"]::after,
-    .rm-pages-root .rm-first-page-header[data-rm-has-visible-content="true"]::after {
-      content: '';
-      position: absolute;
-      left: var(--rm-page-margin-left);
-      right: var(--rm-page-margin-right);
-      bottom: 0;
-      border-bottom: 1px solid var(--rm-header-divider-accent, #6366f1);
-      pointer-events: none;
-    }
-    .rm-pages-root .rm-page-footer-region[data-rm-has-visible-content="true"]::before {
-      content: '';
-      position: absolute;
-      left: var(--rm-page-margin-left);
-      right: var(--rm-page-margin-right);
-      top: 0;
-      border-top: 1px solid var(--rm-footer-divider-accent, #6366f1);
-      pointer-events: none;
-    }
-    .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"] .rm-page-header-content:not(.rm-page-overlay-editor):not(.rm-page-inline-editor),
-    .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"] .rm-page-footer-content:not(.rm-page-overlay-editor):not(.rm-page-inline-editor),
-    .rm-pages-root .rm-first-page-header[data-rm-overlay-active="true"] .rm-page-header-content:not(.rm-page-overlay-editor):not(.rm-page-inline-editor) {
-      visibility: hidden;
-      pointer-events: none;
-      user-select: none;
-    }
-    .rm-pages-root .rm-page-header-region[contenteditable="true"],
-    .rm-pages-root .rm-page-footer-region[contenteditable="true"],
-    .rm-pages-root .rm-first-page-header[contenteditable="true"],
-    .rm-pages-root .rm-page-header[contenteditable="true"],
-    .rm-pages-root .rm-page-footer[contenteditable="true"],
-    .rm-pages-root .rm-page-header-content[contenteditable="true"],
-    .rm-pages-root .rm-page-footer-content[contenteditable="true"],
-    .rm-pages-root .rm-page-header-region[contenteditable="true"]:focus,
-    .rm-pages-root .rm-page-footer-region[contenteditable="true"]:focus,
-    .rm-pages-root .rm-first-page-header[contenteditable="true"]:focus,
-    .rm-pages-root .rm-page-header[contenteditable="true"]:focus,
-    .rm-pages-root .rm-page-footer[contenteditable="true"]:focus,
-    .rm-pages-root .rm-page-header-content[contenteditable="true"]:focus,
-    .rm-pages-root .rm-page-footer-content[contenteditable="true"]:focus,
-    .rm-pages-root .rm-page-header-region[contenteditable="true"]:focus-visible,
-    .rm-pages-root .rm-page-footer-region[contenteditable="true"]:focus-visible,
-    .rm-pages-root .rm-first-page-header[contenteditable="true"]:focus-visible,
-    .rm-pages-root .rm-page-header[contenteditable="true"]:focus-visible,
-    .rm-pages-root .rm-page-footer[contenteditable="true"]:focus-visible,
-    .rm-pages-root .rm-page-header-content[contenteditable="true"]:focus-visible,
-    .rm-pages-root .rm-page-footer-content[contenteditable="true"]:focus-visible {
-      outline: none;
-      box-shadow: none;
-    }
-    .rm-pages-root .rm-page-overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      box-sizing: border-box;
-      background: transparent;
-      z-index: 5;
-    }
-    .rm-pages-root .rm-page-overlay[data-rm-overlay-type="header"] {
-      border-bottom: 1px solid var(--rm-overlay-accent, #6366f1);
-    }
-    .rm-pages-root .rm-page-overlay[data-rm-overlay-type="footer"] {
-      border-top: 1px solid var(--rm-overlay-accent, #6366f1);
-    }
-    .rm-pages-root .rm-page-overlay-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 6px 0 8px;
-      border-bottom: 1px solid rgba(95, 99, 104, 0.16);
-    }
-    .rm-pages-root .rm-page-overlay-label {
-      font-size: 11px;
-      line-height: 16px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: #5f6368;
-    }
-    .rm-pages-root .rm-page-overlay-close {
-      border: 0;
-      background: transparent;
-      color: var(--rm-overlay-accent, #1a73e8);
-      font: inherit;
-      font-size: 12px;
-      line-height: 16px;
-      font-weight: 500;
-      padding: 4px 0;
-      cursor: pointer;
-    }
-    .rm-pages-root .rm-page-overlay-close:hover {
-      text-decoration: underline;
-    }
-    .rm-pages-root .rm-page-overlay-editor {
-      flex: 1;
-      min-height: 0;
-      overflow: visible;
-      box-sizing: border-box;
-      border: 0;
-      border-radius: 0;
-      background: transparent;
-      padding: 0;
-      caret-color: var(--rm-overlay-accent, #6366f1);
-      user-select: text;
-    }
-    .rm-pages-root .rm-page-overlay-editor.rm-page-header-content,
-    .rm-pages-root .rm-page-overlay-editor.rm-page-footer-content {
-      visibility: visible;
-      pointer-events: auto;
-      user-select: text;
-      -webkit-user-select: text;
-      overflow: visible;
-    }
-    .rm-pages-root .rm-page-overlay-editor .ProseMirror {
-      min-height: 0;
-      outline: none;
-      user-select: text;
-      white-space: break-spaces;
-      tab-size: 4;
-    }
-    .rm-pages-root .rm-page-overlay-editor table {
-      width: 100%;
-      max-width: 100%;
-      margin: 0;
-      border-collapse: collapse;
-      table-layout: fixed;
-    }
-    .rm-pages-root .rm-page-overlay-editor td[data-cell-border-color],
-    .rm-pages-root .rm-page-overlay-editor th[data-cell-border-color] {
-      border-style: dashed;
-      border-width: 1px;
-      padding: 2px 6px;
-    }
-    .rm-pages-root .rm-page-inline-editor {
-      width: 100%;
-      box-sizing: border-box;
-      background: transparent;
-      caret-color: var(--rm-overlay-accent, #6366f1);
-      user-select: text;
-      -webkit-user-select: text;
-      pointer-events: auto;
-      overflow: visible;
-    }
-    .rm-pages-root .rm-page-inline-editor .ProseMirror {
-      width: 100%;
-      min-height: 0;
-      box-sizing: border-box;
-      outline: none;
-      user-select: text;
-      white-space: break-spaces;
-      tab-size: 4;
-    }
-    .rm-pages-root .rm-page-inline-editor .ProseMirror p {
-      min-height: 1em;
-    }
-    .rm-pages-root .rm-page-inline-editor .ProseMirror .tableWrapper {
-      overflow: visible;
-      margin: 0;
-      border: 0;
-      border-radius: 0;
-      background: transparent;
-    }
-    .rm-pages-root .rm-page-inline-editor .ProseMirror table {
-      max-width: 100%;
-      margin: 0;
-      border-collapse: collapse;
-      table-layout: fixed;
-    }
-    .rm-pages-root .rm-page-inline-editor .ProseMirror .selectedCell:after {
-      z-index: 2;
-      position: absolute;
-      content: "";
-      left: 0;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      background: rgba(200, 200, 255, 0.4);
-      pointer-events: none;
-    }
-    .rm-pages-root .rm-page-inline-editor .ProseMirror .column-resize-handle {
-      position: absolute;
-      right: -2px;
-      top: 0;
-      bottom: -2px;
-      width: 4px;
-      background-color: #adf;
-      pointer-events: none;
-    }
-    .rm-pages-root .rm-page-overlay[data-rm-overlay-type="header"] .rm-page-overlay-editor .ProseMirror {
-    }
-    .rm-pages-root .rm-page-overlay[data-rm-overlay-type="footer"] .rm-page-overlay-editor .ProseMirror {
-    }
-  `
-  targetDocument.head.appendChild(style)
+export function ensurePagesStyles(targetDocument: Document) {
+  ensureSharedPagesStyles(targetDocument)
 }
 
 export function applyRootStyles(targetNode: HTMLElement, pageFormat: PageFormat, options: PagesOptions) {
@@ -1067,19 +551,63 @@ export function applyRootStyles(targetNode: HTMLElement, pageFormat: PageFormat,
 }
 
 export function refreshPageMinHeight(targetNode: HTMLElement) {
-  const paginationElement = resolvePaginationRootElement(targetNode)
-  const lastPaginationChild = paginationElement?.lastElementChild as HTMLElement | null
-  if (!lastPaginationChild) return
+  const apply = () => {
+    const paginationElement = resolvePaginationRootElement(targetNode)
+    const lastPaginationChild = paginationElement?.lastElementChild as HTMLElement | null
+    if (!lastPaginationChild) return
 
-  const measuredTarget = lastPaginationChild.classList.contains('rm-page-break')
-    ? ((lastPaginationChild.querySelector('.breaker') as HTMLElement | null) ?? lastPaginationChild)
-    : lastPaginationChild
-  const minHeight = measuredTarget.offsetTop + measuredTarget.offsetHeight
-  targetNode.style.minHeight = `${minHeight + 2}px`
+    const pageBreak = lastPaginationChild.classList.contains('rm-page-break') ? lastPaginationChild : null
+    const measuredTarget = pageBreak
+      ? ((pageBreak.querySelector('.breaker') as HTMLElement | null) ?? lastPaginationChild)
+      : lastPaginationChild
+
+    // Walk the offsetParent chain to accumulate the total vertical offset from targetNode.
+    // measuredTarget.offsetTop is relative to its offsetParent (e.g. .rm-page-break), not targetNode.
+    let totalOffset = measuredTarget.offsetTop + measuredTarget.offsetHeight
+    let currentParent: HTMLElement | null = measuredTarget.offsetParent as HTMLElement | null
+    while (currentParent && currentParent !== targetNode) {
+      totalOffset += currentParent.offsetTop
+      currentParent = currentParent.offsetParent as HTMLElement | null
+    }
+
+    const candidates: number[] = [totalOffset]
+    const rootRect = targetNode.getBoundingClientRect()
+    const scrollTop = targetNode.scrollTop
+
+    const pushRectBottomIfLaidOut = (element: HTMLElement) => {
+      const rect = element.getBoundingClientRect()
+      if (rect.bottom <= rect.top) return
+      candidates.push(rect.bottom - rootRect.top + scrollTop)
+    }
+
+    pushRectBottomIfLaidOut(measuredTarget)
+    if (pageBreak instanceof HTMLElement) {
+      const pageNumber = pageBreak.dataset.rmPageNumber
+      if (pageNumber) {
+        const footer = pageBreak.querySelector(
+          `.rm-page-footer-region[data-rm-page-number="${pageNumber}"]`
+        ) as HTMLElement | null
+        if (footer) {
+          pushRectBottomIfLaidOut(footer)
+        }
+      }
+    }
+
+    const minHeight = Math.max(...candidates)
+    // Ceil subpixels; extra padding covers focus/caret reflow and border rounding so the paper
+    // background still covers the last footer after layout settles.
+    targetNode.style.minHeight = `${Math.ceil(minHeight) + 8}px`
+  }
+
+  apply()
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(apply)
+  }
 }
 
 function blockInactiveRegion(event: Event, region: HTMLElement) {
   if (region.dataset.rmOverlayActive === 'true') return
+  if (region.dataset.rmHasVisibleContent !== 'true') return
 
   event.preventDefault()
   event.stopPropagation()
@@ -1156,14 +684,14 @@ export function createHeaderFooterRegion(params: {
   region.appendChild(inner)
   requestAnimationFrame(() => layoutPageNumberSlots(region))
 
-  region.addEventListener('mousedown', event => {
-    blockInactiveRegion(event, region)
-  })
   region.addEventListener('selectstart', event => {
     blockInactiveRegion(event, region)
   })
 
-  region.addEventListener('dblclick', event => {
+  region.addEventListener('click', event => {
+    if (event.detail !== 1) {
+      return
+    }
     event.preventDefault()
     event.stopPropagation()
     onOpenEditor?.(type, pageNumber, region, {
@@ -1182,6 +710,7 @@ export function createPageBreakElement(params: {
   options: PagesOptions
   storage: PagesStorage
   extensions: Extension[]
+  hydratedRange?: PaginationWindowRange | null
   activeRange?: PaginationWindowRange | null
   placeholderBreakerMetrics?: PageBreakerPlaceholderMetrics | null
   onOpenEditor?: (
@@ -1198,6 +727,7 @@ export function createPageBreakElement(params: {
     options,
     storage,
     extensions,
+    hydratedRange,
     activeRange,
     placeholderBreakerMetrics,
     onOpenEditor
@@ -1206,38 +736,76 @@ export function createPageBreakElement(params: {
   const pageContainer = document.createElement('div')
   pageContainer.className = 'rm-page-break'
   pageContainer.dataset.rmPageNumber = String(pageNumber)
+  const effectiveHydratedRange = hydratedRange ?? activeRange ?? null
+  const shellState: PageShellState = shouldRenderFullPageBreaker(pageNumber, effectiveHydratedRange)
+    ? 'hydrated'
+    : 'placeholder'
+  setPageBreakShellState(pageContainer, shellState)
 
   const page = document.createElement('div')
   page.className = 'page'
   page.dataset.rmPageNumber = String(pageNumber)
+  const defaultHeaderHeight = resolveDefaultHeaderFooterMeasurement(storage, options, 'header', pageNumber, totalPages)
+  const defaultFooterHeight = resolveDefaultHeaderFooterMeasurement(storage, options, 'footer', pageNumber, totalPages)
   page.style.setProperty(
     'margin-top',
     `var(--rm-page-content-${pageNumber}, ${getPageSpacerHeight(
       pageFormat,
       storage,
       pageNumber,
-      options.headerHeight,
-      options.footerHeight
+      defaultHeaderHeight,
+      defaultFooterHeight
     )}px)`
   )
 
   const defaultBodyHeight = getPageLayoutHeights(
     pageFormat,
     storage,
-    options.headerHeight,
-    options.footerHeight
+    defaultHeaderHeight,
+    defaultFooterHeight
   ).bodyHeight
+  const pageBodyIntrinsicHeight = `var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px)`
   const bodyLayer = document.createElement('div')
   bodyLayer.className = 'rm-page-body-layer'
   bodyLayer.dataset.rmPageBody = 'true'
+  bodyLayer.dataset.rmPageBodyPresentation = 'visible'
   bodyLayer.dataset.rmPageNumber = String(pageNumber)
+  page.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
+  bodyLayer.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
   bodyLayer.style.height = `var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px)`
   bodyLayer.style.top = `calc(-1 * var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px))`
-  page.appendChild(bodyLayer)
+  const behindImageLayer = createPageImageOverlayLayer({
+    pageNumber,
+    pageBodyHeight: defaultBodyHeight,
+    layer: 'behind'
+  })
+  const floatingImageLayer = createPageImageOverlayLayer({
+    pageNumber,
+    pageBodyHeight: defaultBodyHeight,
+    layer: 'floating'
+  })
+  const frontImageLayer = createPageImageOverlayLayer({
+    pageNumber,
+    pageBodyHeight: defaultBodyHeight,
+    layer: 'front'
+  })
+  behindImageLayer.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
+  floatingImageLayer.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
+  frontImageLayer.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
+  page.append(behindImageLayer, bodyLayer, floatingImageLayer, frontImageLayer)
 
   const breaker =
-    !shouldRenderFullPageBreaker(pageNumber, activeRange) && placeholderBreakerMetrics != null
-      ? createPlaceholderBreaker(placeholderBreakerMetrics)
+    shellState === 'placeholder'
+      ? createPlaceholderBreaker(
+          placeholderBreakerMetrics ??
+            resolveDefaultPlaceholderBreakerMetrics({
+              pageNumber,
+              totalPages,
+              pageFormat,
+              options,
+              storage
+            })
+        )
       : createFullPageBreaker({
           pageNumber,
           totalPages,
@@ -1260,7 +828,7 @@ export function createPaginationWrapper(params: {
   extensions: Extension[]
   rendererState?: Pick<
     WindowedPaginationRendererState,
-    'activeRange' | 'mountedRange' | 'windowKey' | 'placeholderBreakerMetricsByPage' | 'spacerHeightsByRange'
+    'activeRange' | 'mountedRange' | 'windowKey' | 'placeholderBreakerMetricsByPage'
   > | null
   onOpenEditor?: (
     type: HeaderFooterEditorType,
@@ -1276,31 +844,15 @@ export function createPaginationWrapper(params: {
   wrapper.id = 'pages'
   wrapper.className = 'rm-pages-wrapper'
 
-  const mountedRange = resolveMountedPageRange(totalPages, rendererState?.mountedRange, rendererState?.activeRange)
+  const mountedRange = resolveMountedPageRange(
+    totalPages,
+    rendererState?.activeRange ? rendererState.mountedRange : null,
+    rendererState?.activeRange
+  )
   wrapper.dataset.rmMountedStartPage = String(mountedRange.startPage)
   wrapper.dataset.rmMountedEndPage = String(mountedRange.endPage)
-  const shouldRenderSparseShells = mountedRange.startPage > 1 || mountedRange.endPage < totalPages
 
-  if (shouldRenderSparseShells && mountedRange.startPage > 1) {
-    wrapper.appendChild(
-      createPageRangeSpacer({
-        startPage: 1,
-        endPage: mountedRange.startPage - 1,
-        totalPages,
-        pageFormat,
-        options,
-        storage,
-        placeholderBreakerMetricsByPage: rendererState?.placeholderBreakerMetricsByPage ?? new Map(),
-        spacerHeightsByRange: rendererState?.spacerHeightsByRange ?? new Map()
-      })
-    )
-  }
-
-  for (
-    let pageNumber = shouldRenderSparseShells ? mountedRange.startPage : 1;
-    pageNumber <= (shouldRenderSparseShells ? mountedRange.endPage : totalPages);
-    pageNumber += 1
-  ) {
+  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
     const pageBreakElement = createPageBreakElement({
       pageNumber,
       totalPages,
@@ -1308,7 +860,7 @@ export function createPaginationWrapper(params: {
       options,
       storage,
       extensions,
-      activeRange: mountedRange,
+      hydratedRange: mountedRange,
       placeholderBreakerMetrics: rendererState?.placeholderBreakerMetricsByPage.get(pageNumber) ?? null,
       onOpenEditor
     })
@@ -1318,21 +870,6 @@ export function createPaginationWrapper(params: {
       rendererState?.windowKey ?? null
     )
     wrapper.appendChild(pageBreakElement)
-  }
-
-  if (shouldRenderSparseShells && mountedRange.endPage < totalPages) {
-    wrapper.appendChild(
-      createPageRangeSpacer({
-        startPage: mountedRange.endPage + 1,
-        endPage: totalPages,
-        totalPages,
-        pageFormat,
-        options,
-        storage,
-        placeholderBreakerMetricsByPage: rendererState?.placeholderBreakerMetricsByPage ?? new Map(),
-        spacerHeightsByRange: rendererState?.spacerHeightsByRange ?? new Map()
-      })
-    )
   }
 
   return wrapper
@@ -1369,6 +906,7 @@ export function hydratePageBreakElement(params: {
   })
 
   breaker.replaceWith(nextBreaker)
+  setPageBreakShellState(params.pageContainer, 'hydrated')
   applyWindowAttributesToPageBreak(
     params.pageContainer,
     params.rendererState?.activeRange ?? null,
@@ -1389,8 +927,8 @@ export function applyWindowAttributesToPageBreak(
     return 'inside'
   }
 
-  const markerTargets = pageBreakEl.querySelectorAll(
-    '.page[data-rm-page-number], .rm-page-body-layer[data-rm-page-number], .rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
+  const markerTargets = pageBreakEl.querySelectorAll<HTMLElement>(
+    '.page[data-rm-page-number], .rm-page-body-layer[data-rm-page-number], .rm-page-image-overlay-layer[data-rm-page-number], .rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
   )
 
   const pageBreakNumber = resolvePageBreakNumber(pageBreakEl)
@@ -1420,6 +958,11 @@ export function applyWindowAttributesToPageBreak(
   })
 }
 
+/**
+ * Shell for page 1’s header (class `rm-first-page-header`). Always mounted next to `.rm-pages-wrapper`
+ * via `renderWindowedPaginationChrome`, not inside the first `rm-page-break`. Content uses the
+ * `default` or `firstPage` storage variant depending on `differentFirstPage`, not a different DOM shape.
+ */
 export function createFirstPageHeader(params: {
   totalPages: number
   pageFormat: PageFormat

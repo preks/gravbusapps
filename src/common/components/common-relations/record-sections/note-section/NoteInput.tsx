@@ -27,6 +27,8 @@ interface NoteInputProps {
   onShowQuickAddChange: (show: boolean) => void
   /** Zod schema for the form (passed to DS Form for required/validation UI if supported). */
   schema?: ZodType<any>
+  /** Overrides the default “Quick Add Note” trigger label. */
+  quickAddTriggerLabel?: string
 }
 
 export const NoteInput: React.FC<NoteInputProps> = ({
@@ -35,7 +37,8 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   isProcessing,
   showQuickAdd,
   onShowQuickAddChange,
-  schema
+  schema,
+  quickAddTriggerLabel
 }) => {
   const { t } = useTranslation(translations)
   if (!showQuickAdd) {
@@ -48,7 +51,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
         data-testid="note-quick-add-trigger"
       >
         <PlusIcon size={16} weight="bold" />
-        {t('notes-addQuick')}
+        {quickAddTriggerLabel ?? t('notes-addQuick')}
       </Button>
     )
   }

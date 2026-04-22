@@ -1,30 +1,38 @@
-/**
- * usePowerPointParser Hook
- *
- * Parses PowerPoint files (.pptx) using JSZip and XML parsing.
- * Extracts slides, text, images, shapes, and converts to our SlideData format.
- *
- * Note: .pptx files are ZIP archives containing XML files in OOXML format.
- */
+// Orchestrator hook for parsing PowerPoint (.pptx) files.
+// Delegates to pure extraction functions in pptxImport/.
 
 import { useState, useCallback } from 'react'
 import JSZip from 'jszip'
 import type { SlideData } from '../components/slideElements'
-import { createTextElement, createImageElement } from '../components/slideElements'
+import { createTextElement } from '../components/slideElements'
+import type { AnySlideElement } from '../components/slideElements'
+import { parseXML, getChild, emuToPixels, extractTransform } from './pptxImport/ooxmlUtils'
+import { extractTheme, mapThemeToSlideThemeId } from './pptxImport/extractTheme'
+import {
+  extractAllMedia,
+  resolveSlideRelationships,
+  resolveLayoutRelationships,
+  resolveMasterRelationships
+} from './pptxImport/resolveRelationships'
+import { assembleSlide } from './pptxImport/assembleSlide'
+import { extractTextElements } from './pptxImport/extractText'
+import { extractShapeElements } from './pptxImport/extractShapes'
+import { extractImageElements } from './pptxImport/extractImages'
+import { flattenGroupedShapes } from './pptxImport/flattenGroups'
+import type { OoxmlTheme, SlideRelationships } from './pptxImport/types'
 
 export interface ParsedPowerPointDocument {
   fileName: string
   fileSize: number
   slides: SlideData[]
   slideCount: number
+  themeId: string
   messages: ParserMessage[]
 }
 
 export interface ParserMessage {
   type: 'error' | 'warning' | 'info'
-  /** i18n key or fallback string */
   message: string
-  /** Optional variables for Fluent interpolation (e.g. { number: '1' }) */
   params?: Record<string, string>
 }
 
@@ -40,184 +48,259 @@ interface UsePowerPointParserResult extends UsePowerPointParserState {
   reset: () => void
 }
 
-/**
- * Parse XML string
- */
-function parseXML(xmlString: string): Document {
-  const parser = new DOMParser()
-  return parser.parseFromString(xmlString, 'text/xml')
-}
-
-/**
- * Extract text from slide XML
- */
-function extractTextFromSlideXml(
-  slideXml: Document
-): Array<{ text: string; x: number; y: number; width: number; height: number }> {
-  const texts: Array<{ text: string; x: number; y: number; width: number; height: number }> = []
-
-  // Find all text shapes (sp elements with txBody)
-  const shapes = slideXml.getElementsByTagName('p:sp')
-
-  for (let i = 0; i < shapes.length; i++) {
-    const shape = shapes[i]
-
-    // Get position and size
-    const xfrm = shape.getElementsByTagName('a:xfrm')[0]
-    const off = xfrm?.getElementsByTagName('a:off')[0]
-    const ext = xfrm?.getElementsByTagName('a:ext')[0]
-
-    const x = parseInt(off?.getAttribute('x') || '0') / 9525 // EMUs to pixels (96 DPI)
-    const y = parseInt(off?.getAttribute('y') || '0') / 9525
-    const width = parseInt(ext?.getAttribute('cx') || '0') / 9525
-    const height = parseInt(ext?.getAttribute('cy') || '0') / 9525
-
-    // Get text content
-    const txBody = shape.getElementsByTagName('p:txBody')[0]
-    if (!txBody) continue
-
-    const paragraphs = txBody.getElementsByTagName('a:p')
-    const textParts: string[] = []
-
-    for (let j = 0; j < paragraphs.length; j++) {
-      const runs = paragraphs[j].getElementsByTagName('a:t')
-      for (let k = 0; k < runs.length; k++) {
-        textParts.push(runs[k].textContent || '')
-      }
-    }
-
-    const text = textParts.join(' ').trim()
-    if (text) {
-      texts.push({ text, x, y, width, height })
-    }
-  }
-
-  return texts
-}
-
-/**
- * Extract images from slide relationships and media
- */
-async function extractImagesFromPptx(zip: JSZip): Promise<Map<string, string>> {
-  const images = new Map<string, string>()
-
-  // Get all files in ppt/media/
-  const mediaFolder = zip.folder('ppt/media')
-  if (!mediaFolder) return images
-
-  const mediaFiles = Object.keys(zip.files).filter(name => name.startsWith('ppt/media/'))
-
-  for (const fileName of mediaFiles) {
-    const file = zip.files[fileName]
-    if (file && !file.dir) {
-      try {
-        const blob = await file.async('blob')
-        const base64 = await blobToBase64(blob)
-
-        // Get image name (e.g., image1.png)
-        const imageName = fileName.split('/').pop() || ''
-        images.set(imageName, base64)
-      } catch (err) {
-        console.warn('[PowerPointParser] Failed to extract image:', fileName, err)
-      }
-    }
-  }
-
-  return images
-}
-
-/**
- * Convert Blob to base64 data URL
- */
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onloadend = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(blob)
-  })
-}
-
-/**
- * Get slide relationship mappings
- */
-async function getSlideRelationships(zip: JSZip, slideNumber: number): Promise<Map<string, string>> {
-  const relsPath = `ppt/slides/_rels/slide${slideNumber}.xml.rels`
-  const relsFile = zip.file(relsPath)
-
-  if (!relsFile) return new Map()
-
-  const relsContent = await relsFile.async('text')
-  const relsXml = parseXML(relsContent)
-  const relationships = new Map<string, string>()
-
-  const rels = relsXml.getElementsByTagName('Relationship')
-  for (let i = 0; i < rels.length; i++) {
-    const rel = rels[i]
-    const id = rel.getAttribute('Id')
-    const target = rel.getAttribute('Target')
-    if (id && target) {
-      relationships.set(id, target.replace('../', ''))
-    }
-  }
-
-  return relationships
-}
-
-/**
- * Extract images from slide XML using relationships
- */
-function extractImagesFromSlideXml(
-  slideXml: Document,
-  relationships: Map<string, string>,
-  imageData: Map<string, string>
-): Array<{ src: string; x: number; y: number; width: number; height: number }> {
-  const images: Array<{ src: string; x: number; y: number; width: number; height: number }> = []
-
-  // Find all picture shapes (pic elements)
-  const pics = slideXml.getElementsByTagName('p:pic')
-
-  for (let i = 0; i < pics.length; i++) {
-    const pic = pics[i]
-
-    // Get position and size
-    const xfrm = pic.getElementsByTagName('a:xfrm')[0]
-    const off = xfrm?.getElementsByTagName('a:off')[0]
-    const ext = xfrm?.getElementsByTagName('a:ext')[0]
-
-    const x = parseInt(off?.getAttribute('x') || '0') / 9525
-    const y = parseInt(off?.getAttribute('y') || '0') / 9525
-    const width = parseInt(ext?.getAttribute('cx') || '0') / 9525
-    const height = parseInt(ext?.getAttribute('cy') || '0') / 9525
-
-    // Get image reference
-    const blip = pic.getElementsByTagName('a:blip')[0]
-    const relId = blip?.getAttribute('r:embed')
-
-    if (relId) {
-      const imagePath = relationships.get(relId)
-      if (imagePath) {
-        const imageName = imagePath.split('/').pop()
-        const imageBase64 = imageName ? imageData.get(imageName) : undefined
-
-        if (imageBase64) {
-          images.push({ src: imageBase64, x, y, width, height })
-        }
-      }
-    }
-  }
-
-  return images
-}
-
 export interface UsePowerPointParserOptions {
-  /** Translation function for user-facing strings (e.g. default slide title) */
   t?: (key: string) => string
 }
 
-/**
- * Hook for parsing PowerPoint documents
- */
+const SP_TREE_NS = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+const DRAWING_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+const RELS_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+const FAKE_DOC = `<p:sld xmlns:p="${SP_TREE_NS}" xmlns:a="${DRAWING_NS}" xmlns:r="${RELS_NS}"><p:cSld><p:spTree></p:spTree></p:cSld></p:sld>`
+
+function wrapElement(element: Element): Document {
+  const doc = new DOMParser().parseFromString(FAKE_DOC, 'text/xml')
+  const spTree = doc.getElementsByTagName('p:spTree')[0]
+  spTree.appendChild(doc.importNode(element, true))
+  return doc
+}
+
+function isPlaceholder(el: Element): boolean {
+  const nvSpPr = getChild(el, 'p:nvSpPr')
+  if (!nvSpPr) return false
+  const nvPr = getChild(nvSpPr, 'p:nvPr')
+  if (!nvPr) return false
+  return !!getChild(nvPr, 'p:ph')
+}
+
+function extractNonPlaceholderEls(
+  xml: Document,
+  rels: SlideRelationships,
+  imageData: Map<string, string>,
+  theme: OoxmlTheme | undefined,
+  messages: ParserMessage[],
+  slideIndex: number
+): AnySlideElement[] {
+  const result: AnySlideElement[] = []
+  const spTree = xml.getElementsByTagName('p:spTree')[0]
+  if (!spTree) return result
+
+  for (let i = 0; i < spTree.childNodes.length; i++) {
+    const child = spTree.childNodes[i] as Element
+    if (!child.tagName) continue
+
+    if (child.tagName === 'p:sp') {
+      if (isPlaceholder(child)) continue
+      const doc = wrapElement(child)
+      const texts = extractTextElements(doc, theme, rels)
+      if (texts.length > 0) {
+        result.push(...texts)
+      } else {
+        const shapes = extractShapeElements(doc, theme, messages, slideIndex)
+        result.push(...shapes)
+      }
+    } else if (child.tagName === 'p:pic') {
+      const doc = wrapElement(child)
+      result.push(...extractImageElements(doc, rels, imageData))
+    } else if (child.tagName === 'p:grpSp') {
+      const groupEls = flattenGroupedShapes(xml, theme, rels, imageData, messages, slideIndex, child)
+      result.push(...groupEls)
+    }
+  }
+  return result
+}
+
+async function getInheritedElements(
+  zip: JSZip,
+  relationships: SlideRelationships,
+  imageData: Map<string, string>,
+  theme: OoxmlTheme | undefined,
+  messages: ParserMessage[],
+  slideIndex: number
+): Promise<AnySlideElement[]> {
+  const inherited: AnySlideElement[] = []
+  if (!relationships.layoutPath) return inherited
+
+  const layoutFile = zip.file(relationships.layoutPath)
+  if (!layoutFile) return inherited
+
+  const layoutXml = parseXML(await layoutFile.async('text'))
+  const layoutRels = await resolveLayoutRelationships(zip, relationships.layoutPath)
+  const layoutRelationships: SlideRelationships = {
+    images: layoutRels.images,
+    hyperlinks: new Map(),
+    chartPaths: new Map()
+  }
+  const layoutEls = extractNonPlaceholderEls(layoutXml, layoutRelationships, imageData, theme, messages, slideIndex)
+  fixTextColorsFromStyle(layoutXml, layoutEls, theme)
+  inherited.push(...layoutEls)
+
+  if (layoutRels.masterPath) {
+    const masterFile = zip.file(layoutRels.masterPath)
+    if (masterFile) {
+      const masterXml = parseXML(await masterFile.async('text'))
+      const masterRels = await resolveMasterRelationships(zip, layoutRels.masterPath)
+      const masterRelationships: SlideRelationships = {
+        images: masterRels.images,
+        hyperlinks: new Map(),
+        chartPaths: new Map()
+      }
+      const masterEls = extractNonPlaceholderEls(masterXml, masterRelationships, imageData, theme, messages, slideIndex)
+      fixTextColorsFromStyle(masterXml, masterEls, theme)
+      inherited.push(...masterEls)
+    }
+  }
+  return inherited
+}
+
+function getPlaceholderType(sp: Element): string | null {
+  const nvSpPr = getChild(sp, 'p:nvSpPr')
+  if (!nvSpPr) return null
+  const nvPr = getChild(nvSpPr, 'p:nvPr')
+  if (!nvPr) return null
+  const ph = getChild(nvPr, 'p:ph')
+  if (!ph) return null
+  return ph.getAttribute('type') || 'body'
+}
+
+const SCHEME_ALIAS_MAP: Record<string, string> = {
+  tx1: 'dk1',
+  bg1: 'lt1',
+  tx2: 'dk2',
+  bg2: 'lt2'
+}
+
+function resolveSchemeColor(el: Element, theme: OoxmlTheme | undefined): string | undefined {
+  const srgb = getChild(el, 'a:srgbClr')
+  if (srgb) return `#${srgb.getAttribute('val') || '000000'}`
+
+  const scheme = getChild(el, 'a:schemeClr')
+  if (scheme && theme) {
+    const val = scheme.getAttribute('val')
+    if (!val) return undefined
+    const mapped = SCHEME_ALIAS_MAP[val] || val
+    const resolved = theme.colors.get(mapped)
+    if (resolved) return resolved.startsWith('#') ? resolved : `#${resolved}`
+  }
+  return undefined
+}
+
+interface MasterTextStyles {
+  title?: string
+  body?: string
+  other?: string
+}
+
+function extractMasterTextStyles(masterXml: Document, theme: OoxmlTheme | undefined): MasterTextStyles {
+  const result: MasterTextStyles = {}
+  const txStyles = masterXml.getElementsByTagName('p:txStyles')[0]
+  if (!txStyles) return result
+
+  for (let i = 0; i < txStyles.childNodes.length; i++) {
+    const node = txStyles.childNodes[i] as Element
+    if (!node.tagName) continue
+
+    let key: keyof MasterTextStyles | undefined
+    if (node.tagName === 'p:titleStyle') key = 'title'
+    else if (node.tagName === 'p:bodyStyle') key = 'body'
+    else if (node.tagName === 'p:otherStyle') key = 'other'
+    if (!key) continue
+
+    const lvl1 = getChild(node, 'a:lvl1pPr')
+    if (!lvl1) continue
+    const defRPr = getChild(lvl1, 'a:defRPr')
+    if (!defRPr) continue
+    const solidFill = getChild(defRPr, 'a:solidFill')
+    if (!solidFill) continue
+
+    const color = resolveSchemeColor(solidFill, theme)
+    if (color) result[key] = color
+  }
+
+  return result
+}
+
+function buildLayoutStyleMap(layoutXml: Document, theme: OoxmlTheme | undefined): Map<string, string> {
+  const styleMap = new Map<string, string>()
+  const shapes = layoutXml.getElementsByTagName('p:sp')
+  for (let i = 0; i < shapes.length; i++) {
+    const sp = shapes[i]
+    const phType = getPlaceholderType(sp)
+    if (!phType) continue
+
+    const style = getChild(sp, 'p:style')
+    if (!style) continue
+
+    const fontRef = getChild(style, 'a:fontRef')
+    if (!fontRef) continue
+
+    const color = resolveSchemeColor(fontRef, theme)
+    if (color) styleMap.set(phType, color)
+  }
+  return styleMap
+}
+
+const TITLE_PH_TYPES = new Set(['title', 'ctrTitle', 'subTitle'])
+const BODY_PH_TYPES = new Set(['body', 'obj', 'dt', 'ftr', 'sldNum'])
+
+function fixTextColorsFromStyle(
+  slideXml: Document,
+  elements: AnySlideElement[],
+  theme: OoxmlTheme | undefined,
+  layoutStyleMap?: Map<string, string>,
+  masterTextStyles?: MasterTextStyles
+) {
+  const defaultDark = theme?.colors.get('dk1') || '#000000'
+  const shapes = slideXml.getElementsByTagName('p:sp')
+
+  for (let i = 0; i < shapes.length; i++) {
+    const sp = shapes[i]
+    let fontColor: string | undefined
+
+    const style = getChild(sp, 'p:style')
+    if (style) {
+      const fontRef = getChild(style, 'a:fontRef')
+      if (fontRef) fontColor = resolveSchemeColor(fontRef, theme)
+    }
+
+    const phType = getPlaceholderType(sp)
+
+    if (!fontColor && layoutStyleMap && phType) {
+      fontColor = layoutStyleMap.get(phType)
+    }
+
+    if (!fontColor && masterTextStyles && phType) {
+      if (TITLE_PH_TYPES.has(phType)) {
+        fontColor = masterTextStyles.title
+      } else if (BODY_PH_TYPES.has(phType)) {
+        fontColor = masterTextStyles.body
+      } else {
+        fontColor = masterTextStyles.other || masterTextStyles.body
+      }
+    }
+
+    if (!fontColor) continue
+
+    const transform = extractTransform(sp)
+    if (!transform) continue
+    const sx = Math.round(emuToPixels(transform.x))
+    const sy = Math.round(emuToPixels(transform.y))
+
+    for (const el of elements) {
+      if (el.type !== 'text') continue
+      const te = el as AnySlideElement & { color?: string }
+      const ex = Math.round(el.position.x)
+      const ey = Math.round(el.position.y)
+
+      if (Math.abs(ex - sx) < 5 && Math.abs(ey - sy) < 5) {
+        if (!te.color || te.color === defaultDark || te.color === '#1e293b') {
+          te.color = fontColor
+        }
+        break
+      }
+    }
+  }
+}
+
 export function usePowerPointParser(options?: UsePowerPointParserOptions): UsePowerPointParserResult {
   const t = options?.t
   const [state, setState] = useState<UsePowerPointParserState>({
@@ -227,42 +310,28 @@ export function usePowerPointParser(options?: UsePowerPointParserOptions): UsePo
     parsedDocument: null
   })
 
-  /**
-   * Parse a PowerPoint file
-   */
   const parseFile = useCallback(
     async (file: File): Promise<ParsedPowerPointDocument | null> => {
       const tFn = t
-      // Validate file type
+
       const isValidType =
         file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
         file.name.toLowerCase().endsWith('.pptx')
 
       if (!isValidType) {
-        setState(prev => ({
-          ...prev,
-          error: 'parser-invalid-type'
-        }))
+        setState(prev => ({ ...prev, error: 'parser-invalid-type' }))
         return null
       }
 
-      setState({
-        isLoading: true,
-        progress: 10,
-        error: null,
-        parsedDocument: null
-      })
+      setState({ isLoading: true, progress: 10, error: null, parsedDocument: null })
 
       try {
-        // Read file as ArrayBuffer
-        setState(prev => ({ ...prev, progress: 20 }))
+        setState(prev => ({ ...prev, progress: 15 }))
         const arrayBuffer = await file.arrayBuffer()
 
-        // Unzip the .pptx file
-        setState(prev => ({ ...prev, progress: 30 }))
+        setState(prev => ({ ...prev, progress: 20 }))
         const zip = await JSZip.loadAsync(arrayBuffer)
 
-        // Get presentation.xml to find slide count
         const presentationFile = zip.file('ppt/presentation.xml')
         if (!presentationFile) {
           throw new Error('parser-invalid-file')
@@ -273,16 +342,25 @@ export function usePowerPointParser(options?: UsePowerPointParserOptions): UsePo
         const slideIds = presentationXml.getElementsByTagName('p:sldId')
         const slideCount = slideIds.length
 
+        setState(prev => ({ ...prev, progress: 30 }))
+
+        const theme = await extractTheme(zip)
+        const themeId = mapThemeToSlideThemeId(theme)
+
         setState(prev => ({ ...prev, progress: 40 }))
 
-        // Extract all images first
-        const imageData = await extractImagesFromPptx(zip)
+        const imageData = await extractAllMedia(zip)
 
         setState(prev => ({ ...prev, progress: 50 }))
 
-        // Parse each slide
         const slides: SlideData[] = []
         const messages: ParserMessage[] = []
+
+        messages.push({
+          type: 'info',
+          message: 'parser-theme-mapped',
+          params: { theme: themeId }
+        })
 
         for (let i = 0; i < slideCount; i++) {
           const slideNumber = i + 1
@@ -301,47 +379,38 @@ export function usePowerPointParser(options?: UsePowerPointParserOptions): UsePo
           const slideContent = await slideFile.async('text')
           const slideXml = parseXML(slideContent)
 
-          // Get relationships for this slide
-          const relationships = await getSlideRelationships(zip, slideNumber)
+          const relationships = await resolveSlideRelationships(zip, slideNumber)
 
-          // Extract text elements
-          const textElements = extractTextFromSlideXml(slideXml)
+          const slideData = await assembleSlide(slideXml, relationships, imageData, theme, zip, i, messages)
 
-          // Extract images
-          const imageElements = extractImagesFromSlideXml(slideXml, relationships, imageData)
+          let layoutStyleMap: Map<string, string> | undefined
+          let masterTextStyles: MasterTextStyles | undefined
+          if (relationships.layoutPath) {
+            const lf = zip.file(relationships.layoutPath)
+            if (lf) {
+              const lXml = parseXML(await lf.async('text'))
+              layoutStyleMap = buildLayoutStyleMap(lXml, theme)
 
-          // Create slide data
-          const slideData: SlideData = {
-            id: `slide-${Date.now()}-${i}`,
-            elements: [],
-            background: { type: 'solid', color: '#ffffff' },
-            notes: ''
+              const layoutRels = await resolveLayoutRelationships(zip, relationships.layoutPath)
+              if (layoutRels.masterPath) {
+                const mf = zip.file(layoutRels.masterPath)
+                if (mf) {
+                  const mXml = parseXML(await mf.async('text'))
+                  masterTextStyles = extractMasterTextStyles(mXml, theme)
+                }
+              }
+            }
           }
+          fixTextColorsFromStyle(slideXml, slideData.elements, theme, layoutStyleMap, masterTextStyles)
 
-          // Convert text to our format
-          textElements.forEach((text, idx) => {
-            slideData.elements.push(
-              createTextElement({
-                id: `text-${Date.now()}-${i}-${idx}`,
-                content: text.text,
-                position: { x: Math.max(0, text.x), y: Math.max(0, text.y) },
-                size: { width: Math.max(100, text.width), height: Math.max(40, text.height) },
-                fontSize: 32,
-                color: '#1e293b'
-              })
-            )
-          })
-
-          // Convert images to our format
-          imageElements.forEach((img, idx) => {
-            slideData.elements.push(
-              createImageElement(img.src, {
-                id: `image-${Date.now()}-${i}-${idx}`,
-                position: { x: Math.max(0, img.x), y: Math.max(0, img.y) },
-                size: { width: Math.max(100, img.width), height: Math.max(100, img.height) }
-              })
-            )
-          })
+          const inherited = await getInheritedElements(zip, relationships, imageData, theme, messages, i)
+          if (inherited.length > 0) {
+            const combined = [...inherited, ...slideData.elements]
+            combined.forEach((el, idx) => {
+              el.zIndex = idx + 1
+            })
+            slideData.elements = combined
+          }
 
           slides.push(slideData)
 
@@ -349,7 +418,6 @@ export function usePowerPointParser(options?: UsePowerPointParserOptions): UsePo
         }
 
         if (slides.length === 0) {
-          // Create one default slide if parsing resulted in empty
           slides.push({
             id: `slide-${Date.now()}`,
             elements: [
@@ -373,54 +441,39 @@ export function usePowerPointParser(options?: UsePowerPointParserOptions): UsePo
           })
         }
 
+        const notesCount = slides.filter(s => s.notes).length
+        if (notesCount > 0) {
+          messages.push({
+            type: 'info',
+            message: 'parser-notes-imported',
+            params: { count: String(notesCount) }
+          })
+        }
+
         const parsedDocument: ParsedPowerPointDocument = {
           fileName: file.name,
           fileSize: file.size,
           slides,
           slideCount: slides.length,
+          themeId,
           messages
         }
 
-        setState({
-          isLoading: false,
-          progress: 100,
-          error: null,
-          parsedDocument
-        })
-
+        setState({ isLoading: false, progress: 100, error: null, parsedDocument })
         return parsedDocument
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'parser-failed'
         console.error('[PowerPointParser] Parse error:', error)
-
-        setState({
-          isLoading: false,
-          progress: 0,
-          error: errorMessage,
-          parsedDocument: null
-        })
-
+        setState({ isLoading: false, progress: 0, error: errorMessage, parsedDocument: null })
         return null
       }
     },
     [t]
   )
 
-  /**
-   * Reset parser state
-   */
   const reset = useCallback(() => {
-    setState({
-      isLoading: false,
-      progress: 0,
-      error: null,
-      parsedDocument: null
-    })
+    setState({ isLoading: false, progress: 0, error: null, parsedDocument: null })
   }, [])
 
-  return {
-    ...state,
-    parseFile,
-    reset
-  }
+  return { ...state, parseFile, reset }
 }

@@ -1,7 +1,22 @@
 import type { PayrollEmployee, PayrollIssue } from '../types/payrollTypes'
-import { createIssue } from './validationRules'
+import { createIssue, type IssueTranslator } from './validationRules'
 
-export function runRomaniaValidation(employee: PayrollEmployee): PayrollIssue[] {
+const CNP_WEIGHTS = [2, 7, 9, 1, 4, 6, 3, 5, 8, 2, 7, 9]
+
+function isValidCNP(cnp: string): boolean {
+  if (!/^\d{13}$/.test(cnp)) return false
+
+  let checksum = 0
+  for (let i = 0; i < 12; i++) {
+    checksum += Number(cnp[i]) * CNP_WEIGHTS[i]
+  }
+  let remainder = checksum % 11
+  if (remainder === 10) remainder = 1
+
+  return remainder === Number(cnp[12])
+}
+
+export function runRomaniaValidation(employee: PayrollEmployee, translate: IssueTranslator): PayrollIssue[] {
   const issues: PayrollIssue[] = []
 
   if (!employee.socialInsuranceNumber) {
@@ -11,8 +26,18 @@ export function runRomaniaValidation(employee: PayrollEmployee): PayrollIssue[] 
         'RO_MISSING_CNP',
         'missing_tax_social',
         'blocker',
-        'CNP (Cod Numeric Personal) is missing. Required for Romanian payroll and statutory reporting.',
-        'Add the CNP / social security number in the employee tax details section.',
+        translate,
+        'taxDetails.socialSecurityNumber'
+      )
+    )
+  } else if (!isValidCNP(employee.socialInsuranceNumber)) {
+    issues.push(
+      createIssue(
+        employee.employeeId,
+        'RO_INVALID_CNP',
+        'missing_tax_social',
+        'blocker',
+        translate,
         'taxDetails.socialSecurityNumber'
       )
     )
@@ -23,10 +48,9 @@ export function runRomaniaValidation(employee: PayrollEmployee): PayrollIssue[] 
       createIssue(
         employee.employeeId,
         'RO_MISSING_CONTRACT_SALARY',
-        'missing_contract_salary',
+        'missing_salary_data',
         'blocker',
-        'Contract salary is missing. Required for Romanian payroll processing.',
-        'Ensure an approved salary record exists for this employee.',
+        translate,
         'baseSalary'
       )
     )
@@ -37,10 +61,9 @@ export function runRomaniaValidation(employee: PayrollEmployee): PayrollIssue[] 
       createIssue(
         employee.employeeId,
         'RO_MISSING_WORK_NORM',
-        'missing_contract_salary',
+        'missing_working_hours',
         'blocker',
-        'Working time norm (weekly hours) is missing. Required for Romanian payroll.',
-        'Update the working hours configuration for this employee.',
+        translate,
         'weeklyHours'
       )
     )
@@ -53,9 +76,9 @@ export function runRomaniaValidation(employee: PayrollEmployee): PayrollIssue[] 
         'RO_MEDICAL_CERT_NEEDED',
         'missing_absence_data',
         'warning',
-        `Employee has ${employee.sickLeaveDays} sick leave day(s). Medical certificate is required.`,
-        'Ensure the medical certificate is collected and filed for the sick leave period.',
-        'sickLeaveDays'
+        translate,
+        'sickLeaveDays',
+        { count: employee.sickLeaveDays }
       )
     )
   }

@@ -4,6 +4,7 @@
  * JSON-only API endpoints for unified task management
  */
 
+import { EVERYBOX_FIRST_PAGE_LIMIT } from '../constants/everyboxPagination'
 import { TaskFilters } from '../types/TaskFilters'
 import { UserTasksResponse, TaskStatsResponse, SingleTaskResponse } from '../types/UnifiedTask'
 import { fetchAllUserTasks, fetchTaskById, fetchTaskStatistics } from '../services/UnifiedTaskService'
@@ -91,7 +92,7 @@ export async function handleGetUserTasks(request: Request, userId: string, acces
       count: result.tasks.length,
       tasks: result.tasks,
       pagination: {
-        limit: filters.limit || 20,
+        limit: filters.limit || EVERYBOX_FIRST_PAGE_LIMIT,
         offset: filters.offset || 0,
         total: result.tasks.length,
         hasMore: false // Would need total count from service to determine this

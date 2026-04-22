@@ -6,7 +6,7 @@ slh-tab-my-slides = Meine Folien
 slh-tab-shared = Geteilt
 slh-tab-favorites = Favoriten
 slh-tab-recent = Zuletzt verwendet
-slh-tab-archived = Archiviert
+slh-tab-trash = Papierkorb
 slh-refresh = Aktualisieren
 
 sidebar-back-to-desk = Zurück zum Schreibtisch
@@ -20,34 +20,47 @@ sidebar-my-items = Meine Folien
 sidebar-shared = Mit mir geteilt
 sidebar-favorites = Favoriten
 sidebar-recent = Zuletzt verwendet
-sidebar-archived = Archiviert
+sidebar-trash = Papierkorb
 sidebar-storage = Speicher
 sidebar-storage-cloud = Cloud-Speicher
 sidebar-storage-slides = { $count } Folien
 
 menu-new-blank-title = Leere Folie
 menu-new-blank-description = Von Grund auf beginnen
+menu-new-ai-title = Mit KI generieren
+menu-new-ai-description = Präsentation mit KI erstellen
 menu-new-template-title = Aus Vorlage
 menu-new-template-description = Vorlage auswählen
 menu-new-import-title = PowerPoint importieren
 menu-new-import-description = .pptx-Datei hochladen
 
 header-sort = Sortieren
-header-search-placeholder = Suchen...
+slides-header-search-placeholder = Folien suchen...
 sort-name = Name
 sort-modified = Geändert
 sort-created = Erstellt
+sort-trashed = In den Papierkorb verschoben am
 table-owner = Besitzer
+table-trashed = In den Papierkorb verschoben am
 
-empty-favorites-title = Noch keine Favoriten
-empty-favorites-description = Markieren Sie häufig verwendete Folien mit einem Stern.
-empty-shared-title = Nichts mit Ihnen geteilt
-empty-shared-description = Geteilte Folien erscheinen hier.
-empty-archived-title = Keine archivierten Folien
-empty-archived-description = Archivierte Folien erscheinen hier.
-empty-default-title = Noch keine Folien
-empty-default-description = Erstellen Sie Ihre erste Folie.
+slides-empty-favorites-title = Noch keine Favoriten
+slides-empty-favorites-description = Markieren Sie häufig verwendete Folien mit einem Stern.
+slides-empty-shared-title = Nichts mit Ihnen geteilt
+slides-empty-shared-description = Geteilte Folien erscheinen hier.
+slides-empty-trash-title = Keine Folien im Papierkorb
+slides-empty-trash-description = In den Papierkorb verschobene Folien erscheinen hier.
+slides-empty-default-title = Noch keine Folien
+slides-empty-default-description = Erstellen Sie Ihre erste Folie.
 empty-create-slide = Folie erstellen
+trash-state-title = Diese Präsentation befindet sich im Papierkorb
+trash-state-description = Präsentationen im Papierkorb sind schreibgeschützt, bis Sie sie wiederherstellen. Sie können sie jetzt wiederherstellen oder dauerhaft löschen.
+trashed-readonly-title = Diese Präsentation befindet sich im Papierkorb
+trashed-readonly-description = „{ $title }“ befindet sich im Papierkorb. Sie können die Inhalte ansehen, aber weder bearbeiten noch daran zusammenarbeiten.
+trashed-readonly-owner-note = Stellen Sie diese Präsentation wieder her, um Bearbeitung und Zusammenarbeit fortzusetzen.
+trashed-readonly-shared-note = Nur der Eigentümer kann diese Präsentation wiederherstellen. Sie können die Inhalte hier weiterhin ansehen.
+trashed-readonly-go-home = Zu Folien
+trashed-readonly-restore = Wiederherstellen
+trashed-readonly-restoring = Wird wiederhergestellt...
 
 menu-open = Öffnen
 menu-share = Teilen
@@ -69,15 +82,24 @@ shared-with-count = Geteilt mit { $count } { $count ->
 }
 shared-click-manage = Klicken zum Verwalten
 
-confirm-delete = Möchten Sie diese Folie wirklich löschen?
+confirm-delete = Diese Präsentation in den Papierkorb verschieben?
+delete-confirm-title = In den Papierkorb verschieben?
+delete-confirm-single = "{$name}" wird in den Papierkorb verschoben. Sie können es innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-multi = {$count} Elemente werden in den Papierkorb verschoben. Sie können sie innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-action = In den Papierkorb verschieben
+delete-confirm-cancel = Abbrechen
 toast-slide-duplicated = Folie dupliziert
 toast-link-copied = Link in Zwischenablage kopiert
 toast-favorite-removed = Aus Favoriten entfernt
 toast-favorite-added = Zu Favoriten hinzugefügt
 toast-imported-slides = { $count } Folien importiert
 toast-import-failed = PowerPoint-Import fehlgeschlagen
+toast-import-partial = Präsentation erstellt, aber Folieninhalte konnten nicht gespeichert werden. Versuchen Sie, sie erneut zu öffnen und zu speichern.
+import-saving = Präsentation wird gespeichert...
 toast-template-matched = Vorlage wird verwendet: { $name }
 toast-template-applied = Vorlage angewendet
+toast-restored = Präsentation wiederhergestellt
+toast-restore-failed = Wiederherstellung der Präsentation fehlgeschlagen
 
 # Editor
 editor-slide-saved = Folie gespeichert
@@ -292,6 +314,8 @@ header-manage-access = Zugriff verwalten...
 # Generate Presentation
 generate-title = Präsentation generieren
 generate-description = Beschreiben Sie, was Sie benötigen, und die KI erstellt die Folien.
+generate-presentation-title-label = Präsentationstitel
+generate-presentation-title-placeholder = z.B. Q4 Geschäftsbericht
 generate-topic = Thema
 generate-topic-placeholder = Quartalsgeschäftsprüfung mit Vertriebskennzahlen, Team-Highlights und Q2-Zielen...
 generate-length = Länge
@@ -470,6 +494,7 @@ slides-toast-created = Präsentation erstellt
 slides-toast-create-failed = Präsentation konnte nicht erstellt werden
 slides-toast-save-failed = Speichern fehlgeschlagen
 slides-toast-deleted = Präsentation gelöscht
+slides-toast-moved-to-trash = Präsentation in den Papierkorb verschoben
 slides-toast-delete-failed = Löschen fehlgeschlagen
 slides-toast-duplicated = Präsentation dupliziert
 slides-toast-duplicate-failed = Duplizieren fehlgeschlagen
@@ -506,6 +531,22 @@ parser-slide-not-found = Folie { $number } nicht gefunden
 parser-no-slides-parsed = Keine Folien konnten geparst werden. Leere Folie erstellt.
 parser-failed = PowerPoint-Datei konnte nicht geparst werden
 parser-imported-slide = Importierte Folie
+parser-shape-unsupported = Formtyp „{ $type }" auf Folie { $slide } wurde als Rechteck importiert
+parser-chart-unsupported = Diagrammtyp „{ $type }" auf Folie { $slide } konnte nicht importiert werden
+parser-chart-imported = { $type }-Diagramm auf Folie { $slide } importiert
+parser-table-imported = Tabelle importiert ({ $rows } Zeilen, { $cols } Spalten) auf Folie { $slide }
+parser-notes-imported = Sprechernotizen für { $count } { $count ->
+    [one] Folie
+   *[other] Folien
+} importiert
+parser-transition-unsupported = Übergang „{ $type }" auf Folie { $slide } wurde angenähert
+parser-group-flattened = Gruppierte Formen auf Folie { $slide } wurden aufgelöst
+parser-theme-mapped = Präsentationsdesign wurde „{ $theme }" zugeordnet
+import-preview-title = Importvorschau
+import-preview-select-slides = Folien zum Import auswählen
+import-preview-selected = { $selected } von { $total } Folien ausgewählt
+import-preview-import-all = Alle importieren
+import-preview-import-selected = Auswahl importieren
 
 # SlidesApiService
 api-error = API-Fehler: { $status }
@@ -835,3 +876,21 @@ template-purpose-help = Definieren Sie den Zweck dieser Folie
 template-inferring = Folienzwecke werden erkannt...
 template-inference-complete = Folienzwecke erkannt
 template-inference-failed = Zwecke konnten nicht automatisch erkannt werden
+
+# Layoutauswahl
+layout-change = Layout
+layout-duplicate-slides = Ausgewählte Folien duplizieren
+layout-browse-templates = Vorlagen durchsuchen...
+
+# Folienmaster-Ansicht
+slideshow-slide-master = Folienmaster
+master-view-title = Folienmaster-Ansicht
+master-insert-layout = Layout einfügen
+master-close = Masteransicht schließen
+master-new-layout = Benutzerdefiniertes Layout
+master-layout-added = Layout hinzugefügt
+master-layout-duplicated = Layout dupliziert
+master-layout-deleted = Layout gelöscht
+master-delete-last-layout-error = Das letzte Layout kann nicht gelöscht werden
+master-editing-master = Bearbeitung: Folienmaster
+master-editing-layout = Layout bearbeiten

@@ -124,6 +124,10 @@ export function renderPaginationChromeWidget(options: {
   })
 }
 
+/**
+ * Pagination chrome (including `.rm-first-page-header`) is a single widget at document position 0.
+ * If chrome is missing under `.ProseMirror`, verify the Pages extension is mounted (see `usePagedDocumentEditorInstance`).
+ */
 export function createPaginationChromeDecorationSet(options: {
   doc: PMNode
   renderWidget: (view: EditorView) => HTMLElement

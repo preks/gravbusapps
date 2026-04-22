@@ -7,6 +7,10 @@ page-description = Manage versioned functions for agents and flows
 # Section
 section-label = Functions
 
+# Top-level list tabs (CreateLayout hero TabSwitch)
+tab-functions = Functions
+tab-credentials = Credentials
+
 # Actions
 new-function = New Function
 edit = Edit
@@ -29,3 +33,7 @@ empty-message = No functions found
 # Editor
 create-function = Create Function
 edit-function = Edit Function
+
+# Chat panel (AI wizard)
+chat-panel-title = AI Assistant
+chat-panel-description = Describe your function or ask for help. The assistant can suggest names, input/output schemas, and code. (Integration coming soon.)

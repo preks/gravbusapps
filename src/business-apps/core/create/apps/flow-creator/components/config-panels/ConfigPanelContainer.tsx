@@ -70,6 +70,7 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
       case 'task':
         return (
           <TaskConfigPanel
+            key={selectedNode.id}
             nodeId={selectedNode.id}
             config={config}
             mode={mode}

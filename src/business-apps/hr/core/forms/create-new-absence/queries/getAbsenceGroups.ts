@@ -1,7 +1,7 @@
 export const getAbsenceGroups = `
   query GetAbsenceGroups($activeUserLocale: String!) {
     CatalogEntry(
-      where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "AbsenceGroup" } } }
+      where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "AbsenceGroup" } }, isDeleted: { _eq: false } }
       orderBy: { value: ASC }
     ) {
       id

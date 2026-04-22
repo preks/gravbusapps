@@ -1,5 +1,6 @@
 import { useCallback, useRef, useMemo, useEffect } from 'react'
 import { useEditor, type Editor } from '@tiptap/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import StarterKit from '@tiptap/starter-kit'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Underline } from '@tiptap/extension-underline'
@@ -10,11 +11,12 @@ import { Typography } from '@tiptap/extension-typography'
 import { TaskList } from '@tiptap/extension-task-list'
 import { TaskItem } from '@tiptap/extension-task-item'
 import Collaboration from '@tiptap/extension-collaboration'
-import { createYjsCursorExtension } from '@/business-apps/platform/apps/document-apps/components/PagedDocumentEditor/extensions/YjsCursor'
-import { DocumentImage } from '@/business-apps/platform/apps/document-apps/components/PagedDocumentEditor/extensions/DocumentImage'
-import { uploadDocumentImage } from '@/business-apps/platform/apps/document-apps/services/DocumentImageUploadService'
+import { createYjsCursorExtension } from '@/business-apps/core/office/apps/documents/components/PagedDocumentEditor/extensions/YjsCursor'
+import { DocumentImage } from '@/business-apps/core/office/apps/documents/components/PagedDocumentEditor/extensions/DocumentImage'
+import { uploadDocumentImage } from '@/business-apps/core/office/apps/documents/services/DocumentImageUploadService'
 import type * as Y from 'yjs'
 import type { Awareness } from 'y-protocols/awareness'
+import translations from '../../_i18n'
 
 export interface UseRowPageEditorOptions {
   accessToken: string
@@ -25,6 +27,7 @@ export interface UseRowPageEditorOptions {
 }
 
 export function useRowPageEditor({ accessToken, documentId, onDirty, ydoc, awareness }: UseRowPageEditorOptions) {
+  const { t } = useTranslation(translations)
   const isCollaborationMode = Boolean(ydoc && awareness)
   const isSettingContentRef = useRef(false)
   const editorRef = useRef<Editor | null>(null)
@@ -95,7 +98,7 @@ export function useRowPageEditor({ accessToken, documentId, onDirty, ydoc, aware
           link: false,
           underline: false
         } as any),
-        Placeholder.configure({ placeholder: 'Type / for commands...' }),
+        Placeholder.configure({ placeholder: t('board-editor-placeholder') }),
         Underline,
         TextAlign.configure({ types: ['heading', 'paragraph'] }),
         Link.configure({ openOnClick: false, autolink: true }),
@@ -142,7 +145,7 @@ export function useRowPageEditor({ accessToken, documentId, onDirty, ydoc, aware
         }
       }
     },
-    [isCollaborationMode, collaborationExtension, yjsCursorExtension]
+    [isCollaborationMode, collaborationExtension, yjsCursorExtension, t]
   )
 
   useEffect(() => {
@@ -154,7 +157,7 @@ export function useRowPageEditor({ accessToken, documentId, onDirty, ydoc, aware
       if (!editor) return
       isSettingContentRef.current = true
       try {
-        editor.commands.setContent(html || '', false)
+        editor.commands.setContent(html || '', { emitUpdate: false })
       } finally {
         isSettingContentRef.current = false
       }

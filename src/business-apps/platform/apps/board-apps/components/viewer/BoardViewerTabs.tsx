@@ -7,11 +7,13 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle
+  AlertDialogTitle,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Plus, LayoutGrid, Columns3, Calendar, GanttChart, FileInput, BarChart3, X, GripVertical } from 'lucide-react'
 import type { BoardView, BoardViewType, BoardColumn } from '../../types'
 import { AddColumnPopover } from '../columns/AddColumnPopover'
+import translations from '../../_i18n'
 
 const VIEW_ICONS: Record<BoardViewType, React.ReactNode> = {
   table: <LayoutGrid className="gba:w-3.5 gba:h-3.5" />,
@@ -49,6 +51,7 @@ export const BoardViewerTabs: React.FC<BoardViewerTabsProps> = ({
   onAddView,
   testId
 }) => {
+  const { t } = useTranslation(translations)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dropIdx, setDropIdx] = useState<number | null>(null)
   const [pendingDeleteView, setPendingDeleteView] = useState<BoardView | null>(null)
@@ -186,7 +189,7 @@ export const BoardViewerTabs: React.FC<BoardViewerTabsProps> = ({
           className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1.5 gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors gba:whitespace-nowrap"
           data-testid={`${testId}-add-column`}
         >
-          <Plus className="gba:w-3 gba:h-3" /> Add column
+          <Plus className="gba:w-3 gba:h-3" /> {t('table-add-column')}
         </button>
       </AddColumnPopover>
 
@@ -195,7 +198,7 @@ export const BoardViewerTabs: React.FC<BoardViewerTabsProps> = ({
         className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1.5 gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors gba:whitespace-nowrap"
         data-testid={`${testId}-add-view`}
       >
-        <Plus className="gba:w-3 gba:h-3" /> Add view
+        <Plus className="gba:w-3 gba:h-3" /> {t('table-add-view')}
       </button>
 
       <AlertDialog
@@ -206,14 +209,13 @@ export const BoardViewerTabs: React.FC<BoardViewerTabsProps> = ({
       >
         <AlertDialogContent data-testid={`${testId}-delete-view-confirm`}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete view</AlertDialogTitle>
+            <AlertDialogTitle>{t('table-delete-view-title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &quot;{pendingDeleteView?.name}&quot;? All configuration and data
-              associated with this view will be lost.
+              {t('table-delete-view-description', { viewName: pendingDeleteView?.name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid={`${testId}-delete-view-cancel`}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid={`${testId}-delete-view-cancel`}>{t('common-cancel')}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
@@ -224,7 +226,7 @@ export const BoardViewerTabs: React.FC<BoardViewerTabsProps> = ({
               }}
               data-testid={`${testId}-delete-view-confirm-btn`}
             >
-              Delete
+              {t('common-delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

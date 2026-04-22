@@ -12,10 +12,12 @@ import {
   DialogTitle,
   DialogDescription,
   Button,
-  Input
+  Input,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { FolderInput, Search, Loader2, Lock, Globe } from 'lucide-react'
 import { useSpaces } from '../hooks/useSpaces'
+import translations from '../_i18n'
 
 export interface MoveToSpaceDialogProps {
   open: boolean
@@ -36,6 +38,7 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
   accessToken,
   'data-testid': testId = 'move-to-space-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null)
   const [isMoving, setIsMoving] = useState(false)
@@ -82,13 +85,13 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
   const getContentTypeLabel = () => {
     switch (contentType) {
       case 'document':
-        return 'document'
+        return t('content-type-document').toLowerCase()
       case 'note':
-        return 'note'
+        return t('content-type-note').toLowerCase()
       case 'spreadsheet':
-        return 'spreadsheet'
+        return t('content-type-spreadsheet').toLowerCase()
       default:
-        return 'item'
+        return t('content-type-file').toLowerCase()
     }
   }
 
@@ -115,12 +118,12 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
           <DialogHeader className="gba:p-6 gba:pb-4">
             <DialogTitle className="gba:text-foreground gba:flex gba:items-center gba:gap-2">
               <FolderInput className="gba:w-5 gba:h-5 gba:text-primary" />
-              Move to Space
+              {t('move-to-space-title')}
             </DialogTitle>
             <DialogDescription className="gba:text-muted-foreground">
               {contentName
-                ? `Move "${contentName}" to a space`
-                : `Select a space to move this ${getContentTypeLabel()}`}
+                ? t('move-to-space-description-with-name', { name: contentName })
+                : t('move-to-space-description-without-name', { contentType: getContentTypeLabel() })}
             </DialogDescription>
           </DialogHeader>
 
@@ -129,7 +132,7 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
             <div className="gba:relative">
               <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
               <Input
-                placeholder="Search spaces..."
+                placeholder={t('common-search-spaces-placeholder')}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="gba:pl-10 gba:h-10"
@@ -153,12 +156,10 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
             <div className="gba:text-center gba:py-12">
               <FolderInput className="gba:w-12 gba:h-12 gba:text-muted-foreground/50 gba:mx-auto gba:mb-3" />
               <p className="gba:text-muted-foreground gba:text-sm">
-                {searchQuery ? 'No matching spaces found' : 'No spaces available'}
+                {searchQuery ? t('move-to-space-empty-search') : t('move-to-space-empty')}
               </p>
               {!searchQuery && (
-                <p className="gba:text-muted-foreground/70 gba:text-xs gba:mt-1">
-                  Create a space first to organize your content
-                </p>
+                <p className="gba:text-muted-foreground/70 gba:text-xs gba:mt-1">{t('move-to-space-create-first')}</p>
               )}
             </div>
           ) : (
@@ -210,12 +211,10 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
 
         {/* Footer */}
         <div className="gba:border-t gba:border-border/50 gba:p-4 gba:flex gba:items-center gba:justify-between gba:bg-muted/30">
-          <p className="gba:text-xs gba:text-muted-foreground">
-            Content will be moved exclusively to the selected space
-          </p>
+          <p className="gba:text-xs gba:text-muted-foreground">{t('move-to-space-footer')}</p>
           <div className="gba:flex gba:gap-2">
             <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)} disabled={isMoving}>
-              Cancel
+              {t('common-cancel')}
             </Button>
             <Button
               size="sm"
@@ -229,7 +228,7 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
               ) : (
                 <FolderInput className="gba:w-4 gba:h-4" />
               )}
-              Move
+              {t('common-move')}
             </Button>
           </div>
         </div>

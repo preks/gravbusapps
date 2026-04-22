@@ -41,8 +41,9 @@ export const applyInitialCommonEntityFromContext = (
     const currentValue = form.getValues(fieldName)
     if (currentValue !== accountId) {
       form.setValue(fieldName, accountId)
-      form.setValue('relatedEntityId', accountId)
     }
+    // Keep relatedEntityId in sync with context primary (e.g. after form reset with values already set)
+    form.setValue('relatedEntityId', accountId)
     return true
   }
 
@@ -51,8 +52,8 @@ export const applyInitialCommonEntityFromContext = (
     const currentValue = form.getValues(fieldName)
     if (currentValue !== contactId) {
       form.setValue(fieldName, contactId)
-      form.setValue('relatedEntityId', contactId)
     }
+    form.setValue('relatedEntityId', contactId)
     return true
   }
 
@@ -61,8 +62,8 @@ export const applyInitialCommonEntityFromContext = (
     const currentValue = form.getValues(fieldName)
     if (currentValue !== opportunityId) {
       form.setValue(fieldName, opportunityId)
-      form.setValue('relatedEntityId', opportunityId)
     }
+    form.setValue('relatedEntityId', opportunityId)
     return true
   }
 
@@ -71,8 +72,8 @@ export const applyInitialCommonEntityFromContext = (
     const currentValue = form.getValues(fieldName)
     if (currentValue !== leadId) {
       form.setValue(fieldName, leadId)
-      form.setValue('relatedEntityId', leadId)
     }
+    form.setValue('relatedEntityId', leadId)
     return true
   }
 
@@ -166,7 +167,11 @@ export const createCommonEntitySelectHandler = (
     // Clear additional entities via handler (if provided)
     clearAdditionalEntities(form, entities, onAdditionalEntityChange)
 
-    if (!entity) return
+    if (!entity) {
+      // Avoid orphan relatedEntityId when the combobox value is not in `entities` (stale list / id mismatch)
+      form.setValue('relatedEntityId', '')
+      return
+    }
 
     // Handle standard entity types (account, contact, opportunity, lead)
     if (['account', 'contact', 'opportunity', 'lead'].includes(entity.type)) {

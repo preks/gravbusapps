@@ -11,12 +11,11 @@ import type {
   AvailableActions
 } from '../packages/services-plus-core/src'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import { getServiceDeskCatalogCache } from './catalog-cache/ServiceDeskCatalogCache'
 
 // Base URL for the custom flow engine API
-const API_BASE =
-  (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine') + '/api'
+const API_BASE = CUSTOM_FLOW_ENGINE_API_URL
 
 /**
  * Services app catalog identifier for filtering service desk tickets

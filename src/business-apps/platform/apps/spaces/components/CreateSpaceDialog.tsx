@@ -7,8 +7,10 @@
  *    and all members are automatically added
  */
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import {
+  Alert,
+  AlertDescription,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -35,13 +37,16 @@ import type { DimensionType } from '../../shared/types/dimensions'
 import sharedTranslations from '../../shared/_i18n'
 import type { OrgUserBasic } from '@/common/network/org-directory/OrgDirectoryClient'
 import type { CreateSpaceInput, SpaceDimension } from '../types/space.types'
+import translations from '../_i18n'
+import { mergeTranslationBundles } from '../utils/spaceLocalization'
 
 type CreationMode = 'manual' | 'dimension'
 
 export interface CreateSpaceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onCreate: (input: CreateSpaceInput) => Promise<void>
+  onCreate: (input: CreateSpaceInput) => Promise<boolean>
+  error?: string | null
   accessToken?: string
   currentUserId?: string
   'data-testid'?: string
@@ -51,11 +56,13 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
   open,
   onOpenChange,
   onCreate,
+  error,
   accessToken,
   currentUserId,
   'data-testid': testId = 'create-space-dialog'
 }) => {
-  const { t } = useTranslation(sharedTranslations)
+  const mergedTranslations = useMemo(() => mergeTranslationBundles(sharedTranslations, translations), [])
+  const { t } = useTranslation(mergedTranslations)
   // Mode state
   const [creationMode, setCreationMode] = useState<CreationMode>('manual')
   const [showDimensionPicker, setShowDimensionPicker] = useState(false)
@@ -130,7 +137,11 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
         input.memberIds = dimensionMembers.map(m => m.id)
       }
 
-      await onCreate(input)
+      const created = await onCreate(input)
+      if (!created) {
+        return
+      }
+
       resetForm()
       onOpenChange(false)
     } finally {
@@ -205,12 +216,12 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
       {/* Name Input */}
       <div className="gba:space-y-2">
         <Label htmlFor="space-name" className="gba:text-sm gba:font-medium">
-          Name
+          {t('create-name-label')}
           <span className="gba:text-destructive gba:ml-0.5">*</span>
         </Label>
         <Input
           id="space-name"
-          placeholder="e.g., Marketing Team"
+          placeholder={t('create-name-placeholder')}
           value={name}
           onChange={e => setName(e.target.value)}
           className="gba:h-10"
@@ -222,12 +233,12 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
       {/* Description Input */}
       <div className="gba:space-y-2">
         <Label htmlFor="space-description" className="gba:text-sm gba:font-medium">
-          Description
-          <span className="gba:text-muted-foreground gba:font-normal gba:ml-1">(optional)</span>
+          {t('create-description-label')}
+          <span className="gba:text-muted-foreground gba:font-normal gba:ml-1">{t('common-optional')}</span>
         </Label>
         <Textarea
           id="space-description"
-          placeholder="What is this space for?"
+          placeholder={t('create-description-placeholder')}
           value={description}
           onChange={e => setDescription(e.target.value)}
           rows={3}
@@ -246,9 +257,11 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
             <Lock className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
           )}
           <div>
-            <p className="gba:text-sm gba:font-medium gba:text-foreground">{isPublic ? 'Public' : 'Private'}</p>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground">
+              {isPublic ? t('common-public') : t('common-private')}
+            </p>
             <p className="gba:text-xs gba:text-muted-foreground">
-              {isPublic ? 'Discoverable by organization' : 'Only invited members'}
+              {isPublic ? t('common-discoverable-by-organization') : t('common-only-invited-members')}
             </p>
           </div>
         </div>
@@ -266,8 +279,7 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
   const renderMemberPreview = () => (
     <div className="gba:space-y-2">
       <Label className="gba:text-sm gba:text-muted-foreground">
-        Members
-        <span className="gba:ml-1 gba:text-foreground gba:font-medium">({dimensionMembers.length})</span>
+        {t('create-members-label', { count: dimensionMembers.length })}
       </Label>
       <div className="gba:h-32 gba:overflow-y-auto gba:border gba:border-border/50 gba:rounded-lg gba:bg-muted/20 gba:p-2">
         <div className="gba:flex gba:flex-wrap gba:gap-2">
@@ -299,8 +311,8 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="gba:max-w-2xl gba:max-h-[85vh]" data-testid={testId}>
         <DialogHeader>
-          <DialogTitle>Create Space</DialogTitle>
-          <DialogDescription>Create a workspace to organize your team's content</DialogDescription>
+          <DialogTitle>{t('create-title')}</DialogTitle>
+          <DialogDescription>{t('create-description')}</DialogDescription>
         </DialogHeader>
 
         {showDimensionPicker ? (
@@ -332,13 +344,13 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
                 <TabsTrigger value="manual" className="gba:flex-1" data-testid={`${testId}-tab-manual`}>
                   <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                     <Users className="gba:w-4 gba:h-4" />
-                    <span>Create Manually</span>
+                    <span>{t('create-tab-manual')}</span>
                   </div>
                 </TabsTrigger>
                 <TabsTrigger value="dimension" className="gba:flex-1" data-testid={`${testId}-tab-dimension`}>
                   <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                     <Buildings className="gba:w-4 gba:h-4" />
-                    <span>Create by Group</span>
+                    <span>{t('create-tab-dimension')}</span>
                   </div>
                 </TabsTrigger>
               </TabsList>
@@ -360,7 +372,7 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
                             {selectedDimension.name}
                           </div>
                           <div className="gba:text-sm gba:text-success-secondary-foreground/70">
-                            {dimensionMembers.length} members will be added
+                            {t('create-members-will-be-added', { count: dimensionMembers.length })}
                           </div>
                         </div>
                         <Button
@@ -369,7 +381,7 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
                           onClick={handleStartDimensionPicker}
                           data-testid={`${testId}-change-dimension`}
                         >
-                          Change
+                          {t('common-change')}
                         </Button>
                       </div>
                     </div>
@@ -384,18 +396,24 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
                       <Buildings className="gba:w-8 gba:h-8 gba:text-primary" />
                     </div>
                     <div>
-                      <h3 className="gba:font-medium gba:text-foreground">Create Space from Group</h3>
+                      <h3 className="gba:font-medium gba:text-foreground">{t('create-select-group-title')}</h3>
                       <p className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:max-w-xs gba:mx-auto">
-                        Select an organizational group and all its members will be automatically added to your space
+                        {t('create-select-group-description')}
                       </p>
                     </div>
                     <Button onClick={handleStartDimensionPicker} data-testid={`${testId}-select-dimension`}>
-                      Select Group
+                      {t('create-select-group')}
                     </Button>
                   </div>
                 )}
               </TabsContent>
             </Tabs>
+
+            {error ? (
+              <Alert variant="destructive" data-testid={`${testId}-error`}>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
           </div>
         )}
 
@@ -408,7 +426,7 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
               disabled={isLoading}
               data-testid={`${testId}-cancel`}
             >
-              Cancel
+              {t('common-cancel')}
             </Button>
             <Button
               onClick={handleCreate}
@@ -422,9 +440,9 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
               {isLoading ? (
                 <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
               ) : creationMode === 'dimension' && getMemberCount() > 0 ? (
-                `Create Space (${getMemberCount()} members)`
+                t('create-action-with-members', { count: getMemberCount() })
               ) : (
-                'Create Space'
+                t('common-create-space')
               )}
             </Button>
           </DialogFooter>

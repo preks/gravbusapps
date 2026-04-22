@@ -543,11 +543,15 @@ export const useEmployeeTeamAllocations = ({
           headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken)
         }
 
-        // Create promises for all days across all teams/projects
-        const promises: Promise<any>[] = []
+        const employeeProjectWorkingHoursList: Array<{
+          employee: string
+          project: string
+          workingDate: string
+          plannedWorkingHours: string
+          actualWorkingHours: string
+        }> = []
 
         for (const booking of weekBookings) {
-          // Skip bookings without a projectId
           if (!booking.projectId) {
             console.warn(`Skipping booking for team ${booking.teamId} - no project associated`)
             continue
@@ -555,29 +559,25 @@ export const useEmployeeTeamAllocations = ({
 
           for (const day of booking.days) {
             const workingDate = dayjs(day.date).format('YYYY-MM-DD')
-            // Send time directly in HH:MM format
             const timeValue = day.timeString || '00:00'
 
-            promises.push(
-              restClient.post(
-                '/processes/employee-time/createEmployeeProjectWorkingHours',
-                {
-                  employeeProjectWorkingHours: {
-                    employee: employeeId,
-                    project: booking.projectId,
-                    workingDate,
-                    plannedWorkingHours: timeValue,
-                    actualWorkingHours: timeValue
-                  }
-                },
-                { headers }
-              )
-            )
+            employeeProjectWorkingHoursList.push({
+              employee: employeeId,
+              project: booking.projectId,
+              workingDate,
+              plannedWorkingHours: timeValue,
+              actualWorkingHours: timeValue
+            })
           }
         }
 
-        // Execute all calls in parallel
-        await Promise.all(promises)
+        if (employeeProjectWorkingHoursList.length > 0) {
+          await restClient.post(
+            '/processes/employee-time/createEmployeeProjectWorkingHours',
+            { employeeProjectWorkingHoursList },
+            { headers }
+          )
+        }
 
         // Refetch data after successful submission
         await fetchTeamAllocations()

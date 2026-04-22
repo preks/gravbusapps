@@ -6,8 +6,7 @@ import { DeleteLayout } from '@/components/delete-layout'
 import { useJobInterview } from '@/common/data/recruiting/hooks/useJobInterview'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { JobInterviewStatus } from '@/common/data/recruiting/types/enums'
-import { createCalendarApiClient } from '@/business-apps/platform/apps/chat/calendar/calendarApiClient'
-import { env } from '@/common/env/EnvUtils'
+import { useChatClient } from '@/common/network/chat/useChatClient'
 
 export interface JobInterviewCancelPopupProps extends BusinessAppContextProps {
   onClose: () => void
@@ -31,22 +30,7 @@ export const JobInterviewCancelPopup: React.FC<JobInterviewCancelPopupProps> = (
 
   const { jobInterview, loading, error } = useJobInterview(accessToken || '', jobInterviewId, 'record')
 
-  const getChatApiUrl = useCallback((): string => {
-    let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
-    baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-
-    const isLocalPlatform = baseUrl.includes('localhost')
-    if (isLocalPlatform) {
-      baseUrl = 'https://newwork-dev.newwork.com'
-    }
-
-    let apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1`
-    if (apiUrl.includes('localhost')) {
-      apiUrl = `${baseUrl}/chat-service/api/v1`
-    }
-
-    return apiUrl
-  }, [])
+  const chatClient = useChatClient(accessToken || undefined)
 
   const handlePreSubmit = useCallback(async () => {
     if (!jobInterview?.meetingLink) {
@@ -54,13 +38,11 @@ export const JobInterviewCancelPopup: React.FC<JobInterviewCancelPopupProps> = (
     }
 
     try {
-      const apiUrl = getChatApiUrl()
-      const calendarClient = createCalendarApiClient(apiUrl, accessToken || '')
-      await calendarClient.cancelMeeting(jobInterview.meetingLink)
+      await chatClient.cancelMeeting(jobInterview.meetingLink)
     } catch (error) {
       console.error('Error cancelling chat meeting:', error)
     }
-  }, [jobInterview?.meetingLink, accessToken, getChatApiUrl])
+  }, [jobInterview?.meetingLink, chatClient])
 
   const handleSubmit = useCallback(async () => {
     if (!jobInterview?.id) {

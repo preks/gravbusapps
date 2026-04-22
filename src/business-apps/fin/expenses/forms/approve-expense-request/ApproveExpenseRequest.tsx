@@ -28,7 +28,7 @@ import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 import { formatDateTime } from '@/common/utils/dateFormatter'
 import { useExpenseRequestAnalysis } from '../../common/hooks/useExpenseRequestAnalysis'
-import AIAnalysisSection from '../../common/components/AIAnalysisSection'
+import AIAnalysisSection from '../../common/components/ai-analysis/AIAnalysisSection'
 
 // Component imports
 import {

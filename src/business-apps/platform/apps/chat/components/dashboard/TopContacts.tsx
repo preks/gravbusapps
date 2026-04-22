@@ -1,8 +1,9 @@
 import React, { useMemo, useEffect } from 'react'
-import { Avatar, AvatarFallback, AvatarImage, Button } from '@newwork/nw-design-system'
+import { Avatar, AvatarFallback, AvatarImage, Button, useTranslation } from '@newwork/nw-design-system'
 import { MessageSquare, Clock, UserPlus, Phone, Video } from 'lucide-react'
-import type { UserContactsResponse, ContactInfo, ReachOutSuggestion } from '../../services/chatApiClient'
+import type { UserContactsResponse, ContactInfo, ReachOutSuggestion } from '../../types'
 import { useEmployeeAvatarsCache } from '../../hooks/useEmployeeAvatarsCache'
+import translations from '../../_i18n'
 
 type CallType = 'audio' | 'video'
 
@@ -26,12 +27,14 @@ interface TopContactsProps {
  * PresenceIndicator - Shows online status as a green dot
  */
 const PresenceIndicator: React.FC<{ status: 'online' | 'offline' }> = ({ status }) => {
+  const { t } = useTranslation(translations)
+
   if (status !== 'online') return null
 
   return (
     <span
       className="gba:absolute gba:bottom-0 gba:right-0 gba:w-2.5 gba:h-2.5 gba:rounded-full gba:border-2 gba:border-card gba:bg-success"
-      title="Online"
+      title={t('dashboard-topContacts-online')}
     />
   )
 }
@@ -51,17 +54,24 @@ function getInitials(name: string): string {
 /**
  * Format last contact date
  */
-function formatLastContact(dateStr: string): string {
+function formatRelativeContactTime(
+  diffDays: number,
+  t: (key: string, args?: Record<string, unknown>) => string
+): string {
+  if (diffDays === 0) return t('dashboard-topContacts-today')
+  if (diffDays === 1) return t('dashboard-topContacts-yesterday')
+  if (diffDays < 7) return t('dashboard-topContacts-daysAgo', { count: diffDays })
+  if (diffDays < 30) return t('dashboard-topContacts-weeksAgo', { count: Math.floor(diffDays / 7) })
+  return t('dashboard-topContacts-monthsAgo', { count: Math.floor(diffDays / 30) })
+}
+
+function formatLastContact(dateStr: string, t: (key: string, args?: Record<string, unknown>) => string): string {
   const date = new Date(dateStr)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-  return `${Math.floor(diffDays / 30)} months ago`
+  return formatRelativeContactTime(diffDays, t)
 }
 
 interface MostContactedCardProps {
@@ -87,6 +97,8 @@ const MostContactedCard: React.FC<MostContactedCardProps> = ({
   onStartVideoCall,
   'data-testid': testId
 }) => {
+  const { t, locale } = useTranslation(translations)
+
   // Use avatar cache hook for proper avatar resolution
   const avatarCache = useEmployeeAvatarsCache(accessToken || '')
   const avatarInfo = useMemo(() => {
@@ -121,7 +133,10 @@ const MostContactedCard: React.FC<MostContactedCardProps> = ({
         <div className="gba:flex-1 gba:min-w-0">
           <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{contact.displayName}</h4>
           <p className="gba:text-xs gba:text-muted-foreground gba:truncate">
-            {contact.messageCount.toLocaleString()} msgs · {formatLastContact(contact.lastContact)}
+            {t('dashboard-topContacts-contactMeta', {
+              messageCount: contact.messageCount.toLocaleString(locale),
+              relativeTime: formatLastContact(contact.lastContact, t)
+            })}
           </p>
         </div>
         <div className="gba:flex gba:items-center gba:gap-0.5">
@@ -170,6 +185,8 @@ interface ReachOutCardProps {
  * ReachOutCard - Subtle suggestion card following DS rules
  */
 const ReachOutCard: React.FC<ReachOutCardProps> = ({ suggestion, accessToken, onClick, 'data-testid': testId }) => {
+  const { t } = useTranslation(translations)
+
   // Use avatar cache hook for proper avatar resolution
   const avatarCache = useEmployeeAvatarsCache(accessToken || '')
   const avatarInfo = useMemo(() => {
@@ -204,7 +221,7 @@ const ReachOutCard: React.FC<ReachOutCardProps> = ({ suggestion, accessToken, on
           </h5>
           <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate">
             <Clock className="gba:w-3 gba:h-3 gba:flex-shrink-0" />
-            <span className="gba:truncate">{suggestion.reason}</span>
+            <span className="gba:truncate">{formatRelativeContactTime(suggestion.daysSinceContact, t)}</span>
           </p>
         </div>
         <Button
@@ -237,6 +254,7 @@ export const TopContacts: React.FC<TopContactsProps> = ({
   onStartCall,
   'data-testid': testId = 'top-contacts'
 }) => {
+  const { t } = useTranslation(translations)
   const mostContacted = contacts?.mostContacted ?? []
   const reachOutSuggestions = contacts?.reachOutSuggestions ?? []
 
@@ -245,12 +263,12 @@ export const TopContacts: React.FC<TopContactsProps> = ({
     return (
       <section data-testid={testId}>
         <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4 gba:uppercase gba:tracking-wide">
-          My people
+          {t('dashboard-topContacts-title')}
         </h3>
         <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
           {/* Most contacted skeleton */}
           <div className="gba:rounded-xl gba:bg-card gba:p-4">
-            <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">Most contacted</p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">{t('dashboard-topContacts-mostContacted')}</p>
             <div className="gba:space-y-2">
               {[1, 2, 3].map(i => (
                 <div key={i} className="gba:flex gba:items-center gba:gap-3 gba:py-2">
@@ -266,7 +284,7 @@ export const TopContacts: React.FC<TopContactsProps> = ({
 
           {/* Reach out skeleton */}
           <div className="gba:rounded-xl gba:bg-card gba:p-4">
-            <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">Maybe reach out</p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">{t('dashboard-topContacts-maybeReachOut')}</p>
             <div className="gba:space-y-2">
               {[1, 2, 3].map(i => (
                 <div key={i} className="gba:flex gba:items-center gba:gap-3 gba:py-2">
@@ -289,16 +307,16 @@ export const TopContacts: React.FC<TopContactsProps> = ({
     return (
       <section data-testid={testId}>
         <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4 gba:uppercase gba:tracking-wide">
-          My people
+          {t('dashboard-topContacts-title')}
         </h3>
         <div className="gba:rounded-xl gba:bg-card gba:p-6 gba:text-center">
           <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-3">
             <UserPlus className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
           </div>
-          <h4 className="gba:font-medium gba:text-foreground gba:text-sm gba:mb-1">No contacts yet</h4>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            Start chatting with colleagues to see your contacts here.
-          </p>
+          <h4 className="gba:font-medium gba:text-foreground gba:text-sm gba:mb-1">
+            {t('dashboard-topContacts-emptyTitle')}
+          </h4>
+          <p className="gba:text-xs gba:text-muted-foreground">{t('dashboard-topContacts-emptyDescription')}</p>
         </div>
       </section>
     )
@@ -307,13 +325,13 @@ export const TopContacts: React.FC<TopContactsProps> = ({
   return (
     <section data-testid={testId}>
       <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4 gba:uppercase gba:tracking-wide">
-        My people
+        {t('dashboard-topContacts-title')}
       </h3>
 
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
         {/* Most Contacted */}
         <div className="gba:rounded-xl gba:bg-card gba:p-4">
-          <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">Most contacted</p>
+          <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">{t('dashboard-topContacts-mostContacted')}</p>
           {mostContacted.length > 0 ? (
             <div className="gba:space-y-1">
               {mostContacted.slice(0, 3).map((contact, index) => (
@@ -338,13 +356,15 @@ export const TopContacts: React.FC<TopContactsProps> = ({
               ))}
             </div>
           ) : (
-            <p className="gba:text-xs gba:text-muted-foreground/70 gba:py-4 gba:text-center">No contacts yet</p>
+            <p className="gba:text-xs gba:text-muted-foreground/70 gba:py-4 gba:text-center">
+              {t('dashboard-topContacts-emptyTitle')}
+            </p>
           )}
         </div>
 
         {/* Reach Out Suggestions */}
         <div className="gba:rounded-xl gba:bg-card gba:p-4">
-          <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">Maybe reach out</p>
+          <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">{t('dashboard-topContacts-maybeReachOut')}</p>
           {reachOutSuggestions.length > 0 ? (
             <div className="gba:space-y-1">
               {reachOutSuggestions.slice(0, 3).map((suggestion, index) => (
@@ -358,7 +378,9 @@ export const TopContacts: React.FC<TopContactsProps> = ({
               ))}
             </div>
           ) : (
-            <p className="gba:text-xs gba:text-muted-foreground/70 gba:py-4 gba:text-center">No suggestions</p>
+            <p className="gba:text-xs gba:text-muted-foreground/70 gba:py-4 gba:text-center">
+              {t('dashboard-topContacts-noSuggestions')}
+            </p>
           )}
         </div>
       </div>

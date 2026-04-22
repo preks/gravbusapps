@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildIrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -126,9 +127,6 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, investments
         fetchInvestmentTasksByAccountId(accountId)
       ])
 
-      const sortedActivities = (activitiesData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
       const sortedNotes = (notesData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
@@ -148,7 +146,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, investments
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
-      setActivities(sortedActivities)
+      setActivities(activitiesData || [])
       setNotes(sortedNotes)
       setTasks(regularTasks)
       setApprovals(approvalTasks)
@@ -373,7 +371,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, investments
               activityTypeCatalog: ACTIVITY_TYPE,
               buildActivityPayload: buildInvestmentActivityPayload,
               alignment: 'right',
-              preSubmit: activityPreSubmit
+              preSubmit: activityPreSubmit,
+              getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl
             }
           },
           {

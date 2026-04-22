@@ -6,7 +6,7 @@ import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
-const LLM_MODEL = 'gpt-4.1'
+const FLOWBOT_MODEL_KIND_DEFAULT = 'default'
 const DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH = 500 // Maximum characters for document preview sent to AI
 
 /**
@@ -529,14 +529,9 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
           return { text: "I'm here to help! What would you like to know?", error: false }
         }
 
-        // When running locally, connect to DEV environment FlowBot
-        const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-        const baseUrl = isLocalhost ? 'https://newwork-dev.newwork.com' : resolveFlowbotBaseUrl()
+        const baseUrl = resolveFlowbotBaseUrl()
 
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
-
-        if (isLocalhost) {
-        }
 
         // Use existing session ID from previous AI messages in this conversation
         // This allows all users to share the same AI context
@@ -557,7 +552,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
 
         const form = new FormData()
         form.append('session_id', effectiveSessionId)
-        form.append('llm_model', LLM_MODEL)
+        form.append('model_kind', FLOWBOT_MODEL_KIND_DEFAULT)
         form.append('use_web_search_tool', 'false')
 
         // Build context in the format FlowBot expects

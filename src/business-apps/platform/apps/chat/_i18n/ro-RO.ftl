@@ -1,11 +1,75 @@
 # Chat Translations - Romanian
 
 # Main Component - ChatWithCalendar
+chat-tab-dashboard = Panou de bord
 chat-fullscreen-button = Deschide în ecran complet
 chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Calendar
 chat-tab-reminders = Memento-uri
+chat-shell-disabled-title = Chat indisponibil
+chat-shell-disabled-description = Acest panou este dezactivat momentan pentru workspace-ul tău.
+
+# Dashboard
+dashboard-error-loadData = Nu s-au putut încărca datele panoului de bord
+dashboard-hero-goodMorning = Bună dimineața
+dashboard-hero-goodAfternoon = Bună ziua
+dashboard-hero-goodEvening = Bună seara
+dashboard-hero-goodNight = Noapte bună
+dashboard-hero-tagline = Centrul tău de comunicare. Conectează-te, colaborează și rămâi sincronizat cu echipa ta.
+dashboard-common-you = Tu
+dashboard-personalStats-title = Activitatea ta
+dashboard-personalStats-messagesSent = Mesaje trimise
+dashboard-personalStats-conversations = Conversații
+dashboard-personalStats-callMinutes = Minute de apel
+dashboard-personalStats-avgPerDay = Medie pe zi
+dashboard-personalStats-memberDays = Zile ca membru
+dashboard-personalStats-active = Activ
+dashboard-personalStats-longTimeMember = Membru de mult timp
+dashboard-globalStats-title = Activitatea companiei
+dashboard-globalStats-activeNow = Activi acum
+dashboard-globalStats-live = Live
+dashboard-globalStats-messagesToday = Mesaje astăzi
+dashboard-globalStats-totalUsers = Utilizatori total
+dashboard-globalStats-totalCallTime = Timp total de apel
+dashboard-globalStats-totalPlatformMessages = Total mesaje pe platformă
+dashboard-globalStats-todayDelta = +{$count} astăzi
+dashboard-globalStats-allTime = Din toată perioada pe platformă
+dashboard-globalStats-topReactions = Reacții de top
+dashboard-globalStats-noReactions = Încă nu există reacții
+dashboard-topContacts-title = Contactele mele
+dashboard-topContacts-online = Online
+dashboard-topContacts-mostContacted = Cele mai contactate
+dashboard-topContacts-maybeReachOut = Poate ar trebui să contactezi
+dashboard-topContacts-emptyTitle = Încă nu există contacte
+dashboard-topContacts-emptyDescription = Începe să discuți cu colegii pentru a-ți vedea contactele aici.
+dashboard-topContacts-noSuggestions = Nicio sugestie
+dashboard-topContacts-contactMeta = {$messageCount} mes. · {$relativeTime}
+dashboard-topContacts-today = Astăzi
+dashboard-topContacts-yesterday = Ieri
+dashboard-topContacts-daysAgo = acum {$count} zile
+dashboard-topContacts-weeksAgo = acum {$count} săptămâni
+dashboard-topContacts-monthsAgo = acum {$count} luni
+dashboard-upcomingMeetings-title = Întâlniri viitoare
+dashboard-upcomingMeetings-next7Days = Următoarele 7 zile
+dashboard-upcomingMeetings-emptyTitle = Nu există întâlniri viitoare
+dashboard-upcomingMeetings-emptyDescription = Programul tău este liber
+dashboard-upcomingMeetings-error = Nu s-au putut încărca întâlnirile
+dashboard-upcomingMeetings-open = Deschide
+dashboard-upcomingMeetings-join = Intră
+dashboard-upcomingMeetings-now = Acum
+dashboard-upcomingMeetings-started = Începută
+dashboard-upcomingMeetings-startingNow = Începe acum
+dashboard-upcomingMeetings-inMinutes = Peste {$minutes} min
+dashboard-upcomingMeetings-inHours = Peste {$hours}h
+dashboard-upcomingMeetings-tomorrow = Mâine
+dashboard-upcomingMeetings-agendaItems = {$count ->
+  [one] {$count} punct pe agendă
+ *[other] {$count} puncte pe agendă
+}
+dashboard-upcomingMeetings-showMore = Arată încă {$count}
+dashboard-upcomingMeetings-showMoreWithTotal = Arată încă {$count} ({$total} în total)
+dashboard-upcomingMeetings-showLess = Arată mai puțin
 
 # Chat Main
 chat-appHeader = Chat
@@ -127,6 +191,7 @@ chat-continue = Continuă
 chat-memberCount = {$count} membri selectați
 chat-createGroupError = Nu s-a putut crea grupul. Vă rugăm să încercați din nou.
 chat-groupCreationFailed = Nu s-a putut crea grupul. Vă rugăm să încercați din nou.
+chat-groupCreationDuplicate = Există deja un chat de grup pentru acest grup.
 
 # Dimension Picker
 chat-selectFrom = Selectează din
@@ -463,6 +528,19 @@ reminders-goToEveryAI = Mergi la fila EveryAI și cere să setezi un memento
 reminders-loadingReminders = Se încarcă memento-urile...
 reminders-failedToLoad = Nu s-au putut încărca memento-urile
 reminders-tryAgain = Încearcă din nou
+reminders-newReminder = Memento Nou
+reminders-title = Titlu
+reminders-titlePlaceholder = De ce ar trebui să îți amintești?
+reminders-message = Mesaj (opțional)
+reminders-messagePlaceholder = Detalii suplimentare...
+reminders-dateTime = Dată și oră
+reminders-create = Creează memento
+reminders-creating = Se creează...
+reminders-cancel = Anulează
+reminders-created = Memento creat!
+reminders-createFailed = Nu s-a putut crea memento-ul
+reminders-titleRequired = Introdu un titlu
+reminders-dateTimeRequired = Selectează o dată și o oră
 
 # Calendar
 calendar-title = Calendar
@@ -470,7 +548,79 @@ calendar-today = Astăzi
 calendar-viewDay = Zi
 calendar-viewWeek = Săptămână
 calendar-viewMonth = Lună
+calendar-threeDay = Trei zile
+calendar-workWeek = Săptămână de lucru
+calendar-layout-list = Listă
+calendar-view-menu-aria = Vizualizare calendar și aspect
+calendar-list-no-events = Fără evenimente
 calendar-refresh = Reîmprospătează calendarul
+calendar-sidebar-title = Calendare
+calendar-sidebar-description = Alege ce este vizibil și gestionează calendarele partajate
+calendar-sidebar-selectAll = Toate
+calendar-sidebar-clearAll = Niciunul
+calendar-sidebar-myCalendars = Calendarele mele
+calendar-sidebar-personal = Personal
+calendar-sidebar-myCalendar = Calendarul meu
+calendar-sidebar-myCalendarDescription = Întâlniri și invitații asociate cu tine
+calendar-sidebar-shared = Partajate
+calendar-sidebar-external = Externe
+calendar-mini-previousMonth = Luna anterioară
+calendar-mini-nextMonth = Luna următoare
+calendar-sidebar-noSharedCalendars = Încă nu există calendare partajate
+calendar-sidebar-noExternalCalendars = Nu există calendare externe conectate
+calendar-sidebar-createFirstSharedCalendar = Creează primul calendar partajat
+calendar-sidebar-newSharedCalendar = Calendar partajat nou
+calendar-sidebar-newSharedCalendarDescription = Creează un calendar intern care poate fi selectat în vizualizarea calendarelor partajate.
+calendar-sidebar-editCalendar = Editează calendarul
+calendar-sidebar-editCalendarDescription = Actualizează numele, descrierea și culoarea calendarului.
+calendar-sidebar-manageAccess = Gestionează accesul
+calendar-sidebar-manageAccessDescription = Alege cine poate accesa {$name} și ce poate face.
+calendar-sidebar-archiveCalendar = Arhivează calendarul
+calendar-sidebar-archiveCalendarDescription = Arhivează {$name} și elimină-l din lista activă din bara laterală.
+calendar-sidebar-archiveConfirm = Arhivează calendarul
+calendar-sidebar-calendarName = Nume
+calendar-sidebar-calendarNamePlaceholder = ex. Calendar echipă produs
+calendar-sidebar-calendarDescriptionPlaceholder = Context opțional despre cine folosește acest calendar
+calendar-sidebar-createCalendar = Creează calendarul
+calendar-sidebar-addPeople = Adaugă persoane
+calendar-sidebar-members = Membri
+calendar-sidebar-noMembers = Încă nu există membri
+calendar-sidebar-membersLoadError = Nu s-au putut încărca membrii calendarului
+calendar-sidebar-owner = Proprietar
+calendar-sidebar-sharedCalendar = Calendar partajat
+calendar-sidebar-spaceCalendar = Calendar Space
+calendar-sidebar-busy = Ocupat
+calendar-sidebar-memberCount = {$count ->
+  [one] {$count} membru
+ *[other] {$count} membri
+}
+calendar-sidebar-permission-owner = Proprietar
+calendar-sidebar-permission-editor = Editor
+calendar-sidebar-permission-viewer = Vizualizator
+calendar-sidebar-permission-free_busy = Liber/ocupat
+calendar-sidebar-calendarCreatedSuccess = Calendar partajat creat
+calendar-sidebar-calendarCreatedError = Nu s-a putut crea calendarul partajat
+calendar-sidebar-calendarUpdatedSuccess = Calendar actualizat
+calendar-sidebar-calendarUpdatedError = Nu s-a putut actualiza calendarul
+calendar-sidebar-accessUpdatedSuccess = Accesul la calendar a fost actualizat
+calendar-sidebar-accessUpdatedError = Nu s-a putut actualiza accesul la calendar
+calendar-sidebar-calendarArchivedSuccess = Calendar arhivat
+calendar-sidebar-calendarArchivedError = Nu s-a putut arhiva calendarul
+calendar-sidebar-personalColorSaveError = Nu s-a putut actualiza culoarea pentru Calendarul meu
+calendar-sidebar-calendarColorSaveError = Nu s-a putut actualiza culoarea calendarului
+calendar-sidebar-resetToDefault = Folosește culoarea implicită
+calendar-sidebar-openColorPicker = Schimbă culoarea pentru {$name}
+calendar-sidebar-createManually = Creează manual
+calendar-sidebar-createByGroup = După grup
+calendar-sidebar-createCalendarByDimension = Creează calendar după organizație
+calendar-sidebar-dimensionDescription = Creează un calendar partajat pentru un grup organizațional și oferă membrilor săi acces de vizualizare.
+calendar-sidebar-dimensionViewerAccess = {$count ->
+  [one] 1 membru va primi acces de vizualizare
+ *[other] {$count} membri vor primi acces de vizualizare
+}
+calendar-sidebar-membersPreview = Membri
+calendar-sidebar-calendarExistsInfo = Există deja un calendar partajat pentru acest grup, așa că a fost selectat calendarul existent.
+calendar-sidebar-calendarExistsError = Există deja un calendar partajat pentru acest grup.
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Programează Întâlnire
@@ -481,6 +631,9 @@ calendar-meetingTitlePlaceholder = Titlul întâlnirii
 calendar-date = Dată
 calendar-dateRequired = Dată *
 calendar-allDay = Toată ziua
+calendar-allDay-more-count = +{$count}
+calendar-allDay-expand-aria = Afișează încă {$count} evenimente pe tot parcursul zilei
+calendar-allDay-collapse-aria = Afișează mai puține evenimente pe tot parcursul zilei
 calendar-start = Început
 calendar-end = Sfârșit
 calendar-location = Locație
@@ -489,6 +642,8 @@ calendar-videoCallPlaceholder = Link-ul video va fi generat
 calendar-enterLocation = Introduceți locația
 calendar-removeVideoCall = Șterge apelul video
 calendar-addVideoCall = Adaugă apel video
+calendar-createMeetingChat = Creează chat pentru întâlnire
+calendar-createMeetingChatDescription = Creează un chat de grup pentru actualizări și discuții despre această întâlnire
 calendar-description = Descriere
 calendar-descriptionPlaceholder = Adăugați descriere sau agendă...
 calendar-inviteParticipants = Invită Participanți
@@ -504,6 +659,8 @@ calendar-monthly = Lunar
 calendar-endDate = Data sfârșit
 calendar-reminders = Memento-uri
 calendar-color = Culoare
+calendar-aiTranscription = Transcriere AI a întâlnirii
+calendar-aiTranscriptionDescription = Transcrie automat și salvează conversația întâlnirii pentru toți participanții
 calendar-cancel = Anulează
 calendar-createMeeting = Creează Întâlnire
 calendar-saveChanges = Salvează Modificările
@@ -522,6 +679,7 @@ calendar-reminder1Day = Cu 1 zi înainte
 calendar-allDayEvent = Toată ziua
 calendar-videoCallAvailable = Apel Video
 calendar-joinLinkAvailable = Link de participare disponibil
+calendar-sourceCalendar = Calendar
 calendar-viewProfile = Vezi profilul
 calendar-youOrganizer = Tu (Organizator)
 calendar-organizer = Organizator

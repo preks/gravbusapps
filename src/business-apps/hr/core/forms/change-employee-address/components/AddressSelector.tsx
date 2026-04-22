@@ -41,11 +41,12 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({
         ? String(addresses[0].id)
         : addSentinel
       : value
+  const selectValue = resolvedValue || ''
   return (
     <FormItem>
       <div className="gba:flex gba:gap-2">
         <div className="gba:flex-1">
-          <Select value={resolvedValue} onValueChange={v => onChange(v || addSentinel)}>
+          <Select value={selectValue} onValueChange={v => onChange(v || addSentinel)}>
             <FormControl>
               <SelectTrigger
                 className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"

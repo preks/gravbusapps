@@ -17,7 +17,8 @@ import {
   Switch,
   Badge,
   Spinner,
-  IconAvatar
+  IconAvatar,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Calendar,
@@ -28,7 +29,6 @@ import {
   X,
   Repeat,
   Bell,
-  Palette,
   User,
   Mic,
   ListTodo,
@@ -37,21 +37,27 @@ import {
   ChevronUp,
   ChevronDown
 } from 'lucide-react'
-import type { CreateMeetingData, MeetingRecurrence } from '../types'
-import { MEETING_COLORS, REMINDER_OPTIONS, getDefaultCalendarColor } from '../types'
+import type { CreateMeetingData, InternalCalendarSummary, UpdateMeetingData } from '../types'
+import { MeetingRecurrence, REMINDER_OPTIONS } from '../types'
 import type { AgendaItem } from '../utils/agendaUtils'
 import { getAgendaFromMetadata, getTotalAgendaDuration } from '../utils/agendaUtils'
 import { createEmployeeSearchService, CalendarEmployee } from '../services/employeeSearchService'
-import { useChatTranslation } from '../../contexts/TranslationContext'
+import translations from '../../_i18n'
+import { AvailabilityPanel } from './AvailabilityPanel'
 
 interface CreateMeetingModalProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (data: CreateMeetingData) => Promise<void>
-  onUpdate?: (meetingId: string, data: Partial<CreateMeetingData>) => Promise<void>
+  onUpdate?: (meetingId: string, data: UpdateMeetingData) => Promise<void>
   accessToken: string
+  availableCalendars?: InternalCalendarSummary[]
+  includePersonal?: boolean
+  defaultCalendarId?: string
   initialDate?: Date
   initialHour?: number
+  initialTitle?: string
+  initialParticipants?: CalendarEmployee[]
   // For editing existing meeting
   editMeeting?: {
     id: string
@@ -61,10 +67,11 @@ interface CreateMeetingModalProps {
     endTime: Date
     location?: string
     meetingLink?: string
+    conversationId?: string
     isAllDay?: boolean
     recurrence?: MeetingRecurrence
     recurrenceEndDate?: Date
-    color?: string
+    calendarId?: string
     reminderMinutes?: number[]
     participants?: Array<{ id: string; displayName?: string; firstName?: string; lastName?: string }>
     metadata?: Record<string, any>
@@ -83,17 +90,48 @@ const formatTimeForInput = (date: Date): string => {
   return date.toTimeString().slice(0, 5)
 }
 
+const getDefaultCreateConversation = (isVideoCall: boolean): boolean => isVideoCall
+
+const resolveSelectableCalendarId = ({
+  requestedCalendarId,
+  includePersonal,
+  editableCalendars
+}: {
+  requestedCalendarId?: string
+  includePersonal: boolean
+  editableCalendars: InternalCalendarSummary[]
+}): string => {
+  if (requestedCalendarId === 'personal') {
+    return includePersonal ? 'personal' : editableCalendars[0]?.id || ''
+  }
+
+  if (requestedCalendarId && editableCalendars.some(calendar => calendar.id === requestedCalendarId)) {
+    return requestedCalendarId
+  }
+
+  if (includePersonal) {
+    return 'personal'
+  }
+
+  return editableCalendars[0]?.id || ''
+}
+
 export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
   onUpdate,
   accessToken,
+  availableCalendars = [],
+  includePersonal = true,
+  defaultCalendarId,
   initialDate,
   initialHour,
+  initialTitle,
+  initialParticipants = [],
   editMeeting
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const isEditMode = !!editMeeting
 
   // Helper to get translated reminder label
@@ -130,12 +168,15 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   )
   const [location, setLocation] = useState('')
   const [isVideoCall, setIsVideoCall] = useState(false)
+  const [createConversation, setCreateConversation] = useState(getDefaultCreateConversation(false))
+  const [hasManualCreateConversationOverride, setHasManualCreateConversationOverride] = useState(false)
   const [isAllDay, setIsAllDay] = useState(false)
-  const [recurrence, setRecurrence] = useState<MeetingRecurrence>('none')
+  const [recurrence, setRecurrence] = useState<MeetingRecurrence>(MeetingRecurrence.NONE)
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
-  const [selectedColor, setSelectedColor] = useState(getDefaultCalendarColor())
   const [reminderMinutes, setReminderMinutes] = useState<number[]>([15])
   const [enableAITranscription, setEnableAITranscription] = useState(false)
+  const [selectedCalendarId, setSelectedCalendarId] = useState<string>(defaultCalendarId || 'personal')
+  const [hasUserChosenCalendar, setHasUserChosenCalendar] = useState(false)
 
   // Agenda state
   const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([])
@@ -148,6 +189,11 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   const [selectedParticipants, setSelectedParticipants] = useState<CalendarEmployee[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const editableCalendars = useMemo(() => availableCalendars.filter(calendar => calendar.canEdit), [availableCalendars])
+  const shouldShowCalendarSelect = includePersonal || editableCalendars.length > 0
+  const hasExistingConversation = Boolean(editMeeting?.conversationId)
+  const previousOpenRef = useRef(false)
+  const previousEditMeetingIdRef = useRef<string | null>(null)
 
   // Debounce timer for search
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null)
@@ -201,9 +247,69 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   // Calculate total agenda duration
   const totalAgendaDuration = useMemo(() => getTotalAgendaDuration(agendaItems), [agendaItems])
 
+  const applyVideoCallState = useCallback(
+    (nextIsVideoCall: boolean) => {
+      setIsVideoCall(nextIsVideoCall)
+
+      if (hasExistingConversation) {
+        setCreateConversation(true)
+        return
+      }
+
+      if (!hasManualCreateConversationOverride) {
+        setCreateConversation(getDefaultCreateConversation(nextIsVideoCall))
+      }
+    },
+    [hasExistingConversation, hasManualCreateConversationOverride]
+  )
+
+  const handleCalendarChange = useCallback((nextCalendarId: string) => {
+    setSelectedCalendarId(nextCalendarId)
+    setHasUserChosenCalendar(true)
+  }, [])
+
+  const resetForm = useCallback(() => {
+    const nextCalendarId = resolveSelectableCalendarId({
+      requestedCalendarId: defaultCalendarId,
+      includePersonal,
+      editableCalendars
+    })
+
+    setTitle(initialTitle || '')
+    setDescription('')
+    setDate(formatDateForInput(new Date()))
+    setStartTime(formatTimeForInput(new Date()))
+    setEndTime(formatTimeForInput(new Date(Date.now() + 60 * 60 * 1000)))
+    setLocation('')
+    setIsVideoCall(false)
+    setCreateConversation(getDefaultCreateConversation(false))
+    setHasManualCreateConversationOverride(false)
+    setIsAllDay(false)
+    setRecurrence(MeetingRecurrence.NONE)
+    setRecurrenceEndDate('')
+    setReminderMinutes([15])
+    setHasUserChosenCalendar(false)
+    setSelectedCalendarId(nextCalendarId)
+    setEnableAITranscription(false)
+    setAgendaItems([])
+    setSelectedParticipants(initialParticipants.map(participant => ({ ...participant })))
+    setSearchQuery('')
+    setSearchResults([])
+  }, [defaultCalendarId, editableCalendars, includePersonal, initialParticipants, initialTitle])
+
   // Initialize form when editMeeting changes
   useEffect(() => {
-    if (editMeeting && isOpen) {
+    const openedNow = isOpen && !previousOpenRef.current
+    const currentEditMeetingId = editMeeting?.id || null
+    const editMeetingChanged = currentEditMeetingId !== previousEditMeetingIdRef.current
+
+    if (editMeeting && isOpen && (openedNow || editMeetingChanged)) {
+      const nextCalendarId = resolveSelectableCalendarId({
+        requestedCalendarId: editMeeting.calendarId || defaultCalendarId || 'personal',
+        includePersonal,
+        editableCalendars
+      })
+
       setTitle(editMeeting.title || '')
       setDescription(editMeeting.description || '')
       setDate(formatDateForInput(editMeeting.startTime))
@@ -211,11 +317,16 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       setEndTime(formatTimeForInput(editMeeting.endTime))
       setLocation(editMeeting.location || '')
       setIsVideoCall(!!editMeeting.meetingLink)
+      setCreateConversation(
+        Boolean(editMeeting.conversationId) || getDefaultCreateConversation(!!editMeeting.meetingLink)
+      )
+      setHasManualCreateConversationOverride(false)
       setIsAllDay(editMeeting.isAllDay || false)
-      setRecurrence(editMeeting.recurrence || 'none')
+      setRecurrence(editMeeting.recurrence || MeetingRecurrence.NONE)
       setRecurrenceEndDate(editMeeting.recurrenceEndDate ? formatDateForInput(editMeeting.recurrenceEndDate) : '')
-      setSelectedColor(editMeeting.color || getDefaultCalendarColor())
       setReminderMinutes(editMeeting.reminderMinutes || [15])
+      setHasUserChosenCalendar(false)
+      setSelectedCalendarId(nextCalendarId)
 
       const transcriptionValue = editMeeting.metadata?.aiTranscriptionEnabled === true
       setEnableAITranscription(transcriptionValue)
@@ -230,13 +341,14 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           editMeeting.participants.map(p => ({
             id: p.id,
             userId: p.id,
-            displayName: p.displayName,
+            displayName: p.displayName || [p.firstName, p.lastName].filter(Boolean).join(' ') || p.id,
             firstName: p.firstName,
             lastName: p.lastName
           }))
         )
       }
-    } else if (!editMeeting && isOpen) {
+      previousEditMeetingIdRef.current = currentEditMeetingId
+    } else if (!editMeeting && openedNow) {
       // Reset for create mode
       resetForm()
       if (initialDate) {
@@ -246,8 +358,39 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
         setStartTime(`${String(initialHour).padStart(2, '0')}:00`)
         setEndTime(`${String(Math.min(initialHour + 1, 23)).padStart(2, '0')}:00`)
       }
+      previousEditMeetingIdRef.current = null
+    } else if (!isOpen) {
+      setHasUserChosenCalendar(false)
+      previousEditMeetingIdRef.current = null
     }
-  }, [editMeeting, isOpen, initialDate, initialHour])
+
+    previousOpenRef.current = isOpen
+  }, [defaultCalendarId, editMeeting, editableCalendars, includePersonal, initialDate, initialHour, isOpen, resetForm])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    const nextCalendarId = resolveSelectableCalendarId({
+      requestedCalendarId:
+        !isEditMode && !hasUserChosenCalendar && defaultCalendarId ? defaultCalendarId : selectedCalendarId,
+      includePersonal,
+      editableCalendars
+    })
+
+    if (nextCalendarId !== selectedCalendarId) {
+      setSelectedCalendarId(nextCalendarId)
+    }
+  }, [
+    defaultCalendarId,
+    editableCalendars,
+    hasUserChosenCalendar,
+    includePersonal,
+    isEditMode,
+    isOpen,
+    selectedCalendarId
+  ])
 
   // Employee search service
   const employeeSearchService = useMemo(() => {
@@ -319,8 +462,9 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
     if (!title.trim()) return false
     if (!date) return false
     if (!isAllDay && (!startTime || !endTime)) return false
+    if (shouldShowCalendarSelect && !selectedCalendarId) return false
     return true
-  }, [title, date, isAllDay, startTime, endTime])
+  }, [date, endTime, isAllDay, selectedCalendarId, shouldShowCalendarSelect, startTime, title])
 
   // Handle submit
   const handleSubmit = async () => {
@@ -355,7 +499,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           recurrence,
           recurrenceEndDate:
             recurrence !== 'none' && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : undefined,
-          color: selectedColor,
+          calendarId: selectedCalendarId === 'personal' ? undefined : selectedCalendarId,
           reminderMinutes,
           metadata: {
             aiTranscriptionEnabled: enableAITranscription,
@@ -363,7 +507,8 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           },
           // For updates, use addParticipantIds and removeParticipantIds
           ...(addParticipantIds.length > 0 && { addParticipantIds }),
-          ...(removeParticipantIds.length > 0 && { removeParticipantIds })
+          ...(removeParticipantIds.length > 0 && { removeParticipantIds }),
+          createConversation
         }
 
         await onUpdate(editMeeting.id, updateData)
@@ -383,9 +528,10 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           recurrence,
           recurrenceEndDate:
             recurrence !== 'none' && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : undefined,
-          color: selectedColor,
+          calendarId: selectedCalendarId === 'personal' ? undefined : selectedCalendarId,
           reminderMinutes,
           participantIds: selectedParticipants.map(p => p.userId || p.id),
+          createConversation,
           metadata: {
             aiTranscriptionEnabled: enableAITranscription,
             ...(validAgendaItems.length > 0 && { agenda: validAgendaItems })
@@ -405,25 +551,18 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
     }
   }
 
-  const resetForm = () => {
-    setTitle('')
-    setDescription('')
-    setDate(formatDateForInput(new Date()))
-    setStartTime(formatTimeForInput(new Date()))
-    setEndTime(formatTimeForInput(new Date(Date.now() + 60 * 60 * 1000)))
-    setLocation('')
-    setIsVideoCall(false)
-    setIsAllDay(false)
-    setRecurrence('none')
-    setRecurrenceEndDate('')
-    setSelectedColor(getDefaultCalendarColor())
-    setReminderMinutes([15])
-    setEnableAITranscription(false)
-    setAgendaItems([])
-    setSelectedParticipants([])
-    setSearchQuery('')
-    setSearchResults([])
-  }
+  const handleApplyAvailabilitySuggestion = useCallback((startIso: string, endIso: string) => {
+    const start = new Date(startIso)
+    const end = new Date(endIso)
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return
+    }
+
+    setDate(formatDateForInput(start))
+    setStartTime(formatTimeForInput(start))
+    setEndTime(formatTimeForInput(end))
+  }, [])
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
@@ -450,6 +589,25 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
               data-testid="meeting-title-input"
             />
           </div>
+
+          {shouldShowCalendarSelect && (
+            <div className="gba:space-y-2">
+              <Label htmlFor="meeting-calendar-select">Calendar</Label>
+              <Select value={selectedCalendarId} onValueChange={handleCalendarChange}>
+                <SelectTrigger id="meeting-calendar-select" data-testid="meeting-calendar-select">
+                  <SelectValue placeholder="Choose calendar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {includePersonal && <SelectItem value="personal">My calendar</SelectItem>}
+                  {editableCalendars.map(calendar => (
+                    <SelectItem key={calendar.id} value={calendar.id}>
+                      {calendar.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Date and Time */}
           <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:gap-3 gba:sm:gap-4">
@@ -520,11 +678,35 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                 type="button"
                 variant={isVideoCall ? 'default' : 'outline'}
                 size="icon"
-                onClick={() => setIsVideoCall(!isVideoCall)}
+                onClick={() => applyVideoCallState(!isVideoCall)}
                 title={isVideoCall ? t('calendar-removeVideoCall') : t('calendar-addVideoCall')}
+                data-testid="meeting-video-call-toggle"
               >
                 <Video className="gba:h-4 gba:w-4" />
               </Button>
+            </div>
+          </div>
+
+          <div className="gba:space-y-2">
+            <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:border-border gba:rounded-lg gba:bg-muted/50">
+              <div className="gba:flex-1">
+                <Label htmlFor="meeting-create-chat" className="gba:font-medium gba:cursor-pointer">
+                  {t('calendar-createMeetingChat')}
+                </Label>
+                <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+                  {t('calendar-createMeetingChatDescription')}
+                </p>
+              </div>
+              <Switch
+                id="meeting-create-chat"
+                checked={createConversation}
+                disabled={hasExistingConversation}
+                onCheckedChange={checked => {
+                  setCreateConversation(checked)
+                  setHasManualCreateConversationOverride(true)
+                }}
+                data-testid="meeting-create-chat-toggle"
+              />
             </div>
           </div>
 
@@ -746,6 +928,20 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             </div>
           </div>
 
+          <AvailabilityPanel
+            accessToken={accessToken}
+            participants={selectedParticipants.map(participant => ({
+              id: participant.userId || participant.id,
+              displayName: participant.displayName,
+              firstName: participant.firstName,
+              lastName: participant.lastName
+            }))}
+            date={date}
+            startTime={startTime}
+            endTime={endTime}
+            onApplySuggestion={handleApplyAvailabilitySuggestion}
+          />
+
           {/* Recurrence */}
           <div className="gba:space-y-2">
             <Label className="gba:flex gba:items-center gba:gap-1">
@@ -793,28 +989,6 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                 >
                   {getReminderLabel(option.value)}
                 </Badge>
-              ))}
-            </div>
-          </div>
-
-          {/* Color */}
-          <div className="gba:space-y-2">
-            <Label className="gba:flex gba:items-center gba:gap-1">
-              <Palette className="gba:h-3 gba:w-3" />
-              {t('calendar-color')}
-            </Label>
-            <div className="gba:flex gba:gap-2">
-              {MEETING_COLORS.map(color => (
-                <button
-                  key={color.value}
-                  type="button"
-                  onClick={() => setSelectedColor(color.value)}
-                  className={`gba:w-7 gba:h-7 gba:rounded-full gba:transition-transform ${
-                    selectedColor === color.value ? 'gba:scale-125 gba:ring-2 gba:ring-offset-2 gba:ring-primary' : ''
-                  }`}
-                  style={{ backgroundColor: color.value }}
-                  title={color.name}
-                />
               ))}
             </div>
           </div>

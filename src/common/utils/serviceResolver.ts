@@ -27,6 +27,17 @@ function buildFullPath(servicePath: string, apiPath: string): string {
 }
 
 /**
+ * Custom Flow Engine (Conductor) REST base must include a single `/api` segment before paths like
+ * `/entities`, `/templates/*`, `/custom-data/*`. Local overrides may already end with `/api`; hosted
+ * URLs may be `.../flow-engine` without it — this avoids `/api/api/...` and fixes bare `.../3002`.
+ */
+export function normalizeCustomFlowEngineApiBaseUrl(resolved: string): string {
+  const trimmed = resolved.replace(/\/+$/, '')
+  if (/\/api(?:\/|$)/.test(trimmed)) return trimmed
+  return `${trimmed}/api`
+}
+
+/**
  * Resolve service URL based on environment.
  *
  * @param envVar - Environment variable name (e.g., 'NEXT_PUBLIC_ORGCHART_API_URL')
@@ -69,9 +80,15 @@ export const CHAT_WEB_SOCKET_URL = resolveServiceUrl('NEXT_PUBLIC_CHAT_WEB_SOCKE
   servicePath: '/chat-service',
   apiPath: ''
 })
-export const CUSTOM_FLOW_ENGINE_API_URL = resolveServiceUrl('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL', {
-  servicePath: '/flow-engine',
-  apiPath: '/api'
+export const CUSTOM_FLOW_ENGINE_API_URL = normalizeCustomFlowEngineApiBaseUrl(
+  resolveServiceUrl('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL', {
+    servicePath: '/flow-engine',
+    apiPath: '/api'
+  })
+)
+export const CONTENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_CONTENT_API_URL', {
+  servicePath: '/processes/content',
+  apiPath: ''
 })
 export const CUSTOMER_RELATIONS_API_URL = resolveServiceUrl('NEXT_PUBLIC_CUSTOMER_RELATIONS_API_URL', {
   servicePath: '/processes/customer-relations',
@@ -80,6 +97,10 @@ export const CUSTOMER_RELATIONS_API_URL = resolveServiceUrl('NEXT_PUBLIC_CUSTOME
 export const DOCUMENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_API_URL', {
   servicePath: '/document',
   apiPath: '/api/v1'
+})
+export const DOCUMENT_WEB_SOCKET_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL', {
+  servicePath: '/document',
+  apiPath: ''
 })
 export const EMPLOYEE_EXPENSE_API_URL = resolveServiceUrl('NEXT_PUBLIC_EMPLOYEE_EXPENSE_API_URL', {
   servicePath: '/processes/employee-expense',
@@ -146,9 +167,13 @@ export const AUTHORIZATION_API_URL = resolveServiceUrl('NEXT_PUBLIC_AUTHORIZATIO
   servicePath: '/authorization',
   apiPath: '/api/v1'
 })
-// TODO: Temporary altered
-export const PROMPT_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC_PROMPT_MANAGER_API_URL_TEMP', {
+export const PROMPT_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC_PROMPT_MANAGER_API_URL', {
   servicePath: '/prompt-manager',
+  apiPath: '/api/v1'
+})
+/** Spreadsheet AI menu (formula / analyze / review / insights) → Flowbot-embedded Prompt Manager. */
+export const SPREADSHEET_PROMPT_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC_SPREADSHEET_PROMPT_MANAGER_API_URL', {
+  servicePath: '/flowbot/prompt-manager',
   apiPath: '/api/v1'
 })
 /** Processes base (base + /processes). No env override; for FlowClient / useKogitoProcess only. */

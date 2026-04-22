@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { Search, LayoutGrid, List, Upload, SortAsc, SortDesc, Trash2, CloudDownload } from 'lucide-react'
+import { Search, LayoutGrid, List, Upload, FolderPlus, SortAsc, SortDesc, Trash2, CloudDownload } from 'lucide-react'
 import type { DriveViewMode, DriveSortBy, DriveSection } from '../types/drive.types'
 
 export interface DriveToolbarProps {
@@ -13,6 +13,8 @@ export interface DriveToolbarProps {
   onSearchClick: () => void
   onUploadFiles: (files: File[]) => void
   onImportExternal?: () => void
+  onCreateFolder?: () => void
+  actionsSlot?: React.ReactNode
   section: DriveSection
   onEmptyTrash?: () => void
   t: (key: string) => string
@@ -29,6 +31,8 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
   onSearchClick,
   onUploadFiles,
   onImportExternal,
+  onCreateFolder,
+  actionsSlot,
   section,
   onEmptyTrash,
   t,
@@ -46,7 +50,7 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
       >
         <Search className="gba:w-5 gba:h-5 gba:text-muted-foreground/70 group-hover:gba:text-foreground gba:transition-colors" />
         <span className="gba:text-sm gba:text-muted-foreground/70 group-hover:gba:text-muted-foreground gba:transition-colors">
-          {t('header-search-placeholder')}
+          {t('drive-header-search-placeholder')}
         </span>
         <kbd className="gba:ml-auto gba:text-[11px] gba:text-muted-foreground/50 gba:px-2 gba:py-0.5 gba:rounded-md gba:bg-background gba:border gba:border-border/50 gba:font-medium gba:tracking-wide">
           ⌘K
@@ -80,6 +84,21 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
               <Upload className="gba:w-3.5 gba:h-3.5" />
               {t('header-upload-file')}
             </Button>
+            {onCreateFolder && (
+              <>
+                <div className="gba:w-px gba:h-4 gba:bg-border/50" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onCreateFolder}
+                  className="gba:gap-1.5 gba:h-7 gba:text-xs"
+                  data-testid={`${testId}-create-folder`}
+                >
+                  <FolderPlus className="gba:w-3.5 gba:h-3.5" />
+                  {t('header-new-folder')}
+                </Button>
+              </>
+            )}
             {onImportExternal && (
               <>
                 <div className="gba:w-px gba:h-4 gba:bg-border/50" />
@@ -97,6 +116,8 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
             )}
           </div>
         )}
+
+        {actionsSlot}
 
         {section === 'trash' && onEmptyTrash && (
           <Button
@@ -119,10 +140,10 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
               className="gba:text-xs gba:bg-transparent gba:border-0 gba:pr-1 gba:py-0.5 gba:text-muted-foreground gba:cursor-pointer focus:gba:outline-none"
               data-testid={`${testId}-sort-select`}
             >
-              <option value="updatedAt">Modified</option>
-              <option value="name">Name</option>
-              <option value="createdAt">Created</option>
-              <option value="size">Size</option>
+              <option value="updatedAt">{t('header-sort-modified')}</option>
+              <option value="name">{t('header-sort-name')}</option>
+              <option value="createdAt">{t('header-sort-created')}</option>
+              <option value="size">{t('header-sort-size')}</option>
             </select>
             <div className="gba:w-px gba:h-4 gba:bg-border/50" />
             <button

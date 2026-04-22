@@ -1,10 +1,9 @@
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-// I18n error message keys
 export const OPPORTUNITY_VALIDATION_ERRORS = {
   OWNER_REQUIRED: 'opportunity.validation.ownerRequired',
-  NAME_REQUIRED: 'opportunity.validation.nameRequired',
+  NAME_REQUIRED: 'Opportunity name is required',
   STAGE_REQUIRED_WHEN_PIPELINE_SELECTED: 'opportunity.validation.stageRequiredWhenPipelineSelected'
 } as const
 

@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { toast } from '@newwork/nw-design-system'
+import { toast, useTranslation } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useBoardApps } from './hooks/useBoardApps'
@@ -43,6 +43,7 @@ import { BoardEditorHeader } from './components/BoardEditorHeader'
 import { BoardsHubHero } from './components/hero'
 import { BoardsHomeDashboard } from './components/home/BoardsHomeDashboard'
 import { useBoardHomeData } from './hooks/useBoardHomeData'
+import translations from './_i18n'
 
 export interface BoardsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -53,6 +54,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
   userInfo,
   'data-testid': testId = 'boards-hub'
 }) => {
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeSection, setActiveSection] = useState<BoardHubSidebarSection>('home')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -184,7 +186,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
       sheets: [
         {
           id: '',
-          name: 'Main',
+          name: t('hub-default-sheet-name'),
           description: '',
           position: 0,
           groups: [],
@@ -192,7 +194,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
             {
               id: 'col_name',
               name: 'name',
-              label: 'Name',
+              label: t('hub-default-column-name'),
               type: 'text',
               isVisible: true,
               isEditable: true,
@@ -204,7 +206,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
             {
               id: 'col_status',
               name: 'status',
-              label: 'Status',
+              label: t('hub-default-column-status'),
               type: 'status',
               isVisible: true,
               isEditable: true,
@@ -212,13 +214,21 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
               isUnique: false,
               order: 1,
               selectOptions: [
-                { value: 'todo', label: 'To Do', colorToken: 'muted' },
-                { value: 'in_progress', label: 'In Progress', colorToken: 'info' },
-                { value: 'done', label: 'Done', colorToken: 'success' }
+                { value: 'todo', label: t('hub-default-status-todo'), colorToken: 'muted' },
+                { value: 'in_progress', label: t('hub-default-status-in-progress'), colorToken: 'info' },
+                { value: 'done', label: t('hub-default-status-done'), colorToken: 'success' }
               ]
             }
           ],
-          views: [{ id: 'v_default', name: 'Table', type: 'table', isDefault: true, config: { type: 'table' } }],
+          views: [
+            {
+              id: 'v_default',
+              name: t('hub-default-view-table'),
+              type: 'table',
+              isDefault: true,
+              config: { type: 'table' }
+            }
+          ],
           settings: {
             allowAdd: true,
             allowEdit: true,
@@ -239,9 +249,9 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
       }
       await loadBoard(board.id)
       urlState.setBoardId(board.id)
-      toast.success(activeCollectionId ? 'Board created in space' : 'Board created')
+      toast.success(activeCollectionId ? t('hub-create-board-in-space-success') : t('hub-create-board-success'))
     }
-  }, [newBoardName, createBoard, loadBoard, urlState, activeCollectionId, moveBoardToCollection])
+  }, [newBoardName, createBoard, loadBoard, urlState, activeCollectionId, moveBoardToCollection, t])
 
   const handleOpenBoard = useCallback(
     async (id: string) => {
@@ -294,22 +304,22 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
       const result = await createCollection(data)
       if (result) {
         setIsCreateCollectionOpen(false)
-        toast.success('Space created')
+        toast.success(t('hub-space-created-success'))
         urlState.setCollectionId(result.id)
       }
     },
-    [createCollection, urlState]
+    [createCollection, urlState, t]
   )
 
   const handleDeleteCollection = useCallback(
     async (id: string) => {
       const ok = await deleteCollection(id)
       if (ok) {
-        toast.success('Space deleted')
+        toast.success(t('hub-space-deleted-success'))
         if (activeCollectionId === id) urlState.setCollectionId(null)
       }
     },
-    [deleteCollection, activeCollectionId, urlState]
+    [deleteCollection, activeCollectionId, urlState, t]
   )
 
   const handleMoveBoard = useCallback(
@@ -317,11 +327,11 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
       if (!moveBoardId) return
       const ok = await moveBoardToCollection(collectionId, moveBoardId)
       if (ok) {
-        toast.success('Board moved to space')
+        toast.success(t('hub-board-moved-to-space-success'))
         setMoveBoardId(null)
       }
     },
-    [moveBoardId, moveBoardToCollection]
+    [moveBoardId, moveBoardToCollection, t]
   )
 
   const handleAddBoardsToCollection = useCallback(
@@ -333,10 +343,10 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
         if (ok) count++
       }
       if (count > 0) {
-        toast.success(`${count} board${count !== 1 ? 's' : ''} added to space`)
+        toast.success(t('hub-boards-added-to-space-success', { count }))
       }
     },
-    [activeCollectionId, moveBoardToCollection]
+    [activeCollectionId, moveBoardToCollection, t]
   )
 
   const handleOpenInSpaces = useCallback((collectionId: string) => {
@@ -350,15 +360,15 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
         const next = new Set(prev)
         if (next.has(id)) {
           next.delete(id)
-          toast.success('Removed from favorites')
+          toast.success(t('hub-removed-from-favorites'))
         } else {
           next.add(id)
-          toast.success('Added to favorites')
+          toast.success(t('hub-added-to-favorites'))
         }
         return next
       })
     },
-    [setFavorites]
+    [setFavorites, t]
   )
 
   const handleTemplateCreated = useCallback(
@@ -461,6 +471,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
               onShare={() => setManageBoardId(currentBoard!.id)}
               onImportSystemData={() => viewerRef.current?.openSystemData()}
               onImportFlowData={() => viewerRef.current?.openFlowData()}
+              onActivityLog={() => viewerRef.current?.openActivityLog()}
               onSettings={() => viewerRef.current?.openSettings()}
               data-testid={`${testId}-editor-header`}
             />
@@ -646,8 +657,8 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
           }}
           currentName={boards.find(b => b.id === renameBoardId)?.name || ''}
           onSubmit={name => void updateBoard(renameBoardId, { name } as Partial<Board>)}
-          title="Rename Board"
-          placeholder="Board name"
+          title={t('rename-board-title')}
+          placeholder={t('rename-board-placeholder')}
           data-testid={`${testId}-rename-board-dialog`}
         />
       )}
@@ -724,7 +735,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
             if (!open) setShareCollectionId(null)
           }}
           collectionId={shareCollectionId}
-          collectionName={collections.find(c => c.id === shareCollectionId)?.name || 'Space'}
+          collectionName={collections.find(c => c.id === shareCollectionId)?.name || t('collection-fallback-name')}
           accessToken={accessToken}
           currentUserId={currentUserId as string}
           onShareComplete={() => setShareCollectionId(null)}
@@ -738,7 +749,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
             if (!open) setManageCollectionId(null)
           }}
           collectionId={manageCollectionId}
-          collectionName={collections.find(c => c.id === manageCollectionId)?.name || 'Space'}
+          collectionName={collections.find(c => c.id === manageCollectionId)?.name || t('collection-fallback-name')}
           accessToken={accessToken}
           onMembersChanged={() => void refreshCollections()}
           onAddMoreMembers={() => {

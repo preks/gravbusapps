@@ -1,4 +1,4 @@
-import { Separator } from '@newwork/nw-design-system'
+import { Separator, useTranslation } from '@newwork/nw-design-system'
 import { Loader2, TrendingUp, BarChart3, Calendar, Sparkles } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { InlineEditableMarkdownBlock } from '../editing/InlineEditableMarkdownBlock'
@@ -9,6 +9,7 @@ import { AnalysisTable } from './AnalysisTable'
 import { InsightGrid } from './AnalysisInsightGrid'
 import { AnalysisSectionRenderer } from './AnalysisSectionRenderer'
 import type { AnalysisContent, AnalysisSection } from '../../types/nexus.types'
+import translations from '../../_i18n'
 
 interface AnalysisRendererProps {
   content: AnalysisContent
@@ -21,6 +22,46 @@ interface AnalysisRendererProps {
   testId?: string
 }
 
+const toStableKeyPart = (value: unknown) => {
+  if (value == null || value === '') {
+    return 'empty'
+  }
+
+  const raw = typeof value === 'string' ? value : JSON.stringify(value)
+  return (
+    raw
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 80) || 'empty'
+  )
+}
+
+const buildStableKeys = <T,>(items: T[], getBaseKey: (item: T) => string) => {
+  const occurrences = new Map<string, number>()
+
+  return items.map(item => {
+    const baseKey = getBaseKey(item)
+    const nextOccurrence = (occurrences.get(baseKey) || 0) + 1
+    occurrences.set(baseKey, nextOccurrence)
+    return nextOccurrence === 1 ? baseKey : `${baseKey}-${nextOccurrence}`
+  })
+}
+
+const getKpiKey = (kpi: AnalysisContent['kpis'][number]) =>
+  ['kpi', kpi.label, kpi.value, kpi.unit, kpi.trend, kpi.trendValue].map(toStableKeyPart).join(':')
+
+const getChartKey = (chart: AnalysisContent['charts'][number]) =>
+  ['chart', chart.title, chart.type, chart.xKey, chart.yKey, chart.data.slice(0, 2)].map(toStableKeyPart).join(':')
+
+const getTableKey = (table: AnalysisContent['tables'][number]) =>
+  ['table', table.title, table.headers, table.rows.slice(0, 2)].map(toStableKeyPart).join(':')
+
+const getSectionKey = (section: AnalysisSection) =>
+  ['section', section.type, section.title, section.content?.slice(0, 120), section.chart?.title, section.table?.title]
+    .map(toStableKeyPart)
+    .join(':')
+
 export const AnalysisRenderer = ({
   content,
   title,
@@ -31,11 +72,16 @@ export const AnalysisRenderer = ({
   onContentChange,
   testId = 'nexus-analysis'
 }: AnalysisRendererProps) => {
+  const { t, locale } = useTranslation(translations)
   const hasSections = content.sections && content.sections.length > 0
   const hasLegacyContent = content.charts?.length > 0 || content.tables?.length > 0
   const hasContent =
     content.summary || content.kpis?.length > 0 || content.insights?.length > 0 || hasSections || hasLegacyContent
   const canEdit = editable && !isStreaming
+  const kpiKeys = buildStableKeys(content.kpis || [], getKpiKey)
+  const sectionKeys = buildStableKeys(content.sections || [], getSectionKey)
+  const chartKeys = buildStableKeys(content.charts || [], getChartKey)
+  const tableKeys = buildStableKeys(content.tables || [], getTableKey)
 
   if (!hasContent && isStreaming) {
     return (
@@ -47,12 +93,14 @@ export const AnalysisRenderer = ({
           <Loader2 className="gba:h-10 gba:w-10 gba:animate-spin gba:text-primary/30" />
           <Sparkles className="gba:absolute gba:inset-0 gba:m-auto gba:h-4 gba:w-4 gba:text-primary" />
         </div>
-        <p className="gba:text-sm gba:font-medium gba:text-muted-foreground">Generating analysis...</p>
+        <p className="gba:text-sm gba:font-medium gba:text-muted-foreground">{t('analysis-generating')}</p>
       </div>
     )
   }
 
-  const reportDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  const reportDate = new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long', day: 'numeric' }).format(
+    new Date()
+  )
 
   const handleInsightChange = (index: number, value: string) => {
     if (!content.insights) return
@@ -76,7 +124,9 @@ export const AnalysisRenderer = ({
         <header className="gba:text-center gba:space-y-4 gba:pb-6" data-testid={`${testId}-header`}>
           <div className="gba:inline-flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:rounded-full gba:bg-primary/10 gba:text-primary">
             <BarChart3 className="gba:h-3.5 gba:w-3.5" />
-            <span className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-widest">Analysis Report</span>
+            <span className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-widest">
+              {t('analysis-report')}
+            </span>
           </div>
           {canEdit ? (
             <InlineEditableTitle
@@ -126,7 +176,7 @@ export const AnalysisRenderer = ({
             <div className="gba:h-6 gba:w-6 gba:rounded-md gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
               <TrendingUp className="gba:h-3 gba:w-3 gba:text-primary" />
             </div>
-            <h3 className="gba:text-sm gba:font-bold gba:text-foreground">Key Insights</h3>
+            <h3 className="gba:text-sm gba:font-bold gba:text-foreground">{t('analysis-key-insights')}</h3>
           </div>
           <InsightGrid
             insights={content.insights}
@@ -143,12 +193,12 @@ export const AnalysisRenderer = ({
         <section data-testid={`${testId}-kpis`}>
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-5">
             <h3 className="gba:text-[11px] gba:font-bold gba:text-muted-foreground gba:uppercase gba:tracking-widest">
-              Key Metrics
+              {t('analysis-key-metrics')}
             </h3>
           </div>
           <div className="gba:grid gba:grid-cols-2 gba:lg:grid-cols-3 gba:xl:grid-cols-4 gba:gap-4">
             {content.kpis.map((kpi, i) => (
-              <AnalysisKpiCard key={i} kpi={kpi} testId={`${testId}-kpi-${i}`} />
+              <AnalysisKpiCard key={kpiKeys[i]} kpi={kpi} testId={`${testId}-kpi-${i}`} />
             ))}
           </div>
         </section>
@@ -160,7 +210,7 @@ export const AnalysisRenderer = ({
       {hasSections &&
         content.sections!.map((section, i) => (
           <AnalysisSectionRenderer
-            key={i}
+            key={sectionKeys[i]}
             section={section}
             index={i}
             accessToken={accessToken}
@@ -176,11 +226,11 @@ export const AnalysisRenderer = ({
           {content.charts && content.charts.length > 0 && (
             <section data-testid={`${testId}-charts`}>
               <h3 className="gba:text-[11px] gba:font-bold gba:text-muted-foreground gba:uppercase gba:tracking-widest gba:mb-5">
-                Visualizations
+                {t('analysis-visualizations')}
               </h3>
               <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-4">
                 {content.charts.map((chart, i) => (
-                  <AnalysisChart key={i} chart={chart} testId={`${testId}-chart-${i}`} />
+                  <AnalysisChart key={chartKeys[i]} chart={chart} testId={`${testId}-chart-${i}`} />
                 ))}
               </div>
             </section>
@@ -188,11 +238,11 @@ export const AnalysisRenderer = ({
           {content.tables && content.tables.length > 0 && (
             <section data-testid={`${testId}-tables`}>
               <h3 className="gba:text-[11px] gba:font-bold gba:text-muted-foreground gba:uppercase gba:tracking-widest gba:mb-5">
-                Data Tables
+                {t('analysis-data-tables')}
               </h3>
               <div className="gba:space-y-4">
                 {content.tables.map((table, i) => (
-                  <AnalysisTable key={i} table={table} testId={`${testId}-table-${i}`} />
+                  <AnalysisTable key={tableKeys[i]} table={table} testId={`${testId}-table-${i}`} />
                 ))}
               </div>
             </section>
@@ -204,7 +254,7 @@ export const AnalysisRenderer = ({
       {isStreaming && (
         <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center gba:py-6">
           <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin gba:text-primary" />
-          <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">Building analysis...</span>
+          <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">{t('analysis-building')}</span>
         </div>
       )}
     </div>

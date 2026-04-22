@@ -5,7 +5,6 @@
  */
 
 import React, { useCallback } from 'react'
-import { formatDistanceToNow } from 'date-fns'
 import {
   FileText,
   Edit3,
@@ -17,12 +16,17 @@ import {
   FolderInput,
   FileSpreadsheet,
   StickyNote,
-  Presentation
+  Presentation,
+  Upload,
+  File,
+  Folder
 } from 'lucide-react'
-import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { Avatar, AvatarImage, AvatarFallback, useTranslation } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { SpaceActivity as SpaceActivityType } from '../types/space.types'
 import type { UserInfo } from '../hooks/useSpaceUserLookup'
+import translations from '../_i18n'
+import { formatLocalizedDistance } from '../utils/spaceLocalization'
 
 export interface SpaceActivityProps {
   activities: SpaceActivityType[]
@@ -33,22 +37,14 @@ export interface SpaceActivityProps {
   'data-testid'?: string
 }
 
-const actionConfig: Record<string, { icon: typeof FileText; label: string }> = {
-  created: { icon: Plus, label: 'created' },
-  updated: { icon: Edit3, label: 'edited' },
-  edited: { icon: Edit3, label: 'edited' },
-  deleted: { icon: Trash2, label: 'deleted' },
-  shared: { icon: Share2, label: 'shared' },
-  moved: { icon: FolderInput, label: 'moved' },
-  commented: { icon: MessageCircle, label: 'commented on' }
-}
-
-const entityTypeConfig: Record<string, { icon: typeof FileText; label: string }> = {
-  document: { icon: FileText, label: 'document' },
-  note: { icon: StickyNote, label: 'note' },
-  spreadsheet: { icon: FileSpreadsheet, label: 'spreadsheet' },
-  slide: { icon: Presentation, label: 'presentation' },
-  space: { icon: Activity, label: 'space' }
+const entityTypeConfig: Record<string, { icon: typeof FileText }> = {
+  document: { icon: FileText },
+  note: { icon: StickyNote },
+  spreadsheet: { icon: FileSpreadsheet },
+  slide: { icon: Presentation },
+  space: { icon: Activity },
+  file: { icon: File },
+  folder: { icon: Folder }
 }
 
 const getInitials = (name: string): string => {
@@ -65,13 +61,23 @@ export const SpaceActivity: React.FC<SpaceActivityProps> = ({
   getUserInfo,
   'data-testid': testId = 'space-activity'
 }) => {
+  const { t, locale } = useTranslation(translations)
+  const actionConfig: Record<string, { icon: typeof FileText; label: string }> = {
+    created: { icon: Plus, label: t('activity-action-created') },
+    updated: { icon: Edit3, label: t('activity-action-edited') },
+    edited: { icon: Edit3, label: t('activity-action-edited') },
+    deleted: { icon: Trash2, label: t('activity-action-deleted') },
+    shared: { icon: Share2, label: t('activity-action-shared') },
+    moved: { icon: FolderInput, label: t('activity-action-moved') },
+    commented: { icon: MessageCircle, label: t('activity-action-commented') },
+    uploaded: { icon: Upload, label: t('activity-action-uploaded') }
+  }
+
   const handleActivityClick = useCallback(
     (activity: SpaceActivityType) => {
-      // Don't navigate for deleted items or space-level activities
-      if (activity.action === 'deleted' || activity.entityType === 'space') return
+      if (activity.action === 'deleted' || ['space', 'folder', 'file'].includes(activity.entityType)) return
 
-      // Use canonical platform paths (navigateTo() maps them for dev)
-      const basePathByType: Record<SpaceActivityType['entityType'], string> = {
+      const basePathByType: Partial<Record<SpaceActivityType['entityType'], string>> = {
         document: '/platform/every-office/documents',
         note: '/platform/every-office/notes',
         spreadsheet: '/platform/every-office/spreadsheets',
@@ -124,8 +130,8 @@ export const SpaceActivity: React.FC<SpaceActivityProps> = ({
     return (
       <div className="gba:text-center gba:py-8" data-testid={testId}>
         <Activity className="gba:w-8 gba:h-8 gba:text-muted-foreground/40 gba:mx-auto gba:mb-2" />
-        <p className="gba:text-sm gba:text-muted-foreground">No activity yet</p>
-        <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">Activity will appear as content is modified</p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('activity-empty-title')}</p>
+        <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">{t('activity-empty-description')}</p>
       </div>
     )
   }
@@ -136,7 +142,8 @@ export const SpaceActivity: React.FC<SpaceActivityProps> = ({
         const action = actionConfig[activity.action] || actionConfig.updated
         const entityType = entityTypeConfig[activity.entityType] || entityTypeConfig.document
         const EntityIcon = entityType.icon
-        const isClickable = activity.action !== 'deleted' && activity.entityType !== 'space'
+        const nonClickableTypes = ['space', 'folder', 'file']
+        const isClickable = activity.action !== 'deleted' && !nonClickableTypes.includes(activity.entityType)
 
         // Get resolved user info (with avatar) from useSpaceUserLookup
         const resolvedUser = getUserInfo?.(activity.userId)
@@ -171,7 +178,7 @@ export const SpaceActivity: React.FC<SpaceActivityProps> = ({
                 </span>
               </p>
               <p className="gba:text-xs gba:text-muted-foreground">
-                {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                {formatLocalizedDistance(new Date(activity.timestamp), locale)}
               </p>
             </div>
           </div>

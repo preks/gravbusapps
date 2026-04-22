@@ -1,86 +1,82 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { PageHeader, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TypeTable } from './components/TypeTable'
-import {
-  useCatalogEntries,
-  useCreateCatalogEntry,
-  useUpdateCatalogEntry,
-  useDeleteCatalogEntry,
-  type CatalogEntry
-} from '@/common/data/catalog'
+import { useContentTypeOptions } from '@/common/data/content/hooks/useContentTypeOptions'
+import { useContentClient } from '@/common/network/content'
 
 export interface TypeDataPageProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   onBack?: () => void
 }
 
-const CATALOG_IDENTIFIER = 'ContentType'
-const CATALOG_VERSION = 'v1'
-
 const TypeDataPage: React.FC<TypeDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
-  const [types, setTypes] = useState<CatalogEntry[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [mutationError, setMutationError] = useState<string | null>(null)
+  const { options: types, isLoading, error: fetchError, refetch } = useContentTypeOptions(context.accessToken)
+  const contentClient = useContentClient(context.accessToken)
 
-  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken: context.accessToken })
-  const { createCatalogEntry } = useCreateCatalogEntry({ accessToken: context.accessToken })
-  const { updateCatalogEntry } = useUpdateCatalogEntry({ accessToken: context.accessToken })
-  const { deleteCatalogEntry } = useDeleteCatalogEntry({ accessToken: context.accessToken })
+  const error = mutationError || (fetchError ? fetchError.message : null)
 
-  const loadTypes = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const result = await fetchCatalogEntriesByIdentifier(CATALOG_IDENTIFIER, {
-        limit: 100,
-        offset: 0
-      })
-      setTypes(result.entries)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load content types')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [fetchCatalogEntriesByIdentifier])
-
-  useEffect(() => {
-    loadTypes()
-  }, [loadTypes])
-
-  const handleCreate = async (data: any) => {
-    await createCatalogEntry({
-      catalogIdentifier: CATALOG_IDENTIFIER,
-      catalogVersion: CATALOG_VERSION,
-      entry: {
-        code: data.code,
-        value: data.value,
-        description: data.description,
-        displayOrder: data.displayOrder,
-        translations: []
+  const handleCreate = useCallback(
+    async (data: { name: string; contentGroup: string }) => {
+      setMutationError(null)
+      try {
+        await contentClient.createContentType({
+          name: data.name,
+          contentGroup: data.contentGroup
+        })
+        await refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to create content type'
+        setMutationError(message)
+        throw err
       }
-    })
-    await loadTypes()
-  }
+    },
+    [contentClient, refetch]
+  )
 
-  const handleUpdate = async (id: string, data: any) => {
-    await updateCatalogEntry({
-      entryId: id,
-      entry: {
-        code: data.code,
-        value: data.value,
-        description: data.description,
-        displayOrder: data.displayOrder,
-        translations: []
+  const handleUpdate = useCallback(
+    async (id: string, data: { name: string; contentGroup: string }) => {
+      setMutationError(null)
+      try {
+        const typeToUpdate = types.find(type => type.id === id)
+        if (typeToUpdate?.version == null) {
+          throw new Error('Failed to update content type: version is missing')
+        }
+        await contentClient.updateContentType({
+          id,
+          version: typeToUpdate.version,
+          name: data.name,
+          contentGroup: data.contentGroup
+        })
+        await refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to update content type'
+        setMutationError(message)
+        throw err
       }
-    })
-    await loadTypes()
-  }
+    },
+    [contentClient, refetch, types]
+  )
 
-  const handleDelete = async (id: string) => {
-    await deleteCatalogEntry({ entryId: id })
-    await loadTypes()
-  }
+  const handleDelete = useCallback(
+    async (id: string) => {
+      setMutationError(null)
+      try {
+        const typeToDelete = types.find(type => type.id === id)
+        if (typeToDelete?.version == null) {
+          throw new Error('Failed to delete content type: version is missing')
+        }
+        await contentClient.deleteContentType(id, typeToDelete.version)
+        await refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to delete content type'
+        setMutationError(message)
+        throw err
+      }
+    },
+    [contentClient, refetch, types]
+  )
 
   if (isLoading && types.length === 0) {
     return (
@@ -106,7 +102,7 @@ const TypeDataPage: React.FC<TypeDataPageProps> = ({ prefixDataTestId, onBack, .
           onCreate={handleCreate}
           onUpdate={handleUpdate}
           onDelete={handleDelete}
-          onRetry={loadTypes}
+          onRetry={refetch}
           prefixDataTestId={`${prefixDataTestId}-table`}
         />
       </div>

@@ -71,10 +71,36 @@ export const buildExpenseRequestSearchOrConditions = (searchValue: string): Reco
   { currency: { code: { _ilike: searchValue } } }
 ]
 
+const buildAdvancePaymentBaseSearchOrConditions = (searchValue: string): Record<string, unknown>[] => [
+  { code: { _ilike: searchValue } },
+  { description: { _ilike: searchValue } },
+  { expensePlan: { code: { _ilike: searchValue } } },
+  { expensePlan: { title: { _ilike: searchValue } } },
+  { expensePlan: { employee: { firstName: { _ilike: searchValue } } } },
+  { expensePlan: { employee: { lastName: { _ilike: searchValue } } } },
+  { paymentMethod: { _ilike: searchValue } },
+  { costCenter: { name: { _ilike: searchValue } } }
+]
+
+export const buildAdvancePaymentListSearchOrConditions = (searchValue: string): Record<string, unknown>[] => [
+  ...buildAdvancePaymentBaseSearchOrConditions(searchValue),
+  { expensePlan: { employee: { employeePosition: { organizationalUnit: { name: { _ilike: searchValue } } } } } },
+  { expensePlan: { employee: { employeePosition: { costCenter: { name: { _ilike: searchValue } } } } } }
+]
+
+export const buildAdvancePaymentExportSearchOrConditions = (searchValue: string): Record<string, unknown>[] => [
+  ...buildAdvancePaymentBaseSearchOrConditions(searchValue),
+  { status: { _ilike: searchValue } }
+]
+
 const buildDepartmentPredicate = (idOrName: string) => ({
   employeePosition: {
     organizationalUnitId: { _eq: idOrName }
   }
+})
+
+export const buildAdvancePaymentDepartmentPredicate = (idOrName: string): Record<string, unknown> => ({
+  expensePlan: { employee: buildDepartmentPredicate(idOrName) }
 })
 
 const buildAndConditions = (
@@ -231,19 +257,9 @@ const PLAN_WHERE_CONFIG: EntityWhereConfig = {
 }
 
 const ADVANCE_PAYMENT_WHERE_CONFIG: EntityWhereConfig = {
-  searchPredicateBuilder: (p: string) => [
-    { code: { _ilike: p } },
-    { description: { _ilike: p } },
-    { status: { _ilike: p } },
-    { expensePlan: { code: { _ilike: p } } },
-    { expensePlan: { title: { _ilike: p } } },
-    { expensePlan: { employee: { firstName: { _ilike: p } } } },
-    { expensePlan: { employee: { lastName: { _ilike: p } } } },
-    { paymentMethod: { _ilike: p } },
-    { costCenter: { name: { _ilike: p } } }
-  ],
+  searchPredicateBuilder: buildAdvancePaymentExportSearchOrConditions,
   employeePredicateBuilder: name => ({ expensePlan: { employee: { fullName: { _eq: name } } } }),
-  departmentPredicateBuilder: name => ({ expensePlan: { employee: buildDepartmentPredicate(name) } }),
+  departmentPredicateBuilder: buildAdvancePaymentDepartmentPredicate,
   statusExclusion: ['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED']
 }
 

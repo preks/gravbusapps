@@ -1,5 +1,6 @@
 import type { Extension } from '@tiptap/core'
 import type { HeaderFooterEditorType, PagesOptions, PagesStorage } from './types'
+import { PAGE_COUNT_HARD_CAP } from './paginationPageCountPolicy'
 import {
   applyRootStyles,
   createFirstPageHeader,
@@ -46,7 +47,12 @@ function resolvePresentationExtensions(options: PagesOptions): Extension[] {
 }
 
 function resolveTotalPages(storage: PagesStorage) {
-  return Math.max(1, storage.pageCount, storage.getPageCount())
+  const resolved = Math.max(1, storage.pageCount, storage.getPageCount())
+  const normalized = Math.min(PAGE_COUNT_HARD_CAP, resolved)
+  if (normalized !== storage.pageCount) {
+    storage.pageCount = normalized
+  }
+  return normalized
 }
 
 function resolveDirectChildPaginationElement(editorDom: HTMLElement) {
@@ -129,11 +135,26 @@ function resolveSparseMountedRefreshPageNumbers(editorDom: HTMLElement, totalPag
       ? mountedEndPage - mountedStartPage + 1
       : null
 
-  if (
-    mountedRangeLength === null ||
-    (viewportMountedRange === null && mountedPageBreakCount !== mountedRangeLength) ||
-    (mountedStartPage === 1 && mountedEndPage >= totalPages)
-  ) {
+  if (viewportMountedRange !== null && mountedRangeLength !== null) {
+    if (mountedStartPage === 1 && mountedEndPage >= totalPages) {
+      return null
+    }
+
+    const pageNumbers = mountedStartPage > 1 ? [1] : []
+    const maxPageNumber = Math.min(totalPages, mountedEndPage + 1)
+    for (let pageNumber = mountedStartPage; pageNumber <= maxPageNumber; pageNumber += 1) {
+      pageNumbers.push(pageNumber)
+    }
+
+    return pageNumbers
+  }
+
+  const hasSparseMountedShells =
+    mountedRangeLength !== null &&
+    mountedPageBreakCount < totalPages &&
+    (viewportMountedRange !== null || mountedPageBreakCount === mountedRangeLength)
+
+  if (!hasSparseMountedShells || (mountedStartPage === 1 && mountedEndPage >= totalPages)) {
     return null
   }
 
@@ -337,8 +358,7 @@ export function renderWindowedPaginationWrapper(params: WindowedRenderWrapperPar
       activeRange: rendererState.activeRange,
       mountedRange: rendererState.mountedRange,
       windowKey: rendererState.windowKey,
-      placeholderBreakerMetricsByPage: rendererState.placeholderBreakerMetricsByPage,
-      spacerHeightsByRange: rendererState.spacerHeightsByRange
+      placeholderBreakerMetricsByPage: rendererState.placeholderBreakerMetricsByPage
     },
     onOpenEditor: params.onOpenEditor
   })
@@ -355,11 +375,16 @@ export function renderWindowedFirstPageHeader(params: WindowedRenderWrapperParam
   })
 }
 
+/**
+ * Pagination chrome: `[data-rm-pagination-chrome]` with `display: contents` so children participate in
+ * the editor root. First child is page 1 header (`.rm-first-page-header`); second is `.rm-pages-wrapper`.
+ * Inspecting only the first `rm-page-break` will not show a `rm-page-header-region` for page 1.
+ */
 export function renderWindowedPaginationChrome(params: WindowedRenderWrapperParams) {
   const chromeRoot = document.createElement('div')
   chromeRoot.dataset.rmPaginationChrome = 'true'
   chromeRoot.style.display = 'contents'
-  chromeRoot.append(renderWindowedPaginationWrapper(params), renderWindowedFirstPageHeader(params))
+  chromeRoot.append(renderWindowedFirstPageHeader(params), renderWindowedPaginationWrapper(params))
   return chromeRoot
 }
 

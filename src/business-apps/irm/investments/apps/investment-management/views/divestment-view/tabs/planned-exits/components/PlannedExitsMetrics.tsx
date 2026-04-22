@@ -3,7 +3,7 @@ import { TrendDownIcon, CurrencyDollarIcon, TrendUpIcon, ChartBarIcon } from '@p
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { WidgetItem } from '@/components/widget-group'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
-import { calculateChange } from '@/common/data/investment/kpis/utils'
+import { calculateTrend } from '@/common/utils/trendUtils'
 import type { PlannedExitsKPIData } from '../hooks/usePlannedExitsMetrics'
 import { DivestmentStatisticsPanel, WIDGET_SPAN, VS_LAST_QUARTER } from '../../../utils/DivestmentStatisticsPanel'
 
@@ -24,10 +24,14 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({
   error = null,
   onRetry
 }) => {
-  const countTrend = calculateChange(current.totalCount, previous.totalCount)
-  const investmentValueTrend = calculateChange(current.totalInvestmentValue, previous.totalInvestmentValue)
-  const marketValueTrend = calculateChange(current.totalMarketValue, previous.totalMarketValue)
-  const performanceTrend = calculateChange(current.averagePerformance, previous.averagePerformance)
+  const countTrend = calculateTrend(current.totalCount, previous.totalCount, VS_LAST_QUARTER)
+  const investmentValueTrend = calculateTrend(
+    current.totalInvestmentValue,
+    previous.totalInvestmentValue,
+    VS_LAST_QUARTER
+  )
+  const marketValueTrend = calculateTrend(current.totalMarketValue, previous.totalMarketValue, VS_LAST_QUARTER)
+  const performanceTrend = calculateTrend(current.averagePerformance, previous.averagePerformance, VS_LAST_QUARTER)
 
   const widgets: WidgetItem[] = [
     {
@@ -38,7 +42,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({
       color: 'var(--nw-color-danger-500)',
       span: WIDGET_SPAN,
       description: getTranslationFromI18nKeyAndLabel('investments_planned_for_exit', 'Investments planned for exit'),
-      trend: { ...countTrend, positive: !countTrend.positive, description: VS_LAST_QUARTER }
+      trend: { ...countTrend, positive: countTrend.positive === undefined ? undefined : !countTrend.positive }
     },
     {
       key: 'total-investment-value',

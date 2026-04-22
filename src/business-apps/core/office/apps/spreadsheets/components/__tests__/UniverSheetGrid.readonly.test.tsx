@@ -1,6 +1,11 @@
 import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { UniverSheetGrid, type UniverSheetGridHandle } from '../UniverSheetGrid'
+import {
+  UniverSheetGrid,
+  extractFormatMenuLabel,
+  getGermanNumfmtPattern,
+  type UniverSheetGridHandle
+} from '../UniverSheetGrid'
 
 const eventHandlers: Record<string, (payload: any) => void> = {}
 
@@ -14,10 +19,17 @@ jest.mock(
 
 jest.mock('@univerjs/preset-sheets-core/locales/en-US', () => ({}), { virtual: true })
 
+let lastPresetContainer: unknown
+let lastSetNumfmtLocalMock: jest.Mock | undefined
+let lastRangeGetValueMock: jest.Mock | undefined
+let selectionState: { actualRow?: number; actualColumn?: number; row?: number; column?: number } | null = null
 jest.mock(
   '@univerjs/preset-sheets-core',
   () => ({
-    UniverSheetsCorePreset: jest.fn(() => ({}))
+    UniverSheetsCorePreset: jest.fn((opts: { container?: unknown }) => {
+      lastPresetContainer = opts?.container
+      return {}
+    })
   }),
   { virtual: true }
 )
@@ -33,12 +45,17 @@ jest.mock(
         getValue: jest.fn(),
         getCellData: jest.fn(() => ({ v: undefined }))
       }
+      lastRangeGetValueMock = range.getValue
       const activeSheet = {
         getScrollState: () => ({ sheetViewStartRow: 0, sheetViewStartColumn: 0, offsetX: 0, offsetY: 0 }),
         onScroll: () => ({ dispose: jest.fn() }),
-        getRange: () => range
+        getRange: () => range,
+        getSelection: () => ({
+          getCurrentCell: () => selectionState
+        })
       }
       const workbook = {
+        setNumfmtLocal: jest.fn(),
         getActiveSheet: () => activeSheet,
         save: () => ({
           sheetOrder: ['sheet-1'],
@@ -52,6 +69,7 @@ jest.mock(
           }
         })
       }
+      lastSetNumfmtLocalMock = workbook.setNumfmtLocal
 
       return {
         univerAPI: {
@@ -72,7 +90,8 @@ jest.mock(
 describe('UniverSheetGrid read-only behavior', () => {
   const sheet = {
     id: 'sheet-1',
-    name: 'Sheet 1'
+    name: 'Sheet 1',
+    settings: { mergeData: [] }
   } as any
 
   const columns = [
@@ -94,6 +113,10 @@ describe('UniverSheetGrid read-only behavior', () => {
 
   beforeEach(() => {
     Object.keys(eventHandlers).forEach(key => delete eventHandlers[key])
+    lastPresetContainer = undefined
+    lastSetNumfmtLocalMock = undefined
+    lastRangeGetValueMock = undefined
+    selectionState = null
   })
 
   afterEach(() => {
@@ -115,6 +138,103 @@ describe('UniverSheetGrid read-only behavior', () => {
     )
 
     expect(screen.getByTestId('univer-readonly-overlay')).toBeInTheDocument()
+  })
+
+  it('renders remote cursor overlays from legacy spreadsheet cursor paths', () => {
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+        participants={[
+          {
+            userId: 'user-2',
+            userName: 'Alice',
+            userColor: '#ff0000',
+            socketId: 'socket-2',
+            cursor: { path: ['sheet-1', 'row-1', 'name'] },
+            lastActiveAt: new Date()
+          }
+        ]}
+      />
+    )
+
+    expect(screen.getByTitle('Alice')).toBeInTheDocument()
+  })
+
+  it('passes the mounted grid host element to Univer (not null from early effect)', () => {
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={true}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    expect(lastPresetContainer).toBeInstanceOf(HTMLDivElement)
+    expect(screen.getByTestId('univer-sheet-grid-container')).toBe(lastPresetContainer)
+  })
+
+  it('forces German number-format locale for currency/date/time defaults', () => {
+    jest.useFakeTimers()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    act(() => {
+      jest.advanceTimersByTime(100)
+    })
+
+    expect(lastSetNumfmtLocalMock).toHaveBeenCalledWith('de_DE')
+  })
+
+  it('continues rendering when setting German number-format locale fails', () => {
+    lastSetNumfmtLocalMock?.mockImplementationOnce(() => {
+      throw new Error('numfmt unavailable')
+    })
+
+    expect(() =>
+      render(
+        <UniverSheetGrid
+          sheet={sheet}
+          data={data}
+          columns={columns}
+          isReadOnly={false}
+          onCellChange={jest.fn()}
+          onCellsChange={jest.fn()}
+          onDataChange={jest.fn()}
+        />
+      )
+    ).not.toThrow()
+  })
+
+  it('extracts number-format menu labels from preview rows', () => {
+    expect(extractFormatMenuLabel('Date and time 1903-5-4 AM 12:00')).toBe('Date and time')
+    expect(extractFormatMenuLabel('Currency $1,220.00')).toBe('Currency')
+    expect(extractFormatMenuLabel('Unknown row')).toBeNull()
+  })
+
+  it('returns German override patterns for key format labels', () => {
+    expect(getGermanNumfmtPattern('Currency')).toBe('#,##0.00 "EUR"')
+    expect(getGermanNumfmtPattern('Date')).toBe('dd.mm.yyyy')
+    expect(getGermanNumfmtPattern('Time')).toBe('hh:mm:ss')
+    expect(getGermanNumfmtPattern('Nope')).toBeUndefined()
   })
 
   it('does not emit local cell changes while read-only', () => {
@@ -165,7 +285,15 @@ describe('UniverSheetGrid read-only behavior', () => {
         }
       }
     })
-    expect(onCellsChange).toHaveBeenCalled()
+    expect(onCellsChange).toHaveBeenCalledWith([
+      {
+        rowId: 'row-1',
+        columnName: 'name',
+        value: 'Allowed',
+        univerRow: 0,
+        univerCol: 0
+      }
+    ])
   })
 
   it('suppresses remote echo updates without blocking subsequent local edits', () => {
@@ -211,6 +339,93 @@ describe('UniverSheetGrid read-only behavior', () => {
       }
     })
     expect(onCellsChange).toHaveBeenCalled()
+  })
+
+  it('prefers the worksheet post-mutation value over a stale event payload value', () => {
+    const onCellsChange = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={onCellsChange}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    lastRangeGetValueMock?.mockReturnValue('Current')
+
+    const sheetValueChanged = eventHandlers.SheetValueChanged
+    sheetValueChanged?.({
+      payload: {
+        params: {
+          cellValue: { 0: { 0: { v: 'Previous' } } },
+          range: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }]
+        }
+      }
+    })
+
+    expect(onCellsChange).toHaveBeenCalledWith([
+      {
+        rowId: 'row-1',
+        columnName: 'name',
+        value: 'Current',
+        univerRow: 0,
+        univerCol: 0
+      }
+    ])
+  })
+
+  it('does not emit a clear when selection reconcile reads an untouched blank cell', () => {
+    jest.useFakeTimers()
+    const onCellsChange = jest.fn()
+    const blankColumns = [
+      columns[0],
+      {
+        id: 'col-2',
+        name: 'city',
+        label: 'City',
+        type: 'text',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        width: 150,
+        order: 1
+      }
+    ] as any
+    const blankData = [{ _id: 'row-1', name: '', city: '' }]
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={blankData}
+        columns={blankColumns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={onCellsChange}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    lastRangeGetValueMock?.mockReturnValue(undefined)
+
+    selectionState = { actualRow: 0, actualColumn: 0 }
+    act(() => {
+      eventHandlers.SelectionChanged?.({})
+      jest.advanceTimersByTime(100)
+    })
+
+    selectionState = { actualRow: 0, actualColumn: 1 }
+    act(() => {
+      eventHandlers.SelectionChanged?.({})
+      jest.advanceTimersByTime(100)
+    })
+
+    expect(onCellsChange).not.toHaveBeenCalled()
   })
 
   it('injects Add comment into the vertical context menu list', () => {

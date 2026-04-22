@@ -311,11 +311,16 @@ working-conditions-unit-year = { $count ->
 # Create Request Correction Form
 complete-notification = The request is sent to be approved by the manager
 request-correction-date-absence-error = This date is a bank holiday or absence and cannot be used for a correction request.
+request-correction-zero-planned-warning = This date has no planned working hours. Any time entered will count as overtime.
 notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
 notification-working-hours-updated-success = Working hours updates are sent for HR approval
 notification-feedback-request-sent-success = Your feedback request has been sent
 notification-feedback-request-sent-success-on-behalf = The feedback request has been sent
 feedback-request-missing-user-id = Some selected employees are missing user IDs. Please reselect and try again.
+entitlements-valid-from-month-start-hint = The submitted date is always the first day of the selected month, regardless of the chosen day.
+entitlements-valid-from = Valid From
+entitlements-effective-from = Effective From
+entitlements-effective-to = Effective To
 
 # ============================================
 # Create Employee Form
@@ -373,6 +378,8 @@ create-absence-insufficient-balance = Insufficient balance
 create-absence-requested = Requested
 create-absence-available = Available
 create-absence-days = days
+create-absence-effective-days-label = Effective days
+create-absence-calendar-days-label = Calendar days
 create-absence-end-date-after-start = End date must be after start date
 create-absence-single-day-bank-holiday-blocked = The selected day is a bank holiday. You cannot submit a single-day absence for this date.
 create-absence-validation-failed = Validation failed. Please try again.
@@ -381,3 +388,21 @@ create-absence-overlap-prefix = There is already a
 create-absence-overlap-scheduled = absence scheduled
 create-absence-from = from
 create-absence-to = to
+create-absence-prevalidate-working-hours-title = Working hours missing
+create-absence-prevalidate-working-hours-detail = We couldn't find a valid working hours definition for your profile. This is required to calculate your leave duration. Please contact HR to update your profile.
+create-absence-prevalidate-region-title = Employment region not assigned
+create-absence-prevalidate-region-detail = To determine your public holidays, an employment region must be assigned to your profile. Please contact HR to update your profile.
+create-absence-prevalidate-entitlement-title = No leave entitlement found
+create-absence-prevalidate-entitlement-detail = You don't have an active entitlement for this type of absence. Please contact HR for assistance.
+create-absence-prevalidate-balance-title = Insufficient balance
+create-absence-prevalidate-balance-detail = Your available balance is not enough for the selected absence period.
+create-absence-prevalidate-date-range-title = Invalid date range
+create-absence-prevalidate-date-range-detail = The selected dates cannot be validated. Please adjust the range and try again.
+create-absence-prevalidate-invalid-request-title = Invalid request
+create-absence-prevalidate-invalid-request-detail = Please review the selected absence type and dates, then try again.
+create-absence-prevalidate-auth-title = Authentication required
+create-absence-prevalidate-auth-detail = Your session may have expired. Please refresh the page and try again.
+create-absence-prevalidate-permission-title = Permission required
+create-absence-prevalidate-permission-detail = You do not have permission to validate this absence request.
+create-absence-prevalidate-generic-title = Could not validate request
+create-absence-prevalidate-generic-detail = We could not validate this absence right now. Please try again in a moment.

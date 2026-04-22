@@ -3,7 +3,6 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { SpreadsheetAppsHub } from '../SpreadsheetAppsHub'
 
 jest.mock('@newwork/nw-design-system', () => {
-  const React = require('react')
   const passthrough = ({ children, ...props }: any) => <div {...props}>{children}</div>
   const button = ({ children, ...props }: any) => <button {...props}>{children}</button>
   const input = ({ ...props }: any) => <input {...props} />
@@ -38,7 +37,41 @@ jest.mock('@newwork/nw-design-system', () => {
     TooltipContent: passthrough,
     TooltipProvider: passthrough,
     TooltipTrigger: passthrough,
-    Checkbox: checkbox
+    Checkbox: checkbox,
+    Tabs: passthrough,
+    TabsList: passthrough,
+    TabsTrigger: button,
+    useTranslation: () => ({
+      t: (key: string) => {
+        const translations: Record<string, string> = {
+          'sh-title': 'My Spreadsheets',
+          'sh-tab-automations': 'Automations',
+          'sh-tab-tasks': 'Tasks',
+          'sh-tab-trash': 'Trash',
+          'sh-tab-my-files': 'My Spreadsheets',
+          'sh-tab-shared': 'Shared',
+          'sh-tab-recent': 'Recent',
+          'sh-tab-favorites': 'Favorites',
+          'sh-parent-label': 'Every Office',
+          'sh-tabs-aria-label': 'Spreadsheet sections',
+          'spreadsheets-header-search-placeholder': 'Search spreadsheets...',
+          'sidebar-new': 'New',
+          'sidebar-blank-spreadsheet': 'Blank spreadsheet',
+          'sidebar-blank-spreadsheet-desc': 'Create a blank spreadsheet',
+          'sidebar-upload-excel': 'Upload Excel',
+          'sidebar-upload-excel-desc': 'Upload an Excel file',
+          'spreadsheets-empty-trash-title': 'No trashed spreadsheets',
+          'spreadsheets-empty-trash-description': 'Spreadsheets moved to trash will appear here.',
+          'header-refresh': 'Refresh',
+          'sort-name': 'Name',
+          'sort-trashed': 'Trashed on',
+          'table-trashed': 'Trashed on'
+        }
+
+        return translations[key] ?? key
+      },
+      locale: 'en-US'
+    })
   }
 })
 
@@ -46,8 +79,8 @@ jest.mock('@/common/utils/navigationUtils', () => ({
   navigateTo: jest.fn()
 }))
 
-jest.mock('@/business-apps/platform/apps/shared/utils/documentServiceUrl', () => ({
-  getDocumentServiceApiUrl: () => 'http://localhost:3002/api/v1'
+jest.mock('@/common/utils/serviceResolver', () => ({
+  DOCUMENT_API_URL: 'http://localhost:3002/api/v1'
 }))
 
 jest.mock('../hooks/useSpreadsheetApps', () => ({
@@ -144,6 +177,18 @@ jest.mock('../components/PromoteToDatabaseModal', () => ({
   PromoteToDatabaseModal: () => null
 }))
 
+jest.mock('../components/automations/SpreadsheetAutomationsSection', () => ({
+  SpreadsheetAutomationsSection: () => null
+}))
+
+jest.mock('@/business-apps/platform/apps/shared/components/OfficeTrashList', () => ({
+  OfficeTrashList: () => <div data-testid="office-trash-list" />
+}))
+
+jest.mock('../utils/exportUtils', () => ({
+  exportAppToExcel: jest.fn()
+}))
+
 describe('SpreadsheetAppsHub sidebar sections', () => {
   it('renders and switches to Automations and Tasks sections', () => {
     localStorage.removeItem('spreadsheet-hub-sidebar-collapsed')
@@ -152,10 +197,19 @@ describe('SpreadsheetAppsHub sidebar sections', () => {
 
     expect(screen.getAllByText('My Spreadsheets').length).toBeGreaterThan(0)
 
-    fireEvent.click(screen.getByRole('button', { name: /Automations/i }))
+    fireEvent.click(screen.getByTestId('spreadsheet-apps-hub-hero-tab-automations'))
     expect(screen.getAllByText('Automations').length).toBeGreaterThan(0)
 
-    fireEvent.click(screen.getByRole('button', { name: /Tasks/i }))
+    fireEvent.click(screen.getByTestId('spreadsheet-apps-hub-hero-tab-tasks'))
     expect(screen.getAllByText('Tasks').length).toBeGreaterThan(0)
+  })
+
+  it('opens the trash tab without crashing', () => {
+    render(<SpreadsheetAppsHub accessToken="token" />)
+
+    fireEvent.click(screen.getByTestId('spreadsheet-apps-hub-hero-tab-trash'))
+
+    expect(screen.getByTestId('spreadsheet-apps-hub-trash-search')).toBeInTheDocument()
+    expect(screen.getByTestId('office-trash-list')).toBeInTheDocument()
   })
 })

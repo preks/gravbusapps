@@ -6,8 +6,13 @@ import { useGetCrmNotes } from '../queries/CrmNoteQueries'
 import { useGetSalesTasks } from '../queries/OpportunityTaskQueries'
 import { GET_OPPORTUNITY_BY_ID, GetOpportunityByIdResponse } from '../queries/GetOpportunityByIdQueries'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
+import { toCustomerNote } from '@/common/data/customer/mappers/customerRelatedEntityMappers'
+import { isCrmNoteNextStepType, isCrmNoteRegularType } from '@/common/data/customer/types/customerNoteTypes'
 
 const taskDescription = `You are a sales pipeline assistant analyzing a sales opportunity.
+
+"General notes" are historical context (UNKNOWN_NOTE_TYPE, GENERAL_NOTE). "Next steps" are explicit committed follow-ups (NEXT_STEP_NOTE). Treat them differently: next steps are actionable commitments; general notes are broader context.
 
 Analyze all available opportunity data including deal details, pipeline stage, revenue potential, customer interactions, activities, notes, and tasks to provide:
 1. A concise executive summary highlighting the deal structure, revenue potential, pipeline stage, competitive position, and win probability
@@ -42,15 +47,14 @@ export function useAiSummary(opportunityId: string, accessToken: string): UseAiS
 
     // get activity data
     const activityResult = await fetchSalesActivities({ opportunityId })
-    const sortedActivities = (activityResult.SalesActivity || []).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
+    const sortedActivities = sortActivitiesByOccurredAtDesc(activityResult.SalesActivity || [])
 
-    // get notes data
     const notesResult = await fetchCrmNotes({ opportunityId })
-    const sortedNotes = (notesResult.CrmNote || []).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
+    const normalizedNotes = (notesResult.CrmNote || [])
+      .map(toCustomerNote)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    const generalNotes = normalizedNotes.filter(isCrmNoteRegularType)
+    const nextStepNotes = normalizedNotes.filter(isCrmNoteNextStepType)
 
     // get task data
     const tasksResult = await fetchSalesTasks({ opportunityId })
@@ -60,7 +64,8 @@ export function useAiSummary(opportunityId: string, accessToken: string): UseAiS
 
     const inputData = `Opportunity Info: ${JSON.stringify(opportunity)}
 Activities: ${JSON.stringify(sortedActivities)}
-Notes: ${JSON.stringify(sortedNotes)}
+General notes: ${JSON.stringify(generalNotes)}
+Next steps: ${JSON.stringify(nextStepNotes)}
 Tasks: ${JSON.stringify(sortedTasks)}`
 
     if (process.env.NODE_ENV === 'development') {

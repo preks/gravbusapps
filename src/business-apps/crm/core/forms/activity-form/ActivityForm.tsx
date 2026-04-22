@@ -20,6 +20,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getReferenceEntityType } from '@/common/data/customer/utils'
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 import { env } from '@/common/env/EnvUtils'
+import { CrmActivityAssociationFields } from './CrmActivityAssociationFields'
 
 /** Fire-and-forget link of email message to CRM entity in document-service */
 const linkEmailToCrmEntity = (
@@ -30,16 +31,36 @@ const linkEmailToCrmEntity = (
   const msgId = values.additionalProperties?.emailMessageId || emailMessageIdOverride
   if (!msgId || !accessToken) return
 
-  const entityType = values.accountId
-    ? 'Account'
-    : values.contactId
-      ? 'Contact'
-      : values.opportunityId
-        ? 'Opportunity'
-        : values.leadId
-          ? 'Lead'
-          : null
-  const entityId = values.accountId || values.contactId || values.opportunityId || values.leadId
+  const rid = values.relatedEntityId
+  let entityType: 'Account' | 'Contact' | 'Opportunity' | 'Lead' | null = null
+  let entityId: string | null = null
+  if (rid) {
+    if (values.opportunityId === rid) {
+      entityType = 'Opportunity'
+      entityId = rid
+    } else if (values.leadId === rid) {
+      entityType = 'Lead'
+      entityId = rid
+    } else if (values.contactId === rid) {
+      entityType = 'Contact'
+      entityId = rid
+    } else if (values.accountId === rid) {
+      entityType = 'Account'
+      entityId = rid
+    }
+  }
+  if (!entityType) {
+    entityType = values.accountId
+      ? 'Account'
+      : values.contactId
+        ? 'Contact'
+        : values.opportunityId
+          ? 'Opportunity'
+          : values.leadId
+            ? 'Lead'
+            : null
+    entityId = values.accountId || values.contactId || values.opportunityId || values.leadId || null
+  }
   if (!entityType || !entityId) return
 
   // Call document-service REST API directly (avoids cross-screen-bundle imports)
@@ -393,6 +414,13 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
             onDocumentRemove={handleDocumentRemove}
             loading={activityLoading && isUpdateMode}
             data-testid="sales-activity-layout"
+            associationFields={
+              <CrmActivityAssociationFields
+                accessToken={accessToken}
+                entitySearchOptions={entities}
+                data-testid="crm-activity-associations"
+              />
+            }
           />
         </div>
       </AppActionForm>

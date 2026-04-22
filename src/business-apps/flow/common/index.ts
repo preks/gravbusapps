@@ -8,4 +8,4 @@ export * from './components'
 export * from './components/flow-quick-task'
 
 // Export FlowManagement as default for compatibility
-export { FlowManagement as default } from './components/FlowManagement'
+export { FlowManagement as default } from '@/common/components/flow'

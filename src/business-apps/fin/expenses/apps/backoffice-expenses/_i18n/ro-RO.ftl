@@ -321,6 +321,12 @@ advance-payment-count = { $count } Plăți în Avans
 advance-payment-loading-stats = Se încarcă statisticile...
 advance-payment-total-amount = Sumă Totală: { $amount }
 advance-payment-total-amount-zero = Sumă Totală: 0 lei
+advance-payment-filter-sheet-title = Filtrează Plățile în Avans
+advance-payment-filter-sheet-description = Aplică filtre pentru a restrânge lista plăților în avans.
+
+# Expense Requests Filter Sheet
+expense-request-filter-sheet-title = Filtrează Deconturile de Cheltuieli
+expense-request-filter-sheet-description = Aplică filtre pentru a restrânge lista deconturilor de cheltuieli.
 
 # Expense Request Details Panel
 detail-duration = Durată

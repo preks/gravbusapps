@@ -1,12 +1,26 @@
 import type {
   CustomImageAttributes,
+  ImageBorderDash,
   ImageAlignment,
   ImageAnchorMode,
   ImageDisplayMode,
   ImageSizeReference,
   ImageSizeUnit,
+  ImageWrapTextSide,
+  LegacyImageWrapMode,
   ImageWrapMode
 } from './types'
+import {
+  DEFAULT_IMAGE_BORDER_COLOR,
+  DEFAULT_IMAGE_BORDER_DASH,
+  DEFAULT_IMAGE_BORDER_WIDTH_PT,
+  IMAGE_BORDER_DASHES,
+  IMAGE_WRAP_MODES,
+  IMAGE_WRAP_TEXT_SIDES,
+  LEGACY_IMAGE_WRAP_MODE_TO_ALIGN,
+  LEGACY_IMAGE_WRAP_MODE_TO_TEXT_SIDE
+} from './types'
+import { normalizeImageCrop } from './cropUtils'
 
 export const CUSTOM_IMAGE_FIGURE_CLASS = 'editor-image-figure'
 export const CUSTOM_IMAGE_TAG = 'custom-image'
@@ -19,12 +33,23 @@ export function normalizeImageAlign(value: unknown, fallback: ImageAlignment = '
   return normalizeEnumValue(['left', 'center', 'right'] as const, value, fallback)
 }
 
+function isLegacyImageWrapMode(value: unknown): value is LegacyImageWrapMode {
+  return typeof value === 'string' && value in LEGACY_IMAGE_WRAP_MODE_TO_TEXT_SIDE
+}
+
 export function normalizeImageWrapMode(value: unknown, fallback: ImageWrapMode = 'inline'): ImageWrapMode {
-  return normalizeEnumValue(
-    ['inline', 'square-left', 'square-right', 'tight', 'through', 'top-bottom', 'behind', 'front'] as const,
-    value,
-    fallback
-  )
+  if (isLegacyImageWrapMode(value)) {
+    return 'square'
+  }
+
+  return normalizeEnumValue(IMAGE_WRAP_MODES, value, fallback)
+}
+
+export function normalizeImageWrapTextSide(
+  value: unknown,
+  fallback: ImageWrapTextSide = 'bothSides'
+): ImageWrapTextSide {
+  return normalizeEnumValue(IMAGE_WRAP_TEXT_SIDES, value, fallback)
 }
 
 export function normalizeImageAnchorMode(value: unknown, fallback: ImageAnchorMode = 'inline'): ImageAnchorMode {
@@ -33,6 +58,13 @@ export function normalizeImageAnchorMode(value: unknown, fallback: ImageAnchorMo
 
 export function normalizeImageDisplay(value: unknown, fallback: ImageDisplayMode = 'inline'): ImageDisplayMode {
   return normalizeEnumValue(['inline', 'block'] as const, value, fallback)
+}
+
+export function normalizeImageBorderDash(
+  value: unknown,
+  fallback: ImageBorderDash = DEFAULT_IMAGE_BORDER_DASH
+): ImageBorderDash {
+  return normalizeEnumValue(IMAGE_BORDER_DASHES, value, fallback)
 }
 
 export function normalizeImageSizeUnit(value: unknown, fallback: ImageSizeUnit = 'px'): ImageSizeUnit {
@@ -66,6 +98,56 @@ export function normalizeNullableBoolean(value: unknown, fallback: boolean | nul
   return fallback
 }
 
+function expandHexColor(hex: string): string | null {
+  const normalized = hex.trim().replace(/^#/, '')
+
+  if (/^[0-9a-f]{3}$/i.test(normalized)) {
+    return normalized
+      .split('')
+      .map(char => char.repeat(2))
+      .join('')
+      .toUpperCase()
+  }
+
+  if (/^[0-9a-f]{6}$/i.test(normalized)) {
+    return normalized.toUpperCase()
+  }
+
+  return null
+}
+
+export function normalizeImageBorderColor(
+  value: unknown,
+  fallback: string | null = DEFAULT_IMAGE_BORDER_COLOR
+): string | null {
+  if (value == null || value === '') {
+    return fallback
+  }
+
+  if (typeof value !== 'string') {
+    return fallback
+  }
+
+  const expandedHex = expandHexColor(value)
+  return expandedHex ? `#${expandedHex}` : fallback
+}
+
+export function normalizeImageBorderWidthPt(
+  value: unknown,
+  fallback: number | null = DEFAULT_IMAGE_BORDER_WIDTH_PT
+): number | null {
+  const normalized = normalizeNullableNumber(value, fallback)
+  if (normalized == null) {
+    return fallback
+  }
+
+  if (normalized <= 0) {
+    return fallback
+  }
+
+  return Math.min(96, Math.round(normalized * 100) / 100)
+}
+
 export function getImageFigureAttributesFromElement(
   element: Element,
   defaults: {
@@ -76,12 +158,32 @@ export function getImageFigureAttributesFromElement(
     distance: number
   }
 ): CustomImageAttributes {
-  const figure = element.tagName.toLowerCase() === 'figure' ? element : element.closest('figure')
-  const image = element.tagName.toLowerCase() === 'img' ? element : figure?.querySelector('img')
-  const caption = figure?.querySelector('figcaption')?.textContent?.trim() ?? null
+  const container =
+    element.getAttribute('data-node-type') === CUSTOM_IMAGE_TAG
+      ? element
+      : (element.closest(`[data-node-type="${CUSTOM_IMAGE_TAG}"]`) ??
+        (element.tagName.toLowerCase() === 'figure' ? element : element.closest('figure')))
+  const image = element.tagName.toLowerCase() === 'img' ? element : container?.querySelector('img')
+  const caption = container?.querySelector('figcaption, [data-image-caption-text="true"]')?.textContent?.trim() ?? null
 
-  const readFigureAttr = (name: string) => figure?.getAttribute(name) ?? element.getAttribute(name)
+  const readFigureAttr = (name: string) => container?.getAttribute(name) ?? element.getAttribute(name)
   const readImageAttr = (name: string) => image?.getAttribute(name) ?? element.getAttribute(name)
+  const rawWrapMode = readFigureAttr('data-image-wrap')
+  const align = normalizeImageAlign(
+    readFigureAttr('data-image-align'),
+    (isLegacyImageWrapMode(rawWrapMode) ? LEGACY_IMAGE_WRAP_MODE_TO_ALIGN[rawWrapMode] : null) ?? defaults.align
+  )
+  const wrapMode = normalizeImageWrapMode(rawWrapMode, defaults.wrapMode)
+  const wrapTextSide =
+    wrapMode === 'square'
+      ? normalizeImageWrapTextSide(
+          readFigureAttr('data-image-wrap-text-side'),
+          (isLegacyImageWrapMode(rawWrapMode) ? LEGACY_IMAGE_WRAP_MODE_TO_TEXT_SIDE[rawWrapMode] : null) ??
+            (align === 'right' ? 'left' : 'right')
+        )
+      : wrapMode === 'tight' || wrapMode === 'through'
+        ? normalizeImageWrapTextSide(readFigureAttr('data-image-wrap-text-side'), 'bothSides')
+        : null
 
   return {
     src: readImageAttr('src'),
@@ -100,10 +202,15 @@ export function getImageFigureAttributesFromElement(
     scaleWidthPercent: normalizeNullableNumber(readFigureAttr('data-image-scale-width-percent'), 100),
     scaleHeightPercent: normalizeNullableNumber(readFigureAttr('data-image-scale-height-percent'), 100),
     rotation: normalizeNullableNumber(readFigureAttr('data-image-rotation'), 0),
-    align: normalizeImageAlign(readFigureAttr('data-image-align'), defaults.align),
+    cropTop: normalizeNullableNumber(readFigureAttr('data-image-crop-top'), 0),
+    cropRight: normalizeNullableNumber(readFigureAttr('data-image-crop-right'), 0),
+    cropBottom: normalizeNullableNumber(readFigureAttr('data-image-crop-bottom'), 0),
+    cropLeft: normalizeNullableNumber(readFigureAttr('data-image-crop-left'), 0),
+    align,
     caption: caption || readFigureAttr('data-image-caption'),
     display: normalizeImageDisplay(readFigureAttr('data-image-display'), defaults.display),
-    wrapMode: normalizeImageWrapMode(readFigureAttr('data-image-wrap'), defaults.wrapMode),
+    wrapMode,
+    wrapTextSide,
     anchorMode: normalizeImageAnchorMode(readFigureAttr('data-image-anchor'), defaults.anchorMode),
     lockAspectRatio: normalizeNullableBoolean(readFigureAttr('data-image-lock-ratio'), true),
     distanceTop: normalizeNullableNumber(readFigureAttr('data-image-distance-top'), defaults.distance),
@@ -113,13 +220,26 @@ export function getImageFigureAttributesFromElement(
     offsetX: normalizeNullableNumber(readFigureAttr('data-image-offset-x'), 0),
     offsetY: normalizeNullableNumber(readFigureAttr('data-image-offset-y'), 0),
     allowOverlap: normalizeNullableBoolean(readFigureAttr('data-image-allow-overlap'), false),
-    zIndex: normalizeNullableNumber(readFigureAttr('data-image-z-index'), 1)
+    zIndex: normalizeNullableNumber(readFigureAttr('data-image-z-index'), 1),
+    borderVisible: normalizeNullableBoolean(readFigureAttr('data-image-border-visible'), false),
+    borderColor: normalizeImageBorderColor(readFigureAttr('data-image-border-color'), DEFAULT_IMAGE_BORDER_COLOR),
+    borderWidthPt: normalizeImageBorderWidthPt(
+      readFigureAttr('data-image-border-width-pt'),
+      DEFAULT_IMAGE_BORDER_WIDTH_PT
+    ),
+    borderDash: normalizeImageBorderDash(readFigureAttr('data-image-border-dash'), DEFAULT_IMAGE_BORDER_DASH)
   }
 }
 
 export function getFigureDataAttributes(attributes: CustomImageAttributes) {
   const align = normalizeImageAlign(attributes.align)
   const wrapMode = normalizeImageWrapMode(attributes.wrapMode)
+  const wrapTextSide =
+    wrapMode === 'square'
+      ? normalizeImageWrapTextSide(attributes.wrapTextSide, align === 'right' ? 'left' : 'bothSides')
+      : wrapMode === 'tight' || wrapMode === 'through'
+        ? normalizeImageWrapTextSide(attributes.wrapTextSide, 'bothSides')
+        : null
   const anchorMode = normalizeImageAnchorMode(attributes.anchorMode)
   const display = normalizeImageDisplay(attributes.display, wrapMode === 'inline' ? 'inline' : 'block')
   const widthUnit = normalizeImageSizeUnit(attributes.widthUnit, 'px')
@@ -134,6 +254,7 @@ export function getFigureDataAttributes(attributes: CustomImageAttributes) {
   const scaleWidthPercent = normalizeNullableNumber(attributes.scaleWidthPercent, 100) ?? 100
   const scaleHeightPercent = normalizeNullableNumber(attributes.scaleHeightPercent, 100) ?? 100
   const rotation = normalizeNullableNumber(attributes.rotation, 0) ?? 0
+  const crop = normalizeImageCrop(attributes)
   const distanceTop = normalizeNullableNumber(attributes.distanceTop, 0) ?? 0
   const distanceRight = normalizeNullableNumber(attributes.distanceRight, 0) ?? 0
   const distanceBottom = normalizeNullableNumber(attributes.distanceBottom, 0) ?? 0
@@ -142,11 +263,16 @@ export function getFigureDataAttributes(attributes: CustomImageAttributes) {
   const offsetY = normalizeNullableNumber(attributes.offsetY, 0) ?? 0
   const allowOverlap = attributes.allowOverlap ?? false
   const zIndex = normalizeNullableNumber(attributes.zIndex, 1) ?? 1
+  const borderVisible = attributes.borderVisible ?? false
+  const borderColor = normalizeImageBorderColor(attributes.borderColor, DEFAULT_IMAGE_BORDER_COLOR)
+  const borderWidthPt = normalizeImageBorderWidthPt(attributes.borderWidthPt, DEFAULT_IMAGE_BORDER_WIDTH_PT)
+  const borderDash = normalizeImageBorderDash(attributes.borderDash, DEFAULT_IMAGE_BORDER_DASH)
 
   return {
     'data-node-type': CUSTOM_IMAGE_TAG,
     'data-image-align': align,
     'data-image-wrap': wrapMode,
+    ...(wrapTextSide ? { 'data-image-wrap-text-side': wrapTextSide } : {}),
     'data-image-anchor': anchorMode,
     'data-image-display': display,
     'data-image-width-unit': widthUnit,
@@ -157,6 +283,10 @@ export function getFigureDataAttributes(attributes: CustomImageAttributes) {
     'data-image-scale-width-percent': String(scaleWidthPercent),
     'data-image-scale-height-percent': String(scaleHeightPercent),
     'data-image-rotation': String(rotation),
+    'data-image-crop-top': String(crop.top),
+    'data-image-crop-right': String(crop.right),
+    'data-image-crop-bottom': String(crop.bottom),
+    'data-image-crop-left': String(crop.left),
     'data-image-distance-top': String(distanceTop),
     'data-image-distance-right': String(distanceRight),
     'data-image-distance-bottom': String(distanceBottom),
@@ -165,6 +295,10 @@ export function getFigureDataAttributes(attributes: CustomImageAttributes) {
     'data-image-offset-y': String(offsetY),
     'data-image-allow-overlap': String(allowOverlap),
     'data-image-z-index': String(zIndex),
+    'data-image-border-visible': String(borderVisible),
+    ...(borderColor == null ? {} : { 'data-image-border-color': borderColor }),
+    ...(borderWidthPt == null ? {} : { 'data-image-border-width-pt': String(borderWidthPt) }),
+    'data-image-border-dash': borderDash,
     ...(originalWidth == null ? {} : { 'data-image-original-width': String(Math.round(originalWidth)) }),
     ...(originalHeight == null ? {} : { 'data-image-original-height': String(Math.round(originalHeight)) }),
     ...(widthPercent == null ? {} : { 'data-image-width-percent': String(widthPercent) }),

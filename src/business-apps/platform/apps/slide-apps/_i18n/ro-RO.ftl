@@ -6,7 +6,7 @@ slh-tab-my-slides = Prezentările mele
 slh-tab-shared = Partajate
 slh-tab-favorites = Favorite
 slh-tab-recent = Recente
-slh-tab-archived = Arhivate
+slh-tab-trash = Coș de gunoi
 slh-refresh = Reîmprospătează
 
 sidebar-back-to-desk = Înapoi la birou
@@ -20,34 +20,47 @@ sidebar-my-items = Slide-urile mele
 sidebar-shared = Partajat cu mine
 sidebar-favorites = Favorite
 sidebar-recent = Recente
-sidebar-archived = Arhivate
+sidebar-trash = Coș de gunoi
 sidebar-storage = Depozitare
 sidebar-storage-cloud = Depozitare cloud
 sidebar-storage-slides = { $count } slide-uri
 
 menu-new-blank-title = Slide gol
 menu-new-blank-description = Începeți de la zero
+menu-new-ai-title = Generați cu AI
+menu-new-ai-description = Creați prezentare folosind AI
 menu-new-template-title = Din șablon
 menu-new-template-description = Alegeți un șablon
 menu-new-import-title = Importați PowerPoint
 menu-new-import-description = Încărcați fișier .pptx
 
 header-sort = Sortare
-header-search-placeholder = Căutare...
+slides-header-search-placeholder = Caută slide-uri...
 sort-name = Nume
 sort-modified = Modificat
 sort-created = Creat
+sort-trashed = Mutat în coș la
 table-owner = Proprietar
+table-trashed = Mutat în coș la
 
-empty-favorites-title = Încă nu există favorite
-empty-favorites-description = Marcați slide-urile frecvente cu steluță.
-empty-shared-title = Nimic partajat cu dvs.
-empty-shared-description = Slide-urile partajate vor apărea aici.
-empty-archived-title = Nu există slide-uri arhivate
-empty-archived-description = Slide-urile arhivate vor apărea aici.
-empty-default-title = Încă nu există slide-uri
-empty-default-description = Creați primul slide.
+slides-empty-favorites-title = Încă nu există favorite
+slides-empty-favorites-description = Marcați slide-urile frecvente cu steluță.
+slides-empty-shared-title = Nimic partajat cu dvs.
+slides-empty-shared-description = Slide-urile partajate vor apărea aici.
+slides-empty-trash-title = Nu există slide-uri în coș
+slides-empty-trash-description = Slide-urile mutate în coș vor apărea aici.
+slides-empty-default-title = Încă nu există slide-uri
+slides-empty-default-description = Creați primul slide.
 empty-create-slide = Creați slide
+trash-state-title = Această prezentare este în coș
+trash-state-description = Prezentările din coș sunt doar pentru citire până când le restaurați. O puteți restaura acum sau o puteți șterge definitiv.
+trashed-readonly-title = Această prezentare este în coș
+trashed-readonly-description = „{ $title }” este în coș, așa că o puteți vedea, dar nu o puteți edita sau colabora la ea.
+trashed-readonly-owner-note = Restaurați această prezentare pentru a relua editarea și colaborarea.
+trashed-readonly-shared-note = Doar proprietarul poate restaura această prezentare. Puteți continua să vedeți conținutul aici.
+trashed-readonly-go-home = Mergeți la Prezentări
+trashed-readonly-restore = Restaurare
+trashed-readonly-restoring = Se restaurează...
 
 menu-open = Deschide
 menu-share = Partajare
@@ -69,15 +82,24 @@ shared-with-count = Partajat cu { $count } { $count ->
 }
 shared-click-manage = Apăsați pentru gestionare
 
-confirm-delete = Sunteți sigur că doriți să ștergeți acest slide?
+confirm-delete = Mutați această prezentare în coș?
+delete-confirm-title = Muți la coșul de gunoi?
+delete-confirm-single = "{$name}" va fi mutat la coșul de gunoi. Îl poți restaura în 30 de zile.
+delete-confirm-multi = {$count} elemente vor fi mutate la coșul de gunoi. Le poți restaura în 30 de zile.
+delete-confirm-action = Mută la coșul de gunoi
+delete-confirm-cancel = Anulează
 toast-slide-duplicated = Slide duplicat
 toast-link-copied = Link copiat în clipboard
 toast-favorite-removed = Eliminat din favorite
 toast-favorite-added = Adăugat la favorite
 toast-imported-slides = Importate { $count } slide-uri
 toast-import-failed = Import PowerPoint eșuat
+toast-import-partial = Prezentarea a fost creată, dar conținutul slide-urilor nu a putut fi salvat. Încercați să redeschideți și să resalvați.
+import-saving = Se salvează prezentarea...
 toast-template-matched = Se folosește șablonul: { $name }
 toast-template-applied = Șablon aplicat
+toast-restored = Prezentare restaurată
+toast-restore-failed = Restaurarea prezentării a eșuat
 
 # Editor
 editor-slide-saved = Slide salvat
@@ -273,6 +295,8 @@ header-manage-access = Gestionare acces...
 # Generate Presentation
 generate-title = Generare prezentare
 generate-description = Descrieți ce aveți nevoie și AI va crea slide-urile.
+generate-presentation-title-label = Titlu prezentare
+generate-presentation-title-placeholder = de ex., Raport Q4
 generate-topic = Temă
 generate-topic-placeholder = Revizie trimestrială acoperind metrici vânzări, reușite echipă și obiective Q2...
 generate-length = Lungime
@@ -451,6 +475,7 @@ slides-toast-created = Prezentare creată
 slides-toast-create-failed = Prezentarea nu a putut fi creată
 slides-toast-save-failed = Salvare eșuată
 slides-toast-deleted = Prezentare ștearsă
+slides-toast-moved-to-trash = Prezentare mutată în coș
 slides-toast-delete-failed = Ștergere eșuată
 slides-toast-duplicated = Prezentare duplicată
 slides-toast-duplicate-failed = Duplicare eșuată
@@ -487,6 +512,23 @@ parser-slide-not-found = Slide { $number } negăsit
 parser-no-slides-parsed = Nicun slide nu a putut fi parsat. A fost creat un slide gol.
 parser-failed = Fișierul PowerPoint nu a putut fi parsat
 parser-imported-slide = Slide importat
+parser-shape-unsupported = Tipul de formă „{ $type }" de pe slide-ul { $slide } a fost importat ca dreptunghi
+parser-chart-unsupported = Tipul de grafic „{ $type }" de pe slide-ul { $slide } nu a putut fi importat
+parser-chart-imported = Grafic { $type } importat pe slide-ul { $slide }
+parser-table-imported = Tabel importat ({ $rows } rânduri, { $cols } coloane) pe slide-ul { $slide }
+parser-notes-imported = Note de prezentator importate pentru { $count } { $count ->
+    [one] slide
+    [few] slide-uri
+   *[other] de slide-uri
+}
+parser-transition-unsupported = Tranziția „{ $type }" de pe slide-ul { $slide } a fost aproximată
+parser-group-flattened = Formele grupate de pe slide-ul { $slide } au fost degrupate
+parser-theme-mapped = Tema prezentării a fost asociată cu „{ $theme }"
+import-preview-title = Previzualizare import
+import-preview-select-slides = Selectați slide-urile de importat
+import-preview-selected = { $selected } din { $total } slide-uri selectate
+import-preview-import-all = Importă toate
+import-preview-import-selected = Importă selecția
 
 # SlidesApiService
 api-error = Eroare API: { $status }
@@ -790,3 +832,21 @@ template-purpose-help = Definiți scopul acestui slide
 template-inferring = Se detectează scopurile slide-urilor...
 template-inference-complete = Scopurile slide-urilor detectate
 template-inference-failed = Scopurile nu au putut fi detectate automat
+
+# Selector layout
+layout-change = Layout
+layout-duplicate-slides = Duplică slide-urile selectate
+layout-browse-templates = Răsfoiește șabloane...
+
+# Vizualizare Slide Master
+slideshow-slide-master = Slide Master
+master-view-title = Vizualizare Slide Master
+master-insert-layout = Inserează layout
+master-close = Închide vizualizarea Master
+master-new-layout = Layout personalizat
+master-layout-added = Layout adăugat
+master-layout-duplicated = Layout duplicat
+master-layout-deleted = Layout șters
+master-delete-last-layout-error = Nu se poate șterge ultimul layout
+master-editing-master = Editare: Slide Master
+master-editing-layout = Editare layout

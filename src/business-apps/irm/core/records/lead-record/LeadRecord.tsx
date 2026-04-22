@@ -14,6 +14,7 @@ import {
 import { UsersIcon, FileTextIcon, AddressBookIcon, FlagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildIrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
@@ -202,10 +203,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
         fetchInvestmentTasksByLeadId(leadId)
       ])
 
-      // Sort by creation date (newest first)
-      const sortedActivities = (activitiesData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
+      // Sort notes and tasks by creation date (newest first). Activity order is applied in ActivitySection.
       const sortedNotes = (notesData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
@@ -225,7 +223,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
-      setActivities(sortedActivities)
+      setActivities(activitiesData || [])
       setNotes(sortedNotes)
       setTasks(regularTasks)
       setApprovals(approvalTasks)
@@ -706,7 +704,8 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     activityTypeCatalog: ACTIVITY_TYPE,
                     buildActivityPayload: buildInvestmentActivityPayload,
                     alignment: 'right',
-                    preSubmit: activityPreSubmit
+                    preSubmit: activityPreSubmit,
+                    getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl
                   }
                 },
                 {
@@ -752,23 +751,22 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
   }
 
   return (
-    <div data-testid="investment-lead-detail">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={AddressBookIcon} variant="decorative" size="xl" />}
-        headerOverline={getTranslationFromI18nKeyAndLabel('crm.lead.category', 'LEAD')}
-        onBack={onBack}
-        headerTitle={headerTitle}
-        headerMeta={headerMeta}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        headerActions={headerActions}
-        headerActionButton={headerActionButton}
-        headerSlotAfter={headerContent}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="investment-lead-detail"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={AddressBookIcon} variant="decorative" size="xl" />}
+      headerOverline={getTranslationFromI18nKeyAndLabel('crm.lead.category', 'LEAD')}
+      onBack={onBack}
+      headerTitle={headerTitle}
+      headerMeta={headerMeta}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      headerActions={headerActions}
+      headerActionButton={headerActionButton}
+      headerSlotAfter={headerContent}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

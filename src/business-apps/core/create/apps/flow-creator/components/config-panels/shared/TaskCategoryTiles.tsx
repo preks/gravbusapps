@@ -6,6 +6,14 @@ import type { DesignerMode } from '../../../types/studioTypes'
 
 export type TaskCategoryId = 'user-task' | 'ai-task' | 'function-task'
 
+/**
+ * Optional UI hint forwarded by automation tiles. Connector vs plain function is a
+ * sub-refinement surfaced inside the task General tab (TaskStepTypeSelector), so the
+ * outer category tiles below don't emit a hint — the refinement happens one level
+ * deeper, which keeps the Add Step / Switch Type entry points to three choices.
+ */
+export type TaskCategoryHint = 'connectors' | 'functions' | undefined
+
 export const TASK_CATEGORY_OPTIONS: Array<{
   id: TaskCategoryId
   stepType: FlowStepType
@@ -31,8 +39,10 @@ export const TASK_CATEGORY_OPTIONS: Array<{
   {
     id: 'function-task',
     stepType: FlowStepType.FUNCTION,
-    label: 'Function Task',
-    description: 'Run an automation',
+    label: 'Function',
+    // Short enough to fit in the tile's single-line column in AddStepPanel while
+    // still hinting that connectors live inside this family (refined one level deeper).
+    description: 'Function or connector',
     Icon: Zap,
     advancedOnly: true
   }

@@ -24,18 +24,21 @@ function buildAdditionalProperties(values: TaxInfoFormValues, data: any): Record
 function buildEmployeeTaxDetailObject(
   values: TaxInfoFormValues,
   data: any,
-  additionalProperties: Record<string, unknown>
+  additionalProperties: Record<string, unknown>,
+  isEmployeeInGermany: boolean
 ): any {
+  const existingHealthInsuranceDocument =
+    typeof data?.healthInsuranceDocument === 'object' && data?.healthInsuranceDocument != null
+      ? (data.healthInsuranceDocument as { id?: string }).id
+      : data?.healthInsuranceDocument
+  const hasUploadedHealthInsuranceDocumentValue = values.uploadedHealthInsuranceDocumentId !== undefined
   const childTaxAllowanceNum =
     values.childTaxAllowance !== '' && values.childTaxAllowance != null
       ? parseLocalizedNumber(values.childTaxAllowance)
       : 0
-  const healthInsuranceDocId =
-    values.uploadedHealthInsuranceDocumentId ??
-    (typeof data?.healthInsuranceDocument === 'object' && data?.healthInsuranceDocument != null
-      ? (data.healthInsuranceDocument as { id?: string }).id
-      : data?.healthInsuranceDocument) ??
-    null
+  const healthInsuranceDocId = hasUploadedHealthInsuranceDocumentValue
+    ? values.uploadedHealthInsuranceDocumentId
+    : (existingHealthInsuranceDocument ?? null)
   return {
     ...(data?.id ? { id: data.id } : {}),
     ...(data?.version !== undefined ? { version: data.version } : { version: 0 }),
@@ -43,11 +46,10 @@ function buildEmployeeTaxDetailObject(
     ...(data?.activeTo ? { activeTo: data.activeTo } : {}),
     employeeId: '', // caller must set
     taxIdentificationNumber: values.taxIdentificationNumber || '',
-    taxNumber: values.taxNumber || '',
+    ...(isEmployeeInGermany ? {} : { taxNumber: values.taxNumber || '' }),
     taxBracketRef: values.taxBracketRef || '',
-    socialSecurityNumber: values.socialSecurityNumber || '',
+    socialSecurityNumber: String(values.socialSecurityNumber ?? '').trim(),
     wageTaxClassRef: data?.wageTaxClassRef ?? '',
-    religionRef: values.religionRef || '',
     taxableChurchAffiliationRef: values.taxableChurchAffiliationRef || '',
     healthInsuranceTypeRef: values.healthInsuranceTypeRef || '',
     healthInsuranceName: values.healthInsuranceName || '',
@@ -59,11 +61,12 @@ function buildEmployeeTaxDetailObject(
 
 export function buildEmployeeTaxDetailPayload(
   values: TaxInfoFormValues,
-  data: any
+  data: any,
+  isEmployeeInGermany: boolean
 ): { employeeTaxDetail: any; changeMode: string; employeeId: string; event: string } {
   const isUpdate = Boolean(data?.id)
   const additionalProperties = buildAdditionalProperties(values, data)
-  const employeeTaxDetail = buildEmployeeTaxDetailObject(values, data, additionalProperties)
+  const employeeTaxDetail = buildEmployeeTaxDetailObject(values, data, additionalProperties, isEmployeeInGermany)
   return {
     employeeTaxDetail,
     changeMode: isUpdate ? 'UPDATE' : 'INSERT',

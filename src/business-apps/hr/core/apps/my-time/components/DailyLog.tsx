@@ -20,11 +20,12 @@ interface DailyLogProps {
   employeeId: string
   accessToken: string
   employee: any
+  hideSummaryCards?: boolean
 }
 
 const EMPTY_ABSENCE_ENTITLEMENTS: never[] = []
 
-const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }) => {
+const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken, hideSummaryCards }) => {
   const [currentDate, setCurrentDate] = React.useState<Dayjs>(dayjs())
   const [selectedStartDate, setSelectedStartDate] = React.useState<any>(null)
   const [selectedEndDate, setSelectedEndDate] = React.useState<any>(null)
@@ -90,15 +91,15 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
 
   return (
     <div data-testid="time-tracking-history-container">
-      <TimeSummaryCards
-        monthlyRequiredMinutes={monthlyRequiredMinutes}
-        monthlyRequiredUntilYesterdayMinutes={monthlyRequiredUntilYesterdayMinutes}
-        monthlyWorkedUntilYesterdayMinutes={monthlyWorkedUntilYesterdayMinutes}
-        dailyAverageWorkedMinutesUntilYesterday={dailyAverageWorkedMinutesUntilYesterday}
-        overtimeMinutesUntilYesterday={overtimeMinutesUntilYesterday}
-      />
-
-      {/* Month Calendar (reused AbsenceCalendar) based on table data */}
+      {!hideSummaryCards && (
+        <TimeSummaryCards
+          monthlyRequiredMinutes={monthlyRequiredMinutes}
+          monthlyRequiredUntilYesterdayMinutes={monthlyRequiredUntilYesterdayMinutes}
+          monthlyWorkedUntilYesterdayMinutes={monthlyWorkedUntilYesterdayMinutes}
+          dailyAverageWorkedMinutesUntilYesterday={dailyAverageWorkedMinutesUntilYesterday}
+          overtimeMinutesUntilYesterday={overtimeMinutesUntilYesterday}
+        />
+      )}
       <Card className="gba:p-4 gba:mt-4" data-testid="time-tracking-calendar">
         <AbsenceCalendar
           absenceList={calendarAbsences}

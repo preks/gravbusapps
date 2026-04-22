@@ -2,7 +2,9 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useAccountExport } from './hooks/useAccountExport'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -79,6 +81,16 @@ export interface AccountLayoutProps<TAccount extends Account = Account, TQueryVa
    * the GetAccounts query via the queryVariables / loadData dependency chain.
    */
   readonly accountStatistics?: AccountStatisticsData
+  /** When true, renders CSV and Excel export buttons in the toolbar. */
+  readonly enableExport?: boolean
+  /** Filename prefix for exported files (timestamp is appended automatically). */
+  readonly exportFilenamePrefix?: string
+  /** Called whenever the user changes filters — use to persist filter state externally. */
+  readonly onFilterChange?: (filters: Record<string, any>) => void
+  readonly initialSorting?: Array<{ id: string; desc: boolean }>
+  readonly onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
+  readonly initialVisibleColumns?: string[]
+  readonly onVisibleColumnsChange?: (columns: string[]) => void
 }
 
 // Row Actions Component
@@ -123,7 +135,14 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
     hideFilters = false,
     customPrimaryAction,
     renderQuickFilters,
-    accountStatistics: accountStatisticsProp
+    accountStatistics: accountStatisticsProp,
+    enableExport = false,
+    exportFilenamePrefix = 'accounts',
+    onFilterChange: onFilterChangeProp,
+    initialSorting: initialSortingProp,
+    onSortingChange: onSortingChangeProp,
+    initialVisibleColumns: initialVisibleColumnsProp,
+    onVisibleColumnsChange: onVisibleColumnsChangeProp
   } = props
 
   // Prefer the directly-passed prop; fall back to config for backwards compatibility
@@ -132,9 +151,11 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
   // View State
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
+    () => initialSortingProp ?? [{ id: 'createdAt', desc: true }]
+  )
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => initialVisibleColumnsProp ?? [])
 
   // Data State
   const [accounts, setAccounts] = useState<TAccount[]>([])
@@ -218,10 +239,30 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
-  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
-    setSelectedFilters(filters)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [])
+  const handleFilterUpdate = useCallback(
+    (filters: Record<string, any>) => {
+      setSelectedFilters(filters)
+      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+      onFilterChangeProp?.(filters)
+    },
+    [onFilterChangeProp]
+  )
+
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      setSorting(newSorting)
+      onSortingChangeProp?.(newSorting)
+    },
+    [onSortingChangeProp]
+  )
+
+  const handleVisibleColumnsChange = useCallback(
+    (newColumns: string[]) => {
+      setVisibleColumns(newColumns)
+      onVisibleColumnsChangeProp?.(newColumns)
+    },
+    [onVisibleColumnsChangeProp]
+  )
 
   const handleRowClick = useCallback(
     (account: TAccount) => {
@@ -259,9 +300,56 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
     )
   }, [config, context?.accessToken])
 
+  // Export hook — always called unconditionally (React rules).
+  const { isExporting, handleExportCsv, handleExportExcel } = useAccountExport({
+    fetchAccounts: config.fetchAccounts as any,
+    queryVariables,
+    totalCount,
+    filenamePrefix: exportFilenamePrefix
+  })
+
+  const exportSecondaryActions = useMemo(() => {
+    if (!enableExport) return undefined
+
+    const getTitle = (entityLabel: string) => {
+      if (isExporting) return 'Exporting…'
+      if (totalCount === 0) return 'No data to export'
+      return entityLabel
+    }
+    const csvTitle = getTitle(`Export ${totalCount} accounts as CSV`)
+    const excelTitle = getTitle(`Export ${totalCount} accounts as Excel`)
+
+    return (
+      <>
+        <Button
+          onClick={handleExportCsv}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="account-export-csv-button"
+          title={csvTitle}
+        >
+          <DownloadIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'CSV'}
+        </Button>
+        <Button
+          onClick={handleExportExcel}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="account-export-excel-button"
+          title={excelTitle}
+        >
+          <FileXlsIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'Excel'}
+        </Button>
+      </>
+    )
+  }, [enableExport, isExporting, totalCount, handleExportCsv, handleExportExcel])
+
   if (!context) {
     console.error('AccountLayout: context is required')
-    return null
+    return <></>
   }
 
   const accessToken = context.accessToken
@@ -314,10 +402,10 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
         onFilterChange={hideFilters ? undefined : handleFilterUpdate}
         sorting={sorting}
         sortableColumns={sortableColumns}
-        onSortingChange={setSorting}
+        onSortingChange={handleSortingChange}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
-        onVisibleColumnsChange={setVisibleColumns}
+        onVisibleColumnsChange={handleVisibleColumnsChange}
         primaryAction={
           customPrimaryAction ||
           (config.flowContexts.createContext ? (
@@ -338,6 +426,7 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
             </AppAction>
           ) : undefined)
         }
+        secondaryActions={exportSecondaryActions}
         toolbarDensity="default"
         enableLiveFiltering={true}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel(
@@ -356,7 +445,7 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
           totalCount={totalCount}
           columns={columns.filter(col => visibleColumns.includes(col.id as string))}
           sorting={sorting}
-          onSortingChange={setSorting}
+          onSortingChange={handleSortingChange}
           pagination={pagination}
           onPaginationChange={setPagination}
           actions={rowActions}

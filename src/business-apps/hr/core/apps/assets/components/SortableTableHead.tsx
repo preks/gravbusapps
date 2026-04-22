@@ -28,16 +28,16 @@ export const SortableTableHead: React.FC<SortableTableHeadProps> = ({
 
   return (
     <TableHead
-      className={`gba:cursor-pointer gba:select-none gba:hover:gba:bg-muted gba:transition-colors ${className || ''}`}
+      className={`gba:cursor-pointer gba:select-none gba:hover:bg-muted/60 gba:transition-colors ${className || ''}`}
       onClick={() => onSort(field, nextOrder)}
     >
       <div className="gba:flex gba:items-center gba:gap-1">
         {children}
         {isSorted &&
           (currentSortOrder === 'ASC' ? (
-            <CaretUp className="gba:w-4 gba:h-4" />
+            <CaretUp className="gba:h-4 gba:w-4 gba:shrink-0" aria-hidden />
           ) : (
-            <CaretDown className="gba:w-4 gba:h-4" />
+            <CaretDown className="gba:h-4 gba:w-4 gba:shrink-0" aria-hidden />
           ))}
       </div>
     </TableHead>

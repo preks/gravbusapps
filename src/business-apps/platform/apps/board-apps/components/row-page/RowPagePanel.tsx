@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Button, Spinner, toast } from '@newwork/nw-design-system'
-import { X, FileText } from 'lucide-react'
+import { Button, Spinner, toast, useTranslation } from '@newwork/nw-design-system'
+import { X, FileText, Activity } from 'lucide-react'
 import DOMPurify from 'dompurify'
 import type { BoardRow, BoardColumn } from '../../types'
 import { BoardApiService } from '../../services/BoardApiService'
@@ -14,6 +14,8 @@ import { useRowPageCollaboration } from './useRowPageCollaboration'
 import { SaveIndicator } from './SaveIndicator'
 import { encodeMetaIntoHtml, decodeMetaFromHtml } from './rowPageMeta'
 import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
+import { RowAuditLog } from './RowAuditLog'
+import translations from '../../_i18n'
 
 export interface RowPagePanelProps {
   boardId: string
@@ -36,6 +38,8 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
   onPageCreated,
   'data-testid': testId = 'row-page-panel'
 }) => {
+  const { t } = useTranslation(translations)
+  const [activeTab, setActiveTab] = useState<'page' | 'activity'>('page')
   const [pageContent, setPageContent] = useState<string | null>(null)
   const [pageTitle, setPageTitle] = useState<string | null>(null)
   const [noteId, setNoteId] = useState<string | null>(null)
@@ -79,8 +83,8 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
 
   const rowTitle = useMemo(() => {
     const firstTextCol = columns.find(c => c.type === 'text' && c.order === 0) || columns[0]
-    return firstTextCol ? String(row.data[firstTextCol.name] || 'Untitled') : 'Row'
-  }, [columns, row.data])
+    return firstTextCol ? String(row.data[firstTextCol.name] || t('board-untitled')) : t('board-untitled')
+  }, [columns, row.data, t])
 
   useEffect(() => {
     let cancelled = false
@@ -103,7 +107,7 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
         if (cancelled) return
         try {
           const titleCol = columns.find(c => c.type === 'text' && c.order === 0)
-          const title = titleCol ? String(row.data[titleCol.name] || 'Untitled') : 'Row Page'
+          const title = titleCol ? String(row.data[titleCol.name] || t('board-untitled')) : t('board-untitled')
           const created = await BoardApiService.createRowPage(boardId, sheetId, row.id, { title })
           if (cancelled) return
           setNoteId(created.noteId)
@@ -121,7 +125,7 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
     return () => {
       cancelled = true
     }
-  }, [boardId, sheetId, row.id, onPageCreated, loadCover])
+  }, [boardId, sheetId, row.id, onPageCreated, loadCover, columns, row.data, t])
 
   useEffect(() => {
     if (noteId) return
@@ -132,7 +136,7 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
 
   const handleCreatePage = useCallback(async () => {
     const titleCol = columns.find(c => c.type === 'text' && c.order === 0)
-    const title = titleCol ? String(row.data[titleCol.name] || 'Untitled') : 'Row Page'
+    const title = titleCol ? String(row.data[titleCol.name] || t('board-untitled')) : t('board-untitled')
     try {
       const result = await BoardApiService.createRowPage(boardId, sheetId, row.id, { title })
       setNoteId(result.noteId)
@@ -143,7 +147,7 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
     } catch {
       /* silent */
     }
-  }, [boardId, sheetId, row.id, columns, row.data, onPageCreated])
+  }, [boardId, sheetId, row.id, columns, row.data, onPageCreated, t])
 
   const handleSave = useCallback(async () => {
     if (!noteId) {
@@ -170,7 +174,7 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
       setPageTitle(result.title || title)
       setIsDirty(false)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save')
+      toast.error(err instanceof Error ? err.message : t('board-failed-save'))
     } finally {
       setIsSaving(false)
     }
@@ -188,7 +192,8 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
     isYjsSynced,
     metaYMap,
     pageIcon,
-    coverImage
+    coverImage,
+    t
   ])
 
   useEffect(() => {
@@ -333,27 +338,66 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
         data-testid={testId}
       >
         {/* Drawer header */}
-        <header className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2 gba:flex-shrink-0 gba:border-b gba:border-border/40">
-          <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
-            <SaveIndicator isDirty={isDirty} isSaving={isSaving} hasPage={!!noteId} />
+        <header className="gba:flex gba:flex-col gba:flex-shrink-0 gba:border-b gba:border-border/40">
+          <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+              <SaveIndicator isDirty={isDirty} isSaving={isSaving} hasPage={!!noteId} />
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              {participants.length > 0 && <PresenceIndicator participants={participants} size="sm" />}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleClose}
+                className="gba:h-8 gba:w-8 gba:rounded-lg gba:hover:bg-muted"
+                data-testid={`${testId}-close`}
+              >
+                <X className="gba:w-4 gba:h-4" />
+              </Button>
+            </div>
           </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            {participants.length > 0 && <PresenceIndicator participants={participants} size="sm" />}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              className="gba:h-8 gba:w-8 gba:rounded-lg gba:hover:bg-muted"
-              data-testid={`${testId}-close`}
+          {/* Tab bar */}
+          <div className="gba:flex gba:gap-0 gba:px-4">
+            <button
+              onClick={() => setActiveTab('page')}
+              className={[
+                'gba:flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:border-b-2 gba:transition-colors',
+                activeTab === 'page'
+                  ? 'gba:border-foreground gba:text-foreground'
+                  : 'gba:border-transparent gba:text-muted-foreground gba:hover:text-foreground'
+              ].join(' ')}
+              data-testid={`${testId}-tab-page`}
             >
-              <X className="gba:w-4 gba:h-4" />
-            </Button>
+              <FileText className="gba:w-3.5 gba:h-3.5" />
+              {t('board-tab-page')}
+            </button>
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={[
+                'gba:flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:border-b-2 gba:transition-colors',
+                activeTab === 'activity'
+                  ? 'gba:border-foreground gba:text-foreground'
+                  : 'gba:border-transparent gba:text-muted-foreground gba:hover:text-foreground'
+              ].join(' ')}
+              data-testid={`${testId}-tab-activity`}
+            >
+              <Activity className="gba:w-3.5 gba:h-3.5" />
+              {t('board-tab-activity')}
+            </button>
           </div>
         </header>
 
         {/* Drawer body */}
         <div style={{ flex: '1 1 auto', overflowY: 'auto' }}>
-          {isLoading ? (
+          {activeTab === 'activity' ? (
+            <RowAuditLog
+              boardId={boardId}
+              sheetId={sheetId}
+              rowId={row.id}
+              accessToken={accessToken}
+              data-testid={`${testId}-activity`}
+            />
+          ) : isLoading ? (
             <div className="gba:flex gba:justify-center gba:py-24">
               <Spinner />
             </div>
@@ -386,14 +430,14 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
               <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-muted/40 gba:flex gba:items-center gba:justify-center gba:mb-5">
                 <FileText className="gba:w-7 gba:h-7 gba:text-muted-foreground/40" />
               </div>
-              <p className="gba:text-muted-foreground gba:mb-5 gba:text-sm">Create a page to start writing</p>
+              <p className="gba:text-muted-foreground gba:mb-5 gba:text-sm">{t('board-create-page-empty-title')}</p>
               <Button
                 variant="outline"
                 onClick={handleCreatePage}
                 className="gba:rounded-lg"
                 data-testid={`${testId}-create-page`}
               >
-                Create page
+                {t('common-create')} {t('board-tab-page').toLowerCase()}
               </Button>
             </div>
           )}
@@ -402,17 +446,17 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
         {/* Drawer footer */}
         <footer className="gba:border-t gba:px-4 gba:py-1.5 gba:flex gba:items-center gba:justify-between gba:flex-shrink-0 gba:bg-muted/5">
           <span className="gba:text-[11px] gba:text-muted-foreground/40">
-            {isYjsSynced && isCollaborationConnected ? 'Collaborative editing' : ''}
+            {isYjsSynced && isCollaborationConnected ? t('board-collaborative-editing') : ''}
           </span>
           <span className="gba:text-[11px] gba:text-muted-foreground/40 gba:tabular-nums">
             {isYjsSynced
               ? isCollaborationConnected
-                ? 'Synced'
-                : 'Offline'
+                ? t('board-sync-synced')
+                : t('board-sync-offline')
               : isDirty
-                ? 'Saving...'
+                ? t('board-sync-saving')
                 : noteId
-                  ? 'Saved'
+                  ? t('board-sync-saved')
                   : ''}
           </span>
         </footer>

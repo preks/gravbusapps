@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import type { QuickFiltersRenderProps } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
@@ -53,7 +54,10 @@ const InvestmentOpportunityStatistics: React.FC<{
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
-  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('irm:investment-opportunity-preferences:v1')
+
+  const { fetchInvestmentOpportunities, fetchInvestmentOpportunityAggregates } = useGetInvestmentOpportunities(context)
   const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>('all')
 
   const handleQuickFilterChange = useCallback(
@@ -129,10 +133,14 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         }),
 
         fetchOpportunities: async variables => {
-          const result = await fetchInvestmentOpportunities(variables)
+          const [result, aggregates] = await Promise.all([
+            fetchInvestmentOpportunities(variables),
+            fetchInvestmentOpportunityAggregates(variables)
+          ])
           return {
             opportunities: result.InvestmentOpportunity,
-            total: result.InvestmentOpportunityAggregate.aggregate.count
+            total: result.InvestmentOpportunityAggregate.aggregate.count,
+            aggregates
           }
         },
 
@@ -186,7 +194,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
           opportunityId: row.original.id
         })
       }),
-    [fetchInvestmentOpportunities, opportunityStatisticsData]
+    [fetchInvestmentOpportunities, fetchInvestmentOpportunityAggregates, opportunityStatisticsData]
   )
 
   return (
@@ -196,6 +204,14 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       dataTestId="investment-opportunities-view"
       renderQuickFilters={renderQuickFilters}
       quickFilter={activeQuickFilter}
+      enableExport
+      exportFilenamePrefix="opportunities"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
     />
   )
 }

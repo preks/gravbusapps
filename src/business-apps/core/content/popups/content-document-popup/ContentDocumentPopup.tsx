@@ -25,7 +25,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
@@ -56,7 +56,7 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
   // Fetch document areas (ContentEntries with DOCUMENT group)
   const documentAreaQueryParams = useMemo(
     () => ({
-      contentGroupRef: ContentGroup.DOCUMENT,
+      contentGroup: ContentGroup.DOCUMENT,
       sortBy: 'title' as const,
       sortOrder: 'ASC' as const
     }),
@@ -65,7 +65,7 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
 
   const documentAreaQueryOptions = useMemo(
     () => ({
-      fields: ['id', 'title', 'contentGroupRef', 'contentGroup'] as const,
+      fields: ['id', 'title', 'contentGroup'] as const,
       relationLimit: 50
     }),
     []

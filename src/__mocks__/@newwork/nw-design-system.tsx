@@ -20,6 +20,12 @@ export const FormLabel = ({ children, ...props }: any) => <label {...props}>{chi
 export const FormControl = ({ children }: any) => <div>{children}</div>
 export const FormMessage = () => <div />
 
+export const SelectItem = ({ children, value, ...props }: any) => (
+  <option value={value} {...props}>
+    {children}
+  </option>
+)
+
 const flattenSelectChildren = (children: React.ReactNode): React.ReactNode[] =>
   React.Children.toArray(children).flatMap(child => {
     if (!React.isValidElement(child)) return []
@@ -28,23 +34,40 @@ const flattenSelectChildren = (children: React.ReactNode): React.ReactNode[] =>
     return flattenSelectChildren(child.props?.children)
   })
 
+export const SelectTrigger = ({ children }: any) => <>{children}</>
+
+function extractSelectTriggerProps(children: React.ReactNode): Record<string, unknown> {
+  let rest: Record<string, unknown> = {}
+  const walk = (node: React.ReactNode): void => {
+    React.Children.forEach(node, child => {
+      if (!React.isValidElement(child)) return
+      if (child.type === SelectTrigger) {
+        const p = { ...(child.props as any) }
+        delete p.children
+        rest = p
+        return
+      }
+      walk((child.props as any)?.children)
+    })
+  }
+  walk(children)
+  return rest
+}
+
 export const Input = React.forwardRef((props: any, ref) => <input ref={ref as any} {...props} />)
 export const Textarea = React.forwardRef((props: any, ref) => <textarea ref={ref as any} {...props} />)
-export const Button = ({ children, ...props }: any) => <button {...props}>{children}</button>
 
-export const Select = ({ children, value, onValueChange, ...props }: any) => (
-  <select value={value} onChange={e => onValueChange?.(e.target.value)} {...props}>
-    {flattenSelectChildren(children)}
-  </select>
-)
-export const SelectTrigger = ({ children }: any) => <>{children}</>
 export const SelectValue = ({ placeholder }: any) => <>{placeholder}</>
 export const SelectContent = ({ children }: any) => <>{children}</>
-export const SelectItem = ({ children, value, ...props }: any) => (
-  <option value={value} {...props}>
-    {children}
-  </option>
-)
+
+export const Select = ({ children, value, onValueChange, ...props }: any) => {
+  const triggerProps = extractSelectTriggerProps(children)
+  return (
+    <select value={value} onChange={e => onValueChange?.(e.target.value)} {...triggerProps} {...props}>
+      {flattenSelectChildren(children)}
+    </select>
+  )
+}
 
 export const DateInput = (props: any) => <input type="date" {...props} />
 export const Button = ({ children, onClick, disabled, type = 'button', ...props }: any) => (
@@ -69,6 +92,7 @@ export const Dialog = ({ children, open = true }: any) => (open ? <div>{children
 export const DialogContent = ({ children, ...props }: any) => <div {...props}>{children}</div>
 export const DialogHeader = ({ children, ...props }: any) => <div {...props}>{children}</div>
 export const DialogTitle = ({ children, ...props }: any) => <div {...props}>{children}</div>
+export const DialogDescription = ({ children, ...props }: any) => <div {...props}>{children}</div>
 export const DialogFooter = ({ children, ...props }: any) => <div {...props}>{children}</div>
 
 export const Table = ({ children, ...props }: any) => <table {...props}>{children}</table>
@@ -81,6 +105,9 @@ export const TableCell = ({ children, ...props }: any) => <td {...props}>{childr
 export const Checkbox = ({ checked, onCheckedChange, ...props }: any) => (
   <input type="checkbox" checked={checked} onChange={e => onCheckedChange?.(e.target.checked)} {...props} />
 )
+export const Switch = ({ checked, onCheckedChange, ...props }: any) => (
+  <input type="checkbox" checked={checked} onChange={e => onCheckedChange?.(e.target.checked)} {...props} />
+)
 export const TooltipProvider = ({ children }: any) => <>{children}</>
 export const Tooltip = ({ children }: any) => <>{children}</>
 export const TooltipTrigger = ({ children }: any) => <>{children}</>
@@ -89,6 +116,10 @@ export const TooltipContent = ({ children }: any) => <div>{children}</div>
 export const Avatar = ({ children }: any) => <div>{children}</div>
 export const AvatarImage = ({ alt = '', ...props }: any) => <img alt={alt} {...props} />
 export const AvatarFallback = ({ children }: any) => <div>{children}</div>
+export const IconAvatar = ({ label, ...props }: any) => <div aria-label={label} {...props} />
+
+export const Alert = ({ children, ...props }: any) => <div {...props}>{children}</div>
+export const AlertDescription = ({ children, ...props }: any) => <div {...props}>{children}</div>
 
 export const Spinner = () => <div>Loading...</div>
 
@@ -139,7 +170,6 @@ export default {
   SelectContent,
   SelectItem,
   DateInput,
-  Button,
   Label,
   Badge,
   Card,
@@ -151,6 +181,7 @@ export default {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   Table,
   TableHeader,
@@ -159,6 +190,7 @@ export default {
   TableHead,
   TableCell,
   Checkbox,
+  Switch,
   TooltipProvider,
   Tooltip,
   TooltipTrigger,
@@ -166,6 +198,9 @@ export default {
   Avatar,
   AvatarImage,
   AvatarFallback,
+  IconAvatar,
+  Alert,
+  AlertDescription,
   Spinner,
   SectionHero,
   Tabs,

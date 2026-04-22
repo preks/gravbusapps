@@ -1,5 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import { useTranslation as useFluentTranslation } from '@newwork/nw-design-system'
+import customerSettingsI18n from './_i18n'
 import {
   UsersIcon,
   FlowArrowIcon,
@@ -8,7 +10,8 @@ import {
   CalendarIcon,
   BuildingsIcon,
   FileTextIcon,
-  MegaphoneIcon
+  MegaphoneIcon,
+  FunnelSimpleIcon
 } from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -20,6 +23,7 @@ import AccountDataPage from './pages/account-data/AccountDataPage'
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
 import DocumentDataPage from './pages/document-data/DocumentDataPage'
 import CampaignDataPage from './pages/campaign-data/CampaignDataPage'
+import IdealCustomerProfilesPage from './pages/ideal-customer-profiles/IdealCustomerProfilesPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -32,6 +36,7 @@ export interface CustomerSettingsProps extends BusinessAppContextProps {
 
 const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDataTestId, ...context }) => {
   const { t } = useTranslation()
+  const { t: tIcp } = useFluentTranslation(customerSettingsI18n)
   const [inlinePage, setInlinePage] = React.useState<{ key: string; tab?: string } | null>(null)
 
   // Handle query parameters on component mount and browser back/forward
@@ -208,6 +213,18 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
           onClick: () => handleInlinePageChange({ key: 'campaign-data' })
         }
       ]
+    },
+    {
+      title: tIcp('icp-settings-card-title'),
+      description: tIcp('icp-settings-card-description'),
+      icon: FunnelSimpleIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: tIcp('icp-settings-card-entry'),
+          onClick: () => handleInlinePageChange({ key: 'ideal-customer-profiles' })
+        }
+      ]
     }
   ]
 
@@ -292,6 +309,16 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
       <CampaignDataPage
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-CustomerCampaignSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'ideal-customer-profiles') {
+    return (
+      <IdealCustomerProfilesPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerIcpSettings`}
         onBack={() => handleInlinePageChange(null)}
       />
     )

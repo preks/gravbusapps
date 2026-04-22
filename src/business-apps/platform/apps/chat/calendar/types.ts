@@ -1,3 +1,5 @@
+import type { SelectedDimension } from '../../shared/types/dimensions'
+
 // Calendar and Meeting Types
 
 // Note: Agenda utilities are in ./utils/agendaUtils
@@ -25,7 +27,40 @@ export enum InvitationStatus {
   TENTATIVE = 'tentative'
 }
 
-export type CalendarView = 'day' | 'week' | 'month'
+export enum InternalCalendarType {
+  SHARED = 'shared',
+  SPACE = 'space'
+}
+
+export enum InternalCalendarPermission {
+  OWNER = 'owner',
+  EDITOR = 'editor',
+  VIEWER = 'viewer',
+  FREE_BUSY = 'free_busy'
+}
+
+/** Time window for the calendar (Outlook-style scopes) */
+export type CalendarTimeScope = 'day' | 'threeDay' | 'workWeek' | 'week' | 'month'
+
+/** Time grid vs agenda list for the same date range */
+export type CalendarLayout = 'calendar' | 'list'
+
+export const DEFAULT_CALENDAR_TIME_SCOPE: CalendarTimeScope = 'workWeek'
+export const DEFAULT_CALENDAR_LAYOUT: CalendarLayout = 'calendar'
+
+const CALENDAR_TIME_SCOPE_SET = new Set<string>(['day', 'threeDay', 'workWeek', 'week', 'month'])
+const CALENDAR_LAYOUT_SET = new Set<string>(['calendar', 'list'])
+
+export function parseCalendarTimeScope(value: unknown): CalendarTimeScope | null {
+  return typeof value === 'string' && CALENDAR_TIME_SCOPE_SET.has(value) ? (value as CalendarTimeScope) : null
+}
+
+export function parseCalendarLayout(value: unknown): CalendarLayout | null {
+  return typeof value === 'string' && CALENDAR_LAYOUT_SET.has(value) ? (value as CalendarLayout) : null
+}
+
+/** @deprecated Use CalendarTimeScope — kept for gradual migration in chat calendar only */
+export type CalendarView = CalendarTimeScope
 
 export interface MeetingParticipant {
   id: string
@@ -67,7 +102,15 @@ export interface Meeting {
   transcriptionEnabled?: boolean
   reminderMinutes: number[]
   isAllDay: boolean
+  /** Resolved display color from calendar or personal preference, with legacy meeting fallback. */
   color: string
+  calendarId?: string
+  calendar?: {
+    id: string
+    name?: string
+    type?: InternalCalendarType
+    color?: string
+  } | null
   metadata?: Record<string, any>
   createdAt: string
   updatedAt: string
@@ -97,6 +140,81 @@ export interface EventParticipant {
 
 /** Source of the calendar event */
 export type CalendarEventSource = 'internal' | 'microsoft' | 'google'
+
+export interface InternalCalendarSummary {
+  id: string
+  name: string
+  description?: string
+  color: string
+  defaultColor: string
+  type: InternalCalendarType
+  ownerId: string
+  spaceId?: string
+  contextEntity?: SelectedDimension['type']
+  contextEntityId?: string
+  permission: InternalCalendarPermission
+  memberCount: number
+  canEdit: boolean
+  isOwner: boolean
+  hasColorOverride: boolean
+}
+
+export interface CreateCalendarShareInput {
+  userId: string
+  permission: InternalCalendarPermission
+}
+
+export interface CreateSharedCalendarData {
+  name: string
+  description?: string
+  color?: string
+  dimension?: SelectedDimension
+  shares?: CreateCalendarShareInput[]
+}
+
+export interface UpdateSharedCalendarData {
+  name: string
+  description?: string
+  color?: string
+}
+
+export interface InternalCalendarMember {
+  userId: string
+  permission: InternalCalendarPermission
+  isOwner: boolean
+  displayName?: string
+  firstName?: string
+  lastName?: string
+  email?: string
+  avatarUrl?: string
+}
+
+export interface ExternalCalendarSource {
+  id: string
+  label: string
+  provider: 'microsoft' | 'google'
+}
+
+export interface AvailabilityBusySlot {
+  start: string
+  end: string
+  meetingId: string
+}
+
+export interface UserAvailability {
+  userId: string
+  busySlots: AvailabilityBusySlot[]
+}
+
+export interface AvailabilitySuggestion {
+  start: string
+  end: string
+}
+
+export interface AvailabilityResponse {
+  availability: UserAvailability[]
+  suggestions: AvailabilitySuggestion[]
+}
 
 export interface CalendarEvent {
   id: string
@@ -138,6 +256,15 @@ export interface CalendarEvent {
   externalLink?: string
   /** Whether this event is read-only (external events cannot be edited) */
   isReadOnly?: boolean
+  /** Internal shared calendar metadata */
+  calendarId?: string
+  calendarName?: string
+  calendarType?: InternalCalendarType
+  calendarPermission?: InternalCalendarPermission
+  canEdit?: boolean
+  isBusyBlock?: boolean
+  /** External account source for visibility toggles */
+  sourceId?: string
 }
 
 export interface CreateMeetingData {
@@ -152,10 +279,11 @@ export interface CreateMeetingData {
   recurrenceEndDate?: string
   reminderMinutes?: number[]
   isAllDay?: boolean
-  color?: string
   participantIds: string[]
   optionalParticipantIds?: string[]
+  createConversation?: boolean
   conversationId?: string
+  calendarId?: string
   metadata?: Record<string, any>
 }
 
@@ -172,10 +300,11 @@ export interface UpdateMeetingData {
   recurrenceEndDate?: string
   reminderMinutes?: number[]
   isAllDay?: boolean
-  color?: string
   addParticipantIds?: string[]
   removeParticipantIds?: string[]
+  createConversation?: boolean
   conversationId?: string
+  calendarId?: string
   metadata?: Record<string, any>
   notifyParticipants?: boolean
 }
@@ -202,6 +331,66 @@ export const getWeekRange = (date: Date): DateRange => {
   end.setHours(23, 59, 59, 999)
 
   return { start, end }
+}
+
+/** Monday 00:00 through Friday 23:59:59 of the week containing `date` */
+export const getWorkWeekRange = (date: Date): DateRange => {
+  const start = new Date(date)
+  start.setHours(0, 0, 0, 0)
+  const dayOfWeek = start.getDay()
+  const daysFromMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  start.setDate(start.getDate() + daysFromMonday)
+
+  const end = new Date(start)
+  end.setDate(start.getDate() + 4)
+  end.setHours(23, 59, 59, 999)
+
+  return { start, end }
+}
+
+/** Three consecutive days starting at `date` (local midnight) */
+export const getThreeDayRange = (date: Date): DateRange => {
+  const start = new Date(date)
+  start.setHours(0, 0, 0, 0)
+
+  const end = new Date(start)
+  end.setDate(start.getDate() + 2)
+  end.setHours(23, 59, 59, 999)
+
+  return { start, end }
+}
+
+export const getDateRangeForTimeScope = (date: Date, scope: CalendarTimeScope): DateRange => {
+  switch (scope) {
+    case 'day':
+      return getDayRange(date)
+    case 'threeDay':
+      return getThreeDayRange(date)
+    case 'workWeek':
+      return getWorkWeekRange(date)
+    case 'week':
+      return getWeekRange(date)
+    case 'month':
+      return getMonthRange(date)
+    default:
+      return getWorkWeekRange(date)
+  }
+}
+
+/** Inclusive local calendar days between range start and end (midnight boundaries). */
+export const getDaysInDateRange = (dateRange: DateRange): Date[] => {
+  const days: Date[] = []
+  const cur = new Date(dateRange.start)
+  cur.setHours(0, 0, 0, 0)
+  const endDay = new Date(dateRange.end)
+  endDay.setHours(0, 0, 0, 0)
+
+  while (cur.getTime() <= endDay.getTime()) {
+    days.push(new Date(cur))
+    cur.setDate(cur.getDate() + 1)
+  }
+
+  return days
 }
 
 export const getMonthRange = (date: Date): DateRange => {

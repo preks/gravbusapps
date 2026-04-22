@@ -1,12 +1,5 @@
 import React, { useCallback } from 'react'
-import {
-  ChatIcon,
-  PhoneIcon,
-  VideoCameraIcon,
-  UserIcon,
-  BuildingsIcon,
-  OfficeChairIcon
-} from '@phosphor-icons/react'
+import { ChatIcon, PhoneIcon, VideoCameraIcon, UserIcon, BuildingsIcon, OfficeChairIcon } from '@phosphor-icons/react'
 import { Avatar, AvatarImage, AvatarFallback, Button } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { postToPlatform } from '@/common/utils/postToPlatform'
@@ -159,12 +152,12 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
   onProfile,
   hasUserId = false
 }) => {
-  const teamChatEnabled = useFeature<boolean>(Feature.Core.TeamChat.Key)
+  const chatTeamEnabled = useFeature<boolean>(Feature.Core.ChatTeam.Key)
 
   return (
     <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-foreground/30 gba:backdrop-blur-sm gba:opacity-0 gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto gba:transition-all gba:duration-300 gba:z-0">
       <div className="gba:flex gba:gap-2">
-        {teamChatEnabled && (
+        {chatTeamEnabled && (
           <Button
             variant="ghost"
             size="icon"

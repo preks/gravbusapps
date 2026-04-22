@@ -8,7 +8,6 @@ import type { TaxInfoFormValues, TaxDetailsCatalogs, CatalogEntry } from './type
 
 const defaultCatalogs: TaxDetailsCatalogs = {
   taxBracket: [],
-  religion: [],
   churchAffiliation: [],
   healthInsuranceType: [],
   documentType: []
@@ -40,6 +39,9 @@ export function useChangeTaxDetailsData(
   const [isReady, setIsReady] = useState(false)
   const [employeeCountryCode, setEmployeeCountryCode] = useState<string | null>(null)
   const [employeeGender, setEmployeeGender] = useState<string | null>(null)
+  const [employeeBirthDate, setEmployeeBirthDate] = useState<string | null>(null)
+  const [employeeBirthName, setEmployeeBirthName] = useState<string | null>(null)
+  const [employeeLastName, setEmployeeLastName] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -51,7 +53,6 @@ export function useChangeTaxDetailsData(
         })
         setCatalogs({
           taxBracket: (catalogsRes?.taxBracket as CatalogEntry[]) || [],
-          religion: (catalogsRes?.religion as CatalogEntry[]) || [],
           churchAffiliation: (catalogsRes?.churchAffiliation as CatalogEntry[]) || [],
           healthInsuranceType: (catalogsRes?.healthInsuranceType as CatalogEntry[]) || [],
           documentType: (catalogsRes?.documentType as CatalogEntry[]) || []
@@ -65,12 +66,19 @@ export function useChangeTaxDetailsData(
           })
           employeeDetails = employeeRes?.EmployeeTaxDetail?.[0] ?? null
           setData(employeeDetails)
+          setEmployeeBirthDate(employeeRes?.EmployeeByPk?.birthDate ?? null)
+          setEmployeeBirthName(employeeRes?.EmployeeByPk?.birthName ?? null)
+          setEmployeeLastName(employeeRes?.EmployeeByPk?.lastName ?? null)
           const g = employeeRes?.EmployeeByPk?.gender?.value
           setEmployeeGender(typeof g === 'string' ? g.toLowerCase() : null)
           const entry = employeeRes?.EmployeeWorkingCondition?.[0]?.region?.parentEntry
           setEmployeeCountryCode(entry?.code ?? null)
         } else {
           setEmployeeCountryCode(null)
+          setEmployeeGender(null)
+          setEmployeeBirthDate(null)
+          setEmployeeBirthName(null)
+          setEmployeeLastName(null)
         }
 
         const emp = employeeDetails as any
@@ -80,14 +88,16 @@ export function useChangeTaxDetailsData(
           healthInsuranceName: emp?.healthInsuranceName ?? '',
           healthInsuranceTypeRef: emp?.healthInsuranceTypeRef ?? null,
           taxIdentificationNumber: emp?.taxIdentificationNumber ?? '',
-          religionRef: emp?.religionRef ?? null,
           taxableChurchAffiliationRef: emp?.taxableChurchAffiliationRef ?? null,
           socialSecurityNumber: emp?.socialSecurityNumber ?? '',
           childTaxAllowance: emp?.childTaxAllowance ?? '',
           requestAtTaxOffice: Boolean(emp?.additionalProperties?.requestAtTaxOffice ?? false),
           employeeTaxOffice: String(emp?.additionalProperties?.employeeTaxOffice ?? ''),
           individualFreeAmount: String(emp?.additionalProperties?.individualFreeAmount ?? ''),
-          healthInsuranceDocumentTypeId: null,
+          healthInsuranceDocumentTypeId:
+            typeof emp?.healthInsuranceDocument === 'object' && emp?.healthInsuranceDocument?.type
+              ? String(emp.healthInsuranceDocument.type)
+              : null,
           healthInsuranceDocumentValidTo: '',
           uploadNewHealthInsuranceDocument: false
         }
@@ -113,6 +123,9 @@ export function useChangeTaxDetailsData(
     employeeCountryCode,
     isEmployeeInGermany: isEmployeeInGermanyFlag,
     isEmployeeInRomania: isEmployeeInRomaniaFlag,
-    employeeGender
+    employeeGender,
+    employeeBirthDate,
+    employeeBirthName,
+    employeeLastName
   }
 }

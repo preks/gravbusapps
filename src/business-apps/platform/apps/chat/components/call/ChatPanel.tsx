@@ -6,13 +6,14 @@
  */
 
 import React, { useEffect, useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { MessageList } from '../MessageList'
 import { MessageInput } from '../MessageInput'
 import { useMessages } from '../../hooks/useMessages'
-import { useChatTranslation } from '../../contexts/TranslationContext'
+import translations from '../../_i18n'
 import { useEveryAIChat } from '../../hooks/useEveryAIChat'
-import type { ChatApiClient } from '../../services/chatApiClient'
-import type { ChatWebSocketClient } from '../../services/chatWebSocketClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
+import type { ChatWebSocketClient } from '@/common/network/chat/ChatWebSocketClient'
 import type { Conversation, MessageEntityReference } from '../../types'
 import type { ActiveExpert } from '../../hooks/useConversationExperts'
 
@@ -20,7 +21,7 @@ export interface ChatPanelProps {
   /** Current conversation */
   conversation: Conversation | null
   /** Chat API client */
-  apiClient: ChatApiClient
+  apiClient: ChatClient
   /** WebSocket client for real-time updates */
   wsClient: ChatWebSocketClient | null
   /** Current user ID */
@@ -58,7 +59,7 @@ const ChatPanelComponent: React.FC<ChatPanelProps> = ({
   isOpen,
   prefixDataTestId = 'group-call-chat'
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
 
   // Use the messages hook to handle message loading
   const { messages, isLoading, error, hasMore, loadMore, addMessage } = useMessages({

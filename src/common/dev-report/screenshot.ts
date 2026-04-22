@@ -7,6 +7,9 @@ export type DevReportScreenshot = {
   height: number
 }
 
+export const MAX_SCREENSHOTS_PER_ISSUE = 3
+export const MAX_SCREENSHOT_DATA_URL_SIZE = 1_150_000 // ~1.1 MB
+
 function safeMessage(e: unknown): string {
   if (e instanceof Error) return `${e.name}: ${e.message}`.slice(0, 500)
   return String(e).slice(0, 500)
@@ -92,6 +95,42 @@ function collectFontFaceRules(): string {
     // ignore
   }
   return rules.join('\n')
+}
+
+export async function blobToDevReportScreenshot(blob: Blob): Promise<DevReportScreenshot | null> {
+  try {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+
+    return await new Promise<DevReportScreenshot | null>(resolve => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve(null)
+          return
+        }
+        ctx.drawImage(img, 0, 0)
+        const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.75)
+        if (jpegDataUrl.length > MAX_SCREENSHOT_DATA_URL_SIZE) {
+          resolve(null)
+          return
+        }
+        resolve({ dataUrl: jpegDataUrl, mimeType: 'image/jpeg', width: img.naturalWidth, height: img.naturalHeight })
+      }
+      img.onerror = () => resolve(null)
+      img.src = dataUrl
+    })
+  } catch {
+    return null
+  }
 }
 
 export async function captureDevReportScreenshot(): Promise<{
@@ -199,7 +238,7 @@ export async function captureDevReportScreenshot(): Promise<{
     })
 
     const dataUrl = canvas.toDataURL('image/jpeg', 0.75)
-    if (!dataUrl || dataUrl === 'data:,' || dataUrl.length > 4_000_000) {
+    if (!dataUrl || dataUrl === 'data:,' || dataUrl.length > MAX_SCREENSHOT_DATA_URL_SIZE) {
       return { screenshot: null, error: 'screenshot_too_large' }
     }
     return { screenshot: { dataUrl, mimeType: 'image/jpeg', width, height } }

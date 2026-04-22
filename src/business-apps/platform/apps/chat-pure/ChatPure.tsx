@@ -2,7 +2,6 @@ import React from 'react'
 import { Chat } from '../chat/Chat'
 import { GlobalCallContainer } from '../chat/components/GlobalCallContainer'
 import { GlobalPreCallSetupDialog } from '../chat/components/GlobalPreCallSetupDialog'
-import { TranslationProvider } from '../chat/contexts/TranslationContext'
 
 type ChatProps = React.ComponentProps<typeof Chat>
 
@@ -15,9 +14,7 @@ export const ChatPure: React.FC<ChatProps> = props => {
     <>
       <Chat {...props} />
       <GlobalCallContainer />
-      <TranslationProvider>
-        <GlobalPreCallSetupDialog />
-      </TranslationProvider>
+      <GlobalPreCallSetupDialog />
     </>
   )
 }
