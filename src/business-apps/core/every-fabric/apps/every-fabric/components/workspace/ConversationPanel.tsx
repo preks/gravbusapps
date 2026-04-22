@@ -4,7 +4,9 @@ import { MessageBubble } from '../chat/MessageBubble'
 import { StreamingAnswerBubble } from '../chat/StreamingAnswerBubble'
 import {
   WORKSPACE_CHAT_GUTTER_CLASS,
+  WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS,
   WORKSPACE_CHAT_RAIL_CLASS,
+  WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS,
   WORKSPACE_COMPOSER_OFFSET_CLASS,
   WORKSPACE_COMPOSER_STREAMING_ISLAND_OFFSET_CLASS,
   WORKSPACE_COMPOSER_WITH_FOLLOWUPS_OFFSET_CLASS,
@@ -27,6 +29,11 @@ interface ConversationPanelProps {
   isWaitingForInput: boolean
   hasFixedFollowUps?: boolean
   hasStreamingIsland?: boolean
+  /**
+   * When true the right workspace panel is docked + open, so shift the chat
+   * rail's right gutter to keep it from sliding under the floating panel.
+   */
+  isChatOffset?: boolean
   onReply: (message?: string, structuredInput?: Record<string, any>) => void | Promise<unknown>
   onViewArtifact?: (artifactName: string) => void
   composer?: React.ReactNode
@@ -133,6 +140,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   isStreaming,
   hasFixedFollowUps = false,
   hasStreamingIsland = false,
+  isChatOffset = false,
   onReply,
   onViewArtifact,
   composer,
@@ -200,20 +208,24 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
 
   return (
     <div
-      className="gba:relative gba:flex gba:flex-col gba:flex-1 gba:h-full gba:min-h-0 gba:bg-background"
+      className="gba:relative gba:flex gba:flex-col gba:flex-1 gba:h-full gba:min-h-0"
       data-testid="fabric-conversation-panel"
     >
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:pt-12 sm:gba:pt-16 ${WORKSPACE_CHAT_GUTTER_CLASS} ${bottomPaddingClass}`}
+        className={`gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:[scrollbar-gutter:stable_both-edges] gba:pt-12 sm:gba:pt-16 ${WORKSPACE_CHAT_GUTTER_CLASS} ${bottomPaddingClass} ${
+          isChatOffset ? WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS : ''
+        } ${WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS}`}
+        data-chat-offset={isChatOffset ? 'true' : 'false'}
       >
-        <div className={`${WORKSPACE_CHAT_RAIL_CLASS} gba:mx-auto gba:space-y-4`}>
+        <div className={`${WORKSPACE_CHAT_RAIL_CLASS} gba:mx-auto gba:space-y-8`}>
           {messagesBeforeStreaming.map(msg => (
             <MessageBubble
               key={msg.id}
               message={msg}
               sessionId={sessionId}
+              allMessages={visibleMessages}
               onReply={onReply}
               onViewArtifact={onViewArtifact}
               accessToken={accessToken}
@@ -235,6 +247,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               key={msg.id}
               message={msg}
               sessionId={sessionId}
+              allMessages={visibleMessages}
               onReply={onReply}
               onViewArtifact={onViewArtifact}
               accessToken={accessToken}

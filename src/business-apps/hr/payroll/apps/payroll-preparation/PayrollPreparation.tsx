@@ -27,6 +27,7 @@ import { usePayrollRuns } from './hooks/usePayrollRuns'
 import { PayrollRunSelector } from './components/shared/PayrollRunSelector'
 import { CreatePayrollRunDialog } from './components/shared/CreatePayrollRunDialog'
 import type { CreatePayrollRunParams } from './components/shared/CreatePayrollRunDialog'
+import { SelectedPayrollRunBanner } from './components/shared/SelectedPayrollRunBanner'
 import { OverviewView } from './components/views/overview/OverviewView'
 import { PayrollGridView } from './components/views/payroll-grid/PayrollGrid'
 import { ExceptionsView } from './components/views/exceptions/ExceptionsView'
@@ -453,7 +454,7 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
             {activeRun && (
               <Button
                 variant="outline"
-                size="sm"
+                size="default"
                 onClick={handleBackToRuns}
                 data-testid="payroll-prep-back-to-runs-button"
               >
@@ -471,6 +472,12 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
             ) : null}
           </div>
         </div>
+
+        {activeRun && (
+          <div className="gba:mb-6">
+            <SelectedPayrollRunBanner payrollRun={activeRun} t={t} />
+          </div>
+        )}
 
         <div className="gba:h-full gba:overflow-auto">{renderContent()}</div>
       </PageLayout>

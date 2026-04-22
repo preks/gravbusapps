@@ -1,5 +1,5 @@
 import React from 'react'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { WorkspaceLayout } from '../WorkspaceLayout'
 
 const mockUseFabric = jest.fn()
@@ -53,13 +53,6 @@ function setWindowWidth(width: number): void {
   })
 }
 
-function resizeWindow(width: number): void {
-  setWindowWidth(width)
-  act(() => {
-    window.dispatchEvent(new Event('resize'))
-  })
-}
-
 function createFabricState() {
   return {
     session: {
@@ -82,6 +75,7 @@ function createFabricState() {
     progressPercent: 0,
     activityEvents: [],
     activeSkill: null,
+    sessionConnectorIds: [],
     artifacts: [],
     workspaceDocs: [],
     activeArtifact: null,
@@ -92,7 +86,7 @@ function createFabricState() {
   }
 }
 
-describe('WorkspaceLayout responsive right panel', () => {
+describe('WorkspaceLayout right panel', () => {
   beforeEach(() => {
     setWindowWidth(1200)
     mockUseFabric.mockReturnValue(createFabricState())
@@ -104,44 +98,72 @@ describe('WorkspaceLayout responsive right panel', () => {
     })
   })
 
-  it('keeps the panel open by default on desktop widths', () => {
+  it('opens the panel by default on wide viewports', () => {
     setWindowWidth(1600)
 
-    render(<WorkspaceLayout onOpenHistory={jest.fn()} onOpenSettings={jest.fn()} />)
+    render(<WorkspaceLayout />)
 
     expect(screen.getByTestId('fabric-workspace-panel-toggle')).toHaveAttribute('aria-label', 'Close workspace panel')
   })
 
-  it('starts with the panel collapsed on standard overlay widths', () => {
-    setWindowWidth(900)
+  it('starts with the panel closed on narrow viewports', () => {
+    setWindowWidth(1100)
 
-    render(<WorkspaceLayout onOpenHistory={jest.fn()} onOpenSettings={jest.fn()} />)
+    render(<WorkspaceLayout />)
 
     expect(screen.getByTestId('fabric-workspace-panel-toggle')).toHaveAttribute('aria-label', 'Open workspace panel')
-    expect(screen.queryByLabelText('Close workspace panel overlay')).not.toBeInTheDocument()
   })
 
-  it('still lets the user open the panel manually on overlay widths', () => {
-    setWindowWidth(900)
+  it('never renders a full-viewport overlay backdrop', () => {
+    setWindowWidth(1100)
 
-    render(<WorkspaceLayout onOpenHistory={jest.fn()} onOpenSettings={jest.fn()} />)
+    render(<WorkspaceLayout />)
+
+    // The old "overlay" backdrop used this label; with the unified shell we
+    // never dim or blur the background just to show progress info.
+    expect(screen.queryByLabelText('Close workspace panel overlay')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByTestId('fabric-workspace-panel-toggle'))
 
-    expect(screen.getByTestId('fabric-workspace-panel-toggle')).toHaveAttribute('aria-label', 'Close workspace panel')
-    expect(screen.getByLabelText('Close workspace panel overlay')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Close workspace panel overlay')).not.toBeInTheDocument()
   })
 
-  it('reopens the panel automatically when resizing back to desktop width', () => {
-    setWindowWidth(900)
+  it('lets the user toggle the panel on narrow viewports', () => {
+    setWindowWidth(1100)
 
-    render(<WorkspaceLayout onOpenHistory={jest.fn()} onOpenSettings={jest.fn()} />)
+    render(<WorkspaceLayout />)
 
-    expect(screen.getByTestId('fabric-workspace-panel-toggle')).toHaveAttribute('aria-label', 'Open workspace panel')
+    const toggle = screen.getByTestId('fabric-workspace-panel-toggle')
+    expect(toggle).toHaveAttribute('aria-label', 'Open workspace panel')
 
-    resizeWindow(1600)
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-label', 'Close workspace panel')
 
-    expect(screen.getByTestId('fabric-workspace-panel-toggle')).toHaveAttribute('aria-label', 'Close workspace panel')
-    expect(screen.queryByLabelText('Close workspace panel overlay')).not.toBeInTheDocument()
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-label', 'Open workspace panel')
+  })
+
+  it('offsets the chat rail whenever the panel is open, regardless of viewport width', () => {
+    setWindowWidth(1600)
+
+    render(<WorkspaceLayout />)
+
+    const composerStack = screen.getByTestId('fabric-workspace-composer-stack')
+    expect(composerStack).toHaveAttribute('data-chat-offset', 'true')
+
+    fireEvent.click(screen.getByTestId('fabric-workspace-panel-toggle'))
+    expect(composerStack).toHaveAttribute('data-chat-offset', 'false')
+  })
+
+  it('offsets the chat rail on narrow viewports too once the user opens the panel', () => {
+    setWindowWidth(1100)
+
+    render(<WorkspaceLayout />)
+
+    const composerStack = screen.getByTestId('fabric-workspace-composer-stack')
+    expect(composerStack).toHaveAttribute('data-chat-offset', 'false')
+
+    fireEvent.click(screen.getByTestId('fabric-workspace-panel-toggle'))
+    expect(composerStack).toHaveAttribute('data-chat-offset', 'true')
   })
 })

@@ -42,6 +42,27 @@ describe('docxTocImportUtils', () => {
     expect(toc?.snapshotJson).toContain('"pageNumber":"4"')
   })
 
+  it('parses a field-only native Word TOC without seeded result paragraphs', () => {
+    const xml = minimalDocumentXml(`
+      <w:p>
+        <w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r>
+        <w:r><w:instrText xml:space="preserve"> TOC \\o "1-2" \\n </w:instrText></w:r>
+        <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+      </w:p>
+      <w:p>
+        <w:r><w:fldChar w:fldCharType="end"/></w:r>
+      </w:p>
+    `)
+
+    const toc = parseDocumentXmlForTableOfContents(xml)
+
+    expect(toc).not.toBeNull()
+    expect(toc?.showPageNumbers).toBe(false)
+    expect(toc?.headingLinks).toBe(false)
+    expect(toc?.maxHeadingLevel).toBe(2)
+    expect(toc?.snapshotJson).toContain('"entries":[]')
+  })
+
   it('drops duplicated trailing page numbers from imported entry text', () => {
     const toc = parseDocumentXmlForTableOfContents(
       minimalDocumentXml(`

@@ -176,6 +176,46 @@ export interface StructuredInputRequestEvent {
   description: string
   fields: InputFieldSchema[]
   allow_partial_submit: boolean
+  /**
+   * Present when `form_id === 'compose_email'` — carries the agent-drafted
+   * email payload so the frontend can hydrate the EmailComposerBubble.
+   */
+  email_draft?: ComposeEmailDraft
+}
+
+export interface ComposeEmailRecipient {
+  name?: string
+  address: string
+}
+
+export interface ComposeEmailDraft {
+  to: ComposeEmailRecipient[]
+  cc?: ComposeEmailRecipient[]
+  bcc?: ComposeEmailRecipient[]
+  subject: string
+  html_body: string
+  text_body?: string | null
+  signature?: string | null
+  account_id?: string | null
+  crm_entity_type?: string | null
+  crm_entity_id?: string | null
+}
+
+export type ComposeEmailAction = 'send' | 'draft' | 'cancel'
+
+export interface ComposeEmailSubmission {
+  form_id: 'compose_email'
+  action: ComposeEmailAction
+  to: ComposeEmailRecipient[]
+  cc?: ComposeEmailRecipient[]
+  bcc?: ComposeEmailRecipient[]
+  subject: string
+  htmlBody: string
+  textBody?: string
+  signature?: string
+  accountId?: string
+  crmEntityType?: string
+  crmEntityId?: string
 }
 
 export interface InputFieldSchema {
@@ -215,6 +255,19 @@ export interface SkillDetectionSkippedEvent {
   reason: string
 }
 
+export interface ArtifactPreviewEvent {
+  type: 'artifact_preview'
+  seq: number
+  event_id: string
+  timestamp: string
+  subtype: 'start' | 'progress' | 'draft_ready' | 'complete' | 'error'
+  artifact_id: string
+  artifact_type: 'slides' | 'document' | 'note' | 'chart'
+  title: string
+  content?: Record<string, unknown>
+  error?: string
+}
+
 export type AgentStreamEvent =
   | AgentChunkEvent
   | AgentTerminalEvent
@@ -229,6 +282,7 @@ export type AgentStreamEvent =
   | StructuredInputRequestEvent
   | SkillLoadedEvent
   | SkillDetectionSkippedEvent
+  | ArtifactPreviewEvent
 
 export interface ReflectionResult {
   complete: boolean

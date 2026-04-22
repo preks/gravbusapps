@@ -1,14 +1,16 @@
 import { useCallback, useMemo, useState, useRef, useEffect } from 'react'
 import { BrainIcon, CaretDownIcon, CaretUpIcon, CheckIcon, CopyIcon, WarningCircleIcon } from '@phosphor-icons/react'
-import type { ChatMessage, StructuredInputRequestEvent } from '../../types/enterpriseAgent'
+import type { ChatMessage, StructuredInputRequestEvent, ComposeEmailSubmission } from '../../types/enterpriseAgent'
 import { PlanRenderer } from '../renderers/PlanRenderer'
 import { ToolCallRenderer } from '../renderers/ToolCallRenderer'
 import { ToolResultRenderer } from '../renderers/ToolResultRenderer'
 import { ReflectionRenderer } from '../renderers/ReflectionRenderer'
 import { ExpertCallRenderer } from '../renderers/ExpertCallRenderer'
 import { StructuredInputForm } from '../renderers/StructuredInputForm'
+import { EmailComposerBubble } from './EmailComposerBubble'
 import { FinalAnswerRenderer } from '../renderers/FinalAnswerRenderer'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
+import { findComposeEmailOutcomeAfterMessage } from '../../utils/composeEmailTrace'
 
 const AnimatedMessageWrapper: React.FC<{
   children: React.ReactNode
@@ -119,12 +121,14 @@ const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
 interface MessageBubbleProps {
   message: ChatMessage
   sessionId: string
+  /** Full transcript (for compose_email: detect send complete from later tool_result). */
+  allMessages?: ChatMessage[]
   onReply?: (answer?: string, structuredInput?: Record<string, any>) => void
   onViewArtifact?: (artifactName: string) => void
   accessToken?: string
 }
 
-export const MessageBubble = ({ message, onReply, onViewArtifact, accessToken }: MessageBubbleProps) => {
+export const MessageBubble = ({ message, allMessages, onReply, onViewArtifact, accessToken }: MessageBubbleProps) => {
   switch (message.type) {
     case 'user_input': {
       return <UserMessageBubble message={message} />
@@ -196,6 +200,26 @@ export const MessageBubble = ({ message, onReply, onViewArtifact, accessToken }:
 
     case 'structured_input_request': {
       const formData = message.content as StructuredInputRequestEvent
+      if (formData.form_id === 'compose_email' && formData.email_draft) {
+        const draft = formData.email_draft
+        const traceOutcome =
+          allMessages && allMessages.length > 0 ? findComposeEmailOutcomeAfterMessage(allMessages, message.id) : null
+        return (
+          <div className="gba:py-1" data-testid={`msg-${message.id}`}>
+            <EmailComposerBubble
+              draft={draft}
+              rationale={formData.description}
+              accessToken={accessToken}
+              traceOutcome={traceOutcome}
+              onSubmit={(submission: ComposeEmailSubmission) => {
+                if (onReply) {
+                  onReply(undefined, submission as unknown as Record<string, any>)
+                }
+              }}
+            />
+          </div>
+        )
+      }
       return (
         <div className="gba:py-1" data-testid={`msg-${message.id}`}>
           <StructuredInputForm
