@@ -88032,20 +88032,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11209,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11209/",
-    "chunkJsBytes": 1821133,
+    "bitbucketBuildNumber": 11211,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11211/",
+    "chunkJsBytes": 1821137,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1515691,
-        "gzip": 89336,
+        "gzip": 89362,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1515691,
-            "gzip": 89336
+            "gzip": 89362
           }
         ]
       },
@@ -100194,15 +100194,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 11192,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11192/",
-    "chunkJsBytes": 451803,
+    "bitbucketBuildNumber": 11211,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11211/",
+    "chunkJsBytes": 470773,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 507192,
-        "gzip": 142177,
+        "rendered": 539154,
+        "gzip": 149654,
         "leaves": [
           {
             "name": "src/business-apps/core/create/apps/newwork-connect/components/connectorLogoPaths.ts",
@@ -102778,7 +102778,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-22T16:05:32.004Z",
+    "generatedAt": "2026-04-22T16:52:06.905Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
