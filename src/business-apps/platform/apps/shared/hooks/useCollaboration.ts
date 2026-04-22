@@ -24,15 +24,6 @@ const isCollabDebug = (): boolean => {
   return false
 }
 
-function normalizeToken(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null
-  }
-
-  const normalized = value.trim()
-  return normalized || null
-}
-
 type SocketParticipant = {
   odId?: string
   userId?: string
@@ -249,14 +240,13 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   const onErrorRef = useRef(onError)
   onOperationReceivedRef.current = onOperationReceived
   onErrorRef.current = onError
-  const normalizedAccessToken = normalizeToken(accessToken)
   const accessTokenSyncClientRef = useRef<{ setAccessToken: (token: string) => void }>({
     setAccessToken: token => {
       clientRef.current?.setAccessToken(token)
     }
   })
 
-  useSyncClientAccessToken(accessTokenSyncClientRef.current, enabled ? (normalizedAccessToken ?? undefined) : undefined)
+  useSyncClientAccessToken(accessTokenSyncClientRef.current, enabled ? accessToken : undefined)
 
   // Match documents websocket auth semantics: realtime auth must come from the injected token.
 
@@ -271,7 +261,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       cursorReplayTimeoutRef.current = null
     }
 
-    const token = normalizedAccessToken
+    const token = accessToken
     if (!token) {
       console.error('[useCollaboration] No auth token available')
       onErrorRef.current?.(new Error('No authentication token available'))
@@ -434,7 +424,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       clientRef.current = null
       setSocket(null)
     }
-  }, [enabled, entityType, entityId, normalizedAccessToken])
+  }, [accessToken, enabled, entityType, entityId])
 
   // Emit operation — pass-through to the socket. Queuing is handled by entity-specific
   // managers (e.g. SpreadsheetCollaborationManager) for types that need it.
