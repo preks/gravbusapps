@@ -12,6 +12,7 @@ import type {
 import type { ArtifactFile, FabricSessionSummary, FabricTaskNode } from '../types/fabric'
 import { useAgentSession, type ActiveSkillInfo } from '../hooks/useAgentSession'
 import { useAgentSessions } from '../hooks/useAgentSessions'
+import { useArtifactPreview, type ArtifactPreview } from '../hooks/useArtifactPreview'
 import { useFabricArtifacts } from '../hooks/useFabricArtifacts'
 import { useFabricProgress } from '../hooks/useFabricProgress'
 import { useSessionUrlState } from '../hooks/useSessionUrlState'
@@ -63,6 +64,11 @@ interface FabricContextValue {
   workspaceDocs: WorkspaceDocument[]
   activeArtifactId: string | null
   activeArtifact: ArtifactFile | null
+
+  // Live artifact previews (real-time from SSE during generation)
+  artifactPreviews: ArtifactPreview[]
+  latestPreview: ArtifactPreview | null
+  hasActivePreview: boolean
 
   // Actions
   startSession: (
@@ -223,6 +229,15 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   // Activity events for the chronological feed
   const activityEvents = useMemo(() => deriveActivityFromEvents(events), [events])
 
+  // Merge SSE events with session trace for completed sessions (trace has preview events too)
+  const previewSourceEvents = useMemo((): AgentStreamEvent[] => {
+    if (events.length > 0) return events
+    return (session?.trace ?? []) as AgentStreamEvent[]
+  }, [events, session?.trace])
+
+  // Live artifact previews from SSE or session trace events
+  const { previews: artifactPreviews, latestPreview, hasActivePreview } = useArtifactPreview(previewSourceEvents)
+
   // ── Actions ──────────────────────────────────────────────────────────────────
 
   const startSession = useCallback(
@@ -344,6 +359,9 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       workspaceDocs,
       activeArtifactId,
       activeArtifact,
+      artifactPreviews,
+      latestPreview,
+      hasActivePreview,
       startSession,
       selectSession,
       newSession,
@@ -381,6 +399,9 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       workspaceDocs,
       activeArtifactId,
       activeArtifact,
+      artifactPreviews,
+      latestPreview,
+      hasActivePreview,
       startSession,
       selectSession,
       newSession,

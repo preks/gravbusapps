@@ -180,6 +180,7 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
         <DialogContent
           className="gba:!w-[90vw] gba:!max-w-[90vw] gba:max-h-[90vh]"
           data-testid={`${dataTestIdPrefix}-travel-order-modal`}
+          aria-describedby={undefined}
         >
           <DialogHeader>
             <DialogTitle>{t('travel-order-preview-title')}</DialogTitle>

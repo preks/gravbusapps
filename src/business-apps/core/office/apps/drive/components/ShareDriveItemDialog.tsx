@@ -260,7 +260,8 @@ export const ShareDriveItemDialog: React.FC<ShareDriveItemDialogProps> = ({
   const permissionSelect = (value: Permission, onChange: (v: Permission) => void, compact = false) => (
     <Select value={value} onValueChange={v => onChange(v as Permission)}>
       <SelectTrigger
-        className={compact ? 'gba:w-[140px] gba:h-8 gba:flex-shrink-0' : 'gba:w-full'}
+        size={compact ? 'sm' : 'default'}
+        className={compact ? 'gba:flex-shrink-0' : 'gba:w-full'}
         data-testid={`${testId}-perm-select`}
       >
         <SelectValue />
@@ -296,7 +297,10 @@ export const ShareDriveItemDialog: React.FC<ShareDriveItemDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-lg gba:overflow-hidden" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-lg gba:max-h-[90vh] gba:flex gba:flex-col gba:overflow-hidden"
+        data-testid={testId}
+      >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
@@ -318,7 +322,7 @@ export const ShareDriveItemDialog: React.FC<ShareDriveItemDialogProps> = ({
             </p>
           </div>
         ) : (
-          <div className="gba:space-y-5 gba:py-4 gba:overflow-y-auto gba:max-h-[60vh]">
+          <div className="gba:space-y-5 gba:py-2 gba:overflow-y-auto gba:flex-1 gba:-mx-6 gba:px-6">
             <div className="gba:space-y-2">
               <Label>{t('share-dialog-default-permission')}</Label>
               {permissionSelect(defaultPermission, setDefaultPermission)}

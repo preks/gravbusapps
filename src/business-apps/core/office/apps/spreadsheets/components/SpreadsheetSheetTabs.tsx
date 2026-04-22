@@ -1,7 +1,11 @@
 /**
  * SpreadsheetSheetTabs Component
  *
- * Renders tab navigation for multiple sheets in a spreadsheet app.
+ * Legacy tab navigation for multiple sheets. The app now uses Univer's own
+ * sheet-bar as the primary switch/create/rename/delete UI (wired back to the
+ * backend via command listeners in UniverSheetGrid / SpreadsheetAppViewer), so
+ * this component only renders a minimal fallback view when more than one real
+ * backend sheet exists but Univer's bar is hidden for some reason.
  */
 
 import React, { memo } from 'react'
@@ -24,7 +28,6 @@ export const SpreadsheetSheetTabs: React.FC<SpreadsheetSheetTabsProps> = memo(fu
   entityDataLength,
   'data-testid': testId = 'spreadsheet-sheet-tabs'
 }) {
-  // Only render if there are multiple sheets
   if (sheets.length <= 1) {
     return null
   }
@@ -38,7 +41,6 @@ export const SpreadsheetSheetTabs: React.FC<SpreadsheetSheetTabsProps> = memo(fu
         {sheets.map(sheet => {
           const isActive = sheet.id === activeSheetId
           const hasEntitySource = sheet.entityDataSource?.enabled
-          // For active entity source sheets, use entityDataLength if provided
           const dataCount =
             isActive && hasEntitySource && entityDataLength !== undefined ? entityDataLength : sheet.data.length
 
@@ -73,7 +75,6 @@ export const SpreadsheetSheetTabs: React.FC<SpreadsheetSheetTabsProps> = memo(fu
               >
                 {dataCount}
               </span>
-              {/* Active indicator line */}
               {isActive && (
                 <div className="gba:absolute gba:bottom-0 gba:left-2 gba:right-2 gba:h-0.5 gba:bg-primary gba:rounded-full" />
               )}

@@ -1,5 +1,19 @@
-import React, { useState, useMemo } from 'react'
-import { Card, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import React, { useEffect, useMemo, useState } from 'react'
+import {
+  Card,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
 import {
   ExportIcon,
   CheckCircleIcon,
@@ -21,7 +35,7 @@ import {
   generatePayrollCSV,
   generatePayrollXLSX,
   generateExceptionsCSV,
-  downloadCSV,
+  generateExceptionsXLSX,
   downloadBlob,
   getExportableEmployees
 } from '../../../utils/exportUtils'
@@ -31,7 +45,7 @@ import {
   DEFAULT_PAYROLL_COUNTRY
 } from '../../../utils/payrollDefaults'
 import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
-import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
+import { PayrollRunStatusBadge, getPayrollRunStatusLabel } from '../../shared/StatusBadge'
 
 const STATUS_ORDER: PayrollRunStatus[] = [
   'PAYROLL_IN_PROGRESS',
@@ -95,23 +109,6 @@ function getAuditDescriptionLabel(
   }
 }
 
-function getRunStatusLabel(status: PayrollRunStatus, t: (key: string) => string): string {
-  switch (status) {
-    case 'PAYROLL_IN_PROGRESS':
-      return t('status-in-progress')
-    case 'PAYROLL_READY_FOR_REVIEW':
-      return t('status-ready-for-review')
-    case 'PAYROLL_APPROVED_FOR_EXPORT':
-      return t('status-approved')
-    case 'PAYROLL_EXPORTED':
-      return t('status-exported')
-    case 'PAYROLL_CLOSED':
-      return t('status-closed')
-    default:
-      return status
-  }
-}
-
 interface ExportSignoffViewProps {
   employees: PayrollEmployee[]
   filteredEmployees: PayrollEmployee[]
@@ -155,16 +152,28 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
 }) => {
   const [reviewComment, setReviewComment] = useState('')
   const [commentError, setCommentError] = useState(false)
-
   const [exportMode, setExportMode] = useState<ExportOptions['mode']>('ready_only')
   const [includeIssues, setIncludeIssues] = useState(false)
   const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx'>('csv')
   const [applyGridFilters, setApplyGridFilters] = useState(false)
-  const [exportSuccess, setExportSuccess] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [pendingReviewDecision, setPendingReviewDecision] = useState<ApprovalDecision | null>(null)
+  const [awaitingExportConfirmation, setAwaitingExportConfirmation] = useState(false)
 
   const currentStatus = payrollRun?.status || 'PAYROLL_IN_PROGRESS'
   const currentStep = getStepIndex(currentStatus)
+
+  useEffect(() => {
+    if (currentStatus !== 'PAYROLL_APPROVED_FOR_EXPORT') {
+      setAwaitingExportConfirmation(false)
+    }
+  }, [currentStatus])
+
+  useEffect(() => {
+    if (!gridFiltersActive) {
+      setApplyGridFilters(false)
+    }
+  }, [gridFiltersActive])
 
   const steps: StepDef[] = useMemo(
     () => [
@@ -221,25 +230,40 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     await markReadyForReview()
   }
 
-  const handleApprove = async () => {
+  const validateReviewComment = (): boolean => {
     if (!reviewComment.trim()) {
       setCommentError(true)
-      return
+      return false
     }
+
     setCommentError(false)
-    await submitReview('APPROVED', reviewComment.trim())
-    setReviewComment('')
+    return true
   }
 
-  const handleReject = async () => {
-    if (!reviewComment.trim()) {
-      setCommentError(true)
+  const handleApprove = () => {
+    if (!validateReviewComment()) {
       return
     }
-    setCommentError(false)
-    if (!globalThis.confirm(t('step-2-reject-confirm'))) return
-    await submitReview('NOT APPROVED', reviewComment.trim())
+
+    setPendingReviewDecision('APPROVED')
+  }
+
+  const handleReject = () => {
+    if (!validateReviewComment()) {
+      return
+    }
+
+    setPendingReviewDecision('NOT APPROVED')
+  }
+
+  const handleConfirmReviewDecision = async () => {
+    if (!pendingReviewDecision) {
+      return
+    }
+
+    await submitReview(pendingReviewDecision, reviewComment.trim())
     setReviewComment('')
+    setPendingReviewDecision(null)
   }
 
   const handleExport = async () => {
@@ -253,30 +277,45 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     setExporting(true)
     try {
       const baseFilename = `payroll_${effectiveRun.country}_${effectiveRun.year}-${String(effectiveRun.month).padStart(2, '0')}_${(effectiveRun.legalEntityName || DEFAULT_EXPORT_FILE_BASENAME).replace(/\s+/g, '_')}`
+      const filename = `${baseFilename}.${exportFormat}`
+      const blob =
+        exportFormat === 'xlsx'
+          ? await generatePayrollXLSX(sourceEmployees, effectiveRun, options)
+          : new Blob([generatePayrollCSV(sourceEmployees, effectiveRun, options)], { type: 'text/csv;charset=utf-8;' })
 
-      if (exportFormat === 'xlsx') {
-        const blob = await generatePayrollXLSX(sourceEmployees, effectiveRun, options)
-        downloadBlob(blob, `${baseFilename}.xlsx`)
-      } else {
-        const csv = generatePayrollCSV(sourceEmployees, effectiveRun, options)
-        downloadCSV(csv, `${baseFilename}.csv`)
-      }
+      downloadBlob(blob, filename)
 
-      recordExport(options.mode, exportCount)
-      if (payrollRun) {
-        await updateStatus('PAYROLL_EXPORTED')
+      if (currentStatus === 'PAYROLL_APPROVED_FOR_EXPORT') {
+        setAwaitingExportConfirmation(true)
       }
-      setExportSuccess(true)
-      setTimeout(() => setExportSuccess(false), 3000)
     } finally {
       setExporting(false)
     }
   }
 
-  const handleExportExceptions = () => {
-    const csv = generateExceptionsCSV(sourceEmployees)
-    const filename = `payroll_exceptions_${effectiveRun.country}_${effectiveRun.year}-${String(effectiveRun.month).padStart(2, '0')}.csv`
-    downloadCSV(csv, filename)
+  const handleExportExceptions = async () => {
+    setExporting(true)
+    try {
+      const filename = `payroll_exceptions_${effectiveRun.country}_${effectiveRun.year}-${String(effectiveRun.month).padStart(2, '0')}.${exportFormat}`
+      const blob =
+        exportFormat === 'xlsx'
+          ? await generateExceptionsXLSX(sourceEmployees)
+          : new Blob([generateExceptionsCSV(sourceEmployees)], { type: 'text/csv;charset=utf-8;' })
+
+      downloadBlob(blob, filename)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handleConfirmExportCompleted = async () => {
+    recordExport(exportMode, exportCount)
+
+    if (payrollRun) {
+      await updateStatus('PAYROLL_EXPORTED')
+    }
+
+    setAwaitingExportConfirmation(false)
   }
 
   const renderStepIndicator = () => (
@@ -315,7 +354,10 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
           </h3>
           {isCompleted && <CompletedStepBadge label={t('step-completed')} />}
           {isActive && (
-            <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
+            <PayrollRunStatusBadge
+              status={currentStatus}
+              translatedLabel={getPayrollRunStatusLabel(currentStatus, t)}
+            />
           )}
         </div>
 
@@ -325,6 +367,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
             <Button
               onClick={handleMarkReady}
               disabled={saving || summary.blockedCount > 0}
+              className="gba:w-full gba:justify-center"
               data-testid="payroll-prep-export-mark-ready-button"
             >
               {t('signoff-mark-ready')}
@@ -374,7 +417,10 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
             </span>
           )}
           {isActive && (
-            <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
+            <PayrollRunStatusBadge
+              status={currentStatus}
+              translatedLabel={getPayrollRunStatusLabel(currentStatus, t)}
+            />
           )}
         </div>
 
@@ -453,6 +499,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
   const renderStep3 = () => {
     const isActive = currentStatus === 'PAYROLL_APPROVED_FOR_EXPORT'
     const isCompleted = currentStep > 2
+    const showExportControls = isActive || isCompleted
 
     return (
       <Card className={getStepCardClasses(isActive, isCompleted)} data-testid="payroll-prep-export-step-3-card">
@@ -463,7 +510,10 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
           </h3>
           {isCompleted && <CompletedStepBadge label={t('step-completed')} />}
           {isActive && (
-            <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
+            <PayrollRunStatusBadge
+              status={currentStatus}
+              translatedLabel={getPayrollRunStatusLabel(currentStatus, t)}
+            />
           )}
         </div>
 
@@ -482,7 +532,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
           </div>
         )}
 
-        {isActive && (
+        {showExportControls && (
           <>
             <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('step-3-description')}</p>
 
@@ -535,25 +585,25 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
                   {t('export-include-issues')}
                 </label>
 
-                <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={applyGridFilters}
-                    onChange={e => setApplyGridFilters(e.target.checked)}
-                    className="gba:rounded gba:border-border"
-                    data-testid="payroll-prep-export-apply-grid-filters-checkbox"
-                  />
-                  <span
-                    className={gridFiltersActive ? 'gba:text-foreground gba:font-medium' : 'gba:text-muted-foreground'}
-                  >
-                    {t('export-apply-grid-filters')}
-                  </span>
-                  {gridFiltersActive && <FunnelIcon size={14} weight="fill" className="gba:text-primary" />}
-                </label>
-                {applyGridFilters && gridFiltersActive && (
-                  <p className="gba:text-xs gba:text-muted-foreground gba:ml-6">
-                    {t('export-grid-filters-active', { count: filteredEmployees.length, total: employees.length })}
-                  </p>
+                {gridFiltersActive && (
+                  <>
+                    <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={applyGridFilters}
+                        onChange={e => setApplyGridFilters(e.target.checked)}
+                        className="gba:rounded gba:border-border"
+                        data-testid="payroll-prep-export-apply-grid-filters-checkbox"
+                      />
+                      <span className="gba:text-foreground gba:font-medium">{t('export-apply-grid-filters')}</span>
+                      <FunnelIcon size={14} weight="fill" className="gba:text-primary" />
+                    </label>
+                    {applyGridFilters && (
+                      <p className="gba:text-xs gba:text-muted-foreground gba:ml-6">
+                        {t('export-grid-filters-active', { count: filteredEmployees.length, total: employees.length })}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -569,16 +619,26 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
                 <Button
                   variant="outline"
                   onClick={handleExportExceptions}
+                  disabled={exporting}
                   data-testid="payroll-prep-export-exceptions-button"
                 >
                   {t('export-exceptions-button')}
                 </Button>
               </div>
 
-              {exportSuccess && (
-                <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                  <CheckCircleIcon size={16} weight="fill" className="gba:text-success" />
-                  {t('export-success')}
+              {awaitingExportConfirmation && (
+                <div className="gba:space-y-3">
+                  <p className="gba:text-sm gba:text-muted-foreground">{t('export-complete-hint')}</p>
+                  <div className="gba:flex gba:gap-3">
+                    <Button
+                      onClick={handleConfirmExportCompleted}
+                      disabled={saving}
+                      className="gba:w-full gba:justify-center"
+                      data-testid="payroll-prep-export-mark-complete-button"
+                    >
+                      {t('export-mark-complete')}
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -609,7 +669,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
                   <span className="gba:text-muted-foreground">{t('signoff-status')}</span>
                   <PayrollRunStatusBadge
                     status={payrollRun.status}
-                    translatedLabel={getRunStatusLabel(payrollRun.status, t)}
+                    translatedLabel={getPayrollRunStatusLabel(payrollRun.status, t)}
                   />
                 </div>
                 {payrollRun.preparedBy && (
@@ -686,6 +746,32 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
 
   return (
     <div className="gba:space-y-6" data-testid="payroll-prep-export-signoff-view">
+      <Dialog open={pendingReviewDecision !== null} onOpenChange={open => !open && setPendingReviewDecision(null)}>
+        <DialogContent className="gba:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingReviewDecision === 'APPROVED'
+                ? t('step-2-approve-confirm-title')
+                : t('step-2-reject-confirm-title')}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingReviewDecision === 'APPROVED'
+                ? t('step-2-approve-confirm-description')
+                : t('step-2-reject-confirm')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingReviewDecision(null)} disabled={saving}>
+              {t('action-cancel')}
+            </Button>
+            <Button onClick={handleConfirmReviewDecision} disabled={saving}>
+              {pendingReviewDecision === 'APPROVED'
+                ? t('step-2-approve-confirm-action')
+                : t('step-2-reject-confirm-action')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {renderStepIndicator()}
       {renderStep1()}
       {renderStep2()}

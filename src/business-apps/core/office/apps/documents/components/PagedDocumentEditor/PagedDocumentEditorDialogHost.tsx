@@ -28,6 +28,7 @@ export interface PagedDocumentEditorDialogHostProps {
   onCloseCheckpointDialog: () => void
   onSaveCheckpoint: ComponentProps<typeof CheckpointDialog>['onSave']
   isSavingCheckpoint: boolean
+  checkpointDialogMessages?: ComponentProps<typeof CheckpointDialog>['messages']
   showPublishDialog: boolean
   onClosePublishDialog: () => void
   onPublish: ComponentProps<typeof PublishDialog>['onPublish']
@@ -80,6 +81,7 @@ export function PagedDocumentEditorDialogHost({
   onCloseCheckpointDialog,
   onSaveCheckpoint,
   isSavingCheckpoint,
+  checkpointDialogMessages,
   showPublishDialog,
   onClosePublishDialog,
   onPublish,
@@ -139,6 +141,7 @@ export function PagedDocumentEditorDialogHost({
           onClose={onCloseCheckpointDialog}
           onSave={onSaveCheckpoint}
           isSaving={isSavingCheckpoint}
+          messages={checkpointDialogMessages}
           data-testid="document-checkpoint-dialog"
         />
       )}

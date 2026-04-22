@@ -50,12 +50,24 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
   workingHours
 }) => {
   const locale = getCurrentActiveUserLocale()
-  const { currentMonth, prevMonth, nextMonth, entries, entriesForReport, pageSize, setPageSize, error, refresh } =
-    useTimeTrackingData({
-      employeeId,
-      accessToken,
-      workingHours
-    })
+  const {
+    currentMonth,
+    prevMonth,
+    nextMonth,
+    entries,
+    entriesForReport,
+    pageSize,
+    setPageSize,
+    sortKey,
+    sortDir,
+    setSort,
+    error,
+    refresh
+  } = useTimeTrackingData({
+    employeeId,
+    accessToken,
+    workingHours
+  })
 
   const { t } = useTranslation(timeTrackingTranslations)
   const [showCalendar, setShowCalendar] = React.useState(false)
@@ -340,6 +352,9 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
           employeeId={employeeId}
           userId={userId}
           showRowsPerPage={false}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSort={setSort}
         />
       </Card>
     </div>

@@ -5,6 +5,7 @@ import { useManagerExpensesOverview } from './useManagerExpensesOverview'
 import { extractCurrencyCode } from '../utils/currencyUtils'
 import { convertDateRangeToGraphQL } from '../utils/dateUtils'
 import { useCurrencyRefs, usePaginationParams, useStatsFromOverview, extractLoadingError } from './overviewHelpers'
+import type { ExpenseAmountRangeValue } from '../../../common/utils/amountRangeFilterUtils'
 
 export interface ExpenseRequestsOverviewDataParams {
   managerId: string
@@ -20,6 +21,7 @@ export interface ExpenseRequestsOverviewDataParams {
   pageSize: number
   currentPage: number
   reqOrderBy: unknown[]
+  totalAmountRange?: ExpenseAmountRangeValue
 }
 
 export interface RequestStats {
@@ -46,7 +48,8 @@ export function useExpenseRequestsOverviewData(
     endDateRange,
     pageSize,
     currentPage,
-    reqOrderBy
+    reqOrderBy,
+    totalAmountRange
   } = params
 
   const { currencyRef, statsCurrencyRef: reqStatsCurrencyRef } = useCurrencyRefs(primaryCurrency, mostUsedCurrency)
@@ -70,6 +73,7 @@ export function useExpenseRequestsOverviewData(
       requestsRequestDateRange,
       requestsStartDateRange,
       requestsEndDateRange,
+      requestsTotalAmountRange: totalAmountRange,
       plans: { limit: 0, offset: 0 },
       payments: { limit: 0, offset: 0 }
     }),
@@ -84,7 +88,9 @@ export function useExpenseRequestsOverviewData(
       requestsEffectiveDateRange,
       requestsRequestDateRange,
       requestsStartDateRange,
-      requestsEndDateRange
+      requestsEndDateRange,
+      totalAmountRange?.min,
+      totalAmountRange?.max
     ]
   )
 

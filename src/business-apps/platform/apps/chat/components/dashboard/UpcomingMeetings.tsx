@@ -15,6 +15,7 @@ import { Calendar, Video, Users, ExternalLink, ListTodo } from 'lucide-react'
 import { useChatClient } from '@/common/network/chat/useChatClient'
 import type { CalendarEvent } from '../../calendar/types'
 import { getAgendaFromMetadata } from '../../calendar/utils/agendaUtils'
+import { canJoinMeeting, handleMeetingJoin, hasExternalMeetingLink } from '../../calendar/utils/meetingJoin'
 import { useEmployeeAvatarsCache, EmployeeAvatarInfo } from '../../hooks/useEmployeeAvatarsCache'
 import translations from '../../_i18n'
 
@@ -102,18 +103,6 @@ function formatRelativeTime(
   return { label: date.toLocaleDateString(locale, { month: 'short', day: 'numeric' }), isLive: false, isSoon: false }
 }
 
-/**
- * Check if meeting is joinable
- */
-function canJoinMeeting(meeting: CalendarEvent): boolean {
-  if (!meeting.meetingLink || meeting.meetingLink === 'auto-generate') {
-    // Can join via internal call system
-    return meeting.status === 'scheduled' || meeting.status === 'in_progress'
-  }
-  // Has external link
-  return true
-}
-
 interface MeetingCardProps {
   meeting: CalendarEvent
   avatarMap: Map<string, EmployeeAvatarInfo>
@@ -128,7 +117,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, avatarMap, onJoin, '
   const { t, locale } = useTranslation(translations)
   const timeInfo = formatRelativeTime(meeting.start, locale, t)
   const joinable = canJoinMeeting(meeting)
-  const hasExternalLink = meeting.meetingLink && meeting.meetingLink !== 'auto-generate'
+  const hasExternalLink = hasExternalMeetingLink(meeting)
   const agendaItems = getAgendaFromMetadata(meeting.metadata)
   const hasAgenda = agendaItems.length > 0
   const hasTranscription = meeting.transcriptionEnabled === true || meeting.metadata?.aiTranscriptionEnabled === true
@@ -377,13 +366,7 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
   // Handle join meeting
   const handleJoinMeeting = useCallback(
     (meeting: CalendarEvent) => {
-      if (meeting.meetingLink && meeting.meetingLink !== 'auto-generate') {
-        // External link - open in new tab
-        window.open(meeting.meetingLink, '_blank', 'noopener,noreferrer')
-      } else if (onJoinMeeting) {
-        // Internal meeting - trigger callback
-        onJoinMeeting(meeting)
-      }
+      handleMeetingJoin(meeting, onJoinMeeting)
     },
     [onJoinMeeting]
   )

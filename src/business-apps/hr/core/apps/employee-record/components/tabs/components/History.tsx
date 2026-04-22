@@ -13,10 +13,11 @@ interface HistoryProps {
 
 const History: React.FC<HistoryProps> = ({ employeeId, accessToken }) => {
   const locale = getCurrentActiveUserLocale()
-  const { currentMonth, prevMonth, nextMonth, entries, pageSize, setPageSize, error } = useTimeTrackingData({
-    employeeId,
-    accessToken
-  })
+  const { currentMonth, prevMonth, nextMonth, entries, pageSize, setPageSize, sortKey, sortDir, setSort, error } =
+    useTimeTrackingData({
+      employeeId,
+      accessToken
+    })
 
   return (
     <div data-testid="time-tracking-history-container">
@@ -49,6 +50,9 @@ const History: React.FC<HistoryProps> = ({ employeeId, accessToken }) => {
             onPageSizeChange={setPageSize}
             accessToken={accessToken}
             employeeId={employeeId}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={setSort}
           />
         </CardContent>
       </Card>

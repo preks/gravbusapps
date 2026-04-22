@@ -36,6 +36,7 @@ interface ActivityVisualizationProps {
   activityData: ActivityData[]
   stats: Stats
   isLoading: boolean
+  showWhiteboards?: boolean
   'data-testid'?: string
 }
 
@@ -49,6 +50,7 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
   activityData,
   stats,
   isLoading,
+  showWhiteboards = true,
   'data-testid': testId = 'desk-activity'
 }) => {
   const { t } = useTranslation(deskTranslations)
@@ -72,15 +74,15 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
     periodTotals.spreadsheets +
     periodTotals.notes +
     periodTotals.slides +
-    periodTotals.whiteboards
+    (showWhiteboards ? periodTotals.whiteboards : 0)
 
   const maxBarValue = useMemo(() => {
     const daySums = activityData.map(
-      d => d.documents + d.spreadsheets + d.notes + (d.slides ?? 0) + (d.whiteboards ?? 0)
+      d => d.documents + d.spreadsheets + d.notes + (d.slides ?? 0) + (showWhiteboards ? (d.whiteboards ?? 0) : 0)
     )
     const max = Math.max(...daySums, 1)
     return Math.ceil(max * 1.05)
-  }, [activityData])
+  }, [activityData, showWhiteboards])
 
   const chartConfig = useMemo<ChartConfig>(
     () => ({
@@ -88,53 +90,73 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
       spreadsheets: { label: t('type-spreadsheets'), color: CHART_COLORS[1] },
       notes: { label: t('type-notes'), color: CHART_COLORS[2] },
       slides: { label: t('type-slides'), color: CHART_COLORS[3] },
-      whiteboards: { label: t('type-whiteboards'), color: CHART_COLORS[4] }
+      ...(showWhiteboards ? { whiteboards: { label: t('type-whiteboards'), color: CHART_COLORS[4] } } : {})
     }),
-    [t]
+    [showWhiteboards, t]
   )
 
-  const legendItems = [
-    {
-      key: 'documents',
-      label: t('type-documents'),
-      icon: FileText,
-      color: CHART_COLORS[0],
-      count: stats.documents.total,
-      activity: periodTotals.documents
-    },
-    {
-      key: 'spreadsheets',
-      label: t('type-spreadsheets'),
-      icon: FileSpreadsheet,
-      color: CHART_COLORS[1],
-      count: stats.spreadsheets.total,
-      activity: periodTotals.spreadsheets
-    },
-    {
-      key: 'notes',
-      label: t('type-notes'),
-      icon: StickyNote,
-      color: CHART_COLORS[2],
-      count: stats.notes.total,
-      activity: periodTotals.notes
-    },
-    {
-      key: 'slides',
-      label: t('type-slides'),
-      icon: Presentation,
-      color: CHART_COLORS[3],
-      count: stats.slides?.total ?? 0,
-      activity: periodTotals.slides
-    },
-    {
-      key: 'whiteboards',
-      label: t('type-whiteboards'),
-      icon: PenTool,
-      color: CHART_COLORS[4],
-      count: stats.whiteboards?.total ?? 0,
-      activity: periodTotals.whiteboards
-    }
-  ]
+  const legendItems = useMemo(
+    () => [
+      {
+        key: 'documents',
+        label: t('type-documents'),
+        icon: FileText,
+        color: CHART_COLORS[0],
+        count: stats.documents.total,
+        activity: periodTotals.documents
+      },
+      {
+        key: 'spreadsheets',
+        label: t('type-spreadsheets'),
+        icon: FileSpreadsheet,
+        color: CHART_COLORS[1],
+        count: stats.spreadsheets.total,
+        activity: periodTotals.spreadsheets
+      },
+      {
+        key: 'notes',
+        label: t('type-notes'),
+        icon: StickyNote,
+        color: CHART_COLORS[2],
+        count: stats.notes.total,
+        activity: periodTotals.notes
+      },
+      {
+        key: 'slides',
+        label: t('type-slides'),
+        icon: Presentation,
+        color: CHART_COLORS[3],
+        count: stats.slides?.total ?? 0,
+        activity: periodTotals.slides
+      },
+      ...(showWhiteboards
+        ? [
+            {
+              key: 'whiteboards',
+              label: t('type-whiteboards'),
+              icon: PenTool,
+              color: CHART_COLORS[4],
+              count: stats.whiteboards?.total ?? 0,
+              activity: periodTotals.whiteboards
+            }
+          ]
+        : [])
+    ],
+    [
+      periodTotals.documents,
+      periodTotals.notes,
+      periodTotals.slides,
+      periodTotals.spreadsheets,
+      periodTotals.whiteboards,
+      showWhiteboards,
+      stats.documents.total,
+      stats.notes.total,
+      stats.slides?.total,
+      stats.spreadsheets.total,
+      stats.whiteboards?.total,
+      t
+    ]
+  )
 
   return (
     <section
@@ -221,17 +243,19 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
                         <Cell key={`slide-${index}`} />
                       ))}
                     </Bar>
-                    <Bar
-                      dataKey="whiteboards"
-                      stackId="a"
-                      fill={CHART_COLORS[4]}
-                      radius={[6, 6, 0, 0]}
-                      opacity={!hoveredType || hoveredType === 'whiteboards' ? 1 : 0.25}
-                    >
-                      {activityData.map((_, index) => (
-                        <Cell key={`whiteboard-${index}`} />
-                      ))}
-                    </Bar>
+                    {showWhiteboards && (
+                      <Bar
+                        dataKey="whiteboards"
+                        stackId="a"
+                        fill={CHART_COLORS[4]}
+                        radius={[6, 6, 0, 0]}
+                        opacity={!hoveredType || hoveredType === 'whiteboards' ? 1 : 0.25}
+                      >
+                        {activityData.map((_, index) => (
+                          <Cell key={`whiteboard-${index}`} />
+                        ))}
+                      </Bar>
+                    )}
                   </BarChart>
                 </ChartContainer>
               )}

@@ -79,6 +79,36 @@ export function createExpenseTripMultiSelectOptions(
   ]
 }
 
+export function createNumberRangeFilterGroup(
+  groupId: string,
+  field: string,
+  i18nKey: string,
+  fallback: string
+): FilterConfiguration['groups'][number] {
+  return {
+    id: `${groupId}-group`,
+    label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback),
+    collapsible: true,
+    defaultExpanded: false,
+    filters: [
+      {
+        id: field,
+        field,
+        label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback),
+        type: 'number',
+        config: {
+          mode: 'range' as const,
+          min: 0,
+          max: 10_000_000,
+          step: 0.01,
+          placeholderMin: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_amount', 'Min Amount'),
+          placeholderMax: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_amount', 'Max Amount')
+        }
+      }
+    ]
+  }
+}
+
 export function createTypeFilterGroup(
   id: string,
   field: string,

@@ -23,6 +23,7 @@ export interface UpdateEmployeeEntitlementsContextState {
   isFixedEmployeeId: boolean
   fixedEmployeeName?: string
   employeeHeaderInfo?: EmployeeInfo
+  employeeHireDate?: string
   entitlements: any[]
   absenceTypes: Array<{ id: string; value?: string; code?: string; translations?: any[] }>
   loading: boolean
@@ -53,12 +54,14 @@ export function UpdateEmployeeEntitlementsProvider({
   children
 }: UpdateEmployeeEntitlementsProviderProps) {
   const graphql = useGraphqlClient(accessToken)
-  const [loading, setLoading] = useState(true)
+  const [employeesLoading, setEmployeesLoading] = useState(!employeeId)
+  const [entitlementsLoading, setEntitlementsLoading] = useState(Boolean(employeeId))
   const [error, setError] = useState<string | null>(null)
   const [employees, setEmployees] = useState<EmployeeLite[]>([])
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('')
   const [fixedEmployeeName, setFixedEmployeeName] = useState<string>('')
   const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeInfo | undefined>(undefined)
+  const [employeeHireDate, setEmployeeHireDate] = useState<string | undefined>(undefined)
   const [entitlements, setEntitlements] = useState<any[]>([])
   const [absenceTypes, setAbsenceTypes] = useState<
     Array<{ id: string; value?: string; code?: string; translations?: any[] }>
@@ -66,11 +69,16 @@ export function UpdateEmployeeEntitlementsProvider({
 
   const activeEmployeeId = useMemo(() => employeeId || selectedEmployeeId, [employeeId, selectedEmployeeId])
   const isFixedEmployeeId = useMemo(() => Boolean(employeeId && String(employeeId).trim().length > 0), [employeeId])
+  const loading = employeesLoading || entitlementsLoading
 
   const loadEmployees = useCallback(async () => {
     try {
       // If employeeId is fixed, skip loading all employees
-      if (isFixedEmployeeId) return
+      if (isFixedEmployeeId) {
+        setEmployeesLoading(false)
+        return
+      }
+      setEmployeesLoading(true)
       const res: any = await graphql.request(ALL_EMPLOYEE_DATA_QUERY as any, {
         structureId: getCurrentActiveStructureId(),
         activeUserLocale: getCurrentActiveUserLocale()
@@ -87,24 +95,19 @@ export function UpdateEmployeeEntitlementsProvider({
       }
     } catch {
       setEmployees([])
+    } finally {
+      setEmployeesLoading(false)
     }
   }, [graphql, isFixedEmployeeId, selectedEmployeeId, activeEmployeeId])
 
   const loadEmployeeEntitlements = useCallback(async () => {
     if (!activeEmployeeId) return
     try {
-      setLoading(true)
+      setEntitlementsLoading(true)
       setError(null)
-      const now = new Date()
-      const currentYear = now.getFullYear()
-      // Build yearly bounds in UTC to keep filtering consistent across user timezones.
-      const firstDay = new Date(Date.UTC(currentYear, 0, 1, 0, 0, 0, 0))
-      const lastDay = new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59, 999))
       const res: any = await graphql.request(EMPLOYEE_DATA_QUERY as any, {
         employeeId: activeEmployeeId,
-        activeUserLocale: getCurrentActiveUserLocale(),
-        firstDayOfCurrentYear: firstDay.toISOString(),
-        lastDayOfCurrentYear: lastDay.toISOString()
+        activeUserLocale: getCurrentActiveUserLocale()
       })
       setEntitlements(res?.EmployeeAbsenceEntitlement || [])
       setAbsenceTypes(res?.absenceType || [])
@@ -115,12 +118,16 @@ export function UpdateEmployeeEntitlementsProvider({
         setFixedEmployeeName(fullName)
         // employeePosition is an array, get the first one
         const position = Array.isArray(emp.employeePosition) ? emp.employeePosition[0] : emp.employeePosition
+        const workingCondition = Array.isArray(emp.workingCondition) ? emp.workingCondition[0] : emp.workingCondition
         setEmployeeHeaderInfo({
           firstName: emp.firstName,
           lastName: emp.lastName,
           pictureThumbnail: emp.pictureThumbnail,
           jobTitle: position?.jobPosition?.name
         })
+        setEmployeeHireDate(workingCondition?.hireDate || position?.hireDate || undefined)
+      } else {
+        setEmployeeHireDate(undefined)
       }
     } catch (e: any) {
       setError(
@@ -128,7 +135,7 @@ export function UpdateEmployeeEntitlementsProvider({
           getTranslationFromI18nKeyAndLabel('lowcoder:employee_termination.error_load_title', 'Error Loading Employee')
       )
     } finally {
-      setLoading(false)
+      setEntitlementsLoading(false)
     }
   }, [activeEmployeeId, graphql])
 
@@ -151,7 +158,7 @@ export function UpdateEmployeeEntitlementsProvider({
     if (activeEmployeeId) {
       loadEmployeeEntitlements()
     } else {
-      setLoading(false)
+      setEntitlementsLoading(false)
     }
   }, [activeEmployeeId, loadEmployeeEntitlements])
 
@@ -175,6 +182,7 @@ export function UpdateEmployeeEntitlementsProvider({
         isFixedEmployeeId,
         fixedEmployeeName,
         employeeHeaderInfo,
+        employeeHireDate,
         entitlements,
         absenceTypes,
         loading,

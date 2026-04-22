@@ -108,7 +108,7 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
           .map((msg: any) => ({
             id: msg.id,
             content: msg.content,
-            senderId: msg.senderId || msg.sender?.id,
+            senderId: msg.senderId || msg.sender?.id || msg.metadata?.userId,
             senderName: msg.sender?.displayName || msg.sender?.firstName || msg.senderName,
             senderAvatar: msg.sender?.avatarUrl,
             createdAt: msg.createdAt,

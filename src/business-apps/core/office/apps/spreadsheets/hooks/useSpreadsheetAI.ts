@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import {
   SPREADSHEET_ANALYZER_SYSTEM_PROMPT,
@@ -26,6 +27,7 @@ import type {
   DashboardViewConfig,
   KanbanViewConfig
 } from '../types'
+import translations from '../_i18n'
 
 export interface UseSpreadsheetAIState {
   isAnalyzing: boolean
@@ -43,6 +45,7 @@ export interface UseSpreadsheetAIResult extends UseSpreadsheetAIState {
  * Hook for AI-powered spreadsheet analysis
  */
 export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
+  const { t } = useTranslation(translations)
   const [state, setState] = useState<UseSpreadsheetAIState>({
     isAnalyzing: false,
     error: null,
@@ -147,7 +150,7 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
         setState(prev => ({ ...prev, progress: 80 }))
 
         // Transform AI response to our types
-        const analysis = transformAIResponse(aiAnalysis, parsedFile)
+        const analysis = transformAIResponse(aiAnalysis, parsedFile, t)
 
         setState(prev => ({ ...prev, progress: 90 }))
 
@@ -183,7 +186,7 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
         // Always fall back to local inference - AI is optional
         try {
           setState(prev => ({ ...prev, progress: 60 }))
-          const fallbackAnalysis = performLocalAnalysis(parsedFile)
+          const fallbackAnalysis = performLocalAnalysis(parsedFile, t)
           setState(prev => ({
             ...prev,
             isAnalyzing: false,
@@ -198,14 +201,14 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
           setState(prev => ({
             ...prev,
             isAnalyzing: false,
-            error: 'Analysis failed. Please try again or upload a different file.',
+            error: t('ai-analysis-failed'),
             progress: 0
           }))
           return null
         }
       }
     },
-    [promptClient]
+    [promptClient, t]
   )
 
   /**
@@ -230,10 +233,14 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
 /**
  * Transform AI response to our SpreadsheetAnalysis type
  */
-function transformAIResponse(aiResponse: any, parsedFile: ParsedExcelFile): SpreadsheetAnalysis {
+function transformAIResponse(
+  aiResponse: any,
+  parsedFile: ParsedExcelFile,
+  t: (key: string, vars?: Record<string, string | number>) => string
+): SpreadsheetAnalysis {
   const sheets: SheetAnalysis[] = (aiResponse.sheets || []).map((sheet: any) => {
     const columns: ColumnAnalysis[] = (sheet.columns || []).map((col: any) => ({
-      name: col.name || 'Unknown',
+      name: col.name || t('ai-default-unknown'),
       detectedType: validateColumnType(col.detectedType),
       isRequired: col.isRequired ?? false,
       isUnique: col.isUnique ?? false,
@@ -246,16 +253,16 @@ function transformAIResponse(aiResponse: any, parsedFile: ParsedExcelFile): Spre
 
     const suggestedViews: SuggestedView[] = (sheet.suggestedViews || []).map((view: any) => ({
       type: validateViewType(view.type),
-      name: view.name || 'Default View',
+      name: view.name || t('ai-default-view-name'),
       description: view.description || '',
       config: transformViewConfig(view.config, view.type)
     }))
 
     return {
-      name: sheet.name || 'Sheet',
-      purpose: sheet.purpose || 'Data storage',
+      name: sheet.name || t('ai-default-sheet-name'),
+      purpose: sheet.purpose || t('ai-default-purpose'),
       columns,
-      suggestedViews: suggestedViews.length > 0 ? suggestedViews : getDefaultViews(columns),
+      suggestedViews: suggestedViews.length > 0 ? suggestedViews : getDefaultViews(columns, t),
       primaryKeyColumn: sheet.primaryKeyColumn,
       isLookupTable: sheet.isLookupTable ?? false
     }
@@ -367,12 +374,15 @@ function transformViewConfig(config: any, viewType: string): ViewConfig {
 /**
  * Get default views for a sheet
  */
-function getDefaultViews(columns: ColumnAnalysis[]): SuggestedView[] {
+function getDefaultViews(
+  columns: ColumnAnalysis[],
+  t: (key: string, vars?: Record<string, string | number>) => string
+): SuggestedView[] {
   const views: SuggestedView[] = [
     {
       type: 'table',
-      name: 'Table View',
-      description: 'View and edit all data in a table format',
+      name: t('ai-default-view-table-name'),
+      description: t('ai-default-view-table-description'),
       config: {
         type: 'table',
         columns: columns.map(c => c.name)
@@ -384,8 +394,8 @@ function getDefaultViews(columns: ColumnAnalysis[]): SuggestedView[] {
   if (columns.length <= 15) {
     views.push({
       type: 'form',
-      name: 'Form View',
-      description: 'Add and edit records using a form',
+      name: t('ai-default-view-form-name'),
+      description: t('ai-default-view-form-description'),
       config: {
         type: 'form',
         fields: columns.map(c => c.name),
@@ -414,8 +424,8 @@ function getDefaultViews(columns: ColumnAnalysis[]): SuggestedView[] {
     if (titleColumn) {
       views.push({
         type: 'kanban',
-        name: 'Kanban Board',
-        description: `Visualize by ${statusColumn.name}`,
+        name: t('ai-default-view-kanban-name'),
+        description: t('ai-default-view-kanban-description', { column: statusColumn.name }),
         config: {
           type: 'kanban',
           statusColumn: statusColumn.name,
@@ -433,8 +443,8 @@ function getDefaultViews(columns: ColumnAnalysis[]): SuggestedView[] {
   if (numericColumns.length >= 2) {
     views.push({
       type: 'dashboard',
-      name: 'Dashboard',
-      description: 'Visualize key metrics and trends',
+      name: t('ai-default-view-dashboard-name'),
+      description: t('ai-default-view-dashboard-description'),
       config: {
         type: 'dashboard',
         widgets: numericColumns.slice(0, 4).map(col => ({
@@ -488,7 +498,10 @@ function enhanceWithLocalInference(analysis: SpreadsheetAnalysis, parsedFile: Pa
 /**
  * Perform local analysis without AI (fallback)
  */
-function performLocalAnalysis(parsedFile: ParsedExcelFile): SpreadsheetAnalysis {
+function performLocalAnalysis(
+  parsedFile: ParsedExcelFile,
+  t: (key: string, vars?: Record<string, string | number>) => string
+): SpreadsheetAnalysis {
   const sheets: SheetAnalysis[] = parsedFile.sheets.map(sheet => {
     const columns: ColumnAnalysis[] = sheet.columns.map(col => ({
       name: col.name,
@@ -504,7 +517,7 @@ function performLocalAnalysis(parsedFile: ParsedExcelFile): SpreadsheetAnalysis 
       name: sheet.name,
       purpose: inferSheetPurpose(sheet.name, columns),
       columns,
-      suggestedViews: getDefaultViews(columns),
+      suggestedViews: getDefaultViews(columns, t),
       primaryKeyColumn: findPrimaryKey(columns),
       isLookupTable: isLikelyLookupTable(sheet.rowCount, columns)
     }

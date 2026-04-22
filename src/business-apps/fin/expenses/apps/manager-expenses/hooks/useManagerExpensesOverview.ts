@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { MANAGER_EXPENSES_OVERVIEW } from '../queries/ManagerExpensesOverview'
+import type { ExpenseAmountRangeValue } from '../../../common/utils/amountRangeFilterUtils'
+import { addScalarNumericRangeConditions } from '../../../common/utils/amountRangeFilterUtils'
 
 // Input configuration for the consolidated overview query
 export interface OverviewPagingAndSort<TOrder> {
@@ -48,6 +50,12 @@ export interface UseManagerExpensesOverviewParams {
   requestsEndDateRange?: { from?: string | null; to?: string | null } | null
   // Request type filter (EXPENSES, TRIP)
   requestsTypeFilter?: string[]
+  /** Filters ExpensePlans list by `totalAmount` bounds (same currency as selected list currency). */
+  plansTotalAmountRange?: ExpenseAmountRangeValue
+  /** Filters ExpenseRequests list by `totalAmount` bounds. */
+  requestsTotalAmountRange?: ExpenseAmountRangeValue
+  /** Filters AdvancePayments list by `amount` bounds. */
+  paymentsAmountRange?: ExpenseAmountRangeValue
 }
 
 export interface ManagerExpensesOverviewState {
@@ -253,7 +261,13 @@ function buildPlanDateWhereClause(params: UseManagerExpensesOverviewParams): Gql
       buildDateRangeCondition(params.plansPlanDateRange?.from, params.plansPlanDateRange?.to)
     ),
     buildPlanTypeFilter(params.plansTypeFilter)
-  ].filter(Boolean)
+  ].filter(Boolean) as GqlBoolExp[]
+
+  const amountFragment: Record<string, unknown>[] = []
+  addScalarNumericRangeConditions(amountFragment, params.plansTotalAmountRange ?? null, 'totalAmount')
+  for (const c of amountFragment) {
+    conditions.push(c as GqlBoolExp)
+  }
 
   return (conditions.length > 0 ? { _and: conditions } : {}) as unknown as GqlBoolExp
 }
@@ -274,9 +288,27 @@ function buildRequestDateWhereClause(params: UseManagerExpensesOverviewParams): 
       buildDateRangeCondition(params.requestsEndDateRange?.from, params.requestsEndDateRange?.to)
     ),
     buildRequestTypeFilter(params.requestsTypeFilter)
-  ].filter(Boolean)
+  ].filter(Boolean) as GqlBoolExp[]
+
+  const amountFragment: Record<string, unknown>[] = []
+  addScalarNumericRangeConditions(amountFragment, params.requestsTotalAmountRange ?? null, 'totalAmount')
+  for (const c of amountFragment) {
+    conditions.push(c as GqlBoolExp)
+  }
 
   return (conditions.length > 0 ? { _and: conditions } : {}) as unknown as GqlBoolExp
+}
+
+function buildPaymentAmountWhere(params: UseManagerExpensesOverviewParams): GqlBoolExp {
+  const conditions: Record<string, unknown>[] = []
+  addScalarNumericRangeConditions(conditions, params.paymentsAmountRange ?? null, 'amount')
+  if (conditions.length === 0) {
+    return {} as unknown as GqlBoolExp
+  }
+  if (conditions.length === 1) {
+    return conditions[0] as GqlBoolExp
+  }
+  return { _and: conditions } as unknown as GqlBoolExp
 }
 
 function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Record<string, unknown> {
@@ -319,7 +351,8 @@ function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Recor
     reqDateWhere: buildRequestDateWhereClause(params),
     reqStatusWhere: buildRequestStatusWhere(params.requestsStatus),
     planStatusWhere: buildPlanStatusWhere(params.plansStatus, params.plansStatusExclude),
-    payStatusWhere: buildPaymentStatusWhere(params.paymentsStatus)
+    payStatusWhere: buildPaymentStatusWhere(params.paymentsStatus),
+    payAmountWhere: buildPaymentAmountWhere(params)
   }
 }
 
@@ -539,7 +572,13 @@ export const useManagerExpensesOverview = (
     params.requestsEndDateRange?.from,
     params.requestsEndDateRange?.to,
     // Request type filter
-    JSON.stringify(params.requestsTypeFilter || [])
+    JSON.stringify(params.requestsTypeFilter || []),
+    params.plansTotalAmountRange?.min,
+    params.plansTotalAmountRange?.max,
+    params.requestsTotalAmountRange?.min,
+    params.requestsTotalAmountRange?.max,
+    params.paymentsAmountRange?.min,
+    params.paymentsAmountRange?.max
   ])
 
   const run = useCallback(async () => {

@@ -194,6 +194,38 @@ export class SpreadsheetCollaborationManager {
     const { operation, version } = payload
     const activeSheetId = this.callbacks.getActiveSheetId()
 
+    // Self-echo guard: the server broadcasts every operation to all clients
+    // (including the sender). For operations we originated, the local HTTP
+    // batch response already:
+    //   • mutated React state via `commitLocalSheetData`,
+    //   • bumped `sheetVersionRef`,
+    //   • called `rememberLocalCommittedVersion(newVersion)` so the existing
+    //     version-based `shouldIgnoreReceivedOperation` hook can filter the
+    //     echo *when it carries a matching version*.
+    // When the broadcast omits `version` (or the per-op version inside a
+    // `batch_operations` echo differs from the single `newVersion` we
+    // remembered) the version filter misses, the echo falls into
+    // `handleBatchOperations` / the `LIVE_STRUCTURAL_OP_TYPES` branch, and
+    // that fires `scheduleRemoteStructuralResync` — which in turn calls
+    // `reloadSheetFromCanonicalSnapshot` → `commitLocalSheetData(..., { syncGrid: true })`
+    // → Univer grid re-apply → the whole-grid blink users see on drag-fill
+    // and fast typing on sheets 2+.
+    //
+    // Matching by `userId` is deterministic for self-origin ops and
+    // complements the version filter for the broadcast paths that don't
+    // include a version. We still update `lastKnownVersion` so reconnect
+    // reconciliation stays accurate.
+    const senderUserId = typeof payload.userId === 'string' ? payload.userId : ''
+    if (senderUserId && this.currentUserId && senderUserId === this.currentUserId) {
+      this.updateVersion(operation.data, version)
+      this.collabDiag('collab_receive_self_echo_skipped', {
+        opType: operation.type,
+        senderUserId,
+        hasVersion: typeof version === 'number'
+      })
+      return
+    }
+
     if (operation.type === 'dimension_sync') {
       const d = operation.data as CellDimensionsPayload | undefined
       if (d?.sheetId === activeSheetId) {

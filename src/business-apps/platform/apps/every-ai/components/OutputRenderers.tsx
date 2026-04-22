@@ -379,6 +379,7 @@ function renderEntity(item: EntityData, accessToken: string) {
           textTitle={item.text_title}
           tool={item.tool}
           link={item.link}
+          textFull={item.text_full}
         />
       )
     default: {

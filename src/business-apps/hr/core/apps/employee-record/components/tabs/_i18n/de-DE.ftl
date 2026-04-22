@@ -78,4 +78,4 @@ documents-error-empty-blob = Leerer Blob erhalten
 documents-error-no-file-id = Keine Dokumentdatei-ID verfügbar
 documents-error-no-file-info = Keine Dateiinformationen verfügbar
 documents-error-image-display = Das Bild konnte nicht angezeigt werden. Es könnte in einem nicht unterstützten Format sein.
-change-entitlement = Kontingent ändern
+change-entitlement = Ansprüche bearbeiten

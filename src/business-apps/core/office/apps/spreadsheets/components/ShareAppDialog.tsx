@@ -492,7 +492,10 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="gba:max-w-lg" data-testid="share-app-dialog">
+      <DialogContent
+        className="gba:max-w-lg gba:max-h-[90vh] gba:flex gba:flex-col gba:overflow-hidden"
+        data-testid="share-app-dialog"
+      >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
@@ -501,7 +504,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
           <DialogDescription>{t('share-dialog-description')}</DialogDescription>
         </DialogHeader>
 
-        <div className="gba:space-y-6 gba:py-4">
+        <div className="gba:space-y-5 gba:py-2 gba:overflow-y-auto gba:flex-1 gba:-mx-6 gba:px-6">
           {/* Add People Section */}
           {isOwner && (
             <div className="gba:space-y-3">
@@ -578,9 +581,9 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                     {selectedUsers.map(user => (
                       <div
                         key={user.userId}
-                        className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:bg-accent/50 gba:rounded-lg"
+                        className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:bg-accent/50 gba:rounded-lg"
                       >
-                        <Avatar className="gba:h-8 gba:w-8">
+                        <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
                           {user.pictureThumbnail ? (
                             <AvatarImage
                               src={`data:image/jpeg;base64,${user.pictureThumbnail}`}
@@ -601,7 +604,8 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                           onValueChange={val => updateUserPermission(user.userId, val as SharePermission)}
                         >
                           <SelectTrigger
-                            className="gba:w-36 gba:h-8"
+                            size="sm"
+                            className="gba:flex-shrink-0"
                             data-testid={`share-user-permission-select-${user.userId}`}
                           >
                             <SelectValue />
@@ -622,11 +626,11 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                         </Select>
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => removeUser(user.userId)}
-                          className="gba:h-6 gba:w-6 gba:p-0"
+                          className="gba:h-8 gba:w-8 gba:flex-shrink-0"
                         >
-                          <X className="gba:w-3 gba:h-3" />
+                          <X className="gba:w-4 gba:h-4" />
                         </Button>
                       </div>
                     ))}
@@ -674,17 +678,21 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
 
             <div className="gba:border gba:rounded-lg gba:divide-y gba:max-h-64 gba:overflow-y-auto">
               {/* Owner */}
-              <div className="gba:p-3 gba:flex gba:items-center gba:gap-3 gba:bg-accent/30">
-                <Avatar className="gba:h-10 gba:w-10">
-                  <AvatarFallback>{getInitials(isOwner ? currentUserName : t('share-dialog-owner'))}</AvatarFallback>
+              <div className="gba:p-2 gba:flex gba:items-center gba:gap-2 gba:bg-accent/30">
+                <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+                  <AvatarFallback className="gba:text-xs">
+                    {getInitials(isOwner ? currentUserName : t('share-dialog-owner'))}
+                  </AvatarFallback>
                 </Avatar>
-                <div className="gba:flex-1">
-                  <p className="gba:text-sm gba:font-medium">
+                <div className="gba:flex-1 gba:min-w-0">
+                  <p className="gba:text-sm gba:font-medium gba:truncate">
                     {isOwner ? t('share-dialog-you') : t('share-dialog-owner')}
                   </p>
-                  <p className="gba:text-xs gba:text-muted-foreground">{t('share-dialog-owner')}</p>
+                  <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{t('share-dialog-owner')}</p>
                 </div>
-                <Badge variant="outline">{t('share-dialog-owner')}</Badge>
+                <Badge variant="outline" className="gba:flex-shrink-0">
+                  {t('share-dialog-owner')}
+                </Badge>
               </div>
 
               {/* Shared Users */}
@@ -696,27 +704,27 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                   return (
                     <div
                       key={user.userId}
-                      className="gba:p-3 gba:flex gba:items-center gba:gap-3"
+                      className="gba:p-2 gba:flex gba:items-center gba:gap-2"
                       data-testid={`shared-user-${user.userId}`}
                     >
-                      <Avatar className="gba:h-10 gba:w-10">
+                      <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
                         {user.userAvatar && <AvatarImage src={user.userAvatar} alt={user.userName} />}
-                        <AvatarFallback>{getInitials(user.userName)}</AvatarFallback>
+                        <AvatarFallback className="gba:text-xs">{getInitials(user.userName)}</AvatarFallback>
                       </Avatar>
                       <div className="gba:flex-1 gba:min-w-0">
                         <p className="gba:text-sm gba:font-medium gba:truncate">{user.userName}</p>
                         <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{user.userEmail}</p>
                       </div>
-                      <Badge variant="outline" className="gba:gap-1">
+                      <Badge variant="outline" className="gba:gap-1 gba:flex-shrink-0">
                         <PermIcon className="gba:w-3 gba:h-3" />
                         {t(permKeys.label)}
                       </Badge>
                       {isOwner && (
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => handleUnshare(user.id)}
-                          className="gba:text-destructive hover:gba:text-destructive"
+                          className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:text-destructive hover:gba:text-destructive"
                           data-testid={`unshare-button-${user.userId}`}
                         >
                           <Trash2 className="gba:w-4 gba:h-4" />

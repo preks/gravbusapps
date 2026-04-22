@@ -18,8 +18,6 @@ customer-description = Aktiver Kunde mit etablierter Geschäftsbeziehung
 portfolio-description = Aktives Portfoliounternehmen mit Investitionsbeteiligungen
 
 # Company Information
-legal-form-label = Rechtsform
-legal-form-placeholder = Bitte auswählen...
 priority-label = Priorität
 priority-placeholder = Bitte auswählen...
 industry-label = Branche

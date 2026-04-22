@@ -774,22 +774,42 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="gba:h-10 gba:w-10 gba:rounded-full gba:transition-all gba:duration-300 gba:flex-shrink-0 gba:border-0"
+                      className="gba:relative gba:h-10 gba:w-10 gba:rounded-full gba:transition-all gba:duration-300 gba:flex-shrink-0 gba:border-0"
                       style={{
                         background:
                           isSearching || files.length > 0
                             ? `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`
-                            : darkMode
-                              ? 'rgba(255,255,255,0.1)'
-                              : 'rgba(0,0,0,0.04)',
-                        color: isSearching || files.length > 0 ? 'white' : darkMode ? 'rgba(255,255,255,0.7)' : '#666',
-                        boxShadow: isSearching || files.length > 0 ? `0 2px 12px rgba(${goldRgb}, 0.3)` : 'none'
+                            : pageSkillsEnabled
+                              ? darkMode
+                                ? 'hsl(var(--primary) / 0.25)'
+                                : 'hsl(var(--primary) / 0.12)'
+                              : darkMode
+                                ? 'rgba(255,255,255,0.1)'
+                                : 'rgba(0,0,0,0.04)',
+                        color:
+                          isSearching || files.length > 0
+                            ? 'white'
+                            : pageSkillsEnabled
+                              ? 'hsl(var(--primary))'
+                              : darkMode
+                                ? 'rgba(255,255,255,0.7)'
+                                : '#666',
+                        boxShadow:
+                          isSearching || files.length > 0
+                            ? `0 2px 12px rgba(${goldRgb}, 0.3)`
+                            : pageSkillsEnabled
+                              ? '0 0 0 2px hsl(var(--primary) / 0.35)'
+                              : 'none'
                       }}
                       aria-label="More options"
-                      title="More options"
+                      title={pageSkillsEnabled ? `Page Skills active: ${activePageSkills.join(', ')}` : 'More options'}
                       disabled={disabled}
                     >
-                      <PlusIcon className="gba:h-5 gba:w-5" weight="bold" />
+                      {pageSkillsEnabled ? (
+                        <LightningIcon className="gba:h-5 gba:w-5" weight="fill" />
+                      ) : (
+                        <PlusIcon className="gba:h-5 gba:w-5" weight="bold" />
+                      )}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent
@@ -947,6 +967,69 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                           </span>
                         )}
                       </button>
+
+                      {/* Page Skills Toggle */}
+                      {activePageSkills.length > 0 && onTogglePageSkills && (
+                        <button
+                          onClick={() => onTogglePageSkills(!pageSkillsEnabled)}
+                          className={`gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:transition-all gba:duration-200 gba:w-full gba:text-left ${darkMode && !pageSkillsEnabled ? 'gba:text-white/90 hover:gba:bg-white/10' : ''}`}
+                          style={{
+                            background: pageSkillsEnabled ? 'hsl(var(--primary) / 0.1)' : 'transparent',
+                            color: pageSkillsEnabled
+                              ? 'hsl(var(--primary))'
+                              : darkMode
+                                ? undefined
+                                : 'var(--nw-foreground)'
+                          }}
+                          onMouseEnter={e => {
+                            if (!pageSkillsEnabled && !darkMode) {
+                              ;(e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
+                            }
+                          }}
+                          onMouseLeave={e => {
+                            if (!pageSkillsEnabled && !darkMode) {
+                              ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                            }
+                          }}
+                          disabled={disabled}
+                          data-testid="page-skills-toggle"
+                        >
+                          <div
+                            className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
+                            style={{
+                              background: pageSkillsEnabled
+                                ? 'hsl(var(--primary) / 0.2)'
+                                : darkMode
+                                  ? 'rgba(96, 165, 250, 0.2)'
+                                  : `rgba(${goldRgb}, 0.12)`
+                            }}
+                          >
+                            <LightningIcon
+                              className="gba:h-4 gba:w-4"
+                              style={{
+                                color: pageSkillsEnabled
+                                  ? 'hsl(var(--primary))'
+                                  : darkMode
+                                    ? 'rgb(147, 197, 253)'
+                                    : `rgb(${goldRgb})`
+                              }}
+                              weight={pageSkillsEnabled ? 'fill' : 'bold'}
+                            />
+                          </div>
+                          <span className="gba:font-medium">Page Skills</span>
+                          {pageSkillsEnabled && (
+                            <span
+                              className="gba:ml-auto gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-semibold"
+                              style={{
+                                background: 'hsl(var(--primary) / 0.2)',
+                                color: 'hsl(var(--primary))'
+                              }}
+                            >
+                              ON
+                            </span>
+                          )}
+                        </button>
+                      )}
 
                       {/* My Preferences */}
                       <StandardMenuOption

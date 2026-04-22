@@ -319,8 +319,16 @@ notification-feedback-request-sent-success-on-behalf = The feedback request has 
 feedback-request-missing-user-id = Some selected employees are missing user IDs. Please reselect and try again.
 entitlements-valid-from-month-start-hint = The submitted date is always the first day of the selected month, regardless of the chosen day.
 entitlements-valid-from = Valid From
+entitlements-update-title = Update Entitlements
+entitlements-add-title = Add Entitlement
+entitlements-total = Yearly Entitlement / Allowance
+entitlements-total-annual = Yearly Entitlement / Allowance
 entitlements-effective-from = Effective From
 entitlements-effective-to = Effective To
+entitlements-valid-from-hire-date-error = Effective From cannot be earlier than the employee hire date
+entitlements-duplicate-error = An entitlement with the same type and effective from date already exists.
+entitlements-in-between-error = Effective From cannot be earlier than the latest existing entry for this entitlement type
+entitlements-hire-date-hint = Earliest allowed date
 
 # ============================================
 # Create Employee Form
@@ -378,6 +386,8 @@ create-absence-insufficient-balance = Insufficient balance
 create-absence-requested = Requested
 create-absence-available = Available
 create-absence-days = days
+create-absence-effective-days-label = Effective days
+create-absence-calendar-days-label = Calendar days
 create-absence-end-date-after-start = End date must be after start date
 create-absence-single-day-bank-holiday-blocked = The selected day is a bank holiday. You cannot submit a single-day absence for this date.
 create-absence-validation-failed = Validation failed. Please try again.

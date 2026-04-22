@@ -19,6 +19,7 @@ import type {
   MeetingParticipant
 } from '../types'
 import { getDateRangeForTimeScope } from '../types'
+import { useCreateMeeting } from './useCreateMeeting'
 
 dayjs.extend(localizedFormat)
 
@@ -171,6 +172,7 @@ export const useCalendar = ({
       setIsLoading(false)
     }
   }, [apiClient, dateRange, selectedCalendarIds, includePersonal])
+  const createMeeting = useCreateMeeting(accessToken, loadEvents)
 
   const rangeStartMs = dateRange.start.getTime()
   const rangeEndMs = dateRange.end.getTime()
@@ -293,15 +295,6 @@ export const useCalendar = ({
     }
     setCurrentDate(newDate)
   }, [currentDate, timeScope])
-
-  const createMeeting = useCallback(
-    async (data: CreateMeetingData): Promise<Meeting> => {
-      const response = await apiClient.createMeeting<{ meeting: Meeting }>(data)
-      await loadEvents()
-      return response.meeting
-    },
-    [apiClient, loadEvents]
-  )
 
   const updateMeeting = useCallback(
     async (meetingId: string, data: UpdateMeetingData): Promise<Meeting> => {

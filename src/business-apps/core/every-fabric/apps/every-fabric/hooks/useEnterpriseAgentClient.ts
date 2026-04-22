@@ -5,6 +5,7 @@ import { ResponseType } from '@/common/network/rest/RestClient'
 import type { DeepAgentSession, SessionConfig, StartSessionResponse } from '../types/enterpriseAgent'
 import type { ArtifactFile } from '../types/fabric'
 import { resolveRendererType } from '../types/fabric'
+import type { ActiveSessionsListResponse, ActiveSessionsSummaryResponse } from '../types/activeSession'
 
 export const useEnterpriseAgentClient = (accessToken: string) => {
   const client = usePromptManagerClient(accessToken)
@@ -59,6 +60,29 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   )
 
   const stopSession = useCallback((sessionId: string) => client.delete(`/deep-agent/sessions/${sessionId}`), [client])
+
+  const getActiveSessions = useCallback(
+    (params?: { limit?: number }) =>
+      client.get<ActiveSessionsListResponse>('/deep-agent/sessions/active', {
+        params: params as Record<string, string> | undefined
+      }),
+    [client]
+  )
+
+  const getActiveSessionsSummary = useCallback(
+    () => client.get<ActiveSessionsSummaryResponse>('/deep-agent/sessions/active/summary'),
+    [client]
+  )
+
+  /**
+   * Absolute SSE URL for the multiplexed active-sessions stream. Browsers can't
+   * send custom headers on EventSource, so the JWT travels as a query param
+   * (backend supports this — see `handlers.py:/sessions/active/stream`).
+   */
+  const buildActiveSessionsStreamUrl = useCallback((token: string): string => {
+    const base = PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
+    return `${base}/deep-agent/sessions/active/stream?token=${encodeURIComponent(token)}`
+  }, [])
 
   const getMemory = useCallback(
     (query: string) =>
@@ -145,6 +169,9 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       getSessions,
       replyToInterrupt,
       stopSession,
+      getActiveSessions,
+      getActiveSessionsSummary,
+      buildActiveSessionsStreamUrl,
       getMemory,
       saveMemory,
       deleteMemory,
@@ -161,6 +188,9 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       getSessions,
       replyToInterrupt,
       stopSession,
+      getActiveSessions,
+      getActiveSessionsSummary,
+      buildActiveSessionsStreamUrl,
       getMemory,
       saveMemory,
       deleteMemory,

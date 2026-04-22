@@ -24,19 +24,15 @@ import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCur
 import { useAdvancePaymentsOverviewData } from '../../../hooks/useAdvancePaymentsOverviewData'
 import { createAdvancePaymentFilterConfig } from './config/advancePaymentFilterConfig'
 import { buildAdvancePaymentOrderBy } from './config/advancePaymentOrderBy'
+import { ADVANCE_PAYMENT_DEFAULT_VISIBLE_COLUMN_IDS } from './config/advancePaymentColumnDefinitions'
 import { advancePaymentSortableColumns } from './config/advancePaymentSortableColumns'
 import { advancePaymentAvailableColumns } from './config/advancePaymentAvailableColumns'
 import type { AdvancePayment } from '../../../hooks/useMainViewAdvancePayments'
-
-const DEFAULT_VISIBLE_COLUMN_IDS = [
-  'expensePlan.title',
-  'expensePlan.startDate',
-  'expensePlan.endDate',
-  'expensePlan.employee.fullName',
-  'createdAt',
-  'amount',
-  'status'
-]
+import {
+  applyAmountRangeFromFilters,
+  isAmountRangeFilterActive,
+  type ExpenseAmountRangeValue
+} from '../../../../../common/utils/amountRangeFilterUtils'
 
 const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   const { t } = useTranslation(translations)
@@ -45,6 +41,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   const [searchTerm, setSearchTerm] = useState('')
   /** Default filter "In Approval (Pending)" is linked to the second (Pending) card; chip and card stay in sync. */
   const [statusFilter, setStatusFilter] = useState<string[]>([ExpenseStatus.PENDING])
+  const [amountRange, setAmountRange] = useState<ExpenseAmountRangeValue>(null)
   const [primaryCurrency, setPrimaryCurrency] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState(20)
 
@@ -52,7 +49,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     accessToken: props.accessToken ?? '',
     managerId
   })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...DEFAULT_VISIBLE_COLUMN_IDS])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...ADVANCE_PAYMENT_DEFAULT_VISIBLE_COLUMN_IDS])
   const [currentPage, setCurrentPage] = useState(1)
   const [sorting, setSorting] = useState<{
     field: string | null
@@ -74,7 +71,8 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
       statusFilter,
       pageSize,
       currentPage,
-      payOrderBy
+      payOrderBy,
+      amountRange
     })
 
   const filterLabelMap = useMemo(
@@ -95,8 +93,8 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   useCurrencyInit(mostUsedCurrency, setPrimaryCurrency, primaryCurrency)
 
   const filterSignature = useMemo(
-    () => ({ searchTerm, statusFilter, primaryCurrency }),
-    [searchTerm, statusFilter, primaryCurrency]
+    () => ({ searchTerm, statusFilter, primaryCurrency, amountRange }),
+    [searchTerm, statusFilter, primaryCurrency, amountRange]
   )
   const resetPage = useCallback(() => setCurrentPage(1), [])
   useFilterSignatureReset(filterSignature, resetPage)
@@ -123,6 +121,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
     const statusIds = (filters.statusIds as string[] | undefined) || []
     setStatusFilter(statusIds)
+    applyAmountRangeFromFilters(filters.amount as { min?: number; max?: number } | undefined, setAmountRange)
     setCurrentPage(1)
   }, [])
 
@@ -144,16 +143,20 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   const filtersObject = useMemo((): Record<string, unknown> => {
     const obj: Record<string, unknown> = {}
     if (statusFilter.length > 0) obj.statusIds = statusFilter
+    if (isAmountRangeFilterActive(amountRange)) {
+      obj.amount = { min: amountRange?.min, max: amountRange?.max }
+    }
     return obj
-  }, [statusFilter])
+  }, [statusFilter, amountRange])
 
   const sortingState = useSortingState(sorting)
 
   const hasActiveFilters = useMemo(() => {
     const hasSearch = (searchTerm || '').trim() !== ''
     const hasStatus = statusFilter.length > 0
-    return hasSearch || hasStatus || !!primaryCurrency
-  }, [searchTerm, statusFilter, primaryCurrency])
+    const hasAmount = isAmountRangeFilterActive(amountRange)
+    return hasSearch || hasStatus || !!primaryCurrency || hasAmount
+  }, [searchTerm, statusFilter, primaryCurrency, amountRange])
 
   const emptyMessage = useEmptyMessage(
     hasActiveFilters,
