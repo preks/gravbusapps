@@ -19,7 +19,27 @@ import {
   Robot
 } from '@phosphor-icons/react'
 import { useUserPreferencesContext } from '../context/UserPreferencesContext'
-import type { BehaviorNote } from '../hooks/useUserPreferences'
+import type { BehaviorNote, UserSelectableLlmProvider } from '../hooks/useUserPreferences'
+import {
+  DeveloperSettings,
+  SettingRow,
+  SettingSegmentedControl,
+  SettingToggle,
+  type SegmentedControlOption
+} from './DeveloperSettings'
+import { isDevTenant } from '../utils/tenantEnv'
+
+/**
+ * Choice surfaced in the LLM-provider segmented control. `'default'` is a
+ * UI-only sentinel that maps to `null` on the wire (= "use server default").
+ */
+type LlmProviderChoice = 'default' | UserSelectableLlmProvider
+
+const LLM_PROVIDER_OPTIONS: ReadonlyArray<SegmentedControlOption<LlmProviderChoice>> = [
+  { value: 'default', label: 'Default' },
+  { value: 'azure', label: 'Azure' },
+  { value: 'stackit', label: 'StackIT' }
+]
 
 interface UserPreferencesProps {
   darkMode?: boolean
@@ -131,6 +151,44 @@ export function UserPreferences({ darkMode = false }: UserPreferencesProps) {
     setEditingIndex(null)
     setEditingText('')
   }, [])
+
+  // ---- Developer settings ---------------------------------------------------
+  // Only surfaced on dev tenants (newwork-dev). On stage/prod the entire
+  // section -- and therefore the LLM-provider override and chat-cache
+  // toggle -- is hidden, so non-developer users can never opt themselves
+  // into experimental behaviour they don't see.
+  const showDeveloperSettings = isDevTenant()
+  const settings = preferences?.settings ?? {}
+  const chatCacheEnabled = settings.chat_cache_enabled === true
+  const llmProviderChoice: LlmProviderChoice = settings.llm_provider ?? 'default'
+  const settingsDisabled = isLoading || isSaving || preferences === null
+
+  const handleToggleChatCache = useCallback(
+    async (next: boolean) => {
+      setIsSaving(true)
+      const success = await updatePreferences({
+        settings: { chat_cache_enabled: next }
+      })
+      setIsSaving(false)
+      if (success) refresh()
+    },
+    [updatePreferences, refresh]
+  )
+
+  const handleSelectLlmProvider = useCallback(
+    async (next: LlmProviderChoice) => {
+      // 'default' is the UI sentinel for "no override"; send null on the wire
+      // so the backend clears any previously-pinned provider.
+      const wireValue: UserSelectableLlmProvider | null = next === 'default' ? null : next
+      setIsSaving(true)
+      const success = await updatePreferences({
+        settings: { llm_provider: wireValue }
+      })
+      setIsSaving(false)
+      if (success) refresh()
+    },
+    [updatePreferences, refresh]
+  )
 
   if (!isModalOpen) return null
 
@@ -506,6 +564,45 @@ export function UserPreferences({ darkMode = false }: UserPreferencesProps) {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Developer settings — dev tenants only. Always available once
+              data is loaded, even when the user has no notes or tool
+              affinities yet. */}
+          {showDeveloperSettings && !error && !(isLoading && !preferences) && (
+            <div className="gba:mt-6">
+              <DeveloperSettings darkMode={darkMode}>
+                <SettingRow
+                  darkMode={darkMode}
+                  label="Cache chat answers"
+                  description="Reuse answers for identical or semantically similar questions to make replies faster and cheaper."
+                  control={
+                    <SettingToggle
+                      darkMode={darkMode}
+                      checked={chatCacheEnabled}
+                      disabled={settingsDisabled}
+                      ariaLabel="Toggle chat answer caching"
+                      onChange={handleToggleChatCache}
+                    />
+                  }
+                />
+                <SettingRow
+                  darkMode={darkMode}
+                  label="LLM provider"
+                  description="Pin chats to a specific provider, or leave on Default to use the server's choice."
+                  control={
+                    <SettingSegmentedControl<LlmProviderChoice>
+                      darkMode={darkMode}
+                      value={llmProviderChoice}
+                      options={LLM_PROVIDER_OPTIONS}
+                      disabled={settingsDisabled}
+                      ariaLabel="Select LLM provider"
+                      onChange={handleSelectLlmProvider}
+                    />
+                  }
+                />
+              </DeveloperSettings>
             </div>
           )}
         </div>
