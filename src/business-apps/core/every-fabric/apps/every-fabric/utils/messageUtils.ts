@@ -15,7 +15,7 @@ import type {
 import { resolveRendererType } from '../types/fabric'
 import { extractLatestTodosFromEvents, isTodoListToolName } from './fabricTodoStream'
 
-const FABRIC_LIVE_PLAN_MESSAGE_ID = 'fabric-live-plan'
+export const FABRIC_LIVE_PLAN_MESSAGE_ID = 'fabric-live-plan'
 
 const terminalQuestion = (output: unknown, humanQuestion?: string | null): string => {
   if (typeof humanQuestion === 'string' && humanQuestion.trim()) return humanQuestion
