@@ -8,7 +8,6 @@
 import React from 'react'
 import {
   Button,
-  Separator,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -81,10 +80,14 @@ export function InsertTabContent({
 }: InsertTabContentProps) {
   const { t } = useTranslation(translations)
 
+  const groupClass =
+    'gba:flex gba:items-center gba:gap-1 gba:pr-3 gba:mr-1 gba:border-r gba:border-border/40 gba:border-t gba:border-t-border/40 gba:pt-1.5'
+  const lastGroupClass = 'gba:flex gba:items-center gba:gap-1 gba:border-t gba:border-t-border/40 gba:pt-1.5'
+
   return (
-    <>
+    <div className="gba:flex gba:flex-wrap gba:items-center gba:-mt-1.5 gba:overflow-hidden">
       {/* Elements Group */}
-      <div className="gba:flex gba:items-center gba:gap-1">
+      <div className={groupClass}>
         <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('insert-elements-group')}</span>
 
         {/* Text */}
@@ -153,10 +156,8 @@ export function InsertTabContent({
         </DropdownMenu>
       </div>
 
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
-
       {/* Media Group */}
-      <div className="gba:flex gba:items-center gba:gap-1">
+      <div className={groupClass}>
         <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('insert-media-group')}</span>
 
         <Button
@@ -228,10 +229,8 @@ export function InsertTabContent({
         </DropdownMenu>
       </div>
 
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
-
       {/* Templates Group */}
-      <div className="gba:flex gba:items-center gba:gap-1">
+      <div className={groupClass}>
         <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('insert-templates-group')}</span>
 
         <TemplateBrowserButton
@@ -248,10 +247,8 @@ export function InsertTabContent({
         />
       </div>
 
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
-
       {/* AI Tools Group */}
-      <div className="gba:flex gba:items-center gba:gap-1">
+      <div className={lastGroupClass}>
         <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('insert-ai-group')}</span>
 
         {currentSlide && accessToken && currentTheme && (
@@ -274,6 +271,6 @@ export function InsertTabContent({
           />
         )}
       </div>
-    </>
+    </div>
   )
 }

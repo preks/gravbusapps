@@ -93,7 +93,7 @@ import type { SlideAnnotation } from '../types/slideSpellCheck'
 import { exportToPptx } from '../utils/exportUtils'
 import { adjustLinksAfterEdit, detectUrls, mergeLinks, findEditPosition, createLink } from '../utils/linkUtils'
 import translations from '../_i18n'
-import type { TextElement, TextLink } from './slideElements'
+import type { TextElement, CodeElement, TextLink } from './slideElements'
 
 /**
  * Sanitizes a URL to prevent XSS attacks in media src attributes.
@@ -703,7 +703,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const selectedElements = currentSlide.elements.filter(e => selectedElementIds.has(e.id))
 
   // Toolbar context for contextual formatting tools
-  const { context: toolbarContext } = useToolbarContext({
+  const { context: toolbarContext, isMultiSelect } = useToolbarContext({
     selectedElement,
     selectedElements,
     selectedCount: selectedElementIds.size
@@ -923,6 +923,19 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       updateSlide({ elements: updatedElements })
     },
     [canEdit, currentSlide.elements, updateSlide]
+  )
+
+  // Applies updates to all selected elements (for toolbar and property panel multi-select)
+  const updateSelectedElements = useCallback(
+    (triggerId: string, updates: Partial<AnySlideElement>) => {
+      if (!canEdit) return
+      if (selectedElementIds.size > 1) {
+        updateMultipleElements([...selectedElementIds].map(id => ({ id, updates })))
+      } else {
+        updateElement(triggerId, updates)
+      }
+    },
+    [canEdit, selectedElementIds, updateElement, updateMultipleElements]
   )
 
   const addElement = useCallback(
@@ -1580,12 +1593,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       if (!editingTextId) return
       const newValue = typeof valueOrEvent === 'string' ? valueOrEvent : valueOrEvent.target.value
 
-      const currentElement = currentSlide?.elements.find(e => e.id === editingTextId) as TextElement | undefined
+      const currentElement = currentSlide?.elements.find(e => e.id === editingTextId)
+
+      if (currentElement?.type === 'code') {
+        currentEditingContentRef.current = newValue
+        updateElement(editingTextId, { code: newValue })
+        return
+      }
+
+      const textEl = currentElement as TextElement | undefined
       const oldValue = currentEditingContentRef.current
       currentEditingContentRef.current = newValue
 
       let updatedLinks: TextLink[] | undefined
-      if (currentElement?.links && currentElement.links.length > 0) {
+      if (textEl?.links && textEl.links.length > 0) {
         const editStart = findEditPosition(oldValue, newValue)
         const deletedLength = Math.max(
           0,
@@ -1593,7 +1614,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         )
         const insertedLength = Math.max(0, newValue.length - oldValue.length + deletedLength)
 
-        const manualLinks = currentElement.links.filter(l => !l.isAutoDetected)
+        const manualLinks = textEl.links.filter(l => !l.isAutoDetected)
         const adjustedManualLinks = adjustLinksAfterEdit(manualLinks, editStart, deletedLength, insertedLength)
         const autoLinks = detectUrls(newValue)
         updatedLinks = mergeLinks(autoLinks, adjustedManualLinks)
@@ -2255,7 +2276,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           onCopy={copyElement}
           onPaste={pasteElement}
           onAddElement={addElement}
-          onUpdateElement={updateElement}
+          onUpdateElement={isMultiSelect ? updateSelectedElements : updateElement}
           onShowBackgroundDialog={() => setShowBackgroundDialog(true)}
           onShowImageDialog={() => setShowImageDialog(true)}
           onShowVideoDialog={() => setShowVideoDialog(true)}
@@ -2532,10 +2553,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   onUpdateElement={updateElement}
                   onUpdateMultipleElements={updateMultipleElements}
                   onEditText={id => {
-                    const element = currentSlide.elements.find(e => e.id === id) as TextElement | undefined
-                    if (element) {
-                      voiceBaseContentRef.current = element.content
-                      currentEditingContentRef.current = element.content
+                    const element = currentSlide.elements.find(e => e.id === id)
+                    if (element?.type === 'text') {
+                      const te = element as TextElement
+                      voiceBaseContentRef.current = te.content
+                      currentEditingContentRef.current = te.content
+                      lastProcessedTranscriptRef.current = ''
+                      editingTextIdRef.current = id
+                    } else if (element?.type === 'code') {
+                      const ce = element as CodeElement
+                      voiceBaseContentRef.current = ce.code
+                      currentEditingContentRef.current = ce.code
                       lastProcessedTranscriptRef.current = ''
                       editingTextIdRef.current = id
                     }
@@ -2631,7 +2659,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               </div>
               <PropertyPanel
                 element={selectedElement}
-                onUpdate={updates => selectedElementId && updateElement(selectedElementId, updates)}
+                onUpdate={updates => selectedElementId && updateSelectedElements(selectedElementId, updates)}
                 onDelete={deleteElement}
                 onDuplicate={duplicateElement}
                 onBringForward={bringForward}

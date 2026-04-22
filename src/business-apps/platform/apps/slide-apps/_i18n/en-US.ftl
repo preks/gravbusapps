@@ -692,6 +692,15 @@ editor-area-chart = Area Chart
 editor-pie-chart = Pie Chart
 editor-radar-chart = Radar Chart
 editor-radial-chart = Radial Chart
+props-code-styling = Code Styling
+props-code-language = Language
+props-code-theme = Theme
+props-code-theme-dark = Dark
+props-code-theme-light = Light
+props-code-font-size = Font Size
+props-code-show-line-numbers = Line Numbers
+props-code-padding = Padding
+
 props-chart-settings = Chart Settings
 props-chart-title = Title
 props-chart-title-placeholder = Enter chart title...
@@ -701,6 +710,16 @@ props-show-legend = Show Legend
 props-show-grid = Show Grid
 props-show-tooltip = Show Tooltip
 props-chart-styling = Chart Styling
+props-chart-data = Chart Data
+props-chart-series = Series
+props-chart-add-series = Add Series
+props-chart-remove-series = Remove
+props-chart-series-label = Label
+props-chart-series-color = Color
+props-chart-data-rows = Data Rows
+props-chart-add-row = Add Row
+props-chart-remove-row = Remove Row
+props-chart-label = Label
 
 # Presentation Casting
 present-in-window = Present in Window

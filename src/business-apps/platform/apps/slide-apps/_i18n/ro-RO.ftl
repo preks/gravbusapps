@@ -420,6 +420,25 @@ props-unlock = Deblocare
 props-duplicate = Duplicare
 props-delete = Ștergere
 props-reset-rotation = Resetare rotație
+props-code-styling = Stilizare cod
+props-code-language = Limbaj
+props-code-theme = Temă
+props-code-theme-dark = Întunecat
+props-code-theme-light = Luminos
+props-code-font-size = Dimensiune font
+props-code-show-line-numbers = Numere de linie
+props-code-padding = Spațiere interioară
+
+props-chart-data = Date grafic
+props-chart-series = Serii de date
+props-chart-add-series = Adaugă serie
+props-chart-remove-series = Elimină
+props-chart-series-label = Etichetă
+props-chart-series-color = Culoare
+props-chart-data-rows = Rânduri de date
+props-chart-add-row = Adaugă rând
+props-chart-remove-row = Elimină rând
+props-chart-label = Etichetă
 
 # Content Attachment Picker
 attachment-add-reference = Adăugare referință

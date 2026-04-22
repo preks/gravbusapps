@@ -161,6 +161,9 @@ function addShapeElement(pptxSlide: any, element: ShapeElement) {
  * Convert code element to pptxgen text box with code formatting
  */
 function addCodeElement(pptxSlide: any, element: CodeElement) {
+  const defaultBg = element.theme === 'dark' ? '1E1E1E' : 'F5F5F5'
+  const bgColor = element.backgroundColor ? hexToPptxColor(element.backgroundColor) : defaultBg
+
   const options: any = {
     x: pxToInches(element.position.x),
     y: pxToInches(element.position.y),
@@ -170,12 +173,24 @@ function addCodeElement(pptxSlide: any, element: CodeElement) {
     fontFace: 'Courier New',
     align: 'left',
     valign: 'top',
-    color: element.theme === 'dark' ? 'FFFFFF' : '000000',
-    fill: { color: element.theme === 'dark' ? '1E1E1E' : 'F5F5F5' },
-    rotate: element.rotation
+    color: element.textColor ? hexToPptxColor(element.textColor) : element.theme === 'dark' ? 'FFFFFF' : '000000',
+    fill: { color: bgColor },
+    rotate: element.rotation,
+    margin: element.padding ? pxToInches(element.padding) : undefined,
+    shadow: element.shadow ? { type: 'outer', blur: 6, offset: 3, opacity: 0.2, color: '000000' } : undefined
   }
 
-  // Add code with line numbers if enabled
+  if ((element.borderRadius ?? 0) > 0) {
+    options.rectRadius = pxToInches(element.borderRadius)
+  }
+
+  if ((element.borderWidth ?? 0) > 0) {
+    options.border = {
+      pt: element.borderWidth,
+      color: hexToPptxColor(element.borderColor || '#333333')
+    }
+  }
+
   const codeLines = element.code.split('\n')
   const displayCode = element.showLineNumbers
     ? codeLines.map((line, i) => `${(i + 1).toString().padStart(3, ' ')} | ${line}`).join('\n')

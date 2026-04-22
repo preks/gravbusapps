@@ -439,6 +439,25 @@ props-unlock = Entsperren
 props-duplicate = Duplizieren
 props-delete = Löschen
 props-reset-rotation = Rotation zurücksetzen
+props-code-styling = Code-Gestaltung
+props-code-language = Sprache
+props-code-theme = Thema
+props-code-theme-dark = Dunkel
+props-code-theme-light = Hell
+props-code-font-size = Schriftgröße
+props-code-show-line-numbers = Zeilennummern
+props-code-padding = Innenabstand
+
+props-chart-data = Diagrammdaten
+props-chart-series = Datenreihen
+props-chart-add-series = Reihe hinzufügen
+props-chart-remove-series = Entfernen
+props-chart-series-label = Bezeichnung
+props-chart-series-color = Farbe
+props-chart-data-rows = Datenzeilen
+props-chart-add-row = Zeile hinzufügen
+props-chart-remove-row = Zeile entfernen
+props-chart-label = Bezeichnung
 
 # Content Attachment Picker
 attachment-add-reference = Referenz hinzufügen

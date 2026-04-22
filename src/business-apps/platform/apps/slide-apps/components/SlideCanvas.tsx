@@ -11,6 +11,7 @@ import type {
   ShapeElement,
   ImageElement,
   VideoElement,
+  CodeElement,
   TableElement,
   ChartElement,
   IconElement,
@@ -23,7 +24,8 @@ import type {
   Position,
   Size
 } from './slideElements'
-import { gradientToCss } from './slideElements'
+import { gradientToCss, gradientToSvgAttrs } from './slideElements'
+import type { GradientConfig } from './slideElements'
 import { SlideChartRenderer } from './SlideChartRenderer'
 import { TextWithLinks } from './TextWithLinks'
 import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
@@ -325,7 +327,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       const mdRef = mouseDownElementRef.current
       mouseDownElementRef.current = null
 
-      if (mdRef && mdRef.type === 'text') {
+      if (mdRef && (mdRef.type === 'text' || mdRef.type === 'code')) {
         if (inlineEditing?.editingTextId && inlineEditing.editingTextId !== mdRef.id) {
           textareaInitializedRef.current = null
           inlineEditing.onFinishEditing()
@@ -741,9 +743,42 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       }
     }, [isDragging, isResizing, handleMouseMove, handleMouseUp])
 
+    const renderSvgGradientDefs = (gradient: GradientConfig, id: string, viewBox = 100) => {
+      const attrs = gradientToSvgAttrs(gradient, viewBox)
+      if (attrs.type === 'radial') {
+        return (
+          <defs>
+            <radialGradient id={id} cx={attrs.cx} cy={attrs.cy} r={attrs.r}>
+              {attrs.stops.map((s, i) => (
+                <stop key={i} offset={s.offset} stopColor={s.stopColor} />
+              ))}
+            </radialGradient>
+          </defs>
+        )
+      }
+      return (
+        <defs>
+          <linearGradient
+            id={id}
+            x1={attrs.x1}
+            y1={attrs.y1}
+            x2={attrs.x2}
+            y2={attrs.y2}
+            gradientUnits="userSpaceOnUse"
+          >
+            {attrs.stops.map((s, i) => (
+              <stop key={i} offset={s.offset} stopColor={s.stopColor} />
+            ))}
+          </linearGradient>
+        </defs>
+      )
+    }
+
     const renderShape = (element: ShapeElement) => {
       const { shapeType, fill, gradient, strokeColor, strokeWidth, strokeStyle, cornerRadius, shadow } = element
       const fillStyle = gradient ? gradientToCss(gradient) : fill
+      const svgStroke = strokeWidth > 0 ? strokeColor : 'none'
+      const filterStyle = shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none'
 
       const baseStyle: React.CSSProperties = {
         width: '100%',
@@ -753,116 +788,112 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         boxShadow: shadow ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none'
       }
 
+      // For SVG shapes: use SVG gradient defs when gradient is set
+      const gradId = `grad-${element.id}`
+      const svgFill = gradient ? `url(#${gradId})` : fill
+
       switch (shapeType) {
         case 'rectangle':
         case 'rounded-rectangle':
           return <div style={{ ...baseStyle, borderRadius: cornerRadius || 0 }} />
         case 'circle':
-          return <div style={{ ...baseStyle, borderRadius: '50%' }} />
         case 'ellipse':
           return <div style={{ ...baseStyle, borderRadius: '50%' }} />
         case 'triangle':
           return (
-            <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-                <polygon
-                  points="50,5 95,95 5,95"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-                />
-              </svg>
-            </div>
+            <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+              {gradient && renderSvgGradientDefs(gradient, gradId)}
+              <polygon
+                points="50,5 95,95 5,95"
+                fill={svgFill}
+                stroke={svgStroke}
+                strokeWidth={strokeWidth}
+                style={{ filter: filterStyle }}
+              />
+            </svg>
           )
         case 'diamond':
           return (
-            <div style={{ width: '100%', height: '100%' }}>
-              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-                <polygon
-                  points="50,5 95,50 50,95 5,50"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-                />
-              </svg>
-            </div>
+            <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+              {gradient && renderSvgGradientDefs(gradient, gradId)}
+              <polygon
+                points="50,5 95,50 50,95 5,50"
+                fill={svgFill}
+                stroke={svgStroke}
+                strokeWidth={strokeWidth}
+                style={{ filter: filterStyle }}
+              />
+            </svg>
           )
         case 'star':
           return (
-            <div style={{ width: '100%', height: '100%' }}>
-              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-                <polygon
-                  points="50,5 61,35 95,35 68,57 79,91 50,70 21,91 32,57 5,35 39,35"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-                />
-              </svg>
-            </div>
+            <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+              {gradient && renderSvgGradientDefs(gradient, gradId)}
+              <polygon
+                points="50,5 61,35 95,35 68,57 79,91 50,70 21,91 32,57 5,35 39,35"
+                fill={svgFill}
+                stroke={svgStroke}
+                strokeWidth={strokeWidth}
+                style={{ filter: filterStyle }}
+              />
+            </svg>
           )
         case 'hexagon':
           return (
-            <div style={{ width: '100%', height: '100%' }}>
-              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-                <polygon
-                  points="25,5 75,5 100,50 75,95 25,95 0,50"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-                />
-              </svg>
-            </div>
+            <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+              {gradient && renderSvgGradientDefs(gradient, gradId)}
+              <polygon
+                points="25,5 75,5 100,50 75,95 25,95 0,50"
+                fill={svgFill}
+                stroke={svgStroke}
+                strokeWidth={strokeWidth}
+                style={{ filter: filterStyle }}
+              />
+            </svg>
           )
         case 'arrow-right':
           return (
-            <div style={{ width: '100%', height: '100%' }}>
-              <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
-                <polygon
-                  points="0,20 65,20 65,5 100,30 65,55 65,40 0,40"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                />
-              </svg>
-            </div>
+            <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
+              {gradient && renderSvgGradientDefs(gradient, gradId, 100)}
+              <polygon
+                points="0,20 65,20 65,5 100,30 65,55 65,40 0,40"
+                fill={svgFill}
+                stroke={svgStroke}
+                strokeWidth={strokeWidth}
+              />
+            </svg>
           )
         case 'arrow-left':
           return (
-            <div style={{ width: '100%', height: '100%' }}>
-              <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
-                <polygon
-                  points="100,20 35,20 35,5 0,30 35,55 35,40 100,40"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                />
-              </svg>
-            </div>
+            <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
+              {gradient && renderSvgGradientDefs(gradient, gradId, 100)}
+              <polygon
+                points="100,20 35,20 35,5 0,30 35,55 35,40 100,40"
+                fill={svgFill}
+                stroke={svgStroke}
+                strokeWidth={strokeWidth}
+              />
+            </svg>
           )
         case 'line':
           return (
             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}>
-              <div style={{ width: '100%', height: strokeWidth || 4, backgroundColor: fill }} />
+              <div style={{ width: '100%', height: strokeWidth || 4, background: fillStyle }} />
             </div>
           )
         case 'callout':
           return (
-            <div style={{ width: '100%', height: '100%' }}>
-              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-                <path
-                  d="M5,5 H95 V70 H40 L25,95 L30,70 H5 Z"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                  rx={cornerRadius}
-                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-                />
-              </svg>
-            </div>
+            <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+              {gradient && renderSvgGradientDefs(gradient, gradId)}
+              <path
+                d="M5,5 H95 V70 H40 L25,95 L30,70 H5 Z"
+                fill={svgFill}
+                stroke={svgStroke}
+                strokeWidth={strokeWidth}
+                rx={cornerRadius}
+                style={{ filter: filterStyle }}
+              />
+            </svg>
           )
         default:
           return <div style={baseStyle} />
@@ -1099,24 +1130,73 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             </>
           )}
 
-          {element.type === 'code' && (
-            <pre
-              style={{
+          {element.type === 'code' &&
+            (() => {
+              const ce = element as CodeElement
+              const defaultBg = ce.theme === 'dark' ? '#1e1e1e' : '#f8f8f8'
+              const defaultColor = ce.theme === 'dark' ? '#d4d4d4' : '#333'
+              const codeStyle: React.CSSProperties = {
                 width: '100%',
                 height: '100%',
                 margin: 0,
-                padding: '1rem',
-                backgroundColor: (element as any).theme === 'dark' ? '#1e1e1e' : '#f8f8f8',
-                color: (element as any).theme === 'dark' ? '#d4d4d4' : '#333',
+                padding: ce.padding ?? 16,
+                backgroundColor: ce.backgroundColor || defaultBg,
+                color: ce.textColor || defaultColor,
                 fontFamily: 'monospace',
-                fontSize: (element as any).fontSize,
+                fontSize: ce.fontSize,
                 overflow: 'auto',
-                borderRadius: '8px'
-              }}
-            >
-              <code>{(element as any).code}</code>
-            </pre>
-          )}
+                borderRadius: ce.borderRadius ?? 8,
+                border: (ce.borderWidth ?? 0) > 0 ? `${ce.borderWidth}px solid ${ce.borderColor || '#333333'}` : 'none',
+                boxShadow: ce.shadow
+                  ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+                  : 'none',
+                boxSizing: 'border-box'
+              }
+
+              if (inlineEditing?.editingTextId === element.id) {
+                return (
+                  <textarea
+                    ref={el => {
+                      if (el && textareaInitializedRef.current !== element.id) {
+                        textareaInitializedRef.current = element.id
+                        el.focus()
+                        el.selectionStart = el.selectionEnd = el.value.length
+                      }
+                    }}
+                    value={ce.code}
+                    onChange={e => inlineEditing.onTextChange(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') {
+                        e.preventDefault()
+                        textareaInitializedRef.current = null
+                        inlineEditing.onFinishEditing()
+                      }
+                    }}
+                    onClick={e => e.stopPropagation()}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{
+                      ...codeStyle,
+                      background: ce.backgroundColor || defaultBg,
+                      border:
+                        (ce.borderWidth ?? 0) > 0
+                          ? `${ce.borderWidth}px solid ${ce.borderColor || '#333333'}`
+                          : '1px solid rgba(255,255,255,0.2)',
+                      outline: 'none',
+                      resize: 'none',
+                      whiteSpace: 'pre',
+                      tabSize: 2
+                    }}
+                    spellCheck={false}
+                  />
+                )
+              }
+
+              return (
+                <pre style={codeStyle}>
+                  <code>{ce.code}</code>
+                </pre>
+              )
+            })()}
 
           {element.type === 'video' && sanitizeMediaUrl((element as VideoElement).src, ['video/']) && (
             <video
