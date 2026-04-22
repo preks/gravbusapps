@@ -92,13 +92,6 @@ const streamOverlayTerminalStatus = (events: AgentStreamEvent[]): string | null 
   return status
 }
 
-const extractSeq = (messageId: string): number | null => {
-  const match = /:(\d+)$/.exec(messageId)
-  if (!match) return null
-  const seq = Number.parseInt(match[1], 10)
-  return Number.isNaN(seq) ? null : seq
-}
-
 async function waitForRestSyncWithWaitingHumanStream(
   eventsSnapshot: AgentStreamEvent[],
   readRestStatus: () => DeepAgentSession['status'] | undefined,
@@ -486,35 +479,21 @@ export const useAgentSession = (
       return traceMessages
     }
 
-    // Session is running - show REST trace + any SSE messages with higher seq than trace
-    // This provides real-time updates while maintaining correct order
-    const traceSeqs = new Set<number>()
-    for (const msg of traceMessages) {
-      const seq = extractSeq(msg.id)
-      if (seq !== null) traceSeqs.add(seq)
-    }
+    // Session is running - show REST trace + any SSE messages not yet in trace.
+    // Dedupe strictly by stable ChatMessage.id (no fragile seq-suffix parsing —
+    // many message types like expert_call / tool_call / tool_result use
+    // step_id-based ids WITHOUT a trailing `:seq`, and the previous sort would
+    // pull every such message to the bottom of the conversation regardless of
+    // where it actually belonged, causing experts / tool calls to visually
+    // "shift under" later user replies and appear duplicated above/below.
+    //
+    // Both `traceMessages` and `streamMessages` already come out of
+    // `deriveMessagesFromEvents` in server/seq order, so preserving each
+    // source's ordering and merging them is sufficient — no global re-sort.
+    const traceIds = new Set(traceMessages.map(m => m.id))
+    const newStreamMessages = streamMessages.filter(m => !traceIds.has(m.id))
 
-    // Only add SSE messages that aren't already in the trace
-    const newStreamMessages = streamMessages.filter(msg => {
-      const seq = extractSeq(msg.id)
-      return seq !== null && !traceSeqs.has(seq)
-    })
-
-    // Combine: trace (already ordered) + new SSE messages (ordered) + optimistic (at end)
-    const combined = [...traceMessages, ...newStreamMessages, ...optimisticMessages]
-
-    // Sort by seq for consistency (trace is already ordered, but new messages need proper placement)
-    return combined.sort((a, b) => {
-      const aSeq = extractSeq(a.id)
-      const bSeq = extractSeq(b.id)
-      // Both have seq: sort by seq
-      if (aSeq !== null && bSeq !== null) return aSeq - bSeq
-      // One has seq, other doesn't: seq'd messages first, then others
-      if (aSeq !== null) return -1
-      if (bSeq !== null) return 1
-      // Neither has seq (optimistic messages): sort by timestamp
-      return toEpoch(a.timestamp) - toEpoch(b.timestamp)
-    })
+    return [...traceMessages, ...newStreamMessages, ...optimisticMessages]
   }, [streamMessages, mergedSession, optimisticMessages, isAgentRunning, session, matchedBootstrapSession])
 
   const liveTurnEvents = useMemo(() => {

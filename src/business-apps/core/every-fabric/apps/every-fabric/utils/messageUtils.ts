@@ -159,6 +159,76 @@ function toolCallMessageStatus(completed: StepCompletion | undefined): 'failed' 
   return completed.status === 'failed' ? 'failed' : 'done'
 }
 
+type DelegationStatus = 'running' | 'done' | 'failed'
+
+interface ExpertCallContent {
+  agentId: string
+  task: string
+  status: DelegationStatus
+  durationMs?: number
+  outputPreview?: string
+}
+
+/**
+ * Collapses multiple backend spawns of the same logical expert/sub-agent
+ * (same agent name + same task summary but different `step_id`s — e.g. retries
+ * across turns) into a single transcript bubble, and merges their status so
+ * a completion from any one spawn wins over a still-running one.
+ *
+ * Status ranking: `done` > `failed` > `running` (a successful completion is
+ * the most informative signal to show the user).
+ */
+const DELEGATION_STATUS_RANK: Record<DelegationStatus, number> = {
+  done: 3,
+  failed: 2,
+  running: 1
+}
+
+const expertCallDedupeKey = (content: ExpertCallContent): string =>
+  `${content.agentId.trim().toLowerCase()}::${content.task.trim().toLowerCase()}`
+
+const mergeExpertCallContent = (existing: ExpertCallContent, incoming: ExpertCallContent): ExpertCallContent => {
+  const existingRank = DELEGATION_STATUS_RANK[existing.status]
+  const incomingRank = DELEGATION_STATUS_RANK[incoming.status]
+  const richer = incomingRank > existingRank ? incoming : existing
+  return {
+    agentId: existing.agentId,
+    task: existing.task,
+    status: richer.status,
+    durationMs: richer.durationMs ?? existing.durationMs ?? incoming.durationMs,
+    outputPreview: richer.outputPreview ?? existing.outputPreview ?? incoming.outputPreview
+  }
+}
+
+/**
+ * Once a session has emitted a terminal event, any still-"running" expert /
+ * tool call bubbles are orphaned — the backend may have skipped the
+ * completion event (or the completion's `step_id` didn't match), and the
+ * spinner would otherwise spin forever. Mirror the right-panel rule
+ * (`resolveActivityDelegationStatus`): if the stream is no longer live,
+ * treat remaining in-flight delegations / tool calls as finished.
+ */
+const finalizeRunningMessagesOnTerminal = (events: AgentStreamEvent[], messages: ChatMessage[]): void => {
+  const terminal = events.find(
+    (e): e is AgentTerminalEvent =>
+      e.type === 'terminal' && (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled')
+  )
+  if (!terminal) return
+
+  const resolved: DelegationStatus = terminal.status === 'failed' ? 'failed' : 'done'
+
+  for (let i = 0; i < messages.length; i += 1) {
+    const msg = messages[i]
+    if (msg.type !== 'expert_call' && msg.type !== 'tool_call') continue
+    const content = msg.content as { status?: DelegationStatus }
+    if (!content || content.status !== 'running') continue
+    messages[i] = {
+      ...msg,
+      content: { ...(msg.content as object), status: resolved }
+    }
+  }
+}
+
 function terminalCompletedToChatMessage(
   event: AgentTerminalEvent,
   stepCompletions: Map<string, StepCompletion> | undefined
@@ -407,13 +477,40 @@ export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessag
   const sortedEvents = sortAgentEventsBySeq(events)
   const stepCompletions = collectStepCompletions(sortedEvents)
 
+  // Same logical expert (same agent + same task) may be spawned several times
+  // (e.g. retries across HITL turns) with different `step_id`s, producing
+  // distinct messages that the user perceives as duplicates — and some of
+  // those spawns never receive a matching completion, leaving spinners spinning
+  // forever. We keep only the first occurrence and merge subsequent spawns'
+  // status into it so the richest outcome wins.
+  const expertCallIndexByKey = new Map<string, number>()
+
   for (const event of sortedEvents) {
     const message = eventToMessage(event, stepCompletions)
     if (!message || seenIds.has(message.id)) continue
+
+    if (message.type === 'expert_call') {
+      const content = message.content as ExpertCallContent
+      const key = expertCallDedupeKey(content)
+      const existingIdx = expertCallIndexByKey.get(key)
+      if (existingIdx !== undefined) {
+        const existing = messages[existingIdx]
+        const existingContent = existing.content as ExpertCallContent
+        messages[existingIdx] = {
+          ...existing,
+          content: mergeExpertCallContent(existingContent, content)
+        }
+        seenIds.add(message.id)
+        continue
+      }
+      expertCallIndexByKey.set(key, messages.length)
+    }
+
     seenIds.add(message.id)
     messages.push(message)
   }
 
+  finalizeRunningMessagesOnTerminal(sortedEvents, messages)
   appendLivePlanIfNeeded(sortedEvents, messages, seenIds)
 
   return messages

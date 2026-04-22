@@ -82,6 +82,37 @@ const terminalReflectionToDecision = (event: TerminalEvent): DecisionItem | null
 }
 
 /**
+ * Chosen values reported by the backend for "no enterprise skill matched"
+ * branches. These decisions carry no user-facing signal (the agent just
+ * fell back to the default generic reasoning path) and fire on every turn,
+ * so we drop them from the panel entirely to keep the narrative meaningful.
+ */
+const NO_SKILL_CHOSEN = new Set(['generic_agent', 'none', 'no_skill', ''])
+
+const isNoSkillDecision = (decision: DecisionItem): boolean =>
+  decision.category === 'skill' && NO_SKILL_CHOSEN.has(decision.chosen?.trim().toLowerCase() ?? '')
+
+/**
+ * Collapses consecutive / redundant skill decisions that picked the same
+ * skill. The backend may emit one per turn; the UI only needs to surface
+ * the first occurrence, since a later "same skill again" row is not a real
+ * new branch point.
+ */
+const dedupeSkillDecisions = (decisions: DecisionItem[]): DecisionItem[] => {
+  const seenSkillChosen = new Set<string>()
+  const out: DecisionItem[] = []
+  for (const d of decisions) {
+    if (d.category === 'skill') {
+      const key = d.chosen?.trim().toLowerCase() ?? ''
+      if (seenSkillChosen.has(key)) continue
+      seenSkillChosen.add(key)
+    }
+    out.push(d)
+  }
+  return out
+}
+
+/**
  * Reduces SSE events into a list of discrete decision rows for the
  * Decisions side panel.
  *
@@ -92,6 +123,10 @@ const terminalReflectionToDecision = (event: TerminalEvent): DecisionItem | null
  * sessions, feature-flagged deployments) we synthesize rows from
  * `skill_loaded` and `terminal.reflection`. Synthesized rows are
  * suppressed for categories that already have a native decision row.
+ *
+ * Post-processing: we hide "no enterprise skill used" rows (they are
+ * noise until we have a richer skill catalog) and dedupe repeated skill
+ * rows so a single skill shows once per session instead of once per turn.
  */
 export const useFabricDecisions = (events: AgentStreamEvent[]): DecisionItem[] => {
   return useMemo(() => {
@@ -121,6 +156,8 @@ export const useFabricDecisions = (events: AgentStreamEvent[]): DecisionItem[] =
       }
     }
 
-    return [...native, ...synthesized].sort((a, b) => a.seq - b.seq)
+    const merged = [...native, ...synthesized].filter(d => !isNoSkillDecision(d)).sort((a, b) => a.seq - b.seq)
+
+    return dedupeSkillDecisions(merged)
   }, [events])
 }

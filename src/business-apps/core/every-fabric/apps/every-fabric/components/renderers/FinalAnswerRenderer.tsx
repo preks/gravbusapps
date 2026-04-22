@@ -14,10 +14,8 @@ import {
   PresentationIcon
 } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
-import { StreamingMarkdown } from '@/common/components/markdown/StreamingMarkdown'
 import type { TodoItem, ActionSummary, WorkspaceDocument } from '../../types/enterpriseAgent'
 import { formatDuration } from '../../utils/renderUtils'
-import { useTypewriterReveal } from '../chat/useTypewriterReveal'
 
 interface FinalAnswerArtifact {
   name: string
@@ -105,20 +103,11 @@ const ArtifactCreatedCard: React.FC<{ doc: WorkspaceDocument }> = ({ doc }) => {
   )
 }
 
-const StatusIndicator: React.FC<{ isInstant?: boolean; isRevealing: boolean }> = ({ isInstant, isRevealing }) => {
+const StatusIndicator: React.FC<{ isInstant?: boolean }> = ({ isInstant }) => {
   if (!isInstant) {
     return <span className="gba:text-[11px] gba:text-muted-foreground">Completed</span>
   }
-  if (!isRevealing) return null
-  return (
-    <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:text-muted-foreground">
-      <span className="gba:relative gba:flex gba:h-2 gba:w-2">
-        <span className="gba:animate-ping gba:absolute gba:inline-flex gba:h-full gba:w-full gba:rounded-full gba:bg-primary gba:opacity-75" />
-        <span className="gba:relative gba:inline-flex gba:rounded-full gba:h-2 gba:w-2 gba:bg-primary" />
-      </span>
-      {'Responding'}
-    </span>
-  )
+  return null
 }
 
 interface ActionsTakenPanelProps {
@@ -222,11 +211,9 @@ export const FinalAnswerRenderer = ({
     return true
   })
   const visibleArtifacts = hasWorkspaceDocs ? [] : displayArtifacts
-  const [fullOutputVisible, setFullOutputVisible] = useState(false)
+  const [fullOutputVisible, setFullOutputVisible] = useState(true)
   const [actionsExpanded, setActionsExpanded] = useState(false)
   const todoCount = todos?.length ?? 0
-  const { revealed: revealedOutput, isRevealing } = useTypewriterReveal(output, { enabled: !!isInstant })
-  const displayOutput = isInstant ? revealedOutput : output
   const hasActions = !!actionsPerformed && actionsPerformed.length > 0
   const hasArtifacts = visibleArtifacts.length > 0
   const hasFooterSignals = (durationMs !== undefined && !isInstant) || todoCount > 0
@@ -252,7 +239,7 @@ export const FinalAnswerRenderer = ({
         <span className="gba:text-[12px] gba:font-bold gba:tracking-[0.01em] gba:text-foreground">
           NEWWORK Enterprise Agents
         </span>
-        <StatusIndicator isInstant={isInstant} isRevealing={isRevealing} />
+        <StatusIndicator isInstant={isInstant} />
       </div>
 
       <div className="gba:border-t gba:border-border/70" />
@@ -288,11 +275,7 @@ export const FinalAnswerRenderer = ({
               </button>
               {fullOutputVisible && (
                 <div className="gba:pt-2">
-                  {isInstant ? (
-                    <StreamingMarkdown content={displayOutput} isStreaming={isRevealing} />
-                  ) : (
-                    <MarkdownWithChipsRenderer content={output} />
-                  )}
+                  <MarkdownWithChipsRenderer content={output} />
                 </div>
               )}
             </div>
@@ -300,11 +283,7 @@ export const FinalAnswerRenderer = ({
         </>
       ) : (
         <div className="gba:pt-5">
-          {isInstant ? (
-            <StreamingMarkdown content={displayOutput} isStreaming={isRevealing} />
-          ) : (
-            <MarkdownWithChipsRenderer content={output} />
-          )}
+          <MarkdownWithChipsRenderer content={output} />
         </div>
       )}
 
