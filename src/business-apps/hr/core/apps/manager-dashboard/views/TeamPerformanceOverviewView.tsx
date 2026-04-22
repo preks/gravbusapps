@@ -119,7 +119,7 @@ export const TeamPerformanceOverviewView: React.FC<TeamPerformanceOverviewViewPr
       const lastName = goals?.lastName ?? skills?.lastName ?? evaluation?.lastName ?? ''
 
       let skillCoverage = 0
-      if (skills && skills.hasJobProfile) {
+      if (skills?.hasJobProfile) {
         const totalRequired =
           skills.missingRequired.length + skills.belowLevel.length + (skills.skillCount - skills.missingRequired.length)
         const covered = totalRequired > 0 ? totalRequired - skills.missingRequired.length : 0

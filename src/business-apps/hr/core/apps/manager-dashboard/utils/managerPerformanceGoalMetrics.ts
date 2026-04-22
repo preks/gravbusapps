@@ -80,7 +80,7 @@ export function computeContainedGoalRollup(goals: RawGoalForMetrics[], cycleStar
       dueDate: g.dueDate,
       completionDate: g.completionDate,
       progressPercent: g.progressPercent ?? 0,
-      status: g.status as PerformanceGoal['status'],
+      status: g.status,
       employeeId: g.employeeId,
       trackState
     }

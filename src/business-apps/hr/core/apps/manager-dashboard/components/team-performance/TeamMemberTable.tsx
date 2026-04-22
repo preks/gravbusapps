@@ -109,6 +109,58 @@ const metricCellContent = (value: number | null | undefined, progress: number): 
   )
 }
 
+const feedbackPercentText = (feedbackRow: TeamMemberFeedback | undefined, feedbackPct: number): string => {
+  if (!feedbackRow) return '—'
+  return `${feedbackPct}%`
+}
+
+const aiSummaryContent = (aiState: AiSummaryState, summary: string | undefined): React.ReactNode => {
+  if (aiState.loading) {
+    return <div className="gba:h-4 gba:w-32 gba:rounded gba:bg-muted gba:animate-pulse" />
+  }
+
+  if (summary) {
+    return <span className="gba:text-xs gba:text-muted-foreground gba:line-clamp-2">{summary}</span>
+  }
+
+  if (aiState.error) {
+    return (
+      <Badge variant="destructive" className="gba:text-[10px]">
+        Error
+      </Badge>
+    )
+  }
+
+  return <span className="gba:text-xs gba:text-muted-foreground gba:italic">Click AI Insights</span>
+}
+
+const feedbackActivityCount = (feedbackRow: TeamMemberFeedback | undefined): number => {
+  if (!feedbackRow) return 0
+  return feedbackRow.feedbackReceivedCount + feedbackRow.feedbackGivenCount
+}
+
+const toGoalsProgressValue = (goalRow: TeamMemberPerformance | undefined): number | null => {
+  if (!goalRow) return null
+  return Math.round(goalRow.averageProgress)
+}
+
+const parsedPromptResponse = (content: unknown): Record<string, unknown> => {
+  if (typeof content === 'string') {
+    return JSON.parse(content)
+  }
+  return content as Record<string, unknown>
+}
+
+const errorMessageFromUnknown = (err: unknown): string => {
+  if (err instanceof Error) return err.message
+  return 'Failed to generate summaries'
+}
+
+const insightsButtonLabel = (generated: boolean): string => {
+  if (generated) return 'Refresh insights'
+  return 'AI Insights'
+}
+
 interface TeamMemberDataRowProps {
   row: RowModel
   onEmployeeClick: (employeeId: string) => void
@@ -125,6 +177,8 @@ const TeamMemberDataRow: React.FC<TeamMemberDataRowProps> = ({ row, onEmployeeCl
   const skProgress = toProgressValue(ev.skillsAvg, limit)
   const fullName = `${ev.firstName} ${ev.lastName}`.trim()
   const summary = aiState.summaries.get(ev.employeeId)
+  const aiSummaryNode = aiSummaryContent(aiState, summary)
+  const goalProgress = toGoalsProgressValue(g)
 
   return (
     <TableRow className="gba:cursor-pointer gba:hover:bg-muted/50" onClick={() => onEmployeeClick(ev.employeeId)}>
@@ -163,31 +217,19 @@ const TeamMemberDataRow: React.FC<TeamMemberDataRowProps> = ({ row, onEmployeeCl
       <TableCell>{metricCellContent(ev.skillsAvg, skProgress)}</TableCell>
 
       <TableCell className="gba:text-sm gba:tabular-nums">
-        {g && g.totalGoals > 0 ? (
+        {g && g.totalGoals > 0 && goalProgress !== null ? (
           <div className="gba:flex gba:max-w-[100px] gba:flex-col gba:gap-1">
-            <span>{Math.round(g.averageProgress)}%</span>
-            <Progress value={Math.round(g.averageProgress)} className="gba:h-1.5" />
+            <span>{goalProgress}%</span>
+            <Progress value={goalProgress} className="gba:h-1.5" />
           </div>
         ) : (
           <span className="gba:text-muted-foreground">—</span>
         )}
       </TableCell>
 
-      <TableCell className="gba:text-sm gba:tabular-nums">{fb ? `${row.feedbackPct}%` : '—'}</TableCell>
+      <TableCell className="gba:text-sm gba:tabular-nums">{feedbackPercentText(fb, row.feedbackPct)}</TableCell>
 
-      <TableCell className="gba:max-w-[200px]">
-        {aiState.loading ? (
-          <div className="gba:h-4 gba:w-32 gba:rounded gba:bg-muted gba:animate-pulse" />
-        ) : summary ? (
-          <span className="gba:text-xs gba:text-muted-foreground gba:line-clamp-2">{summary}</span>
-        ) : aiState.error ? (
-          <Badge variant="destructive" className="gba:text-[10px]">
-            Error
-          </Badge>
-        ) : (
-          <span className="gba:text-xs gba:text-muted-foreground gba:italic">Click AI Insights</span>
-        )}
-      </TableCell>
+      <TableCell className="gba:max-w-[200px]">{aiSummaryNode}</TableCell>
     </TableRow>
   )
 }
@@ -229,7 +271,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
   const rows = useMemo((): RowModel[] => {
     return evaluations.map(ev => {
       const fb = feedbackMap.get(ev.employeeId)
-      const empTotal = fb ? fb.feedbackReceivedCount + fb.feedbackGivenCount : 0
+      const empTotal = feedbackActivityCount(fb)
       const feedbackPct = teamFeedbackTotal > 0 ? Math.round((empTotal / teamFeedbackTotal) * 100) : 0
       return {
         evaluation: ev,
@@ -331,10 +373,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
         }
       })
 
-      const parsed =
-        typeof response.content === 'string'
-          ? JSON.parse(response.content)
-          : (response.content as Record<string, unknown>)
+      const parsed = parsedPromptResponse(response.content)
 
       const summaries = new Map<string, string>()
       const items = Array.isArray(parsed?.employees) ? parsed.employees : []
@@ -346,7 +385,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
 
       setAiState({ summaries, loading: false, error: null, generated: true })
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to generate summaries'
+      const message = errorMessageFromUnknown(err)
       setAiState(prev => ({ ...prev, loading: false, error: message }))
     }
   }, [rows])
@@ -357,10 +396,17 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
 
   const toggleSort = (col: SortColumn) => {
     if (sortColumn === col) {
-      setSortDirection(d => (d === 'asc' ? 'desc' : 'asc'))
+      setSortDirection(direction => {
+        if (direction === 'asc') return 'desc'
+        return 'asc'
+      })
     } else {
       setSortColumn(col)
-      setSortDirection(col === 'employee' ? 'asc' : 'desc')
+      if (col === 'employee') {
+        setSortDirection('asc')
+      } else {
+        setSortDirection('desc')
+      }
     }
   }
 
@@ -377,6 +423,47 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
   ]
 
   const colSpan = columns.length + 1
+  const renderTableBodyRows = (): React.ReactNode => {
+    if (loading) {
+      return LOADING_ROW_IDS.map(rowId => (
+        <TableRow key={rowId}>
+          <TableCell>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <div className="gba:h-9 gba:w-9 gba:rounded-full gba:bg-muted gba:animate-pulse" />
+              <div className="gba:space-y-2">
+                <div className="gba:h-4 gba:w-32 gba:rounded gba:bg-muted gba:animate-pulse" />
+                <div className="gba:h-3 gba:w-24 gba:rounded gba:bg-muted gba:animate-pulse" />
+              </div>
+            </div>
+          </TableCell>
+          {[...columns.slice(1).map(col => col.key), 'ai-summary'].map(cellKey => (
+            <TableCell key={`${rowId}-${cellKey}`}>
+              <div className="gba:h-4 gba:w-12 gba:rounded gba:bg-muted gba:animate-pulse" />
+            </TableCell>
+          ))}
+        </TableRow>
+      ))
+    }
+
+    if (sortedRows.length === 0) {
+      return (
+        <TableRow>
+          <TableCell colSpan={colSpan} className="gba:py-10 gba:text-center gba:text-sm gba:text-muted-foreground">
+            No team members in this view.
+          </TableCell>
+        </TableRow>
+      )
+    }
+
+    return sortedRows.map(row => (
+      <TeamMemberDataRow
+        key={row.evaluation.employeeId}
+        row={row}
+        onEmployeeClick={onEmployeeClick}
+        aiState={aiState}
+      />
+    ))
+  }
 
   return (
     <Card className="gba:rounded-xl gba:overflow-hidden">
@@ -399,7 +486,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
               ) : (
                 <Sparkles className="gba:h-3.5 gba:w-3.5" />
               )}
-              {aiState.generated ? 'Refresh insights' : 'AI Insights'}
+              {insightsButtonLabel(aiState.generated)}
             </Button>
           )}
         </div>
@@ -429,46 +516,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
                 </TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {loading ? (
-                LOADING_ROW_IDS.map(rowId => (
-                  <TableRow key={rowId}>
-                    <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <div className="gba:h-9 gba:w-9 gba:rounded-full gba:bg-muted gba:animate-pulse" />
-                        <div className="gba:space-y-2">
-                          <div className="gba:h-4 gba:w-32 gba:rounded gba:bg-muted gba:animate-pulse" />
-                          <div className="gba:h-3 gba:w-24 gba:rounded gba:bg-muted gba:animate-pulse" />
-                        </div>
-                      </div>
-                    </TableCell>
-                    {[...columns.slice(1).map(col => col.key), 'ai-summary'].map(cellKey => (
-                      <TableCell key={`${rowId}-${cellKey}`}>
-                        <div className="gba:h-4 gba:w-12 gba:rounded gba:bg-muted gba:animate-pulse" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : sortedRows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={colSpan}
-                    className="gba:py-10 gba:text-center gba:text-sm gba:text-muted-foreground"
-                  >
-                    No team members in this view.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                sortedRows.map(row => (
-                  <TeamMemberDataRow
-                    key={row.evaluation.employeeId}
-                    row={row}
-                    onEmployeeClick={onEmployeeClick}
-                    aiState={aiState}
-                  />
-                ))
-              )}
-            </TableBody>
+            <TableBody>{renderTableBodyRows()}</TableBody>
           </Table>
         </div>
       </CardContent>

@@ -63,6 +63,16 @@ interface UseTeamSkillsProps {
 
 const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000
 
+const toSkillLevel = (level: unknown): number => {
+  if (level === null || level === undefined) return 0
+  return Number(level)
+}
+
+const toRequiredLevel = (level: unknown): number | null => {
+  if (level === null || level === undefined) return null
+  return Number(level)
+}
+
 export const useTeamSkills = ({
   accessToken,
   managerId,
@@ -171,7 +181,7 @@ export const useTeamSkills = ({
 
         const employeeSkillMap = new Map<string, number>()
         skills.forEach((s: any) => {
-          const level = s.level != null ? Number(s.level) : 0
+          const level = toSkillLevel(s.level)
           employeeSkillMap.set(s.skill?.id ?? '', level)
         })
 
@@ -200,7 +210,7 @@ export const useTeamSkills = ({
             })
           } else {
             empCovered++
-            const required = ps.requiredLevel != null ? Number(ps.requiredLevel) : null
+            const required = toRequiredLevel(ps.requiredLevel)
             if (required != null && empLevel < required) {
               belowLevel.push({
                 skillName,
@@ -222,7 +232,7 @@ export const useTeamSkills = ({
         coverageSum += empRequired > 0 ? (empCovered / empRequired) * 100 : 0
 
         skills.forEach((s: any) => {
-          const level = s.level != null ? Number(s.level) : 0
+          const level = toSkillLevel(s.level)
           const name = s.skill?.name ?? ''
           if (!name) return
           const existing = skillFrequency.get(name)
@@ -265,7 +275,7 @@ export const useTeamSkills = ({
       const coverage = employees.length > 0 ? Math.round(coverageSum / employees.length) : 0
 
       const sortedGaps = allGaps
-        .sort((a, b) => {
+        .toSorted((a, b) => {
           if (a.currentLevel === null && b.currentLevel !== null) return -1
           if (a.currentLevel !== null && b.currentLevel === null) return 1
           return b.requiredLevel - (b.currentLevel ?? 0) - (a.requiredLevel - (a.currentLevel ?? 0))
@@ -294,21 +304,22 @@ export const useTeamSkills = ({
 
           for (const s of allSkills) {
             const name = s.skill?.name ?? 'Unknown'
-            const level = s.level != null ? Number(s.level) : 0
+            const level = toSkillLevel(s.level)
             const created = s.createdAt ? new Date(s.createdAt) : null
             const updated = s.updatedAt ? new Date(s.updatedAt) : null
-            const deleted = s.isDeleted === true
+            const isDeleted = s.isDeleted === true
+            const isActive = isDeleted === false
 
             const isInRange = (d: Date) => d >= cutoff && (!periodEndDate || d <= periodEndDate)
 
-            if (deleted && updated && isInRange(updated)) {
+            if (isDeleted && updated && isInRange(updated)) {
               removedCount++
               recentChanges.push({ skillName: name, level, changeType: 'removed', changedAt: s.updatedAt })
-            } else if (!deleted && created && isInRange(created)) {
+            } else if (isActive && created && isInRange(created)) {
               newCount++
               recentChanges.push({ skillName: name, level, changeType: 'added', changedAt: s.createdAt })
             } else if (
-              !deleted &&
+              isActive &&
               updated &&
               created &&
               updated.getTime() - created.getTime() > 60_000 &&

@@ -124,68 +124,139 @@ interface CachedAnalysis {
   cycleMap: Map<string, { name: string; evalEndDate: string | null }>
 }
 
-function buildCycleData(employees: any[], analysisResults: PromiseSettledResult<{ employeeId: string; data: any }>[]) {
-  const cycleMap = new Map<string, { name: string; evalEndDate: string | null }>()
+interface EmployeeAnalysisPayload {
+  employeeId: string
+  data: any
+}
 
-  const employeeCycleData: EmployeeCycleData[] = employees.map((emp: any) => {
-    const matchingResult = analysisResults.find(r => r.status === 'fulfilled' && r.value.employeeId === emp.id)
+const isCompletedEvaluationStatus = (statusRef: string | null | undefined): boolean => {
+  if (!statusRef) return false
+  const normalized = statusRef.toUpperCase()
+  return normalized.includes('COMPLETED') || normalized.includes('CLOSED')
+}
 
-    const cycleScores: CycleScore[] = []
-    const bestEvalPerCycle = new Map<string, string>()
-    let pending = 0
-    let completed = 0
-    let evaluationCount = 0
+const asFulfilledAnalysisMap = (
+  analysisResults: PromiseSettledResult<EmployeeAnalysisPayload>[]
+): Map<string, EmployeeAnalysisPayload['data']> => {
+  const map = new Map<string, EmployeeAnalysisPayload['data']>()
+  for (const result of analysisResults) {
+    if (result.status === 'fulfilled') {
+      map.set(result.value.employeeId, result.value.data)
+    }
+  }
+  return map
+}
 
-    if (matchingResult?.status === 'fulfilled') {
-      const cycles = matchingResult.value.data?.performanceCycles || []
-      evaluationCount = cycles.reduce((sum: number, c: any) => sum + (c.evaluations?.length || 0), 0)
+const buildEmployeeCycleEntry = (
+  employee: any,
+  analysisData: any,
+  cycleMap: Map<string, { name: string; evalEndDate: string | null }>
+): EmployeeCycleData => {
+  const cycleScores: CycleScore[] = []
+  const bestEvalPerCycle = new Map<string, string>()
+  let pending = 0
+  let completed = 0
 
-      for (const cycle of cycles) {
-        const cId = cycle.performanceCycleId
-        const cName = cycle.performanceCycleName || cId
-        if (!cycleMap.has(cId)) {
-          cycleMap.set(cId, { name: cName, evalEndDate: cycle.evaluationPeriodEndDate ?? null })
-        }
+  const cycles = analysisData?.performanceCycles || []
+  const evaluationCount = cycles.reduce((sum: number, cycle: any) => sum + (cycle.evaluations?.length || 0), 0)
 
-        let bestScoreInCycle: number | null = null
-        let bestEvalIdInCycle: string | null = null
-        for (const evalItem of cycle.evaluations || []) {
-          const evalStatus = evalItem.statusRef
-          if (evalStatus?.toUpperCase().includes('COMPLETED') || evalStatus?.toUpperCase().includes('CLOSED')) {
-            completed++
-          } else {
-            pending++
-          }
+  for (const cycle of cycles) {
+    const cycleId = cycle.performanceCycleId
+    const cycleName = cycle.performanceCycleName || cycleId
+    if (!cycleMap.has(cycleId)) {
+      cycleMap.set(cycleId, { name: cycleName, evalEndDate: cycle.evaluationPeriodEndDate ?? null })
+    }
 
-          const score = evalItem.overall?.averageNumeric ?? null
-          if (score != null && bestScoreInCycle === null) {
-            bestScoreInCycle = score
-            bestEvalIdInCycle = evalItem.evaluationId
-          }
-        }
+    let bestScoreInCycle: number | null = null
+    let bestEvalIdInCycle: string | null = null
+    for (const evaluationItem of cycle.evaluations || []) {
+      if (isCompletedEvaluationStatus(evaluationItem.statusRef)) {
+        completed++
+      } else {
+        pending++
+      }
 
-        if (bestEvalIdInCycle) {
-          bestEvalPerCycle.set(cId, bestEvalIdInCycle)
-        }
-
-        cycleScores.push({
-          cycleName: cName,
-          cycleId: cId,
-          overallScore: bestScoreInCycle,
-          companyValuesAvg: null,
-          skillsAvg: null,
-          evaluationPeriodStartDate: cycle.evaluationPeriodStartDate ?? null,
-          evaluationPeriodEndDate: cycle.evaluationPeriodEndDate ?? null
-        })
+      const score = evaluationItem.overall?.averageNumeric ?? null
+      if (score !== null && bestScoreInCycle === null) {
+        bestScoreInCycle = score
+        bestEvalIdInCycle = evaluationItem.evaluationId
       }
     }
 
-    cycleScores.sort((a, b) => (b.evaluationPeriodEndDate ?? '').localeCompare(a.evaluationPeriodEndDate ?? ''))
+    if (bestEvalIdInCycle) {
+      bestEvalPerCycle.set(cycleId, bestEvalIdInCycle)
+    }
 
-    return { employeeId: emp.id, cycleScores, bestEvalPerCycle, evaluationCount, pending, completed }
-  })
+    cycleScores.push({
+      cycleName,
+      cycleId,
+      overallScore: bestScoreInCycle,
+      companyValuesAvg: null,
+      skillsAvg: null,
+      evaluationPeriodStartDate: cycle.evaluationPeriodStartDate ?? null,
+      evaluationPeriodEndDate: cycle.evaluationPeriodEndDate ?? null
+    })
+  }
+
+  cycleScores.sort((a, b) => (b.evaluationPeriodEndDate ?? '').localeCompare(a.evaluationPeriodEndDate ?? ''))
+  return { employeeId: employee.id, cycleScores, bestEvalPerCycle, evaluationCount, pending, completed }
+}
+
+function buildCycleData(employees: any[], analysisResults: PromiseSettledResult<EmployeeAnalysisPayload>[]) {
+  const cycleMap = new Map<string, { name: string; evalEndDate: string | null }>()
+  const fulfilledByEmployeeId = asFulfilledAnalysisMap(analysisResults)
+
+  const employeeCycleData: EmployeeCycleData[] = employees.map((employee: any) =>
+    buildEmployeeCycleEntry(employee, fulfilledByEmployeeId.get(employee.id), cycleMap)
+  )
 
   return { employeeCycleData, cycleMap }
+}
+
+interface EvaluationDetailToFetch {
+  employeeId: string
+  evaluationId: string
+  cycleId: string
+}
+
+const collectEvaluationDetailsToFetch = (
+  cache: CachedAnalysis,
+  detailCache: Map<string, PerformanceEvaluationAnalysisDetailResponse>
+): EvaluationDetailToFetch[] => {
+  const evalIdsToFetch: EvaluationDetailToFetch[] = []
+  for (const employeeCycle of cache.employeeCycleData) {
+    for (const cycleScore of employeeCycle.cycleScores) {
+      if (cycleScore.overallScore === null) continue
+      const evaluationId = employeeCycle.bestEvalPerCycle.get(cycleScore.cycleId)
+      const cacheKey = `${employeeCycle.employeeId}:${cycleScore.cycleId}`
+      if (!evaluationId || detailCache.has(cacheKey)) continue
+      evalIdsToFetch.push({ employeeId: employeeCycle.employeeId, evaluationId, cycleId: cycleScore.cycleId })
+    }
+  }
+  return evalIdsToFetch
+}
+
+const fetchAndCacheEvaluationDetails = async (
+  accessToken: string,
+  evalIdsToFetch: EvaluationDetailToFetch[],
+  detailCache: Map<string, PerformanceEvaluationAnalysisDetailResponse>
+): Promise<void> => {
+  if (evalIdsToFetch.length === 0) return
+
+  const detailResults = await Promise.allSettled(
+    evalIdsToFetch.map(({ employeeId, evaluationId, cycleId }) =>
+      getPerformanceEvaluationAnalysisDetail(accessToken, evaluationId, {
+        employeeId,
+        includePeerReviewerIdentity: false
+      }).then(detail => ({ employeeId, cycleId, detail }))
+    )
+  )
+
+  for (const result of detailResults) {
+    if (result.status === 'fulfilled') {
+      detailCache.set(`${result.value.employeeId}:${result.value.cycleId}`, result.value.detail)
+    }
+  }
 }
 
 function resolveForCycle(
@@ -392,36 +463,8 @@ export const useTeamEvaluations = ({
     setLoading(true)
 
     try {
-      const evalIdsToFetch: Array<{ employeeId: string; evaluationId: string; cycleId: string }> = []
-
-      for (const empCycle of cache.employeeCycleData) {
-        for (const cs of empCycle.cycleScores) {
-          if (cs.overallScore != null) {
-            const evalId = empCycle.bestEvalPerCycle.get(cs.cycleId)
-            const key = `${empCycle.employeeId}:${cs.cycleId}`
-            if (evalId && !detailCacheRef.current.has(key)) {
-              evalIdsToFetch.push({ employeeId: empCycle.employeeId, evaluationId: evalId, cycleId: cs.cycleId })
-            }
-          }
-        }
-      }
-
-      if (evalIdsToFetch.length > 0) {
-        const detailResults = await Promise.allSettled(
-          evalIdsToFetch.map(({ employeeId, evaluationId, cycleId }) =>
-            getPerformanceEvaluationAnalysisDetail(accessToken, evaluationId, {
-              employeeId,
-              includePeerReviewerIdentity: false
-            }).then(detail => ({ employeeId, cycleId, detail }))
-          )
-        )
-
-        for (const result of detailResults) {
-          if (result.status === 'fulfilled') {
-            detailCacheRef.current.set(`${result.value.employeeId}:${result.value.cycleId}`, result.value.detail)
-          }
-        }
-      }
+      const evalIdsToFetch = collectEvaluationDetailsToFetch(cache, detailCacheRef.current)
+      await fetchAndCacheEvaluationDetails(accessToken, evalIdsToFetch, detailCacheRef.current)
 
       const resolved = resolveForCycle(cache, selectedCycleId, detailCacheRef.current)
 

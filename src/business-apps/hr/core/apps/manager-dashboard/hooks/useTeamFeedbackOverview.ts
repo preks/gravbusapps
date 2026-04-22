@@ -43,6 +43,229 @@ function isRecognitionType(typeRef: string | null | undefined): boolean {
   return RECOGNITION_TYPE_REFS.some(r => lower.includes(r))
 }
 
+const DIRECT_REPORTS_QUERY = `
+  query GetDirectReportsForFeedback($managerId: uuid!) {
+    Employee(
+      where: {
+        employeePosition: { supervisorEmployeeId: { _eq: $managerId } },
+        isDeleted: { _eq: false }
+      }
+    ) {
+      id
+      firstName
+      lastName
+    }
+  }
+`
+
+const FILTERED_FEEDBACK_QUERY = `
+  query GetTeamFeedbackOverviewFiltered($employeeIds: [uuid!]!, $periodStart: timestamp!, $periodEnd: timestamp!) {
+    received: EmployeeFeedback(
+      where: {
+        employeeId: { _in: $employeeIds },
+        isDeleted: { _eq: false },
+        feedbackDate: { _gte: $periodStart, _lte: $periodEnd }
+      },
+      orderBy: { feedbackDate: DESC },
+      limit: 500
+    ) {
+      id
+      feedbackDate
+      rating
+      typeRef
+      employeeId
+    }
+    given: EmployeeFeedback(
+      where: {
+        senderEmployeeId: { _in: $employeeIds },
+        isDeleted: { _eq: false },
+        feedbackDate: { _gte: $periodStart, _lte: $periodEnd }
+      },
+      orderBy: { feedbackDate: DESC },
+      limit: 500
+    ) {
+      id
+      feedbackDate
+      senderEmployeeId
+    }
+  }
+`
+
+const FEEDBACK_QUERY = `
+  query GetTeamFeedbackOverview($employeeIds: [uuid!]!) {
+    received: EmployeeFeedback(
+      where: {
+        employeeId: { _in: $employeeIds },
+        isDeleted: { _eq: false }
+      },
+      orderBy: { feedbackDate: DESC },
+      limit: 500
+    ) {
+      id
+      feedbackDate
+      rating
+      typeRef
+      employeeId
+    }
+    given: EmployeeFeedback(
+      where: {
+        senderEmployeeId: { _in: $employeeIds },
+        isDeleted: { _eq: false }
+      },
+      orderBy: { feedbackDate: DESC },
+      limit: 500
+    ) {
+      id
+      feedbackDate
+      senderEmployeeId
+    }
+  }
+`
+
+const emptyFeedbackOverview = {
+  members: [] as TeamMemberFeedback[],
+  teamAvgRating: null as number | null,
+  totalReceivedCount: 0,
+  totalGivenCount: 0,
+  feedbackCoverage: 0,
+  recognitionRatio: null as number | null,
+  membersWithNoRecentFeedback: [] as string[]
+}
+
+const seededFeedbackMaps = (employeeIds: string[]) => {
+  const receivedByEmployee = new Map<
+    string,
+    Array<{ rating: number | null; feedbackDate: string | null; typeRef: string | null }>
+  >()
+  const givenByEmployee = new Map<string, number>()
+  for (const employeeId of employeeIds) {
+    receivedByEmployee.set(employeeId, [])
+    givenByEmployee.set(employeeId, 0)
+  }
+  return { receivedByEmployee, givenByEmployee }
+}
+
+const queryAndVariablesForFeedback = (
+  employeeIds: string[],
+  periodStart?: string,
+  periodEnd?: string
+): { query: string; variables: Record<string, unknown> } => {
+  const hasPeriodFilter = !!(periodStart && periodEnd)
+  if (hasPeriodFilter) {
+    return {
+      query: FILTERED_FEEDBACK_QUERY,
+      variables: { employeeIds, periodStart, periodEnd }
+    }
+  }
+
+  return {
+    query: FEEDBACK_QUERY,
+    variables: { employeeIds }
+  }
+}
+
+const buildFeedbackOverview = (
+  employees: any[],
+  employeeIds: string[],
+  receivedFeedback: any[],
+  givenFeedback: any[]
+): typeof emptyFeedbackOverview => {
+  const { receivedByEmployee, givenByEmployee } = seededFeedbackMaps(employeeIds)
+
+  for (const feedbackEntry of receivedFeedback) {
+    const employeeFeedback = receivedByEmployee.get(feedbackEntry.employeeId)
+    if (!employeeFeedback) continue
+    employeeFeedback.push({
+      rating: feedbackEntry.rating,
+      feedbackDate: feedbackEntry.feedbackDate,
+      typeRef: feedbackEntry.typeRef
+    })
+  }
+
+  for (const feedbackEntry of givenFeedback) {
+    const current = givenByEmployee.get(feedbackEntry.senderEmployeeId) ?? 0
+    givenByEmployee.set(feedbackEntry.senderEmployeeId, current + 1)
+  }
+
+  const now = new Date()
+  const thresholdDate = new Date(now.getTime() - RECENT_FEEDBACK_THRESHOLD_DAYS * 24 * 60 * 60 * 1000)
+  const noRecentFeedback: string[] = []
+  let totalRatingSum = 0
+  let totalRatingCount = 0
+  let allReceivedCount = 0
+  let allGivenCount = 0
+  let totalRecognition = 0
+  let totalWithType = 0
+  let membersWithFeedback = 0
+
+  const members = employees.map((employee: any) => {
+    const received = receivedByEmployee.get(employee.id) ?? []
+    const givenCount = givenByEmployee.get(employee.id) ?? 0
+    const receivedCount = received.length
+    allReceivedCount += receivedCount
+    allGivenCount += givenCount
+
+    if (receivedCount > 0) membersWithFeedback++
+
+    const ratingsWithValues = received.filter(item => item.rating != null && item.rating > 0)
+    const avgRating =
+      ratingsWithValues.length > 0
+        ? Math.round(
+            (ratingsWithValues.reduce((sum, item) => sum + (item.rating ?? 0), 0) / ratingsWithValues.length) * 10
+          ) / 10
+        : null
+
+    if (avgRating !== null) {
+      totalRatingSum += avgRating * ratingsWithValues.length
+      totalRatingCount += ratingsWithValues.length
+    }
+
+    let recognitionCount = 0
+    let developmentalCount = 0
+    for (const feedbackItem of received) {
+      if (!feedbackItem.typeRef) continue
+      totalWithType++
+      if (isRecognitionType(feedbackItem.typeRef)) {
+        recognitionCount++
+        totalRecognition++
+      } else {
+        developmentalCount++
+      }
+    }
+
+    const lastDate = received[0]?.feedbackDate ?? null
+    if (!lastDate || new Date(lastDate) < thresholdDate) {
+      noRecentFeedback.push(employee.id)
+    }
+
+    return {
+      employeeId: employee.id,
+      firstName: employee.firstName,
+      lastName: employee.lastName,
+      feedbackReceivedCount: receivedCount,
+      feedbackGivenCount: givenCount,
+      avgRating,
+      lastFeedbackDate: lastDate,
+      recognitionCount,
+      developmentalCount
+    }
+  })
+
+  const teamAvgRating = totalRatingCount > 0 ? Math.round((totalRatingSum / totalRatingCount) * 10) / 10 : null
+  const feedbackCoverage = employees.length > 0 ? Math.round((membersWithFeedback / employees.length) * 100) : 0
+  const recognitionRatio = totalWithType > 0 ? Math.round((totalRecognition / totalWithType) * 100) / 100 : null
+
+  return {
+    members,
+    teamAvgRating,
+    totalReceivedCount: allReceivedCount,
+    totalGivenCount: allGivenCount,
+    feedbackCoverage,
+    recognitionRatio,
+    membersWithNoRecentFeedback: noRecentFeedback
+  }
+}
+
 export const useTeamFeedbackOverview = ({
   accessToken,
   managerId,
@@ -71,209 +294,35 @@ export const useTeamFeedbackOverview = ({
     setError(null)
 
     try {
-      const directReportsQuery = `
-        query GetDirectReportsForFeedback($managerId: uuid!) {
-          Employee(
-            where: {
-              employeePosition: { supervisorEmployeeId: { _eq: $managerId } },
-              isDeleted: { _eq: false }
-            }
-          ) {
-            id
-            firstName
-            lastName
-          }
-        }
-      `
-
-      const drResponse = await graphQLClient.request(directReportsQuery, { managerId })
+      const drResponse = await graphQLClient.request(DIRECT_REPORTS_QUERY, { managerId })
       const employees = drResponse?.Employee || []
 
       if (employees.length === 0) {
-        setMembers([])
-        setTeamAvgRating(null)
-        setTotalReceivedCount(0)
-        setTotalGivenCount(0)
-        setFeedbackCoverage(0)
-        setRecognitionRatio(null)
-        setMembersWithNoRecentFeedback([])
+        setMembers(emptyFeedbackOverview.members)
+        setTeamAvgRating(emptyFeedbackOverview.teamAvgRating)
+        setTotalReceivedCount(emptyFeedbackOverview.totalReceivedCount)
+        setTotalGivenCount(emptyFeedbackOverview.totalGivenCount)
+        setFeedbackCoverage(emptyFeedbackOverview.feedbackCoverage)
+        setRecognitionRatio(emptyFeedbackOverview.recognitionRatio)
+        setMembersWithNoRecentFeedback(emptyFeedbackOverview.membersWithNoRecentFeedback)
         setLoading(false)
         return
       }
 
       const employeeIds = employees.map((emp: any) => emp.id)
+      const { query, variables } = queryAndVariablesForFeedback(employeeIds, periodStart, periodEnd)
+      const fbResponse = await graphQLClient.request(query, variables)
+      const receivedFeedback = fbResponse?.received ?? []
+      const givenFeedback = fbResponse?.given ?? []
+      const overview = buildFeedbackOverview(employees, employeeIds, receivedFeedback, givenFeedback)
 
-      const hasPeriodFilter = !!(periodStart && periodEnd)
-
-      const feedbackQuery = hasPeriodFilter
-        ? `
-        query GetTeamFeedbackOverviewFiltered($employeeIds: [uuid!]!, $periodStart: timestamp!, $periodEnd: timestamp!) {
-          received: EmployeeFeedback(
-            where: {
-              employeeId: { _in: $employeeIds },
-              isDeleted: { _eq: false },
-              feedbackDate: { _gte: $periodStart, _lte: $periodEnd }
-            },
-            orderBy: { feedbackDate: DESC },
-            limit: 500
-          ) {
-            id
-            feedbackDate
-            rating
-            typeRef
-            employeeId
-          }
-          given: EmployeeFeedback(
-            where: {
-              senderEmployeeId: { _in: $employeeIds },
-              isDeleted: { _eq: false },
-              feedbackDate: { _gte: $periodStart, _lte: $periodEnd }
-            },
-            orderBy: { feedbackDate: DESC },
-            limit: 500
-          ) {
-            id
-            feedbackDate
-            senderEmployeeId
-          }
-        }
-      `
-        : `
-        query GetTeamFeedbackOverview($employeeIds: [uuid!]!) {
-          received: EmployeeFeedback(
-            where: {
-              employeeId: { _in: $employeeIds },
-              isDeleted: { _eq: false }
-            },
-            orderBy: { feedbackDate: DESC },
-            limit: 500
-          ) {
-            id
-            feedbackDate
-            rating
-            typeRef
-            employeeId
-          }
-          given: EmployeeFeedback(
-            where: {
-              senderEmployeeId: { _in: $employeeIds },
-              isDeleted: { _eq: false }
-            },
-            orderBy: { feedbackDate: DESC },
-            limit: 500
-          ) {
-            id
-            feedbackDate
-            senderEmployeeId
-          }
-        }
-      `
-
-      const fbVariables = hasPeriodFilter ? { employeeIds, periodStart, periodEnd } : { employeeIds }
-      const fbResponse = await graphQLClient.request(feedbackQuery, fbVariables)
-      const receivedFeedback = fbResponse?.received || []
-      const givenFeedback = fbResponse?.given || []
-
-      const receivedByEmployee = new Map<
-        string,
-        Array<{ rating: number | null; feedbackDate: string | null; typeRef: string | null }>
-      >()
-      const givenByEmployee = new Map<string, number>()
-
-      for (const empId of employeeIds) {
-        receivedByEmployee.set(empId, [])
-        givenByEmployee.set(empId, 0)
-      }
-
-      for (const fb of receivedFeedback) {
-        const empFeedback = receivedByEmployee.get(fb.employeeId)
-        if (empFeedback) {
-          empFeedback.push({ rating: fb.rating, feedbackDate: fb.feedbackDate, typeRef: fb.typeRef })
-        }
-      }
-
-      for (const fb of givenFeedback) {
-        const current = givenByEmployee.get(fb.senderEmployeeId) ?? 0
-        givenByEmployee.set(fb.senderEmployeeId, current + 1)
-      }
-
-      const now = new Date()
-      const thresholdDate = new Date(now.getTime() - RECENT_FEEDBACK_THRESHOLD_DAYS * 24 * 60 * 60 * 1000)
-      const noRecentFeedback: string[] = []
-      let totalRatingSum = 0
-      let totalRatingCount = 0
-      let allReceivedCount = 0
-      let allGivenCount = 0
-      let totalRecognition = 0
-      let totalWithType = 0
-      let membersWithFeedback = 0
-
-      const memberData: TeamMemberFeedback[] = employees.map((emp: any) => {
-        const received = receivedByEmployee.get(emp.id) || []
-        const givenCount = givenByEmployee.get(emp.id) || 0
-        const receivedCount = received.length
-        allReceivedCount += receivedCount
-        allGivenCount += givenCount
-
-        if (receivedCount > 0) membersWithFeedback++
-
-        const ratingsWithValues = received.filter((f: any) => f.rating != null && f.rating > 0)
-        const avgRating =
-          ratingsWithValues.length > 0
-            ? Math.round(
-                (ratingsWithValues.reduce((sum: number, f: any) => sum + f.rating, 0) / ratingsWithValues.length) * 10
-              ) / 10
-            : null
-
-        if (avgRating != null) {
-          totalRatingSum += avgRating * ratingsWithValues.length
-          totalRatingCount += ratingsWithValues.length
-        }
-
-        let recognitionCount = 0
-        let developmentalCount = 0
-        for (const fb of received) {
-          if (fb.typeRef) {
-            totalWithType++
-            if (isRecognitionType(fb.typeRef)) {
-              recognitionCount++
-              totalRecognition++
-            } else {
-              developmentalCount++
-            }
-          }
-        }
-
-        const lastDate = received.length > 0 ? received[0].feedbackDate : null
-
-        if (!lastDate || new Date(lastDate) < thresholdDate) {
-          noRecentFeedback.push(emp.id)
-        }
-
-        return {
-          employeeId: emp.id,
-          firstName: emp.firstName,
-          lastName: emp.lastName,
-          feedbackReceivedCount: receivedCount,
-          feedbackGivenCount: givenCount,
-          avgRating,
-          lastFeedbackDate: lastDate,
-          recognitionCount,
-          developmentalCount
-        }
-      })
-
-      const overallAvgRating = totalRatingCount > 0 ? Math.round((totalRatingSum / totalRatingCount) * 10) / 10 : null
-      const coverage = employees.length > 0 ? Math.round((membersWithFeedback / employees.length) * 100) : 0
-      const recRatio = totalWithType > 0 ? Math.round((totalRecognition / totalWithType) * 100) / 100 : null
-
-      setMembers(memberData)
-      setTeamAvgRating(overallAvgRating)
-      setTotalReceivedCount(allReceivedCount)
-      setTotalGivenCount(allGivenCount)
-      setFeedbackCoverage(coverage)
-      setRecognitionRatio(recRatio)
-      setMembersWithNoRecentFeedback(noRecentFeedback)
+      setMembers(overview.members)
+      setTeamAvgRating(overview.teamAvgRating)
+      setTotalReceivedCount(overview.totalReceivedCount)
+      setTotalGivenCount(overview.totalGivenCount)
+      setFeedbackCoverage(overview.feedbackCoverage)
+      setRecognitionRatio(overview.recognitionRatio)
+      setMembersWithNoRecentFeedback(overview.membersWithNoRecentFeedback)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch team feedback overview'))
       console.error('Error fetching team feedback overview:', err)

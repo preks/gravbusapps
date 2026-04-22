@@ -63,16 +63,6 @@ export interface TeamSignal {
   suggestedAction: string
 }
 
-/** @deprecated Use EmployeeSignal instead */
-export interface TalentSignal {
-  employeeId: string
-  employeeName: string
-  pictureThumbnail?: string
-  signalType: EmployeeSignalType
-  description: string
-  supportingData: string[]
-}
-
 export interface ScoreDistributionBand {
   band: string
   count: number
@@ -128,59 +118,254 @@ export function computeScoreDistribution(
   return bands
 }
 
+interface TrendAccumulator {
+  overallSum: number
+  overallCount: number
+  cvSum: number
+  cvCount: number
+  skillsSum: number
+  skillsCount: number
+  evalEndDate: string | null
+}
+
+const emptyTrendAccumulator = (evalEndDate: string | null): TrendAccumulator => ({
+  overallSum: 0,
+  overallCount: 0,
+  cvSum: 0,
+  cvCount: 0,
+  skillsSum: 0,
+  skillsCount: 0,
+  evalEndDate
+})
+
+const roundedAverage = (sum: number, count: number): number | null => {
+  if (count === 0) return null
+  return Math.round((sum / count) * 10) / 10
+}
+
+const updateTrendAccumulator = (
+  entry: TrendAccumulator,
+  cycleScore: TeamMemberEvaluation['cycleScores'][number]
+): void => {
+  if (cycleScore.overallScore !== null) {
+    entry.overallSum += cycleScore.overallScore
+    entry.overallCount++
+  }
+  if (cycleScore.companyValuesAvg !== null) {
+    entry.cvSum += cycleScore.companyValuesAvg
+    entry.cvCount++
+  }
+  if (cycleScore.skillsAvg !== null) {
+    entry.skillsSum += cycleScore.skillsAvg
+    entry.skillsCount++
+  }
+}
+
 export function computeTrendSeries(members: TeamMemberEvaluation[]): TrendDataPoint[] {
   if (members.length === 0) return []
 
-  const cycleMap = new Map<
-    string,
-    {
-      overallSum: number
-      overallCount: number
-      cvSum: number
-      cvCount: number
-      skillsSum: number
-      skillsCount: number
-      evalEndDate: string | null
-    }
-  >()
+  const cycleMap = new Map<string, TrendAccumulator>()
 
-  for (const m of members) {
-    for (const cs of m.cycleScores) {
-      if (!cycleMap.has(cs.cycleName)) {
-        cycleMap.set(cs.cycleName, {
-          overallSum: 0,
-          overallCount: 0,
-          cvSum: 0,
-          cvCount: 0,
-          skillsSum: 0,
-          skillsCount: 0,
-          evalEndDate: cs.evaluationPeriodEndDate
-        })
+  for (const member of members) {
+    for (const cycleScore of member.cycleScores) {
+      const existing = cycleMap.get(cycleScore.cycleName)
+      if (existing) {
+        updateTrendAccumulator(existing, cycleScore)
+        continue
       }
-      const entry = cycleMap.get(cs.cycleName)!
-      if (cs.overallScore != null) {
-        entry.overallSum += cs.overallScore
-        entry.overallCount++
-      }
-      if (cs.companyValuesAvg != null) {
-        entry.cvSum += cs.companyValuesAvg
-        entry.cvCount++
-      }
-      if (cs.skillsAvg != null) {
-        entry.skillsSum += cs.skillsAvg
-        entry.skillsCount++
-      }
+
+      const next = emptyTrendAccumulator(cycleScore.evaluationPeriodEndDate)
+      updateTrendAccumulator(next, cycleScore)
+      cycleMap.set(cycleScore.cycleName, next)
     }
   }
 
   return Array.from(cycleMap.entries())
-    .sort((a, b) => (a[1].evalEndDate ?? '').localeCompare(b[1].evalEndDate ?? ''))
-    .map(([name, e]) => ({
-      cycleName: name,
-      overall: e.overallCount > 0 ? Math.round((e.overallSum / e.overallCount) * 10) / 10 : null,
-      companyValues: e.cvCount > 0 ? Math.round((e.cvSum / e.cvCount) * 10) / 10 : null,
-      skills: e.skillsCount > 0 ? Math.round((e.skillsSum / e.skillsCount) * 10) / 10 : null
+    .toSorted((a, b) => (a[1].evalEndDate ?? '').localeCompare(b[1].evalEndDate ?? ''))
+    .map(([cycleName, accumulator]) => ({
+      cycleName,
+      overall: roundedAverage(accumulator.overallSum, accumulator.overallCount),
+      companyValues: roundedAverage(accumulator.cvSum, accumulator.cvCount),
+      skills: roundedAverage(accumulator.skillsSum, accumulator.skillsCount)
     }))
+}
+
+const signPrefix = (value: number): string => {
+  if (value > 0) return '+'
+  return ''
+}
+
+const scoreDropAlert = (evaluation: TeamMemberEvaluation, employeeName: string): DashboardAlert | null => {
+  if (evaluation.changeOverall === null || evaluation.changeOverall >= -0.5) return null
+
+  return {
+    employeeId: evaluation.employeeId,
+    employeeName,
+    pictureThumbnail: evaluation.pictureThumbnail,
+    severity: 'high',
+    reason: 'Overall score dropped significantly',
+    context: `Score changed by ${signPrefix(evaluation.changeOverall)}${evaluation.changeOverall.toFixed(1)} vs previous cycle`,
+    suggestedAction: 'Schedule a coaching 1:1',
+    category: 'score-drop'
+  }
+}
+
+const goalsBlockedAlert = (
+  evaluation: TeamMemberEvaluation,
+  employeeName: string,
+  goals: TeamMemberPerformance | undefined
+): DashboardAlert | null => {
+  if (!goals || goals.totalGoals === 0) return null
+
+  if (goals.averageProgress < 30) {
+    return {
+      employeeId: evaluation.employeeId,
+      employeeName,
+      pictureThumbnail: evaluation.pictureThumbnail,
+      severity: 'high',
+      reason: 'Very low goals progress',
+      context: `${goals.averageProgress}% average progress across ${goals.totalGoals} goals`,
+      suggestedAction: 'Review goals and remove blockers',
+      category: 'goals-blocked'
+    }
+  }
+
+  const troubleGoals = goals.goalsAtRisk + goals.goalsBehindTarget
+  if (troubleGoals <= goals.totalGoals * 0.5) return null
+
+  return {
+    employeeId: evaluation.employeeId,
+    employeeName,
+    pictureThumbnail: evaluation.pictureThumbnail,
+    severity: 'medium',
+    reason: 'Majority of goals at risk or behind',
+    context: `${troubleGoals} of ${goals.totalGoals} goals need attention`,
+    suggestedAction: 'Prioritize and realign goals',
+    category: 'goals-blocked'
+  }
+}
+
+const noFeedbackAlert = (
+  evaluation: TeamMemberEvaluation,
+  employeeName: string,
+  feedback: TeamMemberFeedback | undefined
+): DashboardAlert | null => {
+  if (feedback?.feedbackReceivedCount !== 0) return null
+
+  return {
+    employeeId: evaluation.employeeId,
+    employeeName,
+    pictureThumbnail: evaluation.pictureThumbnail,
+    severity: 'medium',
+    reason: 'No feedback received recently',
+    context: 'No feedback in the last 30 days',
+    suggestedAction: 'Encourage peer feedback or give direct feedback',
+    category: 'no-feedback'
+  }
+}
+
+const alignmentGapAlert = (evaluation: TeamMemberEvaluation, employeeName: string): DashboardAlert | null => {
+  if (evaluation.companyValues.length === 0) return null
+
+  const selfScores = evaluation.companyValues.filter(value => value.selfScore !== null).map(value => value.selfScore!)
+  const managerScores = evaluation.companyValues
+    .filter(value => value.managerScore !== null)
+    .map(value => value.managerScore!)
+  if (selfScores.length === 0 || managerScores.length === 0) return null
+
+  const selfAvg = selfScores.reduce((a, b) => a + b, 0) / selfScores.length
+  const managerAvg = managerScores.reduce((a, b) => a + b, 0) / managerScores.length
+  if (Math.abs(selfAvg - managerAvg) <= 1) return null
+
+  return {
+    employeeId: evaluation.employeeId,
+    employeeName,
+    pictureThumbnail: evaluation.pictureThumbnail,
+    severity: 'medium',
+    reason: 'Self-assessment vs manager gap',
+    context: `Self avg: ${selfAvg.toFixed(1)}, Manager avg: ${managerAvg.toFixed(1)}`,
+    suggestedAction: 'Align on expectations in next review',
+    category: 'alignment-gap'
+  }
+}
+
+const skillGapAlert = (
+  evaluation: TeamMemberEvaluation,
+  employeeName: string,
+  skills: TeamMemberSkills | undefined
+): DashboardAlert | null => {
+  if (!skills) return null
+
+  if (skills.hasJobProfile === false) {
+    return {
+      employeeId: evaluation.employeeId,
+      employeeName,
+      pictureThumbnail: evaluation.pictureThumbnail,
+      severity: 'medium',
+      reason: 'No job profile skills defined',
+      context: 'Skill coverage cannot be measured',
+      suggestedAction: 'Assign a job profile with required skills',
+      category: 'skill-gap'
+    }
+  }
+
+  if (skills.missingRequired.length <= 2) return null
+
+  return {
+    employeeId: evaluation.employeeId,
+    employeeName,
+    pictureThumbnail: evaluation.pictureThumbnail,
+    severity: 'medium',
+    reason: 'Multiple required skills missing',
+    context: `${skills.missingRequired.length} required skills not covered`,
+    suggestedAction: 'Create a skill development plan',
+    category: 'skill-gap'
+  }
+}
+
+const growthSignalAlert = (
+  evaluation: TeamMemberEvaluation,
+  employeeName: string,
+  goals: TeamMemberPerformance | undefined
+): DashboardAlert | null => {
+  if (evaluation.changeOverall === null || evaluation.changeOverall <= 0.5) return null
+  if (!goals || goals.goalsOnTrack <= goals.goalsAtRisk) return null
+
+  return {
+    employeeId: evaluation.employeeId,
+    employeeName,
+    pictureThumbnail: evaluation.pictureThumbnail,
+    severity: 'low',
+    reason: 'Strong positive momentum',
+    context: `Score improved by +${evaluation.changeOverall.toFixed(1)} with goals on track`,
+    suggestedAction: 'Recognize achievements and explore growth',
+    category: 'growth-signal'
+  }
+}
+
+const alertsForEvaluation = (
+  evaluation: TeamMemberEvaluation,
+  goals: TeamMemberPerformance | undefined,
+  feedback: TeamMemberFeedback | undefined,
+  skills: TeamMemberSkills | undefined
+): DashboardAlert[] => {
+  const employeeName = `${evaluation.firstName} ${evaluation.lastName}`
+  const alerts: DashboardAlert[] = []
+
+  const candidates = [
+    scoreDropAlert(evaluation, employeeName),
+    goalsBlockedAlert(evaluation, employeeName, goals),
+    noFeedbackAlert(evaluation, employeeName, feedback),
+    alignmentGapAlert(evaluation, employeeName),
+    skillGapAlert(evaluation, employeeName, skills),
+    growthSignalAlert(evaluation, employeeName, goals)
+  ]
+
+  for (const candidate of candidates) {
+    if (candidate) alerts.push(candidate)
+  }
+
+  return alerts
 }
 
 export function generateAlerts(
@@ -189,146 +374,21 @@ export function generateAlerts(
   feedback: TeamMemberFeedback[],
   skills: TeamMemberSkills[]
 ): DashboardAlert[] {
-  const alerts: DashboardAlert[] = []
+  const goalsMap = new Map(goals.map(goal => [goal.employeeId, goal]))
+  const feedbackMap = new Map(feedback.map(entry => [entry.employeeId, entry]))
+  const skillsMap = new Map(skills.map(entry => [entry.employeeId, entry]))
 
-  const goalsMap = new Map(goals.map(g => [g.employeeId, g]))
-  const feedbackMap = new Map(feedback.map(f => [f.employeeId, f]))
-  const skillsMap = new Map(skills.map(s => [s.employeeId, s]))
+  const alerts = evaluations.flatMap(evaluation =>
+    alertsForEvaluation(
+      evaluation,
+      goalsMap.get(evaluation.employeeId),
+      feedbackMap.get(evaluation.employeeId),
+      skillsMap.get(evaluation.employeeId)
+    )
+  )
 
-  for (const ev of evaluations) {
-    const name = `${ev.firstName} ${ev.lastName}`
-    const empGoals = goalsMap.get(ev.employeeId)
-    const empFeedback = feedbackMap.get(ev.employeeId)
-    const empSkills = skillsMap.get(ev.employeeId)
-
-    if (ev.changeOverall != null && ev.changeOverall < -0.5) {
-      alerts.push({
-        employeeId: ev.employeeId,
-        employeeName: name,
-        pictureThumbnail: ev.pictureThumbnail,
-        severity: 'high',
-        reason: 'Overall score dropped significantly',
-        context: `Score changed by ${ev.changeOverall > 0 ? '+' : ''}${ev.changeOverall.toFixed(1)} vs previous cycle`,
-        suggestedAction: 'Schedule a coaching 1:1',
-        category: 'score-drop'
-      })
-    }
-
-    if (empGoals && empGoals.totalGoals > 0 && empGoals.averageProgress < 30) {
-      alerts.push({
-        employeeId: ev.employeeId,
-        employeeName: name,
-        pictureThumbnail: ev.pictureThumbnail,
-        severity: 'high',
-        reason: 'Very low goals progress',
-        context: `${empGoals.averageProgress}% average progress across ${empGoals.totalGoals} goals`,
-        suggestedAction: 'Review goals and remove blockers',
-        category: 'goals-blocked'
-      })
-    }
-
-    if (empGoals && empGoals.totalGoals > 0) {
-      const troubleGoals = empGoals.goalsAtRisk + empGoals.goalsBehindTarget
-      if (troubleGoals > empGoals.totalGoals * 0.5) {
-        const existing = alerts.find(a => a.employeeId === ev.employeeId && a.category === 'goals-blocked')
-        if (!existing) {
-          alerts.push({
-            employeeId: ev.employeeId,
-            employeeName: name,
-            pictureThumbnail: ev.pictureThumbnail,
-            severity: 'medium',
-            reason: 'Majority of goals at risk or behind',
-            context: `${troubleGoals} of ${empGoals.totalGoals} goals need attention`,
-            suggestedAction: 'Prioritize and realign goals',
-            category: 'goals-blocked'
-          })
-        }
-      }
-    }
-
-    if (empFeedback && empFeedback.feedbackReceivedCount === 0) {
-      alerts.push({
-        employeeId: ev.employeeId,
-        employeeName: name,
-        pictureThumbnail: ev.pictureThumbnail,
-        severity: 'medium',
-        reason: 'No feedback received recently',
-        context: 'No feedback in the last 30 days',
-        suggestedAction: 'Encourage peer feedback or give direct feedback',
-        category: 'no-feedback'
-      })
-    }
-
-    if (ev.companyValues.length > 0) {
-      const selfScores = ev.companyValues.filter(v => v.selfScore != null).map(v => v.selfScore!)
-      const mgrScores = ev.companyValues.filter(v => v.managerScore != null).map(v => v.managerScore!)
-      if (selfScores.length > 0 && mgrScores.length > 0) {
-        const selfAvg = selfScores.reduce((a, b) => a + b, 0) / selfScores.length
-        const mgrAvg = mgrScores.reduce((a, b) => a + b, 0) / mgrScores.length
-        if (Math.abs(selfAvg - mgrAvg) > 1.0) {
-          alerts.push({
-            employeeId: ev.employeeId,
-            employeeName: name,
-            pictureThumbnail: ev.pictureThumbnail,
-            severity: 'medium',
-            reason: 'Self-assessment vs manager gap',
-            context: `Self avg: ${selfAvg.toFixed(1)}, Manager avg: ${mgrAvg.toFixed(1)}`,
-            suggestedAction: 'Align on expectations in next review',
-            category: 'alignment-gap'
-          })
-        }
-      }
-    }
-
-    if (empSkills && !empSkills.hasJobProfile) {
-      alerts.push({
-        employeeId: ev.employeeId,
-        employeeName: name,
-        pictureThumbnail: ev.pictureThumbnail,
-        severity: 'medium',
-        reason: 'No job profile skills defined',
-        context: 'Skill coverage cannot be measured',
-        suggestedAction: 'Assign a job profile with required skills',
-        category: 'skill-gap'
-      })
-    } else if (empSkills && empSkills.missingRequired.length > 2) {
-      alerts.push({
-        employeeId: ev.employeeId,
-        employeeName: name,
-        pictureThumbnail: ev.pictureThumbnail,
-        severity: 'medium',
-        reason: 'Multiple required skills missing',
-        context: `${empSkills.missingRequired.length} required skills not covered`,
-        suggestedAction: 'Create a skill development plan',
-        category: 'skill-gap'
-      })
-    }
-
-    if (
-      ev.changeOverall != null &&
-      ev.changeOverall > 0.5 &&
-      empGoals &&
-      empGoals.goalsOnTrack > empGoals.goalsAtRisk
-    ) {
-      alerts.push({
-        employeeId: ev.employeeId,
-        employeeName: name,
-        pictureThumbnail: ev.pictureThumbnail,
-        severity: 'low',
-        reason: 'Strong positive momentum',
-        context: `Score improved by +${ev.changeOverall.toFixed(1)} with goals on track`,
-        suggestedAction: 'Recognize achievements and explore growth',
-        category: 'growth-signal'
-      })
-    }
-  }
-
-  alerts.sort((a, b) => {
-    const severityOrder = { high: 0, medium: 1, low: 2 }
-    return severityOrder[a.severity] - severityOrder[b.severity]
-  })
-
-  return alerts
+  const severityOrder = { high: 0, medium: 1, low: 2 }
+  return alerts.toSorted((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
 }
 
 const EMPLOYEE_SIGNAL_PRIORITY: EmployeeSignalType[] = [
@@ -343,6 +403,258 @@ const EMPLOYEE_SIGNAL_PRIORITY: EmployeeSignalType[] = [
   'development-momentum'
 ]
 
+const createEmployeeSignal = (
+  evaluation: TeamMemberEvaluation,
+  employeeName: string,
+  signalType: EmployeeSignalType,
+  category: SignalCategory,
+  description: string,
+  supportingData: string[],
+  suggestedAction: string
+): EmployeeSignal => ({
+  employeeId: evaluation.employeeId,
+  employeeName,
+  pictureThumbnail: evaluation.pictureThumbnail,
+  signalType,
+  category,
+  description,
+  supportingData,
+  suggestedAction,
+  isPrimary: false
+})
+
+const strongMomentumSignal = (
+  evaluation: TeamMemberEvaluation,
+  employeeName: string,
+  goals: TeamMemberPerformance | undefined,
+  hasCycleHistory: boolean,
+  scaleLimit: number
+): EmployeeSignal | null => {
+  if (!hasCycleHistory || evaluation.changeOverall === null || evaluation.changeOverall <= 0.5) return null
+  if (evaluation.latestScore === null || evaluation.latestScore < scaleLimit * 0.5) return null
+  if (!goals || goals.totalGoals < 1 || goals.goalsOnTrack <= goals.goalsAtRisk) return null
+
+  return createEmployeeSignal(
+    evaluation,
+    employeeName,
+    'strong-momentum',
+    'positive',
+    'Consistent improvement across scores and goal execution',
+    [
+      `Score improved by +${evaluation.changeOverall.toFixed(1)} since last cycle`,
+      `${goals.goalsOnTrack} of ${goals.totalGoals} goals on track`
+    ],
+    'Recognize progress. Discuss stretch opportunities in next 1:1.'
+  )
+}
+
+const growthCandidateSignal = (
+  evaluation: TeamMemberEvaluation,
+  employeeName: string,
+  goals: TeamMemberPerformance | undefined,
+  scaleLimit: number
+): EmployeeSignal | null => {
+  if (evaluation.latestScore === null || evaluation.latestScore < scaleLimit * 0.8) return null
+  if (!goals || goals.totalGoals < 2 || goals.averageProgress < 70) return null
+  if (evaluation.companyValuesAvg !== null && evaluation.companyValuesAvg < scaleLimit * 0.6) return null
+
+  const supportingData = [
+    `Overall score: ${evaluation.latestScore.toFixed(1)}/${scaleLimit}`,
+    `${goals.averageProgress}% average goal progress`
+  ]
+  if (evaluation.companyValuesAvg !== null) {
+    supportingData.push(`Values score: ${evaluation.companyValuesAvg.toFixed(1)}`)
+  }
+
+  return createEmployeeSignal(
+    evaluation,
+    employeeName,
+    'growth-candidate',
+    'positive',
+    'Consistently scores high and delivers on goals — may be ready for expanded responsibilities',
+    supportingData,
+    'Discuss career development. Consider for stretch assignments or leadership opportunities.'
+  )
+}
+
+const developmentMomentumSignal = (
+  evaluation: TeamMemberEvaluation,
+  employeeName: string,
+  hasCycleHistory: boolean
+): EmployeeSignal | null => {
+  if (!hasCycleHistory) return null
+  if (evaluation.changeSkills === null || evaluation.changeSkills <= 0.5) return null
+  if (evaluation.changeOverall === null || evaluation.changeOverall <= 0) return null
+
+  return createEmployeeSignal(
+    evaluation,
+    employeeName,
+    'development-momentum',
+    'positive',
+    'Significant skill growth alongside improving performance',
+    [
+      `Skills score improved by +${evaluation.changeSkills.toFixed(1)}`,
+      `Overall score change: +${evaluation.changeOverall.toFixed(1)}`
+    ],
+    'Acknowledge development efforts. Identify next skill areas to focus on.'
+  )
+}
+
+const plateauRiskSignal = (
+  evaluation: TeamMemberEvaluation,
+  employeeName: string,
+  feedback: TeamMemberFeedback | undefined,
+  hasCycleHistory: boolean,
+  scaleLimit: number
+): EmployeeSignal | null => {
+  if (!hasCycleHistory || evaluation.changeOverall === null || evaluation.changeSkills === null) return null
+  if (Math.abs(evaluation.changeOverall) >= 0.2 || Math.abs(evaluation.changeSkills) >= 0.2) return null
+  if (!feedback || feedback.feedbackReceivedCount >= 3) return null
+  if (evaluation.latestScore !== null && evaluation.latestScore >= scaleLimit * 0.8) return null
+
+  return createEmployeeSignal(
+    evaluation,
+    employeeName,
+    'plateau-risk',
+    'attention',
+    'Scores and skills have remained flat across cycles with minimal feedback activity',
+    [
+      `Score change: ${evaluation.changeOverall.toFixed(1)}`,
+      `Skills change: ${evaluation.changeSkills.toFixed(1)}`,
+      `${feedback.feedbackReceivedCount} feedback received`
+    ],
+    'Have a development conversation. Explore whether they need new challenges or support.'
+  )
+}
+
+const lowRecognitionSignal = (
+  evaluation: TeamMemberEvaluation,
+  employeeName: string,
+  feedback: TeamMemberFeedback | undefined,
+  scaleLimit: number
+): EmployeeSignal | null => {
+  if (evaluation.latestScore === null || evaluation.latestScore < scaleLimit * 0.6) return null
+  if (!feedback || feedback.feedbackReceivedCount > 1) return null
+
+  return createEmployeeSignal(
+    evaluation,
+    employeeName,
+    'low-recognition',
+    'attention',
+    'Solid performer receiving very little feedback from peers and managers',
+    [
+      `Score: ${evaluation.latestScore.toFixed(1)}/${scaleLimit}`,
+      `Only ${feedback.feedbackReceivedCount} feedback received this cycle`
+    ],
+    'Encourage peers to provide feedback. Ensure contributions are visible.'
+  )
+}
+
+const lowFeedbackParticipationSignal = (
+  evaluation: TeamMemberEvaluation,
+  employeeName: string,
+  feedback: TeamMemberFeedback | undefined,
+  teamSize: number
+): EmployeeSignal | null => {
+  if (!feedback || teamSize < 3) return null
+  if (feedback.feedbackReceivedCount > 1 || feedback.feedbackGivenCount > 1) return null
+
+  return createEmployeeSignal(
+    evaluation,
+    employeeName,
+    'low-feedback-participation',
+    'attention',
+    'Not actively participating in the feedback culture — neither giving nor receiving',
+    [`${feedback.feedbackReceivedCount} feedback received`, `${feedback.feedbackGivenCount} feedback given`],
+    'Discuss the value of feedback participation. Set expectations for peer feedback.'
+  )
+}
+
+const decliningTrajectorySignal = (
+  evaluation: TeamMemberEvaluation,
+  employeeName: string,
+  feedback: TeamMemberFeedback | undefined,
+  hasCycleHistory: boolean,
+  scaleLimit: number
+): EmployeeSignal | null => {
+  if (!hasCycleHistory || !feedback || feedback.feedbackReceivedCount >= 3) return null
+  if (evaluation.latestScore === null || evaluation.latestScore < scaleLimit * 0.7) return null
+  if (evaluation.changeOverall === null || evaluation.changeOverall >= -0.3) return null
+
+  return createEmployeeSignal(
+    evaluation,
+    employeeName,
+    'declining-trajectory',
+    'warning',
+    'Scores are dropping despite a strong baseline',
+    [
+      `Score dropped by ${evaluation.changeOverall.toFixed(1)} from last cycle`,
+      `Current score: ${evaluation.latestScore.toFixed(1)}/${scaleLimit}`,
+      `Only ${feedback.feedbackReceivedCount} feedback received`
+    ],
+    'Schedule a 1:1 to understand context. Check for workload, blockers, or personal factors.'
+  )
+}
+
+const blockedExecutionSignal = (
+  evaluation: TeamMemberEvaluation,
+  employeeName: string,
+  goals: TeamMemberPerformance | undefined
+): EmployeeSignal | null => {
+  if (!goals || goals.totalGoals < 2) return null
+  if (goals.goalsBehindTarget < 2 || goals.averageProgress >= 40) return null
+
+  return createEmployeeSignal(
+    evaluation,
+    employeeName,
+    'blocked-execution',
+    'warning',
+    'Multiple goals behind target despite otherwise adequate performance',
+    [`${goals.goalsBehindTarget} goals behind target`, `${goals.averageProgress}% average progress`],
+    'Review blockers together. Reprioritize or remove obstacles.'
+  )
+}
+
+const averageOrNull = (values: number[]): number | null => {
+  if (values.length === 0) return null
+  return values.reduce((a, b) => a + b, 0) / values.length
+}
+
+const alignmentGapSignal = (evaluation: TeamMemberEvaluation, employeeName: string): EmployeeSignal | null => {
+  const dimensions = [...evaluation.companyValues, ...evaluation.skills]
+  const selfScores = dimensions.filter(dimension => dimension.selfScore !== null).map(dimension => dimension.selfScore!)
+  const peerScores = dimensions
+    .filter(dimension => dimension.peerAvgScore !== null)
+    .map(dimension => dimension.peerAvgScore!)
+  const managerScores = dimensions
+    .filter(dimension => dimension.managerScore !== null)
+    .map(dimension => dimension.managerScore!)
+
+  const selfAvg = averageOrNull(selfScores)
+  const peerAvg = averageOrNull(peerScores)
+  const managerAvg = averageOrNull(managerScores)
+  const perspectiveValues = [selfAvg, peerAvg, managerAvg].filter((value): value is number => value !== null)
+  if (perspectiveValues.length < 2) return null
+
+  const maxGap = Math.max(...perspectiveValues) - Math.min(...perspectiveValues)
+  if (maxGap <= 1) return null
+
+  const supportingData: string[] = []
+  if (selfAvg !== null) supportingData.push(`Self: ${selfAvg.toFixed(1)}`)
+  if (peerAvg !== null) supportingData.push(`Peer avg: ${peerAvg.toFixed(1)}`)
+  if (managerAvg !== null) supportingData.push(`Manager: ${managerAvg.toFixed(1)}`)
+
+  return createEmployeeSignal(
+    evaluation,
+    employeeName,
+    'alignment-gap',
+    'warning',
+    `Significant divergence between assessment perspectives — gap of ${maxGap.toFixed(1)} points`,
+    supportingData,
+    'Discuss perception differences. Use specific examples to align expectations.'
+  )
+}
+
 export function detectEmployeeSignals(
   evaluations: TeamMemberEvaluation[],
   goals: TeamMemberPerformance[],
@@ -350,243 +662,32 @@ export function detectEmployeeSignals(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _skills: TeamMemberSkills[]
 ): EmployeeSignal[] {
-  const goalsMap = new Map(goals.map(g => [g.employeeId, g]))
-  const feedbackMap = new Map(feedback.map(f => [f.employeeId, f]))
+  const goalsMap = new Map(goals.map(goal => [goal.employeeId, goal]))
+  const feedbackMap = new Map(feedback.map(entry => [entry.employeeId, entry]))
   const allRaw: EmployeeSignal[] = []
+  const teamSize = evaluations.length
 
-  for (const ev of evaluations) {
-    const name = `${ev.firstName} ${ev.lastName}`
-    const empGoals = goalsMap.get(ev.employeeId)
-    const empFeedback = feedbackMap.get(ev.employeeId)
-    const scaleLimit = ev.ratingScaleLimit ?? 5
-    const hasCycleHistory = ev.cycleScores.length >= 2
+  for (const evaluation of evaluations) {
+    const employeeName = `${evaluation.firstName} ${evaluation.lastName}`
+    const employeeGoals = goalsMap.get(evaluation.employeeId)
+    const employeeFeedback = feedbackMap.get(evaluation.employeeId)
+    const scaleLimit = evaluation.ratingScaleLimit ?? 5
+    const hasCycleHistory = evaluation.cycleScores.length >= 2
 
-    // Strong Momentum
-    if (
-      hasCycleHistory &&
-      ev.changeOverall != null &&
-      ev.changeOverall > 0.5 &&
-      ev.latestScore != null &&
-      ev.latestScore >= scaleLimit * 0.5 &&
-      empGoals &&
-      empGoals.totalGoals >= 1 &&
-      empGoals.goalsOnTrack > empGoals.goalsAtRisk
-    ) {
-      allRaw.push({
-        employeeId: ev.employeeId,
-        employeeName: name,
-        pictureThumbnail: ev.pictureThumbnail,
-        signalType: 'strong-momentum',
-        category: 'positive',
-        description: 'Consistent improvement across scores and goal execution',
-        supportingData: [
-          `Score improved by +${ev.changeOverall.toFixed(1)} since last cycle`,
-          `${empGoals.goalsOnTrack} of ${empGoals.totalGoals} goals on track`
-        ],
-        suggestedAction: 'Recognize progress. Discuss stretch opportunities in next 1:1.',
-        isPrimary: false
-      })
-    }
+    const candidates: Array<EmployeeSignal | null> = [
+      strongMomentumSignal(evaluation, employeeName, employeeGoals, hasCycleHistory, scaleLimit),
+      growthCandidateSignal(evaluation, employeeName, employeeGoals, scaleLimit),
+      developmentMomentumSignal(evaluation, employeeName, hasCycleHistory),
+      plateauRiskSignal(evaluation, employeeName, employeeFeedback, hasCycleHistory, scaleLimit),
+      lowRecognitionSignal(evaluation, employeeName, employeeFeedback, scaleLimit),
+      lowFeedbackParticipationSignal(evaluation, employeeName, employeeFeedback, teamSize),
+      decliningTrajectorySignal(evaluation, employeeName, employeeFeedback, hasCycleHistory, scaleLimit),
+      blockedExecutionSignal(evaluation, employeeName, employeeGoals),
+      alignmentGapSignal(evaluation, employeeName)
+    ]
 
-    // Growth Candidate
-    if (
-      ev.latestScore != null &&
-      ev.latestScore >= scaleLimit * 0.8 &&
-      empGoals &&
-      empGoals.totalGoals >= 2 &&
-      empGoals.averageProgress >= 70 &&
-      (ev.companyValuesAvg == null || ev.companyValuesAvg >= scaleLimit * 0.6)
-    ) {
-      const sd = [
-        `Overall score: ${ev.latestScore.toFixed(1)}/${scaleLimit}`,
-        `${empGoals.averageProgress}% average goal progress`
-      ]
-      if (ev.companyValuesAvg != null) sd.push(`Values score: ${ev.companyValuesAvg.toFixed(1)}`)
-      allRaw.push({
-        employeeId: ev.employeeId,
-        employeeName: name,
-        pictureThumbnail: ev.pictureThumbnail,
-        signalType: 'growth-candidate',
-        category: 'positive',
-        description: 'Consistently scores high and delivers on goals — may be ready for expanded responsibilities',
-        supportingData: sd,
-        suggestedAction: 'Discuss career development. Consider for stretch assignments or leadership opportunities.',
-        isPrimary: false
-      })
-    }
-
-    // Development Momentum
-    if (
-      hasCycleHistory &&
-      ev.changeSkills != null &&
-      ev.changeSkills > 0.5 &&
-      ev.changeOverall != null &&
-      ev.changeOverall > 0
-    ) {
-      allRaw.push({
-        employeeId: ev.employeeId,
-        employeeName: name,
-        pictureThumbnail: ev.pictureThumbnail,
-        signalType: 'development-momentum',
-        category: 'positive',
-        description: 'Significant skill growth alongside improving performance',
-        supportingData: [
-          `Skills score improved by +${ev.changeSkills.toFixed(1)}`,
-          `Overall score change: +${ev.changeOverall.toFixed(1)}`
-        ],
-        suggestedAction: 'Acknowledge development efforts. Identify next skill areas to focus on.',
-        isPrimary: false
-      })
-    }
-
-    // Plateau Risk — exclude stable high performers
-    if (
-      hasCycleHistory &&
-      ev.changeOverall != null &&
-      Math.abs(ev.changeOverall) < 0.2 &&
-      ev.changeSkills != null &&
-      Math.abs(ev.changeSkills) < 0.2 &&
-      empFeedback &&
-      empFeedback.feedbackReceivedCount < 3 &&
-      !(ev.latestScore != null && ev.latestScore >= scaleLimit * 0.8)
-    ) {
-      allRaw.push({
-        employeeId: ev.employeeId,
-        employeeName: name,
-        pictureThumbnail: ev.pictureThumbnail,
-        signalType: 'plateau-risk',
-        category: 'attention',
-        description: 'Scores and skills have remained flat across cycles with minimal feedback activity',
-        supportingData: [
-          `Score change: ${ev.changeOverall.toFixed(1)}`,
-          `Skills change: ${ev.changeSkills.toFixed(1)}`,
-          `${empFeedback.feedbackReceivedCount} feedback received`
-        ],
-        suggestedAction: 'Have a development conversation. Explore whether they need new challenges or support.',
-        isPrimary: false
-      })
-    }
-
-    // Low Recognition
-    if (
-      ev.latestScore != null &&
-      ev.latestScore >= scaleLimit * 0.6 &&
-      empFeedback &&
-      empFeedback.feedbackReceivedCount <= 1
-    ) {
-      allRaw.push({
-        employeeId: ev.employeeId,
-        employeeName: name,
-        pictureThumbnail: ev.pictureThumbnail,
-        signalType: 'low-recognition',
-        category: 'attention',
-        description: 'Solid performer receiving very little feedback from peers and managers',
-        supportingData: [
-          `Score: ${ev.latestScore.toFixed(1)}/${scaleLimit}`,
-          `Only ${empFeedback.feedbackReceivedCount} feedback received this cycle`
-        ],
-        suggestedAction: 'Encourage peers to provide feedback. Ensure contributions are visible.',
-        isPrimary: false
-      })
-    }
-
-    // Low Feedback Participation — skip for very small teams
-    if (
-      empFeedback &&
-      empFeedback.feedbackReceivedCount <= 1 &&
-      empFeedback.feedbackGivenCount <= 1 &&
-      evaluations.length >= 3
-    ) {
-      allRaw.push({
-        employeeId: ev.employeeId,
-        employeeName: name,
-        pictureThumbnail: ev.pictureThumbnail,
-        signalType: 'low-feedback-participation',
-        category: 'attention',
-        description: 'Not actively participating in the feedback culture — neither giving nor receiving',
-        supportingData: [
-          `${empFeedback.feedbackReceivedCount} feedback received`,
-          `${empFeedback.feedbackGivenCount} feedback given`
-        ],
-        suggestedAction: 'Discuss the value of feedback participation. Set expectations for peer feedback.',
-        isPrimary: false
-      })
-    }
-
-    // Declining Trajectory
-    if (
-      hasCycleHistory &&
-      ev.latestScore != null &&
-      ev.latestScore >= scaleLimit * 0.7 &&
-      ev.changeOverall != null &&
-      ev.changeOverall < -0.3 &&
-      empFeedback &&
-      empFeedback.feedbackReceivedCount < 3
-    ) {
-      allRaw.push({
-        employeeId: ev.employeeId,
-        employeeName: name,
-        pictureThumbnail: ev.pictureThumbnail,
-        signalType: 'declining-trajectory',
-        category: 'warning',
-        description: 'Scores are dropping despite a strong baseline',
-        supportingData: [
-          `Score dropped by ${ev.changeOverall.toFixed(1)} from last cycle`,
-          `Current score: ${ev.latestScore.toFixed(1)}/${scaleLimit}`,
-          `Only ${empFeedback.feedbackReceivedCount} feedback received`
-        ],
-        suggestedAction: 'Schedule a 1:1 to understand context. Check for workload, blockers, or personal factors.',
-        isPrimary: false
-      })
-    }
-
-    // Blocked Execution
-    if (empGoals && empGoals.totalGoals >= 2) {
-      const blocked = empGoals.goalsBehindTarget
-      if (blocked >= 2 && empGoals.averageProgress < 40) {
-        allRaw.push({
-          employeeId: ev.employeeId,
-          employeeName: name,
-          pictureThumbnail: ev.pictureThumbnail,
-          signalType: 'blocked-execution',
-          category: 'warning',
-          description: 'Multiple goals behind target despite otherwise adequate performance',
-          supportingData: [`${blocked} goals behind target`, `${empGoals.averageProgress}% average progress`],
-          suggestedAction: 'Review blockers together. Reprioritize or remove obstacles.',
-          isPrimary: false
-        })
-      }
-    }
-
-    // Alignment Gap
-    const allDimensions = [...ev.companyValues, ...ev.skills]
-    const selfScores = allDimensions.filter(d => d.selfScore != null).map(d => d.selfScore!)
-    const peerScores = allDimensions.filter(d => d.peerAvgScore != null).map(d => d.peerAvgScore!)
-    const mgrScores = allDimensions.filter(d => d.managerScore != null).map(d => d.managerScore!)
-    const avgArr = (arr: number[]) => (arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null)
-    const selfAvg = avgArr(selfScores)
-    const peerAvg = avgArr(peerScores)
-    const mgrAvg = avgArr(mgrScores)
-    const perspectiveValues = [selfAvg, peerAvg, mgrAvg].filter((v): v is number => v !== null)
-    if (perspectiveValues.length >= 2) {
-      const maxGap = Math.max(...perspectiveValues) - Math.min(...perspectiveValues)
-      if (maxGap > 1.0) {
-        const parts: string[] = []
-        if (selfAvg != null) parts.push(`Self: ${selfAvg.toFixed(1)}`)
-        if (peerAvg != null) parts.push(`Peer avg: ${peerAvg.toFixed(1)}`)
-        if (mgrAvg != null) parts.push(`Manager: ${mgrAvg.toFixed(1)}`)
-        allRaw.push({
-          employeeId: ev.employeeId,
-          employeeName: name,
-          pictureThumbnail: ev.pictureThumbnail,
-          signalType: 'alignment-gap',
-          category: 'warning',
-          description: `Significant divergence between assessment perspectives — gap of ${maxGap.toFixed(1)} points`,
-          supportingData: parts,
-          suggestedAction: 'Discuss perception differences. Use specific examples to align expectations.',
-          isPrimary: false
-        })
-      }
+    for (const candidate of candidates) {
+      if (candidate) allRaw.push(candidate)
     }
   }
 
@@ -611,170 +712,184 @@ export function detectEmployeeSignals(
   return result
 }
 
+const createTeamSignal = (
+  signalType: TeamSignalType,
+  category: SignalCategory,
+  description: string,
+  supportingData: string[],
+  suggestedAction: string
+): TeamSignal => ({ signalType, category, description, supportingData, suggestedAction })
+
+const growthConcentrationRiskSignal = (evaluations: TeamMemberEvaluation[], teamSize: number): TeamSignal | null => {
+  if (teamSize < 4) return null
+
+  const skillChanges = evaluations
+    .filter(evaluation => evaluation.changeSkills !== null && evaluation.changeSkills > 0)
+    .map(evaluation => ({ id: evaluation.employeeId, change: evaluation.changeSkills! }))
+  const totalGrowth = skillChanges.reduce((sum, entry) => sum + entry.change, 0)
+  if (totalGrowth <= 0.2) return null
+
+  const sortedChanges = skillChanges.toSorted((a, b) => b.change - a.change)
+  const topQuarter = Math.max(1, Math.ceil(sortedChanges.length * 0.25))
+  const topGrowth = sortedChanges.slice(0, topQuarter).reduce((sum, entry) => sum + entry.change, 0)
+  if (topGrowth / totalGrowth < 0.7) return null
+
+  return createTeamSignal(
+    'growth-concentration-risk',
+    'attention',
+    `${Math.round((topGrowth / totalGrowth) * 100)}% of team skill improvement came from ${topQuarter} of ${sortedChanges.length} team members`,
+    [`Top ${topQuarter} contributor${topQuarter > 1 ? 's' : ''} account for most growth`],
+    'Distribute development opportunities more broadly. Review training and mentoring plans.'
+  )
+}
+
+const unevenFeedbackCoverageSignal = (feedback: TeamMemberFeedback[], teamSize: number): TeamSignal | null => {
+  const feedbackCounts = feedback.map(entry => entry.feedbackReceivedCount)
+  const totalFeedback = feedbackCounts.reduce((sum, count) => sum + count, 0)
+  if (totalFeedback < 5) return null
+
+  const membersWithFeedback = feedbackCounts.filter(count => count > 0).length
+  const coverage = (membersWithFeedback / teamSize) * 100
+  if (coverage >= 60) return null
+
+  return createTeamSignal(
+    'uneven-feedback-coverage',
+    'attention',
+    `Only ${membersWithFeedback} of ${teamSize} team members have received feedback this cycle`,
+    [`${Math.round(coverage)}% coverage`],
+    'Encourage a culture of regular feedback. Set team-wide feedback norms.'
+  )
+}
+
+const teamExecutionRiskSignal = (goals: TeamMemberPerformance[]): TeamSignal | null => {
+  const membersWithBlockedGoals = goals.filter(
+    goal => goal.totalGoals > 0 && (goal.goalsBehindTarget > 0 || goal.goalsAtRisk > goal.goalsOnTrack)
+  ).length
+  if (goals.length < 3 || membersWithBlockedGoals / goals.length < 0.4) return null
+
+  return createTeamSignal(
+    'team-execution-risk',
+    'warning',
+    `${membersWithBlockedGoals} of ${goals.length} team members have goals behind target or at risk`,
+    [`${Math.round((membersWithBlockedGoals / goals.length) * 100)}% of team affected`],
+    'Review team-wide blockers. Consider reprioritization or resource reallocation.'
+  )
+}
+
+const collectDimensionMap = (
+  evaluations: TeamMemberEvaluation[],
+  dimension: 'skills' | 'companyValues'
+): Map<string, number[]> => {
+  const dimensionMap = new Map<string, number[]>()
+  for (const evaluation of evaluations) {
+    const entries = dimension === 'skills' ? evaluation.skills : evaluation.companyValues
+    for (const entry of entries) {
+      if (entry.overallAvg === null) continue
+      const values = dimensionMap.get(entry.name) ?? []
+      values.push(entry.overallAvg)
+      dimensionMap.set(entry.name, values)
+    }
+  }
+  return dimensionMap
+}
+
+const capabilityGapSignals = (skillDimensionMap: Map<string, number[]>, scaleLimit: number): TeamSignal[] => {
+  const signals: TeamSignal[] = []
+  for (const [skillName, scores] of skillDimensionMap) {
+    if (scores.length < 3) continue
+    const average = scores.reduce((a, b) => a + b, 0) / scores.length
+    if (average >= scaleLimit * 0.4) continue
+    signals.push(
+      createTeamSignal(
+        'capability-gap',
+        'attention',
+        `${skillName} averages ${average.toFixed(1)}/${scaleLimit} across the team — the lowest of all skills`,
+        [`${scores.length} team members evaluated`, `Team average: ${average.toFixed(1)}`],
+        'Plan targeted team development. Consider workshops, coaching, or hiring for the gap.'
+      )
+    )
+  }
+  return signals
+}
+
+const valuesAlignmentGapSignals = (valuesDimensionMap: Map<string, number[]>, scaleLimit: number): TeamSignal[] => {
+  const signals: TeamSignal[] = []
+  for (const [valueName, scores] of valuesDimensionMap) {
+    if (scores.length < 3) continue
+    const average = scores.reduce((a, b) => a + b, 0) / scores.length
+    if (average >= scaleLimit * 0.5) continue
+    signals.push(
+      createTeamSignal(
+        'values-alignment-gap',
+        'attention',
+        `${valueName} averages ${average.toFixed(1)}/${scaleLimit} — below the expected baseline`,
+        [`${scores.length} team members evaluated`],
+        'Reinforce the value through team discussions and role modeling.'
+      )
+    )
+  }
+  return signals
+}
+
+const standoutGrowthClusterSignal = (employeeSignals: EmployeeSignal[], teamSize: number): TeamSignal | null => {
+  const growthSignalCount = employeeSignals.filter(
+    signal =>
+      signal.isPrimary && (signal.signalType === 'strong-momentum' || signal.signalType === 'development-momentum')
+  ).length
+  if (teamSize < 5 || growthSignalCount < 3) return null
+
+  return createTeamSignal(
+    'standout-growth-cluster',
+    'positive',
+    `${growthSignalCount} of ${teamSize} team members are showing strong performance or skill growth this cycle`,
+    [],
+    "Celebrate team progress. Identify what's working and reinforce it."
+  )
+}
+
+const recognitionGapSignal = (employeeSignals: EmployeeSignal[]): TeamSignal | null => {
+  const lowRecognitionCount = employeeSignals.filter(signal => signal.signalType === 'low-recognition').length
+  if (lowRecognitionCount < 2) return null
+
+  return createTeamSignal(
+    'recognition-gap',
+    'attention',
+    `${lowRecognitionCount} strong performers have received little or no feedback this cycle`,
+    [],
+    'Create visibility for strong contributors. Prompt peer feedback and recognition.'
+  )
+}
+
 export function detectTeamSignals(
   evaluations: TeamMemberEvaluation[],
   goals: TeamMemberPerformance[],
   feedback: TeamMemberFeedback[],
   employeeSignals: EmployeeSignal[]
 ): TeamSignal[] {
-  const signals: TeamSignal[] = []
   const teamSize = evaluations.length
-  if (teamSize < 3) return signals
+  if (teamSize < 3) return []
 
-  // Growth Concentration Risk
-  if (teamSize >= 4) {
-    const skillChanges = evaluations
-      .filter(ev => ev.changeSkills != null && ev.changeSkills > 0)
-      .map(ev => ({ id: ev.employeeId, change: ev.changeSkills! }))
-    const totalGrowth = skillChanges.reduce((sum, e) => sum + e.change, 0)
-    if (totalGrowth > 0.2) {
-      skillChanges.sort((a, b) => b.change - a.change)
-      const topQuarter = Math.max(1, Math.ceil(skillChanges.length * 0.25))
-      const topGrowth = skillChanges.slice(0, topQuarter).reduce((s, e) => s + e.change, 0)
-      if (topGrowth / totalGrowth >= 0.7) {
-        signals.push({
-          signalType: 'growth-concentration-risk',
-          category: 'attention',
-          description: `${Math.round((topGrowth / totalGrowth) * 100)}% of team skill improvement came from ${topQuarter} of ${skillChanges.length} team members`,
-          supportingData: [`Top ${topQuarter} contributor${topQuarter > 1 ? 's' : ''} account for most growth`],
-          suggestedAction: 'Distribute development opportunities more broadly. Review training and mentoring plans.'
-        })
-      }
-    }
-  }
-
-  // Uneven Feedback Coverage
-  const feedbackCounts = feedback.map(f => f.feedbackReceivedCount)
-  const totalFeedback = feedbackCounts.reduce((s, c) => s + c, 0)
-  if (totalFeedback >= 5) {
-    const membersWithFeedback = feedbackCounts.filter(c => c > 0).length
-    const coverage = (membersWithFeedback / teamSize) * 100
-    if (coverage < 60) {
-      signals.push({
-        signalType: 'uneven-feedback-coverage',
-        category: 'attention',
-        description: `Only ${membersWithFeedback} of ${teamSize} team members have received feedback this cycle`,
-        supportingData: [`${Math.round(coverage)}% coverage`],
-        suggestedAction: 'Encourage a culture of regular feedback. Set team-wide feedback norms.'
-      })
-    }
-  }
-
-  // Team Execution Risk
-  const membersWithBlockedGoals = goals.filter(
-    g => g.totalGoals > 0 && (g.goalsBehindTarget > 0 || g.goalsAtRisk > g.goalsOnTrack)
-  ).length
-  if (goals.length >= 3 && membersWithBlockedGoals / goals.length >= 0.4) {
-    signals.push({
-      signalType: 'team-execution-risk',
-      category: 'warning',
-      description: `${membersWithBlockedGoals} of ${goals.length} team members have goals behind target or at risk`,
-      supportingData: [`${Math.round((membersWithBlockedGoals / goals.length) * 100)}% of team affected`],
-      suggestedAction: 'Review team-wide blockers. Consider reprioritization or resource reallocation.'
-    })
-  }
-
-  // Capability Gap
-  const skillDimMap = new Map<string, number[]>()
-  for (const ev of evaluations) {
-    for (const s of ev.skills) {
-      if (s.overallAvg != null) {
-        const arr = skillDimMap.get(s.name) ?? []
-        arr.push(s.overallAvg)
-        skillDimMap.set(s.name, arr)
-      }
-    }
-  }
   const scaleLimit = evaluations[0]?.ratingScaleLimit ?? 5
-  for (const [skillName, scores] of skillDimMap) {
-    if (scores.length >= 3) {
-      const avg = scores.reduce((a, b) => a + b, 0) / scores.length
-      if (avg < scaleLimit * 0.4) {
-        signals.push({
-          signalType: 'capability-gap',
-          category: 'attention',
-          description: `${skillName} averages ${avg.toFixed(1)}/${scaleLimit} across the team — the lowest of all skills`,
-          supportingData: [`${scores.length} team members evaluated`, `Team average: ${avg.toFixed(1)}`],
-          suggestedAction: 'Plan targeted team development. Consider workshops, coaching, or hiring for the gap.'
-        })
-      }
-    }
+  const candidates: TeamSignal[] = []
+  const primarySignals = [
+    growthConcentrationRiskSignal(evaluations, teamSize),
+    unevenFeedbackCoverageSignal(feedback, teamSize),
+    teamExecutionRiskSignal(goals),
+    standoutGrowthClusterSignal(employeeSignals, teamSize),
+    recognitionGapSignal(employeeSignals)
+  ]
+
+  for (const signal of primarySignals) {
+    if (signal) candidates.push(signal)
   }
 
-  // Values Alignment Gap
-  const valueDimMap = new Map<string, number[]>()
-  for (const ev of evaluations) {
-    for (const v of ev.companyValues) {
-      if (v.overallAvg != null) {
-        const arr = valueDimMap.get(v.name) ?? []
-        arr.push(v.overallAvg)
-        valueDimMap.set(v.name, arr)
-      }
-    }
-  }
-  for (const [valueName, scores] of valueDimMap) {
-    if (scores.length >= 3) {
-      const avg = scores.reduce((a, b) => a + b, 0) / scores.length
-      if (avg < scaleLimit * 0.5) {
-        signals.push({
-          signalType: 'values-alignment-gap',
-          category: 'attention',
-          description: `${valueName} averages ${avg.toFixed(1)}/${scaleLimit} — below the expected baseline`,
-          supportingData: [`${scores.length} team members evaluated`],
-          suggestedAction: 'Reinforce the value through team discussions and role modeling.'
-        })
-      }
-    }
-  }
+  const skillDimensionMap = collectDimensionMap(evaluations, 'skills')
+  const valuesDimensionMap = collectDimensionMap(evaluations, 'companyValues')
+  candidates.push(...capabilityGapSignals(skillDimensionMap, scaleLimit))
+  candidates.push(...valuesAlignmentGapSignals(valuesDimensionMap, scaleLimit))
 
-  // Standout Growth Cluster (depends on employee signals)
-  const growthSignalCount = employeeSignals.filter(
-    s => s.isPrimary && (s.signalType === 'strong-momentum' || s.signalType === 'development-momentum')
-  ).length
-  if (teamSize >= 5 && growthSignalCount >= 3) {
-    signals.push({
-      signalType: 'standout-growth-cluster',
-      category: 'positive',
-      description: `${growthSignalCount} of ${teamSize} team members are showing strong performance or skill growth this cycle`,
-      supportingData: [],
-      suggestedAction: "Celebrate team progress. Identify what's working and reinforce it."
-    })
-  }
-
-  // Recognition Gap for Strong Performers
-  const lowRecognitionCount = employeeSignals.filter(s => s.signalType === 'low-recognition').length
-  if (lowRecognitionCount >= 2) {
-    signals.push({
-      signalType: 'recognition-gap',
-      category: 'attention',
-      description: `${lowRecognitionCount} strong performers have received little or no feedback this cycle`,
-      supportingData: [],
-      suggestedAction: 'Create visibility for strong contributors. Prompt peer feedback and recognition.'
-    })
-  }
-
-  // Sort: warning first, then attention, then positive
   const categoryOrder: Record<SignalCategory, number> = { warning: 0, attention: 1, positive: 2 }
-  signals.sort((a, b) => categoryOrder[a.category] - categoryOrder[b.category])
-
-  return signals
-}
-
-/** @deprecated Use detectEmployeeSignals instead */
-export function detectTalentSignals(
-  evaluations: TeamMemberEvaluation[],
-  goals: TeamMemberPerformance[],
-  feedback: TeamMemberFeedback[],
-  skills: TeamMemberSkills[]
-): TalentSignal[] {
-  return detectEmployeeSignals(evaluations, goals, feedback, skills).map(s => ({
-    employeeId: s.employeeId,
-    employeeName: s.employeeName,
-    pictureThumbnail: s.pictureThumbnail,
-    signalType: s.signalType,
-    description: s.description,
-    supportingData: s.supportingData
-  }))
+  return candidates.toSorted((a, b) => categoryOrder[a.category] - categoryOrder[b.category])
 }
 
 export function computeTeamDimensionAverages(

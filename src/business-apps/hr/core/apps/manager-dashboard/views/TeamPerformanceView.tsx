@@ -94,6 +94,142 @@ const kpiCardRing = (active: boolean, color: 'primary' | 'success' | 'warning' |
   return active ? rings[color] : 'hover:gba:ring-2 hover:gba:ring-muted-foreground/20 hover:gba:ring-offset-2'
 }
 
+const emptyPerformanceMessage = (filterGoalsBehindOnly: boolean): string => {
+  if (filterGoalsBehindOnly) return 'No team members have goals behind target'
+  return getTranslationFromI18nKeyAndLabel(
+    'master-data:hr.manager_dashboard.no_performance_data',
+    'No performance data available for your team'
+  )
+}
+
+const urgencyBadgeVariant = (urgency: string) => {
+  if (urgency === 'high') return 'destructive'
+  if (urgency === 'medium') return 'warning' as any
+  return 'secondary'
+}
+
+const goalListContent = (displayedGoals: PerformanceGoal[]): React.ReactNode => {
+  return (
+    <ul className="gba:w-full gba:divide-y gba:divide-border/70">
+      {displayedGoals.map(goal => {
+        const { label, variant } = getGoalStatusPresentation(goal)
+        const pct = Math.min(100, Math.max(0, goal.progressPercent ?? 0))
+        return (
+          <li key={goal.id} className="gba:w-full gba:min-w-0 gba:py-2.5 first:gba:pt-0">
+            <div className="gba:mb-2 gba:min-w-0 gba:truncate gba:text-sm gba:font-medium gba:text-foreground">
+              {goal.title}
+            </div>
+            <div className="gba:flex gba:w-full gba:min-w-0 gba:items-center gba:gap-2 sm:gba:gap-3">
+              <span className="gba:w-9 gba:shrink-0 gba:text-right gba:text-xs gba:tabular-nums gba:text-muted-foreground">
+                {pct}%
+              </span>
+              <div className="gba:h-1.5 gba:min-w-[3rem] gba:flex-1 gba:overflow-hidden gba:rounded-full gba:bg-muted">
+                <div className="gba:h-full gba:rounded-full gba:bg-primary" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="gba:w-[5.75rem] gba:shrink-0 gba:text-xs gba:text-muted-foreground sm:gba:w-24">
+                {dayjs(goal.dueDate).format('MMM D, YYYY')}
+              </span>
+              <Badge variant={variant} className="gba:h-6 gba:shrink-0 gba:px-2 gba:text-[10px] gba:font-medium">
+                {label}
+              </Badge>
+            </div>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+const goalsPanelContent = (member: TeamMemberPerformance, displayedGoals: PerformanceGoal[]): React.ReactNode => {
+  if (member.totalGoals === 0) {
+    return <p className="gba:py-4 gba:text-center gba:text-sm gba:text-muted-foreground">No goals assigned</p>
+  }
+  if (displayedGoals.length === 0) {
+    return (
+      <p className="gba:py-4 gba:text-center gba:text-sm gba:text-muted-foreground">
+        No goals match the current filter
+      </p>
+    )
+  }
+  return goalListContent(displayedGoals)
+}
+
+const isGoalAchieved = (goal: PerformanceGoal): boolean =>
+  goal.status === 'ACHIEVED' || normalizeProgress(goal.progressPercent ?? 0) >= 100
+
+const goalMatchesOnTrackFilter = (goal: PerformanceGoal): boolean => {
+  if (isGoalAchieved(goal)) return false
+  return goal.trackState === 'ON_TRACK' || (!goal.trackState && goal.status === 'ON_TRACK')
+}
+
+const goalMatchesBehindFilter = (goal: PerformanceGoal): boolean =>
+  goal.trackState === 'BEHIND_TARGET' ||
+  (!goal.trackState && (goal.status === 'BEHIND_TARGET' || goal.status === 'NOT_ACHIEVED'))
+
+const matchesStatusFilter = (goal: PerformanceGoal, statusFilter: GoalStatusFilter): boolean => {
+  switch (statusFilter) {
+    case 'ON_TRACK':
+      return goalMatchesOnTrackFilter(goal)
+    case 'AT_RISK':
+      return goal.status === 'AT_RISK'
+    case 'BEHIND_TARGET':
+      return goalMatchesBehindFilter(goal)
+    case 'ACHIEVED':
+      return isGoalAchieved(goal)
+    default:
+      return true
+  }
+}
+
+const displayedGoalsForMember = (
+  member: TeamMemberPerformance,
+  filterGoalsBehindOnly: boolean,
+  statusFilter: GoalStatusFilter
+): PerformanceGoal[] => {
+  const baseGoals = filterGoalsBehindOnly ? member.goals.filter(goalMatchesBehindFilter) : member.goals
+  if (statusFilter === 'ALL') return baseGoals
+  return baseGoals.filter(goal => matchesStatusFilter(goal, statusFilter))
+}
+
+const memberMatchesStatus = (member: TeamMemberPerformance, statusFilter: GoalStatusFilter): boolean => {
+  switch (statusFilter) {
+    case 'ON_TRACK':
+      return member.goals.some(goalMatchesOnTrackFilter)
+    case 'AT_RISK':
+      return member.goalsAtRisk > 0
+    case 'BEHIND_TARGET':
+      return member.goals.some(goalMatchesBehindFilter)
+    case 'ACHIEVED':
+      return member.goalsAchieved > 0
+    default:
+      return true
+  }
+}
+
+const includesMemberInView = (
+  member: TeamMemberPerformance,
+  filterGoalsBehindOnly: boolean,
+  statusFilter: GoalStatusFilter
+): boolean => {
+  if (filterGoalsBehindOnly && member.goalsBehindTarget === 0) return false
+  if (statusFilter === 'ALL') return true
+  return memberMatchesStatus(member, statusFilter)
+}
+
+const resolvedGoalsAchievedCount = (
+  goalsAchievedProp: number | undefined,
+  teamPerformance: TeamMemberPerformance[]
+): number => {
+  if (typeof goalsAchievedProp === 'number' && !Number.isNaN(goalsAchievedProp)) {
+    return goalsAchievedProp
+  }
+
+  const fromMembers = teamPerformance.reduce((sum, member) => sum + (member.goalsAchieved ?? 0), 0)
+  if (fromMembers > 0) return fromMembers
+
+  return teamPerformance.reduce((sum, member) => sum + member.goals.filter(goal => isGoalAchieved(goal)).length, 0)
+}
+
 export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
   teamPerformance,
   totalPerformanceGoals,
@@ -114,77 +250,18 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<GoalStatusFilter>(initialStatusFilter)
 
   /** Ensure Completed always shows a number (runtime callers may omit prop; match member totals). */
-  const goalsAchieved = useMemo(() => {
-    if (typeof goalsAchievedProp === 'number' && !Number.isNaN(goalsAchievedProp)) {
-      return goalsAchievedProp
-    }
-    const fromMembers = teamPerformance.reduce((sum, m) => sum + (m.goalsAchieved ?? 0), 0)
-    if (fromMembers > 0) return fromMembers
-    return teamPerformance.reduce(
-      (sum, m) =>
-        sum + m.goals.filter(g => g.status === 'ACHIEVED' || normalizeProgress(g.progressPercent ?? 0) >= 100).length,
-      0
-    )
-  }, [goalsAchievedProp, teamPerformance])
+  const goalsAchieved = useMemo(
+    () => resolvedGoalsAchievedCount(goalsAchievedProp, teamPerformance),
+    [goalsAchievedProp, teamPerformance]
+  )
 
   useEffect(() => {
     setStatusFilter(initialStatusFilter)
   }, [initialStatusFilter])
 
-  const goalMatchesOnTrackFilter = (goal: TeamMemberPerformance['goals'][number]) => {
-    if (goal.status === 'ACHIEVED' || normalizeProgress(goal.progressPercent ?? 0) >= 100) return false
-    return goal.trackState === 'ON_TRACK' || (!goal.trackState && goal.status === 'ON_TRACK')
-  }
-
-  const goalMatchesBehindFilter = (goal: TeamMemberPerformance['goals'][number]) =>
-    goal.trackState === 'BEHIND_TARGET' ||
-    (!goal.trackState && (goal.status === 'BEHIND_TARGET' || goal.status === 'NOT_ACHIEVED'))
-
-  const getDisplayedGoals = (member: TeamMemberPerformance) => {
-    let goals = filterGoalsBehindOnly ? member.goals.filter(goal => goalMatchesBehindFilter(goal)) : member.goals
-
-    if (statusFilter !== 'ALL') {
-      goals = goals.filter(goal => {
-        switch (statusFilter) {
-          case 'ON_TRACK':
-            return goalMatchesOnTrackFilter(goal)
-          case 'AT_RISK':
-            return goal.status === 'AT_RISK'
-          case 'BEHIND_TARGET':
-            return goalMatchesBehindFilter(goal)
-          case 'ACHIEVED':
-            return goal.status === 'ACHIEVED' || normalizeProgress(goal.progressPercent ?? 0) >= 100
-          default:
-            return true
-        }
-      })
-    }
-
-    return goals
-  }
-
-  const filteredTeamPerformance = teamPerformance.filter(member => {
-    if (filterGoalsBehindOnly && member.goalsBehindTarget === 0) {
-      return false
-    }
-
-    if (statusFilter !== 'ALL') {
-      switch (statusFilter) {
-        case 'ON_TRACK':
-          return member.goals.some(g => goalMatchesOnTrackFilter(g))
-        case 'AT_RISK':
-          return member.goalsAtRisk > 0
-        case 'BEHIND_TARGET':
-          return member.goals.some(g => goalMatchesBehindFilter(g))
-        case 'ACHIEVED':
-          return member.goalsAchieved > 0
-        default:
-          return true
-      }
-    }
-
-    return true
-  })
+  const filteredTeamPerformance = teamPerformance.filter(member =>
+    includesMemberInView(member, filterGoalsBehindOnly, statusFilter)
+  )
 
   const totalTeamMembers = teamPerformance.length
   const skillsCoveredMembers =
@@ -495,16 +572,13 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
                             <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:mb-1">
                               Top priorities
                             </p>
-                            {insights.data.top_priorities.slice(0, 3).map((p, i) => (
-                              <div key={i} className="gba:flex gba:items-start gba:gap-1.5 gba:mb-1">
+                            {insights.data.top_priorities.slice(0, 3).map(p => (
+                              <div
+                                key={`${p.urgency}-${p.priority}`}
+                                className="gba:flex gba:items-start gba:gap-1.5 gba:mb-1"
+                              >
                                 <Badge
-                                  variant={
-                                    p.urgency === 'high'
-                                      ? 'destructive'
-                                      : p.urgency === 'medium'
-                                        ? ('warning' as any)
-                                        : 'secondary'
-                                  }
+                                  variant={urgencyBadgeVariant(p.urgency)}
                                   className="gba:text-[9px] gba:px-1 gba:py-0 gba:shrink-0 gba:mt-0.5"
                                 >
                                   {p.urgency}
@@ -550,14 +624,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
 
         {!loadingTeamPerformance && filteredTeamPerformance.length === 0 && (
           <Card className="gba:border gba:border-dashed gba:border-border gba:bg-card gba:py-14 gba:text-center">
-            <p className="gba:text-sm gba:text-muted-foreground">
-              {filterGoalsBehindOnly
-                ? 'No team members have goals behind target'
-                : getTranslationFromI18nKeyAndLabel(
-                    'master-data:hr.manager_dashboard.no_performance_data',
-                    'No performance data available for your team'
-                  )}
-            </p>
+            <p className="gba:text-sm gba:text-muted-foreground">{emptyPerformanceMessage(filterGoalsBehindOnly)}</p>
             <p className="gba:mt-2 gba:text-xs gba:text-muted-foreground">
               Create goals or run a feedback cycle to unlock team performance insights.
             </p>
@@ -567,7 +634,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         {!loadingTeamPerformance && filteredTeamPerformance.length > 0 && (
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
             {filteredTeamPerformance.map(member => {
-              const displayedGoals = getDisplayedGoals(member)
+              const displayedGoals = displayedGoalsForMember(member, filterGoalsBehindOnly, statusFilter)
               return (
                 <Card
                   key={member.employeeId}
@@ -650,49 +717,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
                     <h3 className="gba:mb-2 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
                       Goals
                     </h3>
-                    {member.totalGoals === 0 ? (
-                      <p className="gba:py-4 gba:text-center gba:text-sm gba:text-muted-foreground">
-                        No goals assigned
-                      </p>
-                    ) : displayedGoals.length === 0 ? (
-                      <p className="gba:py-4 gba:text-center gba:text-sm gba:text-muted-foreground">
-                        No goals match the current filter
-                      </p>
-                    ) : (
-                      <ul className="gba:w-full gba:divide-y gba:divide-border/70">
-                        {displayedGoals.map(goal => {
-                          const { label, variant } = getGoalStatusPresentation(goal)
-                          const pct = Math.min(100, Math.max(0, goal.progressPercent ?? 0))
-                          return (
-                            <li key={goal.id} className="gba:w-full gba:min-w-0 gba:py-2.5 first:gba:pt-0">
-                              <div className="gba:mb-2 gba:min-w-0 gba:truncate gba:text-sm gba:font-medium gba:text-foreground">
-                                {goal.title}
-                              </div>
-                              <div className="gba:flex gba:w-full gba:min-w-0 gba:items-center gba:gap-2 sm:gba:gap-3">
-                                <span className="gba:w-9 gba:shrink-0 gba:text-right gba:text-xs gba:tabular-nums gba:text-muted-foreground">
-                                  {pct}%
-                                </span>
-                                <div className="gba:h-1.5 gba:min-w-[3rem] gba:flex-1 gba:overflow-hidden gba:rounded-full gba:bg-muted">
-                                  <div
-                                    className="gba:h-full gba:rounded-full gba:bg-primary"
-                                    style={{ width: `${pct}%` }}
-                                  />
-                                </div>
-                                <span className="gba:w-[5.75rem] gba:shrink-0 gba:text-xs gba:text-muted-foreground sm:gba:w-24">
-                                  {dayjs(goal.dueDate).format('MMM D, YYYY')}
-                                </span>
-                                <Badge
-                                  variant={variant}
-                                  className="gba:h-6 gba:shrink-0 gba:px-2 gba:text-[10px] gba:font-medium"
-                                >
-                                  {label}
-                                </Badge>
-                              </div>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    )}
+                    {goalsPanelContent(member, displayedGoals)}
                   </div>
                 </Card>
               )
