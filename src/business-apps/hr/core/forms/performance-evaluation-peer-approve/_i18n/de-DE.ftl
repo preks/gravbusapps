@@ -8,6 +8,7 @@ loading-peers = Nominierte Peers werden geladen...
 peers-hint = Die Liste muss zwischen {$min} und {$max} Peers enthalten
 peers-count = {$count} von {$min}–{$max} Peers
 peers-min-error = Es müssen mindestens {$min} Peers vorhanden sein
+peers-duplicate-error = Jeder Peer darf nur einmal in der Liste vorkommen. Bitte Duplikate entfernen.
 replace-with-label = Ersetzen durch
 replace-with-placeholder = Behalten oder anderen Mitarbeiter wählen...
 additional-peer-label = Zusätzlicher Peer
