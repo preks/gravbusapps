@@ -74,14 +74,14 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <FormControl>
-              <div data-testid="flw_changePersonalData_currentBirthDate">
+              <div data-testid="flw_changePersonalData_currentBirthDate" className="gba:overflow-hidden">
                 <DateInput
                   type="date"
                   value={(field.value as string) || ''}
-                  onChange={(v?: string) => field.onChange(v || '')}
+                  onChange={value => field.onChange(typeof value === 'string' ? value : (value?.[0] ?? ''))}
                   placeholder={placeholderSelect}
                   className="gba:w-[100%]"
-                  locale={getCurrentActiveUserLocale()}
+                  {...({ locale: getCurrentActiveUserLocale() } as any)}
                   captionLayout="dropdown"
                 />
               </div>
