@@ -10,7 +10,6 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  Cell,
   LabelList,
   PieChart,
   Pie
@@ -50,6 +49,19 @@ const coverageProgressClass = (pct: number): string => {
   if (pct >= 80) return '[&_[data-slot=progress-indicator]]:gba:bg-green-500'
   if (pct >= 50) return '[&_[data-slot=progress-indicator]]:gba:bg-yellow-500'
   return '[&_[data-slot=progress-indicator]]:gba:bg-red-500'
+}
+
+const recencyBarShape = (props: {
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  fill?: string
+  payload?: { fill?: string }
+}) => {
+  const { x = 0, y = 0, width = 0, height = 0, fill, payload } = props
+  const barFill = payload?.fill ?? fill ?? '#9ca3af'
+  return <rect x={x} y={y} width={width} height={height} fill={barFill} rx={4} ry={4} />
 }
 
 export const FeedbackHealth: React.FC<FeedbackHealthProps> = ({
@@ -98,18 +110,18 @@ export const FeedbackHealth: React.FC<FeedbackHealthProps> = ({
     member: m,
     days: daysSinceLastFeedback(m.lastFeedbackDate)
   }))
-  const maxKnownDays = Math.max(0, ...dayEntries.map(e => (e.days != null ? e.days : 0)))
+  const maxKnownDays = Math.max(0, ...dayEntries.map(entry => entry.days ?? 0))
   const noFeedbackBarDays = maxKnownDays > 0 ? maxKnownDays + 1 : 30
 
   const recencyData = [...dayEntries]
     .sort((a, b) => {
-      const sa = a.days == null ? Number.POSITIVE_INFINITY : a.days
-      const sb = b.days == null ? Number.POSITIVE_INFINITY : b.days
+      const sa = a.days ?? Number.POSITIVE_INFINITY
+      const sb = b.days ?? Number.POSITIVE_INFINITY
       if (sb !== sa) return sb - sa
       return employeeLabel(a.member).localeCompare(employeeLabel(b.member))
     })
     .map(({ member, days }) => {
-      const hasFeedback = days != null
+      const hasFeedback = days !== null
       const barDays = hasFeedback ? days : noFeedbackBarDays
       const labelText = hasFeedback ? `${days} days` : 'No feedback'
       return {
@@ -160,7 +172,7 @@ export const FeedbackHealth: React.FC<FeedbackHealthProps> = ({
               <p className="gba:text-xs gba:text-muted-foreground">
                 {totalReceivedCount} received · {totalGivenCount} given organization-wide
               </p>
-              {recognitionRatio != null ? (
+              {recognitionRatio !== null ? (
                 <p className="gba:text-xs gba:text-muted-foreground">
                   Recognition share (typed feedback): {recognitionRatio}%
                 </p>
@@ -194,14 +206,11 @@ export const FeedbackHealth: React.FC<FeedbackHealthProps> = ({
               <Tooltip
                 formatter={(value: number, _name: string, item: { payload?: (typeof recencyData)[0] }) => {
                   const td = item?.payload?.tooltipDays
-                  if (td == null) return ['No feedback recorded', 'Last feedback']
+                  if (td === null) return ['No feedback recorded', 'Last feedback']
                   return [`${td} days ago`, 'Last feedback']
                 }}
               />
-              <Bar dataKey="days" radius={[0, 4, 4, 0]} isAnimationActive={false}>
-                {recencyData.map((row, i) => (
-                  <Cell key={`recency-${row.name}-${i}`} fill={row.fill} />
-                ))}
+              <Bar dataKey="days" shape={recencyBarShape} isAnimationActive={false}>
                 <LabelList
                   dataKey="labelText"
                   position="right"
@@ -232,11 +241,7 @@ export const FeedbackHealth: React.FC<FeedbackHealthProps> = ({
                   innerRadius={40}
                   outerRadius={70}
                   paddingAngle={2}
-                >
-                  {pieData.map((entry, i) => (
-                    <Cell key={`pie-${entry.name}-${i}`} fill={entry.fill} />
-                  ))}
-                </Pie>
+                />
                 <Tooltip
                   formatter={(value: number) => [
                     `${value} (${typedTotal > 0 ? Math.round((value / typedTotal) * 100) : 0}%)`,

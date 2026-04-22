@@ -138,9 +138,9 @@ export const CompanyValuesAnalysis: React.FC<CompanyValuesAnalysisProps> = ({ me
     )
   }
 
-  const hasNoValues = members.length === 0 || members.every(m => m.companyValues.length === 0)
+  const hasValues = members.some(m => m.companyValues.length > 0)
 
-  if (hasNoValues) {
+  if (hasValues === false) {
     return (
       <Card className="gba:rounded-xl">
         <CardHeader className="gba:pb-2">
@@ -240,11 +240,13 @@ export const CompanyValuesAnalysis: React.FC<CompanyValuesAnalysisProps> = ({ me
                 </TableCell>
                 {valueNames.map(vn => {
                   const avg = valueAverages.get(vn) ?? null
+                  const avgCellStyle =
+                    avg === null ? AVG_ROW_BG : { ...AVG_ROW_BG, ...chartBandBg(avg, ratingScaleLimit) }
                   return (
                     <TableCell
                       key={`avg-${vn}`}
                       className="gba:text-center gba:text-xs gba:font-bold gba:tabular-nums"
-                      style={{ ...AVG_ROW_BG, ...(avg != null ? chartBandBg(avg, ratingScaleLimit) : {}) }}
+                      style={avgCellStyle}
                     >
                       {formatScore(avg)}
                     </TableCell>

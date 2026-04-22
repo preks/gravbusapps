@@ -92,6 +92,11 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     () => vm.teamMembers.direct.map(report => ({ ...report, status: report.status || 'Available' })),
     [vm.teamMembers.direct]
   )
+  const selectedMember = useMemo(
+    () =>
+      vm.selectedMemberId ? directReportsForWorkboard.find(report => report.id === vm.selectedMemberId) || null : null,
+    [vm.selectedMemberId, directReportsForWorkboard]
+  )
 
   useEffect(() => {
     const refreshDashboardData = () => {
@@ -303,202 +308,186 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     </div>
   )
 
-  if (vm.currentView === 'teammates') {
-    return (
-      <>
-        <TeammatesView
-          directReports={vm.directReports}
-          matrixTeamMembers={vm.matrixTeamMembers}
-          unallocatedEmployeeIds={vm.unallocatedEmployeeIds}
-          filterAbsentOnly={vm.filterAbsentOnly}
-          filterUnallocatedOnly={vm.filterUnallocatedOnly}
-          setFilterAbsentOnly={vm.setFilterAbsentOnly}
-          setFilterUnallocatedOnly={vm.setFilterUnallocatedOnly}
-          loadingDirectReports={vm.loadingDirectReports}
-          loadingMatrixTeams={vm.loadingMatrixTeams}
-          directReportsError={vm.directReportsError}
-          matrixTeamsError={vm.matrixTeamsError}
-          activeTeamTab={vm.activeTeamTab}
-          setActiveTeamTab={vm.setActiveTeamTab}
-          employeeId={employeeId || ''}
+  switch (vm.currentView) {
+    case 'teammates':
+      return (
+        <>
+          <TeammatesView
+            directReports={vm.directReports}
+            matrixTeamMembers={vm.matrixTeamMembers}
+            unallocatedEmployeeIds={vm.unallocatedEmployeeIds}
+            filterAbsentOnly={vm.filterAbsentOnly}
+            filterUnallocatedOnly={vm.filterUnallocatedOnly}
+            setFilterAbsentOnly={vm.setFilterAbsentOnly}
+            setFilterUnallocatedOnly={vm.setFilterUnallocatedOnly}
+            loadingDirectReports={vm.loadingDirectReports}
+            loadingMatrixTeams={vm.loadingMatrixTeams}
+            directReportsError={vm.directReportsError}
+            matrixTeamsError={vm.matrixTeamsError}
+            activeTeamTab={vm.activeTeamTab}
+            setActiveTeamTab={vm.setActiveTeamTab}
+            employeeId={employeeId || ''}
+            accessToken={accessToken || ''}
+            teamPerformance={vm.teamPerformance}
+            employeeAllocations={vm.directReportsWithAllocation}
+            lastFeedbackByEmployeeId={vm.lastFeedbackByEmployeeId}
+            onNavigateBack={vm.handleNavigateBackToDashboard}
+            onNavigateToEmployee={vm.handleNavigateToEmployee}
+            onOpenMemberPanel={vm.actions.openMemberPanel}
+            userOrgData={vm.userOrgData || undefined}
+          />
+          <MemberQuickPanel
+            isOpen={vm.isMemberPanelOpen}
+            onClose={vm.handleCloseMemberPanel}
+            member={selectedMember}
+            allocationPercent={vm.averageAllocationPercentage}
+            teamPerformance={vm.teamPerformance}
+            lastFeedbackDate={vm.daysSinceLastFeedback ? `${vm.daysSinceLastFeedback} days ago` : null}
+            onNavigateToEmployee={vm.handleNavigateToEmployee}
+            onAssignProject={handleAssignProject}
+          />
+          {assignProjectDialog}
+        </>
+      )
+    case 'filtered-teammates': {
+      const FilteredTeammatesViewCompat = FilteredTeammatesView as React.ComponentType<any>
+
+      return (
+        <>
+          <FilteredTeammatesViewCompat
+            directReports={vm.directReports}
+            unallocatedEmployeeIds={vm.unallocatedEmployeeIds}
+            employeeAllocations={vm.directReportsWithAllocation}
+            filterAbsentOnly={vm.filterAbsentOnly}
+            filterUnallocatedOnly={vm.filterUnallocatedOnly}
+            loadingDirectReports={vm.loadingDirectReports}
+            directReportsError={vm.directReportsError}
+            onNavigateBack={vm.handleNavigateBackToDashboard}
+            onNavigateToEmployee={vm.handleNavigateToEmployee}
+            onAssignProject={handleAssignProject}
+          />
+          {assignProjectDialog}
+        </>
+      )
+    }
+    case 'team-performance-overview': {
+      const tpo = vm.teamPerformanceOverview
+      const db = tpo.dashboard
+      return (
+        <TeamPerformanceDashboard
+          teamPerformance={tpo.goals.teamPerformance}
+          averageGoalProgress={tpo.goals.averageProgress}
+          loadingGoals={tpo.goals.loading}
+          skillsMembers={tpo.skills.members}
+          loadingSkills={tpo.skills.loading}
+          feedbackMembers={tpo.feedback.members}
+          loadingFeedback={tpo.feedback.loading}
+          evaluationMembers={tpo.evaluations.members}
+          teamAvgScore={tpo.evaluations.teamAvgScore}
+          teamCompanyValuesAvg={tpo.evaluations.teamCompanyValuesAvg}
+          teamSkillsAvg={tpo.evaluations.teamSkillsAvg}
+          loadingEvaluations={tpo.evaluations.loading}
+          availableCycles={tpo.evaluations.availableCycles}
+          selectedCycleId={db.selectedCycleId}
+          onCycleChange={db.setSelectedCycleId}
+          scoreDistribution={db.scoreDistribution}
+          trendSeries={db.trendSeries}
+          ratingScaleLimit={db.ratingScaleLimit}
+          skillGrowthRate={db.skillGrowthRate}
+          changeOverall={db.changeOverall}
+          changeCompanyValues={db.changeCompanyValues}
+          changeSkills={db.changeSkills}
+          insights={tpo.insights}
           accessToken={accessToken || ''}
-          teamPerformance={vm.teamPerformance}
-          employeeAllocations={vm.directReportsWithAllocation}
-          lastFeedbackByEmployeeId={vm.lastFeedbackByEmployeeId}
           onNavigateBack={vm.handleNavigateBackToDashboard}
           onNavigateToEmployee={vm.handleNavigateToEmployee}
-          onOpenMemberPanel={vm.actions.openMemberPanel}
-          userOrgData={vm.userOrgData || undefined}
+          onNavigateToTeamPerformance={vm.handleNavigateToTeamPerformance}
+          onNavigateToTeammates={vm.handleNavigateToTeammates}
         />
-        <MemberQuickPanel
-          isOpen={vm.isMemberPanelOpen}
-          onClose={vm.handleCloseMemberPanel}
-          member={
-            vm.selectedMemberId
-              ? directReportsForWorkboard.find(report => report.id === vm.selectedMemberId) || null
-              : null
-          }
-          allocationPercent={vm.averageAllocationPercentage}
+      )
+    }
+    case 'team-performance':
+      return (
+        <TeamPerformanceView
           teamPerformance={vm.teamPerformance}
-          lastFeedbackDate={vm.daysSinceLastFeedback ? `${vm.daysSinceLastFeedback} days ago` : null}
-          onNavigateToEmployee={vm.handleNavigateToEmployee}
-          onAssignProject={handleAssignProject}
-        />
-        {assignProjectDialog}
-      </>
-    )
-  }
-
-  if (vm.currentView === 'filtered-teammates') {
-    const FilteredTeammatesViewCompat = FilteredTeammatesView as React.ComponentType<any>
-
-    return (
-      <>
-        <FilteredTeammatesViewCompat
-          directReports={vm.directReports}
-          unallocatedEmployeeIds={vm.unallocatedEmployeeIds}
-          employeeAllocations={vm.directReportsWithAllocation}
-          filterAbsentOnly={vm.filterAbsentOnly}
-          filterUnallocatedOnly={vm.filterUnallocatedOnly}
-          loadingDirectReports={vm.loadingDirectReports}
-          directReportsError={vm.directReportsError}
+          totalPerformanceGoals={vm.totalPerformanceGoals}
+          averageTeamProgress={vm.averageTeamProgress}
+          goalsOnTrack={vm.goalsOnTrack}
+          goalsAtRisk={vm.goalsAtRisk}
+          goalsBehindTarget={vm.goalsBehindTarget}
+          goalsAchieved={vm.goalsAchieved}
+          loadingTeamPerformance={vm.loadingTeamPerformance}
+          filterGoalsBehindOnly={vm.filterGoalsBehindOnly}
+          initialStatusFilter={vm.initialPerformanceStatusFilter}
+          feedbackSummary={vm.teamFeedbackSummary}
+          skillsSummary={vm.teamSkillsSummary}
+          insights={vm.currentCycleInsights}
           onNavigateBack={vm.handleNavigateBackToDashboard}
           onNavigateToEmployee={vm.handleNavigateToEmployee}
-          onAssignProject={handleAssignProject}
         />
-        {assignProjectDialog}
-      </>
-    )
-  }
-
-  if (vm.currentView === 'team-performance-overview') {
-    const tpo = vm.teamPerformanceOverview
-    const db = tpo.dashboard
-    return (
-      <TeamPerformanceDashboard
-        teamPerformance={tpo.goals.teamPerformance}
-        averageGoalProgress={tpo.goals.averageProgress}
-        loadingGoals={tpo.goals.loading}
-        skillsMembers={tpo.skills.members}
-        loadingSkills={tpo.skills.loading}
-        feedbackMembers={tpo.feedback.members}
-        loadingFeedback={tpo.feedback.loading}
-        evaluationMembers={tpo.evaluations.members}
-        teamAvgScore={tpo.evaluations.teamAvgScore}
-        teamCompanyValuesAvg={tpo.evaluations.teamCompanyValuesAvg}
-        teamSkillsAvg={tpo.evaluations.teamSkillsAvg}
-        loadingEvaluations={tpo.evaluations.loading}
-        availableCycles={tpo.evaluations.availableCycles}
-        selectedCycleId={db.selectedCycleId}
-        onCycleChange={db.setSelectedCycleId}
-        scoreDistribution={db.scoreDistribution}
-        trendSeries={db.trendSeries}
-        ratingScaleLimit={db.ratingScaleLimit}
-        skillGrowthRate={db.skillGrowthRate}
-        needsAttentionCount={db.alerts.filter(a => a.severity === 'high').length}
-        changeOverall={db.changeOverall}
-        changeCompanyValues={db.changeCompanyValues}
-        changeSkills={db.changeSkills}
-        insights={tpo.insights}
-        accessToken={accessToken || ''}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-        onNavigateToTeamPerformance={vm.handleNavigateToTeamPerformance}
-        onNavigateToTeammates={vm.handleNavigateToTeammates}
-      />
-    )
-  }
-
-  if (vm.currentView === 'team-performance') {
-    return (
-      <TeamPerformanceView
-        teamPerformance={vm.teamPerformance}
-        totalPerformanceGoals={vm.totalPerformanceGoals}
-        averageTeamProgress={vm.averageTeamProgress}
-        goalsOnTrack={vm.goalsOnTrack}
-        goalsAtRisk={vm.goalsAtRisk}
-        goalsBehindTarget={vm.goalsBehindTarget}
-        goalsAchieved={vm.goalsAchieved}
-        loadingTeamPerformance={vm.loadingTeamPerformance}
-        filterGoalsBehindOnly={vm.filterGoalsBehindOnly}
-        initialStatusFilter={vm.initialPerformanceStatusFilter}
-        feedbackSummary={vm.teamFeedbackSummary}
-        skillsSummary={vm.teamSkillsSummary}
-        insights={vm.currentCycleInsights}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-      />
-    )
-  }
-
-  if (vm.currentView === 'not-clocked-in') {
-    return (
-      <NotClockedInView
-        teamAttendance={vm.teamAttendance}
-        availableEmployeeIds={vm.availableEmployeeIds}
-        notClockedInCount={vm.notClockedInCount}
-        loadingAttendance={vm.loadingAttendance}
-        nudgeLoading={false}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-        onNudgeNotClockedIn={() => {}}
-      />
-    )
-  }
-
-  if (vm.currentView === 'insights') {
-    return (
-      <TeamInsightsView
-        upcomingBirthdays={vm.upcomingBirthdays}
-        upcomingAnniversaries={vm.upcomingAnniversaries}
-        openPositions={vm.openPositions}
-        fullPositions={vm.fullPositions}
-        loadingBirthdays={vm.loadingBirthdays}
-        loadingAnniversaries={vm.loadingAnniversaries}
-        loadingOpenPositions={vm.loadingOpenPositions}
-        activeInsightsTab={vm.activeInsightsTab}
-        setActiveInsightsTab={vm.setActiveInsightsTab}
-        accessToken={accessToken || ''}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-      />
-    )
-  }
-
-  if (vm.currentView === 'birthdays') {
-    return (
-      <BirthdaysView
-        upcomingBirthdays={vm.upcomingBirthdays}
-        loadingBirthdays={vm.loadingBirthdays}
-        accessToken={accessToken || ''}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-      />
-    )
-  }
-
-  if (vm.currentView === 'anniversaries') {
-    return (
-      <AnniversariesView
-        upcomingAnniversaries={vm.upcomingAnniversaries}
-        loadingAnniversaries={vm.loadingAnniversaries}
-        accessToken={accessToken || ''}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-      />
-    )
-  }
-
-  if (vm.currentView === 'open-positions') {
-    return (
-      <OpenPositionsView
-        openPositions={vm.openPositions}
-        fullPositions={vm.fullPositions}
-        loadingOpenPositions={vm.loadingOpenPositions}
-        accessToken={accessToken || ''}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-      />
-    )
+      )
+    case 'not-clocked-in':
+      return (
+        <NotClockedInView
+          teamAttendance={vm.teamAttendance}
+          availableEmployeeIds={vm.availableEmployeeIds}
+          notClockedInCount={vm.notClockedInCount}
+          loadingAttendance={vm.loadingAttendance}
+          nudgeLoading={false}
+          onNavigateBack={vm.handleNavigateBackToDashboard}
+          onNavigateToEmployee={vm.handleNavigateToEmployee}
+          onNudgeNotClockedIn={() => {}}
+        />
+      )
+    case 'insights':
+      return (
+        <TeamInsightsView
+          upcomingBirthdays={vm.upcomingBirthdays}
+          upcomingAnniversaries={vm.upcomingAnniversaries}
+          openPositions={vm.openPositions}
+          fullPositions={vm.fullPositions}
+          loadingBirthdays={vm.loadingBirthdays}
+          loadingAnniversaries={vm.loadingAnniversaries}
+          loadingOpenPositions={vm.loadingOpenPositions}
+          activeInsightsTab={vm.activeInsightsTab}
+          setActiveInsightsTab={vm.setActiveInsightsTab}
+          accessToken={accessToken || ''}
+          onNavigateBack={vm.handleNavigateBackToDashboard}
+          onNavigateToEmployee={vm.handleNavigateToEmployee}
+        />
+      )
+    case 'birthdays':
+      return (
+        <BirthdaysView
+          upcomingBirthdays={vm.upcomingBirthdays}
+          loadingBirthdays={vm.loadingBirthdays}
+          accessToken={accessToken || ''}
+          onNavigateBack={vm.handleNavigateBackToDashboard}
+          onNavigateToEmployee={vm.handleNavigateToEmployee}
+        />
+      )
+    case 'anniversaries':
+      return (
+        <AnniversariesView
+          upcomingAnniversaries={vm.upcomingAnniversaries}
+          loadingAnniversaries={vm.loadingAnniversaries}
+          accessToken={accessToken || ''}
+          onNavigateBack={vm.handleNavigateBackToDashboard}
+          onNavigateToEmployee={vm.handleNavigateToEmployee}
+        />
+      )
+    case 'open-positions':
+      return (
+        <OpenPositionsView
+          openPositions={vm.openPositions}
+          fullPositions={vm.fullPositions}
+          loadingOpenPositions={vm.loadingOpenPositions}
+          accessToken={accessToken || ''}
+          onNavigateBack={vm.handleNavigateBackToDashboard}
+        />
+      )
+    default:
+      break
   }
 
   return (
@@ -520,11 +509,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
       <MemberQuickPanel
         isOpen={vm.isMemberPanelOpen}
         onClose={vm.handleCloseMemberPanel}
-        member={
-          vm.selectedMemberId
-            ? directReportsForWorkboard.find(report => report.id === vm.selectedMemberId) || null
-            : null
-        }
+        member={selectedMember}
         allocationPercent={vm.averageAllocationPercentage}
         teamPerformance={vm.teamPerformance}
         lastFeedbackDate={vm.daysSinceLastFeedback ? `${vm.daysSinceLastFeedback} days ago` : null}

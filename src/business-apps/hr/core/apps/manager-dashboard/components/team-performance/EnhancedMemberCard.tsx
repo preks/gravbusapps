@@ -55,7 +55,7 @@ export const EnhancedMemberCard: React.FC<EnhancedMemberCardProps> = ({
 }) => {
   const feedbackNormalized =
     dimensions.feedbackReceivedCount > 0 ? Math.min(100, dimensions.feedbackReceivedCount * 20) : 0
-  const evalNormalized = dimensions.evaluationScore != null ? Math.round((dimensions.evaluationScore / 5) * 100) : 0
+  const evalNormalized = dimensions.evaluationScore === null ? 0 : Math.round((dimensions.evaluationScore / 5) * 100)
 
   return (
     <Card
@@ -132,7 +132,7 @@ export const EnhancedMemberCard: React.FC<EnhancedMemberCardProps> = ({
             {dimensions.feedbackReceivedCount} feedback
           </Badge>
         )}
-        {dimensions.evaluationScore != null && (
+        {dimensions.evaluationScore !== null && (
           <Badge variant="info" className="gba:text-[10px] gba:px-1.5 gba:py-0">
             Eval: {dimensions.evaluationScore.toFixed(1)}
           </Badge>

@@ -285,8 +285,14 @@ const FiltersBar: React.FC<{
 }) => (
   <div className="gba:mb-4 gba:flex gba:flex-wrap gba:items-end gba:gap-3">
     <div className="gba:min-w-[220px] gba:flex-1">
-      <label className="gba:mb-1 gba:block gba:text-xs gba:text-muted-foreground">Search team members</label>
+      <label
+        htmlFor="manager-dashboard-team-search-input"
+        className="gba:mb-1 gba:block gba:text-xs gba:text-muted-foreground"
+      >
+        Search team members
+      </label>
       <Input
+        id="manager-dashboard-team-search-input"
         value={searchTerm}
         onChange={event => onSearchChange(event.target.value)}
         placeholder="Search by name"
@@ -294,9 +300,14 @@ const FiltersBar: React.FC<{
       />
     </div>
     <div className="gba:min-w-[220px]">
-      <label className="gba:mb-1 gba:block gba:text-xs gba:text-muted-foreground">Role: Job title</label>
+      <label
+        htmlFor="manager-dashboard-job-title-filter-trigger"
+        className="gba:mb-1 gba:block gba:text-xs gba:text-muted-foreground"
+      >
+        Role: Job title
+      </label>
       <Select value={selectedJobTitle} onValueChange={onJobTitleChange}>
-        <SelectTrigger data-testid="manager-dashboard-job-title-filter">
+        <SelectTrigger id="manager-dashboard-job-title-filter-trigger" data-testid="manager-dashboard-job-title-filter">
           <SelectValue placeholder="All job titles" />
         </SelectTrigger>
         <SelectContent>
@@ -310,9 +321,17 @@ const FiltersBar: React.FC<{
       </Select>
     </div>
     <div className="gba:min-w-[220px]">
-      <label className="gba:mb-1 gba:block gba:text-xs gba:text-muted-foreground">Role: Employment type</label>
+      <label
+        htmlFor="manager-dashboard-employment-type-filter-trigger"
+        className="gba:mb-1 gba:block gba:text-xs gba:text-muted-foreground"
+      >
+        Role: Employment type
+      </label>
       <Select value={selectedEmploymentType} onValueChange={onEmploymentTypeChange}>
-        <SelectTrigger data-testid="manager-dashboard-employment-type-filter">
+        <SelectTrigger
+          id="manager-dashboard-employment-type-filter-trigger"
+          data-testid="manager-dashboard-employment-type-filter"
+        >
           <SelectValue placeholder="All employment types" />
         </SelectTrigger>
         <SelectContent>
@@ -411,7 +430,7 @@ export const MyTeammatesTable = ({
     () =>
       [
         ...new Set(directReports.map(employee => employee.jobTitle).filter((title): title is string => Boolean(title)))
-      ].sort(),
+      ].sort((a, b) => a.localeCompare(b)),
     [directReports]
   )
 
@@ -423,7 +442,7 @@ export const MyTeammatesTable = ({
             .map(employee => employee.employmentType)
             .filter((employmentType): employmentType is string => Boolean(employmentType))
         )
-      ].sort(),
+      ].sort((a, b) => a.localeCompare(b)),
     [directReports]
   )
 

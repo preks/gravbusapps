@@ -60,10 +60,12 @@ function computeCell(dims: EvaluationDimensionScore[]): DimensionCell {
   const m = avg(mgrScores)
   const vals = [s, p, m].filter((v): v is number => v !== null)
   const gap = vals.length >= 2 ? Math.round((Math.max(...vals) - Math.min(...vals)) * 10) / 10 : 0
+  const roundScore = (value: number | null): number | null => (value === null ? null : Math.round(value * 10) / 10)
+
   return {
-    selfScore: s != null ? Math.round(s * 10) / 10 : null,
-    peerScore: p != null ? Math.round(p * 10) / 10 : null,
-    managerScore: m != null ? Math.round(m * 10) / 10 : null,
+    selfScore: roundScore(s),
+    peerScore: roundScore(p),
+    managerScore: roundScore(m),
     gap
   }
 }
@@ -95,7 +97,7 @@ const ScaleMarker: React.FC<{
 }> = ({ cell, scaleMax }) => {
   const { selfScore, peerScore, managerScore, gap } = cell
   const hasData = selfScore != null || peerScore != null || managerScore != null
-  if (!hasData) return <EmptyTrack />
+  if (hasData === false) return <EmptyTrack />
 
   const toPercent = (v: number) => Math.min(Math.max((v / scaleMax) * 100, 3), 97)
   const isFlagged = gap > 1
@@ -171,6 +173,12 @@ function buildColumns(viewMode: ViewMode, valueNames: string[], skillNames: stri
   ]
 }
 
+function viewModeLabel(mode: ViewMode): string {
+  if (mode === 'overall') return 'Overall'
+  if (mode === 'values') return 'Values'
+  return 'Skills'
+}
+
 export const AlignmentComparison: React.FC<AlignmentComparisonProps> = ({
   members,
   ratingScaleLimit,
@@ -188,8 +196,8 @@ export const AlignmentComparison: React.FC<AlignmentComparisonProps> = ({
       for (const d of m.companyValues) valueNamesSet.add(d.name)
       for (const d of m.skills) skillNamesSet.add(d.name)
     }
-    const valueNames = Array.from(valueNamesSet).sort()
-    const skillNames = Array.from(skillNamesSet).sort()
+    const valueNames = Array.from(valueNamesSet).sort((a, b) => a.localeCompare(b))
+    const skillNames = Array.from(skillNamesSet).sort((a, b) => a.localeCompare(b))
 
     const allRows: AlignmentRow[] = members.map(m => {
       const overallCell = computeCell([...m.companyValues, ...m.skills])
@@ -228,8 +236,11 @@ export const AlignmentComparison: React.FC<AlignmentComparisonProps> = ({
   const filteredRows = useMemo(() => {
     let r = rows
     if (onlyFlagged) r = r.filter(row => row.flagged)
-    if (sortMode === 'largest-gap') r = [...r].sort((a, b) => b.maxGap - a.maxGap)
-    else r = [...r].sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
+    if (sortMode === 'largest-gap') {
+      r = [...r].sort((a, b) => b.maxGap - a.maxGap)
+    } else {
+      r = [...r].sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
+    }
     return r
   }, [rows, onlyFlagged, sortMode])
 
@@ -266,7 +277,7 @@ export const AlignmentComparison: React.FC<AlignmentComparisonProps> = ({
 
   const hasPerspectiveData = members.some(m => m.companyValues.length > 0 || m.skills.length > 0)
 
-  if (!hasPerspectiveData) {
+  if (hasPerspectiveData === false) {
     return (
       <Card className="gba:rounded-xl">
         <CardHeader className="gba:pb-2">
@@ -308,7 +319,7 @@ export const AlignmentComparison: React.FC<AlignmentComparisonProps> = ({
                   }`}
                   onClick={() => setViewMode(mode)}
                 >
-                  {mode === 'overall' ? 'Overall' : mode === 'values' ? 'Values' : 'Skills'}
+                  {viewModeLabel(mode)}
                 </button>
               ))}
             </div>
@@ -339,15 +350,15 @@ export const AlignmentComparison: React.FC<AlignmentComparisonProps> = ({
         <div className="gba:flex gba:items-center gba:gap-5 gba:mt-2.5 gba:text-[10px] gba:text-muted-foreground">
           <span className="gba:flex gba:items-center gba:gap-1.5">
             <span className="gba:inline-block gba:w-2.5 gba:h-2.5 gba:rounded-full gba:border-2 gba:border-[#3b82f6] gba:bg-background" />
-            Self
+            <span>Self</span>
           </span>
           <span className="gba:flex gba:items-center gba:gap-1.5">
             <span className="gba:inline-block gba:w-2.5 gba:h-2.5 gba:rounded-full gba:bg-[#10b981]" />
-            Peer
+            <span>Peer</span>
           </span>
           <span className="gba:flex gba:items-center gba:gap-1.5">
             <span className="gba:inline-block gba:w-2 gba:h-2 gba:rotate-45 gba:bg-[#f59e0b]" />
-            Manager
+            <span>Manager</span>
           </span>
           <span className="gba:opacity-60">Gap = max – min score spread</span>
         </div>

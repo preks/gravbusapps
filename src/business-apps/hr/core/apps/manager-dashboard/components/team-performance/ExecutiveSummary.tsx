@@ -9,7 +9,6 @@ export interface ExecutiveSummaryProps {
   teamSkillsAvg: number | null
   goalsCompletionRate: number
   skillGrowthRate: number
-  needsAttentionCount: number
   changeOverall: number | null
   changeCompanyValues: number | null
   changeSkills: number | null
@@ -17,28 +16,51 @@ export interface ExecutiveSummaryProps {
   loading: boolean
 }
 
+const formatScoreValue = (score: number | null, ratingScaleLimit: number): string => {
+  if (score === null) return '—'
+  const formattedScore = score % 1 === 0 ? score : score.toFixed(1)
+  return `${formattedScore} / ${ratingScaleLimit}`
+}
+
+const trendDirection = (delta: number): 'up' | 'down' | 'none' => {
+  if (delta > 0) return 'up'
+  if (delta < 0) return 'down'
+  return 'none'
+}
+
+const formatPercentDelta = (delta: number): string => {
+  const sign = delta > 0 ? '+' : ''
+  return `${sign}${Math.round(delta)}%`
+}
+
+const formatScoreDelta = (delta: number): string => {
+  if (delta === 0) return '0'
+  const abs = Math.abs(delta)
+  const formattedAbs = abs % 1 === 0 ? String(abs) : abs.toFixed(1)
+  const sign = delta > 0 ? '+' : '-'
+  return `${sign}${formattedAbs}`
+}
+
 function buildTrend(delta: number | null, kind: 'score' | 'percent'): KpiCardData['trend'] | undefined {
   if (delta == null) return undefined
   const positive = delta > 0
-  const negative = delta < 0
   const description = kind === 'score' ? 'vs last cycle' : 'this cycle'
+  const direction = trendDirection(delta)
 
   if (kind === 'percent') {
     return {
-      value: `${delta > 0 ? '+' : ''}${Math.round(delta)}%`,
+      value: formatPercentDelta(delta),
       positive,
       description,
-      trendIcon: positive ? 'up' : negative ? 'down' : 'none'
+      trendIcon: direction
     }
   }
 
-  const abs = Math.abs(delta)
-  const numLabel = abs % 1 === 0 ? String(abs) : abs.toFixed(1)
   return {
-    value: `${positive ? '+' : negative ? '-' : ''}${numLabel}`,
+    value: formatScoreDelta(delta),
     positive,
     description,
-    trendIcon: positive ? 'up' : negative ? 'down' : 'none'
+    trendIcon: direction
   }
 }
 
@@ -68,10 +90,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       {
         id: 'team-overall',
         title: 'Team Overall Score',
-        value:
-          teamOverallScore != null
-            ? `${teamOverallScore % 1 === 0 ? teamOverallScore : teamOverallScore.toFixed(1)} / ${ratingScaleLimit}`
-            : '—',
+        value: formatScoreValue(teamOverallScore, ratingScaleLimit),
         icon: <TrendingUp className="nw:size-4" />,
         trend: buildTrend(changeOverall, 'score'),
         progress: scoreProgress(teamOverallScore, ratingScaleLimit)
@@ -79,10 +98,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       {
         id: 'company-values',
         title: 'Company Values Score',
-        value:
-          teamCompanyValuesAvg != null
-            ? `${teamCompanyValuesAvg % 1 === 0 ? teamCompanyValuesAvg : teamCompanyValuesAvg.toFixed(1)} / ${ratingScaleLimit}`
-            : '—',
+        value: formatScoreValue(teamCompanyValuesAvg, ratingScaleLimit),
         icon: <Heart className="nw:size-4" />,
         trend: buildTrend(changeCompanyValues, 'score'),
         progress: scoreProgress(teamCompanyValuesAvg, ratingScaleLimit)
@@ -90,10 +106,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       {
         id: 'skills-score',
         title: 'Skills Score',
-        value:
-          teamSkillsAvg != null
-            ? `${teamSkillsAvg % 1 === 0 ? teamSkillsAvg : teamSkillsAvg.toFixed(1)} / ${ratingScaleLimit}`
-            : '—',
+        value: formatScoreValue(teamSkillsAvg, ratingScaleLimit),
         icon: <Lightbulb className="nw:size-4" />,
         trend: buildTrend(changeSkills, 'score'),
         progress: scoreProgress(teamSkillsAvg, ratingScaleLimit)

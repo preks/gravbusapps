@@ -45,7 +45,6 @@ export interface TeamPerformanceDashboardProps {
 
   ratingScaleLimit: number
   skillGrowthRate: number
-  needsAttentionCount: number
   changeOverall: number | null
   changeCompanyValues: number | null
   changeSkills: number | null
@@ -81,7 +80,6 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
     trendSeries,
     ratingScaleLimit,
     skillGrowthRate,
-    needsAttentionCount,
     changeOverall,
     changeCompanyValues,
     changeSkills,
@@ -170,7 +168,6 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
         teamSkillsAvg={teamSkillsAvg}
         goalsCompletionRate={averageGoalProgress}
         skillGrowthRate={skillGrowthRate}
-        needsAttentionCount={needsAttentionCount}
         changeOverall={changeOverall}
         changeCompanyValues={changeCompanyValues}
         changeSkills={changeSkills}
