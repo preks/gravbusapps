@@ -22,11 +22,26 @@ import type { Comment } from '../types/versioning'
 import { formatDistanceToNow } from 'date-fns'
 import { CommentEditor } from './CommentEditor'
 import sharedTranslations from '../_i18n'
+import { getDateFnsLocale } from '../utils/dateLocale'
+
+function formatCommentRelativeTime(value: string, locale?: string): string {
+  const parsedDate = new Date(value)
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value
+  }
+
+  return formatDistanceToNow(parsedDate, { addSuffix: true, locale: getDateFnsLocale(locale) })
+}
 
 /**
  * ReplyItem - Individual reply (avatar comes from backend)
  */
-const ReplyItem: React.FC<{ reply: Comment; userFallback: string }> = ({ reply, userFallback }) => {
+const ReplyItem: React.FC<{ reply: Comment; userFallback: string; locale?: string }> = ({
+  reply,
+  userFallback,
+  locale
+}) => {
   return (
     <div className="gba:flex gba:items-start gba:gap-2.5">
       <Avatar className="gba:h-7 gba:w-7 gba:ring-1 gba:ring-background">
@@ -39,7 +54,7 @@ const ReplyItem: React.FC<{ reply: Comment; userFallback: string }> = ({ reply, 
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
           <span className="gba:font-semibold gba:text-xs">{reply.createdByName || userFallback}</span>
           <span className="gba:text-xs gba:text-muted-foreground">
-            {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
+            {formatCommentRelativeTime(reply.createdAt, locale)}
           </span>
         </div>
         <p className="gba:text-sm gba:leading-relaxed gba:text-foreground/90">{reply.content}</p>
@@ -89,7 +104,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   messages: messagesProp,
   'data-testid': testId = 'comment-thread'
 }) => {
-  const { t } = useTranslation(sharedTranslations)
+  const { t, locale } = useTranslation(sharedTranslations)
   const defaultCommentThreadMessages = {
     reply: t('comment-thread-reply'),
     edit: t('comment-thread-edit'),
@@ -164,7 +179,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
             <span className="gba:font-semibold gba:text-sm">{comment.createdByName || userFallback}</span>
             <span className="gba:text-xs gba:text-muted-foreground">
-              {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+              {formatCommentRelativeTime(comment.createdAt, locale)}
             </span>
             {isResolved && (
               <Badge variant="success" className="gba:text-xs gba:h-5">
@@ -261,7 +276,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
       {replies.length > 0 && (
         <div className="gba:ml-12 gba:mt-3 gba:space-y-3 gba:border-l-2 gba:border-primary/20 gba:pl-4">
           {replies.map(reply => (
-            <ReplyItem key={reply.id} reply={reply} userFallback={userFallback} />
+            <ReplyItem key={reply.id} reply={reply} userFallback={userFallback} locale={locale} />
           ))}
         </div>
       )}

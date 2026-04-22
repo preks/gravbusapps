@@ -388,7 +388,7 @@ ai-edit-clear-selection-title = Clear selection
 ai-edit-generating = Generating…
 ai-edit-discard = Discard
 ai-edit-undo = Undo
-ai-edit-new = New
+ai-edit-new = New edit
 ai-edit-active = (active)
 
 # Quill/Editor heading labels (for picker)
@@ -423,6 +423,14 @@ editor-dictate-listening = Listening…
 editor-dictate-unavailable = Voice input unavailable
 editor-dictate-hint = Click to start voice input
 editor-dictate-tooltip-secondary = Speak clearly into your microphone
+editor-dictate-unsupported-browser = Voice input is not supported in this browser. Try Chrome or Edge.
+editor-dictate-retry = Click to try again
+editor-dictate-error-not-allowed = Microphone access denied. Please allow microphone access.
+editor-dictate-error-network = Network error occurred. Please check your connection.
+editor-dictate-error-audio-capture = No microphone found. Please connect a microphone.
+editor-dictate-error-aborted = Voice input was canceled.
+editor-dictate-error-native-unavailable = Voice input is currently unavailable on this device.
+editor-dictate-error-generic = Voice input error: { $error }
 editor-toolbar-line-paragraph-spacing = Line and paragraph spacing
 editor-line-spacing-single = Single
 editor-line-spacing-1-15 = 1.15

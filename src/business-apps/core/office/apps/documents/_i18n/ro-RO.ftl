@@ -376,7 +376,7 @@ ai-edit-clear-selection-title = Șterge selecția
 ai-edit-generating = Se generează…
 ai-edit-discard = Renunță
 ai-edit-undo = Revine
-ai-edit-new = Nou
+ai-edit-new = Editare nouă
 ai-edit-active = (activ)
 
 # Quill/Editor heading labels (for picker)
@@ -422,6 +422,14 @@ editor-dictate-listening = Ascult…
 editor-dictate-unavailable = Introducerea vocală nu este disponibilă
 editor-dictate-hint = Faceți clic pentru a porni introducerea vocală
 editor-dictate-tooltip-secondary = Vorbiți clar în microfon.
+editor-dictate-unsupported-browser = Introducerea vocală nu este acceptată în acest browser. Încercați Chrome sau Edge.
+editor-dictate-retry = Faceți clic pentru a încerca din nou
+editor-dictate-error-not-allowed = Accesul la microfon a fost refuzat. Vă rugăm să permiteți accesul la microfon.
+editor-dictate-error-network = A apărut o eroare de rețea. Vă rugăm să verificați conexiunea.
+editor-dictate-error-audio-capture = Nu a fost găsit niciun microfon. Vă rugăm să conectați un microfon.
+editor-dictate-error-aborted = Introducerea vocală a fost anulată.
+editor-dictate-error-native-unavailable = Introducerea vocală nu este disponibilă momentan pe acest dispozitiv.
+editor-dictate-error-generic = Eroare de introducere vocală: { $error }
 editor-toolbar-line-paragraph-spacing = Spațiere linie și paragraf
 editor-line-spacing-single = Simplu
 editor-line-spacing-1-15 = 1,15

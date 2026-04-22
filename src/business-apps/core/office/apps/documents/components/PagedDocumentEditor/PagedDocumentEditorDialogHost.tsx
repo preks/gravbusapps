@@ -33,6 +33,7 @@ export interface PagedDocumentEditorDialogHostProps {
   onClosePublishDialog: () => void
   onPublish: ComponentProps<typeof PublishDialog>['onPublish']
   isPublishing: boolean
+  publishDialogMessages?: ComponentProps<typeof PublishDialog>['messages']
   showPageSetupDialog: boolean
   setShowPageSetupDialog: Dispatch<SetStateAction<boolean>>
   layoutFormatting: DocumentFormatting
@@ -86,6 +87,7 @@ export function PagedDocumentEditorDialogHost({
   onClosePublishDialog,
   onPublish,
   isPublishing,
+  publishDialogMessages,
   showPageSetupDialog,
   setShowPageSetupDialog,
   layoutFormatting,
@@ -153,6 +155,7 @@ export function PagedDocumentEditorDialogHost({
           onPublish={onPublish}
           isPublishing={isPublishing}
           entityType="document"
+          messages={publishDialogMessages}
           data-testid="document-publish-dialog"
         />
       )}
