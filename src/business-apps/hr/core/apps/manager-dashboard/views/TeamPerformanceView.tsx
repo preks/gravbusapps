@@ -186,6 +186,11 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
     return true
   })
 
+  const totalTeamMembers = teamPerformance.length
+  const skillsCoveredMembers =
+    skillsSummary && totalTeamMembers > 0 ? Math.round((skillsSummary.teamSkillCoverage / 100) * totalTeamMembers) : 0
+  const membersWithProfile = skillsSummary ? Math.max(totalTeamMembers - skillsSummary.employeesWithoutProfile, 0) : 0
+
   return (
     <div className="gba:min-h-full gba:px-4 gba:pb-8 gba:pt-5 md:gba:px-5 lg:gba:px-6">
       <div className="gba:mx-auto gba:max-w-[1400px]">
@@ -335,14 +340,14 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
                       </div>
                     ) : (
                       <div className="gba:space-y-3">
-                        <div style={{ display: 'flex', gap: '1rem' }}>
-                          <div style={{ flex: 1, textAlign: 'center' }}>
+                        <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                          <div className="gba:text-center">
                             <p className="gba:text-xl gba:font-bold gba:tabular-nums">
                               {feedbackSummary.totalFeedbackCount}
                             </p>
                             <p className="gba:text-[11px] gba:text-muted-foreground">Received</p>
                           </div>
-                          <div style={{ flex: 1, textAlign: 'center' }}>
+                          <div className="gba:text-center">
                             <p className="gba:text-xl gba:font-bold gba:tabular-nums">
                               {feedbackSummary.totalGivenCount}
                             </p>
@@ -390,6 +395,16 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
                       </div>
                     ) : (
                       <div className="gba:space-y-3">
+                        <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                          <div className="gba:text-center">
+                            <p className="gba:text-xl gba:font-bold gba:tabular-nums">{skillsCoveredMembers}</p>
+                            <p className="gba:text-[11px] gba:text-muted-foreground">Covered</p>
+                          </div>
+                          <div className="gba:text-center">
+                            <p className="gba:text-xl gba:font-bold gba:tabular-nums">{membersWithProfile}</p>
+                            <p className="gba:text-[11px] gba:text-muted-foreground">With profile</p>
+                          </div>
+                        </div>
                         <div>
                           <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
                             <span className="gba:text-xs gba:text-muted-foreground">Team coverage</span>
@@ -542,6 +557,9 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
                     'master-data:hr.manager_dashboard.no_performance_data',
                     'No performance data available for your team'
                   )}
+            </p>
+            <p className="gba:mt-2 gba:text-xs gba:text-muted-foreground">
+              Create goals or run a feedback cycle to unlock team performance insights.
             </p>
           </Card>
         )}

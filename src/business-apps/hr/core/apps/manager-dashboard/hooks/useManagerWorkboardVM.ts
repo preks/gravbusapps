@@ -275,7 +275,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
 
   const directReportIds = useMemo(() => directReports.map(r => r.id), [directReports])
 
-  const { daysSinceLastFeedback, hasFeedbackRecently } = useManagerFeedback({
+  const { daysSinceLastFeedback, hasFeedbackRecently, lastFeedbackByEmployeeId } = useManagerFeedback({
     accessToken: accessToken || '',
     managerId: employeeId || '',
     directReportIds
@@ -796,16 +796,31 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
   const goalsBehindData = useMemo(() => {
     if (!teamPerformance || teamPerformance.length === 0) return []
 
+    const isBehindTargetGoal = (goal: {
+      status: string
+      progressPercent: number
+      trackState?: 'ON_TRACK' | 'BEHIND_TARGET'
+    }) => {
+      const isAchieved = goal.status === 'ACHIEVED' || goal.progressPercent >= 100
+      if (isAchieved) return false
+
+      if (goal.trackState === 'BEHIND_TARGET') return true
+      return goal.status === 'BEHIND_TARGET' || goal.status === 'NOT_ACHIEVED'
+    }
+
     const employeesWithGoalsBehind = teamPerformance.filter(member => member.goalsBehindTarget > 0)
 
     return employeesWithGoalsBehind
       .map(member => {
-        const goalsBehind = member.goals.filter(g => g.status === 'BEHIND_TARGET' || g.status === 'NOT_ACHIEVED')
+        const goalsBehind = member.goals.filter(isBehindTargetGoal)
 
         return {
           employeeId: member.employeeId,
           employeeName: `${member.firstName} ${member.lastName}`,
           employeeUserId: member.userId || '',
+          firstName: member.firstName,
+          lastName: member.lastName,
+          pictureThumbnail: member.pictureThumbnail,
           goals: goalsBehind.map(g => ({
             id: g.id,
             title: g.title,
@@ -813,8 +828,13 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
           }))
         }
       })
-      .filter(emp => emp.goals.length > 0 && emp.employeeUserId) // Only include with userId and goals
+      .filter(emp => emp.goals.length > 0) // Keep all behind-goal rows; reminder action is disabled without userId
   }, [teamPerformance])
+
+  const goalsBehindPanelCount = useMemo(
+    () => goalsBehindData.reduce((total, employee) => total + employee.goals.length, 0),
+    [goalsBehindData]
+  )
 
   // Not clocked in employees with userId for chat nudges
   const notClockedInEmployeesWithUserId = useMemo(() => {
@@ -835,6 +855,9 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
       .map(report => ({
         id: report.id,
         name: `${report.firstName} ${report.lastName}`,
+        firstName: report.firstName,
+        lastName: report.lastName,
+        pictureThumbnail: report.pictureThumbnail,
         userId: report.userId || report.id // Fallback to employee ID if userId doesn't exist
       }))
       .filter(emp => emp.userId) // Only include those with some ID
@@ -872,6 +895,9 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         .map(report => ({
           id: report.id,
           name: `${report.firstName} ${report.lastName}`,
+          firstName: report.firstName,
+          lastName: report.lastName,
+          pictureThumbnail: report.pictureThumbnail,
           allocationPercent: employeeAllocations.find(allocation => allocation.id === report.id)?.allocationPercent || 0
         })),
     [directReports, unallocatedEmployeeIds, employeeAllocations]
@@ -1074,7 +1100,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         sickLeaves: sickLeavesCount,
         unallocated: unallocatedCount,
         withoutGoals: employeesWithoutGoalsCount,
-        goalsBehind: goalsBehindTarget,
+        goalsBehind: goalsBehindPanelCount,
         notClockedIn: notClockedInCount,
         remote: remoteCount,
         upcomingAnniversaries: upcomingAnniversaries.length
@@ -1086,7 +1112,8 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
       notClockedInEmployees: notClockedInEmployeesWithUserId,
       feedback: {
         daysSince: daysSinceLastFeedback,
-        hasRecently: hasFeedbackRecently
+        hasRecently: hasFeedbackRecently,
+        lastByEmployeeId: lastFeedbackByEmployeeId
       }
     },
 
@@ -1301,6 +1328,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     notClockedInCount,
     daysSinceLastFeedback,
     hasFeedbackRecently,
+    lastFeedbackByEmployeeId,
     flightRiskSummary,
     flightRiskEmployees,
     loadingDirectReports,

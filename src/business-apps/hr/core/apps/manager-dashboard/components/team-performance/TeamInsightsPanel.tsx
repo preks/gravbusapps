@@ -28,6 +28,7 @@ interface TeamInsightsPanelProps {
   error: string | null
   onAnalyze: () => void
   onClear: () => void
+  onActionClick?: (action: string) => void
 }
 
 const urgencyColors: Record<string, string> = {
@@ -42,7 +43,13 @@ const impactColors: Record<string, string> = {
   low: 'gba:text-muted-foreground'
 }
 
-export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({ data, isAnalyzing, error, onAnalyze }) => {
+export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
+  data,
+  isAnalyzing,
+  error,
+  onAnalyze,
+  onActionClick
+}) => {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['priorities']))
 
   const toggleSection = (section: string) => {
@@ -168,6 +175,20 @@ export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({ data, isAn
                       </Badge>
                     </div>
                     <p className="gba:text-[11px] gba:text-muted-foreground">{priority.recommended_action}</p>
+                    {onActionClick && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gba:mt-2 gba:h-6 gba:px-2 gba:text-[10px]"
+                        onClick={event => {
+                          event.stopPropagation()
+                          onActionClick(priority.recommended_action)
+                        }}
+                      >
+                        Take action
+                      </Button>
+                    )}
                     {priority.affected_employees.length > 0 && (
                       <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">
                         Affects: {priority.affected_employees.join(', ')}
@@ -208,6 +229,20 @@ export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({ data, isAn
                         </span>
                         <span className="gba:text-[10px] gba:text-muted-foreground">Effort: {action.effort}</span>
                       </div>
+                      {onActionClick && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gba:mt-2 gba:h-6 gba:px-2 gba:text-[10px]"
+                          onClick={event => {
+                            event.stopPropagation()
+                            onActionClick(action.action)
+                          }}
+                        >
+                          Open action
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}

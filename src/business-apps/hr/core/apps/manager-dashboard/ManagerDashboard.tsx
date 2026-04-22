@@ -287,26 +287,47 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
 
   if (vm.currentView === 'teammates') {
     return (
-      <TeammatesView
-        directReports={vm.directReports}
-        matrixTeamMembers={vm.matrixTeamMembers}
-        unallocatedEmployeeIds={vm.unallocatedEmployeeIds}
-        filterAbsentOnly={vm.filterAbsentOnly}
-        filterUnallocatedOnly={vm.filterUnallocatedOnly}
-        setFilterAbsentOnly={vm.setFilterAbsentOnly}
-        setFilterUnallocatedOnly={vm.setFilterUnallocatedOnly}
-        loadingDirectReports={vm.loadingDirectReports}
-        loadingMatrixTeams={vm.loadingMatrixTeams}
-        directReportsError={vm.directReportsError}
-        matrixTeamsError={vm.matrixTeamsError}
-        activeTeamTab={vm.activeTeamTab}
-        setActiveTeamTab={vm.setActiveTeamTab}
-        employeeId={employeeId || ''}
-        accessToken={accessToken || ''}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-        userOrgData={vm.userOrgData || undefined}
-      />
+      <>
+        <TeammatesView
+          directReports={vm.directReports}
+          matrixTeamMembers={vm.matrixTeamMembers}
+          unallocatedEmployeeIds={vm.unallocatedEmployeeIds}
+          filterAbsentOnly={vm.filterAbsentOnly}
+          filterUnallocatedOnly={vm.filterUnallocatedOnly}
+          setFilterAbsentOnly={vm.setFilterAbsentOnly}
+          setFilterUnallocatedOnly={vm.setFilterUnallocatedOnly}
+          loadingDirectReports={vm.loadingDirectReports}
+          loadingMatrixTeams={vm.loadingMatrixTeams}
+          directReportsError={vm.directReportsError}
+          matrixTeamsError={vm.matrixTeamsError}
+          activeTeamTab={vm.activeTeamTab}
+          setActiveTeamTab={vm.setActiveTeamTab}
+          employeeId={employeeId || ''}
+          accessToken={accessToken || ''}
+          teamPerformance={vm.teamPerformance}
+          employeeAllocations={vm.directReportsWithAllocation}
+          lastFeedbackByEmployeeId={vm.lastFeedbackByEmployeeId}
+          onNavigateBack={vm.handleNavigateBackToDashboard}
+          onNavigateToEmployee={vm.handleNavigateToEmployee}
+          onOpenMemberPanel={vm.actions.openMemberPanel}
+          userOrgData={vm.userOrgData || undefined}
+        />
+        <MemberQuickPanel
+          isOpen={vm.isMemberPanelOpen}
+          onClose={vm.handleCloseMemberPanel}
+          member={
+            vm.selectedMemberId
+              ? directReportsForWorkboard.find(report => report.id === vm.selectedMemberId) || null
+              : null
+          }
+          allocationPercent={vm.averageAllocationPercentage}
+          teamPerformance={vm.teamPerformance}
+          lastFeedbackDate={vm.daysSinceLastFeedback ? `${vm.daysSinceLastFeedback} days ago` : null}
+          onNavigateToEmployee={vm.handleNavigateToEmployee}
+          onAssignProject={handleAssignProject}
+        />
+        {assignProjectDialog}
+      </>
     )
   }
 
@@ -364,6 +385,8 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         accessToken={accessToken || ''}
         onNavigateBack={vm.handleNavigateBackToDashboard}
         onNavigateToEmployee={vm.handleNavigateToEmployee}
+        onNavigateToTeamPerformance={vm.handleNavigateToTeamPerformance}
+        onNavigateToTeammates={vm.handleNavigateToTeammates}
       />
     )
   }
@@ -488,7 +511,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         teamPerformance={vm.teamPerformance}
         lastFeedbackDate={vm.daysSinceLastFeedback ? `${vm.daysSinceLastFeedback} days ago` : null}
         onNavigateToEmployee={vm.handleNavigateToEmployee}
-        onAssignProject={vm.handleNavigateToUnallocatedTeammates}
+        onAssignProject={handleAssignProject}
       />
     </>
   )

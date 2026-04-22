@@ -56,6 +56,8 @@ export interface TeamPerformanceDashboardProps {
 
   onNavigateBack: () => void
   onNavigateToEmployee: (employeeId: string) => void
+  onNavigateToTeamPerformance: () => void
+  onNavigateToTeammates: () => void
 }
 
 export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) => {
@@ -86,7 +88,9 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
     insights,
     accessToken,
     onNavigateBack,
-    onNavigateToEmployee
+    onNavigateToEmployee,
+    onNavigateToTeamPerformance,
+    onNavigateToTeammates
   } = props
 
   const [deepDiveEmployeeId, setDeepDiveEmployeeId] = useState<string | null>(null)
@@ -96,6 +100,22 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
 
   const handleEmployeeClick = (employeeId: string) => {
     setDeepDiveEmployeeId(employeeId)
+  }
+
+  const handleInsightAction = (actionText: string) => {
+    const normalized = actionText.toLowerCase()
+
+    if (normalized.includes('feedback') || normalized.includes('goal')) {
+      onNavigateToTeamPerformance()
+      return
+    }
+
+    if (normalized.includes('job profile') || normalized.includes('skill')) {
+      onNavigateToTeammates()
+      return
+    }
+
+    onNavigateToTeamPerformance()
   }
 
   return (
@@ -139,6 +159,7 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
           error={insights.error}
           onAnalyze={insights.analyze}
           onClear={insights.clear}
+          onActionClick={handleInsightAction}
         />
       )}
 

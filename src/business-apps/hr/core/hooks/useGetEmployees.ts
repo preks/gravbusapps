@@ -20,6 +20,15 @@ export interface Employee {
   employmentType?: string
   contractType?: string
   matrixTeams?: string[]
+  currentGoalProgress?: number
+  lastManagerFeedbackDate?: string | null
+  projectAllocationPercent?: number
+  nextVacation?: {
+    type: string
+    startDate: string
+    endDate: string
+    status: string
+  }
   // Availability/status fields
   status?: 'Available' | 'On Leave'
   currentAbsence?: {
