@@ -6,8 +6,6 @@ import { extractCurrencyCode, formatCurrencyString } from '@/common/utils/number
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
-import type { CompensationBudgetPlanCompanyRow } from '../../compensation-planning/hooks/useBudgetSetupForCompany'
-import type { ManagerOrgUnitBudgetSnapshot } from '../hooks/useManagerTeamSalaryBudget'
 import { distributeToEmployees } from '../../../utils/budgetCalculations'
 import compensationPlanningTranslations from '../../compensation-planning/_i18n'
 import { roundMoney2 } from '../../compensation-planning/utils/parseCustomBudgetInputs'
@@ -40,12 +38,14 @@ export interface TeamCompensationDistributionPanelProps {
   managerEmployeeId: string | undefined
   planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
   managerOrganizationalUnitId: string | null
-  managerCompanyBudgetRow: CompensationBudgetPlanCompanyRow | null
-  orgUnitBudgetSnapshotsByPlanRowId: ReadonlyMap<string, ManagerOrgUnitBudgetSnapshot>
   /** Called after save dialog persists rows (merge returned ids into parent state). */
   onMergeSavedRowIds: (createdIdsByEmployeeId?: Record<string, string>) => void
   /** After manager submits proposals from the modal, parent locks editing. */
   proposalsLockedAfterSubmit: boolean
+  /** Count of team employee rows with `BUDGET_PLAN_SENT_BACK` (for toolbar badge). */
+  sentBackProposalCount?: number
+  /** Opens full-page sent-back proposals table (URL `sentBackProposals=1`). */
+  onOpenSentBackProposals?: () => void
   onSaved?: () => void
 }
 
@@ -64,10 +64,10 @@ export function TeamCompensationDistributionPanel({
   managerEmployeeId,
   planOuRowIdByOrganizationalUnitId,
   managerOrganizationalUnitId,
-  managerCompanyBudgetRow,
-  orgUnitBudgetSnapshotsByPlanRowId,
   onMergeSavedRowIds,
   proposalsLockedAfterSubmit,
+  sentBackProposalCount = 0,
+  onOpenSentBackProposals,
   onSaved
 }: Readonly<TeamCompensationDistributionPanelProps>) {
   const { t } = useTranslation(translations)
@@ -256,8 +256,6 @@ export function TeamCompensationDistributionPanel({
         currencyCode={currencyCode}
         planOuRowIdByOrganizationalUnitId={planOuRowIdByOrganizationalUnitId}
         managerOrganizationalUnitId={managerOrganizationalUnitId}
-        managerCompanyBudgetRow={managerCompanyBudgetRow}
-        orgUnitBudgetSnapshotsByPlanRowId={orgUnitBudgetSnapshotsByPlanRowId}
         onSaved={createdIds => {
           onMergeSavedRowIds(createdIds)
           onSaved?.()
@@ -294,6 +292,9 @@ export function TeamCompensationDistributionPanel({
           dataDisplay={dataDisplay}
           canShowSaveAction={canShowSaveAction}
           onOpenSubmitProposals={() => setSaveAllocationsDialogOpen(true)}
+          selectedCompanyId={selectedCompanyId}
+          sentBackProposalCount={sentBackProposalCount}
+          onOpenSentBackProposals={onOpenSentBackProposals}
         />
       </div>
     </>

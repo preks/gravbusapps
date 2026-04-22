@@ -42,6 +42,9 @@ export interface TeamCompensationDistributionSplitPanelProps {
   dataDisplay: { searchQuery: string; setSearchQuery: (value: string) => void }
   canShowSaveAction: boolean
   onOpenSubmitProposals: () => void
+  selectedCompanyId: string | null
+  sentBackProposalCount?: number
+  onOpenSentBackProposals?: () => void
 }
 
 export function TeamCompensationDistributionSplitPanel({
@@ -65,7 +68,10 @@ export function TeamCompensationDistributionSplitPanel({
   grandTotalPositivePerformanceScores,
   dataDisplay,
   canShowSaveAction,
-  onOpenSubmitProposals
+  onOpenSubmitProposals,
+  selectedCompanyId,
+  sentBackProposalCount = 0,
+  onOpenSentBackProposals
 }: Readonly<TeamCompensationDistributionSplitPanelProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
@@ -79,6 +85,17 @@ export function TeamCompensationDistributionSplitPanel({
           {tBudget('budget-distribution-split-panel-title')}
         </CardTitle>
         <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+          {onOpenSentBackProposals != null && sentBackProposalCount > 0 && selectedCompanyId != null ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="gba:shrink-0"
+              onClick={onOpenSentBackProposals}
+              data-testid="manager-team-sent-back-proposals-open"
+            >
+              {t('manager-team-sent-back-proposals-toolbar-with-count', { count: sentBackProposalCount })}
+            </Button>
+          ) : null}
           <Button
             type="button"
             className="gba:shrink-0"

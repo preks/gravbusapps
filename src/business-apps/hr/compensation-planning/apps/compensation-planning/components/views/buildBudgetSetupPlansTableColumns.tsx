@@ -49,6 +49,7 @@ const COL = {
   status: { size: 180, minSize: 160 },
   salaryAmount: { size: 280, minSize: 260 },
   salaryPercent: { size: 220, minSize: 200 },
+  allocationAmount: { size: 280, minSize: 260 },
   salaryBaseline: { size: 340, minSize: 320 }
 } as const
 
@@ -119,6 +120,19 @@ export function buildBudgetSetupPlansTableColumns(
       )
     },
     {
+      id: 'allocationAmount',
+      accessorKey: 'allocationAmount',
+      header: budgetSetupColumnHeader(t, 'budget-setup-table-col-allocation-amount', 'right'),
+      size: COL.allocationAmount.size,
+      minSize: COL.allocationAmount.minSize,
+      meta: { align: 'right', type: 'currency' },
+      accessorFn: row => sortNumberOrFallback(row.allocationAmount),
+      cell: ({ row }) => {
+        const r = row.original
+        return <span className={TABLE_BODY_NUM_RIGHT}>{formatCurrencyCell(r.allocationAmount, r.displayCurrency)}</span>
+      }
+    },
+    {
       id: 'salaryBaseline',
       accessorKey: 'salaryBaseline',
       header: budgetSetupColumnHeader(t, 'budget-setup-table-col-salary-baseline', 'right'),
@@ -173,6 +187,7 @@ export const BUDGET_SETUP_PLANS_VISIBLE_COLUMN_IDS = [
   'companyBudgetStatus',
   'salaryBudgetAmount',
   'salaryBudgetPercent',
+  'allocationAmount',
   'salaryBaseline',
   'actions'
 ] as const
