@@ -93,6 +93,18 @@ export function sanitizeSameOriginReturnUrl(value: string | null | undefined): s
   }
 }
 
+/**
+ * Client-side redirect after API responses that suggest a path. Resolves {@link sanitizeSameOriginReturnUrl}
+ * and assigns navigation using only the current origin plus the sanitized path (CWE-601 / open redirect).
+ */
+export function navigateToSameOriginOrRoot(redirectUrl: string | null | undefined): void {
+  if (typeof window === 'undefined') return
+
+  const path = sanitizeSameOriginReturnUrl(redirectUrl) ?? '/'
+  const absoluteHref = `${window.location.origin}${path.startsWith('/') ? path : `/${path}`}`
+  window.location.assign(absoluteHref)
+}
+
 export function sanitizeDownloadFilename(value: string | null | undefined, fallback = 'download'): string {
   const normalized = (value ?? '')
     .replace(/[/\\?%*:|"<>]/g, '-')
