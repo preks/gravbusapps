@@ -1,5 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  Alert,
+  AlertDescription,
   Button,
   Dialog,
   DialogContent,
@@ -15,6 +17,10 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { RestClient } from '@/common/network/rest/RestClient'
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import { saveCompensationBudgetPlanEmployee } from '../../../api/saveCompensationBudgetPlan'
+import {
+  GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_ALLOCATION_AMOUNTS_BY_ORG_UNIT_BUDGET_ID,
+  GET_COMPENSATION_BUDGET_PLAN_ORG_UNIT_BUDGET_ROW_BY_ID
+} from '../../../queries/budgetPlanQueries'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
 import { refreshOrgUnitAllocationAmountFromEmployees } from '../../../utils/reduceOrgUnitBudgetPoolByAmount'
@@ -22,6 +28,14 @@ import { computeManagerProposalAmountsFromIncrease } from '../utils/buildManager
 import { buildSentBackEmployeeProposalRevisionBody } from '../utils/buildSentBackEmployeeProposalRevisionBody'
 import type { SentBackProposalTableRow } from './sentBackProposalTableRow'
 import translations from '../_i18n'
+
+function num(v: unknown): number {
+  if (typeof v === 'number' && !Number.isNaN(v)) {
+    return v
+  }
+  const n = Number(v)
+  return Number.isNaN(n) ? 0 : n
+}
 
 export interface SentBackProposalEditDialogProps {
   open: boolean
@@ -52,6 +66,9 @@ export function SentBackProposalEditDialog({
   const [justification, setJustification] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [departmentSalaryCap, setDepartmentSalaryCap] = useState<number | null>(null)
+  const [sumAllocationsOnDepartment, setSumAllocationsOnDepartment] = useState<number | null>(null)
+  const [departmentBudgetContextLoading, setDepartmentBudgetContextLoading] = useState(false)
 
   useEffect(() => {
     if (!open || !row) {
@@ -61,6 +78,64 @@ export function SentBackProposalEditDialog({
     setJustification(row.justification ?? '')
     setError(null)
   }, [open, row])
+
+  useEffect(() => {
+    if (!open) {
+      setDepartmentSalaryCap(null)
+      setSumAllocationsOnDepartment(null)
+      setDepartmentBudgetContextLoading(false)
+      return
+    }
+    if (!accessToken) {
+      return
+    }
+    const planOuId = row?.compensationBudgetPlanOrganizationalUnitId?.trim() ?? ''
+    if (planOuId === '') {
+      setDepartmentSalaryCap(null)
+      setSumAllocationsOnDepartment(null)
+      return
+    }
+
+    let cancelled = false
+    setDepartmentBudgetContextLoading(true)
+    ;(async () => {
+      try {
+        const [ouRes, allocRes] = await Promise.all([
+          graphqlClient.request<{
+            CompensationBudgetPlanOrganizationalUnit: Array<{ salaryBudgetAmount: unknown }>
+          }>(GET_COMPENSATION_BUDGET_PLAN_ORG_UNIT_BUDGET_ROW_BY_ID, { id: planOuId }),
+          graphqlClient.request<{
+            CompensationBudgetPlanEmployee: Array<{ allocationAmount: unknown }>
+          }>(GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_ALLOCATION_AMOUNTS_BY_ORG_UNIT_BUDGET_ID, {
+            orgUnitBudgetId: planOuId
+          })
+        ])
+        if (cancelled) {
+          return
+        }
+        const ou = ouRes.CompensationBudgetPlanOrganizationalUnit?.[0]
+        const cap = ou != null ? roundMoney2(num(ou.salaryBudgetAmount)) : null
+        const total = (allocRes.CompensationBudgetPlanEmployee ?? []).reduce(
+          (sum, r) => roundMoney2(sum + roundMoney2(num(r.allocationAmount))),
+          0
+        )
+        setDepartmentSalaryCap(cap)
+        setSumAllocationsOnDepartment(roundMoney2(total))
+      } catch {
+        if (!cancelled) {
+          setDepartmentSalaryCap(null)
+          setSumAllocationsOnDepartment(null)
+        }
+      } finally {
+        if (!cancelled) {
+          setDepartmentBudgetContextLoading(false)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [open, accessToken, row?.compensationBudgetPlanOrganizationalUnitId, graphqlClient])
 
   const preview = (() => {
     if (!teamMember) {
@@ -72,6 +147,30 @@ export function SentBackProposalEditDialog({
     }
     return computeManagerProposalAmountsFromIncrease(teamMember, n)
   })()
+
+  const departmentOverBudgetInfo = useMemo(() => {
+    if (
+      departmentBudgetContextLoading ||
+      departmentSalaryCap == null ||
+      sumAllocationsOnDepartment == null ||
+      row == null ||
+      preview == null
+    ) {
+      return null
+    }
+    const currentAlloc = roundMoney2(num(row.allocationAmount))
+    const proposed = roundMoney2(preview.proposedSalaryIncreaseAmount)
+    const projectedTotal = roundMoney2(sumAllocationsOnDepartment - currentAlloc + proposed)
+    const cap = roundMoney2(departmentSalaryCap)
+    if (projectedTotal <= cap) {
+      return null
+    }
+    return {
+      projectedTotal,
+      cap,
+      over: roundMoney2(projectedTotal - cap)
+    }
+  }, [departmentBudgetContextLoading, departmentSalaryCap, preview, row, sumAllocationsOnDepartment])
 
   const handleSave = useCallback(async () => {
     if (!accessToken || !managerEmployeeId || !row || !teamMember) {
@@ -181,6 +280,20 @@ export function SentBackProposalEditDialog({
                 {formatCurrency(preview.proposedNewSalary, currencyCode)}
               </span>
             </p>
+          </div>
+        ) : null}
+
+        {departmentOverBudgetInfo ? (
+          <div data-testid="sent-back-edit-department-budget-warning">
+            <Alert>
+              <AlertDescription>
+                {t('sent-back-edit-exceeds-department-budget', {
+                  total: formatCurrency(departmentOverBudgetInfo.projectedTotal, currencyCode),
+                  cap: formatCurrency(departmentOverBudgetInfo.cap, currencyCode),
+                  over: formatCurrency(departmentOverBudgetInfo.over, currencyCode)
+                })}
+              </AlertDescription>
+            </Alert>
           </div>
         ) : null}
 

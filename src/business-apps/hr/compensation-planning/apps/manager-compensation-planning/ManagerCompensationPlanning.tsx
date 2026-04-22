@@ -7,11 +7,6 @@ import {
   Button,
   PageLayout,
   Spinner,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   useTranslation
 } from '@newwork/nw-design-system'
 
@@ -26,6 +21,8 @@ import {
 } from '@/common/utils/navigationUtils'
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
 
+import { CompensationCycleSelector } from '../compensation-planning/components/shared/CompensationCycleSelector'
+import compensationPlanningTranslations from '../compensation-planning/_i18n'
 import { useManagerPlanningStore } from './hooks/useManagerPlanningStore'
 
 import { useDefaultCompanyForCurrentUser } from '../../hooks/useDefaultCompanyForCurrentUser'
@@ -98,11 +95,14 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
   const employeeId = userInfo?.employeeDetails?.employeeId
 
   const { t } = useTranslation(translations)
+  const { t: tCompensationPlan } = useTranslation(compensationPlanningTranslations)
 
   const {
     searchQuery,
     selectedCompanyId,
     setSelectedCompanyId,
+    selectedCompensationPlanId,
+    setSelectedCompensationPlanId,
     sidebarFilterIds,
     filterSalaryMin,
     filterSalaryMax,
@@ -244,20 +244,45 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
 
   const {
     totalSalaryBudget,
-    companySalaryIncreasePoolResolved,
-    companyUndistributedSalaryPool,
     loading: salaryBudgetLoading,
     error: salaryBudgetError,
     refetch: refetchSalaryBudget,
     planOuRowIdByOrganizationalUnitId,
     managerOrganizationalUnitId,
-    activeCompensationBudgetPlanId
+    activeCompensationBudgetPlanId,
+    compensationPlanChoices
   } = useManagerTeamSalaryBudget({
     accessToken,
     companyId: effectiveCompanyId,
     managerEmployeeId: employeeId,
-    teamMembers
+    teamMembers,
+    selectedCompensationBudgetPlanId: selectedCompensationPlanId
   })
+
+  const compensationCycleSelectPlanId = useMemo((): string | null => {
+    if (compensationPlanChoices.length === 0) {
+      return null
+    }
+    if (selectedCompensationPlanId != null && compensationPlanChoices.some(p => p.id === selectedCompensationPlanId)) {
+      return selectedCompensationPlanId
+    }
+    if (
+      activeCompensationBudgetPlanId != null &&
+      compensationPlanChoices.some(p => p.id === activeCompensationBudgetPlanId)
+    ) {
+      return activeCompensationBudgetPlanId
+    }
+    return null
+  }, [activeCompensationBudgetPlanId, compensationPlanChoices, selectedCompensationPlanId])
+
+  useEffect(() => {
+    if (compensationPlanChoices.length === 0) {
+      return
+    }
+    if (selectedCompensationPlanId != null && !compensationPlanChoices.some(p => p.id === selectedCompensationPlanId)) {
+      setSelectedCompensationPlanId(null)
+    }
+  }, [compensationPlanChoices, selectedCompensationPlanId, setSelectedCompensationPlanId])
 
   const teamEmployeeIds = useMemo(() => teamMembers.map(m => m.employeeId), [teamMembers])
 
@@ -331,29 +356,6 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     paginate: false
   })
 
-  const companySelectValue =
-    selectedCompanyId != null && companies.some(c => c.id === selectedCompanyId) ? selectedCompanyId : undefined
-
-  const companySelect = (
-    <Select
-      value={companySelectValue}
-      onValueChange={val => setSelectedCompanyId(val || null)}
-      disabled={!companiesLoading && companies.length === 0}
-    >
-      <SelectTrigger className="gba:w-[300px]" data-testid="manager-compensation-company-select">
-        <SelectValue placeholder={t('select-company-placeholder')} />
-      </SelectTrigger>
-
-      <SelectContent>
-        {companies.map(company => (
-          <SelectItem key={company.id} value={company.id}>
-            {company.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
-
   const companiesLoadErrorMessage =
     !companiesLoading && companies.length === 0 && companiesLoadError ? (
       <p
@@ -364,16 +366,13 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       </p>
     ) : null
 
-  const emptyCompanySelectionRow = (
+  const emptyCompanyContextRow = (
     <div
-      className="gba:flex gba:w-full gba:flex-row gba:flex-wrap gba:items-start gba:justify-between gba:gap-4"
+      className="gba:flex gba:w-full gba:flex-col gba:gap-2 sm:gba:flex-row sm:gba:items-start sm:gba:justify-between"
       data-testid="manager-compensation-empty-company-bar"
     >
-      <p className="gba:min-w-0 gba:flex-1 gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
-      <div className="gba:flex gba:shrink-0 gba:flex-col gba:items-end gba:gap-2">
-        {companySelect}
-        {companiesLoadErrorMessage}
-      </div>
+      <p className="gba:min-w-0 gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
+      {companiesLoadErrorMessage}
     </div>
   )
 
@@ -392,7 +391,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
           className="gba:min-h-[400px] gba:overflow-auto gba:bg-background"
           data-testid="manager-compensation-data-body"
         >
-          <div className="gba:p-4">{emptyCompanySelectionRow}</div>
+          <div className="gba:p-4">{emptyCompanyContextRow}</div>
         </div>
       )
     }
@@ -452,6 +451,20 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
         data-testid="manager-compensation-data-body"
       >
         <div className="gba:flex gba:flex-col gba:gap-4 gba:p-4">
+          {supervisorReview == null && sentBackProposalsView == null ? (
+            <div
+              className="gba:flex gba:flex-wrap gba:items-end gba:justify-end gba:gap-3 gba:border-b gba:border-border gba:pb-4"
+              data-testid="manager-compensation-cycle-toolbar"
+            >
+              <CompensationCycleSelector
+                plans={compensationPlanChoices}
+                plansLoading={salaryBudgetLoading}
+                selectedPlanId={compensationCycleSelectPlanId}
+                onPlanChange={setSelectedCompensationPlanId}
+                t={tCompensationPlan}
+              />
+            </div>
+          ) : null}
           {salaryBudgetError ? (
             <Alert variant="destructive" data-testid="manager-compensation-salary-budget-error">
               <AlertTitle>{t('error-salary-budget-title')}</AlertTitle>
@@ -479,8 +492,6 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
             loading={dataLoading || performanceScoresLoading}
             error={error}
             totalSalaryBudget={totalSalaryBudget}
-            companySalaryIncreasePoolResolved={companySalaryIncreasePoolResolved}
-            companyUndistributedSalaryPool={companyUndistributedSalaryPool}
             salaryBudgetLoading={salaryBudgetLoading}
             salaryBudgetError={salaryBudgetError}
             selectedCompanyId={effectiveCompanyId}

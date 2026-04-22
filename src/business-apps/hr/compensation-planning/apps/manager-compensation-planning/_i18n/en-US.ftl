@@ -2,8 +2,7 @@ title = Team compensation
 subtitle = View and compare team pay, bonuses, and benefits.
 loading = Loading team data...
 
-select-company-placeholder = Select company…
-empty-select-company-hint = Select a company to load your team’s compensation data.
+empty-select-company-hint = Your team and budget are scoped to the company linked to your position. We could not determine that company yet. Try refreshing the page, or contact HR if this continues.
 error-companies-load = Could not load the company list. {$message}
 error-performance-cycles-query-title = Performance cycle directory unavailable
 error-performance-cycles-query = Could not load the performance cycle list from the directory. {$message}
@@ -141,7 +140,6 @@ supervisor-review-submitted-count = { $count ->
 supervisor-review-busy = Working…
 supervisor-review-approve-selected = Approve selected
 supervisor-review-none-selected = Select at least one proposal.
-supervisor-review-selection-hint = Approve or send back only submitted rows. Draft rows are visible for context and cannot be selected here.
 supervisor-review-draft-in-table = { $count ->
   [one] 1 allocation is still in draft (read-only in this list).
   *[other] {$count} allocations are still in draft (read-only in this list).
@@ -202,7 +200,8 @@ sent-back-edit-preview-new-salary = Calculated new salary
 sent-back-edit-justification-label = Justification
 sent-back-edit-missing-member = This employee is not in your current team list; you cannot recalculate salary fields.
 sent-back-edit-invalid-increase = Enter a valid non-negative increase amount.
+sent-back-edit-exceeds-department-budget = With this increase, total proposed salary increase amounts for your department would be { $total }, which exceeds the department salary budget of { $cap } by { $over }. You can still save; consider adjusting if needed.
 sent-back-edit-error-generic = Could not save changes.
 sent-back-edit-cancel = Cancel
 sent-back-edit-saving = Saving…
-sent-back-edit-submit = Save changes
+sent-back-edit-submit = Save

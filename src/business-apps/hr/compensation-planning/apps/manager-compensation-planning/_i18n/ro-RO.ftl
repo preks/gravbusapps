@@ -2,8 +2,7 @@ title = Compensații echipă
 subtitle = Vizualizați și comparați salariile, bonusurile și beneficiile echipei.
 loading = Se încarcă datele echipei...
 
-select-company-placeholder = Selectați compania…
-empty-select-company-hint = Selectați o companie pentru a încărca datele de compensare ale echipei.
+empty-select-company-hint = Echipa și bugetul se referă la compania asociată poziției dvs. Nu am putut determina încă această companie. Reîmprospătați pagina sau contactați HR dacă problema persistă.
 error-companies-load = Nu s-a putut încărca lista de companii. {$message}
 error-performance-cycles-query-title = Directorul ciclurilor de performanță nu este disponibil
 error-performance-cycles-query = Nu s-a putut încărca lista ciclurilor de performanță din director. {$message}
@@ -140,7 +139,6 @@ supervisor-review-submitted-count = { $count ->
 supervisor-review-busy = Se procesează…
 supervisor-review-approve-selected = Aprobă selectate
 supervisor-review-none-selected = Selectați cel puțin o propunere.
-supervisor-review-selection-hint = Aprobați sau trimiteți înapoi doar rândurile trimise. Ciornele sunt vizibile ca referință și nu pot fi selectate aici.
 supervisor-review-draft-in-table = { $count ->
   [one] 1 alocare este încă în ciornă (doar citire în această listă).
   *[other] {$count} alocări sunt încă în ciornă (doar citire în această listă).
@@ -200,7 +198,8 @@ sent-back-edit-preview-new-salary = Salariu nou calculat
 sent-back-edit-justification-label = Justificare
 sent-back-edit-missing-member = Acest angajat nu este în lista curentă a echipei; nu se pot recalcula câmpurile salariale.
 sent-back-edit-invalid-increase = Introduceți o sumă de creștere validă, nenegativă.
+sent-back-edit-exceeds-department-budget = Cu această creștere, totalul sumelor de creștere salarială propuse pentru departamentul dvs. ar fi { $total }, depășind bugetul salarial al departamentului de { $cap } cu { $over }. Puteți salva oricum; ajustați suma dacă e cazul.
 sent-back-edit-error-generic = Modificările nu au putut fi salvate.
 sent-back-edit-cancel = Anulează
 sent-back-edit-saving = Se salvează…
-sent-back-edit-submit = Salvează modificările
+sent-back-edit-submit = Salvează

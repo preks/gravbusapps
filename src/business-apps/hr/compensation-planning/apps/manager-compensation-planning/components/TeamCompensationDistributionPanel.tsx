@@ -30,10 +30,6 @@ export interface TeamCompensationDistributionPanelProps {
   loading: boolean
   error: string | null
   totalSalaryBudget: number | null
-  /** Resolved company salary-increase pool (same as HR budget distribution); optional KPI source. */
-  companySalaryIncreasePoolResolved?: number | null
-  /** Company salary-increase pool minus sum of OU `salary_budget_amount` (HR deployment still available company-wide). */
-  companyUndistributedSalaryPool?: number | null
   salaryBudgetLoading: boolean
   salaryBudgetError: string | null
   selectedCompanyId: string | null
@@ -60,8 +56,6 @@ export function TeamCompensationDistributionPanel({
   loading,
   error,
   totalSalaryBudget,
-  companySalaryIncreasePoolResolved = null,
-  companyUndistributedSalaryPool = null,
   salaryBudgetLoading,
   salaryBudgetError,
   selectedCompanyId,
@@ -180,28 +174,18 @@ export function TeamCompensationDistributionPanel({
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }
-    const companyTotalForKpi =
-      companySalaryIncreasePoolResolved != null && companySalaryIncreasePoolResolved > 0
-        ? companySalaryIncreasePoolResolved
-        : totalSalaryBudget
     return [
       {
         key: 'manager-team-total-budget',
         title: t('budget-summary-total-available'),
         value:
-          companyTotalForKpi == null
+          totalSalaryBudget == null
             ? t('budget-summary-placeholder-value')
-            : formatCurrencyString(companyTotalForKpi, kpiMoney),
+            : formatCurrencyString(totalSalaryBudget, kpiMoney),
         valueIsString: true,
         prefix: <CurrencyCircleDollarIcon size={24} />,
         color: TEAM_BUDGET_KPI_COLORS.totalBudget,
-        span: { xs: 24, sm: 8, lg: 8 },
-        description:
-          companyUndistributedSalaryPool != null && companyUndistributedSalaryPool >= 0
-            ? t('manager-team-kpi-company-undistributed-after-allocation', {
-                amount: formatCurrencyString(companyUndistributedSalaryPool, kpiMoney)
-              })
-            : undefined
+        span: { xs: 24, sm: 8, lg: 8 }
       },
       {
         key: 'manager-team-distribution-pool-summary',
@@ -225,17 +209,7 @@ export function TeamCompensationDistributionPanel({
         span: { xs: 24, sm: 8, lg: 8 }
       }
     ]
-  }, [
-    activePool,
-    companySalaryIncreasePoolResolved,
-    companyUndistributedSalaryPool,
-    currencyCode,
-    distributionMethod,
-    t,
-    tBudget,
-    totalPreviewAllocated,
-    totalSalaryBudget
-  ])
+  }, [activePool, currencyCode, distributionMethod, t, tBudget, totalPreviewAllocated, totalSalaryBudget])
 
   const contextPoolSection = useMemo(() => {
     if (salaryBudgetLoading) {

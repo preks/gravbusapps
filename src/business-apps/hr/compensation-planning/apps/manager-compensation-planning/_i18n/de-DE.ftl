@@ -2,8 +2,7 @@ title = Teamvergütung
 subtitle = Teamgehälter, Boni und Leistungen einsehen und vergleichen.
 loading = Teamdaten werden geladen...
 
-select-company-placeholder = Unternehmen wählen…
-empty-select-company-hint = Wählen Sie ein Unternehmen, um die Teamvergütung zu laden.
+empty-select-company-hint = Ihr Team und Budget beziehen sich auf das Unternehmen Ihrer Stelle. Dieses Unternehmen konnte noch nicht ermittelt werden. Aktualisieren Sie die Seite, oder wenden Sie sich an die Personalabteilung, falls das so bleibt.
 error-companies-load = Die Unternehmensliste konnte nicht geladen werden. {$message}
 error-performance-cycles-query-title = Leistungszyklus-Verzeichnis nicht verfügbar
 error-performance-cycles-query = Die Liste der Leistungszyklen konnte nicht geladen werden. {$message}
@@ -140,7 +139,6 @@ supervisor-review-submitted-count = { $count ->
 supervisor-review-busy = Wird ausgeführt…
 supervisor-review-approve-selected = Ausgewählte genehmigen
 supervisor-review-none-selected = Wählen Sie mindestens einen Vorschlag aus.
-supervisor-review-selection-hint = Genehmigen oder zurücksenden Sie nur eingereichte Zeilen. Entwürfe sind zur Orientierung sichtbar und hier nicht auswählbar.
 supervisor-review-draft-in-table = { $count ->
   [one] 1 Zuweisung ist noch ein Entwurf (in dieser Liste schreibgeschützt).
   *[other] {$count} Zuweisungen sind noch Entwürfe (in dieser Liste schreibgeschützt).
@@ -200,7 +198,8 @@ sent-back-edit-preview-new-salary = Berechnetes neues Gehalt
 sent-back-edit-justification-label = Begründung
 sent-back-edit-missing-member = Diese Person steht nicht in der aktuellen Teamliste; Gehaltsfelder können nicht neu berechnet werden.
 sent-back-edit-invalid-increase = Bitte einen gültigen, nicht negativen Erhöhungsbetrag eingeben.
+sent-back-edit-exceeds-department-budget = Mit dieser Erhöhung würde die Summe der vorgeschlagenen Gehaltserhöhungen in Ihrer Abteilung { $total } betragen und damit das Abteilungsgehaltsbudget von { $cap } um { $over } übersteigen. Sie können trotzdem speichern; passen Sie den Betrag bei Bedarf an.
 sent-back-edit-error-generic = Änderungen konnten nicht gespeichert werden.
 sent-back-edit-cancel = Abbrechen
 sent-back-edit-saving = Wird gespeichert…
-sent-back-edit-submit = Änderungen speichern
+sent-back-edit-submit = Speichern
