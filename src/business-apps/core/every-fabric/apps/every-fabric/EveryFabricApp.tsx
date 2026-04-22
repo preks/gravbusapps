@@ -1,7 +1,7 @@
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Button } from '@newwork/nw-design-system'
 import { SpinnerGapIcon } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { EveryFabricErrorBoundary } from './components/EveryFabricErrorBoundary'
 import { LandingScreen } from './components/landing/LandingScreen'
 import { SettingsScreen } from './components/settings/SettingsScreen'
@@ -40,7 +40,20 @@ const EveryFabricInner: React.FC = () => {
   } = useFabric()
   const { urlView, updateUrl } = useSessionUrlState()
   const { isCollapsed, toggleCollapsed, setCollapsed } = useSidebarCollapsedState()
-  const { activeSessions } = useActiveSessions(accessToken)
+  const { activeSessions, removeActive } = useActiveSessions(accessToken)
+
+  // Stop a session: drop it from the active sidebar immediately (optimistic)
+  // and then call deleteSession, which issues DELETE /sessions/{id} and
+  // cleans up history / selection state. If the backend later emits a
+  // terminal / session_removed SSE event, it's a no-op because the id is
+  // already gone from the map.
+  const handleStopSession = useCallback(
+    (id: string) => {
+      removeActive(id)
+      deleteSession(id)
+    },
+    [removeActive, deleteSession]
+  )
   const [displayView, setDisplayView] = useState<string | null>(urlView)
 
   useEffect(() => {
@@ -131,7 +144,8 @@ const EveryFabricInner: React.FC = () => {
         showNewSessionCta={Boolean(session)}
         onNewSession={newSession}
         onSelectSession={handleSelectSession}
-        onDeleteSession={deleteSession}
+        onDeleteSession={handleStopSession}
+        onStopSession={handleStopSession}
         onOpenSettings={handleOpenSettings}
       />
       <main className="gba:relative gba:flex-1 gba:min-w-0 gba:h-full">{renderMain()}</main>

@@ -4,7 +4,6 @@ import type {
   AgentExpertCalledEvent,
   AgentExpertCompletedEvent,
   AgentStepCompletedEvent,
-  AgentStepStartedEvent,
   AgentStreamEvent,
   AgentSubagentCompletedEvent,
   AgentSubagentSpawnedEvent,
@@ -14,7 +13,7 @@ import type {
   DeepAgentSession
 } from '../types/enterpriseAgent'
 import { resolveRendererType } from '../types/fabric'
-import { extractLatestTodosFromEvents } from './fabricTodoStream'
+import { extractLatestTodosFromEvents, isTodoListToolName } from './fabricTodoStream'
 
 const FABRIC_LIVE_PLAN_MESSAGE_ID = 'fabric-live-plan'
 
@@ -173,6 +172,13 @@ function terminalCompletedToChatMessage(
         .filter(s => s.type === 'step_completed')
         .map(s => ({ step: s.name ?? 'Tool call', tool: s.name, outcome: s.status ?? 'done' }))
     : undefined
+  const hasArtifacts = !!event.artifacts && event.artifacts.length > 0
+  const hasWorkspaceDocs = !!event.workspace_documents && event.workspace_documents.length > 0
+  const hasActions = !!actionsPerformed && actionsPerformed.length > 0
+  // Instant replies (greeting / capability fast-path) come back with duration_ms=0
+  // and no side-effect artifacts; reveal them progressively so they don't slam
+  // into view like a wall of text.
+  const isInstant = event.duration_ms === 0 && !hasArtifacts && !hasWorkspaceDocs && !hasActions
   return {
     id: event.event_id,
     type: 'final_answer',
@@ -186,7 +192,8 @@ function terminalCompletedToChatMessage(
       durationMs: event.duration_ms,
       costSummary: event.cost_summary ?? undefined,
       artifacts: toArtifactRefsFromMeta(event.artifacts),
-      workspaceDocuments: event.workspace_documents
+      workspaceDocuments: event.workspace_documents,
+      isInstant
     }
   }
 }
@@ -428,54 +435,113 @@ function reflectionActivitySummary(isComplete: boolean, gapCount: number, issueC
   return `Reflection: ${gapCount} gap(s), ${issueCount} quality issue(s) found`
 }
 
-/** Derive activity events from the raw SSE event stream. */
-export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
-  const stepCompletions = collectStepCompletions(events)
+function toolResultSummary(toolName: string | undefined, status: 'done' | 'failed'): string {
+  const verb = status === 'failed' ? '— failed' : '— done'
+  return `${toolName ?? 'Tool'} ${verb}`
+}
 
-  const activityEvents: ActivityEvent[] = events
-    .filter(
-      (e): e is AgentStepStartedEvent | AgentSubagentSpawnedEvent | AgentExpertCalledEvent =>
-        e.type === 'step_started' || e.type === 'subagent_spawned' || e.type === 'expert_called'
-    )
-    .map(e => {
-      const completed = stepCompletions.get(e.step_id)
-      if (e.type === 'subagent_spawned' || e.type === 'expert_called') {
-        const agentName = resolveDelegatedAgentName(e, completed)
-        return {
-          id: e.event_id,
-          timestamp: e.timestamp,
-          type: 'subagent_spawn' as const,
-          agent: agentName,
-          summary: e.task_summary ?? agentName,
-          durationMs: completed?.duration_ms,
-          delegationStatus: delegationActivityStatus(completed)
-        }
-      }
-      const isMemoryTool = MEMORY_TOOLS.has(e.name ?? '')
-      return {
-        id: e.event_id,
-        timestamp: e.timestamp,
-        type: isMemoryTool ? ('memory_access' as const) : ('tool_call' as const),
-        toolName: e.name,
-        summary: isMemoryTool ? memoryActivitySummary(e.name) : toolActivitySummary(e.name, !!completed),
-        durationMs: completed?.duration_ms
-      }
-    })
-
-  // Append a reflection activity row when the terminal event includes reflection data
-  const terminalEvent = events.find((e): e is AgentTerminalEvent => e.type === 'terminal' && e.status === 'completed')
-  if (terminalEvent?.reflection) {
-    const gapCount = terminalEvent.reflection.missing_steps?.length ?? 0
-    const issueCount = terminalEvent.reflection.quality_issues?.length ?? 0
-    activityEvents.push({
-      id: `reflection-${terminalEvent.event_id}`,
-      timestamp: terminalEvent.timestamp ?? new Date().toISOString(),
-      type: 'reflection' as const,
-      toolName: undefined,
-      summary: reflectionActivitySummary(terminalEvent.reflection.complete, gapCount, issueCount),
-      durationMs: undefined
-    })
+/**
+ * Derive activity rows from the raw SSE event stream.
+ *
+ * Activity is strictly a chronology of tool invocations and delegations:
+ *   - `tool_call` rows from `step_started` (excluding todo-plan tools).
+ *   - `tool_result` rows from `step_completed` (excluding todo-plan tools
+ *     and subagent/expert completions, which are represented by their
+ *     spawn rows with `delegationStatus`).
+ *   - `memory_access` rows for `save_memory` / `search_memory` tools.
+ *   - `subagent_spawn` rows for `subagent_spawned` / `expert_called`.
+ *   - A single `reflection` row derived from `terminal.reflection`.
+ *
+ * Todo-list tooling (`write_todos`, `update_todos`, `*_todos`) is
+ * suppressed here because it is represented in the dedicated Plan panel.
+ */
+function stepStartedActivity(
+  e: Extract<AgentStreamEvent, { type: 'step_started' }>,
+  stepCompletions: Map<string, StepCompletion>
+): ActivityEvent | null {
+  if (isTodoListToolName(e.name)) return null
+  const completed = stepCompletions.get(e.step_id)
+  const isMemoryTool = MEMORY_TOOLS.has(e.name ?? '')
+  return {
+    id: e.event_id,
+    timestamp: e.timestamp,
+    type: isMemoryTool ? 'memory_access' : 'tool_call',
+    toolName: e.name,
+    summary: isMemoryTool ? memoryActivitySummary(e.name) : toolActivitySummary(e.name, !!completed),
+    durationMs: completed?.duration_ms
   }
+}
+
+function stepCompletedActivity(e: Extract<AgentStreamEvent, { type: 'step_completed' }>): ActivityEvent | null {
+  if (isTodoListToolName(e.name)) return null
+  const isMemoryTool = MEMORY_TOOLS.has(e.name ?? '')
+  // Memory tools already got a single summary row on start; we omit
+  // the result row to keep the feed concise (the duration on the
+  // start row reflects completion).
+  if (isMemoryTool) return null
+  const resultStatus: 'done' | 'failed' = e.status === 'failed' ? 'failed' : 'done'
+  return {
+    id: `${e.event_id}:result`,
+    timestamp: e.timestamp,
+    type: 'tool_result',
+    toolName: e.name,
+    summary: toolResultSummary(e.name, resultStatus),
+    durationMs: e.duration_ms,
+    resultStatus,
+    parentStepId: e.step_id
+  }
+}
+
+function delegationActivity(
+  e: Extract<AgentStreamEvent, { type: 'subagent_spawned' | 'expert_called' }>,
+  stepCompletions: Map<string, StepCompletion>
+): ActivityEvent {
+  const completed = stepCompletions.get(e.step_id)
+  const agentName = resolveDelegatedAgentName(e, completed)
+  return {
+    id: e.event_id,
+    timestamp: e.timestamp,
+    type: 'subagent_spawn',
+    agent: agentName,
+    summary: e.task_summary ?? agentName,
+    durationMs: completed?.duration_ms,
+    delegationStatus: delegationActivityStatus(completed)
+  }
+}
+
+function reflectionActivity(events: AgentStreamEvent[]): ActivityEvent | null {
+  const terminalEvent = events.find((e): e is AgentTerminalEvent => e.type === 'terminal' && e.status === 'completed')
+  if (!terminalEvent?.reflection) return null
+  const gapCount = terminalEvent.reflection.missing_steps?.length ?? 0
+  const issueCount = terminalEvent.reflection.quality_issues?.length ?? 0
+  return {
+    id: `reflection-${terminalEvent.event_id}`,
+    timestamp: terminalEvent.timestamp ?? new Date().toISOString(),
+    type: 'reflection',
+    toolName: undefined,
+    summary: reflectionActivitySummary(terminalEvent.reflection.complete, gapCount, issueCount),
+    durationMs: undefined
+  }
+}
+
+export function deriveActivityFromEvents(events: AgentStreamEvent[]): ActivityEvent[] {
+  const stepCompletions = collectStepCompletions(events)
+  const activityEvents: ActivityEvent[] = []
+
+  for (const e of events) {
+    let row: ActivityEvent | null = null
+    if (e.type === 'step_started') {
+      row = stepStartedActivity(e, stepCompletions)
+    } else if (e.type === 'step_completed') {
+      row = stepCompletedActivity(e)
+    } else if (e.type === 'subagent_spawned' || e.type === 'expert_called') {
+      row = delegationActivity(e, stepCompletions)
+    }
+    if (row) activityEvents.push(row)
+  }
+
+  const reflection = reflectionActivity(events)
+  if (reflection) activityEvents.push(reflection)
 
   return activityEvents
 }

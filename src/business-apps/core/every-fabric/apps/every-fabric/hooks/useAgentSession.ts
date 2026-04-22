@@ -22,9 +22,64 @@ export interface ActiveSkillInfo {
 }
 
 const POLL_INTERVAL_MS = 3000
-const POLL_WHILE_SSE_MS = 6000
+/** Sparse safety-net poll when SSE is healthy. The BE now supports ETag /
+ *  304 on this endpoint so polling is cheap; we keep just enough to catch a
+ *  missed terminal event without re-introducing the request storm. */
+const POLL_WHILE_SSE_MS = 15000
 const REST_SYNC_MAX_MS = 4000
 const REST_SYNC_INTERVAL_MS = 120
+
+/**
+ * Per-session cache of volatile UI state — kept alive across tab switches so
+ * returning to a session re-hydrates its running flag / optimistic messages
+ * / active skill instead of flashing an empty shell. The SSE buffer lives in
+ * `sessionStreamRegistry`; this cache mirrors the bits that `useAgentSession`
+ * owns in local state.
+ *
+ * Entries are trimmed to keep memory bounded (LRU over MAX_CACHE sessions).
+ */
+interface SessionUiStateCache {
+  session: DeepAgentSession | null
+  isAgentRunning: boolean
+  optimisticMessages: ChatMessage[]
+  activeSkill: ActiveSkillInfo | null
+  lastReplyTimestamp: number
+  processedTerminalAt: number
+  lastAccess: number
+}
+const MAX_SESSION_UI_CACHE = 16
+const sessionUiStateCache = new Map<string, SessionUiStateCache>()
+
+const readSessionUiCache = (sessionId: string | null): SessionUiStateCache | null => {
+  if (!sessionId) return null
+  const cached = sessionUiStateCache.get(sessionId)
+  if (cached) cached.lastAccess = Date.now()
+  return cached ?? null
+}
+
+const writeSessionUiCache = (sessionId: string | null, patch: Partial<SessionUiStateCache>): void => {
+  if (!sessionId) return
+  const existing = sessionUiStateCache.get(sessionId)
+  const merged: SessionUiStateCache = {
+    session: null,
+    isAgentRunning: false,
+    optimisticMessages: [],
+    activeSkill: null,
+    lastReplyTimestamp: 0,
+    processedTerminalAt: -1,
+    lastAccess: Date.now(),
+    ...existing,
+    ...patch
+  }
+  sessionUiStateCache.set(sessionId, merged)
+  if (sessionUiStateCache.size > MAX_SESSION_UI_CACHE) {
+    const sorted = Array.from(sessionUiStateCache.entries()).sort((a, b) => a[1].lastAccess - b[1].lastAccess)
+    while (sessionUiStateCache.size > MAX_SESSION_UI_CACHE && sorted.length > 0) {
+      const [oldestId] = sorted.shift()!
+      if (oldestId !== sessionId) sessionUiStateCache.delete(oldestId)
+    }
+  }
+}
 
 const isTerminalStatus = (status: string) => status !== 'running' && status !== 'pending'
 
@@ -233,15 +288,16 @@ export const useAgentSession = (
   const client = useEnterpriseAgentClient(accessToken)
   const [streamVersion, setStreamVersion] = useState(0)
   const { messages: streamMessages, events, isConnected } = useSessionStream(sessionId, accessToken, streamVersion)
-  const [session, setSession] = useState<DeepAgentSession | null>(null)
+  const initialCached = readSessionUiCache(sessionId)
+  const [session, setSession] = useState<DeepAgentSession | null>(initialCached?.session ?? null)
   const [sessionLoadError, setSessionLoadError] = useState(false)
   // Tracks that a reply POST was sent and the agent is running, even before the stream delivers
-  // new events. Terminal events clear this. Resets on session switch.
-  const [isAgentRunning, setIsAgentRunning] = useState(false)
-  const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([])
-  const [activeSkill, setActiveSkill] = useState<ActiveSkillInfo | null>(null)
+  // new events. Terminal events clear this. Per-session state survives tab switches.
+  const [isAgentRunning, setIsAgentRunning] = useState(initialCached?.isAgentRunning ?? false)
+  const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>(initialCached?.optimisticMessages ?? [])
+  const [activeSkill, setActiveSkill] = useState<ActiveSkillInfo | null>(initialCached?.activeSkill ?? null)
   // Tracks when a new reply was just sent to prevent showing stale streaming content
-  const [lastReplyTimestamp, setLastReplyTimestamp] = useState<number>(0)
+  const [lastReplyTimestamp, setLastReplyTimestamp] = useState<number>(initialCached?.lastReplyTimestamp ?? 0)
 
   const matchedBootstrapSession = useMemo(
     () => (bootstrapSession?.session_id === sessionId ? bootstrapSession : null),
@@ -270,15 +326,17 @@ export const useAgentSession = (
   }, [sessionId, client])
 
   useEffect(() => {
-    // Always wipe stale data immediately so switching sessions never shows the previous
-    // session's messages while the new session loads.
-    setSession(null)
+    // Hydrate from per-session cache so switching back to an in-flight session
+    // restores its running flag / optimistic messages instead of flashing empty.
+    // Falls back to a clean slate for sessions we've never seen.
+    const cached = readSessionUiCache(sessionId)
+    setSession(cached?.session ?? null)
     setSessionLoadError(false)
-    setIsAgentRunning(false)
-    setOptimisticMessages([])
-    setActiveSkill(null)
-    setLastReplyTimestamp(0)
-    processedTerminalAtRef.current = -1
+    setIsAgentRunning(cached?.isAgentRunning ?? false)
+    setOptimisticMessages(cached?.optimisticMessages ?? [])
+    setActiveSkill(cached?.activeSkill ?? null)
+    setLastReplyTimestamp(cached?.lastReplyTimestamp ?? 0)
+    processedTerminalAtRef.current = cached?.processedTerminalAt ?? -1
     if (!sessionId) {
       setStreamVersion(0)
       return
@@ -286,6 +344,36 @@ export const useAgentSession = (
     fetchSession().catch(() => undefined)
   }, [sessionId, fetchSession])
 
+  // Persist volatile UI state back to the cache whenever it changes, so a
+  // subsequent switch back to this session re-hydrates correctly.
+  useEffect(() => {
+    if (!sessionId) return
+    writeSessionUiCache(sessionId, {
+      session,
+      isAgentRunning,
+      optimisticMessages,
+      activeSkill,
+      lastReplyTimestamp,
+      processedTerminalAt: processedTerminalAtRef.current
+    })
+  }, [sessionId, session, isAgentRunning, optimisticMessages, activeSkill, lastReplyTimestamp])
+
+  // Unified fallback poller.
+  //
+  // We used to run two concurrent setInterval timers here — a generic poll
+  // and a separate "watchdog" while `isAgentRunning` — both hitting the
+  // session trace endpoint. That produced thousands of requests per session
+  // (visible in the network panel during long turns). Now we collapse them
+  // into a single cadence:
+  //
+  //   • SSE disconnected        → 3s (so the UI still makes progress when
+  //                                   the stream is down and we rely on REST)
+  //   • SSE connected           → 15s (sparse safety net; terminal events
+  //                                    and explicit fetchSession calls on
+  //                                    SSE reconnect do the real work).
+  //
+  // The BE now supports ETag + If-None-Match on this endpoint, so even when
+  // the poll fires there's minimal cost when nothing changed.
   useEffect(() => {
     if (!sessionId) return
 
@@ -297,27 +385,15 @@ export const useAgentSession = (
         clearInterval(timer)
         return
       }
-      await fetchSession()
+      const next = await fetchSession()
+      if (next && isTerminalStatus(next.status)) {
+        setIsAgentRunning(false)
+        clearInterval(timer)
+      }
     }, intervalMs)
 
     return () => clearInterval(timer)
   }, [sessionId, fetchSession, isConnected])
-
-  // Watchdog: when isAgentRunning is true, poll more aggressively to catch
-  // completion even if SSE fails to deliver the terminal event.
-  useEffect(() => {
-    if (!sessionId || !isAgentRunning) return
-
-    const watchdogTimer = setInterval(async () => {
-      const s = await fetchSession()
-      if (s && isTerminalStatus(s.status)) {
-        setIsAgentRunning(false)
-        clearInterval(watchdogTimer)
-      }
-    }, POLL_INTERVAL_MS)
-
-    return () => clearInterval(watchdogTimer)
-  }, [sessionId, isAgentRunning, fetchSession])
 
   useEffect(() => {
     if (events.length === 0) return

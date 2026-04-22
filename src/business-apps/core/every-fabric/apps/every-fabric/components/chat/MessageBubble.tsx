@@ -11,6 +11,7 @@ import { EmailComposerBubble } from './EmailComposerBubble'
 import { FinalAnswerRenderer } from '../renderers/FinalAnswerRenderer'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { findComposeEmailOutcomeAfterMessage } from '../../utils/composeEmailTrace'
+import { parseIsoTimestamp } from '../../utils/renderUtils'
 
 const AnimatedMessageWrapper: React.FC<{
   children: React.ReactNode
@@ -41,8 +42,8 @@ const AnimatedMessageWrapper: React.FC<{
 }
 
 const formatMessageTimestamp = (timestamp: string) => {
-  const date = new Date(timestamp)
-  if (Number.isNaN(date.getTime())) return ''
+  const date = parseIsoTimestamp(timestamp)
+  if (!date) return ''
   return date.toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit'
