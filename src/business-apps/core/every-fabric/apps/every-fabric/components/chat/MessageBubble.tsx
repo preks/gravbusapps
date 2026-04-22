@@ -11,6 +11,7 @@ import { EmailComposerBubble } from './EmailComposerBubble'
 import { FinalAnswerRenderer } from '../renderers/FinalAnswerRenderer'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { findComposeEmailOutcomeAfterMessage } from '../../utils/composeEmailTrace'
+import { FABRIC_LIVE_PLAN_MESSAGE_ID } from '../../utils/messageUtils'
 import { parseIsoTimestamp } from '../../utils/renderUtils'
 
 const AnimatedMessageWrapper: React.FC<{
@@ -42,16 +43,26 @@ const AnimatedMessageWrapper: React.FC<{
 }
 
 /**
- * Returns true if the full transcript contains any message after the given
- * message id. Used to detect that a structured_input_request was answered in
- * a previous turn (the agent has since emitted more events) and should be
- * rendered as a collapsed summary rather than a live form.
+ * Returns true if the full transcript contains a real agent-produced message
+ * after the given message id. Used to detect that a structured_input_request
+ * was answered in a previous turn (the agent has since emitted more output)
+ * and should be rendered as a collapsed summary rather than a live form.
+ *
+ * The `fabric-live-plan` sentinel is deliberately ignored: `deriveMessagesFromEvents`
+ * always appends it at the very end of the message list whenever the session
+ * has todos, so it sits after a freshly-arrived structured_input_request even
+ * when the user hasn't answered yet. Counting it as "a message after" would
+ * make the form render locked/read-only on first display and block the user
+ * from submitting — exactly the bug this guard prevents.
  */
-const hasMessageAfter = (allMessages: ChatMessage[] | undefined, messageId: string): boolean => {
+const hasAnsweredReply = (allMessages: ChatMessage[] | undefined, messageId: string): boolean => {
   if (!allMessages || allMessages.length === 0) return false
   const idx = allMessages.findIndex(m => m.id === messageId)
   if (idx < 0) return false
-  return idx < allMessages.length - 1
+  for (let i = idx + 1; i < allMessages.length; i += 1) {
+    if (allMessages[i].id !== FABRIC_LIVE_PLAN_MESSAGE_ID) return true
+  }
+  return false
 }
 
 const formatMessageTimestamp = (timestamp: string) => {
@@ -247,7 +258,7 @@ export const MessageBubble = ({ message, allMessages, onReply, onViewArtifact, a
       // we render the form as a compact collapsed summary (matches the
       // EmailComposerBubble pattern) so historical sessions aren't dominated
       // by giant post-submit forms.
-      const alreadySubmitted = hasMessageAfter(allMessages, message.id)
+      const alreadySubmitted = hasAnsweredReply(allMessages, message.id)
       return (
         <div className="gba:py-1" data-testid={`msg-${message.id}`}>
           <StructuredInputForm
