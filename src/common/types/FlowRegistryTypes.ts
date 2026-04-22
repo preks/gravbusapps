@@ -192,6 +192,7 @@ export enum FlowContextName {
   createInvestmentDocument = 'createInvestmentDocument',
   investmentDocumentUpdate = 'investmentDocumentUpdate',
   investmentDocumentDelete = 'investmentDocumentDelete',
+  investmentFolderUpload = 'investmentFolderUpload',
 
   /// Investments
   investmentCreate = 'investmentCreate', // TODO: Replace startProcess
