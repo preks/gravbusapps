@@ -80,7 +80,7 @@ export interface PromptODM {
   type?: PromptType
   system_content?: PromptContent | null
   user_content: PromptContent
-  tools?: string // comma-separated tool codes
+  tools?: string[]
   toolPolicies?: ToolPolicies
   model: { id: string; collection: string }
   model_settings?: Record<string, unknown>

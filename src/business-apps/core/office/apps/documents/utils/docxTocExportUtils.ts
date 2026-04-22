@@ -1,10 +1,14 @@
-// Word TOC export helpers for static .docx output.
+// Word TOC export helpers for native .docx TOC fields.
 
 import { parseDocumentTocSnapshot } from './documentTocSnapshot'
 import { type DocumentTocTextStyle, parseDocumentTocStyles } from './documentTocStyleUtils'
 
 function escapeXml(text: string): string {
   return (text ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function escapeXmlText(text: string): string {
+  return (text ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 function buildRightTabXml(element: HTMLElement): string {
@@ -60,10 +64,22 @@ function buildTitleParagraph(title: string, style: DocumentTocTextStyle): string
   return `<w:p><w:pPr>${buildParagraphStyleXml('TOCHeading')}<w:spacing w:after="120"/></w:pPr><w:r>${runProps}<w:t xml:space="preserve">${escapeXml(title)}</w:t></w:r></w:p>`
 }
 
-function buildEmptyParagraph(message: string, style: DocumentTocTextStyle): string {
-  if (!message.trim()) return '<w:p/>'
-  const runProps = buildRunProps(style)
-  return `<w:p><w:pPr>${buildParagraphStyleXml('TOC1')}</w:pPr><w:r>${runProps}<w:t xml:space="preserve">${escapeXml(message)}</w:t></w:r></w:p>`
+function buildFieldInstruction(element: HTMLElement): string {
+  const maxHeadingLevel = Math.max(
+    1,
+    Math.min(6, Number.parseInt(element.getAttribute('data-toc-max-heading-level') ?? '3', 10) || 3)
+  )
+  const parts = [`TOC \\o "1-${maxHeadingLevel}"`]
+
+  if (element.getAttribute('data-toc-heading-links') !== 'false') {
+    parts.push('\\h')
+  }
+
+  if (element.getAttribute('data-toc-show-page-numbers') === 'false') {
+    parts.push('\\n')
+  }
+
+  return parts.join(' ')
 }
 
 function buildCachedEntryParagraph(
@@ -80,14 +96,30 @@ function buildCachedEntryParagraph(
     pageNumber && element.getAttribute('data-toc-show-page-numbers') !== 'false'
       ? `<w:r>${runProps}<w:tab/></w:r><w:r>${runProps}<w:t xml:space="preserve">${escapeXml(pageNumber)}</w:t></w:r>`
       : ''
+
   return `<w:p><w:pPr>${pPr}</w:pPr><w:r>${runProps}<w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>${pageRuns}</w:p>`
 }
 
-export function buildWordTocXmlFromElement(element: HTMLElement): string[] {
+function buildFieldParagraphs(element: HTMLElement): string[] {
+  const instruction = buildFieldInstruction(element)
   const snapshot = parseDocumentTocSnapshot(element.getAttribute('data-toc-snapshot') ?? '[]')
   const styles = parseDocumentTocStyles(element.getAttribute('data-toc-styles'))
+  const resultParagraphs = snapshot.entries.map(entry =>
+    buildCachedEntryParagraph(element, entry.level, entry.text || '', entry.pageNumber, styles.entries)
+  )
+
+  return [
+    `<w:p><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> ${escapeXmlText(
+      instruction
+    )} </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r></w:p>`,
+    ...resultParagraphs,
+    '<w:p><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>'
+  ]
+}
+
+export function buildWordTocXmlFromElement(element: HTMLElement): string[] {
+  const styles = parseDocumentTocStyles(element.getAttribute('data-toc-styles'))
   const title = element.querySelector('.document-toc-print-title')?.textContent?.trim() ?? ''
-  const emptyMessage = element.querySelector('.document-toc-print-empty')?.textContent?.trim() ?? ''
   const parts: string[] = []
 
   const titleParagraph = buildTitleParagraph(title, styles.title)
@@ -95,13 +127,7 @@ export function buildWordTocXmlFromElement(element: HTMLElement): string[] {
     parts.push(titleParagraph)
   }
 
-  if (snapshot.entries.length === 0) {
-    parts.push(buildEmptyParagraph(emptyMessage, styles.entries))
-  } else {
-    snapshot.entries.forEach(entry => {
-      parts.push(buildCachedEntryParagraph(element, entry.level, entry.text || '', entry.pageNumber, styles.entries))
-    })
-  }
+  parts.push(...buildFieldParagraphs(element))
 
   return parts
 }

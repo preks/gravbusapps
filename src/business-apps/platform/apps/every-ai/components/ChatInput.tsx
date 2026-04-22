@@ -9,9 +9,11 @@ import {
   CameraIcon,
   AtIcon,
   UserCircleIcon,
-  LightningIcon
+  LightningIcon,
+  UploadSimpleIcon
 } from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
+import { useFileDragDrop } from '../hooks/useFileDragDrop'
 import { VoiceModeButton } from './voice/VoiceModeButton'
 import { useEntityMentions, type EntityReference } from '@/common/hooks/useEntityMentions'
 import { EntityMentionPopover } from '@/common/components/entity-mentions'
@@ -262,6 +264,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     },
     [uploadFile, onFilesAttached]
   )
+
+  const { isDragActive, dragProps } = useFileDragDrop({
+    onFilesDropped: pickFiles,
+    disabled
+  })
 
   const focusTextarea = useCallback(() => {
     setTimeout(() => {
@@ -612,7 +619,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       <div
         className="chat-input-pulse gba:relative gba:rounded-2xl gba:p-[2px] gba:min-w-0"
         data-testid="chat-input-outer"
+        {...dragProps}
       >
+        {/* Drag-and-drop overlay */}
+        {isDragActive && (
+          <div
+            className="gba:absolute gba:inset-0 gba:z-50 gba:flex gba:flex-col gba:items-center gba:justify-center gba:rounded-2xl gba:border-2 gba:border-dashed gba:border-primary gba:bg-primary/10 gba:backdrop-blur-sm gba:pointer-events-none"
+            data-testid="chat-input-drop-overlay"
+          >
+            <div className="gba:flex gba:h-10 gba:w-10 gba:items-center gba:justify-center gba:rounded-xl gba:bg-primary/20 gba:mb-2">
+              <UploadSimpleIcon className="gba:h-5 gba:w-5 gba:text-primary" weight="bold" />
+            </div>
+            <span className="gba:text-sm gba:font-semibold gba:text-primary">{t('chat-drop-files-here')}</span>
+          </div>
+        )}
         {/* Subtle circling lighter-blue ring - uses rgba for conic-gradient animation effect */}
         <div
           className="gba:absolute gba:inset-0 gba:rounded-2xl gba:overflow-hidden gba:pointer-events-none"

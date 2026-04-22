@@ -1,7 +1,16 @@
 import { useState } from 'react'
-import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react'
+import {
+  CaretDownIcon,
+  CaretRightIcon,
+  EnvelopeSimpleIcon,
+  PaperPlaneTiltIcon,
+  PencilSimpleIcon,
+  WarningCircleIcon,
+  XIcon
+} from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { detectRendererType } from '../../utils/renderUtils'
+import { parseComposeEmailToolResult, type ComposeEmailOutcomePayload } from '../../utils/composeEmailTrace'
 
 export interface ToolResultRendererProps {
   callId: string
@@ -18,9 +27,86 @@ const formatTableCellValue = (value: unknown): string => {
   return JSON.stringify(value)
 }
 
+function getComposeEmailVisuals(payload: ComposeEmailOutcomePayload): { icon: JSX.Element; title: string } {
+  const status = payload.status ?? 'unknown'
+  const isError = status === 'error' || !!payload.error
+  if (isError) {
+    return {
+      icon: <WarningCircleIcon className="gba:h-4 gba:w-4 gba:text-destructive" weight="fill" />,
+      title: 'Email failed'
+    }
+  }
+  if (status === 'cancelled') {
+    return {
+      icon: <XIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />,
+      title: 'Email cancelled'
+    }
+  }
+  if (status === 'drafted') {
+    return {
+      icon: <PencilSimpleIcon className="gba:h-4 gba:w-4 gba:text-primary" />,
+      title: 'Email saved as draft'
+    }
+  }
+  if (status === 'sent') {
+    return {
+      icon: <PaperPlaneTiltIcon className="gba:h-4 gba:w-4 gba:text-primary" weight="fill" />,
+      title: 'Email sent'
+    }
+  }
+  return {
+    icon: <EnvelopeSimpleIcon className="gba:h-4 gba:w-4 gba:text-primary" />,
+    title: 'Email composed'
+  }
+}
+
+function ComposeEmailResultCard({ payload }: { readonly payload: ComposeEmailOutcomePayload }) {
+  const { icon, title } = getComposeEmailVisuals(payload)
+
+  const recipients =
+    (payload.to ?? [])
+      .map(r => r.name || r.address)
+      .filter(Boolean)
+      .join(', ') || ''
+
+  return (
+    <div className="gba:flex gba:items-start gba:gap-2.5">
+      <div className="gba:shrink-0 gba:mt-0.5">{icon}</div>
+      <div className="gba:flex-1 gba:min-w-0 gba:space-y-0.5">
+        <div className="gba:text-[13px] gba:font-semibold gba:text-foreground">{title}</div>
+        {payload.subject && (
+          <div className="gba:text-[12px] gba:text-muted-foreground gba:truncate">
+            <span className="gba:font-medium gba:text-foreground/80">Subject:</span> {payload.subject}
+          </div>
+        )}
+        {recipients && (
+          <div className="gba:text-[12px] gba:text-muted-foreground gba:truncate">
+            <span className="gba:font-medium gba:text-foreground/80">To:</span> {recipients}
+          </div>
+        )}
+        {payload.error && <div className="gba:text-[12px] gba:text-destructive gba:truncate">{payload.error}</div>}
+      </div>
+    </div>
+  )
+}
+
 export const ToolResultRenderer = ({ callId, toolName, result, durationMs, cached }: ToolResultRendererProps) => {
   const [expanded, setExpanded] = useState(false)
   const rendererType = detectRendererType(result)
+
+  if (toolName === 'compose_email') {
+    const payload = parseComposeEmailToolResult(result)
+    if (payload) {
+      return (
+        <div
+          className="gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:max-w-3xl"
+          data-testid={`enterprise-agent-tool-result-${callId}`}
+        >
+          <ComposeEmailResultCard payload={payload} />
+        </div>
+      )
+    }
+  }
 
   return (
     <div
