@@ -153,39 +153,37 @@ export const BudgetSetupCreatePlanCompanyBudgetFields = ({
         percentTestId="budget-setup-create-plan-salary-percent"
       />
 
-      <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:items-start">
-        <FormField
-          control={control}
-          name="currencyRef"
-          render={({ field }) => (
-            <FormItem className="gba:min-w-0">
-              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-                <FormLabel>{t('budget-setup-create-plan-currency-label')} : </FormLabel>
-                {loadingCurrencies ? <Spinner className="gba:h-4 gba:w-4" /> : null}
-              </div>
-              <Select
-                disabled={loadingCurrencies || currencyOptions.length === 0}
-                onValueChange={field.onChange}
-                value={field.value || undefined}
-              >
-                <FormControl>
-                  <SelectTrigger className="gba:w-full" data-testid="budget-setup-create-plan-currency-ref">
-                    <SelectValue placeholder={t('budget-setup-create-plan-currency-placeholder')} />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {currencyOptions.map(opt => (
-                    <SelectItem key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+      <FormField
+        control={control}
+        name="currencyRef"
+        render={({ field }) => (
+          <FormItem className="gba:min-w-0">
+            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+              <FormLabel>{t('budget-setup-create-plan-currency-label')} : </FormLabel>
+              {loadingCurrencies ? <Spinner className="gba:h-4 gba:w-4" /> : null}
+            </div>
+            <Select
+              disabled={loadingCurrencies || currencyOptions.length === 0}
+              onValueChange={field.onChange}
+              value={field.value || undefined}
+            >
+              <FormControl>
+                <SelectTrigger className="gba:w-full" data-testid="budget-setup-create-plan-currency-ref">
+                  <SelectValue placeholder={t('budget-setup-create-plan-currency-placeholder')} />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {currencyOptions.map(opt => (
+                  <SelectItem key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </div>
   )
 }

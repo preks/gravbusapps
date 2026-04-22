@@ -2,6 +2,7 @@
 export interface CompensationBudgetPlanEmployeeRestRow {
   id: string
   version: number
+  allocationAmount: number
   budgetPlanStatus: string
   employeeId: string
   proposedSalaryIncreaseAmount: number
