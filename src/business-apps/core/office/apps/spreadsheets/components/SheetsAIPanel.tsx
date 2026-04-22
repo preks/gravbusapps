@@ -62,7 +62,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
   getSheetDataFromGrid,
   'data-testid': testId = 'sheets-ai-panel'
 }) {
-  const { t } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
   const spreadsheetPromptClient = useSpreadsheetPromptManagerClient(accessToken)
   const [activeTab, setActiveTab] = useState('formula')
   const showTabs = initialTab === 'analyze' || initialTab === 'review' || initialTab === 'insights'
@@ -134,25 +134,29 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
     promptClient: spreadsheetPromptClient,
     columns: aiContext.columns,
     sheetData: aiContext.rows,
-    onApplyFormula
+    onApplyFormula,
+    locale
   })
   const analyze = useSheetsAIAnalyze({
     promptClient: spreadsheetPromptClient,
     sheetName,
     columns: aiContext.columns,
-    sheetData: aiContext.rows
+    sheetData: aiContext.rows,
+    locale
   })
   const review = useSheetsAIReview({
     promptClient: spreadsheetPromptClient,
     sheetName,
     columns: aiContext.columns,
-    sheetData: aiContext.rows
+    sheetData: aiContext.rows,
+    locale
   })
   const { insights, insightsError, isLoadingInsights, generateInsights } = useSpreadsheetAnalyticsAI({
     promptClient: spreadsheetPromptClient,
     sheetName,
     columns: aiContext.columns,
-    sheetData: aiContext.rows
+    sheetData: aiContext.rows,
+    locale
   })
 
   if (isOpen) {
