@@ -706,6 +706,15 @@ editor-voice-recording = Înregistrare...
 editor-voice-hint = Sfat: Apăsați "Introducere vocală" pentru a dicta
 editor-text-placeholder = Introduceți textul aici...
 
+# Charts
+editor-chart = Diagramă
+editor-bar-chart = Diagramă cu bare
+editor-line-chart = Diagramă liniară
+editor-area-chart = Diagramă de arie
+editor-pie-chart = Diagramă circulară
+editor-radar-chart = Diagramă radar
+editor-radial-chart = Diagramă radială
+
 # Spell Check
 spell-check-button = Verificare ortografică
 spell-check-panel-title = Verificare ortografică și gramaticală

@@ -751,6 +751,15 @@ editor-upload-background-image = Bild hochladen
 editor-background-image-url = Oder Bild-URL einfügen
 editor-image-load-error = Bild konnte nicht geladen werden
 
+# Charts
+editor-chart = Diagramm
+editor-bar-chart = Balkendiagramm
+editor-line-chart = Liniendiagramm
+editor-area-chart = Flächendiagramm
+editor-pie-chart = Kreisdiagramm
+editor-radar-chart = Netzdiagramm
+editor-radial-chart = Radialdiagramm
+
 # Spell Check
 spell-check-button = Rechtschreibprüfung
 spell-check-panel-title = Rechtschreib- und Grammatikprüfung
