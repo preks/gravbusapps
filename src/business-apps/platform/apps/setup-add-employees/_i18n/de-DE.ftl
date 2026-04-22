@@ -1,0 +1,23 @@
+# Add employees remote bundle
+add-employees-title = Mitarbeitende Person hinzufügen
+add-employees-subtitle = Füge jemanden zu deiner aktiven Organisationsstruktur hinzu: Abteilung wählen, Daten eingeben, optional Startpasswort setzen.
+label-department = Abteilung / Organisationseinheit
+label-first-name = Vorname
+label-last-name = Nachname
+label-email = E-Mail
+label-job-title = Positionstitel
+label-password-optional = Startpasswort (optional)
+action-create = Person anlegen
+action-creating = Wird angelegt…
+loading-active-structure = Aktive Struktur wird geladen…
+loading-departments = Abteilungen werden geladen…
+error-missing-token = Anmeldung ist erforderlich.
+error-no-active-structure = Es ist keine aktive Struktur verfügbar. Wähle in der Plattform eine aktive Organisationsstruktur und öffne diese Seite erneut.
+error-dept-required = Eine Abteilung ist erforderlich.
+error-no-departments = Für die aktive Struktur wurden keine Abteilungen gefunden. Prüfe die Organigramm-Daten oder versuche es später erneut.
+error-name-email = Vorname, Nachname und E-Mail sind erforderlich
+load-error-generic = Abteilungen konnten nicht geladen werden
+msg-employee-created = Person angelegt.
+msg-password-set = Startpasswort wurde gesetzt.
+msg-password-user-pending = Person wurde angelegt, aber die Benutzer-ID für das Passwort war noch nicht verfügbar; Passwort in Keycloak setzen oder erneut versuchen.
+error-create-failed = Person konnte nicht angelegt werden
