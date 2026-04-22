@@ -21,6 +21,7 @@ export function buildExecuteEmployeeProposalBody(
     compensationBudgetPlanEmployee: {
       id: row.id,
       version: row.version,
+      allocationAmount: row.allocationAmount,
       proposedSalaryIncreaseAmount: row.proposedSalaryIncreaseAmount,
       proposedSalaryIncreasePercent: row.proposedSalaryIncreasePercent,
       proposedNewSalary: row.proposedNewSalary,

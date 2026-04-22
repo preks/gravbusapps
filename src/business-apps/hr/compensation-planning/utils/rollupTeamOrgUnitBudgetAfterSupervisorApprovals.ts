@@ -1,22 +1,12 @@
 import type { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 import type { RestClient } from '@/common/network/rest/RestClient'
-import { GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_INCREASE_AMOUNTS_BY_ROW_IDS } from '../queries/budgetPlanQueries'
 import type { CompensationBudgetPlanEmployeeRestRow } from '../types/compensationBudgetPlanEmployeeRestRow'
-import { roundMoney2 } from './budgetAmountPercentSync'
 import { reduceOrgUnitBudgetPoolByAmount } from './reduceOrgUnitBudgetPoolByAmount'
 
-function num(v: unknown): number {
-  if (typeof v === 'number' && !Number.isNaN(v)) {
-    return v
-  }
-  const n = Number(v)
-  return Number.isNaN(n) ? 0 : n
-}
-
 /**
- * After supervisor approval, persist a reduced org-unit salary budget so the team pool in the database
- * matches committed increases (same percent basis as HR “Distribute” — % of company salary budget amount).
- * Then re-save the company budget row so any server-side rollups tied to that path stay consistent.
+ * After supervisor/HR approval of selected proposals: keep OU `salary_budget_amount` as the HR slice, set OU
+ * `allocation_amount` to the sum of employee `allocationAmount` on that org-unit budget row, and mark the OU line
+ * approved (see `reduceOrgUnitBudgetPoolByAmount`).
  */
 export async function rollupTeamOrgUnitBudgetAfterSupervisorApprovals(
   graphqlClient: GraphQLClient,
@@ -30,18 +20,7 @@ export async function rollupTeamOrgUnitBudgetAfterSupervisorApprovals(
     return
   }
 
-  const amountsResult = await graphqlClient.request<{
-    CompensationBudgetPlanEmployee: { proposedSalaryIncreaseAmount: unknown }[]
-  }>(GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_INCREASE_AMOUNTS_BY_ROW_IDS, { ids: rowIds })
-
-  const totalApprovedIncrease = roundMoney2(
-    (amountsResult.CompensationBudgetPlanEmployee ?? []).reduce(
-      (sum, r) => sum + roundMoney2(num(r.proposedSalaryIncreaseAmount)),
-      0
-    )
-  )
-
-  await reduceOrgUnitBudgetPoolByAmount(graphqlClient, restClient, accessToken, planOuRowId, totalApprovedIncrease, {
+  await reduceOrgUnitBudgetPoolByAmount(graphqlClient, restClient, accessToken, planOuRowId, {
     orgUnitBudgetPlanStatus: 'BUDGET_PLAN_APPROVED'
   })
 }

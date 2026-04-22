@@ -8,6 +8,7 @@ import {
   DocumentOperation
 } from '../services/CollaborationClient'
 import { getSpreadsheetServiceApiUrl } from '../utils/spreadsheetServiceUrl'
+import { useSyncClientAccessToken } from '@/common/network/useSyncClientAccessToken'
 
 const isCollabDebug = (): boolean => {
   try {
@@ -58,7 +59,7 @@ type SelectionEventData = {
   userName?: string
   userColor?: string
   socketId?: string
-  selection: DocumentParticipant['selection']
+  selection: DocumentParticipant['selection'] | null
 }
 
 function mapSocketParticipantToParticipant(p: SocketParticipant): DocumentParticipant {
@@ -88,7 +89,7 @@ function addParticipantIfMissing(prev: DocumentParticipant[], data: ParticipantE
       userId: data.userId,
       userName: data.userName,
       userColor: data.userColor,
-      socketId: data.socketId,
+      socketId: data.socketId || '',
       avatarUrl: data.avatarUrl || data.avatar,
       lastActiveAt: new Date()
     }
@@ -130,11 +131,12 @@ function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventD
 
 function updateParticipantSelection(prev: DocumentParticipant[], data: SelectionEventData): DocumentParticipant[] {
   const identity = participantIdentity({ userId: data.userId, socketId: data.socketId || '' })
+  const selection = data.selection ?? undefined
   let found = false
   const next = prev.map(p => {
     if (participantIdentity(p) !== identity) return p
     found = true
-    return { ...p, selection: data.selection, lastActiveAt: new Date() }
+    return { ...p, selection, lastActiveAt: new Date() }
   })
   if (found) return next
   return [
@@ -144,7 +146,7 @@ function updateParticipantSelection(prev: DocumentParticipant[], data: Selection
       userName: data.userName || 'User',
       userColor: data.userColor || '#4ECDC4',
       socketId: data.socketId || '',
-      selection: data.selection,
+      selection,
       lastActiveAt: new Date()
     }
   ]
@@ -238,37 +240,15 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   const onErrorRef = useRef(onError)
   onOperationReceivedRef.current = onOperationReceived
   onErrorRef.current = onError
-
-  // Get auth token - prefer passed accessToken, then try localStorage
-  const getAuthToken = useCallback((): string | null => {
-    // Use passed accessToken first
-    if (accessToken) return accessToken
-
-    try {
-      // Check IDE token
-      const ideToken = localStorage.getItem('business-app-ide-access-token')
-      if (ideToken) return ideToken
-
-      // Check keycloak token
-      const authData = localStorage.getItem('keycloak-token')
-      if (authData) {
-        try {
-          const parsed = JSON.parse(authData)
-          return parsed.token || parsed.access_token || null
-        } catch {
-          return authData
-        }
-      }
-
-      // Check session storage
-      const sessionToken = sessionStorage.getItem('auth_token')
-      if (sessionToken) return sessionToken
-
-      return null
-    } catch {
-      return null
+  const accessTokenSyncClientRef = useRef<{ setAccessToken: (token: string) => void }>({
+    setAccessToken: token => {
+      clientRef.current?.setAccessToken(token)
     }
-  }, [accessToken])
+  })
+
+  useSyncClientAccessToken(accessTokenSyncClientRef.current, enabled ? accessToken : undefined)
+
+  // Match documents websocket auth semantics: realtime auth must come from the injected token.
 
   // Initialize client and connect
   useEffect(() => {
@@ -281,7 +261,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       cursorReplayTimeoutRef.current = null
     }
 
-    const token = getAuthToken()
+    const token = accessToken
     if (!token) {
       console.error('[useCollaboration] No auth token available')
       onErrorRef.current?.(new Error('No authentication token available'))
@@ -331,6 +311,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       if (isCollabDebug()) console.log('[useCollaboration] Connected to collaboration server')
       setIsConnected(true)
       setCollaborationHealth('connected')
+      setSocket(client.getSocket())
       joinRoomIfNeeded()
     }
 
@@ -443,7 +424,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       clientRef.current = null
       setSocket(null)
     }
-  }, [enabled, entityType, entityId, getAuthToken])
+  }, [accessToken, enabled, entityType, entityId])
 
   // Emit operation — pass-through to the socket. Queuing is handled by entity-specific
   // managers (e.g. SpreadsheetCollaborationManager) for types that need it.
@@ -494,7 +475,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
 
   const emitDocumentOperationAsync = useCallback(
     async (operation: DocumentOperation): Promise<DocumentOperationAckResult> => {
-       const client = clientRef.current
+      const client = clientRef.current
       if (!client?.isConnected()) {
         return { success: false, error: 'not_connected' }
       }

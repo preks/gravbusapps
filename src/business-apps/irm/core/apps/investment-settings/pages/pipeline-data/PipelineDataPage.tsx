@@ -21,29 +21,21 @@ const PipelineDataPage: React.FC<PipelineDataPageProps> = ({ prefixDataTestId, o
     []
   )
 
-  const { pipelines, isLoading, error, refetch } = usePipelineSettings(context, catalogConfig)
-
-  const renderPipelineCard = undefined
-
-  // no inline delete in this view; handled by dedicated modal/components
+  const { isLoading, error, refetch } = usePipelineSettings(context, catalogConfig)
 
   return (
-    <>
-      <PipelineSettings
-        prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-        headerPhosphorIcon={{ icon: undefined, variant: 'strategy', size: 'lg', label: 'Pipelines' }}
-        headerTitle={'Pipelines'}
-        headerDescription={'Manage pipeline stages and counts'}
-        isLoading={isLoading}
-        error={error}
-        pipelines={pipelines as any}
-        renderPipelineCard={renderPipelineCard}
-        onRetry={refetch}
-        onBack={onBack}
-        accessToken={context.accessToken}
-        catalogConfig={catalogConfig}
-      />
-    </>
+    <PipelineSettings
+      prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+      headerPhosphorIcon={{ icon: undefined, variant: 'strategy', size: 'lg', label: 'Pipelines' }}
+      headerTitle={'Pipelines'}
+      headerDescription={'Manage pipeline stages and counts'}
+      isLoading={isLoading}
+      error={error}
+      onRetry={refetch}
+      onBack={onBack}
+      accessToken={context.accessToken}
+      catalogConfig={catalogConfig}
+    />
   )
 }
 

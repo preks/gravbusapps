@@ -1,0 +1,23 @@
+# Add employees remote bundle
+add-employees-title = Add employee
+add-employees-subtitle = Add someone to your active organization structure: pick a department, enter their details, and optionally set an initial password.
+label-department = Department / org unit
+label-first-name = First name
+label-last-name = Last name
+label-email = Email
+label-job-title = Job position title
+label-password-optional = Initial password (optional)
+action-create = Create employee
+action-creating = Creating…
+loading-active-structure = Loading active structure…
+loading-departments = Loading departments…
+error-missing-token = Sign in is required.
+error-no-active-structure = No active structure is available. Select or set an active organization structure in the platform, then open this page again.
+error-dept-required = A department is required.
+error-no-departments = No departments were found for the active structure. Check the org chart or try again later.
+error-name-email = First name, last name, and email are required.
+load-error-generic = Failed to load departments
+msg-employee-created = Employee created.
+msg-password-set = Initial password was set.
+msg-password-user-pending = Employee was created but user id could not be resolved yet for password; set password in Keycloak or retry.
+error-create-failed = Failed to create employee

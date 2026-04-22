@@ -1,4 +1,5 @@
 import React from 'react'
+import { Badge } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FieldGroup } from '../types'
 import { FieldRow } from '../utils/displayOrderUtils'
@@ -28,7 +29,12 @@ export const FieldRowRenderer: React.FC<FieldRowRendererProps> = ({
     <div className="gba:space-y-4">
       {rows.map(row => (
         <div key={`row-${row.row}`} data-testid={`${prefixDataTestId}-${row.row}`}>
-          <div className="gba:mb-2 gba:text-sm gba:font-medium gba:text-muted-foreground">Row {row.row}</div>
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+            <Badge variant="outline" className="gba:text-xs gba:font-mono">
+              Row {row.row}
+            </Badge>
+            <div className="gba:flex-1 gba:h-px gba:bg-border" aria-hidden />
+          </div>
           <div
             className={`gba:grid gba:gap-3 ${
               Math.min(row.fields.length, 3) === 1

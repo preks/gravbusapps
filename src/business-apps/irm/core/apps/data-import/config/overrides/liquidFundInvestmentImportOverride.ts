@@ -9,7 +9,7 @@ import { TargetFieldDefinition } from '@/common/components/common-relations/apps
 import { COMMON_INVESTMENT_FIELDS } from '../commonInvestmentFields'
 import type { InvestmentGroupImportOverridePatch } from '../groupImportConfigurations'
 
-const LIQUID_FUND_BASE_FIELDS: TargetFieldDefinition[] = [
+export const LIQUID_FUND_BASE_FIELDS: TargetFieldDefinition[] = [
   {
     value: 'liquidFundInvestment.investmentLiquidFundTypeRef',
     label: 'Liquid Fund Type',

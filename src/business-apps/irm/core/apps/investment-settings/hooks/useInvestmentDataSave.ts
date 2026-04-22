@@ -1,15 +1,20 @@
 import { useState } from 'react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { InvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import {
+  CatalogEntryRaw,
   CatalogEntryWithConfig,
+  CatalogReferenceField,
   InvestmentDataConfiguration,
   ProspectField,
   TargetLevel
 } from '../pages/investment-data/types'
+import { stripRegistryMetadataFromFormFields } from '../pages/investment-data/utils/investmentFormFieldRegistry'
+import { coerceRequiredSubtypeKey } from '../pages/investment-data/utils/formLayoutChoice'
 
 interface UseInvestmentDataSaveProps {
   accessToken: string
-  fetchCatalogData: () => Promise<any>
+  fetchCatalogData: () => Promise<InvestmentCatalogData>
 }
 
 interface UseInvestmentDataSaveReturn {
@@ -29,17 +34,16 @@ interface SaveConfigurationParams {
   }
 }
 
+/** Persisted catalog payload: known configuration keys plus a legacy migration field. */
+type CatalogObjectValue = Partial<InvestmentDataConfiguration> & {
+  /** @deprecated Pre-`requiredSubtypeKey` schema; deleted on save. */
+  fieldLayoutSubtype?: string
+}
+
 interface UpdateCatalogEntryPayload {
   id: string
   code: string
-  objectValue: Record<string, any>
-}
-
-interface CatalogReferenceField {
-  type: string
-  label: string
-  property: string
-  displayOrder: string
+  objectValue: CatalogObjectValue
 }
 
 const mapProspectTypeToCatalogType = (prospectType: string): string => {
@@ -77,16 +81,22 @@ const buildCatalogObjectValue = (
     prospectFields: boolean
     tileFields: boolean
   }
-): Record<string, any> => {
-  const catalogObjectValue: Record<string, any> = {
+): CatalogObjectValue => {
+  const catalogObjectValue: CatalogObjectValue = {
     ...selectedEntry.objectValue
   }
 
   // Update formFields only if NOT inherited, otherwise remove it
   if (isInherited.formFields) {
     delete catalogObjectValue.formFields
+    delete catalogObjectValue.requiredSubtypeKey
+    // MIGRATION: legacy key from the pre-`requiredSubtypeKey` schema. Safe to remove once all tenants are re-saved.
+    delete catalogObjectValue.fieldLayoutSubtype
   } else {
-    catalogObjectValue.formFields = configuration.formFields
+    catalogObjectValue.formFields = stripRegistryMetadataFromFormFields(configuration.formFields)
+    // MIGRATION: legacy key from the pre-`requiredSubtypeKey` schema. Safe to remove once all tenants are re-saved.
+    delete catalogObjectValue.fieldLayoutSubtype
+    catalogObjectValue.requiredSubtypeKey = coerceRequiredSubtypeKey(configuration.requiredSubtypeKey)
   }
 
   // Update tileFields only if NOT inherited, otherwise remove it
@@ -106,12 +116,12 @@ const buildCatalogObjectValue = (
   return catalogObjectValue
 }
 
-export const mapCatalogEntryToTyped = (entry: any): CatalogEntryWithConfig => {
+export const mapCatalogEntryToTyped = (entry: CatalogEntryRaw): CatalogEntryWithConfig => {
   return {
     id: entry.id,
     code: entry.code,
     value: entry.value,
-    objectValue: entry.objectValue || {},
+    objectValue: (entry.objectValue as InvestmentDataConfiguration) || {},
     parentEntryId: entry.parentEntryId
   }
 }
@@ -163,7 +173,7 @@ export const useInvestmentDataSave = ({
 
       const data = await fetchCatalogData()
 
-      let entries: any[]
+      let entries: CatalogEntryRaw[]
       if (targetLevel === 'group') {
         entries = data.investmentGroups
       } else if (targetLevel === 'type') {
@@ -172,7 +182,7 @@ export const useInvestmentDataSave = ({
         entries = data.investmentLiquidFundTypes
       }
 
-      const updatedEntry = entries.find((e: any) => e.id === selectedEntry.id)
+      const updatedEntry = entries.find(e => e.id === selectedEntry.id)
 
       if (updatedEntry) {
         return mapCatalogEntryToTyped(updatedEntry)
