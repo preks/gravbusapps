@@ -18,4 +18,5 @@ chat-menu-my-preferences = My preferences
 chat-upload-error-max-files = You can only upload up to 5 files.
 chat-upload-error-max-size = The total size of the files exceeds 100MB.
 chat-upload-error-failed = File upload failed. Please check size/format.
+chat-drop-files-here = Drop files here
 everyai-thinking = EveryAI is thinking...
