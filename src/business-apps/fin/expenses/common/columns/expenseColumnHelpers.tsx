@@ -73,6 +73,8 @@ export interface DateColumnOptions {
    * When false (default), the first header click sorts ascending (same as currency columns).
    */
   sortDescFirst?: boolean
+  /** Set false for server-paginated or read-only tables where list sorting is not available. */
+  enableSorting?: boolean
 }
 
 export function createDateColumn<T extends object>(
@@ -91,7 +93,7 @@ export function createDateColumn<T extends object>(
     id,
     accessorFn,
     header,
-    enableSorting: true,
+    enableSorting: options?.enableSorting !== false,
     sortDescFirst: options?.sortDescFirst ?? false,
     size: 110,
     minSize: 90,
@@ -115,6 +117,8 @@ export interface EmployeeColumnOptions {
   notAvailableLabel?: NotAvailableFn
   /** When false (default), the first header click sorts ascending. */
   sortDescFirst?: boolean
+  /** Set false for server-paginated or read-only tables where list sorting is not available. */
+  enableSorting?: boolean
 }
 
 export function createEmployeeColumn<T extends object>(
@@ -129,7 +133,7 @@ export function createEmployeeColumn<T extends object>(
     id,
     accessorFn: getEmployee,
     header,
-    enableSorting: true,
+    enableSorting: opts.enableSorting !== false,
     sortDescFirst: opts.sortDescFirst ?? false,
     size: 200,
     minSize: 160,
@@ -165,6 +169,8 @@ export interface CurrencyColumnOptions<T> {
    * (TanStack otherwise uses desc-first for numeric accessors).
    */
   sortDescFirst?: boolean
+  /** Set false for server-paginated or read-only tables where list sorting is not available. */
+  enableSorting?: boolean
 }
 
 export function createCurrencyColumn<T extends object>(
@@ -179,7 +185,7 @@ export function createCurrencyColumn<T extends object>(
     id,
     accessorFn: getAmount,
     header,
-    enableSorting: true,
+    enableSorting: options?.enableSorting !== false,
     sortDescFirst: options?.sortDescFirst ?? false,
     size: options?.size ?? 130,
     minSize: options?.minSize ?? 100,
@@ -204,6 +210,8 @@ export interface StatusBadgeColumnOptions<T> {
   cellWrapperClassName?: string
   /** When false (default), the first header click sorts ascending. */
   sortDescFirst?: boolean
+  /** Set false for server-paginated or read-only tables where list sorting is not available. */
+  enableSorting?: boolean
 }
 
 export function createStatusBadgeColumn<T extends object>(
@@ -216,7 +224,7 @@ export function createStatusBadgeColumn<T extends object>(
     id,
     accessorFn: (row: T) => getStatusDisplay(row).label,
     header,
-    enableSorting: true,
+    enableSorting: options?.enableSorting !== false,
     sortDescFirst: options?.sortDescFirst ?? false,
     size: 150,
     minSize: 160,
