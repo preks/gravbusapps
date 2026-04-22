@@ -197,7 +197,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
                 className="gba:text-xs gba:font-mono gba:bg-muted/50"
                 data-testid={`${testId}-cell-ref-${comment.id}`}
               >
-                Cell {comment.cellReference}
+                {t('comment-thread-cell-reference', { reference: comment.cellReference })}
               </Badge>
             </div>
           )}
