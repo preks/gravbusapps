@@ -22,7 +22,7 @@ export const OpenPositionsSection: React.FC<OpenPositionsSectionProps> = ({
 }) => {
   if (loading) {
     return (
-      <Card style={{ borderRadius: '12px' }} className="gba:p-4">
+      <Card className="gba:rounded-xl gba:p-4">
         <CardHeader className="gba:pb-2">
           <CardTitle className="gba:text-base">Open Positions</CardTitle>
         </CardHeader>
@@ -37,9 +37,9 @@ export const OpenPositionsSection: React.FC<OpenPositionsSectionProps> = ({
   }
 
   return (
-    <Card data-testid="open-positions-section" style={{ borderRadius: '12px' }} className="gba:p-4">
+    <Card data-testid="open-positions-section" className="gba:rounded-xl gba:p-4 gba:h-full">
       <CardHeader className="gba:pb-2">
-        <CardTitle className="gba:text-base gba:font-semibold">Open Positions</CardTitle>
+        <CardTitle className="gba:text-base">Open Positions</CardTitle>
         <p className="gba:text-xs gba:text-muted-foreground">Recruiting pipeline</p>
       </CardHeader>
       <CardContent className="gba:space-y-2">

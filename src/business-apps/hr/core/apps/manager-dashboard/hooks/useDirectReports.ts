@@ -29,6 +29,7 @@ export interface DirectReport {
     status: string // APPROVED, PENDING, etc.
   }
   userId: string
+  employmentType?: string
 }
 
 export interface UseDirectReportsResult {
@@ -87,6 +88,11 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
               }
               organizationalUnit {
                 name
+              }
+            }
+            workingCondition {
+              employmentType {
+                value
               }
             }
             userId
@@ -233,7 +239,8 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
                   endDate: nextAbsence.endDate,
                   status: nextAbsence.status
                 }
-              : undefined
+              : undefined,
+            employmentType: employee.workingCondition?.[0]?.employmentType?.value
           }
         })
 
