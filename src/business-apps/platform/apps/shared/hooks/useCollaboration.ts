@@ -8,10 +8,7 @@ import {
   DocumentOperation
 } from '../services/CollaborationClient'
 import { getSpreadsheetServiceApiUrl } from '../utils/spreadsheetServiceUrl'
-
-const TOKEN_REFRESH_EVENT = 'com.newwork.token.shouldRefreshAuthorizationHeader'
-
-type TokenRefreshEventDetail = string | boolean | { accessToken?: string } | undefined
+import { useSyncClientAccessToken } from '@/common/network/useSyncClientAccessToken'
 
 const isCollabDebug = (): boolean => {
   try {
@@ -34,24 +31,6 @@ function normalizeToken(value: unknown): string | null {
 
   const normalized = value.trim()
   return normalized || null
-}
-
-function resolveAccessTokenFromRefreshEvent(event: Event, fallbackAccessToken: string): string {
-  if (!(event instanceof CustomEvent)) {
-    return fallbackAccessToken
-  }
-
-  const eventDetail = event.detail as TokenRefreshEventDetail
-
-  if (typeof eventDetail === 'string') {
-    return normalizeToken(eventDetail) ?? fallbackAccessToken
-  }
-
-  if (eventDetail && typeof eventDetail === 'object' && 'accessToken' in eventDetail) {
-    return normalizeToken(eventDetail.accessToken) ?? fallbackAccessToken
-  }
-
-  return fallbackAccessToken
 }
 
 type SocketParticipant = {
@@ -271,6 +250,13 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   onOperationReceivedRef.current = onOperationReceived
   onErrorRef.current = onError
   const normalizedAccessToken = normalizeToken(accessToken)
+  const accessTokenSyncClientRef = useRef<{ setAccessToken: (token: string) => void }>({
+    setAccessToken: token => {
+      clientRef.current?.setAccessToken(token)
+    }
+  })
+
+  useSyncClientAccessToken(accessTokenSyncClientRef.current, enabled ? (normalizedAccessToken ?? undefined) : undefined)
 
   // Match documents websocket auth semantics: realtime auth must come from the injected token.
 
@@ -449,23 +435,6 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       setSocket(null)
     }
   }, [enabled, entityType, entityId, normalizedAccessToken])
-
-  useEffect(() => {
-    if (!enabled || !normalizedAccessToken) {
-      return
-    }
-
-    const handleTokenRefresh: EventListener = event => {
-      const nextAccessToken = resolveAccessTokenFromRefreshEvent(event, normalizedAccessToken)
-      clientRef.current?.setAccessToken(nextAccessToken)
-    }
-
-    globalThis.addEventListener(TOKEN_REFRESH_EVENT, handleTokenRefresh)
-
-    return () => {
-      globalThis.removeEventListener(TOKEN_REFRESH_EVENT, handleTokenRefresh)
-    }
-  }, [enabled, normalizedAccessToken])
 
   // Emit operation — pass-through to the socket. Queuing is handled by entity-specific
   // managers (e.g. SpreadsheetCollaborationManager) for types that need it.
