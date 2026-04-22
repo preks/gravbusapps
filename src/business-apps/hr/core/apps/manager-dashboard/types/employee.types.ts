@@ -12,6 +12,9 @@ export interface EmployeePosition {
 
 export interface WorkingCondition {
   hireDate: string
+  employmentType?: {
+    value?: string
+  }
 }
 
 export interface CommunicationChannel {

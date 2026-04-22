@@ -190,11 +190,11 @@ export const AiEditPanel: React.FC<AiEditPanelProps> = ({
           <div className="gba:flex gba:gap-2">
             <Button variant="outline" onClick={ai.undo} className="gba:flex-1" data-testid="ai-edit-undo">
               <Undo2 className="gba:h-4 gba:w-4 gba:mr-2" />
-              Undo
+              {t('ai-edit-undo')}
             </Button>
             <Button onClick={ai.reset} className="gba:flex-1" data-testid="ai-edit-new">
               <Sparkles className="gba:h-4 gba:w-4 gba:mr-2" />
-              New Edit
+              {t('ai-edit-new')}
             </Button>
           </div>
         )}

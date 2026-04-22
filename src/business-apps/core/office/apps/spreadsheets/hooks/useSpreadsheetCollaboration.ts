@@ -2,6 +2,7 @@
 // Creates/manages a SpreadsheetCollaborationManager instance and handles avatar enrichment.
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { Socket } from 'socket.io-client'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type {
@@ -15,6 +16,7 @@ import {
   type CollaborationCallbacks,
   type CollaborationOperation
 } from '../services/SpreadsheetCollaborationManager'
+import translations from '../_i18n'
 
 type CollaborationHealth = 'connected' | 'reconnecting' | 'failed'
 
@@ -170,7 +172,11 @@ function areCursorParticipantsEquivalent(a: DocumentParticipant[], b: DocumentPa
   return true
 }
 
-function addParticipantIfMissing(prev: DocumentParticipant[], data: ParticipantEventData): DocumentParticipant[] {
+function addParticipantIfMissing(
+  prev: DocumentParticipant[],
+  data: ParticipantEventData,
+  fallbackUserName: string
+): DocumentParticipant[] {
   const userId = resolveParticipantIdentity(data)
   const identity = participantIdentity({ userId, socketId: data.socketId || '' })
   if (!userId || !identity || prev.some(p => participantIdentity(p) === identity)) return prev
@@ -179,7 +185,7 @@ function addParticipantIfMissing(prev: DocumentParticipant[], data: ParticipantE
     ...prev,
     {
       userId,
-      userName: data.userName || 'User',
+      userName: data.userName || fallbackUserName,
       userColor: data.userColor || '#4ECDC4',
       socketId: data.socketId || '',
       avatarUrl: data.avatarUrl || data.avatar,
@@ -200,7 +206,11 @@ function removeParticipant(
   return prev.filter(participant => participant.userId !== userId)
 }
 
-function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventData): DocumentParticipant[] {
+function updateParticipantCursor(
+  prev: DocumentParticipant[],
+  data: CursorEventData,
+  fallbackUserName: string
+): DocumentParticipant[] {
   const userId = resolveParticipantIdentity(data)
   const identity = participantIdentity({ userId, socketId: data.socketId || '' })
   if (!userId) return prev
@@ -219,7 +229,7 @@ function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventD
     ...next,
     {
       userId,
-      userName: data.userName || 'User',
+      userName: data.userName || fallbackUserName,
       userColor: data.userColor || '#4ECDC4',
       socketId: data.socketId || '',
       cursor: data.position,
@@ -228,7 +238,11 @@ function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventD
   ]
 }
 
-function updateParticipantSelection(prev: DocumentParticipant[], data: SelectionEventData): DocumentParticipant[] {
+function updateParticipantSelection(
+  prev: DocumentParticipant[],
+  data: SelectionEventData,
+  fallbackUserName: string
+): DocumentParticipant[] {
   const userId = resolveParticipantIdentity(data)
   const identity = participantIdentity({ userId, socketId: data.socketId || '' })
   const normalizedSelection = data.selection ?? undefined
@@ -248,7 +262,7 @@ function updateParticipantSelection(prev: DocumentParticipant[], data: Selection
     ...next,
     {
       userId,
-      userName: data.userName || 'User',
+      userName: data.userName || fallbackUserName,
       userColor: data.userColor || '#4ECDC4',
       socketId: data.socketId || '',
       selection: normalizedSelection,
@@ -321,8 +335,10 @@ export function useSpreadsheetCollaboration({
   onError,
   shouldIgnoreReceivedOperation
 }: UseSpreadsheetCollaborationProps): SpreadsheetCollaborationState {
+  const { t } = useTranslation(translations)
+  const fallbackUserName = t('editor-user-fallback')
   const currentUserIdRef = useRef<string | undefined>(undefined)
-  const [currentUserName, setCurrentUserName] = useState<string>('User')
+  const [currentUserName, setCurrentUserName] = useState<string>(fallbackUserName)
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(undefined)
 
   // Stable ref for callbacks — prevents re-creating the manager on every render
@@ -466,7 +482,7 @@ export function useSpreadsheetCollaboration({
       })
 
       const unsubscribeUserJoined = client.onUserJoined(data => {
-        setRawParticipants(prev => addParticipantIfMissing(prev, data))
+        setRawParticipants(prev => addParticipantIfMissing(prev, data, fallbackUserName))
         if (hasJoinedRef.current && client.getSocket()?.connected && data.socketId !== client.getSocket()?.id) {
           if (cursorReplayTimeoutRef.current) {
             clearTimeout(cursorReplayTimeoutRef.current)
@@ -494,11 +510,11 @@ export function useSpreadsheetCollaboration({
       })
 
       const unsubscribeCursorUpdate = client.onCursorUpdate(data => {
-        setRawParticipants(prev => updateParticipantCursor(prev, data))
+        setRawParticipants(prev => updateParticipantCursor(prev, data, fallbackUserName))
       })
 
       const unsubscribeSelectionUpdate = client.onSelectionUpdate(data => {
-        setRawParticipants(prev => updateParticipantSelection(prev, data))
+        setRawParticipants(prev => updateParticipantSelection(prev, data, fallbackUserName))
       })
 
       if (client.getSocket()?.connected) {
@@ -554,7 +570,7 @@ export function useSpreadsheetCollaboration({
       onErrorStable(resolvedError)
       return
     }
-  }, [accessToken, appId, clearJoinAckTimeout, disabled, onErrorStable, onOperationReceivedStable])
+  }, [accessToken, appId, clearJoinAckTimeout, disabled, fallbackUserName, onErrorStable, onOperationReceivedStable])
 
   useEffect(() => {
     if (disabled || !accessToken || typeof window === 'undefined') {
@@ -635,7 +651,7 @@ export function useSpreadsheetCollaboration({
         const payload = safeParseJwtPayload(token)
         if (!payload) return
         currentUserIdRef.current = payload.sub || payload.userId
-        setCurrentUserName(payload.name || payload.preferred_username || 'User')
+        setCurrentUserName(payload.name || payload.preferred_username || fallbackUserName)
         manager.setCurrentUserId(currentUserIdRef.current ?? null)
 
         if (authToken && payload.sub) {
@@ -660,7 +676,7 @@ export function useSpreadsheetCollaboration({
       }
     }
     fetchCurrentUserInfo()
-  }, [accessToken, authToken, graphqlClient])
+  }, [accessToken, authToken, fallbackUserName, graphqlClient])
 
   // Single avatar fetch for all participants (deduplicated)
   useEffect(() => {

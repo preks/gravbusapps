@@ -80,21 +80,21 @@ function getTypeIcon(type: ColumnType) {
   }
 }
 
-const COLUMN_TYPES: Array<{ value: ColumnType; label: string }> = [
-  { value: 'text', label: 'Text' },
-  { value: 'number', label: 'Number' },
-  { value: 'currency', label: 'Currency' },
-  { value: 'percentage', label: 'Percentage' },
-  { value: 'date', label: 'Date' },
-  { value: 'datetime', label: 'Date & Time' },
-  { value: 'email', label: 'Email' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'url', label: 'URL' },
-  { value: 'select', label: 'Single Select' },
-  { value: 'multiselect', label: 'Multi Select' },
-  { value: 'boolean', label: 'Checkbox' },
-  { value: 'calculated', label: 'Calculated' },
-  { value: 'reference', label: 'Reference' }
+const COLUMN_TYPES: ColumnType[] = [
+  'text',
+  'number',
+  'currency',
+  'percentage',
+  'date',
+  'datetime',
+  'email',
+  'phone',
+  'url',
+  'select',
+  'multiselect',
+  'boolean',
+  'calculated',
+  'reference'
 ]
 
 /**
@@ -110,6 +110,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
   const { t } = useTranslation(translations)
   const [column, setColumn] = useState<SpreadsheetColumn>(initialColumn)
   const [newOption, setNewOption] = useState('')
+  const getColumnTypeLabel = useCallback((type: ColumnType) => t(`manage-columns-type-${type}`), [t])
 
   const TypeIcon = getTypeIcon(column.type)
 
@@ -183,7 +184,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
             </div>
           </div>
           <Badge variant="outline" className="gba:capitalize">
-            {column.type}
+            {getColumnTypeLabel(column.type)}
           </Badge>
         </div>
 
@@ -207,12 +208,12 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
               </SelectTrigger>
               <SelectContent>
                 {COLUMN_TYPES.map(type => {
-                  const Icon = getTypeIcon(type.value)
+                  const Icon = getTypeIcon(type)
                   return (
-                    <SelectItem key={type.value} value={type.value}>
+                    <SelectItem key={type} value={type}>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Icon className="gba:w-4 gba:h-4" />
-                        {type.label}
+                        {getColumnTypeLabel(type)}
                       </div>
                     </SelectItem>
                   )

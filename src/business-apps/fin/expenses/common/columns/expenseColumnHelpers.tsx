@@ -69,6 +69,9 @@ export interface EmployeeLike {
 
 export interface DateColumnOptions {
   formatDate?: (value: string | null | undefined) => string
+  /**
+   * When false (default), the first header click sorts ascending (same as currency columns).
+   */
   sortDescFirst?: boolean
 }
 
@@ -89,7 +92,7 @@ export function createDateColumn<T extends object>(
     accessorFn,
     header,
     enableSorting: true,
-    ...(options?.sortDescFirst === undefined ? {} : { sortDescFirst: options.sortDescFirst }),
+    sortDescFirst: options?.sortDescFirst ?? false,
     size: 110,
     minSize: 90,
     maxSize: 150,
@@ -108,18 +111,26 @@ export function createDateColumn<T extends object>(
 
 type NotAvailableFn = () => string
 
+export interface EmployeeColumnOptions {
+  notAvailableLabel?: NotAvailableFn
+  /** When false (default), the first header click sorts ascending. */
+  sortDescFirst?: boolean
+}
+
 export function createEmployeeColumn<T extends object>(
   id: string,
   header: string,
   getEmployee: (row: T) => EmployeeLike | null | undefined,
-  notAvailableLabel?: NotAvailableFn
+  fourth?: NotAvailableFn | EmployeeColumnOptions
 ): ColumnDef<T> {
-  const emptyLabel = notAvailableLabel ?? naLabel
+  const opts: EmployeeColumnOptions = typeof fourth === 'function' ? { notAvailableLabel: fourth } : (fourth ?? {})
+  const emptyLabel = opts.notAvailableLabel ?? naLabel
   return {
     id,
     accessorFn: getEmployee,
     header,
     enableSorting: true,
+    sortDescFirst: opts.sortDescFirst ?? false,
     size: 200,
     minSize: 160,
     maxSize: 280,
@@ -191,6 +202,8 @@ export function createCurrencyColumn<T extends object>(
 export interface StatusBadgeColumnOptions<T> {
   getRowTestId?: (row: T) => string
   cellWrapperClassName?: string
+  /** When false (default), the first header click sorts ascending. */
+  sortDescFirst?: boolean
 }
 
 export function createStatusBadgeColumn<T extends object>(
@@ -204,6 +217,7 @@ export function createStatusBadgeColumn<T extends object>(
     accessorFn: (row: T) => getStatusDisplay(row).label,
     header,
     enableSorting: true,
+    sortDescFirst: options?.sortDescFirst ?? false,
     size: 150,
     minSize: 160,
     maxSize: 250,

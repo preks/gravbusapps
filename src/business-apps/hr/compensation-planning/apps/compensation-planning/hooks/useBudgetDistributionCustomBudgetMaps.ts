@@ -164,6 +164,10 @@ export function useBudgetDistributionCustomBudgetMaps(
     [orgUnitIdSet]
   )
 
+  const clearCustomBudgetInputs = useCallback(() => {
+    setState(initialCustomState)
+  }, [])
+
   const handleCustomModeChange = useCallback(
     (orgUnitId: string, mode: CustomBudgetInputMode) => {
       const pool = salaryIncreasePool != null && salaryIncreasePool > 0 ? salaryIncreasePool : null
@@ -208,6 +212,7 @@ export function useBudgetDistributionCustomBudgetMaps(
     previewCustomAllocationByOrgUnit,
     handleCustomAmountRawChange,
     handleCustomPercentRawChange,
-    handleCustomModeChange
+    handleCustomModeChange,
+    clearCustomBudgetInputs
   }
 }

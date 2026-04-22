@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import {
   Table,
   TableBody,
@@ -21,30 +21,67 @@ interface EntitlementsTableProps {
 
 const EntitlementsTable: React.FC<EntitlementsTableProps> = ({ entitlements, page, setPage, pageSize }) => {
   const { t } = useTranslation(translations)
-  const totalItems = (entitlements || []).length
+  const sortedEntitlements = useMemo(
+    () =>
+      [...(entitlements || [])].sort((firstRow, secondRow) => {
+        const firstDate = firstRow?.validFrom || ''
+        const secondDate = secondRow?.validFrom || ''
+
+        if (firstDate === secondDate) {
+          return String(firstRow?.id || '').localeCompare(String(secondRow?.id || ''))
+        }
+
+        if (!firstDate) {
+          return 1
+        }
+
+        if (!secondDate) {
+          return -1
+        }
+
+        return firstDate > secondDate ? -1 : 1
+      }),
+    [entitlements]
+  )
+  const totalItems = sortedEntitlements.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-  const currentItems = (entitlements || []).slice((page - 1) * pageSize, page * pageSize)
+  const currentItems = sortedEntitlements.slice((page - 1) * pageSize, page * pageSize)
 
   return (
     <div className="gba:mb-8">
-      <Table data-testid="entitlements-table">
+      <Table className="gba:w-full gba:table-fixed" data-testid="entitlements-table">
         <TableHeader>
           <TableRow>
-            <TableHead>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.type', 'Type')}
+            <TableHead className="gba:w-[24%] gba:align-top">
+              <div className="gba:whitespace-normal gba:break-words gba:leading-snug">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.type', 'Type')}
+              </div>
             </TableHead>
-            <TableHead>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}
+            <TableHead className="gba:w-[32%] gba:align-top">
+              <div className="gba:whitespace-normal gba:break-words gba:leading-snug">{t('entitlements-total')}</div>
             </TableHead>
-            <TableHead>{t('entitlements-effective-from')}</TableHead>
-            <TableHead>{t('entitlements-effective-to')}</TableHead>
+            <TableHead className="gba:w-[22%] gba:align-top">
+              <div className="gba:whitespace-normal gba:break-words gba:leading-snug">
+                {t('entitlements-effective-from')}
+              </div>
+            </TableHead>
+            <TableHead className="gba:w-[22%] gba:align-top">
+              <div className="gba:whitespace-normal gba:break-words gba:leading-snug">
+                {t('entitlements-effective-to')}
+              </div>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {currentItems.map((row: any) => {
             return (
               <TableRow key={row.id} data-testid={`entitlements-table-row-${row.id}`}>
-                <TableCell data-testid={`entitlements-type-${row.id}`}>{getCatalogValue(row.type)}</TableCell>
+                <TableCell
+                  className="gba:whitespace-normal gba:break-words"
+                  data-testid={`entitlements-type-${row.id}`}
+                >
+                  {getCatalogValue(row.type)}
+                </TableCell>
                 <TableCell data-testid={`entitlements-total-${row.id}`}>{row.total ?? 0}</TableCell>
                 <TableCell data-testid={`entitlements-effective-from-${row.id}`}>
                   {formatDate(row.validFrom) || '-'}

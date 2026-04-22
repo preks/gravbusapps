@@ -71,6 +71,8 @@ export function buildSaveCompensationBudgetPlanEmployeeInsertBody(
 ): SaveCompensationBudgetPlanEmployeeRestBody {
   const { proposedSalaryIncreaseAmount, proposedSalaryIncreasePercent, proposedNewSalary } =
     computeManagerProposalAmountsFromIncrease(member, increaseAmount)
+  /** Mirrors HR / org-unit rows: persisted slice for this employee; same value as `proposedSalaryIncreaseAmount`. */
+  const allocationAmount = roundMoney2(proposedSalaryIncreaseAmount)
 
   const submitAsSubmitted = options?.submitAsSubmitted === true
   const submittedAtIso = submitAsSubmitted
@@ -81,6 +83,7 @@ export function buildSaveCompensationBudgetPlanEmployeeInsertBody(
   return {
     changeMode: 'INSERT',
     compensationBudgetPlanEmployee: {
+      allocationAmount,
       proposedSalaryIncreaseAmount,
       proposedSalaryIncreasePercent,
       proposedNewSalary,

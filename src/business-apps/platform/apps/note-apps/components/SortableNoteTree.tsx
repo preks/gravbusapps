@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react'
 import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { ScrollArea, Spinner } from '@newwork/nw-design-system'
+import { ScrollArea, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { DraggableNoteTreeItem } from './DraggableNoteTreeItem'
 import type { NoteTreeNode } from '../types'
 import type { UseNoteTreeDragDropReturn } from '../hooks/useNoteTreeDragDrop'
+import translations from '../_i18n'
 
 export interface SortableNoteTreeProps {
   tree: NoteTreeNode[]
@@ -49,6 +50,7 @@ export const SortableNoteTree: React.FC<SortableNoteTreeProps> = ({
   onDelete,
   onTogglePin
 }) => {
+  const { t } = useTranslation(translations)
   const visibleNodes = useMemo(() => getVisibleNodes(tree, expandedIds), [tree, expandedIds])
 
   const sortableIds = useMemo(() => visibleNodes.map(n => n.id), [visibleNodes])
@@ -79,7 +81,7 @@ export const SortableNoteTree: React.FC<SortableNoteTreeProps> = ({
         <ScrollArea className="gba:flex-1">
           <div className="gba:py-1 gba:px-2" role="tree" data-testid="note-tree">
             {visibleNodes.length === 0 ? (
-              <div className="gba:text-center gba:py-6 gba:text-white/40 gba:text-xs">No notes yet</div>
+              <div className="gba:text-center gba:py-6 gba:text-white/40 gba:text-xs">{t('tree-empty')}</div>
             ) : (
               visibleNodes.map(node => {
                 const showDropIndicator =

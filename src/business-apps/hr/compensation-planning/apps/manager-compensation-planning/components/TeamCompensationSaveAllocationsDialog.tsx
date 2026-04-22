@@ -12,9 +12,6 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { RestClient } from '@/common/network/rest/RestClient'
 import type { DistributionMethod, TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import compensationPlanningTranslations from '../../compensation-planning/_i18n'
-import type { CompensationBudgetPlanCompanyRow } from '../../compensation-planning/hooks/useBudgetSetupForCompany'
-import type { ManagerOrgUnitBudgetSnapshot } from '../hooks/useManagerTeamSalaryBudget'
-import { persistManagerTeamBudgetAfterAllocations } from '../utils/persistManagerTeamBudgetAfterAllocations'
 import {
   persistAllocationsForSelectedEmployees,
   validateCustomPoolForSelected,
@@ -37,8 +34,6 @@ export interface TeamCompensationSaveAllocationsDialogProps {
   currencyCode: string
   planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
   managerOrganizationalUnitId: string | null
-  managerCompanyBudgetRow: CompensationBudgetPlanCompanyRow | null
-  orgUnitBudgetSnapshotsByPlanRowId: ReadonlyMap<string, ManagerOrgUnitBudgetSnapshot>
   /** Called after successful saves; includes REST row ids keyed by employee id when returned by the API. */
   onSaved?: (createdIdsByEmployeeId?: Record<string, string>) => void | Promise<void>
 }
@@ -56,8 +51,6 @@ export function TeamCompensationSaveAllocationsDialog({
   currencyCode,
   planOuRowIdByOrganizationalUnitId,
   managerOrganizationalUnitId,
-  managerCompanyBudgetRow,
-  orgUnitBudgetSnapshotsByPlanRowId,
   onSaved
 }: Readonly<TeamCompensationSaveAllocationsDialogProps>) {
   const { t } = useTranslation(translations)
@@ -164,14 +157,14 @@ export function TeamCompensationSaveAllocationsDialog({
       return
     }
 
-    if (!managerCompanyBudgetRow) {
-      setErrorMessage(t('manager-team-save-missing-budget-context'))
-      return
-    }
-
     setSaving(true)
     try {
+      /**
+       * Inserts employee rows with `allocationAmount` in the REST payload (same value as `proposedSalaryIncreaseAmount`),
+       * then rolls that sum into `compensation_budget_plan_organizational_unit.allocation_amount` per plan-OU row.
+       */
       const createdIdsByEmployeeId = await persistAllocationsForSelectedEmployees({
+        graphqlClient,
         restClient,
         accessToken,
         selectedIds: ids,
@@ -180,18 +173,6 @@ export function TeamCompensationSaveAllocationsDialog({
         planOuRowIdByOrganizationalUnitId,
         managerOrganizationalUnitId,
         managerEmployeeId
-      })
-      await persistManagerTeamBudgetAfterAllocations({
-        graphqlClient,
-        restClient,
-        accessToken,
-        companyBudgetRow: managerCompanyBudgetRow,
-        orgUnitBudgetSnapshotsByPlanRowId,
-        selectedEmployeeIds: ids,
-        memberById,
-        allocationByEmployeeId,
-        planOuRowIdByOrganizationalUnitId,
-        managerOrganizationalUnitId
       })
       await onSaved?.(createdIdsByEmployeeId)
       onOpenChange(false)
@@ -207,11 +188,9 @@ export function TeamCompensationSaveAllocationsDialog({
     distributionMethod,
     distributionPool,
     graphqlClient,
-    managerCompanyBudgetRow,
     managerEmployeeId,
     memberById,
     managerOrganizationalUnitId,
-    orgUnitBudgetSnapshotsByPlanRowId,
     onOpenChange,
     onSaved,
     planOuRowIdByOrganizationalUnitId,

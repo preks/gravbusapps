@@ -41,6 +41,7 @@ export interface CompensationBudgetPlanCompanyRow {
   companyId: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
+  allocationAmount: number
   bonusBudgetAmount: number
   bonusBudgetPercent: number
   budgetPlanStatus: string
@@ -108,6 +109,7 @@ export interface CompensationBudgetPlanCompanyGraphqlRow {
   companyId: string
   salaryBudgetAmount: unknown
   salaryBudgetPercent: unknown
+  allocationAmount?: unknown
   bonusBudgetAmount: unknown
   bonusBudgetPercent: unknown
   budgetPlanStatus: string | null
@@ -125,6 +127,7 @@ function mapGraphqlCompanyRow(raw: CompensationBudgetPlanCompanyGraphqlRow): Com
     companyId: raw.companyId,
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
     salaryBudgetPercent: num(raw.salaryBudgetPercent),
+    allocationAmount: num(raw.allocationAmount),
     bonusBudgetAmount: num(raw.bonusBudgetAmount),
     bonusBudgetPercent: num(raw.bonusBudgetPercent),
     budgetPlanStatus: raw.budgetPlanStatus ?? '',
@@ -269,6 +272,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
             company: c.companyId,
             salaryBudgetAmount: roundMoney2(c.salaryBudgetAmount),
             salaryBudgetPercent: roundMoney2(c.salaryBudgetPercent),
+            allocationAmount: 0,
             bonusBudgetAmount: 0,
             bonusBudgetPercent: 0,
             budgetPlanStatus: 'BUDGET_PLAN_APPROVED',
@@ -303,6 +307,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
       input: {
         salaryBudgetAmount: number
         salaryBudgetPercent: number
+        allocationAmount: number
         currencyRef: string | null
       }
     ): Promise<boolean> => {
@@ -317,6 +322,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
           companyId: row.companyId,
           salaryBudgetAmount: roundMoney2(input.salaryBudgetAmount),
           salaryBudgetPercent: roundMoney2(input.salaryBudgetPercent),
+          allocationAmount: roundMoney2(input.allocationAmount),
           currentTotalSalaryCost: roundMoney2(row.currentTotalSalaryCost),
           currencyRef: input.currencyRef
         }
@@ -357,6 +363,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
             companyId: companyRow.companyId,
             salaryBudgetAmount,
             salaryBudgetPercent,
+            allocationAmount: roundMoney2(companyRow.allocationAmount),
             currentTotalSalaryCost,
             currencyRef
           }
@@ -370,6 +377,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
               company: companyId,
               salaryBudgetAmount: roundMoney2(changes.salaryBudgetAmount),
               salaryBudgetPercent: roundMoney2(changes.salaryBudgetPercent),
+              allocationAmount: 0,
               bonusBudgetAmount: 0,
               bonusBudgetPercent: 0,
               budgetPlanStatus: DEFAULT_BUDGET_PLAN_STATUS_APPROVED,

@@ -320,7 +320,7 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
             }}
             onClose={() => setShowComments(false)}
             currentUserId={currentUserId}
-            currentUserName={currentUserName || 'User'}
+            currentUserName={currentUserName || t('editor-user-fallback')}
             currentUserAvatar={currentUserAvatar || undefined}
             accessToken={accessToken}
             headerHeight={100}

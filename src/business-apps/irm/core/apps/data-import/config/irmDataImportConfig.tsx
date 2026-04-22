@@ -1,4 +1,6 @@
+import React from 'react'
 import { UserIcon, IdentificationCardIcon, BuildingsIcon, TrendUpIcon, ChartLineIcon } from '@phosphor-icons/react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DataImportConfig } from '@/common/components/common-relations/apps/data-import/types/configTypes'
 import {
   createEntityCard,
@@ -8,76 +10,108 @@ import { LeadImportView } from '../views/lead-import-view'
 import { ContactImportView } from '../views/contact-import-view'
 import { AccountImportView } from '../views/account-import-view'
 import { OpportunityImportView } from '../views/opportunity-import-view'
-import { RealEstateInvestmentImportView } from '../views/real-estate-investment-import-view/RealEstateInvestmentImportView'
-import { EquityInvestmentImportView } from '../views/equity-investment-import-view/EquityInvestmentImportView'
-import { LiquidFundInvestmentImportView } from '../views/liquid-fund-investment-import-view/LiquidFundInvestmentImportView'
+import { GenericInvestmentImportView } from '../views/generic-investment-import-view'
+import { InvestmentImportGroupDescriptor } from '../types/commonInvestmentImportTypes'
+import { getGroupImportConfiguration } from './groupImportConfigurations'
+import { toInvestmentEntryLabel } from './investmentGroupImportUtils'
 
-export const createIrmDataImportConfig = (): DataImportConfig => ({
-  headerLabel: 'Data Import',
-  headerDescription:
-    'Import data from CSV files with AI-powered field mapping. Upload your file, review suggested mappings, and import.',
-  searchPlaceholder: 'Search import types...',
-  backUrl: '/platform/use',
-  prefixDataTestId: 'DataImport',
+const STATIC_ENTITY_TYPES = ['lead', 'contact', 'account', 'opportunity'] as const
 
-  validEntityTypes: new Set([
-    'lead',
-    'contact',
-    'account',
-    'opportunity',
-    'real-estate-investment',
-    'equity-investment',
-    'liquid-fund-investment'
-  ]),
+export interface IrmDataImportCardLabels {
+  title: string
+  description: string
+  buttonLabel: string
+}
 
-  entityCards: [
-    createEntityCard(
-      'Import Leads',
-      'Import investment leads from CSV with company information, investment details, financial data, and property information. AI-powered field mapping helps you quickly map your data.',
-      UserIcon,
-      'Start Lead Import',
-      'lead'
-    ),
-    createEntityCard(
-      'Import Contacts',
-      'Import individual contacts from CSV with personal information, contact details, and language preferences. AI automatically detects and maps fields.',
-      IdentificationCardIcon,
-      'Start Contact Import',
-      'contact'
-    ),
-    createEntityCard(
-      'Import Accounts',
-      'Import company accounts from CSV with organization details, industry information, revenue data, and communication channels. AI-powered mapping streamlines the process.',
-      BuildingsIcon,
-      'Start Account Import',
-      'account'
-    ),
-    createEntityCard(
-      'Import Opportunities',
-      'Import investment opportunities from CSV with pipeline stages, forecasts, deal information, and investment-specific fields. AI-powered mapping streamlines the process.',
-      ChartLineIcon,
-      'Start Opportunity Import',
-      'opportunity'
-    ),
-    createMultiEntryCard(
-      'Import Investments',
-      'Import real estate properties, equity investments, or liquid funds with AI-powered field mapping. Choose your investment type to get started.',
-      TrendUpIcon,
-      [
-        { label: 'Real Estate Investments', entityType: 'real-estate-investment' },
-        { label: 'Equity Investments', entityType: 'equity-investment' },
-        { label: 'Liquid Fund Investments', entityType: 'liquid-fund-investment' }
-      ]
-    )
-  ],
-
-  entityViews: {
-    lead: LeadImportView,
-    contact: ContactImportView,
-    account: AccountImportView,
-    opportunity: OpportunityImportView,
-    'real-estate-investment': RealEstateInvestmentImportView,
-    'equity-investment': EquityInvestmentImportView,
-    'liquid-fund-investment': LiquidFundInvestmentImportView
+export interface IrmDataImportLabels {
+  headerLabel: string
+  headerDescription: string
+  searchPlaceholder: string
+  leadCard: IrmDataImportCardLabels
+  contactCard: IrmDataImportCardLabels
+  accountCard: IrmDataImportCardLabels
+  opportunityCard: IrmDataImportCardLabels
+  investmentsCard: {
+    title: string
+    description: string
   }
-})
+}
+
+export const createIrmDataImportConfig = (
+  investmentGroups: InvestmentImportGroupDescriptor[],
+  labels: IrmDataImportLabels
+): DataImportConfig => {
+  const groupDefinitions = investmentGroups.map(getGroupImportConfiguration)
+
+  const investmentEntries = groupDefinitions.map(definition => ({
+    label: toInvestmentEntryLabel(definition.group.label),
+    entityType: definition.group.entityType
+  }))
+
+  const dynamicViews = Object.fromEntries(
+    groupDefinitions.map(definition => [
+      definition.group.entityType,
+      (props: BusinessAppContextProps & { onBack?: () => void }) => (
+        <GenericInvestmentImportView {...props} definition={definition} />
+      )
+    ])
+  ) as DataImportConfig['entityViews']
+
+  return {
+    headerLabel: labels.headerLabel,
+    headerDescription: labels.headerDescription,
+    searchPlaceholder: labels.searchPlaceholder,
+    backUrl: '/platform/use',
+    prefixDataTestId: 'DataImport',
+
+    validEntityTypes: new Set([
+      ...STATIC_ENTITY_TYPES,
+      ...groupDefinitions.map(definition => definition.group.entityType)
+    ]),
+
+    entityCards: [
+      createEntityCard(
+        labels.leadCard.title,
+        labels.leadCard.description,
+        UserIcon,
+        labels.leadCard.buttonLabel,
+        'lead'
+      ),
+      createEntityCard(
+        labels.contactCard.title,
+        labels.contactCard.description,
+        IdentificationCardIcon,
+        labels.contactCard.buttonLabel,
+        'contact'
+      ),
+      createEntityCard(
+        labels.accountCard.title,
+        labels.accountCard.description,
+        BuildingsIcon,
+        labels.accountCard.buttonLabel,
+        'account'
+      ),
+      createEntityCard(
+        labels.opportunityCard.title,
+        labels.opportunityCard.description,
+        ChartLineIcon,
+        labels.opportunityCard.buttonLabel,
+        'opportunity'
+      ),
+      createMultiEntryCard(
+        labels.investmentsCard.title,
+        labels.investmentsCard.description,
+        TrendUpIcon,
+        investmentEntries
+      )
+    ],
+
+    entityViews: {
+      lead: LeadImportView,
+      contact: ContactImportView,
+      account: AccountImportView,
+      opportunity: OpportunityImportView,
+      ...dynamicViews
+    }
+  }
+}

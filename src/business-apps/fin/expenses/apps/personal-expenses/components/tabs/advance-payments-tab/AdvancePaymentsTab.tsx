@@ -84,7 +84,6 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     setAmountRange,
     setAdvanceRange,
     applyStatisticsCardFilter,
-    filterGroups,
     handleDataFilterChange,
     filterLabelMap,
     selectedFilters,
@@ -186,7 +185,6 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
       activeFilter={statusFilter}
       onFilterChange={setFilters}
       onClearFilters={handleClearAllFiltersNoParams}
-      filterGroups={filterGroups}
       handleFilterChange={handleFilterChange}
       filterLabelMap={filterLabelMap}
       amountRange={amountRange}

@@ -1,14 +1,15 @@
 import React, { useMemo } from 'react'
 import '@newwork/nw-design-system/style'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useTranslation } from '@newwork/nw-design-system'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   UpdateEmployeeEntitlementsProvider,
   useUpdateEmployeeEntitlementsContext
 } from './context/UpdateEmployeeEntitlementsContext'
 import UpdateEmployeeEntitlementsForm from './components/UpdateEmployeeEntitlementsForm'
+import translations from '../_i18n'
 
 interface UpdateEmployeeEntitlementsContentProps {
   onCancel?: () => void | Promise<void>
@@ -16,10 +17,8 @@ interface UpdateEmployeeEntitlementsContentProps {
 
 const UpdateEmployeeEntitlementsContent: React.FC<UpdateEmployeeEntitlementsContentProps> = ({ onCancel }) => {
   const { employeeHeaderInfo, loading } = useUpdateEmployeeEntitlementsContext()
-  const title = useMemo(
-    () => getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.update_entitlements', 'Update Entitlements'),
-    []
-  )
+  const { t } = useTranslation(translations)
+  const title = useMemo(() => t('entitlements-update-title'), [t])
 
   const hasEmployeeData = employeeHeaderInfo?.firstName || employeeHeaderInfo?.lastName
 

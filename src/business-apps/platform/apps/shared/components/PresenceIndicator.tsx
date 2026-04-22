@@ -17,6 +17,7 @@ export interface PresenceIndicatorProps {
   size?: 'sm' | 'md' | 'lg'
   showLabel?: boolean
   className?: string
+  formatParticipantStatus?: (lastActiveAt: Date | string | number | undefined) => string
 }
 
 /**
@@ -51,7 +52,8 @@ export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
   maxVisible = 3,
   size = 'md',
   showLabel = false,
-  className = ''
+  className = '',
+  formatParticipantStatus
 }) => {
   const participants = React.useMemo(() => {
     const seen = new Map<string, (typeof rawParticipants)[number]>()
@@ -116,7 +118,9 @@ export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
                 <div className="gba:flex gba:flex-col gba:gap-1">
                   <span className="gba:font-medium">{participant.userName}</span>
                   <span className="gba:text-xs gba:text-muted-foreground">
-                    Active {getRelativeTime(participant.lastActiveAt)}
+                    {formatParticipantStatus
+                      ? formatParticipantStatus(participant.lastActiveAt)
+                      : `Active ${getRelativeTime(participant.lastActiveAt)}`}
                   </span>
                 </div>
               </TooltipContent>

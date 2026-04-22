@@ -6,43 +6,52 @@ import { ContactImportView } from '../views/contact-import-view'
 import { AccountImportView } from '../views/account-import-view'
 import { OpportunityImportView } from '../views/opportunity-import-view'
 
-export const createCrmDataImportConfig = (): DataImportConfig => ({
-  headerLabel: 'Data Import',
-  headerDescription:
-    'Import data from CSV files with AI-powered field mapping. Upload your file, review suggested mappings, and import.',
-  searchPlaceholder: 'Search import types...',
+export interface CrmDataImportCardLabels {
+  title: string
+  description: string
+  buttonLabel: string
+}
+
+export interface CrmDataImportLabels {
+  headerLabel: string
+  headerDescription: string
+  searchPlaceholder: string
+  leadCard: CrmDataImportCardLabels
+  contactCard: CrmDataImportCardLabels
+  accountCard: CrmDataImportCardLabels
+  opportunityCard: CrmDataImportCardLabels
+}
+
+export const createCrmDataImportConfig = (labels: CrmDataImportLabels): DataImportConfig => ({
+  headerLabel: labels.headerLabel,
+  headerDescription: labels.headerDescription,
+  searchPlaceholder: labels.searchPlaceholder,
   backUrl: '/platform/use',
   prefixDataTestId: 'DataImport',
 
   validEntityTypes: new Set(['lead', 'contact', 'account', 'opportunity']),
 
   entityCards: [
+    createEntityCard(labels.leadCard.title, labels.leadCard.description, UserIcon, labels.leadCard.buttonLabel, 'lead'),
     createEntityCard(
-      'Import Leads',
-      'Import potential customers from CSV with company information, contact details, and lead management fields. AI-powered field mapping helps you quickly map your data.',
-      UserIcon,
-      'Start Lead Import',
-      'lead'
-    ),
-    createEntityCard(
-      'Import Contacts',
-      'Import individual contacts from CSV with personal information, contact details, and language preferences. AI automatically detects and maps fields.',
+      labels.contactCard.title,
+      labels.contactCard.description,
       IdentificationCardIcon,
-      'Start Contact Import',
+      labels.contactCard.buttonLabel,
       'contact'
     ),
     createEntityCard(
-      'Import Accounts',
-      'Import company accounts from CSV with organization details, industry information, revenue data, and communication channels. AI-powered mapping streamlines the process.',
+      labels.accountCard.title,
+      labels.accountCard.description,
       BuildingsIcon,
-      'Start Account Import',
+      labels.accountCard.buttonLabel,
       'account'
     ),
     createEntityCard(
-      'Import Opportunities',
-      'Import sales opportunities from CSV with pipeline stages, forecasts, and deal information. AI-powered mapping streamlines the process.',
+      labels.opportunityCard.title,
+      labels.opportunityCard.description,
       ChartLineIcon,
-      'Start Opportunity Import',
+      labels.opportunityCard.buttonLabel,
       'opportunity'
     )
   ],

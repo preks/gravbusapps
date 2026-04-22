@@ -33,7 +33,6 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0)
 
   const {
-    filterGroups,
     selectedFilters,
     setFilters,
     handleFilterChange,
@@ -49,6 +48,10 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
     setEndDateRange,
     effectiveDateRange,
     setEffectiveDateRange,
+    reimbursableAmountRange,
+    setReimbursableAmountRange,
+    advanceAmountRange,
+    setAdvanceAmountRange,
     filterLabelMap,
     addFilter,
     removeFilter
@@ -283,7 +286,6 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
     onSearchChange,
     selectedFilters,
     setFilters: setFiltersForTable,
-    filterGroups,
     handleFilterChange: handleTableFilterChange,
     clearFilters,
     filterLabelMap: { ...filterLabelMap },
@@ -299,6 +301,10 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
     setEndDateRange,
     effectiveDateRange,
     setEffectiveDateRange,
+    reimbursableAmountRange,
+    setReimbursableAmountRange,
+    advanceAmountRange,
+    setAdvanceAmountRange,
     currencyStats
   }
 
