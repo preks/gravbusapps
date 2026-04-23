@@ -21,11 +21,15 @@ export const InvestmentPortal: React.FC<InvestmentPortalProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
 
-  const { isLoading, error, refetch, getUserAssociatedInvestments } = useInvestmentPortalIntegration({
-    accessToken,
-    userInfo,
-    additionalData
-  })
+  const { isLoading, isSearching, error, refetch, totalInvestmentsCount, getUserAssociatedInvestments } =
+    useInvestmentPortalIntegration(
+      {
+        accessToken,
+        userInfo,
+        additionalData
+      },
+      { searchQuery }
+    )
 
   // Listen for process completion (tile creation) and refresh data
   useProcessCompletion({
@@ -89,25 +93,11 @@ export const InvestmentPortal: React.FC<InvestmentPortalProps> = ({
     return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [])
 
-  // Get user-relevant investments
-  const userInvestments = useMemo(() => {
-    return getUserAssociatedInvestments()
-  }, [getUserAssociatedInvestments])
-
-  // Filter investments based on search query
-  const filteredInvestments = useMemo(() => {
-    if (!searchQuery.trim()) return userInvestments
-
-    const query = searchQuery.toLowerCase()
-    return userInvestments.filter(inv => {
-      const matchesName = inv.name?.toLowerCase().includes(query)
-      const matchesCode = inv.code?.toLowerCase().includes(query)
-      const matchesAccount = inv.investmentAccount?.name?.toLowerCase().includes(query)
-      const matchesType = inv.investmentType?.value?.toLowerCase().includes(query)
-
-      return matchesName || matchesCode || matchesAccount || matchesType
-    })
-  }, [userInvestments, searchQuery])
+  // Investments are already filtered server-side by the integration hook
+  // (account scope on initial load, plus the debounced `search` variable when
+  // the user types). No client-side filtering happens here anymore — the
+  // behavior matches the server-side InvestmentView search.
+  const filteredInvestments = useMemo(() => getUserAssociatedInvestments(), [getUserAssociatedInvestments])
 
   // Authentication Check
   if (!accessToken) {
@@ -166,8 +156,10 @@ export const InvestmentPortal: React.FC<InvestmentPortalProps> = ({
     )
   }
 
-  // No Investments State
-  if (userInvestments.length === 0) {
+  // No Investments State — only when the user truly has zero investments
+  // (checked against the un-searched total, not the filtered list, so we don't
+  // accidentally show "No Investments Found" while a search is active).
+  if (totalInvestmentsCount === 0) {
     return (
       <div className="gba:min-h-screen gba:bg-background">
         {/* Header */}
@@ -193,12 +185,14 @@ export const InvestmentPortal: React.FC<InvestmentPortalProps> = ({
     )
   }
 
-  const hasMultipleInvestments = userInvestments.length > 1
+  // Use the un-searched total here so the search bar / single-card layout
+  // doesn't flip when a search narrows the list down to one or zero results.
+  const hasMultipleInvestments = totalInvestmentsCount > 1
 
   return (
     <div className="gba:min-h-screen gba:bg-background" data-testid={formatDataTestId(prefixDataTestId, 'Container')}>
       {/* Header */}
-      <InvestmentPortalBanner userInfo={userInfo} investmentCount={userInvestments.length} />
+      <InvestmentPortalBanner userInfo={userInfo} investmentCount={totalInvestmentsCount} />
 
       {/* Content */}
       <div className="gba:w-full gba:max-w-[1440px] gba:mx-auto gba:px-8 gba:py-8 gba:space-y-6">
@@ -207,13 +201,16 @@ export const InvestmentPortal: React.FC<InvestmentPortalProps> = ({
           <>
             <InvestmentSearch value={searchQuery} onChange={setSearchQuery} />
 
-            {/* Results Count */}
+            {/* Results Count + in-flight search indicator */}
             {searchQuery && (
-              <div className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'investment.search.results',
-                  `Showing ${filteredInvestments.length} of ${userInvestments.length} investments`
-                )}
+              <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
+                {isSearching ? <Spinner size="sm" /> : null}
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'investment.search.results',
+                    `Showing ${filteredInvestments.length} of ${totalInvestmentsCount} investments`
+                  )}
+                </span>
               </div>
             )}
           </>
@@ -244,8 +241,8 @@ export const InvestmentPortal: React.FC<InvestmentPortalProps> = ({
           })}
         </div>
 
-        {/* Empty Search Results */}
-        {filteredInvestments.length === 0 && searchQuery && (
+        {/* Empty Search Results — only show once the in-flight search settled */}
+        {filteredInvestments.length === 0 && searchQuery && !isSearching && (
           <div className="gba:text-center gba:py-12">
             <p className="gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
