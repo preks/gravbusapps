@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from 'react'
-import { DataDisplay, DataTable, useTranslation } from '@newwork/nw-design-system'
+import { CreateLayout, DataDisplay, DataTable, useTranslation } from '@newwork/nw-design-system'
 import { CodeIcon, KeyIcon, ListIcon, PlusIcon } from '@phosphor-icons/react'
 import type { SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -306,97 +306,67 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
     )
   }
 
-  const canvasPanel =
-    listView === 'credentials' ? (
-      <FunctionManagerSecretsView accessToken={context.accessToken} />
-    ) : (
-      <DataDisplay
-        titleSections={categoryTitleSections}
-        currentSection={category}
-        onSectionChange={handleCategorySectionChange}
-        searchValue={search}
-        searchPlaceholder={t('search-placeholder')}
-        onSearchChange={setSearch}
-        availableColumns={availableColumns}
-        visibleColumns={visibleColumns}
-        onVisibleColumnsChange={setVisibleColumns}
-        sorting={sorting}
-        onSortingChange={setSorting}
-        sortableColumns={availableColumns}
-        primaryAction={{
-          label: t('new-function'),
-          onClick: openCreate,
-          icon: PlusIcon
-        }}
-        toolbarDensity="default"
-      >
-        <DataTable<LatestFunctionItem>
-          data={data}
-          columns={columns}
-          loading={loading}
-          error={error}
-          actions={[{ label: t('edit'), onClick: (fn: LatestFunctionItem) => handleRowClick(fn) }]}
-          tableLayout="fixed"
-          enableColumnPinning={true}
-          enableSorting
-          sorting={sorting}
-          onSortingChange={setSorting}
-          enablePagination
-          pagination={pagination}
-          onPaginationChange={setPagination}
-          totalCount={total}
-          rowsPerPageOptions={[10, 20, 50, 100]}
-          emptyMessage={t('empty-message')}
-          onRowClick={handleRowClick}
-          data-testid={`${DATA_TEST_ID}-table`}
-        />
-      </DataDisplay>
-    )
-
   return (
-    <div
+    <CreateLayout
+      heroVariant="overview"
+      heroOverline="Create"
+      heroIcon={<CodeIcon className="gba:w-8 gba:h-8 gba:text-white" />}
+      heroTitle={t('page-title')}
+      heroSubtitle={t('page-description')}
+      heroBackground={<PremiumHeroBackground />}
+      views={overviewViews}
+      currentView={listView}
+      onViewChange={handleListViewChange}
+      canvasPanel={
+        listView === 'credentials' ? (
+          <FunctionManagerSecretsView accessToken={context.accessToken} />
+        ) : (
+          <DataDisplay
+            titleSections={categoryTitleSections}
+            currentSection={category}
+            onSectionChange={handleCategorySectionChange}
+            searchValue={search}
+            searchPlaceholder={t('search-placeholder')}
+            onSearchChange={setSearch}
+            availableColumns={availableColumns}
+            visibleColumns={visibleColumns}
+            onVisibleColumnsChange={setVisibleColumns}
+            sorting={sorting}
+            onSortingChange={setSorting}
+            sortableColumns={availableColumns}
+            primaryAction={{
+              label: t('new-function'),
+              onClick: openCreate,
+              icon: PlusIcon
+            }}
+            toolbarDensity="default"
+          >
+            <DataTable<LatestFunctionItem>
+              data={data}
+              columns={columns}
+              loading={loading}
+              error={error}
+              actions={[{ label: t('edit'), onClick: (fn: LatestFunctionItem) => handleRowClick(fn) }]}
+              tableLayout="fixed"
+              enableColumnPinning={true}
+              enableSorting
+              sorting={sorting}
+              onSortingChange={setSorting}
+              enablePagination
+              pagination={pagination}
+              onPaginationChange={setPagination}
+              totalCount={total}
+              rowsPerPageOptions={[10, 20, 50, 100]}
+              emptyMessage={t('empty-message')}
+              onRowClick={handleRowClick}
+              data-testid={`${DATA_TEST_ID}-table`}
+            />
+          </DataDisplay>
+        )
+      }
+      className={className}
       data-testid={DATA_TEST_ID}
-      className={['gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full', className].filter(Boolean).join(' ')}
-    >
-      <div className="gba:relative gba:overflow-hidden gba:border-b gba:border-border">
-        <PremiumHeroBackground />
-        <div className="gba:relative gba:flex gba:items-center gba:gap-3 gba:p-6">
-          <div className="gba:flex gba:h-10 gba:w-10 gba:items-center gba:justify-center gba:rounded-md gba:bg-primary/10">
-            <CodeIcon className="gba:h-5 gba:w-5 gba:text-primary" />
-          </div>
-          <div className="gba:min-w-0">
-            <div className="gba:text-xs gba:uppercase gba:tracking-wide gba:text-muted-foreground">Create</div>
-            <div className="gba:text-lg gba:font-semibold gba:text-foreground">{t('page-title')}</div>
-            <div className="gba:text-sm gba:text-muted-foreground">{t('page-description')}</div>
-          </div>
-        </div>
-        {overviewViews.length > 1 ? (
-          <div className="gba:relative gba:flex gba:items-center gba:gap-1 gba:border-t gba:border-border gba:px-6 gba:py-2">
-            {overviewViews.map(view => {
-              const isActive = view.value === listView
-              return (
-                <button
-                  key={view.value}
-                  type="button"
-                  onClick={() => handleListViewChange(view.value)}
-                  data-testid={`${DATA_TEST_ID}-view-${view.value}`}
-                  className={[
-                    'gba:inline-flex gba:items-center gba:gap-2 gba:rounded-md gba:px-3 gba:py-1.5 gba:text-sm',
-                    isActive
-                      ? 'gba:bg-muted gba:text-foreground gba:font-medium'
-                      : 'gba:text-muted-foreground hover:gba:text-foreground'
-                  ].join(' ')}
-                >
-                  {view.icon}
-                  {view.label}
-                </button>
-              )
-            })}
-          </div>
-        ) : null}
-      </div>
-      <div className="gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-auto gba:p-6">{canvasPanel}</div>
-    </div>
+    />
   )
 }
 

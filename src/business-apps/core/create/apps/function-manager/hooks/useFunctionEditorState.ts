@@ -523,6 +523,7 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
         })
       } else if (func?.id) {
         await client.updateFunction(func.id, {
+          name: name.trim(),
           description: description.trim() || undefined,
           category,
           subcategory: subcategory.trim() || undefined,
