@@ -17,11 +17,16 @@ import {
 import { PieChart, Pie, Cell } from 'recharts'
 import { HeartIcon } from '@phosphor-icons/react'
 
+export type PipelineConfidenceMetric = 'winningChance' | 'winRate'
+
 export interface PipelineHealthMetrics {
   healthScore: number
   totalOpportunities: number
   avgOpportunityAge: number // days
-  avgWinningChance: number // percent
+  /** Confidence indicator value in [0, 100] - either avg winning chance or realized win rate. */
+  confidenceScore: number
+  confidenceMetric: PipelineConfidenceMetric
+  confidenceUnavailable?: boolean
 }
 
 export interface PipelineHealthOverviewProps {
@@ -230,8 +235,12 @@ export const PipelineHealthOverview: React.FC<PipelineHealthOverviewProps> = ({
             <div className="gba:text-xs gba:text-gray-600">Avg Age</div>
           </div>
           <div className="gba:text-center">
-            <div className="gba:text-lg gba:font-bold gba:text-purple-600">{data.avgWinningChance}%</div>
-            <div className="gba:text-xs gba:text-gray-600">Avg Win Rate</div>
+            <div className="gba:text-lg gba:font-bold gba:text-purple-600">
+              {data.confidenceUnavailable ? 'n/a' : `${data.confidenceScore}%`}
+            </div>
+            <div className="gba:text-xs gba:text-gray-600">
+              {data.confidenceMetric === 'winRate' ? 'Win Rate' : 'Avg Win Chance'}
+            </div>
           </div>
         </div>
       </CardContent>
