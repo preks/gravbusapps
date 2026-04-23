@@ -42,9 +42,16 @@ export const createFunctionsColumns = (t: TranslationFn): ColumnDef<LatestFuncti
     header: t('column-category'),
     size: 120,
     cell: ({ row }) => (
-      <span className="gba:inline-flex gba:items-center gba:rounded gba:bg-muted gba:px-2 gba:py-0.5 gba:text-xs gba:font-medium gba:text-foreground">
-        {row.original.category || 'General'}
-      </span>
+      <div className="gba:flex gba:items-center gba:gap-1.5">
+        <span className="gba:inline-flex gba:items-center gba:rounded gba:bg-muted gba:px-2 gba:py-0.5 gba:text-xs gba:font-medium gba:text-foreground">
+          {row.original.category || 'General'}
+        </span>
+        {row.original.category !== 'Custom' ? (
+          <span className="gba:inline-flex gba:items-center gba:rounded gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-muted-foreground">
+            Internal
+          </span>
+        ) : null}
+      </div>
     )
   },
   {

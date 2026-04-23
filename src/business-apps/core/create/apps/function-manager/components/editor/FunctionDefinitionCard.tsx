@@ -140,6 +140,7 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
   'data-testid': testId = 'function-editor-definition'
 }) => {
   const sourceOk = String(source || '').includes('module.exports.handler')
+  const isInternalTool = category !== 'Custom'
 
   const parseJsonOk = (text: string) => {
     const t = String(text || '').trim()
@@ -162,7 +163,14 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
   return (
     <Card data-testid={testId}>
       <CardHeader>
-        <CardTitle>Function Definition</CardTitle>
+        <CardTitle className="gba:flex gba:items-center gba:gap-2">
+          <span>Function Definition</span>
+          {isInternalTool ? (
+            <Badge variant="secondary" data-testid={`${testId}-internal-badge`}>
+              Internal Tool
+            </Badge>
+          ) : null}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <Tabs
@@ -343,6 +351,11 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
                 <div className="gba:text-xs gba:text-muted-foreground">
                   Must export <span className="gba:font-mono">module.exports.handler</span>.
                 </div>
+                {isInternalTool ? (
+                  <div className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-source-readonly-hint`}>
+                    Internal tools are view-only in UI. Source editing is disabled.
+                  </div>
+                ) : null}
               </div>
               {sourceOk ? <Badge variant="success">Valid</Badge> : null}
             </div>
@@ -351,6 +364,7 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
                 language="javascript"
                 value={source}
                 onChange={onSourceChange}
+                readOnly={isInternalTool}
                 height="400px"
                 data-testid={`${testId}-source-editor`}
               />
