@@ -1,72 +1,31 @@
-import React, { useState, useMemo } from 'react'
-import { Button, Card, CardContent, PageLayout } from '@newwork/nw-design-system'
-import { MagnifyingGlassIcon, DownloadIcon, FileTextIcon } from '@phosphor-icons/react'
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import React, { useMemo, useCallback, useState, useEffect } from 'react'
+import { DataDisplay, Button, PageLayout, Tabs, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import { DownloadIcon, FileTextIcon } from '@phosphor-icons/react'
+import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpenseReportData, ReportType, type ReportItem } from '../../hooks/useExpenseReportData'
-import { ensureShortDateFormat } from '../../utils/dateUtils'
+import { useManagerExpenseReportUrlSync } from '../../hooks/useManagerExpenseReportUrlSync'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { sanitizeFilename } from '@/common/utils/textUtils'
 import { ExpenseDataTable } from '../../../../common/components/table/ExpenseDataTable'
 import { useTableSetup } from '../../../../common/hooks/useTableSetup'
 import { createExpenseReportTableColumns, getExportFieldsForReportType } from '../expense-reports/expenseReportColumns'
-
-// Shared helpers for rendering/exporting values
-const dateKeys = new Set(['date', 'startDate', 'endDate', 'submissionDate', 'requestDate', 'createdAt', 'planDate'])
-
-const REPORT_EXPORT_EMPTY = '-'
-
-const formatCellValue = (key: string, raw: unknown): string => {
-  if (raw == null) {
-    return REPORT_EXPORT_EMPTY
-  }
-  if (typeof raw === 'string' && !raw.trim()) {
-    return REPORT_EXPORT_EMPTY
-  }
-  if (dateKeys.has(key)) {
-    return raw ? ensureShortDateFormat(String(raw)) : REPORT_EXPORT_EMPTY
-  }
-  if (typeof raw === 'number') {
-    return String(raw)
-  }
-  return String(raw)
-}
-
-const escapeCsv = (value: string) => {
-  const needsQuotes = /[",\r\n]/.test(value)
-  // SonarCloud: Using replace() for ES2020 compatibility (replaceAll requires ES2021)
-  const out = value.replace(/"/g, '""')
-  return needsQuotes ? `"${out}"` : out
-}
-
-// SonarCloud: Using replace() for ES2020 compatibility (replaceAll requires ES2021)
-const htmlEscape = (value: string) =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-
-const buildFilename = (type: string, ext: string) => {
-  const ts = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const filename = `expense-report-${type}-${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${ext}`
-
-  // Sanitize once at the end for defense-in-depth
-  // Note: type and ext are hardcoded, but sanitizing final filename provides security layer
-  return sanitizeFilename(filename)
-}
+import { getManagerExpenseReportTypeTabs } from '../expense-reports/managerExpenseReportPageTabConfig'
+import { parseManagerReportTypeParam } from '../../utils/managerExpenseReportPageUrlUtils'
+import {
+  buildManagerExpenseReportDownloadFilename,
+  escapeManagerExpenseReportCsv,
+  formatManagerExpenseReportCell,
+  htmlEscapeForManagerExpenseReport
+} from '../../utils/managerExpenseReportPageExportUtils'
+import {
+  EXPENSE_REPORT_SEGMENTED_TAB_TRIGGER_CLASS,
+  EXPENSE_REPORT_TABS_ROOT_CLASS,
+  getExpenseReportSegmentedTabsListClassName
+} from '../../../../common/utils/segmentedExpenseReportTabsClassNames'
 
 type ExpenseReportsPageProps = BusinessAppContextProps
 
 const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, userInfo }) => {
-  // State
-  // search term handled by hook; keep local for type search only
-  const [reportTypeSearchTerm, setReportTypeSearchTerm] = useState('')
-  // remove duplicate selectedReportType; use hook state
-
-  // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(
     () => ({
       accessToken,
@@ -75,7 +34,6 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
     [accessToken, userInfo]
   )
 
-  // Hook to get expense report data
   const {
     reportData,
     isLoading,
@@ -85,12 +43,20 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
     setCurrentPage,
     pageSize,
     setPageSize,
-    searchTerm,
     setSearchTerm,
     selectedReportType,
     setSelectedReportType,
     fetchAllForExport
   } = useExpenseReportData(contextProps)
+
+  const [localSearchText, setLocalSearchText] = useState('')
+  const debouncedSearch = useDebounce(localSearchText, 300)
+  useEffect(() => {
+    setSearchTerm(debouncedSearch)
+    setCurrentPage(1)
+  }, [debouncedSearch, setSearchTerm, setCurrentPage])
+
+  useManagerExpenseReportUrlSync(setSelectedReportType, selectedReportType)
 
   const allColumns = useMemo(
     () => createExpenseReportTableColumns(selectedReportType ?? ReportType.EXPENSE_ITEM),
@@ -107,83 +73,57 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
     setPageSize
   )
 
-  // Define report types with display names
-  const reportTypes: Array<{ key: ReportType; name: string; description: string }> = [
-    {
-      key: ReportType.EXPENSE_ITEM,
-      name: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_items', 'Expense Items'),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.individual_expense_transactions',
-        'Individual expense items and transactions'
-      )
-    },
-    {
-      key: ReportType.EXPENSE_PLAN,
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-        'Expense Plans'
-      ),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_plans_subheader',
-        'Budget plans and allocations'
-      )
-    },
-    {
-      key: ReportType.EXPENSE_REQUEST,
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_list.flows_button.expense_requests',
-        'Expense Requests'
-      ),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_requests_subheader',
-        'Submitted expense requests and approvals'
-      )
-    },
-    {
-      key: ReportType.ADVANCE_PAYMENT,
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:backoffice_expense_landing_page.advance_title',
-        'Advance Payments'
-      ),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
-        'Cash advances and prepayments'
-      )
-    }
-  ]
+  const reportTypes = getManagerExpenseReportTypeTabs()
 
-  // Filter report types based on search
-  const filteredReportTypes = reportTypes.filter(
-    type =>
-      type.name.toLowerCase().includes(reportTypeSearchTerm.toLowerCase()) ||
-      type.description.toLowerCase().includes(reportTypeSearchTerm.toLowerCase())
+  const reportDataLabel = useMemo(
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.report_data', 'Data'),
+    []
+  )
+  const reportSearchPlaceholder = useMemo(
+    () =>
+      getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_expenses_page.dashboard_tab.search_report_data',
+        'Search report data...'
+      ),
+    []
+  )
+  const handleManagerReportSearchChange = useCallback((value: string) => {
+    setLocalSearchText(value)
+  }, [])
+
+  const handleReportTypeTabChange = useCallback(
+    (value: string) => {
+      const next = parseManagerReportTypeParam(value)
+      if (next) {
+        setSelectedReportType(next)
+      }
+    },
+    [setSelectedReportType]
   )
 
-  // Handle download action (CSV export)
   const handleDownload = async () => {
     const cols = getExportFieldsForReportType(selectedReportType)
     if (cols.length === 0) {
       return
     }
 
-    const header = cols.map(c => escapeCsv(c.title))
+    const header = cols.map(c => escapeManagerExpenseReportCsv(c.title))
 
     const allRows = await fetchAllForExport()
     const rows = (allRows as ReportItem[]).map(row => {
       const record = row as Record<string, unknown>
-      return cols.map(c => escapeCsv(formatCellValue(c.key, record[c.key])))
+      return cols.map(c => escapeManagerExpenseReportCsv(formatManagerExpenseReportCell(c.key, record[c.key])))
     })
 
     const csvLines = [header.join(','), ...rows.map(r => r.join(','))]
     const csvContent = csvLines.join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
-    const filename = buildFilename(String(selectedReportType), 'csv')
+    const filename = buildManagerExpenseReportDownloadFilename(String(selectedReportType), 'csv')
 
     const link = document.createElement('a')
     link.href = url
-    link.download = filename // Already sanitized by buildFilename()
-    // Set additional security attributes
+    link.download = filename
     link.setAttribute('rel', 'noopener noreferrer')
     document.body.appendChild(link)
     link.click()
@@ -191,20 +131,24 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
     URL.revokeObjectURL(url)
   }
 
-  // Handle download action (Excel .xls via HTML table)
   const handleDownloadExcel = async () => {
     const cols = getExportFieldsForReportType(selectedReportType)
     if (cols.length === 0) {
       return
     }
 
-    const headerCells = cols.map(c => `<th>${htmlEscape(c.title)}</th>`).join('')
+    const headerCells = cols.map(c => `<th>${htmlEscapeForManagerExpenseReport(c.title)}</th>`).join('')
 
     const allRows = await fetchAllForExport()
     const bodyRows = (allRows as ReportItem[])
       .map(row => {
         const tds = cols
-          .map(c => `<td>${htmlEscape(formatCellValue(c.key, (row as Record<string, unknown>)[c.key]))}</td>`)
+          .map(
+            c =>
+              `<td>${htmlEscapeForManagerExpenseReport(
+                formatManagerExpenseReportCell(c.key, (row as Record<string, unknown>)[c.key])
+              )}</td>`
+          )
           .join('')
         return `<tr>${tds}</tr>`
       })
@@ -215,12 +159,11 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
 
     const blob = new Blob([html], { type: 'application/vnd.ms-excel' })
     const url = URL.createObjectURL(blob)
-    const filename = buildFilename(String(selectedReportType), 'xls')
+    const filename = buildManagerExpenseReportDownloadFilename(String(selectedReportType), 'xls')
 
     const link = document.createElement('a')
     link.href = url
-    link.download = filename // Already sanitized by buildFilename()
-    // Set additional security attributes
+    link.download = filename
     link.setAttribute('rel', 'noopener noreferrer')
     document.body.appendChild(link)
     link.click()
@@ -242,77 +185,51 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
         headerIcon={FileTextIcon as any}
         className="gba:min-h-screen"
       >
-        <div className="gba:px-6 gba:h-full gba:flex gba:gap-6" data-testid="expense-reports-page">
-          {/* Left Sidebar - Report Types */}
-          <div className="gba:w-80 gba:flex gba:flex-col gba:space-y-4">
-            <div>
-              <h3 className="gba:text-lg gba:font-medium gba:mb-4">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.report_types',
-                  'Report Types'
-                )}
-              </h3>
+        <div
+          className="gba:px-6 gba:pb-6 gba:min-w-0 gba:flex-1 gba:flex gba:flex-col gba:gap-4"
+          data-testid="expense-reports-page"
+        >
+          {/* Same pattern as backoffice: full-width tab list, then toolbar (DataDisplay below there) */}
+          <Tabs
+            value={selectedReportType ?? ReportType.EXPENSE_ITEM}
+            onValueChange={handleReportTypeTabChange}
+            className={EXPENSE_REPORT_TABS_ROOT_CLASS}
+            data-testid="manager-expense-reports-tabs"
+          >
+            <TabsList className={getExpenseReportSegmentedTabsListClassName(4)}>
+              {reportTypes.map(type => (
+                <TabsTrigger
+                  key={type.key}
+                  value={type.key}
+                  className={EXPENSE_REPORT_SEGMENTED_TAB_TRIGGER_CLASS}
+                  data-testid={`expense-reports-type-${type.key}`}
+                >
+                  {type.name}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
-              {/* Search Report Types */}
-              <div className="gba:relative gba:mb-4">
-                <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
-                <DebouncedInput
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.search_report_types',
-                    'Search report types...'
-                  )}
-                  onChange={val => setReportTypeSearchTerm(val)}
-                  value={reportTypeSearchTerm}
-                  className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
-                  data-testid="expense-reports-type-search-input"
-                />
-              </div>
-
-              {/* Report Type List */}
-              <div className="gba:space-y-2">
-                {filteredReportTypes.map(type => (
-                  <Card
-                    key={type.key}
-                    className={`gba:cursor-pointer gba:transition-colors gba:hover:bg-accent ${
-                      selectedReportType === type.key ? 'gba:border-primary gba:bg-accent' : ''
-                    }`}
-                    onClick={() => setSelectedReportType(type.key)}
-                    data-testid={`expense-reports-type-${type.key}`}
-                  >
-                    <CardContent className="gba:p-4">
-                      <h4 className="gba:font-medium gba:text-sm">{type.name}</h4>
-                      <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{type.description}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content - Report Table (min-w-0 so flex + wide DataTable use inner overflow-x like personal-expenses) */}
-          <div className="gba:min-w-0 gba:flex-1 gba:flex gba:flex-col">
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
-              <div className="gba:relative gba:w-64">
-                <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
-                <DebouncedInput
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.search_report_data',
-                    'Search report data...'
-                  )}
-                  onChange={val => {
-                    setSearchTerm(val)
-                    setCurrentPage(1)
-                  }}
-                  value={searchTerm}
-                  className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
-                  data-testid="expense-reports-data-search-input"
-                />
-              </div>
+          <DataDisplay
+            titleSections={[
+              {
+                id: 'results',
+                label: reportDataLabel,
+                metadata: { count: totalCount, isLoading }
+              }
+            ]}
+            currentSection="results"
+            searchValue={localSearchText}
+            searchPlaceholder={reportSearchPlaceholder}
+            onSearchChange={handleManagerReportSearchChange}
+            toolbarDensity="default"
+            enableLiveFiltering
+            primaryAction={
               <div className="gba:flex gba:items-center gba:gap-2">
                 <Button
                   variant="outline"
                   onClick={handleDownload}
-                  className="gba:flex gba:items-center gba:gap-2"
+                  className="gba:flex gba:shrink-0 gba:items-center gba:gap-2"
                   data-testid="expense-reports-download-button"
                 >
                   <DownloadIcon className="gba:text-sm" />
@@ -324,7 +241,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
                 <Button
                   variant="outline"
                   onClick={handleDownloadExcel}
-                  className="gba:flex gba:items-center gba:gap-2"
+                  className="gba:flex gba:shrink-0 gba:items-center gba:gap-2"
                   data-testid="expense-reports-download-excel-button"
                 >
                   <DownloadIcon className="gba:text-sm" />
@@ -334,30 +251,33 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
                   )}
                 </Button>
               </div>
+            }
+            data-testid="expense-reports-filters-card"
+          >
+            <div className="gba:border gba:border-border gba:rounded-md gba:bg-background gba:min-w-0">
+              <ExpenseDataTable<ReportItem>
+                key={selectedReportType ?? 'report-type'}
+                data={reportData}
+                columns={columns}
+                loading={isLoading}
+                error={error}
+                totalCount={totalCount}
+                pagination={pagination}
+                onPaginationChange={handlePaginationChange}
+                emptyMessage={[
+                  getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:team_expenses_page.dashboard_tab.no_expense_reports_found',
+                    'No expense reports found'
+                  ),
+                  getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:team_expenses_page.dashboard_tab.adjust_search',
+                    'Try selecting a different report type or adjusting your search.'
+                  )
+                ].join(' ')}
+                dataTestId="expense-reports-table"
+              />
             </div>
-
-            <ExpenseDataTable<ReportItem>
-              key={selectedReportType ?? 'report-type'}
-              data={reportData}
-              columns={columns}
-              loading={isLoading}
-              error={error}
-              totalCount={totalCount}
-              pagination={pagination}
-              onPaginationChange={handlePaginationChange}
-              emptyMessage={[
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.no_expense_reports_found',
-                  'No expense reports found'
-                ),
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.adjust_search',
-                  'Try selecting a different report type or adjusting your search.'
-                )
-              ].join(' ')}
-              dataTestId="expense-reports-table"
-            />
-          </div>
+          </DataDisplay>
         </div>
       </PageLayout>
     </div>

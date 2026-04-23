@@ -15,6 +15,7 @@ import type {
   ReportItem
 } from '../../hooks/useExpenseReportData'
 import { ReportType } from '../../hooks/useExpenseReportData'
+import { formatPaymentMethodForExpenseTables } from '../../../../common/utils/paymentMethodListDisplay'
 
 const sortOff = { enableSorting: false as const }
 
@@ -372,11 +373,18 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           accessorKey: 'paymentMethod',
           header: getTranslationFromI18nKeyAndLabel('lowcoder:payment_method', 'Payment Method'),
           ...sortOff,
-          cell: ({ row }) => (
-            <span className="gba:text-sm" data-testid={`expense-reports-cell-paymentMethod-${row.original.id}`}>
-              {row.original.paymentMethod?.trim() ? row.original.paymentMethod : REPORT_DASH}
-            </span>
-          )
+          cell: ({ row }) => {
+            const label = formatPaymentMethodForExpenseTables(row.original.paymentMethod, REPORT_DASH)
+            return (
+              <span
+                className="gba:text-sm gba:min-w-0 gba:truncate gba:block"
+                data-testid={`expense-reports-cell-paymentMethod-${row.original.id}`}
+                title={label === REPORT_DASH ? undefined : label}
+              >
+                {label}
+              </span>
+            )
+          }
         },
         {
           id: 'costCenter',

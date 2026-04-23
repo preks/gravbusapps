@@ -132,7 +132,7 @@ export const useExpenseReportData = ({
 
   // State for pagination and filtering
   const [currentPage, setCurrentPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(10)
+  const [pageSize, setPageSize] = useState<number>(20)
   const [searchTerm, setSearchTerm] = useState<string>('')
 
   // State for selected report type (use setter that resets page so a new type never reuses a stale high page)
