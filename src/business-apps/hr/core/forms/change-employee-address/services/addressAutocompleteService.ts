@@ -42,8 +42,7 @@ const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 // Restrict this key to our dev hostnames in the Geoapify dashboard so it's useless if leaked.
 const GEOAPIFY_API_KEY = 'e2466c3acbfe4f1a9e4ed699bc27480f'
 
-const getApiKey = (): string | undefined =>
-  GEOAPIFY_API_KEY && GEOAPIFY_API_KEY.startsWith('PASTE_') ? undefined : GEOAPIFY_API_KEY
+const getApiKey = (): string | undefined => (GEOAPIFY_API_KEY?.startsWith('PASTE_') ? undefined : GEOAPIFY_API_KEY)
 
 /**
  * Returns the map tile URL template for Leaflet. Falls back to OpenStreetMap's
@@ -85,6 +84,20 @@ interface GeoapifyProperties {
 interface GeoapifyFeature {
   properties?: GeoapifyProperties
   geometry?: { coordinates?: [number, number] }
+}
+
+/**
+ * Geoapify returns either `results` (flat properties) or `features` (GeoJSON-style wrappers)
+ * depending on endpoint/format. Normalize both shapes into a unified `GeoapifyFeature[]`.
+ */
+const extractFeatures = (data: { results?: GeoapifyProperties[]; features?: GeoapifyFeature[] }): GeoapifyFeature[] => {
+  if (Array.isArray(data.results)) {
+    return data.results.map(props => ({ properties: props }))
+  }
+  if (Array.isArray(data.features)) {
+    return data.features
+  }
+  return []
 }
 
 const featureToComponents = (props: GeoapifyProperties): AddressComponents => ({
@@ -147,11 +160,7 @@ export const getAutocompleteSuggestions = async (
   if (!response.ok) return []
   const data = (await response.json()) as { results?: GeoapifyProperties[]; features?: GeoapifyFeature[] }
 
-  const rawResults: GeoapifyFeature[] = Array.isArray(data.results)
-    ? data.results.map(props => ({ properties: props }))
-    : Array.isArray(data.features)
-      ? data.features
-      : []
+  const rawResults = extractFeatures(data)
 
   return rawResults
     .map((feature, idx) => featureToSuggestion(feature, idx))
@@ -181,12 +190,7 @@ export const reverseGeocode = async (
   if (!response.ok) return null
   const data = (await response.json()) as { results?: GeoapifyProperties[]; features?: GeoapifyFeature[] }
 
-  const first: GeoapifyFeature | null =
-    Array.isArray(data.results) && data.results.length > 0
-      ? { properties: data.results[0] }
-      : Array.isArray(data.features) && data.features.length > 0
-        ? data.features[0]
-        : null
+  const first: GeoapifyFeature | null = extractFeatures(data)[0] ?? null
   if (!first) return null
 
   const props = first.properties || {}

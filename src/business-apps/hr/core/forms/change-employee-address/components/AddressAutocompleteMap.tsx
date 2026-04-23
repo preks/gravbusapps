@@ -197,7 +197,7 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
           if (!countryId) return undefined
           const parts = String(countryId).split(':')
           const code = parts[parts.length - 1]
-          return code && code.length === 2 ? code : undefined
+          return code?.length === 2 ? code : undefined
         })()
         const results = await getAutocompleteSuggestions(trimmed, {
           limit: 5,
@@ -323,10 +323,15 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
           </div>
 
           {isOpen && (suggestions.length > 0 || (!isSearching && query.trim().length >= 3)) && (
+            // TODO(a11y): when we promote the Find-address UI out of dev.enabled, implement the full
+            // WAI-ARIA combobox+listbox pattern here (role="combobox"/aria-expanded/aria-controls/
+            // aria-activedescendant on the input, role="listbox"/role="option" here, plus arrow-key
+            // navigation). For now we keep a plain <ul> to satisfy SonarQube S6807 which flags the
+            // listbox role in isolation. <select>/<datalist> are not viable alternatives because we
+            // render custom items (pin icon, "No results" state) and load suggestions async.
             <ul
               className="gba:absolute gba:z-[1000] gba:left-0 gba:right-0 gba:mt-1 gba:rounded-md gba:border gba:bg-popover gba:text-popover-foreground gba:shadow-md gba:max-h-64 gba:overflow-auto"
               data-testid="address-autocomplete-dropdown"
-              role="listbox"
             >
               {suggestions.length === 0 ? (
                 <li className="gba:px-3 gba:py-2 gba:text-sm gba:text-muted-foreground">{noResultsLabel}</li>
@@ -335,8 +340,6 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
                   <li
                     key={s.id}
                     className="gba:px-3 gba:py-2 gba:text-sm gba:cursor-pointer gba:hover:bg-accent gba:hover:text-accent-foreground"
-                    role="option"
-                    aria-selected="false"
                     onMouseDown={e => {
                       e.preventDefault()
                       handlePickSuggestion(s)

@@ -48,9 +48,9 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
   return (
     <>
       <CountryRegionFields
-        control={form.control as any}
+        control={form.control}
         catalogs={{ countries: catalogs?.countries || [], regions: catalogs?.regions || [] }}
-        setValue={form.setValue as any}
+        setValue={form.setValue}
         isDeleteMode={isDeleteMode}
         suppressValidation={isSwitchingSelection}
         suspendRegionRender
@@ -64,9 +64,9 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
       )}
 
       <CountryRegionFields
-        control={form.control as any}
+        control={form.control}
         catalogs={{ countries: catalogs?.countries || [], regions: catalogs?.regions || [] }}
-        setValue={form.setValue as any}
+        setValue={form.setValue}
         isDeleteMode={isDeleteMode}
         suppressValidation={isSwitchingSelection}
         suspendRegionRender={isSwitchingSelection}
@@ -74,7 +74,7 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
       />
 
       <AddressLines
-        control={form.control as any}
+        control={form.control}
         addressLineCount={addressLineCount}
         setAddressLineCount={setAddressLineCount as any}
         addressLinesError={addressLinesError}
@@ -83,7 +83,7 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
       />
 
       <FormField
-        control={form.control as any}
+        control={form.control}
         name={'postalCode' as any}
         rules={{
           validate: (v: any) => {
@@ -134,7 +134,7 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
       />
 
       <FormField
-        control={form.control as any}
+        control={form.control}
         name={'city' as any}
         rules={{
           required: getTranslationFromI18nKeyAndLabel(
@@ -164,7 +164,7 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
       />
 
       <FormField
-        control={form.control as any}
+        control={form.control}
         name={'comment' as any}
         render={({ field }) => (
           <FormItem>

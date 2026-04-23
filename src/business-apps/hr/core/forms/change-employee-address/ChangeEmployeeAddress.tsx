@@ -223,10 +223,10 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
         form.setValue('postalCode', first?.postalCode || '', { shouldDirty: false } as any)
         form.setValue('city', first?.locality || '', { shouldDirty: false } as any)
         form.setValue('regionId', first?.region?.id || null, { shouldDirty: false, shouldValidate: true } as any)
-        form.setValue('latitude', typeof (first as any)?.latitude === 'number' ? (first as any).latitude : null, {
+        form.setValue('latitude', typeof first?.latitude === 'number' ? first.latitude : null, {
           shouldDirty: false
         } as any)
-        form.setValue('longitude', typeof (first as any)?.longitude === 'number' ? (first as any).longitude : null, {
+        form.setValue('longitude', typeof first?.longitude === 'number' ? first.longitude : null, {
           shouldDirty: false
         } as any)
         try {
