@@ -17,11 +17,11 @@ import type { CrmFunnelData, CrmFunnelBuckets } from './types'
 
 /** Shared chart palette so bar and pie use the same colors (chart-1..5). */
 const CHART_COLOR_TOKENS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))'
+  'var(--nw-chart-1)',
+  'var(--nw-chart-2)',
+  'var(--nw-chart-3)',
+  'var(--nw-chart-4)',
+  'var(--nw-chart-5)'
 ] as const
 const FUNNEL_BAR_KEYS = ['open', 'inQualification', 'won', 'lost'] as const
 /** Funnel bars use first four palette colors (same as pie indices 0–3). */
@@ -31,7 +31,7 @@ const FUNNEL_BAR_PALETTE_INDEX: Record<(typeof FUNNEL_BAR_KEYS)[number], number>
   won: 2,
   lost: 3
 }
-const FALLBACK_CHART_COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b']
+const FALLBACK_CHART_COLORS = [...CHART_COLOR_TOKENS]
 
 function resolveCssColor(token: string, fallback: string): string {
   if (typeof document === 'undefined' || typeof window === 'undefined') return fallback
@@ -117,7 +117,7 @@ export const CrmFunnelDisplay: React.FC<{ data: CrmFunnelData }> = ({ data }) =>
                     layout="vertical"
                     margin={{ top: 8, right: 24, left: 80, bottom: 8 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-border)" />
                     <XAxis type="number" tickFormatter={v => formatAmount(v)} />
                     <YAxis type="category" dataKey="label" width={72} />
                     <Tooltip

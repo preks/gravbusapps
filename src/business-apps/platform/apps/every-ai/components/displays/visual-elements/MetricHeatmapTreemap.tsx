@@ -5,11 +5,11 @@ import type { HeatmapData, MetricCardsData, TreemapData } from '../../../types/m
 
 function heatColor(v: number, min: number, max: number): string {
   if (max <= min) {
-    return 'hsl(var(--chart-1) / 0.35)'
+    return 'color-mix(in oklch, var(--nw-chart-1) 35%, transparent)'
   }
   const t = (v - min) / (max - min)
-  const opacity = 0.15 + t * 0.75
-  return `hsl(var(--chart-1) / ${opacity.toFixed(2)})`
+  const intensityPercent = 15 + t * 75
+  return `color-mix(in oklch, var(--nw-chart-1) ${intensityPercent.toFixed(0)}%, transparent)`
 }
 
 export const MetricCardsDisplay: React.FC<{ data: MetricCardsData }> = ({ data }) => {
@@ -119,7 +119,10 @@ export const HeatmapDisplay: React.FC<{ data: HeatmapData }> = ({ data }) => {
                     key={`${ri}-${ci}`}
                     className="gba:min-h-10 gba:flex gba:items-center gba:justify-center gba:text-xs gba:cursor-default"
                     style={{
-                      backgroundColor: display != null ? heatColor(display, min, max) : 'hsl(var(--muted) / 0.3)'
+                      backgroundColor:
+                        display != null
+                          ? heatColor(display, min, max)
+                          : 'color-mix(in oklch, var(--nw-muted) 30%, transparent)'
                     }}
                     title={label ?? (display != null ? String(display) : '')}
                   >
@@ -148,8 +151,8 @@ export const TreemapDisplay: React.FC<{ data: TreemapData }> = ({ data }) => {
             data={[data.root]}
             dataKey="size"
             aspectRatio={4 / 3}
-            stroke="hsl(var(--border))"
-            fill="hsl(var(--chart-1))"
+            stroke="var(--nw-border)"
+            fill="var(--nw-chart-1)"
             isAnimationActive={false}
           >
             <Tooltip
