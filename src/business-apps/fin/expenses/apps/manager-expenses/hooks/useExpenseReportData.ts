@@ -7,7 +7,12 @@ import { GET_EXPENSE_ITEMS_BY_MANAGER } from '../queries/expenseItems'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getExpenseItemCategoryLabel } from '../../../common/utils/expenseItemCategoryLabel'
 import { GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER } from '../queries/advancePayments'
-import { getExpenseRequestStatusDisplay, getExpensePlanStatusDisplay, getAdvancePaymentStatusDisplay } from '../utils'
+import {
+  getExpenseItemStatusDisplay,
+  getExpenseRequestStatusDisplay,
+  getExpensePlanStatusDisplay,
+  getAdvancePaymentStatusDisplay
+} from '../utils'
 import { useManagerExpensesOverview } from './useManagerExpensesOverview'
 
 // Define report types
@@ -370,9 +375,9 @@ export const useExpenseReportData = ({
     return data.ExpenseItem.map((item: any) => {
       const expenseGroupValue = getExpenseItemCategoryLabel(item, categoryWhenMissing)
 
-      const statusDisplay = item.expenseRequest?.status
-        ? getExpenseRequestStatusDisplay(item.expenseRequest.status)
-        : { label: '', type: 'draft' }
+      const statusDisplay = item.status
+        ? getExpenseItemStatusDisplay(item.status)
+        : { label: '-', type: 'draft' as const }
 
       return {
         id: item.id,
