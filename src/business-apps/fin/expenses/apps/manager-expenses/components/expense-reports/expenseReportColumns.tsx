@@ -1,5 +1,4 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { Avatar, AvatarFallback } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   createCurrencyColumn,
@@ -83,19 +82,14 @@ function createReportEmployeeNameColumn<T extends { id: string; employeeName?: s
       if (!name) {
         return <span className="gba:text-sm gba:text-muted-foreground">{REPORT_DASH}</span>
       }
-      const initial = name.charAt(0).toUpperCase()
       return (
-        <div
-          className="gba:flex gba:min-w-0 gba:max-w-full gba:items-center gba:gap-2"
+        <span
+          className="gba:block gba:min-w-0 gba:truncate gba:font-medium gba:text-sm"
           data-testid={`expense-reports-employee-${row.original.id}`}
+          title={name}
         >
-          <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
-            <AvatarFallback>{initial}</AvatarFallback>
-          </Avatar>
-          <span className="gba:min-w-0 gba:truncate gba:font-medium gba:text-sm" title={name}>
-            {name}
-          </span>
-        </div>
+          {name}
+        </span>
       )
     }
   }
@@ -157,11 +151,19 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           accessorKey: 'category',
           header: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.category', 'Category'),
           ...sortOff,
-          cell: ({ row }) => (
-            <span className="gba:text-sm" data-testid={`expense-reports-cell-category-${row.original.id}`}>
-              {row.original.category?.trim() ? row.original.category : REPORT_DASH}
-            </span>
-          )
+          cell: ({ row }) => {
+            // `category` from `getExpenseItemCategoryLabel` / getCatalogValue (not ref)
+            const text = row.original.category?.trim() || REPORT_DASH
+            return (
+              <span
+                className="gba:text-sm gba:min-w-0 gba:truncate gba:block"
+                data-testid={`expense-reports-cell-category-${row.original.id}`}
+                title={text === REPORT_DASH ? undefined : text}
+              >
+                {text}
+              </span>
+            )
+          }
         },
         createStatusBadgeColumn<ExpenseItemReport>(
           'status',

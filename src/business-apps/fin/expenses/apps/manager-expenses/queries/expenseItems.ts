@@ -17,6 +17,7 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
         _or: [
           {title: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
+          {expensePosition: {expenseGroup: {value: {_ilike: $searchTerm}}}},
           {employee: {fullName: {_ilike: $searchTerm}}},
           {employee: {firstName: {_ilike: $searchTerm}}},
           {employee: {lastName: {_ilike: $searchTerm}}},
@@ -43,6 +44,7 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
         _or: [
           {title: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
+          {expensePosition: {expenseGroup: {value: {_ilike: $searchTerm}}}},
           {employee: {fullName: {_ilike: $searchTerm}}},
           {employee: {firstName: {_ilike: $searchTerm}}},
           {employee: {lastName: {_ilike: $searchTerm}}},
@@ -55,6 +57,13 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
       title
       expensePosition {
         expenseGroupRef
+        expenseGroup {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
       }
       expenseDate
       totalAmount

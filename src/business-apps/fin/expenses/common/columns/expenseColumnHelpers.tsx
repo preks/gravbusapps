@@ -119,6 +119,11 @@ export interface EmployeeColumnOptions {
   sortDescFirst?: boolean
   /** Set false for server-paginated or read-only tables where list sorting is not available. */
   enableSorting?: boolean
+  /**
+   * When false, shows the employee display name only (no Avatar).
+   * Default true for backoffice and other contexts that show photo/initials.
+   */
+  showEmployeeAvatar?: boolean
 }
 
 export function createEmployeeColumn<T extends object>(
@@ -129,6 +134,7 @@ export function createEmployeeColumn<T extends object>(
 ): ColumnDef<T> {
   const opts: EmployeeColumnOptions = typeof fourth === 'function' ? { notAvailableLabel: fourth } : (fourth ?? {})
   const emptyLabel = opts.notAvailableLabel ?? naLabel
+  const showEmployeeAvatar = opts.showEmployeeAvatar !== false
   return {
     id,
     accessorFn: getEmployee,
@@ -143,8 +149,11 @@ export function createEmployeeColumn<T extends object>(
       if (!employee) {
         return <span className="gba:text-sm gba:text-muted-foreground">{emptyLabel()}</span>
       }
-      const imageUrl = employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined
       const displayName = employee.displayName ?? employee.fullName ?? emptyLabel()
+      if (!showEmployeeAvatar) {
+        return <span className="gba:font-medium gba:text-sm">{displayName}</span>
+      }
+      const imageUrl = employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined
       const initial = displayName.charAt(0).toUpperCase()
       return (
         <div className="gba:flex gba:items-center gba:gap-2">

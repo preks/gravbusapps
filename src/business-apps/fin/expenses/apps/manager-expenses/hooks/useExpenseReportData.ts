@@ -5,6 +5,7 @@ import { GET_EXPENSE_PLANS_BY_MANAGER } from '../queries/expensePlans'
 import { GET_EXPENSE_REQUESTS_BY_MANAGER } from '../queries/expenseRequests'
 import { GET_EXPENSE_ITEMS_BY_MANAGER } from '../queries/expenseItems'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getExpenseItemCategoryLabel } from '../../../common/utils/expenseItemCategoryLabel'
 import { GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER } from '../queries/advancePayments'
 import { getExpenseRequestStatusDisplay, getExpensePlanStatusDisplay, getAdvancePaymentStatusDisplay } from '../utils'
 import { useManagerExpensesOverview } from './useManagerExpensesOverview'
@@ -361,12 +362,13 @@ export const useExpenseReportData = ({
   const processExpenseItemsData = (data: any): ExpenseItemReport[] => {
     if (!data?.ExpenseItem?.length) return []
 
+    const categoryWhenMissing = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:team_expenses_page.dashboard_tab.uncategorized',
+      'Uncategorized'
+    )
+
     return data.ExpenseItem.map((item: any) => {
-      // Get the first expense group from positions or use 'Uncategorized'
-      const expenseGroup =
-        item.expensePosition && item.expensePosition.length > 0 && item.expensePosition[0].expenseGroupRef
-          ? item.expensePosition[0].expenseGroupRef.replaceAll('ExpenseGroup:v1:', '')
-          : 'Uncategorized'
+      const expenseGroupValue = getExpenseItemCategoryLabel(item, categoryWhenMissing)
 
       const statusDisplay = item.expenseRequest?.status
         ? getExpenseRequestStatusDisplay(item.expenseRequest.status)
@@ -386,7 +388,7 @@ export const useExpenseReportData = ({
             : item.expenseDate || '',
         title: item.title || '',
         description: item.description || '',
-        category: expenseGroup,
+        category: expenseGroupValue,
         amount: item.totalAmount || 0,
         employeeName: buildEmployeeDisplayName(item.employee),
         status: statusDisplay.label
