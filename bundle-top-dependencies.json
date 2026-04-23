@@ -12217,15 +12217,15 @@
     ]
   },
   "core/office/apps/spreadsheets": {
-    "bitbucketBuildNumber": 11276,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11276/",
-    "chunkJsBytes": 1307933,
+    "bitbucketBuildNumber": 11290,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11290/",
+    "chunkJsBytes": 1308276,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1698119,
-        "gzip": 361844,
+        "rendered": 1699137,
+        "gzip": 362074,
         "leaves": [
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppViewer.tsx",
@@ -12507,6 +12507,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 241,
+        "gzip": 136,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 241,
+            "gzip": 136
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/core",
         "rendered": 167,
         "gzip": 135,
@@ -12515,19 +12528,6 @@
             "name": "src/wrapped-entries/core/office/apps/spreadsheets.ts",
             "rendered": 167,
             "gzip": 135
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       }
@@ -88060,20 +88060,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11288,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11288/",
-    "chunkJsBytes": 1825169,
+    "bitbucketBuildNumber": 11290,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11290/",
+    "chunkJsBytes": 1825202,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1520083,
-        "gzip": 91338,
+        "rendered": 1520107,
+        "gzip": 91364,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1520083,
-            "gzip": 91338
+            "rendered": 1520107,
+            "gzip": 91364
           }
         ]
       },
@@ -100516,15 +100516,15 @@
     ]
   },
   "platform/apps/spreadsheet-apps": {
-    "bitbucketBuildNumber": 11276,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11276/",
-    "chunkJsBytes": 1307938,
+    "bitbucketBuildNumber": 11290,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11290/",
+    "chunkJsBytes": 1308281,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1698119,
-        "gzip": 361844,
+        "rendered": 1699137,
+        "gzip": 362074,
         "leaves": [
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppViewer.tsx",
@@ -100806,6 +100806,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 241,
+        "gzip": 136,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 241,
+            "gzip": 136
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/platform",
         "rendered": 171,
         "gzip": 139,
@@ -100814,19 +100827,6 @@
             "name": "src/wrapped-entries/platform/apps/spreadsheet-apps.ts",
             "rendered": 171,
             "gzip": 139
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       }
@@ -103069,7 +103069,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-23T15:47:51.123Z",
+    "generatedAt": "2026-04-23T15:57:54.449Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
