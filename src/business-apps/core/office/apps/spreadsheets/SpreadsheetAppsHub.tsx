@@ -1374,7 +1374,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         if (!newSheetId) return
 
         const targetSheet = refreshed?.sheets?.find(s => s.id === newSheetId)
-        if (targetSheet && (targetSheet.data?.length ?? 0) > 0) {
+        if (targetSheet) {
           return
         }
 
@@ -1401,7 +1401,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             onShare={isReadonlyTrashView ? undefined : () => handleShareApp(app.id)}
             onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
-            onAppRefreshNeeded={canEdit ? handleAppRefreshNeeded : undefined}
+            onAppRefreshNeeded={isReadonlyTrashView ? undefined : handleAppRefreshNeeded}
             onSheetUpdate={canEdit ? updateSheet : undefined}
             onSheetAdd={canEdit ? addSheet : undefined}
             onSheetDelete={canEdit ? deleteSheet : undefined}

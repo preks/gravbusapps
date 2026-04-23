@@ -9,7 +9,12 @@ export interface ArtifactPreview {
   title: string
   status: PreviewStatus
   content?: Record<string, unknown>
+  /** Legacy free-form error string; prefer ``userMessage`` in new UI. */
   error?: string
+  errorCode?: string
+  retryable?: boolean
+  userMessage?: string
+  technicalDetail?: string
 }
 
 /**
@@ -67,7 +72,11 @@ export const useArtifactPreview = (events: AgentStreamEvent[]) => {
             status: 'error' as const
           }),
           status: 'error',
-          error: ev.error
+          error: ev.error,
+          errorCode: ev.error_code,
+          retryable: ev.retryable,
+          userMessage: ev.user_message,
+          technicalDetail: ev.technical_detail
         })
       }
     }
@@ -77,8 +86,11 @@ export const useArtifactPreview = (events: AgentStreamEvent[]) => {
 
   const latestPreview = previews.length > 0 ? previews[previews.length - 1] : null
 
+  // An active preview also includes the terminal ``error`` state so the right
+  // rail stays wide enough to render the designed failure card (with a retry
+  // button) instead of squeezing it into the narrow ambient progress rail.
   const hasActivePreview = previews.some(
-    p => p.status === 'generating' || p.status === 'draft_ready' || p.status === 'ready'
+    p => p.status === 'generating' || p.status === 'draft_ready' || p.status === 'ready' || p.status === 'error'
   )
 
   return { previews, latestPreview, hasActivePreview }

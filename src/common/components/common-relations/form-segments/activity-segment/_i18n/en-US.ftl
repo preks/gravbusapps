@@ -11,6 +11,7 @@ activity-description-placeholder = Please Enter...
 activity-owner-label = Owner
 activity-entity-label = Related Entity
 activity-upload-label = Attach Documents
+activity-attached-documents-label = Attached documents
 
 # Common
 please-select = Please Select...
