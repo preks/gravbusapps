@@ -18,9 +18,9 @@ export interface BudgetDistributionOrgUnitListPagedContentProps {
   allocationByOrgUnitId: ReadonlyMap<string, number>
   headcountByOrgUnitId: ReadonlyMap<string, number>
   salaryCostByOrgUnitId: ReadonlyMap<string, number>
-  totalPerformanceScoreByOrgUnitId: ReadonlyMap<string, number>
+  averagePerformanceByOrgUnitId: ReadonlyMap<string, number>
   totalSalaryCostAcrossOrgUnits: number
-  grandTotalPerformanceScore: number
+  sumOfDepartmentAverageScores: number
   distributionPool: number | null
   poolForCustomContext: number | null
   totalCustomAllocated: number
@@ -47,9 +47,9 @@ export function BudgetDistributionOrgUnitListPagedContent({
   allocationByOrgUnitId,
   headcountByOrgUnitId,
   salaryCostByOrgUnitId,
-  totalPerformanceScoreByOrgUnitId,
+  averagePerformanceByOrgUnitId,
   totalSalaryCostAcrossOrgUnits,
-  grandTotalPerformanceScore,
+  sumOfDepartmentAverageScores,
   distributionPool,
   poolForCustomContext,
   totalCustomAllocated,
@@ -99,7 +99,7 @@ export function BudgetDistributionOrgUnitListPagedContent({
             const amount = allocationByOrgUnitId.get(unit.id) ?? 0
             const headcount = headcountByOrgUnitId.get(unit.id) ?? 0
             const unitSalaryCost = salaryCostByOrgUnitId.get(unit.id) ?? 0
-            const unitPerformanceSum = totalPerformanceScoreByOrgUnitId.get(unit.id) ?? 0
+            const unitAveragePerformance = averagePerformanceByOrgUnitId.get(unit.id) ?? 0
             return (
               <BudgetDistributionOrgUnitDepartmentRow
                 key={unit.id}
@@ -112,9 +112,9 @@ export function BudgetDistributionOrgUnitListPagedContent({
                 customPoolUnallocatedGlobal={customPoolUnallocatedGlobal}
                 headcount={headcount}
                 unitSalaryCost={unitSalaryCost}
-                unitPerformanceSum={unitPerformanceSum}
+                unitAveragePerformance={unitAveragePerformance}
                 totalSalaryCostAcrossOrgUnits={totalSalaryCostAcrossOrgUnits}
-                grandTotalPerformanceScore={grandTotalPerformanceScore}
+                sumOfDepartmentAverageScores={sumOfDepartmentAverageScores}
                 currencyCode={currencyCode}
                 customBudget={customBudgetByOrgUnitId[unit.id]}
                 onCustomAmountRawChange={onCustomAmountRawChange}

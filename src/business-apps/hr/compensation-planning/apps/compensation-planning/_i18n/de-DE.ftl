@@ -20,6 +20,7 @@ submissions-table-filter-sheet-title = OE-Budgets filtern
 submissions-table-filter-sheet-description = Nach Status der OE-Zeile eingrenzen. Suche umfasst Abteilungsname, Planbezeichnung, Allokationsbeträge und berechnete Anteile in Prozent.
 submissions-table-filter-org-unit-status-group = Zeilenstatus
 submissions-table-filter-org-unit-status-label = Status
+submissions-table-empty-select-compensation-cycle = Wählen Sie oben einen Vergütungszyklus, um Abteilungsbudget-Einreichungen zu laden.
 submissions-table-empty-no-company-budgets = Für diese Organisation ist noch kein Unternehmensbudget angelegt. Legen Sie eines unter Budgeteinrichtung an, um OE-Budgets zu erfassen.
 submissions-table-empty-no-org-unit-rows = Für die Budgetpläne dieses Unternehmens gibt es noch keine OE-Budgetzeilen.
 submissions-table-empty-filtered = Keine OE-Budgets entsprechen Suche oder Filtern.
@@ -32,6 +33,7 @@ submissions-table-review-team = Team prüfen
 submissions-table-col-department-salary-budget = Abteilungs-Gehaltsbudget
 # Summe der Mitarbeiter-`allocation_amount` auf der OE-Budgetzeile.
 submissions-table-col-org-unit-allocation-amount = Allokationsbetrag
+submissions-allocation-exceeds-department-budget-hint = Allokation übersteigt das Abteilungs-Gehaltsbudget
 # Anteil am Unternehmens-Gehaltserhöhungspool aus OE-`salary_budget_amount`; nur Anzeige.
 submissions-table-col-allocation-share-percent = Anteil am Unternehmenspool (%)
 
@@ -114,10 +116,10 @@ budget-distribution-salary-cost-basis-alert = Gesamtgehalt: { $total }.
 budget-distribution-salary-cost-zero-total = Noch keine Gehälter zu verteilen. Rollen und Gehälter erfassen, dann erneut versuchen.
 budget-distribution-salary-cost-row-detail = { $salary } · { $share } vom Gesamtgehalt
 budget-distribution-method-performance-title = Nach Leistung
-budget-distribution-method-performance-description = Abteilungen mit höherer Summe der Leistungsbewertungen erhalten einen größeren Anteil.
-budget-distribution-performance-basis-alert = Leistungssumme in dieser Ansicht: { $total }. Vorschau: Anteil je Abteilung an dieser Summe × Pool ({ $pool }).
+budget-distribution-method-performance-description = Abteilungen mit höherem Durchschnitt der Leistungsbewertungen erhalten einen größeren Anteil (unabhängig von der Teamgröße).
+budget-distribution-performance-basis-alert = Summe der Durchschnittswerte pro Abteilung: { $total }. Vorschau: Anteil je Abteilung an dieser Summe × Pool ({ $pool }).
 budget-distribution-performance-zero-total = Noch keine Bewertungswerte. Zuerst einen Leistungszyklus abschließen.
-budget-distribution-performance-row-detail = Leistungssumme: { $sum } · { $share } aller Abteilungen
+budget-distribution-performance-row-detail = Durchschnittsleistung: { $sum } · { $share } der kombinierten Gewichtung
 budget-distribution-method-equal-title = Gleichmäßig
 budget-distribution-method-equal-description = Der Pool wird gleichmäßig auf alle Abteilungen verteilt.
 budget-distribution-method-custom-title = Benutzerdefiniert

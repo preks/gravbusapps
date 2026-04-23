@@ -20,6 +20,7 @@ submissions-table-filter-sheet-title = Filtrați bugetele pe unitate organizați
 submissions-table-filter-sheet-description = Restrângeți după statusul rândului OE. Căutarea include numele departamentului, eticheta planului, sumele de alocare și procentele de cotă calculate.
 submissions-table-filter-org-unit-status-group = Status rând
 submissions-table-filter-org-unit-status-label = Status
+submissions-table-empty-select-compensation-cycle = Selectați un ciclu de compensare de mai sus pentru a încărca depunerile de buget pe departamente.
 submissions-table-empty-no-company-budgets = Nu există încă buget de companie pentru această organizație. Adăugați unul în Configurare buget pentru a înregistra bugete pe unitate organizațională.
 submissions-table-empty-no-org-unit-rows = Nu există încă rânduri de buget pe unitate organizațională pentru planurile de buget ale acestei companii.
 submissions-table-empty-filtered = Niciun buget pe unitate organizațională nu corespunde căutării sau filtrelor.
@@ -32,6 +33,7 @@ submissions-table-review-team = Revizuiește echipa
 submissions-table-col-department-salary-budget = Buget salarial departament
 # Total `allocation_amount` angajați pe rândul de buget al unității organizaționale.
 submissions-table-col-org-unit-allocation-amount = Sumă alocare
+submissions-allocation-exceeds-department-budget-hint = Alocarea depășește bugetul salarial al departamentului
 # Cotă din pool-ul companiei din `salary_budget_amount` OE; doar afișare.
 submissions-table-col-allocation-share-percent = Cotă din pool-ul companiei (%)
 
@@ -114,10 +116,10 @@ budget-distribution-salary-cost-basis-alert = Total salarii: { $total }.
 budget-distribution-salary-cost-zero-total = Nu există încă salarii de împărțit. Completați roluri și salarii, apoi încercați din nou.
 budget-distribution-salary-cost-row-detail = { $salary } · { $share } din salariul total
 budget-distribution-method-performance-title = După performanță
-budget-distribution-method-performance-description = Departamentele cu scor total de performanță mai mare primesc o parte mai mare.
-budget-distribution-performance-basis-alert = Total performanță în această vedere: { $total }. Previzualizarea folosește cota fiecărui departament din acest total și fondul ({ $pool }).
+budget-distribution-method-performance-description = Departamentele cu o medie mai mare a performanței primesc o parte mai mare (fără a favoriza echipele mari).
+budget-distribution-performance-basis-alert = Suma mediilor de performanță pe departament: { $total }. Previzualizarea folosește cota fiecărui departament din acest total și fondul ({ $pool }).
 budget-distribution-performance-zero-total = Încă nu există scoruri de performanță. Finalizați un ciclu în evaluarea performanței.
-budget-distribution-performance-row-detail = Total performanță: { $sum } · { $share } din toate departamentele
+budget-distribution-performance-row-detail = Medie performanță: { $sum } · { $share } din ponderea combinată
 budget-distribution-method-equal-title = Egal
 budget-distribution-method-equal-description = Împărțire egală între departamente.
 budget-distribution-method-custom-title = Manual

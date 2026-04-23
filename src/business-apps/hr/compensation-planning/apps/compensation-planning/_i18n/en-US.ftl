@@ -20,6 +20,7 @@ submissions-table-filter-sheet-title = Filter org unit budgets
 submissions-table-filter-sheet-description = Narrow by org unit row status. Search matches department name, plan label, allocation amounts, and computed share percents.
 submissions-table-filter-org-unit-status-group = Row status
 submissions-table-filter-org-unit-status-label = Status
+submissions-table-empty-select-compensation-cycle = Select a compensation cycle above to load department budget submissions.
 submissions-table-empty-no-company-budgets = No company budget is set up for this organization yet. Add one in Budget setup to record org unit budgets.
 submissions-table-empty-no-org-unit-rows = No organizational unit budget rows exist yet for this company’s budget plans.
 submissions-table-empty-filtered = No org unit budgets match your search or filters.
@@ -32,6 +33,8 @@ submissions-table-review-team = Review team
 submissions-table-col-department-salary-budget = Department salary budget
 # Total employee `allocation_amount` roll-up on the org-unit budget row.
 submissions-table-col-org-unit-allocation-amount = Allocation amount
+# Tooltip when allocation amount is greater than department salary budget.
+submissions-allocation-exceeds-department-budget-hint = Allocation exceeds department salary budget
 # Share of company salary-increase pool from department `salary_budget_amount`; derived for display.
 submissions-table-col-allocation-share-percent = Share of company pool (%)
 
@@ -115,10 +118,10 @@ budget-distribution-salary-cost-basis-alert = Total salary: { $total }.
 budget-distribution-salary-cost-zero-total = No salary to split yet. Add people and salaries, then try again.
 budget-distribution-salary-cost-row-detail = { $salary } · { $share } of total salary
 budget-distribution-method-performance-title = By performance
-budget-distribution-method-performance-description = Departments with higher combined performance scores get a larger share.
-budget-distribution-performance-basis-alert = Combined performance total in this view: { $total }. The preview applies each department’s share of that total to the pool ({ $pool }).
+budget-distribution-method-performance-description = Departments with a higher average overall performance get a larger share; large teams are not favored by headcount.
+budget-distribution-performance-basis-alert = Sum of each department’s average performance score: { $total }. The preview applies each department’s share of that total to the pool ({ $pool }).
 budget-distribution-performance-zero-total = No performance scores yet. Complete a cycle in Performance Evaluation first.
-budget-distribution-performance-row-detail = Performance total: { $sum } · { $share } of all departments
+budget-distribution-performance-row-detail = Average performance: { $sum } · { $share } of the combined weight
 budget-distribution-method-equal-title = Equal split
 budget-distribution-method-equal-description = Split the pool evenly across departments.
 budget-distribution-method-custom-title = Custom

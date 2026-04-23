@@ -12,6 +12,8 @@ export interface TeamCompensationSaveAllocationsDialogRowsProps {
   sortedMembers: TeamMemberCompensationData[]
   allocationByEmployeeId: ReadonlyMap<string, number>
   selectedEmployeeIds: ReadonlySet<string>
+  /** Already in review; checkbox disabled and not eligible for this submit. */
+  employeeIdsBlockedFromManagerResubmit: ReadonlySet<string>
   distributionPool: number | null
   poolOk: boolean
   currencyCode: string
@@ -25,6 +27,7 @@ export function TeamCompensationSaveAllocationsDialogRows({
   sortedMembers,
   allocationByEmployeeId,
   selectedEmployeeIds,
+  employeeIdsBlockedFromManagerResubmit,
   distributionPool,
   poolOk,
   currencyCode,
@@ -38,27 +41,36 @@ export function TeamCompensationSaveAllocationsDialogRows({
       {sortedMembers.map(m => {
         const amount = allocationByEmployeeId.get(m.employeeId) ?? 0
         const pct = poolOk && distributionPool != null ? percentPointsOfPool(amount, distributionPool) : null
-        const checked = selectedEmployeeIds.has(m.employeeId)
+        const locked = employeeIdsBlockedFromManagerResubmit.has(m.employeeId)
+        const checked = selectedEmployeeIds.has(m.employeeId) && !locked
         return (
           <li
             key={m.employeeId}
-            className="gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2"
+            className={`gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 ${locked ? 'gba:bg-muted/30' : ''}`}
             data-testid={`manager-team-save-dialog-row-${m.employeeId}`}
+            title={locked ? t('manager-team-save-dialog-row-blocked-hint') : undefined}
           >
             <Checkbox
               checked={checked}
               onCheckedChange={v => onToggle(m.employeeId, v === true)}
-              disabled={saving || !poolOk}
-              aria-label={t('manager-team-save-dialog-checkbox-aria', { name: m.displayName })}
+              disabled={saving || !poolOk || locked}
+              aria-label={
+                locked
+                  ? t('manager-team-save-dialog-row-blocked-aria', { name: m.displayName })
+                  : t('manager-team-save-dialog-checkbox-aria', { name: m.displayName })
+              }
               data-testid={`manager-team-save-dialog-checkbox-${m.employeeId}`}
             />
             <div className="gba:min-w-0 gba:flex-1">
               <p className="gba:truncate gba:text-sm gba:font-medium gba:text-foreground">{m.displayName}</p>
               <p className="gba:text-xs gba:text-muted-foreground">
-                {formatCurrency(roundMoney2(amount), currencyCode)}
-                {pct === null
-                  ? ''
-                  : ` · ${tBudget('budget-distribution-distribute-percent-of-pool', { percent: pct })}`}
+                {locked
+                  ? t('manager-team-save-dialog-row-blocked-line')
+                  : `${formatCurrency(roundMoney2(amount), currencyCode)}${
+                      pct === null
+                        ? ''
+                        : ` · ${tBudget('budget-distribution-distribute-percent-of-pool', { percent: pct })}`
+                    }`}
               </p>
             </div>
           </li>

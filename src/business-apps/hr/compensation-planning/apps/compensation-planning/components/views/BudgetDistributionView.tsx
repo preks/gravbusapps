@@ -172,28 +172,30 @@ export function BudgetDistributionView({
     [orgUnitDistributionInputs]
   )
 
-  const totalPerformanceScoreByOrgUnitId = useMemo(() => {
+  /** Per org unit: **average** overall performance (same weight as `distributeToOrgUnits` for `performance_weighted`). */
+  const averagePerformanceByOrgUnitId = useMemo(() => {
     const map = new Map<string, number>()
     for (const input of orgUnitDistributionInputs) {
-      map.set(input.orgUnitId, input.totalPerformanceScore)
+      map.set(input.orgUnitId, input.averagePerformanceRating ?? 0)
     }
     return map
   }, [orgUnitDistributionInputs])
 
-  const grandTotalPerformanceScore = useMemo(
-    () => orgUnitDistributionInputs.reduce((sum, u) => sum + u.totalPerformanceScore, 0),
+  /** Sum of department **average** scores — denominator for share-of-weight display in the performance method. */
+  const sumOfDepartmentAverageScores = useMemo(
+    () => orgUnitDistributionInputs.reduce((sum, u) => sum + Math.max(0, u.averagePerformanceRating ?? 0), 0),
     [orgUnitDistributionInputs]
   )
 
   const performanceFallbackToHeadcount = useMemo(() => {
     if (selectedMethod !== 'performance_weighted') return false
-    return orgUnitDistributionInputs.every(ou => ou.totalPerformanceScore <= 0)
+    return orgUnitDistributionInputs.every(ou => (ou.averagePerformanceRating ?? 0) <= 0)
   }, [selectedMethod, orgUnitDistributionInputs])
 
   const performancePartialScores = useMemo(() => {
     if (selectedMethod !== 'performance_weighted' || performanceFallbackToHeadcount) return false
-    const hasPositive = orgUnitDistributionInputs.some(ou => ou.totalPerformanceScore > 0)
-    const hasMissing = orgUnitDistributionInputs.some(ou => ou.totalPerformanceScore <= 0)
+    const hasPositive = orgUnitDistributionInputs.some(ou => (ou.averagePerformanceRating ?? 0) > 0)
+    const hasMissing = orgUnitDistributionInputs.some(ou => (ou.averagePerformanceRating ?? 0) <= 0)
     return hasPositive && hasMissing
   }, [selectedMethod, performanceFallbackToHeadcount, orgUnitDistributionInputs])
 
@@ -358,8 +360,8 @@ export function BudgetDistributionView({
                 headcountByOrgUnitId={headcountByOrgUnitId}
                 salaryCostByOrgUnitId={salaryCostByOrgUnitId}
                 totalSalaryCostAcrossOrgUnits={totalSalaryCostAcrossOrgUnits}
-                totalPerformanceScoreByOrgUnitId={totalPerformanceScoreByOrgUnitId}
-                grandTotalPerformanceScore={grandTotalPerformanceScore}
+                averagePerformanceByOrgUnitId={averagePerformanceByOrgUnitId}
+                sumOfDepartmentAverageScores={sumOfDepartmentAverageScores}
                 distributionPool={activeDistributionPool}
                 allocationByOrgUnitId={previewAllocationByOrgUnit}
                 currencyCode={currencyCode}

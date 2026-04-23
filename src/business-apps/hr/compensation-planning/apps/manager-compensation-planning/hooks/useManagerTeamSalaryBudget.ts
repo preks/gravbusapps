@@ -181,7 +181,7 @@ function buildManagerOrgUnitPlanRowMap(rows: Array<Record<string, unknown>>): Ma
   return ouPlanRowMap
 }
 
-/** Department salary budget from HR (`salary_budget_amount`); `allocation_amount` is employee-level only. */
+/** Department salary budget from HR (`salary_budget_amount`). */
 function sumSalaryBudgetAmountForRelevantOrgUnits(
   rows: Array<Record<string, unknown>>,
   relevantOuIds: Set<string>
@@ -190,6 +190,20 @@ function sumSalaryBudgetAmountForRelevantOrgUnits(
   for (const r of rows) {
     if (relevantOuIds.has(graphqlUnknownToString(r.organizationalUnitId))) {
       amount += num(r.salaryBudgetAmount)
+    }
+  }
+  return amount
+}
+
+/** Roll-up of committed proposal amounts on each org-unit row (`allocation_amount` from employees). */
+function sumAllocationAmountForRelevantOrgUnits(
+  rows: Array<Record<string, unknown>>,
+  relevantOuIds: Set<string>
+): number {
+  let amount = 0
+  for (const r of rows) {
+    if (relevantOuIds.has(graphqlUnknownToString(r.organizationalUnitId))) {
+      amount += num(r.allocationAmount)
     }
   }
   return amount
@@ -227,6 +241,8 @@ export function useManagerTeamSalaryBudget(params: {
   )
 
   const [totalSalaryBudget, setTotalSalaryBudget] = useState<number | null>(null)
+  /** Sum of OU `allocation_amount` for team departments (matches rolled-up employee proposal totals). */
+  const [totalOrgUnitAllocationAmount, setTotalOrgUnitAllocationAmount] = useState<number | null>(null)
   const [loadingBudget, setLoadingBudget] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [planOuRowIdByOrganizationalUnitId, setPlanOuRowIdByOrganizationalUnitId] = useState<
@@ -238,6 +254,7 @@ export function useManagerTeamSalaryBudget(params: {
 
   const clearBudgetPlanSlice = useCallback(() => {
     setTotalSalaryBudget(null)
+    setTotalOrgUnitAllocationAmount(null)
     setPlanOuRowIdByOrganizationalUnitId(new Map())
     setActiveCompensationBudgetPlanId(null)
     setCompensationPlanChoices([])
@@ -246,6 +263,7 @@ export function useManagerTeamSalaryBudget(params: {
   const fetchBudgetTotal = useCallback(async () => {
     if (!accessToken || !companyId || !managerEmployeeId) {
       setTotalSalaryBudget(null)
+      setTotalOrgUnitAllocationAmount(null)
       setError(null)
       setPlanOuRowIdByOrganizationalUnitId(new Map())
       setManagerOrganizationalUnitId(null)
@@ -301,11 +319,13 @@ export function useManagerTeamSalaryBudget(params: {
       setPlanOuRowIdByOrganizationalUnitId(buildManagerOrgUnitPlanRowMap(rows))
 
       setTotalSalaryBudget(sumSalaryBudgetAmountForRelevantOrgUnits(rows, relevantOuIds))
+      setTotalOrgUnitAllocationAmount(sumAllocationAmountForRelevantOrgUnits(rows, relevantOuIds))
     } catch (err) {
       logBudgetGraphqlFailure('useManagerTeamSalaryBudget', err)
       const message = err instanceof Error ? err.message : 'Failed to load manager team salary budget'
       setError(message)
       setTotalSalaryBudget(null)
+      setTotalOrgUnitAllocationAmount(null)
       setPlanOuRowIdByOrganizationalUnitId(new Map())
       setActiveCompensationBudgetPlanId(null)
       setCompensationPlanChoices([])
@@ -328,6 +348,7 @@ export function useManagerTeamSalaryBudget(params: {
 
   return {
     totalSalaryBudget,
+    totalOrgUnitAllocationAmount,
     loading: loadingBudget,
     error,
     refetch: fetchBudgetTotal,

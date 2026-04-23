@@ -9,6 +9,8 @@ export interface SubmissionsOrgUnitBudgetTableProps {
   loading: boolean
   error: string | null
   hasCompanyBudgetRows: boolean
+  /** When false, table shows a prompt to select a cycle (not “no company budgets”). */
+  compensationPlanSelected: boolean
   /** Company selector aligned with the DataDisplay toolbar (search / filters / sort). */
   companyToolbar?: React.ReactNode
   /** Opens manager-compensation-planning for supervisor review (submitted proposals). */
@@ -20,6 +22,7 @@ export function SubmissionsOrgUnitBudgetTable({
   loading,
   error,
   hasCompanyBudgetRows,
+  compensationPlanSelected,
   companyToolbar,
   onReviewTeam
 }: Readonly<SubmissionsOrgUnitBudgetTableProps>) {
@@ -41,7 +44,7 @@ export function SubmissionsOrgUnitBudgetTable({
     sortableColumns,
     availableColumnsForDisplay,
     handlePaginationChange
-  } = useSubmissionsOrgUnitTableModel(t, rows, hasCompanyBudgetRows, onReviewTeam)
+  } = useSubmissionsOrgUnitTableModel(t, rows, hasCompanyBudgetRows, compensationPlanSelected)
 
   return (
     <DataDisplay
@@ -96,6 +99,7 @@ export function SubmissionsOrgUnitBudgetTable({
           showPageNumbers
           maxVisiblePages={7}
           emptyMessage={emptyMessage}
+          onRowClick={onReviewTeam}
           data-testid="submissions-org-unit-budget-table"
         />
       </TooltipProvider>

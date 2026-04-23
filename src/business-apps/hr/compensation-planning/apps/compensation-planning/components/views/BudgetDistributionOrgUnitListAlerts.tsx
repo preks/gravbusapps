@@ -15,7 +15,7 @@ export interface BudgetDistributionOrgUnitListAlertsProps {
   isSalaryCostMethod: boolean
   isPerformanceMethod: boolean
   totalSalaryCostAcrossOrgUnits: number
-  grandTotalPerformanceScore: number
+  sumOfDepartmentAverageScores: number
   distributionPool: number | null
   currencyCode: string
 }
@@ -30,7 +30,7 @@ export function BudgetDistributionOrgUnitListAlerts({
   isSalaryCostMethod,
   isPerformanceMethod,
   totalSalaryCostAcrossOrgUnits,
-  grandTotalPerformanceScore,
+  sumOfDepartmentAverageScores,
   distributionPool,
   currencyCode
 }: Readonly<BudgetDistributionOrgUnitListAlertsProps>) {
@@ -65,10 +65,10 @@ export function BudgetDistributionOrgUnitListAlerts({
       {isPerformanceMethod && showMethodAlerts ? (
         <Alert data-testid="budget-distribution-performance-basis-alert">
           <AlertDescription>
-            {grandTotalPerformanceScore <= 0
+            {sumOfDepartmentAverageScores <= 0
               ? t('budget-distribution-performance-zero-total')
               : t('budget-distribution-performance-basis-alert', {
-                  total: formatPerformanceScoreSum(grandTotalPerformanceScore),
+                  total: formatPerformanceScoreSum(sumOfDepartmentAverageScores),
                   pool: formatPoolDisplay(distributionPool, currencyCode)
                 })}
           </AlertDescription>

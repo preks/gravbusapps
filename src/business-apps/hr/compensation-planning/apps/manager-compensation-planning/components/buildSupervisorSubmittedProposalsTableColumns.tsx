@@ -1,5 +1,13 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { Checkbox } from '@newwork/nw-design-system'
+import {
+  Button,
+  Checkbox,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@newwork/nw-design-system'
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react'
 import { formatCurrency, formatPercentage } from '@/common/utils/numberFormatter'
 import { BudgetPlanStatusBadge } from '../../compensation-planning/components/shared/BudgetPlanStatusBadge'
 import type { BudgetPlanStatusApi } from '../../../types/budgetPlanGraphqlEnums'
@@ -28,7 +36,8 @@ const COL = {
   employee: { size: 220, minSize: 160 },
   pct: { size: 120, minSize: 100 },
   money: { size: 140, minSize: 120 },
-  status: { size: 180, minSize: 160 }
+  status: { size: 180, minSize: 160 },
+  actions: { size: 56, minSize: 48 }
 } as const
 
 const STATUS_META = { align: 'left' as const, type: 'text' as const }
@@ -47,11 +56,9 @@ export interface SupervisorSubmittedProposalsSelectionParams {
   t: TranslateFn
 }
 
-export function buildSupervisorSubmittedProposalsTableColumns(
-  t: TranslateFn,
-  currencyCode: string,
+function buildSelectionColumn(
   selection: SupervisorSubmittedProposalsSelectionParams
-): ColumnDef<SupervisorProposalTableRow>[] {
+): ColumnDef<SupervisorProposalTableRow> {
   const {
     selectedIds,
     busy,
@@ -65,7 +72,7 @@ export function buildSupervisorSubmittedProposalsTableColumns(
     t: translate
   } = selection
 
-  const selectionColumn: ColumnDef<SupervisorProposalTableRow> = {
+  return {
     id: 'selection',
     size: COL.selection.size,
     minSize: COL.selection.minSize,
@@ -107,9 +114,74 @@ export function buildSupervisorSubmittedProposalsTableColumns(
       )
     }
   }
+}
 
-  return [
-    selectionColumn,
+export interface ManagerTeamProposalRowActionsParams {
+  onEditSentBack: (row: SupervisorProposalTableRow) => void
+}
+
+function buildManagerTeamProposalRowActionsColumn(
+  t: TranslateFn,
+  onEditSentBack: (row: SupervisorProposalTableRow) => void
+): ColumnDef<SupervisorProposalTableRow> {
+  return {
+    id: 'actions',
+    size: COL.actions.size,
+    minSize: COL.actions.minSize,
+    enableSorting: false,
+    meta: { align: 'right' as const, type: 'text' as const },
+    header: () => null,
+    cell: ({ row }) => {
+      const r = row.original
+      if (r.budgetPlanStatus !== 'BUDGET_PLAN_SENT_BACK') {
+        return <div className="gba:h-8" aria-hidden />
+      }
+      return (
+        <div className="gba:flex gba:w-full gba:justify-end gba:pr-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="gba:h-8 gba:w-8 gba:p-0"
+                data-testid={`manager-team-proposal-row-actions-${r.id}`}
+                aria-label={t('manager-team-proposals-row-menu-aria')}
+                onClick={e => {
+                  e.stopPropagation()
+                }}
+              >
+                <DotsThreeVerticalIcon className="gba:size-4" weight="bold" aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
+              <DropdownMenuItem
+                onClick={() => {
+                  onEditSentBack(r)
+                }}
+                data-testid={`manager-team-proposal-row-edit-${r.id}`}
+              >
+                {t('sent-back-action-edit')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )
+    }
+  }
+}
+
+/**
+ * @param selection When provided, prepends a checkbox column (supervisor review). When omitted, data columns only (e.g. manager read-only list).
+ * @param managerRowActions When provided, appends a row menu (e.g. edit sent-back proposal) for the manager team table.
+ */
+export function buildSupervisorSubmittedProposalsTableColumns(
+  t: TranslateFn,
+  currencyCode: string,
+  selection?: SupervisorSubmittedProposalsSelectionParams,
+  managerRowActions?: ManagerTeamProposalRowActionsParams
+): ColumnDef<SupervisorProposalTableRow>[] {
+  const dataColumns: ColumnDef<SupervisorProposalTableRow>[] = [
     {
       id: 'employeeDisplayName',
       accessorKey: 'employeeDisplayName',
@@ -182,6 +254,16 @@ export function buildSupervisorSubmittedProposalsTableColumns(
       )
     }
   ]
+
+  const withManagerActions =
+    managerRowActions != null
+      ? [...dataColumns, buildManagerTeamProposalRowActionsColumn(t, managerRowActions.onEditSentBack)]
+      : dataColumns
+
+  if (selection == null) {
+    return withManagerActions
+  }
+  return [buildSelectionColumn(selection), ...withManagerActions]
 }
 
 /** Data column ids (excludes selection) for column visibility. */
@@ -191,4 +273,10 @@ export const SUPERVISOR_SUBMITTED_PROPOSALS_DATA_COLUMN_IDS = [
   'proposedSalaryIncreasePercent',
   'proposedSalaryIncreaseAmount',
   'proposedNewSalary'
+] as const
+
+/** Manager team proposals table includes a trailing row-actions column. */
+export const MANAGER_TEAM_SUBMITTED_PROPOSALS_DATA_COLUMN_IDS = [
+  ...SUPERVISOR_SUBMITTED_PROPOSALS_DATA_COLUMN_IDS,
+  'actions'
 ] as const

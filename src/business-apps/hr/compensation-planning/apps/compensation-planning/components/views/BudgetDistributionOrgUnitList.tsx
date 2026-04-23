@@ -27,10 +27,10 @@ export interface BudgetDistributionOrgUnitListProps {
   salaryCostByOrgUnitId: ReadonlyMap<string, number>
   /** Sum of {@link salaryCostByOrgUnitId} — denominator for salary-cost share. */
   totalSalaryCostAcrossOrgUnits: number
-  /** Sum of employee overall performance scores per department (same source as Performance Evaluation). */
-  totalPerformanceScoreByOrgUnitId: ReadonlyMap<string, number>
-  /** Sum of {@link totalPerformanceScoreByOrgUnitId} across departments (performance-weighted denominator). */
-  grandTotalPerformanceScore: number
+  /** **Average** overall performance per department (weight for the performance distribution method). */
+  averagePerformanceByOrgUnitId: ReadonlyMap<string, number>
+  /** Sum of those averages — denominator for "share of weight" in the performance method. */
+  sumOfDepartmentAverageScores: number
   /** Salary increase pool for preview and custom inputs. */
   distributionPool: number | null
   allocationByOrgUnitId: ReadonlyMap<string, number>
@@ -54,8 +54,8 @@ export function BudgetDistributionOrgUnitList({
   headcountByOrgUnitId,
   salaryCostByOrgUnitId,
   totalSalaryCostAcrossOrgUnits,
-  totalPerformanceScoreByOrgUnitId,
-  grandTotalPerformanceScore,
+  averagePerformanceByOrgUnitId,
+  sumOfDepartmentAverageScores,
   distributionPool,
   allocationByOrgUnitId,
   currencyCode,
@@ -188,7 +188,7 @@ export function BudgetDistributionOrgUnitList({
         isSalaryCostMethod={isSalaryCostMethod}
         isPerformanceMethod={isPerformanceMethod}
         totalSalaryCostAcrossOrgUnits={totalSalaryCostAcrossOrgUnits}
-        grandTotalPerformanceScore={grandTotalPerformanceScore}
+        sumOfDepartmentAverageScores={sumOfDepartmentAverageScores}
         distributionPool={distributionPool}
         currencyCode={currencyCode}
       />
@@ -203,9 +203,9 @@ export function BudgetDistributionOrgUnitList({
           allocationByOrgUnitId={allocationByOrgUnitId}
           headcountByOrgUnitId={headcountByOrgUnitId}
           salaryCostByOrgUnitId={salaryCostByOrgUnitId}
-          totalPerformanceScoreByOrgUnitId={totalPerformanceScoreByOrgUnitId}
+          averagePerformanceByOrgUnitId={averagePerformanceByOrgUnitId}
           totalSalaryCostAcrossOrgUnits={totalSalaryCostAcrossOrgUnits}
-          grandTotalPerformanceScore={grandTotalPerformanceScore}
+          sumOfDepartmentAverageScores={sumOfDepartmentAverageScores}
           distributionPool={distributionPool}
           poolForCustomContext={poolForCustomContext}
           totalCustomAllocated={totalCustomAllocated}

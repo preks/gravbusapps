@@ -1,5 +1,4 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@newwork/nw-design-system'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import type { BudgetPlanStatusApi } from '../../../../types/budgetPlanGraphqlEnums'
 import { BudgetPlanStatusBadge } from '../shared/BudgetPlanStatusBadge'
@@ -37,37 +36,13 @@ const COL = {
   money: { size: 200, minSize: 180 },
   percent: { size: 160, minSize: 140 },
   proposedNewSalary: { size: 200, minSize: 180 },
-  ouCurrentSalary: { size: 200, minSize: 180 },
-  review: { size: 140, minSize: 120 }
+  ouCurrentSalary: { size: 200, minSize: 180 }
 } as const
 
 export function buildSubmissionsOrgUnitTableColumns(
   t: TranslateFn,
-  formatBudgetPlanStatus: (value: string | null | undefined) => string,
-  onReviewTeam?: (row: SubmissionsOrgUnitTableRow) => void
+  formatBudgetPlanStatus: (value: string | null | undefined) => string
 ): ColumnDef<SubmissionsOrgUnitTableRow>[] {
-  const reviewColumn: ColumnDef<SubmissionsOrgUnitTableRow> | null =
-    onReviewTeam == null
-      ? null
-      : {
-          id: 'reviewTeam',
-          header: submissionsColumnHeader(t, 'submissions-table-col-review'),
-          size: COL.review.size,
-          minSize: COL.review.minSize,
-          meta: { align: 'left', type: 'text' },
-          cell: ({ row }) => (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              data-testid={`submissions-review-team-${row.original.id}`}
-              onClick={() => onReviewTeam(row.original)}
-            >
-              {t('submissions-table-review-team')}
-            </Button>
-          )
-        }
-
   return [
     {
       id: 'organizationalUnitName',
@@ -136,7 +111,19 @@ export function buildSubmissionsOrgUnitTableColumns(
       accessorFn: row => sortNumberOrFallback(row.allocationAmount),
       cell: ({ row }) => {
         const r = row.original
-        return <span className={TABLE_BODY_NUM_RIGHT}>{formatCurrencyCell(r.allocationAmount, r.displayCurrency)}</span>
+        const isOverDepartmentBudget = r.allocationAmount > r.salaryBudgetAmount
+        const overBudgetClasses = isOverDepartmentBudget
+          ? 'gba:font-semibold gba:text-destructive gba:rounded gba:px-1.5 gba:py-0.5 gba:bg-destructive/10'
+          : ''
+        return (
+          <span
+            className={`${TABLE_BODY_NUM_RIGHT} ${overBudgetClasses}`}
+            title={isOverDepartmentBudget ? t('submissions-allocation-exceeds-department-budget-hint') : undefined}
+            data-testid={isOverDepartmentBudget ? 'submissions-allocation-amount-over-department-budget' : undefined}
+          >
+            {formatCurrencyCell(r.allocationAmount, r.displayCurrency)}
+          </span>
+        )
       }
     },
     {
@@ -184,8 +171,7 @@ export function buildSubmissionsOrgUnitTableColumns(
           </span>
         )
       }
-    },
-    ...(reviewColumn == null ? [] : [reviewColumn])
+    }
   ]
 }
 
@@ -197,6 +183,5 @@ export const SUBMISSIONS_ORG_UNIT_TABLE_VISIBLE_COLUMN_IDS = [
   'allocationAmount',
   'allocationShareOfCompanyPoolPercent',
   'proposedNewSalary',
-  'organizationalUnitCurrentTotalSalary',
-  'reviewTeam'
+  'organizationalUnitCurrentTotalSalary'
 ] as const

@@ -64,6 +64,7 @@ export function SupervisorOrgUnitProposalReview({
 
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [sendBackError, setSendBackError] = useState<string | null>(null)
   const [sendBackOpen, setSendBackOpen] = useState(false)
   const [sendBackNotes, setSendBackNotes] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
@@ -229,21 +230,21 @@ export function SupervisorOrgUnitProposalReview({
 
   const runSendBack = useCallback(async () => {
     setActionError(null)
+    setSendBackError(null)
     if (!accessToken || !supervisorEmployeeId) {
-      setActionError(t('supervisor-review-no-auth'))
+      setSendBackError(t('supervisor-review-no-auth'))
       return
     }
     if (submittedRows.length === 0) {
-      setActionError(t('supervisor-review-no-submitted'))
+      setSendBackError(t('supervisor-review-no-submitted'))
       return
     }
     if (selectedRows.length === 0) {
-      setActionError(t('supervisor-review-none-selected'))
+      setSendBackError(t('supervisor-review-none-selected'))
       return
     }
     const notes = sendBackNotes.trim()
     if (notes === '') {
-      setActionError(t('supervisor-review-send-back-notes-required'))
       return
     }
     setBusy(true)
@@ -255,11 +256,12 @@ export function SupervisorOrgUnitProposalReview({
       setSendBackOpen(false)
       setSendBackNotes('')
       setSelectedIds(new Set())
+      setSendBackError(null)
       await refetch()
       onSupervisorReviewDataChanged?.()
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : t('supervisor-review-error-generic')
-      setActionError(msg)
+      setSendBackError(msg)
     } finally {
       setBusy(false)
     }
@@ -332,7 +334,11 @@ export function SupervisorOrgUnitProposalReview({
                   availableColumnsForDisplay={availableColumnsForDisplay}
                   handlePaginationChange={handlePaginationChange}
                   onApproveSelected={runApproveSelected}
-                  onSendBackOpen={() => setSendBackOpen(true)}
+                  onSendBackOpen={() => {
+                    setActionError(null)
+                    setSendBackError(null)
+                    setSendBackOpen(true)
+                  }}
                 />
               ) : null}
             </>
@@ -342,11 +348,20 @@ export function SupervisorOrgUnitProposalReview({
 
       <SupervisorReviewSendBackDialog
         open={sendBackOpen}
-        onOpenChange={setSendBackOpen}
+        onOpenChange={open => {
+          setSendBackOpen(open)
+          if (!open) {
+            setSendBackError(null)
+          }
+        }}
         sendBackNotes={sendBackNotes}
-        onSendBackNotesChange={setSendBackNotes}
+        onSendBackNotesChange={v => {
+          setSendBackNotes(v)
+          setSendBackError(null)
+        }}
         busy={busy}
         onConfirm={runSendBack}
+        errorMessage={sendBackError}
         t={t}
       />
     </>

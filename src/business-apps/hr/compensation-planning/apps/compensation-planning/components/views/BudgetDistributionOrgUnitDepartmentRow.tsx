@@ -22,9 +22,11 @@ export interface BudgetDistributionOrgUnitDepartmentRowProps {
   customPoolUnallocatedGlobal: number | null
   headcount: number
   unitSalaryCost: number
-  unitPerformanceSum: number
+  /** Mean overall performance in this org unit (same as distribution weight, before normalization). */
+  unitAveragePerformance: number
   totalSalaryCostAcrossOrgUnits: number
-  grandTotalPerformanceScore: number
+  /** Sum of org-unit averages (denominator for share line). */
+  sumOfDepartmentAverageScores: number
   currencyCode: string
   customBudget: OrgUnitCustomBudgetInput | undefined
   onCustomAmountRawChange: (orgUnitId: string, value: string) => void
@@ -43,9 +45,9 @@ export function BudgetDistributionOrgUnitDepartmentRow({
   customPoolUnallocatedGlobal,
   headcount,
   unitSalaryCost,
-  unitPerformanceSum,
+  unitAveragePerformance,
   totalSalaryCostAcrossOrgUnits,
-  grandTotalPerformanceScore,
+  sumOfDepartmentAverageScores,
   currencyCode,
   customBudget,
   onCustomAmountRawChange,
@@ -91,8 +93,8 @@ export function BudgetDistributionOrgUnitDepartmentRow({
             data-testid={`budget-distribution-department-performance-${unit.id}`}
           >
             {t('budget-distribution-performance-row-detail', {
-              sum: formatPerformanceScoreSum(unitPerformanceSum),
-              share: formatShareOfTotalSalary(unitPerformanceSum, grandTotalPerformanceScore)
+              sum: formatPerformanceScoreSum(unitAveragePerformance),
+              share: formatShareOfTotalSalary(unitAveragePerformance, sumOfDepartmentAverageScores)
             })}
           </p>
         ) : null}

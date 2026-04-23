@@ -87,12 +87,25 @@ function fillPlanListItem(
   }
 }
 
-function sortPlans(list: CompensationBudgetPlanListItem[]): CompensationBudgetPlanListItem[] {
-  return [...list].sort((a, b) => {
-    const fy = (b.fiscalYear ?? 0) - (a.fiscalYear ?? 0)
-    if (fy !== 0) return fy
-    return a.name.localeCompare(b.name)
-  })
+/**
+ * Budget setup / compensation cycle toolbar: only approved plans, ordered by `effectiveDate` ascending
+ * (earliest first). Null `effectiveDate` last; then by name.
+ */
+function filterApprovedCompensationCyclePlansSorted(
+  list: CompensationBudgetPlanListItem[]
+): CompensationBudgetPlanListItem[] {
+  return list
+    .filter(p => p.budgetPlanStatus === DEFAULT_BUDGET_PLAN_STATUS_APPROVED)
+    .sort((a, b) => {
+      const aD = a.effectiveDate
+      const bD = b.effectiveDate
+      if (aD == null && bD == null) return a.name.localeCompare(b.name)
+      if (aD == null) return 1
+      if (bD == null) return -1
+      const byDate = aD.localeCompare(bD)
+      if (byDate !== 0) return byDate
+      return a.name.localeCompare(b.name)
+    })
 }
 
 function num(v: unknown): number {
@@ -147,7 +160,7 @@ function buildCompanyBudgetChanges(input: SaveCompanyBudgetInput) {
   }
 }
 
-function applyPlanListAndDefaultSelection(list: CompensationBudgetPlanListItem[]): void {
+function applyCompensationCycleSelectorListAndDefaultSelection(list: CompensationBudgetPlanListItem[]): void {
   const { selectedBudgetPlanId: currentId, selectBudgetPlan: pickPlan } = useCompensationPlanningStore.getState()
   if (list.length === 0) {
     pickPlan(null)
@@ -164,6 +177,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
   const companyIdRef = useRef(companyId)
   const previousCompanyIdRef = useRef<string | null>(null)
 
+  /** All plans from GraphQL (any status), for table / label resolution. */
   const [plans, setPlans] = useState<CompensationBudgetPlanListItem[]>([])
   const [companyBudgetPlanRows, setCompanyBudgetPlanRows] = useState<CompensationBudgetPlanCompanyRow[]>([])
   const [loadingPlans, setLoadingPlans] = useState(false)
@@ -178,6 +192,8 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
     }
     return companyBudgetPlanRows.find(r => r.compensationBudgetPlanId === selectedBudgetPlanId) ?? null
   }, [companyBudgetPlanRows, selectedBudgetPlanId])
+
+  const compensationCycleSelectorPlans = useMemo(() => filterApprovedCompensationCyclePlansSorted(plans), [plans])
 
   useEffect(() => {
     companyIdRef.current = companyId
@@ -211,9 +227,10 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
         const result = await graphqlClient.request<{
           CompensationBudgetPlan: CompensationBudgetPlanListItem[]
         }>(LIST_COMPENSATION_BUDGET_PLANS)
-        const list = sortPlans((result.CompensationBudgetPlan ?? []).map(fillPlanListItem))
+        const list = (result.CompensationBudgetPlan ?? []).map(fillPlanListItem)
         setPlans(list)
-        applyPlanListAndDefaultSelection(list)
+        const forCycleSelector = filterApprovedCompensationCyclePlansSorted(list)
+        applyCompensationCycleSelectorListAndDefaultSelection(forCycleSelector)
         setCompanyBudgetPlanRows([])
         return
       }
@@ -228,9 +245,10 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
         return
       }
 
-      const list = sortPlans((result.CompensationBudgetPlan ?? []).map(fillPlanListItem))
+      const list = (result.CompensationBudgetPlan ?? []).map(fillPlanListItem)
       setPlans(list)
-      applyPlanListAndDefaultSelection(list)
+      const forCycleSelector = filterApprovedCompensationCyclePlansSorted(list)
+      applyCompensationCycleSelectorListAndDefaultSelection(forCycleSelector)
 
       const next: CompensationBudgetPlanCompanyRow[] = []
       for (const raw of result.CompensationBudgetPlanCompany ?? []) {
@@ -409,6 +427,8 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
 
   return {
     plans,
+    /** Toolbar / create dialog: approved cycles only, `effectiveDate` ascending. */
+    compensationCycleSelectorPlans,
     selectedBudgetPlanId,
     selectBudgetPlan,
     companyRow,

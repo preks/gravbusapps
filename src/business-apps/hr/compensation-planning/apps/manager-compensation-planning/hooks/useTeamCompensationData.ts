@@ -2,10 +2,32 @@ import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   GET_COMPENSATION_TEAM_MEMBERS,
-  GET_TEAM_COMPENSATION_SALARIES_AND_BONUSES
+  GET_JOB_LEVELS_FOR_COMPENSATION_BANDS,
+  GET_TEAM_BONUSES_FOR_COMPENSATION,
+  GET_TEAM_CURRENT_SALARIES_FOR_COMPENSATION,
+  GET_TEAM_SALARY_HISTORY_FOR_COMPENSATION
 } from '../../../queries/compensationPlanningQueries'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import { computeCompaRatio } from '../../../utils/budgetCalculations'
+
+/** Band fields returned under `compensationBandPolicies` on `JobLevel`. */
+interface CompensationBandGraphql {
+  id: string
+  name: string
+  payGrade: number | null
+  minSalary: number
+  maxSalary: number
+  currencyRef: string
+  currency: { id: string; code: string; value: string }
+}
+
+/** Row from `GET_JOB_LEVELS_FOR_COMPENSATION_BANDS`. */
+interface JobLevelForCompensationBandQuery {
+  id: string
+  compensationBandPolicies: Array<{
+    compensationBand: CompensationBandGraphql | null
+  } | null> | null
+}
 
 interface EmployeePositionResult {
   id: string
@@ -21,17 +43,7 @@ interface EmployeePositionResult {
   jobPosition: {
     id: string
     name: string
-    jobLevel: {
-      compensationBand: {
-        id: string
-        name: string
-        payGrade: number | null
-        minSalary: number
-        maxSalary: number
-        currencyRef: string
-        currency: { id: string; code: string; value: string }
-      } | null
-    } | null
+    jobLevel: { id: string } | null
   } | null
   employee: {
     id: string
@@ -69,6 +81,30 @@ interface BonusResult {
   currency: { id: string; code: string; value: string } | null
   paymentDate: string | null
   fiscalYear: number | null
+}
+
+/** First non-null `compensationBand` in the job level’s policies (order matches API / Hasura). */
+function pickCompensationBandFromPolicies(
+  jobLevel:
+    | { compensationBandPolicies: Array<{ compensationBand: CompensationBandGraphql | null } | null> | null }
+    | null
+    | undefined
+): CompensationBandGraphql | null {
+  const policies = jobLevel?.compensationBandPolicies
+  if (policies == null) {
+    return null
+  }
+  for (const row of policies) {
+    const band = row?.compensationBand
+    if (band) {
+      return band
+    }
+  }
+  return null
+}
+
+function jobLevelIdFromPosition(pos: EmployeePositionResult): string | null {
+  return pos.jobPosition?.jobLevel?.id?.trim() || null
 }
 
 interface UseTeamCompensationDataParams {
@@ -147,15 +183,41 @@ export function useTeamCompensationData({
 
       const where = whereConditions.length === 1 ? whereConditions[0] : { _and: whereConditions }
 
-      const positionsResult = await graphqlClient.request<{
-        EmployeePosition: EmployeePositionResult[]
-      }>(GET_COMPENSATION_TEAM_MEMBERS, { where })
+      const positionsResult = await graphqlClient
+        .request<{
+          EmployeePosition: EmployeePositionResult[]
+        }>(GET_COMPENSATION_TEAM_MEMBERS, { where })
+        .catch((e: unknown) => {
+          const m = e instanceof Error ? e.message : String(e)
+          throw new Error(`Team member positions: ${m}`)
+        })
 
       const positions = positionsResult.EmployeePosition || []
       if (positions.length === 0) {
         setTeamMembers([])
         setLoading(false)
         return
+      }
+
+      const jobLevelIds = [
+        ...new Set(positions.map(jobLevelIdFromPosition).filter((id): id is string => id != null && id.length > 0))
+      ]
+
+      const bandByJobLevelId = new Map<string, CompensationBandGraphql | null>()
+      if (jobLevelIds.length > 0) {
+        try {
+          const levelRows = await graphqlClient.request<{
+            JobLevel: JobLevelForCompensationBandQuery[]
+          }>(GET_JOB_LEVELS_FOR_COMPENSATION_BANDS, { jobLevelIds })
+          for (const row of levelRows.JobLevel ?? []) {
+            bandByJobLevelId.set(row.id, pickCompensationBandFromPolicies(row))
+          }
+        } catch (e) {
+          console.warn(
+            '[useTeamCompensationData] JobLevel / compensationBandPolicies query failed; compa and band min/max are omitted.',
+            e
+          )
+        }
       }
 
       const employeeIds = [...new Set(positions.map(p => p.employeeId))]
@@ -166,15 +228,32 @@ export function useTeamCompensationData({
       const yearStart = `${y}-01-01`
       const today = todayLocal
 
-      const batchResult = await graphqlClient.request<{
-        teamCurrentSalaries: SalaryResult[]
-        teamSalaryHistory: SalaryHistoryResult[]
-        teamBonuses: BonusResult[]
-      }>(GET_TEAM_COMPENSATION_SALARIES_AND_BONUSES, {
-        employeeIds,
-        today,
-        yearStart
+      const [currentSalRes, historyRes, bonusRes] = await Promise.all([
+        graphqlClient
+          .request<{
+            EmployeeSalary: SalaryResult[]
+          }>(GET_TEAM_CURRENT_SALARIES_FOR_COMPENSATION, { employeeIds, today })
+          .then(r => r.EmployeeSalary ?? []),
+        graphqlClient
+          .request<{
+            EmployeeSalary: SalaryHistoryResult[]
+          }>(GET_TEAM_SALARY_HISTORY_FOR_COMPENSATION, { employeeIds })
+          .then(r => r.EmployeeSalary ?? []),
+        graphqlClient
+          .request<{
+            EmployeeBonus: BonusResult[]
+          }>(GET_TEAM_BONUSES_FOR_COMPENSATION, { employeeIds, yearStart, today })
+          .then(r => r.EmployeeBonus ?? [])
+      ]).catch((e: unknown) => {
+        const m = e instanceof Error ? e.message : String(e)
+        throw new Error(`Team salaries / history / bonuses: ${m}`)
       })
+
+      const batchResult = {
+        teamCurrentSalaries: currentSalRes,
+        teamSalaryHistory: historyRes,
+        teamBonuses: bonusRes
+      }
 
       const currentSalaryMap = buildCurrentSalaryMap(batchResult.teamCurrentSalaries ?? [], today)
       const lastRaiseMap = buildLastRaiseMap(batchResult.teamSalaryHistory ?? [])
@@ -183,7 +262,8 @@ export function useTeamCompensationData({
       const members: TeamMemberCompensationData[] = positions.map(pos => {
         const salary = currentSalaryMap.get(pos.employeeId)
         const lastRaise = lastRaiseMap.get(pos.employeeId)
-        const band = pos.jobPosition?.jobLevel?.compensationBand ?? null
+        const jlId = jobLevelIdFromPosition(pos)
+        const band = jlId != null ? (bandByJobLevelId.get(jlId) ?? null) : null
         const currencyCode = salary?.currency?.code ?? band?.currency?.value ?? 'EUR'
 
         const bandData = band ? { minSalary: band.minSalary, maxSalary: band.maxSalary, payGrade: band.payGrade } : null
