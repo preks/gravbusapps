@@ -88060,20 +88060,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11253,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11253/",
-    "chunkJsBytes": 1825184,
+    "bitbucketBuildNumber": 11260,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11260/",
+    "chunkJsBytes": 1825199,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1520104,
-        "gzip": 91208,
+        "gzip": 91205,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1520104,
-            "gzip": 91208
+            "gzip": 91205
           }
         ]
       },
@@ -88318,15 +88318,15 @@
     ]
   },
   "platform/apps/chat": {
-    "bitbucketBuildNumber": 11236,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11236/",
-    "chunkJsBytes": 3727587,
+    "bitbucketBuildNumber": 11260,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11260/",
+    "chunkJsBytes": 3727767,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 4222783,
-        "gzip": 1837427,
+        "rendered": 4223341,
+        "gzip": 1837390,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/chat/worklets/rnnoise-processor.ts?inline",
@@ -90272,15 +90272,15 @@
     ]
   },
   "platform/apps/every-ai": {
-    "bitbucketBuildNumber": 11241,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11241/",
-    "chunkJsBytes": 944759,
+    "bitbucketBuildNumber": 11260,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11260/",
+    "chunkJsBytes": 944685,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 761147,
-        "gzip": 177275,
+        "rendered": 761276,
+        "gzip": 177315,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/components/ChatInput.tsx",
@@ -103069,7 +103069,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-23T12:28:56.081Z",
+    "generatedAt": "2026-04-23T13:25:30.231Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
