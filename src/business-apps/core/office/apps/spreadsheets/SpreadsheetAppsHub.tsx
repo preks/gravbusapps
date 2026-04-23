@@ -2130,12 +2130,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                         <Play className="gba:w-4 gba:h-4 gba:mr-2" />
                                         {t('action-open')}
                                       </DropdownMenuItem>
-                                      {isOwner && (
-                                        <DropdownMenuItem onClick={() => handleShareApp(app.id)}>
-                                          <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                          {t('action-share')}
-                                        </DropdownMenuItem>
-                                      )}
                                       {isOwner && sharedWith.length > 0 && (
                                         <DropdownMenuItem onClick={() => handleManageShares(app.id)}>
                                           <Users className="gba:w-4 gba:h-4 gba:mr-2" />
