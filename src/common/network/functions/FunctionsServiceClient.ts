@@ -405,6 +405,7 @@ export class FunctionsServiceClient {
   async updateFunction(
     functionId: string,
     data: {
+      name?: string
       description?: string
       category?: FunctionCategory
       subcategory?: string | null

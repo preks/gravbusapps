@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import '@newwork/nw-design-system/style'
-import { Avatar, AvatarFallback, Button, Card } from '@newwork/nw-design-system'
+import { Avatar, AvatarFallback, Button, Card, CreateLayout } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
@@ -8,10 +8,7 @@ import { FunctionAssistantSidebar } from './FunctionAssistantSidebar'
 import { FunctionEditorHeaderBar } from './editor/FunctionEditorHeaderBar'
 import { FunctionDefinitionCard, type FunctionDefinitionTab } from './editor/FunctionDefinitionCard'
 import { useFunctionEditorState } from '../hooks/useFunctionEditorState'
-import { Code, RotateCcw, Sparkles, X } from 'lucide-react'
-// NOTE: CreateLayout was removed upstream in @newwork/nw-design-system; we fall
-// back to an inline hero + resizable chat/canvas layout so the editor keeps
-// rendering the optional hero when heroTitle/onBack are provided.
+import { CodeIcon, RotateCcwIcon, SparkleIcon, XIcon } from '@phosphor-icons/react'
 
 export interface FunctionEditorProps extends BusinessAppContextProps {
   mode: 'create' | 'edit'
@@ -189,7 +186,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
               <div className="gba:flex gba:items-start gba:gap-2 gba:min-w-0">
                 <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
                   <AvatarFallback>
-                    <Sparkles className="gba:h-4 gba:w-4" />
+                    <SparkleIcon className="gba:h-4 gba:w-4" />
                   </AvatarFallback>
                 </Avatar>
                 <div className="gba:min-w-0">
@@ -207,7 +204,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
                   onClick={undoAssistantApply}
                   data-testid="function-editor-undo"
                 >
-                  <RotateCcw className="gba:h-4 gba:w-4 gba:mr-2" />
+                  <RotateCcwIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                   Undo
                 </Button>
                 <Button
@@ -218,7 +215,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
                   data-testid="function-editor-undo-dismiss"
                   aria-label="Dismiss"
                 >
-                  <X className="gba:h-4 gba:w-4" />
+                  <XIcon className="gba:h-4 gba:w-4" />
                 </Button>
               </div>
             </div>
@@ -283,67 +280,40 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
 
   if (usesCreateLayoutHero) {
     return (
-      <div
+      <CreateLayout
         data-testid={testId}
-        className={['gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full', className].filter(Boolean).join(' ')}
-      >
-        <div className="gba:relative gba:overflow-hidden gba:border-b gba:border-border">
-          <PremiumHeroBackground />
-          <div className="gba:relative gba:flex gba:items-start gba:gap-3 gba:p-6">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={onBack}
-              aria-label="Back"
-              data-testid="function-editor-hero-back"
-            >
-              Back
-            </Button>
-            <Avatar className="gba:h-10 gba:w-10 gba:shrink-0">
-              <AvatarFallback>
-                <Code className="gba:h-5 gba:w-5" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="gba:min-w-0">
-              <div className="gba:text-lg gba:font-semibold gba:text-foreground">{heroTitle}</div>
-              {heroSubtitle ? (
-                <div className="gba:text-sm gba:text-muted-foreground gba:mt-0.5">{heroSubtitle}</div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-        <div className="gba:flex gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-hidden gba:flex-row">
-          <div className="gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-auto gba:p-6">{mainContent}</div>
-          {assistantOpen && !chatPanelCollapsed ? (
-            <aside
-              className="gba:w-96 gba:shrink-0 gba:border-l gba:border-border gba:bg-background gba:min-h-0 gba:min-w-0 gba:overflow-hidden"
-              data-testid="function-assistant-aside"
-            >
-              <FunctionAssistantSidebar
-                accessToken={accessToken}
-                userInfo={userInfo}
-                mode={assistantMode}
-                existing={existingSnapshot}
-                onApply={applyDraft}
-                onOpenDefinitionTab={openDefinitionTab}
-                onOpenTenantCredentials={onOpenTenantCredentials}
-                fixTestRequest={fixTestRequest}
-                onFixTestRequestHandled={() => setFixTestRequest(null)}
-                onFixTestStateChange={({ isFixing, error }) => {
-                  setIsFixingWithAi(isFixing)
-                  setFixWithAiError(error)
-                }}
-                onClose={() => {
-                  closeAssistant()
-                  handleCollapseChange(true)
-                }}
-                data-testid="function-assistant"
-              />
-            </aside>
-          ) : null}
-        </div>
-      </div>
+        heroVariant="editor"
+        heroIcon={CodeIcon}
+        heroTitle={heroTitle}
+        heroSubtitle={heroSubtitle}
+        heroBackground={<PremiumHeroBackground />}
+        onBack={onBack}
+        chatPanel={
+          <FunctionAssistantSidebar
+            accessToken={accessToken}
+            userInfo={userInfo}
+            mode={assistantMode}
+            existing={existingSnapshot}
+            onApply={applyDraft}
+            onOpenDefinitionTab={openDefinitionTab}
+            onOpenTenantCredentials={onOpenTenantCredentials}
+            fixTestRequest={fixTestRequest}
+            onFixTestRequestHandled={() => setFixTestRequest(null)}
+            onFixTestStateChange={({ isFixing, error }) => {
+              setIsFixingWithAi(isFixing)
+              setFixWithAiError(error)
+            }}
+            onClose={closeAssistant}
+            data-testid="function-assistant"
+          />
+        }
+        canvasPanel={
+          <div className="gba:flex gba:h-full gba:min-h-0 gba:flex-col gba:overflow-y-auto gba:p-6">{mainContent}</div>
+        }
+        chatPanelCollapsed={chatPanelCollapsed}
+        onChatPanelCollapseChange={handleCollapseChange}
+        className={className}
+      />
     )
   }
 

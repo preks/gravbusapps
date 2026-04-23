@@ -13,6 +13,17 @@ jest.mock('../hooks/useFunctionEditorState', () => ({
 }))
 
 jest.mock('@newwork/nw-design-system', () => ({
+  CreateLayout: ({ onBack, canvasPanel, chatPanel, 'data-testid': testId }: any) => (
+    <div data-testid={testId}>
+      {onBack ? (
+        <button type="button" data-testid="function-editor-hero-back" onClick={onBack}>
+          Back
+        </button>
+      ) : null}
+      {canvasPanel}
+      {chatPanel}
+    </div>
+  ),
   Avatar: ({ children }: any) => <div data-testid="mock-avatar">{children}</div>,
   AvatarFallback: ({ children }: any) => <div data-testid="mock-avatar-fallback">{children}</div>,
   Button: ({ children, onClick, type = 'button', ...props }: any) => (

@@ -6,6 +6,19 @@ const useFunctionsDataMock = jest.fn()
 const createFunctionsColumnsMock = jest.fn()
 
 jest.mock('@newwork/nw-design-system', () => ({
+  CreateLayout: ({ children, canvasPanel, heroTitle, views, onViewChange, 'data-testid': testId }: any) => (
+    <div data-testid={testId}>
+      <div>{heroTitle}</div>
+      {Array.isArray(views)
+        ? views.map((v: any) => (
+            <button key={v.value} type="button" onClick={() => onViewChange?.(v.value)}>
+              {v.label}
+            </button>
+          ))
+        : null}
+      {canvasPanel || children}
+    </div>
+  ),
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
   DataDisplay: ({ children, primaryAction }: any) => (
     <div data-testid="mock-data-display">
@@ -56,11 +69,15 @@ describe('FunctionManager', () => {
   beforeEach(() => {
     useFunctionsDataMock.mockReturnValue({
       data: [],
+      allItems: [],
       total: 0,
+      categoryCounts: { All: 0, General: 0, HR: 0, CRM: 0, Expenses: 0, Office: 0, Service: 0, Custom: 0 },
       loading: false,
       error: null,
       search: '',
       setSearch: jest.fn(),
+      category: 'All',
+      setCategory: jest.fn(),
       pagination: { pageIndex: 0, pageSize: 20 },
       setPagination: jest.fn(),
       visibleColumns: [],
@@ -79,7 +96,7 @@ describe('FunctionManager', () => {
     render(<FunctionManager accessToken="token" />)
 
     expect(screen.getByTestId('FunctionManager')).toBeInTheDocument()
-    expect(screen.getByText('Functions')).toBeInTheDocument()
+    expect(screen.getAllByText('Functions').length).toBeGreaterThan(0)
     expect(screen.getByTestId('mock-data-display-primary-action')).toHaveTextContent('New Function')
     expect(screen.getByTestId('mock-data-display')).toBeInTheDocument()
     expect(screen.getByTestId('mock-data-table')).toBeInTheDocument()
