@@ -3,7 +3,7 @@
 ## Overview
 
 **Agent Name:** `QueryClassifier`  
-**Type:** General (Task Expert)  
+**Type:** General (Enterprise Agent)  
 **Description:** AI agent for classifying user queries as either keyword-based or natural language queries. Supports multilingual input.
 
 ## System Prompt

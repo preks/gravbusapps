@@ -61,11 +61,13 @@ Blink notification sent to user's EveryBox
 ### Example Requests
 
 **Event-based:**
+
 - "inform me when there is a new activity in CRM account ABC"
 - "notify me when an expense needs approval"
 - "alert me when an opportunity moves to closing stage"
 
 **Schedule-based:**
+
 - "send me a list of new opportunities each Monday at 10 am"
 - "remind me every Friday at 5pm to review pending expenses"
 - "send me a weekly summary of new contacts"
@@ -78,13 +80,13 @@ The system detects agent creation patterns in messages containing @Every:
 
 ```typescript
 // Patterns detected:
-- "inform me when..."
-- "notify me when..."
-- "send me ... every/each ..."
-- "remind me..."
-- "alert me..."
-- "monitor..."
-- "watch for..."
+;-'inform me when...' -
+  'notify me when...' -
+  'send me ... every/each ...' -
+  'remind me...' -
+  'alert me...' -
+  'monitor...' -
+  'watch for...'
 ```
 
 ### Modified Chat Flow
@@ -105,12 +107,12 @@ if (hasEveryMention(entityReferences)) {
     content,
     currentModule
   )
-  
+
   if (isAgentRequest) {
     // Show confirmation dialog instead of sending to AI chat
     return
   }
-  
+
   // Otherwise, process as normal AI chat
   sendToEveryAI(content)
 }
@@ -148,12 +150,14 @@ GET /api/agents/:id/executions      // Get execution history
 ### 2. Agent Execution Engine
 
 **For Scheduled Agents:**
+
 - Use cron scheduler or custom-flow-engine scheduled flows
 - Parse schedule config into cron expression
 - Execute agent actions on schedule
 - Store execution results
 
 **For Event-based Agents:**
+
 - Subscribe to entity change events (webhooks/message queue)
 - Filter events based on agent config
 - Execute agent actions when event matches
@@ -162,18 +166,21 @@ GET /api/agents/:id/executions      // Get execution history
 ### 3. Agent Actions Executor
 
 **Query Action:**
+
 - Execute GraphQL queries
 - Transform results for notifications
 - Handle errors gracefully
 
 **Notify Action:**
+
 - Send Blink notifications to user's EveryBox
 - Support different priorities
 - Include action URLs for quick access
 
 ### 4. Prompt Manager Integration
 
-Create a Task Expert prompt for agent parsing:
+Create an Enterprise Agent prompt for agent parsing:
+
 - Name: "Agent Parser v1"
 - System Prompt: See `src/business-apps/platform/apps/personal-agents/prompts/agent-parser-prompt.ts`
 - Response: Structured JSON with agent configuration
@@ -182,6 +189,7 @@ Create a Task Expert prompt for agent parsing:
 ## Agent Management UI
 
 Users should be able to:
+
 - View all their agents
 - See agent status (active/paused/error)
 - View execution history
@@ -202,18 +210,21 @@ Users should be able to:
 ## Testing
 
 ### Unit Tests
+
 - Agent parser service
 - Agent actions service
 - Detection patterns
 - Schedule parsing
 
 ### Integration Tests
+
 - End-to-end agent creation from chat
 - Scheduled execution
 - Event-triggered execution
 - Notification delivery
 
 ### User Acceptance Tests
+
 - Create agent via chat
 - Verify notifications arrive
 - Edit and pause agents
@@ -335,9 +346,9 @@ Response:
 Personal AI Agents provide a powerful way for users to automate repetitive tasks and stay informed about important changes. The natural language interface via @Every makes it accessible to all users without technical knowledge.
 
 The system is designed to be:
+
 - **User-friendly**: Create agents through natural conversation
 - **Flexible**: Support various trigger types and actions
 - **Secure**: Respect user permissions and data access
 - **Scalable**: Handle many agents and executions efficiently
 - **Extensible**: Easy to add new trigger types and actions
-

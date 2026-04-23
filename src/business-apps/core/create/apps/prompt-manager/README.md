@@ -1,4 +1,4 @@
-# Task Expert Studio - Every Experts
+# Enterprise Agent Studio
 
 ## Features
 
@@ -10,7 +10,7 @@
 ## Creating an EveryAI Expert
 
 1. Open Prompt Manager (`/platform/create/prompt-manager`)
-2. Create New Task Expert
+2. Create New Enterprise Agent
 3. Select **Agent Type**: EveryAI Expert
 4. Fill required fields:
    - Name: `Legal Expert`

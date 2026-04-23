@@ -100,7 +100,7 @@ export const CANVAS_TABS: CanvasTabInfo[] = [
   { id: 'screen', label: 'Screen' },
   { id: 'data-model', label: 'Data Model' },
   { id: 'functions', label: 'Functions' },
-  { id: 'task-expert', label: 'Task Expert' },
+  { id: 'task-expert', label: 'Agent' },
   { id: 'agent-mesh', label: 'Agent Mesh' },
   { id: 'flow', label: 'Flow' },
   { id: 'about', label: 'About' }
