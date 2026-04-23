@@ -110,7 +110,7 @@ export function useSpreadsheetAppsHubUrlState(
     if (nextSection && nextSection !== activeSection) {
       setActiveSection(nextSection)
     }
-  }, [activeSection, setActiveSection, showSharedSection])
+  }, [setActiveSection, showSharedSection])
 
   // Load app from URL on mount.
   // Uses initialAppIdRef as fallback since parent effects may clear URL params.
