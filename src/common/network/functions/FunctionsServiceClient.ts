@@ -2,6 +2,14 @@ import { env } from '@/common/env/EnvUtils'
 
 export type ConnectorKind = 'structured' | 'unstructured'
 
+/**
+ * Closed enum of first-class categories recognized by functions-service
+ * (matches `FUNCTION_CATEGORIES` in the backend). Used to drive the
+ * Function Manager tabs and to scope `GET /functions/latest?category=...`.
+ */
+export const FUNCTION_CATEGORIES = ['General', 'HR', 'CRM', 'Expenses', 'Office', 'Service', 'Custom'] as const
+export type FunctionCategory = (typeof FUNCTION_CATEGORIES)[number]
+
 export interface FunctionConnectionBinding {
   connectionId: string
   configMapping?: Record<string, string>
@@ -11,6 +19,8 @@ export interface FunctionMetadata {
   id: string
   name: string
   description?: string | null
+  category: FunctionCategory
+  subcategory?: string | null
   agentEnabled: boolean
   workflowEnabled?: boolean
   connectorEnabled?: boolean
@@ -31,6 +41,8 @@ export interface LatestFunctionItem {
   id: string
   name: string
   description?: string | null
+  category: FunctionCategory
+  subcategory?: string | null
   agentEnabled: boolean
   workflowEnabled?: boolean
   connectorEnabled?: boolean
@@ -335,6 +347,8 @@ export class FunctionsServiceClient {
     workflowEnabled?: boolean
     connectorEnabled?: boolean
     connectorKind?: ConnectorKind | null
+    category?: FunctionCategory
+    subcategory?: string
   }): Promise<LatestFunctionItem[]> {
     return await this.get<LatestFunctionItem[]>('/functions/latest', params as any)
   }
@@ -344,6 +358,8 @@ export class FunctionsServiceClient {
     workflowEnabled?: boolean
     connectorEnabled?: boolean
     connectorKind?: ConnectorKind | null
+    category?: FunctionCategory
+    subcategory?: string
   }): Promise<FunctionMetadata[]> {
     return await this.get<FunctionMetadata[]>('/functions', params as any)
   }
@@ -356,6 +372,8 @@ export class FunctionsServiceClient {
   async createFunctionWithVersion(data: {
     name: string
     description?: string
+    category?: FunctionCategory
+    subcategory?: string | null
     agentEnabled?: boolean
     workflowEnabled?: boolean
     connectorEnabled?: boolean
@@ -388,6 +406,8 @@ export class FunctionsServiceClient {
     functionId: string,
     data: {
       description?: string
+      category?: FunctionCategory
+      subcategory?: string | null
       agentEnabled?: boolean
       workflowEnabled?: boolean
       connectorEnabled?: boolean
@@ -458,10 +478,9 @@ export class FunctionsServiceClient {
     secretId: string,
     input: { displayName: string }
   ): Promise<{ id: string; displayName: string }> {
-    return await this.patchJson<{ id: string; displayName: string }>(
-      `/secrets/${encodeURIComponent(secretId)}`,
-      { displayName: input.displayName }
-    )
+    return await this.patchJson<{ id: string; displayName: string }>(`/secrets/${encodeURIComponent(secretId)}`, {
+      displayName: input.displayName
+    })
   }
 
   /** Appends a new encrypted value version (same secret id / fnsecret ref). */
