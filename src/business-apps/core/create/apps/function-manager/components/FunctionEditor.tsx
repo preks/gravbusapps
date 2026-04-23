@@ -8,7 +8,7 @@ import { FunctionAssistantSidebar } from './FunctionAssistantSidebar'
 import { FunctionEditorHeaderBar } from './editor/FunctionEditorHeaderBar'
 import { FunctionDefinitionCard, type FunctionDefinitionTab } from './editor/FunctionDefinitionCard'
 import { useFunctionEditorState } from '../hooks/useFunctionEditorState'
-import { CodeIcon, RotateCcwIcon, SparkleIcon, XIcon } from '@phosphor-icons/react'
+import { ArrowCounterClockwiseIcon, CodeIcon, SparkleIcon, XIcon } from '@phosphor-icons/react'
 
 export interface FunctionEditorProps extends BusinessAppContextProps {
   mode: 'create' | 'edit'
@@ -204,7 +204,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
                   onClick={undoAssistantApply}
                   data-testid="function-editor-undo"
                 >
-                  <RotateCcwIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                  <ArrowCounterClockwiseIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                   Undo
                 </Button>
                 <Button
