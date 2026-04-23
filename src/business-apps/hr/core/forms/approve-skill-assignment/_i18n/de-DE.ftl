@@ -1,0 +1,11 @@
+approve-skill-assignment-title = Skill-Zuweisung genehmigen
+approve-skill-assignment-details-title = Skill-Änderungen
+approve-skill-assignment-no-changes = Keine Änderungen in dieser Anfrage erkannt.
+approve-skill-assignment-valid-from = Gültig ab
+approve-skill-assignment-level = Stufe
+approve-skill-assignment-approve = Genehmigen
+approve-skill-assignment-reject = Ablehnen
+approve-skill-assignment-change-new = Neu
+approve-skill-assignment-change-to-create = Zu erstellen
+approve-skill-assignment-change-modified = Geändert
+approve-skill-assignment-change-deleted = Entfernt
