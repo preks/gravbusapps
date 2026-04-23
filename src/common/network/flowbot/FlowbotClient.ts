@@ -67,6 +67,8 @@ export interface MapFromFileRequest {
 }
 
 export interface MapFromFileResponse {
+  /** Canonical GQL schema type resolved by the backend (e.g. `"LiquidFundInvestment"`). */
+  entityType?: string
   fieldMappings: Array<{
     sourceField: string
     targetField: string
@@ -217,10 +219,10 @@ export class FlowbotClient extends RestClient {
     }
     formData.append('import_file', importFile)
     formData.append('model_kind', modelKind)
-    // Always send both LLM-context fields so the backend has a uniform
-    // contract — empty string / empty array signal "no value".
-    formData.append('required_subtype_key', requiredSubtypeKey ?? '')
-    formData.append('additional_properties_fields', JSON.stringify(additionalPropertiesFields ?? []))
+    if (flowbotDomain === 'irm') {
+      formData.append('required_subtype_key', requiredSubtypeKey ?? '')
+      formData.append('additional_properties_fields', JSON.stringify(additionalPropertiesFields ?? []))
+    }
 
     return this.post<MapFromFileResponse>('/flowbot/extraction/data/entities/map-from-file', formData, options)
   }
@@ -235,6 +237,7 @@ export class FlowbotClient extends RestClient {
     offset: number = 0,
     maxRows: number = 5000,
     repairCsv: 'auto' | 'hard' = 'auto',
+    requiredSubtypeKey?: string | null,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ExtractFromFileResponse> {
     const formData = new FormData()
@@ -248,6 +251,9 @@ export class FlowbotClient extends RestClient {
     formData.append('mapping_json', mappingJson)
     if (enforcedFieldsJson) {
       formData.append('enforced_fields_json', enforcedFieldsJson)
+    }
+    if (flowbotDomain === 'irm' && requiredSubtypeKey) {
+      formData.append('required_subtype_key', requiredSubtypeKey)
     }
     formData.append('offset', offset.toString())
     formData.append('max_rows', maxRows.toString())

@@ -25,15 +25,16 @@ export interface InvestmentGroupAnalyzerContext {
    */
   requiredSubtypeKey: string
   /**
-   * Full `property` paths of every dynamic `additionalProperties.*` field
+   * Short field names of every dynamic `additionalProperties.*` field
    * declared on any `formFields[*].fields[*]` entry in the
    * `InvestmentGroup` catalog subtree (root + transitive descendants).
    *
    * - Filter: the `property` string must contain `.additionalProperties.`.
-   * - Values are sent through verbatim (no last-segment extraction) so the
-   *   LLM can reason about full dotted paths.
+   * - Only the segment after `.additionalProperties.` is kept (e.g.
+   *   `liquidFundInvestment.additionalProperties.openingBalance` →
+   *   `openingBalance`) so the backend can prefix `ap.` correctly.
    * - Deduped across the whole subtree to avoid the LLM seeing the same
-   *   path twice when two `InvestmentType`s expose the same attribute.
+   *   field twice when two `InvestmentType`s expose the same attribute.
    * - Insertion-ordered for stable diffs across renders.
    */
   additionalPropertiesFields: string[]
@@ -131,8 +132,12 @@ export function aggregateInvestmentGroupContext(
     const parsed = parseObjectValue(entry.objectValue)
     const properties = collectFieldPropertiesFromFormFields(parsed)
     for (const property of properties) {
-      if (property.includes(ADDITIONAL_PROPERTIES_MARKER)) {
-        dedupedFields.add(property)
+      const markerIndex = property.indexOf(ADDITIONAL_PROPERTIES_MARKER)
+      if (markerIndex >= 0) {
+        const shortField = property.slice(markerIndex + ADDITIONAL_PROPERTIES_MARKER.length)
+        if (shortField.length > 0) {
+          dedupedFields.add(shortField)
+        }
       }
     }
   }
