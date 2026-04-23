@@ -19,6 +19,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TeamBirthday } from '../hooks/useTeamBirthdays'
 import { useChatClient } from '@/common/network/chat/useChatClient'
 import { toast } from 'sonner'
+import { PrefilledMessageDialog } from '../components/shared/PrefilledMessageDialog'
 
 export interface BirthdaysViewProps {
   upcomingBirthdays: TeamBirthday[]
@@ -53,11 +54,12 @@ export const BirthdaysView: React.FC<BirthdaysViewProps> = ({
   onNavigateToEmployee
 }) => {
   const [sendingToUserId, setSendingToUserId] = useState<string | null>(null)
+  const [messageDraft, setMessageDraft] = useState<{ person: TeamBirthday; message: string } | null>(null)
 
   const chatClient = useChatClient(accessToken)
 
   const sendBirthdayMessage = useCallback(
-    async (person: TeamBirthday) => {
+    async (person: TeamBirthday, message: string) => {
       const recipientUserId = person.userId || person.id
 
       if (!recipientUserId) {
@@ -69,14 +71,13 @@ export const BirthdaysView: React.FC<BirthdaysViewProps> = ({
       try {
         const currentUser = await chatClient.getCurrentUser()
         const conversation = await chatClient.getOrCreateDirectConversation(recipientUserId)
-        await chatClient.sendMessage(
-          conversation.id,
-          buildBirthdayMessage(person.firstName, `${person.id}-${person.birthDate || ''}`),
-          currentUser.id,
-          undefined,
-          { source: 'manager-dashboard', type: 'birthday-greeting', aiCustomized: true }
-        )
+        await chatClient.sendMessage(conversation.id, message, currentUser.id, undefined, {
+          source: 'manager-dashboard',
+          type: 'birthday-greeting',
+          aiCustomized: true
+        })
         toast.success(`Message sent to ${person.firstName} ${person.lastName}`)
+        setMessageDraft(null)
       } catch {
         console.error('Failed to send birthday chat message')
         toast.error('Failed to send message')
@@ -121,10 +122,13 @@ export const BirthdaysView: React.FC<BirthdaysViewProps> = ({
 
       {!loadingBirthdays && upcomingBirthdays.length === 0 && (
         <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel(
-            'master-data:hr.manager_dashboard.no_upcoming_birthdays',
-            'No upcoming birthdays in the next 30 days'
-          )}
+          <p>
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.manager_dashboard.no_upcoming_birthdays',
+              'No upcoming birthdays in the next 30 days'
+            )}
+          </p>
+          <p className="gba:mt-2 gba:text-sm">Use this window to schedule recognition moments for your team.</p>
         </div>
       )}
 
@@ -176,7 +180,10 @@ export const BirthdaysView: React.FC<BirthdaysViewProps> = ({
                         size="sm"
                         onClick={event => {
                           event.stopPropagation()
-                          void sendBirthdayMessage(person)
+                          setMessageDraft({
+                            person,
+                            message: buildBirthdayMessage(person.firstName, `${person.id}-${person.birthDate || ''}`)
+                          })
                         }}
                         disabled={isSending}
                         data-testid={`manager-dashboard-birthday-chat-${person.id}`}
@@ -197,6 +204,25 @@ export const BirthdaysView: React.FC<BirthdaysViewProps> = ({
           </Table>
         </div>
       )}
+
+      <PrefilledMessageDialog
+        open={Boolean(messageDraft)}
+        onOpenChange={open => {
+          if (!open) {
+            setMessageDraft(null)
+          }
+        }}
+        title="Send birthday message"
+        description="Review and edit the message before sending."
+        recipientName={messageDraft?.person.fullName || ''}
+        defaultMessage={messageDraft?.message || ''}
+        confirmLabel="Send message"
+        sending={sendingToUserId === (messageDraft?.person.userId || messageDraft?.person.id)}
+        onConfirm={async message => {
+          if (!messageDraft) return
+          await sendBirthdayMessage(messageDraft.person, message)
+        }}
+      />
     </div>
   )
 }

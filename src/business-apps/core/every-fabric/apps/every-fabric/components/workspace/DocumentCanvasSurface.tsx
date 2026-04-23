@@ -326,7 +326,7 @@ export const DocumentCanvasSurface: React.FC<DocumentCanvasSurfaceProps> = ({ pr
   }, [docId, displayTitle, editedHtml, isMarkdown, preview, sessionId, text, accessToken, refreshArtifacts])
 
   return (
-    <div ref={rootRef} className="gba:flex gba:flex-col gba:h-full" data-testid="fabric-document-canvas">
+    <div ref={rootRef} className="gba:flex gba:flex-col gba:max-h-128 gba:min-h-0" data-testid="fabric-document-canvas">
       <CanvasToolbar
         title={displayTitle}
         isStreaming={isStreaming}
@@ -352,7 +352,7 @@ export const DocumentCanvasSurface: React.FC<DocumentCanvasSurfaceProps> = ({ pr
         </div>
       )}
 
-      <div className="gba:flex-1 gba:overflow-y-auto">
+      <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto">
         <div className="gba:mx-auto gba:px-5 gba:py-6">
           <div className="gba:bg-card gba:border gba:border-border/50 gba:rounded-xl gba:px-6 gba:py-6 gba:min-h-[20rem]">
             {text || isStreaming ? (

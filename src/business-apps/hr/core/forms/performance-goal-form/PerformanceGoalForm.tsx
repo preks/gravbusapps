@@ -207,12 +207,25 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
         milestones: [] // populated by GraphQL fetch below
       }
     } else {
-      const today = dayjs().startOf('day').format('YYYY-MM-DD')
-      const dueDate = dayjs(today).add(5, 'day').format('YYYY-MM-DD')
+      const fallbackStartDate = dayjs().startOf('day')
+      const cycleStartDefault = cycleStartDate ? dayjs(cycleStartDate).startOf('day') : fallbackStartDate
+      const startDate = (cycleStartDefault.isValid() ? cycleStartDefault : fallbackStartDate).format('YYYY-MM-DD')
+
+      const fallbackDueDate = dayjs(startDate).add(5, 'day').startOf('day')
+      const cycleEndDefault = cycleEndDate ? dayjs(cycleEndDate).startOf('day') : fallbackDueDate
+      const normalizedDueDate = (cycleEndDefault.isValid() ? cycleEndDefault : fallbackDueDate).isBefore(
+        dayjs(startDate),
+        'day'
+      )
+        ? dayjs(startDate)
+        : cycleEndDefault.isValid()
+          ? cycleEndDefault
+          : fallbackDueDate
+
       return {
         title: '',
-        startDate: clampDateToCycle(today),
-        dueDate: clampDateToCycle(dueDate),
+        startDate: clampDateToCycle(startDate),
+        dueDate: clampDateToCycle(normalizedDueDate.format('YYYY-MM-DD')),
         status: '',
         progressPercent: 0,
         objectiveType: 'PERCENTAGE_PERFORMANCE_GOAL',

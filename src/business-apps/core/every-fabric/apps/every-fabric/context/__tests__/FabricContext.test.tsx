@@ -32,13 +32,20 @@ jest.mock('../../hooks/useFabricArtifacts', () => ({
   }))
 }))
 
-jest.mock('../../hooks/useFabricProgress', () => ({
-  useFabricProgress: jest.fn(() => ({
+jest.mock('../../hooks/useFabricPlan', () => ({
+  useFabricPlan: jest.fn(() => ({
     taskNodes: [],
+    hasPlan: false,
     completedCount: 0,
     totalCount: 0,
-    progressPercent: 0
+    progressPercent: 0,
+    todos: [],
+    currentTodoText: null
   }))
+}))
+
+jest.mock('../../hooks/useFabricDecisions', () => ({
+  useFabricDecisions: jest.fn(() => [])
 }))
 
 describe('FabricContext session URL sync', () => {

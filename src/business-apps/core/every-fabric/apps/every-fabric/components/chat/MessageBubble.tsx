@@ -11,6 +11,8 @@ import { EmailComposerBubble } from './EmailComposerBubble'
 import { FinalAnswerRenderer } from '../renderers/FinalAnswerRenderer'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { findComposeEmailOutcomeAfterMessage } from '../../utils/composeEmailTrace'
+import { FABRIC_LIVE_PLAN_MESSAGE_ID } from '../../utils/messageUtils'
+import { parseIsoTimestamp } from '../../utils/renderUtils'
 
 const AnimatedMessageWrapper: React.FC<{
   children: React.ReactNode
@@ -40,9 +42,32 @@ const AnimatedMessageWrapper: React.FC<{
   )
 }
 
+/**
+ * Returns true if the full transcript contains a real agent-produced message
+ * after the given message id. Used to detect that a structured_input_request
+ * was answered in a previous turn (the agent has since emitted more output)
+ * and should be rendered as a collapsed summary rather than a live form.
+ *
+ * The `fabric-live-plan` sentinel is deliberately ignored: `deriveMessagesFromEvents`
+ * always appends it at the very end of the message list whenever the session
+ * has todos, so it sits after a freshly-arrived structured_input_request even
+ * when the user hasn't answered yet. Counting it as "a message after" would
+ * make the form render locked/read-only on first display and block the user
+ * from submitting — exactly the bug this guard prevents.
+ */
+const hasAnsweredReply = (allMessages: ChatMessage[] | undefined, messageId: string): boolean => {
+  if (!allMessages || allMessages.length === 0) return false
+  const idx = allMessages.findIndex(m => m.id === messageId)
+  if (idx < 0) return false
+  for (let i = idx + 1; i < allMessages.length; i += 1) {
+    if (allMessages[i].id !== FABRIC_LIVE_PLAN_MESSAGE_ID) return true
+  }
+  return false
+}
+
 const formatMessageTimestamp = (timestamp: string) => {
-  const date = new Date(timestamp)
-  if (Number.isNaN(date.getTime())) return ''
+  const date = parseIsoTimestamp(timestamp)
+  if (!date) return ''
   return date.toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit'
@@ -121,7 +146,14 @@ const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
 interface MessageBubbleProps {
   message: ChatMessage
   sessionId: string
-  /** Full transcript (for compose_email: detect send complete from later tool_result). */
+  /**
+   * Full, UNFILTERED transcript of the session. Must include `tool_result`
+   * and other non-visible message types — they drive post-submit detection
+   * for compose_email (looking up the matching tool_result) and for any
+   * structured_input_request form (anything after it means it was answered).
+   * Filtering this down to only the "bubble-rendered" message types breaks
+   * collapse-on-reload for both the email composer and other forms.
+   */
   allMessages?: ChatMessage[]
   onReply?: (answer?: string, structuredInput?: Record<string, any>) => void
   onViewArtifact?: (artifactName: string) => void
@@ -220,6 +252,13 @@ export const MessageBubble = ({ message, allMessages, onReply, onViewArtifact, a
           </div>
         )
       }
+      // A structured_input_request is "already submitted" when the transcript
+      // contains any later message after it — the user answered the form in a
+      // prior turn and the agent has since produced more output. In that case
+      // we render the form as a compact collapsed summary (matches the
+      // EmailComposerBubble pattern) so historical sessions aren't dominated
+      // by giant post-submit forms.
+      const alreadySubmitted = hasAnsweredReply(allMessages, message.id)
       return (
         <div className="gba:py-1" data-testid={`msg-${message.id}`}>
           <StructuredInputForm
@@ -229,6 +268,7 @@ export const MessageBubble = ({ message, allMessages, onReply, onViewArtifact, a
             fields={formData.fields}
             allowPartialSubmit={formData.allow_partial_submit}
             accessToken={accessToken}
+            alreadySubmitted={alreadySubmitted}
             onSubmit={(values, aiDelegated) => {
               if (onReply) {
                 const structuredPayload = aiDelegated.length > 0 ? { ...values, _ai_should_fill: aiDelegated } : values

@@ -18,10 +18,10 @@ import {
   SelectItem,
   SelectValue,
   FileUpload,
-  type FileMetadata,
   DateInput,
   useTranslation
 } from '@newwork/nw-design-system'
+import { ExistingDocumentsList } from '../_shared/ExistingDocumentsList'
 import { useFormContext } from 'react-hook-form'
 import { z } from 'zod'
 import { Clock3, CalendarClock } from 'lucide-react'
@@ -90,7 +90,14 @@ export interface TaskSegmentProps {
 
   // File upload callback (optional convenience)
   onFilesChange?: (files: File[]) => void
-  existingDocuments?: Array<{ id: string; name?: string; version?: number }>
+  existingDocuments?: Array<{
+    id: string
+    name?: string | null
+    version?: number
+    mimeType?: string | null
+    fileSize?: number | null
+    fileInfo?: any
+  }>
   onDocumentRemove?: (documentId: string) => void
 
   // Custom fields
@@ -165,54 +172,17 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
     [entities]
   )
 
-  // Helper: Convert existing documents to FileMetadata format
-  const initialFiles = React.useMemo<FileMetadata[]>(
-    () =>
-      existingDocuments.map(doc => ({
-        id: doc.id,
-        name: doc.name || 'Unnamed Document',
-        size: 0,
-        type: '',
-        url: doc.id
-      })),
-    [existingDocuments]
-  )
-
-  // Helper: Create a stable key for FileUpload
-  const fileUploadKey = React.useMemo(() => existingDocuments.map(d => d.id).join(',') || 'empty', [existingDocuments])
-
-  // Helper: Extract File objects from FileWithPreview
-  const extractNewFiles = React.useCallback((files: any[]): File[] => {
-    return files.map(f => (f.file instanceof File ? f.file : null)).filter((f): f is File => f !== null)
-  }, [])
-
-  // Helper: Check if file ID is in set
-  const isFileIdInSet = React.useCallback((fileId: string, fileIds: Set<string>): boolean => {
-    return fileIds.has(fileId)
-  }, [])
-
-  // Handler: Process file changes
+  // Handler: Process file changes (new uploads only - existing documents are
+  // handled separately by ExistingDocumentsList so we never feed them through
+  // the design-system FileUpload, whose built-in download is not auth-aware).
   const handleFilesChange = React.useCallback(
     (files: any[]) => {
       if (!onFilesChange) return
 
-      // Add new files
-      const newFiles = extractNewFiles(files)
-      if (newFiles.length > 0) {
-        onFilesChange(newFiles)
-      }
-
-      // Handle file removal - check which initial files are missing
-      const currentFileIds = new Set(files.map(f => f.id))
-      const removedDocs = initialFiles.filter(initial => !isFileIdInSet(initial.id, currentFileIds))
-
-      if (removedDocs.length > 0 && onDocumentRemove) {
-        for (const doc of removedDocs) {
-          onDocumentRemove(doc.id)
-        }
-      }
+      const newFiles = files.map(f => (f.file instanceof File ? f.file : null)).filter((f): f is File => f !== null)
+      onFilesChange(newFiles)
     },
-    [onFilesChange, onDocumentRemove, initialFiles, extractNewFiles, isFileIdInSet]
+    [onFilesChange]
   )
 
   // Prime searches when provided but lists are empty
@@ -510,18 +480,25 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
             <FormItem>
               <FormLabel>{t('task-upload-label')}</FormLabel>
               <FormControl>
-                <FileUpload
-                  key={fileUploadKey}
-                  layout="list"
-                  preview="icon"
-                  maxFiles={10}
-                  maxSizeMB={10}
-                  multiple={true}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
-                  initialFiles={initialFiles}
-                  onChange={handleFilesChange}
-                  data-testid={`${dataTestId}-file-upload`}
-                />
+                <div className="gba:flex gba:flex-col gba:gap-3">
+                  <FileUpload
+                    layout="list"
+                    preview="icon"
+                    maxFiles={10}
+                    maxSizeMB={10}
+                    multiple={true}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
+                    onChange={handleFilesChange}
+                    data-testid={`${dataTestId}-file-upload`}
+                  />
+                  <ExistingDocumentsList
+                    documents={existingDocuments}
+                    accessToken={accessToken}
+                    onRemove={onDocumentRemove}
+                    label={t('task-attached-documents-label')}
+                    data-testid={`${dataTestId}-existing-documents`}
+                  />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
