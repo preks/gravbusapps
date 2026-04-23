@@ -1953,7 +1953,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                               {t('action-sort-created')}
                               {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                             </div>
-                            <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">{t('table-rows')}</div>
                             <div className="gba:w-10 gba:flex-shrink-0" />
                           </div>
                         </div>
@@ -2109,11 +2108,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                   {formatDate(app.createdAt, t, locale)}
                                 </div>
 
-                                {/* Rows */}
-                                <div className="gba:w-20 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground gba:text-right">
-                                  {app.rowCount.toLocaleString()}
-                                </div>
-
                                 {/* Actions */}
                                 <div
                                   className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end"
@@ -2130,12 +2124,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                         <Play className="gba:w-4 gba:h-4 gba:mr-2" />
                                         {t('action-open')}
                                       </DropdownMenuItem>
-                                      {isOwner && (
-                                        <DropdownMenuItem onClick={() => handleShareApp(app.id)}>
-                                          <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                          {t('action-share')}
-                                        </DropdownMenuItem>
-                                      )}
                                       {isOwner && sharedWith.length > 0 && (
                                         <DropdownMenuItem onClick={() => handleManageShares(app.id)}>
                                           <Users className="gba:w-4 gba:h-4 gba:mr-2" />

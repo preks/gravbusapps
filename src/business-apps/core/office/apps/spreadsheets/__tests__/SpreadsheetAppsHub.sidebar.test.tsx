@@ -212,4 +212,16 @@ describe('SpreadsheetAppsHub sidebar sections', () => {
     expect(screen.getByTestId('spreadsheet-apps-hub-trash-search')).toBeInTheDocument()
     expect(screen.getByTestId('office-trash-list')).toBeInTheDocument()
   })
+
+  it('does not render Share in the spreadsheet row overflow menu', () => {
+    render(<SpreadsheetAppsHub accessToken="token" />)
+
+    expect(screen.queryByText('action-share')).not.toBeInTheDocument()
+  })
+
+  it('does not render the Rows column in list view', () => {
+    render(<SpreadsheetAppsHub accessToken="token" />)
+
+    expect(screen.queryByText('table-rows')).not.toBeInTheDocument()
+  })
 })
