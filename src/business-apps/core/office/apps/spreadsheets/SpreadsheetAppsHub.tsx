@@ -1953,7 +1953,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                               {t('action-sort-created')}
                               {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                             </div>
-                            <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">{t('table-rows')}</div>
                             <div className="gba:w-10 gba:flex-shrink-0" />
                           </div>
                         </div>
@@ -2107,11 +2106,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                 {/* Created */}
                                 <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
                                   {formatDate(app.createdAt, t, locale)}
-                                </div>
-
-                                {/* Rows */}
-                                <div className="gba:w-20 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground gba:text-right">
-                                  {app.rowCount.toLocaleString()}
                                 </div>
 
                                 {/* Actions */}

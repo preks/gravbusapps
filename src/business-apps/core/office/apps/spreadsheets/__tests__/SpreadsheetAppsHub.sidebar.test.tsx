@@ -218,4 +218,10 @@ describe('SpreadsheetAppsHub sidebar sections', () => {
 
     expect(screen.queryByText('action-share')).not.toBeInTheDocument()
   })
+
+  it('does not render the Rows column in list view', () => {
+    render(<SpreadsheetAppsHub accessToken="token" />)
+
+    expect(screen.queryByText('table-rows')).not.toBeInTheDocument()
+  })
 })
