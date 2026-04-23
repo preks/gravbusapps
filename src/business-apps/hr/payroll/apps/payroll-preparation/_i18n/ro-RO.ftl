@@ -93,7 +93,7 @@ grid-pagination-prev = Anterior
 grid-pagination-next = Următor
 
 filter-all = Toate
-filter-search = Caută după numele complet...
+filter-search = Caută angajat sau cod...
 filter-readiness = Status Pregătire
 filter-changed-only = Doar Modificați
 filter-department = Departament
@@ -105,7 +105,7 @@ export-include-issues = Include Rezumatul Problemelor
 export-button = Exportă
 export-exceptions-button = Exportă Raport Excepții
 export-success = Datele de salarizare au fost exportate cu succes.
-export-mark-complete = Confirmă finalizarea
+export-mark-complete = Marchează ca finalizat
 export-complete-hint = După ce exportați fișierul cu succes, confirmați finalizarea folosind butonul de mai jos.
 
 signoff-prepared-by = Pregătit de
@@ -227,7 +227,7 @@ step-3-review-comment = Comentariu de revizuire
 step-4-description = Rularea de salarizare a fost finalizată.
 signoff-decision-approved = Aprobat
 signoff-decision-not-approved = Neaprobat
-signoff-mark-ready = Marchează pregătit pentru revizuire
+signoff-mark-ready = Marchează ca pregătit pentru revizuire
 signoff-current-user = Autentificat ca
 action-cancel = Anulează
 

@@ -7,11 +7,6 @@ import {
   Button,
   PageLayout,
   Spinner,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   useTranslation
 } from '@newwork/nw-design-system'
 
@@ -26,6 +21,8 @@ import {
 } from '@/common/utils/navigationUtils'
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
 
+import { CompensationCycleSelector } from '../compensation-planning/components/shared/CompensationCycleSelector'
+import compensationPlanningTranslations from '../compensation-planning/_i18n'
 import { useManagerPlanningStore } from './hooks/useManagerPlanningStore'
 
 import { useDefaultCompanyForCurrentUser } from '../../hooks/useDefaultCompanyForCurrentUser'
@@ -39,6 +36,8 @@ import { useManagerTeamSalaryBudget } from './hooks/useManagerTeamSalaryBudget'
 
 import { TeamCompensationDistributionPanel } from './components/TeamCompensationDistributionPanel'
 import { SupervisorOrgUnitProposalReview } from './components/SupervisorOrgUnitProposalReview'
+import { ManagerSentBackProposalsPanel } from './components/ManagerSentBackProposalsPanel'
+import { useSentBackProposalsForManagerTeam } from './hooks/useSentBackProposalsForManagerTeam'
 import translations from './_i18n'
 
 interface SupervisorReviewUrl {
@@ -48,6 +47,21 @@ interface SupervisorReviewUrl {
   teamLabel: string
   /** Set when opening review from HR Department submissions — back navigates there, not team compensation. */
   reviewSource: 'department-submissions' | null
+}
+
+function parseSentBackProposalsUrl(): { companyId: string } | null {
+  if (globalThis.window === undefined) {
+    return null
+  }
+  const p = new URLSearchParams(globalThis.window.location.search)
+  if (p.get('sentBackProposals') !== '1') {
+    return null
+  }
+  const companyId = p.get('companyId') ?? ''
+  if (!companyId) {
+    return null
+  }
+  return { companyId }
 }
 
 function parseSupervisorReviewUrl(): SupervisorReviewUrl | null {
@@ -81,11 +95,14 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
   const employeeId = userInfo?.employeeDetails?.employeeId
 
   const { t } = useTranslation(translations)
+  const { t: tCompensationPlan } = useTranslation(compensationPlanningTranslations)
 
   const {
     searchQuery,
     selectedCompanyId,
     setSelectedCompanyId,
+    selectedCompensationPlanId,
+    setSelectedCompensationPlanId,
     sidebarFilterIds,
     filterSalaryMin,
     filterSalaryMax,
@@ -112,21 +129,44 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
   }, [companiesLoading, companies, selectedCompanyId, setSelectedCompanyId])
 
   const [supervisorReview, setSupervisorReview] = useState<SupervisorReviewUrl | null>(() => parseSupervisorReviewUrl())
+  const [sentBackProposalsView, setSentBackProposalsView] = useState<{ companyId: string } | null>(() => {
+    if (parseSupervisorReviewUrl()) {
+      return null
+    }
+    return parseSentBackProposalsUrl()
+  })
 
   useLayoutEffect(() => {
-    const parsed = parseSupervisorReviewUrl()
-    if (parsed) {
-      setSupervisorReview(parsed)
-      setSelectedCompanyId(parsed.companyId)
+    const sup = parseSupervisorReviewUrl()
+    if (sup) {
+      setSupervisorReview(sup)
+      setSentBackProposalsView(null)
+      setSelectedCompanyId(sup.companyId)
+      return
+    }
+    setSupervisorReview(null)
+    const sb = parseSentBackProposalsUrl()
+    if (sb) {
+      setSentBackProposalsView(sb)
+      setSelectedCompanyId(sb.companyId)
+    } else {
+      setSentBackProposalsView(null)
     }
   }, [setSelectedCompanyId])
 
   useEffect(() => {
-    const syncSupervisorFromUrl = () => {
-      setSupervisorReview(parseSupervisorReviewUrl())
+    const syncFromUrl = () => {
+      const sup = parseSupervisorReviewUrl()
+      if (sup) {
+        setSupervisorReview(sup)
+        setSentBackProposalsView(null)
+        return
+      }
+      setSupervisorReview(null)
+      setSentBackProposalsView(parseSentBackProposalsUrl())
     }
-    globalThis.addEventListener('popstate', syncSupervisorFromUrl)
-    return () => globalThis.removeEventListener('popstate', syncSupervisorFromUrl)
+    globalThis.addEventListener('popstate', syncFromUrl)
+    return () => globalThis.removeEventListener('popstate', syncFromUrl)
   }, [])
 
   const exitSupervisorReviewMode = useCallback(() => {
@@ -140,6 +180,30 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     })
     navigateTo(next)
   }, [])
+
+  const exitSentBackProposalsView = useCallback(() => {
+    setSentBackProposalsView(null)
+    navigateTo(getCurrentUrlWithUpdatedSearchParams({ sentBackProposals: null }))
+  }, [])
+
+  const navigateToSentBackProposals = useCallback(() => {
+    if (!selectedCompanyId) {
+      return
+    }
+    setSupervisorReview(null)
+    setSentBackProposalsView({ companyId: selectedCompanyId })
+    navigateTo(
+      getCurrentUrlWithUpdatedSearchParams({
+        sentBackProposals: '1',
+        companyId: selectedCompanyId,
+        supervisorReview: null,
+        orgUnitId: null,
+        planOuRowId: null,
+        teamLabel: null,
+        reviewSource: null
+      })
+    )
+  }, [selectedCompanyId])
 
   const navigateToDepartmentSubmissions = useCallback(() => {
     if (!supervisorReview) {
@@ -161,7 +225,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     setSelectedCompanyId
   )
 
-  const effectiveCompanyId = supervisorReview?.companyId ?? selectedCompanyId
+  const effectiveCompanyId = supervisorReview?.companyId ?? sentBackProposalsView?.companyId ?? selectedCompanyId
 
   const {
     teamMembers,
@@ -184,14 +248,49 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     error: salaryBudgetError,
     refetch: refetchSalaryBudget,
     planOuRowIdByOrganizationalUnitId,
-    orgUnitBudgetSnapshotsByPlanRowId,
-    managerCompanyBudgetRow,
-    managerOrganizationalUnitId
+    managerOrganizationalUnitId,
+    activeCompensationBudgetPlanId,
+    compensationPlanChoices
   } = useManagerTeamSalaryBudget({
     accessToken,
     companyId: effectiveCompanyId,
     managerEmployeeId: employeeId,
-    teamMembers
+    teamMembers,
+    selectedCompensationBudgetPlanId: selectedCompensationPlanId
+  })
+
+  const compensationCycleSelectPlanId = useMemo((): string | null => {
+    if (compensationPlanChoices.length === 0) {
+      return null
+    }
+    if (selectedCompensationPlanId != null && compensationPlanChoices.some(p => p.id === selectedCompensationPlanId)) {
+      return selectedCompensationPlanId
+    }
+    if (
+      activeCompensationBudgetPlanId != null &&
+      compensationPlanChoices.some(p => p.id === activeCompensationBudgetPlanId)
+    ) {
+      return activeCompensationBudgetPlanId
+    }
+    return null
+  }, [activeCompensationBudgetPlanId, compensationPlanChoices, selectedCompensationPlanId])
+
+  useEffect(() => {
+    if (compensationPlanChoices.length === 0) {
+      return
+    }
+    if (selectedCompensationPlanId != null && !compensationPlanChoices.some(p => p.id === selectedCompensationPlanId)) {
+      setSelectedCompensationPlanId(null)
+    }
+  }, [compensationPlanChoices, selectedCompensationPlanId, setSelectedCompensationPlanId])
+
+  const teamEmployeeIds = useMemo(() => teamMembers.map(m => m.employeeId), [teamMembers])
+
+  const { sentBackCount } = useSentBackProposalsForManagerTeam({
+    accessToken,
+    companyId: supervisorReview == null && sentBackProposalsView == null ? selectedCompanyId : null,
+    planId: activeCompensationBudgetPlanId,
+    teamMemberEmployeeIds: teamEmployeeIds
   })
 
   const teamCurrencyCode = teamMembers[0]?.currency ?? 'EUR'
@@ -257,29 +356,6 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     paginate: false
   })
 
-  const companySelectValue =
-    selectedCompanyId != null && companies.some(c => c.id === selectedCompanyId) ? selectedCompanyId : undefined
-
-  const companySelect = (
-    <Select
-      value={companySelectValue}
-      onValueChange={val => setSelectedCompanyId(val || null)}
-      disabled={!companiesLoading && companies.length === 0}
-    >
-      <SelectTrigger className="gba:w-[300px]" data-testid="manager-compensation-company-select">
-        <SelectValue placeholder={t('select-company-placeholder')} />
-      </SelectTrigger>
-
-      <SelectContent>
-        {companies.map(company => (
-          <SelectItem key={company.id} value={company.id}>
-            {company.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
-
   const companiesLoadErrorMessage =
     !companiesLoading && companies.length === 0 && companiesLoadError ? (
       <p
@@ -290,16 +366,13 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       </p>
     ) : null
 
-  const emptyCompanySelectionRow = (
+  const emptyCompanyContextRow = (
     <div
-      className="gba:flex gba:w-full gba:flex-row gba:flex-wrap gba:items-start gba:justify-between gba:gap-4"
+      className="gba:flex gba:w-full gba:flex-col gba:gap-2 sm:gba:flex-row sm:gba:items-start sm:gba:justify-between"
       data-testid="manager-compensation-empty-company-bar"
     >
-      <p className="gba:min-w-0 gba:flex-1 gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
-      <div className="gba:flex gba:shrink-0 gba:flex-col gba:items-end gba:gap-2">
-        {companySelect}
-        {companiesLoadErrorMessage}
-      </div>
+      <p className="gba:min-w-0 gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
+      {companiesLoadErrorMessage}
     </div>
   )
 
@@ -318,7 +391,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
           className="gba:min-h-[400px] gba:overflow-auto gba:bg-background"
           data-testid="manager-compensation-data-body"
         >
-          <div className="gba:p-4">{emptyCompanySelectionRow}</div>
+          <div className="gba:p-4">{emptyCompanyContextRow}</div>
         </div>
       )
     }
@@ -354,12 +427,44 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       )
     }
 
+    if (sentBackProposalsView && accessToken) {
+      return (
+        <div className="gba:min-h-0 gba:overflow-auto gba:bg-background" data-testid="manager-compensation-data-body">
+          <div className="gba:p-4">
+            <ManagerSentBackProposalsPanel
+              accessToken={accessToken}
+              managerEmployeeId={employeeId}
+              companyId={sentBackProposalsView.companyId}
+              activeCompensationBudgetPlanId={activeCompensationBudgetPlanId}
+              teamMembers={teamMembersWithPerformance}
+              currencyCode={teamCurrencyCode}
+              onBack={exitSentBackProposalsView}
+            />
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div
         className="gba:min-h-[400px] gba:overflow-auto gba:bg-background"
         data-testid="manager-compensation-data-body"
       >
         <div className="gba:flex gba:flex-col gba:gap-4 gba:p-4">
+          {supervisorReview == null && sentBackProposalsView == null ? (
+            <div
+              className="gba:flex gba:flex-wrap gba:items-end gba:justify-end gba:gap-3 gba:border-b gba:border-border gba:pb-4"
+              data-testid="manager-compensation-cycle-toolbar"
+            >
+              <CompensationCycleSelector
+                plans={compensationPlanChoices}
+                plansLoading={salaryBudgetLoading}
+                selectedPlanId={compensationCycleSelectPlanId}
+                onPlanChange={setSelectedCompensationPlanId}
+                t={tCompensationPlan}
+              />
+            </div>
+          ) : null}
           {salaryBudgetError ? (
             <Alert variant="destructive" data-testid="manager-compensation-salary-budget-error">
               <AlertTitle>{t('error-salary-budget-title')}</AlertTitle>
@@ -395,10 +500,10 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
             managerEmployeeId={employeeId}
             planOuRowIdByOrganizationalUnitId={planOuRowIdByOrganizationalUnitId}
             managerOrganizationalUnitId={managerOrganizationalUnitId}
-            managerCompanyBudgetRow={managerCompanyBudgetRow}
-            orgUnitBudgetSnapshotsByPlanRowId={orgUnitBudgetSnapshotsByPlanRowId}
             onMergeSavedRowIds={mergeSavedRowIds}
             proposalsLockedAfterSubmit={proposalsLocked}
+            sentBackProposalCount={sentBackCount}
+            onOpenSentBackProposals={navigateToSentBackProposals}
             onSaved={() => {
               void refetchSalaryBudget()
               void refetchTeam()
@@ -416,7 +521,9 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       onBack={null as unknown as (() => void) | undefined}
       className="gba:min-h-screen"
     >
-      <div className={supervisorReview ? 'gba:space-y-0' : 'gba:space-y-6'}>{renderBody()}</div>
+      <div className={supervisorReview != null || sentBackProposalsView != null ? 'gba:space-y-0' : 'gba:space-y-6'}>
+        {renderBody()}
+      </div>
     </PageLayout>
   )
 }

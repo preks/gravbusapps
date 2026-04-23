@@ -45,7 +45,7 @@ import {
   DEFAULT_PAYROLL_COUNTRY
 } from '../../../utils/payrollDefaults'
 import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
-import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
+import { PayrollRunStatusBadge, getPayrollRunStatusLabel } from '../../shared/StatusBadge'
 
 const STATUS_ORDER: PayrollRunStatus[] = [
   'PAYROLL_IN_PROGRESS',
@@ -106,23 +106,6 @@ function getAuditDescriptionLabel(
       return t('audit-export-generated', { description: event.description })
     default:
       return event.description
-  }
-}
-
-function getRunStatusLabel(status: PayrollRunStatus, t: (key: string) => string): string {
-  switch (status) {
-    case 'PAYROLL_IN_PROGRESS':
-      return t('status-in-progress')
-    case 'PAYROLL_READY_FOR_REVIEW':
-      return t('status-ready-for-review')
-    case 'PAYROLL_APPROVED_FOR_EXPORT':
-      return t('status-approved')
-    case 'PAYROLL_EXPORTED':
-      return t('status-exported')
-    case 'PAYROLL_CLOSED':
-      return t('status-closed')
-    default:
-      return status
   }
 }
 
@@ -371,7 +354,10 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
           </h3>
           {isCompleted && <CompletedStepBadge label={t('step-completed')} />}
           {isActive && (
-            <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
+            <PayrollRunStatusBadge
+              status={currentStatus}
+              translatedLabel={getPayrollRunStatusLabel(currentStatus, t)}
+            />
           )}
         </div>
 
@@ -381,6 +367,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
             <Button
               onClick={handleMarkReady}
               disabled={saving || summary.blockedCount > 0}
+              className="gba:w-full gba:justify-center"
               data-testid="payroll-prep-export-mark-ready-button"
             >
               {t('signoff-mark-ready')}
@@ -430,7 +417,10 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
             </span>
           )}
           {isActive && (
-            <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
+            <PayrollRunStatusBadge
+              status={currentStatus}
+              translatedLabel={getPayrollRunStatusLabel(currentStatus, t)}
+            />
           )}
         </div>
 
@@ -520,7 +510,10 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
           </h3>
           {isCompleted && <CompletedStepBadge label={t('step-completed')} />}
           {isActive && (
-            <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
+            <PayrollRunStatusBadge
+              status={currentStatus}
+              translatedLabel={getPayrollRunStatusLabel(currentStatus, t)}
+            />
           )}
         </div>
 
@@ -634,12 +627,13 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
               </div>
 
               {awaitingExportConfirmation && (
-                <div className="gba:rounded-md gba:border gba:border-border gba:bg-muted/30 gba:p-4 gba:space-y-3">
+                <div className="gba:space-y-3">
                   <p className="gba:text-sm gba:text-muted-foreground">{t('export-complete-hint')}</p>
                   <div className="gba:flex gba:gap-3">
                     <Button
                       onClick={handleConfirmExportCompleted}
                       disabled={saving}
+                      className="gba:w-full gba:justify-center"
                       data-testid="payroll-prep-export-mark-complete-button"
                     >
                       {t('export-mark-complete')}
@@ -675,7 +669,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
                   <span className="gba:text-muted-foreground">{t('signoff-status')}</span>
                   <PayrollRunStatusBadge
                     status={payrollRun.status}
-                    translatedLabel={getRunStatusLabel(payrollRun.status, t)}
+                    translatedLabel={getPayrollRunStatusLabel(payrollRun.status, t)}
                   />
                 </div>
                 {payrollRun.preparedBy && (

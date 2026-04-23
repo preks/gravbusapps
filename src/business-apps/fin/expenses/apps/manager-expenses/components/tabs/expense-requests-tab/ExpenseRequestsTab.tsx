@@ -14,9 +14,15 @@ import { DetailsSheet } from '../../../common/components/DetailsSheet'
 import { useExpenseRequestsOverviewData } from '../../../hooks/useExpenseRequestsOverviewData'
 import { createExpenseRequestFilterConfig } from './config/expenseRequestFilterConfig'
 import { buildExpenseRequestOrderBy } from './config/expenseRequestOrderBy'
+import { EXPENSE_REQUEST_DEFAULT_VISIBLE_COLUMN_IDS } from './config/expenseRequestColumnDefinitions'
 import { expenseRequestSortableColumns } from './config/expenseRequestSortableColumns'
 import { expenseRequestAvailableColumns } from './config/expenseRequestAvailableColumns'
 import { formatDateRangeForChip, applyDateRangeFromFilter } from '../../../../../common/utils/dateRangeFilterUtils'
+import {
+  applyAmountRangeFromFilters,
+  isAmountRangeFilterActive,
+  type ExpenseAmountRangeValue
+} from '../../../../../common/utils/amountRangeFilterUtils'
 import {
   useCurrencyInit,
   useFilterSignatureReset,
@@ -33,17 +39,6 @@ export type ExpenseRequestsTabProps = BusinessAppContextProps
 
 type DateRange = [Date | null, Date | null] | null
 
-const DEFAULT_VISIBLE_COLUMN_IDS = [
-  'title',
-  'planCode',
-  'startDate',
-  'endDate',
-  'employee',
-  'requestDate',
-  'totalAmount',
-  'status'
-]
-
 const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const { t } = useTranslation(translations)
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
@@ -56,9 +51,10 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const [requestDateRange, setRequestDateRange] = useState<DateRange>(null)
   const [startDateRange, setStartDateRange] = useState<DateRange>(null)
   const [endDateRange, setEndDateRange] = useState<DateRange>(null)
+  const [totalAmountRange, setTotalAmountRange] = useState<ExpenseAmountRangeValue>(null)
   const [pageSize, setPageSize] = useState(20)
   const [currentPage, setCurrentPage] = useState(1)
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...DEFAULT_VISIBLE_COLUMN_IDS])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...EXPENSE_REQUEST_DEFAULT_VISIBLE_COLUMN_IDS])
   const DEFAULT_SORT = useMemo(() => ({ field: 'requestDate' as const, order: 'DESC' as const }), [])
   const [sorting, setSorting] = useState<{ field: string | null; order: 'ASC' | 'DESC' | null }>(DEFAULT_SORT)
   const [selectedRequest, setSelectedRequest] = useState<ExpenseRequest | null>(null)
@@ -97,7 +93,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     endDateRange,
     pageSize,
     currentPage,
-    reqOrderBy
+    reqOrderBy,
+    totalAmountRange
   })
 
   const filterLabelMap = useMemo(() => {
@@ -127,7 +124,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       requestDateRange,
       startDateRange,
       endDateRange,
-      requestTypeFilter
+      requestTypeFilter,
+      totalAmountRange
     }),
     [
       searchTerm,
@@ -137,7 +135,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       requestDateRange,
       startDateRange,
       endDateRange,
-      requestTypeFilter
+      requestTypeFilter,
+      totalAmountRange
     ]
   )
   const resetPage = useCallback(() => setCurrentPage(1), [])
@@ -173,6 +172,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     applyDateRangeFromFilter(filters.requestDateRange, setRequestDateRange)
     applyDateRangeFromFilter(filters.startDateRange, setStartDateRange)
     applyDateRangeFromFilter(filters.endDateRange, setEndDateRange)
+    applyAmountRangeFromFilters(filters.totalAmount as { min?: number; max?: number } | undefined, setTotalAmountRange)
     setCurrentPage(1)
   }, [])
 
@@ -198,8 +198,19 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     if (startStr) obj.startDateRange = startStr
     const endStr = formatDateRangeForChip(endDateRange)
     if (endStr) obj.endDateRange = endStr
+    if (isAmountRangeFilterActive(totalAmountRange)) {
+      obj.totalAmount = { min: totalAmountRange?.min, max: totalAmountRange?.max }
+    }
     return obj
-  }, [statusFilter, requestTypeFilter, effectiveDateRange, requestDateRange, startDateRange, endDateRange])
+  }, [
+    statusFilter,
+    requestTypeFilter,
+    effectiveDateRange,
+    requestDateRange,
+    startDateRange,
+    endDateRange,
+    totalAmountRange
+  ])
 
   const hasActiveFilters = useMemo(() => {
     const hasSearch = (searchTerm || '').trim() !== ''
@@ -214,8 +225,18 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       startDateRange?.[1] ||
       endDateRange?.[0] ||
       endDateRange?.[1]
-    return hasSearch || hasStatus || hasRequestType || !!hasDate
-  }, [searchTerm, statusFilter, requestTypeFilter, effectiveDateRange, requestDateRange, startDateRange, endDateRange])
+    const hasAmount = isAmountRangeFilterActive(totalAmountRange)
+    return hasSearch || hasStatus || hasRequestType || !!hasDate || hasAmount
+  }, [
+    searchTerm,
+    statusFilter,
+    requestTypeFilter,
+    effectiveDateRange,
+    requestDateRange,
+    startDateRange,
+    endDateRange,
+    totalAmountRange
+  ])
 
   const emptyMessage = useEmptyMessage(
     hasActiveFilters,

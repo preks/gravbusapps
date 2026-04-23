@@ -45,7 +45,7 @@ export interface ConversionResultStepProps<T = ConvertedEntity> {
   'data-testid'?: string
 }
 
-export const ConversionResultStep = <T = ConvertedEntity,>({
+export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity>({
   convertedEntities,
   targetFieldsConfig,
   entityType,
@@ -260,7 +260,7 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
                   </Card>
                 )}
 
-                {/* Import to CRM Button */}
+                {/* Import button (domain-neutral; submission strategy is injected by CRM/IRM wrapper) */}
                 <Button
                   onClick={handleImportToBackend}
                   disabled={isLoading}

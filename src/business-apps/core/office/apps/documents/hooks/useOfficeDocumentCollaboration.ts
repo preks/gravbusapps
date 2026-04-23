@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { Socket } from 'socket.io-client'
 import { useOfficeWebSocketClient } from '@/common/network/office/useOfficeWebSocketClient'
 import type { OfficeDocumentOperation, OfficeDocumentParticipant } from '@/common/network/office/OfficeWebSocketClient'
+import translations from '../_i18n'
 
 type SocketParticipant = {
   odId?: string
@@ -80,7 +82,8 @@ function removeParticipant(participants: OfficeDocumentParticipant[], userId: st
 
 function updateParticipantCursor(
   participants: OfficeDocumentParticipant[],
-  data: CursorEventData
+  data: CursorEventData,
+  fallbackUserName: string
 ): OfficeDocumentParticipant[] {
   let found = false
   const nextParticipants = participants.map(participant => {
@@ -104,7 +107,7 @@ function updateParticipantCursor(
     ...nextParticipants,
     {
       userId: data.userId,
-      userName: data.userName || 'User',
+      userName: data.userName || fallbackUserName,
       userColor: data.userColor || '#4ECDC4',
       socketId: '',
       cursor: data.position,
@@ -115,7 +118,8 @@ function updateParticipantCursor(
 
 function updateParticipantSelection(
   participants: OfficeDocumentParticipant[],
-  data: SelectionEventData
+  data: SelectionEventData,
+  fallbackUserName: string
 ): OfficeDocumentParticipant[] {
   let found = false
   const nextParticipants = participants.map(participant => {
@@ -139,7 +143,7 @@ function updateParticipantSelection(
     ...nextParticipants,
     {
       userId: data.userId,
-      userName: data.userName || 'User',
+      userName: data.userName || fallbackUserName,
       userColor: data.userColor || '#4ECDC4',
       socketId: '',
       selection: data.selection,
@@ -186,6 +190,8 @@ export function useOfficeDocumentCollaboration({
   onOperationReceived,
   onError
 }: UseOfficeDocumentCollaborationOptions): UseOfficeDocumentCollaborationReturn {
+  const { t } = useTranslation(translations)
+  const fallbackUserName = t('editor-user-fallback')
   const officeWebSocketClient = useOfficeWebSocketClient(accessToken)
   const [participants, setParticipants] = useState<OfficeDocumentParticipant[]>([])
   const [isConnected, setIsConnected] = useState(officeWebSocketClient.isConnected())
@@ -294,10 +300,10 @@ export function useOfficeDocumentCollaboration({
       onOperationReceived?.(data)
     })
     const unsubscribeCursorUpdate = officeWebSocketClient.onCursorUpdate(data => {
-      setParticipants(currentParticipants => updateParticipantCursor(currentParticipants, data))
+      setParticipants(currentParticipants => updateParticipantCursor(currentParticipants, data, fallbackUserName))
     })
     const unsubscribeSelectionUpdate = officeWebSocketClient.onSelectionUpdate(data => {
-      setParticipants(currentParticipants => updateParticipantSelection(currentParticipants, data))
+      setParticipants(currentParticipants => updateParticipantSelection(currentParticipants, data, fallbackUserName))
     })
 
     if (officeWebSocketClient.getSocket()?.connected) {
@@ -330,7 +336,7 @@ export function useOfficeDocumentCollaboration({
       unsubscribeDisconnect()
       unsubscribeConnect()
     }
-  }, [accessToken, enabled, entityId, officeWebSocketClient, onError, onOperationReceived])
+  }, [accessToken, enabled, entityId, fallbackUserName, officeWebSocketClient, onError, onOperationReceived])
 
   const emitOperation = useCallback(
     (operation: OfficeDocumentOperation) => {

@@ -7,7 +7,9 @@ export function buildExpensePlansFiltersObject(
   effectiveDateRange: [Date | null, Date | null] | null | undefined,
   startDateRange: [Date | null, Date | null] | null | undefined,
   endDateRange: [Date | null, Date | null] | null | undefined,
-  availableStatuses: string[]
+  availableStatuses: string[],
+  reimbursableAmountRange?: { min?: number; max?: number } | null,
+  paidAdvanceAmountRange?: { min?: number; max?: number } | null
 ): Record<string, unknown> {
   const statusIds = selectedFilters.filter(f => availableStatuses.includes(f))
   const planTypeIds = selectedFilters.filter(f => f.startsWith('planType:'))
@@ -24,5 +26,17 @@ export function buildExpensePlansFiltersObject(
   if (startDateStr) obj.startDateRange = startDateStr
   const endDateStr = formatDateRangeForChip(endDateRange)
   if (endDateStr) obj.endDateRange = endDateStr
+  if (
+    reimbursableAmountRange &&
+    (reimbursableAmountRange.min !== undefined || reimbursableAmountRange.max !== undefined)
+  ) {
+    obj.reimbursableAmount = { ...reimbursableAmountRange }
+  }
+  if (
+    paidAdvanceAmountRange &&
+    (paidAdvanceAmountRange.min !== undefined || paidAdvanceAmountRange.max !== undefined)
+  ) {
+    obj.paidAdvance = { ...paidAdvanceAmountRange }
+  }
   return obj
 }

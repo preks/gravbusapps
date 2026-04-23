@@ -47,7 +47,7 @@ export const ProspectFieldDialog: React.FC<ProspectFieldDialogProps> = ({
 }) => {
   const [formData, setFormData] = useState<ProspectField>(field)
 
-  const handleChange = (key: keyof ProspectField, value: any) => {
+  const handleChange = <K extends keyof ProspectField>(key: K, value: ProspectField[K]) => {
     setFormData(prev => ({ ...prev, [key]: value }))
   }
 
@@ -90,7 +90,7 @@ export const ProspectFieldDialog: React.FC<ProspectFieldDialogProps> = ({
           {/* Type */}
           <div className="gba:space-y-2">
             <Label htmlFor="type">Field Type</Label>
-            <Select value={formData.type} onValueChange={(value: any) => handleChange('type', value)}>
+            <Select value={formData.type} onValueChange={value => handleChange('type', value as ProspectField['type'])}>
               <SelectTrigger data-testid={`${prefixDataTestId}-type-select`}>
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>

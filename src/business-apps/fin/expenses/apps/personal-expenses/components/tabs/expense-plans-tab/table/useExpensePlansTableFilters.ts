@@ -4,6 +4,11 @@ import {
   applyCurrencyChange,
   resolveSelectedCurrencyCode
 } from '../../../../utils/tableUtils'
+import {
+  applyAmountRangeFromFilters,
+  isAmountRangeFilterActive,
+  type ExpenseAmountRangeValue
+} from '@/business-apps/fin/expenses/common/utils/amountRangeFilterUtils'
 import type { CurrencyStat } from '../../../../utils/tableUtils'
 import { createExpensePlanFilterConfig } from '../config/expensePlanFilterConfig'
 import { buildExpensePlansFiltersObject } from '../config/expensePlansDisplayFilters'
@@ -20,6 +25,10 @@ export interface UseExpensePlansTableFiltersParams {
   setStartDateRange?: (range: [Date | null, Date | null] | null) => void
   endDateRange?: [Date | null, Date | null] | null
   setEndDateRange?: (range: [Date | null, Date | null] | null) => void
+  reimbursableAmountRange?: ExpenseAmountRangeValue
+  setReimbursableAmountRange?: (range: ExpenseAmountRangeValue) => void
+  paidAdvanceAmountRange?: ExpenseAmountRangeValue
+  setPaidAdvanceAmountRange?: (range: ExpenseAmountRangeValue) => void
   setFilters: (filters: string[]) => void
   onFiltersChange?: () => void
   currencyStats: CurrencyStat[]
@@ -38,6 +47,10 @@ export function useExpensePlansTableFilters({
   setStartDateRange,
   endDateRange,
   setEndDateRange,
+  reimbursableAmountRange,
+  setReimbursableAmountRange,
+  paidAdvanceAmountRange,
+  setPaidAdvanceAmountRange,
   setFilters,
   onFiltersChange,
   currencyStats,
@@ -60,9 +73,20 @@ export function useExpensePlansTableFilters({
         effectiveDateRange,
         startDateRange,
         endDateRange,
-        availableStatuses
+        availableStatuses,
+        reimbursableAmountRange ?? null,
+        paidAdvanceAmountRange ?? null
       ),
-    [selectedFilters, planDateRange, effectiveDateRange, startDateRange, endDateRange, availableStatuses]
+    [
+      selectedFilters,
+      planDateRange,
+      effectiveDateRange,
+      startDateRange,
+      endDateRange,
+      availableStatuses,
+      reimbursableAmountRange,
+      paidAdvanceAmountRange
+    ]
   )
 
   const handleFilterChangeFromDisplay = useCallback(
@@ -83,8 +107,34 @@ export function useExpensePlansTableFilters({
       if (setEndDateRange && applyDateRangeFromFilter(filters.endDateRange, setEndDateRange)) {
         dateRangeTokens.push('endDateRange')
       }
+      const amountTokens: string[] = []
+      if (setReimbursableAmountRange) {
+        applyAmountRangeFromFilters(
+          filters.reimbursableAmount as { min?: number; max?: number } | undefined,
+          setReimbursableAmountRange
+        )
+        if (isAmountRangeFilterActive(filters.reimbursableAmount)) {
+          amountTokens.push('reimbursableAmountRange')
+        }
+      }
+      if (setPaidAdvanceAmountRange) {
+        applyAmountRangeFromFilters(
+          filters.paidAdvance as { min?: number; max?: number } | undefined,
+          setPaidAdvanceAmountRange
+        )
+        if (isAmountRangeFilterActive(filters.paidAdvance)) {
+          amountTokens.push('paidAdvanceAmountRange')
+        }
+      }
       const preserved = selectedFilters.filter(f => f.startsWith('currency:'))
-      setFilters([...preserved, ...statusIds, ...planTypeIds, ...topDestinationIds, ...dateRangeTokens])
+      setFilters([
+        ...preserved,
+        ...statusIds,
+        ...planTypeIds,
+        ...topDestinationIds,
+        ...dateRangeTokens,
+        ...amountTokens
+      ])
       onFiltersChange?.()
     },
     [
@@ -94,6 +144,8 @@ export function useExpensePlansTableFilters({
       setEffectiveDateRange,
       setStartDateRange,
       setEndDateRange,
+      setReimbursableAmountRange,
+      setPaidAdvanceAmountRange,
       onFiltersChange,
       widgetTopDestinationFilterTokens
     ]

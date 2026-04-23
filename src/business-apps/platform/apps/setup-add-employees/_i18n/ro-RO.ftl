@@ -1,0 +1,23 @@
+# Add employees remote bundle
+add-employees-title = Adaugă angajat
+add-employees-subtitle = Adaugă o persoană la structura organizațională activă: alege departamentul, completează datele și opțional parola inițială.
+label-department = Departament / unitate organizațională
+label-first-name = Prenume
+label-last-name = Nume
+label-email = E-mail
+label-job-title = Titlu funcție
+label-password-optional = Parolă inițială (opțional)
+action-create = Creează angajat
+action-creating = Se creează…
+loading-active-structure = Se încarcă structura activă…
+loading-departments = Se încarcă departamentele…
+error-missing-token = Este necesară autentificarea.
+error-no-active-structure = Nu există o structură activă. Selectează sau stabilește o structură organizațională activă în platformă, apoi redeschide această pagină.
+error-dept-required = Este necesar un departament.
+error-no-departments = Nu s-au găsit departamente pentru structura activă. Verifică organigrama sau încearcă mai târziu.
+error-name-email = Prenumele, numele și e-mailul sunt obligatorii
+load-error-generic = Nu s-au putut încărca departamentele
+msg-employee-created = Angajat creat.
+msg-password-set = Parola inițială a fost setată.
+msg-password-user-pending = Angajatul a fost creat dar ID-ul de utilizator nu a putut fi rezolvat încă pentru parolă; setează parola în Keycloak sau încearcă din nou.
+error-create-failed = Nu s-a putut crea angajatul

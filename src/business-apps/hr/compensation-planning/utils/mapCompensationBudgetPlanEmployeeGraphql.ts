@@ -15,6 +15,7 @@ export function mapCompensationBudgetPlanEmployeeGraphql(
   return {
     id: graphqlUnknownToString(raw.id),
     version: num(raw.version),
+    allocationAmount: num(raw.allocationAmount),
     budgetPlanStatus: graphqlUnknownToString(raw.budgetPlanStatus),
     employeeId: graphqlUnknownToString(raw.employeeId),
     proposedSalaryIncreaseAmount: num(raw.proposedSalaryIncreaseAmount),

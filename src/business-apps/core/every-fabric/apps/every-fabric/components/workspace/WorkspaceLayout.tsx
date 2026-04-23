@@ -1,15 +1,8 @@
-import {
-  ArrowRightIcon,
-  ChatCircleDotsIcon,
-  ClockCounterClockwiseIcon,
-  GearIcon,
-  LayoutIcon,
-  PlusIcon,
-  XIcon
-} from '@phosphor-icons/react'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowRightIcon, ChatCircleDotsIcon, LayoutIcon, XIcon } from '@phosphor-icons/react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFabric } from '../../context/FabricContext'
 import type { ChatMessage, SessionConfig } from '../../types/enterpriseAgent'
+import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
 import { ArtifactViewer } from './ArtifactViewer'
 import { ClarificationPrompt } from './ClarificationPrompt'
 import { ConversationPanel } from './ConversationPanel'
@@ -22,43 +15,60 @@ import { ConnectorPickerSheet } from '../connectors/ConnectorPickerSheet'
 import { useFabricConnectors } from '../../hooks/useFabricConnectors'
 import {
   WORKSPACE_CHAT_GUTTER_CLASS,
+  WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS,
   WORKSPACE_CHAT_RAIL_CLASS,
-  WORKSPACE_RIGHT_RAIL_BOTTOM_DEFAULT_CLASS,
-  WORKSPACE_RIGHT_RAIL_BOTTOM_STREAMING_ISLAND_CLASS,
-  WORKSPACE_RIGHT_RAIL_BOTTOM_WITH_FOLLOWUPS_CLASS,
-  WORKSPACE_RIGHT_RAIL_DESKTOP_BREAKPOINT_PX,
+  WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS,
+  WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_OPEN_CLASS,
+  WORKSPACE_RIGHT_RAIL_AUTO_OPEN_BREAKPOINT_PX,
+  WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_CLASS,
   WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS,
   WORKSPACE_RIGHT_RAIL_WIDTH_CLASS,
   WORKSPACE_TOP_CONTROLS_OFFSET_CLASS
 } from './workspaceLayout.constants'
 
-function workspaceRightPanelShellClass(
-  isDesktopPanel: boolean,
-  isRightPanelOpen: boolean,
-  narrowRailBottomClass: string
-): string {
-  const desktopMotion = isRightPanelOpen
+/**
+ * Single source of truth for the right-panel shell. The panel is always a
+ * small floating right rail, no matter the viewport — it's ambient progress
+ * info, not a modal, so we never take over the screen with a backdrop.
+ */
+function workspaceRightPanelShellClass(isRightPanelOpen: boolean, hasActivePreview: boolean): string {
+  const motion = isRightPanelOpen
     ? 'gba:translate-x-0 gba:opacity-100 gba:pointer-events-auto'
     : 'gba:translate-x-[calc(100%+1.5rem)] gba:opacity-0 gba:pointer-events-none'
-  const narrowMotion = isRightPanelOpen
-    ? 'gba:translate-y-0 gba:opacity-100 gba:pointer-events-auto'
-    : 'gba:translate-y-4 gba:opacity-0 gba:pointer-events-none'
-  if (isDesktopPanel) {
-    return `gba:fixed ${WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS} gba:right-4 sm:gba:right-6 lg:gba:right-8 gba:bottom-6 gba:z-40 ${WORKSPACE_RIGHT_RAIL_WIDTH_CLASS} ${desktopMotion}`
+  // Widen to the preview-sized rail while a live document/slide canvas is
+  // generating or ready — otherwise the canvas would be squeezed into the
+  // ambient 20–24rem progress rail and be unusable.
+  const width = hasActivePreview ? WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_CLASS : WORKSPACE_RIGHT_RAIL_WIDTH_CLASS
+  return `gba:absolute ${WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS} gba:right-4 sm:gba:right-6 lg:gba:right-8 gba:bottom-6 gba:z-40 ${width} ${motion}`
+}
+
+/**
+ * Pick the chat-rail right-offset class for the current panel state. Extracted
+ * (instead of a nested ternary inline) so the dependency on `hasActivePreview`
+ * widening the panel — and therefore the chat gutter — is legible.
+ */
+function resolveChatOffsetClass(isChatOffset: boolean, hasActivePreview: boolean): string {
+  if (!isChatOffset) return ''
+  if (hasActivePreview) return WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_OPEN_CLASS
+  return WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS
+}
+
+function resolveArtifactLabel(artifactType: ArtifactPreview['artifactType']): string {
+  switch (artifactType) {
+    case 'slides':
+      return 'slides'
+    case 'document':
+      return 'document'
+    case 'note':
+      return 'note'
+    default:
+      return 'chart'
   }
-  return `gba:fixed gba:top-24 sm:gba:top-28 gba:right-3 gba:left-3 gba:z-50 sm:gba:right-4 sm:gba:left-auto sm:gba:w-[22rem] ${narrowRailBottomClass} ${narrowMotion}`
 }
 
-type WorkspacePanelMode = 'desktop' | 'overlay'
-
-function resolveWorkspacePanelMode(innerWidth: number): WorkspacePanelMode {
-  if (innerWidth >= WORKSPACE_RIGHT_RAIL_DESKTOP_BREAKPOINT_PX) return 'desktop'
-  return 'overlay'
-}
-
-function getCurrentWorkspacePanelMode(): WorkspacePanelMode {
-  if (typeof globalThis.innerWidth !== 'number') return 'desktop'
-  return resolveWorkspacePanelMode(globalThis.innerWidth)
+function resolveInitialPanelOpen(): boolean {
+  if (typeof globalThis.innerWidth !== 'number') return true
+  return globalThis.innerWidth >= WORKSPACE_RIGHT_RAIL_AUTO_OPEN_BREAKPOINT_PX
 }
 
 const parseFollowUps = (message: ChatMessage | undefined): string[] => {
@@ -75,11 +85,7 @@ const parseFollowUps = (message: ChatMessage | undefined): string[] => {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettings: () => void }> = ({
-  onOpenHistory,
-  onOpenSettings
-}) => {
-  const initialPanelMode = getCurrentWorkspacePanelMode()
+export const WorkspaceLayout: React.FC = () => {
   const {
     session,
     messages,
@@ -92,18 +98,24 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
     isConnected,
     isWaitingForInput,
     taskNodes,
+    hasPlan,
     completedCount,
     totalCount,
     progressPercent,
+    currentTodoText,
     activityEvents,
+    decisions,
     activeSkill,
     sessionConnectorIds,
     artifacts,
     workspaceDocs,
     activeArtifact,
+    artifactPreviews,
+    latestPreview,
+    hasActivePreview,
+    refreshArtifacts,
     reply,
     stopSession,
-    newSession,
     setActiveArtifactId
   } = useFabric()
 
@@ -114,12 +126,10 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
     isLoading: isLoadingConnectors
   } = useFabricConnectors(accessToken)
 
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(initialPanelMode === 'desktop')
-  const [isDesktopPanel, setIsDesktopPanel] = useState(initialPanelMode === 'desktop')
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(resolveInitialPanelOpen)
   const [dismissedClarificationQuestion, setDismissedClarificationQuestion] = useState<string | null>(null)
   const [dismissedFollowUpMessageId, setDismissedFollowUpMessageId] = useState<string | null>(null)
   const [isConnectorSheetOpen, setIsConnectorSheetOpen] = useState(false)
-  const lastPanelModeRef = useRef<WorkspacePanelMode>(initialPanelMode)
 
   // Compute session connectors from stored IDs and available connectors
   const sessionConnectors = useMemo(() => {
@@ -127,27 +137,29 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
     return availableConnectors.filter(c => sessionConnectorIds.includes(c.connection_id))
   }, [sessionConnectorIds, availableConnectors])
 
+  // When a live canvas preview kicks off, surface it automatically — even if the
+  // user had manually collapsed the ambient rail — so the slide/document stream
+  // isn't hidden behind the panel toggle.
   useEffect(() => {
-    if (typeof globalThis.innerWidth !== 'number') return
+    if (hasActivePreview) setIsRightPanelOpen(true)
+  }, [hasActivePreview])
 
-    const syncPanelMode = () => {
-      const nextPanelMode = resolveWorkspacePanelMode(globalThis.innerWidth)
-      const previousPanelMode = lastPanelModeRef.current
-
-      setIsDesktopPanel(nextPanelMode === 'desktop')
-      setIsRightPanelOpen(previousIsOpen => {
-        if (nextPanelMode === 'desktop') return true
-        if (nextPanelMode !== previousPanelMode) return false
-        return previousIsOpen
-      })
-      lastPanelModeRef.current = nextPanelMode
+  // Refresh artifacts list whenever any preview transitions generating → ready
+  // so the Documents section of the right panel stays in sync with whatever
+  // the live canvas just finished rendering.
+  const previewStatusByIdRef = useRef<Map<string, string>>(new Map())
+  useEffect(() => {
+    const statusMap = previewStatusByIdRef.current
+    let shouldRefresh = false
+    for (const preview of artifactPreviews) {
+      const prev = statusMap.get(preview.artifactId)
+      if (prev === 'generating' && preview.status === 'ready') {
+        shouldRefresh = true
+      }
+      statusMap.set(preview.artifactId, preview.status)
     }
-
-    syncPanelMode()
-    globalThis.addEventListener('resize', syncPanelMode)
-
-    return () => globalThis.removeEventListener('resize', syncPanelMode)
-  }, [])
+    if (shouldRefresh) void refreshArtifacts()
+  }, [artifactPreviews, refreshArtifacts])
 
   const currentClarificationQuestion = session?.human_question ?? null
   // Only show clarification modal if there's NO structured input request
@@ -178,15 +190,9 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
   const streamingStatusHeadline = useMemo(() => {
     // Prioritize real-time status from agent (skill matching, workspace prep, etc.)
     if (statusHeadline) return statusHeadline
-
-    // Fallback to task node progress
-    if (totalCount === 0) return null
-    const active = taskNodes.find(n => n.status === 'active')
-    if (active?.label) return active.label
-    const pending = taskNodes.find(n => n.status === 'pending')
-    if (pending?.label) return `Next: ${pending.label}`
-    return null
-  }, [statusHeadline, taskNodes, totalCount])
+    // Fallback to the first in-progress (or next pending) todo in the Plan.
+    return currentTodoText ?? null
+  }, [statusHeadline, currentTodoText])
   useEffect(() => {
     if (latestFinalAnswer?.id !== dismissedFollowUpMessageId) {
       setDismissedFollowUpMessageId(null)
@@ -200,9 +206,28 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
     suggestedFollowUps.length > 0 &&
     latestFinalAnswer?.id !== dismissedFollowUpMessageId
 
-  let narrowRailBottomClass = WORKSPACE_RIGHT_RAIL_BOTTOM_DEFAULT_CLASS
-  if (showSuggestedFollowUps) narrowRailBottomClass = WORKSPACE_RIGHT_RAIL_BOTTOM_WITH_FOLLOWUPS_CLASS
-  else if (isStreaming) narrowRailBottomClass = WORKSPACE_RIGHT_RAIL_BOTTOM_STREAMING_ISLAND_CLASS
+  // When the right panel is open, the chat rail (messages, composer,
+  // clarification modal) slides left so it never lands under the floating panel.
+  // When a live canvas preview is active the panel widens, so the chat slides
+  // further left to match.
+  const isChatOffset = isRightPanelOpen
+  const chatOffsetClass = resolveChatOffsetClass(isChatOffset, hasActivePreview)
+
+  // When the live preview error card's "Try again" is clicked, send a new
+  // agent turn asking to regenerate the artifact. We include the original
+  // title (if available) so the agent has enough context to pick the right
+  // tool without pestering the user for a re-prompt.
+  const handleRetryPreview = useCallback(
+    (preview: ArtifactPreview) => {
+      const title = preview.title?.trim()
+      const artifactLabel = resolveArtifactLabel(preview.artifactType)
+      const retryMessage = title
+        ? `The previous attempt to generate the ${artifactLabel} "${title}" failed. Please try again.`
+        : `The previous attempt to generate the ${artifactLabel} failed. Please try again.`
+      void reply(retryMessage).catch(() => undefined)
+    },
+    [reply]
+  )
 
   if (!session) return null
 
@@ -234,60 +259,16 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
     >
       <div className="gba:relative gba:flex-1 gba:h-full gba:min-h-0 gba:overflow-hidden gba:bg-background gba:isolate">
         <div className="gba:pointer-events-none gba:z-30">
-          {!isDesktopPanel && isRightPanelOpen && (
-            <button
-              type="button"
-              aria-label="Close workspace panel overlay"
-              onClick={() => setIsRightPanelOpen(false)}
-              className="gba:fixed gba:inset-0 gba:z-40 gba:bg-background/35 gba:backdrop-blur-[2px] gba:pointer-events-auto"
-            />
-          )}
-
           <div
-            className={`gba:fixed gba:left-20 sm:gba:left-24 lg:gba:left-28 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:pointer-events-none`}
+            className={`gba:absolute gba:left-3 sm:gba:left-6 lg:gba:left-8 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:flex gba:items-center gba:gap-3 gba:pointer-events-auto`}
           >
-            <span className="gba:inline-flex gba:items-center gba:text-[13px] gba:font-extrabold gba:tracking-[0.01em] gba:text-foreground">
-              NEWWORK Enterprise Agents
-            </span>
-          </div>
-
-          <div
-            className={`gba:fixed gba:left-3 sm:gba:left-6 lg:gba:left-8 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:flex gba:items-center gba:gap-3 gba:pointer-events-auto`}
-            style={{ top: 'calc(5rem + 2.5rem)' }}
-          >
-            <button
-              onClick={onOpenHistory}
-              className="gba:inline-flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-full gba:border gba:border-border/60 gba:bg-background/92 gba:backdrop-blur-md gba:text-xs gba:font-medium gba:text-foreground gba:hover:bg-background gba:transition-colors"
-              data-testid="fabric-workspace-history-button"
-            >
-              <ClockCounterClockwiseIcon className="gba:h-3.5 gba:w-3.5 gba:text-foreground" weight="bold" />
-              <span className="gba:hidden sm:gba:inline">History</span>
-            </button>
             <WorkspaceSkillIndicator skill={activeSkill} />
             <WorkspaceConnectorIndicator connectors={sessionConnectors} />
           </div>
 
           <div
-            className={`gba:fixed gba:right-3 sm:gba:right-6 lg:gba:right-8 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:flex gba:max-w-[calc(100%-1.5rem)] gba:flex-wrap gba:justify-end gba:gap-2 gba:pointer-events-auto`}
+            className={`gba:absolute gba:right-3 sm:gba:right-6 lg:gba:right-8 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:flex gba:max-w-[calc(100%-1.5rem)] gba:flex-wrap gba:justify-end gba:gap-2 gba:pointer-events-auto`}
           >
-            <button
-              onClick={onOpenSettings}
-              className="gba:inline-flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-full gba:border gba:border-border/60 gba:bg-background/92 gba:backdrop-blur-md gba:text-xs gba:font-medium gba:text-foreground gba:hover:bg-background gba:transition-colors"
-              data-testid="fabric-workspace-settings-button"
-            >
-              <GearIcon className="gba:h-3.5 gba:w-3.5 gba:text-foreground" weight="bold" />
-              <span className="gba:hidden sm:gba:inline">Settings</span>
-            </button>
-
-            <button
-              onClick={newSession}
-              className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-2 gba:rounded-full gba:border gba:border-border/60 gba:bg-background/92 gba:backdrop-blur-md gba:text-xs gba:font-medium gba:text-foreground gba:hover:bg-background gba:transition-colors"
-              data-testid="fabric-workspace-new-session"
-            >
-              <PlusIcon className="gba:h-3.5 gba:w-3.5 gba:text-foreground" weight="bold" />
-              <span className="gba:hidden sm:gba:inline">New task</span>
-            </button>
-
             <button
               onClick={() => setIsRightPanelOpen(open => !open)}
               className="gba:inline-flex gba:items-center gba:justify-center gba:h-10 gba:w-10 gba:rounded-full gba:border gba:border-border/60 gba:bg-background/92 gba:backdrop-blur-md gba:text-foreground gba:hover:bg-background gba:transition-colors"
@@ -302,7 +283,11 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
             </button>
           </div>
 
-          <div className="gba:fixed gba:inset-x-0 gba:bottom-3 sm:gba:bottom-4 lg:gba:bottom-6 gba:pointer-events-none gba:z-50">
+          <div
+            className={`gba:absolute gba:inset-x-0 gba:bottom-3 sm:gba:bottom-4 lg:gba:bottom-6 gba:pointer-events-none gba:z-50 ${chatOffsetClass} ${WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS}`}
+            data-testid="fabric-workspace-composer-stack"
+            data-chat-offset={isChatOffset ? 'true' : 'false'}
+          >
             <div className={`${WORKSPACE_CHAT_GUTTER_CLASS}`}>
               <div
                 className={`${WORKSPACE_CHAT_RAIL_CLASS} gba:mx-auto ${
@@ -379,23 +364,28 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
           </div>
 
           <div
-            className={`gba:transition gba:duration-300 gba:ease-out gba:min-h-0 gba:overflow-hidden ${workspaceRightPanelShellClass(
-              isDesktopPanel,
+            className={`gba:transition-[transform,opacity,width] gba:duration-300 gba:ease-out gba:min-h-0 gba:overflow-hidden ${workspaceRightPanelShellClass(
               isRightPanelOpen,
-              narrowRailBottomClass
+              hasActivePreview
             )}`}
           >
             <WorkspaceRightPanel
               taskNodes={taskNodes}
+              hasPlan={hasPlan}
               completedCount={completedCount}
               totalCount={totalCount}
               progressPercent={progressPercent}
               activityEvents={activityEvents}
+              decisions={decisions}
               artifacts={artifacts}
               workspaceDocs={workspaceDocs}
               isConnected={isConnected}
               isStreaming={isStreaming}
               onViewArtifact={setActiveArtifactId}
+              latestPreview={latestPreview}
+              accessToken={accessToken}
+              sessionId={session.session_id}
+              onRetryPreview={handleRetryPreview}
             />
           </div>
         </div>
@@ -411,6 +401,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
           isWaitingForInput={isWaitingForInput}
           hasFixedFollowUps={showSuggestedFollowUps}
           hasStreamingIsland={isStreaming}
+          chatOffsetClass={chatOffsetClass}
           onReply={reply}
           onViewArtifact={setActiveArtifactId}
           accessToken={accessToken}
@@ -420,6 +411,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
           <ClarificationPrompt
             question={session.human_question ?? ''}
             isOpen={showClarification}
+            chatOffsetClass={chatOffsetClass}
             onAnswer={handleClarificationAnswer}
             onDismiss={handleClarificationDismiss}
           />

@@ -8,6 +8,7 @@ import { useMissingJobProfileCount } from './hooks/useMissingJobProfileCount'
 import { JobPositionTable } from './components/JobPositionTable'
 import { JobPositionDetails } from './components/JobPositionDetails'
 import { VacancyStatusToggle, ExtendedVacancyFilter } from './components/VacancyStatusToggle'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
 import { BriefcaseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
@@ -273,18 +274,28 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
             />
           </div>
         }
-        dataDetails={
-          selectedJobPosition
-            ? {
-                title: selectedJobPosition.name,
-                icon: <BriefcaseIcon size={20} />,
-                content: <JobPositionDetails jobPosition={selectedJobPosition} accessToken={accessToken} />,
-                onClose: handleCloseDetails
-              }
-            : undefined
-        }
-        floatingDetails={true}
       />
+      <Sheet open={selectedJobPosition !== null} onOpenChange={open => !open && handleCloseDetails()}>
+        <SheetContent
+          side="right"
+          className="gba:flex gba:flex-col gba:p-0"
+          data-testid="job-position-list-details-sheet"
+        >
+          <SheetHeader className="gba:border-b gba:border-border gba:px-6 gba:py-4 gba:pr-14">
+            <SheetTitle className="gba:text-left">
+              {selectedJobPosition
+                ? selectedJobPosition.name
+                : getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.job_positions_section.position_details',
+                    'Position Details'
+                  )}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:flex-1 gba:min-h-0" data-testid="job-position-list-details-content">
+            {selectedJobPosition && <JobPositionDetails jobPosition={selectedJobPosition} accessToken={accessToken} />}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

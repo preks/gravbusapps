@@ -5,6 +5,8 @@ import type { SlideTheme } from '../components/slideThemes'
 import type { AnySlideElement, SlideData } from '../components/slideElements'
 import { createTextElement, createShapeElement, createImageElement } from '../components/slideElements'
 
+export type TranslateFn = (key: string) => string
+
 const CANVAS_W = 1280
 const CANVAS_H = 720
 const MARGIN = 60
@@ -23,10 +25,10 @@ function resetIds() {
   idCounter = 0
 }
 
-function titleElement(theme: SlideTheme, overrides?: Record<string, unknown>): AnySlideElement {
+function titleElement(theme: SlideTheme, t: TranslateFn, overrides?: Record<string, unknown>): AnySlideElement {
   return createTextElement({
     id: uid('title'),
-    content: 'Click to add title',
+    content: t('editor-placeholder-title'),
     position: { x: MARGIN, y: MARGIN },
     size: { width: CANVAS_W - MARGIN * 2, height: TITLE_HEIGHT },
     fontSize: 40,
@@ -39,10 +41,10 @@ function titleElement(theme: SlideTheme, overrides?: Record<string, unknown>): A
   })
 }
 
-function subtitleElement(theme: SlideTheme, overrides?: Record<string, unknown>): AnySlideElement {
+function subtitleElement(theme: SlideTheme, t: TranslateFn, overrides?: Record<string, unknown>): AnySlideElement {
   return createTextElement({
     id: uid('subtitle'),
-    content: 'Click to add subtitle',
+    content: t('editor-placeholder-subtitle'),
     fontSize: 24,
     fontWeight: 'normal',
     fontFamily: theme.theme.fonts.text,
@@ -81,10 +83,10 @@ function accentBar(theme: SlideTheme, overrides?: Record<string, unknown>): AnyS
   })
 }
 
-function imagePlaceholder(overrides?: Record<string, unknown>): AnySlideElement {
+function imagePlaceholder(t: TranslateFn, overrides?: Record<string, unknown>): AnySlideElement {
   return createImageElement('', {
     id: uid('img'),
-    alt: 'Click to add image',
+    alt: t('layout-image-alt'),
     objectFit: 'cover',
     borderRadius: 8,
     ...overrides
@@ -93,16 +95,16 @@ function imagePlaceholder(overrides?: Record<string, unknown>): AnySlideElement 
 
 // --- Layout generators ---
 
-function titleSlideLayout(masterId: string, theme: SlideTheme): SlideLayout {
+function titleSlideLayout(masterId: string, theme: SlideTheme, t: TranslateFn): SlideLayout {
   return {
     id: 'title-slide',
-    name: 'Title Slide',
+    name: t('layout-name-title-slide'),
     description: 'Centered title and subtitle for opening slides',
     masterId,
     elements: [
       createTextElement({
         id: uid('title'),
-        content: 'Presentation Title',
+        content: t('layout-presentation-title'),
         position: { x: MARGIN + 40, y: 200 },
         size: { width: CANVAS_W - (MARGIN + 40) * 2, height: 100 },
         fontSize: 52,
@@ -112,7 +114,7 @@ function titleSlideLayout(masterId: string, theme: SlideTheme): SlideLayout {
         textAlign: 'center',
         verticalAlign: 'middle'
       }),
-      subtitleElement(theme, {
+      subtitleElement(theme, t, {
         position: { x: MARGIN + 100, y: 320 },
         size: { width: CANVAS_W - (MARGIN + 100) * 2, height: 60 },
         textAlign: 'center'
@@ -122,14 +124,14 @@ function titleSlideLayout(masterId: string, theme: SlideTheme): SlideLayout {
   }
 }
 
-function titleContentLayout(masterId: string, theme: SlideTheme): SlideLayout {
+function titleContentLayout(masterId: string, theme: SlideTheme, t: TranslateFn): SlideLayout {
   return {
     id: 'title-content',
-    name: 'Title and Content',
+    name: t('layout-name-title-content'),
     description: 'Title bar with a content area for text or bullets',
     masterId,
     elements: [
-      titleElement(theme),
+      titleElement(theme, t),
       createShapeElement('rectangle', {
         id: uid('divider'),
         position: { x: MARGIN, y: MARGIN + TITLE_HEIGHT + 10 },
@@ -139,7 +141,7 @@ function titleContentLayout(masterId: string, theme: SlideTheme): SlideLayout {
         strokeColor: 'transparent',
         zIndex: 0
       }),
-      bodyTextElement(theme, '- First key point\n- Second key point\n- Third key point', {
+      bodyTextElement(theme, t('layout-key-points'), {
         position: { x: MARGIN, y: CONTENT_TOP },
         size: { width: CANVAS_W - MARGIN * 2, height: CANVAS_H - CONTENT_TOP - MARGIN }
       }),
@@ -148,16 +150,16 @@ function titleContentLayout(masterId: string, theme: SlideTheme): SlideLayout {
   }
 }
 
-function sectionHeaderLayout(masterId: string, theme: SlideTheme): SlideLayout {
+function sectionHeaderLayout(masterId: string, theme: SlideTheme, t: TranslateFn): SlideLayout {
   return {
     id: 'section-header',
-    name: 'Section Header',
+    name: t('layout-name-section-header'),
     description: 'Large section title with optional description',
     masterId,
     elements: [
       createTextElement({
         id: uid('section-title'),
-        content: 'Section Title',
+        content: t('layout-section-title'),
         position: { x: MARGIN + 40, y: 210 },
         size: { width: CANVAS_W - (MARGIN + 40) * 2, height: 90 },
         fontSize: 48,
@@ -176,24 +178,24 @@ function sectionHeaderLayout(masterId: string, theme: SlideTheme): SlideLayout {
         strokeColor: 'transparent',
         zIndex: 0
       }),
-      subtitleElement(theme, {
+      subtitleElement(theme, t, {
         position: { x: MARGIN + 40, y: 330 },
         size: { width: CANVAS_W - (MARGIN + 40) * 2, height: 60 },
-        content: 'Description or context for this section'
+        content: t('layout-section-description')
       })
     ]
   }
 }
 
-function twoContentLayout(masterId: string, theme: SlideTheme): SlideLayout {
+function twoContentLayout(masterId: string, theme: SlideTheme, t: TranslateFn): SlideLayout {
   const colWidth = (CANVAS_W - MARGIN * 2 - 40) / 2
   return {
     id: 'two-content',
-    name: 'Two Content',
+    name: t('layout-name-two-content'),
     description: 'Title with two side-by-side content columns',
     masterId,
     elements: [
-      titleElement(theme),
+      titleElement(theme, t),
       createShapeElement('rectangle', {
         id: uid('divider'),
         position: { x: MARGIN, y: MARGIN + TITLE_HEIGHT + 10 },
@@ -203,11 +205,11 @@ function twoContentLayout(masterId: string, theme: SlideTheme): SlideLayout {
         strokeColor: 'transparent',
         zIndex: 0
       }),
-      bodyTextElement(theme, '- Left column point 1\n- Left column point 2\n- Left column point 3', {
+      bodyTextElement(theme, t('layout-left-column-points'), {
         position: { x: MARGIN, y: CONTENT_TOP },
         size: { width: colWidth, height: CANVAS_H - CONTENT_TOP - MARGIN }
       }),
-      bodyTextElement(theme, '- Right column point 1\n- Right column point 2\n- Right column point 3', {
+      bodyTextElement(theme, t('layout-right-column-points'), {
         position: { x: MARGIN + colWidth + 40, y: CONTENT_TOP },
         size: { width: colWidth, height: CANVAS_H - CONTENT_TOP - MARGIN }
       }),
@@ -216,16 +218,16 @@ function twoContentLayout(masterId: string, theme: SlideTheme): SlideLayout {
   }
 }
 
-function comparisonLayout(masterId: string, theme: SlideTheme): SlideLayout {
+function comparisonLayout(masterId: string, theme: SlideTheme, t: TranslateFn): SlideLayout {
   const colWidth = (CANVAS_W - MARGIN * 2 - 40) / 2
   const headerH = 50
   return {
     id: 'comparison',
-    name: 'Comparison',
+    name: t('layout-name-comparison'),
     description: 'Title with two labeled comparison columns',
     masterId,
     elements: [
-      titleElement(theme),
+      titleElement(theme, t),
       createShapeElement('rectangle', {
         id: uid('divider'),
         position: { x: MARGIN, y: MARGIN + TITLE_HEIGHT + 10 },
@@ -237,7 +239,7 @@ function comparisonLayout(masterId: string, theme: SlideTheme): SlideLayout {
       }),
       createTextElement({
         id: uid('col-header-l'),
-        content: 'Option A',
+        content: t('layout-option-a'),
         position: { x: MARGIN, y: CONTENT_TOP },
         size: { width: colWidth, height: headerH },
         fontSize: 22,
@@ -249,7 +251,7 @@ function comparisonLayout(masterId: string, theme: SlideTheme): SlideLayout {
       }),
       createTextElement({
         id: uid('col-header-r'),
-        content: 'Option B',
+        content: t('layout-option-b'),
         position: { x: MARGIN + colWidth + 40, y: CONTENT_TOP },
         size: { width: colWidth, height: headerH },
         fontSize: 22,
@@ -259,11 +261,11 @@ function comparisonLayout(masterId: string, theme: SlideTheme): SlideLayout {
         textAlign: 'left',
         verticalAlign: 'middle'
       }),
-      bodyTextElement(theme, '- Strength one\n- Strength two\n- Strength three', {
+      bodyTextElement(theme, t('layout-strengths'), {
         position: { x: MARGIN, y: CONTENT_TOP + headerH + 10 },
         size: { width: colWidth, height: CANVAS_H - CONTENT_TOP - headerH - 10 - MARGIN }
       }),
-      bodyTextElement(theme, '- Strength one\n- Strength two\n- Strength three', {
+      bodyTextElement(theme, t('layout-strengths'), {
         position: { x: MARGIN + colWidth + 40, y: CONTENT_TOP + headerH + 10 },
         size: { width: colWidth, height: CANVAS_H - CONTENT_TOP - headerH - 10 - MARGIN }
       }),
@@ -272,14 +274,14 @@ function comparisonLayout(masterId: string, theme: SlideTheme): SlideLayout {
   }
 }
 
-function titleOnlyLayout(masterId: string, theme: SlideTheme): SlideLayout {
+function titleOnlyLayout(masterId: string, theme: SlideTheme, t: TranslateFn): SlideLayout {
   return {
     id: 'title-only',
-    name: 'Title Only',
+    name: t('layout-name-title-only'),
     description: 'Title bar with empty canvas below',
     masterId,
     elements: [
-      titleElement(theme),
+      titleElement(theme, t),
       createShapeElement('rectangle', {
         id: uid('divider'),
         position: { x: MARGIN, y: MARGIN + TITLE_HEIGHT + 10 },
@@ -294,10 +296,10 @@ function titleOnlyLayout(masterId: string, theme: SlideTheme): SlideLayout {
   }
 }
 
-function blankLayout(masterId: string): SlideLayout {
+function blankLayout(masterId: string, t: TranslateFn): SlideLayout {
   return {
     id: 'blank',
-    name: 'Blank',
+    name: t('layout-name-blank'),
     description: 'Empty slide',
     masterId,
     elements: [],
@@ -305,16 +307,16 @@ function blankLayout(masterId: string): SlideLayout {
   }
 }
 
-function contentCaptionLayout(masterId: string, theme: SlideTheme): SlideLayout {
+function contentCaptionLayout(masterId: string, theme: SlideTheme, t: TranslateFn): SlideLayout {
   const contentW = (CANVAS_W - MARGIN * 2 - 40) * 0.6
   const captionW = (CANVAS_W - MARGIN * 2 - 40) * 0.4
   return {
     id: 'content-caption',
-    name: 'Content with Caption',
+    name: t('layout-name-content-caption'),
     description: 'Content area with a side caption column',
     masterId,
     elements: [
-      titleElement(theme),
+      titleElement(theme, t),
       createShapeElement('rectangle', {
         id: uid('divider'),
         position: { x: MARGIN, y: MARGIN + TITLE_HEIGHT + 10 },
@@ -324,7 +326,7 @@ function contentCaptionLayout(masterId: string, theme: SlideTheme): SlideLayout 
         strokeColor: 'transparent',
         zIndex: 0
       }),
-      bodyTextElement(theme, '- Main content point 1\n- Main content point 2\n- Main content point 3', {
+      bodyTextElement(theme, t('layout-main-content-points'), {
         position: { x: MARGIN, y: CONTENT_TOP },
         size: { width: contentW, height: CANVAS_H - CONTENT_TOP - MARGIN }
       }),
@@ -338,7 +340,7 @@ function contentCaptionLayout(masterId: string, theme: SlideTheme): SlideLayout 
         cornerRadius: 8,
         zIndex: 0
       }),
-      bodyTextElement(theme, 'Add a caption or additional context for the main content.', {
+      bodyTextElement(theme, t('layout-caption-text'), {
         position: { x: MARGIN + contentW + 56, y: CONTENT_TOP + 16 },
         size: { width: captionW - 32, height: CANVAS_H - CONTENT_TOP - MARGIN - 32 },
         fontSize: 16,
@@ -349,16 +351,16 @@ function contentCaptionLayout(masterId: string, theme: SlideTheme): SlideLayout 
   }
 }
 
-function pictureCaptionLayout(masterId: string, theme: SlideTheme): SlideLayout {
+function pictureCaptionLayout(masterId: string, theme: SlideTheme, t: TranslateFn): SlideLayout {
   const imgW = (CANVAS_W - MARGIN * 2 - 40) * 0.55
   const captionW = (CANVAS_W - MARGIN * 2 - 40) * 0.45
   return {
     id: 'picture-caption',
-    name: 'Picture with Caption',
+    name: t('layout-name-picture-caption'),
     description: 'Image placeholder with a side caption',
     masterId,
     elements: [
-      titleElement(theme),
+      titleElement(theme, t),
       createShapeElement('rectangle', {
         id: uid('divider'),
         position: { x: MARGIN, y: MARGIN + TITLE_HEIGHT + 10 },
@@ -368,13 +370,13 @@ function pictureCaptionLayout(masterId: string, theme: SlideTheme): SlideLayout 
         strokeColor: 'transparent',
         zIndex: 0
       }),
-      imagePlaceholder({
+      imagePlaceholder(t, {
         position: { x: MARGIN, y: CONTENT_TOP },
         size: { width: imgW, height: CANVAS_H - CONTENT_TOP - MARGIN }
       }),
       createTextElement({
         id: uid('caption-title'),
-        content: 'Image Caption',
+        content: t('layout-image-caption'),
         position: { x: MARGIN + imgW + 40, y: CONTENT_TOP },
         size: { width: captionW, height: 50 },
         fontSize: 22,
@@ -384,7 +386,7 @@ function pictureCaptionLayout(masterId: string, theme: SlideTheme): SlideLayout 
         textAlign: 'left',
         verticalAlign: 'top'
       }),
-      bodyTextElement(theme, 'Add a description for the image shown on the left.', {
+      bodyTextElement(theme, t('layout-image-description'), {
         position: { x: MARGIN + imgW + 40, y: CONTENT_TOP + 60 },
         size: { width: captionW, height: CANVAS_H - CONTENT_TOP - 60 - MARGIN },
         fontSize: 18,
@@ -399,27 +401,29 @@ function pictureCaptionLayout(masterId: string, theme: SlideTheme): SlideLayout 
  * Generate the built-in default SlideMaster for a given theme.
  * Each call produces fresh element IDs.
  */
-export function createDefaultSlideMaster(theme: SlideTheme): SlideMaster {
+export function createDefaultSlideMaster(theme: SlideTheme, t?: TranslateFn): SlideMaster {
   resetIds()
 
+  // FTL files don't support escape sequences, so \n is literal
+  const translate: TranslateFn = t ? key => t(key).replace(/\\n/g, '\n') : key => key
   const masterId = DEFAULT_MASTER_ID
 
   return {
     id: masterId,
-    name: 'Default Theme',
+    name: translate('layout-name-default-theme'),
     sharedElements: [],
     background: { type: 'solid', color: '#ffffff' },
     isDefault: true,
     layouts: [
-      titleSlideLayout(masterId, theme),
-      titleContentLayout(masterId, theme),
-      sectionHeaderLayout(masterId, theme),
-      twoContentLayout(masterId, theme),
-      comparisonLayout(masterId, theme),
-      titleOnlyLayout(masterId, theme),
-      blankLayout(masterId),
-      contentCaptionLayout(masterId, theme),
-      pictureCaptionLayout(masterId, theme)
+      titleSlideLayout(masterId, theme, translate),
+      titleContentLayout(masterId, theme, translate),
+      sectionHeaderLayout(masterId, theme, translate),
+      twoContentLayout(masterId, theme, translate),
+      comparisonLayout(masterId, theme, translate),
+      titleOnlyLayout(masterId, theme, translate),
+      blankLayout(masterId, translate),
+      contentCaptionLayout(masterId, theme, translate),
+      pictureCaptionLayout(masterId, theme, translate)
     ]
   }
 }
@@ -428,9 +432,13 @@ export function createDefaultSlideMaster(theme: SlideTheme): SlideMaster {
  * Get the effective layouts for a presentation.
  * Returns the presentation's custom masters if present, otherwise the default.
  */
-export function getEffectiveMasters(masters: SlideMaster[] | undefined, theme: SlideTheme): SlideMaster[] {
+export function getEffectiveMasters(
+  masters: SlideMaster[] | undefined,
+  theme: SlideTheme,
+  t?: TranslateFn
+): SlideMaster[] {
   if (masters && masters.length > 0) return masters
-  return [createDefaultSlideMaster(theme)]
+  return [createDefaultSlideMaster(theme, t)]
 }
 
 /**

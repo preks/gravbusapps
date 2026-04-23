@@ -9,7 +9,7 @@ absence-request-option-work = Arbeitsbezogene Abwesenheit beantragen
 calendar = Kalender
 back-to-dashboard = Zurück zur Übersicht
 absence-overview = Abwesenheiten
-change-entitlement = Kontingent ändern
+change-entitlement = Ansprüche bearbeiten
 
 # My Balance
 my-balance = Mein Kontostand

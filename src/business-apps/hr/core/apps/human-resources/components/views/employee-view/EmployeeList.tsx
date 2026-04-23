@@ -6,7 +6,8 @@ import { useGetEmployees, Employee } from '@/business-apps/hr/core/hooks/useGetE
 import { useEmployeeFilters } from '@/business-apps/hr/core/hooks/useEmployeeFilters'
 import { EmployeeTable } from './components/EmployeeTable'
 import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details'
-import { UserIcon, UsersThreeIcon } from '@phosphor-icons/react'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
+import { UsersThreeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -135,8 +136,6 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
     <div data-testid="employee-list-content">
       <DataContainer
         contentBackground="white" // Set the content background to white
-        floatingDetails={true} // Enable floating details variant
-        onDetailsPanelClose={handleDetailsPanelClose} // Handle details panel close
         dataControllerProps={{
           // Props with debounce functionality now built into DataController
           search: search,
@@ -203,23 +202,26 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
             />
           </div>
         }
-        dataDetails={
-          selectedEmployee
-            ? {
-                title: `${selectedEmployee.firstName} ${selectedEmployee.lastName}`,
-                icon: <UserIcon size={20} />,
-                content: (
-                  <EmployeeDetails
-                    employeeId={selectedEmployee.id}
-                    accessToken={accessToken}
-                    userInfo={props.userInfo}
-                  />
-                ),
-                onClose: handleDetailsPanelClose
-              }
-            : undefined
-        }
       />
+      <Sheet open={selectedEmployee !== null} onOpenChange={open => !open && handleDetailsPanelClose()}>
+        <SheetContent side="right" className="gba:flex gba:flex-col gba:p-0" data-testid="employee-list-details-sheet">
+          <SheetHeader className="gba:border-b gba:border-border gba:px-6 gba:py-4 gba:pr-14">
+            <SheetTitle className="gba:text-left">
+              {selectedEmployee
+                ? `${selectedEmployee.firstName} ${selectedEmployee.lastName}`
+                : getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.employees_section.employee_details',
+                    'Employee Details'
+                  )}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:flex-1 gba:min-h-0" data-testid="employee-list-details-content">
+            {selectedEmployee && (
+              <EmployeeDetails employeeId={selectedEmployee.id} accessToken={accessToken} userInfo={props.userInfo} />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

@@ -265,7 +265,10 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
                       {L.validTo}
                     </FormLabel>
                     <FormControl>
-                      <div data-testid="flw_changeTaxDetails_healthInsuranceDocumentValidTo">
+                      <div
+                        data-testid="flw_changeTaxDetails_healthInsuranceDocumentValidTo"
+                        className="gba:overflow-hidden"
+                      >
                         <DateInput
                           type="date"
                           value={(field.value as string) || ''}
@@ -393,7 +396,7 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
 
       {isEmployeeInGermany && (
         <>
-          <div className="gba:flex gba:items-center gba:justify-between">
+          <div className="gba:flex gba:items-center gba:justify-between gba:overflow-hidden">
             <Label>{L.requestAtTaxOffice}</Label>
             <Switch
               checked={form.watch('requestAtTaxOffice')}

@@ -532,6 +532,8 @@ add-skill-form-update-level-title = Skill-Level aktualisieren
 add-skill-form-search-skills-title = Fähigkeiten suchen
 add-skill-form-search-skill-placeholder = Fähigkeit suchen...
 add-skill-form-selected-skills-label = Skill-Level wählen
+add-skill-form-skills-to-assign-label = Zuzuweisende Fähigkeiten
+add-skill-form-new-skill-badge = Neu
 add-skill-form-deactivated-employee-skills-label = Deaktivierte Mitarbeiterfähigkeiten
 add-skill-form-current-employee-skills-label = Aktuelle Mitarbeiterfähigkeiten
 add-skill-form-no-current-skills = Keine aktuellen Fähigkeiten
@@ -911,3 +913,10 @@ change-personal-data-pending-ok = OK
 
 # Change Address - Loading
 change-address-loading-form = Adressformular wird geladen...
+
+# Change Address - Autocomplete map (hinter dev.enabled)
+address-autocomplete-search-label = Adresse finden
+address-autocomplete-search-placeholder = Adresse suchen
+address-autocomplete-use-my-location = Meinen Standort verwenden
+address-autocomplete-pin-hint = Ziehen Sie die Nadel, um den Standort genauer festzulegen.
+address-autocomplete-no-results = Keine Vorschläge

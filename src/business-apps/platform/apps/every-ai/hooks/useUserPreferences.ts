@@ -8,12 +8,48 @@ export interface BehaviorNote {
   source: NoteSource
 }
 
+/**
+ * LLM providers a user is allowed to pin via developer settings. The backend
+ * keeps a longer list of supported providers; these four are exposed in the
+ * UI today. `null` (or omitted) means "use the server default".
+ */
+export type UserSelectableLlmProvider = 'azure' | 'stackit' | 'groq' | 'anthropic'
+
+/**
+ * String alias for a model id the user can pin. The backend's
+ * `SupportedLlmModels` union is too long to mirror here literally; instead
+ * we keep this a plain `string` and constrain the UI's picker to values
+ * from `MODELS_BY_PROVIDER` (see UserPreferences.tsx). The backend
+ * re-validates the pairing -- invalid values fall back silently to the
+ * provider's canonical default rather than breaking the chat flow.
+ */
+export type UserSelectableLlmModel = string
+
+/**
+ * User-controlled feature flags persisted on `UserProfile.settings`
+ * (TEXT/JSON column on the backend). All keys are optional so newly-added
+ * flags default to "off" / "use server default" without a migration.
+ */
+export interface UserPreferencesSettings {
+  /** Opt in to the Redis-backed exact + semantic chat response cache. */
+  chat_cache_enabled?: boolean
+  /** Pin chat to a specific LLM provider; `null` defers to the server. */
+  llm_provider?: UserSelectableLlmProvider | null
+  /**
+   * Pin chat to a specific model within the chosen provider's family.
+   * Ignored unless `llm_provider` is also set. `null` falls back to the
+   * provider's canonical default model.
+   */
+  llm_model?: UserSelectableLlmModel | null
+}
+
 export interface UserPreferences {
   external_user_id: string
   tool_affinities: Record<string, number>
   behavior_notes: BehaviorNote[]
   sessions_analyzed: number
   updated_at: string | null
+  settings: UserPreferencesSettings
 }
 
 export interface PreferencesSummary {
@@ -28,6 +64,13 @@ export interface PreferencesSummary {
 
 export interface UserPreferencesUpdate {
   behavior_notes?: BehaviorNote[]
+  /**
+   * Partial update of user settings. Only the keys provided here are
+   * touched on the backend (shallow merge). Send `null` for a value to
+   * unset a previously-pinned setting (e.g. revert `llm_provider` to
+   * the server default).
+   */
+  settings?: UserPreferencesSettings
 }
 
 export interface UseUserPreferencesReturn {
@@ -73,7 +116,7 @@ export function useUserPreferences(accessToken: string): UseUserPreferencesRetur
       }
 
       const data = (await res.json()) as UserPreferences
-      setPreferences(data)
+      setPreferences({ ...data, settings: data.settings ?? {} })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch preferences'
       setError(message)
@@ -131,7 +174,7 @@ export function useUserPreferences(accessToken: string): UseUserPreferencesRetur
         }
 
         const data = (await res.json()) as UserPreferences
-        setPreferences(data)
+        setPreferences({ ...data, settings: data.settings ?? {} })
         return true
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to update preferences'

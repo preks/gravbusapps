@@ -2,25 +2,12 @@ import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { ScheduleMeetingButton } from './ScheduleMeetingButton'
 
-jest.mock('@/common/utils/navigationUtils', () => ({
-  navigateTo: jest.fn(),
-  buildPlatformUrl: jest.fn((path: string) => path)
-}))
-
-const { navigateTo } = jest.requireMock('@/common/utils/navigationUtils') as {
-  navigateTo: jest.Mock
-}
-
 describe('ScheduleMeetingButton', () => {
-  afterEach(() => {
-    jest.clearAllMocks()
-  })
+  it('opens scheduling when clicked', () => {
+    const onScheduleMeeting = jest.fn()
 
-  it('opens chat calendar with the linked shared calendar preselected', () => {
     render(
       <ScheduleMeetingButton
-        spaceId="space-1"
-        spaceName="Product"
         members={[
           {
             id: 'member-1',
@@ -43,14 +30,46 @@ describe('ScheduleMeetingButton', () => {
           isOwner: false,
           hasColorOverride: false
         }}
+        onScheduleMeeting={onScheduleMeeting}
       />
     )
 
     fireEvent.click(screen.getByTestId('schedule-meeting-button'))
 
-    expect(navigateTo).toHaveBeenCalledWith(expect.stringContaining('action=createMeeting'))
-    expect(navigateTo).toHaveBeenCalledWith(expect.stringContaining('calendarId=calendar-1'))
-    expect(navigateTo).toHaveBeenCalledWith(expect.stringContaining('calendarIds=calendar-1'))
-    expect(navigateTo).toHaveBeenCalledWith(expect.stringContaining('participantDrafts='))
+    expect(onScheduleMeeting).toHaveBeenCalledTimes(1)
+  })
+
+  it('stays disabled when the linked calendar is not editable', () => {
+    const onScheduleMeeting = jest.fn()
+
+    render(
+      <ScheduleMeetingButton
+        members={[
+          {
+            id: 'member-1',
+            spaceId: 'space-1',
+            userId: 'user-1',
+            role: 'editor',
+            joinedAt: '2026-04-20T10:00:00Z',
+            userName: 'Alex Product'
+          }
+        ]}
+        linkedCalendar={{
+          id: 'calendar-1',
+          name: 'Product Calendar',
+          color: '#3B82F6',
+          defaultColor: '#3B82F6',
+          type: 'shared',
+          permission: 'viewer',
+          memberCount: 2,
+          canEdit: false,
+          isOwner: false,
+          hasColorOverride: false
+        }}
+        onScheduleMeeting={onScheduleMeeting}
+      />
+    )
+
+    expect(screen.getByTestId('schedule-meeting-button')).toBeDisabled()
   })
 })

@@ -98,7 +98,7 @@ export type EntityData = {
   // New enriched fields coming from backend to avoid hardcoded queries
   text_title?: string
   text_human?: string
-  text_full?: string | null
+  text_full?: string | Record<string, unknown> | null
   tool?: string
   flow_proposal?: string
   /** Normalized entity link URL with optional alternateId fragment for redirects */

@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormFieldsEditor } from './FormFieldsEditor'
 import { TileFieldsEditor } from './TileFieldsEditor'
 import { ProspectFieldsEditor } from './ProspectFieldsEditor'
-import { FieldGroup, ProspectField, TileField } from '../types'
+import { FieldGroup, ProspectField, RequiredSubtypeKey, TileField } from '../types'
 
 interface ConfigurationContentProps extends BusinessAppContextProps {
   configSection: 'form' | 'prospect' | 'tile'
@@ -21,6 +21,8 @@ interface ConfigurationContentProps extends BusinessAppContextProps {
   onClearProspectInheritance: () => void
   onClearTileInheritance: () => void
   prefixDataTestId?: string
+  requiredSubtypeKey: RequiredSubtypeKey
+  onRequiredSubtypeKeyChange: (key: RequiredSubtypeKey) => void
 }
 
 const DATA_TEST_ID = 'configuration-content'
@@ -43,7 +45,9 @@ export const ConfigurationContent: React.FC<ConfigurationContentProps> = ({
   onClearFormInheritance,
   onClearProspectInheritance,
   onClearTileInheritance,
-  prefixDataTestId
+  prefixDataTestId,
+  requiredSubtypeKey,
+  onRequiredSubtypeKeyChange
 }) => {
   return (
     <div className="gba:flex-1" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}`}>
@@ -58,6 +62,8 @@ export const ConfigurationContent: React.FC<ConfigurationContentProps> = ({
           isInherited={isFormInherited}
           inheritedFrom={inheritedFrom}
           onClearInheritance={onClearFormInheritance}
+          requiredSubtypeKey={requiredSubtypeKey}
+          onRequiredSubtypeKeyChange={onRequiredSubtypeKeyChange}
         />
       )}
 

@@ -20,6 +20,7 @@ import {
   AddContentDialog,
   SpaceCalendar,
   ScheduleMeetingButton,
+  SpaceScheduleMeetingModal,
   SpaceRealTimeActivity,
   SpaceTeamChatPanel,
   SpaceTeamPresence
@@ -38,6 +39,7 @@ import { useSpaceUserLookup } from './hooks/useSpaceUserLookup'
 import { useLinkedGroupChat } from './hooks/useLinkedGroupChat'
 import { useLinkedSharedCalendar } from './hooks/useLinkedSharedCalendar'
 import { useSpaceCall } from './hooks/useSpaceCall'
+import type { CalendarEmployee } from '@/business-apps/platform/apps/chat/calendar/services/employeeSearchService'
 import type {
   SpaceContentItem,
   AddMemberInput,
@@ -67,6 +69,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [addContentDialogOpen, setAddContentDialogOpen] = useState(false)
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
+  const [scheduleMeetingModalOpen, setScheduleMeetingModalOpen] = useState(false)
+  const [meetingCalendarRefreshToken, setMeetingCalendarRefreshToken] = useState(0)
   const [activeTab, setActiveTab] = useState<'overview' | 'drive' | 'members'>('overview')
   const [additionalUserIds, setAdditionalUserIds] = useState<string[]>([])
 
@@ -200,6 +204,20 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
       }
     })
   }, [space?.members, getUserInfo])
+  const scheduleMeetingParticipants = useMemo<CalendarEmployee[]>(
+    () =>
+      enrichedMembers.map(member => ({
+        id: member.userId,
+        userId: member.userId,
+        displayName: member.userName || member.userId,
+        pictureThumbnail: member.userAvatar
+      })),
+    [enrichedMembers]
+  )
+  const scheduleMeetingTitle = useMemo(
+    () => (space?.name ? t('calendar-meeting-title', { spaceName: space.name }) : undefined),
+    [space?.name, t]
+  )
 
   // Determine user role
   const userRole = useMemo(() => {
@@ -248,6 +266,15 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
 
   const handleSettings = useCallback(() => {
     setSettingsDialogOpen(true)
+  }, [])
+  const handleScheduleMeeting = useCallback(() => {
+    setScheduleMeetingModalOpen(true)
+  }, [])
+  const handleScheduleMeetingOpenChange = useCallback((open: boolean) => {
+    setScheduleMeetingModalOpen(open)
+  }, [])
+  const handleMeetingCreated = useCallback(() => {
+    setMeetingCalendarRefreshToken(currentValue => currentValue + 1)
   }, [])
 
   const handleSaveSettings = useCallback(
@@ -507,10 +534,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
                     {t('detail-team-collaboration')}
                   </h2>
                   <ScheduleMeetingButton
-                    spaceId={spaceId}
-                    spaceName={space.name}
                     members={enrichedMembers}
                     linkedCalendar={linkedCalendar}
+                    onScheduleMeeting={handleScheduleMeeting}
                     data-testid={`${testId}-schedule-meeting`}
                   />
                 </div>
@@ -542,6 +568,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
                       calendar={linkedCalendar}
                       accessToken={accessToken}
                       maxMeetings={3}
+                      refreshToken={meetingCalendarRefreshToken}
+                      onScheduleMeeting={handleScheduleMeeting}
                       data-testid={`${testId}-team-calendar`}
                     />
 
@@ -648,6 +676,16 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         isOwner={isOwner}
         onDeleteSpace={isOwner ? handleDeleteSpace : undefined}
         data-testid={`${testId}-settings-dialog`}
+      />
+
+      <SpaceScheduleMeetingModal
+        isOpen={scheduleMeetingModalOpen}
+        onOpenChange={handleScheduleMeetingOpenChange}
+        accessToken={accessToken || ''}
+        defaultCalendarId={linkedCalendar?.id}
+        initialTitle={scheduleMeetingTitle}
+        initialParticipants={scheduleMeetingParticipants}
+        onMeetingCreated={handleMeetingCreated}
       />
     </div>
   )

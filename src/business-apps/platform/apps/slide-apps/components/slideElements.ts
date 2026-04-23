@@ -124,6 +124,13 @@ export interface CodeElement extends SlideElement {
   theme: 'dark' | 'light'
   showLineNumbers: boolean
   fontSize: number
+  textColor?: string
+  backgroundColor?: string
+  borderRadius: number
+  borderWidth: number
+  borderColor: string
+  shadow: boolean
+  padding: number
 }
 
 export interface VideoElement extends SlideElement {
@@ -426,6 +433,11 @@ export const createCodeElement = (code: string, partial?: Partial<CodeElement>):
   theme: 'dark',
   showLineNumbers: true,
   fontSize: 14,
+  borderRadius: 8,
+  borderWidth: 0,
+  borderColor: '#333333',
+  shadow: false,
+  padding: 16,
   ...partial
 })
 
@@ -677,6 +689,31 @@ export const FONT_FAMILIES = [
 
 export const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 128]
 
+export const CODE_LANGUAGES = [
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'typescript', label: 'TypeScript' },
+  { value: 'python', label: 'Python' },
+  { value: 'java', label: 'Java' },
+  { value: 'csharp', label: 'C#' },
+  { value: 'cpp', label: 'C++' },
+  { value: 'go', label: 'Go' },
+  { value: 'rust', label: 'Rust' },
+  { value: 'ruby', label: 'Ruby' },
+  { value: 'php', label: 'PHP' },
+  { value: 'swift', label: 'Swift' },
+  { value: 'kotlin', label: 'Kotlin' },
+  { value: 'html', label: 'HTML' },
+  { value: 'css', label: 'CSS' },
+  { value: 'sql', label: 'SQL' },
+  { value: 'bash', label: 'Bash' },
+  { value: 'json', label: 'JSON' },
+  { value: 'yaml', label: 'YAML' },
+  { value: 'xml', label: 'XML' },
+  { value: 'markdown', label: 'Markdown' }
+]
+
+export const CODE_FONT_SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24]
+
 // Shape definitions for rendering
 export const SHAPE_DEFINITIONS: Record<ShapeType, { name: string; icon: string }> = {
   rectangle: { name: 'Rectangle', icon: '▬' },
@@ -892,6 +929,41 @@ export const COLOR_PRESETS = [
   '#e9d5ff',
   '#fce7f3'
 ]
+
+/**
+ * Convert GradientConfig to SVG gradient attributes.
+ * CSS gradients don't work in SVG fill — this produces data for
+ * SVG <linearGradient>/<radialGradient> definitions.
+ */
+export function gradientToSvgAttrs(gradient: GradientConfig, viewBox = 100) {
+  const stops = gradient.stops.map(s => ({ offset: `${s.position}%`, stopColor: s.color }))
+
+  if (gradient.type === 'radial') {
+    const angleToPos: Record<number, { cx: string; cy: string }> = {
+      0: { cx: '50%', cy: '0%' },
+      45: { cx: '100%', cy: '0%' },
+      90: { cx: '100%', cy: '50%' },
+      135: { cx: '0%', cy: '0%' },
+      180: { cx: '50%', cy: '100%' },
+      225: { cx: '0%', cy: '100%' },
+      270: { cx: '0%', cy: '50%' },
+      315: { cx: '100%', cy: '100%' }
+    }
+    const pos = angleToPos[gradient.angle] || { cx: '50%', cy: '50%' }
+    return { type: 'radial' as const, stops, cx: pos.cx, cy: pos.cy, r: '70%' }
+  }
+
+  const rad = ((gradient.angle - 90) * Math.PI) / 180
+  const h = viewBox / 2
+  return {
+    type: 'linear' as const,
+    stops,
+    x1: h - Math.cos(rad) * h,
+    y1: h - Math.sin(rad) * h,
+    x2: h + Math.cos(rad) * h,
+    y2: h + Math.sin(rad) * h
+  }
+}
 
 export const gradientToCss = (gradient: GradientConfig): string => {
   const stops = gradient.stops.map(s => `${s.color} ${s.position}%`).join(', ')

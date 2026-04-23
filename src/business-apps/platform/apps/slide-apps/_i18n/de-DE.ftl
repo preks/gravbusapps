@@ -84,7 +84,7 @@ shared-click-manage = Klicken zum Verwalten
 
 confirm-delete = Diese Präsentation in den Papierkorb verschieben?
 delete-confirm-title = In den Papierkorb verschieben?
-delete-confirm-single = "{$name}" wird in den Papierkorb verschoben. Sie können es innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-single = „{ $name }“ wird in den Papierkorb verschoben. Sie können es innerhalb von 30 Tagen wiederherstellen.
 delete-confirm-multi = {$count} Elemente werden in den Papierkorb verschoben. Sie können sie innerhalb von 30 Tagen wiederherstellen.
 delete-confirm-action = In den Papierkorb verschieben
 delete-confirm-cancel = Abbrechen
@@ -136,8 +136,8 @@ editor-slide-of = Folie { $current } von { $total }
 editor-saving = Wird gespeichert...
 editor-synced = Synchronisiert
 editor-connecting = Verbinde...
-editor-zoom-out = Vergrößern
-editor-zoom-in = Verkleinern
+editor-zoom-out = Verkleinern
+editor-zoom-in = Vergrößern
 editor-present = Präsentieren
 editor-export = Exportieren
 editor-save-now = Jetzt speichern
@@ -221,6 +221,32 @@ editor-placeholder-title = Klicken, um Titel hinzuzufügen
 editor-placeholder-subtitle = Klicken, um Untertitel hinzuzufügen
 editor-code-placeholder = // Ihr Code hier
 
+# Layout-Platzhalterinhalte
+layout-presentation-title = Präsentationstitel
+layout-section-title = Abschnittstitel
+layout-section-description = Beschreibung oder Kontext für diesen Abschnitt
+layout-key-points = - Erster Kernpunkt\n- Zweiter Kernpunkt\n- Dritter Kernpunkt
+layout-left-column-points = - Linke Spalte Punkt 1\n- Linke Spalte Punkt 2\n- Linke Spalte Punkt 3
+layout-right-column-points = - Rechte Spalte Punkt 1\n- Rechte Spalte Punkt 2\n- Rechte Spalte Punkt 3
+layout-strengths = - Stärke eins\n- Stärke zwei\n- Stärke drei
+layout-main-content-points = - Hauptinhalt Punkt 1\n- Hauptinhalt Punkt 2\n- Hauptinhalt Punkt 3
+layout-caption-text = Fügen Sie eine Beschriftung oder zusätzlichen Kontext hinzu.
+layout-image-caption = Bildbeschriftung
+layout-image-description = Fügen Sie eine Beschreibung für das links gezeigte Bild hinzu.
+layout-option-a = Option A
+layout-option-b = Option B
+layout-image-alt = Klicken, um Bild hinzuzufügen
+layout-name-title-slide = Titelfolie
+layout-name-title-content = Titel und Inhalt
+layout-name-section-header = Abschnittsüberschrift
+layout-name-two-content = Zwei Inhalte
+layout-name-comparison = Vergleich
+layout-name-title-only = Nur Titel
+layout-name-blank = Leer
+layout-name-content-caption = Inhalt mit Beschriftung
+layout-name-picture-caption = Bild mit Beschriftung
+layout-name-default-theme = Standarddesign
+
 # Collaborators
 collaborators-viewing-now = Jetzt ansehen
 collaborators-more-viewing = { $count } weitere { $count ->
@@ -256,7 +282,7 @@ import-feature-transitions = Basisübergänge (teilweise)
 
 # Share Dialog
 share-title = Folie teilen
-share-description = „{ $title }“ mit anderen teilen und Zugriffsstufe festlegen.
+share-description = Teilen Sie „{ $title }“ mit anderen und legen Sie deren Zugriffsstufe fest.
 share-success-title = Folie geteilt!
 share-notified-single = { $name } wurde benachrichtigt und kann jetzt auf diese Folie zugreifen.
 share-notified-multiple = { $count } Personen wurden benachrichtigt und können jetzt auf diese Folie zugreifen.
@@ -266,11 +292,11 @@ share-can-comment = Kann kommentieren
 share-can-edit = Kann bearbeiten
 share-add-people = Personen hinzufügen
 share-search-placeholder = Personen suchen...
-share-no-results = Keine Personen gefunden für „{ $query }“
+share-no-results = Keine Personen gefunden, die zu „{ $query }“ passen
 share-people-with-access = Personen mit Zugriff ({ $count })
 share-message-optional = Nachricht (optional)
 share-message-placeholder = Nachricht für die Empfänger hinzufügen...
-share-info = Geteilte Personen erhalten eine Benachrichtigung und können je nach Berechtigungsstufe auf die Folie zugreifen.
+share-info = Personen, mit denen Sie teilen, erhalten eine Benachrichtigung und können je nach Berechtigungsstufe auf die Folie zugreifen.
 share-cancel = Abbrechen
 share-button = Teilen
 share-sharing = Wird geteilt...
@@ -284,7 +310,7 @@ share-success-description = Geteilt mit { $count } { $count ->
 
 # Manage Shares
 manage-title = Freigaben verwalten
-manage-description = Verwalten, wer auf „{ $title }“ zugreifen kann
+manage-description = Verwalten Sie, wer auf „{ $title }“ zugreifen kann
 manage-not-shared = Noch mit niemandem geteilt
 manage-add-users-hint = Klicken Sie auf „Benutzer hinzufügen“, um diese Präsentation zu teilen
 manage-can-view = Kann ansehen
@@ -305,7 +331,7 @@ manage-load-failed = Freigaben konnten nicht geladen werden
 header-locked = Gesperrt
 header-slide = Folie
 header-version-history = Versionsverlauf
-header-save-checkpoint = Prüfpunkt speichern
+header-save-checkpoint = Sicherungspunkt speichern
 header-unlock-slide = Folie entsperren
 header-lock-slide = Folie sperren
 header-share = Teilen...
@@ -380,12 +406,31 @@ version-description = Vorherige Versionen von „{ $title }“ anzeigen und wied
 version-no-history = Kein Versionsverlauf verfügbar
 version-current = Aktuell
 version-current-description = Aktuelle Version
-version-checkpoint = Prüfpunkt
+version-checkpoint = Sicherungspunkt
 version-restore = Wiederherstellen
 version-close = Schließen
 version-restore-confirm = Diese Version wiederherstellen? Aktuelle Änderungen werden als neue Version gespeichert.
 version-restored = Version wiederhergestellt
 version-restore-failed = Version konnte nicht wiederhergestellt werden
+version-no-history-yet = Noch kein Versionsverlauf
+version-autosave = Automatische Speicherung
+version-restore-title = Diese Version wiederherstellen
+version-restore-confirm-msg = Möchten Sie wirklich Version { $number } wiederherstellen? Es wird eine neue Version mit dem wiederhergestellten Inhalt erstellt.
+version-loading = Versionen werden geladen...
+version-compare-mode = Versionen vergleichen
+version-cancel-compare = Vergleich abbrechen
+version-compare-selected = Ausgewählte vergleichen
+version-compare-hint = Wählen Sie zwei Versionen zum Vergleichen aus. Klicken Sie auf eine Version, um sie auszuwählen.
+version-unknown-user = Unbekannt
+
+# Checkpoint Dialog
+checkpoint-title = Sicherungspunkt speichern
+checkpoint-description-label = Beschreibung (Optional)
+checkpoint-description-placeholder = z. B. Neuen Abschnitt hinzugefügt, Tippfehler korrigiert, Große Überarbeitung
+checkpoint-description-hint = Fügen Sie eine Beschreibung hinzu, um sich zu merken, was sich in dieser Version geändert hat.
+checkpoint-cancel = Abbrechen
+checkpoint-save = Sicherungspunkt speichern
+checkpoint-saving = Wird gespeichert...
 
 # Property Panel
 props-select-element = Element auswählen, um Eigenschaften zu bearbeiten
@@ -439,6 +484,28 @@ props-unlock = Entsperren
 props-duplicate = Duplizieren
 props-delete = Löschen
 props-reset-rotation = Rotation zurücksetzen
+props-code-styling = Code-Gestaltung
+props-code-language = Sprache
+props-code-theme = Thema
+props-code-theme-dark = Dunkel
+props-code-theme-light = Hell
+props-code-font-size = Schriftgröße
+props-code-show-line-numbers = Zeilennummern
+props-code-padding = Innenabstand
+
+props-legend = Legende
+props-display-options = Anzeigeoptionen
+
+props-chart-data = Diagrammdaten
+props-chart-series = Datenreihen
+props-chart-add-series = Reihe hinzufügen
+props-chart-remove-series = Entfernen
+props-chart-series-label = Bezeichnung
+props-chart-series-color = Farbe
+props-chart-data-rows = Datenzeilen
+props-chart-add-row = Zeile hinzufügen
+props-chart-remove-row = Zeile entfernen
+props-chart-label = Bezeichnung
 
 # Content Attachment Picker
 attachment-add-reference = Referenz hinzufügen
@@ -531,17 +598,17 @@ parser-slide-not-found = Folie { $number } nicht gefunden
 parser-no-slides-parsed = Keine Folien konnten geparst werden. Leere Folie erstellt.
 parser-failed = PowerPoint-Datei konnte nicht geparst werden
 parser-imported-slide = Importierte Folie
-parser-shape-unsupported = Formtyp „{ $type }" auf Folie { $slide } wurde als Rechteck importiert
-parser-chart-unsupported = Diagrammtyp „{ $type }" auf Folie { $slide } konnte nicht importiert werden
+parser-shape-unsupported = Formtyp „{ $type }“ auf Folie { $slide } wurde als Rechteck importiert
+parser-chart-unsupported = Diagrammtyp „{ $type }“ auf Folie { $slide } konnte nicht importiert werden
 parser-chart-imported = { $type }-Diagramm auf Folie { $slide } importiert
 parser-table-imported = Tabelle importiert ({ $rows } Zeilen, { $cols } Spalten) auf Folie { $slide }
 parser-notes-imported = Sprechernotizen für { $count } { $count ->
     [one] Folie
    *[other] Folien
 } importiert
-parser-transition-unsupported = Übergang „{ $type }" auf Folie { $slide } wurde angenähert
+parser-transition-unsupported = Übergang „{ $type }“ auf Folie { $slide } wurde angenähert
 parser-group-flattened = Gruppierte Formen auf Folie { $slide } wurden aufgelöst
-parser-theme-mapped = Präsentationsdesign wurde „{ $theme }" zugeordnet
+parser-theme-mapped = Präsentationsdesign wurde „{ $theme }“ zugeordnet
 import-preview-title = Importvorschau
 import-preview-select-slides = Folien zum Import auswählen
 import-preview-selected = { $selected } von { $total } Folien ausgewählt
@@ -641,9 +708,9 @@ template-ai-optimized = KI-optimierte Vorlage mit definierten Folienzwecken
 template-delete = Löschen
 template-delete-confirm = Diese Vorlage löschen?
 template-delete-title = Vorlage löschen
-template-delete-message = Möchten Sie „{ $name }" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+template-delete-message = Möchten Sie „{ $name }“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
 template-deleted-title = Vorlage gelöscht
-template-deleted-description = „{ $name }" wurde gelöscht.
+template-deleted-description = „{ $name }“ wurde gelöscht.
 template-delete-error-title = Löschen fehlgeschlagen
 template-delete-error-description = Die Vorlage konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.
 
@@ -670,7 +737,7 @@ editor-voice-start = Spracheingabe starten
 editor-voice-stop = Spracheingabe stoppen
 editor-voice-recognizing = Erkannt
 editor-voice-recording = Aufnahme läuft...
-editor-voice-hint = Tipp: Klicken Sie auf "Spracheingabe", um zu diktieren
+editor-voice-hint = Tipp: Klicken Sie auf „Spracheingabe“, um zu diktieren
 editor-text-placeholder = Geben Sie hier Ihren Text ein...
 
 # Bilderweiterungen
@@ -683,6 +750,15 @@ editor-image-background = Bild-Hintergrund
 editor-upload-background-image = Bild hochladen
 editor-background-image-url = Oder Bild-URL einfügen
 editor-image-load-error = Bild konnte nicht geladen werden
+
+# Charts
+editor-chart = Diagramm
+editor-bar-chart = Balkendiagramm
+editor-line-chart = Liniendiagramm
+editor-area-chart = Flächendiagramm
+editor-pie-chart = Kreisdiagramm
+editor-radar-chart = Netzdiagramm
+editor-radial-chart = Radialdiagramm
 
 # Spell Check
 spell-check-button = Rechtschreibprüfung
@@ -742,11 +818,17 @@ transition-trigger-click = Bei Klick
 transition-trigger-auto = Automatisch
 transition-delay = Verzögerung
 transition-preview = Vorschau
+transition-play-preview = Vorschau abspielen
+transition-playing = Wird abgespielt...
+transition-slide-number = Folie { $number }
 
 # Menüband-Symbolleiste
 ribbon-tab-home = Start
+ribbon-tab-home-desc = Formatierung, Layout und Design-Werkzeuge.
 ribbon-tab-insert = Einfügen
+ribbon-tab-insert-desc = Text, Bilder, Formen und Diagramme hinzufügen.
 ribbon-tab-slideshow = Bildschirmpräsentation
+ribbon-tab-slideshow-desc = Präsentieren, übertragen und exportieren.
 ribbon-aria-label = Folieneditor-Menüband
 
 # Symbolleisten-Hinweise

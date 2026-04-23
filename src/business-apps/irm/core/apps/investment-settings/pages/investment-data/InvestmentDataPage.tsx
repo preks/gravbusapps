@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { Alert, Spinner, PageLayout, Button, EmptyState } from '@newwork/nw-design-system'
 import { DatabaseIcon, FloppyDiskIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -7,9 +7,11 @@ import {
   InvestmentCatalogData
 } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { GroupTypeSelector, ConfigurationNav, ConfigurationContent } from './components'
-import { CatalogEntryWithConfig, FieldGroup, ProspectField, TileField } from './types'
+import { CatalogEntryRaw, CatalogEntryWithConfig, FieldGroup, ProspectField, TileField } from './types'
 import { useInvestmentConfiguration, useInvestmentDataSave, mapCatalogEntryToTyped } from '../../hooks'
 import { useInvestmentDataPageState, useCatalogDataLoader } from './hooks'
+import { validateInvestmentFormFieldsForLayout } from './utils/investmentFormFieldValidation'
+import { coerceRequiredSubtypeKey, DEFAULT_REQUIRED_SUBTYPE_KEY } from './utils/formLayoutChoice'
 
 interface InvestmentDataPageProps extends BusinessAppContextProps {
   onBack?: () => void
@@ -30,19 +32,20 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
 
   const {
     targetLevel,
-    setTargetLevel,
     selectedGroup,
-    setSelectedGroup,
     selectedType,
-    setSelectedType,
     selectedLiquidFundType,
-    setSelectedLiquidFundType,
     selectedEntry,
+    setSelectedGroup,
     setSelectedEntry,
     catalogData,
     setCatalogData,
     configSection,
     setConfigSection,
+    selectGroup,
+    selectType,
+    selectLiquidFundType,
+    selectGeneralGroupSettings,
     getTypesForGroup,
     getLiquidFundTypesForType
   } = useInvestmentDataPageState()
@@ -58,6 +61,8 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
     accessToken,
     fetchCatalogData: fetchInvestmentCatalogData
   })
+
+  const [formLayoutSaveError, setFormLayoutSaveError] = useState<string | null>(null)
 
   const handleDataLoaded = useCallback(
     (data: InvestmentCatalogData) => {
@@ -93,6 +98,17 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
 
     const previousEntry = selectedEntry
 
+    const formValidation = validateInvestmentFormFieldsForLayout(
+      configuration.formFields || [],
+      coerceRequiredSubtypeKey(configuration.requiredSubtypeKey)
+    )
+    if (!formValidation.valid) {
+      setFormLayoutSaveError(formValidation.issues.map(i => `${i.property || '(empty)'}: ${i.message}`).join(' | '))
+      setConfigSection('form')
+      return
+    }
+    setFormLayoutSaveError(null)
+
     try {
       const updatedEntry = await saveConfiguration({
         selectedEntry,
@@ -102,61 +118,49 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
       })
 
       if (updatedEntry) {
+        setFormLayoutSaveError(null)
         const data = await fetchInvestmentCatalogData()
         setCatalogData(data)
         setSelectedEntry(updatedEntry)
       }
     } catch (err) {
-      console.error('Failed to save or reload configuration:', err)
-
-      // Restore previous state on error to maintain UI consistency
+      // Restore previous state on error to maintain UI consistency.
       setSelectedEntry(previousEntry)
 
-      // Log detailed error information
-      if (err instanceof Error) {
-        console.error('Error details:', {
-          message: err.message,
-          stack: err.stack,
-          selectedEntry: previousEntry?.id,
-          targetLevel
-        })
+      const context = {
+        selectedEntry: previousEntry?.id,
+        targetLevel,
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined
       }
+      console.error('Failed to save or reload configuration:', err, context)
     }
   }
 
-  const handleGroupSelect = (group: any) => {
-    const groupEntry = mapCatalogEntryToTyped(group)
-    setSelectedGroup(groupEntry)
-    setSelectedType(null)
-    setSelectedLiquidFundType(null)
-    setTargetLevel('group')
-    setSelectedEntry(groupEntry)
+  const handleGroupSelect = (group: CatalogEntryRaw) => {
+    selectGroup(mapCatalogEntryToTyped(group))
   }
 
-  const handleTypeSelect = (type: any) => {
-    const typeEntry = mapCatalogEntryToTyped(type)
-    setSelectedType(typeEntry)
-    setSelectedLiquidFundType(null)
-    setTargetLevel('type')
-    setSelectedEntry(typeEntry)
+  const handleTypeSelect = (type: CatalogEntryRaw) => {
+    selectType(mapCatalogEntryToTyped(type))
   }
 
-  const handleLiquidFundTypeSelect = (liquidFundType: any) => {
-    const liquidFundTypeEntry = mapCatalogEntryToTyped(liquidFundType)
-    setSelectedLiquidFundType(liquidFundTypeEntry)
-    setTargetLevel('liquidFundType')
-    setSelectedEntry(liquidFundTypeEntry)
+  const handleLiquidFundTypeSelect = (liquidFundType: CatalogEntryRaw) => {
+    selectLiquidFundType(mapCatalogEntryToTyped(liquidFundType))
   }
 
   const handleGeneralSelect = () => {
-    setTargetLevel('group')
-    setSelectedType(null)
-    setSelectedLiquidFundType(null)
-    setSelectedEntry(selectedGroup)
+    selectGeneralGroupSettings()
   }
 
-  const currentTypes = selectedGroup ? getTypesForGroup(selectedGroup.id) : []
-  const currentLiquidFundTypes = selectedType ? getLiquidFundTypesForType(selectedType.id) : []
+  const currentTypes = useMemo(
+    () => (selectedGroup ? getTypesForGroup(selectedGroup.id) : []),
+    [selectedGroup, getTypesForGroup]
+  )
+  const currentLiquidFundTypes = useMemo(
+    () => (selectedType ? getLiquidFundTypesForType(selectedType.id) : []),
+    [selectedType, getLiquidFundTypesForType]
+  )
 
   if (isLoading) {
     return (
@@ -195,25 +199,30 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
       onBack={onBack}
       data-testid={`${prefixDataTestId}-${DATA_TEST_ID}`}
     >
-      {(loadError || error) && (
+      {(loadError || error || formLayoutSaveError) && (
         <Alert variant="destructive" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-error`}>
-          {loadError || error}
+          {loadError || error || formLayoutSaveError}
         </Alert>
       )}
 
-      <GroupTypeSelector
-        catalogData={catalogData}
-        selectedGroup={selectedGroup}
-        selectedType={selectedType}
-        selectedLiquidFundType={selectedLiquidFundType}
-        currentTypes={currentTypes}
-        currentLiquidFundTypes={currentLiquidFundTypes}
-        onGroupSelect={handleGroupSelect}
-        onTypeSelect={handleTypeSelect}
-        onLiquidFundTypeSelect={handleLiquidFundTypeSelect}
-        onGeneralSelect={handleGeneralSelect}
-        prefixDataTestId={`${prefixDataTestId}-${DATA_TEST_ID}`}
-      />
+      <div
+        className="gba:sticky gba:top-0 gba:z-10 gba:bg-background gba:py-2 -gba:mx-1 gba:px-1 gba:border-b gba:border-border"
+        data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-selector-sticky`}
+      >
+        <GroupTypeSelector
+          catalogData={catalogData}
+          selectedGroup={selectedGroup}
+          selectedType={selectedType}
+          selectedLiquidFundType={selectedLiquidFundType}
+          currentTypes={currentTypes}
+          currentLiquidFundTypes={currentLiquidFundTypes}
+          onGroupSelect={handleGroupSelect}
+          onTypeSelect={handleTypeSelect}
+          onLiquidFundTypeSelect={handleLiquidFundTypeSelect}
+          onGeneralSelect={handleGeneralSelect}
+          prefixDataTestId={`${prefixDataTestId}-${DATA_TEST_ID}`}
+        />
+      </div>
 
       {selectedEntry ? (
         <div className="gba:flex gba:gap-6" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-config-section`}>
@@ -254,7 +263,7 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
             }
             onClearFormInheritance={() => {
               setIsInherited({ ...isInherited, formFields: false })
-              setConfiguration({ ...configuration, formFields: [] })
+              setConfiguration({ ...configuration, formFields: [], requiredSubtypeKey: DEFAULT_REQUIRED_SUBTYPE_KEY })
             }}
             onClearProspectInheritance={() => {
               setIsInherited({ ...isInherited, prospectFields: false })
@@ -264,6 +273,8 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
               setIsInherited({ ...isInherited, tileFields: false })
               setConfiguration({ ...configuration, tileFields: [] })
             }}
+            requiredSubtypeKey={coerceRequiredSubtypeKey(configuration.requiredSubtypeKey)}
+            onRequiredSubtypeKeyChange={key => setConfiguration({ ...configuration, requiredSubtypeKey: key })}
             prefixDataTestId={`${prefixDataTestId}-${DATA_TEST_ID}`}
           />
         </div>

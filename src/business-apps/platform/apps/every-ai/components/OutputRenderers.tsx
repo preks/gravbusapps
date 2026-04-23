@@ -159,6 +159,30 @@ class FlowProposalBoundary extends React.Component<FlowProposalBoundaryProps, Fl
   }
 }
 
+// Catmull-Rom-style cubic bezier path used by the custom SVG scatter renderer.
+const buildSmoothPath = (points: Array<{ x: number; y: number }>) => {
+  if (points.length === 0) return ''
+  if (points.length === 1) return `M ${points[0]!.x} ${points[0]!.y}`
+
+  let path = `M ${points[0]!.x} ${points[0]!.y}`
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] ?? points[i]!
+    const p1 = points[i]!
+    const p2 = points[i + 1]!
+    const p3 = points[i + 2] ?? p2
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6
+    const cp1y = p1.y + (p2.y - p0.y) / 6
+    const cp2x = p2.x - (p3.x - p1.x) / 6
+    const cp2y = p2.y - (p3.y - p1.y) / 6
+
+    path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`
+  }
+
+  return path
+}
+
 // Premium Loading Display with AI animation
 export const LoadingDisplay: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => {
   const { t } = useTranslation(translations)
@@ -345,10 +369,10 @@ export const BarGraphDisplay: React.FC<{ data: BarGraphData }> = ({ data }) => {
                     </span>
                     <div className="gba:flex-1 gba:h-8 gba:bg-muted gba:rounded-lg gba:overflow-hidden gba:relative">
                       <div
-                        className="gba:h-full gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:rounded-lg gba:flex gba:items-center gba:justify-end gba:pr-3 gba:transition-all gba:shadow-md group-hover:gba:shadow-lg"
+                        className="gba:h-full gba:bg-primary gba:rounded-lg gba:flex gba:items-center gba:justify-end gba:pr-3 gba:transition-all gba:shadow-md group-hover:gba:shadow-lg"
                         style={{ width: `${percentage}%` }}
                       >
-                        <span className="gba:text-xs gba:text-ai-foreground gba:font-bold">{point.y}</span>
+                        <span className="gba:text-xs gba:text-primary-foreground gba:font-bold">{point.y}</span>
                       </div>
                     </div>
                   </div>
@@ -379,6 +403,7 @@ function renderEntity(item: EntityData, accessToken: string) {
           textTitle={item.text_title}
           tool={item.tool}
           link={item.link}
+          textFull={item.text_full}
         />
       )
     default: {
@@ -412,8 +437,8 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
   }
 
   // Resolve design token colors for SVG
-  const gridColor = resolveCssVar('var(--nw-muted)', '#e5e7eb')
-  const axisColor = resolveCssVar('var(--nw-foreground)', '#374151')
+  const gridColor = resolveCssVar('var(--nw-border)', 'var(--nw-border)')
+  const axisColor = resolveCssVar('var(--nw-foreground)', 'var(--nw-foreground)')
 
   // Calculate bounds for all series
   const allPoints = data.series.flatMap(series => series.data)
@@ -449,22 +474,22 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
 
   // Color mapping
   const colorMap: Record<string, string> = {
-    red: '#ef4444',
-    green: '#22c55e',
-    blue: '#3b82f6',
-    yellow: '#eab308',
-    purple: '#a855f7',
-    orange: '#f97316',
-    pink: '#ec4899',
-    gray: '#6b7280',
-    black: '#000000',
-    white: '#ffffff'
+    red: 'var(--nw-destructive)',
+    green: 'var(--nw-success)',
+    blue: 'var(--nw-chart-3)',
+    yellow: 'var(--nw-highlight)',
+    purple: 'var(--nw-chart-2)',
+    orange: 'var(--nw-warning)',
+    pink: 'var(--nw-ai-2)',
+    gray: 'var(--nw-muted-foreground)',
+    black: 'var(--nw-foreground)',
+    white: 'var(--nw-background)'
   }
 
   // Get color for series
   const getColor = (color: string | null) => {
-    if (!color) return '#3b82f6' // default blue
-    return colorMap[color] || '#3b82f6'
+    if (!color) return 'var(--nw-chart-3)'
+    return colorMap[color] || 'var(--nw-chart-3)'
   }
 
   // Generate tick marks
@@ -590,16 +615,18 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
 
               return (
                 <g key={`series-${seriesIdx}`}>
-                  {/* Draw line if lineStyle is specified */}
-                  {series.lineStyle && series.lineStyle !== null && points.length > 1 && (
-                    <polyline
-                      points={points.map(p => `${p.x},${p.y}`).join(' ')}
+                  {/* Draw connecting curve between points */}
+                  {points.length > 1 && (
+                    <path
+                      d={buildSmoothPath(points)}
                       fill="none"
                       stroke={color}
                       strokeWidth="2"
                       strokeDasharray={
                         series.lineStyle === 'dashed' ? '5,5' : series.lineStyle === 'dotted' ? '2,2' : 'none'
                       }
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                       opacity={0.8}
                     />
                   )}

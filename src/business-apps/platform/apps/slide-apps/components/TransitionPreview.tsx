@@ -3,12 +3,14 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react'
-import { Button, cn } from '@newwork/nw-design-system'
+import { Button, cn, useTranslation } from '@newwork/nw-design-system'
 import { Play } from 'lucide-react'
 import type { SlideTransition } from './slideElements'
+import translations from '../_i18n'
 
 export interface TransitionPreviewProps {
   transition: SlideTransition
+  slideIndex?: number
   onPreview?: () => void
   className?: string
   'data-testid'?: string
@@ -18,10 +20,12 @@ type PreviewPhase = 'idle' | 'entering' | 'entered'
 
 export const TransitionPreview: React.FC<TransitionPreviewProps> = ({
   transition,
+  slideIndex = 1,
   onPreview,
   className,
   'data-testid': testId = 'transition-preview'
 }) => {
+  const { t } = useTranslation(translations)
   const [phase, setPhase] = useState<PreviewPhase>('idle')
   const [showOld, setShowOld] = useState(false)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -193,7 +197,7 @@ export const TransitionPreview: React.FC<TransitionPreviewProps> = ({
             style={getTransitionStyle(false)}
           >
             <div className="gba:px-4 gba:py-2 gba:rounded-md gba:bg-orange-500 gba:text-sm gba:font-semibold gba:text-white gba:shadow-md">
-              Slide 1
+              {t('transition-slide-number', { number: slideIndex })}
             </div>
           </div>
         )}
@@ -204,7 +208,7 @@ export const TransitionPreview: React.FC<TransitionPreviewProps> = ({
           style={getTransitionStyle(true)}
         >
           <div className="gba:px-4 gba:py-2 gba:rounded-md gba:bg-blue-600 gba:text-sm gba:font-semibold gba:text-white gba:shadow-md">
-            Slide 2
+            {t('transition-slide-number', { number: slideIndex + 1 })}
           </div>
         </div>
       </div>
@@ -219,7 +223,7 @@ export const TransitionPreview: React.FC<TransitionPreviewProps> = ({
         data-testid={`${testId}-play`}
       >
         <Play className="gba:w-4 gba:h-4 gba:mr-2" />
-        {isAnimating ? 'Playing...' : 'Play Preview'}
+        {isAnimating ? t('transition-playing') : t('transition-play-preview')}
       </Button>
     </div>
   )

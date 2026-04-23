@@ -28,10 +28,12 @@ export interface PagedDocumentEditorDialogHostProps {
   onCloseCheckpointDialog: () => void
   onSaveCheckpoint: ComponentProps<typeof CheckpointDialog>['onSave']
   isSavingCheckpoint: boolean
+  checkpointDialogMessages?: ComponentProps<typeof CheckpointDialog>['messages']
   showPublishDialog: boolean
   onClosePublishDialog: () => void
   onPublish: ComponentProps<typeof PublishDialog>['onPublish']
   isPublishing: boolean
+  publishDialogMessages?: ComponentProps<typeof PublishDialog>['messages']
   showPageSetupDialog: boolean
   setShowPageSetupDialog: Dispatch<SetStateAction<boolean>>
   layoutFormatting: DocumentFormatting
@@ -80,10 +82,12 @@ export function PagedDocumentEditorDialogHost({
   onCloseCheckpointDialog,
   onSaveCheckpoint,
   isSavingCheckpoint,
+  checkpointDialogMessages,
   showPublishDialog,
   onClosePublishDialog,
   onPublish,
   isPublishing,
+  publishDialogMessages,
   showPageSetupDialog,
   setShowPageSetupDialog,
   layoutFormatting,
@@ -139,6 +143,7 @@ export function PagedDocumentEditorDialogHost({
           onClose={onCloseCheckpointDialog}
           onSave={onSaveCheckpoint}
           isSaving={isSavingCheckpoint}
+          messages={checkpointDialogMessages}
           data-testid="document-checkpoint-dialog"
         />
       )}
@@ -150,6 +155,7 @@ export function PagedDocumentEditorDialogHost({
           onPublish={onPublish}
           isPublishing={isPublishing}
           entityType="document"
+          messages={publishDialogMessages}
           data-testid="document-publish-dialog"
         />
       )}

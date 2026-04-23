@@ -16,7 +16,8 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   FileSpreadsheet,
@@ -43,6 +44,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { SpreadsheetAppSummary, AppStatus } from '../types'
 import { getIconByName, DEFAULT_APP_ICON } from '../utils/appIcons'
+import translations from '../_i18n'
 
 /** User info for shared users display */
 export interface SharedUserInfo {
@@ -84,19 +86,22 @@ export interface AppPreviewCardProps {
 /**
  * Get status badge variant and label
  */
-function getStatusInfo(status: AppStatus): {
+function getStatusInfo(
+  status: AppStatus,
+  t: (key: string, vars?: Record<string, string | number>) => string
+): {
   variant: 'default' | 'secondary' | 'outline' | 'success' | 'destructive' | 'warning' | 'info' | 'offline'
   label: string
 } {
   switch (status) {
     case 'draft':
-      return { variant: 'secondary', label: 'Draft' }
+      return { variant: 'secondary', label: t('app-preview-status-draft') }
     case 'file_based':
-      return { variant: 'info', label: 'File-based' }
+      return { variant: 'info', label: t('app-preview-status-file-based') }
     case 'promoted':
-      return { variant: 'success', label: 'Database' }
+      return { variant: 'success', label: t('app-preview-status-database') }
     case 'archived':
-      return { variant: 'offline', label: 'Archived' }
+      return { variant: 'offline', label: t('app-preview-status-archived') }
     default:
       return { variant: 'secondary', label: status }
   }
@@ -105,7 +110,11 @@ function getStatusInfo(status: AppStatus): {
 /**
  * Format relative time
  */
-function formatRelativeTime(dateString: string): string {
+function formatRelativeTime(
+  dateString: string,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  locale?: string
+): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -113,11 +122,27 @@ function formatRelativeTime(dateString: string): string {
   const diffHours = Math.floor(diffMins / 60)
   const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+  if (diffMins < 1) return t('time-just-now')
+  if (diffMins < 60) return t('time-minutes-ago', { count: diffMins })
+  if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
+  if (diffDays === 1) return t('time-yesterday')
+  if (diffDays < 7) return t('time-days-ago', { count: diffDays })
+  return date.toLocaleDateString(locale || undefined)
+}
+
+function getPermissionLabel(
+  permission: SharedUserInfo['permission'] | undefined,
+  t: (key: string, vars?: Record<string, string | number>) => string
+): string {
+  switch (permission) {
+    case 'edit':
+      return t('app-preview-permission-edit')
+    case 'comment':
+      return t('app-preview-permission-comment')
+    case 'view':
+    default:
+      return t('app-preview-permission-view')
+  }
 }
 
 /**
@@ -138,7 +163,8 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
   onManageShares,
   'data-testid': testId = 'app-preview-card'
 }) => {
-  const statusInfo = getStatusInfo(app.status)
+  const { t, locale } = useTranslation(translations)
+  const statusInfo = getStatusInfo(app.status, t)
   // Determine if the app is shared with me vs I shared it with others
   const isOwner = app.isOwner ?? (currentUserId ? app.createdBy === currentUserId : true)
   const isSharedWithMe = app.isShared && !isOwner
@@ -189,7 +215,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                 }}
               >
                 <Play className="gba:w-4 gba:h-4 gba:mr-2" />
-                Open
+                {t('action-open')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={e => {
@@ -198,7 +224,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                 }}
               >
                 <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-                Settings
+                {t('action-settings')}
               </DropdownMenuItem>
               {isOwner && onShare && (
                 <DropdownMenuItem
@@ -208,7 +234,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                   }}
                 >
                   <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Share
+                  {t('action-share')}
                 </DropdownMenuItem>
               )}
               {isOwner && onManageShares && (sharedUsers.length > 0 || app.sharedWithCount) && (
@@ -219,7 +245,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                   }}
                 >
                   <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Manage Sharing
+                  {t('app-preview-manage-sharing')}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem
@@ -229,7 +255,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                 }}
               >
                 <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                Duplicate
+                {t('action-duplicate')}
               </DropdownMenuItem>
               {onExport && (
                 <DropdownMenuItem
@@ -239,7 +265,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                   }}
                 >
                   <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Export
+                  {t('menu-export-to-excel')}
                 </DropdownMenuItem>
               )}
               {onPromote && app.status === 'file_based' && (
@@ -252,7 +278,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                     }}
                   >
                     <Database className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Promote to Database
+                    {t('app-preview-promote-database')}
                   </DropdownMenuItem>
                 </>
               )}
@@ -265,7 +291,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                 }}
               >
                 <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                Delete
+                {t('action-delete-spreadsheet')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -275,13 +301,11 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
         <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground gba:mb-4">
           <div className="gba:flex gba:items-center gba:gap-1">
             <Layers className="gba:w-4 gba:h-4" />
-            <span>
-              {app.sheetCount} sheet{app.sheetCount !== 1 ? 's' : ''}
-            </span>
+            <span>{t('app-preview-sheet-count', { count: app.sheetCount })}</span>
           </div>
           <div className="gba:flex gba:items-center gba:gap-1">
             <Table2 className="gba:w-4 gba:h-4" />
-            <span>{app.rowCount.toLocaleString()} rows</span>
+            <span>{t('app-preview-row-count', { count: app.rowCount })}</span>
           </div>
         </div>
 
@@ -308,7 +332,9 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                       </Avatar>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Owner: {sharedByUser.userName || 'Unknown'}</p>
+                      <p>
+                        {t('app-preview-owner-tooltip', { name: sharedByUser.userName || t('table-unknown-owner') })}
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -316,9 +342,11 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                 <Users className="gba:w-4 gba:h-4 gba:text-primary" />
               )}
               <div className="gba:flex-1 gba:min-w-0">
-                <span className="gba:text-xs gba:font-medium gba:text-primary">Shared with you</span>
+                <span className="gba:text-xs gba:font-medium gba:text-primary">{t('app-preview-shared-with-you')}</span>
                 {sharedByUser?.userName && (
-                  <span className="gba:text-xs gba:text-muted-foreground gba:ml-1">by {sharedByUser.userName}</span>
+                  <span className="gba:text-xs gba:text-muted-foreground gba:ml-1">
+                    {t('app-preview-shared-by', { name: sharedByUser.userName })}
+                  </span>
                 )}
               </div>
               {/* Permission badge */}
@@ -331,8 +359,8 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                 className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:flex-shrink-0"
               >
                 {app.permission === 'edit' || app.permission === 'owner' || app.permission === 'admin'
-                  ? 'Can edit'
-                  : 'View only'}
+                  ? t('app-preview-can-edit')
+                  : t('app-preview-view-only')}
               </Badge>
             </div>
           </div>
@@ -361,7 +389,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>
-                        {user.userName || 'Unknown'} ({user.permission || 'view'})
+                        {user.userName || t('table-unknown-owner')} ({getPermissionLabel(user.permission, t)})
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -376,11 +404,11 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                       </Avatar>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{sharedUsers.length - 4} more people</p>
+                      <p>{t('app-preview-more-people', { count: sharedUsers.length - 4 })}</p>
                     </TooltipContent>
                   </Tooltip>
                 )}
-                <span className="gba:pl-3 gba:text-xs gba:text-muted-foreground">Shared</span>
+                <span className="gba:pl-3 gba:text-xs gba:text-muted-foreground">{t('app-preview-shared')}</span>
               </div>
             </TooltipProvider>
           </div>
@@ -396,9 +424,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
             }}
           >
             <Users className="gba:w-3 gba:h-3" />
-            <span>
-              Shared with {app.sharedWithCount} {app.sharedWithCount === 1 ? 'person' : 'people'}
-            </span>
+            <span>{t('app-preview-shared-with-count', { count: app.sharedWithCount })}</span>
           </div>
         )}
 
@@ -410,7 +436,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
           </Badge>
           <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
             <Clock className="gba:w-3 gba:h-3" />
-            <span>{formatRelativeTime(app.updatedAt)}</span>
+            <span>{formatRelativeTime(app.updatedAt, t, locale)}</span>
           </div>
         </div>
       </div>
@@ -422,19 +448,19 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
  * Empty state component for no apps
  */
 export const NoAppsState: React.FC<{ onCreateNew: () => void }> = ({ onCreateNew }) => {
+  const { t } = useTranslation(translations)
   return (
     <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:px-4">
       <div className="gba:w-20 gba:h-20 gba:rounded-full gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-6">
         <FileSpreadsheet className="gba:w-10 gba:h-10 gba:text-muted-foreground" />
       </div>
-      <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">No apps yet</h3>
+      <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">{t('app-preview-no-apps-title')}</h3>
       <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
-        Upload an Excel file to transform it into a powerful business application. AI will analyze your data and suggest
-        the best app structure.
+        {t('app-preview-no-apps-description')}
       </p>
       <Button onClick={onCreateNew}>
         <FileSpreadsheet className="gba:w-4 gba:h-4 gba:mr-2" />
-        Create Your First App
+        {t('action-create-spreadsheet')}
       </Button>
     </div>
   )

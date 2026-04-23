@@ -65,7 +65,6 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
   const {
     data,
     searchSkills,
-    createSkillAndFetchByNames,
     employeeId: ctxEmployeeId,
     changeLevelParams,
     flowFormParams,
@@ -96,9 +95,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
     employee,
     flowFormParams,
     changeLevelParams,
-    searchSkills,
-    createSkillAndFetchByNames,
-    t
+    searchSkills
   })
 
   const formTitle = getFormTitle(t, flowFormParams, changeLevelParams)
@@ -321,8 +318,31 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
                 controller.selectedSkills.find(s => s.id === changeLevelParams.skillId)?.level ?? 1
               )
             } else {
-              selectedIds = controller.selectedSkills.map(s => s.id)
-              controller.selectedSkills.forEach(s => selectedLevels.set(s.id, s.level || 1))
+              const existingToAssign = controller.skillsToAssign.filter(s => !s.isNew)
+              const newSkillsToCreate = controller.skillsToAssign.filter(s => s.isNew)
+
+              // Use activeSelectedSkills (reflects UI removes) instead of existingSkillsList (raw GraphQL)
+              const alreadyAssignedIds = controller.activeSelectedSkills.map(s => s.id)
+
+              selectedIds = [...alreadyAssignedIds, ...existingToAssign.map(s => s.id)]
+
+              // Levels: keep current level for already-assigned, use selected level for new
+              controller.activeSelectedSkills.forEach(s => selectedLevels.set(s.id, s.level || 1))
+              existingToAssign.forEach(s => selectedLevels.set(s.id, s.level || 1))
+
+              const newSkills =
+                newSkillsToCreate.length > 0 ? newSkillsToCreate.map(s => ({ name: s.name })) : undefined
+
+              return buildEmployeeSkillsPayload({
+                employeeId,
+                selectedSkillIds: selectedIds,
+                selectedSkillLevels: selectedLevels,
+                existingSkills: controller.existingSkillsList as any,
+                skillValidTo,
+                skillVerificationDocumentId,
+                ...(newSkills ? { newSkills } : {}),
+                event: 'pse_submit'
+              })
             }
 
             return buildEmployeeSkillsPayload({
@@ -344,7 +364,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
             changeLevelParams={changeLevelParams}
             employee={employee}
             activeSelectedSkills={controller.activeSelectedSkills}
-            pendingSkills={controller.pendingSkills}
+            skillsToAssign={controller.skillsToAssign}
             searchTerm={controller.searchTerm}
             setSearchTerm={controller.setSearchTerm}
             inputKey={controller.inputKey}
@@ -364,10 +384,9 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
             handleSelectSkill={controller.handleSelectSkill}
             handleAddNewSkill={controller.handleAddNewSkill}
             handleRemoveSkill={controller.handleRemoveSkill}
-            handleRemovePendingSkill={controller.handleRemovePendingSkill}
-            handleUpdatePendingSkillLevel={controller.handleUpdatePendingSkillLevel}
+            handleRemoveSkillToAssign={controller.handleRemoveSkillToAssign}
+            handleUpdateSkillToAssignLevel={controller.handleUpdateSkillToAssignLevel}
             handleUpdateExistingSkillLevel={controller.handleUpdateExistingSkillLevel}
-            handleAddPendingSkillToEmployee={controller.handleAddPendingSkillToEmployee}
             verificationInitialFiles={verificationDocumentSync.initialUploadFiles}
             isLoadingVerificationInitialFiles={verificationDocumentSync.shouldShowInitialDocumentLoading}
             isResolvingVerificationInitialDocuments={verificationDocumentSync.isResolvingInitialDocuments}

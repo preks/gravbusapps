@@ -21,6 +21,12 @@ export interface VoiceInputButtonProps {
   idleTooltipPrimary?: string
   /** When set, overrides the idle-state tooltip secondary line (e.g. i18n). */
   idleTooltipSecondary?: string
+  /** When set, overrides the unsupported-browser tooltip copy. */
+  unsupportedTooltip?: string
+  /** When set, overrides the error tooltip title. */
+  errorTitle?: string
+  /** When set, overrides the error tooltip retry hint. */
+  errorRetryHint?: string
   'data-testid'?: string
 }
 
@@ -39,6 +45,9 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
   listeningLabel,
   idleTooltipPrimary,
   idleTooltipSecondary,
+  unsupportedTooltip,
+  errorTitle,
+  errorRetryHint,
   'data-testid': testId = 'voice-input-button'
 }) => {
   const idlePrimary = idleTooltipPrimary ?? 'Click to start voice input'
@@ -72,7 +81,7 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          <p>Voice input is not supported in this browser. Try Chrome or Edge.</p>
+          <p>{unsupportedTooltip ?? 'Voice input is not supported in this browser. Try Chrome or Edge.'}</p>
         </TooltipContent>
       </Tooltip>
     )
@@ -100,9 +109,9 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
           </Button>
         </TooltipTrigger>
         <TooltipContent className="gba:max-w-xs">
-          <p className="gba:text-warning-foreground gba:font-medium">Voice input unavailable</p>
+          <p className="gba:text-warning-foreground gba:font-medium">{errorTitle ?? 'Voice input unavailable'}</p>
           <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{error}</p>
-          <p className="gba:text-xs gba:text-muted-foreground">Click to try again</p>
+          <p className="gba:text-xs gba:text-muted-foreground">{errorRetryHint ?? 'Click to try again'}</p>
         </TooltipContent>
       </Tooltip>
     )

@@ -14,7 +14,9 @@ jest.mock('../utils/docxImportUtils', () => ({
   enhanceImportedHtmlWithImageLayouts: jest.fn((html: string) => html),
   parseDocxPageFormatting: jest.fn(async () => undefined),
   parseDocxPageBreaks: jest.fn(async () => []),
-  enhanceImportedHtmlWithPageBreaks: jest.fn((html: string) => html)
+  enhanceImportedHtmlWithPageBreaks: jest.fn((html: string) => html),
+  parseDocxTableLayouts: jest.fn(async () => []),
+  enhanceImportedHtmlWithTableLayouts: jest.fn((html: string) => html)
 }))
 
 jest.mock('../utils/docxTocImportUtils', () => ({
@@ -110,10 +112,12 @@ describe('useWordParser', () => {
   })
 
   it('preserves imported manual page breaks in the parsed html', async () => {
-    const { enhanceImportedHtmlWithPageBreaks, parseDocxPageBreaks } = jest.requireMock('../utils/docxImportUtils') as {
-      enhanceImportedHtmlWithPageBreaks: jest.Mock
-      parseDocxPageBreaks: jest.Mock
-    }
+    const { enhanceImportedHtmlWithPageBreaks, parseDocxPageBreaks, enhanceImportedHtmlWithTableLayouts } =
+      jest.requireMock('../utils/docxImportUtils') as {
+        enhanceImportedHtmlWithPageBreaks: jest.Mock
+        parseDocxPageBreaks: jest.Mock
+        enhanceImportedHtmlWithTableLayouts: jest.Mock
+      }
 
     jest.mocked(mammoth.convertToHtml).mockResolvedValue({
       value: '<p>First</p><p></p><p>Second</p>',
@@ -141,7 +145,63 @@ describe('useWordParser', () => {
       await result.current.parseFile(file)
     })
 
+    expect(enhanceImportedHtmlWithTableLayouts).toHaveBeenCalledWith('<p>First</p><p></p><p>Second</p>', [])
     expect(enhanceImportedHtmlWithPageBreaks).toHaveBeenCalledWith('<p>First</p><p></p><p>Second</p>', [1])
     expect(result.current.parsedDocument?.html).toContain('data-page-break=""')
+  })
+
+  it('returns the Mammoth plus OOXML-upgraded image html in the parsed document', async () => {
+    const {
+      enhanceImportedHtmlWithImageLayouts,
+      parseDocxImageLayouts,
+      enhanceImportedHtmlWithPageBreaks,
+      parseDocxPageBreaks,
+      enhanceImportedHtmlWithTableLayouts
+    } = jest.requireMock('../utils/docxImportUtils') as {
+      enhanceImportedHtmlWithImageLayouts: jest.Mock
+      parseDocxImageLayouts: jest.Mock
+      enhanceImportedHtmlWithPageBreaks: jest.Mock
+      parseDocxPageBreaks: jest.Mock
+      enhanceImportedHtmlWithTableLayouts: jest.Mock
+    }
+
+    jest.mocked(mammoth.convertToHtml).mockResolvedValue({
+      value: '<p><img src="data:image/png;base64,abc123" alt=""></p>',
+      messages: []
+    } as Awaited<ReturnType<typeof mammoth.convertToHtml>>)
+    jest.mocked(mammoth.extractRawText).mockResolvedValue({
+      value: 'Image',
+      messages: []
+    } as Awaited<ReturnType<typeof mammoth.extractRawText>>)
+    parseDocxImageLayouts.mockResolvedValue([
+      { wrapMode: 'square', wrapTextSide: 'right', align: 'right', widthPx: 240, heightPx: 120, rotation: 30 }
+    ])
+    parseDocxPageBreaks.mockResolvedValue([])
+    enhanceImportedHtmlWithTableLayouts.mockImplementation((html: string) => html)
+    enhanceImportedHtmlWithPageBreaks.mockImplementation((html: string) => html)
+    enhanceImportedHtmlWithImageLayouts.mockImplementation(
+      () =>
+        '<figure data-node-type="custom-image" data-image-wrap="square" data-image-rotation="30"><img src="data:image/png;base64,abc123"></figure>'
+    )
+
+    const file = {
+      name: 'image-layout.docx',
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      size: 256,
+      arrayBuffer: jest.fn().mockResolvedValue(new ArrayBuffer(8))
+    } as unknown as File
+
+    const { result } = renderHook(() => useWordParser())
+
+    await act(async () => {
+      await result.current.parseFile(file)
+    })
+
+    expect(enhanceImportedHtmlWithImageLayouts).toHaveBeenCalledWith(
+      '<p><img src="data:image/png;base64,abc123" alt=""></p>',
+      [{ wrapMode: 'square', wrapTextSide: 'right', align: 'right', widthPx: 240, heightPx: 120, rotation: 30 }]
+    )
+    expect(result.current.parsedDocument?.html).toContain('data-node-type="custom-image"')
+    expect(result.current.parsedDocument?.html).toContain('data-image-rotation="30"')
   })
 })

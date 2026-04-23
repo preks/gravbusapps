@@ -1,8 +1,11 @@
 import React from 'react'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea, Input } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import CountryRegionFields from './CountryRegionFields'
 import AddressLines from './AddressLines'
+import AddressAutocompleteMap from './AddressAutocompleteMap'
 import { EmployeeDocumentUploadField } from '../../document-sync/EmployeeDocumentUploadField'
 
 interface AddressCommonFieldsProps {
@@ -40,19 +43,38 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
   hasInitialDocumentCandidates,
   onDocumentFilesChange
 }) => {
+  const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
+  const showAddressAutocompleteMap = !isDeleteMode && Boolean(isDevEnabled)
   return (
     <>
       <CountryRegionFields
-        control={form.control as any}
+        control={form.control}
         catalogs={{ countries: catalogs?.countries || [], regions: catalogs?.regions || [] }}
-        setValue={form.setValue as any}
+        setValue={form.setValue}
+        isDeleteMode={isDeleteMode}
+        suppressValidation={isSwitchingSelection}
+        suspendRegionRender
+      />
+
+      {showAddressAutocompleteMap && (
+        <AddressAutocompleteMap
+          form={form}
+          catalogs={{ countries: catalogs?.countries || [], regions: catalogs?.regions || [] }}
+        />
+      )}
+
+      <CountryRegionFields
+        control={form.control}
+        catalogs={{ countries: catalogs?.countries || [], regions: catalogs?.regions || [] }}
+        setValue={form.setValue}
         isDeleteMode={isDeleteMode}
         suppressValidation={isSwitchingSelection}
         suspendRegionRender={isSwitchingSelection}
+        suspendCountryRender
       />
 
       <AddressLines
-        control={form.control as any}
+        control={form.control}
         addressLineCount={addressLineCount}
         setAddressLineCount={setAddressLineCount as any}
         addressLinesError={addressLinesError}
@@ -61,7 +83,7 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
       />
 
       <FormField
-        control={form.control as any}
+        control={form.control}
         name={'postalCode' as any}
         rules={{
           validate: (v: any) => {
@@ -112,7 +134,7 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
       />
 
       <FormField
-        control={form.control as any}
+        control={form.control}
         name={'city' as any}
         rules={{
           required: getTranslationFromI18nKeyAndLabel(
@@ -142,7 +164,7 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
       />
 
       <FormField
-        control={form.control as any}
+        control={form.control}
         name={'comment' as any}
         render={({ field }) => (
           <FormItem>

@@ -50,6 +50,12 @@ export const populateFormFromRecord = (form: any, record: any, options: Populate
   form.setValue('addressLines', normalizedLines, { shouldDirty: false } as any)
   form.setValue('postalCode', record?.postalCode || '', { shouldDirty: false } as any)
   form.setValue('city', record?.locality || '', { shouldDirty: false } as any)
+  form.setValue('latitude', typeof record?.latitude === 'number' ? record.latitude : null, {
+    shouldDirty: false
+  } as any)
+  form.setValue('longitude', typeof record?.longitude === 'number' ? record.longitude : null, {
+    shouldDirty: false
+  } as any)
 
   let lastNonEmpty = -1
   for (let i = 0; i < 4; i++) {
@@ -94,6 +100,8 @@ export const buildDeletePayloadFromRecord = (employeeId: string, record: any) =>
     regionId: record?.region?.id || null,
     countryId: record?.country?.id || null,
     comment: record?.comment || '',
+    latitude: typeof record?.latitude === 'number' ? record.latitude : null,
+    longitude: typeof record?.longitude === 'number' ? record.longitude : null,
     selected: record
   })
 }

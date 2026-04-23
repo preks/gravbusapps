@@ -60,7 +60,7 @@ export function ShapeFormattingTools({ element, onUpdateElement, testId }: Shape
                 key={color}
                 className="gba:w-6 gba:h-6 gba:rounded gba:border gba:border-border gba:hover:ring-2 gba:hover:ring-primary"
                 style={{ backgroundColor: color }}
-                onClick={() => handleUpdate({ fill: color })}
+                onClick={() => handleUpdate({ fill: color, gradient: undefined })}
               />
             ))}
           </div>

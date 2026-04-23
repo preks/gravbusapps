@@ -53,7 +53,7 @@ interface PerformanceTabProps {
 }
 
 type GoalType = 'PERCENTAGE' | 'NUMERIC' | 'MILESTONE'
-type TrackState = 'ON_TRACK' | 'BEHIND_TARGET'
+type TrackState = 'ON_TRACK' | 'AT_RISK' | 'BEHIND_TARGET'
 
 interface Milestone {
   id: string
@@ -338,16 +338,37 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
 
   const normalizedSearchTerm = useMemo(() => searchTerm.trim().toLowerCase(), [searchTerm])
 
+  const getStatusForFilters = useCallback(
+    (goal: ExtendedEmployeePerformanceGoal): 'COMPLETED' | 'ON_TRACK' | 'AT_RISK' | 'BEHIND_TARGET' => {
+      if (goal.status === 'ACHIEVED' || (goal.progressPercent || 0) >= 100) return 'COMPLETED'
+
+      const startDate = dayjs(goal.startDate).startOf('day')
+      const dueDate = dayjs(goal.dueDate).startOf('day')
+      if (!startDate.isValid() || !dueDate.isValid()) return 'ON_TRACK'
+
+      const today = dayjs().startOf('day')
+      const totalDuration = Math.max(dueDate.diff(startDate, 'day'), 1)
+      const elapsed = Math.max(Math.min(today.diff(startDate, 'day'), totalDuration), 0)
+      const ideal = normalizeProgress((elapsed / totalDuration) * 100)
+      const actual = normalizeProgress(goal.progressPercent || 0)
+
+      if (actual >= ideal - 5) return 'ON_TRACK'
+      if (actual >= ideal - 15) return 'AT_RISK'
+      return 'BEHIND_TARGET'
+    },
+    []
+  )
+
   const matchesGoalFilters = useCallback(
     (goal: ExtendedEmployeePerformanceGoal) => {
-      if (statusFilter !== 'ALL' && goal.status !== statusFilter) return false
+      if (statusFilter !== 'ALL' && getStatusForFilters(goal) !== statusFilter) return false
       if (typeFilter !== 'ALL' && getGoalType(goal) !== typeFilter) return false
       if (!normalizedSearchTerm) return true
       const title = goal.title?.toLowerCase() || ''
       const note = goal.additionalProperties?.note?.toLowerCase() || ''
       return title.includes(normalizedSearchTerm) || note.includes(normalizedSearchTerm)
     },
-    [statusFilter, typeFilter, normalizedSearchTerm]
+    [statusFilter, typeFilter, normalizedSearchTerm, getStatusForFilters]
   )
 
   const cycleRelevantGoals = useMemo(() => {
@@ -412,7 +433,8 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
       const today = dayjs().startOf('day')
       const actual = getProgressAtDate(events, today)
       const ideal = getIdealProgressAtDate(startDate, dueDate, today)
-      if (actual >= ideal - 10) return 'ON_TRACK'
+      if (actual >= ideal - 5) return 'ON_TRACK'
+      if (actual >= ideal - 15) return 'AT_RISK'
       return 'BEHIND_TARGET'
     },
     [goalEvents, getInitialEvents]
@@ -428,8 +450,9 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
       goal => goal.status !== 'ACHIEVED' && (goal.progressPercent || 0) < 100
     )
     const onTrack = inProgressGoals.filter(goal => getTrackState(goal) === 'ON_TRACK').length
+    const atRisk = inProgressGoals.filter(goal => getTrackState(goal) === 'AT_RISK').length
     const behind = inProgressGoals.filter(goal => getTrackState(goal) === 'BEHIND_TARGET').length
-    return { total, achieved, onTrack, behind }
+    return { total, achieved, onTrack, atRisk, behind }
   }, [containedGoals, getTrackState])
 
   const kpiCards = useMemo<KpiCardData[]>(
@@ -451,11 +474,19 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
         footer: 'Healthy progress'
       },
       {
+        id: 'performance-at-risk-goals',
+        title: 'At risk',
+        value: String(summary.atRisk),
+        icon: <Icon icon={WarningCircleIcon} size="sm" decorative />,
+        iconColor: 'var(--nw-warning)',
+        footer: 'Watch closely'
+      },
+      {
         id: 'performance-behind-goals',
         title: 'Behind target',
         value: String(summary.behind),
         icon: <Icon icon={WarningCircleIcon} size="sm" decorative />,
-        iconColor: 'var(--nw-warning)',
+        iconColor: 'var(--nw-destructive)',
         footer: 'Needs attention'
       },
       {
@@ -467,7 +498,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
         footer: 'Completed goals'
       }
     ],
-    [summary.total, summary.onTrack, summary.behind, summary.achieved]
+    [summary.total, summary.onTrack, summary.atRisk, summary.behind, summary.achieved]
   )
 
   useEffect(() => {
@@ -713,13 +744,16 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
     })
   }
 
-  const getGoalLabel = (goal: ExtendedEmployeePerformanceGoal): 'COMPLETED' | 'ON_TRACK' | 'BEHIND_TARGET' => {
+  const getGoalLabel = (
+    goal: ExtendedEmployeePerformanceGoal
+  ): 'COMPLETED' | 'ON_TRACK' | 'AT_RISK' | 'BEHIND_TARGET' => {
     if (goal.status === 'ACHIEVED' || (goal.progressPercent || 0) >= 100) return 'COMPLETED'
-    return getTrackState(goal) === 'BEHIND_TARGET' ? 'BEHIND_TARGET' : 'ON_TRACK'
+    return getTrackState(goal)
   }
 
   const statusMap: Record<string, { label: string; color: string }> = {
     ON_TRACK: { label: t('performance-status-on-track'), color: 'gba:bg-success-secondary gba:text-success' },
+    AT_RISK: { label: t('performance-status-at-risk'), color: 'gba:bg-warning-secondary gba:text-warning' },
     BEHIND_TARGET: {
       label: t('performance-status-behind-target'),
       color: 'gba:bg-destructive-secondary gba:text-destructive'
@@ -796,7 +830,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
         </div>
       </div>
 
-      <SectionKpiCards cards={kpiCards} className="gba:w-full gba:md:grid-cols-4 nw:md:grid-cols-4" />
+      <SectionKpiCards cards={kpiCards} className="gba:w-full gba:md:grid-cols-5 nw:md:grid-cols-5" />
 
       <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-12 gba:gap-6">
         <section className="gba:lg:col-span-5 gba:space-y-4">

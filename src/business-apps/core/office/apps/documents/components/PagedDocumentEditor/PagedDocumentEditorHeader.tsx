@@ -37,6 +37,30 @@ import { EditorToolbar } from './EditorToolbar'
 import { ApprovalStatusBadge, SaveStatusIndicator } from './PagedDocumentEditorHeaderStatus'
 import type { RightSidebar } from './hooks/usePagedDocumentInteractionDialogs'
 
+function formatPresenceRelativeTime(
+  date: Date | string | number | undefined,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  locale?: string
+): string {
+  if (!date) return t('presence-time-just-now')
+  const resolved = date instanceof Date ? date : new Date(date)
+  if (Number.isNaN(resolved.getTime())) return t('presence-time-just-now')
+
+  const now = new Date()
+  const diffMs = now.getTime() - resolved.getTime()
+  const diffMinutes = Math.floor(diffMs / 60000)
+
+  if (diffMinutes < 1) return t('presence-time-just-now')
+  if (diffMinutes === 1) return t('presence-time-minute-ago')
+  if (diffMinutes < 60) return t('presence-time-minutes-ago', { count: diffMinutes })
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours === 1) return t('presence-time-hour-ago')
+  if (diffHours < 24) return t('presence-time-hours-ago', { count: diffHours })
+
+  return resolved.toLocaleDateString(locale || undefined)
+}
+
 export interface PagedDocumentEditorHeaderProps {
   document?: Document
   paginationConfig?: PageLayoutPaginationConfig | null
@@ -85,6 +109,7 @@ export interface PagedDocumentEditorHeaderProps {
   onOpenFind: () => void
   onOpenReplace: () => void
   onTranslate: (key: string, vars?: Record<string, string | number>) => string
+  currentLocale?: string
   headerExtra?: ReactNode
   approvalRequest?: DocumentApprovalRequest
   isLocked: boolean
@@ -140,6 +165,7 @@ export function PagedDocumentEditorHeader({
   onOpenFind,
   onOpenReplace,
   onTranslate,
+  currentLocale,
   headerExtra,
   approvalRequest,
   isLocked,
@@ -249,7 +275,7 @@ export function PagedDocumentEditorHeader({
                       {onTranslate('editor-export')}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" style={{ zIndex: 1100 }}>
                     <DropdownMenuItem onClick={onExportWord} disabled={isExporting}>
                       <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
                       {onTranslate('editor-export-word')}
@@ -274,6 +300,11 @@ export function PagedDocumentEditorHeader({
                     size="sm"
                     showLabel={false}
                     className="gba:mr-2"
+                    formatParticipantStatus={lastActiveAt =>
+                      onTranslate('presence-status-active', {
+                        time: formatPresenceRelativeTime(lastActiveAt, onTranslate, currentLocale)
+                      })
+                    }
                   />
                 )}
 
@@ -379,7 +410,7 @@ export function PagedDocumentEditorHeader({
                         {onTranslate('editor-document-menu')}
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" style={{ zIndex: 1100 }}>
                       <DropdownMenuItem onClick={onOpenCheckpointDialog}>
                         <Save className="gba:w-4 gba:h-4 gba:mr-2" />
                         {onTranslate('editor-save-checkpoint')}
