@@ -2,13 +2,11 @@ import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { FunctionManager } from './FunctionManager'
 
-const createLayoutMock = jest.fn()
 const useFunctionsDataMock = jest.fn()
 const createFunctionsColumnsMock = jest.fn()
 
 jest.mock('@newwork/nw-design-system', () => ({
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  CreateLayout: (props: any) => createLayoutMock(props),
   DataDisplay: ({ children, primaryAction }: any) => (
     <div data-testid="mock-data-display">
       {primaryAction && typeof primaryAction === 'object' && 'label' in primaryAction ? (
@@ -56,13 +54,6 @@ jest.mock('./components/FunctionEditor', () => ({
 
 describe('FunctionManager', () => {
   beforeEach(() => {
-    createLayoutMock.mockImplementation(({ heroVariant, heroExtra, canvasPanel, 'data-testid': dataTestId }: any) => (
-      <div data-testid="mock-create-layout" data-hero-variant={heroVariant} data-layout-testid={dataTestId}>
-        <div data-testid="mock-create-layout-extra">{heroExtra}</div>
-        <div data-testid="mock-create-layout-canvas">{canvasPanel}</div>
-      </div>
-    ))
-
     useFunctionsDataMock.mockReturnValue({
       data: [],
       total: 0,
@@ -84,12 +75,11 @@ describe('FunctionManager', () => {
     jest.clearAllMocks()
   })
 
-  it('renders the overview inside CreateLayout overview mode', () => {
+  it('renders the overview with the hero and data display', () => {
     render(<FunctionManager accessToken="token" />)
 
-    expect(screen.getByTestId('mock-create-layout')).toHaveAttribute('data-hero-variant', 'overview')
-    expect(screen.getByTestId('mock-create-layout')).toHaveAttribute('data-layout-testid', 'FunctionManager')
-    expect(screen.queryByTestId('FunctionManager-hero-create')).not.toBeInTheDocument()
+    expect(screen.getByTestId('FunctionManager')).toBeInTheDocument()
+    expect(screen.getByText('Functions')).toBeInTheDocument()
     expect(screen.getByTestId('mock-data-display-primary-action')).toHaveTextContent('New Function')
     expect(screen.getByTestId('mock-data-display')).toBeInTheDocument()
     expect(screen.getByTestId('mock-data-table')).toBeInTheDocument()

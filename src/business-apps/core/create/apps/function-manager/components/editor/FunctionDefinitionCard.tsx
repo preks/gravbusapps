@@ -8,6 +8,11 @@ import {
   CardTitle,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Tabs,
   TabsContent,
   TabsList,
@@ -15,31 +20,34 @@ import {
   Textarea
 } from '@newwork/nw-design-system'
 import { Bot, Database, FileText, GitBranch, Plug } from 'lucide-react'
-import type { ConnectorKind } from '@/common/network/functions/FunctionsServiceClient'
+import {
+  FUNCTION_CATEGORIES,
+  type ConnectorKind,
+  type FunctionCategory
+} from '@/common/network/functions/FunctionsServiceClient'
+import { getSubcategorySuggestions } from '../../config/categorySuggestions'
 import { CodeEditor } from './CodeEditor'
 import { SettingsEditor, type ConfigRow, type StoredSecretOption } from './SettingsEditor'
 import type { CredentialBindOption } from '@/common/utils/credentialBindOptions'
 import { TestFunctionCard } from './TestFunctionCard'
 import type { FunctionExecutionLogEntry } from '@/common/network/functions/FunctionsServiceClient'
 
-export type FunctionDefinitionTab =
-  | 'general'
-  | 'source'
-  | 'inputSchema'
-  | 'outputSchema'
-  | 'settings'
-  | 'test'
+export type FunctionDefinitionTab = 'general' | 'source' | 'inputSchema' | 'outputSchema' | 'settings' | 'test'
 
 export interface FunctionDefinitionCardProps {
   mode: 'create' | 'edit'
   name: string
   description: string
+  category: FunctionCategory
+  subcategory: string
   agentEnabled: boolean
   workflowEnabled: boolean
   connectorEnabled: boolean
   connectorKind: ConnectorKind | null
   onNameChange: (v: string) => void
   onDescriptionChange: (v: string) => void
+  onCategoryChange: (v: FunctionCategory) => void
+  onSubcategoryChange: (v: string) => void
   onAgentEnabledChange: (v: boolean) => void
   onWorkflowEnabledChange: (v: boolean) => void
   onConnectorEnabledChange: (v: boolean) => void
@@ -62,6 +70,7 @@ export interface FunctionDefinitionCardProps {
   onTestOverrideRowsChange: (rows: ConfigRow[]) => void
   testSchemaProperties: Record<string, unknown>
   testRequiredFields: string[]
+  testExamples?: Array<{ name: string; description?: string; payload: Record<string, unknown> }>
   testPayload: Record<string, unknown>
   onTestPayloadChange: (payload: Record<string, unknown>) => void
   onTestPayloadFieldChange: (key: string, value: unknown) => void
@@ -82,12 +91,16 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
   mode,
   name,
   description,
+  category,
+  subcategory,
   agentEnabled,
   workflowEnabled,
   connectorEnabled,
   connectorKind,
   onNameChange,
   onDescriptionChange,
+  onCategoryChange,
+  onSubcategoryChange,
   onAgentEnabledChange,
   onWorkflowEnabledChange,
   onConnectorEnabledChange,
@@ -110,6 +123,7 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
   onTestOverrideRowsChange,
   testSchemaProperties,
   testRequiredFields,
+  testExamples,
   testPayload,
   onTestPayloadChange,
   onTestPayloadFieldChange,
@@ -201,6 +215,48 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
                 rows={3}
                 data-testid={`${testId}-description-input`}
               />
+            </div>
+
+            <div className="gba:grid gba:gap-4 gba:sm:grid-cols-2">
+              <div className="gba:space-y-2">
+                <Label htmlFor={`${testId}-category`}>Category *</Label>
+                <Select value={category} onValueChange={v => onCategoryChange(v as FunctionCategory)}>
+                  <SelectTrigger id={`${testId}-category`} data-testid={`${testId}-category-input`}>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FUNCTION_CATEGORIES.map(c => (
+                      <SelectItem key={c} value={c} data-testid={`${testId}-category-option-${c}`}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  Top-level grouping shown in the Function Manager tabs and consumed by agents via
+                  <span className="gba:font-mono"> ?category=</span>.
+                </p>
+              </div>
+
+              <div className="gba:space-y-2">
+                <Label htmlFor={`${testId}-subcategory`}>Subcategory</Label>
+                <Input
+                  id={`${testId}-subcategory`}
+                  value={subcategory}
+                  onChange={e => onSubcategoryChange(e.target.value)}
+                  placeholder="e.g. employees, time-off"
+                  list={`${testId}-subcategory-suggestions`}
+                  data-testid={`${testId}-subcategory-input`}
+                />
+                <datalist id={`${testId}-subcategory-suggestions`}>
+                  {getSubcategorySuggestions(category).map(s => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  Optional free-text refinement within the category (e.g. HR &rarr; <em>time-off</em>).
+                </p>
+              </div>
             </div>
 
             <div className="gba:space-y-2">
@@ -369,6 +425,7 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
               source={source}
               schemaProperties={testSchemaProperties}
               requiredFields={testRequiredFields}
+              examples={testExamples}
               payload={testPayload}
               onPayloadChange={onTestPayloadChange}
               onPayloadFieldChange={onTestPayloadFieldChange}

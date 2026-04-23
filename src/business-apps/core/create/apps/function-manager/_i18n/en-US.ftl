@@ -21,11 +21,28 @@ search-placeholder = Search by name, description, version...
 # Table Columns
 column-name = Name
 column-description = Description
+column-category = Category
+column-subcategory = Subcategory
 column-version = Version
 column-last-version = Last updated
 column-agent = Agent
 column-workflow = Workflow
 column-connector = Connector
+
+# Category tabs (filter Function Manager by first-class category)
+category-all = All
+category-general = General
+category-hr = HR
+category-crm = CRM
+category-expenses = Expenses
+category-office = Office
+category-service = Service
+category-custom = Custom
+
+# Editor fields for category / subcategory
+field-category = Category
+field-subcategory = Subcategory
+field-subcategory-placeholder = e.g. employees, time-off
 
 # Empty State
 empty-message = No functions found
