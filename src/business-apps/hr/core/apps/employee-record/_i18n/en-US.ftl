@@ -920,3 +920,10 @@ change-personal-data-pending-ok = OK
 
 # Change Address - Loading
 change-address-loading-form = Loading address form...
+
+# Change Address - Autocomplete map (behind dev.enabled)
+address-autocomplete-search-label = Find address
+address-autocomplete-search-placeholder = Search address
+address-autocomplete-use-my-location = Use my location
+address-autocomplete-pin-hint = Drag the pin to fine-tune the location.
+address-autocomplete-no-results = No suggestions

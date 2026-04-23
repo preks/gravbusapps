@@ -5,9 +5,9 @@ import 'leaflet/dist/leaflet.css'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
-import { Button, FormItem, FormLabel, Input } from '@newwork/nw-design-system'
+import { Button, FormItem, FormLabel, Input, useTranslation } from '@newwork/nw-design-system'
 import { MapPinIcon, CrosshairIcon, SpinnerIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../../apps/employee-record/_i18n'
 import {
   AddressSuggestion,
   getAutocompleteSuggestions,
@@ -55,6 +55,7 @@ const FlyToMarker: React.FC<{ center: LatLng | null; zoom: number }> = ({ center
 }
 
 const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, catalogs }) => {
+  const { t } = useTranslation(translations)
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
   const [isOpen, setIsOpen] = useState(false)
@@ -78,26 +79,11 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
 
   const tile = useMemo(() => getMapTileUrl(), [])
 
-  const searchPlaceholder = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:employee_profile.details_layout.address_container.address_search_placeholder',
-    'Search address'
-  )
-  const useMyLocationLabel = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:employee_profile.details_layout.address_container.use_my_location',
-    'Use my location'
-  )
-  const pinHintLabel = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:employee_profile.details_layout.address_container.pin_drag_hint',
-    'Drag the pin to fine-tune the location.'
-  )
-  const searchLabel = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:employee_profile.details_layout.address_container.address_search_label',
-    'Find address'
-  )
-  const noResultsLabel = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:employee_profile.details_layout.address_container.no_results',
-    'No suggestions'
-  )
+  const searchPlaceholder = t('address-autocomplete-search-placeholder')
+  const useMyLocationLabel = t('address-autocomplete-use-my-location')
+  const pinHintLabel = t('address-autocomplete-pin-hint')
+  const searchLabel = t('address-autocomplete-search-label')
+  const noResultsLabel = t('address-autocomplete-no-results')
 
   // Close dropdown on outside click.
   useEffect(() => {
