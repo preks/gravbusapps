@@ -352,6 +352,14 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
               const selected = addingNew
                 ? null
                 : addresses.find((a: any) => String(a.id) === String(values.selectedAddressId))
+              // TEMP: backend doesn't persist latitude/longitude yet. Log so we can eyeball that
+              // the map is capturing coords correctly in dev. Remove once the DB columns + mutation
+              // inputs land and the values flow through buildInsertPayload/buildUpdatePayload.
+
+              console.log('[ChangeEmployeeAddress] submit coords', {
+                latitude: values.latitude ?? null,
+                longitude: values.longitude ?? null
+              })
               if (isDeleteMode) {
                 if (deletePayload) return deletePayload
                 return null as any
