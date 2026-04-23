@@ -47,10 +47,7 @@ export function toInvestmentBatchPayload(
       extension({ investment, specific: specificInvestmentData, payloadKey: investmentType })
     )
 
-    return {
-      investment,
-      [investmentType]: specificInvestmentData
-    }
+    return { investment, [investmentType]: specificInvestmentData }
   })
 
   return { investmentRequests }

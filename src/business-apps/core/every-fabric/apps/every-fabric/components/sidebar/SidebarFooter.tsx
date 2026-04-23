@@ -1,5 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
-import { GearIcon } from '@phosphor-icons/react'
+import { CalendarCheckIcon, GearIcon } from '@phosphor-icons/react'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import { resolveUserFirstName, resolveUserFullName } from '../../utils/userUtils'
 import { SidebarTooltip } from './SidebarTooltip'
@@ -8,6 +8,7 @@ interface SidebarFooterProps {
   isCollapsed: boolean
   userInfo?: UserInfoProps
   onOpenSettings: () => void
+  onOpenScheduled: () => void
 }
 
 function resolveInitials(userInfo: UserInfoProps | undefined): string {
@@ -19,7 +20,12 @@ function resolveInitials(userInfo: UserInfoProps | undefined): string {
   return fallback || '—'
 }
 
-export const SidebarFooter: React.FC<SidebarFooterProps> = ({ isCollapsed, userInfo, onOpenSettings }) => {
+export const SidebarFooter: React.FC<SidebarFooterProps> = ({
+  isCollapsed,
+  userInfo,
+  onOpenSettings,
+  onOpenScheduled
+}) => {
   const fullName = resolveUserFullName(userInfo) ?? 'Signed in'
   const initials = resolveInitials(userInfo)
   const pictureUrl = userInfo?.employeeDetails?.pictureThumbnail
@@ -52,6 +58,18 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ isCollapsed, userI
             </div>
           )}
         </div>
+      </SidebarTooltip>
+
+      <SidebarTooltip disabled={!isCollapsed} label="Scheduled Tasks">
+        <button
+          type="button"
+          onClick={onOpenScheduled}
+          aria-label="Scheduled Tasks"
+          className="gba:inline-flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+          data-testid="sidebar-scheduled-button"
+        >
+          <CalendarCheckIcon className="gba:h-4 gba:w-4" />
+        </button>
       </SidebarTooltip>
 
       <SidebarTooltip disabled={!isCollapsed} label="Settings">

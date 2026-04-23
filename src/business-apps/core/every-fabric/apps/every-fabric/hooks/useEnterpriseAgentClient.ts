@@ -35,14 +35,17 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       activeExternalConnectionIds?: string[],
       activeEnterpriseSkillId?: string,
       fallbackSkillId?: string
-    ) =>
-      client.post<StartSessionResponse>('/deep-agent/sessions', {
+    ) => {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+      return client.post<StartSessionResponse>('/deep-agent/sessions', {
         task,
         config,
+        timezone,
         active_external_connection_ids: activeExternalConnectionIds,
         active_enterprise_skill_id: activeEnterpriseSkillId,
         fallback_skill_id: fallbackSkillId
-      }),
+      })
+    },
     [client]
   )
 
