@@ -1,8 +1,11 @@
 import React from 'react'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea, Input } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import CountryRegionFields from './CountryRegionFields'
 import AddressLines from './AddressLines'
+import AddressAutocompleteMap from './AddressAutocompleteMap'
 import { EmployeeDocumentUploadField } from '../../document-sync/EmployeeDocumentUploadField'
 
 interface AddressCommonFieldsProps {
@@ -40,6 +43,8 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
   hasInitialDocumentCandidates,
   onDocumentFilesChange
 }) => {
+  const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
+  const showAddressAutocompleteMap = !isDeleteMode && Boolean(isDevEnabled)
   return (
     <>
       <CountryRegionFields
@@ -48,7 +53,24 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
         setValue={form.setValue as any}
         isDeleteMode={isDeleteMode}
         suppressValidation={isSwitchingSelection}
+        suspendRegionRender
+      />
+
+      {showAddressAutocompleteMap && (
+        <AddressAutocompleteMap
+          form={form}
+          catalogs={{ countries: catalogs?.countries || [], regions: catalogs?.regions || [] }}
+        />
+      )}
+
+      <CountryRegionFields
+        control={form.control as any}
+        catalogs={{ countries: catalogs?.countries || [], regions: catalogs?.regions || [] }}
+        setValue={form.setValue as any}
+        isDeleteMode={isDeleteMode}
+        suppressValidation={isSwitchingSelection}
         suspendRegionRender={isSwitchingSelection}
+        suspendCountryRender
       />
 
       <AddressLines
