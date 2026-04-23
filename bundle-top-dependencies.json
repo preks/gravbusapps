@@ -88032,20 +88032,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11235,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11235/",
-    "chunkJsBytes": 1824695,
+    "bitbucketBuildNumber": 11241,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11241/",
+    "chunkJsBytes": 1824694,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1519567,
-        "gzip": 90748,
+        "gzip": 90835,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1519567,
-            "gzip": 90748
+            "gzip": 90835
           }
         ]
       },
@@ -88612,15 +88612,15 @@
     ]
   },
   "platform/apps/chat-pure": {
-    "bitbucketBuildNumber": 11229,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11229/",
-    "chunkJsBytes": 3368612,
+    "bitbucketBuildNumber": 11241,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11241/",
+    "chunkJsBytes": 3368726,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 3563894,
-        "gzip": 1694186,
+        "rendered": 3564323,
+        "gzip": 1694109,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/chat/worklets/rnnoise-processor.ts?inline",
@@ -88629,8 +88629,8 @@
           },
           {
             "name": "src/business-apps/platform/apps/every-ai/components/OutputRenderers.tsx",
-            "rendered": 43810,
-            "gzip": 8624
+            "rendered": 43971,
+            "gzip": 8598
           }
         ]
       },
@@ -90244,15 +90244,15 @@
     ]
   },
   "platform/apps/every-ai": {
-    "bitbucketBuildNumber": 11229,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11229/",
-    "chunkJsBytes": 944645,
+    "bitbucketBuildNumber": 11241,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11241/",
+    "chunkJsBytes": 944759,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 760718,
-        "gzip": 177352,
+        "rendered": 761147,
+        "gzip": 177275,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/components/ChatInput.tsx",
@@ -93119,9 +93119,9 @@
     ]
   },
   "platform/apps/shared": {
-    "bitbucketBuildNumber": 11229,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11229/",
-    "chunkJsBytes": 310190,
+    "bitbucketBuildNumber": 11241,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11241/",
+    "chunkJsBytes": 310191,
     "top": [
       {
         "kind": "bucket",
@@ -93382,9 +93382,9 @@
     ]
   },
   "platform/apps/slide-apps": {
-    "bitbucketBuildNumber": 11229,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11229/",
-    "chunkJsBytes": 1235007,
+    "bitbucketBuildNumber": 11241,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11241/",
+    "chunkJsBytes": 1235008,
     "top": [
       {
         "kind": "bucket",
@@ -93699,9 +93699,9 @@
     ]
   },
   "platform/apps/spaces": {
-    "bitbucketBuildNumber": 11229,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11229/",
-    "chunkJsBytes": 1383243,
+    "bitbucketBuildNumber": 11241,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11241/",
+    "chunkJsBytes": 1383244,
     "top": [
       {
         "kind": "bucket",
@@ -103041,7 +103041,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-23T08:42:10.353Z",
+    "generatedAt": "2026-04-23T08:58:50.059Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
