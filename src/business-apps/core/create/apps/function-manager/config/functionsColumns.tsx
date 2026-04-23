@@ -4,6 +4,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import type { LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
 
 type TranslationFn = (key: string) => string
+const INTERNAL_CATEGORIES = new Set(['HR', 'CRM', 'Expenses', 'Office', 'Service'])
 
 const formatDateTime = (iso: string | undefined): string => {
   if (!iso) return '—'
@@ -46,7 +47,7 @@ export const createFunctionsColumns = (t: TranslationFn): ColumnDef<LatestFuncti
         <span className="gba:inline-flex gba:items-center gba:rounded gba:bg-muted gba:px-2 gba:py-0.5 gba:text-xs gba:font-medium gba:text-foreground">
           {row.original.category || 'General'}
         </span>
-        {row.original.category !== 'Custom' ? (
+        {INTERNAL_CATEGORIES.has(row.original.category || 'General') ? (
           <span className="gba:inline-flex gba:items-center gba:rounded gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-muted-foreground">
             Internal
           </span>

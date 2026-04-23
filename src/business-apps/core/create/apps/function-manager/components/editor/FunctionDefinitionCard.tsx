@@ -140,7 +140,8 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
   'data-testid': testId = 'function-editor-definition'
 }) => {
   const sourceOk = String(source || '').includes('module.exports.handler')
-  const isInternalTool = category !== 'Custom'
+  const INTERNAL_READONLY_CATEGORIES: FunctionCategory[] = ['HR', 'CRM', 'Expenses', 'Office', 'Service']
+  const isInternalTool = INTERNAL_READONLY_CATEGORIES.includes(category)
 
   const parseJsonOk = (text: string) => {
     const t = String(text || '').trim()
