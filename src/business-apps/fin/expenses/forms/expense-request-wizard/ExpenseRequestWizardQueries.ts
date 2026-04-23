@@ -357,7 +357,7 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     }`
 
 export const fetchEmployeeExpenseItems = `query FetchEmployeeExpenseItems($employeeId: uuid!, $status: String, $activeUserLocale: String, $limit: Int, $offset: Int, $idsArray: [uuid!], $itemCurrency: String, $titleSearch: String, $expenseRuleId: uuid) {
-  ExpenseItemEmployee: ExpenseItem(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status}, isDeleted: {_eq: false}, id: {_nin: $idsArray}, currencyRef: {_eq: $itemCurrency}, title: {_ilike: $titleSearch}, _or: [{expenseRuleId: {_eq: $expenseRuleId}}, {expenseRuleId: {_isNull: true}}]}, limit: $limit, offset: $offset) {
+  ExpenseItemEmployee: ExpenseItem(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status}, isDeleted: {_eq: false}, id: {_nin: $idsArray}, currencyRef: {_eq: $itemCurrency}, title: {_ilike: $titleSearch}, expenseClassRef: {_nilike: "%allowance%"}, expenseGroupRef: {_nilike: "%allowance%"}, _or: [{expenseRuleId: {_eq: $expenseRuleId}}, {expenseRuleId: {_isNull: true}}]}, limit: $limit, offset: $offset) {
     id
     version
     code
@@ -435,7 +435,7 @@ export const fetchEmployeeExpenseItems = `query FetchEmployeeExpenseItems($emplo
       createdAt
     }
   }
-  ExpenseItemAggregate(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status}, isDeleted: {_eq: false}, id: {_nin: $idsArray}, currencyRef: {_eq: $itemCurrency}, title: {_ilike: $titleSearch}, _or: [{expenseRuleId: {_eq: $expenseRuleId}}, {expenseRuleId: {_isNull: true}}]}) {
+  ExpenseItemAggregate(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status}, isDeleted: {_eq: false}, id: {_nin: $idsArray}, currencyRef: {_eq: $itemCurrency}, title: {_ilike: $titleSearch}, expenseClassRef: {_nilike: "%allowance%"}, expenseGroupRef: {_nilike: "%allowance%"}, _or: [{expenseRuleId: {_eq: $expenseRuleId}}, {expenseRuleId: {_isNull: true}}]}) {
     aggregate {
       count
     }

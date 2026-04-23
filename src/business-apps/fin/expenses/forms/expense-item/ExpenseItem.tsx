@@ -194,7 +194,8 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
     return {
       ...additionalData,
       expenseRequestId: additionalData?.expenseRequestId,
-      itemCurrency: additionalData?.itemCurrency
+      itemCurrency: additionalData?.itemCurrency,
+      psi_taskPayload: additionalData?.psi_taskPayload
     }
   })
 
