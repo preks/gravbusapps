@@ -184,7 +184,7 @@ export const SlideLayoutPicker: React.FC<SlideLayoutPickerProps> = ({
   const { t } = useTranslation(translations)
   const [open, setOpen] = useState(false)
 
-  const effectiveMasters = useMemo(() => getEffectiveMasters(masters, currentTheme), [masters, currentTheme])
+  const effectiveMasters = useMemo(() => getEffectiveMasters(masters, currentTheme, t), [masters, currentTheme, t])
 
   const activeMaster = effectiveMasters[0]
 

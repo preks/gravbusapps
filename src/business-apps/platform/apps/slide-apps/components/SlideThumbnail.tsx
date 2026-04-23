@@ -3,28 +3,14 @@
 // image decodes on unrelated state updates.
 
 import React, { useMemo } from 'react'
-import type { SlideData, AnySlideElement, ChartElement } from './slideElements'
+import type { SlideData, AnySlideElement, ChartElement, ShapeElement, CodeElement } from './slideElements'
 import { gradientToCss } from './slideElements'
 import { SlideChartRenderer } from './SlideChartRenderer'
 import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
-
-function sanitizeThumbnailUrl(url: string | undefined): string {
-  if (!url) return ''
-  const t = url.trim()
-  if (
-    t.startsWith('https://') ||
-    t.startsWith('http://') ||
-    t.startsWith('blob:') ||
-    t.startsWith('/') ||
-    t.startsWith('./')
-  )
-    return t
-  if (t.startsWith('data:image/')) return t
-  return ''
-}
+import { sanitizeMediaUrl, renderShape } from './slideRenderUtils'
 
 function resolveImageSrc(src: string | undefined): string {
-  const sanitized = sanitizeThumbnailUrl(src)
+  const sanitized = sanitizeMediaUrl(src, ['image/'])
   if (!sanitized) return ''
   return getCachedImageUrl(sanitized)
 }
@@ -57,10 +43,38 @@ const ThumbnailElement = React.memo(function ThumbnailElement({ el }: { el: AnyS
     )
   }
 
+  if (el.type === 'shape') {
+    return <>{renderShape(el as ShapeElement, 'thumb-grad')}</>
+  }
+
   if (el.type === 'image') {
     const src = resolveImageSrc((el as any).src)
     if (!src) return null
     return <img src={src} alt="" className="gba:w-full gba:h-full gba:object-cover" loading="lazy" decoding="async" />
+  }
+
+  if (el.type === 'code') {
+    const ce = el as CodeElement
+    const defaultBg = ce.theme === 'dark' ? '#1e1e1e' : '#f8f8f8'
+    return (
+      <div
+        className="gba:w-full gba:h-full gba:overflow-hidden"
+        style={{
+          backgroundColor: ce.backgroundColor || defaultBg,
+          borderRadius: ce.borderRadius ?? 8,
+          border: (ce.borderWidth ?? 0) > 0 ? `${ce.borderWidth}px solid ${ce.borderColor || '#333333'}` : 'none',
+          padding: Math.max((ce.padding ?? 16) * 0.3, 2),
+          fontFamily: 'monospace',
+          fontSize: Math.max(ce.fontSize * 0.4, 4),
+          color: ce.textColor || (ce.theme === 'dark' ? '#d4d4d4' : '#333'),
+          lineHeight: 1.2,
+          whiteSpace: 'pre',
+          boxShadow: ce.shadow ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)' : 'none'
+        }}
+      >
+        {ce.code}
+      </div>
+    )
   }
 
   if (el.type === 'chart') {
@@ -124,15 +138,6 @@ export const SlideThumbnail = React.memo(function SlideThumbnail({ slide, index,
                   width: el.size.width,
                   height: el.size.height,
                   zIndex: el.zIndex || 0,
-                  backgroundColor: el.type === 'shape' && !(el as any).gradient ? (el as any).fill : 'transparent',
-                  background:
-                    el.type === 'shape' && (el as any).gradient ? gradientToCss((el as any).gradient) : undefined,
-                  borderRadius:
-                    el.type === 'shape'
-                      ? (el as any).shapeType === 'circle' || (el as any).shapeType === 'ellipse'
-                        ? '50%'
-                        : (el as any).cornerRadius || (el as any).borderRadius
-                      : undefined,
                   overflow: el.type === 'text' ? 'hidden' : undefined
                 }}
               >
@@ -141,9 +146,11 @@ export const SlideThumbnail = React.memo(function SlideThumbnail({ slide, index,
             ))}
           </div>
         </div>
-        <div className="gba:absolute gba:bottom-1 gba:left-1 gba:min-w-5 gba:h-5 gba:px-1 gba:flex gba:items-center gba:justify-center gba:rounded gba:bg-black/50">
-          <span className="gba:text-[10px] gba:font-medium gba:text-white gba:leading-none">{index + 1}</span>
-        </div>
+        {index >= 0 && (
+          <div className="gba:absolute gba:bottom-1 gba:left-1 gba:min-w-5 gba:h-5 gba:px-1 gba:flex gba:items-center gba:justify-center gba:rounded gba:bg-black/50">
+            <span className="gba:text-[10px] gba:font-medium gba:text-white gba:leading-none">{index + 1}</span>
+          </div>
+        )}
       </div>
     </>
   )

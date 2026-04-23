@@ -222,6 +222,32 @@ editor-placeholder-title = Click to add title
 editor-placeholder-subtitle = Click to add subtitle
 editor-code-placeholder = // Your code here
 
+# Layout placeholder content
+layout-presentation-title = Presentation Title
+layout-section-title = Section Title
+layout-section-description = Description or context for this section
+layout-key-points = - First key point\n- Second key point\n- Third key point
+layout-left-column-points = - Left column point 1\n- Left column point 2\n- Left column point 3
+layout-right-column-points = - Right column point 1\n- Right column point 2\n- Right column point 3
+layout-strengths = - Strength one\n- Strength two\n- Strength three
+layout-main-content-points = - Main content point 1\n- Main content point 2\n- Main content point 3
+layout-caption-text = Add a caption or additional context for the main content.
+layout-image-caption = Image Caption
+layout-image-description = Add a description for the image shown on the left.
+layout-option-a = Option A
+layout-option-b = Option B
+layout-image-alt = Click to add image
+layout-name-title-slide = Title Slide
+layout-name-title-content = Title and Content
+layout-name-section-header = Section Header
+layout-name-two-content = Two Content
+layout-name-comparison = Comparison
+layout-name-title-only = Title Only
+layout-name-blank = Blank
+layout-name-content-caption = Content with Caption
+layout-name-picture-caption = Picture with Caption
+layout-name-default-theme = Default Theme
+
 # Collaborators
 collaborators-viewing-now = Viewing now
 collaborators-more-viewing = { $count } more { $count ->
@@ -379,16 +405,35 @@ generate-brand-dismiss = Use different template
 version-history-title = Version History
 version-description = View and restore previous versions of "{ $title }"
 version-no-history = No version history available
+version-no-history-yet = No version history yet
 version-current = Current
 version-current-description = Current version
 version-checkpoint = Checkpoint
+version-autosave = Auto-save
 version-restore = Restore
+version-restore-title = Restore this version
+version-restore-confirm-msg = Are you sure you want to restore to version { $number }? This will create a new version with the restored content.
 version-close = Close
 version-restore-confirm = Restore this version? Current changes will be saved as a new version.
 version-restored = Version restored
 version-restore-failed = Failed to restore version
 version-load-failed = Failed to load versions
+version-loading = Loading versions...
 version-number = Version { $number }
+version-compare-mode = Compare Versions
+version-cancel-compare = Cancel Compare
+version-compare-selected = Compare Selected
+version-compare-hint = Select two versions to compare. Click on a version to select it.
+version-unknown-user = Unknown
+
+# Checkpoint Dialog
+checkpoint-title = Save Version Checkpoint
+checkpoint-description-label = Description (Optional)
+checkpoint-description-placeholder = e.g., Added new section, Fixed typos, Major revision
+checkpoint-description-hint = Add a description to help you remember what changed in this version.
+checkpoint-cancel = Cancel
+checkpoint-save = Save Checkpoint
+checkpoint-saving = Saving...
 
 # Property Panel
 props-select-element = Select an element to edit its properties
@@ -692,6 +737,15 @@ editor-area-chart = Area Chart
 editor-pie-chart = Pie Chart
 editor-radar-chart = Radar Chart
 editor-radial-chart = Radial Chart
+props-code-styling = Code Styling
+props-code-language = Language
+props-code-theme = Theme
+props-code-theme-dark = Dark
+props-code-theme-light = Light
+props-code-font-size = Font Size
+props-code-show-line-numbers = Line Numbers
+props-code-padding = Padding
+
 props-chart-settings = Chart Settings
 props-chart-title = Title
 props-chart-title-placeholder = Enter chart title...
@@ -700,7 +754,19 @@ props-chart-display = Display Options
 props-show-legend = Show Legend
 props-show-grid = Show Grid
 props-show-tooltip = Show Tooltip
+props-legend = Legend
+props-display-options = Display Options
 props-chart-styling = Chart Styling
+props-chart-data = Chart Data
+props-chart-series = Series
+props-chart-add-series = Add Series
+props-chart-remove-series = Remove
+props-chart-series-label = Label
+props-chart-series-color = Color
+props-chart-data-rows = Data Rows
+props-chart-add-row = Add Row
+props-chart-remove-row = Remove Row
+props-chart-label = Label
 
 # Presentation Casting
 present-in-window = Present in Window
@@ -825,6 +891,9 @@ transition-trigger-click = On Click
 transition-trigger-auto = Automatic
 transition-delay = Delay
 transition-preview = Preview
+transition-play-preview = Play Preview
+transition-playing = Playing...
+transition-slide-number = Slide { $number }
 
 # Ribbon Toolbar
 ribbon-tab-home = Home

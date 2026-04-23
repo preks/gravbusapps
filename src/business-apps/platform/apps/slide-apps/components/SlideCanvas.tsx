@@ -11,6 +11,7 @@ import type {
   ShapeElement,
   ImageElement,
   VideoElement,
+  CodeElement,
   TableElement,
   ChartElement,
   IconElement,
@@ -27,6 +28,7 @@ import { gradientToCss } from './slideElements'
 import { SlideChartRenderer } from './SlideChartRenderer'
 import { TextWithLinks } from './TextWithLinks'
 import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
+import { sanitizeMediaUrl, renderShape as renderShapeShared } from './slideRenderUtils'
 
 const hexToRgba = (hex: string, alpha: number): string => {
   const cleanHex = hex.replace('#', '')
@@ -34,30 +36,6 @@ const hexToRgba = (hex: string, alpha: number): string => {
   const g = parseInt(cleanHex.substring(2, 4), 16)
   const b = parseInt(cleanHex.substring(4, 6), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
-/**
- * Sanitize media URL to prevent XSS attacks.
- * Only allows https, http, data:image/video, blob, or relative paths.
- */
-const sanitizeMediaUrl = (url: string | undefined, allowedTypes: string[] = ['image/', 'video/']): string => {
-  if (!url) return ''
-  const trimmed = url.trim()
-  if (
-    trimmed.startsWith('https://') ||
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('blob:') ||
-    trimmed.startsWith('/') ||
-    trimmed.startsWith('./')
-  ) {
-    return trimmed
-  }
-  for (const type of allowedTypes) {
-    if (trimmed.startsWith(`data:${type}`)) {
-      return trimmed
-    }
-  }
-  return ''
 }
 
 interface InlineEditingProps {
@@ -325,7 +303,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       const mdRef = mouseDownElementRef.current
       mouseDownElementRef.current = null
 
-      if (mdRef && mdRef.type === 'text') {
+      if (mdRef && (mdRef.type === 'text' || mdRef.type === 'code')) {
         if (inlineEditing?.editingTextId && inlineEditing.editingTextId !== mdRef.id) {
           textareaInitializedRef.current = null
           inlineEditing.onFinishEditing()
@@ -741,134 +719,6 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       }
     }, [isDragging, isResizing, handleMouseMove, handleMouseUp])
 
-    const renderShape = (element: ShapeElement) => {
-      const { shapeType, fill, gradient, strokeColor, strokeWidth, strokeStyle, cornerRadius, shadow } = element
-      const fillStyle = gradient ? gradientToCss(gradient) : fill
-
-      const baseStyle: React.CSSProperties = {
-        width: '100%',
-        height: '100%',
-        background: fillStyle,
-        border: strokeWidth > 0 ? `${strokeWidth}px ${strokeStyle} ${strokeColor}` : 'none',
-        boxShadow: shadow ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none'
-      }
-
-      switch (shapeType) {
-        case 'rectangle':
-        case 'rounded-rectangle':
-          return <div style={{ ...baseStyle, borderRadius: cornerRadius || 0 }} />
-        case 'circle':
-          return <div style={{ ...baseStyle, borderRadius: '50%' }} />
-        case 'ellipse':
-          return <div style={{ ...baseStyle, borderRadius: '50%' }} />
-        case 'triangle':
-          return (
-            <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-                <polygon
-                  points="50,5 95,95 5,95"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-                />
-              </svg>
-            </div>
-          )
-        case 'diamond':
-          return (
-            <div style={{ width: '100%', height: '100%' }}>
-              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-                <polygon
-                  points="50,5 95,50 50,95 5,50"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-                />
-              </svg>
-            </div>
-          )
-        case 'star':
-          return (
-            <div style={{ width: '100%', height: '100%' }}>
-              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-                <polygon
-                  points="50,5 61,35 95,35 68,57 79,91 50,70 21,91 32,57 5,35 39,35"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-                />
-              </svg>
-            </div>
-          )
-        case 'hexagon':
-          return (
-            <div style={{ width: '100%', height: '100%' }}>
-              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-                <polygon
-                  points="25,5 75,5 100,50 75,95 25,95 0,50"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-                />
-              </svg>
-            </div>
-          )
-        case 'arrow-right':
-          return (
-            <div style={{ width: '100%', height: '100%' }}>
-              <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
-                <polygon
-                  points="0,20 65,20 65,5 100,30 65,55 65,40 0,40"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                />
-              </svg>
-            </div>
-          )
-        case 'arrow-left':
-          return (
-            <div style={{ width: '100%', height: '100%' }}>
-              <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
-                <polygon
-                  points="100,20 35,20 35,5 0,30 35,55 35,40 100,40"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                />
-              </svg>
-            </div>
-          )
-        case 'line':
-          return (
-            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}>
-              <div style={{ width: '100%', height: strokeWidth || 4, backgroundColor: fill }} />
-            </div>
-          )
-        case 'callout':
-          return (
-            <div style={{ width: '100%', height: '100%' }}>
-              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-                <path
-                  d="M5,5 H95 V70 H40 L25,95 L30,70 H5 Z"
-                  fill={fillStyle}
-                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
-                  strokeWidth={strokeWidth}
-                  rx={cornerRadius}
-                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-                />
-              </svg>
-            </div>
-          )
-        default:
-          return <div style={baseStyle} />
-      }
-    }
-
     const renderElement = (element: AnySlideElement) => {
       const isSelected = selectedIds.has(element.id)
       const isSingleSelection = selectedIds.size === 1
@@ -1057,7 +907,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             </div>
           )}
 
-          {element.type === 'shape' && renderShape(element as ShapeElement)}
+          {element.type === 'shape' && renderShapeShared(element as ShapeElement, 'grad')}
 
           {element.type === 'image' && (
             <>
@@ -1099,24 +949,73 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             </>
           )}
 
-          {element.type === 'code' && (
-            <pre
-              style={{
+          {element.type === 'code' &&
+            (() => {
+              const ce = element as CodeElement
+              const defaultBg = ce.theme === 'dark' ? '#1e1e1e' : '#f8f8f8'
+              const defaultColor = ce.theme === 'dark' ? '#d4d4d4' : '#333'
+              const codeStyle: React.CSSProperties = {
                 width: '100%',
                 height: '100%',
                 margin: 0,
-                padding: '1rem',
-                backgroundColor: (element as any).theme === 'dark' ? '#1e1e1e' : '#f8f8f8',
-                color: (element as any).theme === 'dark' ? '#d4d4d4' : '#333',
+                padding: ce.padding ?? 16,
+                backgroundColor: ce.backgroundColor || defaultBg,
+                color: ce.textColor || defaultColor,
                 fontFamily: 'monospace',
-                fontSize: (element as any).fontSize,
+                fontSize: ce.fontSize,
                 overflow: 'auto',
-                borderRadius: '8px'
-              }}
-            >
-              <code>{(element as any).code}</code>
-            </pre>
-          )}
+                borderRadius: ce.borderRadius ?? 8,
+                border: (ce.borderWidth ?? 0) > 0 ? `${ce.borderWidth}px solid ${ce.borderColor || '#333333'}` : 'none',
+                boxShadow: ce.shadow
+                  ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+                  : 'none',
+                boxSizing: 'border-box'
+              }
+
+              if (inlineEditing?.editingTextId === element.id) {
+                return (
+                  <textarea
+                    ref={el => {
+                      if (el && textareaInitializedRef.current !== element.id) {
+                        textareaInitializedRef.current = element.id
+                        el.focus()
+                        el.selectionStart = el.selectionEnd = el.value.length
+                      }
+                    }}
+                    value={ce.code}
+                    onChange={e => inlineEditing.onTextChange(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') {
+                        e.preventDefault()
+                        textareaInitializedRef.current = null
+                        inlineEditing.onFinishEditing()
+                      }
+                    }}
+                    onClick={e => e.stopPropagation()}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{
+                      ...codeStyle,
+                      background: ce.backgroundColor || defaultBg,
+                      border:
+                        (ce.borderWidth ?? 0) > 0
+                          ? `${ce.borderWidth}px solid ${ce.borderColor || '#333333'}`
+                          : '1px solid rgba(255,255,255,0.2)',
+                      outline: 'none',
+                      resize: 'none',
+                      whiteSpace: 'pre',
+                      tabSize: 2
+                    }}
+                    spellCheck={false}
+                  />
+                )
+              }
+
+              return (
+                <pre style={codeStyle}>
+                  <code>{ce.code}</code>
+                </pre>
+              )
+            })()}
 
           {element.type === 'video' && sanitizeMediaUrl((element as VideoElement).src, ['video/']) && (
             <video
