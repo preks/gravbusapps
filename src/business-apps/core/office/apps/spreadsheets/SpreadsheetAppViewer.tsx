@@ -1320,6 +1320,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const knownSheetVersionsRef = useRef<Map<string, { version: number; fetchedAt: number }>>(new Map())
   const inFlightSheetVersionRefreshesRef = useRef<Map<string, Promise<number>>>(new Map())
   const recentLocalCommittedVersionsRef = useRef<Map<number, number>>(new Map())
+  const recentLocalBatchIdsRef = useRef<Map<string, number>>(new Map())
   const pendingDimensionColumnsRef = useRef<SpreadsheetColumn[] | null>(null)
   const pendingDimensionChangesRef = useRef<Array<{ columnId: string; width: number }>>([])
   const pendingDimensionPersistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -2538,31 +2539,63 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     recentLocalCommittedVersionsRef.current = next
   }, [])
 
-  const shouldIgnoreRecentlyCommittedOperation = useCallback((operation: CollaborationOperation): boolean => {
-    const nestedOperation = operation.operation as { version?: unknown } | undefined
-    const operationType = typeof operation.operation?.type === 'string' ? operation.operation.type : ''
-    const isBroadcastOnly = operation.operation?.broadcastOnly === true
-    if (isBroadcastOnly || operationType === 'cells_changed') {
-      return false
+  const rememberRecentLocalBatchId = useCallback((batchId: string | undefined) => {
+    const normalizedBatchId = typeof batchId === 'string' ? batchId.trim() : ''
+    if (!normalizedBatchId) return
+    const expiresAt = Date.now() + 15000
+    const next = new Map(recentLocalBatchIdsRef.current)
+    next.set(normalizedBatchId, expiresAt)
+    for (const [candidateBatchId, candidateExpiresAt] of next) {
+      if (candidateExpiresAt <= Date.now()) next.delete(candidateBatchId)
     }
-    const version =
-      typeof operation.version === 'number'
-        ? Math.trunc(operation.version)
-        : typeof nestedOperation?.version === 'number'
-          ? Math.trunc(nestedOperation.version)
-          : null
-    if (version == null || !Number.isFinite(version) || version < 0) {
-      return false
-    }
-
-    const now = Date.now()
-    const next = new Map(recentLocalCommittedVersionsRef.current)
-    for (const [candidateVersion, candidateExpiresAt] of next) {
-      if (candidateExpiresAt <= now) next.delete(candidateVersion)
-    }
-    recentLocalCommittedVersionsRef.current = next
-    return next.has(version)
+    recentLocalBatchIdsRef.current = next
   }, [])
+
+  const hasRecentLocalBatchId = useCallback((batchId: string | undefined): boolean => {
+    const normalizedBatchId = typeof batchId === 'string' ? batchId.trim() : ''
+    if (!normalizedBatchId) return false
+    const now = Date.now()
+    const next = new Map(recentLocalBatchIdsRef.current)
+    for (const [candidateBatchId, candidateExpiresAt] of next) {
+      if (candidateExpiresAt <= now) next.delete(candidateBatchId)
+    }
+    recentLocalBatchIdsRef.current = next
+    return next.has(normalizedBatchId)
+  }, [])
+
+  const shouldIgnoreRecentlyCommittedOperation = useCallback(
+    (operation: CollaborationOperation): boolean => {
+      const nestedOperation = operation.operation as { version?: unknown } | undefined
+      const operationType = typeof operation.operation?.type === 'string' ? operation.operation.type : ''
+      const operationData = operation.operation?.data as { batchId?: unknown } | undefined
+      const batchId = typeof operationData?.batchId === 'string' ? operationData.batchId : ''
+      const isBroadcastOnly = operation.operation?.broadcastOnly === true
+      if (operationType === 'batch_operations' && batchId && hasRecentLocalBatchId(batchId)) {
+        return true
+      }
+      if (isBroadcastOnly || operationType === 'cells_changed') {
+        return false
+      }
+      const version =
+        typeof operation.version === 'number'
+          ? Math.trunc(operation.version)
+          : typeof nestedOperation?.version === 'number'
+            ? Math.trunc(nestedOperation.version)
+            : null
+      if (version == null || !Number.isFinite(version) || version < 0) {
+        return false
+      }
+
+      const now = Date.now()
+      const next = new Map(recentLocalCommittedVersionsRef.current)
+      for (const [candidateVersion, candidateExpiresAt] of next) {
+        if (candidateExpiresAt <= now) next.delete(candidateVersion)
+      }
+      recentLocalCommittedVersionsRef.current = next
+      return next.has(version)
+    },
+    [hasRecentLocalBatchId]
+  )
   scheduleSheetVersionRefreshFromApiRef.current = scheduleSheetVersionRefreshFromApi
 
   // --- Collaboration (header presence + Univer grid operations/cursors) ---
@@ -3239,6 +3272,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       try {
         const baseVersion = await refreshBaseVersionBeforeWrite(targetSheetId, resolveBaseVersion())
         const batchId = batchIdOverride ?? createOperationId(batchIdPrefix)
+        if (isActiveTarget()) {
+          rememberRecentLocalBatchId(batchId)
+        }
         const response = await SpreadsheetApiService.applyOperationBatch(
           app.id,
           targetSheetId,
@@ -3343,6 +3379,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       createOperationId,
       getKnownSheetVersion,
       localSheetDataRef,
+      rememberRecentLocalBatchId,
       rememberLocalCommittedVersion,
       rememberKnownSheetVersion,
       onSheetUpdate,

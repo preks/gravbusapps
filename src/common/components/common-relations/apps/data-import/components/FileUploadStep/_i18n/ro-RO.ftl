@@ -1,10 +1,12 @@
 # File Upload Step Translations (Romanian - Romania)
 
 # Step Header
-file-upload-step-title = Pasul 1: Încărcați fișierul CSV
+file-upload-step-title = Pasul 1: Încărcați fișierul CSV sau Excel
 
 # Form Labels
-file-select-label = Selectați fișier CSV
+file-select-label = Selectați fișier CSV sau Excel
+file-accepted-formats-hint = Formate acceptate: CSV, XLSX, XLS
+file-unsupported-format-error = Format de fișier neacceptat. Vă rugăm să încărcați un fișier CSV, XLSX sau XLS.
 
 # File Info
 file-loaded-text = Fișier încărcat: { $fileName } ({ $fileSize } KB)
