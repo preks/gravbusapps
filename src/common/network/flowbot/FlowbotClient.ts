@@ -49,9 +49,26 @@ export interface MapFromFileRequest {
   import_file: File
   model_kind?: string
   domain?: 'crm' | 'irm'
+  /**
+   * Wrapper key Flowbot must use to nest the imported subtype payload
+   * (e.g. `'liquidFundInvestment'`). Sourced from the
+   * `InvestmentGroup` catalog's `objectValue.requiredSubtypeKey`.
+   * Always present on the wire — empty string when no subtype key
+   * applies (CRM imports, or InvestmentGroup without a subtype key).
+   */
+  required_subtype_key?: string
+  /**
+   * JSON-stringified array of full dotted property paths for every
+   * dynamic `additionalProperties.*` field declared anywhere in the
+   * `InvestmentGroup` catalog subtree. Always present on the wire —
+   * `'[]'` when no dynamic properties apply.
+   */
+  additional_properties_fields?: string
 }
 
 export interface MapFromFileResponse {
+  /** Canonical GQL schema type resolved by the backend (e.g. `"LiquidFundInvestment"`). */
+  entityType?: string
   fieldMappings: Array<{
     sourceField: string
     targetField: string
@@ -190,6 +207,8 @@ export class FlowbotClient extends RestClient {
     importFile: File,
     modelKind: string = FLOWBOT_IMPORT_MODEL_KIND_DEFAULT,
     domain?: string,
+    requiredSubtypeKey?: string | null,
+    additionalPropertiesFields?: readonly string[] | null,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<MapFromFileResponse> {
     const formData = new FormData()
@@ -200,6 +219,10 @@ export class FlowbotClient extends RestClient {
     }
     formData.append('import_file', importFile)
     formData.append('model_kind', modelKind)
+    if (flowbotDomain === 'irm') {
+      formData.append('required_subtype_key', requiredSubtypeKey ?? '')
+      formData.append('additional_properties_fields', JSON.stringify(additionalPropertiesFields ?? []))
+    }
 
     return this.post<MapFromFileResponse>('/flowbot/extraction/data/entities/map-from-file', formData, options)
   }
@@ -214,6 +237,7 @@ export class FlowbotClient extends RestClient {
     offset: number = 0,
     maxRows: number = 5000,
     repairCsv: 'auto' | 'hard' = 'auto',
+    requiredSubtypeKey?: string | null,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ExtractFromFileResponse> {
     const formData = new FormData()
@@ -227,6 +251,9 @@ export class FlowbotClient extends RestClient {
     formData.append('mapping_json', mappingJson)
     if (enforcedFieldsJson) {
       formData.append('enforced_fields_json', enforcedFieldsJson)
+    }
+    if (flowbotDomain === 'irm' && requiredSubtypeKey) {
+      formData.append('required_subtype_key', requiredSubtypeKey)
     }
     formData.append('offset', offset.toString())
     formData.append('max_rows', maxRows.toString())

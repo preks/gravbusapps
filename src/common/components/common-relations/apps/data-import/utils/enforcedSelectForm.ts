@@ -42,6 +42,16 @@ export function allEnforcedRequiredSatisfied(
   return true
 }
 
+/**
+ * Extracts the short alias from a potentially dotted target-field path.
+ * `'investment.investmentTypeRef'` → `'investmentTypeRef'`
+ * `'leadStatusRef'` → `'leadStatusRef'` (no dot — unchanged)
+ */
+export function toShortAlias(dottedPath: string): string {
+  const lastDot = dottedPath.lastIndexOf('.')
+  return lastDot >= 0 ? dottedPath.slice(lastDot + 1) : dottedPath
+}
+
 export function buildEnforcedSelectMap(
   configs: EnforcedSelectConfig[] | undefined,
   values: EnforcedSelectValues
@@ -52,7 +62,7 @@ export function buildEnforcedSelectMap(
     if (cfg.hidden || !cfg.targetField) continue
     const value = values[cfg.id]
     if (value) {
-      enforced[cfg.targetField] = value
+      enforced[toShortAlias(cfg.targetField)] = value
     }
   }
   return Object.keys(enforced).length > 0 ? enforced : undefined
