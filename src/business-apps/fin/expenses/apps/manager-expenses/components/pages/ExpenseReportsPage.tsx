@@ -5,6 +5,7 @@ import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpenseReportData, ReportType, type ReportItem } from '../../hooks/useExpenseReportData'
 import { useManagerExpenseReportUrlSync } from '../../hooks/useManagerExpenseReportUrlSync'
+import { useManagerExpenseReportSearchByType } from '../../hooks/useManagerExpenseReportSearchByType'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ExpenseDataTable } from '../../../../common/components/table/ExpenseDataTable'
 import { useTableSetup } from '../../../../common/hooks/useTableSetup'
@@ -51,6 +52,14 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
 
   const [localSearchText, setLocalSearchText] = useState('')
   const debouncedSearch = useDebounce(localSearchText, 300)
+
+  const { resetSearchState } = useManagerExpenseReportSearchByType({
+    selectedReportType,
+    setLocalSearchText,
+    setSearchTerm,
+    setCurrentPage
+  })
+
   useEffect(() => {
     setSearchTerm(debouncedSearch)
     setCurrentPage(1)
@@ -95,10 +104,11 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
     (value: string) => {
       const next = parseManagerReportTypeParam(value)
       if (next) {
+        resetSearchState()
         setSelectedReportType(next)
       }
     },
-    [setSelectedReportType]
+    [resetSearchState, setSelectedReportType]
   )
 
   const handleDownload = async () => {
@@ -211,6 +221,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
           </Tabs>
 
           <DataDisplay
+            key={selectedReportType ?? ReportType.EXPENSE_ITEM}
             titleSections={[
               {
                 id: 'results',
@@ -254,7 +265,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
             }
             data-testid="expense-reports-filters-card"
           >
-            <div className="gba:border gba:border-border gba:rounded-md gba:bg-background gba:min-w-0">
+            <div className="gba:min-w-0">
               <ExpenseDataTable<ReportItem>
                 key={selectedReportType ?? 'report-type'}
                 data={reportData}
@@ -273,7 +284,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
                     'lowcoder:team_expenses_page.dashboard_tab.adjust_search',
                     'Try selecting a different report type or adjusting your search.'
                   )
-                ].join(' ')}
+                ].join('. ')}
                 dataTestId="expense-reports-table"
               />
             </div>

@@ -242,10 +242,32 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     setLocalSearchText(value)
   }, [])
 
-  const handleReportTypeChange = (value: string) => {
-    const nextType = reportTypes.find(rt => rt.key === value)?.key
-    if (nextType) setSelectedReportType(nextType)
-  }
+  /**
+   * Resets search, all filter chips, sort, and cached table snapshots when switching report tabs
+   * (not in a `selectedReportType` effect) so the initial URL hydration effect is not
+   * overwritten. Toolbar search clears in the same event turn as the tab change so
+   * DataDisplay/ToolbarSearch stay in sync. DataDisplay remounts when `dataDisplayStateKey`
+   * changes (report type + filter signature).
+   */
+  const resetStateOnReportTypeTabChange = useCallback(() => {
+    setLocalSearchText('')
+    setSearchTerm('')
+    setCurrentPage(1)
+    setFiltersByReportType({})
+    setSorting([])
+    setReportSnapshotsByType({})
+  }, [setCurrentPage, setSearchTerm])
+
+  const handleReportTypeChange = useCallback(
+    (value: string) => {
+      const nextType = reportTypes.find(rt => rt.key === value)?.key
+      if (nextType) {
+        resetStateOnReportTypeTabChange()
+        setSelectedReportType(nextType)
+      }
+    },
+    [reportTypes, resetStateOnReportTypeTabChange, setSelectedReportType]
+  )
   const handleSortingChange: OnChangeFn<SortingState> = updater => {
     setSorting(prev => (typeof updater === 'function' ? updater(prev) : updater))
     setCurrentPage(1)
@@ -272,10 +294,13 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     setPageSize(p.pageSize)
     setCurrentPage(1)
   }
+  // Do not include `searchTerm` here: it changes when the debounce commits and would change
+  // the React `key` on `DataDisplay`, remounting the whole toolbar and collapsing the search
+  // field (design-system ToolbarSearch is not a fully controlled input).
   const dataDisplayStateKey = useMemo(
     () =>
-      `${selectedReportType || 'unknown'}::${selectedFilters.status.join('|')}::${selectedFilters.employeeName.join('|')}::${selectedFilters.departmentName.join('|')}::${selectedFilters.dateFrom || ''}::${selectedFilters.dateTo || ''}::${selectedFilters.effectiveDateFrom || ''}::${selectedFilters.effectiveDateTo || ''}::${selectedFilters.requestDateFrom || ''}::${selectedFilters.requestDateTo || ''}::${selectedFilters.planDateFrom || ''}::${selectedFilters.planDateTo || ''}::${searchTerm || ''}`,
-    [selectedFilters, selectedReportType, searchTerm]
+      `${selectedReportType || 'unknown'}::${selectedFilters.status.join('|')}::${selectedFilters.employeeName.join('|')}::${selectedFilters.departmentName.join('|')}::${selectedFilters.dateFrom || ''}::${selectedFilters.dateTo || ''}::${selectedFilters.effectiveDateFrom || ''}::${selectedFilters.effectiveDateTo || ''}::${selectedFilters.requestDateFrom || ''}::${selectedFilters.requestDateTo || ''}::${selectedFilters.planDateFrom || ''}::${selectedFilters.planDateTo || ''}`,
+    [selectedFilters, selectedReportType]
   )
 
   return (
@@ -375,7 +400,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
               enableLiveFiltering={true}
               data-testid="backoffice-expense-reports-filters-card"
             >
-              <div className="gba:border gba:border-border gba:rounded-md gba:bg-background">
+              <div className="gba:min-w-0">
                 <DataTable
                   data={filteredReportRows}
                   columns={dataTableColumns}
