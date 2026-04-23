@@ -13960,15 +13960,15 @@
     ]
   },
   "crm/core/apps/customer-relations": {
-    "bitbucketBuildNumber": 11229,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11229/",
-    "chunkJsBytes": 1569289,
+    "bitbucketBuildNumber": 11235,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11235/",
+    "chunkJsBytes": 1572583,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 977433,
-        "gzip": 238199,
+        "rendered": 984498,
+        "gzip": 239946,
         "leaves": [
           {
             "name": "src/common/components/common-relations/view-layouts/opportunity-layout/OpportunityLayout.tsx",
@@ -14003,8 +14003,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/crm",
-        "rendered": 247832,
-        "gzip": 61943,
+        "rendered": 248131,
+        "gzip": 62159,
         "leaves": [
           {
             "name": "src/business-apps/crm/campaigns/apps/campaign-management/components/campaigns-analytics/hooks/useCampaignsAnalytics.ts",
@@ -23386,9 +23386,9 @@
     ]
   },
   "crm/performance/apps/sales-performance": {
-    "bitbucketBuildNumber": 11229,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11229/",
-    "chunkJsBytes": 1247059,
+    "bitbucketBuildNumber": 11235,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11235/",
+    "chunkJsBytes": 1250351,
     "top": [
       {
         "kind": "bucket",
@@ -23411,8 +23411,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 482765,
-        "gzip": 112493,
+        "rendered": 489830,
+        "gzip": 114239,
         "leaves": [
           {
             "name": "src/common/components/common-relations/view-layouts/account-layout/config/commonAccountColumns.tsx",
@@ -23429,8 +23429,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/crm",
-        "rendered": 290327,
-        "gzip": 73909,
+        "rendered": 290626,
+        "gzip": 74125,
         "leaves": [
           {
             "name": "src/business-apps/crm/performance/apps/sales-performance/hooks/useTeamComparison.ts",
@@ -66687,15 +66687,15 @@
     ]
   },
   "irm/core/apps/investment-relations": {
-    "bitbucketBuildNumber": 11229,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11229/",
-    "chunkJsBytes": 1478488,
+    "bitbucketBuildNumber": 11235,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11235/",
+    "chunkJsBytes": 1481885,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 948442,
-        "gzip": 229734,
+        "rendered": 955505,
+        "gzip": 231476,
         "leaves": [
           {
             "name": "src/common/components/common-relations/view-layouts/opportunity-layout/OpportunityLayout.tsx",
@@ -66748,8 +66748,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/irm",
-        "rendered": 116045,
-        "gzip": 32859,
+        "rendered": 116540,
+        "gzip": 33105,
         "leaves": [
           {
             "name": "src/business-apps/irm/core/apps/investment-relations/views/workspace-view/hooks/useMyActivities.ts",
@@ -88032,20 +88032,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11229,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11229/",
-    "chunkJsBytes": 1821141,
+    "bitbucketBuildNumber": 11235,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11235/",
+    "chunkJsBytes": 1824695,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1515689,
-        "gzip": 90579,
+        "rendered": 1519567,
+        "gzip": 90748,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1515689,
-            "gzip": 90579
+            "rendered": 1519567,
+            "gzip": 90748
           }
         ]
       },
@@ -103041,7 +103041,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-23T07:56:43.746Z",
+    "generatedAt": "2026-04-23T08:33:18.451Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
