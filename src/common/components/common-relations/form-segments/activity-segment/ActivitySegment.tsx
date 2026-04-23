@@ -8,10 +8,10 @@ import {
   Input,
   Textarea,
   FileUpload,
-  type FileMetadata,
   DateInput,
   useTranslation
 } from '@newwork/nw-design-system'
+import { ExistingDocumentsList } from '../_shared/ExistingDocumentsList'
 import { useFormContext } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -186,54 +186,17 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
     }
   }, [initialEntityFromContext, form, onAdditionalEntityChange])
 
-  // Helper: Convert existing documents to FileMetadata format
-  const initialFiles = React.useMemo<FileMetadata[]>(
-    () =>
-      existingDocuments.map(doc => ({
-        id: doc.id,
-        name: doc.name || 'Unnamed Document',
-        size: doc.fileSize || doc.fileInfo?.fileMetadata?.fileSize || 0,
-        type: doc.mimeType || doc.fileInfo?.fileMetadata?.mimeType || '',
-        url: doc.id
-      })),
-    [existingDocuments]
-  )
-
-  // Helper: Create a stable key for FileUpload
-  const fileUploadKey = React.useMemo(() => existingDocuments.map(d => d.id).join(',') || 'empty', [existingDocuments])
-
-  // Helper: Extract File objects from FileWithPreview
-  const extractNewFiles = React.useCallback((files: any[]): File[] => {
-    return files.map(f => (f.file instanceof File ? f.file : null)).filter((f): f is File => f !== null)
-  }, [])
-
-  // Helper: Check if file ID is in set
-  const isFileIdInSet = React.useCallback((fileId: string, fileIds: Set<string>): boolean => {
-    return fileIds.has(fileId)
-  }, [])
-
-  // Handler: Process file changes
+  // Handler: Process file changes (new uploads only - existing documents are
+  // handled separately by ExistingDocumentsList so we never feed them through
+  // the design-system FileUpload, whose built-in download is not auth-aware).
   const handleFilesChange = React.useCallback(
     (files: any[]) => {
       if (!onFilesChange) return
 
-      // Add new files
-      const newFiles = extractNewFiles(files)
-      if (newFiles.length > 0) {
-        onFilesChange(newFiles)
-      }
-
-      // Handle file removal - check which initial files are missing
-      const currentFileIds = new Set(files.map(f => f.id))
-      const removedDocs = initialFiles.filter(initial => !isFileIdInSet(initial.id, currentFileIds))
-
-      if (removedDocs.length > 0 && onDocumentRemove) {
-        for (const doc of removedDocs) {
-          onDocumentRemove(doc.id)
-        }
-      }
+      const newFiles = files.map(f => (f.file instanceof File ? f.file : null)).filter((f): f is File => f !== null)
+      onFilesChange(newFiles)
     },
-    [onFilesChange, onDocumentRemove, initialFiles, extractNewFiles, isFileIdInSet]
+    [onFilesChange]
   )
 
   return (
@@ -398,18 +361,25 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
             <FormItem>
               <FormLabel>{t('activity-upload-label')}</FormLabel>
               <FormControl>
-                <FileUpload
-                  key={fileUploadKey}
-                  layout="list"
-                  preview="icon"
-                  maxFiles={10}
-                  maxSizeMB={10}
-                  multiple={true}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
-                  initialFiles={initialFiles}
-                  onChange={handleFilesChange}
-                  data-testid={`${dataTestId}-file-upload`}
-                />
+                <div className="gba:flex gba:flex-col gba:gap-3">
+                  <FileUpload
+                    layout="list"
+                    preview="icon"
+                    maxFiles={10}
+                    maxSizeMB={10}
+                    multiple={true}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
+                    onChange={handleFilesChange}
+                    data-testid={`${dataTestId}-file-upload`}
+                  />
+                  <ExistingDocumentsList
+                    documents={existingDocuments}
+                    accessToken={accessToken}
+                    onRemove={onDocumentRemove}
+                    label={t('activity-attached-documents-label')}
+                    data-testid={`${dataTestId}-existing-documents`}
+                  />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>

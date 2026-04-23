@@ -163,13 +163,14 @@ export const EmployeeTerminationForm: React.FC = () => {
               )}
             </div>
 
-            <div className="gba:mb-6">
+            <div className="gba:mb-6 gba:overflow-hidden">
               <label className="gba:block gba:mb-2 gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:employee_termination.exit_date_input', 'Exit Date')}
                 <span className="gba:text-destructive"> *</span>
               </label>
               <DateInput
                 type="date"
+                className="gba:w-full"
                 value={formValues.terminationDate?.isValid() ? formValues.terminationDate.format('YYYY-MM-DD') : ''}
                 onChange={(v?: string) => {
                   if (v) {

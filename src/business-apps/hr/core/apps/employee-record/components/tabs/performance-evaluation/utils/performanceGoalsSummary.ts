@@ -40,9 +40,9 @@ export interface PerformanceGoalsSummary {
   averageProgressPercent: number
 }
 
-const normalizeProgress = (value: number) => Math.round(Math.max(0, Math.min(100, value)) * 100) / 100
+export const normalizeProgress = (value: number) => Math.round(Math.max(0, Math.min(100, value)) * 100) / 100
 
-const isGoalValid = (goal: PerformanceGoalSummaryItem) => Boolean(goal.title && goal.startDate && goal.dueDate)
+export const isGoalValid = (goal: PerformanceGoalSummaryItem) => Boolean(goal.title && goal.startDate && goal.dueDate)
 
 export const isGoalContainedInCycle = (
   goal: PerformanceGoalSummaryItem,

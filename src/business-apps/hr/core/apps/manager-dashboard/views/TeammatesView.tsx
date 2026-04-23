@@ -5,6 +5,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DirectReport } from '../hooks/useDirectReports'
 import { MatrixTeamMember } from '../hooks/useMatrixTeams'
 import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
+import { TeamMemberPerformance } from '../hooks/useTeamPerformance'
 import MyTeammatesTable from '../components/MyTeammatesTable'
 
 type TeamTab = 'my-team' | 'my-teams'
@@ -25,8 +26,12 @@ export interface TeammatesViewProps {
   setActiveTeamTab: (tab: TeamTab) => void
   employeeId: string
   accessToken: string
+  teamPerformance: TeamMemberPerformance[]
+  employeeAllocations: Array<{ id: string; allocationPercent: number }>
+  lastFeedbackByEmployeeId: Record<string, string | null>
   onNavigateBack: () => void
   onNavigateToEmployee: (employeeId: string) => void
+  onOpenMemberPanel: (employeeId: string) => void
   userOrgData?: {
     organizationalUnitId?: string
     costCenterId?: string
@@ -51,8 +56,12 @@ export const TeammatesView: React.FC<TeammatesViewProps> = ({
   setActiveTeamTab,
   employeeId,
   accessToken,
+  teamPerformance,
+  employeeAllocations,
+  lastFeedbackByEmployeeId,
   onNavigateBack,
   onNavigateToEmployee,
+  onOpenMemberPanel,
   userOrgData
 }) => {
   // Filter direct reports based on active filter
@@ -66,6 +75,8 @@ export const TeammatesView: React.FC<TeammatesViewProps> = ({
     return directReports
   }
   const filteredDirectReports = getFilteredDirectReports()
+  const goalProgressByEmployeeId = new Map(teamPerformance.map(member => [member.employeeId, member.averageProgress]))
+  const allocationByEmployeeId = new Map(employeeAllocations.map(item => [item.id, item.allocationPercent]))
 
   // Helper functions for header display
   const getHeaderTitle = () => {
@@ -103,18 +114,29 @@ export const TeammatesView: React.FC<TeammatesViewProps> = ({
   // Transform DirectReport data to Employee interface format with proper data mapping
   const transformedDirectReports: Employee[] = filteredDirectReports.map(report => ({
     id: report.id,
-    userId: undefined,
+    userId: report.userId,
     supervisorEmployeeId: employeeId,
     firstName: report.firstName,
     lastName: report.lastName,
     jobTitle: report.jobPositionName || '',
+    employmentType: report.employmentType || '',
     organizationalUnit: report.organizationalUnitName || '',
     email: '',
     profilePicture: report.pictureThumbnail || '',
-    employmentType: '',
     contractType: '',
     matrixTeams: [],
     status: report.status === 'Away' ? 'On Leave' : report.status,
+    currentGoalProgress: goalProgressByEmployeeId.get(report.id) ?? 0,
+    projectAllocationPercent: allocationByEmployeeId.get(report.id) ?? 0,
+    lastManagerFeedbackDate: lastFeedbackByEmployeeId[report.id] ?? null,
+    nextVacation: report.nextAbsence
+      ? {
+          type: report.nextAbsence.type,
+          startDate: report.nextAbsence.startDate,
+          endDate: report.nextAbsence.endDate,
+          status: report.nextAbsence.status
+        }
+      : undefined,
     currentAbsence: report.currentAbsence
       ? {
           type: report.currentAbsence.type,
@@ -197,6 +219,7 @@ export const TeammatesView: React.FC<TeammatesViewProps> = ({
           directReportsError={directReportsError}
           matrixTeamsError={matrixTeamsError}
           onSelectEmployee={handleSelectEmployee}
+          onAvatarClick={onOpenMemberPanel}
           accessToken={accessToken}
           userOrgData={userOrgData}
         />

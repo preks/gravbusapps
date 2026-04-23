@@ -196,6 +196,158 @@ describe('useActiveSessions', () => {
     expect(result.current.activeSessions[0].current_activity.label).toBe('Searching CRM for recent deals')
   })
 
+  it('inserts a session on session_added events', async () => {
+    mockGetActiveSessions.mockResolvedValue({
+      user_id: 'u1',
+      count: 0,
+      status_counts: { running: 0, pending: 0, waiting_for_human: 0 },
+      sessions: []
+    })
+
+    const { result } = renderHook(() => useActiveSessions('token-xyz'))
+    const source = await waitFor(() => {
+      expect(FakeEventSource.instances[0]).toBeDefined()
+      return FakeEventSource.instances[0]
+    })
+
+    act(() => {
+      source.emitOpen()
+      source.emitMessage({
+        type: 'overview',
+        timestamp: '2026-04-21T12:00:00Z',
+        user_id: 'u1',
+        sessions: []
+      })
+    })
+    expect(result.current.activeSessions).toHaveLength(0)
+
+    act(() => {
+      source.emitMessage({
+        type: 'session_added',
+        session_id: 'new-1',
+        timestamp: '2026-04-21T12:00:01Z',
+        session: makeSnapshot('new-1')
+      })
+    })
+
+    expect(result.current.activeSessions.map(s => s.session_id)).toEqual(['new-1'])
+  })
+
+  it('removes a session on session_removed events', async () => {
+    mockGetActiveSessions.mockResolvedValue({
+      user_id: 'u1',
+      count: 0,
+      status_counts: { running: 0, pending: 0, waiting_for_human: 0 },
+      sessions: []
+    })
+
+    const { result } = renderHook(() => useActiveSessions('token-xyz'))
+    const source = await waitFor(() => {
+      expect(FakeEventSource.instances[0]).toBeDefined()
+      return FakeEventSource.instances[0]
+    })
+
+    act(() => {
+      source.emitOpen()
+      source.emitMessage({
+        type: 'overview',
+        timestamp: '2026-04-21T12:00:00Z',
+        user_id: 'u1',
+        sessions: [makeSnapshot('s1'), makeSnapshot('s2')]
+      })
+    })
+    expect(result.current.activeSessions).toHaveLength(2)
+
+    act(() => {
+      source.emitMessage({ type: 'session_removed', session_id: 's1' })
+    })
+
+    expect(result.current.activeSessions.map(s => s.session_id)).toEqual(['s2'])
+  })
+
+  it('updates status + pending question on status_changed events', async () => {
+    mockGetActiveSessions.mockResolvedValue({
+      user_id: 'u1',
+      count: 0,
+      status_counts: { running: 0, pending: 0, waiting_for_human: 0 },
+      sessions: []
+    })
+
+    const { result } = renderHook(() => useActiveSessions('token-xyz'))
+    const source = await waitFor(() => {
+      expect(FakeEventSource.instances[0]).toBeDefined()
+      return FakeEventSource.instances[0]
+    })
+
+    act(() => {
+      source.emitOpen()
+      source.emitMessage({
+        type: 'overview',
+        timestamp: '2026-04-21T12:00:00Z',
+        user_id: 'u1',
+        sessions: [makeSnapshot('s1', { status: 'running' })]
+      })
+    })
+
+    act(() => {
+      source.emitMessage({
+        type: 'status_changed',
+        session_id: 's1',
+        status: 'waiting_for_human',
+        pending_human_question: 'Confirm deletion?',
+        current_activity: { step: 'awaiting_human', label: 'Confirm deletion?' },
+        updated_at: '2026-04-21T12:05:00Z',
+        timestamp: '2026-04-21T12:05:00Z'
+      })
+    })
+
+    const snap = result.current.activeSessions[0]
+    expect(snap.status).toBe('waiting_for_human')
+    expect(snap.pending_human_question).toBe('Confirm deletion?')
+    expect(snap.current_activity.label).toBe('Confirm deletion?')
+    expect(result.current.statusCounts.waiting_for_human).toBe(1)
+    expect(result.current.statusCounts.running).toBe(0)
+  })
+
+  it('reflects status on waiting_for_human terminal events', async () => {
+    mockGetActiveSessions.mockResolvedValue({
+      user_id: 'u1',
+      count: 0,
+      status_counts: { running: 0, pending: 0, waiting_for_human: 0 },
+      sessions: []
+    })
+
+    const { result } = renderHook(() => useActiveSessions('token-xyz'))
+    const source = await waitFor(() => {
+      expect(FakeEventSource.instances[0]).toBeDefined()
+      return FakeEventSource.instances[0]
+    })
+
+    act(() => {
+      source.emitOpen()
+      source.emitMessage({
+        type: 'overview',
+        timestamp: '2026-04-21T12:00:00Z',
+        user_id: 'u1',
+        sessions: [makeSnapshot('s1', { status: 'running' })]
+      })
+    })
+
+    act(() => {
+      source.emitMessage({
+        type: 'terminal',
+        session_id: 's1',
+        status: 'waiting_for_human',
+        human_question: 'Need approval',
+        timestamp: '2026-04-21T12:05:00Z'
+      })
+    })
+
+    expect(result.current.activeSessions).toHaveLength(1)
+    expect(result.current.activeSessions[0].status).toBe('waiting_for_human')
+    expect(result.current.activeSessions[0].pending_human_question).toBe('Need approval')
+  })
+
   it('ignores heartbeat events', async () => {
     mockGetActiveSessions.mockResolvedValue({
       user_id: 'u1',

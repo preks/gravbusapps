@@ -44,7 +44,14 @@ export const WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_OPEN_CLASS =
 /** Smooth slide when the panel toggles so chat + composer + modal move as one unit. */
 export const WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS = 'gba:transition-[padding] gba:duration-300 gba:ease-out'
 
-export const WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS = 'gba:top-36 sm:gba:top-36 lg:gba:top-[9.5rem]'
+/**
+ * Vertical offset of the floating right panel. Kept close to the panel toggle
+ * button (which sits at `WORKSPACE_TOP_CONTROLS_OFFSET_CLASS`, roughly
+ * 16–24px from the top) so the gap between the X button and the panel header
+ * stays visually tight (~16–32px) rather than letting the panel sag into
+ * the chat column.
+ */
+export const WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS = 'gba:top-20 lg:gba:top-24'
 
 /**
  * First-paint default: on viewports ≥ this width we open the right panel

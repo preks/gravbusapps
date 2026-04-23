@@ -1,7 +1,8 @@
 import { ArrowRightIcon, ChatCircleDotsIcon, LayoutIcon, XIcon } from '@phosphor-icons/react'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFabric } from '../../context/FabricContext'
 import type { ChatMessage, SessionConfig } from '../../types/enterpriseAgent'
+import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
 import { ArtifactViewer } from './ArtifactViewer'
 import { ClarificationPrompt } from './ClarificationPrompt'
 import { ConversationPanel } from './ConversationPanel'
@@ -52,6 +53,19 @@ function resolveChatOffsetClass(isChatOffset: boolean, hasActivePreview: boolean
   return WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS
 }
 
+function resolveArtifactLabel(artifactType: ArtifactPreview['artifactType']): string {
+  switch (artifactType) {
+    case 'slides':
+      return 'slides'
+    case 'document':
+      return 'document'
+    case 'note':
+      return 'note'
+    default:
+      return 'chart'
+  }
+}
+
 function resolveInitialPanelOpen(): boolean {
   if (typeof globalThis.innerWidth !== 'number') return true
   return globalThis.innerWidth >= WORKSPACE_RIGHT_RAIL_AUTO_OPEN_BREAKPOINT_PX
@@ -84,10 +98,13 @@ export const WorkspaceLayout: React.FC = () => {
     isConnected,
     isWaitingForInput,
     taskNodes,
+    hasPlan,
     completedCount,
     totalCount,
     progressPercent,
+    currentTodoText,
     activityEvents,
+    decisions,
     activeSkill,
     sessionConnectorIds,
     artifacts,
@@ -173,15 +190,9 @@ export const WorkspaceLayout: React.FC = () => {
   const streamingStatusHeadline = useMemo(() => {
     // Prioritize real-time status from agent (skill matching, workspace prep, etc.)
     if (statusHeadline) return statusHeadline
-
-    // Fallback to task node progress
-    if (totalCount === 0) return null
-    const active = taskNodes.find(n => n.status === 'active')
-    if (active?.label) return active.label
-    const pending = taskNodes.find(n => n.status === 'pending')
-    if (pending?.label) return `Next: ${pending.label}`
-    return null
-  }, [statusHeadline, taskNodes, totalCount])
+    // Fallback to the first in-progress (or next pending) todo in the Plan.
+    return currentTodoText ?? null
+  }, [statusHeadline, currentTodoText])
   useEffect(() => {
     if (latestFinalAnswer?.id !== dismissedFollowUpMessageId) {
       setDismissedFollowUpMessageId(null)
@@ -201,6 +212,22 @@ export const WorkspaceLayout: React.FC = () => {
   // further left to match.
   const isChatOffset = isRightPanelOpen
   const chatOffsetClass = resolveChatOffsetClass(isChatOffset, hasActivePreview)
+
+  // When the live preview error card's "Try again" is clicked, send a new
+  // agent turn asking to regenerate the artifact. We include the original
+  // title (if available) so the agent has enough context to pick the right
+  // tool without pestering the user for a re-prompt.
+  const handleRetryPreview = useCallback(
+    (preview: ArtifactPreview) => {
+      const title = preview.title?.trim()
+      const artifactLabel = resolveArtifactLabel(preview.artifactType)
+      const retryMessage = title
+        ? `The previous attempt to generate the ${artifactLabel} "${title}" failed. Please try again.`
+        : `The previous attempt to generate the ${artifactLabel} failed. Please try again.`
+      void reply(retryMessage).catch(() => undefined)
+    },
+    [reply]
+  )
 
   if (!session) return null
 
@@ -344,10 +371,12 @@ export const WorkspaceLayout: React.FC = () => {
           >
             <WorkspaceRightPanel
               taskNodes={taskNodes}
+              hasPlan={hasPlan}
               completedCount={completedCount}
               totalCount={totalCount}
               progressPercent={progressPercent}
               activityEvents={activityEvents}
+              decisions={decisions}
               artifacts={artifacts}
               workspaceDocs={workspaceDocs}
               isConnected={isConnected}
@@ -356,6 +385,7 @@ export const WorkspaceLayout: React.FC = () => {
               latestPreview={latestPreview}
               accessToken={accessToken}
               sessionId={session.session_id}
+              onRetryPreview={handleRetryPreview}
             />
           </div>
         </div>
@@ -371,7 +401,7 @@ export const WorkspaceLayout: React.FC = () => {
           isWaitingForInput={isWaitingForInput}
           hasFixedFollowUps={showSuggestedFollowUps}
           hasStreamingIsland={isStreaming}
-          isChatOffset={isChatOffset}
+          chatOffsetClass={chatOffsetClass}
           onReply={reply}
           onViewArtifact={setActiveArtifactId}
           accessToken={accessToken}
@@ -381,7 +411,7 @@ export const WorkspaceLayout: React.FC = () => {
           <ClarificationPrompt
             question={session.human_question ?? ''}
             isOpen={showClarification}
-            isChatOffset={isChatOffset}
+            chatOffsetClass={chatOffsetClass}
             onAnswer={handleClarificationAnswer}
             onDismiss={handleClarificationDismiss}
           />

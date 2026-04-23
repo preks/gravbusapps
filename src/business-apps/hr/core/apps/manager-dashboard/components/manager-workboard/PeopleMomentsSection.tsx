@@ -27,7 +27,7 @@ export const PeopleMomentsSection: React.FC<PeopleMomentsSectionProps> = ({
 }) => {
   if (loading) {
     return (
-      <Card style={{ borderRadius: '12px' }} className="gba:p-4">
+      <Card className="gba:rounded-xl gba:p-4">
         <CardHeader className="gba:pb-2">
           <CardTitle className="gba:text-base">People & Moments</CardTitle>
         </CardHeader>
@@ -43,9 +43,9 @@ export const PeopleMomentsSection: React.FC<PeopleMomentsSectionProps> = ({
   const totalMoments = birthdays.length + anniversaries.length
 
   return (
-    <Card data-testid="people-moments-section" style={{ borderRadius: '12px' }} className="gba:p-4">
+    <Card data-testid="people-moments-section" className="gba:rounded-xl gba:p-4 gba:h-full">
       <CardHeader className="gba:pb-2">
-        <CardTitle className="gba:text-base gba:font-semibold">People & Moments</CardTitle>
+        <CardTitle className="gba:text-base">People & Moments</CardTitle>
         <p className="gba:text-xs gba:text-muted-foreground">
           {totalMoments} {totalMoments === 1 ? 'moment' : 'moments'} this month
         </p>

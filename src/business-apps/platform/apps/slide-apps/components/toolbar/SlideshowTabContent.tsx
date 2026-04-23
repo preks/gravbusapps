@@ -8,7 +8,6 @@
 import React from 'react'
 import {
   Button,
-  Separator,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -63,10 +62,14 @@ export function SlideshowTabContent({
 }: SlideshowTabContentProps) {
   const { t } = useTranslation(translations)
 
+  const groupClass =
+    'gba:flex gba:items-center gba:gap-1 gba:pr-3 gba:mr-1 gba:border-r gba:border-border/40 gba:border-t gba:border-t-border/40 gba:pt-1.5'
+  const lastGroupClass = 'gba:flex gba:items-center gba:gap-1 gba:border-t gba:border-t-border/40 gba:pt-1.5'
+
   return (
-    <>
+    <div className="gba:flex gba:flex-wrap gba:items-center gba:-mt-1.5 gba:overflow-hidden">
       {/* Start Group */}
-      <div className="gba:flex gba:items-center gba:gap-1">
+      <div className={groupClass}>
         <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('slideshow-start-group')}</span>
         <Button variant="default" size="sm" onClick={onPresent} data-testid={testId ? `${testId}-present` : undefined}>
           <Play className="gba:w-4 gba:h-4 gba:mr-1" />
@@ -83,10 +86,8 @@ export function SlideshowTabContent({
         </Button>
       </div>
 
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
-
       {/* Broadcast Group */}
-      <div className="gba:flex gba:items-center gba:gap-1">
+      <div className={groupClass}>
         <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('slideshow-broadcast-group')}</span>
         <Button
           variant="ghost"
@@ -110,10 +111,8 @@ export function SlideshowTabContent({
         </Button>
       </div>
 
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
-
       {/* View Group */}
-      <div className="gba:flex gba:items-center gba:gap-1">
+      <div className={groupClass}>
         <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('slideshow-view-group')}</span>
         <Button
           variant={showNotesPanel ? 'secondary' : 'ghost'}
@@ -146,10 +145,8 @@ export function SlideshowTabContent({
         )}
       </div>
 
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
-
       {/* Export Group */}
-      <div className="gba:flex gba:items-center gba:gap-1">
+      <div className={lastGroupClass}>
         <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('slideshow-export-group')}</span>
         <Button variant="ghost" size="sm" onClick={onSaveNow} data-testid={testId ? `${testId}-save-now` : undefined}>
           <Save className="gba:w-4 gba:h-4 gba:mr-1" />
@@ -175,6 +172,6 @@ export function SlideshowTabContent({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </>
+    </div>
   )
 }

@@ -482,7 +482,11 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
         if (yElement.get('id') === elementId) {
           // Update the element
           Object.entries(updates).forEach(([key, value]) => {
-            if (value !== undefined) yElement.set(key, value)
+            if (value === undefined) {
+              yElement.delete(key)
+            } else {
+              yElement.set(key, value)
+            }
           })
           break
         }
