@@ -353,19 +353,13 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                 : addresses.find((a: any) => String(a.id) === String(values.selectedAddressId))
 
               // Coordinates come straight from the form. AddressAutocomplete is the only
-              // writer: it sets them via suggestion pick, pin drag, or "Use my location", and
-              // shows a 'low accuracy' warning if the user has since edited an address field.
-              // If no tool was ever used, they'll simply be null — we submit null and move on.
+              // writer: it sets them via suggestion pick, pin drag, or "Use my location".
+              // When the map is available (dev flag), the structured address fields are
+              // readonly so coords and address can't drift apart. When the map isn't
+              // available, coords are simply null and we submit null.
               const resolvedLat: number | null = values.latitude ?? null
               const resolvedLng: number | null = values.longitude ?? null
 
-              // TEMP: backend doesn't persist latitude/longitude yet. Log so we can eyeball that
-              // the map is capturing coords correctly in dev. Remove once the DB columns + mutation
-              // inputs land and the values flow through buildInsertPayload/buildUpdatePayload.
-              console.log('[ChangeEmployeeAddress] submit coords', {
-                latitude: resolvedLat,
-                longitude: resolvedLng
-              })
               if (isDeleteMode) {
                 if (deletePayload) return deletePayload
                 return null as any
