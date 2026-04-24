@@ -52,6 +52,7 @@ import {
   isolateWorkbookSnapshotToSingleSheet,
   mergeAuthoritativeViewerRowsIntoWorkbookSnapshot,
   mergeWorkbookFormattingFromDonor,
+  normalizeWorkbookSnapshotToAppSheets,
   snapshotTrackingHeaderMatchesColumnLabels,
   workbookFormattingRichnessScore,
   workbookSnapshotMismatchesViewerRows
@@ -63,6 +64,7 @@ import {
   clearUniverSnapshotCache
 } from './utils/univerSnapshotCache'
 import { scheduleCoalescedTimeout } from './utils/collaborationRepairScheduler'
+import { applySheetCellChanges } from './utils/applySheetCellChanges'
 import { exportSnapshotAsXlsx } from './utils/exportToExcel'
 import { resolveRenderedSpreadsheetViewType } from './utils/resolveRenderedSpreadsheetViewType'
 import { AutomationsPanel } from './components/AutomationsPanel'
@@ -193,33 +195,6 @@ const rowMatchesRemoteId = (row: ViewerRow, remoteRowId: string): boolean => {
 
 const getViewerRowIdentityCandidates = (row: ViewerRow): string[] =>
   Array.from(new Set([row._id, row.id, row._rowUuid].map(value => String(value ?? '')).filter(Boolean)))
-
-const collectViewerRowUpdates = (
-  row: ViewerRow,
-  updatesByRowId: Map<string, Record<string, unknown>>
-): Record<string, unknown> | null => {
-  const mergedUpdates: Record<string, unknown> = {}
-  for (const candidateId of getViewerRowIdentityCandidates(row)) {
-    Object.assign(mergedUpdates, updatesByRowId.get(candidateId) ?? {})
-  }
-  return Object.keys(mergedUpdates).length > 0 ? mergedUpdates : null
-}
-
-const applyColumnUpdatesToViewerRow = (
-  row: ViewerRow,
-  updates: Record<string, unknown>,
-  columns?: SpreadsheetColumn[]
-): ViewerRow => {
-  let nextRow: ViewerRow = { ...row }
-  for (const [columnName, value] of Object.entries(updates)) {
-    const cleared = stripEquivalentColumnKeysFromRow(nextRow, columnName, columns)
-    nextRow = cleared.nextRow
-    if (value !== undefined) {
-      nextRow[cleared.targetColumnName] = value
-    }
-  }
-  return nextRow
-}
 
 const toComparableCellSignature = (value: unknown): string => {
   try {
@@ -1370,6 +1345,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const workbookSnapshotThrottlePendingRef = useRef(false)
   const lastSuccessfulSnapshotCheckpointAtRef = useRef<number>(0)
   const latestUniverDataRef = useRef<{ data: Record<string, unknown>[]; sheetId: string } | null>(null)
+  const pendingUniverRowsBySheetRef = useRef<
+    Map<string, { data: Record<string, unknown>[]; persistedRows: Record<string, unknown>[] }>
+  >(new Map())
   const univerDataChangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastProcessedLengthRef = useRef<number>(0)
   const lastPersistedSheetDataRef = useRef<Record<string, unknown>[]>([])
@@ -1538,6 +1516,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   })
   useEffect(() => {
     hasBootstrappedForAppIdRef.current = { appId: app.id, done: false }
+    pendingUniverRowsBySheetRef.current.clear()
   }, [app.id])
   const prevActiveSheetIdForPeerRestoreRef = useRef(activeSheetId)
   useEffect(() => {
@@ -1564,9 +1543,24 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     if (pendingSnapshotCheckpointBySheetRef.current.has(targetSheetId)) {
       return true
     }
+    const pendingUniverRows = pendingUniverRowsBySheetRef.current.get(targetSheetId)
+    if (pendingUniverRows && pendingUniverRows.data.length > pendingUniverRows.persistedRows.length) {
+      return true
+    }
     const latest = latestUniverDataRef.current
     return Boolean(latest?.sheetId === targetSheetId && latest.data.length > lastProcessedLengthRef.current)
   }, [])
+
+  const getKnownRowsForSheet = useCallback(
+    (sheetId: string): Record<string, unknown>[] => {
+      if (sheetId === activeSheetIdRef.current) return localSheetDataRef.current
+      const cached = peerSheetDataCacheRef.current.get(sheetId)
+      if (cached) return cached
+      const targetSheet = app.sheets.find(sheet => sheet.id === sheetId)
+      return sortSpreadsheetRowsBySheetSettings(targetSheet?.data ?? [], targetSheet) as Record<string, unknown>[]
+    },
+    [app.sheets, localSheetDataRef]
+  )
 
   useEffect(() => {
     if (!entityEnabled || !activeSheet.entityDataSource) return
@@ -1844,16 +1838,25 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     // captures unsynced local edits made on that sheet) falls back to the
     // server-provided `sheet.data`, falls back to an empty array for a newly
     // inserted sheet.
+    const pendingUniverRows = pendingUniverRowsBySheetRef.current.get(activeSheetId)
     const cachedRowsForNewSheet = peerSheetDataCacheRef.current.get(activeSheetId)
     const newActiveSheet = app.sheets.find(s => s.id === activeSheetId)
-    const rowsForNewSheet = cachedRowsForNewSheet ?? newActiveSheet?.data ?? []
-    lastProcessedLengthRef.current = rowsForNewSheet.length
-    lastPersistedSheetDataRef.current = rowsForNewSheet as Record<string, unknown>[]
+    const persistedRowsForNewSheet =
+      pendingUniverRows?.persistedRows ?? cachedRowsForNewSheet ?? newActiveSheet?.data ?? []
+    lastProcessedLengthRef.current = persistedRowsForNewSheet.length
+    lastPersistedSheetDataRef.current = persistedRowsForNewSheet as Record<string, unknown>[]
     workbookSnapshotThrottlePendingRef.current = false
-    latestUniverDataRef.current = null
+    latestUniverDataRef.current =
+      pendingUniverRows != null ? { data: pendingUniverRows.data, sheetId: activeSheetId } : null
     if (univerDataChangeTimeoutRef.current) {
       clearTimeout(univerDataChangeTimeoutRef.current)
       univerDataChangeTimeoutRef.current = null
+    }
+    if (pendingUniverRows && pendingUniverRows.data.length > persistedRowsForNewSheet.length) {
+      scheduleCoalescedTimeout(univerDataChangeTimeoutRef, 0, () => {
+        univerDataChangeTimeoutRef.current = null
+        void chainOnOperationQueue(operationQueueRef, () => processUniverDataChangeRef.current())
+      })
     }
   }, [activeSheetId, app.sheets])
 
@@ -2050,6 +2053,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const commitLocalSheetData = useCallback(
     (next: Record<string, unknown>[], options?: { persisted?: boolean; syncGrid?: boolean }) => {
       localSheetDataRef.current = next
+      peerSheetDataCacheRef.current.set(activeSheetId, [...next])
       setLocalSheetData(next)
       if (options?.persisted) {
         lastPersistedSheetDataRef.current = next
@@ -3584,10 +3588,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           rowsForAuthoritativeSnapshot,
           targetSheetMeta.columns
         )
-        const snapshotToPersist = clearSnapshotCellsByCoordinate(
-          snapshotToPersistBase,
-          targetSheetId,
-          pendingSnapshotClearCells
+        const snapshotToPersist = normalizeWorkbookSnapshotToAppSheets(
+          clearSnapshotCellsByCoordinate(snapshotToPersistBase, targetSheetId, pendingSnapshotClearCells),
+          app.sheets
         )
         sizeBytesForSave = getSnapshotSizeBytes(snapshotToPersist)
         if (sizeBytesForSave == null || sizeBytesForSave > 8_500_000) {
@@ -3611,10 +3614,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           activeSheetId: targetSheetId,
           baseSnapshot: snapshotToPersist,
           prepareSnapshotForSave: currentSnapshot =>
-            clearSnapshotCellsByCoordinate(
-              currentSnapshot as Record<string, unknown>,
-              targetSheetId,
-              getPendingSnapshotClearCoordinates(pendingSnapshotClearCellsRef.current, targetSheetId)
+            normalizeWorkbookSnapshotToAppSheets(
+              clearSnapshotCellsByCoordinate(
+                currentSnapshot as Record<string, unknown>,
+                targetSheetId,
+                getPendingSnapshotClearCoordinates(pendingSnapshotClearCellsRef.current, targetSheetId)
+              ),
+              app.sheets
             ),
           sheetVersionRef: versionRefForSave,
           snapshotSaveMetricsRef,
@@ -3904,6 +3910,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       })
 
       if (targetSheetId !== activeSheetId) {
+        const peerUpdate = applySheetCellChanges(
+          getKnownRowsForSheet(targetSheetId) as ViewerRow[],
+          cells.map(cell => ({
+            rowId: String(cell.rowId),
+            columnName: cell.columnName,
+            value: normalizeCellValueForBatchPersistence(cell.value)
+          })),
+          app.sheets.find(sheet => sheet.id === targetSheetId)?.columns
+        )
+        if (peerUpdate.mutatedAnyRow) {
+          peerSheetDataCacheRef.current.set(targetSheetId, peerUpdate.nextRows)
+        }
         schedulePendingCellPersist(
           collaboration.isCollaborationConnected && collaboration.headerParticipants.length > 1
             ? CELL_PERSIST_COLLAB_DEBOUNCE_MS
@@ -3912,25 +3930,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         return
       }
 
-      const current = localSheetDataRef.current
-      const updatesByUiRowId = new Map<string, Record<string, unknown>>()
-      for (const cell of cells) {
-        const uiRowId = String(cell.rowId)
-        const uiUpdates = updatesByUiRowId.get(uiRowId) ?? {}
-        uiUpdates[cell.columnName] = normalizeCellValueForBatchPersistence(cell.value)
-        updatesByUiRowId.set(uiRowId, uiUpdates)
-      }
-
-      let mutatedAnyRow = false
-      const next = current.map(row => {
-        const updates = collectViewerRowUpdates(row, updatesByUiRowId)
-        if (!updates) return row
-        mutatedAnyRow = true
-        return {
-          ...applyColumnUpdatesToViewerRow(row, updates, activeSheet.columns),
-          _updatedAt: new Date().toISOString()
-        }
-      })
+      const { nextRows: next, mutatedAnyRow } = applySheetCellChanges(
+        localSheetDataRef.current as ViewerRow[],
+        cells.map(cell => ({
+          rowId: String(cell.rowId),
+          columnName: cell.columnName,
+          value: normalizeCellValueForBatchPersistence(cell.value)
+        })),
+        activeSheet.columns
+      )
       // Only publish a new localSheetData when an existing row actually
       // changed. When every incoming cell targets a brand-new row
       // (clientRowId that doesn't exist in `current` yet — typical for the
@@ -3971,6 +3979,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       collaboration.isCollaborationConnected,
       collaboration.headerParticipants.length,
       entityEnabled,
+      getKnownRowsForSheet,
       localSheetDataRef,
       onDataChange,
       CELL_PERSIST_DEBOUNCE_MS,
@@ -4130,6 +4139,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     const updateLocalRowsAfterCreate = (createdRows: Array<Record<string, unknown>>) => {
       const next = replaceClientRowsWithCreatedRows(prev, createdRows)
       lastProcessedLengthRef.current = newData.length
+      pendingUniverRowsBySheetRef.current.delete(activeSheetId)
       // LOCAL-origin commit: the rows were just typed/dragged/pasted in by
       // the user, so Univer already renders the correct values. The only
       // thing changing here is the React-side row identity (clientRowId →
@@ -4198,10 +4208,21 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const handleUniverDataChange = useCallback(
     (newData: Record<string, unknown>[], sourceSheetId?: string) => {
       const effectiveSheetId = sourceSheetId || activeSheetIdRef.current
-      latestUniverDataRef.current = { data: newData, sheetId: effectiveSheetId }
       if (effectiveSheetId !== activeSheetIdRef.current) {
+        const persistedRows = getKnownRowsForSheet(effectiveSheetId)
+        peerSheetDataCacheRef.current.set(effectiveSheetId, [...newData])
+        if (newData.length > persistedRows.length) {
+          pendingUniverRowsBySheetRef.current.set(effectiveSheetId, {
+            data: [...newData],
+            persistedRows: [...persistedRows]
+          })
+        } else {
+          pendingUniverRowsBySheetRef.current.delete(effectiveSheetId)
+        }
         return
       }
+      latestUniverDataRef.current = { data: newData, sheetId: effectiveSheetId }
+      pendingUniverRowsBySheetRef.current.delete(effectiveSheetId)
       const hasAddedRows = newData.length > lastProcessedLengthRef.current
       if (hasAddedRows && univerDataChangeTimeoutRef.current) {
         clearTimeout(univerDataChangeTimeoutRef.current)
@@ -4212,7 +4233,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         void chainOnOperationQueue(operationQueueRef, () => processUniverDataChangeRef.current())
       })
     },
-    [UNIVER_DATA_CHANGE_DEBOUNCE_MS]
+    [UNIVER_DATA_CHANGE_DEBOUNCE_MS, getKnownRowsForSheet]
   )
 
   const prevCanEditWithLockRef = useRef<boolean | null>(null)
