@@ -164,6 +164,7 @@ export class SocketIoYjsProvider {
     this.started = true
 
     this.socket.on('connect', this.handleSocketConnect)
+    this.socket.on('disconnect', this.handleSocketDisconnect)
     this.socket.on('yjs_update', this.handleRemoteYjsUpdate)
     this.socket.on('yjs_awareness_update', this.handleRemoteAwarenessUpdate)
     this.socket.on('yjs_sync_response', this.handleSyncResponseEvent)
@@ -198,6 +199,7 @@ export class SocketIoYjsProvider {
     this.pendingRemoteDocUpdates = []
 
     this.socket.off('connect', this.handleSocketConnect)
+    this.socket.off('disconnect', this.handleSocketDisconnect)
     this.socket.off('yjs_update', this.handleRemoteYjsUpdate)
     this.socket.off('yjs_awareness_update', this.handleRemoteAwarenessUpdate)
     this.socket.off('yjs_sync_response', this.handleSyncResponseEvent)
@@ -232,11 +234,7 @@ export class SocketIoYjsProvider {
       const buffered = this.pendingLocalDocFlush.splice(0)
       if (buffered.length > 0) {
         const merged = buffered.length === 1 ? buffered[0] : Y.mergeUpdates(buffered)
-        this.socket.emit('yjs_update', {
-          documentId: this.documentId,
-          entityType: this.entityType,
-          update: uint8ArrayToBase64(merged)
-        })
+        this.pendingLocalDocUpdates.push(merged)
       }
       return
     }
@@ -273,6 +271,11 @@ export class SocketIoYjsProvider {
   private handleSocketConnect = () => {
     if (this.destroyed) return
     this.triggerSync()
+  }
+
+  private handleSocketDisconnect = () => {
+    if (this.destroyed) return
+    this.setSynced(false)
   }
 
   private scheduleSyncRetry(delayMs: number = 1500) {
