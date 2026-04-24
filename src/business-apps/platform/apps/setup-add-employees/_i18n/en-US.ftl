@@ -11,6 +11,14 @@ label-last-name = Last name
 label-email = Email
 label-job-title = Job title
 label-password-optional = Initial password (optional)
+label-password-new = New password
+label-password-confirm = Confirm password
+action-generate-password = Generate password
+password-show = Show password
+password-hide = Hide password
+error-password-mismatch = Passwords do not match.
+error-password-partial = Enter and confirm the password, or leave both fields empty.
+error-password-both-required = Enter and confirm the new password.
 action-create = Create employee
 action-creating = Creating…
 loading-active-structure = Loading active structure…
@@ -31,9 +39,8 @@ error-create-failed = Failed to create employee
 
 # Edit employee (People + reuse)
 edit-title = Edit employee
-edit-subtitle = Update department, name, email, job title, manager role, or set a new password. Changes are saved via org chart and the employee service (no approval tasks).
+edit-subtitle = Update department, job title, and manager role. Changes are saved via org chart assignment (no approval tasks). Use Reset password in the list to set a new sign-in password.
 edit-loading = Loading employee…
-edit-label-password-optional = New password (optional)
 edit-action-save = Save changes
 edit-action-saving = Saving…
 edit-msg-saved = Changes saved.
@@ -43,4 +50,18 @@ edit-error-no-position = This employee has no position in the active structure.
 edit-error-no-assignment = No organizational assignment was found for this employee in the structure.
 edit-error-save = Failed to save changes
 edit-error-name-required = First name and last name are required.
-edit-error-no-work-email = No work e-mail is stored for this employee; add one through your administrator tools before editing.
+edit-error-no-email = No email is stored for this employee; add one through your administrator tools before editing.
+
+# Reset password (People row + standalone)
+reset-pwd-title = Reset password
+reset-pwd-subtitle = Set a new sign-in password for this employee. They should use a password manager or change it after first login.
+reset-pwd-loading = Loading…
+reset-pwd-hint-email-prefix = Password applies to the account for:
+reset-pwd-hint-no-email = No email is on file; password reset may not resolve a user account until an email exists.
+reset-pwd-action-save = Set password
+reset-pwd-action-saving = Setting password…
+reset-pwd-msg-saved = Password was updated.
+reset-pwd-error-no-employee = Employee was not found.
+reset-pwd-error-load = Failed to load employee
+reset-pwd-error-no-user-id-on-record = This employee has no linked user ID in the directory yet. Password reset is unavailable until the account is synced to this employee record.
+reset-pwd-error-save = Failed to set password

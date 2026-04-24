@@ -25,7 +25,7 @@ import {
 } from './setupAddEmployeesHasura'
 import { fetchEmployeeForEditForm, type EditEmployeeFormBootstrap } from './editEmployeeHasura'
 import { pickPrimaryOrgAssignment, updateEmployeeOrganizationalUnitAssignment } from './employeeEditApi'
-import { createSingleJobPositionByName, resolveUserIdByEmail, setInitialPassword } from './employeeOnboardingApi'
+import { createSingleJobPositionByName } from './employeeOnboardingApi'
 
 const DEPARTMENT_PAGE_SIZE = 30
 
@@ -61,7 +61,6 @@ export function EditEmployeeForm({
   const [organizationalUnitId, setOrganizationalUnitId] = useState<string | null>(null)
   const [email, setEmail] = useState('')
   const [jobPosition, setJobPosition] = useState('')
-  const [password, setPassword] = useState('')
   const [isManager, setIsManager] = useState(false)
 
   const [busy, setBusy] = useState(false)
@@ -275,7 +274,7 @@ export function EditEmployeeForm({
       }))
     )
     if (!workEmailForAccount.trim()) {
-      setError(t('edit-error-no-work-email'))
+      setError(t('edit-error-no-email'))
       return
     }
 
@@ -335,22 +334,11 @@ export function EditEmployeeForm({
         })
       }
 
-      if (password.trim()) {
-        const userId =
-          bootstrap.employee.userId?.trim() ||
-          (await resolveUserIdByEmail(accessToken, workEmailForAccount.trim())) ||
-          (await resolveUserIdByEmail(accessToken, init.email.trim()))
-        if (userId) {
-          await setInitialPassword(accessToken, userId, password.trim())
-        }
-      }
-
       const fresh = await fetchEmployeeForEditForm(accessToken, employeeId, structureId)
       if (!fresh.employee || !fresh.employeePosition?.organizationalUnitId) {
         throw new Error(t('edit-error-load'))
       }
       applyBootstrap(fresh)
-      setPassword('')
       setMessage(t('edit-msg-saved'))
       onSuccess?.()
     } catch (e) {
@@ -367,7 +355,6 @@ export function EditEmployeeForm({
     jobPosition,
     onSuccess,
     organizationalUnitId,
-    password,
     structureId,
     t
   ])
@@ -481,17 +468,6 @@ export function EditEmployeeForm({
               {t('label-is-manager')}
             </Label>
           </div>
-          <div className="gba:space-y-2">
-            <Label htmlFor="edit-pwd">{t('edit-label-password-optional')}</Label>
-            <Input
-              id="edit-pwd"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-          </div>
-
           {error ? (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
