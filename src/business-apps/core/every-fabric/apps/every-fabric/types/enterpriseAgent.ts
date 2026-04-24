@@ -431,6 +431,10 @@ export interface ActivityEvent {
   resultStatus?: 'done' | 'failed'
   /** When `type === 'tool_result'`, the originating `step_started` id so the card can pair rows. */
   parentStepId?: string
+  /** Present on `skill_load` tool rows: backend skill id (e.g. `"create-hook"`). */
+  skillId?: string
+  /** Present on `skill_load` tool rows: humanised display name. */
+  skillName?: string
 }
 
 export interface ActionSummary {
