@@ -25,10 +25,60 @@ import { newEmptyConfigRow, type ConfigRow } from './SettingsEditor'
 import { CredentialBindField } from '@/common/components/credential-bind/CredentialBindField'
 import type { CredentialBindOption } from '@/common/utils/credentialBindOptions'
 
+/** True when JSON Schema says this property is an array of strings (lenient multi-line + CSV editor). */
+function arrayItemsAreStrings(propObj: Record<string, unknown>): boolean {
+  const items = propObj.items
+  if (!items || typeof items !== 'object' || Array.isArray(items)) return false
+  return (items as Record<string, unknown>).type === 'string'
+}
+
+/** Render either an array or a previously mistyped string into the textarea verbatim (one per line). */
+function stringArrayFieldLines(value: unknown, defaultValue: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map(v => String(v)).join('\n')
+  }
+  if (typeof value === 'string') {
+    return value
+  }
+  if (Array.isArray(defaultValue)) {
+    return defaultValue.map(v => String(v)).join('\n')
+  }
+  return ''
+}
+
+/**
+ * Parse a textarea value into a string[] using a lenient rule:
+ * - split on newline AND comma (so "'Python', 'Go'" or multi-line both work)
+ * - trim each token
+ * - strip optional matching single/double quotes or backticks on the outside
+ * - drop empty tokens
+ */
+function parseStringArrayInput(raw: string): string[] {
+  return raw
+    .split(/[\n,]+/)
+    .map(tok => tok.trim())
+    .map(tok => {
+      if (tok.length >= 2) {
+        const first = tok[0]
+        const last = tok[tok.length - 1]
+        if ((first === '"' || first === "'" || first === '`') && first === last) {
+          return tok.slice(1, -1).trim()
+        }
+      }
+      return tok
+    })
+    .filter(tok => tok.length > 0)
+}
+
 export interface TestFunctionCardProps {
   source: string
   schemaProperties: Record<string, unknown>
   requiredFields: string[]
+  /**
+   * Optional example payloads surfaced as clickable presets in the Test tab.
+   * Normalised from JSON-Schema `examples` / `x-testExamples` in the editor hook.
+   */
+  examples?: Array<{ name: string; description?: string; payload: Record<string, unknown> }>
   payload: Record<string, unknown>
   onPayloadChange: (payload: Record<string, unknown>) => void
   onPayloadFieldChange: (key: string, value: unknown) => void
@@ -52,6 +102,7 @@ export const TestFunctionCard: React.FC<TestFunctionCardProps> = ({
   source,
   schemaProperties,
   requiredFields,
+  examples,
   payload,
   onPayloadChange,
   onPayloadFieldChange,
@@ -72,6 +123,12 @@ export const TestFunctionCard: React.FC<TestFunctionCardProps> = ({
   const hasSchemaFields = Object.keys(schemaProperties || {}).length > 0
   const [hasCopiedResult, setHasCopiedResult] = React.useState(false)
   const [hasCopiedLogs, setHasCopiedLogs] = React.useState(false)
+  /** Draft text for non–string-array JSON Schema `array` fields while the JSON is temporarily invalid. */
+  const [genericArrayJsonDraft, setGenericArrayJsonDraft] = React.useState<Record<string, string>>({})
+
+  React.useEffect(() => {
+    setGenericArrayJsonDraft({})
+  }, [schemaProperties])
   const logsText = React.useMemo(() => {
     const logs = Array.isArray(testLogs) ? testLogs : []
     return logs
@@ -169,12 +226,16 @@ export const TestFunctionCard: React.FC<TestFunctionCardProps> = ({
         <div>
           <Label className="gba:text-sm">Test-only config overrides</Label>
           <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-            Plaintext merged after stored credentials resolve for this run only. Nothing here is saved with the function.
+            Plaintext merged after stored credentials resolve for this run only. Nothing here is saved with the
+            function.
           </p>
         </div>
         <div className="gba:space-y-2">
           {safeOverrideRows.map((kv, idx) => (
-            <div key={`to-${idx}`} className="gba:grid gba:grid-cols-1 gba:gap-2 gba:sm:grid-cols-[1fr_1fr_auto] gba:items-end">
+            <div
+              key={`to-${idx}`}
+              className="gba:grid gba:grid-cols-1 gba:gap-2 gba:sm:grid-cols-[1fr_1fr_auto] gba:items-end"
+            >
               <div className="gba:space-y-1">
                 <Label className="gba:text-xs gba:text-muted-foreground">Key</Label>
                 <Input
@@ -241,6 +302,46 @@ export const TestFunctionCard: React.FC<TestFunctionCardProps> = ({
         </Button>
       </div>
 
+      {examples && examples.length > 0 ? (
+        <div
+          className="gba:rounded-xl gba:border gba:border-border gba:bg-muted/10 gba:p-4 gba:space-y-3"
+          data-testid={`${testId}-examples`}
+        >
+          <div>
+            <Label className="gba:text-sm">Example payloads</Label>
+            <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+              Click an example to load it into the form / JSON below. Edit as needed before running.
+            </p>
+          </div>
+          <div className="gba:flex gba:flex-wrap gba:gap-2">
+            {examples.map((ex, idx) => (
+              <Button
+                key={`${testId}-example-${idx}`}
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onPayloadChange({ ...ex.payload })}
+                title={ex.description || undefined}
+                data-testid={`${testId}-example-${idx}`}
+              >
+                {ex.name}
+              </Button>
+            ))}
+          </div>
+          {examples.some(e => e.description) ? (
+            <ul className="gba:text-xs gba:text-muted-foreground gba:space-y-1 gba:pl-4 gba:list-disc">
+              {examples.map((ex, idx) =>
+                ex.description ? (
+                  <li key={`${testId}-example-desc-${idx}`}>
+                    <span className="gba:font-medium">{ex.name}:</span> {ex.description}
+                  </li>
+                ) : null
+              )}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
       {hasSchemaFields ? (
         <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:lg:grid-cols-2">
           <div className="gba:space-y-4">
@@ -302,6 +403,50 @@ export const TestFunctionCard: React.FC<TestFunctionCardProps> = ({
                           )
                         }
                         placeholder={description || `Enter ${key}`}
+                        data-testid={`${testId}-field-${key}`}
+                      />
+                    ) : propType === 'array' && arrayItemsAreStrings(propObj) ? (
+                      <Textarea
+                        id={`${testId}-field-${key}`}
+                        rows={4}
+                        className="gba:font-mono gba:text-sm"
+                        value={stringArrayFieldLines(payload[key], defaultValue)}
+                        onChange={e => onPayloadFieldChange(key, parseStringArrayInput(e.target.value))}
+                        placeholder={description || 'One value per line, or comma-separated'}
+                        data-testid={`${testId}-field-${key}`}
+                      />
+                    ) : propType === 'array' ? (
+                      <Textarea
+                        id={`${testId}-field-${key}`}
+                        rows={6}
+                        className="gba:font-mono gba:text-sm"
+                        value={
+                          genericArrayJsonDraft[key] !== undefined
+                            ? genericArrayJsonDraft[key]
+                            : Array.isArray(payload[key])
+                              ? JSON.stringify(payload[key], null, 2)
+                              : defaultValue !== undefined && Array.isArray(defaultValue)
+                                ? JSON.stringify(defaultValue, null, 2)
+                                : '[]'
+                        }
+                        onChange={e => {
+                          const t = e.target.value
+                          setGenericArrayJsonDraft(prev => ({ ...prev, [key]: t }))
+                          try {
+                            const parsed = JSON.parse(t.trim() === '' ? '[]' : t)
+                            if (Array.isArray(parsed)) {
+                              onPayloadFieldChange(key, parsed)
+                              setGenericArrayJsonDraft(prev => {
+                                const next = { ...prev }
+                                delete next[key]
+                                return next
+                              })
+                            }
+                          } catch {
+                            /* keep draft until JSON becomes valid */
+                          }
+                        }}
+                        placeholder='JSON array, e.g. [1, 2] or [{"id": "a"}]'
                         data-testid={`${testId}-field-${key}`}
                       />
                     ) : (

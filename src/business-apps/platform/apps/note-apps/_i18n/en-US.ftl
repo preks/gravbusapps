@@ -501,7 +501,7 @@ trashed-readonly-deleting = Deleting...
 
 # Tree sidebar
 tree-label = Notes
-tree-empty = No notes in tree
+tree-empty = No notes yet
 tree-drag-hint = Drag to reorder or nest notes
 tree-drop-inside = Drop inside
 tree-drop-after = Drop after

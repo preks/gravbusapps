@@ -1,5 +1,5 @@
 connect-page-title = NEWWORK CONNECT
-connect-page-description = Verwalten Sie AnyPoint-, DataBridge- und MCP-Verbindungen zentral an einem Ort und verwenden Sie sie in Task Experts, Tools, Funktionen und Importen wieder.
+connect-page-description = Verwalten Sie AnyPoint-, DataBridge- und MCP-Verbindungen zentral an einem Ort und verwenden Sie sie in Agenten, Tools, Funktionen und Importen wieder.
 connect-summary-title = Verbindungsuebersicht
 connect-summary-anypoint = AnyPoint: { $count }
 connect-summary-data-bridge = DataBridge: { $count }
@@ -154,7 +154,7 @@ connect-field-jira-api-token-label = Jira API-Token
 connect-field-google-maps-api-key-label = Google Maps API-Schluessel
 connect-consumer-types-label = Wo kann diese Verbindung verwendet werden?
 connect-consumer-mcp-tool = MCP-Tools (Tool-Editor)
-connect-consumer-task-expert = Task-Experten / KI-Agenten
+connect-consumer-task-expert = Enterprise Agents
 connect-consumer-function = Funktionen
 connect-consumer-board-import = Board-Apps (Datenimport)
 connect-consumer-document-import = Dokumenten-Apps (Dateiimport)

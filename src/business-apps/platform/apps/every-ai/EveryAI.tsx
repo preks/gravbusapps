@@ -45,7 +45,7 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
  * Inner component that uses the VoiceFormContext
  */
 const EveryAIInner: React.FC<EveryAIProps> = props => {
-  const { accessToken, className, userInfo, isActive = true, compactSuggestions = false } = props
+  const { accessToken, className, userInfo, isActive = true, compactSuggestions = false, additionalData } = props
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isSpeechMode, setIsSpeechMode] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
@@ -550,12 +550,21 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   // Mobile webview fix: the webview viewport can be wider than the device
   // screen (e.g. 671px vs 430px), causing content to be clipped on the right.
   // Constrain this component to the screen width when a mismatch is detected.
+  //
+  // IMPORTANT: gate this behind the explicit `__mobile` flag (set by
+  // MobileWebviewsClient). On desktop, browser zoom-out (Cmd+-) inflates
+  // `window.innerWidth` while `screen.width` stays constant, so the ratio
+  // check would falsely fire on a re-mount (e.g. closing + reopening the
+  // global sidepanel) and pin the component to `screen.width` (~1440px)
+  // inside a ~450px sidebar, clipping the chat off-screen.
+  const isEmbeddedMobile = additionalData?.__mobile === true
   const [webviewMaxWidth, setWebviewMaxWidth] = useState<number | undefined>(undefined)
   useEffect(() => {
+    if (!isEmbeddedMobile) return
     if (typeof screen !== 'undefined' && window.innerWidth > screen.width * 1.1) {
       setWebviewMaxWidth(screen.width)
     }
-  }, [])
+  }, [isEmbeddedMobile])
 
   return (
     <div

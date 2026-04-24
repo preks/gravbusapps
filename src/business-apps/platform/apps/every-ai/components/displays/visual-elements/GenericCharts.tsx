@@ -20,6 +20,8 @@ import {
 import type { AreaChartData, LineChartData, PieChartData, StackedBarChartData } from '../../../types/models'
 import { chartColorAt } from './chartPalette'
 
+const CHART_DOT_COLOR = 'var(--nw-foreground)'
+
 function mergeLineSeriesForRecharts(series: LineChartData['series']) {
   const byX = new Map<string, Record<string, number | string>>()
   for (const s of series) {
@@ -63,7 +65,7 @@ export const LineChartDisplay: React.FC<{ data: LineChartData }> = ({ data }) =>
       <CardContent className="gba:p-4">
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-border)" />
             <XAxis dataKey="x" name={data.xAxis?.label ?? ''} tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip formatter={(v: number, name: string) => [formatTooltipValue(v, data.yAxis?.valueFormat), name]} />
@@ -73,10 +75,13 @@ export const LineChartDisplay: React.FC<{ data: LineChartData }> = ({ data }) =>
                 key={s.name}
                 type="monotone"
                 dataKey={s.name}
+                connectNulls={true}
                 stroke={colors[i] ?? chartColorAt(i, s.color ?? null)}
                 strokeWidth={2}
-                dot={{ r: 3 }}
-                activeDot={{ r: 5 }}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                dot={{ r: 3, fill: CHART_DOT_COLOR, stroke: CHART_DOT_COLOR }}
+                activeDot={{ r: 5, fill: CHART_DOT_COLOR, stroke: CHART_DOT_COLOR }}
               />
             ))}
           </LineChart>
@@ -104,7 +109,7 @@ export const AreaChartDisplay: React.FC<{ data: AreaChartData }> = ({ data }) =>
       <CardContent className="gba:p-4">
         <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-border)" />
             <XAxis dataKey="x" tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip formatter={(v: number, name: string) => [formatTooltipValue(v, data.yAxis?.valueFormat), name]} />
@@ -162,7 +167,7 @@ export const StackedBarChartDisplay: React.FC<{ data: StackedBarChartData }> = (
             data={rows}
             margin={{ top: 8, right: 16, left: layout === 'vertical' ? 48 : 8, bottom: 8 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-border)" />
             {layout === 'horizontal' ? (
               <>
                 <XAxis dataKey="category" tick={{ fontSize: 12 }} />

@@ -1,18 +1,12 @@
-import React, { useState } from 'react'
-import { AiButton, Textarea } from '@newwork/nw-design-system'
+import React, { useMemo, useState } from 'react'
+import { AiButton, Textarea, useTranslation } from '@newwork/nw-design-system'
 import { Sparkles, ArrowRight, Lightbulb } from 'lucide-react'
+import translations from '../../../_i18n'
 
 export interface AIQuickStartProps {
   onSubmit?: (prompt: string) => void
   'data-testid'?: string
 }
-
-const EXAMPLE_PROMPTS = [
-  'Create a lead management screen with filters and charts',
-  'Build a flow for expense approval with 3 levels',
-  'Design a task expert that helps with customer onboarding',
-  'Create a serverless function for data validation'
-]
 
 /**
  * AIQuickStart - Natural language input for AI-powered creation
@@ -22,6 +16,16 @@ export const AIQuickStart: React.FC<AIQuickStartProps> = ({
   onSubmit,
   'data-testid': testId = 'create-workspace-ai-quickstart'
 }) => {
+  const { t } = useTranslation(translations)
+  const EXAMPLE_PROMPTS = useMemo(
+    () => [
+      'Create a lead management screen with filters and charts',
+      'Build a flow for expense approval with 3 levels',
+      t('quickstart-example-agent'),
+      'Create a serverless function for data validation'
+    ],
+    [t]
+  )
   const [prompt, setPrompt] = useState('')
   const [isFocused, setIsFocused] = useState(false)
 

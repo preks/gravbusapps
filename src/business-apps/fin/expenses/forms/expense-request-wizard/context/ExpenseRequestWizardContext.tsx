@@ -50,13 +50,15 @@ export interface ExpenseRequestWizardContextProps {
   ) => boolean
   showExpenseItem: boolean
   setShowExpenseItem: (show: boolean) => void
-  expenseItemParams: { expenseRequestId?: string; itemCurrency?: string; useSingleCurrency?: boolean }
+  expenseItemParams: { expenseRequestId?: string; itemCurrency?: string; useSingleCurrency?: boolean; psi_taskPayload?: { psi_initialParameters?: { expenseId?: string } } }
   setExpenseItemParams: (params: {
     expenseRequestId?: string
     itemCurrency?: string
     useSingleCurrency?: boolean
+    psi_taskPayload?: { psi_initialParameters?: { expenseId?: string } }
   }) => void
   showCreateItem: () => void
+  showEditItem: (itemId: string) => void
   hideExpenseItem: (shouldRefetch?: boolean) => void
   refetchExpenseData: () => Promise<void>
   deletedItems: any[]
@@ -144,6 +146,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     expenseRequestId?: string
     itemCurrency?: string
     useSingleCurrency?: boolean
+    psi_taskPayload?: { psi_initialParameters?: { expenseId?: string } }
   }>({})
   // State for deleted items that need to persist across navigation
   const [deletedItems, setDeletedItems] = useState<any[]>([])
@@ -504,6 +507,19 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     })()
   }
 
+  const showEditItem = (itemId: string) => {
+    if (!employeeRuleId) return
+    setExpenseItemParams({
+      expenseRequestId: expenseRequestData.ExpenseRequestByPk.id,
+      psi_taskPayload: {
+        psi_initialParameters: {
+          expenseId: itemId
+        }
+      }
+    })
+    setShowExpenseItem(true)
+  }
+
   // Function to hide expense item component and return to wizard
   // Optional parameter to refetch expense request data when returning from successful submission
   const hideExpenseItem = async (shouldRefetch: boolean = false) => {
@@ -539,6 +555,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       expenseItemParams,
       setExpenseItemParams,
       showCreateItem,
+      showEditItem,
       hideExpenseItem,
       refetchExpenseData: fetchExpenseData,
       deletedItems,

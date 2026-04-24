@@ -238,14 +238,14 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     }
 
     // Sidepanel opens on EveryAI by default (most common entry point from the
-    // shell icon), fullscreen opens on Dashboard. All 5 tabs are available in
-    // both modes — the only difference is the initial tab.
-    if (isInSidepanel && isChatAIEnabled) {
-      return 'everyai'
+    // shell icon). Dashboard is reserved for the fullscreen EveryOne page and
+    // is never used as a sidepanel default.
+    if (isInSidepanel) {
+      return isChatAIEnabled ? 'everyai' : isTeamChatEnabled ? 'chat' : null
     }
 
     return 'dashboard'
-  }, [isChatAIEnabled, isChatShellBlocked, isInSidepanel])
+  }, [isChatAIEnabled, isChatShellBlocked, isInSidepanel, isTeamChatEnabled])
 
   const resolveAllowedTab = useCallback(
     (requestedTab: TabValue): ResolvedTabValue => {
@@ -253,10 +253,10 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         return null
       }
 
-      // Dashboard is always available — it's the EveryOne overview and the
-      // sidepanel mount benefits from it just as much as the fullscreen page.
+      // Dashboard is only available on the fullscreen EveryOne page. If the
+      // sidepanel asks for it, fall back to its safe default (EveryAI).
       if (requestedTab === 'dashboard') {
-        return 'dashboard'
+        return isInSidepanel ? getSafeDefaultTab() : 'dashboard'
       }
 
       // EveryAI is available wherever the AI feature is enabled, regardless of
@@ -276,7 +276,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
 
       return getSafeDefaultTab()
     },
-    [getSafeDefaultTab, isChatAIEnabled, isChatShellBlocked, isTeamChatEnabled]
+    [getSafeDefaultTab, isChatAIEnabled, isChatShellBlocked, isInSidepanel, isTeamChatEnabled]
   )
 
   const [chatInitState] = useState<{
@@ -526,13 +526,15 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
           className={`gba:flex gba:bg-card gba:overflow-x-auto gba:scrollbar-hide ${isCompactMode ? 'gba:justify-start gba:px-2 gba:py-1' : 'gba:justify-start gba:px-6 gba:py-2'}`}
         >
           <TabSwitchList className="gba:overflow-x-auto gba:scrollbar-hide">
-            <TabSwitchTrigger
-              value="dashboard"
-              startIcon={<LayoutDashboard className="gba:h-4 gba:w-4" />}
-              data-testid={`${prefixDataTestId}-dashboard-tab`}
-            >
-              {t('chat-tab-dashboard')}
-            </TabSwitchTrigger>
+            {!isInSidepanel && (
+              <TabSwitchTrigger
+                value="dashboard"
+                startIcon={<LayoutDashboard className="gba:h-4 gba:w-4" />}
+                data-testid={`${prefixDataTestId}-dashboard-tab`}
+              >
+                {t('chat-tab-dashboard')}
+              </TabSwitchTrigger>
+            )}
             {isChatAIEnabled && (
               <TabSwitchTrigger
                 value="everyai"
@@ -579,117 +581,121 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
           </TabSwitchList>
         </div>
 
-        {/* Use forceMount to keep all tabs mounted for call persistence */}
-        <TabSwitchContent
-          value="dashboard"
-          forceMount
-          className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'dashboard' ? 'gba:hidden' : ''}`}
-        >
-          <EveryOneDashboard
-            accessToken={accessToken}
-            userInfo={userInfo as { displayName?: string; firstName?: string; lastName?: string; email?: string }}
-            isActive={activeTab === 'dashboard'}
-            presenceMap={presenceMap}
-            onOpenChat={userId => {
-              const nextTab = resolveAllowedTab('chat')
-              setActiveTab(nextTab)
+        {/* Use forceMount to keep all tabs mounted for call persistence.
+            Dashboard is only rendered in fullscreen — the sidepanel intentionally
+            omits it so users always land on EveryAI/Chat/Calendar/Reminders there. */}
+        {!isInSidepanel && (
+          <TabSwitchContent
+            value="dashboard"
+            forceMount
+            className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'dashboard' ? 'gba:hidden' : ''}`}
+          >
+            <EveryOneDashboard
+              accessToken={accessToken}
+              userInfo={userInfo as { displayName?: string; firstName?: string; lastName?: string; email?: string }}
+              isActive={activeTab === 'dashboard'}
+              presenceMap={presenceMap}
+              onOpenChat={userId => {
+                const nextTab = resolveAllowedTab('chat')
+                setActiveTab(nextTab)
 
-              if (nextTab !== 'chat') {
-                updateTabUrl(nextTab)
-                return
-              }
+                if (nextTab !== 'chat') {
+                  updateTabUrl(nextTab)
+                  return
+                }
 
-              setTimeout(() => {
-                globalThis.window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: { userId } }))
-              }, 100)
-            }}
-            onStartCall={(userId, displayName, callType, avatarUrl) => {
-              // Do not switch to Chat tab; PreCall dialog is global and works from any tab
-              setTimeout(() => {
-                globalThis.window.dispatchEvent(
-                  new CustomEvent('chat:start-call-with-user', {
-                    detail: { userId, displayName, avatarUrl, callType }
-                  })
-                )
-              }, 100)
-            }}
-            onJoinMeeting={async meeting => {
-              const conversationId = meeting.conversationId ?? meeting.id
-              const callId = meeting.conversationId || meeting.id
-              const isStarting = meeting.isOrganizer && !activeCalls[callId]
-              // Only pass participants when starting (organizer, no active call) so invites are sent; when joining existing call, pass empty
-              let participants: CallParticipant[] = []
-              if (isStarting && calendarApiClient) {
-                try {
-                  const { meeting: fullMeeting } = await calendarApiClient.getMeeting<{ meeting: any }>(meeting.id)
-                  const list: CallParticipant[] =
-                    fullMeeting.participants
-                      ?.filter((p: MeetingParticipantLike) => p.status !== InvitationStatus.DECLINED)
-                      .map((p: MeetingParticipantLike) => ({
-                        id: p.userId,
-                        odId: p.userId,
+                setTimeout(() => {
+                  globalThis.window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: { userId } }))
+                }, 100)
+              }}
+              onStartCall={(userId, displayName, callType, avatarUrl) => {
+                // Do not switch to Chat tab; PreCall dialog is global and works from any tab
+                setTimeout(() => {
+                  globalThis.window.dispatchEvent(
+                    new CustomEvent('chat:start-call-with-user', {
+                      detail: { userId, displayName, avatarUrl, callType }
+                    })
+                  )
+                }, 100)
+              }}
+              onJoinMeeting={async meeting => {
+                const conversationId = meeting.conversationId ?? meeting.id
+                const callId = meeting.conversationId || meeting.id
+                const isStarting = meeting.isOrganizer && !activeCalls[callId]
+                // Only pass participants when starting (organizer, no active call) so invites are sent; when joining existing call, pass empty
+                let participants: CallParticipant[] = []
+                if (isStarting && calendarApiClient) {
+                  try {
+                    const { meeting: fullMeeting } = await calendarApiClient.getMeeting<{ meeting: any }>(meeting.id)
+                    const list: CallParticipant[] =
+                      fullMeeting.participants
+                        ?.filter((p: MeetingParticipantLike) => p.status !== InvitationStatus.DECLINED)
+                        .map((p: MeetingParticipantLike) => ({
+                          id: p.userId,
+                          odId: p.userId,
+                          odName:
+                            p.user?.displayName ||
+                            `${p.user?.firstName ?? ''} ${p.user?.lastName ?? ''}`.trim() ||
+                            p.user?.email ||
+                            'Unknown',
+                          avatarUrl: p.user?.avatarUrl
+                        })) ?? []
+                    if (fullMeeting.organizer && !list.some(p => p.id === fullMeeting.organizer?.id)) {
+                      list.push({
+                        id: fullMeeting.organizer.id,
+                        odId: fullMeeting.organizer.id,
                         odName:
-                          p.user?.displayName ||
-                          `${p.user?.firstName ?? ''} ${p.user?.lastName ?? ''}`.trim() ||
-                          p.user?.email ||
+                          fullMeeting.organizer.displayName ||
+                          `${fullMeeting.organizer.firstName ?? ''} ${fullMeeting.organizer.lastName ?? ''}`.trim() ||
+                          fullMeeting.organizer.email ||
                           'Unknown',
-                        avatarUrl: p.user?.avatarUrl
-                      })) ?? []
-                  if (fullMeeting.organizer && !list.some(p => p.id === fullMeeting.organizer?.id)) {
-                    list.push({
-                      id: fullMeeting.organizer.id,
-                      odId: fullMeeting.organizer.id,
-                      odName:
-                        fullMeeting.organizer.displayName ||
-                        `${fullMeeting.organizer.firstName ?? ''} ${fullMeeting.organizer.lastName ?? ''}`.trim() ||
-                        fullMeeting.organizer.email ||
-                        'Unknown',
-                      avatarUrl: fullMeeting.organizer.avatarUrl
-                    })
-                  }
-                  participants = list
-                } catch {
-                  participants =
-                    meeting.participants
-                      ?.filter(p => p.status !== InvitationStatus.DECLINED)
-                      .map(p => ({
-                        id: p.id,
-                        odId: p.id,
+                        avatarUrl: fullMeeting.organizer.avatarUrl
+                      })
+                    }
+                    participants = list
+                  } catch {
+                    participants =
+                      meeting.participants
+                        ?.filter(p => p.status !== InvitationStatus.DECLINED)
+                        .map(p => ({
+                          id: p.id,
+                          odId: p.id,
+                          odName:
+                            p.displayName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.email || 'Unknown',
+                          avatarUrl: p.avatarUrl
+                        })) ?? []
+                    if (meeting.organizer && !participants.some(p => p.id === meeting.organizer?.id)) {
+                      participants.push({
+                        id: meeting.organizer.id,
+                        odId: meeting.organizer.id,
                         odName:
-                          p.displayName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.email || 'Unknown',
-                        avatarUrl: p.avatarUrl
-                      })) ?? []
-                  if (meeting.organizer && !participants.some(p => p.id === meeting.organizer?.id)) {
-                    participants.push({
-                      id: meeting.organizer.id,
-                      odId: meeting.organizer.id,
-                      odName:
-                        meeting.organizer.displayName ||
-                        `${meeting.organizer.firstName || ''} ${meeting.organizer.lastName || ''}`.trim() ||
-                        meeting.organizer.email ||
-                        'Unknown',
-                      avatarUrl: meeting.organizer.avatarUrl
-                    })
+                          meeting.organizer.displayName ||
+                          `${meeting.organizer.firstName || ''} ${meeting.organizer.lastName || ''}`.trim() ||
+                          meeting.organizer.email ||
+                          'Unknown',
+                        avatarUrl: meeting.organizer.avatarUrl
+                      })
+                    }
                   }
                 }
-              }
-              // Do not switch to Chat tab; PreCall dialog is global and works from any tab
-              setTimeout(() => {
-                globalThis.window.dispatchEvent(
-                  new CustomEvent('chat:join-meeting', {
-                    detail: {
-                      meetingId: meeting.id,
-                      conversationId,
-                      title: meeting.title,
-                      participants
-                    }
-                  })
-                )
-              }, 100)
-            }}
-            data-testid={`${prefixDataTestId}-dashboard`}
-          />
-        </TabSwitchContent>
+                // Do not switch to Chat tab; PreCall dialog is global and works from any tab
+                setTimeout(() => {
+                  globalThis.window.dispatchEvent(
+                    new CustomEvent('chat:join-meeting', {
+                      detail: {
+                        meetingId: meeting.id,
+                        conversationId,
+                        title: meeting.title,
+                        participants
+                      }
+                    })
+                  )
+                }, 100)
+              }}
+              data-testid={`${prefixDataTestId}-dashboard`}
+            />
+          </TabSwitchContent>
+        )}
 
         {isChatAIEnabled && (
           <TabSwitchContent

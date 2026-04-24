@@ -7,10 +7,12 @@ import {
   DialogFooter,
   Button,
   Textarea,
-  Label
+  Label,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import translations from '../_i18n'
 
 export interface TaskExpertTestPanelProps extends BusinessAppContextProps {
   open: boolean
@@ -21,6 +23,7 @@ export interface TaskExpertTestPanelProps extends BusinessAppContextProps {
 export const TaskExpertTestPanel: React.FC<TaskExpertTestPanelProps> = props => {
   const { open, onClose, promptId } = props
   const client = usePromptManagerClient(props.accessToken)
+  const { t } = useTranslation(translations)
   const [systemParams, setSystemParams] = useState<string>('{}')
   const [userParams, setUserParams] = useState<string>('{}')
   const [loading, setLoading] = useState(false)
@@ -50,7 +53,7 @@ export const TaskExpertTestPanel: React.FC<TaskExpertTestPanelProps> = props => 
     <Dialog open={open} onOpenChange={v => (!v ? onClose() : undefined)}>
       <DialogContent data-testid="task-expert-test-dialog">
         <DialogHeader>
-          <DialogTitle>Test AI Task Expert</DialogTitle>
+          <DialogTitle>{t('test-dialog-title')}</DialogTitle>
         </DialogHeader>
         <div className="gba:space-y-3">
           {error && (

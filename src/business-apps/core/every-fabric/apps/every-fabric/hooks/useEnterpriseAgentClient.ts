@@ -2,10 +2,28 @@ import { useCallback, useMemo } from 'react'
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { ResponseType } from '@/common/network/rest/RestClient'
+import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
 import type { DeepAgentSession, SessionConfig, StartSessionResponse } from '../types/enterpriseAgent'
 import type { ArtifactFile } from '../types/fabric'
 import { resolveRendererType } from '../types/fabric'
 import type { ActiveSessionsListResponse, ActiveSessionsSummaryResponse } from '../types/activeSession'
+
+interface SessionCacheEntry {
+  etag: string
+  payload: DeepAgentSession
+}
+
+/**
+ * Per-session ETag cache shared across every `useEnterpriseAgentClient`
+ * invocation. The FE polls `GET /deep-agent/sessions/{id}` multiple times per
+ * turn (fallback watchdog + terminal refetches + SSE reconnect), and the BE
+ * now supports 304 Not Modified. Caching the last-seen payload lets us short
+ * circuit those polls into a ~200 byte conditional request.
+ */
+const SESSION_ETAG_CACHE = new Map<string, SessionCacheEntry>()
+
+const resolvePromptManagerBase = (): string =>
+  PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
 
 export const useEnterpriseAgentClient = (accessToken: string) => {
   const client = usePromptManagerClient(accessToken)
@@ -17,20 +35,68 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       activeExternalConnectionIds?: string[],
       activeEnterpriseSkillId?: string,
       fallbackSkillId?: string
-    ) =>
-      client.post<StartSessionResponse>('/deep-agent/sessions', {
+    ) => {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+      return client.post<StartSessionResponse>('/deep-agent/sessions', {
         task,
         config,
+        timezone,
         active_external_connection_ids: activeExternalConnectionIds,
         active_enterprise_skill_id: activeEnterpriseSkillId,
         fallback_skill_id: fallbackSkillId
-      }),
+      })
+    },
     [client]
   )
 
   const getSession = useCallback(
-    (sessionId: string) => client.get<DeepAgentSession>(`/deep-agent/sessions/${sessionId}`),
-    [client]
+    async (sessionId: string): Promise<DeepAgentSession> => {
+      const cached = SESSION_ETAG_CACHE.get(sessionId)
+      const base = resolvePromptManagerBase()
+      const headers: Record<string, string> = {
+        Accept: 'application/json'
+      }
+      if (accessToken) {
+        headers.Authorization = setAccessTokenToAuthorizationHeader(accessToken)
+      }
+      if (cached?.etag) {
+        headers['If-None-Match'] = cached.etag
+      }
+      let response: Response
+      try {
+        response = await fetch(`${base}/deep-agent/sessions/${sessionId}`, {
+          method: 'GET',
+          headers,
+          credentials: 'same-origin',
+          mode: 'cors'
+        })
+      } catch {
+        // Network failure: fall back to RestClient so the existing retry /
+        // error-shape logic still applies.
+        return client.get<DeepAgentSession>(`/deep-agent/sessions/${sessionId}`)
+      }
+
+      if (response.status === 304 && cached) {
+        return cached.payload
+      }
+
+      if (!response.ok) {
+        // Delegate to RestClient to produce a consistent error object and
+        // drop any stale cache so we re-hydrate cleanly on recovery.
+        SESSION_ETAG_CACHE.delete(sessionId)
+        return client.get<DeepAgentSession>(`/deep-agent/sessions/${sessionId}`)
+      }
+
+      const payload = (await response.json()) as DeepAgentSession
+      const etag = response.headers.get('ETag') ?? response.headers.get('etag')
+      if (etag) {
+        SESSION_ETAG_CACHE.set(sessionId, { etag, payload })
+      } else {
+        SESSION_ETAG_CACHE.delete(sessionId)
+      }
+      return payload
+    },
+    [client, accessToken]
   )
 
   const getSessions = useCallback(

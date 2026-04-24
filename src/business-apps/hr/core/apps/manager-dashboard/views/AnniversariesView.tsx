@@ -19,6 +19,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TeamAnniversary } from '../hooks/useTeamAnniversaries'
 import { useChatClient } from '@/common/network/chat/useChatClient'
 import { toast } from 'sonner'
+import { PrefilledMessageDialog } from '../components/shared/PrefilledMessageDialog'
 
 export interface AnniversariesViewProps {
   upcomingAnniversaries: TeamAnniversary[]
@@ -53,11 +54,12 @@ export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
   onNavigateToEmployee
 }) => {
   const [sendingToUserId, setSendingToUserId] = useState<string | null>(null)
+  const [messageDraft, setMessageDraft] = useState<{ person: TeamAnniversary; message: string } | null>(null)
 
   const chatClient = useChatClient(accessToken)
 
   const sendAnniversaryMessage = useCallback(
-    async (person: TeamAnniversary) => {
+    async (person: TeamAnniversary, message: string) => {
       const recipientUserId = person.userId || person.id
 
       if (!recipientUserId) {
@@ -69,18 +71,13 @@ export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
       try {
         const currentUser = await chatClient.getCurrentUser()
         const conversation = await chatClient.getOrCreateDirectConversation(recipientUserId)
-        await chatClient.sendMessage(
-          conversation.id,
-          buildAnniversaryMessage(
-            person.firstName,
-            person.yearsOfService,
-            `${person.id}-${person.yearsOfService}-${person.hireDate || ''}`
-          ),
-          currentUser.id,
-          undefined,
-          { source: 'manager-dashboard', type: 'anniversary-greeting', aiCustomized: true }
-        )
+        await chatClient.sendMessage(conversation.id, message, currentUser.id, undefined, {
+          source: 'manager-dashboard',
+          type: 'anniversary-greeting',
+          aiCustomized: true
+        })
         toast.success(`Message sent to ${person.firstName} ${person.lastName}`)
+        setMessageDraft(null)
       } catch {
         console.error('Failed to send anniversary chat message')
         toast.error('Failed to send message')
@@ -125,10 +122,13 @@ export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
 
       {!loadingAnniversaries && upcomingAnniversaries.length === 0 && (
         <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel(
-            'master-data:hr.manager_dashboard.no_upcoming_anniversaries',
-            'No upcoming work anniversaries in the next 30 days'
-          )}
+          <p>
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.manager_dashboard.no_upcoming_anniversaries',
+              'No upcoming work anniversaries in the next 30 days'
+            )}
+          </p>
+          <p className="gba:mt-2 gba:text-sm">Consider checking career development plans during this period.</p>
         </div>
       )}
 
@@ -190,7 +190,14 @@ export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
                         size="sm"
                         onClick={event => {
                           event.stopPropagation()
-                          void sendAnniversaryMessage(person)
+                          setMessageDraft({
+                            person,
+                            message: buildAnniversaryMessage(
+                              person.firstName,
+                              person.yearsOfService,
+                              `${person.id}-${person.yearsOfService}-${person.hireDate || ''}`
+                            )
+                          })
                         }}
                         disabled={isSending}
                         data-testid={`manager-dashboard-anniversary-chat-${person.id}`}
@@ -211,6 +218,25 @@ export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
           </Table>
         </div>
       )}
+
+      <PrefilledMessageDialog
+        open={Boolean(messageDraft)}
+        onOpenChange={open => {
+          if (!open) {
+            setMessageDraft(null)
+          }
+        }}
+        title="Send anniversary message"
+        description="Review and edit the message before sending."
+        recipientName={messageDraft?.person.fullName || ''}
+        defaultMessage={messageDraft?.message || ''}
+        confirmLabel="Send message"
+        sending={sendingToUserId === (messageDraft?.person.userId || messageDraft?.person.id)}
+        onConfirm={async message => {
+          if (!messageDraft) return
+          await sendAnniversaryMessage(messageDraft.person, message)
+        }}
+      />
     </div>
   )
 }

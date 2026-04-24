@@ -135,6 +135,7 @@ export enum FlowContextName {
   customerDocumentCreate = 'customerDocumentCreate',
   customerDocumentUpdate = 'customerDocumentUpdate',
   customerDocumentDelete = 'customerDocumentDelete',
+  customerFolderUpload = 'customerFolderUpload',
 
   customerTaskEntity = 'customerTaskEntity',
   customerTaskCreate = 'customerTaskCreate',
@@ -192,6 +193,7 @@ export enum FlowContextName {
   createInvestmentDocument = 'createInvestmentDocument',
   investmentDocumentUpdate = 'investmentDocumentUpdate',
   investmentDocumentDelete = 'investmentDocumentDelete',
+  investmentFolderUpload = 'investmentFolderUpload',
 
   /// Investments
   investmentCreate = 'investmentCreate', // TODO: Replace startProcess

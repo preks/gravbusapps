@@ -120,7 +120,6 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
             {/* Import in Progress Message */}
             {importStarted && (
               <Card variant="surface" className="gba:border-primary">
-
                 <CardContent className="gba:p-6">
                   <div className="gba:flex gba:flex-col gba:items-center gba:gap-4 gba:text-center">
                     <div className="gba:relative">
@@ -261,7 +260,7 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
                   </Card>
                 )}
 
-                {/* Import to CRM Button */}
+                {/* Import button (domain-neutral; submission strategy is injected by CRM/IRM wrapper) */}
                 <Button
                   onClick={handleImportToBackend}
                   disabled={isLoading}

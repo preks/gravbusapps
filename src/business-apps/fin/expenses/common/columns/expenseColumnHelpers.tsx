@@ -73,6 +73,8 @@ export interface DateColumnOptions {
    * When false (default), the first header click sorts ascending (same as currency columns).
    */
   sortDescFirst?: boolean
+  /** Set false for server-paginated or read-only tables where list sorting is not available. */
+  enableSorting?: boolean
 }
 
 export function createDateColumn<T extends object>(
@@ -91,7 +93,7 @@ export function createDateColumn<T extends object>(
     id,
     accessorFn,
     header,
-    enableSorting: true,
+    enableSorting: options?.enableSorting !== false,
     sortDescFirst: options?.sortDescFirst ?? false,
     size: 110,
     minSize: 90,
@@ -115,6 +117,13 @@ export interface EmployeeColumnOptions {
   notAvailableLabel?: NotAvailableFn
   /** When false (default), the first header click sorts ascending. */
   sortDescFirst?: boolean
+  /** Set false for server-paginated or read-only tables where list sorting is not available. */
+  enableSorting?: boolean
+  /**
+   * When false, shows the employee display name only (no Avatar).
+   * Default true for backoffice and other contexts that show photo/initials.
+   */
+  showEmployeeAvatar?: boolean
 }
 
 export function createEmployeeColumn<T extends object>(
@@ -125,11 +134,12 @@ export function createEmployeeColumn<T extends object>(
 ): ColumnDef<T> {
   const opts: EmployeeColumnOptions = typeof fourth === 'function' ? { notAvailableLabel: fourth } : (fourth ?? {})
   const emptyLabel = opts.notAvailableLabel ?? naLabel
+  const showEmployeeAvatar = opts.showEmployeeAvatar !== false
   return {
     id,
     accessorFn: getEmployee,
     header,
-    enableSorting: true,
+    enableSorting: opts.enableSorting !== false,
     sortDescFirst: opts.sortDescFirst ?? false,
     size: 200,
     minSize: 160,
@@ -139,8 +149,11 @@ export function createEmployeeColumn<T extends object>(
       if (!employee) {
         return <span className="gba:text-sm gba:text-muted-foreground">{emptyLabel()}</span>
       }
-      const imageUrl = employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined
       const displayName = employee.displayName ?? employee.fullName ?? emptyLabel()
+      if (!showEmployeeAvatar) {
+        return <span className="gba:font-medium gba:text-sm">{displayName}</span>
+      }
+      const imageUrl = employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined
       const initial = displayName.charAt(0).toUpperCase()
       return (
         <div className="gba:flex gba:items-center gba:gap-2">
@@ -165,6 +178,8 @@ export interface CurrencyColumnOptions<T> {
    * (TanStack otherwise uses desc-first for numeric accessors).
    */
   sortDescFirst?: boolean
+  /** Set false for server-paginated or read-only tables where list sorting is not available. */
+  enableSorting?: boolean
 }
 
 export function createCurrencyColumn<T extends object>(
@@ -179,7 +194,7 @@ export function createCurrencyColumn<T extends object>(
     id,
     accessorFn: getAmount,
     header,
-    enableSorting: true,
+    enableSorting: options?.enableSorting !== false,
     sortDescFirst: options?.sortDescFirst ?? false,
     size: options?.size ?? 130,
     minSize: options?.minSize ?? 100,
@@ -204,6 +219,8 @@ export interface StatusBadgeColumnOptions<T> {
   cellWrapperClassName?: string
   /** When false (default), the first header click sorts ascending. */
   sortDescFirst?: boolean
+  /** Set false for server-paginated or read-only tables where list sorting is not available. */
+  enableSorting?: boolean
 }
 
 export function createStatusBadgeColumn<T extends object>(
@@ -216,7 +233,7 @@ export function createStatusBadgeColumn<T extends object>(
     id,
     accessorFn: (row: T) => getStatusDisplay(row).label,
     header,
-    enableSorting: true,
+    enableSorting: options?.enableSorting !== false,
     sortDescFirst: options?.sortDescFirst ?? false,
     size: 150,
     minSize: 160,

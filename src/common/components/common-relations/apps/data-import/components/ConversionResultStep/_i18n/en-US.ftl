@@ -33,8 +33,8 @@ more-warnings-text = ... and { $count } more warnings
 all-fields-good-message = All fields have good coverage - ready to import!
 
 # Import Button
-import-button = Import { $count } { $entityType } to CRM
-importing-button = Importing to CRM...
+import-button = Import { $count } { $entityType }
+importing-button = Importing...
 
 # CSV Quality
 csv-quality-warning-title = Column Shift Detected

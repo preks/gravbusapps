@@ -94,6 +94,8 @@ import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/compon
 import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 // Services
 import { generateAppSchemaFromParsedFile, generateEmptyAppSchema } from './services/SchemaGenerator'
@@ -544,6 +546,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // Get current user ID
   const currentUserId = resolveCurrentUserId(userInfo)
   const flowTaskUserId = userInfo?.id || currentUserId
+  const previewFeature = useFeature<boolean>(Feature.Preview.Enabled.Key)
+  const previewEnabled = previewFeature === true
 
   // Ensure SpreadsheetApiService can authenticate in published screens (token might not be in localStorage)
   useEffect(() => {
@@ -615,10 +619,17 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     setCurrentView,
     activeSection,
     setActiveSection,
+    showSharedSection: previewEnabled,
     onLoadFailed: () => {
       toast.error(t('toast-spreadsheet-not-found'))
     }
   })
+
+  useEffect(() => {
+    if (!previewEnabled && activeSection === 'shared') {
+      setActiveSection('my-files')
+    }
+  }, [activeSection, previewEnabled])
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
   useEffect(() => {
@@ -1374,7 +1385,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         if (!newSheetId) return
 
         const targetSheet = refreshed?.sheets?.find(s => s.id === newSheetId)
-        if (targetSheet && (targetSheet.data?.length ?? 0) > 0) {
+        if (targetSheet) {
           return
         }
 
@@ -1401,7 +1412,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             onShare={isReadonlyTrashView ? undefined : () => handleShareApp(app.id)}
             onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
-            onAppRefreshNeeded={canEdit ? handleAppRefreshNeeded : undefined}
+            onAppRefreshNeeded={isReadonlyTrashView ? undefined : handleAppRefreshNeeded}
             onSheetUpdate={canEdit ? updateSheet : undefined}
             onSheetAdd={canEdit ? addSheet : undefined}
             onSheetDelete={canEdit ? deleteSheet : undefined}
@@ -1568,6 +1579,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             onSectionChange={s => setActiveSection(s as SidebarSection)}
             tabBadges={heroTabBadges}
             newButton={heroNewButton}
+            showSharedTab={previewEnabled}
             t={t}
             data-testid={`${testId}-hero`}
           />
@@ -1619,6 +1631,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           onSectionChange={s => setActiveSection(s)}
           tabBadges={heroTabBadges}
           newButton={heroNewButton}
+          showSharedTab={previewEnabled}
           t={t}
           data-testid={`${testId}-hero`}
         />
@@ -1953,7 +1966,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                               {t('action-sort-created')}
                               {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                             </div>
-                            <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">{t('table-rows')}</div>
                             <div className="gba:w-10 gba:flex-shrink-0" />
                           </div>
                         </div>
@@ -2109,11 +2121,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                   {formatDate(app.createdAt, t, locale)}
                                 </div>
 
-                                {/* Rows */}
-                                <div className="gba:w-20 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground gba:text-right">
-                                  {app.rowCount.toLocaleString()}
-                                </div>
-
                                 {/* Actions */}
                                 <div
                                   className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end"
@@ -2130,12 +2137,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                         <Play className="gba:w-4 gba:h-4 gba:mr-2" />
                                         {t('action-open')}
                                       </DropdownMenuItem>
-                                      {isOwner && (
-                                        <DropdownMenuItem onClick={() => handleShareApp(app.id)}>
-                                          <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                          {t('action-share')}
-                                        </DropdownMenuItem>
-                                      )}
                                       {isOwner && sharedWith.length > 0 && (
                                         <DropdownMenuItem onClick={() => handleManageShares(app.id)}>
                                           <Users className="gba:w-4 gba:h-4 gba:mr-2" />

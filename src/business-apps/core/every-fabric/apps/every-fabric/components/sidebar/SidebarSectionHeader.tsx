@@ -2,7 +2,7 @@ import { CaretRightIcon } from '@phosphor-icons/react'
 import { SIDEBAR_SECTION_LABEL_CLASS } from './sidebarLayout.constants'
 
 interface SidebarSectionHeaderProps {
-  label: string
+  label: React.ReactNode
   /** Optional badge rendered on the right (e.g. "3" for active count). */
   badge?: React.ReactNode
   /**

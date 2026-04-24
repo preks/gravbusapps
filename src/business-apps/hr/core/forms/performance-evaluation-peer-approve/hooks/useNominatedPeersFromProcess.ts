@@ -57,6 +57,8 @@ export function resolveProcessId(additionalData: Record<string, unknown> | undef
   return getProcessIdFromEndpoint(endpoint)
 }
 
+// NOTE: despite the misleading name, `psi_taskPayload.peerReviewerUserIds` actually contains
+// Employee ids (not user ids). Confirmed against the database.
 function payloadHasPeerIds(additionalData: Record<string, unknown> | undefined): boolean {
   const taskPayload = additionalData?.psi_taskPayload as Record<string, unknown> | undefined
   const ids = taskPayload?.peerReviewerUserIds

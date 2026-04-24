@@ -246,7 +246,8 @@ const convertFormFieldsToConfig = (formFields: any[], scope?: 'investment' | 're
           label: field.label,
           property: sanitizeProperty(field.property, field.type),
           required: field.required,
-          displayOrder: field.displayOrder
+          displayOrder: field.displayOrder,
+          ...(typeof field.report === 'boolean' ? { report: field.report } : {})
         })
       )
   }))

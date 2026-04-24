@@ -8,6 +8,8 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
+import { useInvestmentFolderTemplateNames } from '../hooks/useInvestmentFolderTemplateNames'
+import type { DocumentItem } from '@/components/document-section/types'
 
 interface InvestmentPortalDocumentsProps {
   investmentId: string
@@ -40,6 +42,55 @@ const InvestmentPortalDocuments: React.FC<InvestmentPortalDocumentsProps> = ({ i
 
   // REST client for document operations (IRM uses Kogito processes)
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
+
+  // Hide template-skeleton folders: a folder is hidden only when its name
+  // matches one of the configured folder-template names (fetched once per
+  // page session from the Investment* catalogs and cached at module level)
+  // AND its entire subtree contains no files. User-created folders, even
+  // empty ones, always remain visible because their names are not in the
+  // template list.
+  const { templateNames } = useInvestmentFolderTemplateNames(context.accessToken)
+
+  const visibleDocuments = useMemo<DocumentItem[]>(() => {
+    if (!documents || documents.length === 0) return documents ?? []
+    if (templateNames.size === 0) return documents
+
+    const childrenByParent = new Map<string, DocumentItem[]>()
+    for (const doc of documents) {
+      const parentId = doc.parentDocument
+      if (!parentId) continue
+      const siblings = childrenByParent.get(parentId)
+      if (siblings) {
+        siblings.push(doc)
+      } else {
+        childrenByParent.set(parentId, [doc])
+      }
+    }
+
+    const hasFileInSubtree = new Map<string, boolean>()
+    const folderHasFile = (folderId: string): boolean => {
+      const cached = hasFileInSubtree.get(folderId)
+      if (cached !== undefined) return cached
+      hasFileInSubtree.set(folderId, false)
+      const children = childrenByParent.get(folderId) ?? []
+      for (const child of children) {
+        const childHasFile = child.folder === true ? folderHasFile(child.id) : true
+        if (childHasFile) {
+          hasFileInSubtree.set(folderId, true)
+          return true
+        }
+      }
+      return false
+    }
+
+    return documents.filter(doc => {
+      if (doc.folder !== true) return true
+      const name = doc.name ?? ''
+      const isTemplateName = name.length > 0 && templateNames.has(name)
+      if (!isTemplateName) return true
+      return folderHasFile(doc.id)
+    })
+  }, [documents, templateNames])
 
   // Configure upload action button
   const documentUploadActionProps = useMemo(
@@ -89,7 +140,7 @@ const InvestmentPortalDocuments: React.FC<InvestmentPortalDocumentsProps> = ({ i
 
   return (
     <DocumentSection
-      documents={documents}
+      documents={visibleDocuments}
       entityId={investmentId}
       isLoading={isLoading}
       error={error}

@@ -9,6 +9,7 @@ note-reminder-label = Data memoriei
 note-reminder-placeholder = Selectați data și ora...
 note-entity-label = Entitate asociată
 note-upload-label = Atașați documente
+note-attached-documents-label = Documente atașate
 
 # Common
 please-select = Vă rugăm să selectați...

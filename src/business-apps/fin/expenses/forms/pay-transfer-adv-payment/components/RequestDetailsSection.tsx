@@ -4,7 +4,10 @@ import { CaretRightIcon, FileTextIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../utils/formatters'
 import { formatDateTime } from '@/common/utils/dateFormatter'
-import { getAdvancePaymentStatusDisplay } from '@/business-apps/fin/expenses/apps/backoffice-expenses/utils/utils'
+import {
+  getAdvancePaymentStatusDisplay,
+  type StatusDisplayConfig
+} from '@/business-apps/fin/expenses/common/utils/statusDisplayUtils'
 
 interface RequestDetailsSectionProps {
   amount: number
@@ -33,7 +36,7 @@ const RequestDetailsSection: React.FC<RequestDetailsSectionProps> = ({
   prefixDataTestId = 'pay-transfer-adv-payment-v2',
   onDocumentClick
 }) => {
-  const statusConfig = getAdvancePaymentStatusDisplay(status)
+  const statusConfig: StatusDisplayConfig = getAdvancePaymentStatusDisplay(status)
 
   return (
     <Card data-testid={`${prefixDataTestId}-request-details-section`}>

@@ -1,5 +1,7 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Monitor, Workflow, Bot, Code2, Database, LayoutTemplate, Sparkles, LucideIcon } from 'lucide-react'
+import translations from '../../../_i18n'
 
 interface ToolNode {
   id: string
@@ -14,7 +16,7 @@ interface ConnectionsVisualizationProps {
   'data-testid'?: string
 }
 
-const TOOLS: ToolNode[] = [
+const TOOLS_STATIC: ToolNode[] = [
   {
     id: 'ai-builder',
     label: 'Screen Builder',
@@ -33,7 +35,7 @@ const TOOLS: ToolNode[] = [
   },
   {
     id: 'experts',
-    label: 'AI Task Experts',
+    label: 'Enterprise Agents',
     icon: Bot,
     color: 'ai',
     description: 'AI assistants',
@@ -81,6 +83,14 @@ const getNodePosition = (index: number, total: number, centerX: number, centerY:
 export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> = ({
   'data-testid': testId = 'connections-visualization'
 }) => {
+  const { t } = useTranslation(translations)
+  const TOOLS = useMemo(
+    () =>
+      TOOLS_STATIC.map(tool =>
+        tool.id === 'experts' ? { ...tool, label: t('connections-label-enterprise-agents') } : tool
+      ),
+    [t]
+  )
   const [hoveredNode, setHoveredNode] = useState<string | null>(null)
   const [activeConnections, setActiveConnections] = useState<Set<string>>(new Set())
 
@@ -133,7 +143,7 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
           </h2>
           <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">
             Each tool in NEWWORK CREATE works seamlessly with others. Build complete solutions by combining Screen
-            Builder, Flow, AI Task Experts, and more.
+            Builder, Flow, {t('connections-label-enterprise-agents')}, and more.
           </p>
         </div>
 

@@ -1,5 +1,6 @@
 import React from 'react'
 import { Card } from '@newwork/gravity-ui-catalog'
+import { Warning } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils'
 import { ICONS } from '../../../../utils/icons'
 
@@ -15,7 +16,9 @@ interface ExpenseItemCardProps {
   amount: string
   currency: string
   attachmentDate?: string
+  missingFields?: string[]
   onDelete?: (id: string) => void
+  onEdit?: (id: string) => void
 }
 
 /**
@@ -32,10 +35,34 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
   amount,
   currency,
   attachmentDate,
-  onDelete
+  missingFields,
+  onDelete,
+  onEdit
 }) => {
+  const hasMissingFields = missingFields && missingFields.length > 0
   return (
     <Card className="gba:p-0 gba:overflow-hidden gba:rounded-none" data-testid={`expense-item-card-${id}`}>
+      {hasMissingFields && (
+        <div
+          className="gba:flex gba:items-start gba:gap-2 gba:px-10 gba:py-2 gba:bg-destructive/10 gba:border-b gba:border-destructive/20"
+          data-testid={`expense-item-missing-fields-${id}`}
+        >
+          <Warning size={16} className="gba:text-destructive gba:mt-0.5 gba:shrink-0" />
+          <span className="gba:text-xs gba:text-destructive">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_item_request_card.missing_fields_warning',
+              'Missing required fields'
+            )}
+            {': '}
+            {missingFields.join(', ')}
+            {'. '}
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_item_request_card.update_before_adding',
+              'Please update this item before adding it to the request.'
+            )}
+          </span>
+        </div>
+      )}
       <div className="gba:p-10 gba:flex gba:flex-row gba:justify-between gba:items-stretch gba:box-border gba:min-h-[120px]">
         <div className="gba:flex gba:flex-col">
           <div className="gba:text-sm" data-testid={`expense-item-type-${id}`}>
@@ -72,18 +99,32 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
         </div>
         <div className="gba:flex gba:flex-col gba:self-stretch gba:w-1/4">
           <div>
-            {onDelete && (
-              <div className="gba:w-[100%] gba:flex gba:justify-end">
-                <button
-                  className="gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-full gba:w-8 gba:h-8 gba:p-0 gba:border-none gba:cursor-pointer"
-                  onClick={e => {
-                    e.stopPropagation()
-                    onDelete(id)
-                  }}
-                  data-testid={`delete-item-button-${id}`}
-                >
-                  <img src={ICONS.DELETE} alt="Delete" className="gba:w-4 gba:h-4" />
-                </button>
+            {(onEdit || onDelete) && (
+              <div className="gba:w-[100%] gba:flex gba:justify-end gba:gap-2">
+                {onEdit && (
+                  <button
+                    className="gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-full gba:w-8 gba:h-8 gba:p-0 gba:border-none gba:cursor-pointer"
+                    onClick={e => {
+                      e.stopPropagation()
+                      onEdit(id)
+                    }}
+                    data-testid={`edit-item-button-${id}`}
+                  >
+                    <img src={ICONS.EDIT_ICON} alt="Edit" className="gba:w-4 gba:h-4" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    className="gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-full gba:w-8 gba:h-8 gba:p-0 gba:border-none gba:cursor-pointer"
+                    onClick={e => {
+                      e.stopPropagation()
+                      onDelete(id)
+                    }}
+                    data-testid={`delete-item-button-${id}`}
+                  >
+                    <img src={ICONS.DELETE} alt="Delete" className="gba:w-4 gba:h-4" />
+                  </button>
+                )}
               </div>
             )}
           </div>

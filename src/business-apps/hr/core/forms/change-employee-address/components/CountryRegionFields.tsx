@@ -21,6 +21,9 @@ interface CountryRegionFieldsProps {
   isDeleteMode?: boolean
   suppressValidation?: boolean
   suspendRegionRender?: boolean
+  /** When true, only the region/county block is rendered. Used by AddressCommonFields so
+   * the Country select can appear above the autocomplete map while the region stays below. */
+  suspendCountryRender?: boolean
 }
 
 const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({
@@ -29,7 +32,8 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({
   setValue,
   isDeleteMode,
   suppressValidation,
-  suspendRegionRender
+  suspendRegionRender,
+  suspendCountryRender
 }) => {
   const countryField = useWatch({ control, name: 'countryId' })
   const regionField = useWatch({ control, name: 'regionId' })
@@ -46,71 +50,71 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({
   }, [regionDisplay, setValue])
   return (
     <>
-      <FormField
-        control={control}
-        name={'countryId' as any}
-        rules={{
-          validate: (v: any) => {
-            if (isDeleteMode || suppressValidation) return true
-            const enforce = isSubmitted || submitCount > 0 || Boolean((touchedFields as any)?.countryId)
-            if (!enforce) return true
-            if (v === null || v === undefined || v === '') {
-              return getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.address_container.country_validation_message',
-                'The Country field is required. Please select a value.'
-              )
-            }
-            return true
-          }
-        }}
-        render={({ field, fieldState }) => (
-          <FormItem>
-            <FormLabel>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.address_container.country',
-                'Country'
-              )}
-              <span className="gba:text-destructive"> *</span>
-            </FormLabel>
-            <Select
-              value={
-                field.value === null || field.value === undefined || field.value === ''
-                  ? ''
-                  : String(field.value)
+      {!suspendCountryRender && (
+        <FormField
+          control={control}
+          name={'countryId' as any}
+          rules={{
+            validate: (v: any) => {
+              if (isDeleteMode || suppressValidation) return true
+              const enforce = isSubmitted || submitCount > 0 || Boolean((touchedFields as any)?.countryId)
+              if (!enforce) return true
+              if (v === null || v === undefined || v === '') {
+                return getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.address_container.country_validation_message',
+                  'The Country field is required. Please select a value.'
+                )
               }
-              onValueChange={v => {
-                field.onChange(v || null)
-                setValue('regionId', null)
-              }}
-            >
-              <FormControl>
-                <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
-                  data-testid="flw_changeEmployeeAddressList_country"
-                >
-                  <SelectValue
-                    placeholder={`${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder', 'Please Select')} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.country', 'Country')}`}
-                  />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {(catalogs?.countries || []).map((entry: any) => (
-                  <SelectItem
-                    key={entry.id}
-                    value={String(entry.id)}
-                    data-testid={`flw_changeEmployeeAddressList_countryOption-${entry.id}`}
+              return true
+            }
+          }}
+          render={({ field, fieldState }) => (
+            <FormItem>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.address_container.country',
+                  'Country'
+                )}
+                <span className="gba:text-destructive"> *</span>
+              </FormLabel>
+              <Select
+                value={
+                  field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
+                }
+                onValueChange={v => {
+                  field.onChange(v || null)
+                  setValue('regionId', null)
+                }}
+              >
+                <FormControl>
+                  <SelectTrigger
+                    className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                    data-testid="flw_changeEmployeeAddressList_country"
                   >
-                    {getCatalogValue(entry)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {!suppressValidation && !isDeleteMode && (fieldState.isTouched || isSubmitted || submitCount > 0) ? (
-              <FormMessage />
-            ) : null}
-          </FormItem>
-        )}
-      />
+                    <SelectValue
+                      placeholder={`${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder', 'Please Select')} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.country', 'Country')}`}
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {(catalogs?.countries || []).map((entry: any) => (
+                    <SelectItem
+                      key={entry.id}
+                      value={String(entry.id)}
+                      data-testid={`flw_changeEmployeeAddressList_countryOption-${entry.id}`}
+                    >
+                      {getCatalogValue(entry)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!suppressValidation && !isDeleteMode && (fieldState.isTouched || isSubmitted || submitCount > 0) ? (
+                <FormMessage />
+              ) : null}
+            </FormItem>
+          )}
+        />
+      )}
 
       {(() => {
         if (suspendRegionRender) return null
@@ -178,7 +182,16 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({
                           ? ''
                           : String(field.value)
                       }
-                      onValueChange={v => field.onChange(v || null)}
+                      onValueChange={v => {
+                        // Ignore empty-value callbacks. The region Select has no "None" option,
+                        // so a real user pick is always a concrete value. Radix emits ('') as a
+                        // self-reset when the current value isn't in the options list (e.g. right
+                        // after a programmatic country change, before the region value is updated
+                        // to a region belonging to the new country). Without this guard, that
+                        // spurious reset clobbers autofilled region values.
+                        if (!v) return
+                        field.onChange(v)
+                      }}
                     >
                       <FormControl>
                         <SelectTrigger

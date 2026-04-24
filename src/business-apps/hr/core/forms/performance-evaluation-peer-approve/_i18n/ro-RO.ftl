@@ -8,6 +8,7 @@ loading-peers = Se încarcă colegii nominalizați...
 peers-hint = Lista trebuie să conțină între {$min} și {$max} colegi
 peers-count = {$count} din {$min}–{$max} colegi
 peers-min-error = Trebuie să aveți cel puțin {$min} colegi
+peers-duplicate-error = Fiecare coleg poate apărea o singură dată în listă. Eliminați duplicatele.
 replace-with-label = Înlocuie cu
 replace-with-placeholder = Păstrați sau selectați alt angajat...
 additional-peer-label = Coleg suplimentar

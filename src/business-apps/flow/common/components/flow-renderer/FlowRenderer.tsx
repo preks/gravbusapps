@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, useTranslation } from '@newwork/nw-design-system'
 import { GripVertical, UserCheck, UserPlus, BarChart3, CheckCircle, Cpu } from 'lucide-react'
+import translations from './_i18n'
 
 import {
   ReactFlow,
@@ -35,6 +36,7 @@ export interface FlowRendererProps {
 
 // Custom node component for React Flow
 const StepNode = ({ data }: { data: any }) => {
+  const { t } = useTranslation(translations)
   const [isDragOver, setIsDragOver] = React.useState(false)
 
   const getSelectionBgClass = (selected: boolean) => {
@@ -122,7 +124,7 @@ const StepNode = ({ data }: { data: any }) => {
                 case 'AI_AGENT':
                   return 'AI Agent'
                 case 'AI_TASK_EXPERT':
-                  return 'AI Task Expert'
+                  return t('step-badge-enterprise-agent')
                 case 'FUNCTION':
                   return 'NW Function'
                 case 'APPROVAL':

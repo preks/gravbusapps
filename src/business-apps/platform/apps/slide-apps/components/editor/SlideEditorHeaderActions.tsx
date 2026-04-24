@@ -1,4 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react'
+import type { VersionHistoryMessages } from '@/business-apps/platform/apps/shared/components/VersionHistory'
+import type { CheckpointDialogMessages } from '@/business-apps/platform/apps/shared/components/CheckpointDialog'
 import {
   Button,
   DropdownMenu,
@@ -43,7 +45,7 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
   applyContentJsonSnapshot,
   'data-testid': testId = 'slide-editor-header-actions'
 }) => {
-  const { t } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
   const [showShareDialog, setShowShareDialog] = useState(false)
@@ -85,13 +87,46 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
     [applyContentJsonSnapshot, slideId]
   )
 
+  const versionHistoryMessages: VersionHistoryMessages = useMemo(
+    () => ({
+      title: t('version-history-title'),
+      empty: t('version-no-history-yet'),
+      loading: t('version-loading'),
+      versionLabel: (num: number) => t('version-number', { number: num }),
+      current: t('version-current'),
+      checkpoint: t('version-checkpoint'),
+      autosave: t('version-autosave'),
+      restoreTitle: t('version-restore-title'),
+      restoreConfirm: (num: number) => t('version-restore-confirm-msg', { number: num }),
+      compareMode: t('version-compare-mode'),
+      cancelCompare: t('version-cancel-compare'),
+      compareSelected: t('version-compare-selected'),
+      compareHint: t('version-compare-hint'),
+      unknownUser: t('version-unknown-user')
+    }),
+    [t]
+  )
+
+  const checkpointMessages: CheckpointDialogMessages = useMemo(
+    () => ({
+      title: t('checkpoint-title'),
+      descriptionLabel: t('checkpoint-description-label'),
+      descriptionPlaceholder: t('checkpoint-description-placeholder'),
+      descriptionHint: t('checkpoint-description-hint'),
+      cancel: t('checkpoint-cancel'),
+      save: t('checkpoint-save'),
+      saving: t('checkpoint-saving')
+    }),
+    [t]
+  )
+
   return (
     <div className="gba:flex gba:items-center gba:gap-2" data-testid={testId}>
       {/* Compact lock indicator */}
       {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
         <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
           <Lock className="gba:h-3 gba:w-3" />
-          Locked
+          {t('header-locked')}
         </span>
       )}
 
@@ -151,6 +186,8 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
           onClose={() => setShowVersionHistory(false)}
           currentVersion={currentVersionNumber}
           showAutoSaves={false}
+          messages={versionHistoryMessages}
+          locale={locale}
           data-testid={`${testId}-version-history-dialog`}
         />
       )}
@@ -162,6 +199,7 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
         onSave={async description => {
           await versioning.createCheckpoint(description)
         }}
+        messages={checkpointMessages}
         data-testid={`${testId}-checkpoint-dialog`}
       />
 

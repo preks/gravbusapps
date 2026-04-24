@@ -1,18 +1,8 @@
 import React from 'react'
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  Badge,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  Switch
-} from '@newwork/nw-design-system'
-import { AlertTriangle, X, TrendingUp, Sparkles } from 'lucide-react'
+import { Card, CardHeader, CardTitle, CardContent, Badge, Sheet, SheetContent, Switch } from '@newwork/nw-design-system'
+import { AlertTriangle, TrendingUp, Sparkles } from 'lucide-react'
 import { FlightRiskDetailPanel } from '../FlightRiskDetailPanel'
+import { EmployeePanelHeader } from '../shared/EmployeePanelHeader'
 
 type RiskBadgeVariant = 'info' | 'warning' | 'destructive' | 'secondary'
 
@@ -60,7 +50,7 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
 
   if (loading) {
     return (
-      <Card style={{ borderRadius: '12px' }} className="gba:p-5">
+      <Card className="gba:rounded-xl gba:p-5">
         <CardHeader>
           <CardTitle>Team Health</CardTitle>
         </CardHeader>
@@ -166,14 +156,10 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
 
   return (
     <>
-      <Card
-        data-testid="team-health-section"
-        style={{ borderRadius: '12px' }}
-        className="gba:p-5 gba:flex gba:flex-col"
-      >
+      <Card data-testid="team-health-section" className="gba:rounded-xl gba:p-5 gba:flex gba:flex-col">
         <CardHeader className="gba:flex-none gba:pb-3">
           <div className="gba:flex gba:items-center gba:justify-between">
-            <CardTitle className="gba:text-lg gba:font-semibold">Team Health</CardTitle>
+            <CardTitle className="gba:text-lg">Team Health</CardTitle>
             <Badge variant={getRiskBadgeVariant(overallRisk)} className="gba:animate-none">
               {getOverallRiskLabel(overallRisk)}
             </Badge>
@@ -270,7 +256,9 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
           {/* Empty state */}
           {(!summary || summary.totalEmployees === 0) && (
             <div className="gba:text-center gba:py-4 gba:text-muted-foreground">
-              <p className="gba:text-sm">No flight risk data available</p>
+              <p className="gba:text-sm">
+                No flight-risk data yet. Turn on AI sentiment or wait for the next data refresh.
+              </p>
             </div>
           )}
         </CardContent>
@@ -282,16 +270,11 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
           className="gba:w-full sm:gba:max-w-2xl gba:p-6 gba:overflow-y-auto"
           data-testid="flight-risk-detail-sheet"
         >
-          <SheetHeader className="gba:mb-6">
-            <button
-              onClick={() => setIsPanelOpen(false)}
-              className="gba:absolute gba:right-4 gba:top-4 gba:rounded-sm gba:opacity-70 gba:ring-offset-background gba:transition-opacity hover:gba:opacity-100 focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring focus:gba:ring-offset-2"
-              aria-label="Close"
-            >
-              <X className="gba:h-4 gba:w-4" />
-            </button>
-            <SheetTitle className="gba:text-xl gba:font-semibold">Team Retention Risk Details</SheetTitle>
-          </SheetHeader>
+          <EmployeePanelHeader
+            title="Team Retention Risk Details"
+            description="Review risk factors and suggested interventions by employee."
+            onClose={() => setIsPanelOpen(false)}
+          />
 
           {summary && (
             <FlightRiskDetailPanel
