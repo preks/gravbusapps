@@ -101,19 +101,6 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
           code
           hierarchyOrder
           compensationBandId
-          compensationBand {
-            id
-            name
-            payGrade
-            minSalary
-            maxSalary
-            currencyRef
-            currency {
-              id
-              code
-              value
-            }
-          }
         }
       }
     }
@@ -179,6 +166,34 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
       notes
       createdAt
       updatedAt
+    }
+  }
+`
+
+/**
+ * Query compensation band by ID.
+ * Used as fallback where JobLevel does not expose a direct compensationBand relation.
+ */
+export const GET_COMPENSATION_BAND_BY_ID = /*sql*/ `
+  query GetCompensationBandById($compensationBandId: uuid!) {
+    CompensationBand(
+      where: {
+        id: {_eq: $compensationBandId}
+        isDeleted: {_eq: false}
+      }
+      limit: 1
+    ) {
+      id
+      name
+      payGrade
+      minSalary
+      maxSalary
+      currencyRef
+      currency {
+        id
+        code
+        value
+      }
     }
   }
 `
