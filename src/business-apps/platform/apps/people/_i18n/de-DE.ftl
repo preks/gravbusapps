@@ -1,0 +1,21 @@
+# People remote bundle (platform)
+people-title = Personen
+people-subtitle = Mitarbeitende und Abteilungen der aktiven Organisationsstruktur.
+tab-employees = Mitarbeitende
+tab-departments = Abteilungen
+col-name = Name
+col-email = E-Mail
+col-job-title = Jobtitel
+col-unit-name = Abteilung
+col-manager = Manager
+empty-employees = Keine Mitarbeitenden für diese Struktur.
+empty-departments = Keine Abteilungen für diese Struktur.
+action-add-employee = Person hinzufügen
+dialog-add-employee-title = Person hinzufügen
+action-edit = Bearbeiten
+dialog-edit-employee-title = Person bearbeiten
+loading-structure = Struktur wird geladen…
+error-no-structure = Keine aktive Struktur. Öffne die Ansicht in einem Mandanten mit aktivem Organigramm.
+error-load = Daten konnten nicht geladen werden.
+table-search-employees = Nach Name, E-Mail oder Jobtitel suchen…
+table-search-departments = Abteilungen nach Namen suchen…
