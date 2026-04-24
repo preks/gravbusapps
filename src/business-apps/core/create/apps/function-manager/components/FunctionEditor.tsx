@@ -8,7 +8,7 @@ import { FunctionAssistantSidebar } from './FunctionAssistantSidebar'
 import { FunctionEditorHeaderBar } from './editor/FunctionEditorHeaderBar'
 import { FunctionDefinitionCard, type FunctionDefinitionTab } from './editor/FunctionDefinitionCard'
 import { useFunctionEditorState } from '../hooks/useFunctionEditorState'
-import { Code, RotateCcw, Sparkles, X } from 'lucide-react'
+import { ArrowCounterClockwiseIcon, CodeIcon, SparkleIcon, XIcon } from '@phosphor-icons/react'
 
 export interface FunctionEditorProps extends BusinessAppContextProps {
   mode: 'create' | 'edit'
@@ -68,6 +68,10 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     setName,
     description,
     setDescription,
+    category,
+    setCategory,
+    subcategory,
+    setSubcategory,
     agentEnabled,
     setAgentEnabled,
     workflowEnabled,
@@ -96,6 +100,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
 
     schemaProperties,
     requiredFields,
+    testExamples,
     testPayloadObj,
     setTestPayloadObj,
     updatePayloadField,
@@ -181,7 +186,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
               <div className="gba:flex gba:items-start gba:gap-2 gba:min-w-0">
                 <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
                   <AvatarFallback>
-                    <Sparkles className="gba:h-4 gba:w-4" />
+                    <SparkleIcon className="gba:h-4 gba:w-4" />
                   </AvatarFallback>
                 </Avatar>
                 <div className="gba:min-w-0">
@@ -199,7 +204,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
                   onClick={undoAssistantApply}
                   data-testid="function-editor-undo"
                 >
-                  <RotateCcw className="gba:h-4 gba:w-4 gba:mr-2" />
+                  <ArrowCounterClockwiseIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                   Undo
                 </Button>
                 <Button
@@ -210,7 +215,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
                   data-testid="function-editor-undo-dismiss"
                   aria-label="Dismiss"
                 >
-                  <X className="gba:h-4 gba:w-4" />
+                  <XIcon className="gba:h-4 gba:w-4" />
                 </Button>
               </div>
             </div>
@@ -221,12 +226,16 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
           mode={mode}
           name={name}
           description={description}
+          category={category}
+          subcategory={subcategory}
           agentEnabled={agentEnabled}
           workflowEnabled={workflowEnabled}
           connectorEnabled={connectorEnabled}
           connectorKind={connectorKind}
           onNameChange={setName}
           onDescriptionChange={setDescription}
+          onCategoryChange={setCategory}
+          onSubcategoryChange={setSubcategory}
           onAgentEnabledChange={setAgentEnabled}
           onWorkflowEnabledChange={setWorkflowEnabled}
           onConnectorEnabledChange={setConnectorEnabled}
@@ -249,6 +258,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
           onTestOverrideRowsChange={setTestOverrideRows}
           testSchemaProperties={schemaProperties}
           testRequiredFields={requiredFields}
+          testExamples={testExamples}
           testPayload={testPayloadObj}
           onTestPayloadChange={setTestPayloadObj}
           onTestPayloadFieldChange={updatePayloadField}
@@ -273,7 +283,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
       <CreateLayout
         data-testid={testId}
         heroVariant="editor"
-        heroIcon={Code}
+        heroIcon={CodeIcon}
         heroTitle={heroTitle}
         heroSubtitle={heroSubtitle}
         heroBackground={<PremiumHeroBackground />}
@@ -316,23 +326,28 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
         <div className="gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-auto gba:p-6">{mainContent}</div>
 
         {assistantOpen ? (
-          <FunctionAssistantSidebar
-            accessToken={accessToken}
-            userInfo={userInfo}
-            mode={assistantMode}
-            existing={existingSnapshot}
-            onApply={applyDraft}
-            onOpenDefinitionTab={openDefinitionTab}
-            onOpenTenantCredentials={onOpenTenantCredentials}
-            fixTestRequest={fixTestRequest}
-            onFixTestRequestHandled={() => setFixTestRequest(null)}
-            onFixTestStateChange={({ isFixing, error }) => {
-              setIsFixingWithAi(isFixing)
-              setFixWithAiError(error)
-            }}
-            onClose={closeAssistant}
-            data-testid="function-assistant"
-          />
+          <aside
+            className="gba:w-96 gba:shrink-0 gba:border-l gba:border-border gba:bg-background gba:min-h-0 gba:min-w-0 gba:overflow-hidden"
+            data-testid="function-assistant-aside"
+          >
+            <FunctionAssistantSidebar
+              accessToken={accessToken}
+              userInfo={userInfo}
+              mode={assistantMode}
+              existing={existingSnapshot}
+              onApply={applyDraft}
+              onOpenDefinitionTab={openDefinitionTab}
+              onOpenTenantCredentials={onOpenTenantCredentials}
+              fixTestRequest={fixTestRequest}
+              onFixTestRequestHandled={() => setFixTestRequest(null)}
+              onFixTestStateChange={({ isFixing, error }) => {
+                setIsFixingWithAi(isFixing)
+                setFixWithAiError(error)
+              }}
+              onClose={closeAssistant}
+              data-testid="function-assistant"
+            />
+          </aside>
         ) : null}
       </div>
     </div>

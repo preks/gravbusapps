@@ -1271,6 +1271,57 @@ export class PromptManagerClient extends RestClient {
     )
     return response.data || []
   }
+
+  // --- Scheduled Dispatches ---
+
+  /**
+   * List scheduled task dispatches for the authenticated user.
+   * By default returns only pending/firing dispatches.
+   * Set includeAll=true to fetch all statuses.
+   */
+  async getScheduledDispatches(params?: {
+    status?: DispatchStatus | null
+    includeAll?: boolean
+    limit?: number
+    offset?: number
+  }): Promise<ScheduledDispatchPage> {
+    return this.get<ScheduledDispatchPage>('/scheduled-dispatches', {
+      params: params as Record<string, any>
+    })
+  }
+
+  /**
+   * Cancel a pending scheduled dispatch by its dispatch_id.
+   * Returns void on success (204). Throws on 404 (not found) or 409 (not cancellable).
+   */
+  async cancelScheduledDispatch(dispatchId: string): Promise<void> {
+    await this.delete<void>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}`)
+  }
 }
 
 export const promptManagerClient = new PromptManagerClient()
+
+// --- Scheduled Dispatches ---
+
+export type DispatchStatus = 'pending' | 'firing' | 'fired' | 'cancelled' | 'failed'
+
+export interface ScheduledDispatch {
+  dispatchId: string
+  title: string
+  message: string
+  assigneeUserIds: string[]
+  blinkGroupId: string
+  scheduledAt: string // ISO UTC datetime
+  timezone: string // IANA timezone (display only)
+  status: DispatchStatus
+  createdAt: string
+  firedAt?: string | null
+  workflowIds: string[]
+  retryCount: number
+  error?: string | null
+}
+
+export interface ScheduledDispatchPage {
+  data: ScheduledDispatch[]
+  total: number
+}

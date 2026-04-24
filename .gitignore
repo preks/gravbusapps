@@ -54,3 +54,4 @@ coverage/
 scripts/start-document-service.sh
 
 
+.venv-pptx/

@@ -93,6 +93,17 @@ const isNoSkillDecision = (decision: DecisionItem): boolean =>
   decision.category === 'skill' && NO_SKILL_CHOSEN.has(decision.chosen?.trim().toLowerCase() ?? '')
 
 /**
+ * Chosen values reported by the backend for "no execution pack loaded"
+ * branches. Like no-skill decisions, these fire on every turn when no
+ * execution pack is active and add no meaningful signal to the panel.
+ */
+const NO_EXECUTION_PACK_CHOSEN = new Set(['generic_agent', 'none', 'no_execution_pack', ''])
+
+const isNoExecutionPackDecision = (decision: DecisionItem): boolean =>
+  (decision.category as string) === 'execution_pack' &&
+  NO_EXECUTION_PACK_CHOSEN.has(decision.chosen?.trim().toLowerCase() ?? '')
+
+/**
  * Collapses consecutive / redundant skill decisions that picked the same
  * skill. The backend may emit one per turn; the UI only needs to surface
  * the first occurrence, since a later "same skill again" row is not a real
@@ -156,7 +167,9 @@ export const useFabricDecisions = (events: AgentStreamEvent[]): DecisionItem[] =
       }
     }
 
-    const merged = [...native, ...synthesized].filter(d => !isNoSkillDecision(d)).sort((a, b) => a.seq - b.seq)
+    const merged = [...native, ...synthesized]
+      .filter(d => !isNoSkillDecision(d) && !isNoExecutionPackDecision(d))
+      .sort((a, b) => a.seq - b.seq)
 
     return dedupeSkillDecisions(merged)
   }, [events])

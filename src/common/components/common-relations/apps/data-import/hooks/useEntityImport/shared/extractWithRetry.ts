@@ -33,7 +33,8 @@ export async function extractWithRetry(
   mappings: FieldMapping[],
   enforcedFieldsJson: string | undefined,
   adapters: TargetFieldAdapters,
-  repairCsv: 'auto' | 'hard' = 'auto'
+  repairCsv: 'auto' | 'hard' = 'auto',
+  requiredSubtypeKey?: string | null
 ): Promise<ExtractWithRetryResult> {
   const backendMappings = toBackendMappings(mappings, adapters)
   const backendMappingJson = JSON.stringify({ fieldMappings: backendMappings })
@@ -49,7 +50,8 @@ export async function extractWithRetry(
       'default',
       0,
       5000,
-      repairCsv
+      repairCsv,
+      requiredSubtypeKey
     )
     return { records: response.records, usedUiMappings: false, csvQuality: response.csvQuality ?? null }
   } catch (error) {
@@ -64,7 +66,8 @@ export async function extractWithRetry(
         'default',
         0,
         5000,
-        repairCsv
+        repairCsv,
+        requiredSubtypeKey
       )
       return { records: response.records, usedUiMappings: true, csvQuality: response.csvQuality ?? null }
     }

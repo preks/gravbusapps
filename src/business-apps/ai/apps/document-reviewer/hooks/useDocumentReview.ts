@@ -6,8 +6,10 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { DOCUMENT_REVIEWER_AGENT_ID } from '../definitions/document-reviewer-agent'
+import translations from '../_i18n'
 import type {
   DocumentAnnotation,
   DocumentReviewRequest,
@@ -86,6 +88,7 @@ export const useDocumentReview = (options: UseDocumentReviewOptions): UseDocumen
   } = options
 
   const client = usePromptManagerClient(accessToken)
+  const { t } = useTranslation(translations)
 
   // State
   const [annotations, setAnnotations] = useState<DocumentAnnotation[]>([])
@@ -188,9 +191,7 @@ export const useDocumentReview = (options: UseDocumentReviewOptions): UseDocumen
 
         // Need the agent ID to execute
         if (!resolvedAgentId) {
-          throw new Error(
-            'Document reviewer agent not found. Please ensure the "DocumentReviewer" Task Expert is created in Task Expert Studio.'
-          )
+          throw new Error(t('error-agent-not-found'))
         }
 
         // Execute the prompt

@@ -7,7 +7,7 @@ import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardC
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { ICONS } from '../../../utils/icons'
 import ExpenseItemCard from '../components/ExpenseItemCard/ExpenseItemCard'
-import { createItemsScreenLogObject, formatArrayOfItems, noAllowanceItemsFunction } from '../utils/itemsScreenUtils'
+import { createItemsScreenLogObject, formatArrayOfItems, getMissingMandatoryFields, noAllowanceItemsFunction } from '../utils/itemsScreenUtils'
 import { fetchEmployeeExpenseItems, fetchEmployeeExpenseItemsFromPayload } from '../ExpenseRequestWizardQueries'
 import { SearchBarWithLabel } from '../../../forms/expense-request/components'
 import { EVENTS } from '../../../utils/constants'
@@ -133,6 +133,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
       const excludedIdsForApi = [...excludedIdsBase, ...payloadItemIds, ...deletedItems.map((d: any) => d.id)]
 
       const itemCurrency = getItemCurrencyForFetch(currentCurrency, expenseRequestData, expenseItems ?? [])
+      console.log('[ItemsScreen] fetchSelectItems itemCurrency:', itemCurrency, 'currentCurrency:', currentCurrency)
 
       const userLocale = getCurrentActiveUserLocale()
       const ruleIdForFilter = typeof employeeRuleId === 'string' && employeeRuleId ? employeeRuleId : null
@@ -517,11 +518,18 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     }
   }, [expenseRequestData, employeeRuleId, currentTitle, currentCurrency, expenseItems])
 
-  const { showCreateItem } = useExpenseRequestWizardContext()
+  const { showCreateItem, showEditItem } = useExpenseRequestWizardContext()
 
   const handleCreateItem = useCallback(() => {
     showCreateItem()
   }, [showCreateItem])
+
+  const handleEditItem = useCallback(
+    (itemId: string) => {
+      showEditItem(itemId)
+    },
+    [showEditItem]
+  )
 
   useEffect(() => {
     document.addEventListener('expense-items-cancel-selection', handleCancelSelection)
@@ -632,6 +640,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
               <div className="gba:grid gba:grid-cols-1 gba:gap-4" data-testid="selectable-items-list">
                 {selectItemsList.map((item: any) => {
                   const formattedItem = formatArrayOfItems([item])[0]
+                  const missingFields = getMissingMandatoryFields(item)
                   return (
                     <div
                       key={item.id}
@@ -652,6 +661,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
                         amount={formattedItem.amount}
                         currency={formattedItem.currency}
                         attachmentDate={formattedItem.attachmentDate}
+                        missingFields={missingFields.length > 0 ? missingFields : undefined}
+                        onEdit={id => {
+                          handleEditItem(id)
+                        }}
                       />
                     </div>
                   )

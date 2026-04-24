@@ -15,8 +15,10 @@ import {
   TableCell,
   Progress,
   Button,
-  Badge
+  Badge,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import { Users, ChevronUp, ChevronDown, ArrowUp, ArrowDown, Sparkles, Loader2 } from 'lucide-react'
 import type { TeamMemberEvaluation } from '../../hooks/useTeamEvaluations'
 import type { TeamMemberPerformance } from '../../hooks/useTeamPerformance'
@@ -243,6 +245,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
   loading,
   accessToken
 }) => {
+  const { t } = useTranslation(translations)
   const [sortColumn, setSortColumn] = useState<SortColumn>('employee')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [aiState, setAiState] = useState<AiSummaryState>({
@@ -337,7 +340,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
         setAiState(prev => ({
           ...prev,
           loading: false,
-          error: `Task expert "${TASK_EXPERT_NAME}" not found. Create it in Prompt Manager.`
+          error: t('error-agent-not-found', { name: TASK_EXPERT_NAME })
         }))
         return
       }

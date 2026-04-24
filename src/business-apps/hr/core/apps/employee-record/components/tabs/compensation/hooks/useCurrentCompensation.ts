@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_EMPLOYEE_COMPENSATION_DATA } from '../queries/compensationQueries'
+import { GET_COMPENSATION_BAND_BY_ID, GET_EMPLOYEE_COMPENSATION_DATA } from '../queries/compensationQueries'
 import {
   CompensationData,
   EmployeeBonus,
@@ -104,7 +104,20 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       // Extract and transform compensation band
       const employeePosition = result?.EmployeePosition?.[0]
       const jobLevel = employeePosition?.jobPosition?.jobLevel
-      const compensationBandData = jobLevel?.compensationBand
+      const compensationBandId = jobLevel?.compensationBandId
+      let compensationBandData: any = null
+
+      // Some schemas expose only compensationBandId on JobLevel (no relation field).
+      // Fetch the band explicitly to keep the UI data contract stable.
+      if (compensationBandId) {
+        const compensationBandResult = await graphqlClient.request<{ CompensationBand?: any[] }>(
+          GET_COMPENSATION_BAND_BY_ID,
+          {
+            compensationBandId
+          }
+        )
+        compensationBandData = compensationBandResult?.CompensationBand?.[0] || null
+      }
       const compensationBand = transformCompensationBand(compensationBandData)
 
       // Transform employee salary to current compensation

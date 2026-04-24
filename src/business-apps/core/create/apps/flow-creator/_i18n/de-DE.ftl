@@ -174,7 +174,7 @@ task-links-url-placeholder = https://beispiel.de
 task-links-document-url = Dokument-Referenz (Expression)
 task-links-document-url-placeholder = {{ $steps.step_0.formData.fileField }}
 
-# AI Task Expert parameter mapping
+# Enterprise Agent parameter mapping
 task-input-params = Eingabeparameter
 task-input-params-loading = Parameter werden geladen...
 task-input-params-empty = Keine Parameter gefunden.
@@ -263,8 +263,8 @@ decision-policy-optional-placeholder = Optional: Richtlinie auswählen...
 decision-ai-executor-label = KI-Ausführung
 decision-ai-executor-everyai = EveryAI
 decision-ai-executor-everyai-desc = Verwenden Sie Entscheidungsanweisungen (mit Flow-Kontext), damit EveryAI den besten Zweig auswählt.
-decision-ai-executor-taskexpert = KI Task Expert
-decision-ai-executor-taskexpert-desc = Führen Sie den Task Expert aus und routen Sie über Mapping-Regeln. Wenn keine Regel passt, wählt ein Mensch den Zweig.
+decision-ai-executor-taskexpert = Enterprise Agent
+decision-ai-executor-taskexpert-desc = Führen Sie den Agenten aus und routen Sie über Mapping-Regeln. Wenn keine Regel passt, wählt ein Mensch den Zweig.
 decision-ai-type-label = Entscheidungseinrichtung
 decision-ai-type-policy = Richtliniengeführt
 decision-ai-type-policy-desc = Verwenden Sie ein Richtliniendokument als Grundlage für die Entscheidung.
@@ -282,12 +282,12 @@ decision-human-instructions-label = Nachricht der Fallback-Aufgabe
 decision-human-instructions-desc = Erforderlich. Wird angezeigt, wenn ein Mensch den Zweig auswählen muss. Flow-Kontext kann eingefügt werden.
 decision-human-instructions-placeholder = z. B. Die KI konnte nicht entscheiden. Bitte wählen Sie den passendsten Zweig.
 decision-ai-taskexpert-mapping-label = Mapping-Regeln
-decision-ai-taskexpert-mapping-desc = Definieren Sie Regeln, die die Ausgabe des Task Expert einem Zweig zuordnen.
-decision-ai-taskexpert-picker-desc = Wählen Sie aus, welcher Task Expert diese Entscheidung ausführt.
-decision-ai-taskexpert-picker-placeholder = Task Expert auswählen...
-decision-ai-taskexpert-picker-search = Task Experts durchsuchen...
-decision-ai-taskexpert-picker-empty = Keine Task Experts gefunden.
-decision-ai-taskexpert-params-desc = Ordnen Sie jeden Prompt-Parameter explizit dem Flow-Kontext zu, der an den ausgewählten Task Expert gesendet werden soll.
+decision-ai-taskexpert-mapping-desc = Definieren Sie Regeln, die die Ausgabe des Agenten einem Zweig zuordnen.
+decision-ai-taskexpert-picker-desc = Wählen Sie aus, welcher Agent diese Entscheidung ausführt.
+decision-ai-taskexpert-picker-placeholder = Agent auswählen...
+decision-ai-taskexpert-picker-search = Agenten durchsuchen...
+decision-ai-taskexpert-picker-empty = Keine Agenten gefunden.
+decision-ai-taskexpert-params-desc = Ordnen Sie jeden Prompt-Parameter explizit dem Flow-Kontext zu, der an den ausgewählten Agenten gesendet werden soll.
 decision-ai-taskexpert-reasoning-label = Reasoning-Output-Mapping
 decision-ai-taskexpert-reasoning-desc = Optional. Wählen Sie das Ausgabefeld, das als Begründung für den menschlichen Fallback verwendet wird.
 decision-ai-taskexpert-reasoning-placeholder = Ausgabefeld auswählen (optional)
@@ -332,3 +332,14 @@ validation-orphan-nodes = Verwaiste Knoten erkannt
 validation-fork-no-join = Parallelknoten hat keinen passenden Zusammenführungsknoten
 validation-decision-branches = Entscheidung muss mindestens 2 Zweige haben
 validation-disconnected = Einige Knoten sind nicht verbunden
+validation-decision-must-select-agent = Entscheidung "{ $label }" muss einen Enterprise Agent auswählen
+validation-decision-unmapped-agent-params = Entscheidung "{ $label }" muss alle Agent-Parameter vor der Veröffentlichung zuordnen: { $params }
+
+# Add step panel
+add-step-tip-advanced-mode = Wechseln Sie in den Erweitert-Modus, um Function Tasks und Enterprise Agent-Schritte freizuschalten.
+
+# Task step type selector descriptions
+task-step-type-ai-task-expert-description = Enterprise Agent Prompt-Schritt.
+
+# Decision Enterprise Agent mapping suggestions
+decision-ai-taskexpert-mapping-suggestion-description = Aus dem Ausgabe-Schema des ausgewählten Agenten.

@@ -79,7 +79,7 @@ const createDefaultImportConfig = (group: InvestmentImportGroupDescriptor): Impo
   entityType: group.entityType,
   domain: 'investment',
   targetFields: COMMON_INVESTMENT_FIELDS,
-  investmentPayloadKey: toInvestmentPayloadKey(group.code),
+  investmentPayloadKey: group.requiredSubtypeKey || toInvestmentPayloadKey(group.code),
   // Pre-resolved catalog ref so submit doesn't re-query the InvestmentGroup
   // catalog. `investmentGroupCodeHint` is intentionally omitted: it only
   // matters for hand-built configs that don't have a ref.

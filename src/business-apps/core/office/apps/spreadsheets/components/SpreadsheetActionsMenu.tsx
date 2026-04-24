@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   useTranslation
 } from '@newwork/nw-design-system'
-import { FileSpreadsheet, History, Save, Lock, Unlock, Share2, Download, Zap, BarChart3 } from 'lucide-react'
+import { FileSpreadsheet, History, Save, Lock, Unlock, Download, Zap, BarChart3 } from 'lucide-react'
 import { ArrowsClockwise } from '@phosphor-icons/react'
 import translations from '../_i18n'
 
@@ -45,7 +45,6 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
   isLockedByMe,
   onAcquireLock,
   onReleaseLock,
-  onShare,
   onOpenAnalytics,
   onOpenAutomations,
   onCheckCollectionResponses,
@@ -93,12 +92,6 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          {onShare && (
-            <DropdownMenuItem onClick={onShare}>
-              <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('menu-share')}
-            </DropdownMenuItem>
-          )}
           {allowExport && (
             <DropdownMenuItem onClick={onExport}>
               <Download className="gba:w-4 gba:h-4 gba:mr-2" />
