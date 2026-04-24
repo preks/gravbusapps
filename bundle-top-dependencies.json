@@ -40738,15 +40738,15 @@
     ]
   },
   "hr/core/apps/employee-record": {
-    "bitbucketBuildNumber": 11306,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11306/",
-    "chunkJsBytes": 1374080,
+    "bitbucketBuildNumber": 11312,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11312/",
+    "chunkJsBytes": 1374340,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 1229469,
-        "gzip": 295702,
+        "rendered": 1229974,
+        "gzip": 295807,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/PerformanceTab.tsx",
@@ -88060,20 +88060,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11307,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11307/",
-    "chunkJsBytes": 1825168,
+    "bitbucketBuildNumber": 11312,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11312/",
+    "chunkJsBytes": 1825161,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1520073,
-        "gzip": 91533,
+        "gzip": 91547,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1520073,
-            "gzip": 91533
+            "gzip": 91547
           }
         ]
       },
@@ -103069,7 +103069,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-24T06:41:30.484Z",
+    "generatedAt": "2026-04-24T07:17:51.169Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
