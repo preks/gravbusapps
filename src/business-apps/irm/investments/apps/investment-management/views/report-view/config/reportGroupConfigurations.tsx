@@ -10,7 +10,8 @@ import {
 import {
   generateEquityReportFilters,
   generateRealEstateReportFilters,
-  generateLiquidFundReportFilters
+  generateLiquidFundReportFilters,
+  generateDefaultReportFilters
 } from '../utils/filterGenerators'
 import { getSortableColumnsForGroup } from '../utils/sortableColumnsHelpers'
 import {
@@ -37,8 +38,8 @@ export interface ReportGroupConfiguration {
   columnGenerator?: (catalogData: any, currentSection?: string) => ColumnConfig[]
   fallbackColumns?: ColumnConfig[]
 
-  // Filter generation
-  hasFilters: boolean
+  // Filter generation. Presence of `filterGenerator` is the implicit gate: a
+  // group without one renders no filter sheet.
   filterGenerator?: (catalogData: any, currentSection: string, filterGroups: any) => FilterConfiguration
 
   // Data transformation
@@ -49,9 +50,6 @@ export interface ReportGroupConfiguration {
 
   // Sortable columns
   sortableColumns: Array<{ id: string; label: string }>
-
-  // Special mappings (for Liquid Fund)
-  sectionToTypeMapping?: Record<string, string>
 }
 
 /**
@@ -75,7 +73,6 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
     catalogKey: 'investmentGroups',
     entityPrefix: 'equity',
     columnGenerator: (catalogData: any) => generateEquityReportColumns(catalogData),
-    hasFilters: true,
     filterGenerator: (catalogData: any, _currentSection: string, filterGroups: any) =>
       generateEquityReportFilters(catalogData, filterGroups),
     tableConfig: EQUITY_TABLE_CONFIG,
@@ -95,7 +92,6 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
     entityPrefix: 'realEstate',
     columnGenerator: (catalogData: any, currentSection?: string) =>
       generateRealEstateReportColumns(catalogData, currentSection || ''),
-    hasFilters: true,
     filterGenerator: (catalogData: any, currentSection: string, filterGroups: any) =>
       generateRealEstateReportFilters(catalogData, currentSection, filterGroups),
     tableConfig: REAL_ESTATE_TABLE_CONFIG,
@@ -104,9 +100,14 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
 
   /**
    * Liquid Fund Investment Reports
-   * - Sub-sections: Hardcoded liquid fund types (Bank Deposits, Fixed-Term Deposits, Multiple Types)
+   * - Sub-sections: Catalog-driven from InvestmentLiquidFundType (Bank Deposits,
+   *   Fixed-Term Deposits, Pension Funds, Money Market Funds, Bonds, Equity, …).
+   *   Each section's `code` IS the catalog code, so generators consume
+   *   `currentSection` directly — no id↔code mapping needed.
    * - Special logic: Uses InvestmentLiquidFundType catalog instead of InvestmentType
-   * - Columns: Dynamic from liquid fund type catalog
+   * - Columns: Dynamic per liquid fund type from the catalog
+   * - Filters: Dynamic per liquid fund type from the catalog (DB-backed fields
+   *   only) + always-on Investment filter
    * - Data Transformation: Reports are transformed to analytics format
    */
   LIQUID_FUND: {
@@ -114,25 +115,13 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
     catalogSource: 'TYPE',
     catalogKey: 'investmentLiquidFundTypes',
     entityPrefix: 'liquidFund',
-    columnGenerator: (catalogData: any, currentSection?: string) => {
-      const sectionMapping: Record<string, string> = {
-        'bank-deposits': 'BANK_DEPOSITE',
-        'fixed-term-deposits': 'FIXED_TERM_DEPOSIT',
-        'multiple-types': 'MONEY_MARKET_FUNDS'
-      }
-      const liquidFundTypeCode = sectionMapping[currentSection || '']
-      return generateLiquidFundReportColumns(catalogData, liquidFundTypeCode)
-    },
-    hasFilters: false, // No catalog filters for Liquid Fund
-    filterGenerator: () => generateLiquidFundReportFilters(),
+    columnGenerator: (catalogData: any, currentSection?: string) =>
+      generateLiquidFundReportColumns(catalogData, currentSection || ''),
+    filterGenerator: (catalogData: any, currentSection: string, filterGroups: any) =>
+      generateLiquidFundReportFilters(catalogData, currentSection, filterGroups),
     dataTransformer: transformReportsToAnalyticsData,
     tableConfig: LIQUID_FUND_TABLE_CONFIG,
-    sortableColumns: getSortableColumnsForGroup('LIQUID_FUND'),
-    sectionToTypeMapping: {
-      'bank-deposits': 'BANK_DEPOSITE',
-      'fixed-term-deposits': 'FIXED_TERM_DEPOSIT',
-      'multiple-types': 'MONEY_MARKET_FUNDS'
-    }
+    sortableColumns: getSortableColumnsForGroup('LIQUID_FUND')
   }
 
   // Future groups (e.g., PRIVATE_EQUITY, CRYPTOCURRENCY, etc.) will use DEFAULT configuration
@@ -153,7 +142,10 @@ export const DEFAULT_REPORT_GROUP_CONFIGURATION: ReportGroupConfiguration = {
     // This handles groups without investment types (fields defined at group level)
     return generateBaseReportColumns(catalogData, 'GROUP', currentSection || '', 'investmentGroups')
   },
-  hasFilters: false, // No filters by default
+  // Even unknown/future groups get the always-on Investment filter so users
+  // can scope reports by investment without per-group catalog work.
+  filterGenerator: (_catalogData: any, _currentSection: string, filterGroups: any) =>
+    generateDefaultReportFilters(filterGroups),
   tableConfig: EQUITY_TABLE_CONFIG, // Use equity config as generic fallback
   sortableColumns: getSortableColumnsForGroup('UNKNOWN')
 }

@@ -1,6 +1,8 @@
-// Shared Investment Report Data Hook
-// Consolidates data fetching logic for Equity, Real Estate, and Liquid Fund tables
-// Uses NEW pattern with proper GraphQL variables (no string template queries)
+// Shared investment-report data hook.
+// Catalog-driven data fetching for every investment group (current and future)
+// rendered by `GenericReportTab`. Uses GraphQL variables — never string
+// interpolation — so the (group, sub-section) scope and per-descriptor filters
+// are composed cleanly via `buildInvestmentReportWhereClause`.
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -53,66 +55,90 @@ export interface UseInvestmentReportDataReturn {
 }
 
 /**
- * Get investment type filter strategy based on configuration
- * This allows different groups to filter investmentType differently
+ * Single source of truth for the static (group + optional sub-section) scope
+ * applied to every investment-report query.
+ *
+ * Returned as object-form GraphQL `where` fragments so callers can splice them
+ * into `customConditions` (data queries) or serialize them for
+ * `useFilterGroups`'s `baseWhereParts` (filter dropdowns).
+ *
+ * Sub-section path is driven by `subSectionStrategy`:
+ * - `'liquidFundTypes'`: `liquidFundInvestmentReport.investmentLiquidFundType.id`
+ *   (Liquid Fund — each sub-section maps 1:1 to an `InvestmentLiquidFundType`
+ *   catalog entry).
+ * - `'investmentTypes'` / `'none'`: `investment.investmentType.id` (Equity,
+ *   Real Estate, and any unknown group).
+ *
+ * The synthetic values `'all'` and a section equal to the group code itself
+ * (used by `'none'` strategies) intentionally emit only the group condition.
  */
-const getInvestmentTypeFilterStrategy = (
-  config: ReturnType<typeof getReportGroupConfiguration>,
-  investmentType: string
-): Record<string, any>[] => {
-  // If group has section-to-type mapping (Liquid Fund), use special strategy
-  if (config.sectionToTypeMapping) {
-    const mappedType = config.sectionToTypeMapping[investmentType] || investmentType
-
-    // Handle "Multiple Types" special case
-    if (mappedType === 'MONEY_MARKET_FUNDS') {
-      return [
-        {
-          _and: [
-            {
-              liquidFundInvestmentReport: {
-                investmentLiquidFundType: {
-                  id: {
-                    _isNull: false
-                  }
-                }
-              }
-            },
-            {
-              liquidFundInvestmentReport: {
-                investmentLiquidFundType: {
-                  id: {
-                    _nin: [
-                      'InvestmentLiquidFundType:v1:BANK_DEPOSITE',
-                      'InvestmentLiquidFundType:v1:FIXED_TERM_DEPOSIT'
-                    ]
-                  }
-                }
-              }
-            }
-          ]
-        }
-      ]
-    }
-
-    // Normal liquid fund type filter
-    return [
-      {
-        liquidFundInvestmentReport: {
-          investmentLiquidFundType: { id: { _eq: `InvestmentLiquidFundType:v1:${mappedType}` } }
-        }
-      }
-    ]
-  }
-
-  // Default strategy: filter by investment.investmentType (for EQUITY, REAL_ESTATE, and unknown groups)
-  return [
+const buildScopeConditions = (investmentGroup: string, currentSection?: string): Record<string, any>[] => {
+  const conditions: Record<string, any>[] = [
     {
       investment: {
-        investmentType: { id: { _eq: `InvestmentType:v1:${investmentType}` } }
+        investmentGroup: { id: { _eq: `InvestmentGroup:v1:${investmentGroup}` } }
       }
     }
   ]
+
+  if (currentSection && currentSection !== investmentGroup && currentSection !== 'all') {
+    const groupConfig = getReportGroupConfiguration(investmentGroup)
+
+    if (groupConfig.subSectionStrategy === 'liquidFundTypes') {
+      conditions.push({
+        liquidFundInvestmentReport: {
+          investmentLiquidFundType: { id: { _eq: `InvestmentLiquidFundType:v1:${currentSection}` } }
+        }
+      })
+    } else {
+      conditions.push({
+        investment: {
+          investmentType: { id: { _eq: `InvestmentType:v1:${currentSection}` } }
+        }
+      })
+    }
+  }
+
+  return conditions
+}
+
+/**
+ * Serialize a plain `where` object into the GraphQL fragment syntax used by
+ * `useFilterGroups`'s `baseWhereParts`. Inputs are limited to the small
+ * `{ key: { _eq: "..." } }` shapes produced by `buildScopeConditions`, so a
+ * minimal recursive serializer is sufficient.
+ */
+const serializeWhereObject = (obj: Record<string, any>): string => {
+  const parts = Object.entries(obj).map(([key, value]) => {
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      return `${key}: ${serializeWhereObject(value)}`
+    }
+    if (typeof value === 'string') {
+      return `${key}: "${value}"`
+    }
+    return `${key}: ${String(value)}`
+  })
+  return `{ ${parts.join(', ')} }`
+}
+
+/**
+ * Build the static GraphQL where parts that scope a report query to its
+ * (group, sub-section). Returned as string fragments suitable for
+ * `useFilterGroups`'s `baseWhereParts`.
+ *
+ * Mirrors the static portion of `buildInvestmentReportWhereClause` (via the
+ * shared `buildScopeConditions`), so filter dropdowns only surface options
+ * that can actually appear in the underlying table.
+ *
+ * Conditions are wrapped in a single `_and: [...]` fragment so they never
+ * collide with auto-injected nested-array constraints inside
+ * `buildCombinedFilterGroupsQuery` (which would otherwise produce duplicate
+ * top-level keys like `liquidFundInvestmentReport`, violating GraphQL's input
+ * object field uniqueness rule).
+ */
+export const buildInvestmentReportBaseWhereParts = (investmentGroup: string, currentSection?: string): string[] => {
+  const conditions = buildScopeConditions(investmentGroup, currentSection).map(serializeWhereObject)
+  return [`_and: [${conditions.join(', ')}]`]
 }
 
 /** Builds the GraphQL where clause for investment report queries. */
@@ -120,19 +146,12 @@ export const buildInvestmentReportWhereClause = (
   investmentGroup: string,
   filters: Record<string, any>
 ): Record<string, any> => {
-  const customConditions: Record<string, any>[] = []
+  const activeSection =
+    filters.investmentType && filters.investmentType !== 'all' && filters.investmentType !== investmentGroup
+      ? (filters.investmentType as string)
+      : undefined
 
-  customConditions.push({
-    investment: {
-      investmentGroup: { id: { _eq: `InvestmentGroup:v1:${investmentGroup}` } }
-    }
-  })
-
-  const groupConfig = getReportGroupConfiguration(investmentGroup)
-  if (filters.investmentType && filters.investmentType !== 'all' && filters.investmentType !== investmentGroup) {
-    const typeFilterStrategy = getInvestmentTypeFilterStrategy(groupConfig, filters.investmentType)
-    customConditions.push(...typeFilterStrategy)
-  }
+  const customConditions = buildScopeConditions(investmentGroup, activeSection)
 
   return buildWhere({
     variables: filters,
@@ -143,8 +162,9 @@ export const buildInvestmentReportWhereClause = (
 }
 
 /**
- * Shared hook for fetching investment report data across all investment groups
- * Uses NEW pattern with proper GraphQL variables instead of string templates
+ * Catalog-driven hook for fetching investment-report data for any investment
+ * group. Composes the (group, sub-section) scope via `buildScopeConditions`
+ * and applies descriptor-driven filters via `buildWhere`.
  */
 export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): UseInvestmentReportDataReturn => {
   const {

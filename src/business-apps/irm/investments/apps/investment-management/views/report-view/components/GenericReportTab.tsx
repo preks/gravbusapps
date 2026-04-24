@@ -3,6 +3,7 @@ import { DataDisplay, Spinner, Button } from '@newwork/nw-design-system'
 import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InvestmentReportTable, type InvestmentReportExportHelpers } from './shared/InvestmentReportTable'
+import { buildInvestmentReportBaseWhereParts } from './shared/useInvestmentReportData'
 import { UseReportFiltersReturn, useReportFilters } from '../hooks'
 import { useInvestmentReportExport } from '../hooks/useInvestmentReportExport'
 import { getReportGroupConfiguration } from '../config/reportGroupConfigurations'
@@ -118,10 +119,21 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
   const [sortField, setSortField] = useState('')
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
 
-  // Fetch filter groups (only if group has filters)
+  // Scope filter dropdown options to the active (group, sub-section) so that
+  // selecting an investment can never produce zero rows due to cross-group/type
+  // mismatch.
+  const filterBaseWhereParts = useMemo(
+    () => buildInvestmentReportBaseWhereParts(investmentGroup, currentSection),
+    [investmentGroup, currentSection]
+  )
+
+  // Fetch filter groups once a sub-section is known. Skipping the first render
+  // (when `currentSection` is still '') avoids a redundant query that would be
+  // immediately superseded by the section-scoped fetch.
   const filterGroups = useFilterGroups({ accessToken, userInfo }, 'InvestmentReport', INVESTMENT_REPORT_DESCRIPTORS, {
     limit: 100,
-    enabled: config.hasFilters
+    enabled: !!currentSection,
+    baseWhereParts: filterBaseWhereParts
   })
 
   // Fetch liquid fund catalog for dynamic column generation (only for LIQUID_FUND group)
@@ -177,8 +189,7 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
   const initialColumns = useMemo(() => {
     // Special handling for LIQUID_FUND: Generate visibility columns from dynamic catalog columns
     if (investmentGroup === 'LIQUID_FUND' && liquidFundCatalogData) {
-      const liquidFundTypeCode =
-        config.sectionToTypeMapping?.[subSections.find(s => s.code === currentSection)?.id || '']
+      const liquidFundTypeCode = currentSection
 
       if (liquidFundTypeCode) {
         const dynamicCols = getDynamicColumnsForType(liquidFundTypeCode)
@@ -210,40 +221,30 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
       { id: 'name', label: 'Name', visible: true },
       { id: 'totalInvestmentAmount', label: 'Total Investment', visible: true }
     ]
-  }, [
-    investmentGroup,
-    config,
-    catalogData,
-    currentSection,
-    liquidFundCatalogData,
-    subSections,
-    getDynamicColumnsForType
-  ])
+  }, [investmentGroup, config, catalogData, currentSection, liquidFundCatalogData, getDynamicColumnsForType])
 
   // Local report filters for column visibility management
   const localReportFilters = useReportFilters(initialColumns)
 
-  // Generate filter configuration (if group has filters)
+  // Generate filter configuration. A group without a `filterGenerator` opts out
+  // of the filter sheet entirely.
   const filterConfiguration = useMemo(() => {
-    if (!config.hasFilters || !config.filterGenerator) {
+    if (!config.filterGenerator) {
       return { id: 'empty-filters', name: 'Filters', groups: [] }
     }
     return config.filterGenerator(catalogData, currentSection, filterGroups)
   }, [config, catalogData, currentSection, filterGroups])
 
-  // Get investment type for current section
+  // Get investment type for current section.
+  // Section `code` IS the catalog code for both InvestmentType-based groups
+  // (Equity, Real Estate, …) and InvestmentLiquidFundType-based groups
+  // (Liquid Fund), so the data layer can use it as-is.
   const getCurrentInvestmentType = useCallback((): string => {
-    if (config.sectionToTypeMapping) {
-      // Liquid Fund: Use section ID (e.g., 'bank-deposits') to match mapping keys
-      const section = subSections.find(s => s.code === currentSection)
-      return section?.id || ''
-    }
-
-    // Default: Use code directly
     return currentSection || ''
-  }, [config, currentSection, subSections])
+  }, [currentSection])
 
   // Build filters for InvestmentReportTable
+  const hasFilterSheet = !!config.filterGenerator
   const reportFiltersForTable = useMemo(() => {
     const investmentTypeForTable = getCurrentInvestmentType()
 
@@ -253,9 +254,9 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
       currencyIds: reportFilters.computedFilters.currencyIds,
       investmentType: investmentTypeForTable,
       search: search || undefined,
-      ...(config.hasFilters ? selectedFilters : {})
+      ...(hasFilterSheet ? selectedFilters : {})
     }
-  }, [reportFilters, getCurrentInvestmentType, search, selectedFilters, config.hasFilters, investmentGroup])
+  }, [reportFilters, getCurrentInvestmentType, search, selectedFilters, hasFilterSheet])
 
   // URL management
   const updateUrl = useCallback((investmentType: string) => {
@@ -283,10 +284,22 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
     }
   }, [])
 
-  // Unified handler for section changes
+  // Unified handler for section changes.
+  // Per-section state (selected filters, search, sort) is reset on actual
+  // section changes so values from one sub-section never leak into another
+  // (e.g. an investment that exists in FIXED_TERM_DEPOSIT but not in BONDS,
+  // or a Liquid Fund-specific column sort that has no analogue elsewhere).
   const handleSectionChange = useCallback(
     (code: string) => {
-      setCurrentSection(code)
+      setCurrentSection(prev => {
+        if (prev !== code) {
+          setSelectedFilters({})
+          setSearch('')
+          setSortField('')
+          setSortOrder('DESC')
+        }
+        return code
+      })
       updateUrl(code)
     },
     [updateUrl]
@@ -298,7 +311,15 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
       const urlParams = new URLSearchParams(globalThis.location.search)
       const investmentTypeFromUrl = urlParams.get('investmentType')
       if (investmentTypeFromUrl && subSections.some(s => s.code === investmentTypeFromUrl)) {
-        setCurrentSection(investmentTypeFromUrl)
+        setCurrentSection(prev => {
+          if (prev !== investmentTypeFromUrl) {
+            setSelectedFilters({})
+            setSearch('')
+            setSortField('')
+            setSortOrder('DESC')
+          }
+          return investmentTypeFromUrl
+        })
       }
     }
 
@@ -323,34 +344,39 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
     return [{ id: sortField, desc: sortOrder === 'DESC' }]
   }, [sortField, sortOrder])
 
+  // `useReportFilters` returns a fresh object literal every render. Destructure
+  // the underlying `useState` / `useCallback` references once so downstream
+  // memos and callbacks have stable dependencies.
+  const { columnConfig, visibleColumns: visibleColumnsState, handleColumnVisibilityChange } = localReportFilters
+
   // Column visibility handlers
   const availableColumns = useMemo(
     () =>
-      localReportFilters.columnConfig
+      columnConfig
         .filter(col => col.id !== 'investment') // Remove Investment column from visibility controller
         .map(col => ({ id: col.id, label: col.label })),
-    [localReportFilters.columnConfig]
+    [columnConfig]
   )
 
-  const visibleColumns = useMemo(() => localReportFilters.visibleColumns, [localReportFilters.visibleColumns])
+  const visibleColumns = visibleColumnsState
 
   const handleVisibleColumnsChange = useCallback(
     (newVisibleColumns: string[]) => {
-      localReportFilters.columnConfig.forEach(col => {
+      columnConfig.forEach(col => {
         const visible = newVisibleColumns.includes(col.id)
         if (col.visible !== visible && !col.disabled) {
-          localReportFilters.handleColumnVisibilityChange(col.id, visible)
+          handleColumnVisibilityChange(col.id, visible)
         }
       })
     },
-    [localReportFilters]
+    [columnConfig, handleColumnVisibilityChange]
   )
 
   // Raw DynamicTableColumn[] for the current liquid fund section — used by both the table and the export hook
   const rawDynamicColumns = useMemo(() => {
     if (investmentGroup !== 'LIQUID_FUND') return undefined
 
-    const liquidFundTypeCode = config.sectionToTypeMapping?.[subSections.find(s => s.code === currentSection)?.id || '']
+    const liquidFundTypeCode = currentSection
     if (!liquidFundTypeCode || !liquidFundCatalogData) return undefined
 
     // LEVEL 1: Try investmentLiquidFundTypes (most specific)
@@ -367,14 +393,7 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
     }
 
     return dynamicCols.length > 0 ? dynamicCols : undefined
-  }, [
-    investmentGroup,
-    config.sectionToTypeMapping,
-    currentSection,
-    subSections,
-    getDynamicColumnsForType,
-    liquidFundCatalogData
-  ])
+  }, [investmentGroup, currentSection, getDynamicColumnsForType, liquidFundCatalogData])
 
   // Generate columnsOverride for Liquid Fund (catalog hierarchy fallback)
   const columnsOverride = useMemo(() => {
@@ -491,9 +510,9 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
         searchValue={search}
         searchPlaceholder="Search investments..."
         onSearchChange={setSearch}
-        filters={config.hasFilters ? selectedFilters : undefined}
-        filterConfiguration={config.hasFilters ? filterConfiguration : undefined}
-        onFilterChange={config.hasFilters ? handleFilterChange : undefined}
+        filters={hasFilterSheet ? selectedFilters : undefined}
+        filterConfiguration={hasFilterSheet ? filterConfiguration : undefined}
+        onFilterChange={hasFilterSheet ? handleFilterChange : undefined}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={handleVisibleColumnsChange}
