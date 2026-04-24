@@ -12,7 +12,6 @@ import {
   UsersThreeIcon,
   ArrowRightIcon
 } from '@phosphor-icons/react'
-import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { isApprovedAbsenceStatus } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
@@ -38,6 +37,7 @@ import { formatMinutes, toDateString, toLocalDateKey, getPlannedMinutesForDate }
 import { InsightsAbsenceAnalytics } from './InsightsAbsenceAnalytics'
 import { fetchTeamDetailedAbsences, getActiveLocale, isVacationAbsence } from '../../utils/teamTimeDomain'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { DetailsSheet } from '../DetailsSheet'
 
 const t = (key: string, fallback: string, vars?: Record<string, unknown>) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:my_team_time.${key}`, fallback, vars)
@@ -104,6 +104,31 @@ const countWorkingDaysSoFar = (workingHours?: WeeklyWorkingHours): number => {
   return Math.max(1, count)
 }
 
+const PTO_ENTITLEMENT_TYPE_MARKERS = [
+  'VACATION',
+  'HOLIDAY',
+  'RECREATION',
+  'ANNUAL',
+  'RECR',
+  'URLAUB',
+  'CONCEDIU',
+  'FERIE'
+]
+const PTO_ENTITLEMENT_CODE_PATTERN = /(^|[:_-])A00[12]($|[:_-])/
+
+const isPtoEntitlementTypeRef = (typeRef?: string): boolean => {
+  const normalized = (typeRef || '').toUpperCase()
+  if (!normalized) {
+    return false
+  }
+
+  if (PTO_ENTITLEMENT_CODE_PATTERN.test(normalized)) {
+    return true
+  }
+
+  return PTO_ENTITLEMENT_TYPE_MARKERS.some(marker => normalized.includes(marker))
+}
+
 // ─── KPI computation ──────────────────────────────────────────────────────────
 
 interface KpiData {
@@ -148,24 +173,23 @@ const computeKpis = (
   const timeLoadBalanceIndex =
     meanOT + BALANCE_EPSILON > 0 ? Math.max(0, Math.min(1, 1 - stddevOT / (meanOT + BALANCE_EPSILON))) * 100 : 100
 
-  const vacationEntitlements = entitlements.filter(e => {
-    const tr = (e.typeRef || '').toUpperCase()
-    return tr.includes('VACATION') || tr.includes('HOLIDAY') || tr.includes('ANNUAL')
-  })
+  const vacationEntitlements = entitlements.filter(e => isPtoEntitlementTypeRef(e.typeRef))
   let ptoHealthIndex: number | null = null
   if (vacationEntitlements.length > 0) {
-    const totalAccrued = vacationEntitlements.reduce((s, e) => s + (e.totalEntitlement || 0), 0)
-    const totalUsed = vacationEntitlements.reduce((s, e) => s + (e.usedApproved || 0), 0)
-    if (totalAccrued > 0) {
-      const now = new Date()
-      const startOfYear = new Date(now.getFullYear(), 0, 1)
-      const endOfYear = new Date(now.getFullYear(), 11, 31)
-      const totalDaysInYear = (endOfYear.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24) + 1
-      const daysElapsed = (now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24) + 1
-      const yearProgress = daysElapsed / totalDaysInYear
-      const expectedUsage = totalAccrued * yearProgress
-      ptoHealthIndex = expectedUsage > 0 ? Math.min(100, (totalUsed / expectedUsage) * 100) : 0
-    }
+    // PTO Health Index formula:
+    // yearProgress = daysElapsedThisYear / totalDaysInYear
+    // expectedUsage = totalAccruedEntitlement * yearProgress
+    // ptoHealthIndex = min(100, (totalUsedApproved / expectedUsage) * 100)
+    const totalAccruedEntitlement = vacationEntitlements.reduce((s, e) => s + (e.totalEntitlement || 0), 0)
+    const totalUsedApproved = vacationEntitlements.reduce((s, e) => s + (e.usedApproved || 0), 0)
+    const now = new Date()
+    const startOfYear = new Date(now.getFullYear(), 0, 1)
+    const startOfNextYear = new Date(now.getFullYear() + 1, 0, 1)
+    const totalDaysInYear = (startOfNextYear.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)
+    const daysElapsedThisYear = (now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24) + 1
+    const yearProgress = totalDaysInYear > 0 ? daysElapsedThisYear / totalDaysInYear : 0
+    const expectedUsage = totalAccruedEntitlement * yearProgress
+    ptoHealthIndex = expectedUsage > 0 ? Math.min(100, (totalUsedApproved / expectedUsage) * 100) : 0
   }
 
   const absenceStabilityRate =
@@ -1203,13 +1227,11 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
       )}
 
       {/* Side drawer for details */}
-      <DataDetailsDrawer
+      <DetailsSheet
         title={getDrawerTitle()}
         icon={getDrawerIcon()}
         open={activeDrawer !== null}
         onClose={() => setActiveDrawer(null)}
-        width={480}
-        placement="right"
         dataTestId="insights-details-drawer"
       >
         {activeDrawer === 'sustainability' && (
@@ -1426,7 +1448,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
             )}
           </div>
         )}
-      </DataDetailsDrawer>
+      </DetailsSheet>
     </div>
   )
 }
