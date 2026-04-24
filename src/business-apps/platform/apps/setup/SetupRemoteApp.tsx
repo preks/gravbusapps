@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { FormProvider, useForm } from 'react-hook-form'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { FormProvider, useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Spinner } from '@newwork/nw-design-system'
 
@@ -70,7 +70,7 @@ function SetupRemoteAppInner({ accessToken, userInfo }: SetupRemoteAppViewProps)
   const validationSchemaWithTranslations = useValidationSchema()
 
   const methods = useForm<FormData & ValidationSchemaType>({
-    resolver: zodResolver(validationSchemaWithTranslations),
+    resolver: zodResolver(validationSchemaWithTranslations) as Resolver<FormData & ValidationSchemaType>,
     defaultValues: {
       ...defaultFormValues,
       firstName: userInfo?.givenName ?? null,
@@ -147,15 +147,25 @@ function SetupRemoteAppInner({ accessToken, userInfo }: SetupRemoteAppViewProps)
       return true
     }
 
-    const hasCurrentUserDetails = Boolean(
-      formValues.firstName?.trim() && formValues.lastName?.trim() && formValues.jobPosition?.trim()
-    )
+    const employees = formValues.additionalEmployees ?? []
+    const managerCountByDept = new Map<string, number>()
+    for (const employee of employees) {
+      if (employee.isManager && employee.departmentId) {
+        managerCountByDept.set(employee.departmentId, (managerCountByDept.get(employee.departmentId) ?? 0) + 1)
+      }
+    }
+    if ([...managerCountByDept.values()].some(count => count > 1)) {
+      return false
+    }
+
+    const hasName = Boolean(formValues.firstName?.trim() && formValues.lastName?.trim())
 
     if (formValues.userPlacementMode === 'ceo') {
-      return hasCurrentUserDetails
+      return hasName
     }
 
     if (formValues.userPlacementMode === 'existing_department') {
+      const hasCurrentUserDetails = Boolean(hasName && formValues.jobPosition?.trim())
       return Boolean(formValues.selectedDepartmentId && hasCurrentUserDetails)
     }
 

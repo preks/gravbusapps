@@ -35,7 +35,8 @@ const EMPTY_DRAFT: DraftEmployee = {
   jobPosition: '',
   departmentId: '',
   capabilityIds: [],
-  initialPassword: ''
+  initialPassword: '',
+  isManager: false
 }
 
 export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEmployeesStepProps) {
@@ -43,6 +44,8 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
   const { watch, setValue, getValues } = useFormContext()
   const [draftEmployee, setDraftEmployee] = useState<DraftEmployee>(EMPTY_DRAFT)
   const [draftErrors, setDraftErrors] = useState<Partial<Record<keyof DraftEmployee, string>>>({})
+  /** Remount department Select after add so Radix controlled value cannot stay out of sync with cleared `departmentId`. */
+  const [departmentSelectNonce, setDepartmentSelectNonce] = useState(0)
 
   const additionalEmployees = watch('additionalEmployees') || []
   const departments = watch('departments') || []
@@ -73,6 +76,16 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
       capabilityOptions.map((option: { id: string; name: string }) => [option.id, option.name])
     ) as Record<string, string>
   }, [capabilityOptions])
+
+  const hasDuplicateManagersInList = useMemo(() => {
+    const managerCountByDept = new Map<string, number>()
+    for (const employee of additionalEmployees) {
+      if (employee.isManager && employee.departmentId) {
+        managerCountByDept.set(employee.departmentId, (managerCountByDept.get(employee.departmentId) ?? 0) + 1)
+      }
+    }
+    return [...managerCountByDept.values()].some(count => count > 1)
+  }, [additionalEmployees])
 
   const departmentNameMap = useMemo(() => {
     return Object.fromEntries(
@@ -113,8 +126,18 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
       nextErrors.jobPosition = t('validation-required-field')
     }
 
-    if (!draftEmployee.departmentId) {
-      nextErrors.departmentId = t('validation-department-selection-required')
+    const departmentIdTrimmed = draftEmployee.departmentId.trim()
+    if (!departmentIdTrimmed) {
+      nextErrors.departmentId = t('validation-additional-employee-department-required')
+    }
+
+    const currentBeforeAdd = (getValues('additionalEmployees') as SetupEmployee[] | undefined) ?? []
+    if (
+      draftEmployee.isManager &&
+      departmentIdTrimmed &&
+      currentBeforeAdd.some(e => e.isManager && e.departmentId === departmentIdTrimmed)
+    ) {
+      nextErrors.departmentId = t('validation-additional-managers-duplicate')
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -133,8 +156,9 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
           lastName: draftEmployee.lastName.trim(),
           email: draftEmployee.email.trim(),
           jobPosition: draftEmployee.jobPosition.trim(),
-          departmentId: draftEmployee.departmentId,
+          departmentId: departmentIdTrimmed,
           capabilityIds: draftEmployee.capabilityIds,
+          isManager: Boolean(draftEmployee.isManager),
           initialPassword: draftEmployee.initialPassword?.trim() ? draftEmployee.initialPassword.trim() : null
         }
       ],
@@ -142,6 +166,7 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
     )
     setDraftEmployee(EMPTY_DRAFT)
     setDraftErrors({})
+    setDepartmentSelectNonce(n => n + 1)
   }, [draftEmployee, getValues, setValue, t])
 
   const handleRemoveEmployee = useCallback(
@@ -165,6 +190,7 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
       dataTestIdPrefix={DATA_TEST_ID_PREFIX}
       onNext={onNext}
       onBack={onBack}
+      disableNext={hasDuplicateManagersInList}
     >
       <div className="gba:space-y-6">
         <div className="gba:rounded-xl gba:border gba:border-gray-200 gba:bg-white gba:p-6 gba:shadow-sm">
@@ -241,6 +267,7 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
             <div className="gba:col-span-2 gba:space-y-2">
               <Label htmlFor="additional-dept-select">{t('additional-employees-department')}</Label>
               <Select
+                key={`additional-dept-select-${departmentSelectNonce}`}
                 value={draftEmployee.departmentId || undefined}
                 onValueChange={v => handleDraftChange('departmentId', v)}
               >
@@ -252,7 +279,7 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
                   <SelectValue placeholder={t('additional-employees-department-placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {departmentOptions.map(opt => (
+                  {departmentOptions.map((opt: { id: string; name: string }) => (
                     <SelectItem key={opt.id} value={opt.id}>
                       {opt.name}
                     </SelectItem>
@@ -262,6 +289,20 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
               {draftErrors.departmentId && (
                 <p className="gba:mt-1 gba:text-xs gba:text-[#B42318]">{draftErrors.departmentId}</p>
               )}
+            </div>
+            <div className="gba:col-span-2 gba:flex gba:items-center gba:gap-2">
+              <Checkbox
+                id={formatDataTestId(DATA_TEST_ID_PREFIX, 'is-manager')}
+                checked={Boolean(draftEmployee.isManager)}
+                onCheckedChange={checked => handleDraftChange('isManager', checked === true)}
+                data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'is-manager')}
+              />
+              <Label
+                htmlFor={formatDataTestId(DATA_TEST_ID_PREFIX, 'is-manager')}
+                className="gba:cursor-pointer gba:font-normal"
+              >
+                {t('additional-employees-is-manager')}
+              </Label>
             </div>
             <div className="gba:col-span-2 gba:space-y-2">
               <div className="gba:text-sm gba:font-medium gba:text-[#1F2937]">
@@ -274,7 +315,7 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
                 className="gba:flex gba:max-h-40 gba:flex-col gba:gap-2 gba:overflow-y-auto gba:rounded-md gba:border gba:border-gray-200 gba:p-3"
                 data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'capabilities-select')}
               >
-                {capabilityOptions.map(opt => (
+                {capabilityOptions.map((opt: { id: string; name: string }) => (
                   <label key={opt.id} className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
                     <Checkbox
                       checked={draftEmployee.capabilityIds.includes(opt.id)}
@@ -325,6 +366,7 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
                     <div className="gba:text-sm gba:text-gray-600">{employee.email}</div>
                     <div className="gba:text-sm gba:text-gray-600">
                       {departmentNameMap[employee.departmentId] ?? employee.departmentId} | {employee.jobPosition}
+                      {employee.isManager ? ` · ${t('additional-employees-manager-badge')}` : ''}
                     </div>
                     {employee.capabilityIds.length > 0 && (
                       <div className="gba:text-sm gba:text-gray-500">

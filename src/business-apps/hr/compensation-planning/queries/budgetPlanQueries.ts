@@ -236,7 +236,7 @@ export const LIST_COMPENSATION_BUDGET_PLAN_EMPLOYEES_BY_ORG_UNIT_IDS = `
   }
 `
 
-/** Sum driver for OU `allocation_amount`: must match total of employee `allocationAmount` on that org-unit budget row. */
+/** Sum driver for OU `allocation_amount` (roll-up uses submitted / approved / executed rows only; see `orgUnitAllocationAmountRollup`). */
 export const GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_ALLOCATION_AMOUNTS_BY_ORG_UNIT_BUDGET_ID = `
   query GetCompensationBudgetPlanEmployeeAllocationAmountsByOrgUnitBudgetId($orgUnitBudgetId: uuid!) {
     CompensationBudgetPlanEmployee(
@@ -249,6 +249,7 @@ export const GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_ALLOCATION_AMOUNTS_BY_ORG_UNI
       limit: 5000
     ) {
       allocationAmount
+      budgetPlanStatus
     }
   }
 `

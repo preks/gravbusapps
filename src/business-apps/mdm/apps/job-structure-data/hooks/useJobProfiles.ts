@@ -1,56 +1,40 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetJobProfileData, JobProfileDataVariables } from '../queries/JobProfileQueries'
-import { JobFunction, JobProfile } from '../types'
-import { useGetJobFunctionData } from '../queries/JobFunctionQueries'
+import { JobProfileQueryParameters, useJobProfileQueries } from '../queries/useJobProfileQueries.ts'
+import { useJobFunctionQueries } from '../queries/useJobFunctionQueries.ts'
+import { useJobLevelQueries } from '../queries/useJobLevelQueries.ts'
+import { JobProfile, JobProfileDeletionPayload, transformJobProfileRow } from '../utils/JobProfile.types'
+import { PartialJobFunction, transformJobFunctionRow } from '../utils/JobFunction.types'
+import { JobLevel, transformJobLevelRow } from '../utils/JobLevel.types'
 
-export const useJobProfiles = (context: BusinessAppContextProps) => {
+export function useJobProfiles(context: BusinessAppContextProps) {
+  // ─── State Management ──────────────────────────────────────────────────────
   const [jobProfiles, setJobProfiles] = useState<JobProfile[]>([])
-  const [jobFunctions, setJobFunctions] = useState<JobFunction[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const { fetchJobProfileData } = useGetJobProfileData(context)
-  const { fetchJobFunctionData } = useGetJobFunctionData(context)
+  // Reference data states
+  const [jobFunctions, setJobFunctions] = useState<PartialJobFunction[]>([])
+  const [jobLevels, setJobLevels] = useState<JobLevel[]>([])
+  const [referenceDataLoading, setReferenceDataLoading] = useState(true)
 
-  const loadJobFunctions = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
+  // ─── External Dependencies ─────────────────────────────────────────────────
+  const { fetchJobProfiles, deleteJobProfile } = useJobProfileQueries(context.accessToken)
+  const { fetchJobFunctions } = useJobFunctionQueries(context.accessToken)
+  const { fetchJobLevels } = useJobLevelQueries(context.accessToken)
 
-    try {
-      const jobFunctions = await fetchJobFunctionData()
-      const transformedJobFunctions = (jobFunctions.jobFunctions || []).map(jobFunction => ({
-        ...jobFunction,
-        displayName: jobFunction.name || jobFunction.code || 'Unknown Function',
-        isActive: true // Assuming active since it's not deleted
-      })) as JobFunction[]
-
-      setJobFunctions(transformedJobFunctions)
-      setTotalCount(jobFunctions.JobFunctionAggregate.aggregate.count)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
-      setError(errorMessage)
-      console.error('Error loading job functions:', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [fetchJobFunctionData])
-
+  // ─── Data Loading Functions ───────────────────────────────────────────────
   const loadData = useCallback(
-    async (variables?: JobProfileDataVariables) => {
+    async (params: JobProfileQueryParameters = {}) => {
       setIsLoading(true)
       setError(null)
 
       try {
-        const response = await fetchJobProfileData(variables)
-        // Transform the data to ensure displayName and isActive are set
-        const transformedJobProfiles = (response.jobProfiles || []).map(jobProfile => ({
-          ...jobProfile,
-          displayName: jobProfile.name || jobProfile.code || 'Unknown Profile',
-          isActive: jobProfile.recordState === 'active'
-        })) as JobProfile[]
-
+        const response = await fetchJobProfiles(params)
+        const transformedJobProfiles = (response.jobProfiles || []).map(transformJobProfileRow)
         setJobProfiles(transformedJobProfiles)
         setTotalCount(response.JobProfileAggregate.aggregate.count)
       } catch (err) {
@@ -61,103 +45,110 @@ export const useJobProfiles = (context: BusinessAppContextProps) => {
         setIsLoading(false)
       }
     },
-    [fetchJobProfileData]
+    [fetchJobProfiles]
   )
 
-  const refetch = useCallback(
-    (variables?: JobProfileDataVariables) => {
-      return loadData(variables)
+  // Load reference data (job functions and levels)
+  const loadReferenceData = useCallback(async () => {
+    setReferenceDataLoading(true)
+    try {
+      const [functionsResponse, levelsResponse] = await Promise.all([fetchJobFunctions(), fetchJobLevels()])
+
+      setJobFunctions(
+        functionsResponse.jobFunctions?.map(f => ({
+          ...transformJobFunctionRow(f),
+          jobFamily: f.jobFamily || { id: '', code: '', name: '' }
+        })) || []
+      )
+
+      setJobLevels(levelsResponse.jobLevels?.map(transformJobLevelRow) || [])
+    } catch (err) {
+      console.error('Error loading reference data:', err)
+    } finally {
+      setReferenceDataLoading(false)
+    }
+  }, [fetchJobFunctions, fetchJobLevels])
+
+  const refetch = useCallback(() => {
+    return loadData()
+  }, [loadData])
+
+  const removeJobProfile = useCallback(
+    async (jobProfile: JobProfileDeletionPayload['jobProfile']) => {
+      setDeleteLoading(true)
+      setDeleteError(null)
+
+      try {
+        await deleteJobProfile({ changeMode: 'DELETE', jobProfile })
+        await refetch()
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+        setDeleteError(errorMessage)
+        console.error('Error deleting job profile:', err)
+        throw err
+      } finally {
+        setDeleteLoading(false)
+      }
     },
-    [loadData]
+    [deleteJobProfile, refetch]
   )
 
-  // Helper functions
   const getJobProfileById = useCallback(
-    (profileId: string): JobProfile | undefined => {
-      return jobProfiles.find(profile => profile.id === profileId)
-    },
-    [jobProfiles]
-  )
-
-  const getJobProfilesByJobFunction = useCallback(
-    (jobFunctionId: string): JobProfile[] => {
-      return jobProfiles.filter(
-        profile => profile.jobFunctionId === jobFunctionId || profile.jobFunction?.id === jobFunctionId
-      )
-    },
-    [jobProfiles]
-  )
-
-  const getJobProfilesByJobLevel = useCallback(
-    (jobLevelId: string): JobProfile[] => {
-      return jobProfiles.filter(profile => profile.jobLevelId === jobLevelId || profile.jobLevel?.id === jobLevelId)
-    },
-    [jobProfiles]
-  )
-
-  const getJobProfilesByContractType = useCallback(
-    (contractTypeRef: string): JobProfile[] => {
-      return jobProfiles.filter(
-        profile => profile.contractTypeRef === contractTypeRef || profile.contractType?.id === contractTypeRef
-      )
-    },
-    [jobProfiles]
-  )
-
-  const getJobProfilesByEmploymentType = useCallback(
-    (employmentTypeRef: string): JobProfile[] => {
-      return jobProfiles.filter(
-        profile => profile.employmentTypeRef === employmentTypeRef || profile.employmentType?.id === employmentTypeRef
-      )
+    (id: string): JobProfile | undefined => {
+      return jobProfiles.find(profile => profile.id === id)
     },
     [jobProfiles]
   )
 
   const searchJobProfiles = useCallback(
-    (query: string): JobProfile[] => {
-      const searchTerm = query.toLowerCase()
+    (searchTerm: string): JobProfile[] => {
+      if (!searchTerm) return jobProfiles
+      const term = searchTerm.toLowerCase()
       return jobProfiles.filter(
         profile =>
-          profile.name.toLowerCase().includes(searchTerm) ||
-          (profile.code && profile.code.toLowerCase().includes(searchTerm)) ||
-          (profile.description && profile.description.toLowerCase().includes(searchTerm)) ||
-          (profile.jobFunction?.name && profile.jobFunction.name.toLowerCase().includes(searchTerm)) ||
-          (profile.jobLevel?.name && profile.jobLevel.name.toLowerCase().includes(searchTerm))
+          profile.name?.toLowerCase().includes(term) ||
+          profile.code?.toLowerCase().includes(term) ||
+          profile.description?.toLowerCase().includes(term) ||
+          profile.jobFunction?.name?.toLowerCase().includes(term) ||
+          profile.jobFunction?.code?.toLowerCase().includes(term) ||
+          profile.jobLevel?.name?.toLowerCase().includes(term) ||
+          profile.jobLevel?.code?.toLowerCase().includes(term) ||
+          profile.jobProfileSkills?.some(skill => skill.skill?.name?.toLowerCase().includes(term))
       )
     },
     [jobProfiles]
   )
 
-  // Load data on mount and when access token changes
   useEffect(() => {
     if (context.accessToken) {
-      loadData()
-      loadJobFunctions()
+      Promise.all([loadData(), loadReferenceData()])
     }
-  }, [context.accessToken, loadData])
+  }, [context.accessToken, loadData, loadReferenceData])
 
   return {
     // Data
     jobProfiles,
-    jobFunctions,
     totalCount,
+    jobFunctions,
+    jobLevels,
+    referenceDataLoading,
 
     // State
-    isLoading,
-    error,
+    isLoading: isLoading || deleteLoading,
+    error: error || deleteError,
 
     // Actions
     refetch,
+    removeJobProfile,
+    deleteLoading,
 
     // Helper functions
     getJobProfileById,
-    getJobProfilesByJobFunction,
-    getJobProfilesByJobLevel,
-    getJobProfilesByContractType,
-    getJobProfilesByEmploymentType,
     searchJobProfiles,
 
     // Raw fetch function for advanced usage
-    fetchJobProfileData
+    fetchJobProfiles,
+    loadData,
+    loadReferenceData
   }
 }

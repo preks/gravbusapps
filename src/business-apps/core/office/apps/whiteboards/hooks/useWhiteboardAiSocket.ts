@@ -62,6 +62,7 @@ export function useWhiteboardAiSocket({ whiteboardId, accessToken, enabled = tru
       path: socketPath,
       auth: { token: accessToken },
       transports: ['websocket', 'polling'],
+      tryAllTransports: true,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 2000

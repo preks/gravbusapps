@@ -194,6 +194,11 @@ export interface PersistAllocationsForSelectedEmployeesInput {
   planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
   managerOrganizationalUnitId: string | null
   managerEmployeeId: string
+  /**
+   * Employees who already have a non-draft, non–sent-back proposal in the review pipeline; must not
+   * be re-submitted from team compensation. Dialog must filter these; this is a safety check.
+   */
+  employeeIdsBlockedFromManagerResubmit?: ReadonlySet<string>
 }
 
 export async function persistAllocationsForSelectedEmployees(
@@ -208,12 +213,18 @@ export async function persistAllocationsForSelectedEmployees(
     allocationByEmployeeId,
     planOuRowIdByOrganizationalUnitId,
     managerOrganizationalUnitId,
-    managerEmployeeId
+    managerEmployeeId,
+    employeeIdsBlockedFromManagerResubmit
   } = input
   const createdIdsByEmployeeId: Record<string, string> = {}
   const distributedByPlanOuRowId = new Map<string, number>()
 
   for (const id of selectedIds) {
+    if (employeeIdsBlockedFromManagerResubmit?.has(id)) {
+      throw new Error(
+        'Selected employee is not eligible for another submit: proposal is already in the review pipeline.'
+      )
+    }
     const m = memberById.get(id)
     if (!m) {
       continue

@@ -199,6 +199,18 @@ export class OrgchartClient extends RestClient {
   assignEmployeesToOrganizationalUnit<T = any>(assignmentsBody: unknown, options: RequestOptions = {}) {
     return this.post<T>('/employee-assignments/organizational-unit', assignmentsBody, options)
   }
+
+  createGeoZone<T = any>(body: unknown, options: RequestOptions = {}) {
+    return this.post<T>('/geo-zones', body, options)
+  }
+
+  updateGeoZone<T = any>(geoZoneId: string, body: unknown, options: RequestOptions = {}) {
+    return this.put<T>(`/geo-zones/${geoZoneId}`, body, options)
+  }
+
+  deleteGeoZone<T = any>(geoZoneId: string, options: RequestOptions = {}) {
+    return this.delete<T>(`/geo-zones/${geoZoneId}`, options)
+  }
 }
 
 export const orgchartClient = new OrgchartClient()

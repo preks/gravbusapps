@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback } from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   Table,
   TableBody,
@@ -19,45 +19,18 @@ import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-  TooltipProvider
+  TooltipProvider,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { ArrowUpIcon, ArrowDownIcon, InfoIcon } from '@phosphor-icons/react'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { ArrowUpIcon, ArrowDownIcon, InfoIcon, LightningIcon } from '@phosphor-icons/react'
 import { JobPosition } from '../hooks/useJobPositionListData'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-// Memoized AppActionButton to prevent unnecessary re-renders and API calls
-const MemoizedAppActionButton = React.memo<{
-  jobPositionId: string
-  employeeId?: string
-  userId?: string
-  accessToken: string
-  dataTestIdPrefix: string
-  disabled?: boolean
-}>(({ jobPositionId, employeeId, userId, accessToken, dataTestIdPrefix, disabled }) => (
-  <AppActionButton
-    data-testid={formatDataTestId(dataTestIdPrefix, `Actions-${jobPositionId}`)}
-    size="icon"
-    contextsArray={[FlowContextName.jobPositionEntity]}
-    externalContextData={{
-      jobPositionId: jobPositionId,
-      employeeId: employeeId,
-      keycloakUserId: userId
-    }}
-    prefixDataTestId={`${dataTestIdPrefix}-action-${jobPositionId}`}
-    accessToken={accessToken}
-    disabled={disabled}
-    emptyStateBehavior="enable"
-    deferMainContextRequestsUntilClick
-    autoExecuteSingleAction={true}
-  />
-))
-
-MemoizedAppActionButton.displayName = 'MemoizedAppActionButton'
 
 interface JobPositionTableProps {
   jobPositions: JobPosition[]
@@ -74,10 +47,13 @@ interface JobPositionTableProps {
   onPageSizeChange: (pageSize: number) => void
   onSelectJobPosition?: (jobPosition: JobPosition) => void
   selectedJobPositionId?: string
-  accessToken: string
   sortField: string
   sortOrder: 'ASC' | 'DESC' | ''
   onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void
+  onEditJobPosition: (jobPosition: JobPosition) => void
+  onRequestTerminateJobPosition: (jobPosition: JobPosition) => void
+  terminateMutationLoading?: boolean
+  terminatingJobPositionId?: string | null
 }
 
 const DATA_TEST_ID_PREFIX = 'JobPositionTable'
@@ -98,12 +74,17 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
   onPageSizeChange,
   onSelectJobPosition,
   selectedJobPositionId,
-  accessToken,
   sortField,
   sortOrder,
-  onSortingChange
+  onSortingChange,
+  onEditJobPosition,
+  onRequestTerminateJobPosition,
+  terminateMutationLoading = false,
+  terminatingJobPositionId = null
 }) => {
   const { t } = useTranslation(hrTranslations)
+  const [openActionsRowId, setOpenActionsRowId] = useState<string | null>(null)
+
   // Calculate pagination values
   const totalPages = Math.ceil(total / pageSize)
 
@@ -467,7 +448,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                     className="gba:py-4 gba:px-6"
                     data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `profile-${jobPosition.id}`)}
                   >
-                    {jobPosition.jobProfile?.name || '-'}
+                    {jobPosition.jobProfile?.title || '-'}
                   </TableCell>
 
                   {/* Employee / Vacancy Status */}
@@ -488,14 +469,70 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   {/* Actions Column - Last */}
                   <TableCell className="gba:py-4 gba:px-6">
                     <div onClick={e => e.stopPropagation()}>
-                      <MemoizedAppActionButton
-                        jobPositionId={jobPosition.id}
-                        employeeId={jobPosition.employeePositions[0]?.employeeId}
-                        userId={undefined}
-                        accessToken={accessToken}
-                        disabled={Boolean(jobPosition.activeTo)}
-                        dataTestIdPrefix={DATA_TEST_ID_PREFIX}
-                      />
+                      {terminatingJobPositionId === jobPosition.id && terminateMutationLoading ? (
+                        <div
+                          className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center"
+                          data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `actions-loading-${jobPosition.id}`)}
+                        >
+                          <Spinner size="sm" />
+                        </div>
+                      ) : (
+                        <DropdownMenu
+                          open={openActionsRowId === jobPosition.id}
+                          onOpenChange={open => {
+                            if (open) {
+                              setOpenActionsRowId(jobPosition.id)
+                            } else {
+                              setOpenActionsRowId(prev => (prev === jobPosition.id ? null : prev))
+                            }
+                          }}
+                        >
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              type="button"
+                              className="gba:h-9 gba:w-9 gba:border-info/50 gba:text-info gba:hover:bg-info-secondary/10 gba:hover:text-info gba:hover:border-info"
+                              data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `Actions-${jobPosition.id}`)}
+                              aria-label={getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:human_resources_page.employees_section.actions',
+                                'Actions'
+                              )}
+                            >
+                              <LightningIcon className="gba:h-4 gba:w-4" weight="regular" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="gba:min-w-40">
+                            <DropdownMenuItem
+                              data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `action-update-${jobPosition.id}`)}
+                              onSelect={() => {
+                                setOpenActionsRowId(null)
+                                onEditJobPosition(jobPosition)
+                              }}
+                            >
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:human_resources_page.job_positions_section.update_position',
+                                'Update'
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `action-terminate-${jobPosition.id}`)}
+                              disabled={Boolean(jobPosition.activeTo)}
+                              onSelect={() => {
+                                if (!jobPosition.activeTo) {
+                                  setOpenActionsRowId(null)
+                                  onRequestTerminateJobPosition(jobPosition)
+                                }
+                              }}
+                            >
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:human_resources_page.job_positions_section.terminate',
+                                'Terminate'
+                              )}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -503,11 +540,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
 
               {jobPositions.length === 0 && !loading && (
                 <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-center text-muted-foreground"
-                    style={{ padding: 'var(--nw-spacing-8)' }}
-                  >
+                  <TableCell colSpan={8} className="gba:text-center gba:text-muted-foreground gba:p-8">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:human_resources_page.job_positions_section.no_job_positions_found',
                       'No job positions found'

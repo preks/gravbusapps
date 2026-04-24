@@ -60,7 +60,7 @@ export function buildOrgUnitDistributionInputsFromTeamMembers(
     const headcount = members.length
     const currentTotalSalaryCost = members.reduce((sum, x) => sum + (x.currentAnnualSalary ?? 0), 0)
     const currentTotalBonusYtd = members.reduce((sum, x) => sum + (x.currentBonusTotal ?? 0), 0)
-    /** Department score for weights = sum of employee overall scores (`performanceOverallScore`). */
+    /** Averages and sums derived from `performanceOverallScore` (weights use the average, see `distributeToOrgUnits`). */
     const ratings = members
       .map(x => x.performanceOverallScore)
       .filter((x): x is number => x != null && !Number.isNaN(x))

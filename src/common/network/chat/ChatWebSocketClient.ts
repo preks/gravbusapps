@@ -23,6 +23,10 @@ export type ChatSocketConnectionStatus = {
 
 export type ChatSocketEventHandler<T = unknown> = (data: T) => void
 
+function resolveSocketTransports(enablePollingFallback: boolean) {
+  return enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
+}
+
 function resolveSocketOptions(options: ChatWebSocketOptions): Required<ChatWebSocketOptions> {
   return {
     connectionTimeout: options.connectionTimeout ?? 20000,
@@ -203,11 +207,12 @@ export class ChatWebSocketClient {
       return this.socket
     }
 
-    const transports = this.options.enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
+    const transports = resolveSocketTransports(this.options.enablePollingFallback)
 
     this.socket = io(this.url, {
       auth: toSocketAuth(this.accessToken),
       transports,
+      tryAllTransports: this.options.enablePollingFallback,
       path: this.options.path,
       reconnection: true,
       reconnectionDelay: 5000,
