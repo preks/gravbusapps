@@ -2,7 +2,48 @@
 // Transforms InvestmentReport entities to AnalyticsRowData format for liquid fund tables
 
 import type { InvestmentReport } from '@/common/data/investment/types/investmentTypes'
-import { AnalyticsRowData } from '../types/AnalyticsTypes'
+
+/**
+ * Processed data for display in the liquid fund analytics table.
+ * Used as the row shape for the dynamic liquid-fund report renderer.
+ */
+export interface AnalyticsRowData {
+  id: string
+  cashBankIdentifier: string
+  proprietorName: string
+  originalCurrency: string
+  // Report date for display
+  reportDate?: string
+  // Additional fields for Fixed-Term Deposits
+  maturityDate?: string
+  interestRate?: number
+  // Investment navigation fields
+  investmentId?: string
+  investmentName?: string
+  // Additional fields for Multiple Investment Types (Tab 3)
+  depositName?: string
+  isin?: string
+  stocksQuantity?: number
+  // Calculated values for the analytics period
+  openingBalance: number
+  incoming: number
+  outgoing: number
+  realizedGainsLosses: number
+  unrealizedGainsLosses: number
+  closingBalance: number
+  timeWeightedPerformance: number
+  // Metadata
+  portfolioId: string
+  investmentType: string
+  reportCount: number
+  reportId?: string // InvestmentReport ID for actions column
+
+  // IMPORTANT: Full data structures for dynamic column access
+  // These ensure the getValue functions in dynamic columns can access all nested data
+  investment?: any // The investment entity with all its properties
+  liquidFundInvestment?: any[] // Array of liquid fund investment data
+  liquidFundReport?: any // The liquid fund report data
+}
 
 /**
  * Transforms investment reports to analytics data format for liquid funds

@@ -13,8 +13,6 @@ import { InvestmentDocuments } from '../components/InvestmentDocuments'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InvestmentHomeTab, InvestmentReportsTab } from '../components/shared'
-import { AppAction } from '@/components/app-action/AppAction'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { InvestmentTilesTab } from '@/common/components/investment/tiles'
 import { DivestmentsTab } from '../components/DivestmentsTab'
 import { getRecordGroupConfiguration } from '../config/recordGroupConfigurations'
@@ -148,29 +146,9 @@ export const createInvestmentTabsConfig = (
           {/* Investment Reports Tab */}
           <InvestmentReportsTab
             investmentId={investmentId}
-            investmentGroupIds={[investment?.investmentGroup?.id].filter(Boolean)}
-            specificInvestmentId={investmentId}
             catalogData={catalogData}
-            investmentTypeCode={investment?.investmentType?.code || ''}
-            liquidFundTypeCode={typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType?.code}
             investment={investment}
             typeSpecificData={typeSpecificData}
-            filterHeaderActions={
-              <AppAction
-                variant="create-primary"
-                contexts={[
-                  {
-                    context: FlowContextName.investmentReportCreate,
-                    contextData: { investmentId: investment?.id }
-                  }
-                ]}
-                accessToken={props.accessToken || ''}
-                data-testid="investment-record-add-report-action"
-                emptyState="hide"
-              >
-                {getTranslationFromI18nKeyAndLabel('investment.reports.addReport', 'Add Report')}
-              </AppAction>
-            }
             accessToken={props.accessToken}
             userInfo={props.userInfo}
             additionalData={props.additionalData}
