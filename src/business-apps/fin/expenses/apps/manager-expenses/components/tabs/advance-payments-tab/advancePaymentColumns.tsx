@@ -57,7 +57,8 @@ export function createAdvancePaymentColumns(currencyFilter: string | null): Colu
     createEmployeeColumn<AdvancePaymentItem>(
       'expensePlan.employee.fullName',
       getAdvancePaymentColumnHeader('expensePlan.employee.fullName'),
-      (row: AdvancePaymentItem) => row.expensePlan?.employee ?? null
+      (row: AdvancePaymentItem) => row.expensePlan?.employee ?? null,
+      { showEmployeeAvatar: false }
     ),
     createDateColumn<AdvancePaymentItem>('createdAt', getAdvancePaymentColumnHeader('createdAt'), 'createdAt', {
       formatDate

@@ -20,8 +20,19 @@ import { useFilterData } from '../../hooks/useFilterData'
 import { downloadCsvReport, downloadExcelReport } from './backofficeExpenseReportsPage.utils'
 import { getReportColumns, getExportColumns, getBackendSortableColumnKeys } from './reportColumnDefinitions'
 import ReportSlaKpiCards from './ReportSlaKpiCards'
-import { type ReportSnapshot, REPORT_TYPE_DEFINITIONS, hasAnyReportFilters } from './reportFilterUtils'
-import { useReportFilters } from './useReportFilters'
+import {
+  type ReportSnapshot,
+  type ReportFilters,
+  EMPTY_REPORT_FILTERS,
+  REPORT_TYPE_DEFINITIONS,
+  hasAnyReportFilters
+} from './reportFilterUtils'
+import {
+  EXPENSE_REPORT_SEGMENTED_TAB_TRIGGER_CLASS,
+  EXPENSE_REPORT_TABS_ROOT_CLASS,
+  getExpenseReportSegmentedTabsListClassName
+} from '../../../../common/utils/segmentedExpenseReportTabsClassNames'
+import { useReportFilters, type UseReportFiltersParams } from './useReportFilters'
 import { renderReportTableCell } from './reportTableCells'
 import { useSlaKpiValues } from './useSlaKpiValues'
 import translations from '../../_i18n'
@@ -54,16 +65,23 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
   const [sorting, setSorting] = useState<SortingState>([])
   const [reportSnapshotsByType, setReportSnapshotsByType] = useState<Partial<Record<ReportType, ReportSnapshot>>>({})
   const [localSearchText, setLocalSearchText] = useState(initialUrlParams.search)
-  const [filtersByReportType, setFiltersByReportType] = useState<Partial<Record<ReportType, Record<string, any>>>>(
-    () => {
-      const rt = initialUrlParams.reportType
-      if (!rt) return {}
-      const initial: Record<string, any> = {}
-      if (initialUrlParams.status.length > 0) initial.status = initialUrlParams.status
-      if (initialUrlParams.department.length > 0) initial.departmentName = initialUrlParams.department
-      return Object.keys(initial).length > 0 ? { [rt]: initial } : {}
+  const [filtersByReportType, setFiltersByReportType] = useState<Partial<Record<ReportType, ReportFilters>>>(() => {
+    const rt = initialUrlParams.reportType
+    if (!rt) {
+      return {}
     }
-  )
+    const initial: ReportFilters = { ...EMPTY_REPORT_FILTERS }
+    if (initialUrlParams.status.length > 0) {
+      initial.status = initialUrlParams.status
+    }
+    if (initialUrlParams.department.length > 0) {
+      initial.departmentName = initialUrlParams.department
+    }
+    if (initial.status.length > 0 || initial.departmentName.length > 0) {
+      return { [rt]: initial }
+    }
+    return {}
+  })
 
   const contextProps = useMemo(() => ({ accessToken, userInfo }), [accessToken, userInfo])
 
@@ -134,7 +152,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     setLocalSearchText,
     setSearchTerm,
     t
-  })
+  } satisfies UseReportFiltersParams)
 
   const slaKpiValues = useSlaKpiValues(slaKpiCounts)
   const hasActiveFilters = useMemo(() => hasAnyReportFilters(selectedFilters), [selectedFilters])
@@ -180,12 +198,10 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     () =>
       REPORT_TYPE_DEFINITIONS.map(def => ({
         key: def.key,
-        name: t(def.nameKey),
-        description: t(def.descKey)
+        name: t(def.nameKey)
       })),
     [t]
   )
-  const selectedReportMeta = reportTypes.find(rt => rt.key === selectedReportType)
 
   const columns = useMemo(() => getReportColumns(selectedReportType, t), [selectedReportType, t])
   const backendSortableColumnKeys = useMemo(
@@ -194,14 +210,20 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
   )
   const dataTableColumns = useMemo<TanstackColumnDef<any>[]>(
     () =>
-      columns.map(col => ({
-        id: col.key,
-        enableSorting: backendSortableColumnKeys.has(col.key),
-        header: col.title ?? '',
-        accessorFn: (row: any) => row?.[col.key],
-        cell: ({ row }: any) => renderReportTableCell(col.key, row?.original, t)
-      })),
-    [columns, backendSortableColumnKeys]
+      columns.map(col => {
+        const headerLabel =
+          typeof col.title === 'string' || typeof col.title === 'number' || typeof col.title === 'boolean'
+            ? String(col.title)
+            : col.key
+        return {
+          id: col.key,
+          enableSorting: backendSortableColumnKeys.has(col.key),
+          header: headerLabel,
+          accessorFn: (row: any) => row?.[col.key],
+          cell: ({ row }: any) => renderReportTableCell(col.key, row?.original, t)
+        }
+      }),
+    [columns, backendSortableColumnKeys, t]
   )
   const sortableColumns = useMemo(
     () =>
@@ -220,10 +242,32 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     setLocalSearchText(value)
   }, [])
 
-  const handleReportTypeChange = (value: string) => {
-    const nextType = reportTypes.find(rt => rt.key === value)?.key
-    if (nextType) setSelectedReportType(nextType)
-  }
+  /**
+   * Resets search, all filter chips, sort, and cached table snapshots when switching report tabs
+   * (not in a `selectedReportType` effect) so the initial URL hydration effect is not
+   * overwritten. Toolbar search clears in the same event turn as the tab change so
+   * DataDisplay/ToolbarSearch stay in sync. DataDisplay remounts when `dataDisplayStateKey`
+   * changes (report type + filter signature).
+   */
+  const resetStateOnReportTypeTabChange = useCallback(() => {
+    setLocalSearchText('')
+    setSearchTerm('')
+    setCurrentPage(1)
+    setFiltersByReportType({})
+    setSorting([])
+    setReportSnapshotsByType({})
+  }, [setCurrentPage, setSearchTerm])
+
+  const handleReportTypeChange = useCallback(
+    (value: string) => {
+      const nextType = reportTypes.find(rt => rt.key === value)?.key
+      if (nextType) {
+        resetStateOnReportTypeTabChange()
+        setSelectedReportType(nextType)
+      }
+    },
+    [reportTypes, resetStateOnReportTypeTabChange, setSelectedReportType]
+  )
   const handleSortingChange: OnChangeFn<SortingState> = updater => {
     setSorting(prev => (typeof updater === 'function' ? updater(prev) : updater))
     setCurrentPage(1)
@@ -250,10 +294,13 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     setPageSize(p.pageSize)
     setCurrentPage(1)
   }
+  // Do not include `searchTerm` here: it changes when the debounce commits and would change
+  // the React `key` on `DataDisplay`, remounting the whole toolbar and collapsing the search
+  // field (design-system ToolbarSearch is not a fully controlled input).
   const dataDisplayStateKey = useMemo(
     () =>
-      `${selectedReportType || 'unknown'}::${selectedFilters.status.join('|')}::${selectedFilters.employeeName.join('|')}::${selectedFilters.departmentName.join('|')}::${selectedFilters.dateFrom || ''}::${selectedFilters.dateTo || ''}::${selectedFilters.effectiveDateFrom || ''}::${selectedFilters.effectiveDateTo || ''}::${selectedFilters.requestDateFrom || ''}::${selectedFilters.requestDateTo || ''}::${selectedFilters.planDateFrom || ''}::${selectedFilters.planDateTo || ''}::${searchTerm || ''}`,
-    [selectedFilters, selectedReportType, searchTerm]
+      `${selectedReportType || 'unknown'}::${selectedFilters.status.join('|')}::${selectedFilters.employeeName.join('|')}::${selectedFilters.departmentName.join('|')}::${selectedFilters.dateFrom || ''}::${selectedFilters.dateTo || ''}::${selectedFilters.effectiveDateFrom || ''}::${selectedFilters.effectiveDateTo || ''}::${selectedFilters.requestDateFrom || ''}::${selectedFilters.requestDateTo || ''}::${selectedFilters.planDateFrom || ''}::${selectedFilters.planDateTo || ''}`,
+    [selectedFilters, selectedReportType]
   )
 
   return (
@@ -280,13 +327,15 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
             <Tabs
               value={selectedReportType || ReportType.APPROVAL_PAYOUT_CYCLE}
               onValueChange={handleReportTypeChange}
+              className={EXPENSE_REPORT_TABS_ROOT_CLASS}
               data-testid="backoffice-expense-reports-tabs-card"
             >
-              <TabsList className="gba:grid gba:w-full gba:grid-cols-5">
+              <TabsList className={getExpenseReportSegmentedTabsListClassName(5)}>
                 {reportTypes.map(type => (
                   <TabsTrigger
                     key={type.key}
                     value={type.key}
+                    className={EXPENSE_REPORT_SEGMENTED_TAB_TRIGGER_CLASS}
                     data-testid={`backoffice-expense-reports-type-${type.key}`}
                   >
                     {type.name}
@@ -294,12 +343,6 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
                 ))}
               </TabsList>
             </Tabs>
-            <p
-              className="gba:text-xs gba:text-muted-foreground gba:px-1"
-              data-testid="backoffice-expense-reports-selected-type-description"
-            >
-              {selectedReportMeta?.description}
-            </p>
             <DataDisplay
               key={`backoffice-reports-datadisplay-${dataDisplayStateKey}`}
               titleSections={[
@@ -357,7 +400,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
               enableLiveFiltering={true}
               data-testid="backoffice-expense-reports-filters-card"
             >
-              <div className="gba:border gba:border-border gba:rounded-md gba:bg-background">
+              <div className="gba:min-w-0">
                 <DataTable
                   data={filteredReportRows}
                   columns={dataTableColumns}

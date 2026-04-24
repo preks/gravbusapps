@@ -124,7 +124,7 @@ report-expense-plan = Planuri de Cheltuieli
 report-expense-plan-desc = Planuri bugetare și alocări
 report-expense-request = Cereri Decont
 report-expense-request-desc = Cereri de decont trimise și aprobări
-report-advance-payment = Raport Plăți în Avans
+report-advance-payment = Plăți în Avans
 report-advance-payment-desc = Avansuri și plăți anticipate
 
 # Report Actions & Labels
