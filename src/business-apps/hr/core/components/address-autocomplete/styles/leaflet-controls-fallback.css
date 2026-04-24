@@ -43,6 +43,7 @@
 }
 .gba-leaflet-map .leaflet-right .leaflet-control {
   float: right;
+  margin-right: 10px;
 }
 .gba-leaflet-map .leaflet-top .leaflet-control {
   margin-top: 10px;
@@ -52,9 +53,6 @@
 }
 .gba-leaflet-map .leaflet-left .leaflet-control {
   margin-left: 10px;
-}
-.gba-leaflet-map .leaflet-right .leaflet-control {
-  margin-right: 10px;
 }
 .gba-leaflet-map .leaflet-bar {
   box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
@@ -72,10 +70,12 @@
   text-align: center;
   text-decoration: none;
   color: black;
-  font:
-    bold 18px 'Lucida Console',
-    Monaco,
-    monospace;
+  /* Individual font properties instead of the `font:` shorthand — the shorthand
+     resets sub-properties it doesn't set (including line-height), which would
+     wipe the `line-height: 26px` above and leave the `+` / `−` glyphs misaligned. */
+  font-weight: bold;
+  font-size: 18px;
+  font-family: 'Lucida Console', Monaco, monospace;
 }
 .gba-leaflet-map .leaflet-bar a:hover {
   background-color: #f4f4f4;

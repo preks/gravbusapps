@@ -128,7 +128,7 @@ const InvalidateSizeOnResize: React.FC = () => {
   const map = useMap()
   useEffect(() => {
     const container = map.getContainer()
-    const timeoutIds = [0, 100, 300, 750].map(delay => window.setTimeout(() => map.invalidateSize(), delay))
+    const timeoutIds = [0, 100, 300, 750].map(delay => globalThis.setTimeout(() => map.invalidateSize(), delay))
 
     const onWindowResize = () => map.invalidateSize()
     window.addEventListener('resize', onWindowResize)
@@ -140,7 +140,7 @@ const InvalidateSizeOnResize: React.FC = () => {
     }
 
     return () => {
-      timeoutIds.forEach(id => window.clearTimeout(id))
+      timeoutIds.forEach(id => globalThis.clearTimeout(id))
       window.removeEventListener('resize', onWindowResize)
       observer?.disconnect()
     }
