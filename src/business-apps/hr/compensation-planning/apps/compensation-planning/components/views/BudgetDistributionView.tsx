@@ -31,6 +31,7 @@ import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../../api/compensationB
 import { BudgetDistributionDistributeDialog } from './BudgetDistributionDistributeDialog'
 import { BudgetDistributionContextCard } from './BudgetDistributionContextCard'
 import { BudgetDistributionPoolKpiCards } from './BudgetDistributionPoolKpiCards'
+import { BudgetDistributionAllocatedSummaryCard } from './BudgetDistributionAllocatedSummaryCard'
 
 export interface BudgetDistributionViewProps {
   accessToken: string
@@ -140,6 +141,9 @@ export function BudgetDistributionView({
   const {
     customBudgetByOrgUnitId,
     previewCustomAllocationByOrgUnit,
+    customAmountModeRawTotalRequested,
+    customAmountRequestExceedsPool,
+    customOverPoolAmount,
     handleCustomAmountRawChange,
     handleCustomPercentRawChange,
     handleCustomModeChange,
@@ -213,13 +217,21 @@ export function BudgetDistributionView({
   const listError = orgUnitBudgetError ?? teamError ?? null
 
   const hasSelectedCompanyBudget = selectedDistributionCompanyBudgetId != null
+  const hasDistributablePool = activeDistributionPool != null && activeDistributionPool > 0
+  /** Hide the distribution preview panel when a plan is loaded and there is no remaining increase pool to split. */
+  const showDistributionPreviewPanel =
+    listLoading || !hasSelectedCompanyBudget || selectedCompanyBudgetRow == null || hasDistributablePool
   const canOpenDistribute =
-    Boolean(accessToken) && hasSelectedCompanyBudget && selectedCompanyBudgetRow != null && !listLoading
+    Boolean(accessToken) &&
+    hasSelectedCompanyBudget &&
+    selectedCompanyBudgetRow != null &&
+    !listLoading &&
+    hasDistributablePool
 
   const planSelect = (
     <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2">
       <span className="gba:shrink-0 gba:text-sm gba:font-semibold gba:text-foreground">
-        {t('budget-distribution-company-plan-label')}
+        {t('budget-distribution-compensation-cycle-label')}
       </span>
       <Select
         value={selectedDistributionCompanyBudgetId ?? undefined}
@@ -228,9 +240,9 @@ export function BudgetDistributionView({
       >
         <SelectTrigger
           className="gba:min-w-0 gba:w-[300px] gba:max-w-full"
-          data-testid="budget-distribution-company-plan-select"
+          data-testid="budget-distribution-compensation-cycle-select"
         >
-          <SelectValue placeholder={t('budget-distribution-company-plan-placeholder')} />
+          <SelectValue placeholder={t('budget-distribution-compensation-cycle-placeholder')} />
         </SelectTrigger>
         <SelectContent>
           {companyBudgetPlanOptions.map(opt => (
@@ -263,9 +275,12 @@ export function BudgetDistributionView({
     }
     if (activeDistributionPool == null || activeDistributionPool <= 0) {
       return (
-        <p className="gba:text-sm gba:text-muted-foreground" data-testid="budget-distribution-preview-pool-zero">
-          {t('budget-distribution-preview-pool-zero')}
-        </p>
+        <BudgetDistributionAllocatedSummaryCard
+          salaryBudgetAmount={selectedCompanyBudgetRow.salaryBudgetAmount}
+          allocationAmount={selectedCompanyBudgetRow.allocationAmount}
+          currencyCode={currencyCode}
+          t={t}
+        />
       )
     }
     return (
@@ -276,11 +291,15 @@ export function BudgetDistributionView({
         selectedMethod={selectedMethod}
         loading={listLoading}
         t={t}
+        customRequestExceedsPool={customAmountRequestExceedsPool}
+        overPoolAmount={customOverPoolAmount}
       />
     )
   }, [
     activeDistributionPool,
     currencyCode,
+    customAmountRequestExceedsPool,
+    customOverPoolAmount,
     hasSelectedCompanyBudget,
     listLoading,
     previewAllocationByOrgUnit,
@@ -317,69 +336,74 @@ export function BudgetDistributionView({
         onSaved={handleDistributeSaved}
       />
 
-      <Card className="gba:w-full" data-testid="budget-distribution-method-departments-panel">
-        <CardHeader className="gba:flex gba:flex-row gba:flex-wrap gba:items-center gba:justify-between gba:gap-3 gba:border-b gba:border-border gba:pb-4">
-          <CardTitle className="gba:min-w-0 gba:text-base gba:font-semibold gba:text-foreground">
-            {t('budget-distribution-split-panel-title')}
-          </CardTitle>
-          <Button
-            type="button"
-            className="gba:shrink-0"
-            onClick={() => setDistributeOpen(true)}
-            disabled={!canOpenDistribute}
-            data-testid="budget-distribution-distribute-open"
-          >
-            {t('budget-distribution-distribute-button')}
-          </Button>
-        </CardHeader>
-        <CardContent className="gba:p-0">
-          <div className="gba:flex gba:min-h-0 gba:flex-col gba:md:flex-row gba:md:items-stretch">
-            <aside
-              className="gba:flex gba:w-full gba:max-w-xs gba:shrink-0 gba:flex-col gba:border-b gba:border-border gba:bg-muted/30 gba:p-4 md:gba:max-w-none md:gba:w-64 md:gba:border-b-0 md:gba:border-r"
-              data-testid="budget-distribution-method-sidebar"
+      {showDistributionPreviewPanel ? (
+        <Card className="gba:w-full" data-testid="budget-distribution-method-departments-panel">
+          <CardHeader className="gba:flex gba:flex-row gba:flex-wrap gba:items-center gba:justify-between gba:gap-3 gba:border-b gba:border-border gba:pb-4">
+            <CardTitle className="gba:min-w-0 gba:text-base gba:font-semibold gba:text-foreground">
+              {t('budget-distribution-split-panel-title')}
+            </CardTitle>
+            <Button
+              type="button"
+              className="gba:shrink-0"
+              onClick={() => setDistributeOpen(true)}
+              disabled={!canOpenDistribute}
+              data-testid="budget-distribution-distribute-open"
             >
-              <p className="gba:mb-3 gba:w-full gba:max-w-xs gba:text-sm gba:font-medium gba:text-muted-foreground md:gba:max-w-none">
-                {t('budget-distribution-split-panel-methods-column-title')}
-              </p>
-              <BudgetDistributionMethodSelector
-                variant="sidebar"
-                selectedMethod={selectedMethod}
-                onMethodChange={setDistributionMethod}
-                disabled={LOCK_DISTRIBUTION_METHOD_SELECTION}
-                sectionTitle={t('budget-distribution-method-section-title')}
-                t={t}
-              />
-            </aside>
-            <div
-              className="gba:flex gba:min-w-0 gba:flex-1 gba:flex-col gba:bg-background gba:p-4"
-              data-testid="budget-distribution-departments-panel-main"
-            >
-              <BudgetDistributionOrgUnitList
-                embedded
-                sortedOrgUnits={distributionOrgUnitsForList}
-                headcountByOrgUnitId={headcountByOrgUnitId}
-                salaryCostByOrgUnitId={salaryCostByOrgUnitId}
-                totalSalaryCostAcrossOrgUnits={totalSalaryCostAcrossOrgUnits}
-                averagePerformanceByOrgUnitId={averagePerformanceByOrgUnitId}
-                sumOfDepartmentAverageScores={sumOfDepartmentAverageScores}
-                distributionPool={activeDistributionPool}
-                allocationByOrgUnitId={previewAllocationByOrgUnit}
-                currencyCode={currencyCode}
-                loading={listLoading}
-                error={listError}
-                hasSelectedPlan={hasSelectedCompanyBudget}
-                selectedMethod={selectedMethod}
-                customBudgetByOrgUnitId={customBudgetByOrgUnitId}
-                onCustomAmountRawChange={handleCustomAmountRawChange}
-                onCustomPercentRawChange={handleCustomPercentRawChange}
-                onCustomModeChange={handleCustomModeChange}
-                performanceFallbackToHeadcount={performanceFallbackToHeadcount}
-                performancePartialScores={performancePartialScores}
-              />
+              {t('budget-distribution-distribute-button')}
+            </Button>
+          </CardHeader>
+          <CardContent className="gba:p-0">
+            <div className="gba:flex gba:min-h-0 gba:flex-col gba:md:flex-row gba:md:items-stretch">
+              <aside
+                className="gba:flex gba:w-full gba:max-w-xs gba:shrink-0 gba:flex-col gba:border-b gba:border-border gba:bg-muted/30 gba:p-4 md:gba:max-w-none md:gba:w-64 md:gba:border-b-0 md:gba:border-r"
+                data-testid="budget-distribution-method-sidebar"
+              >
+                <p className="gba:mb-3 gba:w-full gba:max-w-xs gba:text-sm gba:font-medium gba:text-muted-foreground md:gba:max-w-none">
+                  {t('budget-distribution-split-panel-methods-column-title')}
+                </p>
+                <BudgetDistributionMethodSelector
+                  variant="sidebar"
+                  selectedMethod={selectedMethod}
+                  onMethodChange={setDistributionMethod}
+                  disabled={LOCK_DISTRIBUTION_METHOD_SELECTION}
+                  sectionTitle={t('budget-distribution-method-section-title')}
+                  t={t}
+                />
+              </aside>
+              <div
+                className="gba:flex gba:min-w-0 gba:flex-1 gba:flex-col gba:bg-background gba:p-4"
+                data-testid="budget-distribution-departments-panel-main"
+              >
+                <BudgetDistributionOrgUnitList
+                  embedded
+                  sortedOrgUnits={distributionOrgUnitsForList}
+                  headcountByOrgUnitId={headcountByOrgUnitId}
+                  salaryCostByOrgUnitId={salaryCostByOrgUnitId}
+                  totalSalaryCostAcrossOrgUnits={totalSalaryCostAcrossOrgUnits}
+                  averagePerformanceByOrgUnitId={averagePerformanceByOrgUnitId}
+                  sumOfDepartmentAverageScores={sumOfDepartmentAverageScores}
+                  distributionPool={activeDistributionPool}
+                  allocationByOrgUnitId={previewAllocationByOrgUnit}
+                  currencyCode={currencyCode}
+                  loading={listLoading}
+                  error={listError}
+                  hasSelectedPlan={hasSelectedCompanyBudget}
+                  selectedMethod={selectedMethod}
+                  customBudgetByOrgUnitId={customBudgetByOrgUnitId}
+                  onCustomAmountRawChange={handleCustomAmountRawChange}
+                  onCustomPercentRawChange={handleCustomPercentRawChange}
+                  onCustomModeChange={handleCustomModeChange}
+                  performanceFallbackToHeadcount={performanceFallbackToHeadcount}
+                  performancePartialScores={performancePartialScores}
+                  customAmountRequestExceedsPool={customAmountRequestExceedsPool}
+                  customAmountModeRawTotalRequested={customAmountModeRawTotalRequested}
+                  customOverPoolAmount={customOverPoolAmount}
+                />
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   )
 }

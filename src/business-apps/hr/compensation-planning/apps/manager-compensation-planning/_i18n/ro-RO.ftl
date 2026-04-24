@@ -14,6 +14,7 @@ table-section-title = Membri echipă
 manager-team-context-card-title = Compensații echipă
 manager-team-allocated-amount-card-title = Sumă alocată
 manager-team-allocated-kpi-from-proposals = Total din propunerile de echipă salvate pe bugetul departamentului.
+manager-team-allocated-kpi-from-preview = Previzualizare curentă a distribuției (se actualizează la metodă și sume; se salvează la trimiterea propunerilor).
 manager-team-budget-allocation-card-title = Buget rămas
 manager-team-submitted-proposals-title = Propuneri echipă
 manager-team-proposals-col-actions = Acțiuni

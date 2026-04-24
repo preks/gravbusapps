@@ -14,6 +14,7 @@ table-section-title = Teammitglieder
 manager-team-context-card-title = Teamvergütung
 manager-team-allocated-amount-card-title = Zugewiesener Betrag
 manager-team-allocated-kpi-from-proposals = Summe der gespeicherten Teamvorschläge in der Abteilungsbudgetzeile.
+manager-team-allocated-kpi-from-preview = Aktuelle Verteilungsvorschau (aktualisiert sich bei Methode und Beträgen; erst nach „Vorschläge senden“ gespeichert).
 manager-team-budget-allocation-card-title = Verbleibendes Budget
 manager-team-submitted-proposals-title = Team-Vorschläge
 manager-team-proposals-col-actions = Aktionen

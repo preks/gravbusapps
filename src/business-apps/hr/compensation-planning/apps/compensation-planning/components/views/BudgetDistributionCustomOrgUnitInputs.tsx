@@ -1,6 +1,8 @@
 import React from 'react'
 import { Input, Label, RadioGroup, RadioGroupItem } from '@newwork/nw-design-system'
 import { formatCurrency } from '@/common/utils/numberFormatter'
+import { cn } from '@/common/utils/cn'
+import { parseCustomAmountInput, roundMoney2 } from '../../utils/parseCustomBudgetInputs'
 import type { CustomBudgetInputMode, OrgUnitCustomBudgetInput } from './budgetDistributionCustomTypes'
 import { defaultOrgUnitCustomBudgetInput } from './budgetDistributionCustomTypes'
 
@@ -71,6 +73,9 @@ export function BudgetDistributionCustomOrgUnitInputs({
   const amountInputId = `budget-distribution-custom-amount-${orgUnitId}`
   const percentInputId = `budget-distribution-custom-percent-${orgUnitId}`
 
+  const amountRequested = mode === 'amount' ? parseCustomAmountInput(entry.amountRaw) : 0
+  const rowRequestExceedsPreviewAmount =
+    mode === 'amount' && entry.amountRaw.trim() !== '' && amountRequested > roundMoney2(amount) + 0.01
   const showDerivedDetails = amount > 0 || entry.amountRaw.trim() !== '' || entry.percentRaw.trim() !== ''
 
   const summaryColumn = showDerivedDetails ? (
@@ -157,13 +162,28 @@ export function BudgetDistributionCustomOrgUnitInputs({
               inputMode="decimal"
               min={0}
               step="0.01"
-              className="gba:w-full gba:max-w-full"
+              className={cn(
+                'gba:w-full gba:max-w-full',
+                rowRequestExceedsPreviewAmount && 'gba:border-destructive gba:ring-1 gba:ring-destructive/30'
+              )}
+              aria-invalid={rowRequestExceedsPreviewAmount}
               value={entry.amountRaw}
               onChange={e => onAmountRawChange(orgUnitId, e.target.value)}
               placeholder="0"
               data-testid={`budget-distribution-custom-input-${orgUnitId}`}
               disabled={disabled}
             />
+            {rowRequestExceedsPreviewAmount ? (
+              <p
+                className="gba:text-xs gba:font-medium gba:leading-snug gba:text-destructive"
+                data-testid={`budget-distribution-custom-row-exceeds-${orgUnitId}`}
+              >
+                {t('budget-distribution-custom-row-exceeds-preview', {
+                  requested: formatCurrency(amountRequested, currencyCode),
+                  applied: formatCurrency(amount, currencyCode)
+                })}
+              </p>
+            ) : null}
           </div>
         ) : (
           <div className="gba:flex gba:flex-col gba:gap-1">

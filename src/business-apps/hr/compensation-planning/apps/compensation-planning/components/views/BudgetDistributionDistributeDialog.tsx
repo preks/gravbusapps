@@ -256,7 +256,7 @@ export function BudgetDistributionDistributeDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="gba:max-h-[85vh] gba:max-w-2xl gba:overflow-y-auto"
+        className="gba:max-h-[85vh] gba:max-w-2xl gba:overflow-y-auto gba:sm:max-w-3xl"
         data-testid="budget-distribution-distribute-dialog"
       >
         <DialogHeader>
@@ -304,23 +304,35 @@ export function BudgetDistributionDistributeDialog({
           </p>
         ) : null}
 
-        <ul className="gba:divide-y gba:divide-border gba:rounded-md gba:border gba:border-border">
+        <ul
+          className="gba:grid gba:max-h-[min(50vh,28rem)] gba:grid-cols-1 gba:content-start gba:gap-2 gba:overflow-y-auto gba:overflow-x-hidden gba:rounded-md gba:border gba:border-border gba:p-2 gba:sm:grid-cols-2"
+          data-testid="budget-distribution-distribute-department-list"
+        >
           {saveableOrgUnits.map(ou => {
             const amount = allocationByOrgUnitId.get(ou.id) ?? 0
             const pct = poolOk && distributionPool != null ? percentOfPool(amount, distributionPool) : null
             const checked = selectedOuIds.has(ou.id)
             return (
-              <li key={ou.id} className="gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2">
+              <li
+                key={ou.id}
+                className="gba:flex gba:min-h-0 gba:min-w-0 gba:items-start gba:gap-2 gba:rounded-sm gba:border gba:border-border/70 gba:bg-background gba:px-2.5 gba:py-2"
+              >
                 <Checkbox
                   checked={checked}
                   onCheckedChange={v => toggleOu(ou.id, v === true)}
                   disabled={saving || !poolOk}
+                  className="gba:mt-0.5"
                   aria-label={t('budget-distribution-distribute-checkbox-aria', { name: ou.name })}
                   data-testid={`budget-distribution-distribute-row-checkbox-${ou.id}`}
                 />
                 <div className="gba:min-w-0 gba:flex-1">
-                  <p className="gba:truncate gba:text-sm gba:font-medium gba:text-foreground">{ou.name}</p>
-                  <p className="gba:text-xs gba:text-muted-foreground">
+                  <p
+                    className="gba:break-words gba:text-sm gba:font-medium gba:leading-snug gba:text-foreground"
+                    title={ou.name}
+                  >
+                    {ou.name}
+                  </p>
+                  <p className="gba:mt-0.5 gba:text-xs gba:leading-snug gba:text-muted-foreground">
                     {formatCurrency(roundMoney2(amount), currencyCode)}
                     {typeof pct === 'number'
                       ? ` · ${t('budget-distribution-distribute-percent-of-pool', { percent: pct })}`

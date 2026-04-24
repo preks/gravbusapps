@@ -94,6 +94,23 @@ function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanComp
   }
 }
 
+/** Earlier dates first; null/invalid effective dates last (stable for tie-break: label). */
+function comparePlanEffectiveDateAsc(
+  a: { effectiveDate: string | null; label: string },
+  b: { effectiveDate: string | null; label: string }
+): number {
+  const aD = a.effectiveDate
+  const bD = b.effectiveDate
+  if (aD == null && bD == null) {
+    return a.label.localeCompare(b.label)
+  }
+  if (aD == null) return 1
+  if (bD == null) return -1
+  const byDate = aD.localeCompare(bD)
+  if (byDate !== 0) return byDate
+  return a.label.localeCompare(b.label)
+}
+
 function buildCompanyBudgetPlanOptions(
   companyRows: CompensationBudgetPlanCompanyRow[],
   plans: CompensationBudgetPlanListItem[]
@@ -117,7 +134,14 @@ function buildCompanyBudgetPlanOptions(
     })
   }
 
-  return options
+  return [...options].sort((oa, ob) => {
+    const pa = planById.get(oa.compensationBudgetPlanId)
+    const pb = planById.get(ob.compensationBudgetPlanId)
+    return comparePlanEffectiveDateAsc(
+      { effectiveDate: pa?.effectiveDate ?? null, label: oa.label },
+      { effectiveDate: pb?.effectiveDate ?? null, label: ob.label }
+    )
+  })
 }
 
 function mapGraphqlOrgUnitRow(

@@ -160,12 +160,18 @@ function buildCompanyBudgetChanges(input: SaveCompanyBudgetInput) {
   }
 }
 
+/**
+ * Keeps `selectedBudgetPlanId` when it still exists in the approved cycle list; clears it when invalid.
+ * Does **not** auto-select the first plan — user must pick a compensation cycle to see setup / submissions data.
+ */
 function applyCompensationCycleSelectorListAndDefaultSelection(list: CompensationBudgetPlanListItem[]): void {
   const { selectedBudgetPlanId: currentId, selectBudgetPlan: pickPlan } = useCompensationPlanningStore.getState()
   if (list.length === 0) {
     pickPlan(null)
-  } else if (!currentId || !list.some(p => p.id === currentId)) {
-    pickPlan(list[0].id)
+    return
+  }
+  if (currentId != null && !list.some(p => p.id === currentId)) {
+    pickPlan(null)
   }
 }
 

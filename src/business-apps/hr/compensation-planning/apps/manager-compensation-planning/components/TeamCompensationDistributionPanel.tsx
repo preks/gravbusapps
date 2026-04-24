@@ -133,6 +133,15 @@ export function TeamCompensationDistributionPanel({
     return map
   }, [filteredRows, allocationFullTeam])
 
+  /** Sum of preview line amounts (all team members) — drives KPIs while editing distribution, before save. */
+  const previewTotalAllocated = useMemo(() => {
+    let sum = 0
+    for (const v of allocationFullTeam.values()) {
+      sum += roundMoney2(v)
+    }
+    return roundMoney2(sum)
+  }, [allocationFullTeam])
+
   const totalSalaryCostAcrossEmployees = useMemo(
     () => filteredRows.reduce((sum, m) => sum + (m.currentAnnualSalary ?? 0), 0),
     [filteredRows]
@@ -201,6 +210,7 @@ export function TeamCompensationDistributionPanel({
   )
 
   const hasPersistedTeamProposals = teamProposalRows.length > 0
+  /** When true, user sees the saved proposals list — KPIs use persisted org-unit allocation. */
   const showProposalsTable = hasPersistedTeamProposals && !preferDistributionView
 
   const awaitingProposalsList = orgUnitPlanRowIds.length > 0 && proposalsLoading && orgScopeEmployeeRows.length === 0
@@ -223,9 +233,9 @@ export function TeamCompensationDistributionPanel({
     if (activePool == null) {
       return null
     }
-    const committedAllocated = totalOrgUnitAllocationAmount ?? 0
-    const allocatedRounded = roundMoney2(committedAllocated)
-    const unallocatedRounded = roundMoney2(Math.max(0, activePool - committedAllocated))
+    const allocatedForKpi = showProposalsTable ? (totalOrgUnitAllocationAmount ?? 0) : previewTotalAllocated
+    const allocatedRounded = roundMoney2(allocatedForKpi)
+    const unallocatedRounded = roundMoney2(Math.max(0, activePool - allocatedForKpi))
     const kpiMoney = {
       currency: extractCurrencyCode(currencyCode),
       minimumFractionDigits: 2,
@@ -252,7 +262,9 @@ export function TeamCompensationDistributionPanel({
         prefix: <CoinsIcon size={24} />,
         color: TEAM_BUDGET_KPI_COLORS.pool,
         span: { xs: 24, sm: 8, lg: 8 },
-        description: t('manager-team-allocated-kpi-from-proposals')
+        description: showProposalsTable
+          ? t('manager-team-allocated-kpi-from-proposals')
+          : t('manager-team-allocated-kpi-from-preview')
       },
       {
         key: 'manager-team-budget-allocation',
@@ -264,7 +276,15 @@ export function TeamCompensationDistributionPanel({
         span: { xs: 24, sm: 8, lg: 8 }
       }
     ]
-  }, [activePool, currencyCode, t, totalOrgUnitAllocationAmount, totalSalaryBudget])
+  }, [
+    activePool,
+    currencyCode,
+    previewTotalAllocated,
+    showProposalsTable,
+    t,
+    totalOrgUnitAllocationAmount,
+    totalSalaryBudget
+  ])
 
   const contextPoolSection = useMemo(() => {
     if (salaryBudgetLoading) {

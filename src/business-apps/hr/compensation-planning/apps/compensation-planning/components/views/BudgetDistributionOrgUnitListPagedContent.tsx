@@ -23,7 +23,6 @@ export interface BudgetDistributionOrgUnitListPagedContentProps {
   sumOfDepartmentAverageScores: number
   distributionPool: number | null
   poolForCustomContext: number | null
-  totalCustomAllocated: number
   /** Custom mode: pool minus sum of preview allocations (same on each row; matches KPI). */
   customPoolUnallocatedGlobal: number | null
   customBudgetByOrgUnitId: Record<string, OrgUnitCustomBudgetInput>
@@ -36,6 +35,9 @@ export interface BudgetDistributionOrgUnitListPagedContentProps {
   departmentTotalPages: number
   onDepartmentPrev: () => void
   onDepartmentNext: () => void
+  customAmountRequestExceedsPool?: boolean
+  customAmountModeRawTotalRequested?: number | null
+  customOverPoolAmount?: number | null
 }
 
 export function BudgetDistributionOrgUnitListPagedContent({
@@ -52,7 +54,6 @@ export function BudgetDistributionOrgUnitListPagedContent({
   sumOfDepartmentAverageScores,
   distributionPool,
   poolForCustomContext,
-  totalCustomAllocated,
   customPoolUnallocatedGlobal,
   customBudgetByOrgUnitId,
   currencyCode,
@@ -63,10 +64,12 @@ export function BudgetDistributionOrgUnitListPagedContent({
   departmentPageIndex,
   departmentTotalPages,
   onDepartmentPrev,
-  onDepartmentNext
+  onDepartmentNext,
+  customAmountRequestExceedsPool = false,
+  customAmountModeRawTotalRequested = null,
+  customOverPoolAmount = null
 }: Readonly<BudgetDistributionOrgUnitListPagedContentProps>) {
-  const showCustomExceedsPool =
-    isCustom && poolForCustomContext != null && totalCustomAllocated > poolForCustomContext + 0.01
+  const showCustomExceedsPool = Boolean(isCustom && poolForCustomContext != null && customAmountRequestExceedsPool)
 
   return (
     <>
@@ -135,14 +138,17 @@ export function BudgetDistributionOrgUnitListPagedContent({
           t={t}
         />
       ) : null}
-      {showCustomExceedsPool ? (
+      {showCustomExceedsPool && poolForCustomContext != null && customAmountModeRawTotalRequested != null ? (
         <div className="gba:pt-2" data-testid="budget-distribution-custom-total-summary">
-          <Alert data-testid="budget-distribution-custom-exceeds-pool-alert">
+          <Alert variant="destructive" data-testid="budget-distribution-custom-exceeds-pool-alert">
             <AlertDescription>
               {t('budget-distribution-custom-exceeds-pool', {
-                total: formatCurrency(totalCustomAllocated, currencyCode),
+                total: formatCurrency(customAmountModeRawTotalRequested, currencyCode),
                 pool: formatCurrency(poolForCustomContext, currencyCode),
-                diff: formatCurrency(totalCustomAllocated - poolForCustomContext, currencyCode)
+                diff: formatCurrency(
+                  customOverPoolAmount ?? customAmountModeRawTotalRequested - poolForCustomContext,
+                  currencyCode
+                )
               })}
             </AlertDescription>
           </Alert>

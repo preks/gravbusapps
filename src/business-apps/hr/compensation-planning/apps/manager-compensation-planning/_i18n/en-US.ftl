@@ -14,6 +14,7 @@ table-section-title = Team members
 manager-team-context-card-title = Team compensation
 manager-team-allocated-amount-card-title = Allocated amount
 manager-team-allocated-kpi-from-proposals = Total from saved team proposals on the department budget.
+manager-team-allocated-kpi-from-preview = Current distribution preview (updates as you change the method or amounts; not saved until you submit proposals).
 manager-team-budget-allocation-card-title = Remaining budget
 manager-team-submitted-proposals-title = Team proposals
 manager-team-proposals-col-actions = Actions

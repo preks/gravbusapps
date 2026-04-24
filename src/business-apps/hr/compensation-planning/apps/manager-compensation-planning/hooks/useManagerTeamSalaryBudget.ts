@@ -70,6 +70,29 @@ function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanComp
   }
 }
 
+/** Earlier dates first; null/invalid effective dates last (stable for tie-break: label). */
+function comparePlanEffectiveDateAsc(
+  a: { effectiveDate: string | null; label: string },
+  b: { effectiveDate: string | null; label: string }
+): number {
+  const aD = a.effectiveDate
+  const bD = b.effectiveDate
+  if (aD == null && bD == null) {
+    return a.label.localeCompare(b.label)
+  }
+  if (aD == null) {
+    return 1
+  }
+  if (bD == null) {
+    return -1
+  }
+  const byDate = aD.localeCompare(bD)
+  if (byDate !== 0) {
+    return byDate
+  }
+  return a.label.localeCompare(b.label)
+}
+
 function buildCompanyBudgetPlanOptions(
   companyRows: CompensationBudgetPlanCompanyRow[],
   plans: CompensationBudgetPlanListItem[]
@@ -95,7 +118,14 @@ function buildCompanyBudgetPlanOptions(
     })
   }
 
-  return options
+  return [...options].sort((oa, ob) => {
+    const pa = planById.get(oa.compensationBudgetPlanId)
+    const pb = planById.get(ob.compensationBudgetPlanId)
+    return comparePlanEffectiveDateAsc(
+      { effectiveDate: pa?.effectiveDate ?? null, label: oa.label },
+      { effectiveDate: pb?.effectiveDate ?? null, label: ob.label }
+    )
+  })
 }
 
 function pickLatestCompanyBudgetRowId(
@@ -106,12 +136,12 @@ function pickLatestCompanyBudgetRowId(
     return null
   }
   const sorted = [...options].sort((a, b) => {
-    const fa = planById.get(a.compensationBudgetPlanId)?.fiscalYear ?? 0
-    const fb = planById.get(b.compensationBudgetPlanId)?.fiscalYear ?? 0
-    if (fb !== fa) {
-      return fb - fa
-    }
-    return a.label.localeCompare(b.label)
+    const pa = planById.get(a.compensationBudgetPlanId)
+    const pb = planById.get(b.compensationBudgetPlanId)
+    return -comparePlanEffectiveDateAsc(
+      { effectiveDate: pa?.effectiveDate ?? null, label: a.label },
+      { effectiveDate: pb?.effectiveDate ?? null, label: b.label }
+    )
   })
   return sorted[0]?.id ?? null
 }
@@ -132,12 +162,12 @@ function buildCompensationPlanChoices(
     }
   }
   return [...byPlanId.values()].sort((a, b) => {
-    const fa = planById.get(a.id)?.fiscalYear ?? 0
-    const fb = planById.get(b.id)?.fiscalYear ?? 0
-    if (fb !== fa) {
-      return fb - fa
-    }
-    return a.name.localeCompare(b.name)
+    const pa = planById.get(a.id)
+    const pb = planById.get(b.id)
+    return comparePlanEffectiveDateAsc(
+      { effectiveDate: pa?.effectiveDate ?? null, label: a.name },
+      { effectiveDate: pb?.effectiveDate ?? null, label: b.name }
+    )
   })
 }
 
@@ -268,6 +298,7 @@ export function useManagerTeamSalaryBudget(params: {
       setPlanOuRowIdByOrganizationalUnitId(new Map())
       setManagerOrganizationalUnitId(null)
       setActiveCompensationBudgetPlanId(null)
+      setCompensationPlanChoices([])
       return
     }
 
@@ -282,16 +313,6 @@ export function useManagerTeamSalaryBudget(params: {
 
       const managerOu = snapshot.managerEmployeePosition?.[0]?.organizationalUnitId ?? null
       setManagerOrganizationalUnitId(managerOu)
-
-      let relevantOuIds = orgUnitIdsFromTeamMembers(teamMembers)
-      if (relevantOuIds.size === 0 && managerOu) {
-        relevantOuIds = new Set([managerOu])
-      }
-
-      if (relevantOuIds.size === 0) {
-        clearBudgetPlanSlice()
-        return
-      }
 
       const plans = sortPlans((snapshot.compensationBudgetPlans ?? []).map(p => fillPlanListItem(p)))
       const planById = new Map(plans.map(p => [p.id, p]))
@@ -308,6 +329,18 @@ export function useManagerTeamSalaryBudget(params: {
 
       const planIdForCompanyBudget = options.find(o => o.id === companyBudgetId)?.compensationBudgetPlanId ?? null
       setActiveCompensationBudgetPlanId(planIdForCompanyBudget)
+
+      let relevantOuIds = orgUnitIdsFromTeamMembers(teamMembers)
+      if (relevantOuIds.size === 0 && managerOu) {
+        relevantOuIds = new Set([managerOu])
+      }
+
+      if (relevantOuIds.size === 0) {
+        setTotalSalaryBudget(null)
+        setTotalOrgUnitAllocationAmount(null)
+        setPlanOuRowIdByOrganizationalUnitId(new Map())
+        return
+      }
 
       const ouResult = await graphqlClient.request<{
         CompensationBudgetPlanOrganizationalUnit: Array<Record<string, unknown>>

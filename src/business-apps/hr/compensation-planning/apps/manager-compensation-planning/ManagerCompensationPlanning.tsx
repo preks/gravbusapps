@@ -375,7 +375,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       >
         <div className="gba:flex gba:flex-col gba:gap-4 gba:p-4">
           <div
-            className="gba:flex gba:flex-wrap gba:items-end gba:justify-end gba:gap-3 gba:border-b gba:border-border gba:pb-4"
+            className="gba:flex gba:w-full gba:flex-wrap gba:items-end gba:justify-start gba:gap-3 gba:border-b gba:border-border gba:pb-4"
             data-testid="manager-compensation-cycle-toolbar"
           >
             <CompensationCycleSelector

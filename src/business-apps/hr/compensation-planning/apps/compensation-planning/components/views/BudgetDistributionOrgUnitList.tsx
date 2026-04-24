@@ -47,6 +47,12 @@ export interface BudgetDistributionOrgUnitListProps {
   performancePartialScores: boolean
   /** When true, render without an outer Card (for split-panel layout next to method list). */
   embedded?: boolean
+  /** Custom mode: sum of raw amount inputs exceeds the salary increase pool. */
+  customAmountRequestExceedsPool?: boolean
+  /** Sum of parsed amount-mode inputs (for alert copy). */
+  customAmountModeRawTotalRequested?: number | null
+  /** Positive euros over the pool. */
+  customOverPoolAmount?: number | null
 }
 
 export function BudgetDistributionOrgUnitList({
@@ -69,7 +75,10 @@ export function BudgetDistributionOrgUnitList({
   onCustomModeChange,
   performanceFallbackToHeadcount,
   performancePartialScores,
-  embedded = false
+  embedded = false,
+  customAmountRequestExceedsPool = false,
+  customAmountModeRawTotalRequested = null,
+  customOverPoolAmount = null
 }: Readonly<BudgetDistributionOrgUnitListProps>) {
   const { t } = useTranslation(translations)
   const [departmentSearch, setDepartmentSearch] = useState('')
@@ -186,10 +195,7 @@ export function BudgetDistributionOrgUnitList({
         performanceFallbackToHeadcount={performanceFallbackToHeadcount}
         performancePartialScores={performancePartialScores}
         isSalaryCostMethod={isSalaryCostMethod}
-        isPerformanceMethod={isPerformanceMethod}
         totalSalaryCostAcrossOrgUnits={totalSalaryCostAcrossOrgUnits}
-        sumOfDepartmentAverageScores={sumOfDepartmentAverageScores}
-        distributionPool={distributionPool}
         currencyCode={currencyCode}
       />
 
@@ -208,7 +214,6 @@ export function BudgetDistributionOrgUnitList({
           sumOfDepartmentAverageScores={sumOfDepartmentAverageScores}
           distributionPool={distributionPool}
           poolForCustomContext={poolForCustomContext}
-          totalCustomAllocated={totalCustomAllocated}
           customPoolUnallocatedGlobal={customPoolUnallocatedGlobal}
           customBudgetByOrgUnitId={customBudgetByOrgUnitId}
           currencyCode={currencyCode}
@@ -220,6 +225,9 @@ export function BudgetDistributionOrgUnitList({
           departmentTotalPages={departmentTotalPages}
           onDepartmentPrev={goDepartmentPrev}
           onDepartmentNext={goDepartmentNext}
+          customAmountRequestExceedsPool={customAmountRequestExceedsPool}
+          customAmountModeRawTotalRequested={customAmountModeRawTotalRequested}
+          customOverPoolAmount={customOverPoolAmount}
         />
       ) : null}
     </div>

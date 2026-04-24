@@ -35,15 +35,15 @@ export function buildBudgetSetupPlanTableRows(
   selectedCompanyId: string,
   defaultCurrencyCode: string,
   plans: CompensationBudgetPlanListItem[],
-  /** When set, only rows for this compensation cycle are shown. */
+  /** When null, no rows (user must select a cycle). Otherwise only this plan’s row for the company. */
   selectedCompensationPlanId: string | null
 ): BudgetSetupPlanTableRow[] {
+  if (selectedCompensationPlanId == null) {
+    return []
+  }
   return companyBudgetPlanRows
     .filter(companyRow => companyRow.companyId === selectedCompanyId)
-    .filter(
-      companyRow =>
-        selectedCompensationPlanId == null || companyRow.compensationBudgetPlanId === selectedCompensationPlanId
-    )
+    .filter(companyRow => companyRow.compensationBudgetPlanId === selectedCompensationPlanId)
     .map(companyRow => {
       const displayCurrency = formatCurrencyRefForDisplay(companyRow.currencyRef?.trim()) || defaultCurrencyCode
       const budgetPlanLabel = formatBudgetPlanChosenLabel(companyRow.compensationBudgetPlanId, plans)
