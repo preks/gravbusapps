@@ -548,8 +548,11 @@ export class SocketIoYjsProvider {
     const eventEntityType = event.entityType || 'document'
     if (eventEntityType !== this.entityType) return
     console.warn('[SocketIoYjsProvider] Room status changed:', event.status, event.reason)
-    if (event.status === 'readonly' || event.status === 'trashed') {
+    if (event.status === 'readonly' || event.status === 'trashed' || event.status === 'error') {
       this.setSynced(false)
+    }
+    if (event.status === 'error') {
+      this.scheduleSyncRetry(250)
     }
   }
 
