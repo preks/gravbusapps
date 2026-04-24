@@ -14,10 +14,8 @@ This document defines patterns for integrating with backend catalogs, including 
 When working with Catalog APIs for reference data:
 
 - Use `useCatalogManagerClient()` from `src/common/network/catalogs/useCatalogManagerClient.ts`
-- Common catalogs: `JobLevelGroup`, `CompensationBand`, `Department`, `AcademicTitle`, `IndustryClass` (all version `v1`)
+- Common catalogs: `Department`, `AcademicTitle`, `IndustryClass` (all version `v1`)
 - Use `getCatalogEntriesList` method with proper parameters
-
-@src/business-apps/mdm/apps/compensation-data/hooks/useJobLevelGroups.ts
 
 ### Common Catalog Constants
 
@@ -269,11 +267,9 @@ version: 'v1'
 ### HR/Organizational Data
 
 ```typescript
-catalogIdentifier: 'JobLevelGroup'
-catalogIdentifier: 'CompensationBand'
 catalogIdentifier: 'Department'
 version: 'v1'
-// Used for: Job levels, compensation, organizational structure
+// Used for: Organizational structure
 ```
 
 ## Integration Checklist

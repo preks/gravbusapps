@@ -121,7 +121,7 @@ const FormWrapperModal = ({
   validateBeforeSubmit = true
 }: FormWrapperModalProps) => {
   const { t } = useTranslation(translations)
-  const [isOpen, setIsOpen] = useState(open)
+  const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState<FormMessage | null>(null)
   const isSubmittingRef = useRef(false)
@@ -144,10 +144,17 @@ const FormWrapperModal = ({
     // Skip reset if using external form - it's already initialized with its own defaultValues
     if (externalForm) return
 
+    // Don't reset while the dialog is open — a parent re-render (e.g. token refresh, background
+    // refetch) can produce new defaultValues references without the underlying values changing,
+    // which would wipe the user's in-progress edits. The form is already initialised with the
+    // correct values before the dialog opens, so resetting mid-session is never needed.
+    const dialogIsOpen = open ?? isOpen
+    if (dialogIsOpen) return
+
     form.reset(defaultValues)
     form.clearErrors()
     setMessage(null)
-  }, [form, defaultValues, externalForm])
+  }, [form, defaultValues, externalForm, open, isOpen])
 
   useEffect(() => {
     if (errorMessage) {
@@ -175,6 +182,13 @@ const FormWrapperModal = ({
       form.clearErrors(resetFields)
     }
   }, [resetFields, form])
+
+  // Sync with external open prop
+  useEffect(() => {
+    if (open !== undefined) {
+      setIsOpen(open)
+    }
+  }, [open])
 
   const handleSubmit = useCallback(
     async (values?: FieldValues) => {
@@ -260,7 +274,7 @@ const FormWrapperModal = ({
   )
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={open ?? isOpen} onOpenChange={handleOpenChange}>
       {childAddButton && <DialogTrigger asChild>{childAddButton}</DialogTrigger>}
       <DialogContent
         data-testid={dataTestId}
@@ -269,7 +283,9 @@ const FormWrapperModal = ({
         <DialogTitle>{title}</DialogTitle>
         <div className={cn('gba:flex gba:flex-col gba:gap-4', contentClassName)}>
           <div className="gba:space-y-2">
-            {description && <p className="gba:text-sm gba:text-muted-foreground">{description}</p>}
+            {description && (
+              <p className="gba:text-sm gba:text-muted-foreground gba:whitespace-pre-line">{description}</p>
+            )}
           </div>
 
           {/* Error message display */}

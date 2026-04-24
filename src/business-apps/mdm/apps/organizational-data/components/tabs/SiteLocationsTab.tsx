@@ -1,46 +1,46 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
+import SiteLocationForm from '@/business-apps/mdm/forms/site-location-form/SiteLocationForm'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useSiteLocations } from '../../hooks'
-import { SiteLocation, Employee, SiteLocationCostCenter } from '../../types'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import {
   Accordion,
-  DataTable,
+  Alert,
+  AlertDescription,
+  AlertTitle,
   Button,
   Card,
-  Input,
   CardContent,
-  Alert,
-  AlertTitle,
-  AlertDescription,
+  DataTable,
   Icon,
+  Input,
   Spinner,
   Tabs,
+  TabsContent,
   TabsList,
-  TabsTrigger,
-  TabsContent
+  TabsTrigger
 } from '@newwork/nw-design-system'
 import {
   ArrowsDownUpIcon,
-  EyeIcon,
-  InfoIcon,
-  PencilSimpleLineIcon,
-  XCircleIcon,
-  MapPinIcon,
-  UserIcon,
   BankIcon,
-  GlobeIcon,
   ClockIcon,
-  PlusIcon
+  EyeIcon,
+  GlobeIcon,
+  InfoIcon,
+  MapPinIcon,
+  PencilSimpleLineIcon,
+  PlusIcon,
+  UserIcon,
+  XCircleIcon
 } from '@phosphor-icons/react'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import CardTabHeaderComponent from '../../../generic-components/card'
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
 import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
 import { VerticalTableProps } from '../../../generic-components/table/VerticalTable'
-import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
-import SiteLocationForm from '@/business-apps/mdm/forms/site-location-form/SiteLocationForm'
-import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { useSiteLocations } from '../../hooks'
+import { Employee, SiteLocation, SiteLocationCostCenter } from '../../types'
 
 export interface SiteLocationsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -63,7 +63,8 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = context => {
     totalLocations,
     countries,
     fetchRegionsForCountries,
-    getRegionsForCountry
+    getRegionsForCountry,
+    geoZones
   } = useSiteLocations(context, 10)
 
   const [searchTerm, setSearchTerm] = useState('')
@@ -355,6 +356,7 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = context => {
                 countries={countries}
                 fetchRegionsForCountries={fetchRegionsForCountries}
                 getRegionsForCountry={getRegionsForCountry}
+                geoZones={geoZones}
                 siteLocation={location}
               />
             ),
@@ -493,7 +495,7 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = context => {
   const navigationItems = useMemo(() => {
     if (!selectedSiteLocation) return []
 
-    const items = [
+    return [
       {
         redirectLink: `/employee-management/employees?siteLocationId=${selectedSiteLocation.id}`,
         color: 'blue',
@@ -525,8 +527,6 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = context => {
         description: 'View historical changes for this location'
       }
     ]
-
-    return items
   }, [selectedSiteLocation])
 
   if (isLoading && siteLocations.length === 0) {
@@ -578,6 +578,7 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = context => {
               countries={countries}
               fetchRegionsForCountries={fetchRegionsForCountries}
               getRegionsForCountry={getRegionsForCountry}
+              geoZones={geoZones}
               open={isFormOpen}
               setOpen={setIsFormOpen}
             />
@@ -620,6 +621,7 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = context => {
             navigationItems={navigationItems}
             footerButtons={[
               <SiteLocationForm
+                key="site-location-edit-form"
                 childAddButton={
                   <Button data-testid={`${prefixDataTestId || ''}-SiteLocationsTab-EditButton`}>
                     <PencilSimpleLineIcon /> Edit
@@ -633,6 +635,7 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = context => {
                 countries={countries}
                 fetchRegionsForCountries={fetchRegionsForCountries}
                 getRegionsForCountry={getRegionsForCountry}
+                geoZones={geoZones}
                 siteLocation={selectedSiteLocation}
                 isDrawerActive={true}
               />
