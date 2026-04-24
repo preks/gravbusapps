@@ -237,7 +237,7 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
 
   if (loading) {
     return (
-      <Card style={{ minHeight: '280px', borderRadius: '12px' }} className="gba:p-5">
+      <Card style={{ minHeight: '300px', borderRadius: '12px' }} className="gba:p-5">
         <CardHeader>
           <CardTitle>Today's Priorities</CardTitle>
         </CardHeader>
@@ -256,8 +256,8 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
     <Card
       data-testid="todays-priorities-section"
       style={{
-        minHeight: '280px',
-        maxHeight: '420px',
+        minHeight: '300px',
+        maxHeight: '460px',
         borderRadius: '12px',
         overflow: 'hidden'
       }}

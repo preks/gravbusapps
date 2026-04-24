@@ -32,7 +32,7 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
 }) => {
   if (loading) {
     return (
-      <Card className="gba:rounded-xl gba:p-4 gba:h-full">
+      <Card className="gba:rounded-xl gba:p-4 gba:min-h-80">
         <CardHeader className="gba:pb-2">
           <CardTitle className="gba:text-base">Performance & Growth</CardTitle>
         </CardHeader>
@@ -54,7 +54,7 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
   ]
 
   return (
-    <Card data-testid="performance-growth-section" className="gba:rounded-xl gba:p-4 gba:h-full">
+    <Card data-testid="performance-growth-section" className="gba:rounded-xl gba:p-4 gba:min-h-80">
       <CardHeader className="gba:pb-2">
         <CardTitle className="gba:text-base">Performance & Growth</CardTitle>
         <p className="gba:text-xs gba:text-muted-foreground">Active cycle goal progress</p>
