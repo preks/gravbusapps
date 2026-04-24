@@ -1,20 +1,31 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet'
+// Import leaflet.css both as a side-effect (primary path, works in most bundlers) and as an
+// inline string (fallback path via Vite's `?inline` loader). On our dev environment the
+// side-effect import alone doesn't reach the page — the CSS either gets code-split into a
+// chunk that never loads, or it's overridden by design-system/Tailwind resets. Injecting
+// the stylesheet contents into a `<style>` block at the top of the component guarantees the
+// rules are present regardless of CSS bundling behavior.
 import 'leaflet/dist/leaflet.css'
+import leafletCssInline from 'leaflet/dist/leaflet.css?inline'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import { Button, FormItem, FormLabel, Input, useTranslation } from '@newwork/nw-design-system'
 import { MapPinIcon, CrosshairIcon, SpinnerIcon } from '@phosphor-icons/react'
-import translations from '../../../apps/employee-record/_i18n'
+import translations from './_i18n'
+// Scoped fallback for Leaflet control positioning. See the file header for the full story.
+// Imported as a raw string (Vite `?inline`) and injected into a <style> block below so it
+// can't get dropped by CSS code-splitting in production bundles.
+import leafletControlStylesFallback from './styles/leaflet-controls-fallback.css?inline'
 import {
   AddressSuggestion,
   getAutocompleteSuggestions,
   getMapTileUrl,
   mapGeoapifyToFormValues,
   reverseGeocode
-} from '../services/addressAutocompleteService'
+} from './addressAutocompleteService'
 
 // Leaflet ships marker images as separate assets; Vite bundles them via `?url` imports above.
 // We build an explicit icon and pass it to <Marker icon={...}> so Leaflet's internal
@@ -29,9 +40,55 @@ const defaultMarkerIcon = new L.Icon({
   shadowSize: [41, 41]
 })
 
-interface AddressAutocompleteMapProps {
+/**
+ * Names of the react-hook-form fields this component reads from and writes to.
+ *
+ * Defaults match the conventional NewWork address-form schema. Consumers whose
+ * form uses different field names can override any subset — e.g.:
+ *
+ *   <AddressAutocomplete
+ *     form={form}
+ *     catalogs={catalogs}
+ *     fieldNames={{ postalCode: 'zipCode', addressLines: 'streetLines' }}
+ *   />
+ *
+ * `addressLines` must point to an array field — the component writes the provider's
+ * formatted line to index 0 and preserves any remaining lines.
+ */
+export interface AddressAutocompleteFieldNames {
+  countryId: string
+  regionId: string
+  addressLines: string
+  postalCode: string
+  city: string
+  latitude: string
+  longitude: string
+}
+
+export const DEFAULT_ADDRESS_AUTOCOMPLETE_FIELD_NAMES: AddressAutocompleteFieldNames = {
+  countryId: 'countryId',
+  regionId: 'regionId',
+  addressLines: 'addressLines',
+  postalCode: 'postalCode',
+  city: 'city',
+  latitude: 'latitude',
+  longitude: 'longitude'
+}
+
+export interface AddressAutocompleteProps {
+  /** react-hook-form instance. The component reads/writes fields named in `fieldNames`. */
   form: any
+  /** Catalog data used to map Geoapify results to the form's IDs. */
   catalogs: { countries?: any[]; regions?: any[] }
+  /** Override any subset of field names if your form schema differs from the defaults. */
+  fieldNames?: Partial<AddressAutocompleteFieldNames>
+  /** Height of the map area in pixels. Defaults to 220. */
+  mapHeightPx?: number
+  /**
+   * Prefix for `data-testid` attributes on the rendered elements.
+   * Defaults to `address-autocomplete`. Useful when multiple instances are on the same page.
+   */
+  testIdPrefix?: string
 }
 
 interface LatLng {
@@ -54,7 +111,55 @@ const FlyToMarker: React.FC<{ center: LatLng | null; zoom: number }> = ({ center
   return null
 }
 
-const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, catalogs }) => {
+/**
+ * Forces Leaflet to re-measure its container whenever it changes size.
+ *
+ * Fixes the "cropped tiles + invisible zoom controls" bug that happens when the
+ * MapContainer mounts inside a Sheet/Dialog that's still animating open: Leaflet reads
+ * the container as 0×0 (or too small) at init, lays out tiles+controls for that size,
+ * and never recomputes. This is timing-sensitive — local dev usually avoids it, prod
+ * builds on slower hosts hit it consistently.
+ *
+ * Belt-and-braces strategy: invalidate on a series of short timeouts (to cover modal
+ * transitions of various durations), plus ResizeObserver on the container, plus a
+ * window resize listener. All invalidateSize calls are idempotent and cheap.
+ */
+const InvalidateSizeOnResize: React.FC = () => {
+  const map = useMap()
+  useEffect(() => {
+    const container = map.getContainer()
+    const timeoutIds = [0, 100, 300, 750].map(delay => window.setTimeout(() => map.invalidateSize(), delay))
+
+    const onWindowResize = () => map.invalidateSize()
+    window.addEventListener('resize', onWindowResize)
+
+    let observer: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => map.invalidateSize())
+      observer.observe(container)
+    }
+
+    return () => {
+      timeoutIds.forEach(id => window.clearTimeout(id))
+      window.removeEventListener('resize', onWindowResize)
+      observer?.disconnect()
+    }
+  }, [map])
+  return null
+}
+
+const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
+  form,
+  catalogs,
+  fieldNames,
+  mapHeightPx = 220,
+  testIdPrefix = 'address-autocomplete'
+}) => {
+  const names = useMemo<AddressAutocompleteFieldNames>(
+    () => ({ ...DEFAULT_ADDRESS_AUTOCOMPLETE_FIELD_NAMES, ...fieldNames }),
+    [fieldNames]
+  )
+
   const { t } = useTranslation(translations)
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
@@ -69,8 +174,8 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
   const isAutofillingRef = useRef(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
-  const lat = form.watch('latitude') as number | null | undefined
-  const lng = form.watch('longitude') as number | null | undefined
+  const lat = form.watch(names.latitude) as number | null | undefined
+  const lng = form.watch(names.longitude) as number | null | undefined
 
   const markerPosition: LatLng | null =
     typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng)
@@ -102,9 +207,11 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
   useEffect(() => {
     const isWatchedFieldChange = (name?: string): boolean => {
       if (!name) return false
-      if (name === 'countryId' || name === 'regionId' || name === 'postalCode' || name === 'city') return true
-      // addressLines is an array, RHF emits names like 'addressLines', 'addressLines.0', etc.
-      if (name === 'addressLines' || name.startsWith('addressLines.')) return true
+      if (name === names.countryId || name === names.regionId || name === names.postalCode || name === names.city) {
+        return true
+      }
+      // addressLines is an array; RHF emits names like 'addressLines', 'addressLines.0', etc.
+      if (name === names.addressLines || name.startsWith(`${names.addressLines}.`)) return true
       return false
     }
     const subscription = form.watch((_values: unknown, info: { name?: string; type?: string }) => {
@@ -113,13 +220,13 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
       setQuery(current => (current ? '' : current))
     })
     return () => subscription.unsubscribe()
-  }, [form])
+  }, [form, names])
 
   const applyAddressToForm = useCallback(
     (mapped: ReturnType<typeof mapGeoapifyToFormValues>) => {
       suppressNextSearchRef.current = true
       isAutofillingRef.current = true
-      const prevCountryId = form.getValues('countryId') as string | null | undefined
+      const prevCountryId = form.getValues(names.countryId) as string | null | undefined
       const countryChanging = Boolean(mapped.countryId && mapped.countryId !== prevCountryId)
 
       // When the country changes we MUST clear regionId first. Otherwise the region Select
@@ -130,32 +237,32 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
       // shouldValidate is intentionally false so the user doesn't see a red "required"
       // error flash during autofill.
       if (countryChanging) {
-        form.setValue('regionId', null, { shouldDirty: false, shouldValidate: false })
+        form.setValue(names.regionId, null, { shouldDirty: false, shouldValidate: false })
       }
 
       if (mapped.countryId) {
-        form.setValue('countryId', mapped.countryId, { shouldDirty: true, shouldValidate: true })
+        form.setValue(names.countryId, mapped.countryId, { shouldDirty: true, shouldValidate: true })
       }
 
       if (mapped.regionId) {
-        form.setValue('regionId', mapped.regionId, { shouldDirty: true, shouldValidate: true })
+        form.setValue(names.regionId, mapped.regionId, { shouldDirty: true, shouldValidate: true })
       }
 
-      const current = (form.getValues('addressLines') as string[]) || []
+      const current = (form.getValues(names.addressLines) as string[]) || []
       const nextLines = [...current]
       nextLines[0] = mapped.line1
-      form.setValue('addressLines', nextLines, { shouldDirty: true, shouldValidate: true })
-      form.setValue('postalCode', mapped.postalCode, { shouldDirty: true, shouldValidate: true })
-      form.setValue('city', mapped.city, { shouldDirty: true, shouldValidate: true })
-      form.setValue('latitude', mapped.lat, { shouldDirty: true })
-      form.setValue('longitude', mapped.lng, { shouldDirty: true })
+      form.setValue(names.addressLines, nextLines, { shouldDirty: true, shouldValidate: true })
+      form.setValue(names.postalCode, mapped.postalCode, { shouldDirty: true, shouldValidate: true })
+      form.setValue(names.city, mapped.city, { shouldDirty: true, shouldValidate: true })
+      form.setValue(names.latitude, mapped.lat, { shouldDirty: true })
+      form.setValue(names.longitude, mapped.lng, { shouldDirty: true })
       // Release the autofill guard after the current microtask/render flush so any watcher
       // effects that fire synchronously from the setValue chain above still see the flag set.
       setTimeout(() => {
         isAutofillingRef.current = false
       }, 0)
     },
-    [form]
+    [form, names]
   )
 
   useEffect(() => {
@@ -179,7 +286,7 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
       abortRef.current = controller
       try {
         const countryBias = (() => {
-          const countryId = form.getValues('countryId') as string | null | undefined
+          const countryId = form.getValues(names.countryId) as string | null | undefined
           if (!countryId) return undefined
           const parts = String(countryId).split(':')
           const code = parts[parts.length - 1]
@@ -204,7 +311,7 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [query, form])
+  }, [query, form, names])
 
   const handlePickSuggestion = useCallback(
     (suggestion: AddressSuggestion) => {
@@ -269,7 +376,7 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
   const initialZoom = markerPosition ? FOCUSED_ZOOM : DEFAULT_ZOOM
 
   return (
-    <div ref={containerRef} className="gba:space-y-2" data-testid="address-autocomplete-map">
+    <div ref={containerRef} className="gba:space-y-2" data-testid={testIdPrefix}>
       <FormItem>
         <FormLabel>{searchLabel}</FormLabel>
         <div className="gba:relative">
@@ -285,7 +392,7 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
                 onFocus={() => {
                   if (suggestions.length > 0) setIsOpen(true)
                 }}
-                data-testid="address-autocomplete-input"
+                data-testid={`${testIdPrefix}-input`}
               />
               {isSearching && (
                 <SpinnerIcon className="gba:w-4 gba:h-4 gba:absolute gba:right-3 gba:top-1/2 gba:-translate-y-1/2 gba:animate-spin gba:text-muted-foreground" />
@@ -296,7 +403,7 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
               variant="outline"
               onClick={handleUseMyLocation}
               disabled={isLocating}
-              data-testid="address-autocomplete-use-my-location"
+              data-testid={`${testIdPrefix}-use-my-location`}
               title={useMyLocationLabel}
             >
               {isLocating ? (
@@ -317,7 +424,7 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
             // render custom items (pin icon, "No results" state) and load suggestions async.
             <ul
               className="gba:absolute gba:z-[1000] gba:left-0 gba:right-0 gba:mt-1 gba:rounded-md gba:border gba:bg-popover gba:text-popover-foreground gba:shadow-md gba:max-h-64 gba:overflow-auto"
-              data-testid="address-autocomplete-dropdown"
+              data-testid={`${testIdPrefix}-dropdown`}
             >
               {suggestions.length === 0 ? (
                 <li className="gba:px-3 gba:py-2 gba:text-sm gba:text-muted-foreground">{noResultsLabel}</li>
@@ -330,7 +437,7 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
                       e.preventDefault()
                       handlePickSuggestion(s)
                     }}
-                    data-testid={`address-autocomplete-option-${s.id}`}
+                    data-testid={`${testIdPrefix}-option-${s.id}`}
                   >
                     <div className="gba:flex gba:items-start gba:gap-2">
                       <MapPinIcon className="gba:w-4 gba:h-4 gba:mt-0.5 gba:shrink-0" />
@@ -344,9 +451,19 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
         </div>
       </FormItem>
 
+      {/*
+        Inline fallback styles for Leaflet. In our production dev build the side-effect
+        import of `leaflet/dist/leaflet.css` doesn't reach the page (CSS chunking or
+        cascade fight with design-system resets), so we also inject the stylesheet inline
+        as a JS string via Vite's `?inline` loader. The scoped controls stylesheet below
+        stays as an extra belt-and-braces layer.
+      */}
+      <style>{leafletCssInline}</style>
+      <style>{leafletControlStylesFallback}</style>
       <div
-        className="gba:h-[220px] gba:w-full gba:rounded-md gba:overflow-hidden gba:border"
-        data-testid="address-autocomplete-map-container"
+        className="gba-leaflet-map gba:w-full gba:rounded-md gba:overflow-hidden gba:border"
+        style={{ height: `${mapHeightPx}px` }}
+        data-testid={`${testIdPrefix}-map-container`}
       >
         <MapContainer
           center={[initialCenter.lat, initialCenter.lng]}
@@ -364,11 +481,12 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
             />
           )}
           <FlyToMarker center={markerPosition} zoom={FOCUSED_ZOOM} />
+          <InvalidateSizeOnResize />
         </MapContainer>
       </div>
 
       {markerPosition && (
-        <p className="gba:text-xs gba:text-muted-foreground" data-testid="address-autocomplete-pin-hint">
+        <p className="gba:text-xs gba:text-muted-foreground" data-testid={`${testIdPrefix}-pin-hint`}>
           {pinHintLabel}
         </p>
       )}
@@ -376,4 +494,4 @@ const AddressAutocompleteMap: React.FC<AddressAutocompleteMapProps> = ({ form, c
   )
 }
 
-export default AddressAutocompleteMap
+export default AddressAutocomplete

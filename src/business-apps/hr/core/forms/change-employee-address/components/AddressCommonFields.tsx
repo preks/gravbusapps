@@ -5,7 +5,7 @@ import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import CountryRegionFields from './CountryRegionFields'
 import AddressLines from './AddressLines'
-import AddressAutocompleteMap from './AddressAutocompleteMap'
+import { AddressAutocomplete } from '@/business-apps/hr/core/components/address-autocomplete'
 import { EmployeeDocumentUploadField } from '../../document-sync/EmployeeDocumentUploadField'
 
 interface AddressCommonFieldsProps {
@@ -57,7 +57,7 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
       />
 
       {showAddressAutocompleteMap && (
-        <AddressAutocompleteMap
+        <AddressAutocomplete
           form={form}
           catalogs={{ countries: catalogs?.countries || [], regions: catalogs?.regions || [] }}
         />
