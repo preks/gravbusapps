@@ -87,3 +87,41 @@ export async function updateDocumentLocation({
     }
   }, DOCUMENT_REFRESH_DELAY_MS)
 }
+
+export interface DeleteDocumentParams {
+  documentId: string
+  document: DocumentItem
+  entityId: string
+  apiConfig: ApiConfig
+  accessToken: string
+  restClient: RestClient
+}
+
+/**
+ * Deletes a document or folder via the configured delete endpoint.
+ * Used by the organize cleanup to remove empty folders after reorganization.
+ */
+export async function deleteDocument({
+  documentId,
+  document,
+  entityId,
+  apiConfig,
+  accessToken,
+  restClient
+}: DeleteDocumentParams): Promise<void> {
+  if (!apiConfig.endpoints?.delete) {
+    throw new Error('Delete endpoint not configured')
+  }
+
+  await restClient.post(
+    apiConfig.endpoints.delete,
+    {
+      [apiConfig.documentFieldName]: {
+        id: documentId,
+        version: document.version,
+        [apiConfig.entityFieldName]: entityId
+      }
+    },
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  )
+}

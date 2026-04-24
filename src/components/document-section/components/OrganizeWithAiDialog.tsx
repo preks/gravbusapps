@@ -18,12 +18,10 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFolderTemplateData } from '@/common/components/common-relations/setting-pages/folder-templates/hooks/useFolderTemplateData'
 import { ModuleType, EntityType } from '@/common/components/common-relations/setting-pages/folder-templates/types'
 import type { DocumentItem, AiOrganizeConfig } from '../types'
-import type { OrganizationDecision } from '@/common/network/flowbot/FlowbotClient'
+import type { OrganizeState } from '../hooks/useDocumentOrganize'
 import type { FolderNode } from '@/common/components/common-relations/setting-pages/folder-templates/types'
 import { OrganizePreview } from './OrganizePreview'
 import { TemplatePreviewSection, DocumentSelectionList } from './OrganizeDialogParts'
-
-type OrganizePhase = 'idle' | 'loading' | 'preview' | 'applying' | 'done' | 'error'
 
 interface OrganizeWithAiDialogProps {
   open: boolean
@@ -31,14 +29,7 @@ interface OrganizeWithAiDialogProps {
   fileDocuments: DocumentItem[]
   aiOrganizeConfig: AiOrganizeConfig
   accessToken: string
-  state: {
-    phase: OrganizePhase
-    decisions: OrganizationDecision[]
-    suggestedFolders: FolderNode[]
-    warnings: string[]
-    reasoning?: string
-    errorMessage?: string
-  }
+  state: OrganizeState
   onOrganizeByTemplate: (selectedDocIds: string[], template: { folders: FolderNode[] }) => void
   onOrganizeByDescription: (selectedDocIds: string[], description: string) => void
   onApply: () => void
@@ -142,6 +133,7 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
             suggestedFolders={state.suggestedFolders}
             warnings={state.warnings}
             reasoning={state.reasoning}
+            fileDocuments={fileDocuments}
             dataTestId={dataTestId}
           />
         )}
@@ -200,7 +192,11 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
         )}
 
         <DialogFooter>
-          {showPreview ? (
+          {state.phase === 'done' ? (
+            <Button onClick={onClose} data-testid={`${dataTestId}-close`}>
+              {getTranslationFromI18nKeyAndLabel('document.ai.organize.close', 'Close')}
+            </Button>
+          ) : showPreview ? (
             <>
               <Button variant="outline" onClick={onReset} data-testid={`${dataTestId}-back`}>
                 {getTranslationFromI18nKeyAndLabel('document.ai.organize.back', 'Back')}

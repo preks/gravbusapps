@@ -88,7 +88,7 @@ export interface ExtractFromFileResponse {
   unmappedSourceFields: string[]
 }
 
-function toFlowbotImportDomain(domain?: string): 'crm' | 'irm' | undefined {
+export function toFlowbotDomain(domain?: string): 'crm' | 'irm' | undefined {
   if (domain === 'customer' || domain === 'crm') return 'crm'
   if (domain === 'investment' || domain === 'irm') return 'irm'
   return undefined
@@ -96,49 +96,68 @@ function toFlowbotImportDomain(domain?: string): 'crm' | 'irm' | undefined {
 
 const FLOWBOT_IMPORT_MODEL_KIND_DEFAULT = 'default'
 
-export interface DocumentOrganizeRequest {
+export interface TemplateTreeNode {
+  name: string
+  path: string
+  children: TemplateTreeNode[]
+}
+
+export interface OrganizeDocumentsPayload {
+  domain: 'crm' | 'irm'
+  entityType: string
+  entityId: string
+  templateTree: TemplateTreeNode[]
   documents: Array<{
     id: string
     name: string
     mimeType?: string | null
-    parentFolder?: string | null
+    source?: 'uploaded_now' | 'existing_entity_doc'
   }>
-  template?: {
-    folders: Array<{ name: string; folders: Array<any> }>
-  }
-  description?: string
-  entityType?: string
-  domain?: string
+  fallbackFolder?: string
+  dryRun?: boolean
 }
 
 export interface OrganizationDecision {
-  documentId: string
-  documentName: string
-  targetFolder: string
+  document_id: string
+  target_folder_path: string
+  confidence: number
   reason: string
+}
+
+export interface ResponseWarning {
+  document_id?: string | null
+  code: string
+  message: string
 }
 
 export interface DocumentOrganizeResponse {
   decisions: OrganizationDecision[]
-  suggestedFolders: Array<{ name: string; folders: Array<any> }>
-  warnings: string[]
+  summary: { total: number; organized: number; unsorted: number }
+  warnings: ResponseWarning[]
+  dry_run: boolean
 }
 
-export interface SuggestStructureRequest {
+export interface SuggestStructurePayload {
+  domain: 'crm' | 'irm'
+  entityType: string
+  entityId: string
   documents: Array<{
     id: string
     name: string
     mimeType?: string | null
+    source?: 'uploaded_now' | 'existing_entity_doc'
   }>
-  description?: string
-  entityType?: string
-  domain?: string
+  preferences?: string
+  currentTemplate?: TemplateTreeNode[] | null
+  maxDepth?: number
+  language?: string
 }
 
 export interface SuggestStructureResponse {
-  suggestedStructure: Array<{ name: string; folders: Array<any> }>
-  reasoning: string
-  warnings: string[]
+  proposed_template: TemplateTreeNode[]
+  rationale: string[]
+  document_assignments: OrganizationDecision[]
+  warnings: ResponseWarning[]
 }
 
 export interface DocumentAutocompleteRequest {
@@ -230,7 +249,7 @@ export class FlowbotClient extends RestClient {
   ): Promise<MapFromFileResponse> {
     const formData = new FormData()
     formData.append('entity_type', entityType)
-    const flowbotDomain = toFlowbotImportDomain(domain)
+    const flowbotDomain = toFlowbotDomain(domain)
     if (flowbotDomain) {
       formData.append('domain', flowbotDomain)
     }
@@ -253,7 +272,7 @@ export class FlowbotClient extends RestClient {
   ): Promise<ExtractFromFileResponse> {
     const formData = new FormData()
     formData.append('entity_type', entityType)
-    const flowbotDomain = toFlowbotImportDomain(domain)
+    const flowbotDomain = toFlowbotDomain(domain)
     if (flowbotDomain) {
       formData.append('domain', flowbotDomain)
     }
@@ -270,17 +289,29 @@ export class FlowbotClient extends RestClient {
   }
 
   public async organizeDocuments(
-    request: DocumentOrganizeRequest,
+    payload: OrganizeDocumentsPayload,
+    files?: File[],
+    modelKind?: string,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<DocumentOrganizeResponse> {
-    return this.post<DocumentOrganizeResponse>('/flowbot/document-organization/organize', request, options)
+    const formData = new FormData()
+    formData.append('payload', JSON.stringify(payload))
+    if (modelKind) formData.append('model_kind', modelKind)
+    files?.forEach(f => formData.append('files', f))
+    return this.post<DocumentOrganizeResponse>('/flowbot/document-organization/organize', formData, options)
   }
 
   public async suggestDocumentStructure(
-    request: SuggestStructureRequest,
+    payload: SuggestStructurePayload,
+    files?: File[],
+    modelKind?: string,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<SuggestStructureResponse> {
-    return this.post<SuggestStructureResponse>('/flowbot/document-organization/suggest-structure', request, options)
+    const formData = new FormData()
+    formData.append('payload', JSON.stringify(payload))
+    if (modelKind) formData.append('model_kind', modelKind)
+    files?.forEach(f => formData.append('files', f))
+    return this.post<SuggestStructureResponse>('/flowbot/document-organization/suggest-structure', formData, options)
   }
 
   public async getDocumentAutocomplete(

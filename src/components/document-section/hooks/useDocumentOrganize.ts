@@ -1,22 +1,38 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { toast } from '@newwork/nw-design-system'
-import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
+import { flowbotClient, toFlowbotDomain } from '@/common/network/flowbot/FlowbotClient'
 import type {
+  TemplateTreeNode,
+  OrganizeDocumentsPayload,
+  SuggestStructurePayload,
   DocumentOrganizeResponse,
   OrganizationDecision,
-  SuggestStructureResponse
+  SuggestStructureResponse,
+  ResponseWarning
 } from '@/common/network/flowbot/FlowbotClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { updateDocumentLocation, deleteDocument } from '../utils/documentApi'
+import {
+  folderNodesToTemplateTree,
+  buildFolderPathMap,
+  collectAllPaths,
+  findFoldersForCleanup,
+  findFilesInFolderSubtrees,
+  planManagedFolderDeletion,
+  MANAGED_FOLDER_MARKER
+} from '../utils/organizeUtils'
 import type { DocumentItem, ApiConfig, RestClient, AiOrganizeConfig } from '../types'
 import type { FolderNode } from '@/common/components/common-relations/setting-pages/folder-templates/types'
 
+const REFRESH_SETTLE_DELAY_MS = 1500
+
 type OrganizePhase = 'idle' | 'loading' | 'preview' | 'applying' | 'done' | 'error'
 
-interface OrganizeState {
+export interface OrganizeState {
   phase: OrganizePhase
   decisions: OrganizationDecision[]
-  suggestedFolders: FolderNode[]
-  warnings: string[]
+  suggestedFolders: TemplateTreeNode[]
+  warnings: ResponseWarning[]
   reasoning?: string
   errorMessage?: string
 }
@@ -50,6 +66,11 @@ export function useDocumentOrganize({
   const [state, setState] = useState<OrganizeState>(INITIAL_STATE)
   const [dialogOpen, setDialogOpen] = useState(false)
 
+  const documentsRef = useRef(documents)
+  useEffect(() => {
+    documentsRef.current = documents
+  }, [documents])
+
   const fileDocuments = documents.filter(doc => !doc.folder && doc.mimeType)
   const hasDocuments = fileDocuments.length > 0
 
@@ -71,30 +92,38 @@ export function useDocumentOrganize({
           id: doc.id,
           name: doc.name || 'Untitled',
           mimeType: doc.mimeType,
-          parentFolder: doc.parentDocument
+          source: 'existing_entity_doc' as const
         })),
     [fileDocuments]
   )
 
   const organizeByTemplate = useCallback(
     async (selectedDocIds: string[], template: { folders: FolderNode[] }) => {
-      if (!accessToken) return
+      if (!accessToken || !aiOrganizeConfig) return
+
+      const domain = toFlowbotDomain(aiOrganizeConfig.domain)
+      if (!domain) return
 
       flowbotClient.setAccessToken(accessToken)
       setState(prev => ({ ...prev, phase: 'loading' }))
 
       try {
-        const response: DocumentOrganizeResponse = await flowbotClient.organizeDocuments({
-          documents: buildDocumentInputs(selectedDocIds),
-          template,
-          entityType: aiOrganizeConfig?.entityType,
-          domain: aiOrganizeConfig?.domain
-        })
+        const templateTree = folderNodesToTemplateTree(template.folders)
+
+        const payload: OrganizeDocumentsPayload = {
+          domain,
+          entityType: aiOrganizeConfig.entityType.toLowerCase(),
+          entityId,
+          templateTree,
+          documents: buildDocumentInputs(selectedDocIds)
+        }
+
+        const response: DocumentOrganizeResponse = await flowbotClient.organizeDocuments(payload)
 
         setState({
           phase: 'preview',
           decisions: response.decisions,
-          suggestedFolders: response.suggestedFolders as FolderNode[],
+          suggestedFolders: templateTree,
           warnings: response.warnings
         })
       } catch (err) {
@@ -102,45 +131,43 @@ export function useDocumentOrganize({
         setState(prev => ({ ...prev, phase: 'error', errorMessage: message }))
       }
     },
-    [accessToken, buildDocumentInputs, aiOrganizeConfig]
+    [accessToken, buildDocumentInputs, aiOrganizeConfig, entityId]
   )
 
   const organizeByDescription = useCallback(
     async (selectedDocIds: string[], description: string) => {
-      if (!accessToken) return
+      if (!accessToken || !aiOrganizeConfig) return
+
+      const domain = toFlowbotDomain(aiOrganizeConfig.domain)
+      if (!domain) return
 
       flowbotClient.setAccessToken(accessToken)
       setState(prev => ({ ...prev, phase: 'loading' }))
 
       try {
-        const suggestResponse: SuggestStructureResponse = await flowbotClient.suggestDocumentStructure({
+        const payload: SuggestStructurePayload = {
+          domain,
+          entityType: aiOrganizeConfig.entityType.toLowerCase(),
+          entityId,
           documents: buildDocumentInputs(selectedDocIds),
-          description,
-          entityType: aiOrganizeConfig?.entityType,
-          domain: aiOrganizeConfig?.domain
-        })
+          preferences: description
+        }
 
-        const organizeResponse: DocumentOrganizeResponse = await flowbotClient.organizeDocuments({
-          documents: buildDocumentInputs(selectedDocIds),
-          template: { folders: suggestResponse.suggestedStructure as FolderNode[] },
-          description,
-          entityType: aiOrganizeConfig?.entityType,
-          domain: aiOrganizeConfig?.domain
-        })
+        const response: SuggestStructureResponse = await flowbotClient.suggestDocumentStructure(payload)
 
         setState({
           phase: 'preview',
-          decisions: organizeResponse.decisions,
-          suggestedFolders: organizeResponse.suggestedFolders as FolderNode[],
-          warnings: [...suggestResponse.warnings, ...organizeResponse.warnings],
-          reasoning: suggestResponse.reasoning
+          decisions: response.document_assignments,
+          suggestedFolders: response.proposed_template,
+          warnings: response.warnings,
+          reasoning: response.rationale.join('\n')
         })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Organization failed'
         setState(prev => ({ ...prev, phase: 'error', errorMessage: message }))
       }
     },
-    [accessToken, buildDocumentInputs, aiOrganizeConfig]
+    [accessToken, buildDocumentInputs, aiOrganizeConfig, entityId]
   )
 
   const applyDecisions = useCallback(async () => {
@@ -149,24 +176,166 @@ export function useDocumentOrganize({
     setState(prev => ({ ...prev, phase: 'applying' }))
 
     try {
-      const existingFolderNames = new Set(documents.filter(d => d.folder).map(d => d.name?.toLowerCase()))
-      const foldersToCreate = state.suggestedFolders.filter(f => !existingFolderNames.has(f.name.toLowerCase()))
+      const cleanupWarnings: string[] = []
+      const selectedDocumentIds = new Set(state.decisions.map(d => d.document_id))
 
-      if (foldersToCreate.length > 0 && apiConfig.endpoints?.create) {
-        for (const folder of foldersToCreate) {
-          await restClient.post(
-            apiConfig.endpoints.create,
-            {
-              [apiConfig.documentFieldName]: {
-                name: folder.name,
-                folder: true,
-                [apiConfig.entityFieldName]: entityId,
-                description: `Folder: ${folder.name}`,
-                recordState: 'active'
-              }
-            },
-            { headers: { Authorization: `Bearer ${accessToken}` } }
+      // --- Phase 1: Evacuate files from old folders ---
+      const foldersToClean = findFoldersForCleanup(documents)
+      const { deletableFolderIds, preservedFolderIds } = planManagedFolderDeletion(
+        documents,
+        foldersToClean,
+        selectedDocumentIds
+      )
+
+      if (preservedFolderIds.size > 0) {
+        cleanupWarnings.push(
+          getTranslationFromI18nKeyAndLabel(
+            'document.ai.organize.cleanup.preserved',
+            'Some managed folders were kept because they contain unselected documents.'
           )
+        )
+      }
+
+      if (foldersToClean.length > 0 && apiConfig.endpoints?.update && selectedDocumentIds.size > 0) {
+        const folderIdsToClean = new Set(foldersToClean.map(f => f.id))
+        const selectedFilesInManagedFolders = findFilesInFolderSubtrees(documents, folderIdsToClean).filter(file =>
+          selectedDocumentIds.has(file.id)
+        )
+
+        for (const file of selectedFilesInManagedFolders) {
+          await updateDocumentLocation({
+            documentId: file.id,
+            document: file,
+            parentDocument: null,
+            entityId,
+            apiConfig,
+            accessToken,
+            restClient
+          })
+        }
+
+        if (selectedFilesInManagedFolders.length > 0 && onRefresh) {
+          onRefresh()
+          await new Promise(r => setTimeout(r, REFRESH_SETTLE_DELAY_MS))
+        }
+      }
+
+      // --- Phase 2: Delete old folders (deepest-first) ---
+      if (deletableFolderIds.size > 0 && apiConfig.endpoints?.delete) {
+        // Re-read after evacuation to get fresh folder list
+        const freshFoldersToDelete = findFoldersForCleanup(documentsRef.current).filter(folder =>
+          deletableFolderIds.has(folder.id)
+        )
+        const failedFolderDeletes: string[] = []
+
+        for (const folder of freshFoldersToDelete) {
+          try {
+            await deleteDocument({
+              documentId: folder.id,
+              document: folder,
+              entityId,
+              apiConfig,
+              accessToken,
+              restClient
+            })
+          } catch {
+            failedFolderDeletes.push(folder.name || folder.id)
+            console.error('Failed to delete folder:', folder.name)
+          }
+        }
+
+        if (failedFolderDeletes.length > 0) {
+          cleanupWarnings.push(
+            getTranslationFromI18nKeyAndLabel(
+              'document.ai.organize.cleanup.deleteFailed',
+              'Some managed folders could not be deleted and were kept.'
+            )
+          )
+        }
+
+        if (onRefresh) {
+          onRefresh()
+          await new Promise(r => setTimeout(r, REFRESH_SETTLE_DELAY_MS))
+        }
+      }
+
+      // --- Phase 3: Create new folder structure ---
+      const allNeededPaths = collectAllPaths(state.suggestedFolders)
+      const existingPathMap = buildFolderPathMap(documentsRef.current)
+      const pathsToCreate = allNeededPaths.filter(p => !existingPathMap.has(p))
+
+      if (pathsToCreate.length > 0 && apiConfig.endpoints?.create) {
+        const pathsByDepth = new Map<number, string[]>()
+        for (const p of pathsToCreate) {
+          const depth = p.split('/').length - 1
+          const list = pathsByDepth.get(depth) ?? []
+          list.push(p)
+          pathsByDepth.set(depth, list)
+        }
+
+        const sortedDepths = [...pathsByDepth.keys()].sort((a, b) => a - b)
+        const createdPathMap = new Map<string, string>()
+
+        for (const depth of sortedDepths) {
+          const pathsAtDepth = pathsByDepth.get(depth) ?? []
+
+          for (const folderPath of pathsAtDepth) {
+            const segments = folderPath.split('/')
+            const folderName = segments[segments.length - 1]
+            const parentPath = segments.slice(0, -1).join('/')
+
+            const parentId = parentPath
+              ? (createdPathMap.get(parentPath) ?? existingPathMap.get(parentPath) ?? null)
+              : null
+
+            await restClient.post(
+              apiConfig.endpoints.create,
+              {
+                [apiConfig.documentFieldName]: {
+                  name: folderName,
+                  folder: true,
+                  [apiConfig.entityFieldName]: entityId,
+                  ...(parentId && { parentDocument: parentId }),
+                  description: MANAGED_FOLDER_MARKER,
+                  recordState: 'active'
+                }
+              },
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            )
+          }
+
+          if (onRefresh) {
+            onRefresh()
+            await new Promise(resolve => setTimeout(resolve, REFRESH_SETTLE_DELAY_MS))
+          }
+
+          const freshPathMap = buildFolderPathMap(documentsRef.current)
+          for (const [path, id] of freshPathMap) {
+            createdPathMap.set(path, id)
+          }
+        }
+      }
+
+      // --- Phase 4: Move documents per AI decisions ---
+      if (state.decisions.length > 0 && apiConfig.endpoints?.update) {
+        const finalPathMap = buildFolderPathMap(documentsRef.current)
+        const freshDocs = documentsRef.current
+
+        for (const decision of state.decisions) {
+          const targetFolderId = finalPathMap.get(decision.target_folder_path)
+          const doc = freshDocs.find(d => d.id === decision.document_id)
+
+          if (!targetFolderId || !doc) continue
+
+          await updateDocumentLocation({
+            documentId: decision.document_id,
+            document: doc,
+            parentDocument: targetFolderId,
+            entityId,
+            apiConfig,
+            accessToken,
+            restClient
+          })
         }
       }
 
@@ -174,6 +343,7 @@ export function useDocumentOrganize({
       toast.success(
         getTranslationFromI18nKeyAndLabel('document.ai.organize.success', 'Documents organized successfully')
       )
+      cleanupWarnings.forEach(message => toast.warning(message))
 
       if (onRefresh) {
         onRefresh()
@@ -183,7 +353,7 @@ export function useDocumentOrganize({
       setState(prev => ({ ...prev, phase: 'error', errorMessage: message }))
       toast.error(message)
     }
-  }, [accessToken, apiConfig, documents, entityId, restClient, state.suggestedFolders, onRefresh])
+  }, [accessToken, apiConfig, documents, entityId, restClient, state.suggestedFolders, state.decisions, onRefresh])
 
   const reset = useCallback(() => {
     setState(INITIAL_STATE)
