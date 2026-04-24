@@ -41563,9 +41563,9 @@
     ]
   },
   "hr/core/apps/human-resources": {
-    "bitbucketBuildNumber": 11347,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11347/",
-    "chunkJsBytes": 2593439,
+    "bitbucketBuildNumber": 11354,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11354/",
+    "chunkJsBytes": 2593454,
     "top": [
       {
         "kind": "bucket",
@@ -41588,8 +41588,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 858489,
-        "gzip": 206796,
+        "rendered": 858495,
+        "gzip": 206791,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/human-resources/components/views/insights-view/InsightsView.tsx",
@@ -41598,8 +41598,8 @@
           },
           {
             "name": "src/business-apps/hr/core/apps/human-resources/components/views/job-position-view/components/JobPositionTable.tsx",
-            "rendered": 27002,
-            "gzip": 3841
+            "rendered": 27001,
+            "gzip": 3837
           }
         ]
       },
@@ -41925,15 +41925,15 @@
     ]
   },
   "hr/core/apps/manager-dashboard": {
-    "bitbucketBuildNumber": 11347,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11347/",
-    "chunkJsBytes": 491387,
+    "bitbucketBuildNumber": 11354,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11354/",
+    "chunkJsBytes": 491395,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 623670,
-        "gzip": 137230,
+        "rendered": 623669,
+        "gzip": 137222,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/manager-dashboard/hooks/useManagerWorkboardVM.ts",
@@ -53897,9 +53897,9 @@
     ]
   },
   "hr/core/forms/job-position": {
-    "bitbucketBuildNumber": 11347,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11347/",
-    "chunkJsBytes": 132769,
+    "bitbucketBuildNumber": 11354,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11354/",
+    "chunkJsBytes": 132786,
     "top": [
       {
         "kind": "bucket",
@@ -53940,8 +53940,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 27160,
-        "gzip": 6383,
+        "rendered": 27168,
+        "gzip": 6390,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/job-position/components/JobPositionFormFields.tsx",
@@ -53950,8 +53950,8 @@
           },
           {
             "name": "src/business-apps/hr/core/forms/job-position/queries/useJobPositionQueries.ts",
-            "rendered": 7392,
-            "gzip": 1462
+            "rendered": 7400,
+            "gzip": 1469
           }
         ]
       },
@@ -87950,20 +87950,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11352,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11352/",
-    "chunkJsBytes": 1834376,
+    "bitbucketBuildNumber": 11354,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11354/",
+    "chunkJsBytes": 1834373,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1530126,
-        "gzip": 92603,
+        "rendered": 1530114,
+        "gzip": 92634,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1530126,
-            "gzip": 92603
+            "rendered": 1530114,
+            "gzip": 92634
           }
         ]
       },
@@ -103743,7 +103743,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-24T12:59:07.848Z",
+    "generatedAt": "2026-04-24T13:20:56.707Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
