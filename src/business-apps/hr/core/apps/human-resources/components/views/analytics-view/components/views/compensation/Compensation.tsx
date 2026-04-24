@@ -1,22 +1,38 @@
-import React, { useMemo } from 'react'
-import { Typography, Row, Col } from 'antd'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { SectionKpiCards, KpiCardData, Icon, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
-import { CalendarIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
-import { useCompensationMetrics } from '../../../hooks/useCompensationMetrics'
-import { useSalaryByOrgUnit } from '../../../hooks/useSalaryByOrgUnit'
-import { useHealthInsuranceDistribution } from '../../../hooks/useHealthInsuranceDistribution'
-import { useHealthInsuranceTypeDistribution } from '../../../hooks/useHealthInsuranceTypeDistribution'
-import YearlyPayrollChart from './components/charts/YearlyPayrollChart'
-import SalaryByOrgUnitChart from './components/charts/SalaryByOrgUnitChart'
-import HealthInsurerDistributionChart from './components/charts/HealthInsurerDistributionChart'
-import HealthInsuranceTypeDistributionChart from './components/charts/HealthInsuranceTypeDistributionChart'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { useCompensationAnalysisData } from '@/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useCompensationAnalysisData.ts'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { formatPercentage } from '@/common/utils/numberFormatter'
+import { Card, CardContent, Icon, KpiCardData, SectionKpiCards, useTranslation } from '@newwork/nw-design-system'
+import {
+  CalendarIcon,
+  CurrencyDollarIcon,
+  PlusMinusIcon,
+  ShieldWarningIcon,
+  TrendDownIcon
+} from '@phosphor-icons/react'
+import { Col, Row, Typography } from 'antd'
+import { useCallback, useMemo } from 'react'
 import { useAnalyticsTableExport } from '../../../hooks/useAnalyticsTableExport'
 import { useChartTableSelection } from '../../../hooks/useChartTableSelection'
+import { useCompensationMetrics } from '../../../hooks/useCompensationMetrics'
+import { useHealthInsuranceDistribution } from '../../../hooks/useHealthInsuranceDistribution'
+import { useHealthInsuranceTypeDistribution } from '../../../hooks/useHealthInsuranceTypeDistribution'
+import { useSalaryByOrgUnit } from '../../../hooks/useSalaryByOrgUnit'
+import {
+  getHighRiskCasesCount,
+  getMarketAlignmentColor,
+  getPayGapRiskColor
+} from '../../../utils/compensationAnalysisUtils'
 import { HIGHLIGHT_BADGE } from '../../shared/AnalyticsDataTable'
 import AnalyticsTabErrorCard from '../../shared/AnalyticsTabErrorCard'
 import AnalyticsTableSection from '../../shared/AnalyticsTableSection'
+import EquityHealthGauge from './components/charts/EquityHealthGauge'
+import HealthInsuranceTypeDistributionChart from './components/charts/HealthInsuranceTypeDistributionChart'
+import HealthInsurerDistributionChart from './components/charts/HealthInsurerDistributionChart'
+import PayGapExplanationPieChart from './components/charts/PayGapExplanationPieChart'
+import SalaryByOrgUnitChart from './components/charts/SalaryByOrgUnitChart'
+import YearlyPayrollChart from './components/charts/YearlyPayrollChart'
+import CompressionRiskAlertsCard from './components/CompressionRiskAlertsCard'
 
 const { Title, Text } = Typography
 
@@ -51,6 +67,9 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
     loading: healthInsuranceTypeLoading,
     error: healthInsuranceTypeError
   } = useHealthInsuranceTypeDistribution(accessToken)
+
+  // Compensation analysis data
+  const { compressionAnalysis, healthScore, gapExplanation, marketBenchmark } = useCompensationAnalysisData(accessToken)
 
   // Combine loading states
   const loading = salaryLoading || salaryByOrgUnitLoading || healthInsurerLoading || healthInsuranceTypeLoading
@@ -155,6 +174,79 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
     }
   }, [medianSalary])
 
+  // Helper functions to reduce cognitive complexity - memoized to prevent unnecessary re-renders
+  const getCompressionRiskValue = useCallback(() => {
+    if (compressionAnalysis.loading) return t('hr-data-filter-loading')
+    if (compressionAnalysis.error) return 'Error'
+    if (!compressionAnalysis.data) return 'N/A'
+    return `${getHighRiskCasesCount(compressionAnalysis.data.compressionRisks)} High Risk`
+  }, [compressionAnalysis, t])
+
+  const getCompressionRiskIcon = useCallback(() => {
+    let className = 'gba:text-gray-500'
+
+    if (compressionAnalysis.data && compressionAnalysis.data.compressionRisks.length > 0) {
+      const risks = compressionAnalysis.data.compressionRisks
+      if (risks.some(risk => risk.compressionScore > 40)) {
+        className = 'gba:text-red-500'
+      } else if (risks.some(risk => risk.compressionScore > 20)) {
+        className = 'gba:text-orange-500'
+      } else {
+        className = 'gba:text-green-500'
+      }
+    }
+
+    return <Icon icon={ShieldWarningIcon} size="sm" className={className} />
+  }, [compressionAnalysis])
+
+  const getPayGapValue = useCallback(() => {
+    if (gapExplanation.loading) return t('hr-data-filter-loading')
+    if (gapExplanation.error) return 'Error'
+    if (!gapExplanation.data) return 'N/A'
+    return formatPercentage(gapExplanation.data.payGapPercentage, 2)
+  }, [gapExplanation, t])
+
+  const getPayGapIcon = useCallback(() => {
+    const className = gapExplanation.data
+      ? getPayGapRiskColor(gapExplanation.data.payGapPercentage)
+      : 'gba:text-gray-500'
+    return <Icon icon={TrendDownIcon} size="sm" className={className} />
+  }, [gapExplanation])
+
+  const getUnexplainedPayGapValue = useCallback(() => {
+    if (gapExplanation.loading) return t('hr-data-filter-loading')
+    if (gapExplanation.error) return 'Error'
+    if (!gapExplanation.data) return 'N/A'
+    return formatPercentage(gapExplanation.data.unexplainedAbsolutePercent)
+  }, [gapExplanation, t])
+
+  const getUnexplainedPayGapIcon = useCallback(() => {
+    const className = gapExplanation.data
+      ? getPayGapRiskColor(gapExplanation.data.unexplainedAbsolutePercent)
+      : 'gba:text-gray-500'
+    return <Icon icon={TrendDownIcon} size="sm" className={className} />
+  }, [gapExplanation])
+
+  const getMarketAlignmentValue = useCallback(() => {
+    if (marketBenchmark.loading) return t('hr-data-filter-loading')
+    if (marketBenchmark.error) return 'Error'
+    if (marketBenchmark.data?.companyCompRatioP50 == null) return 'N/A'
+    return marketBenchmark.data.companyMarketAlignmentLabel
+  }, [marketBenchmark, t])
+
+  const getMarketAlignmentIcon = useCallback(() => {
+    const className = marketBenchmark.data
+      ? getMarketAlignmentColor(marketBenchmark.data.companyMarketAlignmentLabel)
+      : 'gba:text-gray-500'
+    return <Icon icon={PlusMinusIcon} size="sm" className={className} />
+  }, [marketBenchmark])
+
+  const getMarketAlignmentFooter = useCallback(() => {
+    return marketBenchmark.data?.companyCompRatioP50
+      ? `Comp Ratio: ${marketBenchmark.data.companyCompRatioP50.toFixed(2)}`
+      : 'Market comparison unavailable'
+  }, [marketBenchmark])
+
   // Create KPI cards data
   const kpiCards: KpiCardData[] = useMemo(
     () => [
@@ -189,9 +281,56 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         icon: <Icon icon={CalendarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-4)',
         footer: t('hr-analytics-average-increase')
+      },
+      {
+        id: 'compression-score',
+        title: 'Compression Risk Score',
+        value: getCompressionRiskValue(),
+        icon: getCompressionRiskIcon(),
+        iconColor: 'var(--nw-chart-5)',
+        footer: `${compressionAnalysis.data?.totalCompressionCases || 0} compression cases found`
+      },
+      {
+        id: 'total-pay-gap',
+        title: 'Total Pay Gap',
+        value: getPayGapValue(),
+        icon: getPayGapIcon(),
+        iconColor: 'var(--nw-chart-6)',
+        footer: `${gapExplanation.data?.totalEmployees || 0} employees analyzed`
+      },
+      {
+        id: 'unexplained-pay-gap',
+        title: 'Unexplained Pay Gap',
+        value: getUnexplainedPayGapValue(),
+        icon: getUnexplainedPayGapIcon(),
+        iconColor: 'var(--nw-chart-7)',
+        footer: `${gapExplanation.data?.totalEmployees || 0} employees analyzed`
+      },
+      {
+        id: 'market-alignment',
+        title: 'Market Alignment',
+        value: getMarketAlignmentValue(),
+        icon: getMarketAlignmentIcon(),
+        iconColor: 'var(--nw-chart-8)',
+        footer: getMarketAlignmentFooter()
       }
     ],
-    [loading, formattedMedianSalary, formattedAverageSalary, meritIncreases, t]
+    [
+      loading,
+      formattedMedianSalary,
+      formattedAverageSalary,
+      meritIncreases,
+      t,
+      getCompressionRiskValue,
+      getCompressionRiskIcon,
+      getPayGapValue,
+      getPayGapIcon,
+      getUnexplainedPayGapValue,
+      getUnexplainedPayGapIcon,
+      getMarketAlignmentValue,
+      getMarketAlignmentIcon,
+      getMarketAlignmentFooter
+    ]
   )
 
   if (error) {
@@ -199,7 +338,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
       <AnalyticsTabErrorCard
         dataTestId={`${prefixDataTestId}-Error`}
         message={t('hr-analytics-compensation-error')}
-        detail={error instanceof Error ? error.message : String(error)}
+        detail={error.message}
         retryLabel={t('common-retry')}
         onRetry={() => globalThis.location.reload()}
         variant="row"
@@ -226,6 +365,53 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
       {/* KPI Cards Section */}
       <div data-testid={`${prefixDataTestId}-kpi-cards`}>
         <SectionKpiCards cards={kpiCards} />
+      </div>
+
+      {/* Equity Health Score and Pay Gap Explanation */}
+      <div className="gba:mb-6">
+        <Row gutter={16} className="gba:w-full">
+          <Col span={6}>
+            {/* Equity Health Gauge - Overall Score */}
+            <EquityHealthGauge
+              score={healthScore.data?.score ?? 0}
+              loading={healthScore.loading}
+              error={healthScore.error}
+            />
+          </Col>
+        </Row>
+      </div>
+
+      {/* Compression Risk Alerts and Pay Gap Explanation Side by Side */}
+      <div className="gba:mb-6">
+        <Row gutter={16} className="gba:w-full">
+          <Col span={12}>
+            {/* Compression Risk Alerts */}
+            <CompressionRiskAlertsCard
+              compressionRisks={compressionAnalysis.data?.compressionRisks ?? []}
+              loading={compressionAnalysis.loading}
+              error={compressionAnalysis.error}
+              prefixDataTestId={prefixDataTestId}
+              maxItems={4}
+            />
+          </Col>
+          <Col span={12}>
+            {/* Pay Gap Explanation Pie Chart */}
+            <PayGapExplanationPieChart
+              data={
+                gapExplanation.data
+                  ? {
+                      tenureExplainedPercent: gapExplanation.data.tenureExplainedPercent,
+                      performanceExplainedPercent: gapExplanation.data.performanceExplainedPercent,
+                      unexplainedPercent: gapExplanation.data.unexplainedPercent,
+                      totalEmployees: gapExplanation.data.totalEmployees
+                    }
+                  : null
+              }
+              loading={gapExplanation.loading}
+              error={gapExplanation.error}
+            />
+          </Col>
+        </Row>
       </div>
 
       {/* Yearly Payroll Chart */}

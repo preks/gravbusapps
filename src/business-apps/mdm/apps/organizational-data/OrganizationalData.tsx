@@ -10,6 +10,7 @@ import { CapabilitiesTab } from './components/tabs/CapabilitiesTab'
 import { CostCentersTab } from './components/tabs/CostCentersTab'
 import { DepartmentsTab } from './components/tabs/DepartmentsTab'
 import { TeamsTab } from './components/tabs/TeamsTab'
+import GeoZoneTab from './components/tabs/GeoZoneTab'
 import { BuildingsIcon } from '@phosphor-icons/react'
 
 export enum OrganizationalDataTabs {
@@ -18,7 +19,8 @@ export enum OrganizationalDataTabs {
   CAPABILITIES = 'capabilities',
   COST_CENTERS = 'cost-centers',
   DEPARTMENTS = 'departments',
-  TEAMS = 'teams'
+  TEAMS = 'teams',
+  GEO_ZONES = 'geo-zones'
 }
 
 export interface OrganizationalDataProps extends BusinessAppContextProps {
@@ -62,6 +64,11 @@ const OrganizationalData: React.FC<OrganizationalDataProps> = ({ className, pref
       key: OrganizationalDataTabs.TEAMS,
       label: t('hr.teams', 'Teams'),
       children: <TeamsTab {...contextProps} prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`} />
+    },
+    {
+      key: OrganizationalDataTabs.GEO_ZONES,
+      label: t('hr.geo_zones', 'Geo Zones'),
+      children: <GeoZoneTab {...contextProps} prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`} />
     }
   ]
 
@@ -88,7 +95,6 @@ const OrganizationalData: React.FC<OrganizationalDataProps> = ({ className, pref
               ))}
             </Tabs>
           </div>
-          <Toaster position="bottom-right" richColors />
         </div>
       }
     />

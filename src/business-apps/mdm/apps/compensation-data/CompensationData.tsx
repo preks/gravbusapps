@@ -2,15 +2,15 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { PayGradesTab, CareerBandsTab, CompensationBandsTab } from './components/tabs'
-import { Tabs, TabsList, TabsTrigger, TabsContent, Toaster } from '@newwork/nw-design-system'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
 import { CurrencyCircleDollarIcon } from '@phosphor-icons/react'
 import { useTabQueryParamSync } from '../../hooks/useTabQueryParamSync'
+import CompensationBandPolicyTab from '@/business-apps/mdm/apps/compensation-data/components/tabs/CompensationBandPolicyTab.tsx'
+import CompensationBandsTab from './components/tabs/CompensationBandsTab'
 
 export enum CompensationDataTabs {
-  PAY_GRADES = 'pay-grades',
-  CAREER_BANDS = 'career-bands',
-  COMPENSATION_BANDS = 'compensation-bands'
+  COMPENSATION_BANDS = 'compensation-bands',
+  COMPENSATION_BAND_POLICY = 'compensation-band-policy'
 }
 
 export interface CompensationDataProps extends BusinessAppContextProps {
@@ -22,7 +22,7 @@ const DATA_TEST_ID = 'CompensationData'
 
 const CompensationData: React.FC<CompensationDataProps> = ({ className, prefixDataTestId, ...contextProps }) => {
   const { t } = useTranslation()
-  const [selectedTab, onChangeTab] = useTabQueryParamSync(CompensationDataTabs, CompensationDataTabs.PAY_GRADES)
+  const [selectedTab, onChangeTab] = useTabQueryParamSync(CompensationDataTabs, CompensationDataTabs.COMPENSATION_BANDS)
 
   return (
     <PageLayout
@@ -34,24 +34,13 @@ const CompensationData: React.FC<CompensationDataProps> = ({ className, prefixDa
           <div data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Tabs`}>
             <Tabs value={selectedTab} onValueChange={onChangeTab} className="gba:w-full">
               <TabsList className="gba:w-full">
-                <TabsTrigger value={CompensationDataTabs.PAY_GRADES}>
-                  {t('hr.compensation_data', 'Pay Grades')}
-                </TabsTrigger>
-                <TabsTrigger value={CompensationDataTabs.CAREER_BANDS}>
-                  {t('hr.compensation_data', 'Career Bands')}
-                </TabsTrigger>
                 <TabsTrigger value={CompensationDataTabs.COMPENSATION_BANDS}>
                   {t('hr.compensation_data', 'Compensation Bands')}
                 </TabsTrigger>
+                <TabsTrigger value={CompensationDataTabs.COMPENSATION_BAND_POLICY}>
+                  {t('hr.compensation_band_policy', 'Band Policies')}
+                </TabsTrigger>
               </TabsList>
-
-              <TabsContent value={CompensationDataTabs.PAY_GRADES}>
-                <PayGradesTab {...contextProps} prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`} />
-              </TabsContent>
-
-              <TabsContent value={CompensationDataTabs.CAREER_BANDS}>
-                <CareerBandsTab {...contextProps} prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`} />
-              </TabsContent>
 
               <TabsContent value={CompensationDataTabs.COMPENSATION_BANDS}>
                 <CompensationBandsTab
@@ -59,9 +48,15 @@ const CompensationData: React.FC<CompensationDataProps> = ({ className, prefixDa
                   prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
                 />
               </TabsContent>
+
+              <TabsContent value={CompensationDataTabs.COMPENSATION_BAND_POLICY}>
+                <CompensationBandPolicyTab
+                  {...contextProps}
+                  prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+                />
+              </TabsContent>
             </Tabs>
           </div>
-          <Toaster position="bottom-right" richColors />
         </div>
       }
     />

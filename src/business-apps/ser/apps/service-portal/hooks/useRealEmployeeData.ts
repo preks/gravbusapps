@@ -125,7 +125,7 @@ const GET_JOB_POSITIONS = `
             _or: [
               { name: { _ilike: $search } },
               { jobFunction: { name: { _ilike: $search } } },
-              { jobFunction: { jobFamily: { value: { _ilike: $search } } } },
+              { jobFunction: { jobFamily: { code: { _ilike: $search } } } },
               { jobLevel: { name: { _ilike: $search } } },
               { jobProfile: { name: { _ilike: $search } } }
             ]
@@ -141,7 +141,7 @@ const GET_JOB_POSITIONS = `
         id 
         name 
         jobFamily {
-          value
+          code
         }
       }
       jobLevel { 
