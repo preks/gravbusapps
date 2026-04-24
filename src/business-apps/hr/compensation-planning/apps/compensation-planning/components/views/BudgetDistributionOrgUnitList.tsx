@@ -27,8 +27,8 @@ export interface BudgetDistributionOrgUnitListProps {
   salaryCostByOrgUnitId: ReadonlyMap<string, number>
   /** Sum of {@link salaryCostByOrgUnitId} — denominator for salary-cost share. */
   totalSalaryCostAcrossOrgUnits: number
-  /** **Average** overall performance per department (weight for the performance distribution method). */
-  averagePerformanceByOrgUnitId: ReadonlyMap<string, number>
+  /** **Average** overall performance per department (mean of employees’ scores), or null if none resolved. */
+  averagePerformanceByOrgUnitId: ReadonlyMap<string, number | null>
   /** Sum of those averages — denominator for "share of weight" in the performance method. */
   sumOfDepartmentAverageScores: number
   /** Salary increase pool for preview and custom inputs. */

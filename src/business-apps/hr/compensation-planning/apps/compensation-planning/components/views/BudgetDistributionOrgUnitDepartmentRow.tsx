@@ -22,8 +22,8 @@ export interface BudgetDistributionOrgUnitDepartmentRowProps {
   customPoolUnallocatedGlobal: number | null
   headcount: number
   unitSalaryCost: number
-  /** Mean overall performance in this org unit (same as distribution weight, before normalization). */
-  unitAveragePerformance: number
+  /** Mean overall performance in this org unit (mean of employees’ evaluation scores), or null when none resolved. */
+  unitAveragePerformance: number | null
   totalSalaryCostAcrossOrgUnits: number
   /** Sum of org-unit averages (denominator for share line). */
   sumOfDepartmentAverageScores: number
@@ -56,6 +56,12 @@ export function BudgetDistributionOrgUnitDepartmentRow({
   t
 }: Readonly<BudgetDistributionOrgUnitDepartmentRowProps>) {
   const poolPercentPoints = formatPercentOfPool(amount, distributionPool)
+  const hasUnitPerformanceScore = unitAveragePerformance != null && Number.isFinite(unitAveragePerformance)
+  const performanceSumDisplay = hasUnitPerformanceScore ? formatPerformanceScoreSum(unitAveragePerformance) : '—'
+  const performanceShareDisplay =
+    hasUnitPerformanceScore && sumOfDepartmentAverageScores > 0
+      ? formatShareOfTotalSalary(unitAveragePerformance, sumOfDepartmentAverageScores)
+      : '—'
 
   return (
     <li
@@ -93,8 +99,8 @@ export function BudgetDistributionOrgUnitDepartmentRow({
             data-testid={`budget-distribution-department-performance-${unit.id}`}
           >
             {t('budget-distribution-performance-row-detail', {
-              sum: formatPerformanceScoreSum(unitAveragePerformance),
-              share: formatShareOfTotalSalary(unitAveragePerformance, sumOfDepartmentAverageScores)
+              sum: performanceSumDisplay,
+              share: performanceShareDisplay
             })}
           </p>
         ) : null}

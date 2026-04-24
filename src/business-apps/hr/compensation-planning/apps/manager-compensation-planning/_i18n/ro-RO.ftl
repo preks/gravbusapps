@@ -3,6 +3,7 @@ subtitle = Vizualizați și comparați salariile, bonusurile și beneficiile ech
 loading = Se încarcă datele echipei...
 
 empty-select-company-hint = Echipa și bugetul se referă la compania asociată poziției dvs. Nu am putut determina încă această companie. Reîmprospătați pagina sau contactați HR dacă problema persistă.
+select-compensation-cycle-hint = Selectați un ciclu de compensare de mai sus pentru a încărca echipa și previzualizarea bugetului.
 error-companies-load = Nu s-a putut încărca lista de companii. {$message}
 error-performance-cycles-query-title = Directorul ciclurilor de performanță nu este disponibil
 error-performance-cycles-query = Nu s-a putut încărca lista ciclurilor de performanță din director. {$message}

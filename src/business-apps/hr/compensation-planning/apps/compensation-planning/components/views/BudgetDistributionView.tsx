@@ -176,11 +176,11 @@ export function BudgetDistributionView({
     [orgUnitDistributionInputs]
   )
 
-  /** Per org unit: **average** overall performance (same weight as `distributeToOrgUnits` for `performance_weighted`). */
+  /** Per org unit: **average** overall performance (mean of employee scores in the unit), or null when no scores loaded. */
   const averagePerformanceByOrgUnitId = useMemo(() => {
-    const map = new Map<string, number>()
+    const map = new Map<string, number | null>()
     for (const input of orgUnitDistributionInputs) {
-      map.set(input.orgUnitId, input.averagePerformanceRating ?? 0)
+      map.set(input.orgUnitId, input.averagePerformanceRating)
     }
     return map
   }, [orgUnitDistributionInputs])

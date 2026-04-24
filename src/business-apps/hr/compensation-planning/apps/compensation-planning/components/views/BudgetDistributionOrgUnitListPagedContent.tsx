@@ -18,7 +18,7 @@ export interface BudgetDistributionOrgUnitListPagedContentProps {
   allocationByOrgUnitId: ReadonlyMap<string, number>
   headcountByOrgUnitId: ReadonlyMap<string, number>
   salaryCostByOrgUnitId: ReadonlyMap<string, number>
-  averagePerformanceByOrgUnitId: ReadonlyMap<string, number>
+  averagePerformanceByOrgUnitId: ReadonlyMap<string, number | null>
   totalSalaryCostAcrossOrgUnits: number
   sumOfDepartmentAverageScores: number
   distributionPool: number | null
@@ -102,7 +102,7 @@ export function BudgetDistributionOrgUnitListPagedContent({
             const amount = allocationByOrgUnitId.get(unit.id) ?? 0
             const headcount = headcountByOrgUnitId.get(unit.id) ?? 0
             const unitSalaryCost = salaryCostByOrgUnitId.get(unit.id) ?? 0
-            const unitAveragePerformance = averagePerformanceByOrgUnitId.get(unit.id) ?? 0
+            const unitAveragePerformance = averagePerformanceByOrgUnitId.get(unit.id) ?? null
             return (
               <BudgetDistributionOrgUnitDepartmentRow
                 key={unit.id}

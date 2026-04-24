@@ -247,7 +247,8 @@ interface ManagerBudgetContextResponse {
 
 /**
  * Sums `salary_budget_amount` (HR slice per department) for team org units. Uses two GraphQL round-trips.
- * When `selectedCompensationBudgetPlanId` is set, uses that compensation cycle’s `CompensationBudgetPlanCompany` row; otherwise the latest fiscal year (same as HR default when no cycle is selected).
+ * When `selectedCompensationBudgetPlanId` is set, uses that cycle’s `CompensationBudgetPlanCompany` row and loads OU budget rows.
+ * When null, only the snapshot is loaded so {@link buildCompensationPlanChoices} can populate the cycle selector; no salary totals or OU map until the user picks a cycle.
  */
 export function useManagerTeamSalaryBudget(params: {
   accessToken: string | undefined
@@ -319,6 +320,14 @@ export function useManagerTeamSalaryBudget(params: {
       const companyRows = (snapshot.compensationBudgetPlanCompanies ?? []).map(mapCompanyRow)
       const options = buildCompanyBudgetPlanOptions(companyRows, plans)
       setCompensationPlanChoices(buildCompensationPlanChoices(options, planById))
+
+      if (selectedCompensationBudgetPlanId == null) {
+        setActiveCompensationBudgetPlanId(null)
+        setTotalSalaryBudget(null)
+        setTotalOrgUnitAllocationAmount(null)
+        setPlanOuRowIdByOrganizationalUnitId(new Map())
+        return
+      }
 
       const companyBudgetId = pickCompanyBudgetRowIdForPlan(options, planById, selectedCompensationBudgetPlanId)
 

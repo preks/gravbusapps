@@ -118,6 +118,8 @@ interface UseTeamCompensationDataParams {
    * catalog `objectValue` containing `payroll_relevant: true` (same signal as payroll preparation).
    */
   requirePayrollRelevantContractType?: boolean
+  /** When false, skips all fetches and keeps an empty list (e.g. manager must pick a cycle first). */
+  enabled?: boolean
 }
 
 /**
@@ -148,7 +150,8 @@ export function useTeamCompensationData({
   orgUnitId,
   supervisorEmployeeId,
   supervisorOnly = false,
-  requirePayrollRelevantContractType = false
+  requirePayrollRelevantContractType = false,
+  enabled = true
 }: UseTeamCompensationDataParams) {
   const [teamMembers, setTeamMembers] = useState<TeamMemberCompensationData[]>([])
   const [loading, setLoading] = useState(false)
@@ -157,6 +160,12 @@ export function useTeamCompensationData({
   const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchData = useCallback(async () => {
+    if (enabled === false) {
+      setTeamMembers([])
+      setLoading(false)
+      setError(null)
+      return
+    }
     if (!accessToken) return
     if (supervisorOnly) {
       if (!supervisorEmployeeId || !companyId) {
@@ -312,6 +321,7 @@ export function useTeamCompensationData({
     supervisorEmployeeId,
     supervisorOnly,
     requirePayrollRelevantContractType,
+    enabled,
     graphqlClient
   ])
 

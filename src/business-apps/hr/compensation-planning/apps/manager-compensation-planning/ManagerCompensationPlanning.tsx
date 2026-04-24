@@ -170,6 +170,8 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
 
   const effectiveCompanyId = supervisorReview?.companyId ?? selectedCompanyId
 
+  const loadTeamData = Boolean(effectiveCompanyId) && (Boolean(supervisorReview) || selectedCompensationPlanId != null)
+
   const {
     teamMembers,
     loading: dataLoading,
@@ -182,7 +184,8 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     supervisorEmployeeId: supervisorReview ? undefined : (employeeId ?? undefined),
     supervisorOnly: supervisorReview == null,
     /** Aligns with company compensation planning: contract type catalog `payroll_relevant`. */
-    requirePayrollRelevantContractType: true
+    requirePayrollRelevantContractType: true,
+    enabled: loadTeamData
   })
 
   const {
@@ -193,7 +196,6 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     refetch: refetchSalaryBudget,
     planOuRowIdByOrganizationalUnitId,
     managerOrganizationalUnitId,
-    activeCompensationBudgetPlanId,
     compensationPlanChoices
   } = useManagerTeamSalaryBudget({
     accessToken,
@@ -210,14 +212,8 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     if (selectedCompensationPlanId != null && compensationPlanChoices.some(p => p.id === selectedCompensationPlanId)) {
       return selectedCompensationPlanId
     }
-    if (
-      activeCompensationBudgetPlanId != null &&
-      compensationPlanChoices.some(p => p.id === activeCompensationBudgetPlanId)
-    ) {
-      return activeCompensationBudgetPlanId
-    }
     return null
-  }, [activeCompensationBudgetPlanId, compensationPlanChoices, selectedCompensationPlanId])
+  }, [compensationPlanChoices, selectedCompensationPlanId])
 
   useEffect(() => {
     if (compensationPlanChoices.length === 0) {
@@ -406,30 +402,36 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
               <AlertDescription>{t('error-performance-scores', { message: performanceScoresError })}</AlertDescription>
             </Alert>
           ) : null}
-          <TeamCompensationDistributionPanel
-            teamMembers={teamMembersWithPerformance}
-            filteredRows={pipeline.filteredSorted}
-            totalFiltered={pipeline.totalFiltered}
-            loading={dataLoading || performanceScoresLoading}
-            error={error}
-            totalSalaryBudget={totalSalaryBudget}
-            totalOrgUnitAllocationAmount={totalOrgUnitAllocationAmount}
-            salaryBudgetLoading={salaryBudgetLoading}
-            salaryBudgetError={salaryBudgetError}
-            selectedCompanyId={effectiveCompanyId}
-            currencyCode={teamCurrencyCode}
-            accessToken={accessToken}
-            managerEmployeeId={employeeId}
-            planOuRowIdByOrganizationalUnitId={planOuRowIdByOrganizationalUnitId}
-            managerOrganizationalUnitId={managerOrganizationalUnitId}
-            onMergeSavedRowIds={mergeSavedRowIds}
-            proposalsLockedAfterSubmit={proposalsLocked}
-            onNewProposalUnlock={handleNewProposalUnlock}
-            onSaved={() => {
-              void refetchSalaryBudget()
-              void refetchTeam()
-            }}
-          />
+          {selectedCompensationPlanId == null ? (
+            <p className="gba:text-sm gba:text-muted-foreground" data-testid="manager-compensation-select-cycle-hint">
+              {t('select-compensation-cycle-hint')}
+            </p>
+          ) : (
+            <TeamCompensationDistributionPanel
+              teamMembers={teamMembersWithPerformance}
+              filteredRows={pipeline.filteredSorted}
+              totalFiltered={pipeline.totalFiltered}
+              loading={dataLoading || performanceScoresLoading}
+              error={error}
+              totalSalaryBudget={totalSalaryBudget}
+              totalOrgUnitAllocationAmount={totalOrgUnitAllocationAmount}
+              salaryBudgetLoading={salaryBudgetLoading}
+              salaryBudgetError={salaryBudgetError}
+              selectedCompanyId={effectiveCompanyId}
+              currencyCode={teamCurrencyCode}
+              accessToken={accessToken}
+              managerEmployeeId={employeeId}
+              planOuRowIdByOrganizationalUnitId={planOuRowIdByOrganizationalUnitId}
+              managerOrganizationalUnitId={managerOrganizationalUnitId}
+              onMergeSavedRowIds={mergeSavedRowIds}
+              proposalsLockedAfterSubmit={proposalsLocked}
+              onNewProposalUnlock={handleNewProposalUnlock}
+              onSaved={() => {
+                void refetchSalaryBudget()
+                void refetchTeam()
+              }}
+            />
+          )}
         </div>
       </div>
     )
