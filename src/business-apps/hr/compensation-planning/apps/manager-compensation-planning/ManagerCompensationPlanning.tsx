@@ -190,7 +190,6 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
 
   const {
     totalSalaryBudget,
-    totalOrgUnitAllocationAmount,
     loading: salaryBudgetLoading,
     error: salaryBudgetError,
     refetch: refetchSalaryBudget,
@@ -414,7 +413,6 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
               loading={dataLoading || performanceScoresLoading}
               error={error}
               totalSalaryBudget={totalSalaryBudget}
-              totalOrgUnitAllocationAmount={totalOrgUnitAllocationAmount}
               salaryBudgetLoading={salaryBudgetLoading}
               salaryBudgetError={salaryBudgetError}
               selectedCompanyId={effectiveCompanyId}

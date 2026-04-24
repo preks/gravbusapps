@@ -15,6 +15,7 @@ import { useManagerTeamCompensationDataDisplay } from '../hooks/useManagerTeamCo
 import { useManagerTeamEmployeeCustomBudgetMaps } from '../hooks/useManagerTeamEmployeeCustomBudgetMaps'
 import translations from '../_i18n'
 import { getEmployeeIdsBlockedFromManagerResubmit } from '../utils/managerEmployeeProposalResubmitEligibility'
+import { sumAllocationForTeamDepartmentKpi } from '../utils/teamProposalDepartmentKpiAllocation'
 import { ManagerTeamSubmittedProposalsPanel } from './ManagerTeamSubmittedProposalsPanel'
 import { TeamCompensationDistributionSplitPanel } from './TeamCompensationDistributionSplitPanel'
 import { TeamCompensationSaveAllocationsDialog } from './TeamCompensationSaveAllocationsDialog'
@@ -32,8 +33,6 @@ export interface TeamCompensationDistributionPanelProps {
   loading: boolean
   error: string | null
   totalSalaryBudget: number | null
-  /** Sum of department `allocation_amount` (rolled up from team proposals). */
-  totalOrgUnitAllocationAmount: number | null
   salaryBudgetLoading: boolean
   salaryBudgetError: string | null
   selectedCompanyId: string | null
@@ -58,7 +57,6 @@ export function TeamCompensationDistributionPanel({
   loading,
   error,
   totalSalaryBudget,
-  totalOrgUnitAllocationAmount,
   salaryBudgetLoading,
   salaryBudgetError,
   selectedCompanyId,
@@ -236,7 +234,9 @@ export function TeamCompensationDistributionPanel({
     if (activePool == null) {
       return null
     }
-    const allocatedForKpi = showProposalsTable ? (totalOrgUnitAllocationAmount ?? 0) : previewTotalAllocated
+    const allocatedForKpi = showProposalsTable
+      ? sumAllocationForTeamDepartmentKpi(teamProposalRows)
+      : previewTotalAllocated
     const allocatedRounded = roundMoney2(allocatedForKpi)
     const unallocatedRounded = roundMoney2(Math.max(0, activePool - allocatedForKpi))
     const kpiMoney = {
@@ -279,15 +279,7 @@ export function TeamCompensationDistributionPanel({
         span: { xs: 24, sm: 8, lg: 8 }
       }
     ]
-  }, [
-    activePool,
-    currencyCode,
-    previewTotalAllocated,
-    showProposalsTable,
-    t,
-    totalOrgUnitAllocationAmount,
-    totalSalaryBudget
-  ])
+  }, [activePool, currencyCode, previewTotalAllocated, showProposalsTable, t, teamProposalRows, totalSalaryBudget])
 
   const contextPoolSection = useMemo(() => {
     if (salaryBudgetLoading) {

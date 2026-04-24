@@ -23,6 +23,7 @@ import type { SupervisorSubmittedProposalsSelectionParams } from './buildSupervi
 import { SupervisorReviewSendBackDialog } from './SupervisorReviewSendBackDialog'
 import { SupervisorSubmittedProposalsDataDisplay } from './SupervisorSubmittedProposalsDataDisplay'
 import { useSupervisorSubmittedProposalsTableModel } from './useSupervisorSubmittedProposalsTableModel'
+import { reduceOrgUnitBudgetPoolByAmount } from '../../../utils/reduceOrgUnitBudgetPoolByAmount'
 import { rollupTeamOrgUnitBudgetAfterSupervisorApprovals } from '../../../utils/rollupTeamOrgUnitBudgetAfterSupervisorApprovals'
 import translations from '../_i18n'
 
@@ -253,6 +254,7 @@ export function SupervisorOrgUnitProposalReview({
         const body = buildSupervisorSendBackEmployeeProposalBody(row, supervisorEmployeeId, notes)
         await saveCompensationBudgetPlanEmployee(restClient, accessToken, body)
       }
+      await reduceOrgUnitBudgetPoolByAmount(graphqlClient, restClient, accessToken, planOuRowId)
       setSendBackOpen(false)
       setSendBackNotes('')
       setSelectedIds(new Set())
@@ -267,7 +269,9 @@ export function SupervisorOrgUnitProposalReview({
     }
   }, [
     accessToken,
+    graphqlClient,
     onSupervisorReviewDataChanged,
+    planOuRowId,
     refetch,
     restClient,
     selectedRows,

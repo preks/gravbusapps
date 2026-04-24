@@ -13,6 +13,7 @@ import {
 import type { BudgetPlanStatusApi } from '../types/budgetPlanGraphqlEnums'
 import { percentFromAmount, roundMoney2 } from './budgetAmountPercentSync'
 import { graphqlUnknownToString } from './graphqlUnknownToString'
+import { sumEmployeeAllocationsForOrgUnitRollup } from './orgUnitAllocationAmountRollup'
 import {
   mapGraphqlCompanyBudgetRowToSaveInputStrict,
   mapGraphqlCompanyBudgetRowToSaveInputWithFallback
@@ -41,7 +42,8 @@ export interface ReduceOrgUnitBudgetPoolOptions {
 
 /**
  * After supervisor/HR actions on employee rows: keeps OU `salary_budget_*` as the HR department slice (unchanged).
- * Sets OU `allocation_amount` to the sum of employee `allocationAmount` on this org-unit budget line.
+ * Sets OU `allocation_amount` to the sum of employee `allocationAmount` for rows that still count toward the
+ * department pool (submitted / approved / executed; excludes sent-back, draft, etc.).
  * Optionally overrides `budgetPlanStatus` (e.g. `BUDGET_PLAN_APPROVED`). Then touches the company row.
  */
 export async function reduceOrgUnitBudgetPoolByAmount(
@@ -82,13 +84,11 @@ export async function reduceOrgUnitBudgetPoolByAmount(
   const nextOuSalary = roundMoney2(num(ou.salaryBudgetAmount))
 
   const allocResult = await graphqlClient.request<{
-    CompensationBudgetPlanEmployee: { allocationAmount: unknown }[]
+    CompensationBudgetPlanEmployee: { allocationAmount: unknown; budgetPlanStatus: unknown }[]
   }>(GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_ALLOCATION_AMOUNTS_BY_ORG_UNIT_BUDGET_ID, {
     orgUnitBudgetId: planOuRowId
   })
-  const nextOuAllocation = roundMoney2(
-    (allocResult.CompensationBudgetPlanEmployee ?? []).reduce((sum, r) => sum + roundMoney2(num(r.allocationAmount)), 0)
-  )
+  const nextOuAllocation = sumEmployeeAllocationsForOrgUnitRollup(allocResult.CompensationBudgetPlanEmployee ?? [])
 
   const nextOuPercent =
     companyBaseline > 0
@@ -134,7 +134,8 @@ export async function reduceOrgUnitBudgetPoolByAmount(
 }
 
 /**
- * Recomputes OU `allocation_amount` as the sum of employee `allocationAmount` on that org-unit budget row.
+ * Recomputes OU `allocation_amount` as the sum of employee `allocationAmount` for rows that count toward the
+ * pool (same status filter as {@link sumEmployeeAllocationsForOrgUnitRollup}).
  * Leaves `salary_budget_*` and OU `budget_plan_status` unchanged (no supervisor status override).
  * Use after manager revises a sent-back employee row so department roll-up stays correct.
  */
