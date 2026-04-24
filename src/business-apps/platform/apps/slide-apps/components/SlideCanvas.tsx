@@ -21,14 +21,27 @@ import type {
   ConnectorElement,
   LayerElement,
   MetricCardElement,
+  GroupElement,
   Position,
   Size
 } from './slideElements'
-import { gradientToCss } from './slideElements'
+import { gradientToCss, getImageCropStyles, textTransformToCss, textElementStubForShapeInText } from './slideElements'
+import { ensureImportedWebFonts, resolveFontStack } from './fontStack'
+
+// Webfonts commonly referenced by imported decks (Roboto, Funnel Display,
+// Source Sans Pro, …) are not part of the default browser font set. Loading
+// them lazily via `<link rel="stylesheet">` on first canvas module use means
+// text metrics line up with PowerPoint instead of falling back to Segoe UI /
+// SF Pro, which is what was making slide 17's pill widths stop matching
+// their labels after the Enterprise AI import.
+ensureImportedWebFonts()
 import { SlideChartRenderer } from './SlideChartRenderer'
 import { TextWithLinks } from './TextWithLinks'
+import { RichTextContent } from './RichTextContent'
+import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
+import { ShapePointEditor } from './ShapePointEditor'
 import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
-import { sanitizeMediaUrl, renderShape as renderShapeShared } from './slideRenderUtils'
+import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
 
 const hexToRgba = (hex: string, alpha: number): string => {
   const cleanHex = hex.replace('#', '')
@@ -38,6 +51,23 @@ const hexToRgba = (hex: string, alpha: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
+/**
+ * Thin adapter over the shared slide media sanitizer. Kept as a local name so
+ * call sites read naturally and so we can continue to pass the preferred kind
+ * as an array for backwards compatibility with existing call sites.
+ */
+const sanitizeMediaUrl = (url: string | undefined, allowedTypes: string[] = ['image/', 'video/']): string => {
+  const allowImage = allowedTypes.some(t => t.startsWith('image/'))
+  const allowVideo = allowedTypes.some(t => t.startsWith('video/'))
+  const kinds: SlideMediaKind[] = []
+  if (allowImage) kinds.push('image')
+  if (allowVideo) kinds.push('video')
+  for (const kind of kinds) {
+    const sanitized = sanitizeSlideMediaUrl(url, kind)
+    if (sanitized) return sanitized
+  }
+  return ''
+}
 interface InlineEditingProps {
   editingTextId: string | null
   onTextChange: (value: string) => void
@@ -78,6 +108,32 @@ interface SlideCanvasProps {
   inlineEditing?: InlineEditingProps
   isPresenting?: boolean
   onLinkClick?: (url: string, linkId: string, e: React.MouseEvent) => void
+  /**
+   * Canvas dimensions in pixels. Defaults to 1280x720 (16:9) for legacy
+   * callers; PPTX-imported decks pass their actual <p:sldSz> so 4:3 / A4 /
+   * custom-size slides render with the correct aspect ratio instead of being
+   * forced into widescreen.
+   */
+  canvasSize?: { width: number; height: number }
+  /**
+   * Edit Points mode. When set to a shape id, the canvas mounts
+   * {@link ShapePointEditor} on top of that shape so the user can manipulate
+   * its anchors. Standard drag/resize/selection handlers skip this element
+   * while the mode is active so point dragging doesn't double-handle events.
+   *
+   * Mirrors the {@link InlineEditingProps} pattern to keep the canvas a
+   * stateless view; SlideEditor owns the current id.
+   */
+  editingPointsId?: string | null
+  /** Called when the user drags/adds/deletes an anchor; receives the new normalised `custGeomPath`. */
+  onPointsChange?: (id: string, nextCustGeomPath: string) => void
+  /** Called when the user leaves the mode (Esc key or click outside). */
+  onExitPointEditing?: () => void
+  /**
+   * Right-click entry point for Edit Points mode on a shape. Same semantics
+   * as the PropertyPanel button; canvas fires this so SlideEditor owns state.
+   */
+  onShapeContextMenu?: (elementId: string) => void
 }
 
 type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
@@ -98,7 +154,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     scale = 1,
     inlineEditing,
     isPresenting = false,
-    onLinkClick
+    onLinkClick,
+    canvasSize,
+    editingPointsId,
+    onPointsChange,
+    onExitPointEditing,
+    onShapeContextMenu
   }) => {
     const canvasRef = useRef<HTMLDivElement>(null)
     const [isDragging, setIsDragging] = useState(false)
@@ -125,9 +186,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     // Flag to prevent click handler from clearing selection after marquee
     const justFinishedMarqueeRef = useRef(false)
 
-    // Snap guides state
-    const CANVAS_WIDTH = 1280
-    const CANVAS_HEIGHT = 720
+    // Snap guides state. Canvas dimensions are deck-defined (from <p:sldSz>
+    // on PPTX imports) and default to 16:9 widescreen for legacy flows.
+    const CANVAS_WIDTH = canvasSize?.width ?? 1280
+    const CANVAS_HEIGHT = canvasSize?.height ?? 720
     const SNAP_THRESHOLD = 8
     const [snapGuides, setSnapGuides] = useState<{ type: 'horizontal' | 'vertical'; position: number }[]>([])
 
@@ -198,6 +260,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       // Check if clicking on canvas itself or on background elements (not slide elements)
       const target = e.target as HTMLElement
       const isClickOnElement = target.closest('[data-slide-element]')
+      const isClickOnPointEditor = target.closest('[data-shape-point-editor]')
+
+      // Clicking outside the shape exits Edit Points mode — mirrors the
+      // existing "click off to deselect" affordance so users don't get stuck.
+      if (editingPointsId && !isClickOnPointEditor) {
+        onExitPointEditing?.()
+      }
 
       if (!isClickOnElement && canvasRef.current) {
         e.preventDefault()
@@ -339,6 +408,11 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       onElementClick?.(element.id)
 
       if (element.locked) return
+
+      // In Edit Points mode the ShapePointEditor owns pointer events for the
+      // active shape. Swallow canvas-level drag/select events so the user
+      // can manipulate anchors without moving the whole shape by accident.
+      if (editingPointsId && editingPointsId === element.id) return
 
       const isSelected = selectedIds.has(element.id)
       const isCtrlKey = e.ctrlKey || e.metaKey
@@ -719,6 +793,213 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       }
     }, [isDragging, isResizing, handleMouseMove, handleMouseUp])
 
+    const renderShape = (element: ShapeElement) => {
+      const {
+        shapeType,
+        fill,
+        gradient,
+        strokeColor,
+        strokeWidth,
+        strokeStyle,
+        cornerRadius,
+        shadow,
+        pictureFill,
+        patternFill
+      } = element
+      // Picture fill: paint the shape with a bitmap. When the PPTX used an
+      // `a:tile`, repeat the image; default is `a:stretch` (cover). Pattern
+      // fill is approximated as a repeating linear gradient on the fg/bg
+      // colors — PowerPoint's exact preset patterns (`dkHorz`, `lgGrid`,
+      // etc.) collapse to a generic diagonal stripe in this renderer, which
+      // still beats losing the fill distinction entirely.
+      let fillStyle: string
+      if (pictureFill) {
+        fillStyle = `url("${pictureFill.src}")`
+      } else if (patternFill) {
+        fillStyle = patternFill.fgColor
+      } else if (gradient) {
+        fillStyle = gradientToCss(gradient)
+      } else {
+        fillStyle = fill
+      }
+
+      // If the shape was imported from PPTX and we have a preset-aware
+      // renderer for it, use that first. This keeps Office shapes visually
+      // identical to PowerPoint without forcing every caller to reimplement
+      // the same SVG paths. Picture/pattern fills render as an underlying
+      // `<img>` or gradient layer behind the preset so the outline stays
+      // crisp without having to rewrite every renderer to emit SVG defs.
+      const officePreset = tryRenderOfficePresetShape({
+        element,
+        fillStyle: pictureFill || patternFill ? 'transparent' : fillStyle,
+        strokeColor,
+        strokeWidth,
+        shadow,
+        width: element.size.width,
+        height: element.size.height
+      })
+      if (officePreset) {
+        if (pictureFill) {
+          return (
+            <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+              <img
+                src={pictureFill.src}
+                alt=""
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: pictureFill.tile ? 'none' : 'cover',
+                  backgroundRepeat: pictureFill.tile ? 'repeat' : 'no-repeat'
+                }}
+              />
+              <div style={{ position: 'absolute', inset: 0 }}>{officePreset}</div>
+            </div>
+          )
+        }
+        if (patternFill) {
+          const patternBg = `repeating-linear-gradient(45deg, ${patternFill.fgColor} 0, ${patternFill.fgColor} 3px, ${patternFill.bgColor} 3px, ${patternFill.bgColor} 8px)`
+          return (
+            <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+              <div style={{ position: 'absolute', inset: 0, background: patternBg }} />
+              <div style={{ position: 'absolute', inset: 0 }}>{officePreset}</div>
+            </div>
+          )
+        }
+        return <div style={{ width: '100%', height: '100%' }}>{officePreset}</div>
+      }
+
+      const divBackground = pictureFill
+        ? `url("${pictureFill.src}") center / ${pictureFill.tile ? 'auto repeat' : 'cover no-repeat'}`
+        : patternFill
+          ? `repeating-linear-gradient(45deg, ${patternFill.fgColor} 0, ${patternFill.fgColor} 3px, ${patternFill.bgColor} 3px, ${patternFill.bgColor} 8px)`
+          : fillStyle
+
+      const baseStyle: React.CSSProperties = {
+        width: '100%',
+        height: '100%',
+        background: divBackground,
+        border: strokeWidth > 0 ? `${strokeWidth}px ${strokeStyle} ${strokeColor}` : 'none',
+        boxShadow: shadow ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none'
+      }
+
+      switch (shapeType) {
+        case 'rectangle':
+        case 'rounded-rectangle':
+          return <div style={{ ...baseStyle, borderRadius: cornerRadius || 0 }} />
+        case 'circle':
+          return <div style={{ ...baseStyle, borderRadius: '50%' }} />
+        case 'ellipse':
+          return <div style={{ ...baseStyle, borderRadius: '50%' }} />
+        case 'triangle':
+          return (
+            <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+                <polygon
+                  points="50,5 95,95 5,95"
+                  fill={fillStyle}
+                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
+                  strokeWidth={strokeWidth}
+                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+                />
+              </svg>
+            </div>
+          )
+        case 'diamond':
+          return (
+            <div style={{ width: '100%', height: '100%' }}>
+              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+                <polygon
+                  points="50,5 95,50 50,95 5,50"
+                  fill={fillStyle}
+                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
+                  strokeWidth={strokeWidth}
+                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+                />
+              </svg>
+            </div>
+          )
+        case 'star':
+          return (
+            <div style={{ width: '100%', height: '100%' }}>
+              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+                <polygon
+                  points="50,5 61,35 95,35 68,57 79,91 50,70 21,91 32,57 5,35 39,35"
+                  fill={fillStyle}
+                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
+                  strokeWidth={strokeWidth}
+                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+                />
+              </svg>
+            </div>
+          )
+        case 'hexagon':
+          return (
+            <div style={{ width: '100%', height: '100%' }}>
+              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+                <polygon
+                  points="25,5 75,5 100,50 75,95 25,95 0,50"
+                  fill={fillStyle}
+                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
+                  strokeWidth={strokeWidth}
+                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+                />
+              </svg>
+            </div>
+          )
+        case 'arrow-right':
+          return (
+            <div style={{ width: '100%', height: '100%' }}>
+              <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
+                <polygon
+                  points="0,20 65,20 65,5 100,30 65,55 65,40 0,40"
+                  fill={fillStyle}
+                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
+                  strokeWidth={strokeWidth}
+                />
+              </svg>
+            </div>
+          )
+        case 'arrow-left':
+          return (
+            <div style={{ width: '100%', height: '100%' }}>
+              <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
+                <polygon
+                  points="100,20 35,20 35,5 0,30 35,55 35,40 100,40"
+                  fill={fillStyle}
+                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
+                  strokeWidth={strokeWidth}
+                />
+              </svg>
+            </div>
+          )
+        case 'line':
+          return (
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}>
+              <div style={{ width: '100%', height: strokeWidth || 4, backgroundColor: fill }} />
+            </div>
+          )
+        case 'callout':
+          return (
+            <div style={{ width: '100%', height: '100%' }}>
+              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+                <path
+                  d="M5,5 H95 V70 H40 L25,95 L30,70 H5 Z"
+                  fill={fillStyle}
+                  stroke={strokeWidth > 0 ? strokeColor : 'none'}
+                  strokeWidth={strokeWidth}
+                  rx={cornerRadius}
+                  style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+                />
+              </svg>
+            </div>
+          )
+        default:
+          return <div style={baseStyle} />
+      }
+    }
+
     const renderElement = (element: AnySlideElement) => {
       const isSelected = selectedIds.has(element.id)
       const isSingleSelection = selectedIds.size === 1
@@ -751,7 +1032,30 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           data-slide-element="true"
           data-element-id={element.id}
           style={wrapperStyle}
+          onContextMenu={e => {
+            // Right-click → Edit Points for shapes. Mirrors PowerPoint's
+            // right-click entry point while avoiding a bespoke context-menu
+            // popover — the PropertyPanel remains the discoverable surface.
+            if (element.type === 'shape' && onShapeContextMenu) {
+              e.preventDefault()
+              e.stopPropagation()
+              if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
+              onShapeContextMenu(element.id)
+            }
+          }}
           onMouseDown={e => handleElementMouseDown(e, element)}
+          onDoubleClick={e => {
+            // Double-click to start inline text editing. Works for plain text
+            // elements AND shapes with an in-shape label so shape text gets
+            // the same first-class editing affordance as text boxes.
+            if (element.locked) return
+            if (element.type === 'text' || element.type === 'shape') {
+              e.stopPropagation()
+              if (inlineEditing?.editingTextId !== element.id) {
+                onEditText(element.id)
+              }
+            }
+          }}
         >
           {element.type === 'text' && (
             <div
@@ -801,7 +1105,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                     style={{
                       width: '100%',
                       height: '100%',
-                      fontFamily: (element as TextElement).fontFamily,
+                      fontFamily: resolveFontStack((element as TextElement).fontFamily),
                       fontSize: (element as TextElement).fontSize,
                       fontWeight: (element as TextElement).fontWeight,
                       fontStyle: (element as TextElement).fontStyle,
@@ -810,6 +1114,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                       color: (element as TextElement).color,
                       lineHeight: (element as TextElement).lineHeight,
                       letterSpacing: (element as TextElement).letterSpacing,
+                      ...textTransformToCss((element as TextElement).textTransform),
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word',
                       background: 'transparent',
@@ -883,7 +1188,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 <div
                   style={{
                     width: '100%',
-                    fontFamily: (element as TextElement).fontFamily,
+                    fontFamily: resolveFontStack((element as TextElement).fontFamily),
                     fontSize: (element as TextElement).fontSize,
                     fontWeight: (element as TextElement).fontWeight,
                     fontStyle: (element as TextElement).fontStyle,
@@ -892,45 +1197,324 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                     color: (element as TextElement).color,
                     lineHeight: (element as TextElement).lineHeight,
                     letterSpacing: (element as TextElement).letterSpacing,
+                    ...textTransformToCss((element as TextElement).textTransform),
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word'
                   }}
                 >
-                  <TextWithLinks
-                    content={(element as TextElement).content}
-                    links={(element as TextElement).links ?? []}
-                    isPresenting={isPresenting}
-                    onLinkClick={onLinkClick}
-                  />
+                  {(element as TextElement).paragraphs && (element as TextElement).paragraphs!.length > 0 ? (
+                    <RichTextContent
+                      element={element as TextElement}
+                      paragraphs={(element as TextElement).paragraphs!}
+                    />
+                  ) : (
+                    <TextWithLinks
+                      content={(element as TextElement).content}
+                      links={(element as TextElement).links ?? []}
+                      isPresenting={isPresenting}
+                      onLinkClick={onLinkClick}
+                    />
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          {element.type === 'shape' && renderShapeShared(element as ShapeElement, 'grad')}
+          {element.type === 'shape' && (
+            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+              {editingPointsId === element.id && (
+                <ShapePointEditor
+                  element={element as ShapeElement}
+                  scale={scale}
+                  onChangePath={nextPath => onPointsChange?.(element.id, nextPath)}
+                  onExit={() => onExitPointEditing?.()}
+                />
+              )}
+              {(() => {
+                // Apply flipH/flipV transforms and effect filters (glow, soft
+                // edges, reflection) over the rendered shape. Keeping effects
+                // as a wrapper rather than patching every shape renderer
+                // avoids duplicating effect styles across every preset.
+                // NOTE: Shape flip is already applied by the Office preset
+                // renderer inside its SVG transform, and by the fallback
+                // switch via the shared `renderShape` helper. We intentionally
+                // do NOT add a CSS `scale(-1)` here to avoid double-flipping
+                // presets.
+                const se = element as ShapeElement
+                const effects = se.effects
+                const filters: string[] = []
+                if (effects?.glow) {
+                  filters.push(`drop-shadow(0 0 ${effects.glow.size}px ${effects.glow.color})`)
+                }
+                // CSS `filter: drop-shadow` only renders the shadow of
+                // opaque pixels, so PowerPoint's common "card" pattern —
+                // `roundRect` + `noFill` + `outerShdw` — would only shadow
+                // the 1px stroke and lose the card elevation entirely
+                // (e.g. slide 15/16/17 of the Enterprise AI deck). For
+                // rectangle-family shapes we prefer `box-shadow` on the
+                // wrapper because it follows the bounding rectangle
+                // (respecting `border-radius`) and draws the shadow even
+                // when the shape itself is transparent. Non-rectangular
+                // presets keep the silhouette-accurate drop-shadow path.
+                const rectangleFamilyPresets = new Set<string>([
+                  'rect',
+                  'roundRect',
+                  'round1Rect',
+                  'round2SameRect',
+                  'round2DiagRect',
+                  'snip1Rect',
+                  'snip2SameRect',
+                  'snip2DiagRect',
+                  'snipRoundRect',
+                  'ellipse'
+                ])
+                const isRectangleFamily =
+                  se.shapeType === 'rectangle' ||
+                  se.shapeType === 'rounded-rectangle' ||
+                  se.shapeType === 'ellipse' ||
+                  (!!se.geometry?.prst && rectangleFamilyPresets.has(se.geometry.prst))
+                if (effects?.outerShadow && !isRectangleFamily) {
+                  const os = effects.outerShadow
+                  filters.push(`drop-shadow(${os.offsetX}px ${os.offsetY}px ${os.blur}px ${os.color})`)
+                }
+                if (effects?.innerShadow) {
+                  // CSS has no native inner shadow filter, so we chain an
+                  // offset + inverse blur through drop-shadow; it matches
+                  // PowerPoint closely enough for import preview purposes.
+                  const is = effects.innerShadow
+                  filters.push(`drop-shadow(${is.offsetX}px ${is.offsetY}px ${is.size}px ${is.color})`)
+                }
+                if (effects?.blur) {
+                  filters.push(`blur(${Math.max(0, effects.blur.radius)}px)`)
+                }
+                if (effects?.softEdges) {
+                  filters.push(`blur(${Math.max(0, Math.min(effects.softEdges.size, 10))}px)`)
+                }
+                const boxShadowParts: string[] = []
+                if (effects?.outerShadow && isRectangleFamily) {
+                  const os = effects.outerShadow
+                  boxShadowParts.push(`${os.offsetX}px ${os.offsetY}px ${os.blur}px ${os.color}`)
+                }
+                const wrapperStyle: React.CSSProperties = {
+                  width: '100%',
+                  height: '100%',
+                  filter: filters.length > 0 ? filters.join(' ') : undefined,
+                  boxShadow: boxShadowParts.length > 0 ? boxShadowParts.join(', ') : undefined,
+                  // `box-shadow` hugs the element bounds, so when the
+                  // shape is a rounded rectangle we mirror the SVG corner
+                  // radius onto the wrapper. The radius matches
+                  // `ShapeElement.cornerRadius` which import seeds with
+                  // `round1Rect`'s `roundRect` default; user-edited values
+                  // flow through the same slot.
+                  borderRadius:
+                    isRectangleFamily && boxShadowParts.length > 0
+                      ? se.shapeType === 'ellipse'
+                        ? '50%'
+                        : `${se.cornerRadius ?? 0}px`
+                      : undefined
+                }
+                return (
+                  <>
+                    <div style={wrapperStyle}>{renderShape(se)}</div>
+                    {effects?.reflection && (
+                      <div
+                        aria-hidden
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: `calc(100% + ${effects.reflection.distance}px)`,
+                          width: '100%',
+                          height: '100%',
+                          transform: 'scaleY(-1)',
+                          transformOrigin: 'top',
+                          opacity: effects.reflection.opacity,
+                          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)',
+                          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)',
+                          pointerEvents: 'none'
+                        }}
+                      >
+                        {renderShape(se)}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+              {(() => {
+                const se = element as ShapeElement
+                const isEditingLabel = inlineEditing?.editingTextId === se.id
+                // When editing, force a default ShapeInText so the user has a
+                // real text container to type into even on shapes that did not
+                // previously have a label.
+                const st =
+                  se.shapeText ??
+                  (isEditingLabel
+                    ? {
+                        content: '',
+                        fontFamily: 'Inter',
+                        fontSize: 16,
+                        fontWeight: 'normal' as const,
+                        fontStyle: 'normal' as const,
+                        textDecoration: 'none' as const,
+                        textAlign: 'center' as const,
+                        verticalAlign: 'middle' as const,
+                        color: '#1e293b',
+                        lineHeight: 1.3,
+                        letterSpacing: 0,
+                        padding: 8
+                      }
+                    : null)
+                if (!st) return null
+                const te = textElementStubForShapeInText(se, st)
+                return (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'stretch',
+                      justifyContent:
+                        te.verticalAlign === 'top'
+                          ? 'flex-start'
+                          : te.verticalAlign === 'bottom'
+                            ? 'flex-end'
+                            : 'center',
+                      padding: st.padding,
+                      overflow: 'hidden',
+                      boxSizing: 'border-box',
+                      pointerEvents: isEditingLabel ? 'auto' : 'none',
+                      zIndex: 1
+                    }}
+                  >
+                    {isEditingLabel ? (
+                      <textarea
+                        ref={el => {
+                          if (el && textareaInitializedRef.current !== se.id) {
+                            textareaInitializedRef.current = se.id
+                            el.focus()
+                            el.selectionStart = el.selectionEnd = el.value.length
+                          }
+                        }}
+                        value={st.content}
+                        onChange={e => inlineEditing!.onTextChange(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Escape') {
+                            e.preventDefault()
+                            textareaInitializedRef.current = null
+                            inlineEditing!.onFinishEditing()
+                          }
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        onMouseDown={e => e.stopPropagation()}
+                        placeholder=""
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          fontFamily: resolveFontStack(te.fontFamily),
+                          fontSize: te.fontSize,
+                          fontWeight: te.fontWeight,
+                          fontStyle: te.fontStyle,
+                          textDecoration: te.textDecoration,
+                          textAlign: te.textAlign,
+                          color: te.color,
+                          lineHeight: te.lineHeight,
+                          letterSpacing: te.letterSpacing,
+                          ...textTransformToCss(te.textTransform),
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          background: 'transparent',
+                          border: 'none',
+                          outline: 'none',
+                          resize: 'none',
+                          padding: 0,
+                          margin: 0
+                        }}
+                      />
+                    ) : st.paragraphs && st.paragraphs.length > 0 ? (
+                      <RichTextContent element={te} paragraphs={st.paragraphs} />
+                    ) : (
+                      <div
+                        style={{
+                          width: '100%',
+                          fontFamily: resolveFontStack(te.fontFamily),
+                          fontSize: te.fontSize,
+                          fontWeight: te.fontWeight,
+                          fontStyle: te.fontStyle,
+                          textDecoration: te.textDecoration,
+                          textAlign: te.textAlign,
+                          color: te.color,
+                          lineHeight: te.lineHeight,
+                          letterSpacing: te.letterSpacing,
+                          ...textTransformToCss(te.textTransform),
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word'
+                        }}
+                      >
+                        <TextWithLinks
+                          content={st.content}
+                          links={st.links ?? []}
+                          isPresenting={isPresenting}
+                          onLinkClick={onLinkClick}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
 
           {element.type === 'image' && (
             <>
               {!failedImages.has(element.id) && sanitizeMediaUrl((element as ImageElement).src, ['image/']) ? (
-                <img
-                  src={getCachedImageUrl(sanitizeMediaUrl((element as ImageElement).src, ['image/']))}
-                  alt={(element as ImageElement).alt}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: (element as ImageElement).objectFit,
-                    borderRadius: (element as ImageElement).borderRadius,
-                    border:
-                      (element as ImageElement).borderWidth > 0
-                        ? `${(element as ImageElement).borderWidth}px solid ${(element as ImageElement).borderColor}`
-                        : 'none',
-                    boxShadow: (element as ImageElement).shadow
+                (() => {
+                  const imgEl = element as ImageElement
+                  const crop = getImageCropStyles(imgEl.cropRect)
+                  const commonVisualStyle = {
+                    borderRadius: imgEl.borderRadius,
+                    border: imgEl.borderWidth > 0 ? `${imgEl.borderWidth}px solid ${imgEl.borderColor}` : 'none',
+                    boxShadow: imgEl.shadow
                       ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
                       : 'none'
-                  }}
-                  draggable={false}
-                  onError={() => handleImageError(element.id)}
-                />
+                  }
+
+                  if (crop.wrapperNeeded) {
+                    return (
+                      <div
+                        style={{
+                          position: 'relative',
+                          width: '100%',
+                          height: '100%',
+                          overflow: 'hidden',
+                          ...commonVisualStyle
+                        }}
+                      >
+                        <img
+                          src={getCachedImageUrl(sanitizeMediaUrl(imgEl.src, ['image/']))}
+                          alt={imgEl.alt}
+                          style={crop.imgStyle}
+                          draggable={false}
+                          onError={() => handleImageError(element.id)}
+                        />
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <img
+                      src={getCachedImageUrl(sanitizeMediaUrl(imgEl.src, ['image/']))}
+                      alt={imgEl.alt}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: imgEl.objectFit,
+                        ...commonVisualStyle
+                      }}
+                      draggable={false}
+                      onError={() => handleImageError(element.id)}
+                    />
+                  )
+                })()
               ) : (
                 <div
                   className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:text-muted-foreground gba:rounded"
@@ -1396,6 +1980,113 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               )
             })()}
 
+          {element.type === 'group' &&
+            (() => {
+              // Minimal persistent-group visualization: the group wrapper
+              // owns selection/move/resize, and children render inline at
+              // positions relative to the group origin. For deep editing
+              // users can ungroup (Ctrl/Cmd+Shift+G) or double-click; this
+              // mirrors PowerPoint's group-first, edit-in-place escape hatch.
+              const groupEl = element as GroupElement
+              return (
+                <div style={{ position: 'relative', width: '100%', height: '100%', pointerEvents: 'none' }}>
+                  {groupEl.children.map(child => {
+                    if (child.type === 'shape') {
+                      const shape = child as ShapeElement
+                      const geometry = shape.geometry ?? shape.importMeta
+                      return (
+                        <div
+                          key={child.id}
+                          style={{
+                            position: 'absolute',
+                            left: child.position.x,
+                            top: child.position.y,
+                            width: child.size.width,
+                            height: child.size.height,
+                            transform: `rotate(${child.rotation ?? 0}deg)`,
+                            opacity: child.opacity ?? 1,
+                            background: shape.fill,
+                            border: `${shape.strokeWidth}px ${shape.strokeStyle} ${shape.strokeColor}`,
+                            borderRadius: shape.shapeType === 'rounded-rectangle' ? shape.cornerRadius : undefined
+                          }}
+                          aria-hidden={!!geometry}
+                        />
+                      )
+                    }
+                    if (child.type === 'text') {
+                      const textEl = child as TextElement
+                      return (
+                        <div
+                          key={child.id}
+                          style={{
+                            position: 'absolute',
+                            left: child.position.x,
+                            top: child.position.y,
+                            width: child.size.width,
+                            height: child.size.height,
+                            transform: `rotate(${child.rotation ?? 0}deg)`,
+                            opacity: child.opacity ?? 1,
+                            color: textEl.color,
+                            fontSize: textEl.fontSize,
+                            fontFamily: textEl.fontFamily,
+                            fontWeight: textEl.fontWeight,
+                            fontStyle: textEl.fontStyle,
+                            textAlign: textEl.textAlign,
+                            padding: textEl.padding,
+                            overflow: 'hidden',
+                            whiteSpace: 'pre-wrap'
+                          }}
+                        >
+                          {textEl.content}
+                        </div>
+                      )
+                    }
+                    if (child.type === 'image') {
+                      const imgEl = child as ImageElement
+                      return (
+                        <img
+                          key={child.id}
+                          src={sanitizeMediaUrl(imgEl.src, ['image/']) || undefined}
+                          alt=""
+                          style={{
+                            position: 'absolute',
+                            left: child.position.x,
+                            top: child.position.y,
+                            width: child.size.width,
+                            height: child.size.height,
+                            transform: `rotate(${child.rotation ?? 0}deg)`,
+                            opacity: child.opacity ?? 1,
+                            objectFit: 'cover'
+                          }}
+                        />
+                      )
+                    }
+                    return (
+                      <div
+                        key={child.id}
+                        style={{
+                          position: 'absolute',
+                          left: child.position.x,
+                          top: child.position.y,
+                          width: child.size.width,
+                          height: child.size.height,
+                          background: 'var(--nw-muted)',
+                          border: '1px dashed rgba(100, 116, 139, 0.5)',
+                          fontSize: 11,
+                          color: 'var(--nw-muted-foreground)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        {child.type}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+
           {element.type === 'metric-card' &&
             (() => {
               const metricEl = element as MetricCardElement
@@ -1542,9 +2233,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       )
     }
 
-    // Wrapper maintains 16:9 aspect ratio and scales canvas
-    const scaledWidth = 1280 * scale
-    const scaledHeight = 720 * scale
+    // Wrapper matches the deck's declared canvas size and scales the content
+    // uniformly; default is the legacy 16:9 preset for editor-native decks.
+    const scaledWidth = CANVAS_WIDTH * scale
+    const scaledHeight = CANVAS_HEIGHT * scale
 
     return (
       <div
@@ -1558,8 +2250,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           ref={canvasRef}
           className="gba:relative"
           style={{
-            width: 1280,
-            height: 720,
+            width: CANVAS_WIDTH,
+            height: CANVAS_HEIGHT,
             ...getBackgroundStyle(),
             transform: `scale(${scale})`,
             transformOrigin: 'top left',

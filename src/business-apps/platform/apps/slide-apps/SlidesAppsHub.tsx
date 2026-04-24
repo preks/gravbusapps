@@ -520,7 +520,12 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const handlePowerPointImport = useCallback(
     async (parsedDoc: ParsedPowerPointDocument) => {
       try {
-        const uploadedSlides = await compressSlideImages(parsedDoc.slides)
+        let decodeFailures = 0
+        let strippedForSize = 0
+        const uploadedSlides = await compressSlideImages(parsedDoc.slides, undefined, warning => {
+          if (warning.type === 'decode-failed') decodeFailures++
+          else if (warning.type === 'stripped-for-size') strippedForSize++
+        })
 
         const result = await importSlide({
           title: parsedDoc.fileName.replace('.pptx', ''),
@@ -543,6 +548,15 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
 
         if (result.contentSaved) {
           toast.success(t('toast-imported-slides', { count: parsedDoc.slideCount }))
+          // Surface compression-time issues as non-blocking warnings so users
+          // can tell why an imported image might look off (decode failure) or
+          // missing (stripped for size), rather than seeing a silent blank.
+          if (strippedForSize > 0) {
+            toast.warning(t('parser-image-stripped-for-size'))
+          }
+          if (decodeFailures > 0) {
+            toast.warning(t('parser-image-decode-failed', { slide: String(decodeFailures) }))
+          }
         } else {
           toast.warning(t('toast-import-partial'))
         }

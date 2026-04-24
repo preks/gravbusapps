@@ -9,7 +9,8 @@ import type { SlideTheme } from './slideThemes'
 import type { AnySlideElement, SlideBackground } from './slideElements'
 import { createTextElement } from './slideElements'
 import { SlideCanvas } from './SlideCanvas'
-import { gradientToCss } from './slideElements'
+import { gradientToCss, textTransformToCss } from './slideElements'
+import { resolveFontStack } from './fontStack'
 import translations from '../_i18n'
 
 export interface SlideMasterViewProps {
@@ -399,9 +400,10 @@ function MasterThumbnail({
                         color: elAny.color,
                         fontSize: elAny.fontSize,
                         fontWeight: elAny.fontWeight,
-                        fontFamily: elAny.fontFamily,
+                        fontFamily: resolveFontStack(elAny.fontFamily),
                         textAlign: elAny.textAlign,
-                        lineHeight: elAny.lineHeight || 1.2
+                        lineHeight: elAny.lineHeight || 1.2,
+                        ...textTransformToCss(elAny.textTransform)
                       }}
                     >
                       {elAny.content}

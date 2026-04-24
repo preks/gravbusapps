@@ -1,5 +1,3 @@
-import { describe, it, expect } from 'vitest'
-import './setup'
 import { extractBackground } from '../extractBackground'
 import { parseXML } from '../ooxmlUtils'
 import type { OoxmlTheme, SlideRelationships } from '../types'
@@ -84,5 +82,25 @@ describe('extractBackground', () => {
     const bg = extractBackground(xml, theme, emptyRels, new Map())
     expect(bg.type).toBe('solid')
     expect(bg.color).toBe('#000000')
+  })
+
+  it('resolves image backgrounds when the media relationship uses an absolute encoded path', () => {
+    const xml = slideXml(`
+      <p:bg>
+        <p:bgPr>
+          <a:blipFill>
+            <a:blip r:embed="rIdBg"/>
+          </a:blipFill>
+        </p:bgPr>
+      </p:bg>
+    `)
+    const rels: SlideRelationships = {
+      images: new Map([['rIdBg', '/ppt/media/Brand%20Hero.png']]),
+      hyperlinks: new Map(),
+      chartPaths: new Map()
+    }
+
+    const bg = extractBackground(xml, theme, rels, new Map([['ppt/media/Brand Hero.png', 'data:image/png;base64,BBB']]))
+    expect(bg).toEqual({ type: 'image', imageUrl: 'data:image/png;base64,BBB' })
   })
 })

@@ -258,25 +258,28 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
     }
   }, [])
 
-  // Calculate scale to fit display
+  // Calculate scale to fit display. Source the canvas dimensions from the
+  // current slide (PPTX imports carry their actual <p:sldSz>) so custom-size
+  // decks fit the receiver correctly instead of assuming 16:9.
+  const castCanvasWidth = currentSlide?.canvasSize?.width ?? 1280
+  const castCanvasHeight = currentSlide?.canvasSize?.height ?? 720
+
   useEffect(() => {
     const calculateScale = () => {
       if (!containerRef.current) return
 
-      const slideWidth = 1280
-      const slideHeight = 720
       const containerWidth = window.innerWidth
       const containerHeight = window.innerHeight
 
-      const scaleX = containerWidth / slideWidth
-      const scaleY = containerHeight / slideHeight
+      const scaleX = containerWidth / castCanvasWidth
+      const scaleY = containerHeight / castCanvasHeight
       setScale(Math.min(scaleX, scaleY))
     }
 
     calculateScale()
     window.addEventListener('resize', calculateScale)
     return () => window.removeEventListener('resize', calculateScale)
-  }, [])
+  }, [castCanvasWidth, castCanvasHeight])
 
   // Auto-hide controls on mouse inactivity
   useEffect(() => {
@@ -620,8 +623,8 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
       <div
         className="gba:relative gba:overflow-hidden"
         style={{
-          width: 1280 * scale,
-          height: 720 * scale
+          width: castCanvasWidth * scale,
+          height: castCanvasHeight * scale
         }}
       >
         <SlideTransitionPlayer
@@ -641,6 +644,7 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
                 onEditText={() => {}}
                 scale={scale}
                 isPresenting={true}
+                canvasSize={previousSlide.canvasSize}
               />
             )
           }
@@ -655,6 +659,7 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
             onEditText={() => {}}
             scale={scale}
             isPresenting={true}
+            canvasSize={currentSlide.canvasSize}
           />
         </SlideTransitionPlayer>
       </div>

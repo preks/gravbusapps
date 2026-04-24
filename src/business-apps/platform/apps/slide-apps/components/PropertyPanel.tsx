@@ -38,6 +38,9 @@ import {
   ChevronDown,
   Palette,
   Upload,
+  FlipHorizontal,
+  FlipVertical,
+  Sparkles,
   Plus,
   X
 } from 'lucide-react'
@@ -45,6 +48,8 @@ import type {
   AnySlideElement,
   TextElement,
   ShapeElement,
+  ShapeGeometryMetadata,
+  ShapeInText,
   ImageElement,
   VideoElement,
   ChartElement,
@@ -52,6 +57,9 @@ import type {
   ChartSeries,
   CodeElement,
   ChartType,
+  ConnectorElement,
+  ConnectorLineType,
+  ConnectorLabelPosition,
   GradientConfig,
   SlideTransition,
   SlideTransitionType,
@@ -66,7 +74,8 @@ import {
   CODE_LANGUAGES,
   CODE_FONT_SIZES,
   gradientToCss,
-  DEFAULT_TRANSITION
+  DEFAULT_TRANSITION,
+  getShapeGeometry
 } from './slideElements'
 import { GradientBuilder } from './GradientBuilder'
 import { TransitionPreview } from './TransitionPreview'
@@ -387,6 +396,456 @@ interface PropertyPanelProps {
   slideTransition?: SlideTransition
   onSlideTransitionChange?: (transition: SlideTransition) => void
   slideIndex?: number
+  /**
+   * Selection-level arrangement commands. Optional so callers that don't
+   * support multi-selection arrangement (e.g. read-only views) can still
+   * render the panel. Rendered as an "Arrange" section when `selectionCount`
+   * makes them relevant (e.g. distribute requires 3+, group requires 2+).
+   */
+  selectionCount?: number
+  hasGroupInSelection?: boolean
+  onAlign?: (axis: 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom') => void
+  onDistribute?: (axis: 'horizontal' | 'vertical') => void
+  onFlip?: (axis: 'horizontal' | 'vertical') => void
+  onGroup?: () => void
+  onUngroup?: () => void
+  /**
+   * Enter "Edit Points" mode for the currently selected shape. Only wired
+   * when a single shape is selected; SlideEditor owns the active editing id.
+   * Same semantics as the right-click → Edit Points entry point.
+   */
+  onEditPoints?: (id: string) => void
+}
+
+/** Tight signature for the translation fn; avoids pulling the full i18n types. */
+type Translator = (key: string, values?: Record<string, unknown>) => string
+
+interface ShapeSubsectionProps {
+  element: ShapeElement
+  onUpdate: (updates: Partial<AnySlideElement>) => void
+  t: Translator
+}
+
+/**
+ * Flip horizontal / vertical commands for the active shape. Updates the
+ * shared {@link ShapeGeometryMetadata} so editor-native and imported shapes
+ * behave identically and the flip survives round-trip to PPTX export.
+ */
+const FlipControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t }) => {
+  const geometry = getShapeGeometry(element)
+  const flipH = geometry?.flipH ?? false
+  const flipV = geometry?.flipV ?? false
+  const applyFlip = (axis: 'h' | 'v') => {
+    const next: ShapeGeometryMetadata = {
+      sourceFormat: geometry?.sourceFormat ?? 'native',
+      ...(geometry ?? {}),
+      flipH: axis === 'h' ? !flipH : flipH,
+      flipV: axis === 'v' ? !flipV : flipV
+    }
+    const updates: Partial<ShapeElement> = { geometry: next }
+    if (geometry?.sourceFormat === 'pptx') updates.importMeta = next
+    onUpdate(updates as Partial<AnySlideElement>)
+  }
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <Label className="gba:text-xs gba:flex-1">{t('props-flip')}</Label>
+      <Button
+        variant={flipH ? 'default' : 'outline'}
+        size="sm"
+        onClick={() => applyFlip('h')}
+        title={t('props-flip-horizontal')}
+      >
+        <FlipHorizontal className="gba:w-3 gba:h-3" />
+      </Button>
+      <Button
+        variant={flipV ? 'default' : 'outline'}
+        size="sm"
+        onClick={() => applyFlip('v')}
+        title={t('props-flip-vertical')}
+      >
+        <FlipVertical className="gba:w-3 gba:h-3" />
+      </Button>
+    </div>
+  )
+}
+
+/**
+ * Metadata describing the adjustment sliders to surface for each shape
+ * family. Keeping it declarative means new presets only need an entry here
+ * to become user-adjustable.
+ */
+const SHAPE_ADJUSTMENT_SCHEMA: Partial<
+  Record<ShapeElement['shapeType'], { key: string; label: string; defaultValue: number; min?: number; max?: number }[]>
+> = {
+  chevron: [{ key: 'adj', label: 'props-adjust-notch', defaultValue: 50000 }],
+  'arrow-right': [
+    { key: 'adj1', label: 'props-adjust-body', defaultValue: 50000 },
+    { key: 'adj2', label: 'props-adjust-head', defaultValue: 50000 }
+  ],
+  'arrow-left': [
+    { key: 'adj1', label: 'props-adjust-body', defaultValue: 50000 },
+    { key: 'adj2', label: 'props-adjust-head', defaultValue: 50000 }
+  ],
+  'arrow-up': [
+    { key: 'adj1', label: 'props-adjust-body', defaultValue: 50000 },
+    { key: 'adj2', label: 'props-adjust-head', defaultValue: 50000 }
+  ],
+  'arrow-down': [
+    { key: 'adj1', label: 'props-adjust-body', defaultValue: 50000 },
+    { key: 'adj2', label: 'props-adjust-head', defaultValue: 50000 }
+  ],
+  parallelogram: [{ key: 'adj', label: 'props-adjust-skew', defaultValue: 25000 }],
+  trapezoid: [{ key: 'adj', label: 'props-adjust-inset', defaultValue: 25000 }],
+  pentagon: [{ key: 'adj', label: 'props-adjust-point', defaultValue: 50000 }],
+  octagon: [{ key: 'adj', label: 'props-adjust-inset', defaultValue: 29289 }],
+  plus: [{ key: 'adj', label: 'props-adjust-arm', defaultValue: 25000 }],
+  cross: [{ key: 'adj', label: 'props-adjust-arm', defaultValue: 25000 }],
+  bevel: [{ key: 'adj', label: 'props-adjust-bevel', defaultValue: 12500 }],
+  can: [{ key: 'adj', label: 'props-adjust-lid', defaultValue: 25000 }],
+  'rounded-rectangle': [{ key: 'adj', label: 'props-adjust-corner', defaultValue: 16667 }]
+}
+
+/**
+ * Renders sliders for the current shape's adjustment values (`a:avLst` in
+ * OOXML). Values are stored per-mille to match PowerPoint's semantics and
+ * survive PPTX round-trips unchanged.
+ */
+const ShapeAdjustments: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t }) => {
+  const schema = SHAPE_ADJUSTMENT_SCHEMA[element.shapeType]
+  if (!schema || schema.length === 0) return null
+  const geometry = getShapeGeometry(element)
+  const adjustments = geometry?.adjustments ?? {}
+  const updateAdjustment = (key: string, value: number) => {
+    const nextAdjustments = { ...adjustments, [key]: value }
+    const next: ShapeGeometryMetadata = {
+      sourceFormat: geometry?.sourceFormat ?? 'native',
+      ...(geometry ?? {}),
+      adjustments: nextAdjustments
+    }
+    const updates: Partial<ShapeElement> = { geometry: next }
+    if (geometry?.sourceFormat === 'pptx') updates.importMeta = next
+    onUpdate(updates as Partial<AnySlideElement>)
+  }
+  return (
+    <div className="gba:space-y-3">
+      <Label className="gba:text-xs gba:font-semibold">{t('props-shape-adjustments')}</Label>
+      {schema.map(entry => {
+        const min = entry.min ?? 0
+        const max = entry.max ?? 100000
+        const value = adjustments[entry.key] ?? entry.defaultValue
+        return (
+          <div key={entry.key}>
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+              <Label className="gba:text-xs">{t(entry.label)}</Label>
+              <span className="gba:text-xs gba:text-muted-foreground">{Math.round(value / 1000)}%</span>
+            </div>
+            <Slider
+              value={[value]}
+              min={min}
+              max={max}
+              step={1000}
+              onValueChange={([v]) => updateAdjustment(entry.key, v)}
+            />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/**
+ * Outer glow / reflection / soft edge controls. Effects are purely visual
+ * (no geometry impact) and are rendered via CSS filters so they compose
+ * cleanly with fills, gradients, and shadows.
+ */
+const ShapeEffectsSection: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t }) => {
+  const effects = element.effects ?? {}
+  const mergeEffects = (partial: typeof effects) => {
+    const next = { ...effects, ...partial }
+    // Drop entries that were cleared (set to undefined).
+    Object.keys(next).forEach(key => {
+      if ((next as Record<string, unknown>)[key] === undefined) {
+        delete (next as Record<string, unknown>)[key]
+      }
+    })
+    onUpdate({ effects: next } as Partial<AnySlideElement>)
+  }
+  return (
+    <Collapsible>
+      <div className="gba:space-y-2">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <Label className="gba:text-xs gba:font-semibold">{t('props-effects')}</Label>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="gba:h-7">
+              <Sparkles className="gba:w-3 gba:h-3 gba:mr-1" />
+              {t('props-effects-edit')}
+              <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+        <CollapsibleContent className="gba:space-y-3">
+          {/* Glow */}
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label className="gba:text-xs">{t('props-effect-glow')}</Label>
+            <Switch
+              checked={!!effects.glow}
+              onCheckedChange={enabled => mergeEffects({ glow: enabled ? { color: '#60a5fa', size: 12 } : undefined })}
+            />
+          </div>
+          {effects.glow && (
+            <div className="gba:space-y-2 gba:pl-3">
+              <ColorPickerInline
+                value={effects.glow.color}
+                onChange={color => mergeEffects({ glow: { ...effects.glow!, color } })}
+                label={t('props-effect-glow-color')}
+              />
+              <div>
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                  <Label className="gba:text-xs">{t('props-effect-glow-size')}</Label>
+                  <span className="gba:text-xs gba:text-muted-foreground">{effects.glow.size}px</span>
+                </div>
+                <Slider
+                  value={[effects.glow.size]}
+                  min={0}
+                  max={40}
+                  step={1}
+                  onValueChange={([v]) => mergeEffects({ glow: { ...effects.glow!, size: v } })}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Reflection */}
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label className="gba:text-xs">{t('props-effect-reflection')}</Label>
+            <Switch
+              checked={!!effects.reflection}
+              onCheckedChange={enabled =>
+                mergeEffects({ reflection: enabled ? { opacity: 0.4, distance: 4 } : undefined })
+              }
+            />
+          </div>
+          {effects.reflection && (
+            <div className="gba:space-y-2 gba:pl-3">
+              <div>
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                  <Label className="gba:text-xs">{t('props-effect-reflection-opacity')}</Label>
+                  <span className="gba:text-xs gba:text-muted-foreground">
+                    {Math.round(effects.reflection.opacity * 100)}%
+                  </span>
+                </div>
+                <Slider
+                  value={[effects.reflection.opacity * 100]}
+                  min={0}
+                  max={100}
+                  step={5}
+                  onValueChange={([v]) => mergeEffects({ reflection: { ...effects.reflection!, opacity: v / 100 } })}
+                />
+              </div>
+              <div>
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                  <Label className="gba:text-xs">{t('props-effect-reflection-distance')}</Label>
+                  <span className="gba:text-xs gba:text-muted-foreground">{effects.reflection.distance}px</span>
+                </div>
+                <Slider
+                  value={[effects.reflection.distance]}
+                  min={0}
+                  max={40}
+                  step={1}
+                  onValueChange={([v]) => mergeEffects({ reflection: { ...effects.reflection!, distance: v } })}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Soft edges */}
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label className="gba:text-xs">{t('props-effect-soft-edges')}</Label>
+            <Switch
+              checked={!!effects.softEdges}
+              onCheckedChange={enabled => mergeEffects({ softEdges: enabled ? { size: 4 } : undefined })}
+            />
+          </div>
+          {effects.softEdges && (
+            <div className="gba:pl-3">
+              <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                <Label className="gba:text-xs">{t('props-effect-soft-edges-size')}</Label>
+                <span className="gba:text-xs gba:text-muted-foreground">{effects.softEdges.size}px</span>
+              </div>
+              <Slider
+                value={[effects.softEdges.size]}
+                min={0}
+                max={24}
+                step={1}
+                onValueChange={([v]) => mergeEffects({ softEdges: { size: v } })}
+              />
+            </div>
+          )}
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  )
+}
+
+/**
+ * Lightweight inline color picker for nested effect controls. Kept local
+ * so the effects section does not depend on the ColorPicker helper defined
+ * later in the component tree.
+ */
+const ColorPickerInline: React.FC<{ value: string; onChange: (color: string) => void; label: string }> = ({
+  value,
+  onChange,
+  label
+}) => (
+  <div className="gba:flex gba:items-center gba:gap-2">
+    <Label className="gba:text-xs gba:flex-1">{label}</Label>
+    <input
+      type="color"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="gba:w-7 gba:h-7 gba:rounded gba:border gba:cursor-pointer"
+    />
+  </div>
+)
+
+/**
+ * Formatting controls for the shape's text label. Creates a sensible
+ * default `shapeText` when the shape does not yet have one so the user
+ * can add an in-shape label in a single click.
+ */
+const ShapeTextControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t }) => {
+  const shapeText = element.shapeText
+  const hasText = !!shapeText && (shapeText.content?.length ?? 0) > 0
+  const defaultShapeText: ShapeInText = {
+    content: '',
+    fontFamily: 'Inter',
+    fontSize: 16,
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'center',
+    verticalAlign: 'middle',
+    color: '#1e293b',
+    lineHeight: 1.3,
+    letterSpacing: 0,
+    padding: 8
+  }
+  const mergeText = (partial: Partial<ShapeInText>) => {
+    onUpdate({ shapeText: { ...defaultShapeText, ...(shapeText ?? {}), ...partial } } as Partial<AnySlideElement>)
+  }
+  return (
+    <div className="gba:space-y-2">
+      <div className="gba:flex gba:items-center gba:justify-between">
+        <Label className="gba:text-xs gba:font-semibold">{t('props-shape-text')}</Label>
+        {!shapeText && (
+          <Button variant="outline" size="sm" onClick={() => mergeText({ content: '' })}>
+            {t('props-shape-text-add')}
+          </Button>
+        )}
+      </div>
+      {shapeText && (
+        <div className="gba:space-y-2">
+          <Input
+            value={shapeText.content}
+            onChange={e => mergeText({ content: e.target.value })}
+            placeholder={t('props-shape-text-placeholder')}
+            className="gba:text-xs"
+          />
+          <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+            <div>
+              <Label className="gba:text-xs">{t('props-font-size')}</Label>
+              <Input
+                type="number"
+                value={shapeText.fontSize}
+                onChange={e => mergeText({ fontSize: Number(e.target.value) })}
+                className="gba:text-xs"
+              />
+            </div>
+            <div>
+              <Label className="gba:text-xs">{t('props-text-color')}</Label>
+              <input
+                type="color"
+                value={shapeText.color}
+                onChange={e => mergeText({ color: e.target.value })}
+                className="gba:w-full gba:h-8 gba:rounded gba:border gba:cursor-pointer"
+              />
+            </div>
+          </div>
+          <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+            <div>
+              <Label className="gba:text-xs">{t('props-horizontal-align')}</Label>
+              <Select
+                value={shapeText.textAlign}
+                onValueChange={(value: 'left' | 'center' | 'right') => mergeText({ textAlign: value })}
+              >
+                <SelectTrigger className="gba:text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="left">{t('props-align-left')}</SelectItem>
+                  <SelectItem value="center">{t('props-align-center')}</SelectItem>
+                  <SelectItem value="right">{t('props-align-right')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="gba:text-xs">{t('props-vertical-align')}</Label>
+              <Select
+                value={shapeText.verticalAlign}
+                onValueChange={(value: 'top' | 'middle' | 'bottom') => mergeText({ verticalAlign: value })}
+              >
+                <SelectTrigger className="gba:text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="top">{t('props-align-top')}</SelectItem>
+                  <SelectItem value="middle">{t('props-align-middle')}</SelectItem>
+                  <SelectItem value="bottom">{t('props-align-bottom')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="gba:flex gba:gap-1">
+            <Button
+              variant={shapeText.fontWeight === 'bold' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => mergeText({ fontWeight: shapeText.fontWeight === 'bold' ? 'normal' : 'bold' })}
+            >
+              <Bold className="gba:w-3 gba:h-3" />
+            </Button>
+            <Button
+              variant={shapeText.fontStyle === 'italic' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => mergeText({ fontStyle: shapeText.fontStyle === 'italic' ? 'normal' : 'italic' })}
+            >
+              <Italic className="gba:w-3 gba:h-3" />
+            </Button>
+            <Button
+              variant={shapeText.textDecoration === 'underline' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() =>
+                mergeText({
+                  textDecoration: shapeText.textDecoration === 'underline' ? 'none' : 'underline'
+                })
+              }
+            >
+              <Underline className="gba:w-3 gba:h-3" />
+            </Button>
+            {hasText && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gba:ml-auto gba:text-xs"
+                onClick={() => onUpdate({ shapeText: undefined } as Partial<AnySlideElement>)}
+              >
+                {t('props-shape-text-remove')}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export const PropertyPanel: React.FC<PropertyPanelProps> = ({
@@ -398,7 +857,15 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onSendBackward,
   slideTransition,
   onSlideTransitionChange,
-  slideIndex = 0
+  slideIndex = 0,
+  selectionCount = 0,
+  hasGroupInSelection = false,
+  onAlign,
+  onDistribute,
+  onFlip,
+  onGroup,
+  onUngroup,
+  onEditPoints
 }) => {
   const { t } = useTranslation(translations)
   const replaceImageInputRef = useRef<HTMLInputElement>(null)
@@ -534,6 +1001,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   const videoElement = element.type === 'video' ? (element as VideoElement) : null
   const codeElement = element.type === 'code' ? (element as CodeElement) : null
   const chartElement = element.type === 'chart' ? (element as ChartElement) : null
+  const connectorElement = element.type === 'connector' ? (element as ConnectorElement) : null
 
   return (
     <div className="gba:p-4 gba:space-y-4 gba:overflow-y-auto gba:h-full">
@@ -543,18 +1011,18 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
         <div className="gba:flex gba:gap-1">
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="sm"
             onClick={() => onUpdate({ locked: !element.locked })}
             title={element.locked ? t('props-unlock') : t('props-lock')}
           >
             {element.locked ? <Lock className="gba:w-4 gba:h-4" /> : <Unlock className="gba:w-4 gba:h-4" />}
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={onDuplicate} title={t('props-duplicate')}>
+          <Button variant="ghost" size="sm" onClick={onDuplicate} title={t('props-duplicate')}>
             <Copy className="gba:w-4 gba:h-4" />
           </Button>
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="sm"
             onClick={onDelete}
             title={t('props-delete')}
             className="gba:text-destructive"
@@ -620,12 +1088,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             className="gba:w-16 gba:text-xs"
           />
           <span className="gba:text-xs">°</span>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => onUpdate({ rotation: 0 })}
-            title={t('props-reset-rotation')}
-          >
+          <Button variant="ghost" size="sm" onClick={() => onUpdate({ rotation: 0 })} title={t('props-reset-rotation')}>
             <RotateCcw className="gba:w-3 gba:h-3" />
           </Button>
         </div>
@@ -647,15 +1110,107 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {/* Layer Order */}
       <div className="gba:flex gba:items-center gba:gap-2">
         <Label className="gba:text-xs gba:flex-1">{t('props-layer')}</Label>
-        <Button variant="outlined" size="sm" onClick={onBringForward}>
+        <Button variant="outline" size="sm" onClick={onBringForward}>
           <MoveUp className="gba:w-3 gba:h-3 gba:mr-1" />
           {t('props-forward')}
         </Button>
-        <Button variant="outlined" size="sm" onClick={onSendBackward}>
+        <Button variant="outline" size="sm" onClick={onSendBackward}>
           <MoveDown className="gba:w-3 gba:h-3 gba:mr-1" />
           {t('props-back')}
         </Button>
       </div>
+
+      {/* Arrange Commands: align / distribute / flip / group. Shown whenever
+          the parent editor exposes the callbacks. Buttons enable themselves
+          based on `selectionCount` so the UX matches PowerPoint's behavior
+          (single element centers against slide, 2+ align to each other,
+          3+ can distribute). */}
+      {(onAlign || onDistribute || onFlip || onGroup || onUngroup) && (
+        <>
+          <Separator />
+          <div className="gba:space-y-2">
+            <Label className="gba:text-xs gba:font-semibold">{t('props-arrange')}</Label>
+            {onAlign && (
+              <div className="gba:grid gba:grid-cols-6 gba:gap-1">
+                <Button variant="outline" size="sm" onClick={() => onAlign('left')} title={t('props-align-left')}>
+                  ⇤
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onAlign('center-h')}
+                  title={t('props-align-center-horizontal')}
+                >
+                  ⇔
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => onAlign('right')} title={t('props-align-right')}>
+                  ⇥
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => onAlign('top')} title={t('props-align-top')}>
+                  ⤒
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onAlign('center-v')}
+                  title={t('props-align-center-vertical')}
+                >
+                  ⇕
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => onAlign('bottom')} title={t('props-align-bottom')}>
+                  ⤓
+                </Button>
+              </div>
+            )}
+            {onDistribute && (
+              <div className="gba:grid gba:grid-cols-2 gba:gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDistribute('horizontal')}
+                  disabled={selectionCount < 3}
+                >
+                  {t('props-distribute-horizontal')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDistribute('vertical')}
+                  disabled={selectionCount < 3}
+                >
+                  {t('props-distribute-vertical')}
+                </Button>
+              </div>
+            )}
+            {onFlip && element?.type === 'shape' && (
+              <div className="gba:grid gba:grid-cols-2 gba:gap-1">
+                <Button variant="outline" size="sm" onClick={() => onFlip('horizontal')}>
+                  <FlipHorizontal className="gba:w-3 gba:h-3 gba:mr-1" />
+                  {t('props-flip-horizontal')}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => onFlip('vertical')}>
+                  <FlipVertical className="gba:w-3 gba:h-3 gba:mr-1" />
+                  {t('props-flip-vertical')}
+                </Button>
+              </div>
+            )}
+            {(onGroup || onUngroup) && (
+              <div className="gba:grid gba:grid-cols-2 gba:gap-1">
+                {onGroup && (
+                  <Button variant="outline" size="sm" onClick={onGroup} disabled={selectionCount < 2}>
+                    {t('props-group')}
+                  </Button>
+                )}
+                {onUngroup && (
+                  <Button variant="outline" size="sm" onClick={onUngroup} disabled={!hasGroupInSelection}>
+                    {t('props-ungroup')}
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       <Separator />
 
@@ -701,22 +1256,22 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           {/* Font Style Buttons */}
           <div className="gba:flex gba:gap-1">
             <Button
-              variant={textElement.fontWeight === 'bold' ? 'default' : 'outlined'}
-              size="icon-sm"
+              variant={textElement.fontWeight === 'bold' ? 'default' : 'outline'}
+              size="sm"
               onClick={() => onUpdate({ fontWeight: textElement.fontWeight === 'bold' ? 'normal' : 'bold' })}
             >
               <Bold className="gba:w-4 gba:h-4" />
             </Button>
             <Button
-              variant={textElement.fontStyle === 'italic' ? 'default' : 'outlined'}
-              size="icon-sm"
+              variant={textElement.fontStyle === 'italic' ? 'default' : 'outline'}
+              size="sm"
               onClick={() => onUpdate({ fontStyle: textElement.fontStyle === 'italic' ? 'normal' : 'italic' })}
             >
               <Italic className="gba:w-4 gba:h-4" />
             </Button>
             <Button
-              variant={textElement.textDecoration === 'underline' ? 'default' : 'outlined'}
-              size="icon-sm"
+              variant={textElement.textDecoration === 'underline' ? 'default' : 'outline'}
+              size="sm"
               onClick={() =>
                 onUpdate({ textDecoration: textElement.textDecoration === 'underline' ? 'none' : 'underline' })
               }
@@ -724,8 +1279,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               <Underline className="gba:w-4 gba:h-4" />
             </Button>
             <Button
-              variant={textElement.textDecoration === 'line-through' ? 'default' : 'outlined'}
-              size="icon-sm"
+              variant={textElement.textDecoration === 'line-through' ? 'default' : 'outline'}
+              size="sm"
               onClick={() =>
                 onUpdate({ textDecoration: textElement.textDecoration === 'line-through' ? 'none' : 'line-through' })
               }
@@ -737,22 +1292,22 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           {/* Text Alignment */}
           <div className="gba:flex gba:gap-1">
             <Button
-              variant={textElement.textAlign === 'left' ? 'default' : 'outlined'}
-              size="icon-sm"
+              variant={textElement.textAlign === 'left' ? 'default' : 'outline'}
+              size="sm"
               onClick={() => onUpdate({ textAlign: 'left' })}
             >
               <AlignLeft className="gba:w-4 gba:h-4" />
             </Button>
             <Button
-              variant={textElement.textAlign === 'center' ? 'default' : 'outlined'}
-              size="icon-sm"
+              variant={textElement.textAlign === 'center' ? 'default' : 'outline'}
+              size="sm"
               onClick={() => onUpdate({ textAlign: 'center' })}
             >
               <AlignCenter className="gba:w-4 gba:h-4" />
             </Button>
             <Button
-              variant={textElement.textAlign === 'right' ? 'default' : 'outlined'}
-              size="icon-sm"
+              variant={textElement.textAlign === 'right' ? 'default' : 'outline'}
+              size="sm"
               onClick={() => onUpdate({ textAlign: 'right' })}
             >
               <AlignRight className="gba:w-4 gba:h-4" />
@@ -874,6 +1429,69 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </Select>
           </div>
 
+          {/* Line compound (single / double / triple …) — rendered via a
+              second parallel stroke in the preset renderer. */}
+          <div>
+            <Label className="gba:text-xs">Compound</Label>
+            <Select
+              value={shapeElement.lineCompound ?? 'sng'}
+              onValueChange={(value: 'sng' | 'dbl' | 'thickThin' | 'thinThick' | 'tri') =>
+                onUpdate({ lineCompound: value === 'sng' ? undefined : value })
+              }
+            >
+              <SelectTrigger className="gba:text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sng">Single</SelectItem>
+                <SelectItem value="dbl">Double</SelectItem>
+                <SelectItem value="thickThin">Thick/Thin</SelectItem>
+                <SelectItem value="thinThick">Thin/Thick</SelectItem>
+                <SelectItem value="tri">Triple</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Line cap */}
+          <div>
+            <Label className="gba:text-xs">Line Cap</Label>
+            <Select
+              value={shapeElement.lineCap ?? 'flat'}
+              onValueChange={(value: 'rnd' | 'sq' | 'flat') =>
+                onUpdate({ lineCap: value === 'flat' ? undefined : value })
+              }
+            >
+              <SelectTrigger className="gba:text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="flat">Flat</SelectItem>
+                <SelectItem value="rnd">Round</SelectItem>
+                <SelectItem value="sq">Square</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Line join */}
+          <div>
+            <Label className="gba:text-xs">Line Join</Label>
+            <Select
+              value={shapeElement.lineJoin ?? 'miter'}
+              onValueChange={(value: 'miter' | 'round' | 'bevel') =>
+                onUpdate({ lineJoin: value === 'miter' ? undefined : value })
+              }
+            >
+              <SelectTrigger className="gba:text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="miter">Miter</SelectItem>
+                <SelectItem value="round">Round</SelectItem>
+                <SelectItem value="bevel">Bevel</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Corner Radius */}
           {(shapeElement.shapeType === 'rectangle' || shapeElement.shapeType === 'rounded-rectangle') && (
             <div>
@@ -891,11 +1509,175 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </div>
           )}
 
+          {/* Flip controls */}
+          <FlipControls element={shapeElement} onUpdate={onUpdate} t={t} />
+
+          {/* Geometry / Edit Points — converts the preset to an editable
+              custGeom path so the user can drag individual anchors. */}
+          {onEditPoints && (
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Label className="gba:text-xs gba:flex-1">{t('props-geometry')}</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEditPoints(shapeElement.id)}
+                title={t('props-edit-points-tooltip')}
+                data-testid="property-panel-edit-points"
+              >
+                {t('props-edit-points')}
+              </Button>
+            </div>
+          )}
+
+          {/* Adjustment sliders (preset-specific) */}
+          <ShapeAdjustments element={shapeElement} onUpdate={onUpdate} t={t} />
+
+          {/* Effects */}
+          <ShapeEffectsSection element={shapeElement} onUpdate={onUpdate} t={t} />
+
+          {/* Shape text controls (label formatting when the shape has text) */}
+          <ShapeTextControls element={shapeElement} onUpdate={onUpdate} t={t} />
+
           {/* Shadow */}
           <div className="gba:flex gba:items-center gba:justify-between">
             <Label className="gba:text-xs">{t('props-drop-shadow')}</Label>
             <Switch checked={shapeElement.shadow} onCheckedChange={shadow => onUpdate({ shadow })} />
           </div>
+        </div>
+      )}
+
+      {/* CONNECTOR PROPERTIES */}
+      {connectorElement && (
+        <div className="gba:space-y-4">
+          <Label className="gba:text-xs gba:font-semibold">{t('props-connector-styling')}</Label>
+
+          {/* Line type */}
+          <div>
+            <Label className="gba:text-xs">{t('props-connector-line-type')}</Label>
+            <Select
+              value={connectorElement.lineType}
+              onValueChange={(value: ConnectorLineType) => onUpdate({ lineType: value })}
+            >
+              <SelectTrigger className="gba:text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="straight">{t('props-connector-straight')}</SelectItem>
+                <SelectItem value="elbow">{t('props-connector-elbow')}</SelectItem>
+                <SelectItem value="curved">{t('props-connector-curved')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Stroke color */}
+          <PanelColorPicker
+            value={connectorElement.strokeColor}
+            onChange={(strokeColor: string) => onUpdate({ strokeColor })}
+            label={t('props-stroke-color')}
+          />
+
+          {/* Stroke width */}
+          <div>
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+              <Label className="gba:text-xs">{t('props-stroke-width')}</Label>
+              <span className="gba:text-xs gba:text-muted-foreground">{connectorElement.strokeWidth}px</span>
+            </div>
+            <Slider
+              value={[connectorElement.strokeWidth]}
+              min={1}
+              max={16}
+              step={1}
+              onValueChange={([value]) => onUpdate({ strokeWidth: value })}
+            />
+          </div>
+
+          {/* Stroke style */}
+          <div>
+            <Label className="gba:text-xs">{t('props-stroke-style')}</Label>
+            <Select
+              value={connectorElement.strokeStyle}
+              onValueChange={(value: 'solid' | 'dashed' | 'dotted') => onUpdate({ strokeStyle: value })}
+            >
+              <SelectTrigger className="gba:text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="solid">{t('props-solid')}</SelectItem>
+                <SelectItem value="dashed">{t('props-dashed')}</SelectItem>
+                <SelectItem value="dotted">{t('props-dotted')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Arrows */}
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label className="gba:text-xs">{t('props-connector-start-arrow')}</Label>
+            <Switch checked={connectorElement.startArrow} onCheckedChange={startArrow => onUpdate({ startArrow })} />
+          </div>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label className="gba:text-xs">{t('props-connector-end-arrow')}</Label>
+            <Switch checked={connectorElement.endArrow} onCheckedChange={endArrow => onUpdate({ endArrow })} />
+          </div>
+
+          {/* Arrow size */}
+          <div>
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+              <Label className="gba:text-xs">{t('props-connector-arrow-size')}</Label>
+              <span className="gba:text-xs gba:text-muted-foreground">{connectorElement.arrowSize}px</span>
+            </div>
+            <Slider
+              value={[connectorElement.arrowSize]}
+              min={4}
+              max={24}
+              step={1}
+              onValueChange={([value]) => onUpdate({ arrowSize: value })}
+            />
+          </div>
+
+          {/* Label */}
+          <div>
+            <Label className="gba:text-xs">{t('props-connector-label')}</Label>
+            <Input
+              value={connectorElement.label ?? ''}
+              onChange={e => onUpdate({ label: e.target.value })}
+              placeholder={t('props-connector-label-placeholder')}
+              className="gba:text-xs"
+            />
+          </div>
+          {connectorElement.label && (
+            <div>
+              <Label className="gba:text-xs">{t('props-connector-label-position')}</Label>
+              <Select
+                value={connectorElement.labelPosition}
+                onValueChange={(value: ConnectorLabelPosition) => onUpdate({ labelPosition: value })}
+              >
+                <SelectTrigger className="gba:text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="start">{t('props-connector-label-start')}</SelectItem>
+                  <SelectItem value="middle">{t('props-connector-label-middle')}</SelectItem>
+                  <SelectItem value="end">{t('props-connector-label-end')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Binding status (read-only surface — actual binding happens on canvas) */}
+          {(connectorElement.startBinding || connectorElement.endBinding) && (
+            <div className="gba:text-[11px] gba:text-muted-foreground gba:space-y-1">
+              {connectorElement.startBinding && (
+                <div>
+                  {t('props-connector-bound-start')}: {connectorElement.startBinding.site}
+                </div>
+              )}
+              {connectorElement.endBinding && (
+                <div>
+                  {t('props-connector-bound-end')}: {connectorElement.endBinding.site}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

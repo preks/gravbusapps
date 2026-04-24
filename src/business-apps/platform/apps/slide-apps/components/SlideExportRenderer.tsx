@@ -14,15 +14,196 @@ import type {
   CodeElement,
   TableElement
 } from './slideElements'
-import { gradientToCss } from './slideElements'
-import { sanitizeMediaUrl, renderShape } from './slideRenderUtils'
+import { gradientToCss, getImageCropStyles, textTransformToCss, textElementStubForShapeInText } from './slideElements'
+import { resolveFontStack } from './fontStack'
+import { RichTextContent } from './RichTextContent'
+import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
+import { sanitizeSlideImageUrl } from '../utils/slideMediaUrl'
 
-const SLIDE_WIDTH = 1280
-const SLIDE_HEIGHT = 720
+/**
+ * Default export dimensions when the deck has no declared canvas size.
+ * Matches the legacy 16:9 widescreen preset (1280x720 @ 96 DPI).
+ */
+const DEFAULT_SLIDE_WIDTH = 1280
+const DEFAULT_SLIDE_HEIGHT = 720
+
+const sanitizeMediaUrl = sanitizeSlideImageUrl
 
 interface SlideExportRendererProps {
   slides: SlideData[]
   slideIndices: number[]
+}
+
+/**
+ * Renders a single shape element.
+ */
+const renderShape = (element: ShapeElement): React.ReactNode => {
+  const { shapeType, fill, gradient, strokeColor, strokeWidth, strokeStyle, cornerRadius, shadow } = element
+  const fillStyle = gradient ? gradientToCss(gradient) : fill
+
+  // Preset-aware renderer for PPTX-imported shapes. When the shape does not
+  // carry importMeta (or the preset is not implemented) we fall back to the
+  // generic shapeType switch below, so editor-native shapes are unaffected.
+  const officePreset = tryRenderOfficePresetShape({
+    element,
+    fillStyle,
+    strokeColor,
+    strokeWidth,
+    shadow,
+    width: element.size.width,
+    height: element.size.height
+  })
+  if (officePreset) {
+    return <div style={{ width: '100%', height: '100%' }}>{officePreset}</div>
+  }
+
+  const baseStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    background: fillStyle,
+    border: strokeWidth > 0 ? `${strokeWidth}px ${strokeStyle} ${strokeColor}` : 'none',
+    boxShadow: shadow ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none'
+  }
+
+  switch (shapeType) {
+    case 'rectangle':
+      return <div style={baseStyle} />
+    case 'rounded-rectangle':
+      return <div style={{ ...baseStyle, borderRadius: cornerRadius }} />
+    case 'circle':
+    case 'ellipse':
+      return <div style={{ ...baseStyle, borderRadius: '50%' }} />
+    case 'triangle':
+      return (
+        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="50,5 95,95 5,95"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+            />
+          </svg>
+        </div>
+      )
+    case 'diamond':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="50,5 95,50 50,95 5,50"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+            />
+          </svg>
+        </div>
+      )
+    case 'star':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="50,5 61,35 95,35 68,57 79,91 50,70 21,91 32,57 5,35 39,35"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+            />
+          </svg>
+        </div>
+      )
+    case 'hexagon':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="25,5 75,5 100,50 75,95 25,95 0,50"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+            />
+          </svg>
+        </div>
+      )
+    case 'arrow-right':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="0,20 65,20 65,5 100,30 65,55 65,40 0,40"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+            />
+          </svg>
+        </div>
+      )
+    case 'arrow-left':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="100,20 35,20 35,5 0,30 35,55 35,40 100,40"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+            />
+          </svg>
+        </div>
+      )
+    case 'arrow-up':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 60 100" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="30,0 55,35 40,35 40,100 20,100 20,35 5,35"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+            />
+          </svg>
+        </div>
+      )
+    case 'arrow-down':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 60 100" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="30,100 55,65 40,65 40,0 20,0 20,65 5,65"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+            />
+          </svg>
+        </div>
+      )
+    case 'line':
+      return (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}>
+          <div style={{ width: '100%', height: strokeWidth || 4, backgroundColor: fill }} />
+        </div>
+      )
+    case 'callout':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+            <path
+              d="M5,5 H95 V70 H40 L25,95 L30,70 H5 Z"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+            />
+          </svg>
+        </div>
+      )
+    default:
+      return <div style={baseStyle} />
+  }
 }
 
 /**
@@ -66,7 +247,7 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
           <div
             style={{
               width: '100%',
-              fontFamily: (element as TextElement).fontFamily,
+              fontFamily: resolveFontStack((element as TextElement).fontFamily),
               fontSize: (element as TextElement).fontSize,
               fontWeight: (element as TextElement).fontWeight,
               fontStyle: (element as TextElement).fontStyle,
@@ -75,38 +256,116 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
               color: (element as TextElement).color,
               lineHeight: (element as TextElement).lineHeight,
               letterSpacing: (element as TextElement).letterSpacing,
+              ...textTransformToCss((element as TextElement).textTransform),
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word'
             }}
           >
-            {(element as TextElement).content}
+            {(element as TextElement).paragraphs && (element as TextElement).paragraphs!.length > 0 ? (
+              <RichTextContent element={element as TextElement} paragraphs={(element as TextElement).paragraphs!} />
+            ) : (
+              (element as TextElement).content
+            )}
           </div>
         </div>
       )}
 
-      {element.type === 'shape' && renderShape(element as ShapeElement, 'export-grad')}
-
-      {element.type === 'image' && sanitizeMediaUrl((element as ImageElement).src) && (
-        <img
-          src={sanitizeMediaUrl((element as ImageElement).src)}
-          alt={(element as ImageElement).alt}
-          crossOrigin="anonymous"
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: (element as ImageElement).objectFit,
-            borderRadius: (element as ImageElement).borderRadius,
-            border:
-              (element as ImageElement).borderWidth > 0
-                ? `${(element as ImageElement).borderWidth}px solid ${(element as ImageElement).borderColor}`
-                : 'none',
-            boxShadow: (element as ImageElement).shadow
-              ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-              : 'none'
-          }}
-          draggable={false}
-        />
+      {element.type === 'shape' && (
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+          {renderShape(element as ShapeElement)}
+          {(() => {
+            const se = element as ShapeElement
+            const st = se.shapeText
+            if (!st) return null
+            const te = textElementStubForShapeInText(se, st)
+            return (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'stretch',
+                  justifyContent:
+                    te.verticalAlign === 'top' ? 'flex-start' : te.verticalAlign === 'bottom' ? 'flex-end' : 'center',
+                  padding: st.padding,
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  zIndex: 1
+                }}
+              >
+                {st.paragraphs && st.paragraphs.length > 0 ? (
+                  <RichTextContent element={te} paragraphs={st.paragraphs} />
+                ) : (
+                  <div
+                    style={{
+                      width: '100%',
+                      fontFamily: resolveFontStack(te.fontFamily),
+                      fontSize: te.fontSize,
+                      fontWeight: te.fontWeight,
+                      fontStyle: te.fontStyle,
+                      textDecoration: te.textDecoration,
+                      textAlign: te.textAlign,
+                      color: te.color,
+                      lineHeight: te.lineHeight,
+                      letterSpacing: te.letterSpacing,
+                      ...textTransformToCss(te.textTransform),
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word'
+                    }}
+                  >
+                    {st.content}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+        </div>
       )}
+
+      {element.type === 'image' &&
+        sanitizeMediaUrl((element as ImageElement).src) &&
+        (() => {
+          const imgEl = element as ImageElement
+          const crop = getImageCropStyles(imgEl.cropRect)
+          const commonVisualStyle = {
+            borderRadius: imgEl.borderRadius,
+            border: imgEl.borderWidth > 0 ? `${imgEl.borderWidth}px solid ${imgEl.borderColor}` : 'none',
+            boxShadow: imgEl.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+          }
+
+          if (crop.wrapperNeeded) {
+            return (
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: '100%',
+                  overflow: 'hidden',
+                  ...commonVisualStyle
+                }}
+              >
+                <img
+                  src={sanitizeMediaUrl(imgEl.src)}
+                  alt={imgEl.alt}
+                  crossOrigin="anonymous"
+                  style={crop.imgStyle}
+                  draggable={false}
+                />
+              </div>
+            )
+          }
+
+          return (
+            <img
+              src={sanitizeMediaUrl(imgEl.src)}
+              alt={imgEl.alt}
+              crossOrigin="anonymous"
+              style={{ width: '100%', height: '100%', objectFit: imgEl.objectFit, ...commonVisualStyle }}
+              draggable={false}
+            />
+          )
+        })()}
 
       {element.type === 'code' &&
         (() => {
@@ -265,13 +524,17 @@ const getBackgroundStyle = (background: SlideData['background']): React.CSSPrope
  */
 const ExportSlide: React.FC<{ slide: SlideData }> = ({ slide }) => {
   const sortedElements = [...slide.elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
+  // Render at the slide's declared canvas size so PPTX imports preserve
+  // their original aspect ratio (4:3, A4, etc.) in PDF / image exports.
+  const slideWidth = slide.canvasSize?.width ?? DEFAULT_SLIDE_WIDTH
+  const slideHeight = slide.canvasSize?.height ?? DEFAULT_SLIDE_HEIGHT
 
   return (
     <div
       data-export-slide="true"
       style={{
-        width: SLIDE_WIDTH,
-        height: SLIDE_HEIGHT,
+        width: slideWidth,
+        height: slideHeight,
         position: 'relative',
         overflow: 'hidden',
         flexShrink: 0,

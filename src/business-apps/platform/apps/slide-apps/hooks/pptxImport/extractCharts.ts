@@ -5,7 +5,15 @@ import type { ChartElement, ChartType, ChartDataPoint, ChartSeries } from '../..
 import { createChartElement } from '../../components/slideElements'
 import type { SlideRelationships } from './types'
 import type { ParserMessage } from '../usePowerPointParser'
-import { emuToPixels, extractTransform, parseXML, getChild, getChildren, isInsideGroup } from './ooxmlUtils'
+import {
+  emuToPixels,
+  extractTransform,
+  parseXML,
+  getChild,
+  getChildren,
+  isInsideGroup,
+  nextImportUid
+} from './ooxmlUtils'
 
 const CHART_TYPE_MAP: Record<string, ChartType> = {
   'c:barChart': 'bar',
@@ -225,7 +233,7 @@ export async function extractChartElements(
 
     elements.push(
       createChartElement(parsed.chartType, {
-        id: `chart-import-${Date.now()}-${fi}`,
+        id: nextImportUid('chart-import'),
         position: { x: Math.max(0, x), y: Math.max(0, y) },
         size: { width: Math.max(200, width), height: Math.max(150, height) },
         title: parsed.title,

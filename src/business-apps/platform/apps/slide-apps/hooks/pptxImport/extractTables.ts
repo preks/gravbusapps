@@ -1,10 +1,18 @@
 // Extract table elements from slide XML (<p:graphicFrame> with <a:tbl>).
 
-import type { TableElement } from '../../components/slideElements'
+import type { TableElement, TableCell } from '../../components/slideElements'
 import { createTableElement } from '../../components/slideElements'
 import type { OoxmlTheme } from './types'
 import type { ParserMessage } from '../usePowerPointParser'
-import { emuToPixels, extractTransform, getChild, getChildren, parseSolidFill, isInsideGroup } from './ooxmlUtils'
+import {
+  emuToPixels,
+  extractTransform,
+  getChild,
+  getChildren,
+  parseSolidFill,
+  isInsideGroup,
+  nextImportUid
+} from './ooxmlUtils'
 
 function extractCellText(tc: Element): string {
   const txBody = getChild(tc, 'a:txBody')
@@ -23,6 +31,41 @@ function extractCellText(tc: Element): string {
   }
 
   return parts.join('\n').trim()
+}
+
+function extractCellMetadata(tc: Element, theme?: OoxmlTheme): Omit<TableCell, 'content'> {
+  const meta: Omit<TableCell, 'content'> = {}
+
+  const rowSpan = tc.getAttribute('rowSpan')
+  if (rowSpan) meta.rowSpan = parseInt(rowSpan)
+  const gridSpan = tc.getAttribute('gridSpan')
+  if (gridSpan) meta.colSpan = parseInt(gridSpan)
+
+  const tcPr = getChild(tc, 'a:tcPr')
+  if (tcPr) {
+    const sf = getChild(tcPr, 'a:solidFill')
+    if (sf) {
+      const bg = parseSolidFill(sf, theme)
+      if (bg) meta.backgroundColor = bg
+    }
+
+    const anchor = tcPr.getAttribute('anchor')
+    if (anchor === 't') meta.verticalAlign = 'top'
+    else if (anchor === 'b') meta.verticalAlign = 'bottom'
+    else if (anchor === 'ctr') meta.verticalAlign = 'middle'
+  }
+
+  const txBody = getChild(tc, 'a:txBody')
+  if (txBody) {
+    const firstP = getChild(txBody, 'a:p')
+    const pPr = firstP ? getChild(firstP, 'a:pPr') : undefined
+    const algn = pPr?.getAttribute('algn')
+    if (algn === 'l') meta.horizontalAlign = 'left'
+    else if (algn === 'ctr') meta.horizontalAlign = 'center'
+    else if (algn === 'r') meta.horizontalAlign = 'right'
+  }
+
+  return meta
 }
 
 export function extractTableElements(
@@ -52,6 +95,7 @@ export function extractTableElements(
 
     let headers: string[] = []
     const rows: string[][] = []
+    const allCellGrid: TableCell[][] = []
 
     const startIdx = hasFirstRow ? 1 : 0
 
@@ -59,17 +103,35 @@ export function extractTableElements(
       const headerRow = trElements[0]
       const headerCells = getChildren(headerRow, 'a:tc')
       headers = headerCells.map(extractCellText)
+      allCellGrid.push(headerCells.map(tc => ({ content: extractCellText(tc), ...extractCellMetadata(tc, theme) })))
     }
 
     for (let ri = startIdx; ri < trElements.length; ri++) {
       const tr = trElements[ri]
       const cells = getChildren(tr, 'a:tc')
       rows.push(cells.map(extractCellText))
+      allCellGrid.push(cells.map(tc => ({ content: extractCellText(tc), ...extractCellMetadata(tc, theme) })))
     }
 
     if (!hasFirstRow && rows.length > 0) {
       headers = rows[0]
       rows.splice(0, 1)
+    }
+
+    const gridCol = getChild(tbl, 'a:tblGrid')
+    const columnWidths: number[] = []
+    if (gridCol) {
+      const gridCols = getChildren(gridCol, 'a:gridCol')
+      for (const g of gridCols) {
+        const w = g.getAttribute('w')
+        if (w) columnWidths.push(emuToPixels(parseInt(w)))
+      }
+    }
+
+    const rowHeights: number[] = []
+    for (const tr of trElements) {
+      const h = tr.getAttribute('h')
+      if (h) rowHeights.push(emuToPixels(parseInt(h)))
     }
 
     if (headers.length === 0 && rows.length === 0) continue
@@ -118,12 +180,15 @@ export function extractTableElements(
 
     elements.push(
       createTableElement(headers, rows, {
-        id: `table-import-${Date.now()}-${fi}`,
+        id: nextImportUid('table-import'),
         position: { x: Math.max(0, x), y: Math.max(0, y) },
         size: { width: Math.max(100, width), height: Math.max(60, height) },
         headerBackground,
         headerTextColor,
-        rowBackground
+        rowBackground,
+        cells: allCellGrid.length > 0 ? allCellGrid : undefined,
+        columnWidths: columnWidths.length > 0 ? columnWidths : undefined,
+        rowHeights: rowHeights.length > 0 ? rowHeights : undefined
       })
     )
   }

@@ -2,7 +2,7 @@
 
 import type JSZip from 'jszip'
 import type { OoxmlTheme } from './types'
-import { parseXML, getChild } from './ooxmlUtils'
+import { parseXML, getChild, getChildren } from './ooxmlUtils'
 
 const SCHEME_COLOR_NAMES = [
   'dk1',
@@ -84,7 +84,36 @@ export async function extractTheme(zip: JSZip): Promise<OoxmlTheme> {
     if (latin) minorFont = latin.getAttribute('typeface') || minorFont
   }
 
-  return { colors, majorFont, minorFont }
+  // `a:fmtScheme` carries the subtle / moderate / intense fill and line
+  // templates. PowerPoint's fillRef/lnRef idx=1..3 resolve by picking the
+  // matching template and substituting `phClr` with the color child on the
+  // reference. Capture the raw nodes so shape-level resolution can do that
+  // substitution without re-reading the theme XML.
+  let fmtFillStyles: Element[] | undefined
+  let fmtLineStyles: Element[] | undefined
+  let fmtBgFillStyles: Element[] | undefined
+
+  const fmtScheme = themeXml.getElementsByTagName('a:fmtScheme')[0]
+  if (fmtScheme) {
+    const fillStyleLst = getChild(fmtScheme, 'a:fillStyleLst')
+    if (fillStyleLst) {
+      fmtFillStyles = Array.from(fillStyleLst.childNodes).filter(
+        (n): n is Element => (n as Element).tagName !== undefined
+      )
+    }
+    const lnStyleLst = getChild(fmtScheme, 'a:lnStyleLst')
+    if (lnStyleLst) {
+      fmtLineStyles = getChildren(lnStyleLst, 'a:ln')
+    }
+    const bgFillStyleLst = getChild(fmtScheme, 'a:bgFillStyleLst')
+    if (bgFillStyleLst) {
+      fmtBgFillStyles = Array.from(bgFillStyleLst.childNodes).filter(
+        (n): n is Element => (n as Element).tagName !== undefined
+      )
+    }
+  }
+
+  return { colors, majorFont, minorFont, fmtFillStyles, fmtLineStyles, fmtBgFillStyles }
 }
 
 export function mapThemeToSlideThemeId(theme: OoxmlTheme): string {
