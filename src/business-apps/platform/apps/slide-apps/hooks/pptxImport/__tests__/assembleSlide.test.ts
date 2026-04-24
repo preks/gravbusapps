@@ -147,6 +147,41 @@ describe('assembleSlide', () => {
     expect((slide.elements[0] as TextElement).backgroundColor).toBe('#5BC3E1')
   })
 
+  it('preserves decorated PowerPoint text boxes as shape elements with shapeText', async () => {
+    const xml = slideXml(`
+      <p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="1" name="Styled TextBox 1"/>
+          <p:cNvSpPr txBox="1"/>
+          <p:nvPr/>
+        </p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="1828800" cy="914400"/></a:xfrm>
+          <a:prstGeom prst="roundRect"/>
+          <a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>
+          <a:ln w="25400"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:ln>
+          <a:effectLst>
+            <a:outerShdw blurRad="190500" dist="63500" dir="5400000" algn="t" rotWithShape="0">
+              <a:prstClr val="black"><a:alpha val="15000"/></a:prstClr>
+            </a:outerShdw>
+          </a:effectLst>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr anchor="ctr"/>
+          <a:p><a:r><a:t>Styled text box</a:t></a:r></a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+
+    const slide = await assembleSlide(xml, emptyRels, new Map(), theme, new JSZip(), 0, [])
+    expect(slide.elements).toHaveLength(1)
+    expect(slide.elements[0].type).toBe('shape')
+    expect((slide.elements[0] as ShapeElement).shapeType).toBe('rounded-rectangle')
+    expect((slide.elements[0] as ShapeElement).shapeText?.content).toBe('Styled text box')
+    expect((slide.elements[0] as ShapeElement).strokeWidth).toBeGreaterThan(0)
+    expect((slide.elements[0] as ShapeElement).effects?.outerShadow).toBeDefined()
+  })
+
   it('keeps an empty explicit text box when it still has a visible filled layer', async () => {
     const xml = slideXml(`
       <p:sp>

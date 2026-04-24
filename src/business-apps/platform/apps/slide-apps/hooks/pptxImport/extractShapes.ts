@@ -265,6 +265,19 @@ function hasVisibleShapeRendering(element: ShapeElement | null): element is Shap
   return element.fill !== 'transparent' || !!element.gradient || element.strokeWidth > 0 || !!element.shapeText
 }
 
+function shouldPreserveExplicitTextBoxAsShape(element: ShapeElement | null): element is ShapeElement {
+  if (!element?.shapeText) return false
+
+  const preset = element.importMeta?.prst
+  const hasNonRectGeometry =
+    element.shapeType !== 'rectangle' || !!element.importMeta?.custGeomPath || (!!preset && preset !== 'rect')
+  const hasStroke = element.strokeWidth > 0
+  const hasNonSolidFill = !!element.gradient || !!element.pictureFill || !!element.patternFill
+  const hasEffects = !!element.effects
+
+  return hasNonRectGeometry || hasStroke || hasNonSolidFill || hasEffects
+}
+
 /**
  * Parse `<a:avLst>` adjustment values into a `{ name: int }` record. Keys
  * are kept in OOXML form (`adj`, `adj1`, `adj2` ...) so the preset renderer
@@ -575,12 +588,6 @@ export function extractPSpToSingleElement(
   const sh = doc.getElementsByTagName('p:sp')[0]
   if (!sh) return null
   if (isExplicitTextBox(sh)) {
-    const textElement = extractTextElements(doc, theme, relationships, inheritedResolver)[0]
-    if (textElement) {
-      registerShapeId(shapeIdRegistry, sh, textElement.id)
-      return textElement
-    }
-
     const shapeFallback = importAutoshaveFromPSpElement(
       sh,
       theme,
@@ -589,6 +596,16 @@ export function extractPSpToSingleElement(
       relationships,
       inheritedResolver
     )
+    const textElement = extractTextElements(doc, theme, relationships, inheritedResolver)[0]
+    if (shouldPreserveExplicitTextBoxAsShape(shapeFallback)) {
+      registerShapeId(shapeIdRegistry, sh, shapeFallback.id)
+      return shapeFallback
+    }
+    if (textElement) {
+      registerShapeId(shapeIdRegistry, sh, textElement.id)
+      return textElement
+    }
+
     if (hasVisibleShapeRendering(shapeFallback)) {
       registerShapeId(shapeIdRegistry, sh, shapeFallback.id)
       return shapeFallback

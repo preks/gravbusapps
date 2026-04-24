@@ -1,4 +1,4 @@
-import { extractShapeElements } from '../extractShapes'
+import { extractPSpToSingleElement, extractShapeElements } from '../extractShapes'
 import { parseXML } from '../ooxmlUtils'
 import type { OoxmlTheme, SlideRelationships } from '../types'
 import type { ParserMessage } from '../../usePowerPointParser'
@@ -233,6 +233,84 @@ describe('extractShapeElements', () => {
 
     const elements = extractShapeElements(xml, theme, messages, 0, emptyRels)
     expect(elements).toHaveLength(0)
+  })
+
+  it('keeps simple explicit text boxes on the plain text path', () => {
+    const messages: ParserMessage[] = []
+    const xml = slideXml(`
+      <p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="1" name="TextBox 1"/>
+          <p:cNvSpPr txBox="1"/>
+          <p:nvPr/>
+        </p:nvSpPr>
+        <p:spPr>
+          <a:xfrm>
+            <a:off x="0" y="0"/>
+            <a:ext cx="914400" cy="457200"/>
+          </a:xfrm>
+          <a:prstGeom prst="rect"/>
+          <a:solidFill><a:srgbClr val="5BC3E1"/></a:solidFill>
+        </p:spPr>
+        <p:txBody>
+          <a:p><a:r><a:t>Imported text box</a:t></a:r></a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+
+    const element = extractPSpToSingleElement(xml, theme, emptyRels, messages, 0)
+    expect(element?.type).toBe('text')
+  })
+
+  it('preserves decorated explicit text boxes as shapes with shapeText', () => {
+    const messages: ParserMessage[] = []
+    const themed: OoxmlTheme = {
+      colors: new Map([
+        ['dk1', '#000000'],
+        ['lt1', '#FFFFFF']
+      ]),
+      majorFont: 'Calibri Light',
+      minorFont: 'Calibri'
+    }
+    const xml = slideXml(`
+      <p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="1" name="Styled TextBox"/>
+          <p:cNvSpPr txBox="1"/>
+          <p:nvPr/>
+        </p:nvSpPr>
+        <p:spPr>
+          <a:xfrm>
+            <a:off x="0" y="0"/>
+            <a:ext cx="1828800" cy="457200"/>
+          </a:xfrm>
+          <a:prstGeom prst="roundRect"/>
+          <a:solidFill><a:schemeClr val="bg1"/></a:solidFill>
+          <a:ln w="25400">
+            <a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>
+          </a:ln>
+          <a:effectLst>
+            <a:outerShdw blurRad="190500" dist="63500" dir="5400000" algn="t" rotWithShape="0">
+              <a:prstClr val="black"><a:alpha val="15000"/></a:prstClr>
+            </a:outerShdw>
+          </a:effectLst>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr anchor="ctr"/>
+          <a:p>
+            <a:r>
+              <a:rPr><a:solidFill><a:schemeClr val="tx1"/></a:solidFill></a:rPr>
+              <a:t>Styled label</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+
+    const element = extractPSpToSingleElement(xml, themed, emptyRels, messages, 0)
+    expect(element?.type).toBe('shape')
+    expect(element && 'shapeText' in element ? element.shapeText?.content : undefined).toBe('Styled label')
+    expect(element && 'shapeText' in element ? element.shapeText?.color : undefined).toBe('#000000')
   })
 
   it('falls back to rectangle for unsupported presets and adds warning', () => {

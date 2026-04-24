@@ -572,6 +572,12 @@ function determineDominantFormatting(
   }
 }
 
+function hasExplicitNonEmptyRunColor(paragraphs: OoxmlParagraph[]): boolean {
+  return paragraphs.some(paragraph =>
+    paragraph.runs.some(run => run.text.trim().length > 0 && typeof run.color === 'string' && run.color.length > 0)
+  )
+}
+
 function resolveStyleFontColor(shape: Element, theme?: OoxmlTheme): string | undefined {
   const style = getChild(shape, 'p:style')
   if (!style) return undefined
@@ -733,8 +739,9 @@ export function extractShapeInTextForAutoshave(
   const bodyLayout = parseBodyTextBoxLayout(bodyPr, 'middle')
   const fontScale = autofit.fontScale
   const formatting = determineDominantFormatting(paragraphs, theme, fontScale)
+  const hasRunColor = hasExplicitNonEmptyRunColor(paragraphs)
 
-  if (formatting.color === (theme?.colors.get('dk1') || '#1e293b')) {
+  if (!hasRunColor && formatting.color === (theme?.colors.get('dk1') || '#1e293b')) {
     const styleColor = resolveStyleFontColor(shape, theme)
     if (styleColor) formatting.color = styleColor
   }
@@ -824,8 +831,9 @@ export function extractTextElements(
     const fontScale = autofit.fontScale
 
     const formatting = determineDominantFormatting(paragraphs, theme, fontScale)
+    const hasRunColor = hasExplicitNonEmptyRunColor(paragraphs)
 
-    if (formatting.color === (theme?.colors.get('dk1') || '#1e293b')) {
+    if (!hasRunColor && formatting.color === (theme?.colors.get('dk1') || '#1e293b')) {
       const styleColor = resolveStyleFontColor(shape, theme)
       if (styleColor) formatting.color = styleColor
     }

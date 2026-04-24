@@ -2,7 +2,7 @@ import { flattenGroupedShapes } from '../flattenGroups'
 import { parseXML } from '../ooxmlUtils'
 import type { OoxmlTheme, SlideRelationships } from '../types'
 import type { ParserMessage } from '../../usePowerPointParser'
-import type { TextElement } from '../../../components/slideElements'
+import type { ImageElement, TextElement } from '../../../components/slideElements'
 
 const theme: OoxmlTheme = {
   colors: new Map([['accent1', '#4472C4']]),
@@ -188,5 +188,111 @@ describe('flattenGroupedShapes', () => {
     expect(elements).toHaveLength(2)
     const infoCount = messages.filter(m => m.message === 'parser-group-flattened').length
     expect(infoCount).toBe(1)
+  })
+
+  it('dims duplicated background pictures inside groups after group transforms are applied', () => {
+    const onePxPng =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z0uoAAAAASUVORK5CYII='
+    const rels: SlideRelationships = {
+      images: new Map([
+        ['rId1', 'ppt/media/galaxy.png'],
+        ['rId2', 'ppt/media/galaxy.png']
+      ]),
+      hyperlinks: new Map(),
+      chartPaths: new Map()
+    }
+    const imageData = new Map([['ppt/media/galaxy.png', onePxPng]])
+    const xml = wrapInSpTree(`
+      <p:grpSp>
+        <p:grpSpPr>
+          <a:xfrm>
+            <a:off x="0" y="0"/>
+            <a:ext cx="12192000" cy="6858000"/>
+            <a:chOff x="0" y="0"/>
+            <a:chExt cx="12192000" cy="6858000"/>
+          </a:xfrm>
+        </p:grpSpPr>
+        <p:pic>
+          <p:nvPicPr/>
+          <p:blipFill><a:blip r:embed="rId1"/></p:blipFill>
+          <p:spPr>
+            <a:xfrm>
+              <a:off x="0" y="1905000"/>
+              <a:ext cx="6858000" cy="4762500"/>
+            </a:xfrm>
+          </p:spPr>
+        </p:pic>
+        <p:pic>
+          <p:nvPicPr/>
+          <p:blipFill><a:blip r:embed="rId2"/></p:blipFill>
+          <p:spPr>
+            <a:xfrm>
+              <a:off x="5143500" y="1905000"/>
+              <a:ext cx="6858000" cy="4762500"/>
+            </a:xfrm>
+          </p:spPr>
+        </p:pic>
+      </p:grpSp>
+    `)
+
+    const elements = flattenGroupedShapes(xml, theme, rels, imageData, [], 0)
+    expect(elements).toHaveLength(2)
+    const images = elements as ImageElement[]
+    expect(images.every(image => image.type === 'image')).toBe(true)
+    expect(images[0].opacity).toBe(0.5)
+    expect(images[1].opacity).toBe(0.5)
+  })
+
+  it('dims large duplicated decorative strips inside groups even below full-slide coverage', () => {
+    const onePxPng =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z0uoAAAAASUVORK5CYII='
+    const rels: SlideRelationships = {
+      images: new Map([
+        ['rId1', 'ppt/media/nebula.png'],
+        ['rId2', 'ppt/media/nebula.png']
+      ]),
+      hyperlinks: new Map(),
+      chartPaths: new Map()
+    }
+    const imageData = new Map([['ppt/media/nebula.png', onePxPng]])
+    const xml = wrapInSpTree(`
+      <p:grpSp>
+        <p:grpSpPr>
+          <a:xfrm>
+            <a:off x="0" y="0"/>
+            <a:ext cx="12192000" cy="6858000"/>
+            <a:chOff x="0" y="0"/>
+            <a:chExt cx="12192000" cy="6858000"/>
+          </a:xfrm>
+        </p:grpSpPr>
+        <p:pic>
+          <p:nvPicPr/>
+          <p:blipFill><a:blip r:embed="rId1"/></p:blipFill>
+          <p:spPr>
+            <a:xfrm>
+              <a:off x="3048000" y="2127250"/>
+              <a:ext cx="3476625" cy="2460625"/>
+            </a:xfrm>
+          </p:spPr>
+        </p:pic>
+        <p:pic>
+          <p:nvPicPr/>
+          <p:blipFill><a:blip r:embed="rId2"/></p:blipFill>
+          <p:spPr>
+            <a:xfrm>
+              <a:off x="3048000" y="4445000"/>
+              <a:ext cx="3476625" cy="2460625"/>
+            </a:xfrm>
+          </p:spPr>
+        </p:pic>
+      </p:grpSp>
+    `)
+
+    const elements = flattenGroupedShapes(xml, theme, rels, imageData, [], 0)
+    expect(elements).toHaveLength(2)
+    const images = elements as ImageElement[]
+    expect(images.every(image => image.type === 'image')).toBe(true)
+    expect(images[0].opacity).toBe(0.5)
+    expect(images[1].opacity).toBe(0.5)
   })
 })

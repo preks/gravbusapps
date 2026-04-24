@@ -51,6 +51,8 @@ interface CompressionPass {
   quality: number
 }
 
+const ALPHA_CAPABLE_MIME_TYPES = new Set(['image/png', 'image/webp', 'image/gif'])
+
 // The first pass intentionally keeps a higher resolution and quality because
 // PowerPoint decks are dominated by UI screenshots/diagrams with fine text and
 // thin lines. A 1200x900 @ JPEG 0.7 re-encode visibly blurs those. Subsequent
@@ -70,9 +72,28 @@ export type CompressionWarning =
   | { type: 'decode-failed'; slideIndex: number; elementIndex: number | null }
   | { type: 'stripped-for-size'; slideIndex: number; elementIndex: number | null }
 
+function getDataUrlMime(dataUrl: string): string | undefined {
+  const commaIdx = dataUrl.indexOf(',')
+  const header = commaIdx === -1 ? dataUrl : dataUrl.slice(0, commaIdx)
+  return header.match(/^data:([^;,]+)/)?.[1]?.toLowerCase()
+}
+
+function canvasContainsTransparency(ctx: CanvasRenderingContext2D, width: number, height: number): boolean {
+  try {
+    const { data } = ctx.getImageData(0, 0, Math.max(1, width), Math.max(1, height))
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] < 255) return true
+    }
+  } catch {
+    return false
+  }
+  return false
+}
+
 function compressImage(base64: string, pass: CompressionPass): Promise<string | null> {
   return new Promise(resolve => {
     const img = new Image()
+    const sourceMime = getDataUrlMime(base64)
 
     img.onload = () => {
       let w = img.naturalWidth
@@ -98,7 +119,17 @@ function compressImage(base64: string, pass: CompressionPass): Promise<string | 
 
       try {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-        resolve(canvas.toDataURL('image/jpeg', pass.quality))
+        const preserveAlpha =
+          !!sourceMime &&
+          ALPHA_CAPABLE_MIME_TYPES.has(sourceMime) &&
+          canvasContainsTransparency(ctx, canvas.width, canvas.height)
+        const outputMime = preserveAlpha ? (sourceMime === 'image/webp' ? 'image/webp' : 'image/png') : 'image/jpeg'
+        resolve(
+          canvas.toDataURL(
+            outputMime,
+            outputMime === 'image/jpeg' || outputMime === 'image/webp' ? pass.quality : undefined
+          )
+        )
       } catch {
         // Canvas can taint on unexpected inputs; keep original on failure.
         resolve(null)

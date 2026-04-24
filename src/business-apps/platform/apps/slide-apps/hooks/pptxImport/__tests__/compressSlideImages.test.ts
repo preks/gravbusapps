@@ -31,11 +31,18 @@ function restoreImage() {
   }
 }
 
-function mockCanvas(output: string) {
-  jest
-    .spyOn(HTMLCanvasElement.prototype, 'getContext')
-    .mockReturnValue({ drawImage: () => undefined } as unknown as CanvasRenderingContext2D)
-  jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue(output)
+function mockCanvas(output: string | Record<string, string>, options?: { hasTransparency?: boolean }) {
+  jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+    drawImage: () => undefined,
+    getImageData: () => ({
+      data: new Uint8ClampedArray(options?.hasTransparency ? [0, 0, 0, 0] : [0, 0, 0, 255])
+    })
+  } as unknown as CanvasRenderingContext2D)
+  jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation((mime?: string) => {
+    if (typeof output === 'string') return output
+    if (mime && output[mime]) return output[mime]
+    return output.default || ''
+  })
 }
 
 function makeSlide(src: string): SlideData {
@@ -111,6 +118,26 @@ describe('compressSlideImages', () => {
 
     const resultSrc = (result[0].elements[0] as { src: string }).src
     expect(resultSrc).toBe(shortOriginal)
+  })
+
+  it('preserves alpha images as PNG so transparent PPTX assets do not gain black backgrounds', async () => {
+    mockImageWithOutcome('success')
+    const transparentOriginal = 'data:image/png;base64,' + 'A'.repeat(400_000)
+    const shorterTransparentPng = 'data:image/png;base64,' + 'B'.repeat(500)
+    mockCanvas(
+      {
+        'image/png': shorterTransparentPng,
+        'image/jpeg': 'data:image/jpeg;base64,SHOULD_NOT_BE_USED'
+      },
+      { hasTransparency: true }
+    )
+
+    const slides = [makeSlide(transparentOriginal)]
+    const { compressSlideImages } = await import('../compressSlideImages')
+    const result = await compressSlideImages(slides)
+
+    const resultSrc = (result[0].elements[0] as { src: string }).src
+    expect(resultSrc).toBe(shorterTransparentPng)
   })
 
   it('skips re-encoding small images in the first pass so crisp UI screenshots stay sharp', async () => {

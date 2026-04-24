@@ -255,7 +255,7 @@ export function extractImageElements(
  * `assembleSlide` assigns `zIndex` later based on source order — opacity
  * is the signal that survives the pipeline.
  */
-function markDuplicatedBackgroundPictures(elements: ImageElement[]): void {
+export function markDuplicatedBackgroundPictures(elements: ImageElement[], options?: { insideGroup?: boolean }): void {
   if (elements.length < 2) return
 
   // Group by identical `src`. A WeakRef-ish key via indexOf would do, but
@@ -281,6 +281,8 @@ function markDuplicatedBackgroundPictures(elements: ImageElement[]): void {
     let minY = Infinity
     let maxX = -Infinity
     let maxY = -Infinity
+    let combinedImageArea = 0
+    let largestImageArea = 0
     let adjacent = false
     const CLOSE_GAP_PX = 64
 
@@ -290,10 +292,13 @@ function markDuplicatedBackgroundPictures(elements: ImageElement[]): void {
       const t = el.position.y
       const r = l + el.size.width
       const b = t + el.size.height
+      const area = Math.max(0, el.size.width) * Math.max(0, el.size.height)
       if (l < minX) minX = l
       if (t < minY) minY = t
       if (r > maxX) maxX = r
       if (b > maxY) maxY = b
+      combinedImageArea += area
+      if (area > largestImageArea) largestImageArea = area
     }
 
     for (let a = 0; a < indices.length && !adjacent; a++) {
@@ -329,7 +334,11 @@ function markDuplicatedBackgroundPictures(elements: ImageElement[]): void {
     const unionHeight = Math.max(0, maxY - minY)
     const unionArea = unionWidth * unionHeight
     const CANVAS_AREA = 1280 * 720
-    if (unionArea < CANVAS_AREA * 0.6) continue
+    const coversLargeBackground = unionArea >= CANVAS_AREA * 0.6
+    const resemblesGroupedDecorativeStrip =
+      options?.insideGroup === true && combinedImageArea >= CANVAS_AREA * 0.18 && largestImageArea >= CANVAS_AREA * 0.08
+
+    if (!coversLargeBackground && !resemblesGroupedDecorativeStrip) continue
 
     for (const i of indices) {
       const el = elements[i]

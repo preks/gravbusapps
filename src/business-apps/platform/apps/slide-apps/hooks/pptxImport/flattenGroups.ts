@@ -1,11 +1,11 @@
 // Flatten grouped shapes (<p:grpSp>) into slide-absolute coordinates.
 
-import type { AnySlideElement } from '../../components/slideElements'
+import type { AnySlideElement, ImageElement } from '../../components/slideElements'
 import type { OoxmlTheme, SlideRelationships } from './types'
 import type { ParserMessage } from '../usePowerPointParser'
 import { getChild, isInsideGroup } from './ooxmlUtils'
 import { extractPSpToSingleElement } from './extractShapes'
-import { extractImageElements } from './extractImages'
+import { extractImageElements, markDuplicatedBackgroundPictures } from './extractImages'
 
 interface GroupTransform {
   x: number
@@ -193,7 +193,10 @@ function flattenSingleGroup(
     }
   }
 
-  return childElements.map(el => transformElementPosition(el, gt, EMU_PER_PX))
+  const transformedElements = childElements.map(el => transformElementPosition(el, gt, EMU_PER_PX))
+  const transformedImages = transformedElements.filter((el): el is ImageElement => el.type === 'image')
+  markDuplicatedBackgroundPictures(transformedImages, { insideGroup: true })
+  return transformedElements
 }
 
 /**

@@ -225,6 +225,45 @@ describe('extractTextElements', () => {
     expect(elements[0].verticalAlign).toBe('bottom')
     expect(elements[0].padding).toBe(15)
   })
+
+  it('does not override explicit tx1 run color with style fontRef fallback', () => {
+    const themed: OoxmlTheme = {
+      colors: new Map([
+        ['dk1', '#000000'],
+        ['lt1', '#FFFFFF']
+      ]),
+      majorFont: 'Calibri Light',
+      minorFont: 'Calibri'
+    }
+    const xml = slideXml(`
+      <p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="1" name="Styled TextBox"/>
+          <p:cNvSpPr txBox="1"/>
+          <p:nvPr/>
+        </p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="1828800" cy="457200"/></a:xfrm>
+        </p:spPr>
+        <p:style>
+          <a:fontRef idx="minor"><a:schemeClr val="lt1"/></a:fontRef>
+        </p:style>
+        <p:txBody>
+          <a:p>
+            <a:r>
+              <a:rPr><a:solidFill><a:schemeClr val="tx1"/></a:solidFill></a:rPr>
+              <a:t>Should stay black</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+
+    const elements = extractTextElements(xml, themed, emptyRels)
+    expect(elements).toHaveLength(1)
+    expect(elements[0].color).toBe('#000000')
+    expect(elements[0].paragraphs?.[0].runs[0].color).toBe('#000000')
+  })
 })
 
 describe('resolveTypeface', () => {
