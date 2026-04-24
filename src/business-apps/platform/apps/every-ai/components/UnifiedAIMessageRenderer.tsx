@@ -43,9 +43,18 @@ export const UnifiedAIMessageRenderer: React.FC<UnifiedAIMessageRendererProps> =
   'data-testid': testId
 }) => {
   const filteredOutputs = outputs.filter(Boolean)
+  // A turn is "thinking-only" when the only items we've got so far are
+  // intermediate: the legacy ephemeral tool chip, the generic loading
+  // placeholder, or the new Cursor-style reasoning-step rows. This keeps
+  // spacing tight until a real answer / flow-proposal / entity arrives.
   const isThinkingOnly = filteredOutputs.every(output => {
     const outputType = output?.type ?? 'unknown'
-    return outputType === 'tool' || outputType === 'loading'
+    return (
+      outputType === 'tool' ||
+      outputType === 'loading' ||
+      outputType === 'reasoning_step' ||
+      outputType === 'reasoning_step_update'
+    )
   })
 
   if (filteredOutputs.length === 0) {

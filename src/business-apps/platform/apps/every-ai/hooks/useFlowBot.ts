@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import type { ConversationTurn, OutputItem, FileMeta, CurrentPageContext } from '../types/models'
+import type {
+  ConversationTurn,
+  OutputItem,
+  FileMeta,
+  CurrentPageContext,
+  AnswerOutput,
+  ReasoningStepOutput,
+  ReasoningStepUpdateOutput,
+  TextDeltaOutput
+} from '../types/models'
 import { getCurrentPageContext } from '../utils/pageContext'
 import { getDefaultSkillsForPage } from '../utils/pageSkills'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
@@ -632,7 +641,14 @@ async function saveAgentMessage(sessionId: string, outputs: OutputItem[], access
     const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/chat/messages`
 
-    const persistableOutputs = outputs.filter(o => o.type !== 'tool' && o.type !== 'loading')
+    // Reasoning steps ARE persisted (users expand them later). We drop
+    // only the truly ephemeral stream events: legacy tool chips, the
+    // thinking placeholder, raw text deltas (the canonical answer carries
+    // the final text), and bare step-update patches (already folded into
+    // their parent `reasoning_step` via the merge logic above).
+    const persistableOutputs = outputs.filter(
+      o => o.type !== 'tool' && o.type !== 'loading' && o.type !== 'text_delta' && o.type !== 'reasoning_step_update'
+    )
 
     const requestBody = {
       session_id: sessionId,
@@ -987,6 +1003,10 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       for (let i = newConversation.length - 1; i >= 0; i--) {
         if (newConversation[i]?.side === 'agent') {
           const outputs = newConversation[i]?.outputs || []
+          // Prune only the truly ephemeral legacy `tool` chips. Reasoning
+          // steps are Cursor-style persistent artifacts — users keep them
+          // visible (collapsed) after the turn completes so they can expand
+          // any step later on to inspect what the agent actually did.
           newConversation[i] = {
             ...newConversation[i],
             outputs: outputs.filter((o: OutputItem) => o?.type !== 'tool')
@@ -995,6 +1015,227 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         }
       }
 
+      const newState = { ...prevState, conversation: newConversation }
+      saveState(newState)
+      return newState
+    })
+  }, [])
+
+  /**
+   * Handle a `reasoning_step` (open) or `reasoning_step_update` (patch) by
+   * shallow-merging into the matching entry on the current agent turn.
+   *
+   * * `open` events for a brand-new id append a new step output.
+   * * `open` events for an id that already exists (e.g. a reconnect replay)
+   *   overwrite the prior snapshot — the newer one is authoritative.
+   * * `update` events merge any non-undefined fields onto the existing step.
+   *   Unknown ids are logged and dropped (the open is expected to arrive
+   *   earlier; a dropped update usually means a race across SSE gaps).
+   */
+  const applyReasoningStepEvent = useCallback((event: ReasoningStepOutput | ReasoningStepUpdateOutput) => {
+    // Keep the persistence ref in sync with the merged view, not the raw
+    // event stream: a reopen replaces its prior snapshot, and an update
+    // patches the existing entry. Without this, reloads would stack a
+    // pile of half-filled step snapshots on top of the final merged one.
+    const ref = currentAgentOutputsRef.current
+    const existingRefIdx = ref.findIndex(
+      o => o?.type === 'reasoning_step' && (o as ReasoningStepOutput).id === event.id
+    )
+    if (event.type === 'reasoning_step') {
+      if (existingRefIdx >= 0) {
+        ref[existingRefIdx] = event
+      } else {
+        ref.push(event)
+      }
+    } else if (existingRefIdx >= 0) {
+      const existing = ref[existingRefIdx] as ReasoningStepOutput
+      const merged: ReasoningStepOutput = { ...existing }
+      ;(Object.keys(event) as Array<keyof typeof event>).forEach(key => {
+        if (key === 'type' || key === 'id') return
+        const v = (event as Record<string, unknown>)[key as string]
+        if (v !== undefined && v !== null) {
+          ;(merged as Record<string, unknown>)[key as string] = v
+        }
+      })
+      ref[existingRefIdx] = merged
+    }
+
+    setState(prevState => {
+      const newConversation: ConversationTurn[] = JSON.parse(JSON.stringify(prevState.conversation))
+
+      let lastAgentIdx = newConversation.length - 1
+      if (lastAgentIdx < 0 || newConversation[lastAgentIdx].side !== 'agent') {
+        // No active agent turn — synthesize one so the first event (even
+        // a reasoning step) displaces the "waiting…" UI immediately.
+        newConversation.push({ side: 'agent', outputs: [] })
+        lastAgentIdx = newConversation.length - 1
+      }
+
+      const turn = newConversation[lastAgentIdx]
+      if (turn.side !== 'agent') {
+        return prevState
+      }
+
+      const outputs = [...(turn.outputs || [])]
+
+      // Any event displaces a trailing "thinking…" placeholder — keeps the
+      // UI from sitting on the generic loader once real work starts.
+      if (outputs.length > 0 && outputs[outputs.length - 1]?.type === 'loading') {
+        outputs.pop()
+      }
+
+      const existingIdx = outputs.findIndex(
+        o => o?.type === 'reasoning_step' && (o as ReasoningStepOutput).id === event.id
+      )
+
+      if (event.type === 'reasoning_step') {
+        if (existingIdx >= 0) {
+          outputs[existingIdx] = event
+        } else {
+          outputs.push(event)
+        }
+      } else {
+        // `reasoning_step_update` — shallow merge patches.
+        if (existingIdx < 0) {
+          console.warn('[FlowBot] reasoning_step_update for unknown id', event.id)
+          return prevState
+        }
+        const existing = outputs[existingIdx] as ReasoningStepOutput
+        const merged: ReasoningStepOutput = { ...existing }
+        ;(Object.keys(event) as Array<keyof typeof event>).forEach(key => {
+          if (key === 'type' || key === 'id') return
+          const patchValue = (event as Record<string, unknown>)[key as string]
+          if (patchValue !== undefined && patchValue !== null) {
+            ;(merged as Record<string, unknown>)[key as string] = patchValue
+          }
+        })
+        outputs[existingIdx] = merged
+      }
+
+      newConversation[lastAgentIdx] = { ...turn, outputs }
+      const newState = { ...prevState, conversation: newConversation }
+      saveState(newState)
+      return newState
+    })
+  }, [])
+
+  /**
+   * Accumulate an incoming assistant token delta into a single, in-place
+   * `AnswerOutput` bubble at the tail of the current agent turn.
+   *
+   * We tag the sentinel bubble with a private `__streaming` flag and the
+   * originating `run_id` so a subsequent canonical `answer` event can locate
+   * and replace it cleanly, even when reasoning steps were appended in
+   * between token arrivals. Older backends that never emit `text_delta`
+   * still work the same — they go straight to the canonical `answer` path.
+   */
+  const applyTextDelta = useCallback((event: TextDeltaOutput) => {
+    if (!event.delta) return
+
+    setState(prevState => {
+      const newConversation: ConversationTurn[] = JSON.parse(JSON.stringify(prevState.conversation))
+
+      let lastAgentIdx = newConversation.length - 1
+      if (lastAgentIdx < 0 || newConversation[lastAgentIdx].side !== 'agent') {
+        newConversation.push({ side: 'agent', outputs: [] })
+        lastAgentIdx = newConversation.length - 1
+      }
+
+      const turn = newConversation[lastAgentIdx]
+      if (turn.side !== 'agent') {
+        return prevState
+      }
+
+      const outputs = [...(turn.outputs || [])]
+
+      if (outputs.length > 0 && outputs[outputs.length - 1]?.type === 'loading') {
+        outputs.pop()
+      }
+
+      const runId = event.run_id ?? null
+
+      // Look for an existing streaming bubble at the tail. We only replace
+      // the *trailing* one to preserve ordering with any reasoning steps
+      // that arrived between tokens.
+      const tailIdx = outputs.length - 1
+      const tail = tailIdx >= 0 ? outputs[tailIdx] : null
+      const tailIsStreaming =
+        tail?.type === 'answer' &&
+        (tail as AnswerOutput & { __streaming?: boolean; __runId?: string | null }).__streaming === true &&
+        (runId === null || (tail as AnswerOutput & { __runId?: string | null }).__runId === runId)
+
+      if (tailIsStreaming) {
+        const existing = tail as AnswerOutput & {
+          __streaming?: boolean
+          __runId?: string | null
+        }
+        const existingText = existing.displayData?.[0]?.type === 'textBlock' ? existing.displayData[0].text : ''
+        const nextText = existingText + event.delta
+        const nextBubble: AnswerOutput & { __streaming?: boolean; __runId?: string | null } = {
+          type: 'answer',
+          displayData: [{ type: 'textBlock', text: nextText }],
+          nextStepProposals: [],
+          __streaming: true,
+          __runId: runId
+        }
+        outputs[tailIdx] = nextBubble
+      } else {
+        const nextBubble: AnswerOutput & { __streaming?: boolean; __runId?: string | null } = {
+          type: 'answer',
+          displayData: [{ type: 'textBlock', text: event.delta }],
+          nextStepProposals: [],
+          __streaming: true,
+          __runId: runId
+        }
+        outputs.push(nextBubble)
+      }
+
+      newConversation[lastAgentIdx] = { ...turn, outputs }
+      const newState = { ...prevState, conversation: newConversation }
+      saveState(newState)
+      return newState
+    })
+  }, [])
+
+  /**
+   * Replace any trailing `__streaming` sentinel with the canonical, fully
+   * structured `AnswerOutput` once the backend sends it. If no streaming
+   * sentinel exists (old backend, or the turn didn't stream tokens), just
+   * append the answer the normal way.
+   */
+  const commitFinalAnswer = useCallback((answer: AnswerOutput) => {
+    currentAgentOutputsRef.current.push(answer)
+
+    setState(prevState => {
+      const newConversation: ConversationTurn[] = JSON.parse(JSON.stringify(prevState.conversation))
+      const lastAgentIdx = newConversation.length - 1
+      if (lastAgentIdx < 0 || newConversation[lastAgentIdx].side !== 'agent') {
+        newConversation.push({ side: 'agent', outputs: [answer] })
+        const s = { ...prevState, conversation: newConversation }
+        saveState(s)
+        return s
+      }
+
+      const turn = newConversation[lastAgentIdx]
+      if (turn.side !== 'agent') return prevState
+
+      const outputs = [...(turn.outputs || [])]
+      if (outputs.length > 0 && outputs[outputs.length - 1]?.type === 'loading') {
+        outputs.pop()
+      }
+
+      const tailIdx = outputs.length - 1
+      const tail = tailIdx >= 0 ? outputs[tailIdx] : null
+      const tailIsStreaming =
+        tail?.type === 'answer' && (tail as AnswerOutput & { __streaming?: boolean }).__streaming === true
+
+      if (tailIsStreaming) {
+        outputs[tailIdx] = answer
+      } else {
+        outputs.push(answer)
+      }
+
+      newConversation[lastAgentIdx] = { ...turn, outputs }
       const newState = { ...prevState, conversation: newConversation }
       saveState(newState)
       return newState
@@ -1199,9 +1440,25 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
                 pruneEphemeralOutputsFromLastAgentTurn()
               }
               if (!isHiddenDocumentStreamOutput) {
-                appendOutputItemToLastAgentTurn(newOutput)
-                if (newOutput.type !== 'tool') {
+                // New Cursor-style streaming events go through dedicated
+                // merge/accumulate paths so they update existing UI in
+                // place instead of each delta creating a new row.
+                if (newOutput.type === 'reasoning_step' || newOutput.type === 'reasoning_step_update') {
+                  applyReasoningStepEvent(newOutput)
+                } else if (newOutput.type === 'text_delta') {
+                  applyTextDelta(newOutput)
+                } else if (newOutput.type === 'answer') {
+                  // Final canonical answer — replace the streaming bubble
+                  // if one is present; otherwise just append normally.
+                  commitFinalAnswer(newOutput)
+                  // Drop only the legacy ephemeral `tool` chips; reasoning
+                  // steps and the new answer both remain visible.
                   pruneEphemeralOutputsFromLastAgentTurn()
+                } else {
+                  appendOutputItemToLastAgentTurn(newOutput)
+                  if (newOutput.type !== 'tool') {
+                    pruneEphemeralOutputsFromLastAgentTurn()
+                  }
                 }
               }
             } catch (err) {
@@ -1285,6 +1542,9 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       sessionIdRef,
       appendOutputItemToLastAgentTurn,
       pruneEphemeralOutputsFromLastAgentTurn,
+      applyReasoningStepEvent,
+      applyTextDelta,
+      commitFinalAnswer,
       updateSessionId,
       buildCurrentPageContextPayload,
       pageSkillsEnabled,

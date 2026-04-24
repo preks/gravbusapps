@@ -1,0 +1,165 @@
+import {
+  REASONING_KIND_LABEL,
+  REASONING_STATUS_STYLE,
+  extractCodeHint,
+  formatReasoningDuration,
+  prettifyJson
+} from '../reasoningStepUtils'
+
+describe('REASONING_KIND_LABEL', () => {
+  it('exposes a short label for every reasoning step kind', () => {
+    // If a new kind is added on the backend, this test forces us to also
+    // add its label so the UI doesn't silently render an empty header.
+    const expectedKinds = [
+      'tool_call',
+      'handoff',
+      'graphql_generate',
+      'graphql_execute',
+      'internal_search',
+      'rag_lookup',
+      'thought'
+    ] as const
+
+    expectedKinds.forEach(kind => {
+      expect(REASONING_KIND_LABEL[kind]).toBeTruthy()
+    })
+  })
+
+  it('groups GraphQL generate/execute under the same human label', () => {
+    expect(REASONING_KIND_LABEL.graphql_generate).toBe(REASONING_KIND_LABEL.graphql_execute)
+  })
+})
+
+describe('REASONING_STATUS_STYLE', () => {
+  it('returns a distinct class for each status', () => {
+    const classes = new Set([REASONING_STATUS_STYLE.running, REASONING_STATUS_STYLE.done, REASONING_STATUS_STYLE.error])
+    expect(classes.size).toBe(3)
+  })
+})
+
+describe('formatReasoningDuration', () => {
+  it('returns null when timestamps are missing', () => {
+    expect(formatReasoningDuration()).toBeNull()
+    expect(formatReasoningDuration(1, undefined)).toBeNull()
+    expect(formatReasoningDuration(undefined, 1)).toBeNull()
+    expect(formatReasoningDuration(null, null)).toBeNull()
+  })
+
+  it('formats sub-second deltas in milliseconds', () => {
+    expect(formatReasoningDuration(1000, 1000.25)).toBe('250 ms')
+    expect(formatReasoningDuration(0, 0.001)).toBe('1 ms')
+  })
+
+  it('formats short steps with one decimal of seconds', () => {
+    expect(formatReasoningDuration(0, 1.234)).toBe('1.2 s')
+    expect(formatReasoningDuration(0, 9.94)).toBe('9.9 s')
+  })
+
+  it('formats long steps as integer seconds', () => {
+    expect(formatReasoningDuration(0, 12.7)).toBe('13 s')
+    expect(formatReasoningDuration(100, 130.4)).toBe('30 s')
+  })
+
+  it('clamps negative deltas to zero rather than negative-time', () => {
+    expect(formatReasoningDuration(10, 5)).toBe('0 ms')
+  })
+})
+
+describe('prettifyJson', () => {
+  it('returns empty string for null/undefined', () => {
+    expect(prettifyJson(undefined)).toBe('')
+    expect(prettifyJson(null)).toBe('')
+  })
+
+  it('returns string values verbatim (no extra quoting)', () => {
+    expect(prettifyJson('query { ok }')).toBe('query { ok }')
+  })
+
+  it('pretty-prints objects with two-space indentation', () => {
+    const text = prettifyJson({ a: 1, b: { c: 2 } })
+    expect(text).toContain('"a": 1')
+    expect(text).toContain('"b":')
+    expect(text.split('\n').length).toBeGreaterThan(1)
+  })
+
+  it('falls back to String() for circular structures', () => {
+    const circular: Record<string, unknown> = {}
+    circular.self = circular
+    const out = prettifyJson(circular)
+    expect(typeof out).toBe('string')
+    expect(out.length).toBeGreaterThan(0)
+  })
+})
+
+describe('extractCodeHint', () => {
+  it('returns null when payload is not an object', () => {
+    expect(extractCodeHint('graphql_execute', null)).toBeNull()
+    expect(extractCodeHint('graphql_execute', 'plain string')).toBeNull()
+    expect(extractCodeHint('graphql_execute', 42)).toBeNull()
+  })
+
+  it('returns null when no recognised key is present', () => {
+    expect(extractCodeHint('graphql_execute', { foo: 'bar' })).toBeNull()
+  })
+
+  it('extracts GraphQL queries for graphql_* and tool_call kinds', () => {
+    const payload = { query: 'query { ok }', other: 1 }
+    expect(extractCodeHint('graphql_execute', payload)).toEqual({
+      language: 'graphql',
+      code: 'query { ok }'
+    })
+    expect(extractCodeHint('graphql_generate', payload)).toEqual({
+      language: 'graphql',
+      code: 'query { ok }'
+    })
+    expect(extractCodeHint('tool_call', payload)).toEqual({
+      language: 'graphql',
+      code: 'query { ok }'
+    })
+  })
+
+  it('prefers `query` over fallback aliases when both are present', () => {
+    const payload = {
+      query: 'query primary',
+      final_query: 'query fallback',
+      draft_query: 'query draft'
+    }
+    expect(extractCodeHint('graphql_execute', payload)).toEqual({
+      language: 'graphql',
+      code: 'query primary'
+    })
+  })
+
+  it('falls back to `final_query` then `draft_query` then `graphql`', () => {
+    expect(extractCodeHint('graphql_execute', { final_query: 'x' })).toEqual({
+      language: 'graphql',
+      code: 'x'
+    })
+    expect(extractCodeHint('graphql_execute', { draft_query: 'y' })).toEqual({
+      language: 'graphql',
+      code: 'y'
+    })
+    expect(extractCodeHint('graphql_execute', { graphql: 'z' })).toEqual({
+      language: 'graphql',
+      code: 'z'
+    })
+  })
+
+  it('skips empty / whitespace-only candidate values', () => {
+    expect(extractCodeHint('graphql_execute', { query: '   ', final_query: 'real query' })).toEqual({
+      language: 'graphql',
+      code: 'real query'
+    })
+  })
+
+  it('uses the json language hint for non-graphql, non-tool kinds', () => {
+    expect(extractCodeHint('rag_lookup', { query: 'find me employees' })).toEqual({
+      language: 'json',
+      code: 'find me employees'
+    })
+    expect(extractCodeHint('internal_search', { query: 'daniel' })).toEqual({
+      language: 'json',
+      code: 'daniel'
+    })
+  })
+})
