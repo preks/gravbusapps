@@ -58,7 +58,8 @@ export function createExpenseRequestColumns(currencyFilter: string | null): Colu
     createEmployeeColumn<ExpenseRequest>(
       'employee',
       getExpenseRequestColumnHeader('employee'),
-      (row: ExpenseRequest) => row.employee ?? null
+      (row: ExpenseRequest) => row.employee ?? null,
+      { showEmployeeAvatar: false }
     ),
     createDateColumn<ExpenseRequest>('requestDate', getExpenseRequestColumnHeader('requestDate'), 'requestDate', {
       formatDate

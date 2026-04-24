@@ -4,7 +4,6 @@
 export {
   useGetInvestmentReports,
   useGetInvestmentReportById,
-  useGetInvestmentReportsByInvestmentId,
   useSearchInvestmentReports,
   type BaseInvestmentReport,
   type InvestmentReport,

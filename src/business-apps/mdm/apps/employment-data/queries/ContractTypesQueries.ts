@@ -2,10 +2,7 @@ import { CatalogManagerClient } from '@/common/network/catalogs/CatalogManagerCl
 import { useCallback } from 'react'
 import { ContractType } from '../components/tabs'
 import { isContractTypeMarkedDeleted } from '../utils/catalogEntryMetadata'
-import {
-  CONTRACT_TYPE_CATALOG,
-  CONTRACT_TYPE_VERSION
-} from '@/business-apps/hr/core/forms/job-position/hooks/useContractTypes'
+import { CONTRACT_TYPE_CATALOG, CONTRACT_TYPE_VERSION } from '@/business-apps/mdm/apps/employment-data/types'
 
 export const useGetContractTypesData = (catalogClient: CatalogManagerClient, userLocale: string) => {
   const fetchContractTypes = useCallback(async () => {

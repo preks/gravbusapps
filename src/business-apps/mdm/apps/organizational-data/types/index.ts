@@ -207,6 +207,7 @@ export interface SiteLocationData {
   locality?: string
   region_ref?: string
   country_ref?: string
+  geo_zone?: string
   code?: string
   employees: Employee[]
   costCenters: SiteLocationCostCenter[]
@@ -232,6 +233,7 @@ export interface SiteLocation {
   locality?: string
   region?: string
   country?: string
+  geoZone?: string
   // Computed fields
   employeeCount: number
   costCenterCount: number

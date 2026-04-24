@@ -1,49 +1,41 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
-  Button,
+  Alert,
+  AlertDescription,
+  AlertTitle,
   Badge,
+  Button,
   Card,
   CardContent,
-  Input,
   DataTable,
-  Alert,
-  AlertTitle,
-  AlertDescription,
+  Input,
   Spinner
 } from '@newwork/nw-design-system'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useJobProfiles } from '../../hooks/useJobProfiles'
-import { JobProfile } from '../../types'
-import CardTabHeaderComponent from '../../../generic-components/card'
-import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
+import { CardTabHeaderComponent } from '@/business-apps/mdm/apps/generic-components/card'
+import JobProfileForm from '@/business-apps/mdm/forms/job-profile-form/JobProfileForm'
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useJobProfiles } from '../../hooks/useJobProfiles'
+import { JobProfile } from '../../utils/JobProfile.types'
 import {
-  EyeIcon,
-  XCircleIcon,
-  ArrowsDownUpIcon,
+  SortableHeader,
+  ActionsColumnHeader,
+  BadgeCell,
+  TextCell,
+  DescriptionCell,
+  ActionsCell
+} from '@/business-apps/mdm/utils/tableUtils'
+import { ErrorBoundary } from '@/business-apps/core/every/apps/every-box/components/ErrorBoundary'
+import {
   FileCodeIcon,
   InfoIcon,
-  PlusIcon,
   PencilSimpleLineIcon,
-  UsersIcon,
-  GitBranchIcon,
-  TreeStructureIcon,
-  UserIcon,
-  AddressBookTabsIcon,
-  ReadCvLogoIcon
+  PlusIcon,
+  ReadCvLogoIcon,
+  XCircleIcon
 } from '@phosphor-icons/react'
-import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
-import JobProfileForm from '@/business-apps/mdm/forms/job-profile-form'
-import { useJobLevels } from '../../hooks'
-import { useGetEmploymentTypesData } from '../../../employment-data/queries/EmploymentTypesQueries'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { useUserLocale } from '@/common/locale/useUserLocale'
-import { ContractType, EmploymentType } from '../../../employment-data'
-import { useGetContractTypesData } from '../../../employment-data/queries/ContractTypesQueries'
-import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 
 export interface JobProfilesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -51,337 +43,122 @@ export interface JobProfilesTabProps extends BusinessAppContextProps {
 
 const DATA_TEST_ID_PREFIX = 'JobProfilesTab'
 
-const JobProfilesTab: React.FC<JobProfilesTabProps> = context => {
-  const { t } = useTranslation()
+export default function JobProfilesTab(context: Readonly<JobProfilesTabProps>) {
+  // ─── Component State ────────────────────────────────────────────────────────
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedProfile, setSelectedProfile] = useState<JobProfile | null>(null)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState<string | null>(null)
+
+  // ─── Context & Configuration ───────────────────────────────────────────────
   const { prefixDataTestId, accessToken } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const catalogClient = useCatalogManagerClient(accessToken)
-  const userLocale = useUserLocale() ?? 'en-US'
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
-  const [allTypesLoading, setAllTypesLoading] = useState(false)
-  const [employmentTypes, setEmploymentTypes] = useState<EmploymentType[]>([])
-  const [contractTypes, setContractTypes] = useState<ContractType[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
-  const [isDrawerVisible, setIsDrawerVisible] = useState(false)
-  const [selectedProfile, setSelectedProfile] = useState<JobProfile | null>(null)
-  const [sorting, setSorting] = useState<SortingState>([])
+  // ─── Data & Actions Hook ───────────────────────────────────────────────────
+  const {
+    jobProfiles,
+    isLoading,
+    error,
+    refetch,
+    searchJobProfiles,
+    removeJobProfile,
+    jobFunctions,
+    jobLevels,
+    referenceDataLoading
+  } = useJobProfiles(context)
 
-  const { fetchEmploymentTypes } = useGetEmploymentTypesData(catalogClient, userLocale)
+  // ─── Computed Values & Effects ─────────────────────────────────────────────
+  const usedCodes = useMemo(() => jobProfiles.map(p => p.code), [jobProfiles])
 
-  const { fetchContractTypes } = useGetContractTypesData(catalogClient, userLocale)
+  const filteredProfiles = useMemo(
+    () => (searchTerm ? searchJobProfiles(searchTerm) : jobProfiles),
+    [searchTerm, searchJobProfiles, jobProfiles]
+  )
 
-  const { jobProfiles, jobFunctions, isLoading, error, refetch, searchJobProfiles } = useJobProfiles(context)
-
-  const { jobLevelGroups, isLoading: jobLevelLoading, error: jobLevelError } = useJobLevels(context)
-
+  // Update selected profile when data changes
   useEffect(() => {
     if (selectedProfile) {
-      const newProfile = jobProfiles.find(profile => profile.id === selectedProfile.id)
-
-      if (newProfile) {
-        setSelectedProfile(newProfile)
-      }
+      const updated = jobProfiles.find(p => p.id === selectedProfile.id)
+      if (updated) setSelectedProfile(updated)
     }
   }, [jobProfiles])
 
-  const selectedJobLevelGroup = useMemo(() => {
-    const targetFunction = jobFunctions.find(jobFunction => jobFunction.id === selectedProfile?.jobFunctionId)
-    const targetJobLevelGroup = jobLevelGroups.find(
-      jobLevelGroup => jobLevelGroup.id === targetFunction?.jobLevelGroupRef
-    )
-
-    return targetJobLevelGroup
-  }, [jobLevelGroups, selectedProfile, jobFunctions])
-
-  const loadAllTypes = async () => {
-    try {
-      setAllTypesLoading(true)
-
-      const [employmentTypes, contractTypes] = await Promise.all([fetchEmploymentTypes(), fetchContractTypes()])
-
-      if (employmentTypes) {
-        setEmploymentTypes(employmentTypes)
-      }
-
-      if (contractTypes) {
-        setContractTypes(contractTypes)
-      }
-    } catch {
-      console.error('Failed to load employment types')
-    } finally {
-      setAllTypesLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadAllTypes()
-  }, [userLocale])
-
-  const filteredProfiles = searchTerm ? searchJobProfiles(searchTerm) : jobProfiles
-
-  const handleView = (record: JobProfile) => {
-    setSelectedProfile(record)
-    setIsDrawerVisible(true)
-  }
-
-  const handleDelete = async (item: JobProfile) => {
-    await restClient.post(
-      '/employee/saveJobProfile',
-      {
-        changeMode: 'DELETE',
-        jobProfile: {
-          id: item.id,
-          version: item.version ?? 0
-        }
-      },
-      {
-        headers: { Authorization: `Bearer ${context.accessToken}` }
-      }
-    )
-
-    await refetch()
-  }
-
-  const getStatusColor = (recordState?: string) => {
-    switch (recordState) {
-      case 'active':
-        return 'success'
-      case 'inactive':
-        return 'destructive'
-      case 'draft':
-        return 'warning'
-      default:
-        return 'offline'
-    }
-  }
-
-  const dataTable = useMemo(
-    () =>
-      filteredProfiles.map(jobProfile => ({
-        ...jobProfile
-      })),
-    [filteredProfiles]
+  // ─── Event Handlers ────────────────────────────────────────────────────────
+  const handleDelete = useCallback(
+    async (profile: JobProfile) => {
+      await removeJobProfile({ id: profile.id, version: profile.version })
+    },
+    [removeJobProfile]
   )
 
-  const renderJobProfilesTable = () => {
-    const columns: ColumnDef<JobProfile>[] = [
-      {
-        accessorKey: 'code',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Code
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
-        enableSorting: true,
-        cell: ({ getValue }) => {
-          const code = getValue()
-          return (
-            <div className="gba:flex gba:items-center">
-              <Badge variant="info">{(code as string) ?? 'N/A'}</Badge>
-            </div>
-          )
-        }
-      },
-      {
-        accessorKey: 'name',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Name
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
-        enableSorting: true,
-        cell: ({ getValue }) => {
-          const name = getValue()
-          return (
-            <div className="gba:flex gba:items-center">
-              <div className="gba:font-semibold">{name as string}</div>
-            </div>
-          )
-        }
-      },
-      {
-        accessorKey: 'jobFunction',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Job Function
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
-        enableSorting: true,
-        cell: ({ row }) => {
-          const jobFunction = row.original.jobFunction?.name
-          return jobFunction ?? 'Not assigned'
-        }
-      },
-      {
-        accessorKey: 'jobLevel',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Job Level
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
-        enableSorting: true,
-        cell: ({ row }) => {
-          const jobLevel = row.original.jobLevel?.name
-          return jobLevel ?? 'Not assigned'
-        }
-      },
-      {
-        accessorKey: 'contractType',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Contract Type
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
-        enableSorting: true,
-        cell: ({ row }) => {
-          const contractType = row.original.contractType?.value
-          return contractType ?? 'Not assigned'
-        }
-      },
-      {
-        accessorKey: 'employmentType',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Employment Type
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
-        enableSorting: true,
-        cell: ({ row }) => {
-          const employmentType = row.original.employmentType?.value
-          return employmentType ?? 'Not assigned'
-        }
-      },
-      {
-        accessorKey: 'recordState',
-        header: 'Status',
-        enableSorting: true,
-        cell: ({ getValue }) => {
-          const recordState = getValue() as string
-          return (
-            <Badge variant={getStatusColor(recordState)}>
-              {recordState ? recordState.charAt(0).toUpperCase() + recordState.slice(1) : 'Unknown'}
-            </Badge>
-          )
-        }
-      },
-      {
-        accessorKey: 'description',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Description
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
-        enableSorting: true,
-        cell: ({ getValue }) => {
-          const description = getValue()
-          return (
-            <div className="gba:flex gba:items-center">
-              <div className="gba:max-w-[200px] gba:truncate" title={description as string}>
-                {(description as string) ?? '-'}
-              </div>
-            </div>
-          )
-        }
-      },
-      {
-        id: 'actions',
-        header: () => <div className="gba:flex gba:w-[115px]">Actions</div>,
-        enableSorting: false,
-        enableHiding: true,
-        cell: ({ row }) => {
-          const targetFunction = jobFunctions.find(jobFunction => jobFunction.id === row.original.jobFunctionId)
-          const targetJobLevelGroup = jobLevelGroups.find(
-            jobLevelGroup => jobLevelGroup.id === targetFunction?.jobLevelGroupRef
-          )
+  const handleView = useCallback((profile: JobProfile) => {
+    setSelectedProfile(profile)
+    setIsDrawerOpen(true)
+  }, [])
 
-          return (
-            <div className="gba:flex gba:items-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleView(row.original)}
-                data-testid={`${dataTestId}-view-function-${row.original.id}`}
-              >
-                <EyeIcon className="gba:h-4 gba:w-4" />
-              </Button>
+  // ─── Table Configuration ───────────────────────────────────────────────────
+  const columns: ColumnDef<JobProfile>[] = [
+    {
+      accessorKey: 'code',
+      header: ({ column }) => SortableHeader({ column, children: 'Code' }),
+      enableSorting: true,
+      cell: ({ getValue }) => BadgeCell({ value: getValue() as string, variant: 'info' })
+    },
+    {
+      accessorKey: 'name',
+      header: ({ column }) => SortableHeader({ column, children: 'Name' }),
+      enableSorting: true,
+      cell: ({ getValue }) => TextCell({ value: getValue() as string, className: 'gba:font-semibold' })
+    },
+    {
+      id: 'jobFunction',
+      accessorKey: 'jobFunction',
+      header: ({ column }) => SortableHeader({ column, children: 'Job Function' }),
+      enableSorting: true,
+      sortingFn: (a, b) => {
+        const nameA = a.original.jobFunction?.name ?? ''
+        const nameB = b.original.jobFunction?.name ?? ''
+        return nameA.localeCompare(nameB)
+      },
+      cell: ({ row }) => BadgeCell({ value: row.original.jobFunction, variant: 'secondary' })
+    },
+    {
+      id: 'jobLevel',
+      accessorKey: 'jobLevel',
+      header: ({ column }) => SortableHeader({ column, children: 'Job Level' }),
+      enableSorting: true,
+      sortingFn: (a, b) => {
+        const nameA = a.original.jobLevel?.name ?? ''
+        const nameB = b.original.jobLevel?.name ?? ''
+        return nameA.localeCompare(nameB)
+      },
+      cell: ({ row }) => BadgeCell({ value: row.original.jobLevel, variant: 'secondary' })
+    },
+    {
+      accessorKey: 'description',
+      header: 'Description',
+      enableSorting: false,
+      cell: ({ getValue }) => DescriptionCell({ value: getValue() as string | undefined })
+    },
+    {
+      id: 'actions',
+      header: () => ActionsColumnHeader(),
+      enableSorting: false,
+      cell: ({ row }) =>
+        ActionsCell({
+          record: row.original,
+          dataTestId,
+          onView: handleView,
+          onEdit: setEditDialogOpen,
+          onDelete: handleDelete,
+          itemNameGetter: record => record.name,
+          itemTitle: 'Job Profile'
+        })
+    }
+  ]
 
-              <JobProfileForm
-                childAddButton={
-                  <Button variant="ghost" size="sm">
-                    <PencilSimpleLineIcon />
-                  </Button>
-                }
-                prefixDataTestId={dataTestId}
-                accessToken={context.accessToken}
-                refetch={refetch}
-                jobProfile={row.original}
-                jobFunctions={jobFunctions}
-                jobLevelGroups={jobLevelGroups}
-                contractTypes={contractTypes}
-                employmentTypes={employmentTypes}
-                defaultJobLevels={targetJobLevelGroup?.jobLevels}
-                jobLevelGroupRef={targetJobLevelGroup?.id}
-              />
-
-              <DeleteButton
-                onDelete={() => handleDelete(row.original)}
-                itemName={row.original.name}
-                itemTitle={'Job Function'}
-              />
-            </div>
-          )
-        }
-      }
-    ]
-
-    return (
-      <DataTable
-        data={dataTable}
-        columns={columns}
-        sorting={sorting}
-        onSortingChange={setSorting}
-        enableSorting
-        enablePagination
-      />
-    )
-  }
-
+  // ─── Drawer Configuration ──────────────────────────────────────────────────
   const drawerItems = useMemo(() => {
     if (!selectedProfile) return []
 
@@ -391,50 +168,37 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = context => {
         title: 'Basic Information',
         verticalTable: true,
         items: [
+          { label: 'Name', value: selectedProfile.name ?? selectedProfile.title },
+          { label: 'Code', value: <Badge variant="info">{selectedProfile.code}</Badge> },
+          { label: 'Description', value: selectedProfile.description ?? '—' },
           {
-            label: 'Name',
-            value: selectedProfile.name
+            label: 'Job Function',
+            value: selectedProfile.jobFunction ? (
+              <Badge variant="outline">
+                {selectedProfile.jobFunction.name} ({selectedProfile.jobFunction.code})
+              </Badge>
+            ) : (
+              '—'
+            )
           },
           {
-            label: 'Code',
-            value: selectedProfile.code ?? '-'
+            label: 'Job Level',
+            value: selectedProfile.jobLevel ? (
+              <Badge variant="outline">
+                {selectedProfile.jobLevel.name} ({selectedProfile.jobLevel.code}) - Level{' '}
+                {selectedProfile.jobLevel.hierarchyOrder}
+              </Badge>
+            ) : (
+              '—'
+            )
           },
           {
             label: 'Status',
             value: (
-              <Badge variant={getStatusColor(selectedProfile.recordState)}>
-                {selectedProfile.recordState
-                  ? selectedProfile.recordState.charAt(0).toUpperCase() + selectedProfile.recordState.slice(1)
-                  : 'Unknown'}
+              <Badge variant={selectedProfile.isActive ? 'success' : 'destructive'}>
+                {selectedProfile.isActive ? 'Active' : 'Inactive'}
               </Badge>
             )
-          },
-          {
-            label: 'Description',
-            value: selectedProfile.description ?? '-'
-          }
-        ]
-      },
-      {
-        icon: <InfoIcon />,
-        title: 'Classifications',
-        verticalTable: true,
-        items: [
-          {
-            label: 'Job Function Name',
-            value: selectedProfile.jobFunction ? selectedProfile.jobFunction.name : '-'
-          },
-          {
-            label: 'Job Level Name',
-            value: selectedProfile.jobLevel ? selectedProfile.jobLevel.name : '-'
-          },
-          {
-            label: 'Contract Type Name',
-            value: selectedProfile.contractType ? selectedProfile.contractType.value : '-'
-          },
-          {
-            label: 'Employment Type Name',
-            value: selectedProfile.employmentType ? selectedProfile.employmentType.value : '-'
           }
         ]
       }
@@ -449,7 +213,11 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = context => {
         verticalTable: true,
         items: profileSkills.map(skillItem => ({
           label: skillItem.skill?.name || 'Unknown Skill',
-          value: skillItem.requiredLevel ? `Level ${skillItem.requiredLevel}` : 'Level not specified'
+          value: skillItem.requiredLevel ? (
+            <Badge variant="outline">Level {skillItem.requiredLevel}</Badge>
+          ) : (
+            <Badge variant="secondary">Level not specified</Badge>
+          )
         }))
       })
     }
@@ -457,78 +225,14 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = context => {
     return items
   }, [selectedProfile])
 
-  const navigationItems = useMemo(() => {
-    if (!selectedProfile) return []
-
-    const items = []
-
-    if (selectedProfile.jobFunctionId) {
-      items.push({
-        redirectLink: `/mdm/job-structure-data/job-functions/${selectedProfile.jobFunctionId}`,
-        color: 'green',
-        icon: TreeStructureIcon,
-        title: selectedProfile.jobFunction?.name || 'Job Function Details',
-        description: 'View complete job function information, structure and related positions'
-      })
-    }
-
-    if (selectedProfile.jobLevelId) {
-      items.push({
-        redirectLink: `/mdm/job-structure-data/job-levels/${selectedProfile.jobLevelId}`,
-        color: 'blue',
-        icon: GitBranchIcon,
-        title: selectedProfile.jobLevel?.name || 'Job Level Details',
-        description: 'View job level information, requirements and progression paths'
-      })
-    }
-
-    if (selectedProfile.contractTypeRef) {
-      items.push({
-        redirectLink: `/mdm/contract-data/contract-types/${selectedProfile.contractTypeRef}`,
-        color: 'orange',
-        icon: AddressBookTabsIcon,
-        title: selectedProfile.contractType?.value || 'Contract Type Details',
-        description: 'View contract type specifications, terms and associated job profiles'
-      })
-    }
-
-    if (selectedProfile.employmentTypeRef) {
-      items.push({
-        redirectLink: `/mdm/employment-data/employment-types/${selectedProfile.employmentTypeRef}`,
-        color: 'cyan',
-        icon: UserIcon,
-        title: selectedProfile.employmentType?.value || 'Employment Type Details',
-        description: 'View employment type requirements, benefits, and regulations'
-      })
-    }
-
-    items.push(
-      {
-        redirectLink: `/mdm/employee-data/employees?jobProfile=${selectedProfile.id}`,
-        color: 'purple',
-        icon: UsersIcon,
-        title: 'Associated Employees',
-        description: 'View employees currently assigned to this job profile'
-      },
-      {
-        redirectLink: `/mdm/job-structure-data/position-history?jobProfile=${selectedProfile.id}`,
-        color: 'gray',
-        icon: ReadCvLogoIcon,
-        title: 'Position History',
-        description: 'View historical data and changes for this job profile'
-      }
-    )
-
-    return items
-  }, [selectedProfile])
-
-  if (error || jobLevelError) {
+  // ─── Loading & Error States ────────────────────────────────────────────────
+  if (error) {
     return (
-      <div className="gba:p-6 gba:text-center">
+      <div data-testid={`${prefixDataTestId}-JobProfilesTab2`} className="gba:p-4">
         <Alert className="gba:w-full gba:!flex gba:justify-between gba:!items-center" variant="destructive">
           <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
             <XCircleIcon className="h-4 w-4" />
-            Error Loading Job Functions
+            Error Loading Data
           </AlertTitle>
           <AlertDescription>
             <Button size="sm" variant="destructive" onClick={() => refetch()}>
@@ -540,105 +244,154 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = context => {
     )
   }
 
-  if (
-    (isLoading || jobLevelLoading || allTypesLoading) &&
-    (jobProfiles.length === 0 ||
-      jobLevelGroups.length === 0 ||
-      employmentTypes.length === 0 ||
-      contractTypes.length === 0)
-  ) {
+  if ((isLoading || referenceDataLoading) && jobProfiles.length === 0) {
     return (
-      <div data-testid={`${dataTestId}-Spinner`} className="gba:flex gba:justify-center gba:items-center gba:h-64">
+      <div data-testid={dataTestId} className="gba:flex gba:justify-center gba:items-center gba:h-64">
         <Spinner />
       </div>
     )
   }
 
+  // ─── Main Render ───────────────────────────────────────────────────────────
   return (
-    <Card data-testid={`${prefixDataTestId || ''}-JobProfilesTab`} className="gba:overflow-hidden">
-      {!isLoading && !jobLevelLoading && !allTypesLoading && (
-        <CardTabHeaderComponent
-          addButton={
-            <JobProfileForm
-              childAddButton={
-                <Button>
-                  <PlusIcon />
-                  Add Job Profile
-                </Button>
-              }
-              prefixDataTestId={dataTestId}
-              accessToken={context.accessToken}
-              refetch={refetch}
-              jobFunctions={jobFunctions}
-              jobLevelGroups={jobLevelGroups}
-              contractTypes={contractTypes}
-              employmentTypes={employmentTypes}
-            />
-          }
-          cardTitle={`${t('hr.job_profiles', 'Job Profiles')} (${jobProfiles.length})`}
-          cardDescription="Manage job profiles and their classifications. Job profiles define the roles, responsibilities, and requirements for different positions"
-        />
-      )}
-
-      <CardContent>
-        <div className="gba:mb-6 gba:relative gba:max-w-sm">
-          <Input
-            placeholder="Search job profiles..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="gba:pl-10"
-            data-testid={`${dataTestId}-search-input`}
+    <ErrorBoundary>
+      <Card className="gba:rounded-lg gba:border gba:bg-card gba:text-card-foreground gba:shadow-sm gba:overflow-hidden">
+        {!isLoading && (
+          <CardTabHeaderComponent
+            addButton={
+              <ErrorBoundary>
+                <JobProfileForm
+                  usedCodes={usedCodes}
+                  childAddButton={
+                    <Button
+                      variant="default"
+                      onClick={e => e.stopPropagation()}
+                      data-testid={`${dataTestId}-add-profile`}
+                    >
+                      <PlusIcon /> Add Job Profile
+                    </Button>
+                  }
+                  prefixDataTestId={dataTestId}
+                  accessToken={accessToken}
+                  refetch={refetch}
+                  jobFunctions={jobFunctions}
+                  jobLevels={jobLevels}
+                />
+              </ErrorBoundary>
+            }
+            cardTitle={`Job Profiles (${jobProfiles.length})`}
+            cardDescription="Manage job profiles and their classifications"
           />
-        </div>
-
-        {(isLoading || jobLevelLoading || allTypesLoading) && jobProfiles.length === 0 ? (
-          <div data-testid={`${dataTestId}`} className="gba:flex gba:justify-center gba:items-center gba:h-64">
-            <Spinner />
-          </div>
-        ) : (
-          renderJobProfilesTable()
         )}
+
+        <CardContent className="gba:relative">
+          <div className="gba:mb-6 gba:relative gba:max-w-sm">
+            <Input
+              placeholder="Search job profiles..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              data-testid={`${dataTestId}-search-input`}
+            />
+          </div>
+
+          {jobProfiles.length === 0 && !isLoading ? (
+            <div className="gba:text-center gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
+              <ReadCvLogoIcon className="gba:h-12 gba:w-12 gba:text-gray-400" />
+              <p className="gba:font-normal gba:text-gray-500">No job profiles found</p>
+              <div className="gba:mt-2">
+                <ErrorBoundary>
+                  <JobProfileForm
+                    usedCodes={usedCodes}
+                    childAddButton={
+                      <Button
+                        variant="default"
+                        onClick={e => e.stopPropagation()}
+                        data-testid={`${prefixDataTestId}-create-first-profile`}
+                      >
+                        <PlusIcon /> Create First Job Profile
+                      </Button>
+                    }
+                    prefixDataTestId={`${prefixDataTestId}`}
+                    accessToken={accessToken}
+                    refetch={refetch}
+                    jobFunctions={jobFunctions}
+                    jobLevels={jobLevels}
+                  />
+                </ErrorBoundary>
+              </div>
+            </div>
+          ) : (
+            <ErrorBoundary>
+              <DataTable
+                data={filteredProfiles}
+                columns={columns}
+                sorting={sorting}
+                onSortingChange={setSorting}
+                enableSorting
+                enablePagination
+              />
+            </ErrorBoundary>
+          )}
+        </CardContent>
 
         {selectedProfile && (
-          <SheetWrapperComponent
-            prefixDataTestId={dataTestId}
-            isDrawerVisible={isDrawerVisible}
-            onOpenChange={openStatus => {
-              if (!openStatus) {
-                setSelectedProfile(null)
-              }
-              setIsDrawerVisible(openStatus)
-            }}
-            title="Job Profile Details"
-            titleIcon={FileCodeIcon}
-            drawerItems={drawerItems}
-            navigationItems={navigationItems}
-            footerButtons={[
-              <JobProfileForm
-                childAddButton={
-                  <Button>
-                    <PencilSimpleLineIcon /> Edit
-                  </Button>
-                }
-                prefixDataTestId={dataTestId}
-                accessToken={context.accessToken}
-                refetch={refetch}
-                jobProfile={selectedProfile}
-                jobFunctions={jobFunctions}
-                jobLevelGroups={jobLevelGroups}
-                contractTypes={contractTypes}
-                employmentTypes={employmentTypes}
-                defaultJobLevels={selectedJobLevelGroup?.jobLevels}
-                jobLevelGroupRef={selectedJobLevelGroup?.id}
-                isDrawerActive={isDrawerVisible}
-                key={selectedProfile.id}
-              />
-            ]}
-          />
+          <ErrorBoundary>
+            <SheetWrapperComponent
+              prefixDataTestId={dataTestId}
+              isDrawerVisible={isDrawerOpen}
+              onOpenChange={openStatus => {
+                if (!openStatus) setSelectedProfile(null)
+                setIsDrawerOpen(openStatus)
+              }}
+              title="Job Profile Details"
+              titleIcon={FileCodeIcon}
+              drawerItems={drawerItems}
+              footerButtons={[
+                <ErrorBoundary key="edit-form">
+                  <JobProfileForm
+                    usedCodes={usedCodes}
+                    childAddButton={
+                      <Button data-testid={`${prefixDataTestId || ''}-JobProfilesTab2-EditButton`}>
+                        <PencilSimpleLineIcon /> Edit
+                      </Button>
+                    }
+                    jobProfile={selectedProfile}
+                    prefixDataTestId={`${prefixDataTestId}`}
+                    accessToken={accessToken}
+                    refetch={refetch}
+                    isDrawerActive={isDrawerOpen}
+                    jobFunctions={jobFunctions}
+                    jobLevels={jobLevels}
+                    key={selectedProfile.id}
+                  />
+                </ErrorBoundary>
+              ]}
+            />
+          </ErrorBoundary>
         )}
-      </CardContent>
-    </Card>
+      </Card>
+
+      {/* Edit dialog rendered outside the DataTable so it is never unmounted by table re-renders */}
+      {editDialogOpen &&
+        (() => {
+          const recordToEdit = jobProfiles.find(l => l.id === editDialogOpen) ?? null
+          if (!recordToEdit) return null
+          return (
+            <ErrorBoundary>
+              <JobProfileForm
+                key={editDialogOpen}
+                jobProfile={recordToEdit}
+                jobFunctions={jobFunctions}
+                jobLevels={jobLevels}
+                prefixDataTestId={dataTestId}
+                accessToken={accessToken}
+                refetch={refetch}
+                open={true}
+                setOpen={open => setEditDialogOpen(open ? editDialogOpen : null)}
+              />
+            </ErrorBoundary>
+          )
+        })()}
+    </ErrorBoundary>
   )
 }
-
-export { JobProfilesTab }

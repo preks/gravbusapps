@@ -46,5 +46,3 @@ const formatCurrency = (amount: number, currencyId: string): string => {
   }
 }
 ```
-
-@src/business-apps/mdm/apps/compensation-data/components/tabs/PayGradesTab.tsx

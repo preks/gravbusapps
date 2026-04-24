@@ -150,13 +150,6 @@ export const useOpenJobPositions = ({
               jobFamily {
                 id
                 code
-                value
-                catalogId
-                translations {
-                  id
-                  value
-                  localeCode
-                }
               }
             }
             jobLevel { 
