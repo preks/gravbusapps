@@ -1,0 +1,24 @@
+# People remote bundle (platform)
+people-title = People
+people-subtitle = Browse employees and departments for the active organizational structure.
+tab-employees = Employees
+tab-departments = Departments
+col-name = Name
+col-email = Email
+col-job-title = Job title
+col-unit-name = Department
+col-manager = Manager
+empty-employees = No employees found for this structure.
+empty-departments = No departments found for this structure.
+action-add-employee = Add employee
+dialog-add-employee-title = Add employee
+action-reset-password = Reset password
+tooltip-reset-password-no-user = No user account is linked to this employee record yet.
+action-edit = Edit
+dialog-edit-employee-title = Edit employee
+dialog-reset-password-title = Reset password
+loading-structure = Loading structure…
+error-no-structure = No active structure is available. Open this screen from a workspace with an active org chart.
+error-load = Failed to load data.
+table-search-employees = Search by name, email, or job title…
+table-search-departments = Search departments by name…

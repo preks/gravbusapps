@@ -30,10 +30,7 @@ import {
 } from '@phosphor-icons/react'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { useGetEmploymentTypesData } from '../../queries/EmploymentTypesQueries'
-import {
-  EMPLOYMENT_TYPE_CATALOG,
-  EMPLOYMENT_TYPE_VERSION
-} from '@/business-apps/hr/core/forms/job-position/hooks/useEmploymentTypes'
+import { EMPLOYMENT_TYPE_CATALOG, EMPLOYMENT_TYPE_VERSION } from '@/business-apps/mdm/apps/employment-data/types'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { mergeCatalogEntryForPut } from '../../utils/catalogEntryMetadata'
 import { CatalogLookupDataTableShell } from '../CatalogLookupDataTableShell'

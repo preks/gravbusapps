@@ -20,6 +20,7 @@ export type SetupEmployee = {
   departmentId: string
   capabilityIds: string[]
   initialPassword?: string | null
+  isManager?: boolean
 }
 
 export type FormData = {

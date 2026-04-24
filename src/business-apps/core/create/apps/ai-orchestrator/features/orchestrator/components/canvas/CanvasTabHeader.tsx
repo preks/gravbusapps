@@ -4,10 +4,11 @@
  */
 
 import React from 'react'
-import { cn } from '@newwork/nw-design-system'
+import { cn, useTranslation } from '@newwork/nw-design-system'
 import { Monitor, Database, Code2, Bot, Workflow, Info, ClipboardList, Layers, Network } from 'lucide-react'
 import type { CanvasTab, CanvasTabInfo } from '../../types/chat'
 import { CANVAS_TABS } from '../../types/chat'
+import translations from '../../../../_i18n'
 
 interface CanvasTabHeaderProps {
   activeTab: CanvasTab
@@ -35,7 +36,9 @@ export const CanvasTabHeader: React.FC<CanvasTabHeaderProps> = ({
   tabs,
   testId = 'canvas-tab-header'
 }) => {
-  const tabsToRender = tabs ?? CANVAS_TABS
+  const { t } = useTranslation(translations)
+  const baseTabs = tabs ?? CANVAS_TABS
+  const tabsToRender = baseTabs.map(tab => (tab.id === 'task-expert' ? { ...tab, label: t('canvas-tab-agent') } : tab))
   return (
     <div
       className="gba:flex gba:items-center gba:gap-1 gba:px-4 gba:py-2 gba:border-b gba:border-border gba:bg-background gba:shrink-0"

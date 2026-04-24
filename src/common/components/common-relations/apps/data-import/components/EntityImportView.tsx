@@ -30,6 +30,7 @@ import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CatalogSelect } from '@/components/catalog-select'
 import { ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
+import type { ImportAnalyzerContext } from '@/common/components/common-relations/apps/data-import/services'
 import {
   useEntityImport,
   useEntityMappings,
@@ -65,6 +66,13 @@ export interface EntityImportViewProps extends BusinessAppContextProps {
    * `IrmEntityImportView` unless you need to inject a custom strategy.
    */
   submissionStrategy: ImportSubmissionStrategy
+  /**
+   * Optional LLM-only context forwarded to Flowbot's `map-from-file`
+   * endpoint when the user clicks "Analyze with AI". Currently used by
+   * IRM to expose dynamic `additionalProperties.*` fields and the
+   * InvestmentGroup `requiredSubtypeKey`. Never surfaced in the UI.
+   */
+  analyzerContext?: ImportAnalyzerContext
   onBack?: () => void
   'data-testid'?: string
 }
@@ -77,6 +85,7 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
   entityTypeSingular,
   enableCampaignSelection = false,
   submissionStrategy,
+  analyzerContext,
   onBack,
   'data-testid': testId = 'entity-import-view',
   ...context
@@ -106,7 +115,7 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
     importToBackend,
     downloadJSON,
     reset
-  } = useEntityImport(context, config, submissionStrategy)
+  } = useEntityImport(context, config, submissionStrategy, analyzerContext)
 
   const {
     mappings,

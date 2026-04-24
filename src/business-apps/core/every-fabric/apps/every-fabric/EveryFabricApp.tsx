@@ -4,6 +4,7 @@ import { SpinnerGapIcon } from '@phosphor-icons/react'
 import { useCallback, useEffect, useState } from 'react'
 import { EveryFabricErrorBoundary } from './components/EveryFabricErrorBoundary'
 import { LandingScreen } from './components/landing/LandingScreen'
+import { ScheduledDispatchesScreen } from './components/scheduled/ScheduledDispatchesScreen'
 import { SettingsScreen } from './components/settings/SettingsScreen'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { useSidebarCollapsedState } from './components/sidebar/useSidebarCollapsedState'
@@ -67,8 +68,18 @@ const EveryFabricInner: React.FC = () => {
 
   const handleOpenSettings = () => updateUrl({ view: 'settings' })
   const handleCloseSettings = () => updateUrl({ view: null })
+  const handleOpenScheduled = () => updateUrl({ view: 'scheduled' })
+  const handleCloseScheduled = () => updateUrl({ view: null })
 
-  const handleSelectSession = (id: string) => selectSession(id)
+  const handleSelectSession = (id: string) => {
+    updateUrl({ view: null })
+    selectSession(id)
+  }
+
+  const handleNewSession = () => {
+    updateUrl({ view: null })
+    newSession()
+  }
 
   const isLoadingSession = Boolean(activeSessionId) && !session
   const sessionNotFound =
@@ -76,6 +87,8 @@ const EveryFabricInner: React.FC = () => {
 
   const isSettingsView = displayView === 'settings'
   const showSettings = urlView === 'settings'
+  const isScheduledView = displayView === 'scheduled'
+  const showScheduled = urlView === 'scheduled'
 
   const renderMain = () => {
     if (isLoadingSession && sessionLoadError) {
@@ -122,7 +135,15 @@ const EveryFabricInner: React.FC = () => {
 
         <div
           className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
-            !showSettings ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+            showScheduled ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+          }`}
+        >
+          {isScheduledView && <ScheduledDispatchesScreen accessToken={accessToken} onBack={handleCloseScheduled} />}
+        </div>
+
+        <div
+          className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
+            !showSettings && !showScheduled ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
           }`}
         >
           {session ? <WorkspaceLayout /> : <LandingScreen accessToken={accessToken} onStartSession={startSession} />}
@@ -142,11 +163,12 @@ const EveryFabricInner: React.FC = () => {
         historySessions={sessions}
         userInfo={userInfo}
         showNewSessionCta={Boolean(session)}
-        onNewSession={newSession}
+        onNewSession={handleNewSession}
         onSelectSession={handleSelectSession}
         onDeleteSession={handleStopSession}
         onStopSession={handleStopSession}
         onOpenSettings={handleOpenSettings}
+        onOpenScheduled={handleOpenScheduled}
       />
       <main className="gba:relative gba:flex-1 gba:min-w-0 gba:h-full">{renderMain()}</main>
     </div>

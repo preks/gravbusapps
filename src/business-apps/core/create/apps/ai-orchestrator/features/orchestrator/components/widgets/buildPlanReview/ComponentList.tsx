@@ -3,11 +3,12 @@
  */
 
 import React from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { Edit2 } from 'lucide-react'
 import type { BuildPlan, ComponentType } from '../../../types'
 import { ComponentItem } from './ComponentItem'
-import { typeIcons, typeLabels, getComponentDescription } from './buildPlanReview.utils'
+import { typeIcons, buildTypeLabels, getComponentDescription } from './buildPlanReview.utils'
+import translations from '../../../../../_i18n'
 
 interface ComponentListProps {
   components: BuildPlan['components']
@@ -26,6 +27,8 @@ export const ComponentList: React.FC<ComponentListProps> = ({
   isLoading = false,
   variant = 'flat'
 }) => {
+  const { t } = useTranslation(translations)
+  const typeLabels = buildTypeLabels(t)
   if (variant === 'flat') {
     return (
       <div className="gba:space-y-2.5">

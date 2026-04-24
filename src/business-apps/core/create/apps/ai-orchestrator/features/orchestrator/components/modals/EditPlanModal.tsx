@@ -20,10 +20,12 @@ import {
   Label,
   Textarea,
   Checkbox,
-  cn
+  cn,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Monitor, Bot, Code2, Workflow, Database, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
 import type { BuildPlan, ComponentSpec, ComponentType } from '../../types'
+import translations from '../../../../_i18n'
 
 export interface EditPlanModalProps {
   plan: BuildPlan
@@ -44,14 +46,15 @@ const typeIcons: Record<ComponentType, LucideIcon> = {
   data_model: Database
 }
 
-// Labels for component types
-const typeLabels: Record<ComponentType, string> = {
+// Labels for component types — only `agent` uses translation key (Enterprise Agent rename).
+// Other labels remain hardcoded as pre-existing pattern.
+const buildTypeLabels = (t: (key: string) => string): Record<ComponentType, string> => ({
   screen: 'Screens',
-  agent: 'Task Experts',
+  agent: t('type-label-agents'),
   function: 'Functions',
   flow: 'Flows',
   data_model: 'Data Models'
-}
+})
 
 interface EditableComponent extends ComponentSpec {
   included: boolean
@@ -70,6 +73,8 @@ export const EditPlanModal: React.FC<EditPlanModalProps> = ({
   error,
   'data-testid': testId = 'edit-plan-modal'
 }) => {
+  const { t } = useTranslation(translations)
+  const typeLabels = useMemo(() => buildTypeLabels(t), [t])
   // Initialize editable components state
   const [components, setComponents] = useState<EditableComponent[]>(() =>
     plan.components.map(comp => ({

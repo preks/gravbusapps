@@ -7,8 +7,8 @@ import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardC
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { ICONS } from '../../../utils/icons'
 import ExpenseItemCard from '../components/ExpenseItemCard/ExpenseItemCard'
-import { createItemsScreenLogObject, formatArrayOfItems, noAllowanceItemsFunction } from '../utils/itemsScreenUtils'
-import { fetchEmployeeExpenseItems, fetchEmployeeExpenseItemsFromPayload } from '../ExpenseRequestWizardQueries'
+import { createItemsScreenLogObject, formatArrayOfItems, getMissingMandatoryFields, noAllowanceItemsFunction } from '../utils/itemsScreenUtils'
+import { fetchEmployeeExpenseItems, fetchEmployeeExpenseItemsFromPayload, fetchEmployeeExpenseItemsNoCurrency } from '../ExpenseRequestWizardQueries'
 import { SearchBarWithLabel } from '../../../forms/expense-request/components'
 import { EVENTS } from '../../../utils/constants'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
@@ -136,16 +136,19 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
 
       const userLocale = getCurrentActiveUserLocale()
       const ruleIdForFilter = typeof employeeRuleId === 'string' && employeeRuleId ? employeeRuleId : null
-      const countVariables = {
+      const baseVariables = {
         employeeId,
         status: REQUEST_STATUS.CREATED,
         activeUserLocale: userLocale,
         idsArray: excludedIdsForApi,
-        itemCurrency: itemCurrency,
         expenseRuleId: ruleIdForFilter
       }
+      const countVariables = itemCurrency
+        ? { ...baseVariables, itemCurrency }
+        : baseVariables
+      const queryToUse = itemCurrency ? fetchEmployeeExpenseItems : fetchEmployeeExpenseItemsNoCurrency
 
-      const countResponse = await graphQLClient.request(fetchEmployeeExpenseItems, {
+      const countResponse = await graphQLClient.request(queryToUse, {
         ...countVariables,
         limit: 1,
         offset: 0,
@@ -182,7 +185,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
           offset: Math.max(0, Number(apiOffset)),
           titleSearch: searchQuery ? `%${searchQuery}%` : '%'
         }
-        const response = await graphQLClient.request(fetchEmployeeExpenseItems, variables)
+        const response = await graphQLClient.request(queryToUse, variables)
         items = response?.ExpenseItemEmployee || []
       }
 
@@ -517,11 +520,18 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     }
   }, [expenseRequestData, employeeRuleId, currentTitle, currentCurrency, expenseItems])
 
-  const { showCreateItem } = useExpenseRequestWizardContext()
+  const { showCreateItem, showEditItem } = useExpenseRequestWizardContext()
 
   const handleCreateItem = useCallback(() => {
     showCreateItem()
   }, [showCreateItem])
+
+  const handleEditItem = useCallback(
+    (itemId: string) => {
+      showEditItem(itemId)
+    },
+    [showEditItem]
+  )
 
   useEffect(() => {
     document.addEventListener('expense-items-cancel-selection', handleCancelSelection)
@@ -632,6 +642,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
               <div className="gba:grid gba:grid-cols-1 gba:gap-4" data-testid="selectable-items-list">
                 {selectItemsList.map((item: any) => {
                   const formattedItem = formatArrayOfItems([item])[0]
+                  const missingFields = getMissingMandatoryFields(item)
                   return (
                     <div
                       key={item.id}
@@ -652,6 +663,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
                         amount={formattedItem.amount}
                         currency={formattedItem.currency}
                         attachmentDate={formattedItem.attachmentDate}
+                        missingFields={missingFields.length > 0 ? missingFields : undefined}
+                        onEdit={id => {
+                          handleEditItem(id)
+                        }}
                       />
                     </div>
                   )

@@ -41,6 +41,7 @@ export const baseValidationSchema = z.object({
         jobPosition: z.string().min(1),
         departmentId: z.string().min(1),
         capabilityIds: z.array(z.string()),
+        isManager: z.boolean().optional(),
         initialPassword: z.union([z.string(), z.null()]).optional()
       })
     )
@@ -80,7 +81,10 @@ export const useValidationSchema = () => {
           })
         }
 
-        if (data.userPlacementMode === 'existing_department' && (!data.selectedDepartmentId || data.selectedDepartmentId === '')) {
+        if (
+          data.userPlacementMode === 'existing_department' &&
+          (!data.selectedDepartmentId || data.selectedDepartmentId === '')
+        ) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: t('validation-department-selection-required'),
@@ -88,7 +92,25 @@ export const useValidationSchema = () => {
           })
         }
 
-        if (data.userPlacementMode === 'ceo' || data.userPlacementMode === 'existing_department') {
+        if (data.userPlacementMode === 'ceo') {
+          if (!data.firstName?.trim()) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t('validation-first-name-required'),
+              path: ['firstName']
+            })
+          }
+
+          if (!data.lastName?.trim()) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t('validation-last-name-required'),
+              path: ['lastName']
+            })
+          }
+        }
+
+        if (data.userPlacementMode === 'existing_department') {
           if (!data.firstName?.trim()) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
@@ -112,6 +134,21 @@ export const useValidationSchema = () => {
               path: ['jobPosition']
             })
           }
+        }
+
+        const employees = data.additionalEmployees ?? []
+        const managerCountByDept = new Map<string, number>()
+        for (const employee of employees) {
+          if (employee.isManager && employee.departmentId) {
+            managerCountByDept.set(employee.departmentId, (managerCountByDept.get(employee.departmentId) ?? 0) + 1)
+          }
+        }
+        if ([...managerCountByDept.values()].some(count => count > 1)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: t('validation-additional-managers-duplicate'),
+            path: ['additionalEmployees']
+          })
         }
       })
   }, [t])

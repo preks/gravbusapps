@@ -124,7 +124,7 @@ report-expense-plan = Expense Plans
 report-expense-plan-desc = Budget plans and allocations
 report-expense-request = Expense Requests
 report-expense-request-desc = Submitted expense requests and approvals
-report-advance-payment = Advance Payment Report
+report-advance-payment = Advance Payment
 report-advance-payment-desc = Cash advances and prepayments
 
 # Report Actions & Labels

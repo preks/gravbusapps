@@ -21,6 +21,8 @@ export interface SetupEmployee {
   jobPosition: string
   departmentId: string
   capabilityIds: string[]
+  /** When true, platform assigns OU role Manager for this employee's department. */
+  isManager?: boolean
   /** Optional; server applies via User Management after user creation. */
   initialPassword?: string | null
 }
@@ -40,8 +42,9 @@ export interface FormData {
   jobPosition: string
   userPlacementMode: UserPlacementMode | null
   selectedDepartmentId: string | null
-  selectedDepartmentName: string | null
-  customDepartmentName: string | null
+  /** Mirrors Zod `z.string().nullable().optional()` for resolver compatibility. */
+  selectedDepartmentName?: string | null | undefined
+  customDepartmentName?: string | null | undefined
 
   // Department Information
   departments: Department[]

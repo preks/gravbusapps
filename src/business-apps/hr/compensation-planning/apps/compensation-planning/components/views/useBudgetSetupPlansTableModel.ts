@@ -146,7 +146,15 @@ export function useBudgetSetupPlansTableModel(
     [debouncedSearch, selectedCompanyBudgetStatuses, salaryAmountRange, salaryPercentRange, allocationAmountRange]
   )
 
-  const emptyMessage = hasActiveFilters ? t('budget-setup-table-empty-filtered') : t('budget-setup-table-empty')
+  const emptyMessage = useMemo(() => {
+    if (selectedCompensationPlanId == null) {
+      return t('budget-setup-table-select-cycle-first')
+    }
+    if (hasActiveFilters) {
+      return t('budget-setup-table-empty-filtered')
+    }
+    return t('budget-setup-table-empty')
+  }, [hasActiveFilters, selectedCompensationPlanId, t])
 
   const filtersObject = useMemo(() => {
     const obj: Record<string, unknown> = {}

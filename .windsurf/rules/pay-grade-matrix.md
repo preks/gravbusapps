@@ -58,5 +58,3 @@ When creating pay grade matrix visualizations for compensation data:
 3. **Salary Range** (200px fixed width)
 
 This ensures proper alignment between Y-axis labels and grid cells.
-
-@src/business-apps/mdm/apps/compensation-data/components/tabs/PayGradesTab.tsx

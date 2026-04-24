@@ -21,6 +21,13 @@ export interface InvestmentImportGroupDescriptor {
   tabId: string
   /** Full entity type used as `DataImportLayout` view key (e.g. 'real-estate-investment'). */
   entityType: string
+  /**
+   * The Java entity subtype key from `objectValue.requiredSubtypeKey` in the
+   * catalog (e.g. `'liquidFundInvestment'`, `'equityInvestment'`). Used as
+   * the payload key for `createInvestments`. When absent, falls back to
+   * the code-derived key.
+   */
+  requiredSubtypeKey?: string
 }
 
 /**

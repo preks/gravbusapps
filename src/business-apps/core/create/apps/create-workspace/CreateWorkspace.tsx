@@ -13,9 +13,10 @@ import {
   Cable,
   GitBranch
 } from 'lucide-react'
-import { Button, cn } from '@newwork/nw-design-system'
+import { Button, cn, useTranslation } from '@newwork/nw-design-system'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import translations from './_i18n'
 import {
   HeroSection,
   ToolCard,
@@ -45,6 +46,7 @@ export interface NewworkCreateProps extends BusinessAppContextProps {
 const AI_ORCHESTRATOR_URL = '/platform/create/ai-builder'
 
 export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': testId = 'create-workspace' }) => {
+  const { t } = useTranslation(translations)
   // Feature flag for AI features
   const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
 
@@ -94,9 +96,8 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
     },
     {
       id: 'task-experts',
-      title: 'AI Task Experts',
-      description:
-        'Create AI-powered task experts that automate repetitive work and assist users with complex operations.',
+      title: t('card-enterprise-agents-title'),
+      description: t('card-enterprise-agents-description'),
       icon: Bot,
       href: buildPlatformUrl('/platform/create/prompt-manager'),
       badge: 'AI-Powered',

@@ -1,4 +1,8 @@
 import { v4 as uuidv4 } from 'uuid'
+import {
+  SETUP_ENTERPRISE_MANAGEMENT_DEPARTMENT_ID,
+  SETUP_ROOT_ORGANIZATIONAL_UNIT_DISPLAY_NAME
+} from '../setupConstants'
 
 export type EnterpriseDepartmentPreset = {
   name: string
@@ -101,9 +105,7 @@ export type EnterprisePresetState = {
   selectedCapabilities: string[]
 }
 
-export const createEnterprisePresetState = (
-  generateId: () => string = uuidv4
-): EnterprisePresetState => {
+export const createEnterprisePresetState = (generateId: () => string = uuidv4): EnterprisePresetState => {
   const departments = enterprisePresetDepartments.map(department => ({
     id: generateId(),
     name: department.name
@@ -133,11 +135,19 @@ export const createEnterprisePresetState = (
     return accumulator
   }, {})
 
+  const enterpriseManagementDepartment = {
+    id: SETUP_ENTERPRISE_MANAGEMENT_DEPARTMENT_ID,
+    name: SETUP_ROOT_ORGANIZATIONAL_UNIT_DISPLAY_NAME
+  }
+
   return {
-    departments,
+    departments: [...departments, enterpriseManagementDepartment],
     capabilities,
-    departmentCapabilities,
-    selectedDepartments: departments.map(department => department.id),
+    departmentCapabilities: {
+      ...departmentCapabilities,
+      [SETUP_ENTERPRISE_MANAGEMENT_DEPARTMENT_ID]: []
+    },
+    selectedDepartments: [...departments.map(department => department.id), SETUP_ENTERPRISE_MANAGEMENT_DEPARTMENT_ID],
     selectedCapabilities: Object.values(departmentCapabilities).flat()
   }
 }

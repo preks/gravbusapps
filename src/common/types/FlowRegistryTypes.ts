@@ -135,6 +135,7 @@ export enum FlowContextName {
   customerDocumentCreate = 'customerDocumentCreate',
   customerDocumentUpdate = 'customerDocumentUpdate',
   customerDocumentDelete = 'customerDocumentDelete',
+  customerFolderUpload = 'customerFolderUpload',
 
   customerTaskEntity = 'customerTaskEntity',
   customerTaskCreate = 'customerTaskCreate',

@@ -30,10 +30,7 @@ import { DeleteButton } from '../../../generic-components/delete-button/DeleteBu
 import ContractTypeForm from '@/business-apps/mdm/forms/contract-type-form/ContractTypeForm'
 import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
 import { useGetContractTypesData } from '../../queries/ContractTypesQueries'
-import {
-  CONTRACT_TYPE_CATALOG,
-  CONTRACT_TYPE_VERSION
-} from '@/business-apps/hr/core/forms/job-position/hooks/useContractTypes'
+import { CONTRACT_TYPE_CATALOG, CONTRACT_TYPE_VERSION } from '@/business-apps/mdm/apps/employment-data/types'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import {
   formatProbationFromJson,

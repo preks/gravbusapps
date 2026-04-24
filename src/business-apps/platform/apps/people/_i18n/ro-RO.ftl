@@ -1,0 +1,24 @@
+# People remote bundle (platform)
+people-title = Persoane
+people-subtitle = Angajați și departamente pentru structura organizațională activă.
+tab-employees = Angajați
+tab-departments = Departamente
+col-name = Nume
+col-email = E-mail
+col-job-title = Titlu post
+col-unit-name = Departament
+col-manager = Manager
+empty-employees = Nu există angajați pentru această structură.
+empty-departments = Nu există departamente pentru această structură.
+action-add-employee = Adaugă angajat
+dialog-add-employee-title = Adaugă angajat
+action-reset-password = Resetează parola
+tooltip-reset-password-no-user = Nu există încă un cont de utilizator legat de acest angajat.
+action-edit = Editează
+dialog-edit-employee-title = Editează angajat
+dialog-reset-password-title = Resetează parola
+loading-structure = Se încarcă structura…
+error-no-structure = Nu există structură activă. Deschide ecranul dintr-un workspace cu organigramă activă.
+error-load = Încărcarea datelor a eșuat.
+table-search-employees = Caută după nume, e-mail sau titlu post…
+table-search-departments = Caută departamente după nume…
