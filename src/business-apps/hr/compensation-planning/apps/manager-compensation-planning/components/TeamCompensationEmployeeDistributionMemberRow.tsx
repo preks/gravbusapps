@@ -14,6 +14,31 @@ import { formatPercentOfPool, formatPerformanceScoreValue, formatShareOfTotal } 
 
 type TranslateBudget = (id: string, args?: Record<string, string | number>) => string
 
+function managerTeamMemberRowGridClass(isCustom: boolean, showPerformanceScoreColumn: boolean): string {
+  if (isCustom) {
+    return 'gba:grid gba:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gba:items-start gba:gap-x-4 gba:gap-y-2 gba:px-4 gba:py-3'
+  }
+  if (showPerformanceScoreColumn) {
+    return `${MANAGER_TEAM_DISTRIBUTION_PERFORMANCE_ROW_GRID_CLASS} gba:px-4 gba:py-3`
+  }
+  return `${BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS} gba:px-4 gba:py-3`
+}
+
+function managerTeamOverallScorePrimary(
+  hasResolvedPerformanceScore: boolean,
+  performanceSumDisplay: string,
+  performanceRatingScaleMax: number | null | undefined,
+  tBudget: TranslateBudget
+): string {
+  if (hasResolvedPerformanceScore && performanceRatingScaleMax != null) {
+    return tBudget('manager-team-distribution-overall-score-out-of', {
+      score: performanceSumDisplay,
+      max: String(performanceRatingScaleMax)
+    })
+  }
+  return performanceSumDisplay
+}
+
 export interface TeamCompensationEmployeeDistributionMemberRowProps {
   member: TeamMemberCompensationData
   isCustom: boolean
@@ -65,19 +90,14 @@ export function TeamCompensationEmployeeDistributionMemberRow({
       : '—'
 
   const showPerformanceScoreColumn = isPerformanceMethod && !isCustom
-  const rowGridClass = isCustom
-    ? 'gba:grid gba:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gba:items-start gba:gap-x-4 gba:gap-y-2 gba:px-4 gba:py-3'
-    : showPerformanceScoreColumn
-      ? `${MANAGER_TEAM_DISTRIBUTION_PERFORMANCE_ROW_GRID_CLASS} gba:px-4 gba:py-3`
-      : `${BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS} gba:px-4 gba:py-3`
+  const rowGridClass = managerTeamMemberRowGridClass(isCustom, showPerformanceScoreColumn)
 
-  const overallScorePrimary =
-    hasResolvedPerformanceScore && member.performanceRatingScaleMax != null
-      ? tBudget('manager-team-distribution-overall-score-out-of', {
-          score: performanceSumDisplay,
-          max: String(member.performanceRatingScaleMax)
-        })
-      : performanceSumDisplay
+  const overallScorePrimary = managerTeamOverallScorePrimary(
+    hasResolvedPerformanceScore,
+    performanceSumDisplay,
+    member.performanceRatingScaleMax,
+    tBudget
+  )
 
   return (
     <li className={rowGridClass} data-testid={`manager-team-distribution-row-${member.employeeId}`}>

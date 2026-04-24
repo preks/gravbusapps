@@ -107,6 +107,58 @@ function jobLevelIdFromPosition(pos: EmployeePositionResult): string | null {
   return pos.jobPosition?.jobLevel?.id?.trim() || null
 }
 
+function compensationBandForPosition(
+  pos: EmployeePositionResult,
+  bandByJobLevelId: Map<string, CompensationBandGraphql | null>
+): CompensationBandGraphql | null {
+  const jlId = jobLevelIdFromPosition(pos)
+  if (jlId == null) {
+    return null
+  }
+  return bandByJobLevelId.get(jlId) ?? null
+}
+
+function buildTeamMemberFromPosition(
+  pos: EmployeePositionResult,
+  bandByJobLevelId: Map<string, CompensationBandGraphql | null>,
+  currentSalaryMap: Map<string, SalaryResult>,
+  lastRaiseMap: Map<string, { date: string; amount: number | null; percent: number | null }>,
+  bonusTotalMap: Map<string, number>
+): TeamMemberCompensationData {
+  const salary = currentSalaryMap.get(pos.employeeId)
+  const lastRaise = lastRaiseMap.get(pos.employeeId)
+  const band = compensationBandForPosition(pos, bandByJobLevelId)
+  const currencyCode = salary?.currency?.code ?? band?.currency?.value ?? 'EUR'
+  const bandData = band ? { minSalary: band.minSalary, maxSalary: band.maxSalary, payGrade: band.payGrade } : null
+  const currentAnnual = salary?.annualGrossSalary ?? null
+
+  return {
+    employeeId: pos.employeeId,
+    employeeCode: pos.employee?.code ?? '',
+    firstName: pos.firstName,
+    lastName: pos.lastName,
+    displayName: pos.employee?.displayName ?? `${pos.firstName} ${pos.lastName}`,
+    pictureThumbnail: pos.employee?.pictureThumbnail ?? undefined,
+    jobPosition: pos.jobPosition?.name ?? null,
+    jobFunction: null,
+    orgUnitName: pos.organizationalUnit?.name ?? null,
+    organizationalUnitId: pos.organizationalUnitId ?? null,
+    hireDate: pos.employee?.workingCondition?.hireDate ?? pos.hireDate,
+    currentAnnualSalary: currentAnnual,
+    currentMonthlySalary: salary?.monthlyGrossSalary ?? null,
+    currentHourlySalary: salary?.hourlyGrossSalary ?? null,
+    currency: currencyCode,
+    compensationBand: bandData,
+    compaRatio: computeCompaRatio(currentAnnual, bandData),
+    lastRaiseDate: lastRaise?.date ?? null,
+    lastRaiseAmount: lastRaise?.amount ?? null,
+    lastRaisePercent: lastRaise?.percent ?? null,
+    fte: pos.employee?.workingHours?.[0]?.fullTimeEquivalent ?? null,
+    weeklyHours: pos.employee?.workingHours?.[0]?.weeklyHours ?? null,
+    currentBonusTotal: bonusTotalMap.get(pos.employeeId) ?? null
+  }
+}
+
 interface UseTeamCompensationDataParams {
   accessToken: string
   companyId?: string | null
@@ -160,7 +212,7 @@ export function useTeamCompensationData({
   const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchData = useCallback(async () => {
-    if (enabled === false) {
+    if (!enabled) {
       setTeamMembers([])
       setLoading(false)
       setError(null)
@@ -268,42 +320,9 @@ export function useTeamCompensationData({
       const lastRaiseMap = buildLastRaiseMap(batchResult.teamSalaryHistory ?? [])
       const bonusTotalMap = buildBonusTotalMap(batchResult.teamBonuses ?? [])
 
-      const members: TeamMemberCompensationData[] = positions.map(pos => {
-        const salary = currentSalaryMap.get(pos.employeeId)
-        const lastRaise = lastRaiseMap.get(pos.employeeId)
-        const jlId = jobLevelIdFromPosition(pos)
-        const band = jlId != null ? (bandByJobLevelId.get(jlId) ?? null) : null
-        const currencyCode = salary?.currency?.code ?? band?.currency?.value ?? 'EUR'
-
-        const bandData = band ? { minSalary: band.minSalary, maxSalary: band.maxSalary, payGrade: band.payGrade } : null
-        const currentAnnual = salary?.annualGrossSalary ?? null
-
-        return {
-          employeeId: pos.employeeId,
-          employeeCode: pos.employee?.code ?? '',
-          firstName: pos.firstName,
-          lastName: pos.lastName,
-          displayName: pos.employee?.displayName ?? `${pos.firstName} ${pos.lastName}`,
-          pictureThumbnail: pos.employee?.pictureThumbnail ?? undefined,
-          jobPosition: pos.jobPosition?.name ?? null,
-          jobFunction: null,
-          orgUnitName: pos.organizationalUnit?.name ?? null,
-          organizationalUnitId: pos.organizationalUnitId ?? null,
-          hireDate: pos.employee?.workingCondition?.hireDate ?? pos.hireDate,
-          currentAnnualSalary: currentAnnual,
-          currentMonthlySalary: salary?.monthlyGrossSalary ?? null,
-          currentHourlySalary: salary?.hourlyGrossSalary ?? null,
-          currency: currencyCode,
-          compensationBand: bandData,
-          compaRatio: computeCompaRatio(currentAnnual, bandData),
-          lastRaiseDate: lastRaise?.date ?? null,
-          lastRaiseAmount: lastRaise?.amount ?? null,
-          lastRaisePercent: lastRaise?.percent ?? null,
-          fte: pos.employee?.workingHours?.[0]?.fullTimeEquivalent ?? null,
-          weeklyHours: pos.employee?.workingHours?.[0]?.weeklyHours ?? null,
-          currentBonusTotal: bonusTotalMap.get(pos.employeeId) ?? null
-        }
-      })
+      const members: TeamMemberCompensationData[] = positions.map(pos =>
+        buildTeamMemberFromPosition(pos, bandByJobLevelId, currentSalaryMap, lastRaiseMap, bonusTotalMap)
+      )
 
       setTeamMembers(members)
     } catch (err) {

@@ -64,7 +64,7 @@ export function SupervisorReviewSendBackDialog({
               Promise.resolve(onConfirm()).catch(() => {})
             }}
             disabled={!canSend}
-            title={!hasNotes ? t('supervisor-review-send-back-notes-required') : undefined}
+            title={hasNotes ? undefined : t('supervisor-review-send-back-notes-required')}
             data-testid="supervisor-review-send-back-confirm"
           >
             {t('supervisor-review-send-back-confirm')}

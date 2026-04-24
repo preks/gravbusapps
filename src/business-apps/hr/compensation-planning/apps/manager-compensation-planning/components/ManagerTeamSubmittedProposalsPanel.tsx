@@ -98,7 +98,7 @@ export function ManagerTeamSubmittedProposalsPanel({
         managerEmployeeId={managerEmployeeId}
         restClient={restClient}
         row={editSentBackRow}
-        teamMember={editSentBackRow != null ? (memberById.get(editSentBackRow.employeeId) ?? null) : null}
+        teamMember={editSentBackRow == null ? null : (memberById.get(editSentBackRow.employeeId) ?? null)}
         currencyCode={currencyCode}
         onSaved={async () => {
           onSentBackRevisionSaved?.()
@@ -132,30 +132,28 @@ export function ManagerTeamSubmittedProposalsPanel({
           </div>
         }
       >
-        <>
-          <TooltipProvider>
-            <DataTable<SupervisorProposalTableRow>
-              data={filteredRows}
-              columns={visibleTableColumns}
-              loading={proposalsLoading}
-              sorting={sorting}
-              onSortingChange={setSorting}
-              pagination={pagination}
-              onPaginationChange={handlePaginationChange}
-              enablePagination
-              enableSorting
-              enableSelection={false}
-              enableColumnPinning={false}
-              enableResizing={false}
-              tableLayout="auto"
-              rowsPerPageOptions={[10, 20, 50, 100]}
-              showPageNumbers
-              maxVisiblePages={7}
-              emptyMessage={emptyMessage}
-              data-testid="manager-team-submitted-proposals-table"
-            />
-          </TooltipProvider>
-        </>
+        <TooltipProvider>
+          <DataTable<SupervisorProposalTableRow>
+            data={filteredRows}
+            columns={visibleTableColumns}
+            loading={proposalsLoading}
+            sorting={sorting}
+            onSortingChange={setSorting}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            enablePagination
+            enableSorting
+            enableSelection={false}
+            enableColumnPinning={false}
+            enableResizing={false}
+            tableLayout="auto"
+            rowsPerPageOptions={[10, 20, 50, 100]}
+            showPageNumbers
+            maxVisiblePages={7}
+            emptyMessage={emptyMessage}
+            data-testid="manager-team-submitted-proposals-table"
+          />
+        </TooltipProvider>
       </DataDisplay>
     </div>
   )

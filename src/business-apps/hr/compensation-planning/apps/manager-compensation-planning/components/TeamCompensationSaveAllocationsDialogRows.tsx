@@ -8,6 +8,24 @@ import { percentPointsOfPool } from './managerTeamDistributionFormat'
 type Translate = (key: string, args?: Record<string, string | number>) => string
 type TranslateBudget = (key: string, args?: Record<string, string | number>) => string
 
+function saveDialogRowSubtext(
+  locked: boolean,
+  amount: number,
+  pct: number | null,
+  currencyCode: string,
+  t: Translate,
+  tBudget: TranslateBudget
+): string {
+  if (locked) {
+    return t('manager-team-save-dialog-row-blocked-line')
+  }
+  const base = `${formatCurrency(roundMoney2(amount), currencyCode)}`
+  if (pct == null) {
+    return base
+  }
+  return `${base} · ${tBudget('budget-distribution-distribute-percent-of-pool', { percent: pct })}`
+}
+
 export interface TeamCompensationSaveAllocationsDialogRowsProps {
   sortedMembers: TeamMemberCompensationData[]
   allocationByEmployeeId: ReadonlyMap<string, number>
@@ -64,13 +82,7 @@ export function TeamCompensationSaveAllocationsDialogRows({
             <div className="gba:min-w-0 gba:flex-1">
               <p className="gba:truncate gba:text-sm gba:font-medium gba:text-foreground">{m.displayName}</p>
               <p className="gba:text-xs gba:text-muted-foreground">
-                {locked
-                  ? t('manager-team-save-dialog-row-blocked-line')
-                  : `${formatCurrency(roundMoney2(amount), currencyCode)}${
-                      pct === null
-                        ? ''
-                        : ` · ${tBudget('budget-distribution-distribute-percent-of-pool', { percent: pct })}`
-                    }`}
+                {saveDialogRowSubtext(locked, amount, pct, currencyCode, t, tBudget)}
               </p>
             </div>
           </li>

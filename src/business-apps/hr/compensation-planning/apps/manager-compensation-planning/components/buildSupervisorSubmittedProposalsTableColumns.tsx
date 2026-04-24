@@ -256,9 +256,9 @@ export function buildSupervisorSubmittedProposalsTableColumns(
   ]
 
   const withManagerActions =
-    managerRowActions != null
-      ? [...dataColumns, buildManagerTeamProposalRowActionsColumn(t, managerRowActions.onEditSentBack)]
-      : dataColumns
+    managerRowActions == null
+      ? dataColumns
+      : [...dataColumns, buildManagerTeamProposalRowActionsColumn(t, managerRowActions.onEditSentBack)]
 
   if (selection == null) {
     return withManagerActions

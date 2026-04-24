@@ -188,7 +188,10 @@ export function TeamCompensationDistributionPanel({
     return [...ids]
   }, [teamMembers, planOuRowIdByOrganizationalUnitId, managerOrganizationalUnitId])
 
-  const orgUnitPlanRowIdsKey = useMemo(() => [...orgUnitPlanRowIds].sort().join(','), [orgUnitPlanRowIds])
+  const orgUnitPlanRowIdsKey = useMemo(
+    () => [...orgUnitPlanRowIds].sort((a, b) => a.localeCompare(b)).join(','),
+    [orgUnitPlanRowIds]
+  )
 
   const {
     rows: orgScopeEmployeeRows,
@@ -316,6 +319,67 @@ export function TeamCompensationDistributionPanel({
     return null
   }, [salaryBudgetError, salaryBudgetLoading, selectedCompanyId, teamBudgetKpiWidgets, tBudget, totalSalaryBudget])
 
+  let teamDistributionMainPanel: React.ReactNode
+  if (awaitingProposalsList) {
+    teamDistributionMainPanel = (
+      <div
+        className="gba:flex gba:min-h-[200px] gba:items-center gba:justify-center"
+        data-testid="manager-team-proposals-initial-load"
+      >
+        <Spinner />
+      </div>
+    )
+  } else if (showProposalsTable) {
+    teamDistributionMainPanel = (
+      <ManagerTeamSubmittedProposalsPanel
+        teamMembers={teamMembers}
+        currencyCode={currencyCode}
+        proposalRows={teamProposalRows}
+        proposalsLoading={proposalsLoading}
+        proposalsError={proposalsError}
+        accessToken={accessToken}
+        managerEmployeeId={managerEmployeeId}
+        onSentBackRevisionSaved={() => {
+          void refetchTeamProposals()
+        }}
+        onNewProposal={() => {
+          setPreferDistributionView(true)
+          onNewProposalUnlock?.()
+        }}
+      />
+    )
+  } else {
+    teamDistributionMainPanel = (
+      <TeamCompensationDistributionSplitPanel
+        distributionMethod={distributionMethod}
+        setDistributionMethod={setDistributionMethod}
+        loading={loading}
+        proposalsLockedAfterSubmit={proposalsLockedAfterSubmit}
+        filteredRows={filteredRows}
+        totalFiltered={totalFiltered}
+        activePool={activePool}
+        allocationByEmployeeId={allocationByEmployeeId}
+        currencyCode={currencyCode}
+        error={error}
+        customBudgetByEmployeeId={customBudgetByEmployeeId}
+        handleCustomAmountRawChange={handleCustomAmountRawChange}
+        handleCustomPercentRawChange={handleCustomPercentRawChange}
+        handleCustomModeChange={handleCustomModeChange}
+        performanceFallbackToEqual={performanceFallbackToEqual}
+        performancePartialScores={performancePartialScores}
+        totalSalaryCostAcrossEmployees={totalSalaryCostAcrossEmployees}
+        grandTotalPositivePerformanceScores={grandTotalPositivePerformanceScores}
+        dataDisplay={dataDisplay}
+        canShowSaveAction={canShowSaveAction}
+        onOpenSubmitProposals={() => setSaveAllocationsDialogOpen(true)}
+        showBackToProposalsTable={preferDistributionView && hasPersistedTeamProposals}
+        onBackToProposalsTable={() => {
+          setPreferDistributionView(false)
+        }}
+      />
+    )
+  }
+
   return (
     <>
       <TeamCompensationSaveAllocationsDialog
@@ -348,59 +412,7 @@ export function TeamCompensationDistributionPanel({
           </p>
         ) : null}
 
-        {awaitingProposalsList ? (
-          <div
-            className="gba:flex gba:min-h-[200px] gba:items-center gba:justify-center"
-            data-testid="manager-team-proposals-initial-load"
-          >
-            <Spinner />
-          </div>
-        ) : showProposalsTable ? (
-          <ManagerTeamSubmittedProposalsPanel
-            teamMembers={teamMembers}
-            currencyCode={currencyCode}
-            proposalRows={teamProposalRows}
-            proposalsLoading={proposalsLoading}
-            proposalsError={proposalsError}
-            accessToken={accessToken}
-            managerEmployeeId={managerEmployeeId}
-            onSentBackRevisionSaved={() => {
-              void refetchTeamProposals()
-            }}
-            onNewProposal={() => {
-              setPreferDistributionView(true)
-              onNewProposalUnlock?.()
-            }}
-          />
-        ) : (
-          <TeamCompensationDistributionSplitPanel
-            distributionMethod={distributionMethod}
-            setDistributionMethod={setDistributionMethod}
-            loading={loading}
-            proposalsLockedAfterSubmit={proposalsLockedAfterSubmit}
-            filteredRows={filteredRows}
-            totalFiltered={totalFiltered}
-            activePool={activePool}
-            allocationByEmployeeId={allocationByEmployeeId}
-            currencyCode={currencyCode}
-            error={error}
-            customBudgetByEmployeeId={customBudgetByEmployeeId}
-            handleCustomAmountRawChange={handleCustomAmountRawChange}
-            handleCustomPercentRawChange={handleCustomPercentRawChange}
-            handleCustomModeChange={handleCustomModeChange}
-            performanceFallbackToEqual={performanceFallbackToEqual}
-            performancePartialScores={performancePartialScores}
-            totalSalaryCostAcrossEmployees={totalSalaryCostAcrossEmployees}
-            grandTotalPositivePerformanceScores={grandTotalPositivePerformanceScores}
-            dataDisplay={dataDisplay}
-            canShowSaveAction={canShowSaveAction}
-            onOpenSubmitProposals={() => setSaveAllocationsDialogOpen(true)}
-            showBackToProposalsTable={preferDistributionView && hasPersistedTeamProposals}
-            onBackToProposalsTable={() => {
-              setPreferDistributionView(false)
-            }}
-          />
-        )}
+        {teamDistributionMainPanel}
       </div>
     </>
   )

@@ -444,7 +444,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       onBack={null as unknown as (() => void) | undefined}
       className="gba:min-h-screen"
     >
-      <div className={supervisorReview != null ? 'gba:space-y-0' : 'gba:space-y-6'}>{renderBody()}</div>
+      <div className={supervisorReview == null ? 'gba:space-y-6' : 'gba:space-y-0'}>{renderBody()}</div>
     </PageLayout>
   )
 }
