@@ -26,6 +26,7 @@ import { getWorkEmailFromCommunication } from '@/common/data/employee/useEmploye
 import { fetchActiveStructureBootstrap } from '../setup/lib/activeStructureBootstrap'
 import { AddEmployeeForm } from '../setup-add-employees/AddEmployeeForm'
 import { EditEmployeeForm } from '../setup-add-employees/EditEmployeeForm'
+import { ResetEmployeePasswordForm } from '../setup-add-employees/ResetEmployeePasswordForm'
 import peopleTranslations from './_i18n'
 import {
   fetchEmployeesPage,
@@ -139,6 +140,7 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
   const [dataError, setDataError] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [editEmployeeId, setEditEmployeeId] = useState<string | null>(null)
+  const [resetPasswordEmployeeId, setResetPasswordEmployeeId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [activeTab, setActiveTab] = useState<PeopleTab>('employees')
@@ -290,14 +292,34 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
         header: t('col-job-title')
       },
       {
-        id: 'actions',
+        // Avoid id `actions`: DataTable applies a fixed `w-12` cell width to that id, which stacks multiple buttons.
+        id: 'employeeRowActions',
         header: '',
         enableSorting: false,
-        cell: ({ row }) => (
-          <Button type="button" variant="outline" size="sm" onClick={() => setEditEmployeeId(row.original.id)}>
-            {t('action-edit')}
-          </Button>
-        )
+        cell: ({ row }) => {
+          const canResetPassword = Boolean(row.original.userId?.trim())
+          return (
+            <div className="gba:flex gba:flex-row gba:flex-nowrap gba:items-center gba:justify-end gba:gap-2">
+              <span
+                className="gba:inline-flex"
+                title={canResetPassword ? undefined : t('tooltip-reset-password-no-user')}
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!canResetPassword}
+                  onClick={() => setResetPasswordEmployeeId(row.original.id)}
+                >
+                  {t('action-reset-password')}
+                </Button>
+              </span>
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditEmployeeId(row.original.id)}>
+                {t('action-edit')}
+              </Button>
+            </div>
+          )
+        }
       }
     ],
     [displayNameForRow, t]
@@ -457,6 +479,25 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
               accessToken={accessToken}
               structureId={structureId}
               employeeId={editEmployeeId}
+              onSuccess={() => {
+                setRefreshKey(k => k + 1)
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(resetPasswordEmployeeId)} onOpenChange={open => !open && setResetPasswordEmployeeId(null)}>
+        <DialogContent className="gba:max-h-[90vh] gba:overflow-y-auto gba:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('dialog-reset-password-title')}</DialogTitle>
+          </DialogHeader>
+          {accessToken?.trim() && structureId && resetPasswordEmployeeId ? (
+            <ResetEmployeePasswordForm
+              embedded
+              accessToken={accessToken}
+              structureId={structureId}
+              employeeId={resetPasswordEmployeeId}
               onSuccess={() => {
                 setRefreshKey(k => k + 1)
               }}

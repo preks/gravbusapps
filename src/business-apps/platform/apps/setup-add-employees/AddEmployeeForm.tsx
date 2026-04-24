@@ -17,6 +17,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import addEmployeesTranslations from './_i18n'
+import { EmployeePasswordFields } from './EmployeePasswordFields'
 import { createBasicEmployeeFlow, resolveUserIdByEmail, setInitialPassword } from './employeeOnboardingApi'
 import {
   countManagersForOrganizationalUnit,
@@ -58,6 +59,7 @@ export function AddEmployeeForm({ accessToken, structureId, onSuccess, embedded 
   const [email, setEmail] = useState('')
   const [jobPosition, setJobPosition] = useState('Employee')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [isManager, setIsManager] = useState(false)
 
   const [busy, setBusy] = useState(false)
@@ -185,6 +187,16 @@ export function AddEmployeeForm({ accessToken, structureId, onSuccess, embedded 
       setError(t('error-email-invalid'))
       return
     }
+    const pwd = password.trim()
+    const pwdConfirm = confirmPassword.trim()
+    if ((pwd && !pwdConfirm) || (!pwd && pwdConfirm)) {
+      setError(t('error-password-partial'))
+      return
+    }
+    if (pwd && pwdConfirm && pwd !== pwdConfirm) {
+      setError(t('error-password-mismatch'))
+      return
+    }
     if (isManager) {
       try {
         const existingManagers = await countManagersForOrganizationalUnit(
@@ -215,10 +227,10 @@ export function AddEmployeeForm({ accessToken, structureId, onSuccess, embedded 
       })
 
       let pwdInfo = ''
-      if (password.trim()) {
+      if (pwd) {
         const userId = await resolveUserIdByEmail(accessToken, email.trim())
         if (userId) {
-          await setInitialPassword(accessToken, userId, password.trim())
+          await setInitialPassword(accessToken, userId, pwd)
           pwdInfo = ` ${t('msg-password-set')}`
         } else {
           pwdInfo = ` ${t('msg-password-user-pending')}`
@@ -240,6 +252,7 @@ export function AddEmployeeForm({ accessToken, structureId, onSuccess, embedded 
     jobPosition,
     lastName,
     onSuccess,
+    confirmPassword,
     organizationalUnitId,
     password,
     structureId,
@@ -247,6 +260,17 @@ export function AddEmployeeForm({ accessToken, structureId, onSuccess, embedded 
   ])
 
   const comboboxOptions = useMemo(() => orgUnits.map(u => ({ value: u.id, label: u.name })), [orgUnits])
+
+  const passwordFieldLabels = useMemo(
+    () => ({
+      newPassword: t('label-password-new'),
+      confirmPassword: t('label-password-confirm'),
+      generate: t('action-generate-password'),
+      showPassword: t('password-show'),
+      hidePassword: t('password-hide')
+    }),
+    [t]
+  )
 
   const formReady =
     !!accessToken?.trim() && !!structureId && !loadingDeptInitial && !loadUnitsError && deptTotalCount > 0
@@ -364,13 +388,15 @@ export function AddEmployeeForm({ accessToken, structureId, onSuccess, embedded 
             </Label>
           </div>
           <div className="gba:space-y-2">
-            <Label htmlFor="pwd">{t('label-password-optional')}</Label>
-            <Input
-              id="pwd"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              autoComplete="new-password"
+            <p className="gba:text-sm gba:font-medium gba:leading-none">{t('label-password-optional')}</p>
+            <EmployeePasswordFields
+              idPrefix="add-employee-pwd"
+              newPassword={password}
+              confirmPassword={confirmPassword}
+              onNewPasswordChange={setPassword}
+              onConfirmPasswordChange={setConfirmPassword}
+              labels={passwordFieldLabels}
+              disabled={busy}
             />
           </div>
 

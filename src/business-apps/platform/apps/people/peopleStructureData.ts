@@ -4,6 +4,8 @@ import type { SetupAddEmployeesOuType } from '../setup-add-employees/setupAddEmp
 
 export type PeopleEmployeeRow = {
   id: string
+  /** Keycloak / directory user id when synced; required for in-app password reset. */
+  userId?: string | null
   firstName?: string | null
   lastName?: string | null
   displayName?: string | null
@@ -118,6 +120,7 @@ const PEOPLE_EMPLOYEES_PAGE = `
   query PeopleEmployeesPage($where: EmployeeBoolExp!, $limit: Int!, $offset: Int!, $orderBy: [EmployeeOrderBy!]!) {
     Employee(where: $where, limit: $limit, offset: $offset, orderBy: $orderBy) {
       id
+      userId
       firstName
       lastName
       displayName
