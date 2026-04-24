@@ -114,8 +114,7 @@ export async function resolveSlideRelationships(zip: JSZip, slideNumber: number)
   const relsXml = parseXML(relsContent)
   const rels = relsXml.getElementsByTagName('Relationship')
 
-  for (let i = 0; i < rels.length; i++) {
-    const rel = rels[i]
+  for (const rel of Array.from(rels)) {
     const id = rel.getAttribute('Id')
     const target = rel.getAttribute('Target') || ''
     const type = rel.getAttribute('Type') || ''
@@ -169,8 +168,7 @@ export async function resolveLayoutRelationships(
   const relsXml = parseXML(relsContent)
   const rels = relsXml.getElementsByTagName('Relationship')
 
-  for (let i = 0; i < rels.length; i++) {
-    const rel = rels[i]
+  for (const rel of Array.from(rels)) {
     const id = rel.getAttribute('Id')
     const target = rel.getAttribute('Target') || ''
     const type = rel.getAttribute('Type') || ''
@@ -205,8 +203,7 @@ export async function resolveMasterRelationships(
   const relsXml = parseXML(relsContent)
   const rels = relsXml.getElementsByTagName('Relationship')
 
-  for (let i = 0; i < rels.length; i++) {
-    const rel = rels[i]
+  for (const rel of Array.from(rels)) {
     const id = rel.getAttribute('Id')
     const target = rel.getAttribute('Target') || ''
     const type = rel.getAttribute('Type') || ''
@@ -543,7 +540,7 @@ function bytesToBase64(bytes: Uint8Array): string {
   const chunkSize = 0x8000
   for (let i = 0; i < bytes.length; i += chunkSize) {
     const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length))
-    binary += String.fromCharCode.apply(null, Array.from(chunk))
+    binary += String.fromCodePoint(...Array.from(chunk))
   }
   return btoa(binary)
 }

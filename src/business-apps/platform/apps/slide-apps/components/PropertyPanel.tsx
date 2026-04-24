@@ -46,18 +46,12 @@ import {
 } from 'lucide-react'
 import type {
   AnySlideElement,
-  TextElement,
   ShapeElement,
   ShapeGeometryMetadata,
   ShapeInText,
-  ImageElement,
-  VideoElement,
-  ChartElement,
   ChartDataPoint,
   ChartSeries,
-  CodeElement,
   ChartType,
-  ConnectorElement,
   ConnectorLineType,
   ConnectorLabelPosition,
   GradientConfig,
@@ -437,8 +431,7 @@ const FlipControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t }) 
   const flipV = geometry?.flipV ?? false
   const applyFlip = (axis: 'h' | 'v') => {
     const next: ShapeGeometryMetadata = {
-      sourceFormat: geometry?.sourceFormat ?? 'native',
-      ...(geometry ?? {}),
+      ...(geometry ?? { sourceFormat: 'native' }),
       flipH: axis === 'h' ? !flipH : flipH,
       flipV: axis === 'v' ? !flipV : flipV
     }
@@ -518,8 +511,7 @@ const ShapeAdjustments: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t
   const updateAdjustment = (key: string, value: number) => {
     const nextAdjustments = { ...adjustments, [key]: value }
     const next: ShapeGeometryMetadata = {
-      sourceFormat: geometry?.sourceFormat ?? 'native',
-      ...(geometry ?? {}),
+      ...(geometry ?? { sourceFormat: 'native' }),
       adjustments: nextAdjustments
     }
     const updates: Partial<ShapeElement> = { geometry: next }
@@ -731,7 +723,7 @@ const ShapeTextControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, 
     padding: 8
   }
   const mergeText = (partial: Partial<ShapeInText>) => {
-    onUpdate({ shapeText: { ...defaultShapeText, ...(shapeText ?? {}), ...partial } } as Partial<AnySlideElement>)
+    onUpdate({ shapeText: { ...defaultShapeText, ...shapeText, ...partial } } as Partial<AnySlideElement>)
   }
   return (
     <div className="gba:space-y-2">
@@ -995,13 +987,13 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
     )
   }
 
-  const textElement = element.type === 'text' ? (element as TextElement) : null
-  const shapeElement = element.type === 'shape' ? (element as ShapeElement) : null
-  const imageElement = element.type === 'image' ? (element as ImageElement) : null
-  const videoElement = element.type === 'video' ? (element as VideoElement) : null
-  const codeElement = element.type === 'code' ? (element as CodeElement) : null
-  const chartElement = element.type === 'chart' ? (element as ChartElement) : null
-  const connectorElement = element.type === 'connector' ? (element as ConnectorElement) : null
+  const textElement = element.type === 'text' ? element : null
+  const shapeElement = element.type === 'shape' ? element : null
+  const imageElement = element.type === 'image' ? element : null
+  const videoElement = element.type === 'video' ? element : null
+  const codeElement = element.type === 'code' ? element : null
+  const chartElement = element.type === 'chart' ? element : null
+  const connectorElement = element.type === 'connector' ? element : null
 
   return (
     <div className="gba:p-4 gba:space-y-4 gba:overflow-y-auto gba:h-full">

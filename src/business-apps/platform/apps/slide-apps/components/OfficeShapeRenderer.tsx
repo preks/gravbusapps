@@ -16,6 +16,13 @@ import { getShapeGeometry } from './slideElements'
 
 type Adj = Record<string, number>
 
+/** Line cap values mirroring `a:ln cap` in OOXML. */
+type LineCap = 'rnd' | 'sq' | 'flat'
+/** Line join values mirroring `a:miter`/`a:round`/`a:bevel` in OOXML. */
+type LineJoin = 'miter' | 'round' | 'bevel'
+/** Compound outline variants — single, double, layered, etc. */
+type LineCompound = 'sng' | 'dbl' | 'thickThin' | 'thinThick' | 'tri'
+
 interface PresetRenderContext {
   width: number
   height: number
@@ -27,11 +34,11 @@ interface PresetRenderContext {
   flipH: boolean
   flipV: boolean
   /** Line cap for SVG strokes (`rnd`/`sq`/`flat`). */
-  lineCap?: 'rnd' | 'sq' | 'flat'
+  lineCap?: LineCap
   /** Line join for SVG strokes. */
-  lineJoin?: 'miter' | 'round' | 'bevel'
+  lineJoin?: LineJoin
   /** Compound outline (`a:ln cmpd`). Single by default. */
-  lineCompound?: 'sng' | 'dbl' | 'thickThin' | 'thinThick' | 'tri'
+  lineCompound?: LineCompound
 }
 
 type PresetRenderer = (ctx: PresetRenderContext) => React.ReactNode
@@ -1876,7 +1883,7 @@ const renderCloud: PresetRenderer = ctx => {
     `Q ${width * 0.55} ${-height * 0.05} ${width * 0.7} ${height * 0.15}`,
     `Q ${width * 0.95} ${height * 0.15} ${width} ${height * 0.4}`,
     `Q ${width * 1.05} ${height * 0.65} ${width * 0.85} ${height * 0.75}`,
-    `Q ${width * 0.85} ${height * 1.0} ${width * 0.6} ${height * 0.9}`,
+    `Q ${width * 0.85} ${height} ${width * 0.6} ${height * 0.9}`,
     `Q ${width * 0.45} ${height * 1.05} ${width * 0.3} ${height * 0.9}`,
     `Q ${width * 0.15} ${height * 0.95} ${width * 0.2} ${height * 0.75}`,
     'Z'
@@ -2401,7 +2408,7 @@ const renderCloudCallout: PresetRenderer = ctx => {
     `Q 0 ${bodyH * 0.25} ${width * 0.18} ${bodyH * 0.25}`,
     `Q ${width * 0.22} 0 ${width * 0.5} ${bodyH * 0.05}`,
     `Q ${width * 0.65} ${-bodyH * 0.1} ${width * 0.8} ${bodyH * 0.15}`,
-    `Q ${width * 1.0} ${bodyH * 0.15} ${width} ${bodyH * 0.45}`,
+    `Q ${width} ${bodyH * 0.15} ${width} ${bodyH * 0.45}`,
     `Q ${width * 1.05} ${bodyH * 0.7} ${width * 0.85} ${bodyH * 0.85}`,
     `Q ${width * 0.85} ${bodyH} ${width * 0.6} ${bodyH * 0.9}`,
     `Q ${width * 0.45} ${bodyH * 1.05} ${width * 0.3} ${bodyH * 0.9}`,
@@ -3262,10 +3269,12 @@ function gearRenderer(teeth: number): PresetRenderer {
     const pts: { x: number; y: number }[] = []
     for (let i = 0; i < teeth; i++) {
       const base = -Math.PI / 2 + (i * 2 * Math.PI) / teeth
-      pts.push({ x: cx + rxOuter * Math.cos(base - toothHalf * 3), y: cy + ryOuter * Math.sin(base - toothHalf * 3) })
-      pts.push({ x: cx + rxOuter * Math.cos(base - toothHalf), y: cy + ryOuter * Math.sin(base - toothHalf) })
-      pts.push({ x: cx + rxInner * Math.cos(base + toothHalf), y: cy + ryInner * Math.sin(base + toothHalf) })
-      pts.push({ x: cx + rxInner * Math.cos(base + toothHalf * 3), y: cy + ryInner * Math.sin(base + toothHalf * 3) })
+      pts.push(
+        { x: cx + rxOuter * Math.cos(base - toothHalf * 3), y: cy + ryOuter * Math.sin(base - toothHalf * 3) },
+        { x: cx + rxOuter * Math.cos(base - toothHalf), y: cy + ryOuter * Math.sin(base - toothHalf) },
+        { x: cx + rxInner * Math.cos(base + toothHalf), y: cy + ryInner * Math.sin(base + toothHalf) },
+        { x: cx + rxInner * Math.cos(base + toothHalf * 3), y: cy + ryInner * Math.sin(base + toothHalf * 3) }
+      )
     }
     return shapeSvg(ctx, polygonPath(pts))
   }
@@ -3775,13 +3784,14 @@ function chartMarkerRenderer(kind: 'x' | 'plus' | 'star'): PresetRenderer {
     const sc = strokeColor || fillStyle || 'currentColor'
     const strokes: { x1: number; y1: number; x2: number; y2: number }[] = []
     if (kind === 'plus' || kind === 'star') {
-      strokes.push({ x1: cx - r, y1: cy, x2: cx + r, y2: cy })
-      strokes.push({ x1: cx, y1: cy - r, x2: cx, y2: cy + r })
+      strokes.push({ x1: cx - r, y1: cy, x2: cx + r, y2: cy }, { x1: cx, y1: cy - r, x2: cx, y2: cy + r })
     }
     if (kind === 'x' || kind === 'star') {
       const d = r * Math.SQRT1_2
-      strokes.push({ x1: cx - d, y1: cy - d, x2: cx + d, y2: cy + d })
-      strokes.push({ x1: cx - d, y1: cy + d, x2: cx + d, y2: cy - d })
+      strokes.push(
+        { x1: cx - d, y1: cy - d, x2: cx + d, y2: cy + d },
+        { x1: cx - d, y1: cy + d, x2: cx + d, y2: cy - d }
+      )
     }
     return (
       <svg
@@ -4054,8 +4064,7 @@ function plainCalloutLineRenderer(segments: number): PresetRenderer {
     // Leader line starts at the body-anchor (top-left by default) and
     // ends at the callout target. Segment count controls intermediate
     // kinks: 1 = straight, 2 = one bend, 3 = two bends.
-    const pts: { x: number; y: number }[] = []
-    pts.push({ x: w * 0.25, y: h * 0.4 })
+    const pts: { x: number; y: number }[] = [{ x: w * 0.25, y: h * 0.4 }]
     if (segments >= 3) pts.push({ x: w * 0.5, y: h * 0.4 })
     if (segments >= 2) pts.push({ x: w * 0.75, y: h * 0.75 })
     pts.push({ x: w, y: h })
@@ -4323,29 +4332,29 @@ function bentConnectorRenderer(segments: 2 | 3 | 4 | 5): PresetRenderer {
   return ctx => {
     const { width, height, strokeColor, strokeWidth } = ctx
     const sw = Math.max(1, strokeWidth)
-    const pts: { x: number; y: number }[] = []
-    pts.push({ x: 0, y: 0 })
+    const pts: { x: number; y: number }[] = [{ x: 0, y: 0 }]
     if (segments === 2) {
-      pts.push({ x: width, y: 0 })
-      pts.push({ x: width, y: height })
+      pts.push({ x: width, y: 0 }, { x: width, y: height })
     } else if (segments === 3) {
-      pts.push({ x: width / 2, y: 0 })
-      pts.push({ x: width / 2, y: height })
-      pts.push({ x: width, y: height })
+      pts.push({ x: width / 2, y: 0 }, { x: width / 2, y: height }, { x: width, y: height })
     } else if (segments === 4) {
-      pts.push({ x: width * 0.33, y: 0 })
-      pts.push({ x: width * 0.33, y: height / 2 })
-      pts.push({ x: width * 0.66, y: height / 2 })
-      pts.push({ x: width * 0.66, y: height })
-      pts.push({ x: width, y: height })
+      pts.push(
+        { x: width * 0.33, y: 0 },
+        { x: width * 0.33, y: height / 2 },
+        { x: width * 0.66, y: height / 2 },
+        { x: width * 0.66, y: height },
+        { x: width, y: height }
+      )
     } else {
-      pts.push({ x: width * 0.25, y: 0 })
-      pts.push({ x: width * 0.25, y: height / 3 })
-      pts.push({ x: width * 0.5, y: height / 3 })
-      pts.push({ x: width * 0.5, y: (2 * height) / 3 })
-      pts.push({ x: width * 0.75, y: (2 * height) / 3 })
-      pts.push({ x: width * 0.75, y: height })
-      pts.push({ x: width, y: height })
+      pts.push(
+        { x: width * 0.25, y: 0 },
+        { x: width * 0.25, y: height / 3 },
+        { x: width * 0.5, y: height / 3 },
+        { x: width * 0.5, y: (2 * height) / 3 },
+        { x: width * 0.75, y: (2 * height) / 3 },
+        { x: width * 0.75, y: height },
+        { x: width, y: height }
+      )
     }
     const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
     return (

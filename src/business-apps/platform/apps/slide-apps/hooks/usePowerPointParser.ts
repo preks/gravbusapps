@@ -3,9 +3,13 @@
 
 import { useState, useCallback } from 'react'
 import JSZip from 'jszip'
-import type { SlideData, SlideCanvasSize } from '../components/slideElements'
-import { createTextElement, DEFAULT_SLIDE_CANVAS_SIZE } from '../components/slideElements'
-import type { AnySlideElement } from '../components/slideElements'
+import {
+  type SlideData,
+  type SlideCanvasSize,
+  type AnySlideElement,
+  createTextElement,
+  DEFAULT_SLIDE_CANVAS_SIZE
+} from '../components/slideElements'
 import { parseXML, getChild, emuToPixels, extractTransform } from './pptxImport/ooxmlUtils'
 import { extractTheme, mapThemeToSlideThemeId } from './pptxImport/extractTheme'
 import {

@@ -5,7 +5,7 @@
 // types that import populated. Full binary-level round-trip comparison lives
 // in the fixture regression suite.
 
-import type { AnySlideElement, SlideData, TextElement, TableElement } from '../components/slideElements'
+import type { SlideData } from '../components/slideElements'
 
 export interface DeckParitySummary {
   slideCount: number
@@ -31,24 +31,22 @@ export function summarizeDeck(slides: SlideData[]): DeckParitySummary {
   for (const slide of slides) {
     if (slide.notes && slide.notes.trim().length > 0) summary.notesCount += 1
 
-    for (const el of slide.elements as AnySlideElement[]) {
+    for (const el of slide.elements) {
       summary.totalElements += 1
       summary.elementTypeCounts[el.type] = (summary.elementTypeCounts[el.type] || 0) + 1
 
       if (el.type === 'text') {
-        const te = el as TextElement
-        if (te.paragraphs && te.paragraphs.length > 0) summary.richTextElementCount += 1
-        if (te.links && te.links.length > 0) summary.hyperlinkCount += te.links.length
-        if (te.paragraphs) {
-          for (const p of te.paragraphs) {
+        if (el.paragraphs && el.paragraphs.length > 0) summary.richTextElementCount += 1
+        if (el.links && el.links.length > 0) summary.hyperlinkCount += el.links.length
+        if (el.paragraphs) {
+          for (const p of el.paragraphs) {
             for (const run of p.runs) {
               if (run.hyperlink) summary.hyperlinkCount += 1
             }
           }
         }
       } else if (el.type === 'table') {
-        const tbl = el as TableElement
-        if (tbl.cells && tbl.cells.length > 0) summary.richTableCount += 1
+        if (el.cells && el.cells.length > 0) summary.richTableCount += 1
       }
     }
   }

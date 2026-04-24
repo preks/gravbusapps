@@ -223,58 +223,60 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
 
   return (
     <div key={element.id} style={wrapperStyle}>
-      {element.type === 'text' && (
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            backgroundColor: (element as TextElement).gradient ? undefined : (element as TextElement).backgroundColor,
-            background: (element as TextElement).gradient
-              ? gradientToCss((element as TextElement).gradient!)
-              : undefined,
-            padding: (element as TextElement).padding,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent:
-              (element as TextElement).verticalAlign === 'top'
-                ? 'flex-start'
-                : (element as TextElement).verticalAlign === 'bottom'
-                  ? 'flex-end'
-                  : 'center',
-            overflow: 'hidden'
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              fontFamily: resolveFontStack((element as TextElement).fontFamily),
-              fontSize: (element as TextElement).fontSize,
-              fontWeight: (element as TextElement).fontWeight,
-              fontStyle: (element as TextElement).fontStyle,
-              textDecoration: (element as TextElement).textDecoration,
-              textAlign: (element as TextElement).textAlign,
-              color: (element as TextElement).color,
-              lineHeight: (element as TextElement).lineHeight,
-              letterSpacing: (element as TextElement).letterSpacing,
-              ...textTransformToCss((element as TextElement).textTransform),
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word'
-            }}
-          >
-            {(element as TextElement).paragraphs && (element as TextElement).paragraphs!.length > 0 ? (
-              <RichTextContent element={element as TextElement} paragraphs={(element as TextElement).paragraphs!} />
-            ) : (
-              (element as TextElement).content
-            )}
-          </div>
-        </div>
-      )}
+      {element.type === 'text' &&
+        (() => {
+          const textEl: TextElement = element
+          return (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                backgroundColor: textEl.gradient ? undefined : textEl.backgroundColor,
+                background: textEl.gradient ? gradientToCss(textEl.gradient) : undefined,
+                padding: textEl.padding,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent:
+                  textEl.verticalAlign === 'top'
+                    ? 'flex-start'
+                    : textEl.verticalAlign === 'bottom'
+                      ? 'flex-end'
+                      : 'center',
+                overflow: 'hidden'
+              }}
+            >
+              <div
+                style={{
+                  width: '100%',
+                  fontFamily: resolveFontStack(textEl.fontFamily),
+                  fontSize: textEl.fontSize,
+                  fontWeight: textEl.fontWeight,
+                  fontStyle: textEl.fontStyle,
+                  textDecoration: textEl.textDecoration,
+                  textAlign: textEl.textAlign,
+                  color: textEl.color,
+                  lineHeight: textEl.lineHeight,
+                  letterSpacing: textEl.letterSpacing,
+                  ...textTransformToCss(textEl.textTransform),
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
+                }}
+              >
+                {textEl.paragraphs && textEl.paragraphs.length > 0 ? (
+                  <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
+                ) : (
+                  textEl.content
+                )}
+              </div>
+            </div>
+          )
+        })()}
 
       {element.type === 'shape' && (
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-          {renderShape(element as ShapeElement)}
+          {renderShape(element)}
           {(() => {
-            const se = element as ShapeElement
+            const se: ShapeElement = element
             const st = se.shapeText
             if (!st) return null
             const te = textElementStubForShapeInText(se, st)
@@ -324,9 +326,9 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
       )}
 
       {element.type === 'image' &&
-        sanitizeMediaUrl((element as ImageElement).src) &&
+        sanitizeMediaUrl(element.src) &&
         (() => {
-          const imgEl = element as ImageElement
+          const imgEl: ImageElement = element
           const crop = getImageCropStyles(imgEl.cropRect)
           const commonVisualStyle = {
             borderRadius: imgEl.borderRadius,
@@ -369,7 +371,7 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
 
       {element.type === 'code' &&
         (() => {
-          const ce = element as CodeElement
+          const ce: CodeElement = element
           const defaultBg = ce.theme === 'dark' ? '#1e1e1e' : '#f8f8f8'
           const defaultColor = ce.theme === 'dark' ? '#d4d4d4' : '#333'
           return (
@@ -396,103 +398,111 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
           )
         })()}
 
-      {element.type === 'video' && (
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'hsl(var(--foreground))',
-            borderRadius: (element as VideoElement).borderRadius,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'hsl(var(--background))',
-            fontSize: '14px'
-          }}
-        >
-          <span>Video: {(element as VideoElement).src}</span>
-        </div>
-      )}
+      {element.type === 'video' &&
+        (() => {
+          const videoEl: VideoElement = element
+          return (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'hsl(var(--foreground))',
+                borderRadius: videoEl.borderRadius,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'hsl(var(--background))',
+                fontSize: '14px'
+              }}
+            >
+              <span>Video: {videoEl.src}</span>
+            </div>
+          )
+        })()}
 
-      {element.type === 'table' && (
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            overflow: 'hidden',
-            borderRadius: (element as TableElement).borderRadius,
-            border: `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
-          }}
-        >
-          <table
-            style={{
-              width: '100%',
-              height: '100%',
-              borderCollapse: 'collapse',
-              tableLayout: 'fixed'
-            }}
-          >
-            <thead>
-              <tr>
-                {(element as TableElement).headers.map((header, idx) => (
-                  <th
-                    key={`header-${idx}`}
-                    style={{
-                      backgroundColor: (element as TableElement).headerBackground,
-                      color: (element as TableElement).headerTextColor,
-                      fontSize: (element as TableElement).headerFontSize,
-                      fontWeight: 'bold',
-                      padding: (element as TableElement).cellPadding,
-                      textAlign: 'left',
-                      borderBottom: `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`,
-                      borderRight:
-                        idx < (element as TableElement).headers.length - 1
-                          ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
-                          : 'none'
-                    }}
-                  >
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {(element as TableElement).rows.map((row, rowIdx) => (
-                <tr key={`row-${rowIdx}`}>
-                  {row.map((cell, cellIdx) => (
-                    <td
-                      key={`cell-${rowIdx}-${cellIdx}`}
-                      style={{
-                        backgroundColor:
-                          (element as TableElement).rowAlternateBackground && rowIdx % 2 === 1
-                            ? (element as TableElement).rowAlternateBackground
-                            : (element as TableElement).rowBackground,
-                        color: (element as TableElement).rowTextColor,
-                        fontSize: (element as TableElement).fontSize,
-                        padding: (element as TableElement).cellPadding,
-                        textAlign: 'left',
-                        borderBottom:
-                          rowIdx < (element as TableElement).rows.length - 1
-                            ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
-                            : 'none',
-                        borderRight:
-                          cellIdx < row.length - 1
-                            ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
-                            : 'none',
-                        verticalAlign: 'middle',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}
-                    >
-                      {cell}
-                    </td>
+      {element.type === 'table' &&
+        (() => {
+          const tableEl: TableElement = element
+          return (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                overflow: 'hidden',
+                borderRadius: tableEl.borderRadius,
+                border: `${tableEl.borderWidth}px solid ${tableEl.borderColor}`
+              }}
+            >
+              <table
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderCollapse: 'collapse',
+                  tableLayout: 'fixed'
+                }}
+              >
+                <thead>
+                  <tr>
+                    {tableEl.headers.map((header, idx) => (
+                      <th
+                        key={`header-${idx}`}
+                        style={{
+                          backgroundColor: tableEl.headerBackground,
+                          color: tableEl.headerTextColor,
+                          fontSize: tableEl.headerFontSize,
+                          fontWeight: 'bold',
+                          padding: tableEl.cellPadding,
+                          textAlign: 'left',
+                          borderBottom: `${tableEl.borderWidth}px solid ${tableEl.borderColor}`,
+                          borderRight:
+                            idx < tableEl.headers.length - 1
+                              ? `${tableEl.borderWidth}px solid ${tableEl.borderColor}`
+                              : 'none'
+                        }}
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableEl.rows.map((row, rowIdx) => (
+                    <tr key={`row-${rowIdx}`}>
+                      {row.map((cell, cellIdx) => (
+                        <td
+                          key={`cell-${rowIdx}-${cellIdx}`}
+                          style={{
+                            backgroundColor:
+                              tableEl.rowAlternateBackground && rowIdx % 2 === 1
+                                ? tableEl.rowAlternateBackground
+                                : tableEl.rowBackground,
+                            color: tableEl.rowTextColor,
+                            fontSize: tableEl.fontSize,
+                            padding: tableEl.cellPadding,
+                            textAlign: 'left',
+                            borderBottom:
+                              rowIdx < tableEl.rows.length - 1
+                                ? `${tableEl.borderWidth}px solid ${tableEl.borderColor}`
+                                : 'none',
+                            borderRight:
+                              cellIdx < row.length - 1
+                                ? `${tableEl.borderWidth}px solid ${tableEl.borderColor}`
+                                : 'none',
+                            verticalAlign: 'middle',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
                   ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                </tbody>
+              </table>
+            </div>
+          )
+        })()}
     </div>
   )
 }

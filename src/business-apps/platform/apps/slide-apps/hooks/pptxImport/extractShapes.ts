@@ -290,14 +290,13 @@ function extractAdjustments(prstGeom: Element | undefined): Record<string, numbe
   const gds = avLst.getElementsByTagName('a:gd')
   if (gds.length === 0) return undefined
   const adj: Record<string, number> = {}
-  for (let i = 0; i < gds.length; i++) {
-    const gd = gds[i]
+  for (const gd of Array.from(gds)) {
     const name = gd.getAttribute('name')
     const fmla = gd.getAttribute('fmla') || ''
     if (!name) continue
     const match = /val\s+(-?\d+)/.exec(fmla)
     if (match) {
-      const val = parseInt(match[1])
+      const val = Number.parseInt(match[1])
       if (Number.isFinite(val)) adj[name] = val
     }
   }
@@ -322,20 +321,20 @@ function extractCustomGeometryPath(custGeom: Element | undefined): string | unde
   const path = getChild(pathLst, 'a:path')
   if (!path) return undefined
 
-  const pathW = parseInt(path.getAttribute('w') || '1') || 1
-  const pathH = parseInt(path.getAttribute('h') || '1') || 1
+  const pathW = Number.parseInt(path.getAttribute('w') || '1') || 1
+  const pathH = Number.parseInt(path.getAttribute('h') || '1') || 1
 
   const commands: string[] = []
   const pushPt = (cmd: string, raw: Element) => {
     const pt = getChild(raw, 'a:pt')
     if (!pt) return
-    const x = parseInt(pt.getAttribute('x') || '0') / pathW
-    const y = parseInt(pt.getAttribute('y') || '0') / pathH
+    const x = Number.parseInt(pt.getAttribute('x') || '0') / pathW
+    const y = Number.parseInt(pt.getAttribute('y') || '0') / pathH
     commands.push(`${cmd} ${x.toFixed(4)} ${y.toFixed(4)}`)
   }
 
-  for (let i = 0; i < path.childNodes.length; i++) {
-    const child = path.childNodes[i] as Element
+  for (const node of Array.from(path.childNodes)) {
+    const child = node as Element
     if (!child.tagName) continue
     switch (child.tagName) {
       case 'a:moveTo':
@@ -354,8 +353,8 @@ function extractCustomGeometryPath(custGeom: Element | undefined): string | unde
           const xs: number[] = []
           const ys: number[] = []
           for (let k = 0; k < 3; k++) {
-            xs.push(parseInt(pts[k].getAttribute('x') || '0') / pathW)
-            ys.push(parseInt(pts[k].getAttribute('y') || '0') / pathH)
+            xs.push(Number.parseInt(pts[k].getAttribute('x') || '0') / pathW)
+            ys.push(Number.parseInt(pts[k].getAttribute('y') || '0') / pathH)
           }
           commands.push(
             `C ${xs[0].toFixed(4)} ${ys[0].toFixed(4)} ${xs[1].toFixed(4)} ${ys[1].toFixed(4)} ${xs[2].toFixed(4)} ${ys[2].toFixed(4)}`
@@ -369,8 +368,8 @@ function extractCustomGeometryPath(custGeom: Element | undefined): string | unde
           const xs: number[] = []
           const ys: number[] = []
           for (let k = 0; k < 2; k++) {
-            xs.push(parseInt(pts[k].getAttribute('x') || '0') / pathW)
-            ys.push(parseInt(pts[k].getAttribute('y') || '0') / pathH)
+            xs.push(Number.parseInt(pts[k].getAttribute('x') || '0') / pathW)
+            ys.push(Number.parseInt(pts[k].getAttribute('y') || '0') / pathH)
           }
           commands.push(`Q ${xs[0].toFixed(4)} ${ys[0].toFixed(4)} ${xs[1].toFixed(4)} ${ys[1].toFixed(4)}`)
         }
@@ -635,8 +634,7 @@ export function extractShapeElements(
   const elements: ShapeElement[] = []
   const shapes = slideXml.getElementsByTagName('p:sp')
 
-  for (let i = 0; i < shapes.length; i++) {
-    const shape = shapes[i]
+  for (const shape of Array.from(shapes)) {
     if (isInsideGroup(shape)) continue
     if (isExplicitTextBox(shape)) continue
     const el = importAutoshaveFromPSpElement(shape, theme, messages, slideIndex, relationships, inheritedResolver)

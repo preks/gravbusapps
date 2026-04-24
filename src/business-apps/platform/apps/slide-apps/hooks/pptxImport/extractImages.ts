@@ -74,16 +74,14 @@ function findSvgBlipEmbedId(blip: Element): string | undefined {
   if (!directExtLst) return undefined
 
   const exts = directExtLst.getElementsByTagName('a:ext')
-  for (let i = 0; i < exts.length; i++) {
-    const ext = exts[i]
+  for (const ext of Array.from(exts)) {
     const uri = ext.getAttribute('uri') || ''
     if (uri.toUpperCase() !== SVG_BLIP_EXT_URI) continue
 
     // Match svgBlip by namespace + local name so decks with alternative prefix
     // declarations (seen in some authoring tools) still resolve correctly.
-    const children = ext.childNodes
-    for (let j = 0; j < children.length; j++) {
-      const child = children[j] as Element
+    for (const node of Array.from(ext.childNodes)) {
+      const child = node as Element
       if (child.nodeType !== 1) continue
       const localName = (child.localName || child.nodeName.split(':').pop() || '').toLowerCase()
       const ns = child.namespaceURI || ''
@@ -129,9 +127,7 @@ export function extractImageElements(
   const pics = slideXml.getElementsByTagName('p:pic')
   const slideNumber = typeof slideIndex === 'number' ? String(slideIndex + 1) : undefined
 
-  for (let i = 0; i < pics.length; i++) {
-    const pic = pics[i]
-
+  for (const pic of Array.from(pics)) {
     if (isInsideGroup(pic)) continue
 
     const transform = extractTransform(pic)

@@ -262,7 +262,7 @@ function addShapeElement(pptxSlide: any, element: ShapeElement, custGeomCollecto
       type: 'outer',
       color: hexToPptxColor(os.color),
       blur: os.blur,
-      offset: Math.round(Math.sqrt(os.offsetX * os.offsetX + os.offsetY * os.offsetY)),
+      offset: Math.round(Math.hypot(os.offsetX, os.offsetY)),
       angle: Math.round((Math.atan2(os.offsetY, os.offsetX) * 180) / Math.PI),
       opacity: 0.5
     }
@@ -272,7 +272,7 @@ function addShapeElement(pptxSlide: any, element: ShapeElement, custGeomCollecto
       type: 'inner',
       color: hexToPptxColor(is.color),
       blur: is.size,
-      offset: Math.round(Math.sqrt(is.offsetX * is.offsetX + is.offsetY * is.offsetY)),
+      offset: Math.round(Math.hypot(is.offsetX, is.offsetY)),
       angle: Math.round((Math.atan2(is.offsetY, is.offsetX) * 180) / Math.PI),
       opacity: 0.5
     }
@@ -548,28 +548,28 @@ export async function exportToPptx(slides: SlideData[], theme: SlideTheme, title
       sortedElements.forEach((element: AnySlideElement) => {
         switch (element.type) {
           case 'text':
-            addTextElement(pptxSlide, element as TextElement, theme)
+            addTextElement(pptxSlide, element, theme)
             break
           case 'image':
-            addImageElement(pptxSlide, element as ImageElement)
+            addImageElement(pptxSlide, element)
             break
           case 'shape':
-            addShapeElement(pptxSlide, element as ShapeElement, custGeomCollector)
+            addShapeElement(pptxSlide, element, custGeomCollector)
             break
           case 'code':
-            addCodeElement(pptxSlide, element as CodeElement)
+            addCodeElement(pptxSlide, element)
             break
           case 'video':
-            addVideoPlaceholder(pptxSlide, element as VideoElement)
+            addVideoPlaceholder(pptxSlide, element)
             break
           case 'table':
-            addTableElement(pptxSlide, element as TableElement)
+            addTableElement(pptxSlide, element)
             break
           case 'chart':
-            addChartElement(pptx, pptxSlide, element as ChartElement)
+            addChartElement(pptx, pptxSlide, element)
             break
           case 'connector':
-            addConnectorElement(pptxSlide, element as ConnectorElement)
+            addConnectorElement(pptxSlide, element)
             break
         }
       })

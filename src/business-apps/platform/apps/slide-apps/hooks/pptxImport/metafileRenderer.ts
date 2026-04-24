@@ -37,42 +37,38 @@ function silenceLogging(ns: MetafileNamespace): MetafileNamespace {
 }
 
 async function loadWmfjs(): Promise<MetafileNamespace | undefined> {
-  if (!wmfjsPromise) {
-    wmfjsPromise = import(
-      // @vite-ignore
-      'rtf.js/dist/WMFJS.bundle'
-    )
-      .then(mod => {
-        const ns = ((mod as { default?: unknown }).default ?? mod) as MetafileNamespace
-        return ns && ns.Renderer ? silenceLogging(ns) : undefined
-      })
-      .catch(error => {
-        // Null out the cache so retries on subsequent imports are possible;
-        // also swallow the error so the orchestrator can fall back cleanly.
-        wmfjsPromise = undefined
-        console.warn('[pptxImport] Failed to load WMFJS bundle:', error)
-        return undefined
-      })
-  }
+  wmfjsPromise ??= import(
+    // @vite-ignore
+    'rtf.js/dist/WMFJS.bundle'
+  )
+    .then(mod => {
+      const ns = ((mod as { default?: unknown }).default ?? mod) as MetafileNamespace
+      return ns && ns.Renderer ? silenceLogging(ns) : undefined
+    })
+    .catch(error => {
+      // Null out the cache so retries on subsequent imports are possible;
+      // also swallow the error so the orchestrator can fall back cleanly.
+      wmfjsPromise = undefined
+      console.warn('[pptxImport] Failed to load WMFJS bundle:', error)
+      return undefined
+    })
   return wmfjsPromise
 }
 
 async function loadEmfjs(): Promise<MetafileNamespace | undefined> {
-  if (!emfjsPromise) {
-    emfjsPromise = import(
-      // @vite-ignore
-      'rtf.js/dist/EMFJS.bundle'
-    )
-      .then(mod => {
-        const ns = ((mod as { default?: unknown }).default ?? mod) as MetafileNamespace
-        return ns && ns.Renderer ? silenceLogging(ns) : undefined
-      })
-      .catch(error => {
-        emfjsPromise = undefined
-        console.warn('[pptxImport] Failed to load EMFJS bundle:', error)
-        return undefined
-      })
-  }
+  emfjsPromise ??= import(
+    // @vite-ignore
+    'rtf.js/dist/EMFJS.bundle'
+  )
+    .then(mod => {
+      const ns = ((mod as { default?: unknown }).default ?? mod) as MetafileNamespace
+      return ns && ns.Renderer ? silenceLogging(ns) : undefined
+    })
+    .catch(error => {
+      emfjsPromise = undefined
+      console.warn('[pptxImport] Failed to load EMFJS bundle:', error)
+      return undefined
+    })
   return emfjsPromise
 }
 
@@ -187,7 +183,9 @@ function serializeSvg(svg: SVGElement): string {
 function svgToDataUrl(svgMarkup: string): string {
   // Base64 encode via the UTF-8 safe path so non-ASCII text inside the SVG
   // (labels, unicode symbols, etc.) doesn't throw in btoa().
-  const utf8 = unescape(encodeURIComponent(svgMarkup))
+  const utf8 = encodeURIComponent(svgMarkup).replace(/%([0-9A-F]{2})/g, (_, hex: string) =>
+    String.fromCharCode(Number.parseInt(hex, 16))
+  )
   return `data:image/svg+xml;base64,${btoa(utf8)}`
 }
 

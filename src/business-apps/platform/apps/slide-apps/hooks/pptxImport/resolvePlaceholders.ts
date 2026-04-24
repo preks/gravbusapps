@@ -44,8 +44,7 @@ export function collectPlaceholders(xml: Document): PlaceholderMap {
   if (!spTree) return { byKey, byType, byIdx }
 
   const shapes = spTree.getElementsByTagName('p:sp')
-  for (let i = 0; i < shapes.length; i++) {
-    const sp = shapes[i]
+  for (const sp of Array.from(shapes)) {
     const nvSpPr = getChild(sp, 'p:nvSpPr')
     const nvPr = nvSpPr ? getChild(nvSpPr, 'p:nvPr') : undefined
     const ph = nvPr ? getChild(nvPr, 'p:ph') : undefined
@@ -98,8 +97,8 @@ function hasAnyRunText(sp: Element): boolean {
   const txBody = getChild(sp, 'p:txBody')
   if (!txBody) return false
   const ts = txBody.getElementsByTagNameNS(DRAWING_NS, 't')
-  for (let i = 0; i < ts.length; i++) {
-    const text = ts[i].textContent || ''
+  for (const t of Array.from(ts)) {
+    const text = t.textContent || ''
     if (text.trim().length > 0) return true
   }
   return false

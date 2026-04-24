@@ -55,19 +55,26 @@ import { usePresentationCast, type CastSlideData } from '../hooks/usePresentatio
 import { useEffectManager } from '../hooks/useEffectManager'
 import { useSpeechMatcher, type MatchResult, type VideoTriggerResult } from '../hooks/useSpeechMatcher'
 import { AIAssistSettings, loadAIAssistConfig, saveAIAssistConfig } from './AIAssistSettings'
-import type { AIAssistConfig } from './slideElements'
 import type { AIAssistStatus } from './PresenterView'
 import {
+  type AIAssistConfig,
   type AnySlideElement,
   type SlideData,
   type SlideTransition,
+  type TextElement,
+  type TextLink,
+  type ShapeElement,
+  type GroupElement,
+  type ConnectorElement,
+  type ShapeGeometryMetadata,
   createTextElement,
   createImageElement,
   createVideoElement,
   PRESET_GRADIENTS,
   gradientToCss,
   COLOR_PRESETS,
-  getSlideCanvasSize
+  getSlideCanvasSize,
+  getShapeGeometry
 } from './slideElements'
 import { SlideLayoutPicker } from './SlideLayoutPicker'
 import { SlideMasterView } from './SlideMasterView'
@@ -94,15 +101,6 @@ import type { SlideAnnotation } from '../types/slideSpellCheck'
 import { exportToPptx } from '../utils/exportUtils'
 import { adjustLinksAfterEdit, detectUrls, mergeLinks, findEditPosition, createLink } from '../utils/linkUtils'
 import translations from '../_i18n'
-import type {
-  TextElement,
-  TextLink,
-  ShapeElement,
-  GroupElement,
-  ConnectorElement,
-  ShapeGeometryMetadata,
-  CodeElement
-} from './slideElements'
 import {
   alignElements,
   distributeElements,
@@ -922,7 +920,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       )
       currentSlide.elements.forEach(el => {
         if (el.type !== 'connector') return
-        const c = el as ConnectorElement
+        const c: ConnectorElement = el
         if (c.startBinding?.elementId !== id && c.endBinding?.elementId !== id) return
         const refreshed = refreshConnectorFromBindings(c, elementsById)
         if (refreshed === c) return
@@ -960,7 +958,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       const elementsById = new Map<string, AnySlideElement>(updatedElements.map(el => [el.id, el]))
       const finalElements = updatedElements.map(el => {
         if (el.type !== 'connector') return el
-        const c = el as ConnectorElement
+        const c: ConnectorElement = el
         const startHit = c.startBinding && changedIds.has(c.startBinding.elementId)
         const endHit = c.endBinding && changedIds.has(c.endBinding.elementId)
         if (!startHit && !endHit) return el
@@ -1772,7 +1770,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       // top-level text-element content. Route the update accordingly so a
       // single inline editing flow covers both text boxes and shape labels.
       if (currentElement?.type === 'shape') {
-        const shape = currentElement as ShapeElement
+        const shape: ShapeElement = currentElement
         const existing = shape.shapeText ?? {
           content: '',
           fontFamily: 'Inter',
@@ -1793,7 +1791,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         return
       }
 
-      const textElement = currentElement as TextElement | undefined
+      const textElement: TextElement | undefined = currentElement?.type === 'text' ? currentElement : undefined
 
       let updatedLinks: TextLink[] | undefined
       if (textElement?.links && textElement.links.length > 0) {
@@ -1856,7 +1854,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const getExistingLinkUrl = useCallback((): string | undefined => {
     if (!selectedElement || selectedElement.type !== 'text') return undefined
-    const textElement = selectedElement as TextElement
+    const textElement: TextElement = selectedElement
     const links = textElement.links || []
     if (links.length > 0) {
       return links[0].url
@@ -1868,7 +1866,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     (url: string) => {
       if (!selectedElement || selectedElement.type !== 'text') return
 
-      const textElement = selectedElement as TextElement
+      const textElement: TextElement = selectedElement
       const content = textElement.content
 
       const newLink = createLink(0, content.length, url)
@@ -2716,6 +2714,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             <div className="gba:inline-flex gba:justify-center gba:min-w-full">
               <div
                 ref={canvasContainerRef}
+                role="application"
+                aria-label={t('editor-canvas-aria-label')}
                 className="gba:shadow-2xl gba:rounded-lg gba:overflow-hidden gba:relative gba:flex-shrink-0"
                 style={{
                   width: (currentSlide?.canvasSize?.width ?? 1280) * canvasScale,
@@ -2770,17 +2770,15 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     const element = currentSlide.elements.find(e => e.id === id)
                     if (element) {
                       if (element.type === 'code') {
-                        const ce = element as CodeElement
-                        voiceBaseContentRef.current = ce.code
-                        currentEditingContentRef.current = ce.code
+                        voiceBaseContentRef.current = element.code
+                        currentEditingContentRef.current = element.code
                       } else if (element.type === 'shape') {
-                        const initial = (element as ShapeElement).shapeText?.content ?? ''
+                        const initial = element.shapeText?.content ?? ''
                         voiceBaseContentRef.current = initial
                         currentEditingContentRef.current = initial
-                      } else {
-                        const te = element as TextElement
-                        voiceBaseContentRef.current = te.content
-                        currentEditingContentRef.current = te.content
+                      } else if (element.type === 'text') {
+                        voiceBaseContentRef.current = element.content
+                        currentEditingContentRef.current = element.content
                       }
                       lastProcessedTranscriptRef.current = ''
                       editingTextIdRef.current = id
@@ -2819,13 +2817,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   onPointsChange={(id, nextCustGeomPath) => {
                     const el = currentSlide.elements.find(e => e.id === id)
                     if (!el || el.type !== 'shape') return
-                    const shapeEl = el as ShapeElement
-                    const prevGeometry = shapeEl.geometry ?? shapeEl.importMeta
-                    const nextGeometry: ShapeGeometryMetadata = {
-                      sourceFormat: prevGeometry?.sourceFormat ?? 'native',
-                      ...(prevGeometry ?? {}),
-                      custGeomPath: nextCustGeomPath
-                    }
+                    const shapeEl: ShapeElement = el
+                    const prevGeometry = getShapeGeometry(shapeEl)
+                    const nextGeometry: ShapeGeometryMetadata = prevGeometry
+                      ? { ...prevGeometry, custGeomPath: nextCustGeomPath }
+                      : { sourceFormat: 'native', custGeomPath: nextCustGeomPath }
                     const updates: Partial<ShapeElement> = { geometry: nextGeometry }
                     if (prevGeometry?.sourceFormat === 'pptx') updates.importMeta = nextGeometry
                     updateElement(id, updates as Partial<AnySlideElement>)
@@ -2853,12 +2849,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 !isReadOnly &&
                 !isPresentMode && (
                   <FloatingTextActions
-                    element={selectedElement as TextElement}
+                    element={selectedElement}
                     canvasScale={canvasScale}
                     canvasRef={canvasContainerRef}
                     isVoiceSupported={voiceInput.isSupported}
                     onVoiceClick={() => {
-                      const currentContent = (selectedElement as TextElement)?.content || ''
+                      const currentContent = selectedElement.content || ''
                       voiceBaseContentRef.current = currentContent
                       currentEditingContentRef.current = currentContent
                       lastProcessedTranscriptRef.current = ''
@@ -2867,7 +2863,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                       voiceInput.startListening()
                     }}
                     onEditClick={() => {
-                      const currentContent = (selectedElement as TextElement)?.content || ''
+                      const currentContent = selectedElement.content || ''
                       currentEditingContentRef.current = currentContent
                       editingTextIdRef.current = selectedElement.id
                       setEditingTextId(selectedElement.id)
@@ -3295,7 +3291,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       <LinkDialog
         open={showLinkDialog}
         onOpenChange={setShowLinkDialog}
-        selectedText={selectedElement?.type === 'text' ? (selectedElement as TextElement).content : ''}
+        selectedText={selectedElement?.type === 'text' ? selectedElement.content : ''}
         initialUrl={getExistingLinkUrl()}
         onSave={handleSaveLink}
         onRemove={getExistingLinkUrl() ? handleRemoveLink : undefined}

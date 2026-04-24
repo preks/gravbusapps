@@ -131,13 +131,13 @@ export function custGeomXmlFor(custGeomPath: string): string {
 // marker appears inside <p:cNvPr name="..."/>. We use a non-greedy match and
 // the RegExp flag-agnostic newline class so this survives both prettified and
 // single-line pptxgen output.
-const SHAPE_RE_SOURCE = '<p:sp>([\\s\\S]*?)<\\/p:sp>'
+const SHAPE_RE_SOURCE = String.raw`<p:sp>([\s\S]*?)</p:sp>`
 const CNVPR_NAME_RE = /<p:cNvPr[^>]*\sname="([^"]+)"/
 
 function rewriteSlideXml(xml: string, markerToCustGeomXml: Map<string, string>): string {
   const shapeRe = new RegExp(SHAPE_RE_SOURCE, 'g')
   return xml.replace(shapeRe, (whole: string) => {
-    const m = whole.match(CNVPR_NAME_RE)
+    const m = CNVPR_NAME_RE.exec(whole)
     if (!m) return whole
     const name = m[1]
     const custGeomXml = markerToCustGeomXml.get(name)

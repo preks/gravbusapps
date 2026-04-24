@@ -37,9 +37,9 @@ function extractCellMetadata(tc: Element, theme?: OoxmlTheme): Omit<TableCell, '
   const meta: Omit<TableCell, 'content'> = {}
 
   const rowSpan = tc.getAttribute('rowSpan')
-  if (rowSpan) meta.rowSpan = parseInt(rowSpan)
+  if (rowSpan) meta.rowSpan = Number.parseInt(rowSpan)
   const gridSpan = tc.getAttribute('gridSpan')
-  if (gridSpan) meta.colSpan = parseInt(gridSpan)
+  if (gridSpan) meta.colSpan = Number.parseInt(gridSpan)
 
   const tcPr = getChild(tc, 'a:tcPr')
   if (tcPr) {
@@ -77,8 +77,7 @@ export function extractTableElements(
   const elements: TableElement[] = []
   const graphicFrames = slideXml.getElementsByTagName('p:graphicFrame')
 
-  for (let fi = 0; fi < graphicFrames.length; fi++) {
-    const frame = graphicFrames[fi]
+  for (const frame of Array.from(graphicFrames)) {
     if (isInsideGroup(frame)) continue
 
     const tbl = getChild(frame, 'a:tbl')
@@ -124,14 +123,14 @@ export function extractTableElements(
       const gridCols = getChildren(gridCol, 'a:gridCol')
       for (const g of gridCols) {
         const w = g.getAttribute('w')
-        if (w) columnWidths.push(emuToPixels(parseInt(w)))
+        if (w) columnWidths.push(emuToPixels(Number.parseInt(w)))
       }
     }
 
     const rowHeights: number[] = []
     for (const tr of trElements) {
       const h = tr.getAttribute('h')
-      if (h) rowHeights.push(emuToPixels(parseInt(h)))
+      if (h) rowHeights.push(emuToPixels(Number.parseInt(h)))
     }
 
     if (headers.length === 0 && rows.length === 0) continue

@@ -14,7 +14,7 @@ const isBase64DataUrl = (url: string | undefined): url is string => typeof url =
  * server might reject them or re-serve them with the wrong Content-Type.
  */
 function extensionForDataUrl(dataUrl: string): string {
-  const match = dataUrl.match(/^data:([^;]+);/)
+  const match = /^data:([^;]+);/.exec(dataUrl)
   const mime = match?.[1]?.toLowerCase() ?? 'image/png'
   switch (mime) {
     case 'image/svg+xml':

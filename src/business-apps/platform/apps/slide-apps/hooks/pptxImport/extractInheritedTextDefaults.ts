@@ -75,7 +75,7 @@ function parseDefRPr(defRPr: Element | undefined, theme: OoxmlTheme | undefined)
 
   const sz = defRPr.getAttribute('sz')
   if (sz) {
-    const parsed = parseInt(sz)
+    const parsed = Number.parseInt(sz)
     if (Number.isFinite(parsed)) out.fontSize = parsed
   }
 
@@ -134,12 +134,12 @@ function parseStyleElement(styleEl: Element | undefined, theme: OoxmlTheme | und
   const result: InheritedLevelMap = new Map()
   if (!styleEl) return result
 
-  for (let i = 0; i < styleEl.childNodes.length; i++) {
-    const child = styleEl.childNodes[i] as Element
+  for (const childNode of Array.from(styleEl.childNodes)) {
+    const child = childNode as Element
     if (!child.tagName) continue
     const match = /^a:lvl([1-9])pPr$/.exec(child.tagName)
     if (!match) continue
-    const level = parseInt(match[1]) - 1
+    const level = Number.parseInt(match[1]) - 1
     const defRPr = getChild(child, 'a:defRPr')
     const defaults = parseDefRPr(defRPr, theme)
     if (Object.keys(defaults).length > 0) {
@@ -165,8 +165,8 @@ export function extractMasterTextStylesAdvanced(
   const txStyles = masterXml.getElementsByTagName('p:txStyles')[0]
   if (!txStyles) return result
 
-  for (let i = 0; i < txStyles.childNodes.length; i++) {
-    const node = txStyles.childNodes[i] as Element
+  for (const rawNode of Array.from(txStyles.childNodes)) {
+    const node = rawNode as Element
     if (!node.tagName) continue
     if (node.tagName === 'p:titleStyle') {
       result.title = parseStyleElement(node, theme)
@@ -190,8 +190,7 @@ export function extractPlaceholderStyles(xml: Document, theme: OoxmlTheme | unde
   if (!spTree) return { byKey, byType, byIdx }
 
   const shapes = spTree.getElementsByTagName('p:sp')
-  for (let i = 0; i < shapes.length; i++) {
-    const sp = shapes[i]
+  for (const sp of Array.from(shapes)) {
     const nvSpPr = getChild(sp, 'p:nvSpPr')
     const nvPr = nvSpPr ? getChild(nvSpPr, 'p:nvPr') : undefined
     const ph = nvPr ? getChild(nvPr, 'p:ph') : undefined

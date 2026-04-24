@@ -104,7 +104,7 @@ function parseCxnRef(
   const elementId = shapeIdRegistry.get(rawId)
   if (!elementId) return undefined
   const idxAttr = ref.getAttribute('idx')
-  const idx = idxAttr ? parseInt(idxAttr) : 0
+  const idx = idxAttr ? Number.parseInt(idxAttr) : 0
   const site = CARDINAL_SITES[idx] ?? 'center'
   return { elementId, site }
 }
@@ -117,8 +117,7 @@ export function extractConnectorElements(
   const elements: ConnectorElement[] = []
   const connectors = slideXml.getElementsByTagName('p:cxnSp')
 
-  for (let i = 0; i < connectors.length; i++) {
-    const cxnSp = connectors[i]
+  for (const cxnSp of Array.from(connectors)) {
     if (isInsideGroup(cxnSp)) continue
 
     const spPr = getChild(cxnSp, 'p:spPr')
@@ -145,7 +144,7 @@ export function extractConnectorElements(
     const ln = getChild(spPr, 'a:ln')
     if (ln) {
       const lnW = ln.getAttribute('w')
-      if (lnW) strokeWidth = Math.max(1, Math.round(emuToPixels(parseInt(lnW))))
+      if (lnW) strokeWidth = Math.max(1, Math.round(emuToPixels(Number.parseInt(lnW))))
 
       const lnSolidFill = getChild(ln, 'a:solidFill')
       if (lnSolidFill) {

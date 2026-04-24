@@ -2,7 +2,7 @@
 // order, which matches PowerPoint's visual stacking (later = on top).
 
 import type JSZip from 'jszip'
-import type { SlideData, AnySlideElement, ConnectorElement } from '../../components/slideElements'
+import type { SlideData, AnySlideElement } from '../../components/slideElements'
 import { refreshConnectorFromBindings } from '../../components/shapeOperations'
 import type { OoxmlTheme, SlideRelationships } from './types'
 import type { ParserMessage } from '../usePowerPointParser'
@@ -59,8 +59,8 @@ function extractNonPlaceholderElements(
   const spTree = xml.getElementsByTagName('p:spTree')[0]
   if (!spTree) return result
 
-  for (let i = 0; i < spTree.childNodes.length; i++) {
-    const child = spTree.childNodes[i] as Element
+  for (const node of Array.from(spTree.childNodes)) {
+    const child = node as Element
     if (!child.tagName) continue
 
     if (child.tagName === 'p:sp') {
@@ -149,9 +149,7 @@ async function extractInheritedElements(
     }
   }
 
-  if (!textDefaultsResolver) {
-    textDefaultsResolver = buildInheritedTextDefaultsResolver(layoutStyles, undefined, undefined)
-  }
+  textDefaultsResolver ??= buildInheritedTextDefaultsResolver(layoutStyles, undefined, undefined)
 
   const layoutEls = extractNonPlaceholderElements(
     layoutXml,
@@ -192,8 +190,8 @@ export async function assembleSlide(
   const shapeIdRegistry: OoxmlShapeIdRegistry = new Map()
 
   if (spTree) {
-    for (let i = 0; i < spTree.childNodes.length; i++) {
-      const child = spTree.childNodes[i] as Element
+    for (const node of Array.from(spTree.childNodes)) {
+      const child = node as Element
       if (!child.tagName) continue
 
       switch (child.tagName) {
@@ -269,10 +267,10 @@ export async function assembleSlide(
   for (let i = 0; i < allElements.length; i++) {
     const el = allElements[i]
     if (el.type !== 'connector') continue
-    const refreshed = refreshConnectorFromBindings(el as ConnectorElement, elementsById)
+    const refreshed = refreshConnectorFromBindings(el, elementsById)
     if (refreshed !== el) {
-      allElements[i] = refreshed as AnySlideElement
-      elementsById.set(refreshed.id, refreshed as AnySlideElement)
+      allElements[i] = refreshed
+      elementsById.set(refreshed.id, refreshed)
     }
   }
 

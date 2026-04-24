@@ -65,8 +65,7 @@ export function getChild(parent: Element, tagName: string): Element | undefined 
 }
 
 export function getDirectChild(parent: Element, tagName: string): Element | undefined {
-  for (let i = 0; i < parent.childNodes.length; i++) {
-    const child = parent.childNodes[i]
+  for (const child of Array.from(parent.childNodes)) {
     if (child.nodeType !== ELEMENT_NODE) continue
     const el = child as Element
     if (el.tagName === tagName) return el
@@ -104,11 +103,11 @@ export function extractTransform(shapeEl: Element): OoxmlTransform | undefined {
   if (!off || !ext) return undefined
 
   return {
-    x: parseInt(off.getAttribute('x') || '0'),
-    y: parseInt(off.getAttribute('y') || '0'),
-    cx: parseInt(ext.getAttribute('cx') || '0'),
-    cy: parseInt(ext.getAttribute('cy') || '0'),
-    rotation: xfrm.getAttribute('rot') ? parseInt(xfrm.getAttribute('rot')!) : undefined
+    x: Number.parseInt(off.getAttribute('x') || '0'),
+    y: Number.parseInt(off.getAttribute('y') || '0'),
+    cx: Number.parseInt(ext.getAttribute('cx') || '0'),
+    cy: Number.parseInt(ext.getAttribute('cy') || '0'),
+    rotation: xfrm.getAttribute('rot') ? Number.parseInt(xfrm.getAttribute('rot')!) : undefined
   }
 }
 
@@ -125,9 +124,9 @@ interface RgbColor {
 function hexToRgb(hex: string): RgbColor {
   const clean = hex.replace('#', '')
   return {
-    r: parseInt(clean.slice(0, 2), 16) / 255,
-    g: parseInt(clean.slice(2, 4), 16) / 255,
-    b: parseInt(clean.slice(4, 6), 16) / 255
+    r: Number.parseInt(clean.slice(0, 2), 16) / 255,
+    g: Number.parseInt(clean.slice(2, 4), 16) / 255,
+    b: Number.parseInt(clean.slice(4, 6), 16) / 255
   }
 }
 
@@ -187,14 +186,14 @@ function hslToRgb({ h, s, l }: { h: number; s: number; l: number }): RgbColor {
 
 function parsePerMille(raw: string | null): number | undefined {
   if (!raw) return undefined
-  const n = parseInt(raw)
+  const n = Number.parseInt(raw)
   if (!Number.isFinite(n)) return undefined
   return n / 100000
 }
 
 function parseAngle60000(raw: string | null): number | undefined {
   if (!raw) return undefined
-  const n = parseInt(raw)
+  const n = Number.parseInt(raw)
   if (!Number.isFinite(n)) return undefined
   return n / 60000
 }
@@ -234,8 +233,8 @@ interface ColorTransforms {
 
 function readColorTransforms(node: Element): ColorTransforms {
   const t: ColorTransforms = {}
-  for (let i = 0; i < node.childNodes.length; i++) {
-    const child = node.childNodes[i] as Element
+  for (const raw of Array.from(node.childNodes)) {
+    const child = raw as Element
     if (!child.tagName) continue
     const val = child.getAttribute('val')
     switch (child.tagName) {
@@ -659,7 +658,7 @@ function readBaseColor(
     // Some decks use scheme-ish names inside prstClr — honor the theme first
     // when the preset key matches a theme color.
     if (theme) {
-      const key = (SCHEME_ALIAS[name.toLowerCase()] || name.toLowerCase()) as string
+      const key = SCHEME_ALIAS[name.toLowerCase()] || name.toLowerCase()
       const fromTheme = theme.colors.get(key) || theme.colors.get(name)
       if (fromTheme) return { rgb: hexToRgb(fromTheme.replace('#', '')), source: 'prst' }
     }
@@ -766,7 +765,7 @@ export function parseGradientFill(
 
   const stops = gsElements
     .map(gs => {
-      const pos = parseInt(gs.getAttribute('pos') || '0') / 1000
+      const pos = Number.parseInt(gs.getAttribute('pos') || '0') / 1000
       const color = resolveColor(gs, theme)
       return color ? { color, position: pos } : null
     })
@@ -775,7 +774,7 @@ export function parseGradientFill(
   if (stops.length === 0) return undefined
 
   const lin = getChild(gradFillNode, 'a:lin')
-  const angle = lin ? parseInt(lin.getAttribute('ang') || '0') / 60000 : 0
+  const angle = lin ? Number.parseInt(lin.getAttribute('ang') || '0') / 60000 : 0
   const isLinear = !!lin
 
   return { type: isLinear ? 'linear' : 'radial', angle, stops }

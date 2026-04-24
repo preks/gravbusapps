@@ -35,7 +35,7 @@ function wrapNodeInMiniSlideDoc(el: Element): Document {
     `<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:cSld><p:spTree></p:spTree></p:cSld></p:sld>`,
     'text/xml'
   )
-  d.getElementsByTagName('p:spTree')[0]!.appendChild(d.importNode(el, true))
+  d.getElementsByTagName('p:spTree')[0].appendChild(d.importNode(el, true))
   return d
 }
 
@@ -53,20 +53,20 @@ function getGroupTransform(grpSp: Element): GroupTransform | undefined {
 
   if (!off || !ext || !chOff || !chExt) return undefined
 
-  const rotRaw = parseInt(xfrm.getAttribute('rot') || '0')
+  const rotRaw = Number.parseInt(xfrm.getAttribute('rot') || '0')
   const rotDeg = Number.isFinite(rotRaw) ? rotRaw / 60000 : 0
   const flipH = xfrm.getAttribute('flipH') === '1'
   const flipV = xfrm.getAttribute('flipV') === '1'
 
   return {
-    x: parseInt(off.getAttribute('x') || '0'),
-    y: parseInt(off.getAttribute('y') || '0'),
-    cx: parseInt(ext.getAttribute('cx') || '0'),
-    cy: parseInt(ext.getAttribute('cy') || '0'),
-    chOffX: parseInt(chOff.getAttribute('x') || '0'),
-    chOffY: parseInt(chOff.getAttribute('y') || '0'),
-    chExtCX: parseInt(chExt.getAttribute('cx') || '1'),
-    chExtCY: parseInt(chExt.getAttribute('cy') || '1'),
+    x: Number.parseInt(off.getAttribute('x') || '0'),
+    y: Number.parseInt(off.getAttribute('y') || '0'),
+    cx: Number.parseInt(ext.getAttribute('cx') || '0'),
+    cy: Number.parseInt(ext.getAttribute('cy') || '0'),
+    chOffX: Number.parseInt(chOff.getAttribute('x') || '0'),
+    chOffY: Number.parseInt(chOff.getAttribute('y') || '0'),
+    chExtCX: Number.parseInt(chExt.getAttribute('cx') || '1'),
+    chExtCY: Number.parseInt(chExt.getAttribute('cy') || '1'),
     rotDeg,
     flipH,
     flipV
@@ -128,7 +128,7 @@ function transformElementPosition(element: AnySlideElement, gt: GroupTransform, 
 
   // Compose rotations: a flip flips the rotation sign.
   const existingRot = (element as AnySlideElement & { rotation?: number }).rotation ?? 0
-  const flipSign = gt.flipH !== gt.flipV ? -1 : 1
+  const flipSign = gt.flipH === gt.flipV ? 1 : -1
   const composedRotation = flipSign * existingRot + gt.rotDeg
 
   // Propagate flips into the child's importMeta when present so renderers
@@ -172,8 +172,8 @@ function flattenSingleGroup(
 
   const childElements: AnySlideElement[] = []
 
-  for (let j = 0; j < grpSp.childNodes.length; j++) {
-    const child = grpSp.childNodes[j] as Element
+  for (const node of Array.from(grpSp.childNodes)) {
+    const child = node as Element
     if (!child.tagName) continue
     if (child.tagName === 'p:sp') {
       if (isGroupPlaceholder(child)) continue

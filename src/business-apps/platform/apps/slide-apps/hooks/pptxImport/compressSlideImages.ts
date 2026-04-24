@@ -75,7 +75,7 @@ export type CompressionWarning =
 function getDataUrlMime(dataUrl: string): string | undefined {
   const commaIdx = dataUrl.indexOf(',')
   const header = commaIdx === -1 ? dataUrl : dataUrl.slice(0, commaIdx)
-  return header.match(/^data:([^;,]+)/)?.[1]?.toLowerCase()
+  return /^data:([^;,]+)/.exec(header)?.[1]?.toLowerCase()
 }
 
 function canvasContainsTransparency(ctx: CanvasRenderingContext2D, width: number, height: number): boolean {

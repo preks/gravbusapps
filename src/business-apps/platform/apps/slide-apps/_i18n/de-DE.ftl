@@ -307,6 +307,7 @@ editor-slides-label = Folien:
 editor-add = Hinzufügen
 editor-duplicate-slide = Folie duplizieren
 editor-delete-slide = Folie löschen
+editor-canvas-aria-label = Folien-Arbeitsfläche
 editor-properties = Eigenschaften
 editor-show-properties = Eigenschaften anzeigen
 editor-select-element = Element auswählen, um seine Eigenschaften zu bearbeiten

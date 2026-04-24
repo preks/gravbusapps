@@ -143,11 +143,11 @@ export const ShapePointEditor: React.FC<ShapePointEditorProps> = ({
         return curr
       })
     }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
+    globalThis.addEventListener('mousemove', onMove)
+    globalThis.addEventListener('mouseup', onUp)
     return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      globalThis.removeEventListener('mousemove', onMove)
+      globalThis.removeEventListener('mouseup', onUp)
     }
   }, [drag, scale, width, height, onChangePath])
 
@@ -208,8 +208,8 @@ export const ShapePointEditor: React.FC<ShapePointEditorProps> = ({
         })
       }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    globalThis.addEventListener('keydown', onKey)
+    return () => globalThis.removeEventListener('keydown', onKey)
   }, [selected, onExit, onChangePath])
 
   // Insert anchor with Alt+click on a segment.
@@ -257,6 +257,8 @@ export const ShapePointEditor: React.FC<ShapePointEditorProps> = ({
     <div
       data-testid={testId ?? `shape-point-editor-${element.id}`}
       data-shape-point-editor="true"
+      role="application"
+      aria-label="Shape point editor"
       style={{
         position: 'absolute',
         inset: 0,
@@ -266,6 +268,12 @@ export const ShapePointEditor: React.FC<ShapePointEditorProps> = ({
       }}
       onMouseDown={e => e.stopPropagation()}
       onClick={e => e.stopPropagation()}
+      onKeyDown={e => {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          onExit()
+        }
+      }}
     >
       <svg
         ref={svgRef}
@@ -362,8 +370,8 @@ export const ShapePointEditor: React.FC<ShapePointEditorProps> = ({
  */
 function scaledPathD(d: string, w: number, h: number): string {
   return d.replace(/(-?\d+\.?\d*(?:[eE][-+]?\d+)?)\s+(-?\d+\.?\d*(?:[eE][-+]?\d+)?)/g, (_, x: string, y: string) => {
-    const nx = parseFloat(x) * w
-    const ny = parseFloat(y) * h
+    const nx = Number.parseFloat(x) * w
+    const ny = Number.parseFloat(y) * h
     return `${nx} ${ny}`
   })
 }

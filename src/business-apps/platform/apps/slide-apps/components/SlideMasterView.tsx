@@ -6,10 +6,14 @@ import { X, Plus, CopyPlus, Trash2, Pencil, Check, LayoutTemplate } from 'lucide
 import { toast } from 'sonner'
 import type { SlideMaster, SlideLayout } from '../types/slideMaster'
 import type { SlideTheme } from './slideThemes'
-import type { AnySlideElement, SlideBackground } from './slideElements'
-import { createTextElement } from './slideElements'
+import {
+  type AnySlideElement,
+  type SlideBackground,
+  createTextElement,
+  gradientToCss,
+  textTransformToCss
+} from './slideElements'
 import { SlideCanvas } from './SlideCanvas'
-import { gradientToCss, textTransformToCss } from './slideElements'
 import { resolveFontStack } from './fontStack'
 import translations from '../_i18n'
 

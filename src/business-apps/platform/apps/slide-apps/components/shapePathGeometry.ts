@@ -64,7 +64,7 @@ export function customPathToNodes(d: string): PathData {
 
   const nextNumber = (): number => {
     while (i < tokens.length && /[A-Za-z]/.test(tokens[i])) i++
-    const n = parseFloat(tokens[i++])
+    const n = Number.parseFloat(tokens[i++])
     return Number.isFinite(n) ? n : 0
   }
   const pushNode = (pt: Point, opts?: { in?: Point; out?: Point }): PathNode => {
@@ -523,26 +523,21 @@ function lineNodes(a: Point = { x: 0, y: 0 }, b: Point = { x: 1, y: 1 }): PathSu
 function bentConnectorNodes(segments: 2 | 3 | 4 | 5): PathSubpath {
   const pts: Point[] = [{ x: 0, y: 0 }]
   if (segments === 2) {
-    pts.push({ x: 1, y: 0 })
-    pts.push({ x: 1, y: 1 })
+    pts.push({ x: 1, y: 0 }, { x: 1, y: 1 })
   } else if (segments === 3) {
-    pts.push({ x: 0.5, y: 0 })
-    pts.push({ x: 0.5, y: 1 })
-    pts.push({ x: 1, y: 1 })
+    pts.push({ x: 0.5, y: 0 }, { x: 0.5, y: 1 }, { x: 1, y: 1 })
   } else if (segments === 4) {
-    pts.push({ x: 1 / 3, y: 0 })
-    pts.push({ x: 1 / 3, y: 0.5 })
-    pts.push({ x: 2 / 3, y: 0.5 })
-    pts.push({ x: 2 / 3, y: 1 })
-    pts.push({ x: 1, y: 1 })
+    pts.push({ x: 1 / 3, y: 0 }, { x: 1 / 3, y: 0.5 }, { x: 2 / 3, y: 0.5 }, { x: 2 / 3, y: 1 }, { x: 1, y: 1 })
   } else {
-    pts.push({ x: 0.25, y: 0 })
-    pts.push({ x: 0.25, y: 1 / 3 })
-    pts.push({ x: 0.5, y: 1 / 3 })
-    pts.push({ x: 0.5, y: 2 / 3 })
-    pts.push({ x: 0.75, y: 2 / 3 })
-    pts.push({ x: 0.75, y: 1 })
-    pts.push({ x: 1, y: 1 })
+    pts.push(
+      { x: 0.25, y: 0 },
+      { x: 0.25, y: 1 / 3 },
+      { x: 0.5, y: 1 / 3 },
+      { x: 0.5, y: 2 / 3 },
+      { x: 0.75, y: 2 / 3 },
+      { x: 0.75, y: 1 },
+      { x: 1, y: 1 }
+    )
   }
   return {
     closed: false,

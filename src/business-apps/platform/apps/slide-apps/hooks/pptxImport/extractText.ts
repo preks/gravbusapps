@@ -87,7 +87,7 @@ function parseRunProperties(rPr: Element | undefined, theme?: OoxmlTheme): Parti
   if (cap) result.cap = cap
 
   const sz = rPr.getAttribute('sz')
-  if (sz) result.fontSize = parseInt(sz)
+  if (sz) result.fontSize = Number.parseInt(sz)
 
   const latin = getChild(rPr, 'a:latin')
   if (latin) {
@@ -155,13 +155,13 @@ export function parseBodyAutofit(bodyPr: Element | undefined): BodyAutofit {
     result.mode = 'normal'
     const fs = normAutofit.getAttribute('fontScale')
     if (fs) {
-      const val = parseInt(fs)
+      const val = Number.parseInt(fs)
       // fontScale is stored per-mille (100000 == 100%).
       if (Number.isFinite(val) && val > 0) result.fontScale = val / 100000
     }
     const lsr = normAutofit.getAttribute('lnSpcReduction')
     if (lsr) {
-      const val = parseInt(lsr)
+      const val = Number.parseInt(lsr)
       if (Number.isFinite(val) && val >= 0) result.lineSpaceReduction = val / 100000
     }
     return result
@@ -203,7 +203,7 @@ function parseBodyTextBoxLayout(
   const insetAttrs = ['lIns', 'rIns', 'tIns', 'bIns']
     .map(attr => bodyPr.getAttribute(attr))
     .filter((raw): raw is string => !!raw)
-    .map(raw => parseInt(raw))
+    .map(raw => Number.parseInt(raw))
     .filter(val => Number.isFinite(val))
     .map(emuToPixels)
 
@@ -260,7 +260,7 @@ function parseSpacingNode(node: Element | undefined): ParsedSpacing | undefined 
   if (spcPct) {
     const val = spcPct.getAttribute('val')
     if (val) {
-      const num = parseInt(val) / 100000
+      const num = Number.parseInt(val) / 100000
       if (Number.isFinite(num)) return { value: num, unit: 'multiplier' }
     }
   }
@@ -268,7 +268,7 @@ function parseSpacingNode(node: Element | undefined): ParsedSpacing | undefined 
   if (spcPts) {
     const val = spcPts.getAttribute('val')
     if (val) {
-      const num = parseInt(val) / 100
+      const num = Number.parseInt(val) / 100
       if (Number.isFinite(num)) return { value: num, unit: 'points' }
     }
   }
@@ -324,18 +324,18 @@ function parseParagraphs(txBody: Element, theme?: OoxmlTheme, inheritedLevels?: 
   const bodyLstStyle = getChild(txBody, 'a:lstStyle')
   const bodyLevelDefaults: InheritedLevelMap = new Map()
   if (bodyLstStyle) {
-    for (let i = 0; i < bodyLstStyle.childNodes.length; i++) {
-      const child = bodyLstStyle.childNodes[i] as Element
+    for (const node of Array.from(bodyLstStyle.childNodes)) {
+      const child = node as Element
       if (!child.tagName) continue
       const match = /^a:lvl([1-9])pPr$/.exec(child.tagName)
       if (!match) continue
-      const level = parseInt(match[1]) - 1
+      const level = Number.parseInt(match[1]) - 1
       const defRPr = getChild(child, 'a:defRPr')
       if (!defRPr) continue
       const defaults: InheritedLevelDefaults = {}
       const sz = defRPr.getAttribute('sz')
       if (sz) {
-        const parsed = parseInt(sz)
+        const parsed = Number.parseInt(sz)
         if (Number.isFinite(parsed)) defaults.fontSize = parsed
       }
       if (defRPr.getAttribute('b') === '1') defaults.bold = true
@@ -374,24 +374,23 @@ function parseParagraphs(txBody: Element, theme?: OoxmlTheme, inheritedLevels?: 
     })
   }
 
-  for (let i = 0; i < pElements.length; i++) {
-    const p = pElements[i]
+  for (const p of pElements) {
     if (p.parentElement !== txBody) continue
 
     const pPr = getChild(p, 'a:pPr')
     const alignment = pPr?.getAttribute('algn') as OoxmlParagraph['alignment']
-    const level = pPr?.getAttribute('lvl') ? parseInt(pPr.getAttribute('lvl')!) : undefined
+    const level = pPr?.getAttribute('lvl') ? Number.parseInt(pPr.getAttribute('lvl')!) : undefined
     const levelDefaults = getLevelDefaults(mergedLevelDefaults, level)
 
     const defRPr = pPr ? getChild(pPr, 'a:defRPr') : undefined
-    const defaultFontSize = defRPr?.getAttribute('sz') ? parseInt(defRPr.getAttribute('sz')!) : undefined
+    const defaultFontSize = defRPr?.getAttribute('sz') ? Number.parseInt(defRPr.getAttribute('sz')!) : undefined
     const defColor = defRPr ? resolveTextFillColor(defRPr, theme) : undefined
     const defLatin = defRPr ? getChild(defRPr, 'a:latin') : undefined
     const defFontFamily = defLatin ? resolveTypeface(defLatin.getAttribute('typeface'), theme) : undefined
     const defCap = defRPr ? parseCap(defRPr.getAttribute('cap')) : undefined
 
     const endParaRPr = getChild(p, 'a:endParaRPr')
-    const endFontSize = endParaRPr?.getAttribute('sz') ? parseInt(endParaRPr.getAttribute('sz')!) : undefined
+    const endFontSize = endParaRPr?.getAttribute('sz') ? Number.parseInt(endParaRPr.getAttribute('sz')!) : undefined
     const endColor = endParaRPr ? resolveTextFillColor(endParaRPr, theme) : undefined
     const endLatin = endParaRPr ? getChild(endParaRPr, 'a:latin') : undefined
     const endFontFamily = endLatin ? resolveTypeface(endLatin.getAttribute('typeface'), theme) : undefined
@@ -417,8 +416,8 @@ function parseParagraphs(txBody: Element, theme?: OoxmlTheme, inheritedLevels?: 
     const spaceAfter = spacingToPixelGap(parseSpacingNode(spcAftEl), paraFontSize)
 
     const runs: OoxmlTextRun[] = []
-    for (let j = 0; j < p.childNodes.length; j++) {
-      const child = p.childNodes[j] as Element
+    for (const node of Array.from(p.childNodes)) {
+      const child = node as Element
       if (child.tagName === 'a:r') {
         const rPr = getChild(child, 'a:rPr')
         const tEl = getChild(child, 'a:t')
@@ -784,9 +783,7 @@ export function extractTextElements(
   const elements: TextElement[] = []
   const shapes = slideXml.getElementsByTagName('p:sp')
 
-  for (let i = 0; i < shapes.length; i++) {
-    const shape = shapes[i]
-
+  for (const shape of Array.from(shapes)) {
     if (isInsideGroup(shape)) continue
 
     const txBody = getChild(shape, 'p:txBody')

@@ -13,7 +13,6 @@ import type {
   VideoElement,
   CodeElement,
   TableElement,
-  ChartElement,
   IconElement,
   LogoElement,
   FooterElement,
@@ -45,9 +44,9 @@ import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaU
 
 const hexToRgba = (hex: string, alpha: number): string => {
   const cleanHex = hex.replace('#', '')
-  const r = parseInt(cleanHex.substring(0, 2), 16)
-  const g = parseInt(cleanHex.substring(2, 4), 16)
-  const b = parseInt(cleanHex.substring(4, 6), 16)
+  const r = Number.parseInt(cleanHex.substring(0, 2), 16)
+  const g = Number.parseInt(cleanHex.substring(2, 4), 16)
+  const b = Number.parseInt(cleanHex.substring(4, 6), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
@@ -1031,6 +1030,9 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           key={element.id}
           data-slide-element="true"
           data-element-id={element.id}
+          role="button"
+          tabIndex={element.locked ? -1 : 0}
+          aria-label={`${element.type} element`}
           style={wrapperStyle}
           onContextMenu={e => {
             // Right-click → Edit Points for shapes. Mirrors PowerPoint's
@@ -1044,6 +1046,18 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             }
           }}
           onMouseDown={e => handleElementMouseDown(e, element)}
+          onKeyDown={e => {
+            if (element.locked) return
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
+              if (e.key === 'Enter' && (element.type === 'text' || element.type === 'shape')) {
+                if (inlineEditing?.editingTextId !== element.id) {
+                  onEditText(element.id)
+                }
+              }
+            }
+          }}
           onDoubleClick={e => {
             // Double-click to start inline text editing. Works for plain text
             // elements AND shapes with an in-shape label so shape text gets
@@ -1057,174 +1071,171 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             }
           }}
         >
-          {element.type === 'text' && (
-            <div
-              style={{
-                width: '100%',
-                height: '100%',
-                backgroundColor: (element as TextElement).gradient
-                  ? undefined
-                  : (element as TextElement).backgroundColor,
-                background: (element as TextElement).gradient
-                  ? gradientToCss((element as TextElement).gradient!)
-                  : undefined,
-                padding: (element as TextElement).padding,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent:
-                  (element as TextElement).verticalAlign === 'top'
-                    ? 'flex-start'
-                    : (element as TextElement).verticalAlign === 'bottom'
-                      ? 'flex-end'
-                      : 'center',
-                overflow: inlineEditing?.editingTextId === element.id ? 'visible' : 'hidden',
-                position: 'relative'
-              }}
-            >
-              {inlineEditing?.editingTextId === element.id ? (
-                <>
-                  <textarea
-                    ref={el => {
-                      if (el && textareaInitializedRef.current !== element.id) {
-                        textareaInitializedRef.current = element.id
-                        el.focus()
-                        el.selectionStart = el.selectionEnd = el.value.length
-                      }
-                    }}
-                    value={(element as TextElement).content}
-                    onChange={e => inlineEditing.onTextChange(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Escape') {
-                        e.preventDefault()
-                        textareaInitializedRef.current = null
-                        inlineEditing.onFinishEditing()
-                      }
-                    }}
-                    onClick={e => e.stopPropagation()}
-                    onMouseDown={e => e.stopPropagation()}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      fontFamily: resolveFontStack((element as TextElement).fontFamily),
-                      fontSize: (element as TextElement).fontSize,
-                      fontWeight: (element as TextElement).fontWeight,
-                      fontStyle: (element as TextElement).fontStyle,
-                      textDecoration: (element as TextElement).textDecoration,
-                      textAlign: (element as TextElement).textAlign,
-                      color: (element as TextElement).color,
-                      lineHeight: (element as TextElement).lineHeight,
-                      letterSpacing: (element as TextElement).letterSpacing,
-                      ...textTransformToCss((element as TextElement).textTransform),
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      background: 'transparent',
-                      border: 'none',
-                      outline: 'none',
-                      resize: 'none',
-                      padding: 0,
-                      margin: 0
-                    }}
-                  />
-                  {/* Inline editing toolbar */}
-                  <div
-                    className="gba:bg-background/95 gba:backdrop-blur-sm gba:rounded-lg gba:shadow-lg gba:border gba:border-border"
-                    style={{
-                      position: 'absolute',
-                      bottom: 8 / scale,
-                      right: 8 / scale,
-                      transform: `scale(${1 / scale})`,
-                      transformOrigin: 'bottom right',
-                      display: 'flex',
-                      gap: 4,
-                      padding: '6px 8px',
-                      zIndex: 10000
-                    }}
-                    onClick={e => e.stopPropagation()}
-                    onMouseDown={e => e.stopPropagation()}
-                  >
-                    {inlineEditing.voiceInput?.isSupported && (
-                      <button
-                        onClick={e => {
-                          e.stopPropagation()
-                          if (inlineEditing.voiceInput?.isListening) {
-                            inlineEditing.voiceInput.stopListening()
-                          } else {
-                            inlineEditing.voiceInput?.startListening()
-                          }
-                        }}
-                        className={`gba:flex gba:items-center gba:justify-center gba:gap-1 gba:h-8 gba:rounded-md gba:border-0 gba:cursor-pointer gba:transition-all gba:text-xs gba:font-medium ${
-                          inlineEditing.voiceInput?.isListening
-                            ? 'gba:bg-destructive gba:text-destructive-foreground gba:px-3 gba:animate-pulse'
-                            : 'gba:bg-muted gba:text-foreground gba:w-8'
-                        }`}
-                        title={inlineEditing.voiceInput?.isListening ? 'Stop voice input' : 'Start voice input'}
-                      >
-                        {inlineEditing.voiceInput?.isListening ? (
-                          <>
-                            <MicOff className="gba:w-3.5 gba:h-3.5" />
-                            <span>Stop</span>
-                          </>
-                        ) : (
-                          <Mic className="gba:w-4 gba:h-4" />
-                        )}
-                      </button>
-                    )}
-                    <button
-                      onClick={e => {
-                        e.stopPropagation()
-                        if (inlineEditing.voiceInput?.isListening) {
-                          inlineEditing.voiceInput.stopListening()
-                        }
-                        inlineEditing.onFinishEditing()
-                      }}
-                      className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-md gba:border-0 gba:cursor-pointer gba:bg-primary gba:text-primary-foreground gba:transition-all"
-                      title="Done editing"
-                    >
-                      <Check className="gba:w-4 gba:h-4" />
-                    </button>
-                  </div>
-                </>
-              ) : (
+          {element.type === 'text' &&
+            (() => {
+              const textEl: TextElement = element
+              return (
                 <div
                   style={{
                     width: '100%',
-                    fontFamily: resolveFontStack((element as TextElement).fontFamily),
-                    fontSize: (element as TextElement).fontSize,
-                    fontWeight: (element as TextElement).fontWeight,
-                    fontStyle: (element as TextElement).fontStyle,
-                    textDecoration: (element as TextElement).textDecoration,
-                    textAlign: (element as TextElement).textAlign,
-                    color: (element as TextElement).color,
-                    lineHeight: (element as TextElement).lineHeight,
-                    letterSpacing: (element as TextElement).letterSpacing,
-                    ...textTransformToCss((element as TextElement).textTransform),
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word'
+                    height: '100%',
+                    backgroundColor: textEl.gradient ? undefined : textEl.backgroundColor,
+                    background: textEl.gradient ? gradientToCss(textEl.gradient) : undefined,
+                    padding: textEl.padding,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent:
+                      textEl.verticalAlign === 'top'
+                        ? 'flex-start'
+                        : textEl.verticalAlign === 'bottom'
+                          ? 'flex-end'
+                          : 'center',
+                    overflow: inlineEditing?.editingTextId === element.id ? 'visible' : 'hidden',
+                    position: 'relative'
                   }}
                 >
-                  {(element as TextElement).paragraphs && (element as TextElement).paragraphs!.length > 0 ? (
-                    <RichTextContent
-                      element={element as TextElement}
-                      paragraphs={(element as TextElement).paragraphs!}
-                    />
+                  {inlineEditing?.editingTextId === element.id ? (
+                    <>
+                      <textarea
+                        ref={el => {
+                          if (el && textareaInitializedRef.current !== element.id) {
+                            textareaInitializedRef.current = element.id
+                            el.focus()
+                            el.selectionStart = el.selectionEnd = el.value.length
+                          }
+                        }}
+                        value={textEl.content}
+                        onChange={e => inlineEditing.onTextChange(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Escape') {
+                            e.preventDefault()
+                            textareaInitializedRef.current = null
+                            inlineEditing.onFinishEditing()
+                          }
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        onMouseDown={e => e.stopPropagation()}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          fontFamily: resolveFontStack(textEl.fontFamily),
+                          fontSize: textEl.fontSize,
+                          fontWeight: textEl.fontWeight,
+                          fontStyle: textEl.fontStyle,
+                          textDecoration: textEl.textDecoration,
+                          textAlign: textEl.textAlign,
+                          color: textEl.color,
+                          lineHeight: textEl.lineHeight,
+                          letterSpacing: textEl.letterSpacing,
+                          ...textTransformToCss(textEl.textTransform),
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          background: 'transparent',
+                          border: 'none',
+                          outline: 'none',
+                          resize: 'none',
+                          padding: 0,
+                          margin: 0
+                        }}
+                      />
+                      {/* Inline editing toolbar */}
+                      <div
+                        className="gba:bg-background/95 gba:backdrop-blur-sm gba:rounded-lg gba:shadow-lg gba:border gba:border-border"
+                        style={{
+                          position: 'absolute',
+                          bottom: 8 / scale,
+                          right: 8 / scale,
+                          transform: `scale(${1 / scale})`,
+                          transformOrigin: 'bottom right',
+                          display: 'flex',
+                          gap: 4,
+                          padding: '6px 8px',
+                          zIndex: 10000
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        onMouseDown={e => e.stopPropagation()}
+                      >
+                        {inlineEditing.voiceInput?.isSupported && (
+                          <button
+                            onClick={e => {
+                              e.stopPropagation()
+                              if (inlineEditing.voiceInput?.isListening) {
+                                inlineEditing.voiceInput.stopListening()
+                              } else {
+                                inlineEditing.voiceInput?.startListening()
+                              }
+                            }}
+                            className={`gba:flex gba:items-center gba:justify-center gba:gap-1 gba:h-8 gba:rounded-md gba:border-0 gba:cursor-pointer gba:transition-all gba:text-xs gba:font-medium ${
+                              inlineEditing.voiceInput?.isListening
+                                ? 'gba:bg-destructive gba:text-destructive-foreground gba:px-3 gba:animate-pulse'
+                                : 'gba:bg-muted gba:text-foreground gba:w-8'
+                            }`}
+                            title={inlineEditing.voiceInput?.isListening ? 'Stop voice input' : 'Start voice input'}
+                          >
+                            {inlineEditing.voiceInput?.isListening ? (
+                              <>
+                                <MicOff className="gba:w-3.5 gba:h-3.5" />
+                                <span>Stop</span>
+                              </>
+                            ) : (
+                              <Mic className="gba:w-4 gba:h-4" />
+                            )}
+                          </button>
+                        )}
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            if (inlineEditing.voiceInput?.isListening) {
+                              inlineEditing.voiceInput.stopListening()
+                            }
+                            inlineEditing.onFinishEditing()
+                          }}
+                          className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-md gba:border-0 gba:cursor-pointer gba:bg-primary gba:text-primary-foreground gba:transition-all"
+                          title="Done editing"
+                        >
+                          <Check className="gba:w-4 gba:h-4" />
+                        </button>
+                      </div>
+                    </>
                   ) : (
-                    <TextWithLinks
-                      content={(element as TextElement).content}
-                      links={(element as TextElement).links ?? []}
-                      isPresenting={isPresenting}
-                      onLinkClick={onLinkClick}
-                    />
+                    <div
+                      style={{
+                        width: '100%',
+                        fontFamily: resolveFontStack(textEl.fontFamily),
+                        fontSize: textEl.fontSize,
+                        fontWeight: textEl.fontWeight,
+                        fontStyle: textEl.fontStyle,
+                        textDecoration: textEl.textDecoration,
+                        textAlign: textEl.textAlign,
+                        color: textEl.color,
+                        lineHeight: textEl.lineHeight,
+                        letterSpacing: textEl.letterSpacing,
+                        ...textTransformToCss(textEl.textTransform),
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word'
+                      }}
+                    >
+                      {textEl.paragraphs && textEl.paragraphs.length > 0 ? (
+                        <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
+                      ) : (
+                        <TextWithLinks
+                          content={textEl.content}
+                          links={textEl.links ?? []}
+                          isPresenting={isPresenting}
+                          onLinkClick={onLinkClick}
+                        />
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          )}
+              )
+            })()}
 
           {element.type === 'shape' && (
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
               {editingPointsId === element.id && (
                 <ShapePointEditor
-                  element={element as ShapeElement}
+                  element={element}
                   scale={scale}
                   onChangePath={nextPath => onPointsChange?.(element.id, nextPath)}
                   onExit={() => onExitPointEditing?.()}
@@ -1240,7 +1251,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 // switch via the shared `renderShape` helper. We intentionally
                 // do NOT add a CSS `scale(-1)` here to avoid double-flipping
                 // presets.
-                const se = element as ShapeElement
+                const se: ShapeElement = element
                 const effects = se.effects
                 const filters: string[] = []
                 if (effects?.glow) {
@@ -1340,7 +1351,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 )
               })()}
               {(() => {
-                const se = element as ShapeElement
+                const se: ShapeElement = element
                 const isEditingLabel = inlineEditing?.editingTextId === se.id
                 // When editing, force a default ShapeInText so the user has a
                 // real text container to type into even on shapes that did not
@@ -1396,12 +1407,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                           }
                         }}
                         value={st.content}
-                        onChange={e => inlineEditing!.onTextChange(e.target.value)}
+                        onChange={e => inlineEditing?.onTextChange(e.target.value)}
                         onKeyDown={e => {
                           if (e.key === 'Escape') {
                             e.preventDefault()
                             textareaInitializedRef.current = null
-                            inlineEditing!.onFinishEditing()
+                            inlineEditing?.onFinishEditing()
                           }
                         }}
                         onClick={e => e.stopPropagation()}
@@ -1466,76 +1477,76 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
 
           {element.type === 'image' && (
             <>
-              {!failedImages.has(element.id) && sanitizeMediaUrl((element as ImageElement).src, ['image/']) ? (
-                (() => {
-                  const imgEl = element as ImageElement
-                  const crop = getImageCropStyles(imgEl.cropRect)
-                  const commonVisualStyle = {
-                    borderRadius: imgEl.borderRadius,
-                    border: imgEl.borderWidth > 0 ? `${imgEl.borderWidth}px solid ${imgEl.borderColor}` : 'none',
-                    boxShadow: imgEl.shadow
-                      ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-                      : 'none'
-                  }
+              {!failedImages.has(element.id) && sanitizeMediaUrl(element.src, ['image/'])
+                ? (() => {
+                    const imgEl: ImageElement = element
+                    const crop = getImageCropStyles(imgEl.cropRect)
+                    const commonVisualStyle = {
+                      borderRadius: imgEl.borderRadius,
+                      border: imgEl.borderWidth > 0 ? `${imgEl.borderWidth}px solid ${imgEl.borderColor}` : 'none',
+                      boxShadow: imgEl.shadow
+                        ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+                        : 'none'
+                    }
 
-                  if (crop.wrapperNeeded) {
+                    if (crop.wrapperNeeded) {
+                      return (
+                        <div
+                          style={{
+                            position: 'relative',
+                            width: '100%',
+                            height: '100%',
+                            overflow: 'hidden',
+                            ...commonVisualStyle
+                          }}
+                        >
+                          <img
+                            src={getCachedImageUrl(sanitizeMediaUrl(imgEl.src, ['image/']))}
+                            alt={imgEl.alt}
+                            style={crop.imgStyle}
+                            draggable={false}
+                            onError={() => handleImageError(element.id)}
+                          />
+                        </div>
+                      )
+                    }
+
                     return (
-                      <div
+                      <img
+                        src={getCachedImageUrl(sanitizeMediaUrl(imgEl.src, ['image/']))}
+                        alt={imgEl.alt}
                         style={{
-                          position: 'relative',
                           width: '100%',
                           height: '100%',
-                          overflow: 'hidden',
+                          objectFit: imgEl.objectFit,
                           ...commonVisualStyle
                         }}
+                        draggable={false}
+                        onError={() => handleImageError(element.id)}
+                      />
+                    )
+                  })()
+                : (() => {
+                    const imgEl: ImageElement = element
+                    return (
+                      <div
+                        className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:text-muted-foreground gba:rounded"
+                        style={{
+                          borderRadius: imgEl.borderRadius,
+                          border: imgEl.borderWidth > 0 ? `${imgEl.borderWidth}px solid ${imgEl.borderColor}` : 'none'
+                        }}
                       >
-                        <img
-                          src={getCachedImageUrl(sanitizeMediaUrl(imgEl.src, ['image/']))}
-                          alt={imgEl.alt}
-                          style={crop.imgStyle}
-                          draggable={false}
-                          onError={() => handleImageError(element.id)}
-                        />
+                        <ImageOff className="gba:w-8 gba:h-8 gba:mb-2" />
+                        <span className="gba:text-xs">Image failed to load</span>
                       </div>
                     )
-                  }
-
-                  return (
-                    <img
-                      src={getCachedImageUrl(sanitizeMediaUrl(imgEl.src, ['image/']))}
-                      alt={imgEl.alt}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: imgEl.objectFit,
-                        ...commonVisualStyle
-                      }}
-                      draggable={false}
-                      onError={() => handleImageError(element.id)}
-                    />
-                  )
-                })()
-              ) : (
-                <div
-                  className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:text-muted-foreground gba:rounded"
-                  style={{
-                    borderRadius: (element as ImageElement).borderRadius,
-                    border:
-                      (element as ImageElement).borderWidth > 0
-                        ? `${(element as ImageElement).borderWidth}px solid ${(element as ImageElement).borderColor}`
-                        : 'none'
-                  }}
-                >
-                  <ImageOff className="gba:w-8 gba:h-8 gba:mb-2" />
-                  <span className="gba:text-xs">Image failed to load</span>
-                </div>
-              )}
+                  })()}
             </>
           )}
 
           {element.type === 'code' &&
             (() => {
-              const ce = element as CodeElement
+              const ce: CodeElement = element
               const defaultBg = ce.theme === 'dark' ? '#1e1e1e' : '#f8f8f8'
               const defaultColor = ce.theme === 'dark' ? '#d4d4d4' : '#333'
               const codeStyle: React.CSSProperties = {
@@ -1601,116 +1612,122 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               )
             })()}
 
-          {element.type === 'video' && sanitizeMediaUrl((element as VideoElement).src, ['video/']) && (
-            <video
-              src={sanitizeMediaUrl((element as VideoElement).src, ['video/'])}
-              autoPlay={(element as VideoElement).autoplay}
-              loop={(element as VideoElement).loop}
-              muted={(element as VideoElement).muted}
-              playsInline
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: (element as VideoElement).objectFit,
-                borderRadius: (element as VideoElement).borderRadius,
-                boxShadow: (element as VideoElement).shadow
-                  ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-                  : 'none'
-              }}
-            />
-          )}
+          {element.type === 'video' &&
+            (() => {
+              const videoEl: VideoElement = element
+              const sanitized = sanitizeMediaUrl(videoEl.src, ['video/'])
+              if (!sanitized) return null
+              return (
+                <video
+                  src={sanitized}
+                  autoPlay={videoEl.autoplay}
+                  loop={videoEl.loop}
+                  muted={videoEl.muted}
+                  playsInline
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: videoEl.objectFit,
+                    borderRadius: videoEl.borderRadius,
+                    boxShadow: videoEl.shadow
+                      ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+                      : 'none'
+                  }}
+                />
+              )
+            })()}
 
-          {element.type === 'table' && (
-            <div
-              style={{
-                width: '100%',
-                height: '100%',
-                overflow: 'hidden',
-                borderRadius: (element as TableElement).borderRadius,
-                border: `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
-              }}
-            >
-              <table
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  borderCollapse: 'collapse',
-                  tableLayout: 'fixed'
-                }}
-              >
-                <thead>
-                  <tr>
-                    {(element as TableElement).headers.map((header, idx) => (
-                      <th
-                        key={`header-${idx}`}
-                        style={{
-                          backgroundColor: (element as TableElement).headerBackground,
-                          color: (element as TableElement).headerTextColor,
-                          fontSize: (element as TableElement).headerFontSize,
-                          fontWeight: 'bold',
-                          padding: (element as TableElement).cellPadding,
-                          textAlign: 'left',
-                          borderBottom: `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`,
-                          borderRight:
-                            idx < (element as TableElement).headers.length - 1
-                              ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
-                              : 'none'
-                        }}
-                      >
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(element as TableElement).rows.map((row, rowIdx) => (
-                    <tr key={`row-${rowIdx}`}>
-                      {row.map((cell, cellIdx) => (
-                        <td
-                          key={`cell-${rowIdx}-${cellIdx}`}
-                          style={{
-                            backgroundColor:
-                              (element as TableElement).rowAlternateBackground && rowIdx % 2 === 1
-                                ? (element as TableElement).rowAlternateBackground
-                                : (element as TableElement).rowBackground,
-                            color: (element as TableElement).rowTextColor,
-                            fontSize: (element as TableElement).fontSize,
-                            padding: (element as TableElement).cellPadding,
-                            textAlign: 'left',
-                            borderBottom:
-                              rowIdx < (element as TableElement).rows.length - 1
-                                ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
-                                : 'none',
-                            borderRight:
-                              cellIdx < row.length - 1
-                                ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
-                                : 'none',
-                            verticalAlign: 'middle',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}
-                        >
-                          {cell}
-                        </td>
+          {element.type === 'table' &&
+            (() => {
+              const tableEl: TableElement = element
+              return (
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'hidden',
+                    borderRadius: tableEl.borderRadius,
+                    border: `${tableEl.borderWidth}px solid ${tableEl.borderColor}`
+                  }}
+                >
+                  <table
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderCollapse: 'collapse',
+                      tableLayout: 'fixed'
+                    }}
+                  >
+                    <thead>
+                      <tr>
+                        {tableEl.headers.map((header, idx) => (
+                          <th
+                            key={`header-${idx}`}
+                            style={{
+                              backgroundColor: tableEl.headerBackground,
+                              color: tableEl.headerTextColor,
+                              fontSize: tableEl.headerFontSize,
+                              fontWeight: 'bold',
+                              padding: tableEl.cellPadding,
+                              textAlign: 'left',
+                              borderBottom: `${tableEl.borderWidth}px solid ${tableEl.borderColor}`,
+                              borderRight:
+                                idx < tableEl.headers.length - 1
+                                  ? `${tableEl.borderWidth}px solid ${tableEl.borderColor}`
+                                  : 'none'
+                            }}
+                          >
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tableEl.rows.map((row, rowIdx) => (
+                        <tr key={`row-${rowIdx}`}>
+                          {row.map((cell, cellIdx) => (
+                            <td
+                              key={`cell-${rowIdx}-${cellIdx}`}
+                              style={{
+                                backgroundColor:
+                                  tableEl.rowAlternateBackground && rowIdx % 2 === 1
+                                    ? tableEl.rowAlternateBackground
+                                    : tableEl.rowBackground,
+                                color: tableEl.rowTextColor,
+                                fontSize: tableEl.fontSize,
+                                padding: tableEl.cellPadding,
+                                textAlign: 'left',
+                                borderBottom:
+                                  rowIdx < tableEl.rows.length - 1
+                                    ? `${tableEl.borderWidth}px solid ${tableEl.borderColor}`
+                                    : 'none',
+                                borderRight:
+                                  cellIdx < row.length - 1
+                                    ? `${tableEl.borderWidth}px solid ${tableEl.borderColor}`
+                                    : 'none',
+                                verticalAlign: 'middle',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}
+                            >
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
                       ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            })()}
 
           {element.type === 'chart' && (
-            <SlideChartRenderer
-              element={element as ChartElement}
-              width={element.size.width}
-              height={element.size.height}
-            />
+            <SlideChartRenderer element={element} width={element.size.width} height={element.size.height} />
           )}
 
           {element.type === 'icon' &&
             (() => {
-              const iconEl = element as IconElement
+              const iconEl: IconElement = element
               const iconName = iconEl.iconName
                 .split('-')
                 .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
@@ -1862,7 +1879,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
 
           {element.type === 'connector' &&
             (() => {
-              const connEl = element as ConnectorElement
+              const connEl: ConnectorElement = element
               const relativeStart = {
                 x: connEl.startPoint.x - element.position.x,
                 y: connEl.startPoint.y - element.position.y
@@ -1987,12 +2004,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               // positions relative to the group origin. For deep editing
               // users can ungroup (Ctrl/Cmd+Shift+G) or double-click; this
               // mirrors PowerPoint's group-first, edit-in-place escape hatch.
-              const groupEl = element as GroupElement
+              const groupEl: GroupElement = element
               return (
                 <div style={{ position: 'relative', width: '100%', height: '100%', pointerEvents: 'none' }}>
                   {groupEl.children.map(child => {
                     if (child.type === 'shape') {
-                      const shape = child as ShapeElement
+                      const shape: ShapeElement = child
                       const geometry = shape.geometry ?? shape.importMeta
                       return (
                         <div
@@ -2014,7 +2031,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                       )
                     }
                     if (child.type === 'text') {
-                      const textEl = child as TextElement
+                      const textEl: TextElement = child
                       return (
                         <div
                           key={child.id}
@@ -2042,7 +2059,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                       )
                     }
                     if (child.type === 'image') {
-                      const imgEl = child as ImageElement
+                      const imgEl: ImageElement = child
                       return (
                         <img
                           key={child.id}
@@ -2248,6 +2265,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       >
         <div
           ref={canvasRef}
+          role="application"
+          aria-label="Slide canvas"
           className="gba:relative"
           style={{
             width: CANVAS_WIDTH,
@@ -2259,6 +2278,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           }}
           onMouseDown={handleCanvasMouseDown}
           onClick={handleCanvasClick}
+          onKeyDown={e => {
+            if (e.key === 'Escape') {
+              e.preventDefault()
+              onSelectElements(new Set())
+            }
+          }}
         >
           {/* Video Background */}
           {renderVideoBackground()}

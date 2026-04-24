@@ -190,13 +190,26 @@ export function textTransformToCss(transform: RichTextTransform | undefined): CS
   return { textTransform: transform }
 }
 
+/** Shared font weight values used across text, shape labels and run-level styling. */
+export type FontWeight = 'normal' | 'bold' | 'light'
+/** Shared italic/regular styles used across text and shape labels. */
+export type FontStyle = 'normal' | 'italic'
+/** Shared text decoration values used across text and shape labels. */
+export type TextDecoration = 'none' | 'underline' | 'line-through'
+/** Horizontal text alignment options honored by all text renderers. */
+export type TextAlign = 'left' | 'center' | 'right'
+/** Justified alignment adds the `justify` value beyond the box-level options. */
+export type ParagraphAlignment = 'left' | 'center' | 'right' | 'justify'
+/** Vertical alignment options for text boxes and shape labels. */
+export type VerticalAlign = 'top' | 'middle' | 'bottom'
+
 export interface RichTextRun {
   text: string
   fontFamily?: string
   fontSize?: number
-  fontWeight?: 'normal' | 'bold' | 'light'
-  fontStyle?: 'normal' | 'italic'
-  textDecoration?: 'none' | 'underline' | 'line-through'
+  fontWeight?: FontWeight
+  fontStyle?: FontStyle
+  textDecoration?: TextDecoration
   color?: string
   backgroundColor?: string
   hyperlink?: string
@@ -207,7 +220,7 @@ export type RichParagraphBulletType = 'none' | 'bullet' | 'number'
 
 export interface RichTextParagraph {
   runs: RichTextRun[]
-  alignment?: 'left' | 'center' | 'right' | 'justify'
+  alignment?: ParagraphAlignment
   indentLevel?: number
   bulletType?: RichParagraphBulletType
   bulletChar?: string
@@ -229,11 +242,11 @@ export interface TextElement extends SlideElement {
   links?: TextLink[]
   fontFamily: string
   fontSize: number
-  fontWeight: 'normal' | 'bold' | 'light'
-  fontStyle: 'normal' | 'italic'
-  textDecoration: 'none' | 'underline' | 'line-through'
-  textAlign: 'left' | 'center' | 'right'
-  verticalAlign: 'top' | 'middle' | 'bottom'
+  fontWeight: FontWeight
+  fontStyle: FontStyle
+  textDecoration: TextDecoration
+  textAlign: TextAlign
+  verticalAlign: VerticalAlign
   color: string
   backgroundColor: string
   gradient?: GradientConfig
@@ -413,6 +426,18 @@ export interface PatternFill {
   bgColor: string
 }
 
+/** Arrowhead size buckets used by both `headEnd` and `tailEnd`. */
+export type ArrowheadSize = 'sm' | 'med' | 'lg'
+/** Arrowhead geometry variants shared by both line ends. */
+export type ArrowheadType = 'none' | 'triangle' | 'stealth' | 'diamond' | 'oval' | 'arrow'
+
+/** Arrowhead spec reused for both ends of a shape's outline. */
+export interface ArrowheadSpec {
+  type: ArrowheadType
+  width?: ArrowheadSize
+  length?: ArrowheadSize
+}
+
 export interface ShapeElement extends SlideElement {
   type: 'shape'
   shapeType: ShapeType
@@ -436,17 +461,9 @@ export interface ShapeElement extends SlideElement {
   /** `a:miter`/`a:round`/`a:bevel` — maps onto SVG `stroke-linejoin`. */
   lineJoin?: 'miter' | 'round' | 'bevel'
   /** Arrowhead at the start of the shape's outline (`a:headEnd`). */
-  lineHeadEnd?: {
-    type: 'none' | 'triangle' | 'stealth' | 'diamond' | 'oval' | 'arrow'
-    width?: 'sm' | 'med' | 'lg'
-    length?: 'sm' | 'med' | 'lg'
-  }
+  lineHeadEnd?: ArrowheadSpec
   /** Arrowhead at the end of the shape's outline (`a:tailEnd`). */
-  lineTailEnd?: {
-    type: 'none' | 'triangle' | 'stealth' | 'diamond' | 'oval' | 'arrow'
-    width?: 'sm' | 'med' | 'lg'
-    length?: 'sm' | 'med' | 'lg'
-  }
+  lineTailEnd?: ArrowheadSpec
   cornerRadius: number
   shadow: boolean
   /**
@@ -461,7 +478,12 @@ export interface ShapeElement extends SlideElement {
    * new code should prefer {@link geometry}.
    */
   geometry?: ShapeGeometryMetadata
-  /** @deprecated Use {@link geometry}. Retained for backwards-compat serialization. */
+  /**
+   * Legacy alias for {@link geometry}. Retained for backwards-compat
+   * serialization so shape state persisted before the {@link geometry} slot
+   * existed continues to render. New code should write to {@link geometry}
+   * and only touch this field when round-tripping through legacy storage.
+   */
   importMeta?: ShapeImportMetadata
   /** Optional visual effects layer (glow / reflection / soft edges). */
   effects?: ShapeEffects

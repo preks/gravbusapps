@@ -4,9 +4,13 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { Button, Checkbox, ScrollArea, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircle, FileSpreadsheet } from 'lucide-react'
 import type { ParsedPowerPointDocument } from '../hooks/usePowerPointParser'
-import type { SlideData, ShapeElement } from './slideElements'
-import { gradientToCss, textTransformToCss } from './slideElements'
-import type { RichTextTransform } from './slideElements'
+import {
+  gradientToCss,
+  textTransformToCss,
+  type SlideData,
+  type ShapeElement,
+  type RichTextTransform
+} from './slideElements'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import translations from '../_i18n'
 import { sanitizeSlideImageUrl } from '../utils/slideMediaUrl'
@@ -88,12 +92,11 @@ function ThumbElement({ el, idx }: { el: SlideData['elements'][number]; idx: num
   }
 
   if (el.type === 'image') {
-    const ie = el as SlideData['elements'][number] & { src?: string }
-    return <ThumbImage src={ie.src || ''} style={base} />
+    return <ThumbImage src={el.src || ''} style={base} />
   }
 
   if (el.type === 'shape') {
-    const se = el as ShapeElement
+    const se: ShapeElement = el
     const fillColor = se.fill || 'transparent'
     const fillStyle = se.gradient ? gradientToCss(se.gradient) : fillColor
     // Preset-aware preview: when the imported shape carries Office metadata,

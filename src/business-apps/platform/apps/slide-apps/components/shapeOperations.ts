@@ -143,8 +143,8 @@ export function distributeElements(elements: SlideElement[], axis: DistributeAxi
     return axis === 'horizontal' ? ba.centerX - bb.centerX : ba.centerY - bb.centerY
   })
 
-  const first = sorted[0]!
-  const last = sorted[sorted.length - 1]!
+  const first = sorted[0]
+  const last = sorted[sorted.length - 1]
   const firstBounds = boundsOf(first)
   const lastBounds = boundsOf(last)
   const step =
@@ -153,7 +153,7 @@ export function distributeElements(elements: SlideElement[], axis: DistributeAxi
       : (lastBounds.centerY - firstBounds.centerY) / (sorted.length - 1)
 
   for (let i = 1; i < sorted.length - 1; i++) {
-    const element = sorted[i]!
+    const element = sorted[i]
     const b = boundsOf(element)
     if (axis === 'horizontal') {
       const newCenterX = firstBounds.centerX + step * i

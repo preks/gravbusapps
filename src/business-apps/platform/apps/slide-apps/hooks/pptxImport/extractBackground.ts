@@ -92,7 +92,7 @@ function extractBgFromXml(
 
   const bgRef = getChild(bg, 'p:bgRef')
   if (bgRef) {
-    const idx = parseInt(bgRef.getAttribute('idx') || '0')
+    const idx = Number.parseInt(bgRef.getAttribute('idx') || '0')
     if (themeXml && idx > 0) {
       const themeBg = resolveBgRefFromTheme(themeXml, idx, theme)
       if (themeBg) return themeBg

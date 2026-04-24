@@ -308,6 +308,7 @@ editor-slides-label = Slides:
 editor-add = Add
 editor-duplicate-slide = Duplicate slide
 editor-delete-slide = Delete slide
+editor-canvas-aria-label = Slide canvas
 editor-properties = Properties
 editor-show-properties = Show Properties
 editor-select-element = Select an element to edit its properties

@@ -214,7 +214,7 @@ describe('OfficeShapeRenderer chevron follows OOXML short-stock scaling', () => 
       .filter(Boolean)
     const pts: Array<[number, number]> = []
     for (let i = 0; i + 1 < tokens.length; i += 2) {
-      pts.push([parseFloat(tokens[i]), parseFloat(tokens[i + 1])])
+      pts.push([Number.parseFloat(tokens[i]), Number.parseFloat(tokens[i + 1])])
     }
     return pts
   }

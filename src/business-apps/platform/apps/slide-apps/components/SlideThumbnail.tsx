@@ -3,7 +3,7 @@
 // image decodes on unrelated state updates.
 
 import React, { useMemo } from 'react'
-import type { SlideData, AnySlideElement, ChartElement, ShapeElement, CodeElement } from './slideElements'
+import type { SlideData, AnySlideElement, ShapeElement, CodeElement } from './slideElements'
 import { gradientToCss, textTransformToCss } from './slideElements'
 import { resolveFontStack } from './fontStack'
 import { SlideChartRenderer } from './SlideChartRenderer'
@@ -19,7 +19,7 @@ import { sanitizeSlideImageUrl } from '../utils/slideMediaUrl'
  */
 function hasOfficePresetGeometry(el: AnySlideElement): boolean {
   if (el.type !== 'shape') return false
-  const meta = (el as ShapeElement).importMeta
+  const meta = el.geometry ?? el.importMeta
   if (!meta) return false
   if (meta.custGeomPath) return true
   return isOfficePresetSupported(meta.prst)
@@ -67,7 +67,7 @@ const ThumbnailElement = React.memo(function ThumbnailElement({ el }: { el: AnyS
   }
 
   if (el.type === 'code') {
-    const ce = el as CodeElement
+    const ce: CodeElement = el
     const defaultBg = ce.theme === 'dark' ? '#1e1e1e' : '#f8f8f8'
     return (
       <div
@@ -91,11 +91,11 @@ const ThumbnailElement = React.memo(function ThumbnailElement({ el }: { el: AnyS
   }
 
   if (el.type === 'chart') {
-    return <SlideChartRenderer element={el as ChartElement} width={el.size.width} height={el.size.height} />
+    return <SlideChartRenderer element={el} width={el.size.width} height={el.size.height} />
   }
 
   if (el.type === 'shape') {
-    const s = el as ShapeElement
+    const s: ShapeElement = el
     const t = s.shapeText
     const fillStyle = s.gradient ? gradientToCss(s.gradient) : s.fill
 
@@ -187,64 +187,59 @@ export const SlideThumbnail = React.memo(function SlideThumbnail({ slide, index,
   const canvasH = slide.canvasSize?.height ?? 720
 
   return (
-    <>
-      <div
-        className="gba:relative gba:overflow-hidden"
-        style={{ width: '100%', aspectRatio: `${canvasW} / ${canvasH}` }}
-      >
-        <div className="gba:absolute gba:inset-0" style={bgStyle}>
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: canvasW,
-              height: canvasH,
-              transform: `scale(${thumbScale})`,
-              transformOrigin: 'top left'
-            }}
-          >
-            {sortedElements.map(el => {
-              const usePresetRenderer = hasOfficePresetGeometry(el)
-              return (
-                <div
-                  key={el.id}
-                  className="gba:absolute"
-                  style={{
-                    left: el.position.x,
-                    top: el.position.y,
-                    width: el.size.width,
-                    height: el.size.height,
-                    zIndex: el.zIndex || 0,
-                    backgroundColor:
-                      !usePresetRenderer && el.type === 'shape' && !(el as any).gradient
-                        ? (el as any).fill
-                        : 'transparent',
-                    background:
-                      !usePresetRenderer && el.type === 'shape' && (el as any).gradient
-                        ? gradientToCss((el as any).gradient)
-                        : undefined,
-                    borderRadius:
-                      !usePresetRenderer && el.type === 'shape'
-                        ? (el as any).shapeType === 'circle' || (el as any).shapeType === 'ellipse'
-                          ? '50%'
-                          : (el as any).cornerRadius || (el as any).borderRadius
-                        : undefined,
-                    overflow: el.type === 'text' ? 'hidden' : undefined
-                  }}
-                >
-                  <ThumbnailElement el={el} />
-                </div>
-              )
-            })}
-          </div>
+    <div className="gba:relative gba:overflow-hidden" style={{ width: '100%', aspectRatio: `${canvasW} / ${canvasH}` }}>
+      <div className="gba:absolute gba:inset-0" style={bgStyle}>
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: canvasW,
+            height: canvasH,
+            transform: `scale(${thumbScale})`,
+            transformOrigin: 'top left'
+          }}
+        >
+          {sortedElements.map(el => {
+            const usePresetRenderer = hasOfficePresetGeometry(el)
+            return (
+              <div
+                key={el.id}
+                className="gba:absolute"
+                style={{
+                  left: el.position.x,
+                  top: el.position.y,
+                  width: el.size.width,
+                  height: el.size.height,
+                  zIndex: el.zIndex || 0,
+                  backgroundColor:
+                    !usePresetRenderer && el.type === 'shape' && !(el as any).gradient
+                      ? (el as any).fill
+                      : 'transparent',
+                  background:
+                    !usePresetRenderer && el.type === 'shape' && (el as any).gradient
+                      ? gradientToCss((el as any).gradient)
+                      : undefined,
+                  borderRadius:
+                    !usePresetRenderer && el.type === 'shape'
+                      ? (el as any).shapeType === 'circle' || (el as any).shapeType === 'ellipse'
+                        ? '50%'
+                        : (el as any).cornerRadius || (el as any).borderRadius
+                      : undefined,
+                  overflow: el.type === 'text' ? 'hidden' : undefined
+                }}
+              >
+                <ThumbnailElement el={el} />
+              </div>
+            )
+          })}
         </div>
-        {index >= 0 && (
-          <div className="gba:absolute gba:bottom-1 gba:left-1 gba:min-w-5 gba:h-5 gba:px-1 gba:flex gba:items-center gba:justify-center gba:rounded gba:bg-black/50">
-            <span className="gba:text-[10px] gba:font-medium gba:text-white gba:leading-none">{index + 1}</span>
-          </div>
-        )}
       </div>
-    </>
+      {index >= 0 && (
+        <div className="gba:absolute gba:bottom-1 gba:left-1 gba:min-w-5 gba:h-5 gba:px-1 gba:flex gba:items-center gba:justify-center gba:rounded gba:bg-black/50">
+          <span className="gba:text-[10px] gba:font-medium gba:text-white gba:leading-none">{index + 1}</span>
+        </div>
+      )}
+    </div>
   )
 })

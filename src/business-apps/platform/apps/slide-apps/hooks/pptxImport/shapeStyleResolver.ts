@@ -40,15 +40,15 @@ function getColorChild(el: Element): Element | undefined {
 function substitutePhClr(node: Element, override: Element): void {
   // Collect child elements up front to avoid mutating while iterating.
   const children: Element[] = []
-  for (let i = 0; i < node.childNodes.length; i++) {
-    const c = node.childNodes[i] as Element
+  for (const raw of Array.from(node.childNodes)) {
+    const c = raw as Element
     if (c.tagName) children.push(c)
   }
   for (const child of children) {
     if (child.tagName === 'a:schemeClr' && child.getAttribute('val') === 'phClr') {
       const replacement = override.cloneNode(true) as Element
-      for (let k = 0; k < child.childNodes.length; k++) {
-        const transform = child.childNodes[k] as Element
+      for (const rawTransform of Array.from(child.childNodes)) {
+        const transform = rawTransform as Element
         if (transform.tagName) replacement.appendChild(transform.cloneNode(true))
       }
       node.replaceChild(replacement, child)
@@ -119,7 +119,7 @@ function resolveLineRefTemplate(
   let color: string | undefined
   if (solidFill) color = parseSolidFill(solidFill, theme)
 
-  const widthEmu = parseInt(instance.getAttribute('w') || '0') || 0
+  const widthEmu = Number.parseInt(instance.getAttribute('w') || '0') || 0
   const width = widthEmu > 0 ? Math.max(0, Math.round(emuToPixels(widthEmu))) : undefined
 
   let style: ResolvedLine['style'] | undefined
@@ -240,7 +240,7 @@ function resolveStyleFill(
   if (!styleEl) return undefined
   const fillRef = getDirectChild(styleEl, 'a:fillRef')
   if (!fillRef) return undefined
-  const idx = parseInt(fillRef.getAttribute('idx') || '0')
+  const idx = Number.parseInt(fillRef.getAttribute('idx') || '0')
   if (!Number.isFinite(idx)) return { idx: 0 }
   if (idx === 0) return { idx: 0 }
 
@@ -277,7 +277,7 @@ function resolveStyleLine(
   if (!styleEl) return undefined
   const lnRef = getDirectChild(styleEl, 'a:lnRef')
   if (!lnRef) return undefined
-  const idx = parseInt(lnRef.getAttribute('idx') || '0')
+  const idx = Number.parseInt(lnRef.getAttribute('idx') || '0')
   if (!Number.isFinite(idx)) return { idx: 0 }
   if (idx === 0) return { idx: 0 }
 
@@ -411,7 +411,7 @@ export function resolveShapeLine(shape: Element, theme: OoxmlTheme | undefined):
   if (spPr) {
     const ln = getDirectChild(spPr, 'a:ln')
     if (ln) {
-      const widthEmu = parseInt(ln.getAttribute('w') || '0')
+      const widthEmu = Number.parseInt(ln.getAttribute('w') || '0')
       let width = widthEmu ? Math.max(0, Math.round(emuToPixels(widthEmu))) : 0
 
       let color = '#000000'
@@ -504,9 +504,9 @@ export function resolveShapeEffects(shape: Element, theme: OoxmlTheme | undefine
 
   const outerShdw = getDirectChild(effectLst, 'a:outerShdw')
   if (outerShdw) {
-    const blurEmu = parseInt(outerShdw.getAttribute('blurRad') || '0')
-    const distEmu = parseInt(outerShdw.getAttribute('dist') || '0')
-    const dirDeg = parseInt(outerShdw.getAttribute('dir') || '0') / 60000
+    const blurEmu = Number.parseInt(outerShdw.getAttribute('blurRad') || '0')
+    const distEmu = Number.parseInt(outerShdw.getAttribute('dist') || '0')
+    const dirDeg = Number.parseInt(outerShdw.getAttribute('dir') || '0') / 60000
     const distPx = emuToPixels(distEmu)
     const offsetX = Math.round(distPx * Math.cos((dirDeg * Math.PI) / 180))
     const offsetY = Math.round(distPx * Math.sin((dirDeg * Math.PI) / 180))
@@ -521,9 +521,9 @@ export function resolveShapeEffects(shape: Element, theme: OoxmlTheme | undefine
 
   const innerShdw = getDirectChild(effectLst, 'a:innerShdw')
   if (innerShdw) {
-    const blurEmu = parseInt(innerShdw.getAttribute('blurRad') || '0')
-    const distEmu = parseInt(innerShdw.getAttribute('dist') || '0')
-    const dirDeg = parseInt(innerShdw.getAttribute('dir') || '0') / 60000
+    const blurEmu = Number.parseInt(innerShdw.getAttribute('blurRad') || '0')
+    const distEmu = Number.parseInt(innerShdw.getAttribute('dist') || '0')
+    const dirDeg = Number.parseInt(innerShdw.getAttribute('dir') || '0') / 60000
     const distPx = emuToPixels(distEmu)
     const offsetX = Math.round(distPx * Math.cos((dirDeg * Math.PI) / 180))
     const offsetY = Math.round(distPx * Math.sin((dirDeg * Math.PI) / 180))
@@ -538,15 +538,15 @@ export function resolveShapeEffects(shape: Element, theme: OoxmlTheme | undefine
 
   const glow = getDirectChild(effectLst, 'a:glow')
   if (glow) {
-    const radEmu = parseInt(glow.getAttribute('rad') || '0')
+    const radEmu = Number.parseInt(glow.getAttribute('rad') || '0')
     const color = parseSolidFill(glow, theme) || '#000000'
     result.glow = { color, size: Math.round(emuToPixels(radEmu)) }
   }
 
   const reflection = getDirectChild(effectLst, 'a:reflection')
   if (reflection) {
-    const endAlpha = parseInt(reflection.getAttribute('endA') || '0') / 100000
-    const distEmu = parseInt(reflection.getAttribute('dist') || '0')
+    const endAlpha = Number.parseInt(reflection.getAttribute('endA') || '0') / 100000
+    const distEmu = Number.parseInt(reflection.getAttribute('dist') || '0')
     result.reflection = {
       opacity: 1 - endAlpha,
       distance: Math.round(emuToPixels(distEmu))
@@ -555,13 +555,13 @@ export function resolveShapeEffects(shape: Element, theme: OoxmlTheme | undefine
 
   const softEdge = getDirectChild(effectLst, 'a:softEdge')
   if (softEdge) {
-    const radEmu = parseInt(softEdge.getAttribute('rad') || '0')
+    const radEmu = Number.parseInt(softEdge.getAttribute('rad') || '0')
     result.softEdges = { size: Math.round(emuToPixels(radEmu)) }
   }
 
   const blur = getDirectChild(effectLst, 'a:blur')
   if (blur) {
-    const radEmu = parseInt(blur.getAttribute('rad') || '0')
+    const radEmu = Number.parseInt(blur.getAttribute('rad') || '0')
     result.blur = { radius: Math.round(emuToPixels(radEmu)) }
   }
 
