@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
+import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
 
 export interface TeamMember {
   id: string
@@ -84,6 +85,9 @@ export const useTeamAvailability = ({
             firstName
             lastName
             pictureThumbnail
+            workingCondition {
+              hireDate
+            }
             employeePosition {
               jobPosition {
                 name
@@ -119,7 +123,18 @@ export const useTeamAvailability = ({
       const employeesResponse = await graphQLClient.request(employeesQuery, { managerId })
 
       if (employeesResponse?.Employee && employeesResponse.Employee.length > 0) {
-        const employees = employeesResponse.Employee
+        const employees = filterEmployeesByStartedEmployment(employeesResponse.Employee)
+        if (employees.length === 0) {
+          setData({
+            totalMembers: 0,
+            availableCount: 0,
+            unavailableCount: 0,
+            availabilityPercentage: 100,
+            members: []
+          })
+          setLoading(false)
+          return
+        }
         const employeeIds = employees.map((emp: { id: string }) => emp.id)
 
         let absencesData: EmployeeAbsenceResponse[] = []

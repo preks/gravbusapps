@@ -108,44 +108,6 @@ export const GET_USAGE_TRENDS_DATA = `
   }
 `
 
-export const GET_YEAR_OVER_YEAR_DATA = `
-  query GetYearOverYearData($supervisorId: uuid, $previousYearStart: timestamp!, $currentYearEnd: timestamp!) {
-    yearOverYearData: EmployeeAbsence(
-      where: {
-        isDeleted: {_eq: false},
-        status: {_eq: "APPROVED"},
-        _or: [
-          # Absences that start in previous year or current year
-          { startDate: {_gte: $previousYearStart, _lte: $currentYearEnd} },
-          # Ongoing absences that start before previous year but end in previous or current year
-          { 
-            startDate: {_lt: $previousYearStart},
-            endDate: {_gte: $previousYearStart, _lte: $currentYearEnd}
-          }
-        ],
-        employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}},
-        type: {parentEntryId: {_neq: "AbsenceGroup:v1:WORK"}}
-      },
-      orderBy: {startDate: ASC}
-    ) {
-      id
-      startDate
-      endDate
-      status
-      type {
-        id
-        parentEntryId
-        value
-      }
-      employee {
-        id
-        firstName
-        lastName
-      }
-    }
-  }
-`
-
 export const GET_AVERAGE_WORK_STREAK = `
   query GetAverageWorkStreak($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
     approvedAbsencesForStreak: EmployeeAbsence(

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { Employee } from '../types/employee.types'
+import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
 
 export interface EmployeeWithMissingProfile {
   id: string
@@ -66,6 +67,9 @@ export const useMissingJobProfiles = ({
             firstName
             lastName
             pictureThumbnail
+            workingCondition {
+              hireDate
+            }
             employeePosition {
               id
               jobPositionId
@@ -97,50 +101,53 @@ export const useMissingJobProfiles = ({
       })
 
       if (response?.Employee) {
-        const employeesWithIssues: EmployeeWithMissingProfile[] = response.Employee.map((employee: Employee) => {
-          const employeePosition = employee.employeePosition?.[0]
+        const employees = filterEmployeesByStartedEmployment(response.Employee)
+        const employeesWithIssues: EmployeeWithMissingProfile[] = employees
+          .map((employee: Employee) => {
+            const employeePosition = employee.employeePosition?.[0]
 
-          let missingProfileReason: 'no_job_position' | 'no_job_profile' | 'incomplete_profile' | null = null
+            let missingProfileReason: 'no_job_position' | 'no_job_profile' | 'incomplete_profile' | null = null
 
-          // Check if employee has no job position assigned
-          if (!employeePosition?.jobPositionId || !employeePosition?.jobPosition) {
-            missingProfileReason = 'no_job_position'
-          }
-          // Check if job position exists but has incomplete profile
-          else if (employeePosition.jobPosition) {
-            const jobPosition = employeePosition.jobPosition
-
-            // Check for missing critical job profile components
-            if (!jobPosition.jobFunction || !jobPosition.jobLevel || !jobPosition.jobFunction.jobFamily) {
-              missingProfileReason = 'incomplete_profile'
+            // Check if employee has no job position assigned
+            if (!employeePosition?.jobPositionId || !employeePosition?.jobPosition) {
+              missingProfileReason = 'no_job_position'
             }
-            // Additional checks for empty/null values
-            else if (
-              !jobPosition.name ||
-              !jobPosition.jobFunction.name ||
-              !jobPosition.jobLevel.name ||
-              !jobPosition.jobFunction.jobFamily.value
-            ) {
-              missingProfileReason = 'incomplete_profile'
-            }
-          }
+            // Check if job position exists but has incomplete profile
+            else if (employeePosition.jobPosition) {
+              const jobPosition = employeePosition.jobPosition
 
-          // Only return employees with identified issues
-          if (missingProfileReason) {
-            return {
-              id: employee.id,
-              firstName: employee.firstName,
-              lastName: employee.lastName,
-              fullName: `${employee.firstName} ${employee.lastName}`,
-              pictureThumbnail: employee.pictureThumbnail,
-              jobPositionName: employeePosition?.jobPosition?.name || 'No Position',
-              organizationalUnitName: employeePosition?.organizationalUnit?.name,
-              missingProfileReason
+              // Check for missing critical job profile components
+              if (!jobPosition.jobFunction || !jobPosition.jobLevel || !jobPosition.jobFunction.jobFamily) {
+                missingProfileReason = 'incomplete_profile'
+              }
+              // Additional checks for empty/null values
+              else if (
+                !jobPosition.name ||
+                !jobPosition.jobFunction.name ||
+                !jobPosition.jobLevel.name ||
+                !jobPosition.jobFunction.jobFamily.value
+              ) {
+                missingProfileReason = 'incomplete_profile'
+              }
             }
-          }
 
-          return null
-        }).filter((employee: EmployeeWithMissingProfile | null) => employee !== null)
+            // Only return employees with identified issues
+            if (missingProfileReason) {
+              return {
+                id: employee.id,
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                fullName: `${employee.firstName} ${employee.lastName}`,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobPositionName: employeePosition?.jobPosition?.name || 'No Position',
+                organizationalUnitName: employeePosition?.organizationalUnit?.name,
+                missingProfileReason
+              }
+            }
+
+            return null
+          })
+          .filter((employee: EmployeeWithMissingProfile | null) => employee !== null)
 
         setEmployeesWithMissingProfiles(employeesWithIssues)
       } else {
