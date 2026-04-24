@@ -169,8 +169,10 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const suppressNextSearchRef = useRef(false)
-  // Flips true while applyAddressToForm is running so the field-change watcher below doesn't
-  // interpret our own autofill writes as user edits (which would clear the search query).
+  // Flips true while applyAddressToForm is running. Preserved as defense-in-depth
+  // even though the address fields are locked readonly (by the consumer form) when
+  // the autocomplete is visible — if the consumer ever loosens that policy, any
+  // watcher added here in the future will still correctly ignore our programmatic writes.
   const isAutofillingRef = useRef(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
@@ -200,27 +202,6 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
-
-  // When the user manually edits an address field, wipe the "Find address" query so the
-  // search box doesn't show a stale formatted address that no longer reflects the form.
-  // Our own autofill writes are skipped via isAutofillingRef.
-  useEffect(() => {
-    const isWatchedFieldChange = (name?: string): boolean => {
-      if (!name) return false
-      if (name === names.countryId || name === names.regionId || name === names.postalCode || name === names.city) {
-        return true
-      }
-      // addressLines is an array; RHF emits names like 'addressLines', 'addressLines.0', etc.
-      if (name === names.addressLines || name.startsWith(`${names.addressLines}.`)) return true
-      return false
-    }
-    const subscription = form.watch((_values: unknown, info: { name?: string; type?: string }) => {
-      if (isAutofillingRef.current) return
-      if (!isWatchedFieldChange(info?.name)) return
-      setQuery(current => (current ? '' : current))
-    })
-    return () => subscription.unsubscribe()
-  }, [form, names])
 
   const applyAddressToForm = useCallback(
     (mapped: ReturnType<typeof mapGeoapifyToFormValues>) => {
@@ -285,16 +266,12 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
       const controller = new AbortController()
       abortRef.current = controller
       try {
-        const countryBias = (() => {
-          const countryId = form.getValues(names.countryId) as string | null | undefined
-          if (!countryId) return undefined
-          const parts = String(countryId).split(':')
-          const code = parts[parts.length - 1]
-          return code?.length === 2 ? code : undefined
-        })()
+        // Intentionally do NOT pass countryBias. The autocomplete is the source of truth
+        // for the full address (including country) — search stays global so the user can
+        // type e.g. "Brasov" and land in Romania even if the Country select currently reads
+        // "Germany". The picked suggestion then re-writes Country / Region / lines / etc.
         const results = await getAutocompleteSuggestions(trimmed, {
           limit: 5,
-          countryBias,
           signal: controller.signal
         })
         setSuggestions(results)

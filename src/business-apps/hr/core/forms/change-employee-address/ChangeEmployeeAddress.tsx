@@ -20,7 +20,6 @@ import {
 import { populateFormFromRecord, buildDeletePayloadFromRecord, restoreSelectionFromId } from './helpers'
 import translations from '../../apps/employee-record/_i18n'
 import { useEmployeeDocumentSync } from '../document-sync/useEmployeeDocumentSync'
-
 interface AddressFormValues {
   selectedAddressId?: string | null // null means Add Address
   countryId?: string | null
@@ -352,13 +351,20 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
               const selected = addingNew
                 ? null
                 : addresses.find((a: any) => String(a.id) === String(values.selectedAddressId))
+
+              // Coordinates come straight from the form. AddressAutocomplete is the only
+              // writer: it sets them via suggestion pick, pin drag, or "Use my location", and
+              // shows a 'low accuracy' warning if the user has since edited an address field.
+              // If no tool was ever used, they'll simply be null — we submit null and move on.
+              const resolvedLat: number | null = values.latitude ?? null
+              const resolvedLng: number | null = values.longitude ?? null
+
               // TEMP: backend doesn't persist latitude/longitude yet. Log so we can eyeball that
               // the map is capturing coords correctly in dev. Remove once the DB columns + mutation
               // inputs land and the values flow through buildInsertPayload/buildUpdatePayload.
-
               console.log('[ChangeEmployeeAddress] submit coords', {
-                latitude: values.latitude ?? null,
-                longitude: values.longitude ?? null
+                latitude: resolvedLat,
+                longitude: resolvedLng
               })
               if (isDeleteMode) {
                 if (deletePayload) return deletePayload
@@ -375,8 +381,8 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                   regionId: values.regionId,
                   countryId: values.countryId,
                   comment: values.comment,
-                  latitude: values.latitude ?? null,
-                  longitude: values.longitude ?? null,
+                  latitude: resolvedLat,
+                  longitude: resolvedLng,
                   addresses
                 })
                 return {
@@ -396,8 +402,8 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                 regionId: values.regionId,
                 countryId: values.countryId,
                 comment: values.comment,
-                latitude: values.latitude ?? null,
-                longitude: values.longitude ?? null,
+                latitude: resolvedLat,
+                longitude: resolvedLng,
                 selected
               })
               return {
