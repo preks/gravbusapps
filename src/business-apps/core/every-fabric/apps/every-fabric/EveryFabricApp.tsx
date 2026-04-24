@@ -1,9 +1,10 @@
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Button } from '@newwork/nw-design-system'
 import { SpinnerGapIcon } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { EveryFabricErrorBoundary } from './components/EveryFabricErrorBoundary'
 import { LandingScreen } from './components/landing/LandingScreen'
+import { ScheduledDispatchesScreen } from './components/scheduled/ScheduledDispatchesScreen'
 import { SettingsScreen } from './components/settings/SettingsScreen'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { useSidebarCollapsedState } from './components/sidebar/useSidebarCollapsedState'
@@ -40,7 +41,20 @@ const EveryFabricInner: React.FC = () => {
   } = useFabric()
   const { urlView, updateUrl } = useSessionUrlState()
   const { isCollapsed, toggleCollapsed, setCollapsed } = useSidebarCollapsedState()
-  const { activeSessions } = useActiveSessions(accessToken)
+  const { activeSessions, removeActive } = useActiveSessions(accessToken)
+
+  // Stop a session: drop it from the active sidebar immediately (optimistic)
+  // and then call deleteSession, which issues DELETE /sessions/{id} and
+  // cleans up history / selection state. If the backend later emits a
+  // terminal / session_removed SSE event, it's a no-op because the id is
+  // already gone from the map.
+  const handleStopSession = useCallback(
+    (id: string) => {
+      removeActive(id)
+      deleteSession(id)
+    },
+    [removeActive, deleteSession]
+  )
   const [displayView, setDisplayView] = useState<string | null>(urlView)
 
   useEffect(() => {
@@ -54,8 +68,18 @@ const EveryFabricInner: React.FC = () => {
 
   const handleOpenSettings = () => updateUrl({ view: 'settings' })
   const handleCloseSettings = () => updateUrl({ view: null })
+  const handleOpenScheduled = () => updateUrl({ view: 'scheduled' })
+  const handleCloseScheduled = () => updateUrl({ view: null })
 
-  const handleSelectSession = (id: string) => selectSession(id)
+  const handleSelectSession = (id: string) => {
+    updateUrl({ view: null })
+    selectSession(id)
+  }
+
+  const handleNewSession = () => {
+    updateUrl({ view: null })
+    newSession()
+  }
 
   const isLoadingSession = Boolean(activeSessionId) && !session
   const sessionNotFound =
@@ -63,6 +87,8 @@ const EveryFabricInner: React.FC = () => {
 
   const isSettingsView = displayView === 'settings'
   const showSettings = urlView === 'settings'
+  const isScheduledView = displayView === 'scheduled'
+  const showScheduled = urlView === 'scheduled'
 
   const renderMain = () => {
     if (isLoadingSession && sessionLoadError) {
@@ -109,7 +135,15 @@ const EveryFabricInner: React.FC = () => {
 
         <div
           className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
-            !showSettings ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+            showScheduled ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+          }`}
+        >
+          {isScheduledView && <ScheduledDispatchesScreen accessToken={accessToken} onBack={handleCloseScheduled} />}
+        </div>
+
+        <div
+          className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
+            !showSettings && !showScheduled ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
           }`}
         >
           {session ? <WorkspaceLayout /> : <LandingScreen accessToken={accessToken} onStartSession={startSession} />}
@@ -129,10 +163,12 @@ const EveryFabricInner: React.FC = () => {
         historySessions={sessions}
         userInfo={userInfo}
         showNewSessionCta={Boolean(session)}
-        onNewSession={newSession}
+        onNewSession={handleNewSession}
         onSelectSession={handleSelectSession}
-        onDeleteSession={deleteSession}
+        onDeleteSession={handleStopSession}
+        onStopSession={handleStopSession}
         onOpenSettings={handleOpenSettings}
+        onOpenScheduled={handleOpenScheduled}
       />
       <main className="gba:relative gba:flex-1 gba:min-w-0 gba:h-full">{renderMain()}</main>
     </div>

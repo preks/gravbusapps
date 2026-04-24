@@ -44,6 +44,11 @@ export interface ActiveSessionSnapshot {
   pending_structured_input?: Record<string, unknown> | null
   trace_count: number
   next_event_seq: number
+  /**
+   * Last seq we've surfaced for this session. Lets the single-session SSE
+   * reconnect from the right point without refetching the full trace.
+   */
+  last_event_seq?: number
   started_at?: string | null
   updated_at?: string | null
   created_at?: string | null
@@ -100,6 +105,36 @@ export interface ActiveStreamHeartbeatEvent {
   timestamp?: string
 }
 
+/** A new active session appeared mid-stream (e.g. user opened a second chat). */
+export interface ActiveStreamSessionAddedEvent {
+  type: 'session_added'
+  session_id: string
+  timestamp?: string
+  session: ActiveSessionSnapshot
+}
+
+/** A session was deleted or otherwise dropped from the active set without a terminal. */
+export interface ActiveStreamSessionRemovedEvent {
+  type: 'session_removed'
+  session_id: string
+  timestamp?: string
+}
+
+/** A session transitioned status (e.g. running -> waiting_for_human). */
+export interface ActiveStreamStatusChangedEvent {
+  type: 'status_changed'
+  session_id: string
+  status: ActiveSessionSnapshot['status']
+  current_activity?: CurrentActivity
+  todos_summary?: ActiveSessionTodosSummary
+  pending_human_question?: string | null
+  pending_structured_input?: Record<string, unknown> | null
+  updated_at?: string | null
+  timestamp?: string
+  /** Full fresh snapshot included for convenience; FE may prefer to merge fields above. */
+  session?: ActiveSessionSnapshot
+}
+
 /**
  * Per-session chunk / terminal event reused from the single-session stream but
  * extended with `session_id` so the sidebar can route it.
@@ -114,4 +149,10 @@ export interface ActiveStreamSessionEvent {
   [key: string]: unknown
 }
 
-export type ActiveStreamEvent = ActiveStreamOverviewEvent | ActiveStreamHeartbeatEvent | ActiveStreamSessionEvent
+export type ActiveStreamEvent =
+  | ActiveStreamOverviewEvent
+  | ActiveStreamHeartbeatEvent
+  | ActiveStreamSessionAddedEvent
+  | ActiveStreamSessionRemovedEvent
+  | ActiveStreamStatusChangedEvent
+  | ActiveStreamSessionEvent

@@ -56,7 +56,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         id
         name
         jobFamily {
-          value
+          value: name
         }
       }
       jobLevel{
@@ -167,15 +167,6 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       birthDate
       birthName
       lastName
-      jobHistories {
-        activeFrom
-        activeTo
-        company
-        exitDate
-        hireDate
-        jobPosition
-        locality
-      }
       addresses {
         id
         version
@@ -559,7 +550,6 @@ export interface Employee {
   birthPlace: string
   nationality: CodeValue
   language: CodeValue
-  jobHistories: JobHistory[]
   addresses: Address[]
   relationship: Relationship[]
   communication: Communication[]
@@ -670,19 +660,6 @@ interface CodeValue {
     code?: string
   }
 }
-
-interface JobHistory {
-  activeFrom: string
-  activeTo: string
-  company: string
-  country: CodeValue
-  exitDate: string
-  hireDate: string
-  jobPosition: string
-  locality: string
-  region: CodeValue
-}
-
 interface Address {
   id: string
   version: number

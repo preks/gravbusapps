@@ -1,16 +1,36 @@
 import React from 'react'
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Textarea } from '@newwork/nw-design-system'
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea
+} from '@newwork/nw-design-system'
 import { Bot, GitBranch, Plug } from 'lucide-react'
+import { FUNCTION_CATEGORIES, type FunctionCategory } from '@/common/network/functions/FunctionsServiceClient'
+import { getSubcategorySuggestions } from '../../config/categorySuggestions'
 
 export interface BasicInformationCardProps {
   mode: 'create' | 'edit'
   name: string
   description: string
+  category: FunctionCategory
+  subcategory: string
   agentEnabled: boolean
   workflowEnabled: boolean
   connectorEnabled: boolean
   onNameChange: (v: string) => void
   onDescriptionChange: (v: string) => void
+  onCategoryChange: (v: FunctionCategory) => void
+  onSubcategoryChange: (v: string) => void
   onAgentEnabledChange: (v: boolean) => void
   onWorkflowEnabledChange: (v: boolean) => void
   onConnectorEnabledChange: (v: boolean) => void
@@ -21,11 +41,15 @@ export const BasicInformationCard: React.FC<BasicInformationCardProps> = ({
   mode,
   name,
   description,
+  category,
+  subcategory,
   agentEnabled,
   workflowEnabled,
   connectorEnabled,
   onNameChange,
   onDescriptionChange,
+  onCategoryChange,
+  onSubcategoryChange,
   onAgentEnabledChange,
   onWorkflowEnabledChange,
   onConnectorEnabledChange,
@@ -59,6 +83,41 @@ export const BasicInformationCard: React.FC<BasicInformationCardProps> = ({
             rows={3}
             data-testid={`${testId}-description-input`}
           />
+        </div>
+
+        <div className="gba:grid gba:gap-4 gba:sm:grid-cols-2">
+          <div className="gba:space-y-2">
+            <Label htmlFor={`${testId}-category`}>Category *</Label>
+            <Select value={category} onValueChange={v => onCategoryChange(v as FunctionCategory)}>
+              <SelectTrigger id={`${testId}-category`} data-testid={`${testId}-category-input`}>
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {FUNCTION_CATEGORIES.map(c => (
+                  <SelectItem key={c} value={c} data-testid={`${testId}-category-option-${c}`}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="gba:space-y-2">
+            <Label htmlFor={`${testId}-subcategory`}>Subcategory</Label>
+            <Input
+              id={`${testId}-subcategory`}
+              value={subcategory}
+              onChange={e => onSubcategoryChange(e.target.value)}
+              placeholder="e.g. employees, time-off"
+              list={`${testId}-subcategory-suggestions`}
+              data-testid={`${testId}-subcategory-input`}
+            />
+            <datalist id={`${testId}-subcategory-suggestions`}>
+              {getSubcategorySuggestions(category).map(s => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </div>
         </div>
 
         <div className="gba:space-y-2">

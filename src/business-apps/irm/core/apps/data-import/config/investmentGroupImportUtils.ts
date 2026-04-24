@@ -54,6 +54,23 @@ const byDisplayOrderThenLabel = (a: CatalogEntry, b: CatalogEntry): number => {
   return toInvestmentGroupLabel(a).localeCompare(toInvestmentGroupLabel(b), undefined, { sensitivity: 'base' })
 }
 
+const extractRequiredSubtypeKey = (objectValue: unknown): string | undefined => {
+  if (!objectValue) return undefined
+  const obj =
+    typeof objectValue === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(objectValue)
+          } catch {
+            return null
+          }
+        })()
+      : objectValue
+  if (!obj || typeof obj !== 'object') return undefined
+  const key = (obj as Record<string, unknown>).requiredSubtypeKey
+  return typeof key === 'string' && key.length > 0 ? key : undefined
+}
+
 export const toInvestmentImportGroupDescriptors = (entries: CatalogEntry[]): InvestmentImportGroupDescriptor[] =>
   [...entries].sort(byDisplayOrderThenLabel).map(entry => {
     const normalizedCode = normalizeInvestmentGroupCode(entry.code || entry.value || entry.id)
@@ -62,6 +79,7 @@ export const toInvestmentImportGroupDescriptors = (entries: CatalogEntry[]): Inv
       code: normalizedCode,
       label: toInvestmentGroupLabel(entry),
       tabId: toInvestmentTabId(normalizedCode),
-      entityType: toInvestmentEntityType(normalizedCode)
+      entityType: toInvestmentEntityType(normalizedCode),
+      requiredSubtypeKey: extractRequiredSubtypeKey(entry.objectValue)
     }
   })

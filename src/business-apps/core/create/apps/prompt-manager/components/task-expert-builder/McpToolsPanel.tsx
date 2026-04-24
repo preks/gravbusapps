@@ -12,11 +12,13 @@ import {
   DialogDescription as DialogDescriptionText,
   DialogHeader,
   DialogTitle,
-  Input
+  Input,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Plug } from 'lucide-react'
 import type { TabProps, UnifiedCapability } from './types'
 import { McpAllowedActionsPanel } from './McpAllowedActionsPanel'
+import translations from '../../_i18n'
 
 export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actions' | 'catalogs'>> = ({
   context,
@@ -24,6 +26,7 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
   actions,
   catalogs
 }) => {
+  const { t } = useTranslation(translations)
   const [configuringCapCode, setConfiguringCapCode] = useState<string | null>(null)
   const [view, setView] = useState<'all' | 'selected'>('all')
   const [pageIndex, setPageIndex] = useState(0)
@@ -293,8 +296,11 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
           <DialogHeader>
             <DialogTitle>Configure tools</DialogTitle>
             <DialogDescriptionText>
-              Choose which actions this AI Task Expert can call for{' '}
-              <span className="gba:font-medium">{configuringCapability?.name || 'this MCP server'}</span>.
+              {t('mcp-tools-configure-help-prefix')}{' '}
+              <span className="gba:font-medium">
+                {configuringCapability?.name || t('mcp-tools-configure-help-fallback')}
+              </span>
+              .
             </DialogDescriptionText>
           </DialogHeader>
 

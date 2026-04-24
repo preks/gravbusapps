@@ -18,6 +18,8 @@ export interface AddressFormValuesLike {
   city?: string
   regionId?: string | null
   comment?: string
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export const validateAddressForm = (
@@ -112,6 +114,8 @@ const buildCommonAddressFields = (params: {
   regionId?: string | null
   countryId?: string | null
   comment?: string
+  latitude?: number | null
+  longitude?: number | null
 }) => ({
   postalCode: params.postalCode || '',
   locality: params.city || '',
@@ -119,7 +123,9 @@ const buildCommonAddressFields = (params: {
   countryRef: params.countryId || '',
   poBox: false,
   notes: params.comment || '',
-  employeeDocument: params.employeeDocument?.id || null
+  employeeDocument: params.employeeDocument?.id || null,
+  latitude: typeof params.latitude === 'number' ? params.latitude : null,
+  longitude: typeof params.longitude === 'number' ? params.longitude : null
 })
 
 export const buildInsertPayload = (params: {
@@ -131,6 +137,8 @@ export const buildInsertPayload = (params: {
   regionId?: string | null
   countryId?: string | null
   comment?: string
+  latitude?: number | null
+  longitude?: number | null
   addresses: any[]
 }) => {
   const type = computeNewAddressType(params.addresses) || ''
@@ -158,6 +166,8 @@ export const buildUpdatePayload = (params: {
   regionId?: string | null
   countryId?: string | null
   comment?: string
+  latitude?: number | null
+  longitude?: number | null
   selected: any
 }) => {
   const sel = params.selected || {}
@@ -186,7 +196,9 @@ export const buildUpdatePayload = (params: {
       countryRef: sel?.country?.id || '',
       poBox: false,
       notes: sel?.comment || '',
-      employeeDocument: sel?.employeeDocumentId || ''
+      employeeDocument: sel?.employeeDocumentId || '',
+      latitude: typeof sel?.latitude === 'number' ? sel.latitude : null,
+      longitude: typeof sel?.longitude === 'number' ? sel.longitude : null
     }
   } as any
 }
@@ -200,6 +212,8 @@ export const buildDeletePayload = (params: {
   regionId?: string | null
   countryId?: string | null
   comment?: string
+  latitude?: number | null
+  longitude?: number | null
   selected: any
 }) => {
   const sel = params.selected || {}
@@ -228,7 +242,9 @@ export const buildDeletePayload = (params: {
       countryRef: sel?.country?.id || '',
       poBox: false,
       notes: sel?.comment || '',
-      employeeDocument: sel?.employeeDocumentId || ''
+      employeeDocument: sel?.employeeDocumentId || '',
+      latitude: typeof sel?.latitude === 'number' ? sel.latitude : null,
+      longitude: typeof sel?.longitude === 'number' ? sel.longitude : null
     }
   } as any
 }

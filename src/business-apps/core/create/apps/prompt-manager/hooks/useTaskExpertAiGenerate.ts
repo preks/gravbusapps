@@ -6,9 +6,11 @@
  */
 
 import { useCallback, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { AgentType, ResponseStyle, CitationMode } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import translations from '../_i18n'
 
 export interface GeneratedTaskExpert {
   name: string
@@ -31,9 +33,9 @@ export interface UseTaskExpertAiGenerateState {
   result: GeneratedTaskExpert | null
 }
 
-const GENERATION_SYSTEM_PROMPT = `You are an expert AI prompt engineer. Your task is to create comprehensive task expert configurations based on user descriptions.
+const GENERATION_SYSTEM_PROMPT = `You are an expert AI prompt engineer. Your task is to create comprehensive agent configurations based on user descriptions.
 
-When given a description of what kind of AI expert the user wants to create, generate the following:
+When given a description of what kind of AI agent the user wants to create, generate the following:
 
 1. **name**: A concise, descriptive name for the expert (PascalCase, no spaces)
 2. **description**: A brief description of what this expert does (1-2 sentences)
@@ -92,15 +94,16 @@ If recommending tools, include clear instructions in the systemContent about whe
 
 Return your response as a valid JSON object with all the fields listed above.`
 
-const GENERATION_USER_PROMPT = `Create a task expert configuration for the following request:
+const GENERATION_USER_PROMPT = `Create an agent configuration for the following request:
 
 **Agent Type**: {agent_type}
 **Description**: {user_description}
 
-Generate a complete expert configuration as JSON.`
+Generate a complete agent configuration as JSON.`
 
 export const useTaskExpertAiGenerate = (context: BusinessAppContextProps) => {
   const client = usePromptManagerClient(context.accessToken)
+  const { t } = useTranslation(translations)
   const [state, setState] = useState<UseTaskExpertAiGenerateState>({
     isGenerating: false,
     error: null,
@@ -196,12 +199,12 @@ export const useTaskExpertAiGenerate = (context: BusinessAppContextProps) => {
         setState({ isGenerating: false, error: null, result })
         return result
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to generate task expert'
+        const errorMessage = err instanceof Error ? err.message : t('form-error-generate-failed')
         setState({ isGenerating: false, error: errorMessage, result: null })
         return null
       }
     },
-    [client]
+    [client, t]
   )
 
   const reset = useCallback(() => {

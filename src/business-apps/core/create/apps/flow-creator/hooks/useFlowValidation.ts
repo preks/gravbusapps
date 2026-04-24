@@ -5,11 +5,15 @@
  */
 
 import { useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useFlowStudioStore } from './useFlowStudioStore'
 import type { StudioNode } from '../types/studioTypes'
 import type { FlowGraphEdge } from '@/common/components/flow/flow-viewer'
 import { AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
 import { getUnmappedPromptParams } from '../utils/promptParameterUtils'
+import translations from '../_i18n'
+
+type TranslateFn = (key: string, params?: Record<string, unknown>) => string
 
 export type ValidationSeverity = 'error' | 'warning' | 'info'
 
@@ -120,7 +124,7 @@ function extractPromptUserParams(template: string | undefined): string[] {
   return Array.from(params)
 }
 
-function validateDecisionTaskExpertParams(nodes: StudioNode[]): PartialIssue[] {
+function validateDecisionTaskExpertParams(nodes: StudioNode[], t?: TranslateFn): PartialIssue[] {
   const issues: PartialIssue[] = []
 
   for (const node of nodes) {
@@ -134,7 +138,9 @@ function validateDecisionTaskExpertParams(nodes: StudioNode[]): PartialIssue[] {
       issues.push({
         nodeId: node.id,
         severity: 'error',
-        message: `Decision "${node.label}" must select a Task Expert prompt`,
+        message: t
+          ? t('validation-decision-must-select-agent', { label: node.label })
+          : `Decision "${node.label}" must select an Enterprise Agent prompt`,
         rule: 'decision-taskexpert-prompt-required'
       })
       continue
@@ -154,7 +160,9 @@ function validateDecisionTaskExpertParams(nodes: StudioNode[]): PartialIssue[] {
       issues.push({
         nodeId: node.id,
         severity: 'error',
-        message: `Decision "${node.label}" must map all Task Expert prompt parameters before publish: ${unmapped.join(', ')}`,
+        message: t
+          ? t('validation-decision-unmapped-agent-params', { label: node.label, params: unmapped.join(', ') })
+          : `Decision "${node.label}" must map all Enterprise Agent prompt parameters before publish: ${unmapped.join(', ')}`,
         rule: 'decision-taskexpert-param-mapping'
       })
     }
@@ -281,14 +289,14 @@ function validateEdges(edges: FlowGraphEdge[], nodeIds: Set<string>): PartialIss
   return issues
 }
 
-export function validateFlow(nodes: StudioNode[], edges: FlowGraphEdge[]): ValidationIssue[] {
+export function validateFlow(nodes: StudioNode[], edges: FlowGraphEdge[], t?: TranslateFn): ValidationIssue[] {
   const nodeIds = new Set(nodes.map(n => n.id))
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const allIssues: PartialIssue[] = [
     ...validateStartAndEndNodes(nodes),
     ...validateOrphanNodes(nodes, edges),
     ...validateDecisionNodes(nodes),
-    ...validateDecisionTaskExpertParams(nodes),
+    ...validateDecisionTaskExpertParams(nodes, t),
     ...validateClaimAssignments(nodes),
     ...validateForkJoinPairs(nodes),
     ...validateReworkTargets(nodes, nodeMap),
@@ -300,8 +308,9 @@ export function validateFlow(nodes: StudioNode[], edges: FlowGraphEdge[]): Valid
 export function useFlowValidation() {
   const nodes = useFlowStudioStore(s => s.nodes)
   const edges = useFlowStudioStore(s => s.edges)
+  const { t } = useTranslation(translations)
 
-  const issues = useMemo(() => validateFlow(nodes, edges), [nodes, edges])
+  const issues = useMemo(() => validateFlow(nodes, edges, t), [nodes, edges, t])
 
   const errors = useMemo(() => issues.filter(i => i.severity === 'error'), [issues])
   const warnings = useMemo(() => issues.filter(i => i.severity === 'warning'), [issues])

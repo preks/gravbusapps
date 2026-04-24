@@ -19,7 +19,7 @@ export const WorkCapacitySection: React.FC<WorkCapacitySectionProps> = ({
 }) => {
   if (loading) {
     return (
-      <Card style={{ borderRadius: '12px' }} className="gba:p-4">
+      <Card className="gba:rounded-xl gba:p-4">
         <CardHeader className="gba:pb-2">
           <CardTitle className="gba:text-base">Work & Capacity</CardTitle>
         </CardHeader>
@@ -34,9 +34,9 @@ export const WorkCapacitySection: React.FC<WorkCapacitySectionProps> = ({
   }
 
   return (
-    <Card data-testid="work-capacity-section" style={{ borderRadius: '12px' }} className="gba:p-4">
+    <Card data-testid="work-capacity-section" className="gba:rounded-xl gba:p-4 gba:h-full">
       <CardHeader className="gba:pb-2">
-        <CardTitle className="gba:text-base gba:font-semibold">Work & Capacity</CardTitle>
+        <CardTitle className="gba:text-base">Work & Capacity</CardTitle>
         <p className="gba:text-xs gba:text-muted-foreground">Team utilization overview</p>
       </CardHeader>
       <CardContent className="gba:space-y-2.5">

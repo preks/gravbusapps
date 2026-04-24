@@ -30,6 +30,8 @@ interface AddressFormValues {
   regionId?: string | null
   regionLabel?: string // read-only display of region label
   comment?: string
+  latitude?: number | null
+  longitude?: number | null
   employeeDocument?: {
     id: string
     name: string
@@ -66,7 +68,9 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
       city: '',
       regionId: null,
       regionLabel: '',
-      comment: ''
+      comment: '',
+      latitude: null,
+      longitude: null
     },
     mode: 'onChange',
     shouldUnregister: true
@@ -96,7 +100,9 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
       city: '',
       regionId: null,
       regionLabel: '',
-      comment: ''
+      comment: '',
+      latitude: null,
+      longitude: null
     }),
     []
   )
@@ -217,6 +223,12 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
         form.setValue('postalCode', first?.postalCode || '', { shouldDirty: false } as any)
         form.setValue('city', first?.locality || '', { shouldDirty: false } as any)
         form.setValue('regionId', first?.region?.id || null, { shouldDirty: false, shouldValidate: true } as any)
+        form.setValue('latitude', typeof first?.latitude === 'number' ? first.latitude : null, {
+          shouldDirty: false
+        } as any)
+        form.setValue('longitude', typeof first?.longitude === 'number' ? first.longitude : null, {
+          shouldDirty: false
+        } as any)
         try {
           if ((form as any).trigger) {
             ;(form as any).trigger('countryId')
@@ -340,6 +352,14 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
               const selected = addingNew
                 ? null
                 : addresses.find((a: any) => String(a.id) === String(values.selectedAddressId))
+              // TEMP: backend doesn't persist latitude/longitude yet. Log so we can eyeball that
+              // the map is capturing coords correctly in dev. Remove once the DB columns + mutation
+              // inputs land and the values flow through buildInsertPayload/buildUpdatePayload.
+
+              console.log('[ChangeEmployeeAddress] submit coords', {
+                latitude: values.latitude ?? null,
+                longitude: values.longitude ?? null
+              })
               if (isDeleteMode) {
                 if (deletePayload) return deletePayload
                 return null as any
@@ -355,6 +375,8 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                   regionId: values.regionId,
                   countryId: values.countryId,
                   comment: values.comment,
+                  latitude: values.latitude ?? null,
+                  longitude: values.longitude ?? null,
                   addresses
                 })
                 return {
@@ -374,6 +396,8 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                 regionId: values.regionId,
                 countryId: values.countryId,
                 comment: values.comment,
+                latitude: values.latitude ?? null,
+                longitude: values.longitude ?? null,
                 selected
               })
               return {
@@ -430,6 +454,8 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                             form.setValue('addressLines', [''], { shouldDirty: false } as any)
                             form.setValue('postalCode', '', { shouldDirty: false } as any)
                             form.setValue('city', '', { shouldDirty: false } as any)
+                            form.setValue('latitude', null, { shouldDirty: false } as any)
+                            form.setValue('longitude', null, { shouldDirty: false } as any)
                             try {
                               if ((form as any).clearErrors) {
                                 ;(form as any).clearErrors(['countryId', 'regionId'])

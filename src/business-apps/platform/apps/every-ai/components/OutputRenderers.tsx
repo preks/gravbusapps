@@ -437,8 +437,8 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
   }
 
   // Resolve design token colors for SVG
-  const gridColor = resolveCssVar('var(--nw-muted)', '#e5e7eb')
-  const axisColor = resolveCssVar('var(--nw-foreground)', '#374151')
+  const gridColor = resolveCssVar('var(--nw-border)', 'var(--nw-border)')
+  const axisColor = resolveCssVar('var(--nw-foreground)', 'var(--nw-foreground)')
 
   // Calculate bounds for all series
   const allPoints = data.series.flatMap(series => series.data)
@@ -474,22 +474,22 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
 
   // Color mapping
   const colorMap: Record<string, string> = {
-    red: '#ef4444',
-    green: '#22c55e',
-    blue: '#3b82f6',
-    yellow: '#eab308',
-    purple: '#a855f7',
-    orange: '#f97316',
-    pink: '#ec4899',
-    gray: '#6b7280',
-    black: '#000000',
-    white: '#ffffff'
+    red: 'var(--nw-destructive)',
+    green: 'var(--nw-success)',
+    blue: 'var(--nw-chart-3)',
+    yellow: 'var(--nw-highlight)',
+    purple: 'var(--nw-chart-2)',
+    orange: 'var(--nw-warning)',
+    pink: 'var(--nw-ai-2)',
+    gray: 'var(--nw-muted-foreground)',
+    black: 'var(--nw-foreground)',
+    white: 'var(--nw-background)'
   }
 
   // Get color for series
   const getColor = (color: string | null) => {
-    if (!color) return '#3b82f6' // default blue
-    return colorMap[color] || '#3b82f6'
+    if (!color) return 'var(--nw-chart-3)'
+    return colorMap[color] || 'var(--nw-chart-3)'
   }
 
   // Generate tick marks

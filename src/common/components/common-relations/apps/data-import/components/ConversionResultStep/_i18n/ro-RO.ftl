@@ -33,8 +33,8 @@ more-warnings-text = ... și încă { $count } avertismente
 all-fields-good-message = Toate câmpurile au acoperire bună - gata de import!
 
 # Import Button
-import-button = Importă { $count } { $entityType } în CRM
-importing-button = Se importă în CRM...
+import-button = Importă { $count } { $entityType }
+importing-button = Se importă...
 
 # Calitate CSV
 csv-quality-warning-title = Deplasare coloane detectată

@@ -15,10 +15,18 @@ import { ScatterChart, Scatter, XAxis, YAxis } from 'recharts'
 import { HeartIcon, WarningIcon, CheckCircleIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
+export interface DealHealthXMetric {
+  dataKey: 'winningChance' | 'stageProgress'
+  label: string
+  unit?: string
+}
+
 export interface DealHealthItem {
   id: string
   name: string
   winningChance: number
+  stageProgress?: number
+  xMetricValue: number
   estimatedAmount: number
   daysInPipeline: number
   healthScore: number
@@ -32,6 +40,7 @@ export interface DealHealthItem {
 export interface DealHealthData {
   healthDistribution: { excellent: number; healthy: number; warning: number; critical: number }
   matrixData: DealHealthItem[]
+  xMetric: DealHealthXMetric
 }
 
 interface DealHealthMatrixProps {
@@ -41,6 +50,12 @@ interface DealHealthMatrixProps {
 
 export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, moduleColor = 'default' }) => {
   const [selectedCategory, setSelectedCategory] = React.useState<'all' | DealHealthItem['healthCategory']>('all')
+
+  // Default to win-chance presentation if a caller passes legacy data without `xMetric`
+  // (preserves CRM behavior bit-for-bit).
+  const xMetric: DealHealthXMetric = data.xMetric ?? { dataKey: 'winningChance', label: 'Win Chance', unit: '%' }
+  const xUnit = xMetric.unit ?? ''
+  const xAxisName = `${xMetric.label}${xUnit ? ` ${xUnit}` : ''}`
 
   const filteredData = useMemo(
     () =>
@@ -183,18 +198,22 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
         <div className="gba:h-80 gba:mb-6">
           <ChartContainer config={chartConfig} className="gba:w-full gba:h-full">
             <ScatterChart data={chartData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-              <XAxis type="number" dataKey="winningChance" name="Win Chance %" unit="%" domain={[0, 100]} />
+              <XAxis type="number" dataKey={xMetric.dataKey} name={xAxisName} unit={xUnit} domain={[0, 100]} />
               <YAxis type="number" dataKey="healthScore" name="Health Score" domain={[0, 100]} />
               <ChartTooltip
                 cursor={{ strokeDasharray: '3 3' }}
                 content={({ active, payload }) => {
                   if (active && payload && payload.length > 0) {
                     const d = payload[0].payload as DealHealthItem
+                    const xValue = d[xMetric.dataKey] ?? d.xMetricValue ?? 0
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
                         <p className="gba:font-medium">{d.name}</p>
                         <p className="gba:text-sm gba:text-gray-600">Health Score: {d.healthScore}/100</p>
-                        <p className="gba:text-sm gba:text-gray-600">Win Chance: {d.winningChance}%</p>
+                        <p className="gba:text-sm gba:text-gray-600">
+                          {xMetric.label}: {xValue}
+                          {xUnit}
+                        </p>
                         <p className="gba:text-sm gba:text-gray-600">
                           Value: {formatCurrency(d.estimatedAmount, d.currencyCode)}
                         </p>
@@ -241,7 +260,9 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
                       <div className="gba:text-right">
                         <Badge variant="destructive">Health Score: {deal.healthScore}/100</Badge>
                         <div className="gba:text-sm gba:font-medium gba:mt-1">
-                          {formatCurrency(deal.estimatedAmount, deal.currencyCode)} • {deal.winningChance}% win chance
+                          {formatCurrency(deal.estimatedAmount, deal.currencyCode)} •{' '}
+                          {deal[xMetric.dataKey] ?? deal.xMetricValue ?? 0}
+                          {xUnit} {xMetric.label.toLowerCase()}
                         </div>
                       </div>
                     </div>

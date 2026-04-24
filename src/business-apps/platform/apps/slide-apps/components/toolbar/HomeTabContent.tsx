@@ -9,7 +9,6 @@
 import React from 'react'
 import {
   Button,
-  Separator,
   Badge,
   DropdownMenu,
   DropdownMenuContent,
@@ -78,10 +77,14 @@ export function HomeTabContent({
 }: HomeTabContentProps) {
   const { t } = useTranslation(translations)
 
+  const groupClass =
+    'gba:flex gba:items-center gba:gap-1 gba:pr-3 gba:mr-1 gba:border-r gba:border-border/40 gba:border-t gba:border-t-border/40 gba:pt-1.5'
+  const lastGroupClass = 'gba:flex gba:items-center gba:gap-1 gba:border-t gba:border-t-border/40 gba:pt-1.5'
+
   return (
-    <>
-      {/* Clipboard Group - Always visible */}
-      <div className="gba:flex gba:items-center gba:gap-1">
+    <div className="gba:flex gba:flex-wrap gba:items-center gba:-mt-1.5 gba:overflow-hidden">
+      {/* Clipboard Group */}
+      <div className={groupClass}>
         <Button
           variant="ghost"
           size="sm"
@@ -103,7 +106,7 @@ export function HomeTabContent({
           <Redo2 className="gba:w-4 gba:h-4" />
         </Button>
 
-        <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
+        <div className="gba:w-px gba:h-5 gba:bg-border/60 gba:mx-1" />
 
         <Button
           variant="ghost"
@@ -126,10 +129,8 @@ export function HomeTabContent({
         </Button>
       </div>
 
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
-
-      {/* Contextual Format Tools - Changes based on selection */}
-      <div className="gba:flex gba:items-center gba:gap-1 gba:transition-opacity gba:duration-150">
+      {/* Contextual Format Tools */}
+      <div className={`${groupClass} gba:transition-opacity gba:duration-150`}>
         {context.type === 'text' && (
           <TextFormattingTools
             element={context.element}
@@ -169,10 +170,8 @@ export function HomeTabContent({
         )}
       </div>
 
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
-
-      {/* Design Group - Always visible */}
-      <div className="gba:flex gba:items-center gba:gap-1">
+      {/* Design Group */}
+      <div className={lastGroupClass}>
         {onChangeLayout && (
           <SlideLayoutPicker
             masters={masters}
@@ -240,6 +239,6 @@ export function HomeTabContent({
           )}
         </Button>
       </div>
-    </>
+    </div>
   )
 }

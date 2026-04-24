@@ -1,18 +1,10 @@
 // NO BUSINESS LOGIC HERE. Data + actions come from useManagerWorkboardVM.
 
 import React from 'react'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
-  Button,
-  Separator
-} from '@newwork/nw-design-system'
-import { Calendar, Target, MessageSquare, Briefcase, X } from 'lucide-react'
+import { Sheet, SheetContent, Button, Separator } from '@newwork/nw-design-system'
+import { Calendar, Target, MessageSquare, Briefcase } from 'lucide-react'
+import { EmployeePanelHeader } from '../shared/EmployeePanelHeader'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 
 interface DirectReport {
   id: string
@@ -20,6 +12,7 @@ interface DirectReport {
   lastName: string
   pictureThumbnail?: string
   status: string
+  jobPositionName?: string
 }
 
 interface TeamPerformance {
@@ -35,7 +28,7 @@ interface MemberQuickPanelProps {
   teamPerformance: TeamPerformance[]
   lastFeedbackDate: string | null
   onNavigateToEmployee: (employeeId: string) => void
-  onAssignProject: () => void
+  onAssignProject: (employeeId: string) => void
 }
 
 export const MemberQuickPanel: React.FC<MemberQuickPanelProps> = ({
@@ -60,72 +53,44 @@ export const MemberQuickPanel: React.FC<MemberQuickPanelProps> = ({
   }
 
   const handleAssignProject = () => {
-    onAssignProject()
+    onAssignProject(member.id)
     onClose()
   }
 
   const handleScheduleOneOnOne = () => {
-    // Navigate to calendar/scheduling - using platform URL
-    const calendarUrl = `/platform/calendar?employeeId=${member.id}`
-    globalThis.location.href = calendarUrl
+    const calendarUrl = buildPlatformUrl('/platform/calendar', { employeeId: member.id })
+    navigateTo(calendarUrl)
     onClose()
   }
 
   const handleGiveFeedback = () => {
-    // Navigate to feedback form - using platform URL
-    const feedbackUrl = `/platform/employee-record?employeeId=${member.id}&tab=feedback`
-    globalThis.location.href = feedbackUrl
+    const feedbackUrl = buildPlatformUrl('/platform/employee-record', { employeeId: member.id, tab: 'feedback' })
+    navigateTo(feedbackUrl)
     onClose()
   }
 
   const handleSetGoals = () => {
-    // Navigate to goals page - using platform URL
-    const goalsUrl = `/platform/employee-record?employeeId=${member.id}&tab=goals`
-    globalThis.location.href = goalsUrl
+    const goalsUrl = buildPlatformUrl('/platform/employee-record', { employeeId: member.id, tab: 'goals' })
+    navigateTo(goalsUrl)
     onClose()
   }
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent
-        className="gba:w-full sm:gba:max-w-md gba:p-5"
-        data-testid="member-quick-panel"
-        style={{ borderRadius: '12px 0 0 12px' }}
-      >
-        <SheetHeader>
-          <button
-            onClick={onClose}
-            className="gba:absolute gba:right-4 gba:top-4 gba:rounded-sm gba:opacity-70 gba:ring-offset-background gba:transition-opacity hover:gba:opacity-100 focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring focus:gba:ring-offset-2"
-            aria-label="Close"
-          >
-            <X className="gba:h-4 gba:w-4" />
-          </button>
-          <SheetTitle className="gba:sr-only">Team Member Details</SheetTitle>
-        </SheetHeader>
+      <SheetContent className="gba:w-full sm:gba:max-w-md gba:p-5" data-testid="member-quick-panel">
+        <EmployeePanelHeader
+          title="Team Member Details"
+          description="Quick overview and actions"
+          onClose={onClose}
+          employee={{
+            firstName: member.firstName,
+            lastName: member.lastName,
+            pictureThumbnail: member.pictureThumbnail,
+            roleLabel: member.jobPositionName || member.status
+          }}
+        />
 
-        <div className="gba:space-y-6 gba:py-6">
-          {/* Member Header */}
-          <div className="gba:flex gba:flex-col gba:items-center gba:text-center">
-            <Avatar size="lg" className="gba:h-20 gba:w-20 gba:mb-4">
-              <AvatarImage
-                src={
-                  member.pictureThumbnail && !member.pictureThumbnail.startsWith('{')
-                    ? `data:image/jpeg;base64,${member.pictureThumbnail}`
-                    : undefined
-                }
-                alt={`${member.firstName} ${member.lastName}`}
-              />
-              <AvatarFallback className="gba:text-2xl">
-                {member.firstName.charAt(0)}
-                {member.lastName.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-            <h2 className="gba:text-xl gba:font-semibold">
-              {member.firstName} {member.lastName}
-            </h2>
-            <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{member.status}</p>
-          </div>
-
+        <div className="gba:space-y-6 gba:py-4">
           <Separator />
 
           {/* Key Stats */}

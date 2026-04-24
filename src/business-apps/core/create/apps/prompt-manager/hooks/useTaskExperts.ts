@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { PromptODM, PromptPage } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import translations from '../_i18n'
 
 export interface UseTaskExpertsParams {
   workspaceId?: string | null
@@ -21,6 +23,7 @@ export interface UseTaskExpertsState {
 
 export const useTaskExperts = (context: BusinessAppContextProps, initialParams: UseTaskExpertsParams = {}) => {
   const client = usePromptManagerClient(context.accessToken)
+  const { t } = useTranslation(translations)
   const [state, setState] = useState<UseTaskExpertsState>({ prompts: [], total: 0, isLoading: false, error: null })
 
   const params = useMemo(
@@ -62,11 +65,11 @@ export const useTaskExperts = (context: BusinessAppContextProps, initialParams: 
           isLoading: false
         }))
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load task experts'
+        const message = err instanceof Error ? err.message : t('form-error-load-failed')
         setState(prev => ({ ...prev, error: message, isLoading: false }))
       }
     },
-    [client, params]
+    [client, params, t]
   )
 
   useEffect(() => {

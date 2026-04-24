@@ -18,6 +18,26 @@ import {
 } from '@/common/data/common/types/commonTypes'
 
 /**
+ * Normalize a lead's `addressLine` to a string.
+ *
+ * The backend may return one of:
+ *   - a plain string,
+ *   - an object shaped like `{ lines: string[] }`,
+ *   - `null` / `undefined` when the field isn't set.
+ *
+ * Note: `typeof null === 'object'` in JavaScript, so we MUST null-check
+ * before attempting to read `.lines` — otherwise this throws
+ * "Cannot read properties of null (reading 'lines')".
+ */
+function normalizeAddressLine(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object' && Array.isArray((value as { lines?: unknown }).lines)) {
+    return ((value as { lines: unknown[] }).lines.filter(line => typeof line === 'string') as string[]).join(', ')
+  }
+  return ''
+}
+
+/**
  * Build InvestmentAccount from Lead data
  */
 export function buildInvestmentAccountFromLead(lead: InvestmentLead | any): InvestmentAccount | null {
@@ -34,8 +54,7 @@ export function buildInvestmentAccountFromLead(lead: InvestmentLead | any): Inve
       : lead.postalCode || lead.locality || lead.city || lead.countryRef || lead.regionRef
         ? [
             {
-              addressLine:
-                lead.addressLine || (typeof lead.addressLine === 'object' ? lead.addressLine.lines?.join(', ') : ''),
+              addressLine: normalizeAddressLine(lead.addressLine),
               postalCode: lead.postalCode || '',
               locality: lead.locality || lead.city || '',
               country: typeof lead.country === 'string' ? lead.country : lead.country?.value || lead.country,

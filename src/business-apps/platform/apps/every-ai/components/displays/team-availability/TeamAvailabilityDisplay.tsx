@@ -4,13 +4,13 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import type { TeamAvailabilityData, TeamAbsenceEntry, AbsenceReasonSummary, BottleneckDay } from './types'
 
 const CHART_COLOR_TOKENS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))'
+  'var(--nw-chart-1)',
+  'var(--nw-chart-2)',
+  'var(--nw-chart-3)',
+  'var(--nw-chart-4)',
+  'var(--nw-chart-5)'
 ] as const
-const FALLBACK_CHART_COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b']
+const FALLBACK_CHART_COLORS = [...CHART_COLOR_TOKENS]
 
 function resolveCssColor(token: string, fallback: string): string {
   if (typeof document === 'undefined' || typeof window === 'undefined') return fallback
@@ -33,6 +33,14 @@ function resolveCssColor(token: string, fallback: string): string {
 function formatDateRange(start: string, end: string | null | undefined): string {
   if (!end || end === start) return start
   return `${start} – ${end}`
+}
+
+function colorWithAlphaBackground(color: string): string {
+  return `color-mix(in srgb, ${color} 14%, transparent)`
+}
+
+function colorWithAlphaBorder(color: string): string {
+  return `color-mix(in srgb, ${color} 45%, transparent)`
 }
 
 export const TeamAvailabilityDisplay: React.FC<{ data: TeamAvailabilityData }> = ({ data }) => {
@@ -84,11 +92,14 @@ export const TeamAvailabilityDisplay: React.FC<{ data: TeamAvailabilityData }> =
                     <span
                       key={r.typeId}
                       className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-2.5 gba:py-1 gba:rounded-md gba:text-sm"
-                      style={{
-                        backgroundColor: `${getTypeColor(r.typeId)}20`,
-                        color: getTypeColor(r.typeId),
-                        border: `1px solid ${getTypeColor(r.typeId)}`
-                      }}
+                      style={(() => {
+                        const color = getTypeColor(r.typeId)
+                        return {
+                          backgroundColor: colorWithAlphaBackground(color),
+                          color,
+                          border: `1px solid ${colorWithAlphaBorder(color)}`
+                        }
+                      })()}
                       data-testid={`team-availability-reason-${r.typeId}`}
                     >
                       <span
@@ -121,11 +132,14 @@ export const TeamAvailabilityDisplay: React.FC<{ data: TeamAvailabilityData }> =
                       <Badge
                         variant="secondary"
                         className="gba:shrink-0"
-                        style={{
-                          backgroundColor: `${getTypeColor(a.type.id)}20`,
-                          color: getTypeColor(a.type.id),
-                          border: `1px solid ${getTypeColor(a.type.id)}`
-                        }}
+                        style={(() => {
+                          const color = getTypeColor(a.type.id)
+                          return {
+                            backgroundColor: colorWithAlphaBackground(color),
+                            color,
+                            border: `1px solid ${colorWithAlphaBorder(color)}`
+                          }
+                        })()}
                       >
                         {a.type.value}
                       </Badge>
@@ -148,7 +162,7 @@ export const TeamAvailabilityDisplay: React.FC<{ data: TeamAvailabilityData }> =
                     }))}
                     margin={{ top: 8, right: 8, left: 8, bottom: 24 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-border)" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip
@@ -159,7 +173,7 @@ export const TeamAvailabilityDisplay: React.FC<{ data: TeamAvailabilityData }> =
                       }
                       labelFormatter={(label: string) => `Date: ${label}`}
                     />
-                    <Bar dataKey="absent" name="Absent" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="absent" name="Absent" fill="var(--nw-warning)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </section>

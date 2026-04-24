@@ -37,7 +37,9 @@ import {
   RotateCcw,
   ChevronDown,
   Palette,
-  Upload
+  Upload,
+  Plus,
+  X
 } from 'lucide-react'
 import type {
   AnySlideElement,
@@ -46,6 +48,9 @@ import type {
   ImageElement,
   VideoElement,
   ChartElement,
+  ChartDataPoint,
+  ChartSeries,
+  CodeElement,
   ChartType,
   GradientConfig,
   SlideTransition,
@@ -58,6 +63,8 @@ import {
   COLOR_PRESETS,
   PRESET_GRADIENTS,
   CHART_TYPES,
+  CODE_LANGUAGES,
+  CODE_FONT_SIZES,
   gradientToCss,
   DEFAULT_TRANSITION
 } from './slideElements'
@@ -82,6 +89,294 @@ const TRANSITION_TYPES: { value: SlideTransitionType; label: string }[] = [
   { value: 'dissolve', label: 'transition-dissolve' }
 ]
 
+// Extracted as stable components to prevent remount on parent re-render
+
+function PanelColorPicker({
+  value,
+  onChange,
+  label
+}: {
+  value: string
+  onChange: (color: string) => void
+  label: string
+}) {
+  return (
+    <div className="gba:space-y-2">
+      <Label className="gba:text-xs">{label}</Label>
+      <div className="gba:flex gba:gap-2 gba:items-center">
+        <input
+          type="color"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="gba:w-8 gba:h-8 gba:rounded gba:border gba:cursor-pointer"
+        />
+        <Input value={value} onChange={e => onChange(e.target.value)} className="gba:flex-1 gba:text-xs" />
+      </div>
+      <div className="gba:flex gba:flex-wrap gba:gap-1">
+        {COLOR_PRESETS.slice(0, 12).map(color => (
+          <button
+            key={color}
+            onClick={() => onChange(color)}
+            className="gba:w-5 gba:h-5 gba:rounded gba:border gba:border-muted hover:gba:scale-110 gba:transition-transform"
+            style={{ backgroundColor: color }}
+            title={color}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function PanelGradientSection({
+  gradient,
+  onChange
+}: {
+  gradient?: GradientConfig
+  onChange: (gradient: GradientConfig | undefined) => void
+}) {
+  const { t } = useTranslation(translations)
+  const [showBuilder, setShowBuilder] = useState(false)
+
+  return (
+    <Collapsible open={showBuilder} onOpenChange={setShowBuilder}>
+      <div className="gba:space-y-2">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <Label className="gba:text-xs gba:font-semibold">{t('props-gradient-fill')}</Label>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="gba:h-7">
+              <Palette className="gba:w-3 gba:h-3 gba:mr-1" />
+              {showBuilder ? t('props-close') : t('props-custom')}
+              <ChevronDown
+                className={`gba:w-3 gba:h-3 gba:ml-1 gba:transition-transform ${showBuilder ? 'gba:rotate-180' : ''}`}
+              />
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+
+        {/* Quick Presets */}
+        <div className="gba:flex gba:flex-wrap gba:gap-2">
+          <button
+            onClick={() => onChange(undefined)}
+            className={`gba:w-8 gba:h-8 gba:rounded gba:border-2 gba:flex gba:items-center gba:justify-center gba:text-xs ${!gradient ? 'gba:border-primary gba:bg-muted' : 'gba:border-muted'}`}
+            title={t('props-no-gradient')}
+          >
+            ✕
+          </button>
+          {PRESET_GRADIENTS.map(preset => (
+            <button
+              key={preset.name}
+              onClick={() => onChange(preset.gradient)}
+              className={`gba:w-8 gba:h-8 gba:rounded gba:border-2 hover:gba:scale-110 gba:transition-transform ${gradient && gradientToCss(gradient) === gradientToCss(preset.gradient) ? 'gba:border-primary gba:shadow-md' : 'gba:border-muted'}`}
+              style={{ background: gradientToCss(preset.gradient) }}
+              title={preset.name}
+            />
+          ))}
+        </div>
+
+        {/* Current gradient preview */}
+        <div
+          className="gba:h-8 gba:rounded gba:border gba:shadow-inner"
+          style={{
+            background: gradient ? gradientToCss(gradient) : 'transparent',
+            visibility: gradient ? 'visible' : 'hidden'
+          }}
+        />
+
+        {/* Custom Gradient Builder */}
+        <CollapsibleContent>
+          <div className="gba:mt-3 gba:p-3 gba:border gba:rounded-lg gba:bg-muted/30">
+            <GradientBuilder gradient={gradient} onChange={onChange} onClose={() => setShowBuilder(false)} />
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  )
+}
+
+const SERIES_COLORS = ['#2563eb', '#e11d48', '#16a34a', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']
+
+function ChartDataEditor({
+  data,
+  series,
+  onUpdate,
+  t
+}: {
+  data: ChartDataPoint[]
+  series: ChartSeries[]
+  onUpdate: (updates: Partial<AnySlideElement>) => void
+  t: (key: string) => string
+}) {
+  const handleSeriesLabelChange = (index: number, label: string) => {
+    const updated = series.map((s, i) => (i === index ? { ...s, label } : s))
+    onUpdate({ series: updated })
+  }
+
+  const handleSeriesColorChange = (index: number, color: string) => {
+    const updated = series.map((s, i) => (i === index ? { ...s, color } : s))
+    onUpdate({ series: updated })
+  }
+
+  const handleAddSeries = () => {
+    const newKey = `value${series.length + 1}`
+    const newSeries: ChartSeries = {
+      key: newKey,
+      label: `Series ${series.length + 1}`,
+      color: SERIES_COLORS[series.length % SERIES_COLORS.length]
+    }
+    const updatedData = data.map(row => ({ ...row, [newKey]: 0 }))
+    onUpdate({ series: [...series, newSeries], data: updatedData })
+  }
+
+  const handleRemoveSeries = (index: number) => {
+    if (series.length <= 1) return
+    const removedKey = series[index].key
+    const updatedSeries = series.filter((_, i) => i !== index)
+    const updatedData = data.map(
+      row => Object.fromEntries(Object.entries(row).filter(([k]) => k !== removedKey)) as ChartDataPoint
+    )
+    onUpdate({ series: updatedSeries, data: updatedData })
+  }
+
+  const handleDataLabelChange = (rowIndex: number, label: string) => {
+    const updated = data.map((row, i) => (i === rowIndex ? { ...row, label } : row))
+    onUpdate({ data: updated })
+  }
+
+  const handleDataValueChange = (rowIndex: number, key: string, value: string) => {
+    const numValue = value === '' ? 0 : Number(value)
+    if (isNaN(numValue)) return
+    const updated = data.map((row, i) => (i === rowIndex ? { ...row, [key]: numValue } : row))
+    onUpdate({ data: updated })
+  }
+
+  const handleAddRow = () => {
+    const newRow: ChartDataPoint = { label: `Item ${data.length + 1}` }
+    series.forEach(s => {
+      ;(newRow as Record<string, string | number>)[s.key] = 0
+    })
+    onUpdate({ data: [...data, newRow] })
+  }
+
+  const handleRemoveRow = (rowIndex: number) => {
+    if (data.length <= 1) return
+    onUpdate({ data: data.filter((_, i) => i !== rowIndex) })
+  }
+
+  return (
+    <Collapsible>
+      <CollapsibleTrigger className="gba:flex gba:w-full gba:items-center gba:justify-between gba:py-1">
+        <Label className="gba:text-xs gba:font-semibold">{t('props-chart-data')}</Label>
+        <ChevronDown className="gba:h-4 gba:w-4" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="gba:space-y-3 gba:pt-2">
+        {/* Series Management */}
+        <div className="gba:space-y-2">
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label className="gba:text-xs">{t('props-chart-series')}</Label>
+            <Button variant="ghost" size="sm" className="gba:h-6 gba:px-2 gba:text-xs" onClick={handleAddSeries}>
+              <Plus className="gba:w-3 gba:h-3 gba:mr-1" />
+              {t('props-chart-add-series')}
+            </Button>
+          </div>
+
+          {series.map((s, i) => (
+            <div key={s.key} className="gba:flex gba:items-center gba:gap-1">
+              <input
+                type="color"
+                value={s.color || SERIES_COLORS[i % SERIES_COLORS.length]}
+                onChange={e => handleSeriesColorChange(i, e.target.value)}
+                className="gba:w-6 gba:h-6 gba:rounded gba:border gba:cursor-pointer gba:shrink-0"
+              />
+              <Input
+                value={s.label}
+                onChange={e => handleSeriesLabelChange(i, e.target.value)}
+                className="gba:text-xs gba:h-7 gba:flex-1"
+              />
+              {series.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gba:h-6 gba:w-6 gba:p-0 gba:shrink-0"
+                  onClick={() => handleRemoveSeries(i)}
+                >
+                  <X className="gba:w-3 gba:h-3" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <Separator />
+
+        {/* Data Table */}
+        <div className="gba:space-y-2">
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label className="gba:text-xs">{t('props-chart-data-rows')}</Label>
+            <Button variant="ghost" size="sm" className="gba:h-6 gba:px-2 gba:text-xs" onClick={handleAddRow}>
+              <Plus className="gba:w-3 gba:h-3 gba:mr-1" />
+              {t('props-chart-add-row')}
+            </Button>
+          </div>
+
+          <div className="gba:border gba:rounded gba:overflow-hidden">
+            {/* Header */}
+            <div
+              className="gba:grid gba:gap-px gba:bg-muted/50 gba:text-xs gba:font-medium gba:border-b"
+              style={{
+                gridTemplateColumns: `minmax(60px, 1fr) ${series.map(() => 'minmax(50px, 1fr)').join(' ')} 28px`
+              }}
+            >
+              <div className="gba:px-2 gba:py-1 gba:bg-background">{t('props-chart-label')}</div>
+              {series.map(s => (
+                <div key={s.key} className="gba:px-2 gba:py-1 gba:bg-background gba:truncate" title={s.label}>
+                  {s.label}
+                </div>
+              ))}
+              <div className="gba:bg-background" />
+            </div>
+
+            {/* Rows */}
+            {data.map((row, rowIndex) => (
+              <div
+                key={rowIndex}
+                className="gba:grid gba:gap-px gba:bg-muted/30 gba:text-xs"
+                style={{
+                  gridTemplateColumns: `minmax(60px, 1fr) ${series.map(() => 'minmax(50px, 1fr)').join(' ')} 28px`
+                }}
+              >
+                <input
+                  value={row.label}
+                  onChange={e => handleDataLabelChange(rowIndex, e.target.value)}
+                  className="gba:px-2 gba:py-1 gba:bg-background gba:border-0 gba:outline-none gba:text-xs gba:w-full"
+                />
+                {series.map(s => (
+                  <input
+                    key={s.key}
+                    type="number"
+                    value={row[s.key] ?? 0}
+                    onChange={e => handleDataValueChange(rowIndex, s.key, e.target.value)}
+                    className="gba:px-2 gba:py-1 gba:bg-background gba:border-0 gba:outline-none gba:text-xs gba:w-full"
+                  />
+                ))}
+                <div className="gba:flex gba:items-center gba:justify-center gba:bg-background">
+                  {data.length > 1 && (
+                    <button
+                      onClick={() => handleRemoveRow(rowIndex)}
+                      className="gba:text-muted-foreground hover:gba:text-destructive gba:transition-colors"
+                    >
+                      <X className="gba:w-3 gba:h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
 interface PropertyPanelProps {
   element: AnySlideElement | null
   onUpdate: (updates: Partial<AnySlideElement>) => void
@@ -91,6 +386,7 @@ interface PropertyPanelProps {
   onSendBackward: () => void
   slideTransition?: SlideTransition
   onSlideTransitionChange?: (transition: SlideTransition) => void
+  slideIndex?: number
 }
 
 export const PropertyPanel: React.FC<PropertyPanelProps> = ({
@@ -101,10 +397,10 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onBringForward,
   onSendBackward,
   slideTransition,
-  onSlideTransitionChange
+  onSlideTransitionChange,
+  slideIndex = 0
 }) => {
   const { t } = useTranslation(translations)
-  const [showGradientBuilder, setShowGradientBuilder] = useState(false)
   const replaceImageInputRef = useRef<HTMLInputElement>(null)
 
   const currentTransition = slideTransition || DEFAULT_TRANSITION
@@ -222,7 +518,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 {/* Preview */}
                 <div>
                   <Label className="gba:text-xs gba:mb-2 gba:block">{t('transition-preview')}</Label>
-                  <TransitionPreview transition={currentTransition} />
+                  <TransitionPreview transition={currentTransition} slideIndex={slideIndex + 1} />
                 </div>
               </CollapsibleContent>
             </Collapsible>
@@ -236,101 +532,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   const shapeElement = element.type === 'shape' ? (element as ShapeElement) : null
   const imageElement = element.type === 'image' ? (element as ImageElement) : null
   const videoElement = element.type === 'video' ? (element as VideoElement) : null
+  const codeElement = element.type === 'code' ? (element as CodeElement) : null
   const chartElement = element.type === 'chart' ? (element as ChartElement) : null
-
-  const ColorPicker = ({
-    value,
-    onChange,
-    label
-  }: {
-    value: string
-    onChange: (color: string) => void
-    label: string
-  }) => (
-    <div className="gba:space-y-2">
-      <Label className="gba:text-xs">{label}</Label>
-      <div className="gba:flex gba:gap-2 gba:items-center">
-        <input
-          type="color"
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          className="gba:w-8 gba:h-8 gba:rounded gba:border gba:cursor-pointer"
-        />
-        <Input value={value} onChange={e => onChange(e.target.value)} className="gba:flex-1 gba:text-xs" />
-      </div>
-      <div className="gba:flex gba:flex-wrap gba:gap-1">
-        {COLOR_PRESETS.slice(0, 12).map(color => (
-          <button
-            key={color}
-            onClick={() => onChange(color)}
-            className="gba:w-5 gba:h-5 gba:rounded gba:border gba:border-muted hover:gba:scale-110 gba:transition-transform"
-            style={{ backgroundColor: color }}
-            title={color}
-          />
-        ))}
-      </div>
-    </div>
-  )
-
-  const GradientSection = ({
-    gradient,
-    onChange
-  }: {
-    gradient?: GradientConfig
-    onChange: (gradient: GradientConfig | undefined) => void
-  }) => (
-    <Collapsible open={showGradientBuilder} onOpenChange={setShowGradientBuilder}>
-      <div className="gba:space-y-2">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <Label className="gba:text-xs gba:font-semibold">{t('props-gradient-fill')}</Label>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="gba:h-7">
-              <Palette className="gba:w-3 gba:h-3 gba:mr-1" />
-              {showGradientBuilder ? t('props-close') : t('props-custom')}
-              <ChevronDown
-                className={`gba:w-3 gba:h-3 gba:ml-1 gba:transition-transform ${showGradientBuilder ? 'gba:rotate-180' : ''}`}
-              />
-            </Button>
-          </CollapsibleTrigger>
-        </div>
-
-        {/* Quick Presets */}
-        <div className="gba:flex gba:flex-wrap gba:gap-2">
-          <button
-            onClick={() => onChange(undefined)}
-            className={`gba:w-8 gba:h-8 gba:rounded gba:border-2 gba:flex gba:items-center gba:justify-center gba:text-xs ${!gradient ? 'gba:border-primary gba:bg-muted' : 'gba:border-muted'}`}
-            title={t('props-no-gradient')}
-          >
-            ✕
-          </button>
-          {PRESET_GRADIENTS.map(preset => (
-            <button
-              key={preset.name}
-              onClick={() => onChange(preset.gradient)}
-              className={`gba:w-8 gba:h-8 gba:rounded gba:border-2 hover:gba:scale-110 gba:transition-transform ${gradient && gradientToCss(gradient) === gradientToCss(preset.gradient) ? 'gba:border-primary gba:shadow-md' : 'gba:border-muted'}`}
-              style={{ background: gradientToCss(preset.gradient) }}
-              title={preset.name}
-            />
-          ))}
-        </div>
-
-        {/* Current gradient preview */}
-        {gradient && (
-          <div
-            className="gba:h-8 gba:rounded gba:border gba:shadow-inner"
-            style={{ background: gradientToCss(gradient) }}
-          />
-        )}
-
-        {/* Custom Gradient Builder */}
-        <CollapsibleContent>
-          <div className="gba:mt-3 gba:p-3 gba:border gba:rounded-lg gba:bg-muted/30">
-            <GradientBuilder gradient={gradient} onChange={onChange} onClose={() => setShowGradientBuilder(false)} />
-          </div>
-        </CollapsibleContent>
-      </div>
-    </Collapsible>
-  )
 
   return (
     <div className="gba:p-4 gba:space-y-4 gba:overflow-y-auto gba:h-full">
@@ -557,21 +760,32 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           </div>
 
           {/* Text Color */}
-          <ColorPicker
+          <PanelColorPicker
             value={textElement.color}
             onChange={color => onUpdate({ color })}
             label={t('props-text-color')}
           />
 
           {/* Background Color */}
-          <ColorPicker
+          <PanelColorPicker
             value={textElement.backgroundColor === 'transparent' ? '#ffffff' : textElement.backgroundColor}
-            onChange={color => onUpdate({ backgroundColor: color })}
+            onChange={color => onUpdate({ backgroundColor: color, gradient: undefined })}
             label={t('props-background-color')}
           />
 
           {/* Gradient */}
-          <GradientSection gradient={textElement.gradient} onChange={gradient => onUpdate({ gradient })} />
+          <PanelGradientSection
+            gradient={textElement.gradient}
+            onChange={gradient => {
+              if (gradient) {
+                onUpdate({ gradient, backgroundColor: 'transparent' })
+              } else {
+                const restoredBg =
+                  textElement.backgroundColor === 'transparent' ? '#ffffff' : textElement.backgroundColor
+                onUpdate({ gradient, backgroundColor: restoredBg })
+              }
+            }}
+          />
 
           {/* Line Height */}
           <div>
@@ -611,13 +825,17 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <Label className="gba:text-xs gba:font-semibold">{t('props-shape-styling')}</Label>
 
           {/* Fill Color */}
-          <ColorPicker value={shapeElement.fill} onChange={fill => onUpdate({ fill })} label={t('props-fill-color')} />
+          <PanelColorPicker
+            value={shapeElement.fill}
+            onChange={fill => onUpdate({ fill, gradient: undefined })}
+            label={t('props-fill-color')}
+          />
 
           {/* Gradient */}
-          <GradientSection gradient={shapeElement.gradient} onChange={gradient => onUpdate({ gradient })} />
+          <PanelGradientSection gradient={shapeElement.gradient} onChange={gradient => onUpdate({ gradient })} />
 
           {/* Stroke Color */}
-          <ColorPicker
+          <PanelColorPicker
             value={shapeElement.strokeColor}
             onChange={strokeColor => onUpdate({ strokeColor })}
             label={t('props-stroke-color')}
@@ -677,6 +895,144 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <div className="gba:flex gba:items-center gba:justify-between">
             <Label className="gba:text-xs">{t('props-drop-shadow')}</Label>
             <Switch checked={shapeElement.shadow} onCheckedChange={shadow => onUpdate({ shadow })} />
+          </div>
+        </div>
+      )}
+
+      {/* CODE PROPERTIES */}
+      {codeElement && (
+        <div className="gba:space-y-4">
+          <Label className="gba:text-xs gba:font-semibold">{t('props-code-styling')}</Label>
+
+          {/* Language */}
+          <div>
+            <Label className="gba:text-xs">{t('props-code-language')}</Label>
+            <Select value={codeElement.language} onValueChange={value => onUpdate({ language: value })}>
+              <SelectTrigger className="gba:text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CODE_LANGUAGES.map(lang => (
+                  <SelectItem key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Theme */}
+          <div>
+            <Label className="gba:text-xs">{t('props-code-theme')}</Label>
+            <Select value={codeElement.theme} onValueChange={(value: 'dark' | 'light') => onUpdate({ theme: value })}>
+              <SelectTrigger className="gba:text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dark">{t('props-code-theme-dark')}</SelectItem>
+                <SelectItem value="light">{t('props-code-theme-light')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Font Size */}
+          <div>
+            <Label className="gba:text-xs">{t('props-code-font-size')}</Label>
+            <Select value={String(codeElement.fontSize)} onValueChange={value => onUpdate({ fontSize: Number(value) })}>
+              <SelectTrigger className="gba:text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CODE_FONT_SIZES.map(size => (
+                  <SelectItem key={size} value={String(size)}>
+                    {size}px
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Show Line Numbers */}
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label className="gba:text-xs">{t('props-code-show-line-numbers')}</Label>
+            <Switch
+              checked={codeElement.showLineNumbers}
+              onCheckedChange={showLineNumbers => onUpdate({ showLineNumbers })}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Text Color */}
+          <PanelColorPicker
+            value={codeElement.textColor || (codeElement.theme === 'dark' ? '#d4d4d4' : '#333333')}
+            onChange={textColor => onUpdate({ textColor })}
+            label={t('props-text-color')}
+          />
+
+          {/* Background Color */}
+          <PanelColorPicker
+            value={codeElement.backgroundColor || (codeElement.theme === 'dark' ? '#1e1e1e' : '#f8f8f8')}
+            onChange={backgroundColor => onUpdate({ backgroundColor })}
+            label={t('props-background-color')}
+          />
+
+          {/* Border Radius */}
+          <div>
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+              <Label className="gba:text-xs">{t('props-border-radius')}</Label>
+              <span className="gba:text-xs gba:text-muted-foreground">{codeElement.borderRadius ?? 8}px</span>
+            </div>
+            <Slider
+              value={[codeElement.borderRadius ?? 8]}
+              min={0}
+              max={32}
+              step={1}
+              onValueChange={([value]) => onUpdate({ borderRadius: value })}
+            />
+          </div>
+
+          {/* Border Width */}
+          <div>
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+              <Label className="gba:text-xs">{t('props-border-width')}</Label>
+              <span className="gba:text-xs gba:text-muted-foreground">{codeElement.borderWidth ?? 0}px</span>
+            </div>
+            <Slider
+              value={[codeElement.borderWidth ?? 0]}
+              min={0}
+              max={10}
+              step={1}
+              onValueChange={([value]) => onUpdate({ borderWidth: value })}
+            />
+          </div>
+
+          {/* Border Color */}
+          <PanelColorPicker
+            value={codeElement.borderColor || '#333333'}
+            onChange={borderColor => onUpdate({ borderColor })}
+            label={t('props-border-color')}
+          />
+
+          {/* Padding */}
+          <div>
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+              <Label className="gba:text-xs">{t('props-code-padding')}</Label>
+              <span className="gba:text-xs gba:text-muted-foreground">{codeElement.padding ?? 16}px</span>
+            </div>
+            <Slider
+              value={[codeElement.padding ?? 16]}
+              min={0}
+              max={48}
+              step={2}
+              onValueChange={([value]) => onUpdate({ padding: value })}
+            />
+          </div>
+
+          {/* Shadow */}
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label className="gba:text-xs">{t('props-drop-shadow')}</Label>
+            <Switch checked={codeElement.shadow ?? false} onCheckedChange={shadow => onUpdate({ shadow })} />
           </div>
         </div>
       )}
@@ -783,7 +1139,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           </div>
 
           {/* Border Color */}
-          <ColorPicker
+          <PanelColorPicker
             value={imageElement.borderColor}
             onChange={borderColor => onUpdate({ borderColor })}
             label={t('props-border-color')}
@@ -919,7 +1275,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <Label className="gba:text-xs gba:font-semibold">{t('props-chart-styling')}</Label>
 
           {/* Background Color */}
-          <ColorPicker
+          <PanelColorPicker
             value={chartElement.backgroundColor}
             onChange={backgroundColor => onUpdate({ backgroundColor })}
             label={t('props-background-color')}
@@ -939,6 +1295,10 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               onValueChange={([value]) => onUpdate({ borderRadius: value })}
             />
           </div>
+
+          <Separator />
+
+          <ChartDataEditor data={chartElement.data} series={chartElement.series} onUpdate={onUpdate} t={t} />
         </div>
       )}
     </div>

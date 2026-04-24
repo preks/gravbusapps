@@ -20,7 +20,7 @@ import {
 import type { AreaChartData, LineChartData, PieChartData, StackedBarChartData } from '../../../types/models'
 import { chartColorAt } from './chartPalette'
 
-const CHART_DOT_COLOR = '#000000'
+const CHART_DOT_COLOR = 'var(--nw-foreground)'
 
 function mergeLineSeriesForRecharts(series: LineChartData['series']) {
   const byX = new Map<string, Record<string, number | string>>()

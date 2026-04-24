@@ -12,8 +12,10 @@ import {
   SelectValue,
   Input,
   Checkbox,
-  Badge
+  Badge,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import { Plus, Trash2, Zap, Bot, Code, Bell, ChevronDown, ChevronUp } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
@@ -67,6 +69,7 @@ export const EventSubscriptionsConfiguration: React.FC<EventSubscriptionsConfigu
   accessToken,
   isFlowLevel = false
 }) => {
+  const { t } = useTranslation(translations)
   const promptClient = usePromptManagerClient(accessToken)
   const [agents, setAgents] = useState<PromptODM[]>([])
   const [functions, setFunctions] = useState<LatestFunctionItem[]>([])
@@ -261,7 +264,7 @@ export const EventSubscriptionsConfiguration: React.FC<EventSubscriptionsConfigu
                   <SelectItem value={EventHandlerType.TASK_EXPERT}>
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Bot className="gba:h-4 gba:w-4" />
-                      Task Expert (AI Agent)
+                      {t('event-handler-enterprise-agent')}
                     </div>
                   </SelectItem>
                   <SelectItem value={EventHandlerType.FUNCTION}>

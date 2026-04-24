@@ -2,14 +2,12 @@ import React, { useState, useEffect } from 'react'
 import {
   Card,
   CardContent,
-  Badge,
   Avatar,
   AvatarImage,
   AvatarFallback,
   Tabs,
   TabsList,
-  TabsTrigger,
-  TabsContent
+  TabsTrigger
 } from '@newwork/nw-design-system'
 import {
   BuildingIcon,
@@ -54,6 +52,10 @@ export const InvestmentExpandableCard: React.FC<InvestmentExpandableCardProps> =
 }) => {
   const [isExpanded, setIsExpanded] = useState(isExpandedFromUrl ?? defaultExpanded)
   const [activeTab, setActiveTab] = useState(activeTabFromUrl ?? 'documents')
+  // Tabs whose body has been mounted at least once. We keep them mounted
+  // afterwards (via Radix `forceMount`) so their fetched data is preserved
+  // across tab switches and we don't re-run their GraphQL queries.
+  const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set([activeTabFromUrl ?? 'documents']))
 
   // Sync with URL state changes
   useEffect(() => {
@@ -65,6 +67,7 @@ export const InvestmentExpandableCard: React.FC<InvestmentExpandableCardProps> =
   useEffect(() => {
     if (activeTabFromUrl) {
       setActiveTab(activeTabFromUrl)
+      setMountedTabs(prev => (prev.has(activeTabFromUrl) ? prev : new Set(prev).add(activeTabFromUrl)))
     }
   }, [activeTabFromUrl])
 
@@ -90,9 +93,11 @@ export const InvestmentExpandableCard: React.FC<InvestmentExpandableCardProps> =
     onExpandChange?.(investment.id, newExpanded)
   }
 
-  // Handle tab change with URL update
+  // Handle tab change with URL update. Marks the tab as mounted so its body
+  // stays alive across subsequent tab switches (no refetch).
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
+    setMountedTabs(prev => (prev.has(tab) ? prev : new Set(prev).add(tab)))
     onTabChange?.(investment.id, tab)
   }
 
@@ -143,21 +148,6 @@ export const InvestmentExpandableCard: React.FC<InvestmentExpandableCardProps> =
               <div className="gba:flex-1 gba:min-w-0">
                 <div className="gba:flex gba:items-center gba:gap-3 gba:mb-1">
                   <h3 className="gba:m-0 gba:text-xl gba:font-bold gba:text-foreground">{investment.name}</h3>
-                  {investment.investmentGroup?.value && (
-                    <Badge variant="secondary" className="gba:text-xs">
-                      {investment.investmentGroup.value}
-                    </Badge>
-                  )}
-                  {investment.investmentType?.value && (
-                    <Badge variant="secondary" className="gba:text-xs">
-                      {investment.investmentType.value}
-                    </Badge>
-                  )}
-                  {investment.investmentStatus?.value && (
-                    <Badge variant="outline" className="gba:text-xs">
-                      {investment.investmentStatus.value}
-                    </Badge>
-                  )}
                 </div>
 
                 <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground gba:flex-wrap">
@@ -203,21 +193,6 @@ export const InvestmentExpandableCard: React.FC<InvestmentExpandableCardProps> =
               <div className="gba:flex-1 gba:min-w-0">
                 <div className="gba:flex gba:items-center gba:gap-3 gba:mb-1">
                   <h3 className="gba:m-0 gba:text-xl gba:font-bold gba:text-foreground">{investment.name}</h3>
-                  {investment.investmentGroup?.value && (
-                    <Badge variant="secondary" className="gba:text-xs">
-                      {investment.investmentGroup.value}
-                    </Badge>
-                  )}
-                  {investment.investmentType?.value && (
-                    <Badge variant="secondary" className="gba:text-xs">
-                      {investment.investmentType.value}
-                    </Badge>
-                  )}
-                  {investment.investmentStatus?.value && (
-                    <Badge variant="outline" className="gba:text-xs">
-                      {investment.investmentStatus.value}
-                    </Badge>
-                  )}
                 </div>
 
                 <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground gba:flex-wrap">
@@ -255,8 +230,22 @@ export const InvestmentExpandableCard: React.FC<InvestmentExpandableCardProps> =
                   {getTranslationFromI18nKeyAndLabel('tiles.title', 'Tiles')}
                 </TabsTrigger>
               </TabsList>
+            </Tabs>
 
-              <TabsContent value="documents">
+            {/*
+              Tab panels are rendered as plain divs (NOT Radix `TabsContent`) so
+              we control mount/visibility ourselves:
+                - lazy-mount on first visit (via `mountedTabs`)
+                - keep alive across switches by only toggling `display`
+              This guarantees the underlying GraphQL queries fire exactly once
+              per panel for the lifetime of the expanded card.
+            */}
+            {mountedTabs.has('documents') && (
+              <div
+                role="tabpanel"
+                aria-hidden={activeTab !== 'documents'}
+                className={activeTab === 'documents' ? '' : 'gba:hidden'}
+              >
                 <InvestmentPortalDocuments
                   investmentId={investment.id}
                   context={{
@@ -265,9 +254,15 @@ export const InvestmentExpandableCard: React.FC<InvestmentExpandableCardProps> =
                     additionalData
                   }}
                 />
-              </TabsContent>
+              </div>
+            )}
 
-              <TabsContent value="tasks">
+            {mountedTabs.has('tasks') && (
+              <div
+                role="tabpanel"
+                aria-hidden={activeTab !== 'tasks'}
+                className={activeTab === 'tasks' ? '' : 'gba:hidden'}
+              >
                 <InvestmentPortalTasks
                   investmentId={investment.id}
                   context={{
@@ -276,9 +271,15 @@ export const InvestmentExpandableCard: React.FC<InvestmentExpandableCardProps> =
                     additionalData
                   }}
                 />
-              </TabsContent>
+              </div>
+            )}
 
-              <TabsContent value="tiles">
+            {mountedTabs.has('tiles') && (
+              <div
+                role="tabpanel"
+                aria-hidden={activeTab !== 'tiles'}
+                className={activeTab === 'tiles' ? '' : 'gba:hidden'}
+              >
                 <InvestmentPortalTiles
                   investmentId={investment.id}
                   investment={investment}
@@ -286,8 +287,8 @@ export const InvestmentExpandableCard: React.FC<InvestmentExpandableCardProps> =
                   userInfo={userInfo}
                   additionalData={additionalData}
                 />
-              </TabsContent>
-            </Tabs>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
