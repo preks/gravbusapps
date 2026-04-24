@@ -95,6 +95,7 @@ toast-favorite-added = Zu Favoriten hinzugefügt
 toast-imported-slides = { $count } Folien importiert
 toast-import-failed = PowerPoint-Import fehlgeschlagen
 toast-import-partial = Präsentation erstellt, aber Folieninhalte konnten nicht gespeichert werden. Versuchen Sie, sie erneut zu öffnen und zu speichern.
+toast-import-partial-too-large = Präsentation ist zu groß ({ $size } MB), um in einem Stück gespeichert zu werden. Versuchen Sie, weniger Folien auf einmal zu importieren oder große Bilder zu entfernen.
 import-saving = Präsentation wird gespeichert...
 toast-template-matched = Vorlage wird verwendet: { $name }
 toast-template-applied = Vorlage angewendet

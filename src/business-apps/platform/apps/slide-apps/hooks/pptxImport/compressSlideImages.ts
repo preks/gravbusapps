@@ -118,13 +118,22 @@ interface ImageSlot {
   field: 'src' | 'imageUrl'
 }
 
-function collectImageSlots(slides: SlideData[]): ImageSlot[] {
+/**
+ * Collect image slots. `includeVector=false` (the default used by the JPEG
+ * compression passes) skips SVG data URLs because rasterizing vectors loses
+ * fidelity without saving bytes on small icons. `includeVector=true` is used
+ * by the final stripping pass so an oversized EMF/WMF render (rtf.js can
+ * emit multi-MB SVGs for dense invoicing charts) can still be replaced with
+ * the visible "Image removed" placeholder when even the raster budget is
+ * blown. Without this, a deck full of vector charts could never fit under
+ * the backend's JSON body limit and the save would silently fail.
+ */
+function collectImageSlots(slides: SlideData[], includeVector = false): ImageSlot[] {
   const slots: ImageSlot[] = []
   for (let si = 0; si < slides.length; si++) {
     const slide = slides[si]
     if (slide.background?.type === 'image' && isBase64DataUrl(slide.background.imageUrl)) {
-      // SVG backgrounds (incl. imported EMF/WMF placeholders) stay as-is.
-      if (!isVectorImageDataUrl(slide.background.imageUrl)) {
+      if (includeVector || !isVectorImageDataUrl(slide.background.imageUrl)) {
         slots.push({ slideIdx: si, elementIdx: null, field: 'imageUrl' })
       }
     }
@@ -132,7 +141,7 @@ function collectImageSlots(slides: SlideData[]): ImageSlot[] {
       const el = slide.elements[ei]
       if (el.type === 'image' && 'src' in el && isBase64DataUrl((el as { src: string }).src)) {
         const src = (el as { src: string }).src
-        if (!isVectorImageDataUrl(src)) {
+        if (includeVector || !isVectorImageDataUrl(src)) {
           slots.push({ slideIdx: si, elementIdx: ei, field: 'src' })
         }
       }
@@ -230,16 +239,19 @@ export async function compressSlideImages(
     }
   }
 
-  // Last resort: if still over budget, swap the largest images for a VISIBLE
-  // placeholder so the user can see that something was removed. Never set
-  // src to ''; that silently hides content with no feedback.
+  // Last resort: if still over budget, swap the largest images (raster AND
+  // vector) for a VISIBLE placeholder so the user can see that something
+  // was removed. Never set src to ''; that silently hides content with no
+  // feedback. EMF/WMF decks in particular can produce multi-MB SVGs from
+  // rtf.js, which the JPEG compression passes above deliberately skip —
+  // this is the only phase that can clip them.
   let finalSize = estimatePayloadSize(result)
   if (finalSize > MAX_PAYLOAD_BYTES) {
     console.warn(
-      `[compressSlideImages] Still ${(finalSize / 1024 / 1024).toFixed(1)} MB after all passes, substituting largest images with placeholder`
+      `[compressSlideImages] Still ${(finalSize / 1024 / 1024).toFixed(1)} MB after all passes, substituting largest images (incl. vector) with placeholder`
     )
 
-    const remaining = collectImageSlots(result)
+    const remaining = collectImageSlots(result, true)
     const sorted = remaining
       .map(slot => ({ slot, size: getSlotValue(result, slot).length }))
       .sort((a, b) => b.size - a.size)
@@ -254,6 +266,17 @@ export async function compressSlideImages(
       finalSize = estimatePayloadSize(result)
       if (finalSize <= MAX_PAYLOAD_BYTES) break
     }
+  }
+
+  // Even after stripping every image, non-image content (text, paragraphs,
+  // effects, tables, connectors) can keep the JSON over the backend's body
+  // limit — especially for decks with hundreds of slides. Surface this so
+  // the caller can show a clearer error than the generic "save failed".
+  finalSize = estimatePayloadSize(result)
+  if (finalSize > MAX_PAYLOAD_BYTES) {
+    console.warn(
+      `[compressSlideImages] Final payload ${(finalSize / 1024 / 1024).toFixed(1)} MB still exceeds ${(MAX_PAYLOAD_BYTES / 1024 / 1024).toFixed(0)} MB budget after stripping all images — non-image content is driving the size.`
+    )
   }
 
   return result

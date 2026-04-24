@@ -95,6 +95,7 @@ toast-favorite-added = Adăugat la favorite
 toast-imported-slides = Importate { $count } slide-uri
 toast-import-failed = Import PowerPoint eșuat
 toast-import-partial = Prezentarea a fost creată, dar conținutul slide-urilor nu a putut fi salvat. Încercați să redeschideți și să resalvați.
+toast-import-partial-too-large = Prezentarea este prea mare ({ $size } MB) pentru a fi salvată dintr-o dată. Încercați să importați mai puține slide-uri odată sau să eliminați imaginile mari.
 import-saving = Se salvează prezentarea...
 toast-template-matched = Se folosește șablonul: { $name }
 toast-template-applied = Șablon aplicat

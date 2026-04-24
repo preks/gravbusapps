@@ -95,6 +95,7 @@ toast-favorite-added = Added to favorites
 toast-imported-slides = Imported { $count } slides
 toast-import-failed = Failed to import PowerPoint
 toast-import-partial = Presentation created, but slide content could not be saved. Try opening and re-saving.
+toast-import-partial-too-large = Presentation is too large ({ $size } MB) to save in one piece. Try importing fewer slides at a time or removing heavy images.
 import-saving = Saving presentation...
 toast-template-matched = Using template: { $name }
 toast-template-applied = Template applied
