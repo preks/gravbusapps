@@ -18,22 +18,13 @@ export const ApproveCreateSkill: React.FC<ApproveCreateSkillProps> = ({ addition
   const [isSubmitting, setIsSubmitting] = useState(false)
   const taskPayload = additionalData?.psi_taskPayload || {}
   const processMetadata = additionalData?.psi_processMetadata || {}
-  const taskStatus = additionalData?.psi_taskStatus || (processMetadata as any)?.status || 'IN_PROGRESS'
+  const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const isTaskCompleted = taskStatus === 'COMPLETED'
-  const taskTitle =
-    ((processMetadata as any)?.referenceTaskName as string | undefined) ?? t('approve-create-skill-title')
-  const creatorName =
-    ((taskPayload as any)?.creatorName as string | undefined) ??
-    ((processMetadata as any)?.creatorName as string | undefined)
-  const creatorUserId = (processMetadata as any)?.creatorUserId as string | undefined
-  const employeeSkills = (taskPayload as any)?.employeeSkills as { newSkills?: NewSkillItem[] } | undefined
-  const MOCK_NEW_SKILLS: NewSkillItem[] = [
-    { name: 'JavaScript High Level' },
-    { name: 'React Advanced Patterns React Advanced PatternsReact Advanced Patterns' },
-    { name: 'System Design' }
-  ]
-
-  const newSkills: NewSkillItem[] = employeeSkills?.newSkills ?? MOCK_NEW_SKILLS
+  const taskTitle = processMetadata?.referenceTaskName ?? t('approve-create-skill-title')
+  const creatorName = taskPayload?.creatorName ?? processMetadata?.creatorName
+  const creatorUserId: string | undefined = processMetadata?.creatorUserId
+  const employeeSkills = taskPayload?.employeeSkills as { newSkills?: NewSkillItem[] } | undefined
+  const newSkills: NewSkillItem[] = employeeSkills?.newSkills ?? []
   const isEveryBoxContext = !!onClose
   const handleClose = () => {
     if (onClose) {
