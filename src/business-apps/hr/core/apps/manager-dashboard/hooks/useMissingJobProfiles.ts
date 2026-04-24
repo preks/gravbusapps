@@ -83,7 +83,7 @@ export const useMissingJobProfiles = ({
                   id
                   name
                   jobFamily {
-                    value
+                    code
                   }
                 }
                 jobLevel {

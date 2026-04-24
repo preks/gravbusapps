@@ -24,26 +24,9 @@ import type { SlideTemplateSummary, TemplateCategory } from '../types'
 import type { SlideData, SlideBackground } from './slideElements'
 import { gradientToCss } from './slideElements'
 import translations from '../_i18n'
+import { sanitizeSlideImageUrl } from '../utils/slideMediaUrl'
 
-/**
- * Sanitize media URL to prevent XSS attacks.
- * Only allows https, http, data:image, blob, or relative paths.
- */
-const sanitizeMediaUrl = (url: string | undefined): string => {
-  if (!url) return ''
-  const trimmed = url.trim()
-  if (
-    trimmed.startsWith('https://') ||
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('data:image/') ||
-    trimmed.startsWith('blob:') ||
-    trimmed.startsWith('/') ||
-    trimmed.startsWith('./')
-  ) {
-    return trimmed
-  }
-  return ''
-}
+const sanitizeMediaUrl = sanitizeSlideImageUrl
 
 const SLIDE_WIDTH = 1280
 const SLIDE_HEIGHT = 720

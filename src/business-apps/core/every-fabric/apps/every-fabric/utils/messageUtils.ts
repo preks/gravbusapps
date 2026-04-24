@@ -14,6 +14,7 @@ import type {
 } from '../types/enterpriseAgent'
 import { resolveRendererType } from '../types/fabric'
 import { extractLatestTodosFromEvents, isTodoListToolName } from './fabricTodoStream'
+import { humanizeSkillId } from './skillUtils'
 
 export const FABRIC_LIVE_PLAN_MESSAGE_ID = 'fabric-live-plan'
 
@@ -559,13 +560,18 @@ function stepStartedActivity(
   if (isTodoListToolName(e.name)) return null
   const completed = stepCompletions.get(e.step_id)
   const isMemoryTool = MEMORY_TOOLS.has(e.name ?? '')
+  const isSkillLoad = e.name === 'skill_load'
+  const rawSkillId = isSkillLoad ? e.input?.skill_id : undefined
+  const skillId = typeof rawSkillId === 'string' && rawSkillId.trim().length > 0 ? rawSkillId.trim() : undefined
   return {
     id: e.event_id,
     timestamp: e.timestamp,
     type: isMemoryTool ? 'memory_access' : 'tool_call',
     toolName: e.name,
     summary: isMemoryTool ? memoryActivitySummary(e.name) : toolActivitySummary(e.name, !!completed),
-    durationMs: completed?.duration_ms
+    durationMs: completed?.duration_ms,
+    skillId,
+    skillName: skillId ? humanizeSkillId(skillId) : undefined
   }
 }
 

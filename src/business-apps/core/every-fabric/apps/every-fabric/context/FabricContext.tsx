@@ -16,6 +16,7 @@ import { useArtifactPreview, type ArtifactPreview } from '../hooks/useArtifactPr
 import { useFabricArtifacts } from '../hooks/useFabricArtifacts'
 import { useFabricDecisions, type DecisionItem } from '../hooks/useFabricDecisions'
 import { useFabricPlan } from '../hooks/useFabricPlan'
+import { useFabricSkills, type ActiveFabricSkill } from '../hooks/useFabricSkills'
 import { useSessionUrlState } from '../hooks/useSessionUrlState'
 import { deriveActivityFromEvents } from '../utils/messageUtils'
 
@@ -51,8 +52,15 @@ interface FabricContextValue {
   // Decisions panel (discrete agent branch points)
   decisions: DecisionItem[]
 
-  // Active enterprise skill
+  // Active enterprise skill (initial skill auto-detected by the agent at session start)
   activeSkill: ActiveSkillInfo | null
+
+  // Skills loaded by the agent during this session (via `skill_load` tool + `skill_loaded` events).
+  // `fabricActiveSkill` is the most recently loaded one; `loadedSkills` is the full set.
+  fabricActiveSkill: ActiveFabricSkill | null
+  loadedSkills: ActiveFabricSkill[]
+  /** Lookup used by the Activity panel to attach a skill badge to `skill_load` rows. */
+  skillIdByStepId: Map<string, string>
 
   // Active connectors for the session (persisted from session start)
   sessionConnectorIds: string[]
@@ -242,6 +250,9 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   // Decisions panel — discrete agent branch points (skill, reflection, HITL, …)
   const decisions = useFabricDecisions(events)
 
+  // Skills — parsed from `skill_load` tool calls and `skill_loaded` events.
+  const { activeSkill: fabricActiveSkill, loadedSkills, skillIdByStepId } = useFabricSkills(events)
+
   // Merge SSE events with session trace for completed sessions (trace has preview events too)
   const previewSourceEvents = useMemo((): AgentStreamEvent[] => {
     if (events.length > 0) return events
@@ -364,6 +375,9 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       activityEvents,
       decisions,
       activeSkill,
+      fabricActiveSkill,
+      loadedSkills,
+      skillIdByStepId,
       sessionConnectorIds,
       taskNodes,
       hasPlan,
@@ -407,6 +421,9 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       activityEvents,
       decisions,
       activeSkill,
+      fabricActiveSkill,
+      loadedSkills,
+      skillIdByStepId,
       sessionConnectorIds,
       taskNodes,
       hasPlan,

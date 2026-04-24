@@ -5,7 +5,7 @@ import type JSZip from 'jszip'
 import type { SlideBackground, GradientConfig } from '../../components/slideElements'
 import type { OoxmlTheme, SlideRelationships } from './types'
 import { getChild, parseSolidFill, parseGradientFill, resolveColor, parseXML } from './ooxmlUtils'
-import { resolveLayoutRelationships, resolveMasterRelationships } from './resolveRelationships'
+import { resolveLayoutRelationships, resolveMasterRelationships, resolveMediaData } from './resolveRelationships'
 
 function resolveBgRefFromTheme(
   themeXml: Document | undefined,
@@ -80,8 +80,7 @@ function extractBgFromXml(
         if (relId) {
           const imagePath = imageRels.get(relId)
           if (imagePath) {
-            const imageName = imagePath.split('/').pop()
-            const imageBase64 = imageName ? imageData.get(imageName) : undefined
+            const imageBase64 = resolveMediaData(imagePath, imageData)
             if (imageBase64) {
               return { type: 'image', imageUrl: imageBase64 }
             }
@@ -93,7 +92,7 @@ function extractBgFromXml(
 
   const bgRef = getChild(bg, 'p:bgRef')
   if (bgRef) {
-    const idx = parseInt(bgRef.getAttribute('idx') || '0')
+    const idx = Number.parseInt(bgRef.getAttribute('idx') || '0')
     if (themeXml && idx > 0) {
       const themeBg = resolveBgRefFromTheme(themeXml, idx, theme)
       if (themeBg) return themeBg

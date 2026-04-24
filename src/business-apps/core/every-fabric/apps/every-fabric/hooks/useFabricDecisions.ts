@@ -1,8 +1,10 @@
 import { useMemo } from 'react'
 import type { AgentDecisionEvent, AgentStreamEvent, DecisionCategory } from '../types/enterpriseAgent'
+import { humanizeSkillId } from '../utils/skillUtils'
 
 type SkillLoadedEvent = Extract<AgentStreamEvent, { type: 'skill_loaded' }>
 type TerminalEvent = Extract<AgentStreamEvent, { type: 'terminal' }>
+type StepStartedEvent = Extract<AgentStreamEvent, { type: 'step_started' }>
 
 /**
  * UI-ready view of an agent decision row. This is a superset of the
@@ -52,6 +54,34 @@ const skillLoadedToDecision = (event: SkillLoadedEvent): DecisionItem => ({
   },
   synthesized: true
 })
+
+/**
+ * Synthesize a decision row from an agent `skill_load` tool call. Used
+ * when the backend does not emit a dedicated `decision` or `skill_loaded`
+ * event for the chosen skill — the tool invocation itself is the branch
+ * point we want to surface in the Decisions panel.
+ */
+const skillLoadStepToDecision = (event: StepStartedEvent, skillId: string): DecisionItem => {
+  const name = humanizeSkillId(skillId)
+  return {
+    id: `synthesized-skill-load-${event.event_id}`,
+    seq: event.seq,
+    timestamp: event.timestamp,
+    category: 'skill',
+    title: `Using skill ${name}`,
+    chosen: skillId,
+    rationale: 'Agent loaded this skill to guide its next steps.',
+    metadata: { source: 'skill_load_tool' },
+    synthesized: true
+  }
+}
+
+const extractSkillLoadSkillId = (event: StepStartedEvent): string | null => {
+  if (event.name !== 'skill_load') return null
+  const raw = event.input?.skill_id
+  if (typeof raw === 'string' && raw.trim().length > 0) return raw.trim()
+  return null
+}
 
 const terminalReflectionToDecision = (event: TerminalEvent): DecisionItem | null => {
   const reflection = event.reflection
@@ -123,6 +153,44 @@ const dedupeSkillDecisions = (decisions: DecisionItem[]): DecisionItem[] => {
   return out
 }
 
+const extractNativeDecisions = (events: AgentStreamEvent[]): DecisionItem[] => {
+  const native: DecisionItem[] = []
+  for (const event of events) {
+    if (event.type === 'decision') {
+      native.push(toDecisionItem(event))
+    }
+  }
+  return native
+}
+
+const synthesizeSkillDecisions = (events: AgentStreamEvent[]): DecisionItem[] => {
+  const synthesized: DecisionItem[] = []
+  const seenSynthesizedSkillIds = new Set<string>()
+
+  for (const event of events) {
+    if (event.type === 'skill_loaded') {
+      synthesized.push(skillLoadedToDecision(event))
+      seenSynthesizedSkillIds.add(event.skill.skill_id)
+    }
+  }
+
+  for (const event of events) {
+    if (event.type !== 'step_started') continue
+    const skillId = extractSkillLoadSkillId(event)
+    if (!skillId || seenSynthesizedSkillIds.has(skillId)) continue
+    synthesized.push(skillLoadStepToDecision(event, skillId))
+    seenSynthesizedSkillIds.add(skillId)
+  }
+
+  return synthesized
+}
+
+const synthesizeReflectionDecision = (events: AgentStreamEvent[]): DecisionItem | null => {
+  const terminalEvent = events.find((e): e is TerminalEvent => e.type === 'terminal' && e.status === 'completed')
+  if (!terminalEvent) return null
+  return terminalReflectionToDecision(terminalEvent)
+}
+
 /**
  * Reduces SSE events into a list of discrete decision rows for the
  * Decisions side panel.
@@ -141,30 +209,17 @@ const dedupeSkillDecisions = (decisions: DecisionItem[]): DecisionItem[] => {
  */
 export const useFabricDecisions = (events: AgentStreamEvent[]): DecisionItem[] => {
   return useMemo(() => {
-    const native: DecisionItem[] = []
-    for (const event of events) {
-      if (event.type === 'decision') {
-        native.push(toDecisionItem(event))
-      }
-    }
-
+    const native = extractNativeDecisions(events)
     const hasNativeSkill = native.some(d => d.category === 'skill')
     const hasNativeReflection = native.some(d => d.category === 'reflection')
 
     const synthesized: DecisionItem[] = []
     if (!hasNativeSkill) {
-      for (const event of events) {
-        if (event.type === 'skill_loaded') {
-          synthesized.push(skillLoadedToDecision(event))
-        }
-      }
+      synthesized.push(...synthesizeSkillDecisions(events))
     }
     if (!hasNativeReflection) {
-      const terminalEvent = events.find((e): e is TerminalEvent => e.type === 'terminal' && e.status === 'completed')
-      if (terminalEvent) {
-        const row = terminalReflectionToDecision(terminalEvent)
-        if (row) synthesized.push(row)
-      }
+      const reflectionRow = synthesizeReflectionDecision(events)
+      if (reflectionRow) synthesized.push(reflectionRow)
     }
 
     const merged = [...native, ...synthesized]

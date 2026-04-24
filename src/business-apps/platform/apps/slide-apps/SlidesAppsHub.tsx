@@ -520,14 +520,32 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const handlePowerPointImport = useCallback(
     async (parsedDoc: ParsedPowerPointDocument) => {
       try {
-        const uploadedSlides = await compressSlideImages(parsedDoc.slides)
+        let decodeFailures = 0
+        let strippedForSize = 0
+        const uploadedSlides = await compressSlideImages(parsedDoc.slides, undefined, warning => {
+          if (warning.type === 'decode-failed') decodeFailures++
+          else if (warning.type === 'stripped-for-size') strippedForSize++
+        })
+
+        // Pre-flight: measure the final JSON payload. The document service
+        // rejects bodies over 10 MB (which surfaces as a generic "content
+        // could not be saved" toast and leaves an empty deck behind). We
+        // surface a specific "too large" warning instead so the user knows
+        // what to do (split the deck, strip images) — see
+        // `toast-import-partial-too-large`. 10.5 MB gives headroom for the
+        // title/wrapper fields added on top of the slide array.
+        const contentJson = {
+          slides: uploadedSlides,
+          themeId: parsedDoc.themeId || 'corporate'
+        }
+        const payloadBytes = JSON.stringify(contentJson).length
+        const payloadMb = payloadBytes / 1024 / 1024
+        console.info(`[SlidesAppsHub] Import payload: ${payloadMb.toFixed(2)} MB, ${parsedDoc.slideCount} slides`)
+        const exceedsBackendLimit = payloadBytes > 10 * 1024 * 1024
 
         const result = await importSlide({
           title: parsedDoc.fileName.replace('.pptx', ''),
-          contentJson: {
-            slides: uploadedSlides,
-            themeId: parsedDoc.themeId || 'corporate'
-          }
+          contentJson
         })
 
         if (!result) {
@@ -539,10 +557,23 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         setSelectedSlideId(result.slide.id)
         setCurrentView('editor')
         updateUrl(result.slide.id, 'editor')
-        await loadSlide(result.slide.id)
+        // `importSlide()` already stores the freshly updated slide in local
+        // state. Re-fetching immediately can race against backend persistence
+        // and replace the imported content with a stale snapshot.
 
         if (result.contentSaved) {
           toast.success(t('toast-imported-slides', { count: parsedDoc.slideCount }))
+          // Surface compression-time issues as non-blocking warnings so users
+          // can tell why an imported image might look off (decode failure) or
+          // missing (stripped for size), rather than seeing a silent blank.
+          if (strippedForSize > 0) {
+            toast.warning(t('parser-image-stripped-for-size'))
+          }
+          if (decodeFailures > 0) {
+            toast.warning(t('parser-image-decode-failed', { slide: String(decodeFailures) }))
+          }
+        } else if (exceedsBackendLimit) {
+          toast.warning(t('toast-import-partial-too-large', { size: payloadMb.toFixed(1) }))
         } else {
           toast.warning(t('toast-import-partial'))
         }
@@ -551,7 +582,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         toast.error(t('toast-import-failed'))
       }
     },
-    [importSlide, loadSlide, updateUrl, t]
+    [importSlide, updateUrl, t]
   )
 
   // Check if this is a cast receiver view (standalone page for external display)

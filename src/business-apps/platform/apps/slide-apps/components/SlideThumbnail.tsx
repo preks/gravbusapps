@@ -3,14 +3,30 @@
 // image decodes on unrelated state updates.
 
 import React, { useMemo } from 'react'
-import type { SlideData, AnySlideElement, ChartElement, ShapeElement, CodeElement } from './slideElements'
-import { gradientToCss } from './slideElements'
+import type { SlideData, AnySlideElement, ShapeElement, CodeElement } from './slideElements'
+import { gradientToCss, textTransformToCss } from './slideElements'
+import { resolveFontStack } from './fontStack'
 import { SlideChartRenderer } from './SlideChartRenderer'
+import { tryRenderOfficePresetShape, isOfficePresetSupported } from './OfficeShapeRenderer'
 import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
-import { sanitizeMediaUrl, renderShape } from './slideRenderUtils'
+import { sanitizeSlideImageUrl } from '../utils/slideMediaUrl'
+
+/**
+ * True when the shape has Office preset metadata that we can draw with its
+ * own SVG path. We use this both in ThumbnailElement (to render the preset)
+ * and on the outer wrapper (to suppress the generic fill/borderRadius so we
+ * do not double-paint underneath the preset path).
+ */
+function hasOfficePresetGeometry(el: AnySlideElement): boolean {
+  if (el.type !== 'shape') return false
+  const meta = el.geometry ?? el.importMeta
+  if (!meta) return false
+  if (meta.custGeomPath) return true
+  return isOfficePresetSupported(meta.prst)
+}
 
 function resolveImageSrc(src: string | undefined): string {
-  const sanitized = sanitizeMediaUrl(src, ['image/'])
+  const sanitized = sanitizeSlideImageUrl(src)
   if (!sanitized) return ''
   return getCachedImageUrl(sanitized)
 }
@@ -31,9 +47,10 @@ const ThumbnailElement = React.memo(function ThumbnailElement({ el }: { el: AnyS
           color: te.color,
           fontSize: te.fontSize,
           fontWeight: te.fontWeight,
-          fontFamily: te.fontFamily,
+          fontFamily: resolveFontStack(te.fontFamily),
           textAlign: te.textAlign,
           lineHeight: te.lineHeight || 1.2,
+          ...textTransformToCss(te.textTransform),
           backgroundColor: te.backgroundColor && te.backgroundColor !== 'transparent' ? te.backgroundColor : undefined,
           background: te.gradient ? gradientToCss(te.gradient) : undefined
         }}
@@ -43,10 +60,6 @@ const ThumbnailElement = React.memo(function ThumbnailElement({ el }: { el: AnyS
     )
   }
 
-  if (el.type === 'shape') {
-    return <>{renderShape(el as ShapeElement, 'thumb-grad')}</>
-  }
-
   if (el.type === 'image') {
     const src = resolveImageSrc((el as any).src)
     if (!src) return null
@@ -54,7 +67,7 @@ const ThumbnailElement = React.memo(function ThumbnailElement({ el }: { el: AnyS
   }
 
   if (el.type === 'code') {
-    const ce = el as CodeElement
+    const ce: CodeElement = el
     const defaultBg = ce.theme === 'dark' ? '#1e1e1e' : '#f8f8f8'
     return (
       <div
@@ -78,7 +91,62 @@ const ThumbnailElement = React.memo(function ThumbnailElement({ el }: { el: AnyS
   }
 
   if (el.type === 'chart') {
-    return <SlideChartRenderer element={el as ChartElement} width={el.size.width} height={el.size.height} />
+    return <SlideChartRenderer element={el} width={el.size.width} height={el.size.height} />
+  }
+
+  if (el.type === 'shape') {
+    const s: ShapeElement = el
+    const t = s.shapeText
+    const fillStyle = s.gradient ? gradientToCss(s.gradient) : s.fill
+
+    // Render the exact PPTX preset shape if we know how to draw it. We use
+    // the full element size here because the outer wrapper already scales
+    // the whole thumbnail via CSS transform.
+    const officePreset = tryRenderOfficePresetShape({
+      element: s,
+      fillStyle: fillStyle || 'transparent',
+      strokeColor: s.strokeColor || 'transparent',
+      strokeWidth: s.strokeWidth || 0,
+      shadow: !!s.shadow,
+      width: Math.max(1, s.size.width),
+      height: Math.max(1, s.size.height)
+    })
+
+    if (officePreset) {
+      return (
+        <div className="gba:absolute gba:inset-0">
+          {officePreset}
+          {t?.content && (
+            <div
+              className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:overflow-hidden gba:px-0.5 gba:text-center gba:leading-tight"
+              style={{
+                color: t.color,
+                fontSize: Math.max(4, (t.fontSize || 12) * 0.1),
+                fontWeight: t.fontWeight,
+                fontFamily: resolveFontStack(t.fontFamily)
+              }}
+            >
+              {t.content}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    if (!t?.content) return null
+    return (
+      <div
+        className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:overflow-hidden gba:px-0.5 gba:text-center gba:leading-tight"
+        style={{
+          color: t.color,
+          fontSize: Math.max(4, (t.fontSize || 12) * 0.1),
+          fontWeight: t.fontWeight,
+          fontFamily: resolveFontStack(t.fontFamily)
+        }}
+      >
+        {t.content}
+      </div>
+    )
   }
 
   return null
@@ -105,7 +173,7 @@ export const SlideThumbnail = React.memo(function SlideThumbnail({ slide, index,
         return layers.length > 0 ? { background: `${layers.join(', ')}, ${baseColor}` } : { backgroundColor: baseColor }
       }
       case 'image': {
-        const url = bg.imageUrl ? getCachedImageUrl(bg.imageUrl) : undefined
+        const url = resolveImageSrc(bg.imageUrl)
         return url ? { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}
       }
       default:
@@ -113,22 +181,28 @@ export const SlideThumbnail = React.memo(function SlideThumbnail({ slide, index,
     }
   }, [slide.background])
 
+  // Use the slide's declared canvas (populated for PPTX imports) so 4:3 /
+  // A4 / custom-size decks thumb at their true aspect ratio.
+  const canvasW = slide.canvasSize?.width ?? 1280
+  const canvasH = slide.canvasSize?.height ?? 720
+
   return (
-    <>
-      <div className="gba:relative gba:overflow-hidden" style={{ width: '100%', aspectRatio: '16 / 9' }}>
-        <div className="gba:absolute gba:inset-0" style={bgStyle}>
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: 1280,
-              height: 720,
-              transform: `scale(${thumbScale})`,
-              transformOrigin: 'top left'
-            }}
-          >
-            {sortedElements.map(el => (
+    <div className="gba:relative gba:overflow-hidden" style={{ width: '100%', aspectRatio: `${canvasW} / ${canvasH}` }}>
+      <div className="gba:absolute gba:inset-0" style={bgStyle}>
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: canvasW,
+            height: canvasH,
+            transform: `scale(${thumbScale})`,
+            transformOrigin: 'top left'
+          }}
+        >
+          {sortedElements.map(el => {
+            const usePresetRenderer = hasOfficePresetGeometry(el)
+            return (
               <div
                 key={el.id}
                 className="gba:absolute"
@@ -138,20 +212,34 @@ export const SlideThumbnail = React.memo(function SlideThumbnail({ slide, index,
                   width: el.size.width,
                   height: el.size.height,
                   zIndex: el.zIndex || 0,
+                  backgroundColor:
+                    !usePresetRenderer && el.type === 'shape' && !(el as any).gradient
+                      ? (el as any).fill
+                      : 'transparent',
+                  background:
+                    !usePresetRenderer && el.type === 'shape' && (el as any).gradient
+                      ? gradientToCss((el as any).gradient)
+                      : undefined,
+                  borderRadius:
+                    !usePresetRenderer && el.type === 'shape'
+                      ? (el as any).shapeType === 'circle' || (el as any).shapeType === 'ellipse'
+                        ? '50%'
+                        : (el as any).cornerRadius || (el as any).borderRadius
+                      : undefined,
                   overflow: el.type === 'text' ? 'hidden' : undefined
                 }}
               >
                 <ThumbnailElement el={el} />
               </div>
-            ))}
-          </div>
+            )
+          })}
         </div>
-        {index >= 0 && (
-          <div className="gba:absolute gba:bottom-1 gba:left-1 gba:min-w-5 gba:h-5 gba:px-1 gba:flex gba:items-center gba:justify-center gba:rounded gba:bg-black/50">
-            <span className="gba:text-[10px] gba:font-medium gba:text-white gba:leading-none">{index + 1}</span>
-          </div>
-        )}
       </div>
-    </>
+      {index >= 0 && (
+        <div className="gba:absolute gba:bottom-1 gba:left-1 gba:min-w-5 gba:h-5 gba:px-1 gba:flex gba:items-center gba:justify-center gba:rounded gba:bg-black/50">
+          <span className="gba:text-[10px] gba:font-medium gba:text-white gba:leading-none">{index + 1}</span>
+        </div>
+      )}
+    </div>
   )
 })

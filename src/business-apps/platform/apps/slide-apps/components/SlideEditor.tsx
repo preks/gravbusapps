@@ -55,18 +55,26 @@ import { usePresentationCast, type CastSlideData } from '../hooks/usePresentatio
 import { useEffectManager } from '../hooks/useEffectManager'
 import { useSpeechMatcher, type MatchResult, type VideoTriggerResult } from '../hooks/useSpeechMatcher'
 import { AIAssistSettings, loadAIAssistConfig, saveAIAssistConfig } from './AIAssistSettings'
-import type { AIAssistConfig } from './slideElements'
 import type { AIAssistStatus } from './PresenterView'
 import {
+  type AIAssistConfig,
   type AnySlideElement,
   type SlideData,
   type SlideTransition,
+  type TextElement,
+  type TextLink,
+  type ShapeElement,
+  type GroupElement,
+  type ConnectorElement,
+  type ShapeGeometryMetadata,
   createTextElement,
   createImageElement,
   createVideoElement,
   PRESET_GRADIENTS,
   gradientToCss,
-  COLOR_PRESETS
+  COLOR_PRESETS,
+  getSlideCanvasSize,
+  getShapeGeometry
 } from './slideElements'
 import { SlideLayoutPicker } from './SlideLayoutPicker'
 import { SlideMasterView } from './SlideMasterView'
@@ -93,44 +101,34 @@ import type { SlideAnnotation } from '../types/slideSpellCheck'
 import { exportToPptx } from '../utils/exportUtils'
 import { adjustLinksAfterEdit, detectUrls, mergeLinks, findEditPosition, createLink } from '../utils/linkUtils'
 import translations from '../_i18n'
-import type { TextElement, CodeElement, TextLink } from './slideElements'
+import {
+  alignElements,
+  distributeElements,
+  flipShape,
+  groupElements,
+  refreshConnectorFromBindings,
+  ungroupElement,
+  type AlignAxis,
+  type DistributeAxis,
+  type ElementBounds
+} from './shapeOperations'
+
+import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
 
 /**
- * Sanitizes a URL to prevent XSS attacks in media src attributes.
- * Only allows safe protocols: https, http, data:image or data:video, blob, and relative paths.
+ * Local adapter over the shared slide-media sanitizer so existing call sites
+ * can keep passing the `['image/', 'video/']`-style `allowedDataTypes` array.
  */
 function sanitizeMediaUrl(url: string | undefined, allowedDataTypes: string[] = ['image/', 'video/']): string {
-  if (!url) return ''
-
-  const trimmedUrl = url.trim()
-  if (!trimmedUrl) return ''
-
-  // Allow relative paths
-  if (trimmedUrl.startsWith('/') || trimmedUrl.startsWith('./') || trimmedUrl.startsWith('../')) {
-    return trimmedUrl
+  const allowImage = allowedDataTypes.some(t => t.startsWith('image/'))
+  const allowVideo = allowedDataTypes.some(t => t.startsWith('video/'))
+  const kinds: SlideMediaKind[] = []
+  if (allowImage) kinds.push('image')
+  if (allowVideo) kinds.push('video')
+  for (const kind of kinds) {
+    const sanitized = sanitizeSlideMediaUrl(url, kind)
+    if (sanitized) return sanitized
   }
-
-  // Allow blob URLs (from file uploads)
-  if (trimmedUrl.startsWith('blob:')) {
-    return trimmedUrl
-  }
-
-  // Allow data URLs but only for specified types
-  if (trimmedUrl.startsWith('data:')) {
-    const isAllowed = allowedDataTypes.some(type => trimmedUrl.startsWith(`data:${type}`))
-    return isAllowed ? trimmedUrl : ''
-  }
-
-  // Allow http/https URLs
-  try {
-    const parsedUrl = new URL(trimmedUrl)
-    if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
-      return trimmedUrl
-    }
-  } catch {
-    return ''
-  }
-
   return ''
 }
 
@@ -403,6 +401,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [showPropertyPanel, setShowPropertyPanel] = useState(true)
   const [showSpellCheckPanel, setShowSpellCheckPanel] = useState(false)
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
+  // Edit Points mode: when set, SlideCanvas mounts the ShapePointEditor
+  // overlay for this shape and the PropertyPanel's "Edit Points" button is
+  // highlighted. Only one shape at a time may be in the mode.
+  const [editingPointsId, setEditingPointsId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null)
   const [isPresentMode, setIsPresentMode] = useState(false)
@@ -903,8 +905,34 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     (id: string, updates: Partial<AnySlideElement>) => {
       if (!canEdit) return
       updateCollaborativeElement(currentSlideIndex, id, updates)
+
+      // If the moved/resized element is the target of any bound connector,
+      // re-snap that connector's endpoint to the shape. This keeps diagrams
+      // stable under moves/resizes without requiring the caller to know
+      // which connectors are affected.
+      const geometryChanged = updates.position !== undefined || updates.size !== undefined
+      if (!geometryChanged) return
+      const targetElement = currentSlide.elements.find(e => e.id === id)
+      if (!targetElement) return
+      const nextTarget = { ...targetElement, ...updates } as AnySlideElement
+      const elementsById = new Map<string, AnySlideElement>(
+        currentSlide.elements.map(el => [el.id, el.id === id ? nextTarget : el])
+      )
+      currentSlide.elements.forEach(el => {
+        if (el.type !== 'connector') return
+        const c: ConnectorElement = el
+        if (c.startBinding?.elementId !== id && c.endBinding?.elementId !== id) return
+        const refreshed = refreshConnectorFromBindings(c, elementsById)
+        if (refreshed === c) return
+        updateCollaborativeElement(currentSlideIndex, c.id, {
+          startPoint: refreshed.startPoint,
+          endPoint: refreshed.endPoint,
+          position: refreshed.position,
+          size: refreshed.size
+        } as Partial<AnySlideElement>)
+      })
     },
-    [canEdit, currentSlideIndex, updateCollaborativeElement]
+    [canEdit, currentSlideIndex, updateCollaborativeElement, currentSlide.elements]
   )
 
   // Keep ref up-to-date so voice input callback always has the latest updateElement
@@ -915,12 +943,29 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const updateMultipleElements = useCallback(
     (updates: { id: string; updates: Partial<AnySlideElement> }[]) => {
       if (!canEdit) return
-      // Apply all updates in a single batch
       const updatedElements = currentSlide.elements.map(el => {
         const update = updates.find(u => u.id === el.id)
         return update ? ({ ...el, ...update.updates } as AnySlideElement) : el
       })
-      updateSlide({ elements: updatedElements })
+
+      // If any updated element is the target of a connector binding and its
+      // position/size changed, re-snap those connectors in the same batch so
+      // every caller benefits from live connector binding without needing
+      // extra plumbing.
+      const changedIds = new Set(
+        updates.filter(u => u.updates.position !== undefined || u.updates.size !== undefined).map(u => u.id)
+      )
+      const elementsById = new Map<string, AnySlideElement>(updatedElements.map(el => [el.id, el]))
+      const finalElements = updatedElements.map(el => {
+        if (el.type !== 'connector') return el
+        const c: ConnectorElement = el
+        const startHit = c.startBinding && changedIds.has(c.startBinding.elementId)
+        const endHit = c.endBinding && changedIds.has(c.endBinding.elementId)
+        if (!startHit && !endHit) return el
+        return refreshConnectorFromBindings(c, elementsById)
+      })
+
+      updateSlide({ elements: finalElements })
     },
     [canEdit, currentSlide.elements, updateSlide]
   )
@@ -939,14 +984,24 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const addElement = useCallback(
-    (element: AnySlideElement) => {
-      const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex))
-      const newElement = { ...element, zIndex: maxZIndex + 1 }
+    (element: AnySlideElement, options?: { positionMode?: 'center' | 'preserve' }) => {
+      const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex ?? 0))
+      const { width: cw, height: ch } = getSlideCanvasSize(currentSlide)
+      const ew = element.size?.width ?? 150
+      const eh = element.size?.height ?? 150
+      const centered =
+        options?.positionMode === 'preserve' ? null : { x: Math.max(0, (cw - ew) / 2), y: Math.max(0, (ch - eh) / 2) }
+
+      const newElement: AnySlideElement = {
+        ...element,
+        zIndex: maxZIndex + 1,
+        ...(centered ? { position: centered } : {})
+      }
       updateSlide({ elements: [...currentSlide.elements, newElement] })
       setSelectedElementIds(new Set([newElement.id]))
       toast.success(t('editor-added-element', { type: element.type }))
     },
-    [currentSlide.elements, updateSlide, t]
+    [currentSlide, currentSlide.elements, updateSlide, t]
   )
 
   const deleteElement = useCallback(() => {
@@ -958,7 +1013,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const duplicateElement = useCallback(() => {
     if (selectedElements.length === 0) return
-    const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex))
+    const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex ?? 0))
     const newElements: AnySlideElement[] = []
     const newIds: string[] = []
 
@@ -1002,6 +1057,109 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     }
   }, [selectedElementId, currentSlide.elements, updateElement])
 
+  /**
+   * Align the current multi-selection along the requested axis. Delegates to
+   * {@link alignElements} so the same math is shared between the toolbar,
+   * keyboard shortcuts, and programmatic callers.
+   */
+  const alignSelection = useCallback(
+    (axis: AlignAxis) => {
+      if (!canEdit) return
+      const items = selectedElements
+      if (items.length === 0) return
+      const { width, height } = getSlideCanvasSize(currentSlide)
+      const canvasBounds: ElementBounds = {
+        left: 0,
+        top: 0,
+        right: width,
+        bottom: height,
+        width,
+        height,
+        centerX: width / 2,
+        centerY: height / 2
+      }
+      const positions = alignElements(items, axis, canvasBounds)
+      if (positions.size === 0) return
+      const updates = Array.from(positions.entries()).map(([id, position]) => ({
+        id,
+        updates: { position } as Partial<AnySlideElement>
+      }))
+      updateMultipleElements(updates)
+    },
+    [canEdit, selectedElements, currentSlide, updateMultipleElements]
+  )
+
+  /** Distribute three-or-more selected elements evenly along an axis. */
+  const distributeSelection = useCallback(
+    (axis: DistributeAxis) => {
+      if (!canEdit) return
+      const items = selectedElements
+      if (items.length < 3) return
+      const positions = distributeElements(items, axis)
+      if (positions.size === 0) return
+      const updates = Array.from(positions.entries()).map(([id, position]) => ({
+        id,
+        updates: { position } as Partial<AnySlideElement>
+      }))
+      updateMultipleElements(updates)
+    },
+    [canEdit, selectedElements, updateMultipleElements]
+  )
+
+  /**
+   * Flip every selected shape along the requested axis. Updates the shared
+   * {@link ShapeGeometryMetadata} so the flip survives PPTX round-trip and
+   * lines up with the PropertyPanel flip controls.
+   */
+  const flipSelection = useCallback(
+    (axis: 'horizontal' | 'vertical') => {
+      if (!canEdit) return
+      const items = selectedElements.filter(el => el.type === 'shape') as ShapeElement[]
+      if (items.length === 0) return
+      const updates = items.map(shape => {
+        const flipped = flipShape(shape, axis)
+        return {
+          id: shape.id,
+          updates: { geometry: flipped.geometry, importMeta: flipped.importMeta } as Partial<AnySlideElement>
+        }
+      })
+      updateMultipleElements(updates)
+    },
+    [canEdit, selectedElements, updateMultipleElements]
+  )
+
+  /**
+   * Wrap the current multi-selection in a new group element. Children are
+   * moved into group-relative coordinates so the group behaves as a single
+   * unit on subsequent moves/resizes.
+   */
+  const groupSelection = useCallback(() => {
+    if (!canEdit) return
+    if (selectedElements.length < 2) return
+    const group = groupElements(selectedElements)
+    if (!group) return
+    const remaining = currentSlide.elements.filter(el => !selectedElementIds.has(el.id))
+    const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex ?? 0))
+    const groupElement = { ...group, zIndex: maxZIndex + 1 }
+    updateSlide({ elements: [...remaining, groupElement] })
+    setSelectedElementIds(new Set([groupElement.id]))
+    toast.success(t('editor-elements-grouped'))
+  }, [canEdit, selectedElements, currentSlide.elements, selectedElementIds, updateSlide, t])
+
+  /** Explode the currently-selected group(s) back into individual children. */
+  const ungroupSelection = useCallback(() => {
+    if (!canEdit) return
+    const groups = selectedElements.filter(el => el.type === 'group') as GroupElement[]
+    if (groups.length === 0) return
+    const groupIds = new Set(groups.map(g => g.id))
+    const nonGroups = currentSlide.elements.filter(el => !groupIds.has(el.id))
+    const children = groups.flatMap(group => ungroupElement(group))
+    const newIds = new Set(children.map(child => child.id))
+    updateSlide({ elements: [...nonGroups, ...children] })
+    setSelectedElementIds(newIds)
+    toast.success(t('editor-elements-ungrouped'))
+  }, [canEdit, selectedElements, currentSlide.elements, updateSlide, t])
+
   // Drag-and-drop image handlers for canvas
   const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -1030,7 +1188,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             createImageElement(src, {
               position: { x: dropX + index * 20, y: dropY + index * 20 },
               size: { width: 400, height: 300 }
-            })
+            }),
+            { positionMode: 'preserve' }
           )
         }
         reader.readAsDataURL(file)
@@ -1140,22 +1299,25 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       return
     }
 
+    const canvasW = currentSlide?.canvasSize?.width ?? 1280
+    const canvasH = currentSlide?.canvasSize?.height ?? 720
+
     if (clipboard.type === 'element') {
       const element = clipboard.data
       const pastedElement: AnySlideElement = {
         ...element,
         id: `${element.type}-${Date.now()}`,
         position: {
-          x: Math.min(element.position.x + 30, 1280 - element.size.width),
-          y: Math.min(element.position.y + 30, 720 - element.size.height)
+          x: Math.min(element.position.x + 30, canvasW - element.size.width),
+          y: Math.min(element.position.y + 30, canvasH - element.size.height)
         }
       }
-      addElement(pastedElement)
+      addElement(pastedElement, { positionMode: 'preserve' })
       toast.success(t('editor-element-pasted') || 'Element pasted')
     } else if (clipboard.type === 'elements') {
       // Paste multiple elements
       const elements = clipboard.data as AnySlideElement[]
-      const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex))
+      const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex ?? 0))
       const newElements: AnySlideElement[] = []
       const newIds: string[] = []
 
@@ -1164,8 +1326,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           ...element,
           id: `${element.type}-${Date.now()}-${idx}`,
           position: {
-            x: Math.min(element.position.x + 30, 1280 - element.size.width),
-            y: Math.min(element.position.y + 30, 720 - element.size.height)
+            x: Math.min(element.position.x + 30, canvasW - element.size.width),
+            y: Math.min(element.position.y + 30, canvasH - element.size.height)
           },
           zIndex: maxZIndex + 1 + idx
         }
@@ -1601,12 +1763,38 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         return
       }
 
-      const textEl = currentElement as TextElement | undefined
       const oldValue = currentEditingContentRef.current
       currentEditingContentRef.current = newValue
 
+      // Shapes edit their in-shape label (`shapeText.content`), not the
+      // top-level text-element content. Route the update accordingly so a
+      // single inline editing flow covers both text boxes and shape labels.
+      if (currentElement?.type === 'shape') {
+        const shape: ShapeElement = currentElement
+        const existing = shape.shapeText ?? {
+          content: '',
+          fontFamily: 'Inter',
+          fontSize: 16,
+          fontWeight: 'normal' as const,
+          fontStyle: 'normal' as const,
+          textDecoration: 'none' as const,
+          textAlign: 'center' as const,
+          verticalAlign: 'middle' as const,
+          color: '#1e293b',
+          lineHeight: 1.3,
+          letterSpacing: 0,
+          padding: 8
+        }
+        updateElement(editingTextId, {
+          shapeText: { ...existing, content: newValue, paragraphs: undefined }
+        } as Partial<ShapeElement>)
+        return
+      }
+
+      const textElement: TextElement | undefined = currentElement?.type === 'text' ? currentElement : undefined
+
       let updatedLinks: TextLink[] | undefined
-      if (textEl?.links && textEl.links.length > 0) {
+      if (textElement?.links && textElement.links.length > 0) {
         const editStart = findEditPosition(oldValue, newValue)
         const deletedLength = Math.max(
           0,
@@ -1614,13 +1802,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         )
         const insertedLength = Math.max(0, newValue.length - oldValue.length + deletedLength)
 
-        const manualLinks = textEl.links.filter(l => !l.isAutoDetected)
+        const manualLinks = textElement.links.filter(l => !l.isAutoDetected)
         const adjustedManualLinks = adjustLinksAfterEdit(manualLinks, editStart, deletedLength, insertedLength)
         const autoLinks = detectUrls(newValue)
         updatedLinks = mergeLinks(autoLinks, adjustedManualLinks)
       }
 
-      updateElement(editingTextId, { content: newValue, ...(updatedLinks !== undefined && { links: updatedLinks }) })
+      // Plain-text edits invalidate the richer paragraph model imported from
+      // source files; clear it so the editor does not render stale styling on
+      // top of the new content.
+      updateElement(editingTextId, {
+        content: newValue,
+        paragraphs: undefined,
+        ...(updatedLinks !== undefined && { links: updatedLinks })
+      })
     },
     [editingTextId, updateElement, currentSlide]
   )
@@ -1659,7 +1854,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const getExistingLinkUrl = useCallback((): string | undefined => {
     if (!selectedElement || selectedElement.type !== 'text') return undefined
-    const textElement = selectedElement as TextElement
+    const textElement: TextElement = selectedElement
     const links = textElement.links || []
     if (links.length > 0) {
       return links[0].url
@@ -1671,7 +1866,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     (url: string) => {
       if (!selectedElement || selectedElement.type !== 'text') return
 
-      const textElement = selectedElement as TextElement
+      const textElement: TextElement = selectedElement
       const content = textElement.content
 
       const newLink = createLink(0, content.length, url)
@@ -1722,8 +1917,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     if (!isPresentMode) return
 
     const calculateScale = () => {
-      const slideWidth = 1280
-      const slideHeight = 720
+      // Pull the canvas dimensions from the current slide so imported 4:3 /
+      // A4 / custom-size decks fill the viewport correctly in present mode.
+      const slideWidth = currentSlide?.canvasSize?.width ?? 1280
+      const slideHeight = currentSlide?.canvasSize?.height ?? 720
 
       const scaleX = window.innerWidth / slideWidth
       const scaleY = window.innerHeight / slideHeight
@@ -1868,12 +2065,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 const reader = new FileReader()
                 reader.onload = () => {
                   const src = reader.result as string
-                  addElement(
-                    createImageElement(src, {
-                      position: { x: 200, y: 200 },
-                      size: { width: 400, height: 300 }
-                    })
-                  )
+                  addElement(createImageElement(src, { size: { width: 400, height: 300 } }))
                   toast.success(t('editor-image-pasted'))
                 }
                 reader.readAsDataURL(blob)
@@ -1895,6 +2087,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         e.preventDefault()
         const allElementIds = new Set(currentSlide.elements.map(e => e.id))
         setSelectedElementIds(allElementIds)
+        return
+      }
+
+      // Group: Ctrl/Cmd+G. Ungroup: Ctrl/Cmd+Shift+G. Matches PowerPoint.
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G') && !isInputFocused) {
+        e.preventDefault()
+        if (e.shiftKey) {
+          ungroupSelection()
+        } else {
+          groupSelection()
+        }
         return
       }
 
@@ -1965,6 +2168,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     pasteElement,
     addElement,
     showNotesPanel,
+    groupSelection,
+    ungroupSelection,
     t
   ])
 
@@ -1991,8 +2196,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           <div
             className="gba:relative gba:overflow-hidden gba:flex-shrink-0"
             style={{
-              width: 1280 * presentScale,
-              height: 720 * presentScale
+              width: (currentSlide?.canvasSize?.width ?? 1280) * presentScale,
+              height: (currentSlide?.canvasSize?.height ?? 720) * presentScale
             }}
           >
             <SlideTransitionPlayer
@@ -2012,6 +2217,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     onEditText={() => {}}
                     scale={presentScale}
                     isPresenting={true}
+                    canvasSize={presentPreviousSlide.canvasSize}
                   />
                 )
               }
@@ -2026,6 +2232,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 onEditText={() => {}}
                 scale={presentScale}
                 isPresenting={true}
+                canvasSize={currentSlide.canvasSize}
               />
             </SlideTransitionPlayer>
           </div>
@@ -2353,8 +2560,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             <div className="gba:flex-1 gba:overflow-y-auto gba:p-2 gba:space-y-2">
               {slides.map((s, idx) => {
                 // Thumbnail scale: sidebar is w-48 (192px) - p-2 (8px each side) - border (4px) = ~176px
-                // Canvas is 1280px wide, so scale = 176/1280 ≈ 0.1375
-                const thumbScale = 176 / 1280
+                // Derive the thumbnail scale from the slide's actual canvas so
+                // imported 4:3 / custom-size decks thumb correctly (not cropped).
+                const thumbSourceWidth = s.canvasSize?.width ?? 1280
+                const thumbScale = 176 / thumbSourceWidth
                 const isDraggedOver = dragOverIndex === idx && draggedSlideIndex !== idx
 
                 return (
@@ -2505,8 +2714,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             <div className="gba:inline-flex gba:justify-center gba:min-w-full">
               <div
                 ref={canvasContainerRef}
+                role="application"
+                aria-label={t('editor-canvas-aria-label')}
                 className="gba:shadow-2xl gba:rounded-lg gba:overflow-hidden gba:relative gba:flex-shrink-0"
-                style={{ width: 1280 * canvasScale, height: 720 * canvasScale }}
+                style={{
+                  width: (currentSlide?.canvasSize?.width ?? 1280) * canvasScale,
+                  height: (currentSlide?.canvasSize?.height ?? 720) * canvasScale
+                }}
                 onDragOver={handleCanvasDragOver}
                 onDrop={handleCanvasDrop}
                 onMouseMove={e => {
@@ -2554,16 +2768,18 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   onUpdateMultipleElements={updateMultipleElements}
                   onEditText={id => {
                     const element = currentSlide.elements.find(e => e.id === id)
-                    if (element?.type === 'text') {
-                      const te = element as TextElement
-                      voiceBaseContentRef.current = te.content
-                      currentEditingContentRef.current = te.content
-                      lastProcessedTranscriptRef.current = ''
-                      editingTextIdRef.current = id
-                    } else if (element?.type === 'code') {
-                      const ce = element as CodeElement
-                      voiceBaseContentRef.current = ce.code
-                      currentEditingContentRef.current = ce.code
+                    if (element) {
+                      if (element.type === 'code') {
+                        voiceBaseContentRef.current = element.code
+                        currentEditingContentRef.current = element.code
+                      } else if (element.type === 'shape') {
+                        const initial = element.shapeText?.content ?? ''
+                        voiceBaseContentRef.current = initial
+                        currentEditingContentRef.current = initial
+                      } else if (element.type === 'text') {
+                        voiceBaseContentRef.current = element.content
+                        currentEditingContentRef.current = element.content
+                      }
                       lastProcessedTranscriptRef.current = ''
                       editingTextIdRef.current = id
                     }
@@ -2572,6 +2788,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
                   scale={canvasScale}
+                  canvasSize={currentSlide.canvasSize}
                   inlineEditing={{
                     editingTextId,
                     onTextChange: handleTextChange,
@@ -2596,6 +2813,21 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                       stopListening: voiceInput.stopListening
                     }
                   }}
+                  editingPointsId={editingPointsId}
+                  onPointsChange={(id, nextCustGeomPath) => {
+                    const el = currentSlide.elements.find(e => e.id === id)
+                    if (!el || el.type !== 'shape') return
+                    const shapeEl: ShapeElement = el
+                    const prevGeometry = getShapeGeometry(shapeEl)
+                    const nextGeometry: ShapeGeometryMetadata = prevGeometry
+                      ? { ...prevGeometry, custGeomPath: nextCustGeomPath }
+                      : { sourceFormat: 'native', custGeomPath: nextCustGeomPath }
+                    const updates: Partial<ShapeElement> = { geometry: nextGeometry }
+                    if (prevGeometry?.sourceFormat === 'pptx') updates.importMeta = nextGeometry
+                    updateElement(id, updates as Partial<AnySlideElement>)
+                  }}
+                  onExitPointEditing={() => setEditingPointsId(null)}
+                  onShapeContextMenu={id => setEditingPointsId(id)}
                 />
 
                 {/* Collaborator cursors overlay */}
@@ -2617,12 +2849,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 !isReadOnly &&
                 !isPresentMode && (
                   <FloatingTextActions
-                    element={selectedElement as TextElement}
+                    element={selectedElement}
                     canvasScale={canvasScale}
                     canvasRef={canvasContainerRef}
                     isVoiceSupported={voiceInput.isSupported}
                     onVoiceClick={() => {
-                      const currentContent = (selectedElement as TextElement)?.content || ''
+                      const currentContent = selectedElement.content || ''
                       voiceBaseContentRef.current = currentContent
                       currentEditingContentRef.current = currentContent
                       lastProcessedTranscriptRef.current = ''
@@ -2631,7 +2863,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                       voiceInput.startListening()
                     }}
                     onEditClick={() => {
-                      const currentContent = (selectedElement as TextElement)?.content || ''
+                      const currentContent = selectedElement.content || ''
                       currentEditingContentRef.current = currentContent
                       editingTextIdRef.current = selectedElement.id
                       setEditingTextId(selectedElement.id)
@@ -2666,6 +2898,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 onSendBackward={sendBackward}
                 slideTransition={currentSlide.transition}
                 onSlideTransitionChange={canEdit ? updateCurrentSlideTransition : undefined}
+                selectionCount={selectedElementIds.size}
+                hasGroupInSelection={selectedElements.some(el => el.type === 'group')}
+                onAlign={canEdit ? alignSelection : undefined}
+                onDistribute={canEdit ? distributeSelection : undefined}
+                onFlip={canEdit ? flipSelection : undefined}
+                onGroup={canEdit ? groupSelection : undefined}
+                onUngroup={canEdit ? ungroupSelection : undefined}
+                onEditPoints={canEdit ? (id: string) => setEditingPointsId(id) : undefined}
                 slideIndex={currentSlideIndex}
               />
             </div>
@@ -3051,7 +3291,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       <LinkDialog
         open={showLinkDialog}
         onOpenChange={setShowLinkDialog}
-        selectedText={selectedElement?.type === 'text' ? (selectedElement as TextElement).content : ''}
+        selectedText={selectedElement?.type === 'text' ? selectedElement.content : ''}
         initialUrl={getExistingLinkUrl()}
         onSave={handleSaveLink}
         onRemove={getExistingLinkUrl() ? handleRemoveLink : undefined}

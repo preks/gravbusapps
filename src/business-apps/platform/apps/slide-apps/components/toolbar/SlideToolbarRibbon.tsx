@@ -41,7 +41,7 @@ export interface SlideToolbarRibbonProps {
   onRedo: () => void
   onCopy: () => void
   onPaste: () => void
-  onAddElement: (element: AnySlideElement) => void
+  onAddElement: (element: AnySlideElement, options?: { positionMode?: 'center' | 'preserve' }) => void
   onUpdateElement: (id: string, updates: Partial<AnySlideElement>) => void
   onShowBackgroundDialog: () => void
   onShowImageDialog: () => void

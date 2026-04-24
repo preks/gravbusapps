@@ -43,6 +43,7 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({
 
   const {
     plans,
+    compensationCycleSelectorPlans,
     selectedBudgetPlanId,
     selectBudgetPlan,
     companyBudgetPlanRows,
@@ -97,7 +98,7 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({
 
   const cycleToolbar = (
     <CompensationCycleSelector
-      plans={plans}
+      plans={compensationCycleSelectorPlans}
       plansLoading={loadingPlans}
       selectedPlanId={selectedBudgetPlanId}
       onPlanChange={selectBudgetPlan}
