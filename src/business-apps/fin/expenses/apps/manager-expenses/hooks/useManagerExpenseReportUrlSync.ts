@@ -22,7 +22,7 @@ export const useManagerExpenseReportUrlSync = (
   }, [setSelectedReportType])
 
   useEffect(() => {
-    if (typeof globalThis.location === 'undefined' || !selectedReportType) {
+    if (globalThis.location === undefined || !selectedReportType) {
       return
     }
     if (skipNextUrlWrite.current) {

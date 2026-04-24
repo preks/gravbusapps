@@ -141,10 +141,10 @@ export const useExpenseReportData = ({
   const [pageSize, setPageSize] = useState<number>(20)
   const [searchTerm, setSearchTerm] = useState<string>('')
 
-  // State for selected report type (use setter that resets page so a new type never reuses a stale high page)
-  const [selectedReportType, setSelectedReportTypeState] = useState<ReportType | null>(ReportType.EXPENSE_ITEM)
-  const setSelectedReportType = useCallback((type: ReportType) => {
-    setSelectedReportTypeState(type)
+  // State for selected report type (setter also resets page so a new type never reuses a stale high page)
+  const [selectedReportType, setSelectedReportType] = useState<ReportType | null>(ReportType.EXPENSE_ITEM)
+  const updateSelectedReportType = useCallback((type: ReportType) => {
+    setSelectedReportType(type)
     setCurrentPage(1)
   }, [])
 
@@ -642,7 +642,7 @@ export const useExpenseReportData = ({
   return {
     reportTypes,
     selectedReportType,
-    setSelectedReportType,
+    setSelectedReportType: updateSelectedReportType,
     reportData,
     isLoading,
     error,

@@ -10,15 +10,15 @@ export function formatPaymentMethodForExpenseTables(method: unknown, emptyDispla
     return emptyDisplay
   }
 
-  if (typeof method === 'object' && method !== null && 'value' in (method as object)) {
-    const label = getCatalogValue(method as { value?: unknown })
+  if (typeof method === 'object' && method !== null && 'value' in method) {
+    const label = getCatalogValue(method)
     if (label?.trim()) {
       return label
     }
     return emptyDisplay
   }
 
-  if (typeof method === 'object') {
+  if (typeof method === 'object' || typeof method === 'function') {
     return emptyDisplay
   }
 

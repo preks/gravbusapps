@@ -120,7 +120,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
     const header = cols.map(c => escapeManagerExpenseReportCsv(c.title))
 
     const allRows = await fetchAllForExport()
-    const rows = (allRows as ReportItem[]).map(row => {
+    const rows = allRows.map(row => {
       const record = row as Record<string, unknown>
       return cols.map(c => escapeManagerExpenseReportCsv(formatManagerExpenseReportCell(c.key, record[c.key])))
     })
@@ -150,7 +150,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
     const headerCells = cols.map(c => `<th>${htmlEscapeForManagerExpenseReport(c.title)}</th>`).join('')
 
     const allRows = await fetchAllForExport()
-    const bodyRows = (allRows as ReportItem[])
+    const bodyRows = allRows
       .map(row => {
         const tds = cols
           .map(

@@ -6,6 +6,20 @@ const dateKeys = new Set(['date', 'startDate', 'endDate', 'submissionDate', 'req
 
 const REPORT_EXPORT_EMPTY = '-'
 
+function unknownToDisplayStringForExport(value: unknown): string {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  if (value instanceof Date) {
+    return value.toISOString()
+  }
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return ''
+  }
+}
+
 export const formatManagerExpenseReportCell = (key: string, raw: unknown): string => {
   if (key === 'paymentMethod') {
     return formatPaymentMethodForExpenseTables(raw, REPORT_EXPORT_EMPTY)
@@ -17,12 +31,18 @@ export const formatManagerExpenseReportCell = (key: string, raw: unknown): strin
     return REPORT_EXPORT_EMPTY
   }
   if (dateKeys.has(key)) {
-    return raw ? ensureShortDateFormat(String(raw)) : REPORT_EXPORT_EMPTY
+    return raw ? ensureShortDateFormat(unknownToDisplayStringForExport(raw)) : REPORT_EXPORT_EMPTY
   }
   if (typeof raw === 'number') {
     return String(raw)
   }
-  return String(raw)
+  if (typeof raw === 'string') {
+    return raw
+  }
+  if (typeof raw === 'boolean') {
+    return String(raw)
+  }
+  return unknownToDisplayStringForExport(raw) || REPORT_EXPORT_EMPTY
 }
 
 export const escapeManagerExpenseReportCsv = (value: string) => {

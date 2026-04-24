@@ -22,7 +22,7 @@ const sortOff = { enableSorting: false as const }
 const REPORT_DASH = '-'
 
 function buildStatusLabelConfig(label: string | undefined) {
-  return { label: label && label.trim() ? label : REPORT_DASH, badgeVariant: 'outline' as const }
+  return { label: label?.trim() ? label : REPORT_DASH, badgeVariant: 'outline' as const }
 }
 
 function createReportFormatDate() {
@@ -95,49 +95,98 @@ function createReportEmployeeNameColumn<T extends { id: string; employeeName?: s
   }
 }
 
+type ReportTestIdGroup = 'item' | 'plan' | 'request' | 'advance'
+
+function createManagerReportTitleColumn<Row extends { id: string; title?: string | null }>(
+  testGroup: ReportTestIdGroup,
+  titleHeader: string
+): ColumnDef<Row> {
+  return {
+    id: 'title',
+    accessorKey: 'title',
+    header: titleHeader,
+    ...sortOff,
+    minSize: 160,
+    maxSize: 320,
+    size: 200,
+    meta: { className: 'gba:min-w-0' },
+    cell: ({ row }) =>
+      renderReportTitleCell(row.original.title, `expense-reports-${testGroup}-title-${row.original.id}`)
+  }
+}
+
+type CodeColumnSize = { minSize: number; size: number; maxSize?: number }
+
+function createManagerReportStringCodeColumn<Row, K extends string>({
+  id,
+  accessorKey,
+  header,
+  getCode,
+  getTestId,
+  size
+}: {
+  id: K
+  accessorKey: K
+  header: string
+  getCode: (row: Row) => string | null | undefined
+  getTestId: (rowId: string) => string
+  size: CodeColumnSize
+}): ColumnDef<Row> {
+  return {
+    id,
+    accessorKey,
+    header,
+    ...sortOff,
+    minSize: size.minSize,
+    size: size.size,
+    ...(size.maxSize != null ? { maxSize: size.maxSize } : {}),
+    meta: { className: 'gba:min-w-0' },
+    cell: ({ row }) => {
+      const original = row.original as Row
+      return renderReportCodeCell(getCode(original), getTestId((original as { id: string }).id))
+    }
+  }
+}
+
+function createManagerReportStatusColumn<Row extends { id: string; status?: string }>(
+  statusHeader: string
+): ColumnDef<Row> {
+  return createStatusBadgeColumn<Row>('status', statusHeader, row => buildStatusLabelConfig(row.status), sortOff)
+}
+
+const DEFAULT_CODE_SIZES: CodeColumnSize = { minSize: 100, size: 120, maxSize: 180 }
+
 export function createExpenseReportTableColumns(reportType: ReportType): ColumnDef<ReportItem>[] {
   const formatDate = createReportFormatDate()
   const formatCurrency = createFormatCurrency(null)
+  const t = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(key, fallback)
+  const titleHeader = t('lowcoder:expense_request_list.expense_plan_table.title', 'Title')
+  const statusHeader = t('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
+  const employeeHeader = t('lowcoder:hr_absences.create_absence.employee', 'Employee')
+  const submissionHeader = t('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date')
+
+  const asItemColumns = (cols: ColumnDef<ExpenseItemReport>[]) => cols as ColumnDef<ReportItem>[]
+  const asPlanColumns = (cols: ColumnDef<ExpensePlanReport>[]) => cols as ColumnDef<ReportItem>[]
+  const asRequestColumns = (cols: ColumnDef<ExpenseRequestReport>[]) => cols as ColumnDef<ReportItem>[]
+  const asAdvanceColumns = (cols: ColumnDef<AdvancePaymentReport>[]) => cols as ColumnDef<ReportItem>[]
 
   switch (reportType) {
-    case ReportType.EXPENSE_ITEM: {
-      const c = (cols: ColumnDef<ExpenseItemReport>[]) => cols as ColumnDef<ReportItem>[]
-      return c([
-        {
-          id: 'title',
-          accessorKey: 'title',
-          header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-          ...sortOff,
-          minSize: 160,
-          maxSize: 320,
-          size: 200,
-          meta: { className: 'gba:min-w-0' },
-          cell: ({ row }) => renderReportTitleCell(row.original.title, `expense-reports-item-title-${row.original.id}`)
-        },
-        {
+    case ReportType.EXPENSE_ITEM:
+      return asItemColumns([
+        createManagerReportTitleColumn<ExpenseItemReport>('item', titleHeader),
+        createManagerReportStringCodeColumn<ExpenseItemReport, 'code'>({
           id: 'code',
           accessorKey: 'code',
           header: getTranslationFromI18nKeyAndLabel(
             'lowcoder:expense_request_list.expense_request_filter.request_number_input',
             'Expense Code'
           ),
-          ...sortOff,
-          minSize: 100,
-          size: 120,
-          maxSize: 180,
-          meta: { className: 'gba:min-w-0' },
-          cell: ({ row }) => renderReportCodeCell(row.original.code, `expense-reports-item-code-${row.original.id}`)
-        },
-        createReportEmployeeNameColumn<ExpenseItemReport>(
-          'employeeName',
-          getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
-        ),
-        createDateColumn<ExpenseItemReport>(
-          'date',
-          getTranslationFromI18nKeyAndLabel('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date'),
-          'date',
-          { formatDate, ...sortOff }
-        ),
+          getCode: r => r.code,
+          getTestId: id => `expense-reports-item-code-${id}`,
+          size: DEFAULT_CODE_SIZES
+        }),
+        createReportEmployeeNameColumn<ExpenseItemReport>('employeeName', employeeHeader),
+        createDateColumn<ExpenseItemReport>('date', submissionHeader, 'date', { formatDate, ...sortOff }),
         createCurrencyColumn<ExpenseItemReport>(
           'amount',
           getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
@@ -152,7 +201,6 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           header: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.category', 'Category'),
           ...sortOff,
           cell: ({ row }) => {
-            // `category` from `getExpenseItemCategoryLabel` / getCatalogValue (not ref)
             const text = row.original.category?.trim() || REPORT_DASH
             return (
               <span
@@ -165,75 +213,36 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
             )
           }
         },
-        createStatusBadgeColumn<ExpenseItemReport>(
-          'status',
-          getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-          row => buildStatusLabelConfig(row.status),
-          sortOff
-        )
+        createManagerReportStatusColumn<ExpenseItemReport>(statusHeader)
       ])
-    }
-    case ReportType.EXPENSE_PLAN: {
-      const c = (cols: ColumnDef<ExpensePlanReport>[]) => cols as ColumnDef<ReportItem>[]
-      return c([
-        {
-          id: 'title',
-          accessorKey: 'title',
-          header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-          ...sortOff,
-          minSize: 160,
-          maxSize: 320,
-          size: 200,
-          meta: { className: 'gba:min-w-0' },
-          cell: ({ row }) => renderReportTitleCell(row.original.title, `expense-reports-plan-title-${row.original.id}`)
-        },
-        {
+    case ReportType.EXPENSE_PLAN:
+      return asPlanColumns([
+        createManagerReportTitleColumn<ExpensePlanReport>('plan', titleHeader),
+        createManagerReportStringCodeColumn<ExpensePlanReport, 'code'>({
           id: 'code',
           accessorKey: 'code',
           header: getTranslationFromI18nKeyAndLabel(
             'lowcoder:expense_calculation_rule.expense_table.code',
             'Plan Code'
           ),
-          ...sortOff,
-          minSize: 100,
-          size: 120,
-          maxSize: 180,
-          meta: { className: 'gba:min-w-0' },
-          cell: ({ row }) => renderReportCodeCell(row.original.code, `expense-reports-plan-code-${row.original.id}`)
-        },
-        {
+          getCode: r => r.code,
+          getTestId: id => `expense-reports-plan-code-${id}`,
+          size: DEFAULT_CODE_SIZES
+        }),
+        createManagerReportStringCodeColumn<ExpensePlanReport, 'expenseRequestCode'>({
           id: 'expenseRequestCode',
           accessorKey: 'expenseRequestCode',
           header: getTranslationFromI18nKeyAndLabel(
             'lowcoder:expense_request_list.expense_request_filter.request_number_input',
             'Request Code'
           ),
-          ...sortOff,
-          minSize: 100,
-          size: 120,
-          meta: { className: 'gba:min-w-0' },
-          cell: ({ row }) =>
-            renderReportCodeCell(
-              row.original.expenseRequestCode,
-              `expense-reports-plan-request-code-${row.original.id}`
-            )
-        },
-        createReportEmployeeNameColumn<ExpensePlanReport>(
-          'employeeName',
-          getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
-        ),
-        createDateColumn<ExpensePlanReport>(
-          'createdAt',
-          getTranslationFromI18nKeyAndLabel('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date'),
-          'createdAt',
-          { formatDate, ...sortOff }
-        ),
-        createStatusBadgeColumn<ExpensePlanReport>(
-          'status',
-          getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-          row => buildStatusLabelConfig(row.status),
-          sortOff
-        ),
+          getCode: r => r.expenseRequestCode,
+          getTestId: id => `expense-reports-plan-request-code-${id}`,
+          size: { minSize: 100, size: 120 }
+        }),
+        createReportEmployeeNameColumn<ExpensePlanReport>('employeeName', employeeHeader),
+        createDateColumn<ExpensePlanReport>('createdAt', submissionHeader, 'createdAt', { formatDate, ...sortOff }),
+        createManagerReportStatusColumn<ExpensePlanReport>(statusHeader),
         createDateColumn<ExpensePlanReport>(
           'startDate',
           getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.start_date', 'Start Date'),
@@ -247,66 +256,34 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           { formatDate, ...sortOff }
         )
       ])
-    }
-    case ReportType.EXPENSE_REQUEST: {
-      const c = (cols: ColumnDef<ExpenseRequestReport>[]) => cols as ColumnDef<ReportItem>[]
-      return c([
-        {
-          id: 'title',
-          accessorKey: 'title',
-          header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-          ...sortOff,
-          minSize: 160,
-          maxSize: 320,
-          size: 200,
-          meta: { className: 'gba:min-w-0' },
-          cell: ({ row }) =>
-            renderReportTitleCell(row.original.title, `expense-reports-request-title-${row.original.id}`)
-        },
-        {
+    case ReportType.EXPENSE_REQUEST:
+      return asRequestColumns([
+        createManagerReportTitleColumn<ExpenseRequestReport>('request', titleHeader),
+        createManagerReportStringCodeColumn<ExpenseRequestReport, 'code'>({
           id: 'code',
           accessorKey: 'code',
           header: getTranslationFromI18nKeyAndLabel(
             'lowcoder:expense_request_list.expense_request_filter.request_number_input',
             'Request Number'
           ),
-          ...sortOff,
-          minSize: 110,
-          size: 130,
-          maxSize: 180,
-          meta: { className: 'gba:min-w-0' },
-          cell: ({ row }) => renderReportCodeCell(row.original.code, `expense-reports-request-code-${row.original.id}`)
-        },
-        {
+          getCode: r => r.code,
+          getTestId: id => `expense-reports-request-code-${id}`,
+          size: { minSize: 110, size: 130, maxSize: 180 }
+        }),
+        createManagerReportStringCodeColumn<ExpenseRequestReport, 'planCode'>({
           id: 'planCode',
           accessorKey: 'planCode',
           header: getTranslationFromI18nKeyAndLabel(
             'lowcoder:expense_calculation_rule.expense_table.code',
             'Plan Code'
           ),
-          ...sortOff,
-          minSize: 100,
-          size: 120,
-          meta: { className: 'gba:min-w-0' },
-          cell: ({ row }) =>
-            renderReportCodeCell(row.original.planCode, `expense-reports-request-plancode-${row.original.id}`)
-        },
-        createReportEmployeeNameColumn<ExpenseRequestReport>(
-          'employeeName',
-          getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
-        ),
-        createDateColumn<ExpenseRequestReport>(
-          'createdAt',
-          getTranslationFromI18nKeyAndLabel('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date'),
-          'createdAt',
-          { formatDate, ...sortOff }
-        ),
-        createStatusBadgeColumn<ExpenseRequestReport>(
-          'status',
-          getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-          row => buildStatusLabelConfig(row.status),
-          sortOff
-        ),
+          getCode: r => r.planCode,
+          getTestId: id => `expense-reports-request-plancode-${id}`,
+          size: { minSize: 100, size: 120 }
+        }),
+        createReportEmployeeNameColumn<ExpenseRequestReport>('employeeName', employeeHeader),
+        createDateColumn<ExpenseRequestReport>('createdAt', submissionHeader, 'createdAt', { formatDate, ...sortOff }),
+        createManagerReportStatusColumn<ExpenseRequestReport>(statusHeader),
         createCurrencyColumn<ExpenseRequestReport>(
           'totalAmount',
           getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Total Amount'),
@@ -316,52 +293,26 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           { ...sortOff, getRowTestId: r => `expense-reports-cell-totalAmount-${r.id}` }
         )
       ])
-    }
-    case ReportType.ADVANCE_PAYMENT: {
-      const c = (cols: ColumnDef<AdvancePaymentReport>[]) => cols as ColumnDef<ReportItem>[]
-      return c([
-        {
-          id: 'title',
-          accessorKey: 'title',
-          header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-          ...sortOff,
-          minSize: 160,
-          maxSize: 320,
-          size: 200,
-          meta: { className: 'gba:min-w-0' },
-          cell: ({ row }) =>
-            renderReportTitleCell(row.original.title, `expense-reports-advance-title-${row.original.id}`)
-        },
-        {
+    case ReportType.ADVANCE_PAYMENT:
+      return asAdvanceColumns([
+        createManagerReportTitleColumn<AdvancePaymentReport>('advance', titleHeader),
+        createManagerReportStringCodeColumn<AdvancePaymentReport, 'code'>({
           id: 'code',
           accessorKey: 'code',
           header: getTranslationFromI18nKeyAndLabel(
             'lowcoder:expense_calculation_rule.expense_table.code',
             'Plan Code'
           ),
-          ...sortOff,
-          minSize: 100,
-          size: 120,
-          maxSize: 180,
-          meta: { className: 'gba:min-w-0' },
-          cell: ({ row }) => renderReportCodeCell(row.original.code, `expense-reports-advance-code-${row.original.id}`)
-        },
-        createReportEmployeeNameColumn<AdvancePaymentReport>(
-          'employeeName',
-          getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
-        ),
-        createDateColumn<AdvancePaymentReport>(
-          'requestDate',
-          getTranslationFromI18nKeyAndLabel('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date'),
-          'requestDate',
-          { formatDate, ...sortOff }
-        ),
-        createStatusBadgeColumn<AdvancePaymentReport>(
-          'status',
-          getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-          row => buildStatusLabelConfig(row.status),
-          sortOff
-        ),
+          getCode: r => r.code,
+          getTestId: id => `expense-reports-advance-code-${id}`,
+          size: DEFAULT_CODE_SIZES
+        }),
+        createReportEmployeeNameColumn<AdvancePaymentReport>('employeeName', employeeHeader),
+        createDateColumn<AdvancePaymentReport>('requestDate', submissionHeader, 'requestDate', {
+          formatDate,
+          ...sortOff
+        }),
+        createManagerReportStatusColumn<AdvancePaymentReport>(statusHeader),
         createCurrencyColumn<AdvancePaymentReport>(
           'amount',
           getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
@@ -400,7 +351,6 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           )
         }
       ])
-    }
     default:
       return []
   }

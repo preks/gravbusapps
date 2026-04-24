@@ -18,14 +18,14 @@ export const parseManagerReportTypeParam = (raw: string | null): ReportType | nu
 }
 
 export const readManagerExpenseReportTypeFromUrl = (): ReportType | null => {
-  if (typeof globalThis.location === 'undefined') {
+  if (globalThis.location === undefined) {
     return null
   }
   return parseManagerReportTypeParam(new URLSearchParams(globalThis.location.search).get('reportType'))
 }
 
 export const syncManagerExpenseReportTypeInUrl = (selectedReportType: string): void => {
-  if (typeof globalThis.location === 'undefined') {
+  if (globalThis.location === undefined) {
     return
   }
   const params = new URLSearchParams(globalThis.location.search)
