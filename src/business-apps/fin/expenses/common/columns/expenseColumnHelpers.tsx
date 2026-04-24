@@ -75,6 +75,11 @@ export interface DateColumnOptions {
   sortDescFirst?: boolean
   /** Set false for server-paginated or read-only tables where list sorting is not available. */
   enableSorting?: boolean
+  /** Wider columns avoid header label overlapping sort/pin affordances in fixed DataTable layouts. */
+  minSize?: number
+  size?: number
+  maxSize?: number
+  meta?: { className?: string; align?: 'left' | 'right' | 'center' }
 }
 
 export function createDateColumn<T extends object>(
@@ -95,15 +100,19 @@ export function createDateColumn<T extends object>(
     header,
     enableSorting: options?.enableSorting !== false,
     sortDescFirst: options?.sortDescFirst ?? false,
-    size: 110,
-    minSize: 90,
-    maxSize: 150,
+    size: options?.size ?? 110,
+    minSize: options?.minSize ?? 90,
+    maxSize: options?.maxSize ?? 150,
+    meta: options?.meta,
     cell: ({ row }) => {
       const value = hasFn
         ? (accessor as (row: T) => string | null | undefined)(row.original)
         : (row.original as Record<string, string | null | undefined>)[accessor]
       return (
-        <span className="gba:text-sm" data-testid={`${id}-${(row.original as { id?: string }).id ?? row.index}`}>
+        <span
+          className="gba:text-sm gba:font-normal gba:tabular-nums"
+          data-testid={`${id}-${(row.original as { id?: string }).id ?? row.index}`}
+        >
           {formatDate(value ?? null)}
         </span>
       )
@@ -180,6 +189,11 @@ export interface CurrencyColumnOptions<T> {
   sortDescFirst?: boolean
   /** Set false for server-paginated or read-only tables where list sorting is not available. */
   enableSorting?: boolean
+  /**
+   * When true, the amount column header uses default text alignment (omit `meta.align` in DataTable).
+   * Manager expense reports use this; other tables keep the legacy right-aligned amount header.
+   */
+  alignAmountHeaderWithTextColumns?: boolean
 }
 
 export function createCurrencyColumn<T extends object>(
@@ -190,6 +204,7 @@ export function createCurrencyColumn<T extends object>(
   formatCurrency: (amount: number, currency: string) => string,
   options?: CurrencyColumnOptions<T>
 ): ColumnDef<T> {
+  const alignWithText = options?.alignAmountHeaderWithTextColumns === true
   return {
     id,
     accessorFn: getAmount,
@@ -199,7 +214,7 @@ export function createCurrencyColumn<T extends object>(
     size: options?.size ?? 130,
     minSize: options?.minSize ?? 100,
     maxSize: options?.maxSize ?? 180,
-    meta: { align: 'right' as const },
+    meta: alignWithText ? { className: 'gba:min-w-0' } : { align: 'right' as const },
     cell: ({ row }) => {
       const testId = options?.getRowTestId?.(row.original)
       return (
