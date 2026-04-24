@@ -41,11 +41,15 @@ export const GET_WORKING_CONDITIONS_LOOKUPS = `
         type
       }
       workingCondition {
+        contractTypeRef
         contractType { id value }
+        employmentTypeRef
         employmentType { id value }
         id
         hireDate
+        regionRef
         region { id value }
+        remoteRef
         remote { id value }
         vacationDays
         version
@@ -220,10 +224,10 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
         ? {
             id: wcRaw.id,
             version: wcRaw.version,
-            employmentTypeRef: wcRaw.employmentType?.id,
-            contractTypeRef: wcRaw.contractType?.id,
-            remoteRef: wcRaw.remote?.id,
-            regionRef: useFullRegionCatalog ? undefined : wcRaw.region?.id,
+            employmentTypeRef: wcRaw.employmentType?.id || wcRaw.employmentTypeRef,
+            contractTypeRef: wcRaw.contractType?.id || wcRaw.contractTypeRef,
+            remoteRef: wcRaw.remote?.id || wcRaw.remoteRef,
+            regionRef: wcRaw.region?.id || wcRaw.regionRef,
             startDate: wcRaw.hireDate || null,
             probationEndDate: wcRaw.probationEnd || null,
             endDate: wcRaw.exitDate || null,
