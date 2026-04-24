@@ -18,7 +18,9 @@ import { useTeamMembers } from '../../hooks/useTeamMembers'
 import { useTeamCapacity } from '../../hooks/useTeamCapacity'
 import { useDeferredInsightsAnalytics } from '../../hooks/useDeferredInsightsAnalytics'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_TEAM_ENTITLEMENTS, GET_TEAM_COVERAGE } from '../../queries/queries'
+import { GET_TEAM_COVERAGE } from '../../queries/queries'
+import { useAbsenceTypeCatalog } from '@/business-apps/hr/absences/apps/personal-absences/hooks/useAbsenceTypeCatalog'
+import { useTeamDailyFactsByType } from '@/business-apps/hr/absences/apps/manager-absences/hooks/useTeamDailyFacts'
 import {
   SustainabilitySignal,
   ComplianceAlert,
@@ -48,6 +50,7 @@ const OVERTIME_LEGAL_CAP_RATIO = 0.25
 const BALANCE_EPSILON = 0.01
 const MISSING_ENTRIES_WARNING_RATIO = 0.25
 const MISSING_ENTRIES_CRITICAL_RATIO = 0.5
+const VACATION_ABSENCE_GROUP_ID = 'AbsenceGroup:v1:RECR'
 
 type InsightTone = 'success' | 'warning' | 'destructive' | 'info' | 'muted'
 
@@ -104,31 +107,6 @@ const countWorkingDaysSoFar = (workingHours?: WeeklyWorkingHours): number => {
   return Math.max(1, count)
 }
 
-const PTO_ENTITLEMENT_TYPE_MARKERS = [
-  'VACATION',
-  'HOLIDAY',
-  'RECREATION',
-  'ANNUAL',
-  'RECR',
-  'URLAUB',
-  'CONCEDIU',
-  'FERIE'
-]
-const PTO_ENTITLEMENT_CODE_PATTERN = /(^|[:_-])A00[12]($|[:_-])/
-
-const isPtoEntitlementTypeRef = (typeRef?: string): boolean => {
-  const normalized = (typeRef || '').toUpperCase()
-  if (!normalized) {
-    return false
-  }
-
-  if (PTO_ENTITLEMENT_CODE_PATTERN.test(normalized)) {
-    return true
-  }
-
-  return PTO_ENTITLEMENT_TYPE_MARKERS.some(marker => normalized.includes(marker))
-}
-
 // ─── KPI computation ──────────────────────────────────────────────────────────
 
 interface KpiData {
@@ -141,8 +119,8 @@ interface KpiData {
 
 const computeKpis = (
   rows: CapacityRow[],
-  entitlements: { employeeId: string; typeRef: string; totalEntitlement: number; usedApproved: number }[],
-  workingDaysMap: Map<string, number>
+  workingDaysMap: Map<string, number>,
+  ptoHealthIndex: number | null
 ): KpiData => {
   let totalWorked = 0
   let totalOvertime = 0
@@ -172,25 +150,6 @@ const computeKpis = (
   }
   const timeLoadBalanceIndex =
     meanOT + BALANCE_EPSILON > 0 ? Math.max(0, Math.min(1, 1 - stddevOT / (meanOT + BALANCE_EPSILON))) * 100 : 100
-
-  const vacationEntitlements = entitlements.filter(e => isPtoEntitlementTypeRef(e.typeRef))
-  let ptoHealthIndex: number | null = null
-  if (vacationEntitlements.length > 0) {
-    // PTO Health Index formula:
-    // yearProgress = daysElapsedThisYear / totalDaysInYear
-    // expectedUsage = totalAccruedEntitlement * yearProgress
-    // ptoHealthIndex = min(100, (totalUsedApproved / expectedUsage) * 100)
-    const totalAccruedEntitlement = vacationEntitlements.reduce((s, e) => s + (e.totalEntitlement || 0), 0)
-    const totalUsedApproved = vacationEntitlements.reduce((s, e) => s + (e.usedApproved || 0), 0)
-    const now = new Date()
-    const startOfYear = new Date(now.getFullYear(), 0, 1)
-    const startOfNextYear = new Date(now.getFullYear() + 1, 0, 1)
-    const totalDaysInYear = (startOfNextYear.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)
-    const daysElapsedThisYear = (now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24) + 1
-    const yearProgress = totalDaysInYear > 0 ? daysElapsedThisYear / totalDaysInYear : 0
-    const expectedUsage = totalAccruedEntitlement * yearProgress
-    ptoHealthIndex = expectedUsage > 0 ? Math.min(100, (totalUsedApproved / expectedUsage) * 100) : 0
-  }
 
   const absenceStabilityRate =
     totalScheduledDays > 0 ? Math.max(0, (1 - totalSickDays / totalScheduledDays) * 100) : 100
@@ -866,12 +825,14 @@ type DrawerPanel = 'sustainability' | 'compliance' | 'coverage' | null
 export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
   const { members, memberIds, isLoading: membersLoading } = useTeamMembers(props)
   const graphqlClient = useGraphQLClient(props.accessToken)
-  const { rows, isLoading: capacityLoading, error } = useTeamCapacity(props.accessToken, members, memberIds)
+  const {
+    rows,
+    isLoading: capacityLoading,
+    error: capacityError
+  } = useTeamCapacity(props.accessToken, members, memberIds)
   const showAbsenceAnalytics = useDeferredInsightsAnalytics()
+  const { mapType: mapAbsenceType } = useAbsenceTypeCatalog(props.accessToken)
 
-  const [entitlements, setEntitlements] = useState<
-    { employeeId: string; typeRef: string; totalEntitlement: number; usedApproved: number }[]
-  >([])
   const [coverageData, setCoverageData] = useState<CoverageOverview | null>(null)
   const [coverageLoading, setCoverageLoading] = useState(true)
   const [recentPtoEmployeeIds, setRecentPtoEmployeeIds] = useState<Set<string> | null>(null)
@@ -882,24 +843,30 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
     memberIdsRef.current = memberIds
   }
   const stableMemberIds = memberIdsRef.current
+  const now = new Date()
+  const currentYearStart = toDateString(new Date(now.getFullYear(), 0, 1))
+  const currentYearEnd = toDateString(new Date(now.getFullYear(), 11, 31))
+  const todayStr = toDateString(now)
 
-  useEffect(() => {
-    if (!graphqlClient || stableMemberIds.length === 0) return
-    const todayStr = toDateString(new Date())
-    graphqlClient
-      .request<any>(GET_TEAM_ENTITLEMENTS, { employeeIds: stableMemberIds, today: todayStr })
-      .then(res => {
-        setEntitlements(
-          (res?.EntitlementUsageSnapshotView ?? []).map((r: any) => ({
-            employeeId: r.employeeId,
-            typeRef: r.typeRef,
-            totalEntitlement: Number(r.totalEntitlement) || 0,
-            usedApproved: Number(r.usedApproved) || 0
-          }))
-        )
-      })
-      .catch(() => {})
-  }, [graphqlClient, stableMemberIds])
+  const approvedVacationYtdFacts = useTeamDailyFactsByType(
+    props.accessToken,
+    stableMemberIds,
+    currentYearStart,
+    todayStr,
+    mapAbsenceType,
+    ['APPROVED'],
+    'request'
+  )
+
+  const approvedVacationYearFacts = useTeamDailyFactsByType(
+    props.accessToken,
+    stableMemberIds,
+    currentYearStart,
+    currentYearEnd,
+    mapAbsenceType,
+    ['APPROVED'],
+    'request'
+  )
 
   useEffect(() => {
     if (!graphqlClient || stableMemberIds.length === 0) {
@@ -944,7 +911,8 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
       .finally(() => setCoverageLoading(false))
   }, [graphqlClient, supervisorId])
 
-  const isLoading = membersLoading || capacityLoading
+  const isLoading =
+    membersLoading || capacityLoading || approvedVacationYtdFacts.loading || approvedVacationYearFacts.loading
 
   const workingDaysMap = useMemo(() => {
     const map = new Map<string, number>()
@@ -954,7 +922,33 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
     return map
   }, [rows])
 
-  const kpis = useMemo(() => computeKpis(rows, entitlements, workingDaysMap), [rows, entitlements, workingDaysMap])
+  const ptoHealthIndexFromApprovedVacation = useMemo(() => {
+    const approvedVacationDaysYtd = approvedVacationYtdFacts.data
+      .filter(group => group.parentEntryId === VACATION_ABSENCE_GROUP_ID)
+      .reduce((sum, group) => sum + (Number(group.value) || 0), 0)
+
+    const approvedVacationDaysYear = approvedVacationYearFacts.data
+      .filter(group => group.parentEntryId === VACATION_ABSENCE_GROUP_ID)
+      .reduce((sum, group) => sum + (Number(group.value) || 0), 0)
+
+    const startOfYear = new Date(now.getFullYear(), 0, 1)
+    const startOfNextYear = new Date(now.getFullYear() + 1, 0, 1)
+    const totalDaysInYear = (startOfNextYear.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)
+    const daysElapsedThisYear = (now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24) + 1
+    const yearProgress = totalDaysInYear > 0 ? daysElapsedThisYear / totalDaysInYear : 0
+
+    if (approvedVacationDaysYear <= 0) {
+      return 0
+    }
+
+    const expectedUsage = approvedVacationDaysYear * yearProgress
+    return expectedUsage > 0 ? Math.min(100, (approvedVacationDaysYtd / expectedUsage) * 100) : 0
+  }, [approvedVacationYtdFacts.data, approvedVacationYearFacts.data, now])
+
+  const kpis = useMemo(
+    () => computeKpis(rows, workingDaysMap, ptoHealthIndexFromApprovedVacation),
+    [rows, workingDaysMap, ptoHealthIndexFromApprovedVacation]
+  )
 
   // ── Sustainability signals & compliance alerts ──────────────────────────────
 
@@ -1012,6 +1006,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
     return <div className="gba:text-center gba:py-12 gba:text-muted-foreground">{t('loading', 'Loading...')}</div>
   }
 
+  const error = capacityError || approvedVacationYtdFacts.error?.message || approvedVacationYearFacts.error?.message
   if (error) {
     return <div className="gba:text-center gba:py-12 gba:text-destructive">{error}</div>
   }
@@ -1047,7 +1042,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
           icon={<SunIcon />}
           label={t('pto_health', 'PTO Health Index')}
           value={kpis.ptoHealthIndex === null ? t('na', 'N/A') : `${kpis.ptoHealthIndex.toFixed(0)}%`}
-          subtitle={t('leave_vs_accrual', 'Taken vacation compared with expected year progress')}
+          subtitle={t('approved_vacation_vs_progress', 'Approved vacation usage compared with expected year progress')}
           tone={
             kpis.ptoHealthIndex === null
               ? 'muted'
