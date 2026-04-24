@@ -470,8 +470,11 @@ export function PagedDocumentEditorStyles({
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 40pt 0;
-        padding: 20pt 0;
+        margin: 0;
+        padding: 0;
+        height: 0;
+        min-height: 0;
+        overflow: visible;
         user-select: none;
         cursor: default;
       }
@@ -480,8 +483,10 @@ export function PagedDocumentEditorStyles({
         position: absolute;
         left: 0;
         right: 0;
+        top: 50%;
         height: 0;
         border-top: 2px dashed #ccc;
+        transform: translateY(-50%);
       }
 
       .paged-document-editor .ProseMirror .page-break .page-break-label {
@@ -494,6 +499,14 @@ export function PagedDocumentEditorStyles({
         letter-spacing: 1pt;
         border: 1pt solid #ddd;
         border-radius: 4pt;
+        transform: translateY(-50%);
+      }
+
+      .paged-document-editor .ProseMirror .rm-page-break-spacer {
+        display: block;
+        width: 100%;
+        pointer-events: none;
+        user-select: none;
       }
 
       .paged-document-editor .ProseMirror p.is-editor-empty:first-child,
@@ -565,6 +578,10 @@ export function PagedDocumentEditorStyles({
 
         .paged-document-editor .ProseMirror .page-break .page-break-line,
         .paged-document-editor .ProseMirror .page-break .page-break-label {
+          display: none;
+        }
+
+        .paged-document-editor .ProseMirror .rm-page-break-spacer {
           display: none;
         }
       }

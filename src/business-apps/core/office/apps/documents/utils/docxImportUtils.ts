@@ -1154,6 +1154,312 @@ export async function parseDocxPageBreaks(arrayBuffer: ArrayBuffer): Promise<num
   }
 }
 
+/**
+ * Style id we stamp onto injected marker paragraphs during OOXML
+ * preprocessing. Mammoth's style map maps paragraphs with this style id to
+ * `<hr class="page-break">`, which the editor's PageBreak extension then
+ * parses as a `pageBreak` node.
+ */
+export const RM_PAGE_BREAK_STYLE_ID = 'RmPageBreak'
+
+const W_NAMESPACE_URI = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+
+function elementPrefix(element: Element): string {
+  if (typeof element.prefix === 'string' && element.prefix.length > 0) {
+    return element.prefix
+  }
+  const tag = element.tagName
+  const colon = tag.indexOf(':')
+  return colon > 0 ? tag.slice(0, colon) : 'w'
+}
+
+function createMarkerParagraph(doc: XMLDocument, templateParagraph: Element): Element {
+  const namespaceUri = templateParagraph.namespaceURI ?? W_NAMESPACE_URI
+  const prefix = elementPrefix(templateParagraph)
+
+  const markerParagraph = doc.createElementNS(namespaceUri, `${prefix}:p`)
+  const pPr = doc.createElementNS(namespaceUri, `${prefix}:pPr`)
+  const pStyle = doc.createElementNS(namespaceUri, `${prefix}:pStyle`)
+  pStyle.setAttributeNS(namespaceUri, `${prefix}:val`, RM_PAGE_BREAK_STYLE_ID)
+  pPr.appendChild(pStyle)
+  markerParagraph.appendChild(pPr)
+  return markerParagraph
+}
+
+function paragraphVisibleContentLength(paragraph: Element): number {
+  const textNodes = descendantsByLocalName(paragraph, 't')
+  let length = 0
+  for (const textNode of textNodes) {
+    length += (textNode.textContent ?? '').length
+  }
+  if (descendantsByLocalName(paragraph, 'drawing').length > 0) {
+    length += 1
+  }
+  return length
+}
+
+function collectParagraphRunBreaks(paragraph: Element): Element[] {
+  return descendantsByLocalName(paragraph, 'br').filter(
+    breakElement => readAttributeValue(breakElement, 'type')?.trim().toLowerCase() === 'page'
+  )
+}
+
+function findAncestorRun(breakElement: Element, paragraph: Element): Element | null {
+  let current: Element | null = breakElement.parentElement
+  while (current && current !== paragraph) {
+    if (elementLocalName(current) === 'r') {
+      return current
+    }
+    current = current.parentElement
+  }
+  return null
+}
+
+function cloneParagraphShell(paragraph: Element): Element {
+  const shell = paragraph.cloneNode(false) as Element
+  const pPr = firstChildByLocalName(paragraph, 'pPr')
+  if (pPr) {
+    shell.appendChild(pPr.cloneNode(true))
+  }
+  return shell
+}
+
+/**
+ * Splits a `<w:r>` at the given break element, returning the run parts that
+ * should appear in the "before" and "after" halves of a paragraph split.
+ * Each half preserves the original run properties (`<w:rPr>`). Empty halves
+ * (no meaningful children) are returned as `null`.
+ */
+function splitRunAroundBreak(
+  run: Element,
+  breakElement: Element
+): { beforeRun: Element | null; afterRun: Element | null } {
+  const rPr = firstChildByLocalName(run, 'rPr')
+  const beforeRun = run.cloneNode(false) as Element
+  const afterRun = run.cloneNode(false) as Element
+
+  if (rPr) {
+    beforeRun.appendChild(rPr.cloneNode(true))
+    afterRun.appendChild(rPr.cloneNode(true))
+  }
+
+  const childNodes = Array.from(run.childNodes)
+  let passedBreak = false
+  for (const child of childNodes) {
+    if (child === breakElement) {
+      passedBreak = true
+      continue
+    }
+    if (child === rPr) {
+      continue
+    }
+    if (!passedBreak) {
+      beforeRun.appendChild(child.cloneNode(true))
+    } else {
+      afterRun.appendChild(child.cloneNode(true))
+    }
+  }
+
+  const beforeHasContent = Array.from(beforeRun.children).some(child => elementLocalName(child) !== 'rPr')
+  const afterHasContent = Array.from(afterRun.children).some(child => elementLocalName(child) !== 'rPr')
+
+  return {
+    beforeRun: beforeHasContent ? beforeRun : null,
+    afterRun: afterHasContent ? afterRun : null
+  }
+}
+
+/**
+ * Splits a paragraph at a single `<w:br w:type="page"/>` into a left / right
+ * pair, preserving `pPr` on both halves. Content inside the run containing
+ * the break is split around the break element so text that should live on
+ * the next page actually crosses the boundary.
+ */
+function splitParagraphAtBreak(paragraph: Element, breakElement: Element): { before: Element; after: Element } {
+  const before = cloneParagraphShell(paragraph)
+  const after = cloneParagraphShell(paragraph)
+
+  const containingRun = findAncestorRun(breakElement, paragraph)
+  const pPr = firstChildByLocalName(paragraph, 'pPr')
+
+  const topLevelChildren = Array.from(paragraph.children).filter(child => child !== pPr)
+
+  if (!containingRun) {
+    for (const child of topLevelChildren) {
+      before.appendChild(child.cloneNode(true))
+    }
+    return { before, after }
+  }
+
+  let passedContainingRun = false
+  for (const child of topLevelChildren) {
+    if (child === containingRun) {
+      passedContainingRun = true
+      const { beforeRun, afterRun } = splitRunAroundBreak(child, breakElement)
+      if (beforeRun) before.appendChild(beforeRun)
+      if (afterRun) after.appendChild(afterRun)
+      continue
+    }
+    if (!passedContainingRun) {
+      before.appendChild(child.cloneNode(true))
+    } else {
+      after.appendChild(child.cloneNode(true))
+    }
+  }
+
+  return { before, after }
+}
+
+function sectPrHasNextPageBreak(sectPr: Element): boolean {
+  const typeElement = firstChildByLocalName(sectPr, 'type')
+  const typeValue = readAttributeValue(typeElement, 'val')?.trim().toLowerCase()
+  if (!typeValue) {
+    // Default Word behaviour: a section break with no explicit type is "nextPage".
+    return true
+  }
+  return typeValue === 'nextpage' || typeValue === 'oddpage' || typeValue === 'evenpage'
+}
+
+/**
+ * Transforms the OOXML body so that every manual page break (inline
+ * `<w:br w:type="page"/>`, `<w:pageBreakBefore/>` paragraph property, and
+ * in-paragraph `<w:sectPr>` with a page-breaking section type) becomes its
+ * own `<w:p>` styled with `RmPageBreak`. Downstream mammoth conversion
+ * keeps these marker paragraphs as top-level HTML elements, so they survive
+ * list / blockquote collapsing.
+ *
+ * Returns the original XML unchanged when parsing fails or when no breaks
+ * are detected.
+ */
+export function preprocessDocumentXmlForPageBreaks(xml: string): string {
+  if (!xml || globalThis.DOMParser === undefined || typeof globalThis.XMLSerializer === 'undefined') {
+    return xml
+  }
+
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(xml, 'application/xml')
+    if (doc.getElementsByTagName('parsererror').length > 0) {
+      return xml
+    }
+
+    const body = descendantsByLocalName(doc.documentElement, 'body')[0]
+    if (!body) {
+      return xml
+    }
+
+    const originalChildren = Array.from(body.children)
+    let mutated = false
+
+    for (const paragraph of originalChildren) {
+      if (elementLocalName(paragraph) !== 'p') continue
+      if (paragraph.parentNode !== body) continue
+
+      const pPr = firstChildByLocalName(paragraph, 'pPr')
+      const pageBreakBefore = pPr ? firstChildByLocalName(pPr, 'pageBreakBefore') : null
+      const sectPr = pPr ? firstChildByLocalName(pPr, 'sectPr') : null
+      const runBreaks = collectParagraphRunBreaks(paragraph)
+
+      // (1) pageBreakBefore paragraph property → emit marker BEFORE and strip property.
+      if (pageBreakBefore) {
+        const marker = createMarkerParagraph(doc, paragraph)
+        body.insertBefore(marker, paragraph)
+        pageBreakBefore.parentNode?.removeChild(pageBreakBefore)
+        mutated = true
+      }
+
+      // (2) Inline page breaks inside runs. If the paragraph is effectively a
+      // standalone break (no visible content outside the break runs), replace
+      // it with a single marker paragraph. Otherwise split around each break.
+      if (runBreaks.length > 0) {
+        const visibleLength = paragraphVisibleContentLength(paragraph)
+        const nonBreakRunCount = Array.from(paragraph.children).filter(child => {
+          if (elementLocalName(child) !== 'r') return false
+          return !Array.from(child.children).every(grandchild => {
+            const local = elementLocalName(grandchild)
+            return local === 'br' || local === 'rPr'
+          })
+        }).length
+
+        const isStandaloneBreakParagraph = visibleLength === 0 && nonBreakRunCount === 0
+
+        if (isStandaloneBreakParagraph) {
+          const marker = createMarkerParagraph(doc, paragraph)
+          body.insertBefore(marker, paragraph)
+          body.removeChild(paragraph)
+          mutated = true
+        } else {
+          // Split paragraph sequentially at each break.
+          let currentParagraph: Element = paragraph
+          for (const breakElement of runBreaks) {
+            // Re-resolve containing run in current paragraph (breakElement
+            // reference is still valid because we cloneNode on the right-hand
+            // halves, never the current left-hand paragraph). The break is
+            // still inside `currentParagraph` on the first iteration; on
+            // subsequent iterations we need to find it in the right-half.
+            if (!currentParagraph.contains(breakElement)) {
+              continue
+            }
+            const { before, after } = splitParagraphAtBreak(currentParagraph, breakElement)
+            const marker = createMarkerParagraph(doc, currentParagraph)
+            body.insertBefore(before, currentParagraph)
+            body.insertBefore(marker, currentParagraph)
+            body.insertBefore(after, currentParagraph)
+            body.removeChild(currentParagraph)
+            currentParagraph = after
+          }
+          mutated = true
+        }
+      }
+
+      // (3) Section break with nextPage type at end of paragraph → emit
+      // marker AFTER. Preserve the original sectPr (it carries section-level
+      // properties like page size that mammoth may use).
+      if (sectPr && sectPrHasNextPageBreak(sectPr)) {
+        const marker = createMarkerParagraph(doc, paragraph)
+        const nextSibling = paragraph.nextSibling
+        body.insertBefore(marker, nextSibling)
+        mutated = true
+      }
+    }
+
+    if (!mutated) {
+      return xml
+    }
+
+    return new XMLSerializer().serializeToString(doc)
+  } catch {
+    return xml
+  }
+}
+
+/**
+ * Returns a new ArrayBuffer containing the original docx zip with its
+ * `word/document.xml` replaced by the page-break-preprocessed version. If
+ * no changes are required (or preprocessing fails), the original buffer is
+ * returned unchanged.
+ */
+export async function preprocessDocxBufferForPageBreaks(arrayBuffer: ArrayBuffer): Promise<ArrayBuffer> {
+  try {
+    const zip = await JSZipCompat.loadAsync(arrayBuffer)
+    const documentEntry = zip.file('word/document.xml')
+    if (!documentEntry) {
+      return arrayBuffer
+    }
+
+    const originalXml = await documentEntry.async('string')
+    const transformedXml = preprocessDocumentXmlForPageBreaks(originalXml)
+    if (transformedXml === originalXml) {
+      return arrayBuffer
+    }
+
+    zip.file('word/document.xml', transformedXml)
+    return await zip.generateAsync({ type: 'arraybuffer' })
+  } catch {
+    return arrayBuffer
+  }
+}
+
 export async function parseDocxTableLayouts(arrayBuffer: ArrayBuffer): Promise<DocxImportedTableLayout[]> {
   try {
     const zip = await JSZipCompat.loadAsync(arrayBuffer)

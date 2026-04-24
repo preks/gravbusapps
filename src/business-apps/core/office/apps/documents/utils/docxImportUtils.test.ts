@@ -11,7 +11,10 @@ import {
   parseDocumentXmlForPageFormatting,
   parseDocxPageFormatting,
   parseDocxTableLayouts,
-  parseStylesXmlForTypography
+  parseStylesXmlForTypography,
+  preprocessDocumentXmlForPageBreaks,
+  preprocessDocxBufferForPageBreaks,
+  RM_PAGE_BREAK_STYLE_ID
 } from './docxImportUtils'
 
 const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
@@ -596,6 +599,154 @@ describe('enhanceImportedHtmlWithPageBreaks', () => {
     expect(out).toContain('<p>First</p>')
     expect(out).toContain('<p>Second</p>')
     expect(out).not.toContain('<p></p>')
+  })
+})
+
+describe('preprocessDocumentXmlForPageBreaks', () => {
+  const markerSelectorRegex = new RegExp(`w:val="${RM_PAGE_BREAK_STYLE_ID}"`, 'g')
+  const countMarkerParagraphs = (xml: string): number => (xml.match(markerSelectorRegex) ?? []).length
+
+  it('returns the original xml when there are no manual breaks', () => {
+    const xml = `<w:document xmlns:w="${W_NS}"><w:body><w:p><w:r><w:t>hello</w:t></w:r></w:p></w:body></w:document>`
+    expect(preprocessDocumentXmlForPageBreaks(xml)).toBe(xml)
+  })
+
+  it('replaces a standalone page-break paragraph with a RmPageBreak marker', () => {
+    const xml = `<w:document xmlns:w="${W_NS}"><w:body>
+      <w:p><w:r><w:t>First</w:t></w:r></w:p>
+      <w:p><w:r><w:br w:type="page"/></w:r></w:p>
+      <w:p><w:r><w:t>Second</w:t></w:r></w:p>
+    </w:body></w:document>`
+
+    const out = preprocessDocumentXmlForPageBreaks(xml)
+
+    expect(countMarkerParagraphs(out)).toBe(1)
+    expect(out).not.toMatch(/<w:br [^>]*w:type="page"/)
+    expect(out.indexOf('First')).toBeLessThan(out.indexOf(RM_PAGE_BREAK_STYLE_ID))
+    expect(out.indexOf(RM_PAGE_BREAK_STYLE_ID)).toBeLessThan(out.indexOf('Second'))
+  })
+
+  it('splits a paragraph that has inline text on both sides of a page break', () => {
+    const xml = `<w:document xmlns:w="${W_NS}"><w:body>
+      <w:p><w:r><w:t>before</w:t><w:br w:type="page"/><w:t>after</w:t></w:r></w:p>
+    </w:body></w:document>`
+
+    const out = preprocessDocumentXmlForPageBreaks(xml)
+
+    expect(countMarkerParagraphs(out)).toBe(1)
+    expect(out).not.toMatch(/<w:br [^>]*w:type="page"/)
+    expect(out.indexOf('before')).toBeLessThan(out.indexOf(RM_PAGE_BREAK_STYLE_ID))
+    expect(out.indexOf(RM_PAGE_BREAK_STYLE_ID)).toBeLessThan(out.indexOf('after'))
+  })
+
+  it('hoists a pageBreakBefore paragraph property into a preceding marker paragraph and drops the property', () => {
+    const xml = `<w:document xmlns:w="${W_NS}"><w:body>
+      <w:p><w:r><w:t>first</w:t></w:r></w:p>
+      <w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:t>second</w:t></w:r></w:p>
+    </w:body></w:document>`
+
+    const out = preprocessDocumentXmlForPageBreaks(xml)
+
+    expect(countMarkerParagraphs(out)).toBe(1)
+    expect(out).not.toContain('pageBreakBefore')
+    expect(out.indexOf('first')).toBeLessThan(out.indexOf(RM_PAGE_BREAK_STYLE_ID))
+    expect(out.indexOf(RM_PAGE_BREAK_STYLE_ID)).toBeLessThan(out.indexOf('second'))
+  })
+
+  it('emits a trailing marker for a paragraph-level sectPr with nextPage section type', () => {
+    const xml = `<w:document xmlns:w="${W_NS}"><w:body>
+      <w:p><w:pPr><w:sectPr><w:type w:val="nextPage"/><w:pgSz w:w="11906" w:h="16838"/></w:sectPr></w:pPr><w:r><w:t>section-end</w:t></w:r></w:p>
+      <w:p><w:r><w:t>next-section</w:t></w:r></w:p>
+    </w:body></w:document>`
+
+    const out = preprocessDocumentXmlForPageBreaks(xml)
+
+    expect(countMarkerParagraphs(out)).toBe(1)
+    expect(out.indexOf('section-end')).toBeLessThan(out.indexOf(RM_PAGE_BREAK_STYLE_ID))
+    expect(out.indexOf(RM_PAGE_BREAK_STYLE_ID)).toBeLessThan(out.indexOf('next-section'))
+  })
+
+  it('does not treat the trailing document sectPr (body child) as a page break', () => {
+    const xml = `<w:document xmlns:w="${W_NS}"><w:body>
+      <w:p><w:r><w:t>only</w:t></w:r></w:p>
+      <w:sectPr><w:type w:val="nextPage"/><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>
+    </w:body></w:document>`
+
+    expect(countMarkerParagraphs(preprocessDocumentXmlForPageBreaks(xml))).toBe(0)
+  })
+
+  it('produces one marker per page break for consecutive standalone break paragraphs', () => {
+    const xml = `<w:document xmlns:w="${W_NS}"><w:body>
+      <w:p><w:r><w:t>first</w:t></w:r></w:p>
+      <w:p><w:r><w:br w:type="page"/></w:r></w:p>
+      <w:p><w:r><w:br w:type="page"/></w:r></w:p>
+      <w:p><w:r><w:t>second</w:t></w:r></w:p>
+    </w:body></w:document>`
+
+    const out = preprocessDocumentXmlForPageBreaks(xml)
+
+    expect(countMarkerParagraphs(out)).toBe(2)
+  })
+
+  it('preserves the surrounding list paragraphs when a break sits inside a list run', () => {
+    const xml = `<w:document xmlns:w="${W_NS}"><w:body>
+      <w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr><w:r><w:t>item-1</w:t></w:r></w:p>
+      <w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr><w:r><w:t>item-2</w:t><w:br w:type="page"/></w:r></w:p>
+      <w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr><w:r><w:t>item-3</w:t></w:r></w:p>
+    </w:body></w:document>`
+
+    const out = preprocessDocumentXmlForPageBreaks(xml)
+
+    expect(countMarkerParagraphs(out)).toBe(1)
+    const markerOffset = out.indexOf(RM_PAGE_BREAK_STYLE_ID)
+    expect(out.indexOf('item-2')).toBeLessThan(markerOffset)
+    expect(markerOffset).toBeLessThan(out.indexOf('item-3'))
+    // Both halves of the broken paragraph keep ListParagraph styling so
+    // Mammoth re-opens a <ul> after the marker instead of dropping items.
+    expect((out.match(/w:val="ListParagraph"/g) ?? []).length).toBeGreaterThanOrEqual(3)
+  })
+})
+
+describe('preprocessDocxBufferForPageBreaks', () => {
+  it('returns the original buffer when word/document.xml has no manual breaks', async () => {
+    const zip = new JSZip()
+    zip.file(
+      'word/document.xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="${W_NS}"><w:body>
+  <w:p><w:r><w:t>only</w:t></w:r></w:p>
+  <w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>
+</w:body></w:document>`
+    )
+
+    const arrayBuffer = await zip.generateAsync({ type: 'arraybuffer' })
+    const out = await preprocessDocxBufferForPageBreaks(arrayBuffer)
+
+    expect(out).toBe(arrayBuffer)
+  })
+
+  it('rewrites word/document.xml with marker paragraphs when manual breaks are present', async () => {
+    const zip = new JSZip()
+    zip.file(
+      'word/document.xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="${W_NS}"><w:body>
+  <w:p><w:r><w:t>First</w:t></w:r></w:p>
+  <w:p><w:r><w:br w:type="page"/></w:r></w:p>
+  <w:p><w:r><w:t>Second</w:t></w:r></w:p>
+  <w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>
+</w:body></w:document>`
+    )
+
+    const arrayBuffer = await zip.generateAsync({ type: 'arraybuffer' })
+    const out = await preprocessDocxBufferForPageBreaks(arrayBuffer)
+
+    expect(out).not.toBe(arrayBuffer)
+
+    const rewrittenZip = await JSZip.loadAsync(out)
+    const rewrittenXml = await rewrittenZip.file('word/document.xml')!.async('string')
+    expect(rewrittenXml).toContain(`w:val="${RM_PAGE_BREAK_STYLE_ID}"`)
+    expect(rewrittenXml).not.toMatch(/<w:br [^>]*w:type="page"/)
   })
 })
 

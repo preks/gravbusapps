@@ -24,6 +24,7 @@ declare module '@tiptap/core' {
 
 export const PageBreak = Node.create<PageBreakOptions>({
   name: 'pageBreak',
+  priority: 1000,
 
   group: 'block',
 
@@ -33,7 +34,8 @@ export const PageBreak = Node.create<PageBreakOptions>({
         tag: 'div[data-page-break]'
       },
       {
-        tag: 'hr.page-break'
+        tag: 'hr.page-break',
+        priority: 1000
       },
       {
         style: 'page-break-after: always'
