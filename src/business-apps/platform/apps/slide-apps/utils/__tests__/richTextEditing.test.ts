@@ -1,5 +1,11 @@
 import type { TextElement } from '../../components/slideElements'
-import { applyRichTextFormatting, replaceRichTextContent } from '../richTextEditing'
+import {
+  applyCaretFormattingToInsertedText,
+  applyRichTextFormatting,
+  getRichTextStyleAtRange,
+  getTextEditDelta,
+  replaceRichTextContent
+} from '../richTextEditing'
 
 function makeTextElement(overrides: Partial<TextElement> = {}): TextElement {
   return {
@@ -87,5 +93,127 @@ describe('richTextEditing', () => {
     expect(updated.content).toBe('abc')
     expect(updated.paragraphs?.[0].runs[0]).toEqual(expect.objectContaining({ text: 'a', fontWeight: 'bold' }))
     expect(updated.paragraphs?.[0].runs[1]).toEqual(expect.objectContaining({ text: 'bc', fontStyle: 'italic' }))
+  })
+
+  it('detects inserted text ranges for caret formatting', () => {
+    expect(getTextEditDelta('Hello world', 'Hello brave world')).toEqual({
+      start: 6,
+      deletedLength: 0,
+      insertedLength: 6
+    })
+  })
+
+  it('applies pending caret formatting only to inserted text', () => {
+    const element = makeTextElement({
+      content: 'ab',
+      paragraphs: [
+        {
+          runs: [
+            { text: 'a', fontWeight: 'normal' },
+            { text: 'b', fontWeight: 'normal' }
+          ]
+        }
+      ]
+    })
+
+    const nextContent = 'axb'
+    const editDelta = getTextEditDelta(element.content, nextContent)
+    const updated = applyCaretFormattingToInsertedText(
+      replaceRichTextContent(element, nextContent),
+      { fontWeight: 'bold', fontSize: 24 },
+      editDelta
+    )
+
+    expect(updated.content).toBe('axb')
+    expect(updated.paragraphs?.[0].runs).toEqual([
+      expect.objectContaining({ text: 'a', fontWeight: 'normal' }),
+      expect.objectContaining({ text: 'x', fontWeight: 'bold', fontSize: 24 }),
+      expect.objectContaining({ text: 'b', fontWeight: 'normal' })
+    ])
+  })
+
+  it('resolves mixed font family and size across a selection', () => {
+    const element = makeTextElement({
+      content: 'Hello world',
+      paragraphs: [
+        {
+          runs: [
+            { text: 'Hello ', fontFamily: 'Inter', fontSize: 16 },
+            { text: 'world', fontFamily: 'Arial', fontSize: 24 }
+          ]
+        }
+      ]
+    })
+
+    const resolved = getRichTextStyleAtRange(element, { start: 0, end: 11 })
+
+    expect(resolved.isFontFamilyMixed).toBe(true)
+    expect(resolved.fontFamily).toBeUndefined()
+    expect(resolved.isFontSizeMixed).toBe(true)
+    expect(resolved.fontSize).toBeUndefined()
+  })
+
+  it('resolves tri-state toggles for mixed bold and italic selections', () => {
+    const element = makeTextElement({
+      content: 'Hello world',
+      paragraphs: [
+        {
+          runs: [
+            { text: 'Hello ', fontWeight: 'bold', fontStyle: 'normal' },
+            { text: 'world', fontWeight: 'normal', fontStyle: 'italic' }
+          ]
+        }
+      ]
+    })
+
+    const resolved = getRichTextStyleAtRange(element, { start: 0, end: 11 })
+
+    expect(resolved.fontWeightState).toBe('mixed')
+    expect(resolved.fontStyleState).toBe('mixed')
+    expect(resolved.underlineState).toBe('off')
+    expect(resolved.strikethroughState).toBe('off')
+  })
+
+  it('resolves mixed paragraph alignment across a multi-paragraph selection', () => {
+    const element = makeTextElement({
+      content: 'one\ntwo',
+      paragraphs: [
+        {
+          alignment: 'left',
+          runs: [{ text: 'one' }]
+        },
+        {
+          alignment: 'center',
+          runs: [{ text: 'two' }]
+        }
+      ]
+    })
+
+    const resolved = getRichTextStyleAtRange(element, { start: 0, end: 7 })
+
+    expect(resolved.isTextAlignMixed).toBe(true)
+    expect(resolved.textAlign).toBeUndefined()
+  })
+
+  it('keeps uniform selection values when every touched run matches', () => {
+    const element = makeTextElement({
+      content: 'Hello world',
+      paragraphs: [
+        {
+          runs: [
+            { text: 'Hello ', fontFamily: 'Inter', fontSize: 18, fontWeight: 'bold' },
+            { text: 'world', fontFamily: 'Inter', fontSize: 18, fontWeight: 'bold' }
+          ]
+        }
+      ]
+    })
+
+    const resolved = getRichTextStyleAtRange(element, { start: 0, end: 11 })
+
+    expect(resolved.isFontFamilyMixed).toBe(false)
+    expect(resolved.fontFamily).toBe('Inter')
+    expect(resolved.isFontSizeMixed).toBe(false)
+    expect(resolved.fontSize).toBe(18)
+    expect(resolved.fontWeightState).toBe('on')
   })
 })

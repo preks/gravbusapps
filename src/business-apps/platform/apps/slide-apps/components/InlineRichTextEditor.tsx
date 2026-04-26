@@ -36,13 +36,6 @@ function normalizeEditorText(text: string | null | undefined): string {
   return text.replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n')
 }
 
-function selectionOffsetFromBoundary(container: HTMLElement, node: Node, offset: number): number {
-  const range = document.createRange()
-  range.selectNodeContents(container)
-  range.setEnd(node, offset)
-  return normalizeEditorText(range.toString()).length
-}
-
 function runBoundsFromElement(element: HTMLElement): { start: number; end: number } | null {
   const start = Number(element.dataset.runStart)
   const end = Number(element.dataset.runEnd)
@@ -50,7 +43,114 @@ function runBoundsFromElement(element: HTMLElement): { start: number; end: numbe
   return { start, end }
 }
 
+function paragraphBoundsFromElement(element: HTMLElement): { start: number; end: number } | null {
+  const start = Number(element.dataset.paragraphStart)
+  const end = Number(element.dataset.paragraphEnd)
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null
+  return { start, end }
+}
+
+function nodeStartOffset(node: Node | null): number | null {
+  if (!node) return null
+  if (node.nodeType === Node.TEXT_NODE) {
+    return nodeStartOffset(node.parentElement?.closest<HTMLElement>('[data-run-start]') ?? null)
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) return null
+  const element = node as HTMLElement
+  const runBounds = runBoundsFromElement(element)
+  if (runBounds) return runBounds.start
+
+  const paragraphBounds = paragraphBoundsFromElement(element)
+  if (paragraphBounds) return paragraphBounds.start
+
+  const firstDescendant =
+    element.querySelector<HTMLElement>('[data-run-start]') ??
+    element.querySelector<HTMLElement>('[data-paragraph-start]')
+
+  if (!firstDescendant) return null
+  return nodeStartOffset(firstDescendant)
+}
+
+function nodeEndOffset(node: Node | null): number | null {
+  if (!node) return null
+  if (node.nodeType === Node.TEXT_NODE) {
+    return nodeEndOffset(node.parentElement?.closest<HTMLElement>('[data-run-start]') ?? null)
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) return null
+  const element = node as HTMLElement
+  const runBounds = runBoundsFromElement(element)
+  if (runBounds) return runBounds.end
+
+  const paragraphBounds = paragraphBoundsFromElement(element)
+  if (paragraphBounds) return paragraphBounds.end
+
+  const descendants = Array.from(element.querySelectorAll<HTMLElement>('[data-run-start], [data-paragraph-start]'))
+  const lastDescendant = descendants[descendants.length - 1]
+  if (!lastDescendant) return null
+
+  return nodeEndOffset(lastDescendant)
+}
+
+function textOffsetFromBoundary(container: HTMLElement, node: Node, offset: number): number {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const runElement = node.parentElement?.closest<HTMLElement>('[data-run-start]')
+    const bounds = runElement ? runBoundsFromElement(runElement) : null
+    return bounds ? bounds.start + Math.min(offset, bounds.end - bounds.start) : 0
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) return 0
+  const element = node as HTMLElement
+  const runBounds = runBoundsFromElement(element)
+  if (runBounds) {
+    return offset <= 0 ? runBounds.start : runBounds.end
+  }
+
+  const paragraphBounds = paragraphBoundsFromElement(element)
+  if (paragraphBounds) {
+    if (offset <= 0) return paragraphBounds.start
+    if (offset >= element.childNodes.length) return paragraphBounds.end
+    const child = element.childNodes[Math.min(offset, element.childNodes.length - 1)]
+    const childStart = nodeStartOffset(child)
+    if (childStart !== null) return childStart
+    return paragraphBounds.end
+  }
+
+  if (element === container) {
+    if (offset <= 0) return 0
+    if (offset >= element.childNodes.length) {
+      const lastChild = element.childNodes[element.childNodes.length - 1]
+      return nodeEndOffset(lastChild) ?? 0
+    }
+    const child = element.childNodes[Math.min(offset, element.childNodes.length - 1)]
+    const childStart = nodeStartOffset(child)
+    if (childStart !== null) return childStart
+    const lastChild = element.childNodes[element.childNodes.length - 1]
+    return nodeEndOffset(lastChild) ?? 0
+  }
+
+  if (offset >= element.childNodes.length) {
+    return nodeEndOffset(element) ?? 0
+  }
+  const child = element.childNodes[Math.min(offset, element.childNodes.length - 1)]
+  const childStart = nodeStartOffset(child)
+  if (childStart !== null) return childStart
+
+  return nodeEndOffset(element) ?? 0
+}
+
 function liveContentLength(container: HTMLElement): number {
+  const paragraphs = Array.from(container.querySelectorAll<HTMLElement>('[data-paragraph-end]'))
+  const lastParagraph = paragraphs[paragraphs.length - 1]
+  const paragraphBounds = lastParagraph ? paragraphBoundsFromElement(lastParagraph) : null
+  if (paragraphBounds) return paragraphBounds.end
+
+  const runs = Array.from(container.querySelectorAll<HTMLElement>('[data-run-end]'))
+  const lastRun = runs[runs.length - 1]
+  const runBounds = lastRun ? runBoundsFromElement(lastRun) : null
+  if (runBounds) return runBounds.end
+
   return normalizeEditorText(container.innerText ?? container.textContent).length
 }
 
@@ -98,6 +198,8 @@ function buildEditorMarkup(editor: HTMLDivElement, element: TextElement) {
     let runCursor = paragraphStart
 
     const paragraphElement = document.createElement('div')
+    paragraphElement.dataset.paragraphStart = String(paragraphStart)
+    paragraphElement.dataset.paragraphEnd = String(paragraphStart + paragraphLength)
     paragraphElement.setAttribute(
       'style',
       styleObjectToCssText({
@@ -149,8 +251,8 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
     if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) return null
 
     const contentLength = liveContentLength(editor)
-    const start = selectionOffsetFromBoundary(editor, range.startContainer, range.startOffset)
-    const end = selectionOffsetFromBoundary(editor, range.endContainer, range.endOffset)
+    const start = textOffsetFromBoundary(editor, range.startContainer, range.startOffset)
+    const end = textOffsetFromBoundary(editor, range.endContainer, range.endOffset)
     return { start: Math.max(0, Math.min(start, contentLength)), end: Math.max(0, Math.min(end, contentLength)) }
   }, [])
 
@@ -182,8 +284,10 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
     editor.focus()
     const contentLength = liveContentLength(editor)
     const range = lastSelectionRef.current ?? { start: contentLength, end: contentLength }
+    lastSelectionRef.current = range
     restoreSelection(range)
-  }, [element.id, rehydrateToken, restoreSelection])
+    onSelectionChange(range)
+  }, [element.id, onSelectionChange, rehydrateToken, restoreSelection])
 
   return (
     <div

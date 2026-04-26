@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { InlineRichTextEditor } from '../InlineRichTextEditor'
 import type { TextElement } from '../slideElements'
@@ -73,6 +73,7 @@ describe('InlineRichTextEditor', () => {
 
   it('keeps deleting a leading empty paragraph stable while parent state updates live', () => {
     function Harness() {
+      const handleSelectionChange = useCallback(() => {}, [])
       const [element, setElement] = useState(
         makeTextElement({
           content: '\nThe\nNEWWORK Enterprise AI.',
@@ -90,7 +91,7 @@ describe('InlineRichTextEditor', () => {
           onTextChange={value => {
             setElement(previous => replaceRichTextContent(previous, value))
           }}
-          onSelectionChange={() => {}}
+          onSelectionChange={handleSelectionChange}
           onFinishEditing={() => {}}
         />
       )
@@ -112,6 +113,7 @@ describe('InlineRichTextEditor', () => {
 
   it('rehydrates the editor only when the rehydrate token changes', () => {
     function Harness() {
+      const handleSelectionChange = useCallback(() => {}, [])
       const [element, setElement] = useState(
         makeTextElement({
           content: 'Initial value',
@@ -143,7 +145,7 @@ describe('InlineRichTextEditor', () => {
             element={element}
             rehydrateToken={token}
             onTextChange={() => {}}
-            onSelectionChange={() => {}}
+            onSelectionChange={handleSelectionChange}
             onFinishEditing={() => {}}
           />
         </>
@@ -159,5 +161,45 @@ describe('InlineRichTextEditor', () => {
 
     fireEvent.click(screen.getByText('update-with-token'))
     expect(readEditorValue(editor)).toBe('Formatted value')
+  })
+
+  it('emits correct selection offsets for text on the second paragraph', () => {
+    const onSelectionChange = jest.fn()
+    const firstLine = 'The sds'
+    const secondLine = 'NEWWORK Enterprise AI.'
+
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement({
+          content: `${firstLine}\n${secondLine}`,
+          paragraphs: [{ runs: [{ text: firstLine }] }, { runs: [{ text: secondLine }] }]
+        })}
+        onTextChange={() => {}}
+        onSelectionChange={onSelectionChange}
+        onFinishEditing={() => {}}
+      />
+    )
+
+    const editor = screen.getByTestId('inline-rich-text-editor') as HTMLDivElement
+    const secondRun = editor.querySelectorAll<HTMLElement>('[data-run-start]')[1]
+
+    expect(secondRun).toBeDefined()
+
+    onSelectionChange.mockClear()
+
+    const selection = window.getSelection()
+    const range = document.createRange()
+    const secondTextNode = secondRun.firstChild as Text
+    range.setStart(secondTextNode, 0)
+    range.setEnd(secondTextNode, secondLine.length)
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+
+    fireEvent.mouseUp(editor)
+
+    expect(onSelectionChange).toHaveBeenLastCalledWith({
+      start: firstLine.length + 1,
+      end: firstLine.length + 1 + secondLine.length
+    })
   })
 })

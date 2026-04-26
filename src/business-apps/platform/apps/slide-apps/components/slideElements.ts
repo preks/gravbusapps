@@ -1409,6 +1409,16 @@ export const FONT_FAMILIES = [
   { value: 'Impact', label: 'Impact' }
 ]
 
+export function getFontFamilyOptions(activeFontFamily?: string): typeof FONT_FAMILIES {
+  const trimmedFontFamily = activeFontFamily?.trim()
+  if (!trimmedFontFamily) return FONT_FAMILIES
+
+  const alreadyExists = FONT_FAMILIES.some(font => font.value.toLowerCase() === trimmedFontFamily.toLowerCase())
+  if (alreadyExists) return FONT_FAMILIES
+
+  return [{ value: trimmedFontFamily, label: trimmedFontFamily }, ...FONT_FAMILIES]
+}
+
 export const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 128]
 
 export const CODE_LANGUAGES = [

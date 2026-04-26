@@ -101,7 +101,7 @@ import { useSlideSpellCheck } from '../hooks/useSlideSpellCheck'
 import { useSlideTransition } from '../hooks/useSlideTransition'
 import type { SlideAnnotation } from '../types/slideSpellCheck'
 import { exportToPptx } from '../utils/exportUtils'
-import { adjustLinksAfterEdit, detectUrls, mergeLinks, findEditPosition, createLink } from '../utils/linkUtils'
+import { adjustLinksAfterEdit, detectUrls, mergeLinks, createLink } from '../utils/linkUtils'
 import translations from '../_i18n'
 import {
   alignElements,
@@ -117,9 +117,13 @@ import {
 
 import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
 import {
+  applyCaretFormattingToInsertedText,
   applyRichTextFormatting,
   createDefaultShapeText,
+  getCharacterRichTextFormattingUpdate,
+  getTextEditDelta,
   getRichTextStyleAtRange,
+  hasCharacterRichTextFormattingUpdate,
   isRichTextFormattingUpdate,
   replaceRichTextContent,
   type RichTextFormattingUpdate,
@@ -146,6 +150,11 @@ function sanitizeMediaUrl(url: string | undefined, allowedDataTypes: string[] = 
 type ActiveRichTextDraft =
   | { id: string; kind: 'text'; element: TextElement }
   | { id: string; kind: 'shape'; element: ShapeInText }
+
+type PendingCaretFormatting = {
+  id: string
+  formatting: RichTextFormattingUpdate
+}
 
 function createActiveRichTextDraft(element: AnySlideElement): ActiveRichTextDraft | null {
   if (element.type === 'text') {
@@ -425,6 +434,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [activeTextSelection, setActiveTextSelection] = useState<RichTextSelectionRange | null>(null)
   const [activeRichTextDraft, setActiveRichTextDraft] = useState<ActiveRichTextDraft | null>(null)
+  const [pendingCaretFormatting, setPendingCaretFormatting] = useState<PendingCaretFormatting | null>(null)
   const [richTextEditorRehydrateToken, setRichTextEditorRehydrateToken] = useState(0)
   // Edit Points mode: when set, SlideCanvas mounts the ShapePointEditor
   // overlay for this shape and the PropertyPanel's "Edit Points" button is
@@ -465,6 +475,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const lastProcessedTranscriptRef = useRef<string>('')
   const currentEditingContentRef = useRef<string>('')
   const activeRichTextDraftRef = useRef<ActiveRichTextDraft | null>(null)
+  const pendingCaretFormattingRef = useRef<PendingCaretFormatting | null>(null)
+  const preservePendingCaretFormattingRef = useRef(false)
   const applyEditingTextValueRef = useRef<((id: string, value: string, rehydrate?: boolean) => void) | null>(null)
 
   // Slide drag and drop state
@@ -773,6 +785,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     setActiveRichTextDraft(nextDraft)
   }, [])
 
+  const storePendingCaretFormatting = useCallback((nextFormatting: PendingCaretFormatting | null) => {
+    pendingCaretFormattingRef.current = nextFormatting
+    setPendingCaretFormatting(nextFormatting)
+  }, [])
+
   const bumpRichTextEditorRehydrateToken = useCallback(() => {
     setRichTextEditorRehydrateToken(previous => previous + 1)
   }, [])
@@ -789,13 +806,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     if (editingTextId && !currentElementIds.has(editingTextId)) {
       editingTextIdRef.current = null
       storeActiveRichTextDraft(null)
+      storePendingCaretFormatting(null)
       setEditingTextId(null)
       setActiveTextSelection(null)
     }
     if (editingPointsId && !currentElementIds.has(editingPointsId)) {
       setEditingPointsId(null)
     }
-  }, [currentSlide.elements, editingPointsId, editingTextId, storeActiveRichTextDraft])
+  }, [currentSlide.elements, editingPointsId, editingTextId, storeActiveRichTextDraft, storePendingCaretFormatting])
 
   // Toolbar context for contextual formatting tools
   const { context: toolbarContext } = useToolbarContext({
@@ -831,12 +849,53 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const effectiveToolbarContext = useMemo<ToolbarContext>(() => {
     if (activeEditingTextElement) {
-      const style = getRichTextStyleAtRange(activeEditingTextElement, activeTextSelection)
-      return { type: 'text', element: { ...activeEditingTextElement, ...style } }
+      const formatting = getRichTextStyleAtRange(activeEditingTextElement, activeTextSelection)
+      const hasCollapsedSelection = !!activeTextSelection && activeTextSelection.start === activeTextSelection.end
+
+      const effectiveFormatting =
+        hasCollapsedSelection && pendingCaretFormatting?.id === activeEditingTextElement.id
+          ? {
+              ...formatting,
+              ...pendingCaretFormatting.formatting,
+              isFontFamilyMixed:
+                pendingCaretFormatting.formatting.fontFamily !== undefined ? false : formatting.isFontFamilyMixed,
+              isFontSizeMixed:
+                pendingCaretFormatting.formatting.fontSize !== undefined ? false : formatting.isFontSizeMixed,
+              isColorMixed: pendingCaretFormatting.formatting.color !== undefined ? false : formatting.isColorMixed,
+              isTextTransformMixed:
+                pendingCaretFormatting.formatting.textTransform !== undefined ? false : formatting.isTextTransformMixed,
+              fontWeightState:
+                pendingCaretFormatting.formatting.fontWeight !== undefined
+                  ? pendingCaretFormatting.formatting.fontWeight === 'bold'
+                    ? 'on'
+                    : 'off'
+                  : formatting.fontWeightState,
+              fontStyleState:
+                pendingCaretFormatting.formatting.fontStyle !== undefined
+                  ? pendingCaretFormatting.formatting.fontStyle === 'italic'
+                    ? 'on'
+                    : 'off'
+                  : formatting.fontStyleState,
+              underlineState:
+                pendingCaretFormatting.formatting.textDecoration !== undefined
+                  ? pendingCaretFormatting.formatting.textDecoration === 'underline'
+                    ? 'on'
+                    : 'off'
+                  : formatting.underlineState,
+              strikethroughState:
+                pendingCaretFormatting.formatting.textDecoration !== undefined
+                  ? pendingCaretFormatting.formatting.textDecoration === 'line-through'
+                    ? 'on'
+                    : 'off'
+                  : formatting.strikethroughState
+            }
+          : formatting
+
+      return { type: 'text', element: activeEditingTextElement, formatting: effectiveFormatting }
     }
 
     return toolbarContext
-  }, [activeEditingTextElement, activeTextSelection, toolbarContext])
+  }, [activeEditingTextElement, activeTextSelection, pendingCaretFormatting, toolbarContext])
 
   // Presentation mode transitions using shared hook
   const {
@@ -1051,6 +1110,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       if (!currentElement) return
 
       const oldValue = currentEditingContentRef.current
+      const editDelta = getTextEditDelta(oldValue, newValue)
       currentEditingContentRef.current = newValue
 
       if (currentElement.type === 'code') {
@@ -1066,9 +1126,18 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       if (currentElement.type === 'shape') {
         const shapeDraft =
           activeDraft?.kind === 'shape' ? activeDraft.element : (currentElement.shapeText ?? createDefaultShapeText())
-        const nextShapeText = replaceRichTextContent(shapeDraft, newValue)
+        const pendingFormatting =
+          pendingCaretFormattingRef.current?.id === id ? pendingCaretFormattingRef.current.formatting : null
+        const nextShapeText = applyCaretFormattingToInsertedText(
+          replaceRichTextContent(shapeDraft, newValue),
+          pendingFormatting,
+          editDelta
+        )
         storeActiveRichTextDraft({ id, kind: 'shape', element: nextShapeText })
         updateElement(id, { shapeText: nextShapeText } as Partial<ShapeElement>)
+        if (pendingFormatting && editDelta.insertedLength > 0) {
+          preservePendingCaretFormattingRef.current = true
+        }
         if (rehydrate) {
           bumpRichTextEditorRehydrateToken()
         }
@@ -1081,12 +1150,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
       let updatedLinks: TextLink[] | undefined
       if (textDraft.links && textDraft.links.length > 0) {
-        const editStart = findEditPosition(oldValue, newValue)
-        const deletedLength = Math.max(
-          0,
-          oldValue.length - newValue.length + (newValue.length - editStart) - (oldValue.length - editStart)
-        )
-        const insertedLength = Math.max(0, newValue.length - oldValue.length + deletedLength)
+        const editStart = editDelta.start
+        const deletedLength = editDelta.deletedLength
+        const insertedLength = editDelta.insertedLength
 
         const manualLinks = textDraft.links.filter(link => !link.isAutoDetected)
         const adjustedManualLinks = adjustLinksAfterEdit(manualLinks, editStart, deletedLength, insertedLength)
@@ -1094,13 +1160,23 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         updatedLinks = mergeLinks(autoLinks, adjustedManualLinks)
       }
 
+      const pendingFormatting =
+        pendingCaretFormattingRef.current?.id === id ? pendingCaretFormattingRef.current.formatting : null
+
       const nextTextDraft: TextElement = {
-        ...replaceRichTextContent(textDraft, newValue),
+        ...applyCaretFormattingToInsertedText(
+          replaceRichTextContent(textDraft, newValue),
+          pendingFormatting,
+          editDelta
+        ),
         ...(updatedLinks !== undefined && { links: updatedLinks })
       }
 
       storeActiveRichTextDraft({ id, kind: 'text', element: nextTextDraft })
       updateElement(id, nextTextDraft)
+      if (pendingFormatting && editDelta.insertedLength > 0) {
+        preservePendingCaretFormattingRef.current = true
+      }
 
       if (rehydrate) {
         bumpRichTextEditorRehydrateToken()
@@ -1202,6 +1278,23 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
       const selection =
         activeTextSelection && activeTextSelection.end > activeTextSelection.start ? activeTextSelection : null
+      const hasCollapsedSelection = !!activeTextSelection && activeTextSelection.start === activeTextSelection.end
+      const characterUpdates = getCharacterRichTextFormattingUpdate(updates as RichTextFormattingUpdate)
+      const hasCharacterUpdates = hasCharacterRichTextFormattingUpdate(characterUpdates as Partial<TextElement>)
+
+      if (hasCollapsedSelection && hasCharacterUpdates && updates.textAlign === undefined) {
+        const existingPending =
+          pendingCaretFormattingRef.current?.id === activeElement.id ? pendingCaretFormattingRef.current.formatting : {}
+        storePendingCaretFormatting({
+          id: activeElement.id,
+          formatting: {
+            ...existingPending,
+            ...characterUpdates
+          }
+        })
+        return
+      }
+
       if (activeElement.type === 'text') {
         const textDraft =
           activeRichTextDraftRef.current?.id === activeElement.id && activeRichTextDraftRef.current.kind === 'text'
@@ -1230,6 +1323,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       bumpRichTextEditorRehydrateToken,
       currentSlide.elements,
       editingTextId,
+      storePendingCaretFormatting,
       storeActiveRichTextDraft,
       updateElement,
       updateSelectedElements
@@ -2009,6 +2103,28 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   // Text editing
+  const handleActiveTextSelectionChange = useCallback(
+    (range: RichTextSelectionRange | null) => {
+      setActiveTextSelection(range)
+
+      const pendingFormatting = pendingCaretFormattingRef.current
+      if (!pendingFormatting || pendingFormatting.id !== editingTextIdRef.current) {
+        return
+      }
+
+      if (preservePendingCaretFormattingRef.current) {
+        preservePendingCaretFormattingRef.current = false
+        return
+      }
+
+      // PowerPoint-style stored formatting should follow continuous typing, but
+      // a manual caret move / new selection should restore the actual style at
+      // the new position instead of keeping the previous pending format.
+      storePendingCaretFormatting(null)
+    },
+    [storePendingCaretFormatting]
+  )
+
   const handleEditText = useCallback(
     (id: string) => {
       if (!canEdit) return
@@ -2019,6 +2135,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         element.type === 'code' ? element.code : nextDraft ? getActiveRichTextDraftContent(nextDraft) : ''
 
       storeActiveRichTextDraft(nextDraft)
+      storePendingCaretFormatting(null)
+      preservePendingCaretFormattingRef.current = false
       voiceBaseContentRef.current = initialContent
       currentEditingContentRef.current = initialContent
       lastProcessedTranscriptRef.current = ''
@@ -2026,7 +2144,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       setActiveTextSelection(null)
       setEditingTextId(id)
     },
-    [canEdit, currentSlide.elements, storeActiveRichTextDraft]
+    [canEdit, currentSlide.elements, storeActiveRichTextDraft, storePendingCaretFormatting]
   )
 
   const handleTextChange = useCallback(
@@ -2041,9 +2159,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const finishTextEditing = useCallback(() => {
     editingTextIdRef.current = null
     storeActiveRichTextDraft(null)
+    storePendingCaretFormatting(null)
+    preservePendingCaretFormattingRef.current = false
     setEditingTextId(null)
     setActiveTextSelection(null)
-  }, [storeActiveRichTextDraft])
+  }, [storeActiveRichTextDraft, storePendingCaretFormatting])
 
   // Rename presentation
   const handleRename = useCallback(async () => {
@@ -2995,7 +3115,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     editingTextId,
                     editorElement: activeEditingTextElement,
                     onTextChange: handleTextChange,
-                    onSelectionChange: setActiveTextSelection,
+                    onSelectionChange: handleActiveTextSelectionChange,
                     onFinishEditing: () => {
                       if (voiceInput.isListening) {
                         voiceInput.stopListening()
@@ -3088,6 +3208,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               </div>
               <PropertyPanel
                 element={selectedElement}
+                textFormatting={
+                  effectiveToolbarContext.type === 'text' ? (effectiveToolbarContext.formatting ?? null) : null
+                }
                 onUpdate={updates => selectedElementId && updateSelectedElements(selectedElementId, updates)}
                 onDelete={deleteElement}
                 onDuplicate={duplicateElement}

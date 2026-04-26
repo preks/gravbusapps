@@ -60,7 +60,6 @@ import type {
   TransitionTrigger
 } from './slideElements'
 import {
-  FONT_FAMILIES,
   FONT_SIZES,
   COLOR_PRESETS,
   PRESET_GRADIENTS,
@@ -69,12 +68,14 @@ import {
   CODE_FONT_SIZES,
   gradientToCss,
   DEFAULT_TRANSITION,
+  getFontFamilyOptions,
   getShapeGeometry
 } from './slideElements'
 import { GradientBuilder } from './GradientBuilder'
 import { TransitionPreview } from './TransitionPreview'
 import { sanitizeImageSourceUrl } from '@/common/utils/safeUrlUtils'
 import translations from '../_i18n'
+import type { ResolvedTextFormattingState, TextFormattingToggleState } from '../utils/richTextEditing'
 
 const TRANSITION_TYPES: { value: SlideTransitionType; label: string }[] = [
   { value: 'none', label: 'transition-none' },
@@ -97,15 +98,22 @@ const TRANSITION_TYPES: { value: SlideTransitionType; label: string }[] = [
 function PanelColorPicker({
   value,
   onChange,
-  label
+  label,
+  isMixed = false,
+  mixedLabel = 'Mixed'
 }: {
   value: string
   onChange: (color: string) => void
   label: string
+  isMixed?: boolean
+  mixedLabel?: string
 }) {
   return (
     <div className="gba:space-y-2">
-      <Label className="gba:text-xs">{label}</Label>
+      <Label className="gba:text-xs">
+        {label}
+        {isMixed ? ` (${mixedLabel})` : ''}
+      </Label>
       <div className="gba:flex gba:gap-2 gba:items-center">
         <input
           type="color"
@@ -113,7 +121,11 @@ function PanelColorPicker({
           onChange={e => onChange(e.target.value)}
           className="gba:w-8 gba:h-8 gba:rounded gba:border gba:cursor-pointer"
         />
-        <Input value={value} onChange={e => onChange(e.target.value)} className="gba:flex-1 gba:text-xs" />
+        <Input
+          value={isMixed ? mixedLabel : value}
+          onChange={e => onChange(e.target.value)}
+          className="gba:flex-1 gba:text-xs"
+        />
       </div>
       <div className="gba:flex gba:flex-wrap gba:gap-1">
         {COLOR_PRESETS.slice(0, 12).map(color => (
@@ -382,6 +394,7 @@ function ChartDataEditor({
 
 interface PropertyPanelProps {
   element: AnySlideElement | null
+  textFormatting?: ResolvedTextFormattingState | null
   onUpdate: (updates: Partial<AnySlideElement>) => void
   onDelete: () => void
   onDuplicate: () => void
@@ -409,6 +422,14 @@ interface PropertyPanelProps {
    * Same semantics as the right-click → Edit Points entry point.
    */
   onEditPoints?: (id: string) => void
+}
+
+function toggleVariantForState(state: TextFormattingToggleState): 'default' | 'outline' {
+  return state === 'off' ? 'outline' : 'default'
+}
+
+function toggleClassNameForState(state: TextFormattingToggleState): string | undefined {
+  return state === 'mixed' ? 'gba:opacity-60' : undefined
 }
 
 /** Tight signature for the translation fn; avoids pulling the full i18n types. */
@@ -842,6 +863,7 @@ const ShapeTextControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, 
 
 export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   element,
+  textFormatting,
   onUpdate,
   onDelete,
   onDuplicate,
@@ -1210,159 +1232,187 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {textElement && (
         <div className="gba:space-y-4">
           <Label className="gba:text-xs gba:font-semibold">{t('props-text-formatting')}</Label>
+          {(() => {
+            const mixedLabel = t('editor-mixed') || 'Mixed'
+            const fontFamilyValue = textFormatting?.isFontFamilyMixed
+              ? undefined
+              : (textFormatting?.fontFamily ?? textElement.fontFamily)
+            const fontSizeValue = textFormatting?.isFontSizeMixed
+              ? undefined
+              : String(textFormatting?.fontSize ?? textElement.fontSize)
+            const fontFamilyOptions = getFontFamilyOptions(fontFamilyValue)
+            const resolvedTextAlign = textFormatting?.isTextAlignMixed
+              ? undefined
+              : (textFormatting?.textAlign ?? textElement.textAlign)
+            const resolvedColor = textFormatting?.isColorMixed
+              ? '#111111'
+              : (textFormatting?.color ?? textElement.color)
+            const boldState = textFormatting?.fontWeightState ?? (textElement.fontWeight === 'bold' ? 'on' : 'off')
+            const italicState = textFormatting?.fontStyleState ?? (textElement.fontStyle === 'italic' ? 'on' : 'off')
+            const underlineState =
+              textFormatting?.underlineState ?? (textElement.textDecoration === 'underline' ? 'on' : 'off')
+            const strikethroughState =
+              textFormatting?.strikethroughState ?? (textElement.textDecoration === 'line-through' ? 'on' : 'off')
 
-          {/* Font Family */}
-          <div>
-            <Label className="gba:text-xs">{t('props-font-family')}</Label>
-            <Select value={textElement.fontFamily} onValueChange={value => onUpdate({ fontFamily: value })}>
-              <SelectTrigger className="gba:text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FONT_FAMILIES.map(font => (
-                  <SelectItem key={font.value} value={font.value} style={{ fontFamily: font.value }}>
-                    {font.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            return (
+              <>
+                {/* Font Family */}
+                <div>
+                  <Label className="gba:text-xs">{t('props-font-family')}</Label>
+                  <Select value={fontFamilyValue} onValueChange={value => onUpdate({ fontFamily: value })}>
+                    <SelectTrigger className="gba:text-xs">
+                      <SelectValue placeholder={textFormatting?.isFontFamilyMixed ? '' : undefined} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fontFamilyOptions.map(font => (
+                        <SelectItem key={font.value} value={font.value} style={{ fontFamily: font.value }}>
+                          {font.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-          {/* Font Size */}
-          <div>
-            <Label className="gba:text-xs">{t('props-font-size')}</Label>
-            <Select value={String(textElement.fontSize)} onValueChange={value => onUpdate({ fontSize: Number(value) })}>
-              <SelectTrigger className="gba:text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FONT_SIZES.map(size => (
-                  <SelectItem key={size} value={String(size)}>
-                    {size}px
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+                {/* Font Size */}
+                <div>
+                  <Label className="gba:text-xs">{t('props-font-size')}</Label>
+                  <Select value={fontSizeValue} onValueChange={value => onUpdate({ fontSize: Number(value) })}>
+                    <SelectTrigger className="gba:text-xs">
+                      <SelectValue placeholder={textFormatting?.isFontSizeMixed ? '' : undefined} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FONT_SIZES.map(size => (
+                        <SelectItem key={size} value={String(size)}>
+                          {size}px
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-          {/* Font Style Buttons */}
-          <div className="gba:flex gba:gap-1">
-            <Button
-              variant={textElement.fontWeight === 'bold' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onUpdate({ fontWeight: textElement.fontWeight === 'bold' ? 'normal' : 'bold' })}
-            >
-              <Bold className="gba:w-4 gba:h-4" />
-            </Button>
-            <Button
-              variant={textElement.fontStyle === 'italic' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onUpdate({ fontStyle: textElement.fontStyle === 'italic' ? 'normal' : 'italic' })}
-            >
-              <Italic className="gba:w-4 gba:h-4" />
-            </Button>
-            <Button
-              variant={textElement.textDecoration === 'underline' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() =>
-                onUpdate({ textDecoration: textElement.textDecoration === 'underline' ? 'none' : 'underline' })
-              }
-            >
-              <Underline className="gba:w-4 gba:h-4" />
-            </Button>
-            <Button
-              variant={textElement.textDecoration === 'line-through' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() =>
-                onUpdate({ textDecoration: textElement.textDecoration === 'line-through' ? 'none' : 'line-through' })
-              }
-            >
-              <Strikethrough className="gba:w-4 gba:h-4" />
-            </Button>
-          </div>
+                {/* Font Style Buttons */}
+                <div className="gba:flex gba:gap-1">
+                  <Button
+                    variant={toggleVariantForState(boldState)}
+                    className={toggleClassNameForState(boldState)}
+                    size="sm"
+                    onClick={() => onUpdate({ fontWeight: boldState === 'on' ? 'normal' : 'bold' })}
+                  >
+                    <Bold className="gba:w-4 gba:h-4" />
+                  </Button>
+                  <Button
+                    variant={toggleVariantForState(italicState)}
+                    className={toggleClassNameForState(italicState)}
+                    size="sm"
+                    onClick={() => onUpdate({ fontStyle: italicState === 'on' ? 'normal' : 'italic' })}
+                  >
+                    <Italic className="gba:w-4 gba:h-4" />
+                  </Button>
+                  <Button
+                    variant={toggleVariantForState(underlineState)}
+                    className={toggleClassNameForState(underlineState)}
+                    size="sm"
+                    onClick={() => onUpdate({ textDecoration: underlineState === 'on' ? 'none' : 'underline' })}
+                  >
+                    <Underline className="gba:w-4 gba:h-4" />
+                  </Button>
+                  <Button
+                    variant={toggleVariantForState(strikethroughState)}
+                    className={toggleClassNameForState(strikethroughState)}
+                    size="sm"
+                    onClick={() => onUpdate({ textDecoration: strikethroughState === 'on' ? 'none' : 'line-through' })}
+                  >
+                    <Strikethrough className="gba:w-4 gba:h-4" />
+                  </Button>
+                </div>
 
-          {/* Text Alignment */}
-          <div className="gba:flex gba:gap-1">
-            <Button
-              variant={textElement.textAlign === 'left' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onUpdate({ textAlign: 'left' })}
-            >
-              <AlignLeft className="gba:w-4 gba:h-4" />
-            </Button>
-            <Button
-              variant={textElement.textAlign === 'center' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onUpdate({ textAlign: 'center' })}
-            >
-              <AlignCenter className="gba:w-4 gba:h-4" />
-            </Button>
-            <Button
-              variant={textElement.textAlign === 'right' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onUpdate({ textAlign: 'right' })}
-            >
-              <AlignRight className="gba:w-4 gba:h-4" />
-            </Button>
-          </div>
+                {/* Text Alignment */}
+                <div className="gba:flex gba:gap-1">
+                  <Button
+                    variant={resolvedTextAlign === 'left' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => onUpdate({ textAlign: 'left' })}
+                  >
+                    <AlignLeft className="gba:w-4 gba:h-4" />
+                  </Button>
+                  <Button
+                    variant={resolvedTextAlign === 'center' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => onUpdate({ textAlign: 'center' })}
+                  >
+                    <AlignCenter className="gba:w-4 gba:h-4" />
+                  </Button>
+                  <Button
+                    variant={resolvedTextAlign === 'right' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => onUpdate({ textAlign: 'right' })}
+                  >
+                    <AlignRight className="gba:w-4 gba:h-4" />
+                  </Button>
+                </div>
 
-          {/* Text Color */}
-          <PanelColorPicker
-            value={textElement.color}
-            onChange={color => onUpdate({ color })}
-            label={t('props-text-color')}
-          />
+                {/* Text Color */}
+                <PanelColorPicker
+                  value={resolvedColor}
+                  onChange={color => onUpdate({ color })}
+                  label={t('props-text-color')}
+                  isMixed={!!textFormatting?.isColorMixed}
+                  mixedLabel={mixedLabel}
+                />
 
-          {/* Background Color */}
-          <PanelColorPicker
-            value={textElement.backgroundColor === 'transparent' ? '#ffffff' : textElement.backgroundColor}
-            onChange={color => onUpdate({ backgroundColor: color, gradient: undefined })}
-            label={t('props-background-color')}
-          />
+                {/* Background Color */}
+                <PanelColorPicker
+                  value={textElement.backgroundColor === 'transparent' ? '#ffffff' : textElement.backgroundColor}
+                  onChange={color => onUpdate({ backgroundColor: color, gradient: undefined })}
+                  label={t('props-background-color')}
+                />
 
-          {/* Gradient */}
-          <PanelGradientSection
-            gradient={textElement.gradient}
-            onChange={gradient => {
-              if (gradient) {
-                onUpdate({ gradient, backgroundColor: 'transparent' })
-              } else {
-                const restoredBg =
-                  textElement.backgroundColor === 'transparent' ? '#ffffff' : textElement.backgroundColor
-                onUpdate({ gradient, backgroundColor: restoredBg })
-              }
-            }}
-          />
+                {/* Gradient */}
+                <PanelGradientSection
+                  gradient={textElement.gradient}
+                  onChange={gradient => {
+                    if (gradient) {
+                      onUpdate({ gradient, backgroundColor: 'transparent' })
+                    } else {
+                      const restoredBg =
+                        textElement.backgroundColor === 'transparent' ? '#ffffff' : textElement.backgroundColor
+                      onUpdate({ gradient, backgroundColor: restoredBg })
+                    }
+                  }}
+                />
 
-          {/* Line Height */}
-          <div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">{t('props-line-height')}</Label>
-              <span className="gba:text-xs gba:text-muted-foreground">{textElement.lineHeight}</span>
-            </div>
-            <Slider
-              value={[textElement.lineHeight * 100]}
-              min={80}
-              max={200}
-              step={10}
-              onValueChange={([value]) => onUpdate({ lineHeight: value / 100 })}
-            />
-          </div>
+                {/* Line Height */}
+                <div>
+                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                    <Label className="gba:text-xs">{t('props-line-height')}</Label>
+                    <span className="gba:text-xs gba:text-muted-foreground">{textElement.lineHeight}</span>
+                  </div>
+                  <Slider
+                    value={[textElement.lineHeight * 100]}
+                    min={80}
+                    max={200}
+                    step={10}
+                    onValueChange={([value]) => onUpdate({ lineHeight: value / 100 })}
+                  />
+                </div>
 
-          {/* Letter Spacing */}
-          <div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">{t('props-letter-spacing')}</Label>
-              <span className="gba:text-xs gba:text-muted-foreground">{textElement.letterSpacing}px</span>
-            </div>
-            <Slider
-              value={[textElement.letterSpacing]}
-              min={-5}
-              max={20}
-              step={1}
-              onValueChange={([value]) => onUpdate({ letterSpacing: value })}
-            />
-          </div>
+                {/* Letter Spacing */}
+                <div>
+                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                    <Label className="gba:text-xs">{t('props-letter-spacing')}</Label>
+                    <span className="gba:text-xs gba:text-muted-foreground">{textElement.letterSpacing}px</span>
+                  </div>
+                  <Slider
+                    value={[textElement.letterSpacing]}
+                    min={-5}
+                    max={20}
+                    step={1}
+                    onValueChange={([value]) => onUpdate({ letterSpacing: value })}
+                  />
+                </div>
+              </>
+            )
+          })()}
         </div>
       )}
 
