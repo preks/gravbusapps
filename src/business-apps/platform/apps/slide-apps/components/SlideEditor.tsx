@@ -48,7 +48,7 @@ import { AutoSaveIndicator } from '../../shared/components/AutoSaveIndicator'
 import { SlideEditorHeaderActions } from './editor/SlideEditorHeaderActions'
 import { SLIDE_THEMES, getThemeById } from './slideThemes'
 import { SlideToolbarRibbon } from './toolbar'
-import { useToolbarContext } from '../hooks/useToolbarContext'
+import { useToolbarContext, type ToolbarContext } from '../hooks/useToolbarContext'
 import { useSlideCollaboration } from '../hooks/useSlideCollaboration'
 import { clearImageObjectUrlCache } from '../hooks/useImageObjectUrls'
 import { usePresentationCast, type CastSlideData } from '../hooks/usePresentationCast'
@@ -74,7 +74,8 @@ import {
   gradientToCss,
   COLOR_PRESETS,
   getSlideCanvasSize,
-  getShapeGeometry
+  getShapeGeometry,
+  textElementStubForShapeInText
 } from './slideElements'
 import { SlideLayoutPicker } from './SlideLayoutPicker'
 import { SlideMasterView } from './SlideMasterView'
@@ -114,6 +115,15 @@ import {
 } from './shapeOperations'
 
 import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
+import {
+  applyRichTextFormatting,
+  createDefaultShapeText,
+  getRichTextStyleAtRange,
+  isRichTextFormattingUpdate,
+  replaceRichTextContent,
+  type RichTextFormattingUpdate,
+  type RichTextSelectionRange
+} from '../utils/richTextEditing'
 
 /**
  * Local adapter over the shared slide-media sanitizer so existing call sites
@@ -377,6 +387,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [showPropertyPanel, setShowPropertyPanel] = useState(true)
   const [showSpellCheckPanel, setShowSpellCheckPanel] = useState(false)
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
+  const [activeTextSelection, setActiveTextSelection] = useState<RichTextSelectionRange | null>(null)
   // Edit Points mode: when set, SlideCanvas mounts the ShapePointEditor
   // overlay for this shape and the PropertyPanel's "Edit Points" button is
   // highlighted. Only one shape at a time may be in the mode.
@@ -730,6 +741,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     })
     if (editingTextId && !currentElementIds.has(editingTextId)) {
       setEditingTextId(null)
+      setActiveTextSelection(null)
     }
     if (editingPointsId && !currentElementIds.has(editingPointsId)) {
       setEditingPointsId(null)
@@ -737,11 +749,35 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   }, [currentSlide.elements, editingPointsId, editingTextId])
 
   // Toolbar context for contextual formatting tools
-  const { context: toolbarContext, isMultiSelect } = useToolbarContext({
+  const { context: toolbarContext } = useToolbarContext({
     selectedElement,
     selectedElements,
     selectedCount: selectedElementIds.size
   })
+
+  const activeEditingElement = useMemo(
+    () => currentSlide.elements.find(element => element.id === editingTextId),
+    [currentSlide.elements, editingTextId]
+  )
+
+  const effectiveToolbarContext = useMemo<ToolbarContext>(() => {
+    if (activeEditingElement?.type === 'text') {
+      const style = getRichTextStyleAtRange(activeEditingElement, activeTextSelection)
+      return { type: 'text', element: { ...activeEditingElement, ...style } }
+    }
+
+    if (activeEditingElement?.type === 'shape') {
+      const shapeText = activeEditingElement.shapeText ?? createDefaultShapeText()
+      const textElement = {
+        ...textElementStubForShapeInText(activeEditingElement, shapeText),
+        id: activeEditingElement.id
+      }
+      const style = getRichTextStyleAtRange(textElement, activeTextSelection)
+      return { type: 'text', element: { ...textElement, ...style } }
+    }
+
+    return toolbarContext
+  }, [activeEditingElement, activeTextSelection, toolbarContext])
 
   // Presentation mode transitions using shared hook
   const {
@@ -987,17 +1023,83 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     [canEdit, currentSlide.elements, updateSlide]
   )
 
+  const applyTextFormattingUpdates = useCallback(
+    (
+      element: AnySlideElement,
+      updates: Partial<AnySlideElement>,
+      selection?: RichTextSelectionRange | null
+    ): Partial<AnySlideElement> => {
+      if (element.type !== 'text' || !isRichTextFormattingUpdate(updates as Partial<TextElement>)) return updates
+
+      return applyRichTextFormatting(
+        element,
+        updates as RichTextFormattingUpdate,
+        selection && selection.end > selection.start ? selection : null
+      ) as Partial<AnySlideElement>
+    },
+    []
+  )
+
   // Applies updates to all selected elements (for toolbar and property panel multi-select)
   const updateSelectedElements = useCallback(
     (triggerId: string, updates: Partial<AnySlideElement>) => {
       if (!canEdit) return
       if (selectedElementIds.size > 1) {
-        updateMultipleElements([...selectedElementIds].map(id => ({ id, updates })))
+        updateMultipleElements(
+          [...selectedElementIds].map(id => {
+            const element = currentSlide.elements.find(el => el.id === id)
+            return { id, updates: element ? applyTextFormattingUpdates(element, updates) : updates }
+          })
+        )
       } else {
-        updateElement(triggerId, updates)
+        const element = currentSlide.elements.find(el => el.id === triggerId)
+        updateElement(triggerId, element ? applyTextFormattingUpdates(element, updates) : updates)
       }
     },
-    [canEdit, selectedElementIds, updateElement, updateMultipleElements]
+    [
+      applyTextFormattingUpdates,
+      canEdit,
+      currentSlide.elements,
+      selectedElementIds,
+      updateElement,
+      updateMultipleElements
+    ]
+  )
+
+  const handleToolbarUpdateElement = useCallback(
+    (id: string, updates: Partial<AnySlideElement>) => {
+      const activeElement = currentSlide.elements.find(element => element.id === editingTextId)
+      const isActiveTextUpdate =
+        !!activeElement &&
+        id === activeElement.id &&
+        (activeElement.type === 'text' || activeElement.type === 'shape') &&
+        isRichTextFormattingUpdate(updates as Partial<TextElement>)
+
+      if (!isActiveTextUpdate || !activeElement) {
+        updateSelectedElements(id, updates)
+        return
+      }
+
+      const selection =
+        activeTextSelection && activeTextSelection.end > activeTextSelection.start ? activeTextSelection : null
+      if (activeElement.type === 'text') {
+        updateElement(
+          activeElement.id,
+          applyRichTextFormatting(
+            activeElement,
+            updates as RichTextFormattingUpdate,
+            selection
+          ) as Partial<AnySlideElement>
+        )
+        return
+      }
+
+      const shapeText = activeElement.shapeText ?? createDefaultShapeText()
+      updateElement(activeElement.id, {
+        shapeText: applyRichTextFormatting(shapeText, updates as RichTextFormattingUpdate, selection)
+      } as Partial<ShapeElement>)
+    },
+    [activeTextSelection, currentSlide.elements, editingTextId, updateElement, updateSelectedElements]
   )
 
   const addElement = useCallback(
@@ -1776,6 +1878,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const handleEditText = useCallback(
     (id: string) => {
       if (!canEdit) return
+      setActiveTextSelection(null)
       setEditingTextId(id)
     },
     [canEdit]
@@ -1802,22 +1905,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       // single inline editing flow covers both text boxes and shape labels.
       if (currentElement?.type === 'shape') {
         const shape: ShapeElement = currentElement
-        const existing = shape.shapeText ?? {
-          content: '',
-          fontFamily: 'Inter',
-          fontSize: 16,
-          fontWeight: 'normal' as const,
-          fontStyle: 'normal' as const,
-          textDecoration: 'none' as const,
-          textAlign: 'center' as const,
-          verticalAlign: 'middle' as const,
-          color: '#1e293b',
-          lineHeight: 1.3,
-          letterSpacing: 0,
-          padding: 8
-        }
+        const existing = shape.shapeText ?? createDefaultShapeText()
         updateElement(editingTextId, {
-          shapeText: { ...existing, content: newValue, paragraphs: undefined }
+          shapeText: replaceRichTextContent(existing, newValue)
         } as Partial<ShapeElement>)
         return
       }
@@ -1839,14 +1929,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         updatedLinks = mergeLinks(autoLinks, adjustedManualLinks)
       }
 
-      // Plain-text edits invalidate the richer paragraph model imported from
-      // source files; clear it so the editor does not render stale styling on
-      // top of the new content.
-      updateElement(editingTextId, {
-        content: newValue,
-        paragraphs: undefined,
-        ...(updatedLinks !== undefined && { links: updatedLinks })
-      })
+      if (textElement) {
+        updateElement(editingTextId, {
+          ...replaceRichTextContent(textElement, newValue),
+          ...(updatedLinks !== undefined && { links: updatedLinks })
+        })
+      }
     },
     [editingTextId, updateElement, currentSlide]
   )
@@ -1854,6 +1942,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const finishTextEditing = useCallback(() => {
     editingTextIdRef.current = null
     setEditingTextId(null)
+    setActiveTextSelection(null)
   }, [])
 
   // Rename presentation
@@ -2494,7 +2583,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       {/* Ribbon Toolbar */}
       {!isReadOnly ? (
         <SlideToolbarRibbon
-          context={toolbarContext}
+          context={effectiveToolbarContext}
           canUndo={canUndo}
           canRedo={canRedo}
           hasClipboardContent={clipboard !== null}
@@ -2514,7 +2603,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           onCopy={copyElement}
           onPaste={pasteElement}
           onAddElement={addElement}
-          onUpdateElement={isMultiSelect ? updateSelectedElements : updateElement}
+          onUpdateElement={handleToolbarUpdateElement}
           onShowBackgroundDialog={() => setShowBackgroundDialog(true)}
           onShowImageDialog={() => setShowImageDialog(true)}
           onShowVideoDialog={() => setShowVideoDialog(true)}
@@ -2823,6 +2912,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   inlineEditing={{
                     editingTextId,
                     onTextChange: handleTextChange,
+                    onSelectionChange: setActiveTextSelection,
                     onFinishEditing: () => {
                       if (voiceInput.isListening) {
                         voiceInput.stopListening()

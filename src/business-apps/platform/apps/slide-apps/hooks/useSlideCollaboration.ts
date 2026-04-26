@@ -65,44 +65,170 @@ function slidesToYjs(slides: SlideData[], ySlides: Y.Array<Y.Map<any>>) {
   ySlides.delete(0, ySlides.length)
 
   slides.forEach(slide => {
-    const ySlide = new Y.Map()
-    ySlide.set('id', slide.id)
-    ySlide.set('notes', slide.notes || '')
+    ySlides.push([createYSlide(slide)])
+  })
+}
 
-    // Convert background
-    const yBackground = new Y.Map()
-    yBackground.set('type', slide.background.type)
-    if (slide.background.color) yBackground.set('color', slide.background.color)
-    if (slide.background.gradient) yBackground.set('gradient', slide.background.gradient)
-    if (slide.background.imageUrl) yBackground.set('imageUrl', slide.background.imageUrl)
-    if (slide.background.videoUrl) yBackground.set('videoUrl', slide.background.videoUrl)
-    if (slide.background.videoMuted !== undefined) yBackground.set('videoMuted', slide.background.videoMuted)
-    if (slide.background.videoLoop !== undefined) yBackground.set('videoLoop', slide.background.videoLoop)
-    ySlide.set('background', yBackground)
+function createYSlide(slide: SlideData): Y.Map<any> {
+  const ySlide = new Y.Map()
+  ySlide.set('id', slide.id)
+  ySlide.set('notes', slide.notes || '')
+  ySlide.set('background', createYBackground(slide.background))
+  ySlide.set('elements', createYElements(slide.elements))
 
-    // Convert elements
-    const yElements = new Y.Array()
-    slide.elements.forEach(element => {
-      const yElement = new Y.Map()
-      // Store entire element as JSON (simpler for complex nested structures)
-      Object.entries(element).forEach(([key, value]) => {
-        yElement.set(key, value)
-      })
-      yElements.push([yElement])
-    })
-    ySlide.set('elements', yElements)
+  if (slide.transition) {
+    ySlide.set('transition', createYTransition(slide.transition))
+  }
 
-    // Convert transition
-    if (slide.transition) {
-      const yTransition = new Y.Map()
-      yTransition.set('type', slide.transition.type)
-      yTransition.set('duration', slide.transition.duration)
-      yTransition.set('trigger', slide.transition.trigger)
-      yTransition.set('delay', slide.transition.delay)
-      ySlide.set('transition', yTransition)
+  return ySlide
+}
+
+function createYBackground(background: SlideData['background']): Y.Map<any> {
+  const yBackground = new Y.Map()
+  yBackground.set('type', background.type)
+  if (background.color) yBackground.set('color', background.color)
+  if (background.gradient) yBackground.set('gradient', background.gradient)
+  if (background.imageUrl) yBackground.set('imageUrl', background.imageUrl)
+  if (background.videoUrl) yBackground.set('videoUrl', background.videoUrl)
+  if (background.videoMuted !== undefined) yBackground.set('videoMuted', background.videoMuted)
+  if (background.videoLoop !== undefined) yBackground.set('videoLoop', background.videoLoop)
+  return yBackground
+}
+
+function createYElements(elements: AnySlideElement[]): Y.Array<Y.Map<any>> {
+  const yElements = new Y.Array<Y.Map<any>>()
+  elements.forEach(element => {
+    yElements.push([createYElement(element)])
+  })
+  return yElements
+}
+
+function createYElement(element: AnySlideElement): Y.Map<any> {
+  const yElement = new Y.Map()
+  Object.entries(element).forEach(([key, value]) => {
+    yElement.set(key, value)
+  })
+  return yElement
+}
+
+function createYTransition(transition: NonNullable<SlideData['transition']>): Y.Map<any> {
+  const yTransition = new Y.Map()
+  yTransition.set('type', transition.type)
+  yTransition.set('duration', transition.duration)
+  yTransition.set('trigger', transition.trigger)
+  yTransition.set('delay', transition.delay)
+  return yTransition
+}
+
+function jsonEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
+function setYMapJson(yMap: Y.Map<any>, nextValues: Record<string, unknown>) {
+  const nextKeys = new Set(Object.keys(nextValues))
+
+  yMap.forEach((_value, key) => {
+    if (!nextKeys.has(key)) {
+      yMap.delete(key)
     }
+  })
 
-    ySlides.push([ySlide])
+  Object.entries(nextValues).forEach(([key, value]) => {
+    if (value === undefined) {
+      yMap.delete(key)
+      return
+    }
+    if (!jsonEqual(yMap.get(key), value)) {
+      yMap.set(key, value)
+    }
+  })
+}
+
+function backgroundToJson(background: SlideData['background']): Record<string, unknown> {
+  return {
+    type: background.type,
+    color: background.color,
+    gradient: background.gradient,
+    imageUrl: background.imageUrl,
+    videoUrl: background.videoUrl,
+    videoMuted: background.videoMuted,
+    videoLoop: background.videoLoop
+  }
+}
+
+function transitionToJson(transition: NonNullable<SlideData['transition']>): Record<string, unknown> {
+  return {
+    type: transition.type,
+    duration: transition.duration,
+    trigger: transition.trigger,
+    delay: transition.delay
+  }
+}
+
+function hasSameSlideOrder(slides: SlideData[], ySlides: Y.Array<Y.Map<any>>): boolean {
+  if (slides.length !== ySlides.length) return false
+
+  for (let index = 0; index < slides.length; index++) {
+    if (ySlides.get(index).get('id') !== slides[index].id) {
+      return false
+    }
+  }
+
+  return true
+}
+
+function hasSameElementOrder(elements: AnySlideElement[], yElements: Y.Array<Y.Map<any>>): boolean {
+  if (elements.length !== yElements.length) return false
+
+  for (let index = 0; index < elements.length; index++) {
+    if (yElements.get(index).get('id') !== elements[index].id) {
+      return false
+    }
+  }
+
+  return true
+}
+
+function updateYSlideInPlace(ySlide: Y.Map<any>, slide: SlideData) {
+  if (ySlide.get('id') !== slide.id) ySlide.set('id', slide.id)
+  if (ySlide.get('notes') !== (slide.notes || '')) ySlide.set('notes', slide.notes || '')
+
+  const yBackground = ySlide.get('background')
+  if (yBackground instanceof Y.Map) {
+    setYMapJson(yBackground, backgroundToJson(slide.background))
+  } else {
+    ySlide.set('background', createYBackground(slide.background))
+  }
+
+  const yElements = ySlide.get('elements')
+  if (yElements instanceof Y.Array && hasSameElementOrder(slide.elements, yElements)) {
+    slide.elements.forEach((element, index) => {
+      setYMapJson(yElements.get(index), element as unknown as Record<string, unknown>)
+    })
+  } else {
+    ySlide.set('elements', createYElements(slide.elements))
+  }
+
+  const yTransition = ySlide.get('transition')
+  if (slide.transition) {
+    if (yTransition instanceof Y.Map) {
+      setYMapJson(yTransition, transitionToJson(slide.transition))
+    } else {
+      ySlide.set('transition', createYTransition(slide.transition))
+    }
+  } else if (yTransition !== undefined) {
+    ySlide.delete('transition')
+  }
+}
+
+function reconcileSlidesToYjs(slides: SlideData[], ySlides: Y.Array<Y.Map<any>>) {
+  if (!hasSameSlideOrder(slides, ySlides)) {
+    slidesToYjs(slides, ySlides)
+    return
+  }
+
+  slides.forEach((slide, index) => {
+    updateYSlideInPlace(ySlides.get(index), slide)
   })
 }
 
@@ -432,9 +558,11 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
   // Update functions
   const updateSlides = useCallback(
     (newSlides: SlideData[]) => {
-      slidesToYjs(newSlides, ySlides)
+      Y.transact(ydoc, () => {
+        reconcileSlidesToYjs(newSlides, ySlides)
+      })
     },
-    [ySlides]
+    [ydoc, ySlides]
   )
 
   const updateTheme = useCallback(
