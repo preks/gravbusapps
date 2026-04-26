@@ -2231,6 +2231,48 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     setActiveTextSelection(null)
   }, [storeActiveRichTextDraft, storePendingCaretFormatting])
 
+  const handleSelectElements = useCallback(
+    (ids: Set<string>) => {
+      setSelectedElementIds(ids)
+      if (!showPropertyPanel && ids.size > 0) {
+        setShowPropertyPanel(true)
+      }
+      if (collaborationEnabled && awareness) {
+        const primaryId = ids.size > 0 ? [...ids][0] : null
+        awareness.setLocalStateField(
+          'selection',
+          primaryId
+            ? {
+                slideIndex: currentSlideIndex,
+                elementId: primaryId
+              }
+            : null
+        )
+      }
+    },
+    [awareness, collaborationEnabled, currentSlideIndex, showPropertyPanel]
+  )
+
+  const handleWorkspaceMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement
+      const canvasElement = canvasContainerRef.current
+
+      if (canvasElement?.contains(target)) return
+      if (target.closest(`[data-testid="${testId}-floating-text-actions"]`)) return
+
+      if (editingTextId) {
+        if (voiceInput.isListening) {
+          voiceInput.stopListening()
+        }
+        finishTextEditing()
+      }
+
+      handleSelectElements(new Set())
+    },
+    [editingTextId, finishTextEditing, handleSelectElements, testId, voiceInput.isListening, voiceInput.stopListening]
+  )
+
   // Rename presentation
   const handleRename = useCallback(async () => {
     if (isReadOnly) return
@@ -3116,7 +3158,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           </div>
 
           {/* Canvas Area */}
-          <div className="gba:flex-1 gba:bg-muted/30 gba:overflow-auto gba:p-4 md:gba:p-8 gba:min-w-0">
+          <div
+            className="gba:flex-1 gba:bg-muted/30 gba:overflow-auto gba:p-4 md:gba:p-8 gba:min-w-0"
+            data-testid={`${testId}-canvas-workspace`}
+            onMouseDown={handleWorkspaceMouseDown}
+          >
             <div className="gba:inline-flex gba:justify-center gba:min-w-full">
               <div
                 ref={canvasContainerRef}
@@ -3152,24 +3198,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   elements={currentSlide.elements}
                   selectedIds={selectedElementIds}
                   background={currentSlide.background}
-                  onSelectElements={ids => {
-                    setSelectedElementIds(ids)
-                    if (!showPropertyPanel && ids.size > 0) {
-                      setShowPropertyPanel(true)
-                    }
-                    if (collaborationEnabled && awareness) {
-                      const primaryId = ids.size > 0 ? [...ids][0] : null
-                      awareness.setLocalStateField(
-                        'selection',
-                        primaryId
-                          ? {
-                              slideIndex: currentSlideIndex,
-                              elementId: primaryId
-                            }
-                          : null
-                      )
-                    }
-                  }}
+                  onSelectElements={handleSelectElements}
                   onUpdateElement={updateElement}
                   onUpdateMultipleElements={updateMultipleElements}
                   onEditText={handleEditText}
