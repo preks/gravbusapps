@@ -129,6 +129,11 @@ import {
   type RichTextFormattingUpdate,
   type RichTextSelectionRange
 } from '../utils/richTextEditing'
+import {
+  serializeEditingDraftValue,
+  serializeLiveEditingValue,
+  shouldRehydrateFromLiveUpdate
+} from '../utils/liveEditingSync'
 
 /**
  * Local adapter over the shared slide-media sanitizer so existing call sites
@@ -478,6 +483,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const pendingCaretFormattingRef = useRef<PendingCaretFormatting | null>(null)
   const preservePendingCaretFormattingRef = useRef(false)
   const applyEditingTextValueRef = useRef<((id: string, value: string, rehydrate?: boolean) => void) | null>(null)
+  const lastObservedEditingTargetSnapshotRef = useRef<string | null>(null)
 
   // Slide drag and drop state
   const [draggedSlideIndex, setDraggedSlideIndex] = useState<number | null>(null)
@@ -849,6 +855,57 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           : null),
     [activeRichTextDraft, activeEditingTarget, editingTextId]
   )
+
+  const activeEditingDraftSnapshot = useMemo(
+    () => serializeEditingDraftValue(activeRichTextDraft?.id === editingTextId ? activeRichTextDraft : null),
+    [activeRichTextDraft, editingTextId]
+  )
+  const activeEditingTargetSnapshot = useMemo(
+    () => serializeLiveEditingValue(activeEditingTarget),
+    [activeEditingTarget]
+  )
+
+  useEffect(() => {
+    if (!editingTextId || !activeEditingTargetSnapshot) {
+      lastObservedEditingTargetSnapshotRef.current = null
+      return
+    }
+
+    const previousTargetSnapshot = lastObservedEditingTargetSnapshotRef.current
+    if (previousTargetSnapshot === null) {
+      lastObservedEditingTargetSnapshotRef.current = activeEditingTargetSnapshot
+      return
+    }
+
+    if (previousTargetSnapshot === activeEditingTargetSnapshot) {
+      return
+    }
+
+    lastObservedEditingTargetSnapshotRef.current = activeEditingTargetSnapshot
+
+    if (
+      !shouldRehydrateFromLiveUpdate(previousTargetSnapshot, activeEditingTargetSnapshot, activeEditingDraftSnapshot)
+    ) {
+      return
+    }
+
+    const nextDraft = createActiveRichTextDraft(activeEditingTarget)
+    if (!nextDraft || nextDraft.id !== editingTextId) return
+
+    currentEditingContentRef.current = getActiveRichTextDraftContent(nextDraft)
+    storeActiveRichTextDraft(nextDraft)
+    storePendingCaretFormatting(null)
+    preservePendingCaretFormattingRef.current = false
+    bumpRichTextEditorRehydrateToken()
+  }, [
+    activeEditingDraftSnapshot,
+    activeEditingTarget,
+    activeEditingTargetSnapshot,
+    bumpRichTextEditorRehydrateToken,
+    editingTextId,
+    storeActiveRichTextDraft,
+    storePendingCaretFormatting
+  ])
 
   const effectiveToolbarContext = useMemo<ToolbarContext>(() => {
     if (activeEditingTextElement) {
@@ -2148,6 +2205,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       currentEditingContentRef.current = initialContent
       lastProcessedTranscriptRef.current = ''
       editingTextIdRef.current = id
+      lastObservedEditingTargetSnapshotRef.current = null
       setActiveTextSelection(null)
       setEditingTextId(id)
     },
@@ -2165,6 +2223,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const finishTextEditing = useCallback(() => {
     editingTextIdRef.current = null
+    lastObservedEditingTargetSnapshotRef.current = null
     storeActiveRichTextDraft(null)
     storePendingCaretFormatting(null)
     preservePendingCaretFormattingRef.current = false
