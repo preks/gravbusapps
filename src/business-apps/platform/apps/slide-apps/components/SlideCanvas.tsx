@@ -37,10 +37,12 @@ ensureImportedWebFonts()
 import { SlideChartRenderer } from './SlideChartRenderer'
 import { TextWithLinks } from './TextWithLinks'
 import { RichTextContent } from './RichTextContent'
+import { InlineRichTextEditor } from './InlineRichTextEditor'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import { ShapePointEditor } from './ShapePointEditor'
 import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
 import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
+import { createDefaultShapeText, type RichTextSelectionRange } from '../utils/richTextEditing'
 
 const hexToRgba = (hex: string, alpha: number): string => {
   const cleanHex = hex.replace('#', '')
@@ -70,6 +72,7 @@ const sanitizeMediaUrl = (url: string | undefined, allowedTypes: string[] = ['im
 interface InlineEditingProps {
   editingTextId: string | null
   onTextChange: (value: string) => void
+  onSelectionChange: (range: RichTextSelectionRange | null) => void
   onFinishEditing: () => void
   voiceInput?: {
     isListening: boolean
@@ -1096,47 +1099,15 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 >
                   {inlineEditing?.editingTextId === element.id ? (
                     <>
-                      <textarea
-                        ref={el => {
-                          if (el && textareaInitializedRef.current !== element.id) {
-                            textareaInitializedRef.current = element.id
-                            el.focus()
-                            el.selectionStart = el.selectionEnd = el.value.length
-                          }
+                      <InlineRichTextEditor
+                        element={textEl}
+                        onTextChange={inlineEditing.onTextChange}
+                        onSelectionChange={inlineEditing.onSelectionChange}
+                        onFinishEditing={() => {
+                          textareaInitializedRef.current = null
+                          inlineEditing.onFinishEditing()
                         }}
-                        value={textEl.content}
-                        onChange={e => inlineEditing.onTextChange(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Escape') {
-                            e.preventDefault()
-                            textareaInitializedRef.current = null
-                            inlineEditing.onFinishEditing()
-                          }
-                        }}
-                        onClick={e => e.stopPropagation()}
-                        onMouseDown={e => e.stopPropagation()}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          fontFamily: resolveFontStack(textEl.fontFamily),
-                          fontSize: textEl.fontSize,
-                          fontWeight: textEl.fontWeight,
-                          fontStyle: textEl.fontStyle,
-                          textDecoration: textEl.textDecoration,
-                          textAlign: textEl.textAlign,
-                          color: textEl.color,
-                          lineHeight: textEl.lineHeight,
-                          letterSpacing: textEl.letterSpacing,
-                          ...textTransformToCss(textEl.textTransform),
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          background: 'transparent',
-                          border: 'none',
-                          outline: 'none',
-                          resize: 'none',
-                          padding: 0,
-                          margin: 0
-                        }}
+                        data-testid={`slide-text-editor-${element.id}`}
                       />
                       {/* Inline editing toolbar */}
                       <div
@@ -1192,6 +1163,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                           }}
                           className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-md gba:border-0 gba:cursor-pointer gba:bg-primary gba:text-primary-foreground gba:transition-all"
                           title="Done editing"
+                          data-testid={`slide-text-editor-done-${element.id}`}
                         >
                           <Check className="gba:w-4 gba:h-4" />
                         </button>
@@ -1356,24 +1328,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 // When editing, force a default ShapeInText so the user has a
                 // real text container to type into even on shapes that did not
                 // previously have a label.
-                const st =
-                  se.shapeText ??
-                  (isEditingLabel
-                    ? {
-                        content: '',
-                        fontFamily: 'Inter',
-                        fontSize: 16,
-                        fontWeight: 'normal' as const,
-                        fontStyle: 'normal' as const,
-                        textDecoration: 'none' as const,
-                        textAlign: 'center' as const,
-                        verticalAlign: 'middle' as const,
-                        color: '#1e293b',
-                        lineHeight: 1.3,
-                        letterSpacing: 0,
-                        padding: 8
-                      }
-                    : null)
+                const st = se.shapeText ?? (isEditingLabel ? createDefaultShapeText() : null)
                 if (!st) return null
                 const te = textElementStubForShapeInText(se, st)
                 return (
@@ -1398,48 +1353,15 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                     }}
                   >
                     {isEditingLabel ? (
-                      <textarea
-                        ref={el => {
-                          if (el && textareaInitializedRef.current !== se.id) {
-                            textareaInitializedRef.current = se.id
-                            el.focus()
-                            el.selectionStart = el.selectionEnd = el.value.length
-                          }
+                      <InlineRichTextEditor
+                        element={te}
+                        onTextChange={value => inlineEditing?.onTextChange(value)}
+                        onSelectionChange={range => inlineEditing?.onSelectionChange(range)}
+                        onFinishEditing={() => {
+                          textareaInitializedRef.current = null
+                          inlineEditing?.onFinishEditing()
                         }}
-                        value={st.content}
-                        onChange={e => inlineEditing?.onTextChange(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Escape') {
-                            e.preventDefault()
-                            textareaInitializedRef.current = null
-                            inlineEditing?.onFinishEditing()
-                          }
-                        }}
-                        onClick={e => e.stopPropagation()}
-                        onMouseDown={e => e.stopPropagation()}
-                        placeholder=""
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          fontFamily: resolveFontStack(te.fontFamily),
-                          fontSize: te.fontSize,
-                          fontWeight: te.fontWeight,
-                          fontStyle: te.fontStyle,
-                          textDecoration: te.textDecoration,
-                          textAlign: te.textAlign,
-                          color: te.color,
-                          lineHeight: te.lineHeight,
-                          letterSpacing: te.letterSpacing,
-                          ...textTransformToCss(te.textTransform),
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          background: 'transparent',
-                          border: 'none',
-                          outline: 'none',
-                          resize: 'none',
-                          padding: 0,
-                          margin: 0
-                        }}
+                        data-testid={`slide-shape-text-editor-${se.id}`}
                       />
                     ) : st.paragraphs && st.paragraphs.length > 0 ? (
                       <RichTextContent element={te} paragraphs={st.paragraphs} />
