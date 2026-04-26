@@ -2,7 +2,13 @@ import React from 'react'
 import { render, screen, within } from '@testing-library/react'
 import { PropertyPanel } from '../PropertyPanel'
 import { TextFormattingTools } from '../toolbar/TextFormattingTools'
-import type { AnySlideElement, CodeElement, TextElement } from '../slideElements'
+import {
+  createShapeFromPreset,
+  type AnySlideElement,
+  type CodeElement,
+  type ShapeElement,
+  type TextElement
+} from '../slideElements'
 import {
   getCodeFontSizeOptions,
   getCodeLanguageOptions,
@@ -10,6 +16,7 @@ import {
   getFontSizeOptions
 } from '../slideElements'
 import type { ResolvedTextFormattingState } from '../../utils/richTextEditing'
+import { createDefaultShapeText } from '../../utils/richTextEditing'
 
 jest.mock('@newwork/nw-design-system', () => {
   const actualReact = jest.requireActual('react') as typeof import('react')
@@ -177,6 +184,19 @@ function makeCodeElement(overrides: Partial<CodeElement> = {}): CodeElement {
   }
 }
 
+function makeShapeElement(overrides: Partial<ShapeElement> = {}): ShapeElement {
+  return createShapeFromPreset('rect', {
+    id: 'shape-1',
+    position: { x: 0, y: 0 },
+    size: { width: 240, height: 140 },
+    shapeText: createDefaultShapeText({
+      content: 'Shape label',
+      padding: 16
+    }),
+    ...overrides
+  })
+}
+
 function renderToolbar(formatting?: ResolvedTextFormattingState) {
   render(
     <TextFormattingTools
@@ -188,7 +208,11 @@ function renderToolbar(formatting?: ResolvedTextFormattingState) {
   )
 }
 
-function renderPropertyPanel(element: AnySlideElement = makeTextElement(), formatting?: ResolvedTextFormattingState) {
+function renderPropertyPanel(
+  element: AnySlideElement = makeTextElement(),
+  formatting?: ResolvedTextFormattingState,
+  panelProps: Partial<React.ComponentProps<typeof PropertyPanel>> = {}
+) {
   render(
     <PropertyPanel
       element={element}
@@ -198,6 +222,7 @@ function renderPropertyPanel(element: AnySlideElement = makeTextElement(), forma
       onDuplicate={() => {}}
       onBringForward={() => {}}
       onSendBackward={() => {}}
+      {...panelProps}
     />
   )
 }
@@ -285,5 +310,37 @@ describe('font picker display', () => {
     expect(fontSizeSection).not.toBeNull()
     expect(within(fontSizeSection as HTMLElement).queryByText('Mixed')).not.toBeInTheDocument()
     expect(within(fontSizeSection as HTMLElement).queryByText('16px')).not.toBeInTheDocument()
+  })
+
+  it('disables destructive and transform actions for locked-only text selections', () => {
+    renderPropertyPanel(makeTextElement({ locked: true }), undefined, {
+      hasLockedSelection: true,
+      hasUnlockedSelection: false
+    })
+
+    expect(screen.getByTitle('props-duplicate')).toBeDisabled()
+    expect(screen.getByTitle('props-delete')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'props-forward' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'props-back' })).toBeDisabled()
+
+    screen.getAllByRole('spinbutton').forEach(input => {
+      expect(input).toBeDisabled()
+    })
+  })
+
+  it('disables shape point editing for locked-only shape selections', () => {
+    renderPropertyPanel(makeShapeElement({ locked: true }), undefined, {
+      hasLockedSelection: true,
+      hasUnlockedSelection: false,
+      onEditPoints: () => {}
+    })
+
+    expect(screen.getByTestId('property-panel-edit-points')).toBeDisabled()
+    screen.getAllByRole('button', { name: 'props-flip-horizontal' }).forEach(button => {
+      expect(button).toBeDisabled()
+    })
+    screen.getAllByRole('button', { name: 'props-flip-vertical' }).forEach(button => {
+      expect(button).toBeDisabled()
+    })
   })
 })

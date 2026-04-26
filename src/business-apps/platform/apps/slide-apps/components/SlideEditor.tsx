@@ -780,6 +780,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const selectedElementId = selectedElementIds.size > 0 ? [...selectedElementIds][0] : null
   const selectedElement = currentSlide.elements.find(e => e.id === selectedElementId) || null
   const selectedElements = currentSlide.elements.filter(e => selectedElementIds.has(e.id))
+  const unlockedSelectedElements = selectedElements.filter(element => !element.locked)
+  const hasUnlockedSelection = unlockedSelectedElements.length > 0
+  const hasLockedSelection = unlockedSelectedElements.length !== selectedElements.length
   const storeActiveRichTextDraft = useCallback((nextDraft: ActiveRichTextDraft | null) => {
     activeRichTextDraftRef.current = nextDraft
     setActiveRichTextDraft(nextDraft)
@@ -1241,10 +1244,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     (triggerId: string, updates: Partial<AnySlideElement>) => {
       if (!canEdit) return
       if (selectedElementIds.size > 1) {
+        if (unlockedSelectedElements.length === 0) return
         updateMultipleElements(
-          [...selectedElementIds].map(id => {
-            const element = currentSlide.elements.find(el => el.id === id)
-            return { id, updates: element ? applyTextFormattingUpdates(element, updates) : updates }
+          unlockedSelectedElements.map(element => {
+            const { id } = element
+            return { id, updates: applyTextFormattingUpdates(element, updates) }
           })
         )
       } else {
@@ -1257,6 +1261,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       canEdit,
       currentSlide.elements,
       selectedElementIds,
+      unlockedSelectedElements,
       updateElement,
       updateMultipleElements
     ]
@@ -1352,19 +1357,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const deleteElement = useCallback(() => {
-    if (selectedElementIds.size === 0) return
-    updateSlide({ elements: currentSlide.elements.filter(e => !selectedElementIds.has(e.id)) })
-    setSelectedElementIds(new Set())
+    if (unlockedSelectedElements.length === 0) return
+    const deletableIds = new Set(unlockedSelectedElements.map(element => element.id))
+    updateSlide({ elements: currentSlide.elements.filter(element => !deletableIds.has(element.id)) })
+    setSelectedElementIds(new Set([...selectedElementIds].filter(id => !deletableIds.has(id))))
     toast.success(t('editor-element-deleted'))
-  }, [selectedElementIds, currentSlide.elements, updateSlide, t])
+  }, [currentSlide.elements, selectedElementIds, unlockedSelectedElements, updateSlide, t])
 
   const duplicateElement = useCallback(() => {
-    if (selectedElements.length === 0) return
+    if (unlockedSelectedElements.length === 0) return
     const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex ?? 0))
     const newElements: AnySlideElement[] = []
     const newIds: string[] = []
 
-    selectedElements.forEach((el, idx) => {
+    unlockedSelectedElements.forEach((el, idx) => {
       const copy = {
         ...el,
         id: `${el.type}-${Date.now()}-${idx}`,
@@ -1378,10 +1384,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     updateSlide({ elements: [...currentSlide.elements, ...newElements] })
     setSelectedElementIds(new Set(newIds))
     toast.success(t('editor-element-duplicated'))
-  }, [selectedElements, currentSlide.elements, updateSlide, t])
+  }, [unlockedSelectedElements, currentSlide.elements, updateSlide, t])
 
   const bringForward = useCallback(() => {
-    if (!selectedElementId) return
+    if (!selectedElementId || selectedElement?.locked) return
     const elements = [...currentSlide.elements].sort((a, b) => a.zIndex - b.zIndex)
     const idx = elements.findIndex(e => e.id === selectedElementId)
     if (idx < elements.length - 1) {
@@ -1390,10 +1396,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       updateElement(selectedElementId, { zIndex: next.zIndex })
       updateElement(next.id, { zIndex: current.zIndex })
     }
-  }, [selectedElementId, currentSlide.elements, updateElement])
+  }, [selectedElement, selectedElementId, currentSlide.elements, updateElement])
 
   const sendBackward = useCallback(() => {
-    if (!selectedElementId) return
+    if (!selectedElementId || selectedElement?.locked) return
     const elements = [...currentSlide.elements].sort((a, b) => a.zIndex - b.zIndex)
     const idx = elements.findIndex(e => e.id === selectedElementId)
     if (idx > 0) {
@@ -1402,7 +1408,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       updateElement(selectedElementId, { zIndex: prev.zIndex })
       updateElement(prev.id, { zIndex: current.zIndex })
     }
-  }, [selectedElementId, currentSlide.elements, updateElement])
+  }, [selectedElement, selectedElementId, currentSlide.elements, updateElement])
 
   /**
    * Align the current multi-selection along the requested axis. Delegates to
@@ -1412,7 +1418,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const alignSelection = useCallback(
     (axis: AlignAxis) => {
       if (!canEdit) return
-      const items = selectedElements
+      const items = unlockedSelectedElements
       if (items.length === 0) return
       const { width, height } = getSlideCanvasSize(currentSlide)
       const canvasBounds: ElementBounds = {
@@ -1433,14 +1439,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       }))
       updateMultipleElements(updates)
     },
-    [canEdit, selectedElements, currentSlide, updateMultipleElements]
+    [canEdit, unlockedSelectedElements, currentSlide, updateMultipleElements]
   )
 
   /** Distribute three-or-more selected elements evenly along an axis. */
   const distributeSelection = useCallback(
     (axis: DistributeAxis) => {
       if (!canEdit) return
-      const items = selectedElements
+      const items = unlockedSelectedElements
       if (items.length < 3) return
       const positions = distributeElements(items, axis)
       if (positions.size === 0) return
@@ -1450,7 +1456,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       }))
       updateMultipleElements(updates)
     },
-    [canEdit, selectedElements, updateMultipleElements]
+    [canEdit, unlockedSelectedElements, updateMultipleElements]
   )
 
   /**
@@ -1461,7 +1467,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const flipSelection = useCallback(
     (axis: 'horizontal' | 'vertical') => {
       if (!canEdit) return
-      const items = selectedElements.filter(el => el.type === 'shape') as ShapeElement[]
+      const items = unlockedSelectedElements.filter(el => el.type === 'shape') as ShapeElement[]
       if (items.length === 0) return
       const updates = items.map(shape => {
         const flipped = flipShape(shape, axis)
@@ -1472,7 +1478,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       })
       updateMultipleElements(updates)
     },
-    [canEdit, selectedElements, updateMultipleElements]
+    [canEdit, unlockedSelectedElements, updateMultipleElements]
   )
 
   /**
@@ -1482,21 +1488,22 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
    */
   const groupSelection = useCallback(() => {
     if (!canEdit) return
-    if (selectedElements.length < 2) return
-    const group = groupElements(selectedElements)
+    if (unlockedSelectedElements.length < 2) return
+    const group = groupElements(unlockedSelectedElements)
     if (!group) return
-    const remaining = currentSlide.elements.filter(el => !selectedElementIds.has(el.id))
+    const groupedIds = new Set(unlockedSelectedElements.map(element => element.id))
+    const remaining = currentSlide.elements.filter(el => !groupedIds.has(el.id))
     const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex ?? 0))
     const groupElement = { ...group, zIndex: maxZIndex + 1 }
     updateSlide({ elements: [...remaining, groupElement] })
     setSelectedElementIds(new Set([groupElement.id]))
     toast.success(t('editor-elements-grouped'))
-  }, [canEdit, selectedElements, currentSlide.elements, selectedElementIds, updateSlide, t])
+  }, [canEdit, unlockedSelectedElements, currentSlide.elements, updateSlide, t])
 
   /** Explode the currently-selected group(s) back into individual children. */
   const ungroupSelection = useCallback(() => {
     if (!canEdit) return
-    const groups = selectedElements.filter(el => el.type === 'group') as GroupElement[]
+    const groups = unlockedSelectedElements.filter(el => el.type === 'group') as GroupElement[]
     if (groups.length === 0) return
     const groupIds = new Set(groups.map(g => g.id))
     const nonGroups = currentSlide.elements.filter(el => !groupIds.has(el.id))
@@ -1505,7 +1512,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     updateSlide({ elements: [...nonGroups, ...children] })
     setSelectedElementIds(newIds)
     toast.success(t('editor-elements-ungrouped'))
-  }, [canEdit, selectedElements, currentSlide.elements, updateSlide, t])
+  }, [canEdit, unlockedSelectedElements, currentSlide.elements, updateSlide, t])
 
   // Drag-and-drop image handlers for canvas
   const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
@@ -2129,7 +2136,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     (id: string) => {
       if (!canEdit) return
       const element = currentSlide.elements.find(currentElement => currentElement.id === id)
-      if (!element) return
+      if (!element || element.locked) return
       const nextDraft = createActiveRichTextDraft(element)
       const initialContent =
         element.type === 'code' ? element.code : nextDraft ? getActiveRichTextDraftContent(nextDraft) : ''
@@ -3170,6 +3177,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               {/* Floating Text Actions - outside canvas container to avoid overflow clipping */}
               {selectedElementIds.size === 1 &&
                 selectedElement?.type === 'text' &&
+                !selectedElement.locked &&
                 !editingTextId &&
                 !isReadOnly &&
                 !isPresentMode && (
@@ -3220,6 +3228,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 onSlideTransitionChange={canEdit ? updateCurrentSlideTransition : undefined}
                 selectionCount={selectedElementIds.size}
                 hasGroupInSelection={selectedElements.some(el => el.type === 'group')}
+                hasUnlockedSelection={hasUnlockedSelection}
+                hasLockedSelection={hasLockedSelection}
                 onAlign={canEdit ? alignSelection : undefined}
                 onDistribute={canEdit ? distributeSelection : undefined}
                 onFlip={canEdit ? flipSelection : undefined}

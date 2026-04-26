@@ -411,8 +411,6 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       // Call onElementClick for presenter view highlighting (works even on locked elements)
       onElementClick?.(element.id)
 
-      if (element.locked) return
-
       // In Edit Points mode the ShapePointEditor owns pointer events for the
       // active shape. Swallow canvas-level drag/select events so the user
       // can manipulate anchors without moving the whole shape by accident.
@@ -469,6 +467,11 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         setAnchorElementId(element.id)
       }
 
+      if (element.locked) {
+        mouseDownElementRef.current = null
+        return
+      }
+
       // Start dragging
       setIsDragging(true)
       onDragStart?.()
@@ -500,7 +503,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         effectiveSelection = isSelected ? selectedIds : new Set([element.id])
       }
 
-      effectiveSelection.forEach(id => {
+      const movableEffectiveSelectionIds = [...effectiveSelection].filter(id => {
+        const selectedElement = elements.find(candidate => candidate.id === id)
+        return !!selectedElement && !selectedElement.locked
+      })
+
+      movableEffectiveSelectionIds.forEach(id => {
         const el = elements.find(e => e.id === id)
         if (el) positions.set(id, { ...el.position })
       })
@@ -652,11 +660,19 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         const deltaX = currentX - dragStart.x
         const deltaY = currentY - dragStart.y
 
+        const movableSelectionIds = [...selectedIds].filter(id => {
+          const element = elements.find(candidate => candidate.id === id)
+          return !!element && !element.locked
+        })
+        const movableSelectionIdSet = new Set(movableSelectionIds)
+
         if (isDragging) {
+          if (movableSelectionIds.length === 0) return
+
           // Multi-element drag
-          if (selectedIds.size > 1 && multiDragStart.size > 0) {
+          if (movableSelectionIds.length > 1 && multiDragStart.size > 0) {
             // Calculate bounding box of all selected elements for snapping
-            const selectedElements = elements.filter(el => selectedIds.has(el.id))
+            const selectedElements = elements.filter(el => movableSelectionIdSet.has(el.id))
             const minX = Math.min(...selectedElements.map(el => el.position.x))
             const minY = Math.min(...selectedElements.map(el => el.position.y))
             const maxX = Math.max(...selectedElements.map(el => el.position.x + el.size.width))
@@ -672,7 +688,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             const { snappedPosition, guides } = calculateSnap(
               { x: newBoundsX, y: newBoundsY },
               { width: boundsWidth, height: boundsHeight },
-              selectedIds
+              movableSelectionIdSet
             )
 
             // Calculate the snap offset
@@ -695,7 +711,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             setSnapGuides(guides)
           } else {
             // Single element drag with snapping
-            const selectedId = [...selectedIds][0]
+            const selectedId = movableSelectionIds[0]
             const selectedElement = elements.find(el => el.id === selectedId)
             if (selectedId && selectedElement) {
               const newPosition = {
@@ -703,7 +719,11 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 y: elementStart.position.y + deltaY
               }
 
-              const { snappedPosition, guides } = calculateSnap(newPosition, selectedElement.size, selectedIds)
+              const { snappedPosition, guides } = calculateSnap(
+                newPosition,
+                selectedElement.size,
+                movableSelectionIdSet
+              )
 
               onUpdateElement(selectedId, { position: snappedPosition })
               setSnapGuides(guides)
@@ -1059,15 +1079,15 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               e.preventDefault()
               e.stopPropagation()
               if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
-              onShapeContextMenu(element.id)
+              if (!element.locked) onShapeContextMenu(element.id)
             }
           }}
           onMouseDown={e => handleElementMouseDown(e, element)}
           onKeyDown={e => {
-            if (element.locked) return
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault()
               if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
+              if (element.locked) return
               if (e.key === 'Enter' && (element.type === 'text' || element.type === 'shape')) {
                 if (inlineEditing?.editingTextId !== element.id) {
                   onEditText(element.id)

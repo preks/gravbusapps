@@ -5,6 +5,8 @@ import { createShapeFromPreset } from '../slideElements'
 import type { ShapeElement, TextElement } from '../slideElements'
 import { createDefaultShapeText } from '../../utils/richTextEditing'
 
+void React
+
 function makeTextElement(overrides: Partial<TextElement> = {}): TextElement {
   return {
     id: 'text-1',
@@ -133,5 +135,85 @@ describe('SlideCanvas inline editing drag behavior', () => {
     expect(onDragStart).not.toHaveBeenCalled()
     expect(onUpdateElement).not.toHaveBeenCalled()
     expect(onDragEnd).not.toHaveBeenCalled()
+  })
+
+  it('selects a locked element without starting drag or inline editing', () => {
+    const onSelectElements = jest.fn()
+    const onUpdateElement = jest.fn()
+    const onUpdateMultipleElements = jest.fn()
+    const onEditText = jest.fn()
+    const onDragStart = jest.fn()
+
+    render(
+      <SlideCanvas
+        elements={[makeTextElement({ locked: true })]}
+        selectedIds={new Set()}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={onSelectElements}
+        onUpdateElement={onUpdateElement}
+        onUpdateMultipleElements={onUpdateMultipleElements}
+        onEditText={onEditText}
+        onDragStart={onDragStart}
+      />
+    )
+
+    const lockedElement = document.querySelector('[data-element-id="text-1"]')
+
+    expect(lockedElement).not.toBeNull()
+
+    fireEvent.mouseDown(lockedElement as HTMLElement, { clientX: 150, clientY: 150 })
+    fireEvent.doubleClick(lockedElement as HTMLElement, { clientX: 150, clientY: 150 })
+    fireEvent.mouseMove(window, { clientX: 190, clientY: 190 })
+    fireEvent.mouseUp(window, { clientX: 190, clientY: 190 })
+
+    expect(onSelectElements).toHaveBeenCalledWith(new Set(['text-1']))
+    expect(onDragStart).not.toHaveBeenCalled()
+    expect(onUpdateElement).not.toHaveBeenCalled()
+    expect(onUpdateMultipleElements).not.toHaveBeenCalled()
+    expect(onEditText).not.toHaveBeenCalled()
+  })
+
+  it('keeps locked elements stationary during mixed-selection drag', () => {
+    const onUpdateElement = jest.fn()
+    const onUpdateMultipleElements = jest.fn()
+    const onDragStart = jest.fn()
+    const onDragEnd = jest.fn()
+
+    render(
+      <SlideCanvas
+        elements={[
+          makeTextElement({ locked: true }),
+          makeTextElement({
+            id: 'text-2',
+            locked: false,
+            position: { x: 320, y: 100 }
+          })
+        ]}
+        selectedIds={new Set(['text-1', 'text-2'])}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={onUpdateElement}
+        onUpdateMultipleElements={onUpdateMultipleElements}
+        onEditText={() => {}}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+      />
+    )
+
+    const unlockedElement = document.querySelector('[data-element-id="text-2"]')
+
+    expect(unlockedElement).not.toBeNull()
+
+    dragFrom(unlockedElement as HTMLElement, { x: 340, y: 120 }, { x: 380, y: 150 })
+
+    expect(onDragStart).toHaveBeenCalledTimes(1)
+    expect(onDragEnd).toHaveBeenCalledTimes(1)
+    expect(onUpdateMultipleElements).not.toHaveBeenCalled()
+    expect(onUpdateElement).toHaveBeenCalled()
+    expect(onUpdateElement).not.toHaveBeenCalledWith('text-1', expect.anything())
+    expect(onUpdateElement).toHaveBeenLastCalledWith(
+      'text-2',
+      expect.objectContaining({ position: expect.any(Object) })
+    )
   })
 })

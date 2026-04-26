@@ -416,6 +416,8 @@ interface PropertyPanelProps {
   onFlip?: (axis: 'horizontal' | 'vertical') => void
   onGroup?: () => void
   onUngroup?: () => void
+  hasUnlockedSelection?: boolean
+  hasLockedSelection?: boolean
   /**
    * Enter "Edit Points" mode for the currently selected shape. Only wired
    * when a single shape is selected; SlideEditor owns the active editing id.
@@ -439,6 +441,7 @@ interface ShapeSubsectionProps {
   element: ShapeElement
   onUpdate: (updates: Partial<AnySlideElement>) => void
   t: Translator
+  disabled?: boolean
 }
 
 /**
@@ -446,7 +449,7 @@ interface ShapeSubsectionProps {
  * shared {@link ShapeGeometryMetadata} so editor-native and imported shapes
  * behave identically and the flip survives round-trip to PPTX export.
  */
-const FlipControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t }) => {
+const FlipControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t, disabled = false }) => {
   const geometry = getShapeGeometry(element)
   const flipH = geometry?.flipH ?? false
   const flipV = geometry?.flipV ?? false
@@ -468,6 +471,7 @@ const FlipControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t }) 
         size="sm"
         onClick={() => applyFlip('h')}
         title={t('props-flip-horizontal')}
+        disabled={disabled}
       >
         <FlipHorizontal className="gba:w-3 gba:h-3" />
       </Button>
@@ -476,6 +480,7 @@ const FlipControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t }) 
         size="sm"
         onClick={() => applyFlip('v')}
         title={t('props-flip-vertical')}
+        disabled={disabled}
       >
         <FlipVertical className="gba:w-3 gba:h-3" />
       </Button>
@@ -879,12 +884,15 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onFlip,
   onGroup,
   onUngroup,
+  hasUnlockedSelection = true,
+  hasLockedSelection = false,
   onEditPoints
 }) => {
   const { t } = useTranslation(translations)
   const replaceImageInputRef = useRef<HTMLInputElement>(null)
 
   const currentTransition = slideTransition || DEFAULT_TRANSITION
+  const hasOnlyLockedSelection = hasLockedSelection && !hasUnlockedSelection
 
   const handleTransitionChange = (updates: Partial<SlideTransition>) => {
     if (onSlideTransitionChange) {
@@ -1031,7 +1039,13 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           >
             {element.locked ? <Lock className="gba:w-4 gba:h-4" /> : <Unlock className="gba:w-4 gba:h-4" />}
           </Button>
-          <Button variant="ghost" size="sm" onClick={onDuplicate} title={t('props-duplicate')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDuplicate}
+            title={t('props-duplicate')}
+            disabled={hasOnlyLockedSelection}
+          >
             <Copy className="gba:w-4 gba:h-4" />
           </Button>
           <Button
@@ -1040,6 +1054,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             onClick={onDelete}
             title={t('props-delete')}
             className="gba:text-destructive"
+            disabled={hasOnlyLockedSelection}
           >
             <Trash2 className="gba:w-4 gba:h-4" />
           </Button>
@@ -1059,6 +1074,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               value={Math.round(element.position.x)}
               onChange={e => onUpdate({ position: { ...element.position, x: Number(e.target.value) } })}
               className="gba:text-xs"
+              disabled={element.locked}
             />
           </div>
           <div>
@@ -1068,6 +1084,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               value={Math.round(element.position.y)}
               onChange={e => onUpdate({ position: { ...element.position, y: Number(e.target.value) } })}
               className="gba:text-xs"
+              disabled={element.locked}
             />
           </div>
           <div>
@@ -1077,6 +1094,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               value={Math.round(element.size.width)}
               onChange={e => onUpdate({ size: { ...element.size, width: Number(e.target.value) } })}
               className="gba:text-xs"
+              disabled={element.locked}
             />
           </div>
           <div>
@@ -1086,6 +1104,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               value={Math.round(element.size.height)}
               onChange={e => onUpdate({ size: { ...element.size, height: Number(e.target.value) } })}
               className="gba:text-xs"
+              disabled={element.locked}
             />
           </div>
         </div>
@@ -1100,9 +1119,16 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             value={element.rotation}
             onChange={e => onUpdate({ rotation: Number(e.target.value) })}
             className="gba:w-16 gba:text-xs"
+            disabled={element.locked}
           />
           <span className="gba:text-xs">°</span>
-          <Button variant="ghost" size="sm" onClick={() => onUpdate({ rotation: 0 })} title={t('props-reset-rotation')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onUpdate({ rotation: 0 })}
+            title={t('props-reset-rotation')}
+            disabled={element.locked}
+          >
             <RotateCcw className="gba:w-3 gba:h-3" />
           </Button>
         </div>
@@ -1124,11 +1150,11 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {/* Layer Order */}
       <div className="gba:flex gba:items-center gba:gap-2">
         <Label className="gba:text-xs gba:flex-1">{t('props-layer')}</Label>
-        <Button variant="outline" size="sm" onClick={onBringForward}>
+        <Button variant="outline" size="sm" onClick={onBringForward} disabled={element.locked}>
           <MoveUp className="gba:w-3 gba:h-3 gba:mr-1" />
           {t('props-forward')}
         </Button>
-        <Button variant="outline" size="sm" onClick={onSendBackward}>
+        <Button variant="outline" size="sm" onClick={onSendBackward} disabled={element.locked}>
           <MoveDown className="gba:w-3 gba:h-3 gba:mr-1" />
           {t('props-back')}
         </Button>
@@ -1146,7 +1172,13 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             <Label className="gba:text-xs gba:font-semibold">{t('props-arrange')}</Label>
             {onAlign && (
               <div className="gba:grid gba:grid-cols-6 gba:gap-1">
-                <Button variant="outline" size="sm" onClick={() => onAlign('left')} title={t('props-align-left')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onAlign('left')}
+                  title={t('props-align-left')}
+                  disabled={hasOnlyLockedSelection}
+                >
                   ⇤
                 </Button>
                 <Button
@@ -1154,13 +1186,26 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('center-h')}
                   title={t('props-align-center-horizontal')}
+                  disabled={hasOnlyLockedSelection}
                 >
                   ⇔
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => onAlign('right')} title={t('props-align-right')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onAlign('right')}
+                  title={t('props-align-right')}
+                  disabled={hasOnlyLockedSelection}
+                >
                   ⇥
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => onAlign('top')} title={t('props-align-top')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onAlign('top')}
+                  title={t('props-align-top')}
+                  disabled={hasOnlyLockedSelection}
+                >
                   ⤒
                 </Button>
                 <Button
@@ -1168,10 +1213,17 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('center-v')}
                   title={t('props-align-center-vertical')}
+                  disabled={hasOnlyLockedSelection}
                 >
                   ⇕
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => onAlign('bottom')} title={t('props-align-bottom')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onAlign('bottom')}
+                  title={t('props-align-bottom')}
+                  disabled={hasOnlyLockedSelection}
+                >
                   ⤓
                 </Button>
               </div>
@@ -1182,7 +1234,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => onDistribute('horizontal')}
-                  disabled={selectionCount < 3}
+                  disabled={selectionCount < 3 || hasOnlyLockedSelection}
                 >
                   {t('props-distribute-horizontal')}
                 </Button>
@@ -1190,7 +1242,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => onDistribute('vertical')}
-                  disabled={selectionCount < 3}
+                  disabled={selectionCount < 3 || hasOnlyLockedSelection}
                 >
                   {t('props-distribute-vertical')}
                 </Button>
@@ -1198,11 +1250,21 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             )}
             {onFlip && element?.type === 'shape' && (
               <div className="gba:grid gba:grid-cols-2 gba:gap-1">
-                <Button variant="outline" size="sm" onClick={() => onFlip('horizontal')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onFlip('horizontal')}
+                  disabled={hasOnlyLockedSelection}
+                >
                   <FlipHorizontal className="gba:w-3 gba:h-3 gba:mr-1" />
                   {t('props-flip-horizontal')}
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => onFlip('vertical')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onFlip('vertical')}
+                  disabled={hasOnlyLockedSelection}
+                >
                   <FlipVertical className="gba:w-3 gba:h-3 gba:mr-1" />
                   {t('props-flip-vertical')}
                 </Button>
@@ -1211,12 +1273,22 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             {(onGroup || onUngroup) && (
               <div className="gba:grid gba:grid-cols-2 gba:gap-1">
                 {onGroup && (
-                  <Button variant="outline" size="sm" onClick={onGroup} disabled={selectionCount < 2}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onGroup}
+                    disabled={selectionCount < 2 || hasOnlyLockedSelection}
+                  >
                     {t('props-group')}
                   </Button>
                 )}
                 {onUngroup && (
-                  <Button variant="outline" size="sm" onClick={onUngroup} disabled={!hasGroupInSelection}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onUngroup}
+                    disabled={!hasGroupInSelection || hasOnlyLockedSelection}
+                  >
                     {t('props-ungroup')}
                   </Button>
                 )}
@@ -1554,7 +1626,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           )}
 
           {/* Flip controls */}
-          <FlipControls element={shapeElement} onUpdate={onUpdate} t={t} />
+          <FlipControls element={shapeElement} onUpdate={onUpdate} t={t} disabled={shapeElement.locked} />
 
           {/* Geometry / Edit Points — converts the preset to an editable
               custGeom path so the user can drag individual anchors. */}
@@ -1567,6 +1639,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 onClick={() => onEditPoints(shapeElement.id)}
                 title={t('props-edit-points-tooltip')}
                 data-testid="property-panel-edit-points"
+                disabled={shapeElement.locked}
               >
                 {t('props-edit-points')}
               </Button>
