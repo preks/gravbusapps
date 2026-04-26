@@ -416,6 +416,18 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       // can manipulate anchors without moving the whole shape by accident.
       if (editingPointsId && editingPointsId === element.id) return
 
+      const editorTarget = (e.target as HTMLElement).closest<HTMLElement>('[contenteditable="true"]')
+      const isActiveInlineEditorTarget =
+        inlineEditing?.editingTextId === element.id &&
+        (element.type === 'text' || element.type === 'shape') &&
+        !!editorTarget &&
+        e.currentTarget.contains(editorTarget)
+
+      // Keep native caret/selection behavior inside the active inline editor.
+      // Dragging still starts from the element chrome because those hits land
+      // on the wrapper instead of the contentEditable surface.
+      if (isActiveInlineEditorTarget) return
+
       const isSelected = selectedIds.has(element.id)
       const isCtrlKey = e.ctrlKey || e.metaKey
       const isShiftKey = e.shiftKey

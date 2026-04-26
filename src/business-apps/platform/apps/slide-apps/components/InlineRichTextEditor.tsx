@@ -182,7 +182,6 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
         event.stopPropagation()
         emitSelection()
       }}
-      onMouseDown={event => event.stopPropagation()}
       style={{
         width: '100%',
         height: '100%',
