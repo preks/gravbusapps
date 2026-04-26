@@ -64,6 +64,7 @@ import {
   type TextElement,
   type TextLink,
   type ShapeElement,
+  type ShapeInText,
   type GroupElement,
   type ConnectorElement,
   type ShapeGeometryMetadata,
@@ -100,7 +101,7 @@ import { useSlideSpellCheck } from '../hooks/useSlideSpellCheck'
 import { useSlideTransition } from '../hooks/useSlideTransition'
 import type { SlideAnnotation } from '../types/slideSpellCheck'
 import { exportToPptx } from '../utils/exportUtils'
-import { adjustLinksAfterEdit, detectUrls, mergeLinks, findEditPosition, createLink } from '../utils/linkUtils'
+import { adjustLinksAfterEdit, detectUrls, mergeLinks, createLink } from '../utils/linkUtils'
 import translations from '../_i18n'
 import {
   alignElements,
@@ -116,14 +117,23 @@ import {
 
 import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
 import {
+  applyCaretFormattingToInsertedText,
   applyRichTextFormatting,
   createDefaultShapeText,
+  getCharacterRichTextFormattingUpdate,
+  getTextEditDelta,
   getRichTextStyleAtRange,
+  hasCharacterRichTextFormattingUpdate,
   isRichTextFormattingUpdate,
   replaceRichTextContent,
   type RichTextFormattingUpdate,
   type RichTextSelectionRange
 } from '../utils/richTextEditing'
+import {
+  serializeEditingDraftValue,
+  serializeLiveEditingValue,
+  shouldRehydrateFromLiveUpdate
+} from '../utils/liveEditingSync'
 
 /**
  * Local adapter over the shared slide-media sanitizer so existing call sites
@@ -140,6 +150,46 @@ function sanitizeMediaUrl(url: string | undefined, allowedDataTypes: string[] = 
     if (sanitized) return sanitized
   }
   return ''
+}
+
+type ActiveRichTextDraft =
+  | { id: string; kind: 'text'; element: TextElement }
+  | { id: string; kind: 'shape'; element: ShapeInText }
+
+type PendingCaretFormatting = {
+  id: string
+  formatting: RichTextFormattingUpdate
+}
+
+function createActiveRichTextDraft(element: AnySlideElement): ActiveRichTextDraft | null {
+  if (element.type === 'text') {
+    return { id: element.id, kind: 'text', element }
+  }
+  if (element.type === 'shape') {
+    return {
+      id: element.id,
+      kind: 'shape',
+      element: element.shapeText ?? createDefaultShapeText()
+    }
+  }
+  return null
+}
+
+function getActiveRichTextDraftContent(draft: ActiveRichTextDraft | null): string {
+  return draft?.element.content ?? ''
+}
+
+function toEditingTextElement(
+  draft: ActiveRichTextDraft | null,
+  sourceElement: AnySlideElement | undefined
+): TextElement | null {
+  if (!draft) return null
+  if (draft.kind === 'text') return draft.element
+  if (!sourceElement || sourceElement.type !== 'shape') return null
+  return {
+    ...textElementStubForShapeInText(sourceElement, draft.element),
+    id: sourceElement.id
+  }
 }
 
 export interface SlideEditorProps extends BusinessAppContextProps {
@@ -388,6 +438,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [showSpellCheckPanel, setShowSpellCheckPanel] = useState(false)
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [activeTextSelection, setActiveTextSelection] = useState<RichTextSelectionRange | null>(null)
+  const [activeRichTextDraft, setActiveRichTextDraft] = useState<ActiveRichTextDraft | null>(null)
+  const [pendingCaretFormatting, setPendingCaretFormatting] = useState<PendingCaretFormatting | null>(null)
+  const [richTextEditorRehydrateToken, setRichTextEditorRehydrateToken] = useState(0)
   // Edit Points mode: when set, SlideCanvas mounts the ShapePointEditor
   // overlay for this shape and the PropertyPanel's "Edit Points" button is
   // highlighted. Only one shape at a time may be in the mode.
@@ -426,7 +479,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const editingTextIdRef = useRef<string | null>(null)
   const lastProcessedTranscriptRef = useRef<string>('')
   const currentEditingContentRef = useRef<string>('')
-  const updateElementRef = useRef<((id: string, updates: Partial<AnySlideElement>) => void) | null>(null)
+  const activeRichTextDraftRef = useRef<ActiveRichTextDraft | null>(null)
+  const pendingCaretFormattingRef = useRef<PendingCaretFormatting | null>(null)
+  const preservePendingCaretFormattingRef = useRef(false)
+  const applyEditingTextValueRef = useRef<((id: string, value: string, rehydrate?: boolean) => void) | null>(null)
+  const lastObservedEditingTargetSnapshotRef = useRef<string | null>(null)
 
   // Slide drag and drop state
   const [draggedSlideIndex, setDraggedSlideIndex] = useState<number | null>(null)
@@ -729,6 +786,22 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const selectedElementId = selectedElementIds.size > 0 ? [...selectedElementIds][0] : null
   const selectedElement = currentSlide.elements.find(e => e.id === selectedElementId) || null
   const selectedElements = currentSlide.elements.filter(e => selectedElementIds.has(e.id))
+  const unlockedSelectedElements = selectedElements.filter(element => !element.locked)
+  const hasUnlockedSelection = unlockedSelectedElements.length > 0
+  const hasLockedSelection = unlockedSelectedElements.length !== selectedElements.length
+  const storeActiveRichTextDraft = useCallback((nextDraft: ActiveRichTextDraft | null) => {
+    activeRichTextDraftRef.current = nextDraft
+    setActiveRichTextDraft(nextDraft)
+  }, [])
+
+  const storePendingCaretFormatting = useCallback((nextFormatting: PendingCaretFormatting | null) => {
+    pendingCaretFormattingRef.current = nextFormatting
+    setPendingCaretFormatting(nextFormatting)
+  }, [])
+
+  const bumpRichTextEditorRehydrateToken = useCallback(() => {
+    setRichTextEditorRehydrateToken(previous => previous + 1)
+  }, [])
 
   useEffect(() => {
     const currentElementIds = new Set(currentSlide.elements.map(e => e.id))
@@ -740,13 +813,16 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       return next
     })
     if (editingTextId && !currentElementIds.has(editingTextId)) {
+      editingTextIdRef.current = null
+      storeActiveRichTextDraft(null)
+      storePendingCaretFormatting(null)
       setEditingTextId(null)
       setActiveTextSelection(null)
     }
     if (editingPointsId && !currentElementIds.has(editingPointsId)) {
       setEditingPointsId(null)
     }
-  }, [currentSlide.elements, editingPointsId, editingTextId])
+  }, [currentSlide.elements, editingPointsId, editingTextId, storeActiveRichTextDraft, storePendingCaretFormatting])
 
   // Toolbar context for contextual formatting tools
   const { context: toolbarContext } = useToolbarContext({
@@ -755,29 +831,131 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     selectedCount: selectedElementIds.size
   })
 
-  const activeEditingElement = useMemo(
+  const activeEditingTarget = useMemo(
     () => currentSlide.elements.find(element => element.id === editingTextId),
     [currentSlide.elements, editingTextId]
   )
 
-  const effectiveToolbarContext = useMemo<ToolbarContext>(() => {
-    if (activeEditingElement?.type === 'text') {
-      const style = getRichTextStyleAtRange(activeEditingElement, activeTextSelection)
-      return { type: 'text', element: { ...activeEditingElement, ...style } }
+  const activeEditingTextElement = useMemo(
+    () =>
+      toEditingTextElement(
+        activeRichTextDraft?.id === editingTextId ? activeRichTextDraft : null,
+        activeEditingTarget
+      ) ??
+      (activeEditingTarget?.type === 'text'
+        ? activeEditingTarget
+        : activeEditingTarget?.type === 'shape'
+          ? {
+              ...textElementStubForShapeInText(
+                activeEditingTarget,
+                activeEditingTarget.shapeText ?? createDefaultShapeText()
+              ),
+              id: activeEditingTarget.id
+            }
+          : null),
+    [activeRichTextDraft, activeEditingTarget, editingTextId]
+  )
+
+  const activeEditingDraftSnapshot = useMemo(
+    () => serializeEditingDraftValue(activeRichTextDraft?.id === editingTextId ? activeRichTextDraft : null),
+    [activeRichTextDraft, editingTextId]
+  )
+  const activeEditingTargetSnapshot = useMemo(
+    () => serializeLiveEditingValue(activeEditingTarget),
+    [activeEditingTarget]
+  )
+
+  useEffect(() => {
+    if (!editingTextId || !activeEditingTargetSnapshot) {
+      lastObservedEditingTargetSnapshotRef.current = null
+      return
     }
 
-    if (activeEditingElement?.type === 'shape') {
-      const shapeText = activeEditingElement.shapeText ?? createDefaultShapeText()
-      const textElement = {
-        ...textElementStubForShapeInText(activeEditingElement, shapeText),
-        id: activeEditingElement.id
-      }
-      const style = getRichTextStyleAtRange(textElement, activeTextSelection)
-      return { type: 'text', element: { ...textElement, ...style } }
+    const previousTargetSnapshot = lastObservedEditingTargetSnapshotRef.current
+    if (previousTargetSnapshot === null) {
+      lastObservedEditingTargetSnapshotRef.current = activeEditingTargetSnapshot
+      return
+    }
+
+    if (previousTargetSnapshot === activeEditingTargetSnapshot) {
+      return
+    }
+
+    lastObservedEditingTargetSnapshotRef.current = activeEditingTargetSnapshot
+
+    if (
+      !shouldRehydrateFromLiveUpdate(previousTargetSnapshot, activeEditingTargetSnapshot, activeEditingDraftSnapshot)
+    ) {
+      return
+    }
+
+    const nextDraft = createActiveRichTextDraft(activeEditingTarget)
+    if (!nextDraft || nextDraft.id !== editingTextId) return
+
+    currentEditingContentRef.current = getActiveRichTextDraftContent(nextDraft)
+    storeActiveRichTextDraft(nextDraft)
+    storePendingCaretFormatting(null)
+    preservePendingCaretFormattingRef.current = false
+    bumpRichTextEditorRehydrateToken()
+  }, [
+    activeEditingDraftSnapshot,
+    activeEditingTarget,
+    activeEditingTargetSnapshot,
+    bumpRichTextEditorRehydrateToken,
+    editingTextId,
+    storeActiveRichTextDraft,
+    storePendingCaretFormatting
+  ])
+
+  const effectiveToolbarContext = useMemo<ToolbarContext>(() => {
+    if (activeEditingTextElement) {
+      const formatting = getRichTextStyleAtRange(activeEditingTextElement, activeTextSelection)
+      const hasCollapsedSelection = !!activeTextSelection && activeTextSelection.start === activeTextSelection.end
+
+      const effectiveFormatting =
+        hasCollapsedSelection && pendingCaretFormatting?.id === activeEditingTextElement.id
+          ? {
+              ...formatting,
+              ...pendingCaretFormatting.formatting,
+              isFontFamilyMixed:
+                pendingCaretFormatting.formatting.fontFamily !== undefined ? false : formatting.isFontFamilyMixed,
+              isFontSizeMixed:
+                pendingCaretFormatting.formatting.fontSize !== undefined ? false : formatting.isFontSizeMixed,
+              isColorMixed: pendingCaretFormatting.formatting.color !== undefined ? false : formatting.isColorMixed,
+              isTextTransformMixed:
+                pendingCaretFormatting.formatting.textTransform !== undefined ? false : formatting.isTextTransformMixed,
+              fontWeightState:
+                pendingCaretFormatting.formatting.fontWeight !== undefined
+                  ? pendingCaretFormatting.formatting.fontWeight === 'bold'
+                    ? 'on'
+                    : 'off'
+                  : formatting.fontWeightState,
+              fontStyleState:
+                pendingCaretFormatting.formatting.fontStyle !== undefined
+                  ? pendingCaretFormatting.formatting.fontStyle === 'italic'
+                    ? 'on'
+                    : 'off'
+                  : formatting.fontStyleState,
+              underlineState:
+                pendingCaretFormatting.formatting.textDecoration !== undefined
+                  ? pendingCaretFormatting.formatting.textDecoration === 'underline'
+                    ? 'on'
+                    : 'off'
+                  : formatting.underlineState,
+              strikethroughState:
+                pendingCaretFormatting.formatting.textDecoration !== undefined
+                  ? pendingCaretFormatting.formatting.textDecoration === 'line-through'
+                    ? 'on'
+                    : 'off'
+                  : formatting.strikethroughState
+            }
+          : formatting
+
+      return { type: 'text', element: activeEditingTextElement, formatting: effectiveFormatting }
     }
 
     return toolbarContext
-  }, [activeEditingElement, activeTextSelection, toolbarContext])
+  }, [activeEditingTextElement, activeTextSelection, pendingCaretFormatting, toolbarContext])
 
   // Presentation mode transitions using shared hook
   const {
@@ -875,8 +1053,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       if (finalTranscript) {
         const baseContent = voiceBaseContentRef.current
         const newContent = baseContent ? `${baseContent} ${finalTranscript}` : finalTranscript
-        updateElementRef.current?.(currentEditingId, { content: newContent })
-        currentEditingContentRef.current = newContent
+        applyEditingTextValueRef.current?.(currentEditingId, newContent, true)
       }
       return
     }
@@ -897,8 +1074,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       const baseContent = voiceBaseContentRef.current
       const newContent = baseContent ? `${baseContent} ${combinedTranscript}` : combinedTranscript
 
-      updateElementRef.current?.(currentEditingId, { content: newContent })
-      // Don't update currentEditingContentRef here - keep it as the base for consistency
+      applyEditingTextValueRef.current?.(currentEditingId, newContent, true)
     }
   }, [voiceInput.transcript, voiceInput.interimTranscript, voiceInput.isListening])
 
@@ -988,10 +1164,90 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     [canEdit, currentSlideIndex, updateCollaborativeElement, currentSlide.elements]
   )
 
-  // Keep ref up-to-date so voice input callback always has the latest updateElement
+  const applyEditingTextValue = useCallback(
+    (id: string, newValue: string, rehydrate = false) => {
+      const currentElement = currentSlide.elements.find(element => element.id === id)
+      if (!currentElement) return
+
+      const oldValue = currentEditingContentRef.current
+      const editDelta = getTextEditDelta(oldValue, newValue)
+      currentEditingContentRef.current = newValue
+
+      if (currentElement.type === 'code') {
+        updateElement(id, { code: newValue })
+        return
+      }
+
+      const activeDraft =
+        activeRichTextDraftRef.current?.id === id
+          ? activeRichTextDraftRef.current
+          : createActiveRichTextDraft(currentElement)
+
+      if (currentElement.type === 'shape') {
+        const shapeDraft =
+          activeDraft?.kind === 'shape' ? activeDraft.element : (currentElement.shapeText ?? createDefaultShapeText())
+        const pendingFormatting =
+          pendingCaretFormattingRef.current?.id === id ? pendingCaretFormattingRef.current.formatting : null
+        const nextShapeText = applyCaretFormattingToInsertedText(
+          replaceRichTextContent(shapeDraft, newValue),
+          pendingFormatting,
+          editDelta
+        )
+        storeActiveRichTextDraft({ id, kind: 'shape', element: nextShapeText })
+        updateElement(id, { shapeText: nextShapeText } as Partial<ShapeElement>)
+        if (pendingFormatting && editDelta.insertedLength > 0) {
+          preservePendingCaretFormattingRef.current = true
+        }
+        if (rehydrate) {
+          bumpRichTextEditorRehydrateToken()
+        }
+        return
+      }
+
+      if (currentElement.type !== 'text') return
+
+      const textDraft = activeDraft?.kind === 'text' ? activeDraft.element : currentElement
+
+      let updatedLinks: TextLink[] | undefined
+      if (textDraft.links && textDraft.links.length > 0) {
+        const editStart = editDelta.start
+        const deletedLength = editDelta.deletedLength
+        const insertedLength = editDelta.insertedLength
+
+        const manualLinks = textDraft.links.filter(link => !link.isAutoDetected)
+        const adjustedManualLinks = adjustLinksAfterEdit(manualLinks, editStart, deletedLength, insertedLength)
+        const autoLinks = detectUrls(newValue)
+        updatedLinks = mergeLinks(autoLinks, adjustedManualLinks)
+      }
+
+      const pendingFormatting =
+        pendingCaretFormattingRef.current?.id === id ? pendingCaretFormattingRef.current.formatting : null
+
+      const nextTextDraft: TextElement = {
+        ...applyCaretFormattingToInsertedText(
+          replaceRichTextContent(textDraft, newValue),
+          pendingFormatting,
+          editDelta
+        ),
+        ...(updatedLinks !== undefined && { links: updatedLinks })
+      }
+
+      storeActiveRichTextDraft({ id, kind: 'text', element: nextTextDraft })
+      updateElement(id, nextTextDraft)
+      if (pendingFormatting && editDelta.insertedLength > 0) {
+        preservePendingCaretFormattingRef.current = true
+      }
+
+      if (rehydrate) {
+        bumpRichTextEditorRehydrateToken()
+      }
+    },
+    [bumpRichTextEditorRehydrateToken, currentSlide.elements, storeActiveRichTextDraft, updateElement]
+  )
+
   useEffect(() => {
-    updateElementRef.current = updateElement
-  }, [updateElement])
+    applyEditingTextValueRef.current = applyEditingTextValue
+  }, [applyEditingTextValue])
 
   const updateMultipleElements = useCallback(
     (updates: { id: string; updates: Partial<AnySlideElement> }[]) => {
@@ -1045,10 +1301,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     (triggerId: string, updates: Partial<AnySlideElement>) => {
       if (!canEdit) return
       if (selectedElementIds.size > 1) {
+        if (unlockedSelectedElements.length === 0) return
         updateMultipleElements(
-          [...selectedElementIds].map(id => {
-            const element = currentSlide.elements.find(el => el.id === id)
-            return { id, updates: element ? applyTextFormattingUpdates(element, updates) : updates }
+          unlockedSelectedElements.map(element => {
+            const { id } = element
+            return { id, updates: applyTextFormattingUpdates(element, updates) }
           })
         )
       } else {
@@ -1061,6 +1318,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       canEdit,
       currentSlide.elements,
       selectedElementIds,
+      unlockedSelectedElements,
       updateElement,
       updateMultipleElements
     ]
@@ -1082,24 +1340,56 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
       const selection =
         activeTextSelection && activeTextSelection.end > activeTextSelection.start ? activeTextSelection : null
-      if (activeElement.type === 'text') {
-        updateElement(
-          activeElement.id,
-          applyRichTextFormatting(
-            activeElement,
-            updates as RichTextFormattingUpdate,
-            selection
-          ) as Partial<AnySlideElement>
-        )
+      const hasCollapsedSelection = !!activeTextSelection && activeTextSelection.start === activeTextSelection.end
+      const characterUpdates = getCharacterRichTextFormattingUpdate(updates as RichTextFormattingUpdate)
+      const hasCharacterUpdates = hasCharacterRichTextFormattingUpdate(characterUpdates as Partial<TextElement>)
+
+      if (hasCollapsedSelection && hasCharacterUpdates && updates.textAlign === undefined) {
+        const existingPending =
+          pendingCaretFormattingRef.current?.id === activeElement.id ? pendingCaretFormattingRef.current.formatting : {}
+        storePendingCaretFormatting({
+          id: activeElement.id,
+          formatting: {
+            ...existingPending,
+            ...characterUpdates
+          }
+        })
         return
       }
 
-      const shapeText = activeElement.shapeText ?? createDefaultShapeText()
+      if (activeElement.type === 'text') {
+        const textDraft =
+          activeRichTextDraftRef.current?.id === activeElement.id && activeRichTextDraftRef.current.kind === 'text'
+            ? activeRichTextDraftRef.current.element
+            : activeElement
+        const nextTextDraft = applyRichTextFormatting(textDraft, updates as RichTextFormattingUpdate, selection)
+        storeActiveRichTextDraft({ id: activeElement.id, kind: 'text', element: nextTextDraft })
+        updateElement(activeElement.id, nextTextDraft as Partial<AnySlideElement>)
+        bumpRichTextEditorRehydrateToken()
+        return
+      }
+
+      const shapeText =
+        activeRichTextDraftRef.current?.id === activeElement.id && activeRichTextDraftRef.current.kind === 'shape'
+          ? activeRichTextDraftRef.current.element
+          : (activeElement.shapeText ?? createDefaultShapeText())
+      const nextShapeText = applyRichTextFormatting(shapeText, updates as RichTextFormattingUpdate, selection)
+      storeActiveRichTextDraft({ id: activeElement.id, kind: 'shape', element: nextShapeText })
       updateElement(activeElement.id, {
-        shapeText: applyRichTextFormatting(shapeText, updates as RichTextFormattingUpdate, selection)
+        shapeText: nextShapeText
       } as Partial<ShapeElement>)
+      bumpRichTextEditorRehydrateToken()
     },
-    [activeTextSelection, currentSlide.elements, editingTextId, updateElement, updateSelectedElements]
+    [
+      activeTextSelection,
+      bumpRichTextEditorRehydrateToken,
+      currentSlide.elements,
+      editingTextId,
+      storePendingCaretFormatting,
+      storeActiveRichTextDraft,
+      updateElement,
+      updateSelectedElements
+    ]
   )
 
   const addElement = useCallback(
@@ -1124,19 +1414,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const deleteElement = useCallback(() => {
-    if (selectedElementIds.size === 0) return
-    updateSlide({ elements: currentSlide.elements.filter(e => !selectedElementIds.has(e.id)) })
-    setSelectedElementIds(new Set())
+    if (unlockedSelectedElements.length === 0) return
+    const deletableIds = new Set(unlockedSelectedElements.map(element => element.id))
+    updateSlide({ elements: currentSlide.elements.filter(element => !deletableIds.has(element.id)) })
+    setSelectedElementIds(new Set([...selectedElementIds].filter(id => !deletableIds.has(id))))
     toast.success(t('editor-element-deleted'))
-  }, [selectedElementIds, currentSlide.elements, updateSlide, t])
+  }, [currentSlide.elements, selectedElementIds, unlockedSelectedElements, updateSlide, t])
 
   const duplicateElement = useCallback(() => {
-    if (selectedElements.length === 0) return
+    if (unlockedSelectedElements.length === 0) return
     const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex ?? 0))
     const newElements: AnySlideElement[] = []
     const newIds: string[] = []
 
-    selectedElements.forEach((el, idx) => {
+    unlockedSelectedElements.forEach((el, idx) => {
       const copy = {
         ...el,
         id: `${el.type}-${Date.now()}-${idx}`,
@@ -1150,10 +1441,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     updateSlide({ elements: [...currentSlide.elements, ...newElements] })
     setSelectedElementIds(new Set(newIds))
     toast.success(t('editor-element-duplicated'))
-  }, [selectedElements, currentSlide.elements, updateSlide, t])
+  }, [unlockedSelectedElements, currentSlide.elements, updateSlide, t])
 
   const bringForward = useCallback(() => {
-    if (!selectedElementId) return
+    if (!selectedElementId || selectedElement?.locked) return
     const elements = [...currentSlide.elements].sort((a, b) => a.zIndex - b.zIndex)
     const idx = elements.findIndex(e => e.id === selectedElementId)
     if (idx < elements.length - 1) {
@@ -1162,10 +1453,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       updateElement(selectedElementId, { zIndex: next.zIndex })
       updateElement(next.id, { zIndex: current.zIndex })
     }
-  }, [selectedElementId, currentSlide.elements, updateElement])
+  }, [selectedElement, selectedElementId, currentSlide.elements, updateElement])
 
   const sendBackward = useCallback(() => {
-    if (!selectedElementId) return
+    if (!selectedElementId || selectedElement?.locked) return
     const elements = [...currentSlide.elements].sort((a, b) => a.zIndex - b.zIndex)
     const idx = elements.findIndex(e => e.id === selectedElementId)
     if (idx > 0) {
@@ -1174,7 +1465,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       updateElement(selectedElementId, { zIndex: prev.zIndex })
       updateElement(prev.id, { zIndex: current.zIndex })
     }
-  }, [selectedElementId, currentSlide.elements, updateElement])
+  }, [selectedElement, selectedElementId, currentSlide.elements, updateElement])
 
   /**
    * Align the current multi-selection along the requested axis. Delegates to
@@ -1184,7 +1475,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const alignSelection = useCallback(
     (axis: AlignAxis) => {
       if (!canEdit) return
-      const items = selectedElements
+      const items = unlockedSelectedElements
       if (items.length === 0) return
       const { width, height } = getSlideCanvasSize(currentSlide)
       const canvasBounds: ElementBounds = {
@@ -1205,14 +1496,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       }))
       updateMultipleElements(updates)
     },
-    [canEdit, selectedElements, currentSlide, updateMultipleElements]
+    [canEdit, unlockedSelectedElements, currentSlide, updateMultipleElements]
   )
 
   /** Distribute three-or-more selected elements evenly along an axis. */
   const distributeSelection = useCallback(
     (axis: DistributeAxis) => {
       if (!canEdit) return
-      const items = selectedElements
+      const items = unlockedSelectedElements
       if (items.length < 3) return
       const positions = distributeElements(items, axis)
       if (positions.size === 0) return
@@ -1222,7 +1513,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       }))
       updateMultipleElements(updates)
     },
-    [canEdit, selectedElements, updateMultipleElements]
+    [canEdit, unlockedSelectedElements, updateMultipleElements]
   )
 
   /**
@@ -1233,7 +1524,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const flipSelection = useCallback(
     (axis: 'horizontal' | 'vertical') => {
       if (!canEdit) return
-      const items = selectedElements.filter(el => el.type === 'shape') as ShapeElement[]
+      const items = unlockedSelectedElements.filter(el => el.type === 'shape') as ShapeElement[]
       if (items.length === 0) return
       const updates = items.map(shape => {
         const flipped = flipShape(shape, axis)
@@ -1244,7 +1535,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       })
       updateMultipleElements(updates)
     },
-    [canEdit, selectedElements, updateMultipleElements]
+    [canEdit, unlockedSelectedElements, updateMultipleElements]
   )
 
   /**
@@ -1254,21 +1545,22 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
    */
   const groupSelection = useCallback(() => {
     if (!canEdit) return
-    if (selectedElements.length < 2) return
-    const group = groupElements(selectedElements)
+    if (unlockedSelectedElements.length < 2) return
+    const group = groupElements(unlockedSelectedElements)
     if (!group) return
-    const remaining = currentSlide.elements.filter(el => !selectedElementIds.has(el.id))
+    const groupedIds = new Set(unlockedSelectedElements.map(element => element.id))
+    const remaining = currentSlide.elements.filter(el => !groupedIds.has(el.id))
     const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex ?? 0))
     const groupElement = { ...group, zIndex: maxZIndex + 1 }
     updateSlide({ elements: [...remaining, groupElement] })
     setSelectedElementIds(new Set([groupElement.id]))
     toast.success(t('editor-elements-grouped'))
-  }, [canEdit, selectedElements, currentSlide.elements, selectedElementIds, updateSlide, t])
+  }, [canEdit, unlockedSelectedElements, currentSlide.elements, updateSlide, t])
 
   /** Explode the currently-selected group(s) back into individual children. */
   const ungroupSelection = useCallback(() => {
     if (!canEdit) return
-    const groups = selectedElements.filter(el => el.type === 'group') as GroupElement[]
+    const groups = unlockedSelectedElements.filter(el => el.type === 'group') as GroupElement[]
     if (groups.length === 0) return
     const groupIds = new Set(groups.map(g => g.id))
     const nonGroups = currentSlide.elements.filter(el => !groupIds.has(el.id))
@@ -1277,7 +1569,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     updateSlide({ elements: [...nonGroups, ...children] })
     setSelectedElementIds(newIds)
     toast.success(t('editor-elements-ungrouped'))
-  }, [canEdit, selectedElements, currentSlide.elements, updateSlide, t])
+  }, [canEdit, unlockedSelectedElements, currentSlide.elements, updateSlide, t])
 
   // Drag-and-drop image handlers for canvas
   const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
@@ -1875,75 +2167,111 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   // Text editing
+  const handleActiveTextSelectionChange = useCallback(
+    (range: RichTextSelectionRange | null) => {
+      setActiveTextSelection(range)
+
+      const pendingFormatting = pendingCaretFormattingRef.current
+      if (!pendingFormatting || pendingFormatting.id !== editingTextIdRef.current) {
+        return
+      }
+
+      if (preservePendingCaretFormattingRef.current) {
+        preservePendingCaretFormattingRef.current = false
+        return
+      }
+
+      // PowerPoint-style stored formatting should follow continuous typing, but
+      // a manual caret move / new selection should restore the actual style at
+      // the new position instead of keeping the previous pending format.
+      storePendingCaretFormatting(null)
+    },
+    [storePendingCaretFormatting]
+  )
+
   const handleEditText = useCallback(
     (id: string) => {
       if (!canEdit) return
+      const element = currentSlide.elements.find(currentElement => currentElement.id === id)
+      if (!element || element.locked) return
+      const nextDraft = createActiveRichTextDraft(element)
+      const initialContent =
+        element.type === 'code' ? element.code : nextDraft ? getActiveRichTextDraftContent(nextDraft) : ''
+
+      storeActiveRichTextDraft(nextDraft)
+      storePendingCaretFormatting(null)
+      preservePendingCaretFormattingRef.current = false
+      voiceBaseContentRef.current = initialContent
+      currentEditingContentRef.current = initialContent
+      lastProcessedTranscriptRef.current = ''
+      editingTextIdRef.current = id
+      lastObservedEditingTargetSnapshotRef.current = null
       setActiveTextSelection(null)
       setEditingTextId(id)
     },
-    [canEdit]
+    [canEdit, currentSlide.elements, storeActiveRichTextDraft, storePendingCaretFormatting]
   )
 
   const handleTextChange = useCallback(
     (valueOrEvent: string | React.ChangeEvent<HTMLTextAreaElement>) => {
       if (!editingTextId) return
       const newValue = typeof valueOrEvent === 'string' ? valueOrEvent : valueOrEvent.target.value
-
-      const currentElement = currentSlide?.elements.find(e => e.id === editingTextId)
-
-      if (currentElement?.type === 'code') {
-        currentEditingContentRef.current = newValue
-        updateElement(editingTextId, { code: newValue })
-        return
-      }
-
-      const oldValue = currentEditingContentRef.current
-      currentEditingContentRef.current = newValue
-
-      // Shapes edit their in-shape label (`shapeText.content`), not the
-      // top-level text-element content. Route the update accordingly so a
-      // single inline editing flow covers both text boxes and shape labels.
-      if (currentElement?.type === 'shape') {
-        const shape: ShapeElement = currentElement
-        const existing = shape.shapeText ?? createDefaultShapeText()
-        updateElement(editingTextId, {
-          shapeText: replaceRichTextContent(existing, newValue)
-        } as Partial<ShapeElement>)
-        return
-      }
-
-      const textElement: TextElement | undefined = currentElement?.type === 'text' ? currentElement : undefined
-
-      let updatedLinks: TextLink[] | undefined
-      if (textElement?.links && textElement.links.length > 0) {
-        const editStart = findEditPosition(oldValue, newValue)
-        const deletedLength = Math.max(
-          0,
-          oldValue.length - newValue.length + (newValue.length - editStart) - (oldValue.length - editStart)
-        )
-        const insertedLength = Math.max(0, newValue.length - oldValue.length + deletedLength)
-
-        const manualLinks = textElement.links.filter(l => !l.isAutoDetected)
-        const adjustedManualLinks = adjustLinksAfterEdit(manualLinks, editStart, deletedLength, insertedLength)
-        const autoLinks = detectUrls(newValue)
-        updatedLinks = mergeLinks(autoLinks, adjustedManualLinks)
-      }
-
-      if (textElement) {
-        updateElement(editingTextId, {
-          ...replaceRichTextContent(textElement, newValue),
-          ...(updatedLinks !== undefined && { links: updatedLinks })
-        })
-      }
+      applyEditingTextValue(editingTextId, newValue)
     },
-    [editingTextId, updateElement, currentSlide]
+    [applyEditingTextValue, editingTextId]
   )
 
   const finishTextEditing = useCallback(() => {
     editingTextIdRef.current = null
+    lastObservedEditingTargetSnapshotRef.current = null
+    storeActiveRichTextDraft(null)
+    storePendingCaretFormatting(null)
+    preservePendingCaretFormattingRef.current = false
     setEditingTextId(null)
     setActiveTextSelection(null)
-  }, [])
+  }, [storeActiveRichTextDraft, storePendingCaretFormatting])
+
+  const handleSelectElements = useCallback(
+    (ids: Set<string>) => {
+      setSelectedElementIds(ids)
+      if (!showPropertyPanel && ids.size > 0) {
+        setShowPropertyPanel(true)
+      }
+      if (collaborationEnabled && awareness) {
+        const primaryId = ids.size > 0 ? [...ids][0] : null
+        awareness.setLocalStateField(
+          'selection',
+          primaryId
+            ? {
+                slideIndex: currentSlideIndex,
+                elementId: primaryId
+              }
+            : null
+        )
+      }
+    },
+    [awareness, collaborationEnabled, currentSlideIndex, showPropertyPanel]
+  )
+
+  const handleWorkspaceMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement
+      const canvasElement = canvasContainerRef.current
+
+      if (canvasElement?.contains(target)) return
+      if (target.closest(`[data-testid="${testId}-floating-text-actions"]`)) return
+
+      if (editingTextId) {
+        if (voiceInput.isListening) {
+          voiceInput.stopListening()
+        }
+        finishTextEditing()
+      }
+
+      handleSelectElements(new Set())
+    },
+    [editingTextId, finishTextEditing, handleSelectElements, testId, voiceInput.isListening, voiceInput.stopListening]
+  )
 
   // Rename presentation
   const handleRename = useCallback(async () => {
@@ -2830,7 +3158,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           </div>
 
           {/* Canvas Area */}
-          <div className="gba:flex-1 gba:bg-muted/30 gba:overflow-auto gba:p-4 md:gba:p-8 gba:min-w-0">
+          <div
+            className="gba:flex-1 gba:bg-muted/30 gba:overflow-auto gba:p-4 md:gba:p-8 gba:min-w-0"
+            data-testid={`${testId}-canvas-workspace`}
+            onMouseDown={handleWorkspaceMouseDown}
+          >
             <div className="gba:inline-flex gba:justify-center gba:min-w-full">
               <div
                 ref={canvasContainerRef}
@@ -2866,59 +3198,26 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   elements={currentSlide.elements}
                   selectedIds={selectedElementIds}
                   background={currentSlide.background}
-                  onSelectElements={ids => {
-                    setSelectedElementIds(ids)
-                    if (!showPropertyPanel && ids.size > 0) {
-                      setShowPropertyPanel(true)
-                    }
-                    if (collaborationEnabled && awareness) {
-                      const primaryId = ids.size > 0 ? [...ids][0] : null
-                      awareness.setLocalStateField(
-                        'selection',
-                        primaryId
-                          ? {
-                              slideIndex: currentSlideIndex,
-                              elementId: primaryId
-                            }
-                          : null
-                      )
-                    }
-                  }}
+                  onSelectElements={handleSelectElements}
                   onUpdateElement={updateElement}
                   onUpdateMultipleElements={updateMultipleElements}
-                  onEditText={id => {
-                    const element = currentSlide.elements.find(e => e.id === id)
-                    if (element) {
-                      if (element.type === 'code') {
-                        voiceBaseContentRef.current = element.code
-                        currentEditingContentRef.current = element.code
-                      } else if (element.type === 'shape') {
-                        const initial = element.shapeText?.content ?? ''
-                        voiceBaseContentRef.current = initial
-                        currentEditingContentRef.current = initial
-                      } else if (element.type === 'text') {
-                        voiceBaseContentRef.current = element.content
-                        currentEditingContentRef.current = element.content
-                      }
-                      lastProcessedTranscriptRef.current = ''
-                      editingTextIdRef.current = id
-                    }
-                    handleEditText(id)
-                  }}
+                  onEditText={handleEditText}
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
                   scale={canvasScale}
                   canvasSize={currentSlide.canvasSize}
                   inlineEditing={{
                     editingTextId,
+                    editorElement: activeEditingTextElement,
                     onTextChange: handleTextChange,
-                    onSelectionChange: setActiveTextSelection,
+                    onSelectionChange: handleActiveTextSelectionChange,
                     onFinishEditing: () => {
                       if (voiceInput.isListening) {
                         voiceInput.stopListening()
                       }
                       finishTextEditing()
                     },
+                    rehydrateToken: richTextEditorRehydrateToken,
                     voiceInput: {
                       isListening: voiceInput.isListening,
                       isSupported: voiceInput.isSupported,
@@ -2966,6 +3265,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               {/* Floating Text Actions - outside canvas container to avoid overflow clipping */}
               {selectedElementIds.size === 1 &&
                 selectedElement?.type === 'text' &&
+                !selectedElement.locked &&
                 !editingTextId &&
                 !isReadOnly &&
                 !isPresentMode && (
@@ -2975,19 +3275,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     canvasRef={canvasContainerRef}
                     isVoiceSupported={voiceInput.isSupported}
                     onVoiceClick={() => {
-                      const currentContent = selectedElement.content || ''
-                      voiceBaseContentRef.current = currentContent
-                      currentEditingContentRef.current = currentContent
-                      lastProcessedTranscriptRef.current = ''
-                      editingTextIdRef.current = selectedElement.id
-                      setEditingTextId(selectedElement.id)
+                      handleEditText(selectedElement.id)
                       voiceInput.startListening()
                     }}
                     onEditClick={() => {
-                      const currentContent = selectedElement.content || ''
-                      currentEditingContentRef.current = currentContent
-                      editingTextIdRef.current = selectedElement.id
-                      setEditingTextId(selectedElement.id)
+                      handleEditText(selectedElement.id)
                     }}
                     data-testid={`${testId}-floating-text-actions`}
                   />
@@ -3012,6 +3304,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               </div>
               <PropertyPanel
                 element={selectedElement}
+                textFormatting={
+                  effectiveToolbarContext.type === 'text' ? (effectiveToolbarContext.formatting ?? null) : null
+                }
                 onUpdate={updates => selectedElementId && updateSelectedElements(selectedElementId, updates)}
                 onDelete={deleteElement}
                 onDuplicate={duplicateElement}
@@ -3021,6 +3316,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 onSlideTransitionChange={canEdit ? updateCurrentSlideTransition : undefined}
                 selectionCount={selectedElementIds.size}
                 hasGroupInSelection={selectedElements.some(el => el.type === 'group')}
+                hasUnlockedSelection={hasUnlockedSelection}
+                hasLockedSelection={hasLockedSelection}
                 onAlign={canEdit ? alignSelection : undefined}
                 onDistribute={canEdit ? distributeSelection : undefined}
                 onFlip={canEdit ? flipSelection : undefined}

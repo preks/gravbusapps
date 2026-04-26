@@ -14,6 +14,14 @@ export interface RichTextSelectionRange {
   end: number
 }
 
+export interface TextEditDelta {
+  start: number
+  deletedLength: number
+  insertedLength: number
+}
+
+export type TextFormattingToggleState = 'on' | 'off' | 'mixed'
+
 export type RichTextEditable = Pick<
   TextElement,
   | 'content'
@@ -35,6 +43,18 @@ export type RichTextFormattingUpdate = Partial<
     'fontFamily' | 'fontSize' | 'fontWeight' | 'fontStyle' | 'textDecoration' | 'textAlign' | 'color' | 'textTransform'
   >
 >
+
+export interface ResolvedTextFormattingState extends RichTextFormattingUpdate {
+  isFontFamilyMixed?: boolean
+  isFontSizeMixed?: boolean
+  isColorMixed?: boolean
+  isTextAlignMixed?: boolean
+  isTextTransformMixed?: boolean
+  fontWeightState?: TextFormattingToggleState
+  fontStyleState?: TextFormattingToggleState
+  underlineState?: TextFormattingToggleState
+  strikethroughState?: TextFormattingToggleState
+}
 
 type RichTextRunStyle = Pick<
   RichTextRun,
@@ -60,6 +80,21 @@ const CHARACTER_STYLE_KEYS = [
 
 export function isRichTextFormattingUpdate(updates: Partial<TextElement>): updates is RichTextFormattingUpdate {
   return CHARACTER_STYLE_KEYS.some(key => updates[key] !== undefined) || updates.textAlign !== undefined
+}
+
+export function hasCharacterRichTextFormattingUpdate(
+  updates: Partial<TextElement>
+): updates is RichTextFormattingUpdate {
+  return CHARACTER_STYLE_KEYS.some(key => updates[key] !== undefined)
+}
+
+export function getCharacterRichTextFormattingUpdate(updates: RichTextFormattingUpdate): RichTextFormattingUpdate {
+  return CHARACTER_STYLE_KEYS.reduce<RichTextFormattingUpdate>((acc, key) => {
+    if (updates[key] !== undefined) {
+      acc[key] = updates[key]
+    }
+    return acc
+  }, {})
 }
 
 function cloneParagraphs(paragraphs: RichTextParagraph[]): RichTextParagraph[] {
@@ -130,6 +165,30 @@ export function getRichTextContent(paragraphs: RichTextParagraph[]): string {
   return paragraphs.map(paragraph => paragraph.runs.map(run => run.text).join('')).join('\n')
 }
 
+export function getTextEditDelta(previousContent: string, nextContent: string): TextEditDelta {
+  let start = 0
+  while (
+    start < previousContent.length &&
+    start < nextContent.length &&
+    previousContent[start] === nextContent[start]
+  ) {
+    start += 1
+  }
+
+  let previousEnd = previousContent.length
+  let nextEnd = nextContent.length
+  while (previousEnd > start && nextEnd > start && previousContent[previousEnd - 1] === nextContent[nextEnd - 1]) {
+    previousEnd -= 1
+    nextEnd -= 1
+  }
+
+  return {
+    start,
+    deletedLength: previousEnd - start,
+    insertedLength: nextEnd - start
+  }
+}
+
 export function normalizeRichTextParagraphs(source: RichTextEditable): RichTextParagraph[] {
   if (source.paragraphs && source.paragraphs.length > 0) return cloneParagraphs(source.paragraphs)
 
@@ -179,6 +238,20 @@ function styleAtOffset(paragraphs: RichTextParagraph[], source: RichTextEditable
     cursor += 1
   }
   return fallbackRunStyle(source)
+}
+
+function uniformValue<T>(values: T[]): { value: T | undefined; mixed: boolean } {
+  if (values.length === 0) return { value: undefined, mixed: false }
+  const first = values[0]
+  const mixed = values.some(value => value !== first)
+  return { value: mixed ? undefined : first, mixed }
+}
+
+function resolveToggleState(matches: boolean[]): TextFormattingToggleState {
+  if (matches.length === 0) return 'off'
+  if (matches.every(Boolean)) return 'on'
+  if (matches.every(match => !match)) return 'off'
+  return 'mixed'
 }
 
 export function replaceRichTextContent<T extends RichTextEditable>(source: T, nextContent: string): T {
@@ -274,39 +347,121 @@ export function applyRichTextFormatting<T extends RichTextEditable>(
   }
 }
 
+export function applyCaretFormattingToInsertedText<T extends RichTextEditable>(
+  source: T,
+  pendingFormatting: RichTextFormattingUpdate | null | undefined,
+  editDelta: TextEditDelta
+): T {
+  if (!pendingFormatting || editDelta.insertedLength <= 0) return source
+
+  const characterUpdates = getCharacterRichTextFormattingUpdate(pendingFormatting)
+  if (!hasCharacterRichTextFormattingUpdate(characterUpdates as Partial<TextElement>)) {
+    return source
+  }
+
+  return applyRichTextFormatting(source, characterUpdates, {
+    start: editDelta.start,
+    end: editDelta.start + editDelta.insertedLength
+  })
+}
+
 export function getRichTextStyleAtRange<T extends RichTextEditable>(
   source: T,
   selection?: RichTextSelectionRange | null
-): RichTextFormattingUpdate {
+): ResolvedTextFormattingState {
   const paragraphs = normalizeRichTextParagraphs(source)
   const range = selection ? sortedRange(selection) : null
-  const offset = range ? Math.max(0, Math.min(range.start, contentLengthFromParagraphs(paragraphs) - 1)) : 0
-  const runStyle = styleAtOffset(paragraphs, source, offset)
+  const contentLength = contentLengthFromParagraphs(paragraphs)
+  const offset = range ? Math.max(0, Math.min(range.start, contentLength - 1)) : 0
   let paragraphStart = 0
   let textAlign: TextAlign | undefined = source.textAlign
+
+  if (!range || range.end <= range.start) {
+    const runStyle = styleAtOffset(paragraphs, source, offset)
+
+    for (const paragraph of paragraphs) {
+      const paragraphLength = paragraph.runs.reduce((sum, run) => sum + run.text.length, 0)
+      const paragraphEnd = paragraphStart + paragraphLength
+      if (offset >= paragraphStart && offset <= paragraphEnd) {
+        textAlign =
+          paragraph.alignment === 'justify' || !paragraph.alignment
+            ? source.textAlign
+            : (paragraph.alignment as TextAlign)
+        break
+      }
+      paragraphStart = paragraphEnd + 1
+    }
+
+    return {
+      fontFamily: runStyle.fontFamily,
+      fontSize: runStyle.fontSize,
+      fontWeight: runStyle.fontWeight as FontWeight,
+      fontStyle: runStyle.fontStyle as FontStyle,
+      textDecoration: runStyle.textDecoration as TextDecoration,
+      textAlign,
+      color: runStyle.color,
+      textTransform: runStyle.textTransform,
+      fontWeightState: runStyle.fontWeight === 'bold' ? 'on' : 'off',
+      fontStyleState: runStyle.fontStyle === 'italic' ? 'on' : 'off',
+      underlineState: runStyle.textDecoration === 'underline' ? 'on' : 'off',
+      strikethroughState: runStyle.textDecoration === 'line-through' ? 'on' : 'off'
+    }
+  }
+
+  const touchedRunStyles: RichTextRunStyle[] = []
+  const touchedParagraphAlignments: TextAlign[] = []
 
   for (const paragraph of paragraphs) {
     const paragraphLength = paragraph.runs.reduce((sum, run) => sum + run.text.length, 0)
     const paragraphEnd = paragraphStart + paragraphLength
-    if (offset >= paragraphStart && offset <= paragraphEnd) {
-      textAlign =
+    const touchesParagraph = range.start <= paragraphEnd && range.end >= paragraphStart
+    if (touchesParagraph) {
+      touchedParagraphAlignments.push(
         paragraph.alignment === 'justify' || !paragraph.alignment
           ? source.textAlign
           : (paragraph.alignment as TextAlign)
-      break
+      )
     }
+
+    let runStart = paragraphStart
+    for (const run of paragraph.runs) {
+      const runEnd = runStart + run.text.length
+      const applyStart = Math.max(range.start, runStart)
+      const applyEnd = Math.min(range.end, runEnd)
+      if (applyStart < applyEnd) {
+        touchedRunStyles.push(styleFromRun(run, source))
+      }
+      runStart = runEnd
+    }
+
     paragraphStart = paragraphEnd + 1
   }
 
+  if (touchedRunStyles.length === 0) {
+    return getRichTextStyleAtRange(source, { start: range.start, end: range.start })
+  }
+
+  const fontFamilies = uniformValue(touchedRunStyles.map(style => style.fontFamily))
+  const fontSizes = uniformValue(touchedRunStyles.map(style => style.fontSize))
+  const colors = uniformValue(touchedRunStyles.map(style => style.color))
+  const textTransforms = uniformValue(touchedRunStyles.map(style => style.textTransform))
+  const alignments = uniformValue(touchedParagraphAlignments)
+
   return {
-    fontFamily: runStyle.fontFamily,
-    fontSize: runStyle.fontSize,
-    fontWeight: runStyle.fontWeight as FontWeight,
-    fontStyle: runStyle.fontStyle as FontStyle,
-    textDecoration: runStyle.textDecoration as TextDecoration,
-    textAlign,
-    color: runStyle.color,
-    textTransform: runStyle.textTransform
+    fontFamily: fontFamilies.value,
+    fontSize: fontSizes.value,
+    color: colors.value,
+    textTransform: textTransforms.value,
+    textAlign: alignments.value,
+    isFontFamilyMixed: fontFamilies.mixed,
+    isFontSizeMixed: fontSizes.mixed,
+    isColorMixed: colors.mixed,
+    isTextTransformMixed: textTransforms.mixed,
+    isTextAlignMixed: alignments.mixed,
+    fontWeightState: resolveToggleState(touchedRunStyles.map(style => style.fontWeight === 'bold')),
+    fontStyleState: resolveToggleState(touchedRunStyles.map(style => style.fontStyle === 'italic')),
+    underlineState: resolveToggleState(touchedRunStyles.map(style => style.textDecoration === 'underline')),
+    strikethroughState: resolveToggleState(touchedRunStyles.map(style => style.textDecoration === 'line-through'))
   }
 }
 
