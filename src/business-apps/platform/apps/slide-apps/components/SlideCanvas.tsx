@@ -424,8 +424,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         e.currentTarget.contains(editorTarget)
 
       // Keep native caret/selection behavior inside the active inline editor.
-      // Dragging still starts from the element chrome because those hits land
-      // on the wrapper instead of the contentEditable surface.
+      // Moving an actively edited element happens from the dedicated drag
+      // handle, not from the contentEditable surface.
       if (isActiveInlineEditorTarget) return
 
       const isSelected = selectedIds.has(element.id)
@@ -1036,6 +1036,52 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       }
     }
 
+    const renderInlineEditingMoveEdges = (elementId: string) => {
+      const edgeThickness = 12 / scale
+      const edgeStyles: Record<'top' | 'right' | 'bottom' | 'left', React.CSSProperties> = {
+        top: {
+          top: -edgeThickness / 2,
+          left: 0,
+          right: 0,
+          height: edgeThickness
+        },
+        right: {
+          top: 0,
+          right: -edgeThickness / 2,
+          bottom: 0,
+          width: edgeThickness
+        },
+        bottom: {
+          bottom: -edgeThickness / 2,
+          left: 0,
+          right: 0,
+          height: edgeThickness
+        },
+        left: {
+          top: 0,
+          left: -edgeThickness / 2,
+          bottom: 0,
+          width: edgeThickness
+        }
+      }
+
+      return (['top', 'right', 'bottom', 'left'] as const).map(edge => (
+        <div
+          key={`${elementId}-${edge}`}
+          data-testid={`slide-inline-editor-move-edge-${elementId}-${edge}`}
+          title="Drag to move"
+          style={{
+            position: 'absolute',
+            backgroundColor: 'transparent',
+            cursor: 'move',
+            userSelect: 'none',
+            zIndex: 900,
+            ...edgeStyles[edge]
+          }}
+        />
+      ))
+    }
+
     const renderElement = (element: AnySlideElement) => {
       const isSelected = selectedIds.has(element.id)
       const isSingleSelection = selectedIds.size === 1
@@ -1133,6 +1179,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 >
                   {inlineEditing?.editingTextId === element.id ? (
                     <>
+                      {renderInlineEditingMoveEdges(element.id)}
                       <InlineRichTextEditor
                         key={element.id}
                         element={
@@ -1386,29 +1433,32 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                             ? 'flex-end'
                             : 'center',
                       padding: st.padding,
-                      overflow: 'hidden',
+                      overflow: isEditingLabel ? 'visible' : 'hidden',
                       boxSizing: 'border-box',
                       pointerEvents: isEditingLabel ? 'auto' : 'none',
                       zIndex: 1
                     }}
                   >
                     {isEditingLabel ? (
-                      <InlineRichTextEditor
-                        key={se.id}
-                        element={
-                          inlineEditing?.editorElement && inlineEditing.editingTextId === se.id
-                            ? inlineEditing.editorElement
-                            : te
-                        }
-                        onTextChange={value => inlineEditing?.onTextChange(value)}
-                        onSelectionChange={range => inlineEditing?.onSelectionChange(range)}
-                        onFinishEditing={() => {
-                          textareaInitializedRef.current = null
-                          inlineEditing?.onFinishEditing()
-                        }}
-                        rehydrateToken={inlineEditing?.rehydrateToken}
-                        data-testid={`slide-shape-text-editor-${se.id}`}
-                      />
+                      <>
+                        {renderInlineEditingMoveEdges(se.id)}
+                        <InlineRichTextEditor
+                          key={se.id}
+                          element={
+                            inlineEditing?.editorElement && inlineEditing.editingTextId === se.id
+                              ? inlineEditing.editorElement
+                              : te
+                          }
+                          onTextChange={value => inlineEditing?.onTextChange(value)}
+                          onSelectionChange={range => inlineEditing?.onSelectionChange(range)}
+                          onFinishEditing={() => {
+                            textareaInitializedRef.current = null
+                            inlineEditing?.onFinishEditing()
+                          }}
+                          rehydrateToken={inlineEditing?.rehydrateToken}
+                          data-testid={`slide-shape-text-editor-${se.id}`}
+                        />
+                      </>
                     ) : st.paragraphs && st.paragraphs.length > 0 ? (
                       <RichTextContent element={te} paragraphs={st.paragraphs} />
                     ) : (

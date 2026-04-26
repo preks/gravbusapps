@@ -80,6 +80,7 @@ function renderInlineEditingCanvas(element: TextElement | ShapeElement) {
     onDragStart,
     onDragEnd,
     onUpdateElement,
+    dragEdge: screen.getByTestId(`slide-inline-editor-move-edge-${editingTextId}-top`),
     editor:
       element.type === 'text'
         ? screen.getByTestId(`slide-text-editor-${editingTextId}`)
@@ -110,13 +111,10 @@ describe('SlideCanvas inline editing drag behavior', () => {
     expect(onDragEnd).not.toHaveBeenCalled()
   })
 
-  it('allows dragging a text element from its chrome while editing', () => {
-    const { editor, onDragStart, onDragEnd, onUpdateElement } = renderInlineEditingCanvas(makeTextElement())
-    const chrome = editor.parentElement
+  it('allows dragging a text element from its inline edit edge', () => {
+    const { dragEdge, onDragStart, onDragEnd, onUpdateElement } = renderInlineEditingCanvas(makeTextElement())
 
-    expect(chrome).not.toBeNull()
-
-    dragFrom(chrome as HTMLElement, { x: 150, y: 150 }, { x: 187, y: 173 })
+    dragFrom(dragEdge, { x: 150, y: 150 }, { x: 187, y: 173 })
 
     expect(onDragStart).toHaveBeenCalledTimes(1)
     expect(onDragEnd).toHaveBeenCalledTimes(1)
