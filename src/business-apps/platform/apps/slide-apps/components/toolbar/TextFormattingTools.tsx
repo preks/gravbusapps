@@ -22,7 +22,7 @@ import {
 import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Link, Palette } from 'lucide-react'
 import translations from '../../_i18n'
 import type { TextElement } from '../slideElements'
-import { FONT_SIZES, COLOR_PRESETS, getFontFamilyOptions } from '../slideElements'
+import { COLOR_PRESETS, getFontFamilyOptions, getFontSizeOptions } from '../slideElements'
 import type { ResolvedTextFormattingState, TextFormattingToggleState } from '../../utils/richTextEditing'
 
 export interface TextFormattingToolsProps {
@@ -56,8 +56,10 @@ export function TextFormattingTools({
   }
 
   const fontFamilyValue = formatting?.isFontFamilyMixed ? undefined : (formatting?.fontFamily ?? element.fontFamily)
-  const fontSizeValue = formatting?.isFontSizeMixed ? undefined : String(formatting?.fontSize ?? element.fontSize)
+  const resolvedFontSize = formatting?.isFontSizeMixed ? undefined : (formatting?.fontSize ?? element.fontSize)
+  const fontSizeValue = resolvedFontSize === undefined ? undefined : String(resolvedFontSize)
   const fontFamilyOptions = getFontFamilyOptions(fontFamilyValue)
+  const fontSizeOptions = getFontSizeOptions(resolvedFontSize)
   const resolvedTextAlign = formatting?.isTextAlignMixed ? undefined : (formatting?.textAlign ?? element.textAlign)
   const resolvedColor = formatting?.isColorMixed ? undefined : (formatting?.color ?? element.color)
 
@@ -89,7 +91,7 @@ export function TextFormattingTools({
           <SelectValue placeholder={formatting?.isFontSizeMixed ? '' : t('editor-font-size')} />
         </SelectTrigger>
         <SelectContent>
-          {FONT_SIZES.map(size => (
+          {fontSizeOptions.map(size => (
             <SelectItem key={String(size)} value={String(size)}>
               {size}
             </SelectItem>

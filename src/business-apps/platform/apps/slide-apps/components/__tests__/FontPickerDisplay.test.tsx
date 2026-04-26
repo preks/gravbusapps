@@ -1,9 +1,14 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { PropertyPanel } from '../PropertyPanel'
 import { TextFormattingTools } from '../toolbar/TextFormattingTools'
-import type { TextElement } from '../slideElements'
-import { getFontFamilyOptions } from '../slideElements'
+import type { AnySlideElement, CodeElement, TextElement } from '../slideElements'
+import {
+  getCodeFontSizeOptions,
+  getCodeLanguageOptions,
+  getFontFamilyOptions,
+  getFontSizeOptions
+} from '../slideElements'
 import type { ResolvedTextFormattingState } from '../../utils/richTextEditing'
 
 jest.mock('@newwork/nw-design-system', () => {
@@ -88,7 +93,21 @@ jest.mock('@newwork/nw-design-system', () => {
     },
     Slider: () => <div />,
     Separator: () => <hr />,
-    Switch: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input type="checkbox" {...props} />,
+    Switch: ({
+      checked,
+      onCheckedChange,
+      ...props
+    }: React.InputHTMLAttributes<HTMLInputElement> & {
+      onCheckedChange?: (checked: boolean) => void
+    }) => (
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={event => onCheckedChange?.(event.target.checked)}
+        readOnly={!onCheckedChange}
+        {...props}
+      />
+    ),
     Collapsible: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     CollapsibleContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     CollapsibleTrigger: ({ children }: { children?: React.ReactNode; asChild?: boolean }) => <>{children}</>,
@@ -128,6 +147,32 @@ function makeTextElement(overrides: Partial<TextElement> = {}): TextElement {
   }
 }
 
+function makeCodeElement(overrides: Partial<CodeElement> = {}): CodeElement {
+  return {
+    id: 'code-1',
+    type: 'code',
+    position: { x: 0, y: 0 },
+    size: { width: 300, height: 180 },
+    rotation: 0,
+    opacity: 1,
+    locked: false,
+    zIndex: 1,
+    code: 'console.log("hello")',
+    language: 'typescript',
+    theme: 'dark',
+    showLineNumbers: true,
+    fontSize: 14,
+    textColor: '#ffffff',
+    backgroundColor: '#111111',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#333333',
+    shadow: false,
+    padding: 16,
+    ...overrides
+  }
+}
+
 function renderToolbar(formatting?: ResolvedTextFormattingState) {
   render(
     <TextFormattingTools
@@ -139,10 +184,10 @@ function renderToolbar(formatting?: ResolvedTextFormattingState) {
   )
 }
 
-function renderPropertyPanel(formatting?: ResolvedTextFormattingState) {
+function renderPropertyPanel(element: AnySlideElement = makeTextElement(), formatting?: ResolvedTextFormattingState) {
   render(
     <PropertyPanel
-      element={makeTextElement()}
+      element={element}
       textFormatting={formatting}
       onUpdate={() => {}}
       onDelete={() => {}}
@@ -161,6 +206,15 @@ describe('font picker display', () => {
     })
   })
 
+  it('adds imported text and code select values to the available options', () => {
+    expect(getFontSizeOptions(29)[0]).toBe(29)
+    expect(getCodeLanguageOptions('mermaid')[0]).toEqual({
+      value: 'mermaid',
+      label: 'mermaid'
+    })
+    expect(getCodeFontSizeOptions(22)[0]).toBe(22)
+  })
+
   it('shows an imported font in the toolbar when the selection resolves to that font', () => {
     renderToolbar({ fontFamily: 'Funnel Display' })
 
@@ -168,9 +222,35 @@ describe('font picker display', () => {
   })
 
   it('shows an imported font in the property panel when the selection resolves to that font', () => {
-    renderPropertyPanel({ fontFamily: 'Funnel Display' })
+    renderPropertyPanel(makeTextElement(), { fontFamily: 'Funnel Display' })
 
     expect(screen.getByText('Funnel Display')).toBeInTheDocument()
+  })
+
+  it('shows an imported font size in the toolbar when the selection resolves to that size', () => {
+    renderToolbar({ fontSize: 29 })
+
+    expect(screen.getByText('29')).toBeInTheDocument()
+  })
+
+  it('shows an imported font size in the property panel when the selection resolves to that size', () => {
+    renderPropertyPanel(makeTextElement(), { fontSize: 29 })
+
+    const fontSizeSection = screen.getByText('props-font-size').parentElement
+    expect(fontSizeSection).not.toBeNull()
+    expect(within(fontSizeSection as HTMLElement).getByText('29px')).toBeInTheDocument()
+  })
+
+  it('shows imported code language and size values in the property panel', () => {
+    renderPropertyPanel(makeCodeElement({ language: 'mermaid', fontSize: 22 }))
+
+    const languageSection = screen.getByText('props-code-language').parentElement
+    const codeFontSizeSection = screen.getByText('props-code-font-size').parentElement
+
+    expect(languageSection).not.toBeNull()
+    expect(codeFontSizeSection).not.toBeNull()
+    expect(within(languageSection as HTMLElement).getByText('mermaid')).toBeInTheDocument()
+    expect(within(codeFontSizeSection as HTMLElement).getByText('22px')).toBeInTheDocument()
   })
 
   it('keeps the toolbar font-family control empty for mixed selections', () => {
@@ -181,9 +261,25 @@ describe('font picker display', () => {
   })
 
   it('keeps the property panel font-family control empty for mixed selections', () => {
-    renderPropertyPanel({ isFontFamilyMixed: true })
+    renderPropertyPanel(makeTextElement(), { isFontFamilyMixed: true })
 
     expect(screen.queryByText('Mixed')).not.toBeInTheDocument()
     expect(screen.queryByText('Inter')).not.toBeInTheDocument()
+  })
+
+  it('keeps the toolbar font-size control empty for mixed selections', () => {
+    renderToolbar({ isFontSizeMixed: true })
+
+    expect(screen.queryByText('Mixed')).not.toBeInTheDocument()
+    expect(screen.queryByText('16')).not.toBeInTheDocument()
+  })
+
+  it('keeps the property panel font-size control empty for mixed selections', () => {
+    renderPropertyPanel(makeTextElement(), { isFontSizeMixed: true })
+
+    const fontSizeSection = screen.getByText('props-font-size').parentElement
+    expect(fontSizeSection).not.toBeNull()
+    expect(within(fontSizeSection as HTMLElement).queryByText('Mixed')).not.toBeInTheDocument()
+    expect(within(fontSizeSection as HTMLElement).queryByText('16px')).not.toBeInTheDocument()
   })
 })

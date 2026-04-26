@@ -1409,14 +1409,9 @@ export const FONT_FAMILIES = [
   { value: 'Impact', label: 'Impact' }
 ]
 
-export function getFontFamilyOptions(activeFontFamily?: string): typeof FONT_FAMILIES {
-  const trimmedFontFamily = activeFontFamily?.trim()
-  if (!trimmedFontFamily) return FONT_FAMILIES
-
-  const alreadyExists = FONT_FAMILIES.some(font => font.value.toLowerCase() === trimmedFontFamily.toLowerCase())
-  if (alreadyExists) return FONT_FAMILIES
-
-  return [{ value: trimmedFontFamily, label: trimmedFontFamily }, ...FONT_FAMILIES]
+type StringSelectOption = {
+  value: string
+  label: string
 }
 
 export const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 128]
@@ -1445,6 +1440,45 @@ export const CODE_LANGUAGES = [
 ]
 
 export const CODE_FONT_SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24]
+
+export function getStringSelectOptions(
+  options: readonly StringSelectOption[],
+  activeValue?: string
+): StringSelectOption[] {
+  const trimmedValue = activeValue?.trim()
+  if (!trimmedValue) return [...options]
+
+  const alreadyExists = options.some(option => option.value.toLowerCase() === trimmedValue.toLowerCase())
+  if (alreadyExists) return [...options]
+
+  return [{ value: trimmedValue, label: trimmedValue }, ...options]
+}
+
+export function getNumericSelectOptions(options: readonly number[], activeValue?: number): number[] {
+  if (activeValue === undefined || activeValue === null || Number.isNaN(activeValue)) {
+    return [...options]
+  }
+
+  if (options.includes(activeValue)) return [...options]
+
+  return [activeValue, ...options]
+}
+
+export function getFontFamilyOptions(activeFontFamily?: string): StringSelectOption[] {
+  return getStringSelectOptions(FONT_FAMILIES, activeFontFamily)
+}
+
+export function getFontSizeOptions(activeFontSize?: number): number[] {
+  return getNumericSelectOptions(FONT_SIZES, activeFontSize)
+}
+
+export function getCodeLanguageOptions(activeLanguage?: string): StringSelectOption[] {
+  return getStringSelectOptions(CODE_LANGUAGES, activeLanguage)
+}
+
+export function getCodeFontSizeOptions(activeFontSize?: number): number[] {
+  return getNumericSelectOptions(CODE_FONT_SIZES, activeFontSize)
+}
 
 // Shape definitions for rendering
 export const SHAPE_DEFINITIONS: Record<ShapeType, { name: string; icon: string }> = {

@@ -60,15 +60,15 @@ import type {
   TransitionTrigger
 } from './slideElements'
 import {
-  FONT_SIZES,
   COLOR_PRESETS,
   PRESET_GRADIENTS,
   CHART_TYPES,
-  CODE_LANGUAGES,
-  CODE_FONT_SIZES,
   gradientToCss,
   DEFAULT_TRANSITION,
+  getCodeFontSizeOptions,
+  getCodeLanguageOptions,
   getFontFamilyOptions,
+  getFontSizeOptions,
   getShapeGeometry
 } from './slideElements'
 import { GradientBuilder } from './GradientBuilder'
@@ -1237,10 +1237,12 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             const fontFamilyValue = textFormatting?.isFontFamilyMixed
               ? undefined
               : (textFormatting?.fontFamily ?? textElement.fontFamily)
-            const fontSizeValue = textFormatting?.isFontSizeMixed
+            const resolvedFontSize = textFormatting?.isFontSizeMixed
               ? undefined
-              : String(textFormatting?.fontSize ?? textElement.fontSize)
+              : (textFormatting?.fontSize ?? textElement.fontSize)
+            const fontSizeValue = resolvedFontSize === undefined ? undefined : String(resolvedFontSize)
             const fontFamilyOptions = getFontFamilyOptions(fontFamilyValue)
+            const fontSizeOptions = getFontSizeOptions(resolvedFontSize)
             const resolvedTextAlign = textFormatting?.isTextAlignMixed
               ? undefined
               : (textFormatting?.textAlign ?? textElement.textAlign)
@@ -1281,7 +1283,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                       <SelectValue placeholder={textFormatting?.isFontSizeMixed ? '' : undefined} />
                     </SelectTrigger>
                     <SelectContent>
-                      {FONT_SIZES.map(size => (
+                      {fontSizeOptions.map(size => (
                         <SelectItem key={size} value={String(size)}>
                           {size}px
                         </SelectItem>
@@ -1724,142 +1726,154 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       )}
 
       {/* CODE PROPERTIES */}
-      {codeElement && (
-        <div className="gba:space-y-4">
-          <Label className="gba:text-xs gba:font-semibold">{t('props-code-styling')}</Label>
+      {codeElement &&
+        (() => {
+          const codeLanguageOptions = getCodeLanguageOptions(codeElement.language)
+          const codeFontSizeOptions = getCodeFontSizeOptions(codeElement.fontSize)
 
-          {/* Language */}
-          <div>
-            <Label className="gba:text-xs">{t('props-code-language')}</Label>
-            <Select value={codeElement.language} onValueChange={value => onUpdate({ language: value })}>
-              <SelectTrigger className="gba:text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CODE_LANGUAGES.map(lang => (
-                  <SelectItem key={lang.value} value={lang.value}>
-                    {lang.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          return (
+            <div className="gba:space-y-4">
+              <Label className="gba:text-xs gba:font-semibold">{t('props-code-styling')}</Label>
 
-          {/* Theme */}
-          <div>
-            <Label className="gba:text-xs">{t('props-code-theme')}</Label>
-            <Select value={codeElement.theme} onValueChange={(value: 'dark' | 'light') => onUpdate({ theme: value })}>
-              <SelectTrigger className="gba:text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="dark">{t('props-code-theme-dark')}</SelectItem>
-                <SelectItem value="light">{t('props-code-theme-light')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              {/* Language */}
+              <div>
+                <Label className="gba:text-xs">{t('props-code-language')}</Label>
+                <Select value={codeElement.language} onValueChange={value => onUpdate({ language: value })}>
+                  <SelectTrigger className="gba:text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {codeLanguageOptions.map(lang => (
+                      <SelectItem key={lang.value} value={lang.value}>
+                        {lang.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* Font Size */}
-          <div>
-            <Label className="gba:text-xs">{t('props-code-font-size')}</Label>
-            <Select value={String(codeElement.fontSize)} onValueChange={value => onUpdate({ fontSize: Number(value) })}>
-              <SelectTrigger className="gba:text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CODE_FONT_SIZES.map(size => (
-                  <SelectItem key={size} value={String(size)}>
-                    {size}px
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              {/* Theme */}
+              <div>
+                <Label className="gba:text-xs">{t('props-code-theme')}</Label>
+                <Select
+                  value={codeElement.theme}
+                  onValueChange={(value: 'dark' | 'light') => onUpdate({ theme: value })}
+                >
+                  <SelectTrigger className="gba:text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dark">{t('props-code-theme-dark')}</SelectItem>
+                    <SelectItem value="light">{t('props-code-theme-light')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* Show Line Numbers */}
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <Label className="gba:text-xs">{t('props-code-show-line-numbers')}</Label>
-            <Switch
-              checked={codeElement.showLineNumbers}
-              onCheckedChange={showLineNumbers => onUpdate({ showLineNumbers })}
-            />
-          </div>
+              {/* Font Size */}
+              <div>
+                <Label className="gba:text-xs">{t('props-code-font-size')}</Label>
+                <Select
+                  value={String(codeElement.fontSize)}
+                  onValueChange={value => onUpdate({ fontSize: Number(value) })}
+                >
+                  <SelectTrigger className="gba:text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {codeFontSizeOptions.map(size => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size}px
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <Separator />
+              {/* Show Line Numbers */}
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <Label className="gba:text-xs">{t('props-code-show-line-numbers')}</Label>
+                <Switch
+                  checked={codeElement.showLineNumbers}
+                  onCheckedChange={showLineNumbers => onUpdate({ showLineNumbers })}
+                />
+              </div>
 
-          {/* Text Color */}
-          <PanelColorPicker
-            value={codeElement.textColor || (codeElement.theme === 'dark' ? '#d4d4d4' : '#333333')}
-            onChange={textColor => onUpdate({ textColor })}
-            label={t('props-text-color')}
-          />
+              <Separator />
 
-          {/* Background Color */}
-          <PanelColorPicker
-            value={codeElement.backgroundColor || (codeElement.theme === 'dark' ? '#1e1e1e' : '#f8f8f8')}
-            onChange={backgroundColor => onUpdate({ backgroundColor })}
-            label={t('props-background-color')}
-          />
+              {/* Text Color */}
+              <PanelColorPicker
+                value={codeElement.textColor || (codeElement.theme === 'dark' ? '#d4d4d4' : '#333333')}
+                onChange={textColor => onUpdate({ textColor })}
+                label={t('props-text-color')}
+              />
 
-          {/* Border Radius */}
-          <div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">{t('props-border-radius')}</Label>
-              <span className="gba:text-xs gba:text-muted-foreground">{codeElement.borderRadius ?? 8}px</span>
+              {/* Background Color */}
+              <PanelColorPicker
+                value={codeElement.backgroundColor || (codeElement.theme === 'dark' ? '#1e1e1e' : '#f8f8f8')}
+                onChange={backgroundColor => onUpdate({ backgroundColor })}
+                label={t('props-background-color')}
+              />
+
+              {/* Border Radius */}
+              <div>
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                  <Label className="gba:text-xs">{t('props-border-radius')}</Label>
+                  <span className="gba:text-xs gba:text-muted-foreground">{codeElement.borderRadius ?? 8}px</span>
+                </div>
+                <Slider
+                  value={[codeElement.borderRadius ?? 8]}
+                  min={0}
+                  max={32}
+                  step={1}
+                  onValueChange={([value]) => onUpdate({ borderRadius: value })}
+                />
+              </div>
+
+              {/* Border Width */}
+              <div>
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                  <Label className="gba:text-xs">{t('props-border-width')}</Label>
+                  <span className="gba:text-xs gba:text-muted-foreground">{codeElement.borderWidth ?? 0}px</span>
+                </div>
+                <Slider
+                  value={[codeElement.borderWidth ?? 0]}
+                  min={0}
+                  max={10}
+                  step={1}
+                  onValueChange={([value]) => onUpdate({ borderWidth: value })}
+                />
+              </div>
+
+              {/* Border Color */}
+              <PanelColorPicker
+                value={codeElement.borderColor || '#333333'}
+                onChange={borderColor => onUpdate({ borderColor })}
+                label={t('props-border-color')}
+              />
+
+              {/* Padding */}
+              <div>
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                  <Label className="gba:text-xs">{t('props-code-padding')}</Label>
+                  <span className="gba:text-xs gba:text-muted-foreground">{codeElement.padding ?? 16}px</span>
+                </div>
+                <Slider
+                  value={[codeElement.padding ?? 16]}
+                  min={0}
+                  max={48}
+                  step={2}
+                  onValueChange={([value]) => onUpdate({ padding: value })}
+                />
+              </div>
+
+              {/* Shadow */}
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <Label className="gba:text-xs">{t('props-drop-shadow')}</Label>
+                <Switch checked={codeElement.shadow ?? false} onCheckedChange={shadow => onUpdate({ shadow })} />
+              </div>
             </div>
-            <Slider
-              value={[codeElement.borderRadius ?? 8]}
-              min={0}
-              max={32}
-              step={1}
-              onValueChange={([value]) => onUpdate({ borderRadius: value })}
-            />
-          </div>
-
-          {/* Border Width */}
-          <div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">{t('props-border-width')}</Label>
-              <span className="gba:text-xs gba:text-muted-foreground">{codeElement.borderWidth ?? 0}px</span>
-            </div>
-            <Slider
-              value={[codeElement.borderWidth ?? 0]}
-              min={0}
-              max={10}
-              step={1}
-              onValueChange={([value]) => onUpdate({ borderWidth: value })}
-            />
-          </div>
-
-          {/* Border Color */}
-          <PanelColorPicker
-            value={codeElement.borderColor || '#333333'}
-            onChange={borderColor => onUpdate({ borderColor })}
-            label={t('props-border-color')}
-          />
-
-          {/* Padding */}
-          <div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">{t('props-code-padding')}</Label>
-              <span className="gba:text-xs gba:text-muted-foreground">{codeElement.padding ?? 16}px</span>
-            </div>
-            <Slider
-              value={[codeElement.padding ?? 16]}
-              min={0}
-              max={48}
-              step={2}
-              onValueChange={([value]) => onUpdate({ padding: value })}
-            />
-          </div>
-
-          {/* Shadow */}
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <Label className="gba:text-xs">{t('props-drop-shadow')}</Label>
-            <Switch checked={codeElement.shadow ?? false} onCheckedChange={shadow => onUpdate({ shadow })} />
-          </div>
-        </div>
-      )}
+          )
+        })()}
 
       {/* IMAGE PROPERTIES */}
       {imageElement && (
