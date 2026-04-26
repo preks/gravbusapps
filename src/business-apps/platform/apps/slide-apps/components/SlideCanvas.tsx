@@ -71,9 +71,11 @@ const sanitizeMediaUrl = (url: string | undefined, allowedTypes: string[] = ['im
 }
 interface InlineEditingProps {
   editingTextId: string | null
+  editorElement?: TextElement | null
   onTextChange: (value: string) => void
   onSelectionChange: (range: RichTextSelectionRange | null) => void
   onFinishEditing: () => void
+  rehydrateToken?: number
   voiceInput?: {
     isListening: boolean
     isSupported: boolean
@@ -1112,13 +1114,19 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                   {inlineEditing?.editingTextId === element.id ? (
                     <>
                       <InlineRichTextEditor
-                        element={textEl}
+                        key={element.id}
+                        element={
+                          inlineEditing.editorElement && inlineEditing.editingTextId === element.id
+                            ? inlineEditing.editorElement
+                            : textEl
+                        }
                         onTextChange={inlineEditing.onTextChange}
                         onSelectionChange={inlineEditing.onSelectionChange}
                         onFinishEditing={() => {
                           textareaInitializedRef.current = null
                           inlineEditing.onFinishEditing()
                         }}
+                        rehydrateToken={inlineEditing.rehydrateToken}
                         data-testid={`slide-text-editor-${element.id}`}
                       />
                       {/* Inline editing toolbar */}
@@ -1366,13 +1374,19 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                   >
                     {isEditingLabel ? (
                       <InlineRichTextEditor
-                        element={te}
+                        key={se.id}
+                        element={
+                          inlineEditing?.editorElement && inlineEditing.editingTextId === se.id
+                            ? inlineEditing.editorElement
+                            : te
+                        }
                         onTextChange={value => inlineEditing?.onTextChange(value)}
                         onSelectionChange={range => inlineEditing?.onSelectionChange(range)}
                         onFinishEditing={() => {
                           textareaInitializedRef.current = null
                           inlineEditing?.onFinishEditing()
                         }}
+                        rehydrateToken={inlineEditing?.rehydrateToken}
                         data-testid={`slide-shape-text-editor-${se.id}`}
                       />
                     ) : st.paragraphs && st.paragraphs.length > 0 ? (

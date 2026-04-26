@@ -1,7 +1,8 @@
-import React from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import React, { useState } from 'react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { InlineRichTextEditor } from '../InlineRichTextEditor'
 import type { TextElement } from '../slideElements'
+import { replaceRichTextContent } from '../../utils/richTextEditing'
 
 function makeTextElement(overrides: Partial<TextElement> = {}): TextElement {
   return {
@@ -28,6 +29,10 @@ function makeTextElement(overrides: Partial<TextElement> = {}): TextElement {
     padding: 0,
     ...overrides
   }
+}
+
+function readEditorValue(editor: HTMLDivElement): string {
+  return editor.innerText ?? editor.textContent ?? ''
 }
 
 describe('InlineRichTextEditor', () => {
@@ -64,5 +69,95 @@ describe('InlineRichTextEditor', () => {
     fireEvent.keyDown(screen.getByTestId('inline-rich-text-editor'), { key: 'Escape' })
 
     expect(onFinishEditing).toHaveBeenCalled()
+  })
+
+  it('keeps deleting a leading empty paragraph stable while parent state updates live', () => {
+    function Harness() {
+      const [element, setElement] = useState(
+        makeTextElement({
+          content: '\nThe\nNEWWORK Enterprise AI.',
+          paragraphs: [
+            { runs: [{ text: '' }] },
+            { runs: [{ text: 'The ' }] },
+            { runs: [{ text: 'NEWWORK Enterprise AI.' }] }
+          ]
+        })
+      )
+
+      return (
+        <InlineRichTextEditor
+          element={element}
+          onTextChange={value => {
+            setElement(previous => replaceRichTextContent(previous, value))
+          }}
+          onSelectionChange={() => {}}
+          onFinishEditing={() => {}}
+        />
+      )
+    }
+
+    render(<Harness />)
+
+    const editor = screen.getByTestId('inline-rich-text-editor') as HTMLDivElement
+
+    act(() => {
+      editor.innerText = 'The\nNEWWORK Enterprise AI.'
+      expect(() => {
+        fireEvent.input(editor)
+      }).not.toThrow()
+    })
+
+    expect(readEditorValue(editor)).toBe('The\nNEWWORK Enterprise AI.')
+  })
+
+  it('rehydrates the editor only when the rehydrate token changes', () => {
+    function Harness() {
+      const [element, setElement] = useState(
+        makeTextElement({
+          content: 'Initial value',
+          paragraphs: [{ runs: [{ text: 'Initial value' }] }]
+        })
+      )
+      const [token, setToken] = useState(0)
+
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              setElement(previous => replaceRichTextContent(previous, 'Formatted value'))
+            }}
+          >
+            update-without-token
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setElement(previous => replaceRichTextContent(previous, 'Formatted value'))
+              setToken(previous => previous + 1)
+            }}
+          >
+            update-with-token
+          </button>
+          <InlineRichTextEditor
+            element={element}
+            rehydrateToken={token}
+            onTextChange={() => {}}
+            onSelectionChange={() => {}}
+            onFinishEditing={() => {}}
+          />
+        </>
+      )
+    }
+
+    render(<Harness />)
+
+    const editor = screen.getByTestId('inline-rich-text-editor') as HTMLDivElement
+
+    fireEvent.click(screen.getByText('update-without-token'))
+    expect(readEditorValue(editor)).toBe('Initial value')
+
+    fireEvent.click(screen.getByText('update-with-token'))
+    expect(readEditorValue(editor)).toBe('Formatted value')
   })
 })
