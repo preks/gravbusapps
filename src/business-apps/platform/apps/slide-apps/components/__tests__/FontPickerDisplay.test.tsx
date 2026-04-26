@@ -63,6 +63,10 @@ jest.mock('@newwork/nw-design-system', () => {
     children?: React.ReactNode
     onValueChange?: (value: string) => void
   }) {
+    if (value === undefined) {
+      throw new Error('Select received undefined value')
+    }
+
     const items = collectSelectItems(children)
     const label = items.find(item => item.value === value)?.label
 

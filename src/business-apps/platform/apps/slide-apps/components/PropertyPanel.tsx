@@ -1235,12 +1235,12 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           {(() => {
             const mixedLabel = t('editor-mixed') || 'Mixed'
             const fontFamilyValue = textFormatting?.isFontFamilyMixed
-              ? undefined
+              ? ''
               : (textFormatting?.fontFamily ?? textElement.fontFamily)
             const resolvedFontSize = textFormatting?.isFontSizeMixed
               ? undefined
               : (textFormatting?.fontSize ?? textElement.fontSize)
-            const fontSizeValue = resolvedFontSize === undefined ? undefined : String(resolvedFontSize)
+            const fontSizeValue = resolvedFontSize === undefined ? '' : String(resolvedFontSize)
             const fontFamilyOptions = getFontFamilyOptions(fontFamilyValue)
             const fontSizeOptions = getFontSizeOptions(resolvedFontSize)
             const resolvedTextAlign = textFormatting?.isTextAlignMixed
@@ -1261,7 +1261,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 {/* Font Family */}
                 <div>
                   <Label className="gba:text-xs">{t('props-font-family')}</Label>
-                  <Select value={fontFamilyValue} onValueChange={value => onUpdate({ fontFamily: value })}>
+                  <Select value={fontFamilyValue} onValueChange={value => value && onUpdate({ fontFamily: value })}>
                     <SelectTrigger className="gba:text-xs">
                       <SelectValue placeholder={textFormatting?.isFontFamilyMixed ? '' : undefined} />
                     </SelectTrigger>
@@ -1278,7 +1278,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 {/* Font Size */}
                 <div>
                   <Label className="gba:text-xs">{t('props-font-size')}</Label>
-                  <Select value={fontSizeValue} onValueChange={value => onUpdate({ fontSize: Number(value) })}>
+                  <Select value={fontSizeValue} onValueChange={value => value && onUpdate({ fontSize: Number(value) })}>
                     <SelectTrigger className="gba:text-xs">
                       <SelectValue placeholder={textFormatting?.isFontSizeMixed ? '' : undefined} />
                     </SelectTrigger>

@@ -55,9 +55,9 @@ export function TextFormattingTools({
     onUpdateElement(element.id, updates)
   }
 
-  const fontFamilyValue = formatting?.isFontFamilyMixed ? undefined : (formatting?.fontFamily ?? element.fontFamily)
+  const fontFamilyValue = formatting?.isFontFamilyMixed ? '' : (formatting?.fontFamily ?? element.fontFamily)
   const resolvedFontSize = formatting?.isFontSizeMixed ? undefined : (formatting?.fontSize ?? element.fontSize)
-  const fontSizeValue = resolvedFontSize === undefined ? undefined : String(resolvedFontSize)
+  const fontSizeValue = resolvedFontSize === undefined ? '' : String(resolvedFontSize)
   const fontFamilyOptions = getFontFamilyOptions(fontFamilyValue)
   const fontSizeOptions = getFontSizeOptions(resolvedFontSize)
   const resolvedTextAlign = formatting?.isTextAlignMixed ? undefined : (formatting?.textAlign ?? element.textAlign)
@@ -72,7 +72,7 @@ export function TextFormattingTools({
   return (
     <>
       {/* Font Family */}
-      <Select value={fontFamilyValue} onValueChange={value => handleUpdate({ fontFamily: value })}>
+      <Select value={fontFamilyValue} onValueChange={value => value && handleUpdate({ fontFamily: value })}>
         <SelectTrigger className="gba:w-[140px] gba:h-8">
           <SelectValue placeholder={formatting?.isFontFamilyMixed ? '' : t('editor-font-family')} />
         </SelectTrigger>
@@ -86,7 +86,7 @@ export function TextFormattingTools({
       </Select>
 
       {/* Font Size */}
-      <Select value={fontSizeValue} onValueChange={value => handleUpdate({ fontSize: Number(value) })}>
+      <Select value={fontSizeValue} onValueChange={value => value && handleUpdate({ fontSize: Number(value) })}>
         <SelectTrigger className="gba:w-[70px] gba:h-8">
           <SelectValue placeholder={formatting?.isFontSizeMixed ? '' : t('editor-font-size')} />
         </SelectTrigger>
