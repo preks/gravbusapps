@@ -45,7 +45,7 @@ describe('InlineRichTextEditor', () => {
       </div>
     )
 
-    fireEvent.keyDown(screen.getByRole('textbox'), { key: ' ' })
+    fireEvent.keyDown(screen.getByTestId('inline-rich-text-editor'), { key: ' ' })
 
     expect(parentKeyDown).not.toHaveBeenCalled()
   })
@@ -61,7 +61,7 @@ describe('InlineRichTextEditor', () => {
       />
     )
 
-    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' })
+    fireEvent.keyDown(screen.getByTestId('inline-rich-text-editor'), { key: 'Escape' })
 
     expect(onFinishEditing).toHaveBeenCalled()
   })

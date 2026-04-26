@@ -273,7 +273,7 @@ export class SocketIoYjsProvider {
     this.triggerSync()
   }
 
-  private handleSocketDisconnect = () => {
+  private readonly handleSocketDisconnect = () => {
     if (this.destroyed) return
     this.setSynced(false)
   }
@@ -542,9 +542,9 @@ export class SocketIoYjsProvider {
     })
   }
 
-  private handleRoomStatus = (event: YjsRoomStatusEvent) => {
+  private readonly handleRoomStatus = (event: YjsRoomStatusEvent) => {
     if (this.destroyed) return
-    if (!event || event.entityId !== this.documentId) return
+    if (event?.entityId !== this.documentId) return
     const eventEntityType = event.entityType || 'document'
     if (eventEntityType !== this.entityType) return
     console.warn('[SocketIoYjsProvider] Room status changed:', event.status, event.reason)

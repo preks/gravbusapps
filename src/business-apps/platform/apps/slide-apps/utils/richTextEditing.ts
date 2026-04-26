@@ -3,7 +3,6 @@ import type {
   FontWeight,
   RichTextParagraph,
   RichTextRun,
-  RichTextTransform,
   ShapeInText,
   TextAlign,
   TextDecoration,
@@ -307,7 +306,7 @@ export function getRichTextStyleAtRange<T extends RichTextEditable>(
     textDecoration: runStyle.textDecoration as TextDecoration,
     textAlign,
     color: runStyle.color,
-    textTransform: runStyle.textTransform as RichTextTransform | undefined
+    textTransform: runStyle.textTransform
   }
 }
 

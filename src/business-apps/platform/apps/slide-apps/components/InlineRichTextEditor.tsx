@@ -88,6 +88,14 @@ function findTextNodeAtOffset(container: HTMLElement, offset: number): { node: N
   return { node: container, offset: 0 }
 }
 
+function paragraphKey(paragraphStart: number, paragraphLength: number, runCount: number): string {
+  return `paragraph-${paragraphStart}-${paragraphLength}-${runCount}`
+}
+
+function runKey(start: number, end: number, text: string): string {
+  return `run-${start}-${end}-${text}`
+}
+
 export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
   element,
   onTextChange,
@@ -102,7 +110,7 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
 
   const readSelection = useCallback((): RichTextSelectionRange | null => {
     const editor = editorRef.current
-    const selection = window.getSelection()
+    const selection = globalThis.getSelection?.() ?? null
     if (!editor || !selection || selection.rangeCount === 0) return null
     const range = selection.getRangeAt(0)
     if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) return null
@@ -122,7 +130,7 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
     (range: RichTextSelectionRange | null) => {
       const editor = editorRef.current
       if (!editor || !range || document.activeElement !== editor) return
-      const selection = window.getSelection()
+      const selection = globalThis.getSelection?.() ?? null
       if (!selection) return
       const start = findTextNodeAtOffset(editor, Math.max(0, Math.min(range.start, contentLength)))
       const end = findTextNodeAtOffset(editor, Math.max(0, Math.min(range.end, contentLength)))
@@ -149,9 +157,8 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
     <div
       ref={editorRef}
       contentEditable
+      tabIndex={0}
       suppressContentEditableWarning
-      role="textbox"
-      aria-multiline="true"
       spellCheck
       data-testid={testId}
       onInput={event => {
@@ -186,15 +193,16 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
         cursor: 'text'
       }}
     >
-      {paragraphs.map((paragraph, paragraphIndex) => {
+      {paragraphs.map(paragraph => {
         const paragraphStart = cursor
         const paragraphLength = paragraph.runs.reduce((sum, run) => sum + run.text.length, 0)
         cursor += paragraphLength + 1
         let runCursor = paragraphStart
+        const key = paragraphKey(paragraphStart, paragraphLength, paragraph.runs.length)
 
         return (
           <div
-            key={paragraphIndex}
+            key={key}
             style={{
               minHeight: element.fontSize * element.lineHeight,
               textAlign: alignmentToTextAlign(paragraph.alignment, element.textAlign),
@@ -203,12 +211,17 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
               marginBottom: paragraph.spaceAfter
             }}
           >
-            {paragraph.runs.map((run, runIndex) => {
+            {paragraph.runs.map(run => {
               const start = runCursor
               const end = start + run.text.length
               runCursor = end
               return (
-                <span key={runIndex} data-run-start={start} data-run-end={end} style={runStyle(run, element)}>
+                <span
+                  key={runKey(start, end, run.text)}
+                  data-run-start={start}
+                  data-run-end={end}
+                  style={runStyle(run, element)}
+                >
                   {run.text}
                 </span>
               )

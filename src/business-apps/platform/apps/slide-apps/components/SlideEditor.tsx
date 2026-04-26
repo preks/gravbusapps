@@ -555,14 +555,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const currentSlideIndex = useMemo(() => {
     const index = slides.findIndex(s => s.id === currentSlideId)
-    return index >= 0 ? index : 0
+    return Math.max(index, 0)
   }, [currentSlideId, slides])
 
   const setCurrentSlideIndex = useCallback(
     (next: React.SetStateAction<number>) => {
       setCurrentSlideId(previousSlideId => {
         const previousIndex = slides.findIndex(s => s.id === previousSlideId)
-        const safePreviousIndex = previousIndex >= 0 ? previousIndex : 0
+        const safePreviousIndex = Math.max(previousIndex, 0)
         const nextIndex = typeof next === 'function' ? next(safePreviousIndex) : next
         const maxIndex = Math.max(0, slides.length - 1)
         const clampedIndex = Math.min(Math.max(nextIndex, 0), maxIndex)

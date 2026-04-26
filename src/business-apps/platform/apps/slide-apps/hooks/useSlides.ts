@@ -174,7 +174,7 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
           let completedJob = job
           for (let attempt = 0; attempt < LARGE_IMPORT_MAX_POLLS; attempt++) {
             if (completedJob.status === 'completed' || completedJob.status === 'failed') break
-            await new Promise(resolve => window.setTimeout(resolve, LARGE_IMPORT_POLL_INTERVAL_MS))
+            await new Promise(resolve => globalThis.setTimeout(resolve, LARGE_IMPORT_POLL_INTERVAL_MS))
             completedJob = await SlidesApiService.getImportJob(job.id)
           }
           if (completedJob.status !== 'completed' || !completedJob.slideId) {
