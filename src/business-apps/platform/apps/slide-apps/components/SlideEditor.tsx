@@ -3013,11 +3013,6 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             {/* Scrollable thumbnails */}
             <div className="gba:flex-1 gba:overflow-y-auto gba:p-2 gba:space-y-2">
               {slides.map((s, idx) => {
-                // Thumbnail scale: sidebar is w-48 (192px) - p-2 (8px each side) - border (4px) = ~176px
-                // Derive the thumbnail scale from the slide's actual canvas so
-                // imported 4:3 / custom-size decks thumb correctly (not cropped).
-                const thumbSourceWidth = s.canvasSize?.width ?? 1280
-                const thumbScale = 176 / thumbSourceWidth
                 const isDraggedOver = dragOverIndex === idx && draggedSlideIndex !== idx
 
                 return (
@@ -3112,7 +3107,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                       isDraggedOver ? 'gba:border-primary gba:border-dashed gba:bg-primary/10' : ''
                     }`}
                   >
-                    <SlideThumbnail slide={s} index={idx} thumbScale={thumbScale} />
+                    <SlideThumbnail slide={s} index={idx} />
                   </div>
                 )
               })}

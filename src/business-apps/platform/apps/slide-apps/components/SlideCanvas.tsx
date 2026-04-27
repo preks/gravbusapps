@@ -40,6 +40,8 @@ import { RichTextContent } from './RichTextContent'
 import { InlineRichTextEditor } from './InlineRichTextEditor'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import { ShapePointEditor } from './ShapePointEditor'
+import { SlideStaticElementContent } from './SlideStaticElementContent'
+import { getSlideBackgroundStyle, SlideBackgroundMedia } from './slideBackgroundUtils'
 import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
 import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
 import { createDefaultShapeText, type RichTextSelectionRange } from '../utils/richTextEditing'
@@ -142,6 +144,31 @@ interface SlideCanvasProps {
 
 type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
 
+function shouldUseSharedStaticRenderer(
+  element: AnySlideElement,
+  editingTextId: string | null | undefined,
+  editingPointsId: string | null | undefined
+): boolean {
+  if (element.type === 'text' || element.type === 'code') {
+    return editingTextId !== element.id
+  }
+
+  if (element.type === 'shape') {
+    return editingTextId !== element.id && editingPointsId !== element.id
+  }
+
+  return (
+    element.type === 'image' ||
+    element.type === 'video' ||
+    element.type === 'table' ||
+    element.type === 'chart' ||
+    element.type === 'logo' ||
+    element.type === 'footer' ||
+    element.type === 'connector' ||
+    element.type === 'group'
+  )
+}
+
 // Memoized to prevent re-renders from parent state changes (like AI assist volume/cooldown)
 export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
   ({
@@ -204,60 +231,15 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       setFailedImages(prev => new Set(prev).add(elementId))
     }, [])
 
-    const getBackgroundStyle = (): React.CSSProperties => {
-      switch (background.type) {
-        case 'gradient':
-          return background.gradient ? { background: gradientToCss(background.gradient) } : {}
-        case 'branded': {
-          // Branded backgrounds layer: overlay (top) + gradient (middle) + base color (bottom)
-          const layers: string[] = []
+    const getBackgroundStyle = (): React.CSSProperties => getSlideBackgroundStyle(background)
 
-          if (background.overlay) {
-            layers.push(gradientToCss(background.overlay))
-          }
-          if (background.gradient) {
-            layers.push(gradientToCss(background.gradient))
-          }
-
-          const baseColor = background.color || '#0a0a0a'
-
-          if (layers.length > 0) {
-            return { background: `${layers.join(', ')}, ${baseColor}` }
-          }
-          return { backgroundColor: baseColor }
-        }
-        case 'image':
-          return background.imageUrl
-            ? {
-                backgroundImage: `url(${getCachedImageUrl(background.imageUrl)})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
-              }
-            : {}
-        case 'video':
-          return { backgroundColor: '#000000' }
-        default:
-          return { backgroundColor: background.color || '#ffffff' }
-      }
-    }
-
-    const renderVideoBackground = () => {
-      if (background.type !== 'video' || !background.videoUrl) return null
-      const sanitizedVideoUrl = sanitizeMediaUrl(background.videoUrl, ['video/'])
-      if (!sanitizedVideoUrl) return null
-      return (
-        <video
-          autoPlay
-          loop={background.videoLoop !== false}
-          muted={background.videoMuted !== false}
-          playsInline
-          className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-          style={{ zIndex: 0 }}
-        >
-          <source src={sanitizedVideoUrl} type="video/mp4" />
-        </video>
-      )
-    }
+    const renderVideoBackground = () => (
+      <SlideBackgroundMedia
+        background={background}
+        className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
+        style={{ zIndex: 0 }}
+      />
+    )
 
     const handleCanvasMouseDown = (e: React.MouseEvent) => {
       // Start marquee selection when clicking on empty canvas area
@@ -1107,6 +1089,100 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       }
 
       const resizeHandles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as ResizeHandle[]
+      const resizeHandleNodes =
+        isSelected && isSingleSelection && !element.locked ? (
+          <>
+            {resizeHandles.map(handle => {
+              const handleStyle: React.CSSProperties = {
+                position: 'absolute',
+                width: 10,
+                height: 10,
+                backgroundColor: '#3b82f6',
+                border: '2px solid white',
+                borderRadius: '50%',
+                cursor: getCursor(handle),
+                zIndex: 1000
+              }
+
+              const positions: Record<ResizeHandle, React.CSSProperties> = {
+                nw: { top: -5, left: -5 },
+                n: { top: -5, left: '50%', transform: 'translateX(-50%)' },
+                ne: { top: -5, right: -5 },
+                e: { top: '50%', right: -5, transform: 'translateY(-50%)' },
+                se: { bottom: -5, right: -5 },
+                s: { bottom: -5, left: '50%', transform: 'translateX(-50%)' },
+                sw: { bottom: -5, left: -5 },
+                w: { top: '50%', left: -5, transform: 'translateY(-50%)' }
+              }
+
+              return (
+                <div
+                  key={handle}
+                  style={{ ...handleStyle, ...positions[handle] }}
+                  onMouseDown={e => handleResizeMouseDown(e, handle, element)}
+                />
+              )
+            })}
+          </>
+        ) : null
+
+      const useSharedStaticRenderer = shouldUseSharedStaticRenderer(
+        element,
+        inlineEditing?.editingTextId,
+        editingPointsId
+      )
+
+      if (useSharedStaticRenderer) {
+        return (
+          <div
+            key={element.id}
+            data-slide-element="true"
+            data-element-id={element.id}
+            role="button"
+            tabIndex={element.locked ? -1 : 0}
+            aria-label={`${element.type} element`}
+            style={wrapperStyle}
+            onContextMenu={e => {
+              if (element.type === 'shape' && onShapeContextMenu) {
+                e.preventDefault()
+                e.stopPropagation()
+                if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
+                if (!element.locked) onShapeContextMenu(element.id)
+              }
+            }}
+            onMouseDown={e => handleElementMouseDown(e, element)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
+                if (element.locked) return
+                if (e.key === 'Enter' && (element.type === 'text' || element.type === 'shape')) {
+                  if (inlineEditing?.editingTextId !== element.id) {
+                    onEditText(element.id)
+                  }
+                }
+              }
+            }}
+            onDoubleClick={e => {
+              if (element.locked) return
+              if (element.type === 'text' || element.type === 'shape') {
+                e.stopPropagation()
+                if (inlineEditing?.editingTextId !== element.id) {
+                  onEditText(element.id)
+                }
+              }
+            }}
+          >
+            <SlideStaticElementContent
+              element={element}
+              isPresenting={isPresenting}
+              onLinkClick={onLinkClick}
+              renderVideoElement={true}
+            />
+            {resizeHandleNodes}
+          </div>
+        )
+      }
 
       return (
         <div
@@ -2227,43 +2303,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               )
             })()}
 
-          {/* Resize handles - only for single selection */}
-          {isSelected && isSingleSelection && !element.locked && (
-            <>
-              {resizeHandles.map(handle => {
-                const handleStyle: React.CSSProperties = {
-                  position: 'absolute',
-                  width: 10,
-                  height: 10,
-
-                  backgroundColor: '#3b82f6',
-                  border: '2px solid white',
-                  borderRadius: '50%',
-                  cursor: getCursor(handle),
-                  zIndex: 1000
-                }
-
-                const positions: Record<ResizeHandle, React.CSSProperties> = {
-                  nw: { top: -5, left: -5 },
-                  n: { top: -5, left: '50%', transform: 'translateX(-50%)' },
-                  ne: { top: -5, right: -5 },
-                  e: { top: '50%', right: -5, transform: 'translateY(-50%)' },
-                  se: { bottom: -5, right: -5 },
-                  s: { bottom: -5, left: '50%', transform: 'translateX(-50%)' },
-                  sw: { bottom: -5, left: -5 },
-                  w: { top: '50%', left: -5, transform: 'translateY(-50%)' }
-                }
-
-                return (
-                  <div
-                    key={handle}
-                    style={{ ...handleStyle, ...positions[handle] }}
-                    onMouseDown={e => handleResizeMouseDown(e, handle, element)}
-                  />
-                )
-              })}
-            </>
-          )}
+          {resizeHandleNodes}
         </div>
       )
     }
