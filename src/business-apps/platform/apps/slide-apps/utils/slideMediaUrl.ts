@@ -40,7 +40,7 @@ function sanitizeSlideMediaUrlLegacy(trimmed: string, kind: SlideMediaKind): str
 }
 
 // Default DOMPurify URI allowlist omits `blob:`; slides use blob URLs for local previews.
-const SLIDE_MEDIA_ALLOWED_URI_REGEXP =
+export const SLIDE_MEDIA_ALLOWED_URI_REGEXP =
   /^(?:(?:(?:f|ht)tps?|blob|mailto|tel|callto|sms|cid|xmpp|matrix):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
 
 /**

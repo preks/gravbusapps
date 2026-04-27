@@ -34,6 +34,7 @@ import {
   PanelRight,
   Image as ImageIcon
 } from 'lucide-react'
+import DOMPurify from 'dompurify'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -118,7 +119,7 @@ import {
   type ElementBounds
 } from './shapeOperations'
 
-import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
+import { sanitizeSlideMediaUrl, SLIDE_MEDIA_ALLOWED_URI_REGEXP, type SlideMediaKind } from '../utils/slideMediaUrl'
 import { parseOnlineVideoUrl } from '../utils/onlineVideo'
 import {
   createVideoPreviewUrl,
@@ -147,6 +148,27 @@ import {
 
 /** Default editor canvas zoom (1.0 = 100%). */
 const DEFAULT_CANVAS_SCALE = 1.05
+
+/**
+ * CWE-79: DOMPurify on the React `img` sink in this file so Snyk Code recognizes
+ * a standard sanitizer (it does not always trace `sanitizeSlideMediaUrl` across modules).
+ */
+function domPurifySlideEditorImgSrc(url: string): string {
+  if (!url || typeof document === 'undefined') {
+    return url
+  }
+  const el = document.createElement('img')
+  el.setAttribute('src', url)
+  const sanitizedHtml = DOMPurify.sanitize(el.outerHTML, {
+    ALLOWED_TAGS: ['img'],
+    ALLOWED_ATTR: ['src'],
+    ALLOWED_URI_REGEXP: SLIDE_MEDIA_ALLOWED_URI_REGEXP
+  })
+  const wrap = document.createElement('div')
+  wrap.innerHTML = sanitizedHtml
+  const img = wrap.querySelector('img')
+  return img?.getAttribute('src')?.trim() ?? ''
+}
 
 /**
  * Local adapter over the shared slide-media sanitizer so existing call sites
@@ -3647,7 +3669,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     }
                     return (
                       <img
-                        src={safeVideoPreviewSrc}
+                        src={domPurifySlideEditorImgSrc(safeVideoPreviewSrc)}
                         alt=""
                         className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover"
                       />
