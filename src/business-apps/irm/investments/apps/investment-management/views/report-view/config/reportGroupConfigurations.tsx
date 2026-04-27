@@ -18,7 +18,8 @@ import {
   LIQUID_FUND_TABLE_CONFIG,
   REAL_ESTATE_TABLE_CONFIG
 } from '../components/shared/tableConfigs'
-import { transformReportsToAnalyticsData } from '../tabs/liquid-fund-report-tab/utils/liquidFundDataTransformer'
+import { transformReportsToAnalyticsData } from '../utils/liquidFundDataTransformer'
+import { getLiquidFundSubSections, type SubSection } from '../utils/subSectionHelpers'
 
 /**
  * Configuration for an investment group's report tab
@@ -52,7 +53,48 @@ export interface ReportGroupConfiguration {
 
   // Special mappings (for Liquid Fund)
   sectionToTypeMapping?: Record<string, string>
+
+  /**
+   * Resolve the locked sub-section to use when the report panel is rendered for
+   * a single investment record (e.g. inside the investment record's Reports tab).
+   *
+   * Receives the full investment record and any group-specific data
+   * (e.g. `typeSpecificData` from the record), and returns the section the
+   * panel should lock to. Returning `undefined` falls back to a synthetic
+   * "overview" section using the group code (matches the `'none'` strategy).
+   *
+   * Keeping this on the configuration means the record-level wrapper stays
+   * fully group-agnostic: every group declares "what's my section on a record"
+   * in one place, alongside its other behavior.
+   */
+  getRecordSection?: (investment: any, typeSpecificData?: any) => SubSection | undefined
 }
+
+/**
+ * Build a SubSection for a record from an investmentType-style object
+ * ({ code, value }). Returns undefined when no usable code is present.
+ */
+const buildSectionFromInvestmentType = (
+  investmentType: { code?: string; value?: string } | null | undefined
+): SubSection | undefined => {
+  const code = investmentType?.code
+  if (!code) return undefined
+  const value = investmentType?.value || code
+  return {
+    id: code.toLowerCase().replaceAll('_', '-'),
+    code,
+    value,
+    label: value
+  }
+}
+
+/**
+ * Default record-section resolver: most groups place the locked section on
+ * `investment.investmentType` (the same field the portfolio view uses for
+ * sub-sections under the `'investmentTypes'` strategy).
+ */
+const defaultGetRecordSection = (investment: any): SubSection | undefined =>
+  buildSectionFromInvestmentType(investment?.investmentType)
 
 /**
  * Group-specific configurations for investment report groups
@@ -132,6 +174,26 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
       'bank-deposits': 'BANK_DEPOSITE',
       'fixed-term-deposits': 'FIXED_TERM_DEPOSIT',
       'multiple-types': 'MONEY_MARKET_FUNDS'
+    },
+    /**
+     * Liquid Fund records expose the liquid fund type on
+     * `typeSpecificData.liquidFundInvestment.investmentLiquidFundType.code`.
+     * Map that code back to the section using the inverse of `sectionToTypeMapping`.
+     * Anything unmapped (e.g. money-market funds) falls into the "multiple-types" bucket,
+     * matching how the portfolio view groups them.
+     */
+    getRecordSection: (_investment: any, typeSpecificData?: any): SubSection | undefined => {
+      const liquidFundTypeCode: string | undefined =
+        typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType?.code
+
+      const sections = getLiquidFundSubSections()
+      if (!liquidFundTypeCode) return sections[0]
+
+      const matched = sections.find(s => s.code === liquidFundTypeCode)
+      if (matched) return matched
+
+      // Any other liquid fund type (money-market variants, etc.) groups under "multiple-types"
+      return sections.find(s => s.id === 'multiple-types') ?? sections[0]
     }
   }
 
@@ -158,13 +220,40 @@ export const DEFAULT_REPORT_GROUP_CONFIGURATION: ReportGroupConfiguration = {
   sortableColumns: getSortableColumnsForGroup('UNKNOWN')
 }
 
+// Pre-normalized configurations (computed once at module load) so that
+// `getReportGroupConfiguration` returns a stable object reference per
+// `groupCode`. This is important: callers like `InvestmentReportPanel` use the
+// returned config in `useMemo` dep arrays, and a fresh-per-call object would
+// silently invalidate those caches on every render.
+const NORMALIZED_REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguration> = Object.fromEntries(
+  Object.entries(REPORT_GROUP_CONFIGURATIONS).map(([key, config]) => [
+    key,
+    { ...config, getRecordSection: config.getRecordSection ?? defaultGetRecordSection }
+  ])
+)
+
+const NORMALIZED_DEFAULT_REPORT_GROUP_CONFIGURATION: ReportGroupConfiguration = {
+  ...DEFAULT_REPORT_GROUP_CONFIGURATION,
+  getRecordSection: DEFAULT_REPORT_GROUP_CONFIGURATION.getRecordSection ?? defaultGetRecordSection
+}
+
 /**
- * Get configuration for a specific investment group
- * Returns specialized configuration if defined, otherwise returns default configuration
+ * Get configuration for a specific investment group.
+ *
+ * Returns specialized configuration if defined, otherwise returns default
+ * configuration. In both cases, the returned configuration is normalized so
+ * that {@link ReportGroupConfiguration.getRecordSection} always falls back to
+ * {@link defaultGetRecordSection} — every group that doesn't override it
+ * automatically inherits the standard `investment.investmentType`-based
+ * record-section resolution (no per-group ceremony required).
+ *
+ * The returned object reference is stable per `groupCode` (configs are
+ * normalized once at module load), so it's safe to use in React hook
+ * dependency arrays.
  *
  * @param groupCode - Investment group code (e.g., 'EQUITY', 'REAL_ESTATE', 'PRIVATE_EQUITY')
  * @returns ReportGroupConfiguration for the group
  */
 export const getReportGroupConfiguration = (groupCode: string): ReportGroupConfiguration => {
-  return REPORT_GROUP_CONFIGURATIONS[groupCode] || DEFAULT_REPORT_GROUP_CONFIGURATION
+  return NORMALIZED_REPORT_GROUP_CONFIGURATIONS[groupCode] || NORMALIZED_DEFAULT_REPORT_GROUP_CONFIGURATION
 }

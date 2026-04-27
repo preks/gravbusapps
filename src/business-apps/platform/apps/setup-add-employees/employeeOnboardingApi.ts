@@ -10,7 +10,8 @@ function orgchartApiRoot(): string {
  * Orgchart paths are under {@link ORGCHART_API_URL} (`resolveServiceUrl` + `/structures/…`).
  */
 
-function kogitoBase(): string {
+/** Kogito employee processes base (same host/path family as `createBasicEmployee`, `createBulkJobPosition`, `saveEmployee`). */
+export function kogitoProcessesBaseUrl(): string {
   const u = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') ?? ''
   return u.replace(/\/$/, '')
 }
@@ -57,6 +58,66 @@ export async function fetchStructureOrgUnits(structureId: string, accessToken: s
   return collectOrgUnits(data.nodes ?? [])
 }
 
+export async function assignEmployeeToCompany(
+  accessToken: string,
+  input: {
+    structureId: string
+    employeeId: string
+    companyId: string
+    companyName: string
+  }
+): Promise<void> {
+  const url = `${orgchartApiRoot()}/employee-assignments/company`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json'
+    },
+    body: JSON.stringify([
+      {
+        structureId: input.structureId,
+        employeeId: input.employeeId,
+        companyId: input.companyId,
+        companyName: input.companyName
+      }
+    ])
+  })
+  if (!res.ok) {
+    throw new Error(`Company assignment failed (${res.status})`)
+  }
+}
+
+/** Creates one job position via Kogito; returns its id (used by add-employee and edit-employee). */
+export async function createSingleJobPositionByName(accessToken: string, jobPositionName: string): Promise<string> {
+  const jpUrl = `${kogitoProcessesBaseUrl()}/employee/createBulkJobPosition`
+  const jpRes = await fetch(jpUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json'
+    },
+    body: JSON.stringify({
+      basicJobPosition: { name: jobPositionName || 'Employee' },
+      count: 1
+    })
+  })
+  if (!jpRes.ok) {
+    throw new Error(`createBulkJobPosition failed (${jpRes.status})`)
+  }
+  const jpData = (await jpRes.json()) as {
+    jobPositions?: Array<{ id?: string }>
+    data?: { jobPositions?: Array<{ id?: string }> }
+  }
+  const jobPositionId = jpData?.data?.jobPositions?.[0]?.id ?? jpData?.jobPositions?.[0]?.id
+  if (!jobPositionId) {
+    throw new Error('No job position id returned')
+  }
+  return jobPositionId
+}
+
 export async function createBasicEmployeeFlow(
   accessToken: string,
   input: {
@@ -66,6 +127,11 @@ export async function createBasicEmployeeFlow(
     firstName: string
     lastName: string
     email: string
+    /** When set, second OU assignment (employee slot) includes org-chart Manager role. */
+    assignManagerRole?: boolean
+    /** When set, assigns the employee to this company after OU flow succeeds (optional; platform add-employee UI omits this). */
+    companyId?: string
+    companyName?: string
   }
 ): Promise<{ employeeId: string }> {
   const bodyEmployee = {
@@ -100,30 +166,7 @@ export async function createBasicEmployeeFlow(
     createUser: true
   }
 
-  const jpUrl = `${kogitoBase()}/employee/createBulkJobPosition`
-  const jpRes = await fetch(jpUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json'
-    },
-    body: JSON.stringify({
-      basicJobPosition: { name: input.jobPositionName || 'Employee' },
-      count: 1
-    })
-  })
-  if (!jpRes.ok) {
-    throw new Error(`createBulkJobPosition failed (${jpRes.status})`)
-  }
-  const jpData = (await jpRes.json()) as {
-    jobPositions?: Array<{ id?: string }>
-    data?: { jobPositions?: Array<{ id?: string }> }
-  }
-  const jobPositionId = jpData?.data?.jobPositions?.[0]?.id ?? jpData?.jobPositions?.[0]?.id
-  if (!jobPositionId) {
-    throw new Error('No job position id returned')
-  }
+  const jobPositionId = await createSingleJobPositionByName(accessToken, input.jobPositionName || 'Employee')
 
   const assignSlotUrl = `${orgchartApiRoot()}/employee-assignments/organizational-unit`
   const assignSlotRes = await fetch(assignSlotUrl, {
@@ -146,7 +189,7 @@ export async function createBasicEmployeeFlow(
     throw new Error(`Job position assignment failed (${assignSlotRes.status})`)
   }
 
-  const empUrl = `${kogitoBase()}/employee/createBasicEmployee`
+  const empUrl = `${kogitoProcessesBaseUrl()}/employee/createBasicEmployee`
   const empRes = await fetch(empUrl, {
     method: 'POST',
     headers: {
@@ -165,6 +208,16 @@ export async function createBasicEmployeeFlow(
     throw new Error('No employee id returned')
   }
 
+  const employeeAssignmentBody: Record<string, string> = {
+    structureId: input.structureId,
+    organizationalUnitId: input.organizationalUnitId,
+    employeeId,
+    jobPositionId
+  }
+  if (input.assignManagerRole) {
+    employeeAssignmentBody.role = 'Manager'
+  }
+
   const assignEmpRes = await fetch(assignSlotUrl, {
     method: 'POST',
     headers: {
@@ -172,17 +225,19 @@ export async function createBasicEmployeeFlow(
       'Content-Type': 'application/json',
       Accept: 'application/json'
     },
-    body: JSON.stringify([
-      {
-        structureId: input.structureId,
-        organizationalUnitId: input.organizationalUnitId,
-        employeeId,
-        jobPositionId
-      }
-    ])
+    body: JSON.stringify([employeeAssignmentBody])
   })
   if (!assignEmpRes.ok) {
     throw new Error(`Employee assignment failed (${assignEmpRes.status})`)
+  }
+
+  if (input.companyId?.trim() && input.companyName?.trim()) {
+    await assignEmployeeToCompany(accessToken, {
+      structureId: input.structureId,
+      employeeId,
+      companyId: input.companyId.trim(),
+      companyName: input.companyName.trim()
+    })
   }
 
   return { employeeId }

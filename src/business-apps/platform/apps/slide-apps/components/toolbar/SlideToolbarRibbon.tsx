@@ -41,7 +41,7 @@ export interface SlideToolbarRibbonProps {
   onRedo: () => void
   onCopy: () => void
   onPaste: () => void
-  onAddElement: (element: AnySlideElement) => void
+  onAddElement: (element: AnySlideElement, options?: { positionMode?: 'center' | 'preserve' }) => void
   onUpdateElement: (id: string, updates: Partial<AnySlideElement>) => void
   onShowBackgroundDialog: () => void
   onShowImageDialog: () => void
@@ -63,8 +63,12 @@ export interface SlideToolbarRibbonProps {
   onSaveNow?: () => void
   onExportPptx?: () => void
   onExportPdf?: () => void
-  onRefineSlide?: () => void
-  onGenerateSlides?: () => void
+  onRefineSlide?: (refinedSlide: SlideData) => void
+  onGenerateSlides?: (
+    slides: SlideData[],
+    title: string,
+    matchedTemplate?: { id: string; name: string; themeId?: string }
+  ) => void
   onOpenMasterView?: () => void
   masters?: import('../../types/slideMaster').SlideMaster[]
   onChangeLayout?: (layoutId: string, masterId: string) => void

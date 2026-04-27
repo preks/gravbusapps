@@ -8,7 +8,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   GET_INVESTMENT_REPORTS,
   GET_INVESTMENT_REPORT_BY_ID,
-  GET_INVESTMENT_REPORTS_BY_INVESTMENT_ID,
   SEARCH_INVESTMENT_REPORTS,
   type InvestmentReportQueryVariables
 } from '../queries/investmentReportQueries'
@@ -97,31 +96,6 @@ export const useGetInvestmentReportById = (context: BusinessAppContextProps) => 
   )
 
   return { fetchInvestmentReportById }
-}
-
-// Hook for getting investment reports by investment ID
-export const useGetInvestmentReportsByInvestmentId = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-
-  const fetchInvestmentReportsByInvestmentId = useCallback(
-    async (investmentId: string) => {
-      const query = GET_INVESTMENT_REPORTS_BY_INVESTMENT_ID(investmentId)
-      try {
-        const result = await graphqlClient.request<{ InvestmentReport: BaseInvestmentReport[] }>(query)
-
-        // Transform to enhanced reports
-        const enhancedReports = result.InvestmentReport.map(toInvestmentReport)
-
-        return enhancedReports
-      } catch (error) {
-        console.error('Error fetching investment reports by investment ID:', error)
-        throw error
-      }
-    },
-    [graphqlClient]
-  )
-
-  return { fetchInvestmentReportsByInvestmentId }
 }
 
 // Hook for searching investment reports

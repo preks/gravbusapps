@@ -134,6 +134,7 @@ export function HomeTabContent({
         {context.type === 'text' && (
           <TextFormattingTools
             element={context.element}
+            formatting={context.formatting}
             onUpdateElement={onUpdateElement}
             onShowLinkDialog={onShowLinkDialog}
             testId={testId}

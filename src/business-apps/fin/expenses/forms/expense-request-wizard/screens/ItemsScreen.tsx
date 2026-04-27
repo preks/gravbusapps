@@ -8,7 +8,7 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { ICONS } from '../../../utils/icons'
 import ExpenseItemCard from '../components/ExpenseItemCard/ExpenseItemCard'
 import { createItemsScreenLogObject, formatArrayOfItems, getMissingMandatoryFields, noAllowanceItemsFunction } from '../utils/itemsScreenUtils'
-import { fetchEmployeeExpenseItems, fetchEmployeeExpenseItemsFromPayload } from '../ExpenseRequestWizardQueries'
+import { fetchEmployeeExpenseItems, fetchEmployeeExpenseItemsFromPayload, fetchEmployeeExpenseItemsNoCurrency } from '../ExpenseRequestWizardQueries'
 import { SearchBarWithLabel } from '../../../forms/expense-request/components'
 import { EVENTS } from '../../../utils/constants'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
@@ -133,20 +133,22 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
       const excludedIdsForApi = [...excludedIdsBase, ...payloadItemIds, ...deletedItems.map((d: any) => d.id)]
 
       const itemCurrency = getItemCurrencyForFetch(currentCurrency, expenseRequestData, expenseItems ?? [])
-      console.log('[ItemsScreen] fetchSelectItems itemCurrency:', itemCurrency, 'currentCurrency:', currentCurrency)
 
       const userLocale = getCurrentActiveUserLocale()
       const ruleIdForFilter = typeof employeeRuleId === 'string' && employeeRuleId ? employeeRuleId : null
-      const countVariables = {
+      const baseVariables = {
         employeeId,
         status: REQUEST_STATUS.CREATED,
         activeUserLocale: userLocale,
         idsArray: excludedIdsForApi,
-        itemCurrency: itemCurrency,
         expenseRuleId: ruleIdForFilter
       }
+      const countVariables = itemCurrency
+        ? { ...baseVariables, itemCurrency }
+        : baseVariables
+      const queryToUse = itemCurrency ? fetchEmployeeExpenseItems : fetchEmployeeExpenseItemsNoCurrency
 
-      const countResponse = await graphQLClient.request(fetchEmployeeExpenseItems, {
+      const countResponse = await graphQLClient.request(queryToUse, {
         ...countVariables,
         limit: 1,
         offset: 0,
@@ -183,7 +185,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
           offset: Math.max(0, Number(apiOffset)),
           titleSearch: searchQuery ? `%${searchQuery}%` : '%'
         }
-        const response = await graphQLClient.request(fetchEmployeeExpenseItems, variables)
+        const response = await graphQLClient.request(queryToUse, variables)
         items = response?.ExpenseItemEmployee || []
       }
 

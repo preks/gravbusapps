@@ -1,351 +1,175 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useJobFunctions } from '../../hooks/useJobFunctions'
-import { JobFunction } from '../../types'
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Badge,
+  Button,
   Card,
   CardContent,
-  Button,
-  Input,
-  Alert,
-  AlertTitle,
-  AlertDescription,
   DataTable,
-  Badge,
+  Input,
   Spinner
 } from '@newwork/nw-design-system'
-import { CardTabHeaderComponent } from '../../../generic-components/card/CardTabHeaderComponent'
-import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { ErrorBoundary } from '@/business-apps/core/every/apps/every-box/components/ErrorBoundary'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
+import { CardTabHeaderComponent } from '@/business-apps/mdm/apps/generic-components/card'
+import JobFunctionForm from '@/business-apps/mdm/forms/job-function-form/JobFunctionForm'
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import {
-  EyeIcon,
-  UsersIcon,
-  BookOpenIcon,
-  WrenchIcon,
-  XCircleIcon,
-  ArrowsDownUpIcon,
+  BriefcaseIcon,
   FileCodeIcon,
   InfoIcon,
-  UserListIcon,
+  PencilSimpleLineIcon,
   PlusIcon,
-  PencilSimpleLineIcon
+  XCircleIcon
 } from '@phosphor-icons/react'
-import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
-import JobFunctionForm from '@/business-apps/mdm/forms/job-function-form'
-import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
+import { useJobFunctions } from '@/business-apps/mdm/apps/job-structure-data/hooks/useJobFunctions.ts'
+import { JobFunction } from '@/business-apps/mdm/apps/job-structure-data/utils/JobFunction.types.ts'
+import {
+  SortableHeader,
+  ActionsColumnHeader,
+  BadgeCell,
+  TextCell,
+  DescriptionCell,
+  StatusCell,
+  ActionsCell
+} from '@/business-apps/mdm/utils/tableUtils'
 
 export interface JobFunctionsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-const JobFunctionsTab: React.FC<JobFunctionsTabProps> = context => {
-  const { t } = useTranslation()
-  const { prefixDataTestId } = context
-  const dataTestId = formatDataTestId(prefixDataTestId, '')
+const DATA_TEST_ID_PREFIX = 'JobFunctionsTab'
 
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
-
-  const { jobFunctions, jobFamilies, jobLevelGroups, isLoading, error, refetch, searchJobFunctions } =
-    useJobFunctions(context)
-
+export default function JobFunctionsTab(context: Readonly<JobFunctionsTabProps>) {
+  const [sorting, setSorting] = useState<SortingState>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFunction, setSelectedFunction] = useState<JobFunction | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [editDialogOpen, setEditDialogOpen] = useState<string | null>(null)
 
+  const { prefixDataTestId, accessToken } = context
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
+
+  const { jobFunctions, jobFamilies, isLoading, error, refetch, searchJobFunctions, removeJobFunction } =
+    useJobFunctions(context)
+
+  // Keep drawer in sync after refetch
   useEffect(() => {
     if (selectedFunction) {
-      const newJobFunction = jobFunctions.find(jobFunction => jobFunction.id === selectedFunction.id)
-
-      if (newJobFunction) {
-        setSelectedFunction(newJobFunction)
-      }
+      const updated = jobFunctions.find(f => f.id === selectedFunction.id)
+      if (updated) setSelectedFunction(updated)
     }
   }, [jobFunctions])
 
-  const filteredFunctions = searchTerm ? searchJobFunctions(searchTerm) : jobFunctions
+  const usedCodes = useMemo(() => jobFunctions.map(f => f.code ?? '-'), [jobFunctions])
 
-  const handleView = (record: JobFunction) => {
-    const targetJobFunction = jobFunctions.find(jobFunction => jobFunction.id === record.id)
+  const filteredFunctions = useMemo(
+    () => (searchTerm ? searchJobFunctions(searchTerm) : jobFunctions),
+    [searchTerm, searchJobFunctions, jobFunctions]
+  )
 
-    if (targetJobFunction) {
-      setSelectedFunction(targetJobFunction)
-      setIsDrawerOpen(true)
-    }
-  }
-
-  const handleDelete = async (item: JobFunction) => {
-    await restClient.post(
-      '/employee/saveJobFunction',
-      {
-        changeMode: 'DELETE',
-        jobFunction: {
-          id: item.id,
-          version: item.version ?? 0
-        }
-      },
-      {
-        headers: { Authorization: `Bearer ${context.accessToken}` }
-      }
-    )
-
+  const handleDelete = async (fn: JobFunction) => {
+    await removeJobFunction({ id: fn.id, version: fn.version ?? 0 })
     await refetch()
   }
 
-  const renderJobFunctionsTable = () => {
-    const columns: ColumnDef<JobFunction>[] = [
-      {
-        accessorKey: 'code',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Code
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
-        enableSorting: true,
-        cell: ({ getValue }) => {
-          const code = getValue()
-          return (
-            <div className="gba:flex gba:items-center">
-              <Badge variant="info">{(code as string) ?? 'N/A'}</Badge>
-            </div>
-          )
-        }
-      },
-      {
-        accessorKey: 'name',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Name
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
-        enableSorting: true,
-        cell: ({ getValue }) => {
-          const name = getValue()
-          return (
-            <div className="gba:flex gba:items-center">
-              <div className="gba:font-semibold">{name as string}</div>
-            </div>
-          )
-        }
-      },
-      {
-        accessorKey: 'jobFamily',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Job Family
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
-        enableSorting: true,
-        cell: ({ row }) => {
-          const jobFamily = row.original.jobFamily?.value
-          return jobFamily ?? 'Not assigned'
-        }
-      },
-      {
-        accessorKey: 'jobLevelGroup',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Job Level Group
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
-        enableSorting: true,
-        cell: ({ row }) => {
-          const jobLevelGroup = row.original.jobLevelGroup?.value
-          return jobLevelGroup ?? 'Not assigned'
-        }
-      },
-      {
-        accessorKey: 'description',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Description
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
-        enableSorting: true,
-        cell: ({ getValue }) => {
-          const description = getValue()
-          return (
-            <div className="gba:flex gba:items-center">
-              <div className="gba:max-w-xs gba:truncate" title={description as string}>
-                {(description as string) ?? '-'}
-              </div>
-            </div>
-          )
-        }
-      },
-      {
-        id: 'actions',
-        header: () => <div className="gba:flex gba:w-[115px]">Actions</div>,
-        enableSorting: false,
-        enableHiding: true,
-        cell: ({ row }) => (
-          <div className="gba:flex gba:items-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleView(row.original)}
-              data-testid={`${dataTestId}-view-function-${row.original.id}`}
-            >
-              <EyeIcon className="gba:h-4 gba:w-4" />
-            </Button>
-
-            <JobFunctionForm
-              childAddButton={
-                <Button variant="ghost" size="sm">
-                  <PencilSimpleLineIcon />
-                </Button>
-              }
-              prefixDataTestId={`${prefixDataTestId}`}
-              accessToken={context.accessToken}
-              refetch={refetch}
-              jobFamilies={jobFamilies}
-              jobLevelGroups={jobLevelGroups}
-              jobFunction={row.original}
-            />
-
-            <DeleteButton
-              onDelete={() => handleDelete(row.original)}
-              itemName={row.original.name}
-              itemTitle={'Job Function'}
-            />
-          </div>
-        )
-      }
-    ]
-
-    const dataTable = filteredFunctions.map(jobFunction => ({
-      id: jobFunction.id,
-      code: jobFunction.code,
-      name: jobFunction.name,
-      description: jobFunction.description,
-      jobFamily: jobFunction.jobFamily,
-      jobLevelGroup: jobFunction.jobLevelGroup,
-      version: jobFunction.version,
-      nameI18n: jobFunction.nameI18n,
-      descriptionI18n: jobFunction.descriptionI18n
-    }))
-
-    return (
-      <DataTable
-        data={dataTable}
-        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
-        sorting={sorting}
-        onSortingChange={setSorting}
-        enableSorting
-        enablePagination
-      />
-    )
+  const handleView = (fn: JobFunction) => {
+    setSelectedFunction(fn)
+    setIsDrawerOpen(true)
   }
 
-  const navigationItems = useMemo(() => {
-    if (!selectedFunction) return []
-
-    const items = []
-
-    // Conditionally add Job Family Details if jobFamilyRef exists
-    if (selectedFunction.jobFamilyRef) {
-      items.push({
-        redirectLink: `/platform/mdm/job-structure-data/job-families/${selectedFunction.jobFamilyRef}`,
-        color: 'green',
-        icon: UsersIcon,
-        title: selectedFunction.jobFamily?.value ?? 'Job Family Details',
-        description: 'View complete job family information, structure and related positions'
-      })
-    }
-
-    // Conditionally add Level Group Details if jobLevelGroupRef exists
-    if (selectedFunction.jobLevelGroupRef) {
-      items.push({
-        redirectLink: `/platform/mdm/job-structure-data/job-level-groups/${selectedFunction.jobLevelGroupRef}`,
-        color: 'blue',
-        icon: UserListIcon,
-        title: selectedFunction.jobLevelGroup?.value ?? 'Level Group Details',
-        description: 'View job level grouping, career progression paths and categorization'
-      })
-    }
-
-    items.push(
-      {
-        redirectLink: `/platform/mdm/job-structure-data/job-profiles?function=${selectedFunction.id}`,
-        color: 'purple',
-        icon: BookOpenIcon,
-        title: 'Related Job Profiles',
-        description: `View all job profiles using the ${selectedFunction.name} function`
+  const columns: ColumnDef<JobFunction>[] = [
+    {
+      accessorKey: 'code',
+      header: ({ column }) => SortableHeader({ column, children: 'Code' }),
+      enableSorting: true,
+      cell: ({ getValue }) => BadgeCell({ value: getValue() as string, variant: 'info' })
+    },
+    {
+      accessorKey: 'name',
+      header: ({ column }) => SortableHeader({ column, children: 'Name' }),
+      enableSorting: true,
+      cell: ({ getValue }) => TextCell({ value: getValue() as string, className: 'gba:font-semibold' })
+    },
+    {
+      id: 'jobFamily',
+      accessorKey: 'jobFamily',
+      header: ({ column }) => SortableHeader({ column, children: 'Job Family' }),
+      enableSorting: true,
+      sortingFn: (a, b) => {
+        if (!a.original.jobFamily || !b.original.jobFamily) return 1
+        return a.original.jobFamily?.name.localeCompare(b.original.jobFamily?.name)
       },
-      {
-        redirectLink: `/platform/mdm/competencies-data/skills?jobFunction=${selectedFunction.id}`,
-        color: 'orange',
-        icon: WrenchIcon,
-        title: 'Skills & Competencies',
-        description: `Explore skills and competencies associated with ${selectedFunction.name}`
-      }
-    )
-
-    return items
-  }, [selectedFunction])
+      cell: ({ row }) => BadgeCell({ value: row.original.jobFamily, variant: 'secondary' })
+    },
+    {
+      accessorKey: 'description',
+      header: 'Description',
+      enableSorting: false,
+      cell: ({ getValue }) => DescriptionCell({ value: getValue() as string | undefined })
+    },
+    {
+      accessorKey: 'isActive',
+      header: 'Status',
+      enableSorting: false,
+      cell: ({ getValue }) => StatusCell({ isActive: getValue() as boolean })
+    },
+    {
+      id: 'actions',
+      header: () => ActionsColumnHeader(),
+      enableSorting: false,
+      cell: ({ row }) =>
+        ActionsCell({
+          record: row.original,
+          dataTestId,
+          onView: handleView,
+          onEdit: setEditDialogOpen,
+          onDelete: handleDelete,
+          itemNameGetter: record => record.name ?? '',
+          itemTitle: 'Job Function'
+        })
+    }
+  ]
 
   const drawerItems = useMemo(() => {
     if (!selectedFunction) return []
-
     return [
       {
         icon: <InfoIcon />,
         title: 'Basic Information',
         verticalTable: true,
         items: [
+          { label: 'Name', value: selectedFunction.name },
+          { label: 'Code', value: <Badge variant="info">{selectedFunction.code}</Badge> },
+          { label: 'Description', value: selectedFunction.description ?? '—' },
           {
-            label: 'Name',
-            value: selectedFunction.name
-          },
-          {
-            label: 'Code',
-            value: selectedFunction.code ?? '-'
-          },
-          {
-            label: 'Description',
-            value: selectedFunction.description ?? '-'
+            label: 'Status',
+            value: (
+              <Badge variant={selectedFunction.isActive ? 'success' : 'destructive'}>
+                {selectedFunction.isActive ? 'Active' : 'Inactive'}
+              </Badge>
+            )
           }
         ]
       },
       {
         icon: <InfoIcon />,
-        title: 'Classifications',
+        title: 'Classification',
+        verticalTable: true,
         items: [
           {
             label: 'Job Family',
-            value: selectedFunction.jobFamily?.value ?? '-'
-          },
-          {
-            label: 'Job Level Group',
-            value: selectedFunction.jobLevelGroup?.value ?? '-'
+            value: selectedFunction.jobFamily ? (
+              <Badge variant="secondary">
+                {selectedFunction.jobFamily.name} ({selectedFunction.jobFamily.code})
+              </Badge>
+            ) : (
+              '—'
+            )
           }
         ]
       }
@@ -354,11 +178,11 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = context => {
 
   if (error) {
     return (
-      <div className="gba:p-6 gba:text-center">
+      <div data-testid={`${prefixDataTestId}-JobFunctionsTab2`} className="gba:p-4">
         <Alert className="gba:w-full gba:!flex gba:justify-between gba:!items-center" variant="destructive">
           <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
             <XCircleIcon className="h-4 w-4" />
-            Error Loading Job Functions
+            Error Loading Data
           </AlertTitle>
           <AlertDescription>
             <Button size="sm" variant="destructive" onClick={() => refetch()}>
@@ -372,91 +196,150 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = context => {
 
   if (isLoading && jobFunctions.length === 0) {
     return (
-      <div data-testid={`${dataTestId}`} className="gba:flex gba:justify-center gba:items-center gba:h-64">
+      <div data-testid={dataTestId} className="gba:flex gba:justify-center gba:items-center gba:h-64">
         <Spinner />
       </div>
     )
   }
 
   return (
-    <Card className="gba:rounded-lg gba:border gba:bg-card gba:text-card-foreground gba:shadow-sm gba:overflow-hidden">
-      {!isLoading && (
-        <CardTabHeaderComponent
-          addButton={
-            <JobFunctionForm
-              childAddButton={
-                <Button>
-                  <PlusIcon />
-                  Add Job Function
-                </Button>
-              }
-              prefixDataTestId={`${prefixDataTestId}`}
-              accessToken={context.accessToken}
-              refetch={refetch}
-              jobFamilies={jobFamilies}
-              jobLevelGroups={jobLevelGroups}
-            />
-          }
-          cardTitle={`${t('hr.job_functions', 'Job Functions')} (${jobFunctions.length})`}
-          cardDescription="Manage and explore job functions across the organization"
-        />
-      )}
-
-      <CardContent className="gba:relative">
-        <div className="gba:mb-6 gba:relative gba:max-w-sm">
-          <Input
-            placeholder="Search job functions..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="gba:pl-10"
-            data-testid={`${dataTestId}-search-input`}
-          />
-        </div>
-
-        {isLoading ? (
-          <div className="gba:text-center gba:py-8">
-            <div className="gba:animate-spin gba:inline-block gba:w-8 gba:h-8 gba:border-4 gba:border-blue-600 gba:border-t-transparent gba:rounded-full"></div>
-            <p className="gba:mt-2 gba:text-gray-600">Loading job functions...</p>
-          </div>
-        ) : (
-          renderJobFunctionsTable()
-        )}
-      </CardContent>
-
-      {selectedFunction && (
-        <SheetWrapperComponent
-          prefixDataTestId={dataTestId}
-          isDrawerVisible={isDrawerOpen}
-          onOpenChange={openStatus => {
-            if (!openStatus) {
-              setSelectedFunction(null)
+    <ErrorBoundary>
+      <Card className="gba:rounded-lg gba:border gba:bg-card gba:text-card-foreground gba:shadow-sm gba:overflow-hidden">
+        {!isLoading && (
+          <CardTabHeaderComponent
+            addButton={
+              <ErrorBoundary>
+                <JobFunctionForm
+                  usedCodes={usedCodes}
+                  childAddButton={
+                    <Button
+                      variant="default"
+                      onClick={e => e.stopPropagation()}
+                      data-testid={`${dataTestId}-add-function`}
+                    >
+                      <PlusIcon /> Add Job Function
+                    </Button>
+                  }
+                  prefixDataTestId={dataTestId}
+                  // loading={isLoading}
+                  accessToken={accessToken}
+                  refetch={refetch}
+                  jobFamilies={jobFamilies}
+                />
+              </ErrorBoundary>
             }
-            setIsDrawerOpen(openStatus)
-          }}
-          title="Job Function Details"
-          titleIcon={FileCodeIcon}
-          drawerItems={drawerItems}
-          navigationItems={navigationItems}
-          footerButtons={[
-            <JobFunctionForm
-              childAddButton={
-                <Button>
-                  <PencilSimpleLineIcon /> Edit
-                </Button>
-              }
-              prefixDataTestId={`${prefixDataTestId}`}
-              accessToken={context.accessToken}
-              refetch={refetch}
-              jobFamilies={jobFamilies}
-              jobLevelGroups={jobLevelGroups}
-              jobFunction={selectedFunction}
-              isDrawerActive={isDrawerOpen}
+            cardTitle={`Job Functions (${jobFunctions.length})`}
+            cardDescription="Manage job functions and their associated job families"
+          />
+        )}
+
+        <CardContent className="gba:relative">
+          <div className="gba:mb-6 gba:relative gba:max-w-sm">
+            <Input
+              placeholder="Search job functions..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              data-testid={`${dataTestId}-search-input`}
             />
-          ]}
-        />
-      )}
-    </Card>
+          </div>
+
+          {jobFunctions.length === 0 && !isLoading ? (
+            <div className="gba:text-center gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
+              <BriefcaseIcon className="gba:h-12 gba:w-12 gba:text-gray-400" />
+              <p className="gba:font-normal gba:text-gray-500">No job functions found</p>
+              <div className="gba:mt-2">
+                <ErrorBoundary>
+                  <JobFunctionForm
+                    usedCodes={usedCodes}
+                    childAddButton={
+                      <Button
+                        variant="default"
+                        onClick={e => e.stopPropagation()}
+                        data-testid={`${prefixDataTestId}-create-first-function`}
+                      >
+                        <PlusIcon /> Create First Job Function
+                      </Button>
+                    }
+                    prefixDataTestId={`${prefixDataTestId}`}
+                    // loading={isLoading}
+                    accessToken={accessToken}
+                    refetch={refetch}
+                    jobFamilies={jobFamilies}
+                  />
+                </ErrorBoundary>
+              </div>
+            </div>
+          ) : (
+            <ErrorBoundary>
+              <DataTable
+                data={filteredFunctions}
+                columns={columns}
+                sorting={sorting}
+                onSortingChange={setSorting}
+                enableSorting
+                enablePagination
+              />
+            </ErrorBoundary>
+          )}
+        </CardContent>
+
+        {selectedFunction && (
+          <ErrorBoundary>
+            <SheetWrapperComponent
+              prefixDataTestId={dataTestId}
+              isDrawerVisible={isDrawerOpen}
+              onOpenChange={openStatus => {
+                if (!openStatus) setSelectedFunction(null)
+                setIsDrawerOpen(openStatus)
+              }}
+              title="Job Function Details"
+              titleIcon={FileCodeIcon}
+              drawerItems={drawerItems}
+              footerButtons={[
+                <ErrorBoundary key="edit-form">
+                  <JobFunctionForm
+                    usedCodes={usedCodes}
+                    childAddButton={
+                      <Button data-testid={`${prefixDataTestId || ''}-JobFunctionsTab2-EditButton`}>
+                        <PencilSimpleLineIcon /> Edit
+                      </Button>
+                    }
+                    jobFunction={selectedFunction}
+                    prefixDataTestId={`${prefixDataTestId}`}
+                    // loading={isLoading}
+                    accessToken={accessToken}
+                    refetch={refetch}
+                    isDrawerActive={isDrawerOpen}
+                    jobFamilies={jobFamilies}
+                    key={selectedFunction.id}
+                  />
+                </ErrorBoundary>
+              ]}
+            />
+          </ErrorBoundary>
+        )}
+      </Card>
+
+      {/* Edit dialog rendered outside the DataTable so it is never unmounted by table re-renders */}
+      {editDialogOpen &&
+        (() => {
+          const recordToEdit = jobFunctions.find(l => l.id === editDialogOpen) ?? null
+          if (!recordToEdit) return null
+          return (
+            <ErrorBoundary>
+              <JobFunctionForm
+                key={editDialogOpen}
+                jobFunction={recordToEdit}
+                jobFamilies={jobFamilies}
+                prefixDataTestId={dataTestId}
+                accessToken={accessToken}
+                refetch={refetch}
+                open={true}
+                setOpen={open => setEditDialogOpen(open ? editDialogOpen : null)}
+              />
+            </ErrorBoundary>
+          )
+        })()}
+    </ErrorBoundary>
   )
 }
-
-export { JobFunctionsTab }

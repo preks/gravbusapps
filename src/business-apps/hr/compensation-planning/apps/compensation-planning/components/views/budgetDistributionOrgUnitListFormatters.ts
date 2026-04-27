@@ -1,5 +1,3 @@
-import { formatCurrency } from '@/common/utils/numberFormatter'
-
 export function formatShareOfTotalSalary(part: number, total: number): string {
   if (total <= 0 || !Number.isFinite(part) || !Number.isFinite(total)) {
     return '—'
@@ -20,11 +18,4 @@ export function formatPerformanceScoreSum(value: number): string {
     return '—'
   }
   return value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
-}
-
-export function formatPoolDisplay(pool: number | null, currencyCode: string): string {
-  if (pool != null && pool > 0) {
-    return formatCurrency(pool, currencyCode)
-  }
-  return '—'
 }

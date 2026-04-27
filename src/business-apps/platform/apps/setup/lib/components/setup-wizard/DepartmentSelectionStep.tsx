@@ -9,7 +9,8 @@ import { Capability, Department, SetupEmployee } from './types'
 import { wizardSectionTheme } from './theme'
 import { getSetupProgressItems, setupProgressStepIndex } from './progress-steps'
 import { v4 as uuidv4 } from 'uuid'
-import { enterprisePresetDepartments } from '../../data'
+import { createEnterprisePresetState, enterprisePresetDepartments } from '../../data'
+import { SETUP_ENTERPRISE_MANAGEMENT_DEPARTMENT_ID } from '../../setupConstants'
 
 export interface DepartmentSelectionStepProps<T extends FieldValues = FieldValues> {
   readonly onNext: () => void
@@ -28,6 +29,7 @@ function DepartmentSelectionStep<T extends FieldValues = FieldValues>({
   const { watch, setValue, getValues } = useFormContext()
   const [customDepartmentName, setCustomDepartmentName] = useState('')
   const [presetDepartmentToAdd, setPresetDepartmentToAdd] = useState('')
+  const [isAdvancedDepartmentSetup, setIsAdvancedDepartmentSetup] = useState(false)
 
   const selectedDepartments = watch('selectedDepartments') || []
   const departments = watch('departments') || []
@@ -112,8 +114,61 @@ function DepartmentSelectionStep<T extends FieldValues = FieldValues>({
     setPresetDepartmentToAdd('')
   }, [departmentCapabilities, presetDepartmentToAdd, selectedCapabilities, selectedDepartments, setValue])
 
+  const applyQuickDepartmentPreset = useCallback(() => {
+    const preset = createEnterprisePresetState()
+    setValue('departments', preset.departments)
+    setValue('selectedDepartments', preset.selectedDepartments)
+    setValue('selectedDepartmentId', null)
+    setValue('selectedDepartmentName', null)
+    setValue('capabilities', preset.capabilities)
+    setValue('departmentCapabilities', preset.departmentCapabilities)
+    setValue('selectedCapabilities', preset.selectedCapabilities)
+    const currentEmployees = (getValues('additionalEmployees') as SetupEmployee[] | undefined) ?? []
+    setValue(
+      'additionalEmployees',
+      currentEmployees.map((employee: SetupEmployee) => ({
+        ...employee,
+        capabilityIds: employee.capabilityIds.filter(id => preset.selectedCapabilities.includes(id))
+      })),
+      { shouldDirty: true, shouldTouch: true }
+    )
+  }, [getValues, setValue])
+
+  const handleDepartmentSetupModeChange = useCallback(
+    (mode: 'quick' | 'advanced') => {
+      if (mode === 'quick') {
+        if (isAdvancedDepartmentSetup) {
+          applyQuickDepartmentPreset()
+        }
+        setIsAdvancedDepartmentSetup(false)
+      } else {
+        setIsAdvancedDepartmentSetup(true)
+      }
+    },
+    [applyQuickDepartmentPreset, isAdvancedDepartmentSetup]
+  )
+
+  const departmentSetupModeOptions = useMemo(
+    () => [
+      {
+        id: 'quick' as const,
+        title: t('department-setup-mode-quick'),
+        description: t('department-setup-mode-quick-help')
+      },
+      {
+        id: 'advanced' as const,
+        title: t('department-setup-mode-advanced'),
+        description: t('department-setup-mode-advanced-description')
+      }
+    ],
+    [t]
+  )
+
   const handleRemoveDepartment = useCallback(
     (departmentId: string) => {
+      if (departmentId === SETUP_ENTERPRISE_MANAGEMENT_DEPARTMENT_ID) {
+        return
+      }
       const department = departments.find((entry: Department) => entry.id === departmentId)
       const isPresetDepartment = presetDepartmentNames.has(department?.name.trim().toLowerCase() ?? '')
       const capabilityIdsForDepartment = departmentCapabilities[departmentId] ?? []
@@ -187,114 +242,156 @@ function DepartmentSelectionStep<T extends FieldValues = FieldValues>({
       contentClassName="gba:overflow-hidden"
     >
       <div className="gba:w-full gba:overflow-y-auto gba:overflow-x-hidden">
-        <div className="gba:mb-6 gba:rounded-md gba:border gba:border-[#D6D3D1] gba:bg-[#FAFAF9] gba:p-4">
-          <div className={`gba:mb-3 gba:text-sm gba:font-medium ${wizardSectionTheme.departments.titleText}`}>
-            {t('department-selection-selected-departments')}
+        <div className="gba:mb-6 gba:space-y-4">
+          <div className={`gba:text-sm gba:font-medium ${wizardSectionTheme.departments.titleText}`}>
+            {t('department-setup-mode-title')}
           </div>
-          <p className="gba:mb-4 gba:text-sm gba:leading-6 gba:text-[#78716C]">
-            {t('department-selection-selected-departments-explanation')}
-          </p>
-
-          {selectedDepartmentEntries.length === 0 ? (
-            <p className="gba:text-sm gba:text-[#78716C]">{t('department-selection-empty-state')}</p>
-          ) : (
-            <div className="gba:grid gba:gap-3 gba:md:grid-cols-2">
-              {selectedDepartmentEntries.map((department: Department) => (
-                <div
-                  key={department.id}
-                  className={`gba:flex gba:min-h-[64px] gba:items-center gba:justify-between gba:rounded-md gba:px-4 gba:py-3 ${wizardSectionTheme.departments.selectedBackground}`}
-                  data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `selected-department-${department.id}`)}
+          <div className="gba:grid gba:gap-4">
+            {departmentSetupModeOptions.map(option => {
+              const isSelected = option.id === 'advanced' ? isAdvancedDepartmentSetup : !isAdvancedDepartmentSetup
+              return (
+                <label
+                  key={option.id}
+                  className={`gba:flex gba:cursor-pointer gba:items-start gba:gap-4 gba:rounded-2xl gba:border gba:p-5 gba:transition-colors ${
+                    isSelected
+                      ? `${wizardSectionTheme.departments.selectedBorder} ${wizardSectionTheme.departments.idleBackground} gba:shadow-sm`
+                      : 'gba:border-gray-200 gba:bg-white gba:hover:border-[#CBD5E1] gba:hover:bg-[#FAFAFA]'
+                  }`}
+                  data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `mode-${option.id}`)}
                 >
-                  <span
-                    className={`gba:text-sm ${wizardSectionTheme.departments.titleText} gba:font-normal gba:leading-5 gba:font-sans`}
-                  >
-                    {department.name}
-                  </span>
+                  <input
+                    type="radio"
+                    name="department-setup-mode"
+                    checked={isSelected}
+                    onChange={() => handleDepartmentSetupModeChange(option.id)}
+                    className="gba:mt-1"
+                  />
+                  <div className="gba:min-w-0">
+                    <div className={`gba:text-lg gba:font-semibold ${wizardSectionTheme.departments.titleText}`}>
+                      {option.title}
+                    </div>
+                    <div className="gba:mt-1 gba:text-sm gba:leading-6 gba:text-gray-600">{option.description}</div>
+                  </div>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+
+        {!isAdvancedDepartmentSetup ? null : (
+          <>
+            <div className="gba:mb-6 gba:rounded-md gba:border gba:border-[#D6D3D1] gba:bg-[#FAFAF9] gba:p-4">
+              <div className={`gba:mb-3 gba:text-sm gba:font-medium ${wizardSectionTheme.departments.titleText}`}>
+                {t('department-selection-selected-departments')}
+              </div>
+              <p className="gba:mb-4 gba:text-sm gba:leading-6 gba:text-[#78716C]">
+                {t('department-selection-selected-departments-explanation')}
+              </p>
+
+              {selectedDepartmentEntries.length === 0 ? (
+                <p className="gba:text-sm gba:text-[#78716C]">{t('department-selection-empty-state')}</p>
+              ) : (
+                <div className="gba:grid gba:gap-3 gba:md:grid-cols-2">
+                  {selectedDepartmentEntries.map((department: Department) => (
+                    <div
+                      key={department.id}
+                      className={`gba:flex gba:min-h-[64px] gba:items-center gba:justify-between gba:rounded-md gba:px-4 gba:py-3 ${wizardSectionTheme.departments.selectedBackground}`}
+                      data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `selected-department-${department.id}`)}
+                    >
+                      <span
+                        className={`gba:text-sm ${wizardSectionTheme.departments.titleText} gba:font-normal gba:leading-5 gba:font-sans`}
+                      >
+                        {department.name}
+                      </span>
+                      {department.id !== SETUP_ENTERPRISE_MANAGEMENT_DEPARTMENT_ID && (
+                        <button
+                          type="button"
+                          className="gba:rounded-md gba:p-2 gba:text-[#78716C] gba:transition-colors gba:hover:bg-[#FEF2F2] gba:hover:text-[#B42318]"
+                          onClick={() => handleRemoveDepartment(department.id)}
+                          data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `remove-department-${department.id}`)}
+                          aria-label={t('department-selection-remove-department')}
+                        >
+                          <Trash2 size={18} aria-hidden />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {availablePresetOptions.length > 0 && (
+              <div className="gba:mb-6 gba:rounded-md gba:border gba:border-[#D6D3D1] gba:bg-white gba:p-4">
+                <div className={`gba:mb-2 gba:text-sm gba:font-medium ${wizardSectionTheme.departments.titleText}`}>
+                  {t('department-selection-add-from-preset')}
+                </div>
+                <div className="gba:flex gba:gap-3">
+                  <div className="gba:flex-1 gba:space-y-2">
+                    <Label className="gba:sr-only" htmlFor="preset-department-select">
+                      {t('department-selection-select-department')}
+                    </Label>
+                    <Select value={presetDepartmentToAdd || undefined} onValueChange={v => setPresetDepartmentToAdd(v)}>
+                      <SelectTrigger
+                        id="preset-department-select"
+                        className="gba:w-full"
+                        data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'preset-department-select')}
+                      >
+                        <SelectValue placeholder={t('department-selection-select-department')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availablePresetOptions.map(opt => (
+                          <SelectItem key={opt.id} value={opt.id}>
+                            {opt.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <button
                     type="button"
-                    className="gba:rounded-md gba:p-2 gba:text-[#78716C] gba:transition-colors gba:hover:bg-[#FEF2F2] gba:hover:text-[#B42318]"
-                    onClick={() => handleRemoveDepartment(department.id)}
-                    data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `remove-department-${department.id}`)}
-                    aria-label={t('department-selection-remove-department')}
+                    className={ADD_BUTTON_CLASSNAME}
+                    onClick={handleAddPresetDepartment}
+                    disabled={!presetDepartmentToAdd}
+                    data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'add-preset-department-button')}
                   >
-                    <Trash2 size={18} aria-hidden />
+                    {t('department-selection-add-department')}
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {availablePresetOptions.length > 0 && (
-          <div className="gba:mb-6 gba:rounded-md gba:border gba:border-[#D6D3D1] gba:bg-white gba:p-4">
-            <div className={`gba:mb-2 gba:text-sm gba:font-medium ${wizardSectionTheme.departments.titleText}`}>
-              {t('department-selection-add-from-preset')}
-            </div>
-            <div className="gba:flex gba:gap-3">
-              <div className="gba:flex-1 gba:space-y-2">
-                <Label className="gba:sr-only" htmlFor="preset-department-select">
-                  {t('department-selection-select-department')}
-                </Label>
-                <Select value={presetDepartmentToAdd || undefined} onValueChange={v => setPresetDepartmentToAdd(v)}>
-                  <SelectTrigger
-                    id="preset-department-select"
-                    className="gba:w-full"
-                    data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'preset-department-select')}
-                  >
-                    <SelectValue placeholder={t('department-selection-select-department')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availablePresetOptions.map(opt => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
-              <button
-                type="button"
-                className={ADD_BUTTON_CLASSNAME}
-                onClick={handleAddPresetDepartment}
-                disabled={!presetDepartmentToAdd}
-                data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'add-preset-department-button')}
-              >
-                {t('department-selection-add-department')}
-              </button>
-            </div>
-          </div>
-        )}
+            )}
 
-        <div className="gba:rounded-md gba:border gba:border-[#D6D3D1] gba:bg-white gba:p-4">
-          <div className={`gba:mb-2 gba:text-sm gba:font-medium ${wizardSectionTheme.departments.titleText}`}>
-            {t('department-selection-new-department')}
-          </div>
-          <div className="gba:flex gba:gap-3">
-            <input
-              type="text"
-              value={customDepartmentName}
-              onChange={event => setCustomDepartmentName(event.target.value)}
-              onKeyDown={event => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  handleAddDepartment()
-                }
-              }}
-              placeholder={t('department-selection-new-department')}
-              className="gba:flex-1 gba:h-[52px] gba:rounded-md gba:border gba:border-[#D6D3D1] gba:bg-white gba:px-4 gba:text-sm gba:text-[#1C1917] gba:outline-none gba:focus:border-[#94A3B8]"
-              data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'new-department-input')}
-            />
-            <button
-              type="button"
-              className={ADD_BUTTON_CLASSNAME}
-              onClick={handleAddDepartment}
-              disabled={!customDepartmentName.trim()}
-              data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'add-department-button')}
-            >
-              {t('department-selection-add-department')}
-            </button>
-          </div>
-        </div>
+            <div className="gba:rounded-md gba:border gba:border-[#D6D3D1] gba:bg-white gba:p-4">
+              <div className={`gba:mb-2 gba:text-sm gba:font-medium ${wizardSectionTheme.departments.titleText}`}>
+                {t('department-selection-new-department')}
+              </div>
+              <div className="gba:flex gba:gap-3">
+                <input
+                  type="text"
+                  value={customDepartmentName}
+                  onChange={event => setCustomDepartmentName(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      handleAddDepartment()
+                    }
+                  }}
+                  placeholder={t('department-selection-new-department')}
+                  className="gba:flex-1 gba:h-[52px] gba:rounded-md gba:border gba:border-[#D6D3D1] gba:bg-white gba:px-4 gba:text-sm gba:text-[#1C1917] gba:outline-none gba:focus:border-[#94A3B8]"
+                  data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'new-department-input')}
+                />
+                <button
+                  type="button"
+                  className={ADD_BUTTON_CLASSNAME}
+                  onClick={handleAddDepartment}
+                  disabled={!customDepartmentName.trim()}
+                  data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'add-department-button')}
+                >
+                  {t('department-selection-add-department')}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </PlatformShellLayout>
   )

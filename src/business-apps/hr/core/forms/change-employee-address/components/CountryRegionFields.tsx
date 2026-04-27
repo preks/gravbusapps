@@ -24,6 +24,19 @@ interface CountryRegionFieldsProps {
   /** When true, only the region/county block is rendered. Used by AddressCommonFields so
    * the Country select can appear above the autocomplete map while the region stays below. */
   suspendCountryRender?: boolean
+  /**
+   * When true, the Region/State/County Select is disabled. Used by the address form when
+   * the address-autocomplete map is available so the only way to set a region is via the
+   * autocomplete tools (search pick, pin drag, "Use my location"). The current value is
+   * preserved and still submitted with the form.
+   */
+  regionReadonly?: boolean
+  /**
+   * When true, the Country Select is disabled. Used by the address form when the address-
+   * autocomplete map is available so the only way to set a country is via the autocomplete
+   * tools. The current value is preserved and still submitted with the form.
+   */
+  countryReadonly?: boolean
 }
 
 const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({
@@ -33,7 +46,9 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({
   isDeleteMode,
   suppressValidation,
   suspendRegionRender,
-  suspendCountryRender
+  suspendCountryRender,
+  regionReadonly,
+  countryReadonly
 }) => {
   const countryField = useWatch({ control, name: 'countryId' })
   const regionField = useWatch({ control, name: 'regionId' })
@@ -81,6 +96,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({
                 value={
                   field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
                 }
+                disabled={Boolean(countryReadonly)}
                 onValueChange={v => {
                   field.onChange(v || null)
                   setValue('regionId', null)
@@ -182,6 +198,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({
                           ? ''
                           : String(field.value)
                       }
+                      disabled={Boolean(regionReadonly)}
                       onValueChange={v => {
                         // Ignore empty-value callbacks. The region Select has no "None" option,
                         // so a real user pick is always a concrete value. Radix emits ('') as a

@@ -33,7 +33,7 @@ interface ManagerPlanningState {
   distributionMethod: DistributionMethod
   /**
    * `CompensationBudgetPlan` id for this company’s team budget and proposals (not the company-budget row id).
-   * Cleared when the company changes. When null, {@link useManagerTeamSalaryBudget} picks the latest cycle by fiscal year.
+   * Cleared when the company changes. When null, team data and the distribution preview are not loaded until the user picks a cycle.
    */
   selectedCompensationPlanId: string | null
 

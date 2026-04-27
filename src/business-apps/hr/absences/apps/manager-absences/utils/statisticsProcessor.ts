@@ -1,4 +1,3 @@
-import { generateYearOverYearChartData } from './chartDataUtils'
 import { calculateWorkStreaks, calculateAverageWorkStreak } from './workStreakCalculator'
 import { analyzeSickAbsencesByMonth } from './monthlyAnalysisUtils'
 
@@ -21,14 +20,9 @@ export interface ProcessedStatistics {
   unplannedAbsences: number
   unplannedAbsencesDays: number
   absences: any[]
-  yearOverYearData: any[]
 }
 
-export const processStatisticsData = (
-  apiResults: any,
-  currentYear: number,
-  previousYear: number
-): ProcessedStatistics => {
+export const processStatisticsData = (apiResults: any): ProcessedStatistics => {
   const {
     approvedAbsencesResult,
     pendingRequestsResult,
@@ -39,7 +33,6 @@ export const processStatisticsData = (
     plannedVsUnplannedResult,
     averageDaysResult,
     usageTrendsResult,
-    yearOverYearResult,
     averageWorkStreakResult,
     sickAbsencesByMonthResult
   } = apiResults
@@ -63,9 +56,6 @@ export const processStatisticsData = (
 
   const totalRequests = approvedAbsencesCount + pendingRequests
   const approvalRate = totalRequests > 0 ? Math.round((approvedAbsencesCount / totalRequests) * 100) : 0
-
-  const yearOverYearRawData = yearOverYearResult.yearOverYearData || []
-  const yearOverYearData = generateYearOverYearChartData(yearOverYearRawData, currentYear, previousYear)
 
   const absencesForStreak = averageWorkStreakResult.approvedAbsencesForStreak || []
   const workStreaks = calculateWorkStreaks(absencesForStreak)
@@ -91,7 +81,6 @@ export const processStatisticsData = (
     plannedAbsencesDays: 0,
     unplannedAbsences,
     unplannedAbsencesDays: 0,
-    absences: absencesForTrends,
-    yearOverYearData
+    absences: absencesForTrends
   }
 }

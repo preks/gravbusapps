@@ -4,6 +4,7 @@ import {
   getEmployeePerformanceEvaluationsAnalysis,
   getPerformanceEvaluationAnalysisDetail
 } from '../../employee-record/components/tabs/performance-evaluation/services/performanceEvaluationApi'
+import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
 import type {
   PerformanceEvaluationAnalysisDetailResponse,
   PerformanceEvaluationReviewerEntry
@@ -410,6 +411,9 @@ export const useTeamEvaluations = ({
             firstName
             lastName
             pictureThumbnail
+            workingCondition {
+              hireDate
+            }
             employeePosition {
               jobPosition {
                 name
@@ -420,7 +424,7 @@ export const useTeamEvaluations = ({
       `
 
       const drResponse = await graphQLClient.request(directReportsQuery, { managerId })
-      const employees = drResponse?.Employee || []
+      const employees = filterEmployeesByStartedEmployment(drResponse?.Employee || [])
 
       if (employees.length === 0) {
         cacheRef.current = null
