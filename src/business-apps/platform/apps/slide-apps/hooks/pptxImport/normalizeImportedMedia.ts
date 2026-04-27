@@ -54,37 +54,40 @@ function isEmbeddedVideo(url: string | undefined): url is string {
   return typeof url === 'string' && url.startsWith(EMBEDDED_VIDEO_PREFIX)
 }
 
+interface NormalizeImportedMediaCaches {
+  uploadedVideos: Map<string, Promise<string>>
+  uploadedPreviews: Map<string, Promise<string>>
+  generatedPreviewDataUrls: Map<string, Promise<string | undefined>>
+}
+
+function getOrCreateCachedResult<T>(cache: Map<string, Promise<T>>, key: string, create: () => Promise<T>): Promise<T> {
+  const existing = cache.get(key)
+  if (existing) return existing
+
+  const result = create()
+  cache.set(key, result)
+  return result
+}
+
 async function uploadPreviewDataUrl(
   previewDataUrl: string,
   previewFileName: string,
   retryCount: number,
-  warnings: NormalizeImportedMediaWarnings
-): Promise<string | undefined> {
-  try {
-    return await retryMediaUpload(
-      () => SlidesApiService.uploadImageFromBase64(previewDataUrl, previewFileName),
-      retryCount
-    )
-  } catch (error) {
-    warnings.videoPreviewUploadFailures++
-    console.warn('[normalizeImportedSlideMedia] Failed to upload embedded video preview:', error)
-    return undefined
-  }
+  caches: NormalizeImportedMediaCaches
+): Promise<string> {
+  return getOrCreateCachedResult(caches.uploadedPreviews, previewDataUrl, () =>
+    retryMediaUpload(() => SlidesApiService.uploadImageFromBase64(previewDataUrl, previewFileName), retryCount)
+  )
 }
 
-async function generateAndUploadPreview(
+async function getGeneratedPreviewDataUrl(
   sourceUrl: string,
-  previewFileName: string,
-  retryCount: number,
-  warnings: NormalizeImportedMediaWarnings
+  caches: NormalizeImportedMediaCaches
 ): Promise<string | undefined> {
-  const previewDataUrl = await captureVideoPreviewImage(sourceUrl)
-  if (!previewDataUrl) {
-    warnings.videoPreviewFailures++
-    return undefined
-  }
-
-  return uploadPreviewDataUrl(previewDataUrl, previewFileName, retryCount, warnings)
+  return getOrCreateCachedResult(caches.generatedPreviewDataUrls, sourceUrl, async () => {
+    const previewDataUrl = await captureVideoPreviewImage(sourceUrl)
+    return previewDataUrl ?? undefined
+  })
 }
 
 async function normalizeVideoElement(
@@ -92,7 +95,8 @@ async function normalizeVideoElement(
   slideIndex: number,
   elementIndex: number,
   retryCount: number,
-  warnings: NormalizeImportedMediaWarnings
+  warnings: NormalizeImportedMediaWarnings,
+  caches: NormalizeImportedMediaCaches
 ): Promise<VideoElement | null> {
   const next: VideoElement = { ...element }
   const mediaFileName = buildImportedMediaFileName(
@@ -110,18 +114,20 @@ async function normalizeVideoElement(
     return next
   }
 
+  const embeddedVideoSource = isEmbeddedVideo(next.src) ? next.src : undefined
   let generatedPreviewDataUrl: string | undefined
-  if (!next.previewImageUrl && isEmbeddedVideo(next.src)) {
-    const previewDataUrl = await captureVideoPreviewImage(next.src)
-    if (previewDataUrl) generatedPreviewDataUrl = previewDataUrl
-    else warnings.videoPreviewFailures++
+  if (!next.previewImageUrl && embeddedVideoSource) {
+    generatedPreviewDataUrl = await getGeneratedPreviewDataUrl(embeddedVideoSource, caches)
+    if (!generatedPreviewDataUrl) warnings.videoPreviewFailures++
   }
 
-  if (isEmbeddedVideo(next.src)) {
+  if (embeddedVideoSource) {
     try {
-      const uploadedUrl = await retryMediaUpload(
-        () => SlidesApiService.uploadDataUrl(next.src, mediaFileName, 'video/mp4'),
-        retryCount
+      const uploadedUrl = await getOrCreateCachedResult(caches.uploadedVideos, embeddedVideoSource, () =>
+        retryMediaUpload(
+          () => SlidesApiService.uploadDataUrl(embeddedVideoSource, mediaFileName, 'video/mp4'),
+          retryCount
+        )
       )
       next.src = uploadedUrl
       next.sourceUrl = uploadedUrl
@@ -135,19 +141,36 @@ async function normalizeVideoElement(
   let previewUploadAttempted = false
   if (isEmbeddedImage(next.previewImageUrl)) {
     previewUploadAttempted = true
-    next.previewImageUrl = await uploadPreviewDataUrl(next.previewImageUrl, previewFileName, retryCount, warnings)
+    try {
+      next.previewImageUrl = await uploadPreviewDataUrl(next.previewImageUrl, previewFileName, retryCount, caches)
+    } catch (error) {
+      warnings.videoPreviewUploadFailures++
+      console.warn('[normalizeImportedSlideMedia] Failed to upload embedded video preview:', error)
+      next.previewImageUrl = undefined
+    }
   } else if (generatedPreviewDataUrl) {
     previewUploadAttempted = true
-    next.previewImageUrl = await uploadPreviewDataUrl(generatedPreviewDataUrl, previewFileName, retryCount, warnings)
+    try {
+      next.previewImageUrl = await uploadPreviewDataUrl(generatedPreviewDataUrl, previewFileName, retryCount, caches)
+    } catch (error) {
+      warnings.videoPreviewUploadFailures++
+      console.warn('[normalizeImportedSlideMedia] Failed to upload embedded video preview:', error)
+      next.previewImageUrl = undefined
+    }
   }
 
   if (!next.previewImageUrl && !previewUploadAttempted) {
-    next.previewImageUrl = await generateAndUploadPreview(
-      next.sourceUrl || next.src,
-      previewFileName,
-      retryCount,
-      warnings
-    )
+    const previewDataUrl = await getGeneratedPreviewDataUrl(next.sourceUrl || next.src, caches)
+    if (!previewDataUrl) {
+      warnings.videoPreviewFailures++
+    } else {
+      try {
+        next.previewImageUrl = await uploadPreviewDataUrl(previewDataUrl, previewFileName, retryCount, caches)
+      } catch (error) {
+        warnings.videoPreviewUploadFailures++
+        console.warn('[normalizeImportedSlideMedia] Failed to upload embedded video preview:', error)
+      }
+    }
   }
 
   return next
@@ -173,6 +196,11 @@ export async function normalizeImportedSlideMedia(
     embeddedVideoUploadFailures: 0,
     videoPreviewFailures: 0,
     videoPreviewUploadFailures: 0
+  }
+  const caches: NormalizeImportedMediaCaches = {
+    uploadedVideos: new Map(),
+    uploadedPreviews: new Map(),
+    generatedPreviewDataUrls: new Map()
   }
 
   const uploadedImages = await uploadSlideImages(slides, {
@@ -214,7 +242,14 @@ export async function normalizeImportedSlideMedia(
         continue
       }
 
-      const normalizedVideo = await normalizeVideoElement(element, slideIndex, elementIndex, retryCount, warnings)
+      const normalizedVideo = await normalizeVideoElement(
+        element,
+        slideIndex,
+        elementIndex,
+        retryCount,
+        warnings,
+        caches
+      )
       if (normalizedVideo) nextElements.push(normalizedVideo)
       processedVideos++
       onProgress?.({

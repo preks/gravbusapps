@@ -65,15 +65,18 @@ export async function uploadSlideImages(
   slides: SlideData[],
   options: UploadSlideImagesOptions = {}
 ): Promise<UploadSlideImagesResult> {
-  interface PendingUpload {
+  interface UploadTarget {
     slideIdx: number
     elementIdx: number | null
-    field: 'src' | 'imageUrl'
+  }
+
+  interface PendingUpload {
+    targets: UploadTarget[]
     base64: string
     filename: string
   }
 
-  const pending: PendingUpload[] = []
+  const pendingBySource = new Map<string, PendingUpload>()
   const {
     failurePlaceholderDataUrl = createMediaFailurePlaceholderDataUrl({
       title: 'Image import failed',
@@ -92,13 +95,16 @@ export async function uploadSlideImages(
       !isInlineSvgDataUrl(slide.background.imageUrl)
     ) {
       const bgUrl = slide.background.imageUrl
-      pending.push({
-        slideIdx: si,
-        elementIdx: null,
-        field: 'imageUrl',
-        base64: bgUrl,
-        filename: `slide-${si + 1}-bg.${extensionForDataUrl(bgUrl)}`
-      })
+      const existing = pendingBySource.get(bgUrl)
+      if (existing) {
+        existing.targets.push({ slideIdx: si, elementIdx: null })
+      } else {
+        pendingBySource.set(bgUrl, {
+          targets: [{ slideIdx: si, elementIdx: null }],
+          base64: bgUrl,
+          filename: `slide-${si + 1}-bg.${extensionForDataUrl(bgUrl)}`
+        })
+      }
     }
 
     for (let ei = 0; ei < slide.elements.length; ei++) {
@@ -110,17 +116,21 @@ export async function uploadSlideImages(
         !isInlineSvgDataUrl((el as { src: string }).src)
       ) {
         const src = (el as { src: string }).src
-        pending.push({
-          slideIdx: si,
-          elementIdx: ei,
-          field: 'src',
-          base64: src,
-          filename: `slide-${si + 1}-img-${ei}.${extensionForDataUrl(src)}`
-        })
+        const existing = pendingBySource.get(src)
+        if (existing) {
+          existing.targets.push({ slideIdx: si, elementIdx: ei })
+        } else {
+          pendingBySource.set(src, {
+            targets: [{ slideIdx: si, elementIdx: ei }],
+            base64: src,
+            filename: `slide-${si + 1}-img-${ei}.${extensionForDataUrl(src)}`
+          })
+        }
       }
     }
   }
 
+  const pending = Array.from(pendingBySource.values())
   if (pending.length === 0) return { slides, failedUploads: 0 }
 
   const result: SlideData[] = JSON.parse(JSON.stringify(slides))
@@ -142,21 +152,25 @@ export async function uploadSlideImages(
       const outcome = urls[j]
 
       if (outcome.status === 'fulfilled') {
-        if (p.elementIdx === null) {
-          result[p.slideIdx].background.imageUrl = outcome.value
-        } else {
-          const el = result[p.slideIdx].elements[p.elementIdx] as unknown as Record<string, unknown>
-          el.src = outcome.value
+        for (const target of p.targets) {
+          if (target.elementIdx === null) {
+            result[target.slideIdx].background.imageUrl = outcome.value
+          } else {
+            const el = result[target.slideIdx].elements[target.elementIdx] as unknown as Record<string, unknown>
+            el.src = outcome.value
+          }
         }
       } else {
         console.warn(`[uploadSlideImages] Failed to upload ${p.filename}:`, outcome.reason)
-        if (p.elementIdx === null) {
-          result[p.slideIdx].background = { type: 'image', imageUrl: failurePlaceholderDataUrl }
-        } else {
-          const el = result[p.slideIdx].elements[p.elementIdx] as unknown as Record<string, unknown>
-          el.src = failurePlaceholderDataUrl
+        for (const target of p.targets) {
+          if (target.elementIdx === null) {
+            result[target.slideIdx].background = { type: 'image', imageUrl: failurePlaceholderDataUrl }
+          } else {
+            const el = result[target.slideIdx].elements[target.elementIdx] as unknown as Record<string, unknown>
+            el.src = failurePlaceholderDataUrl
+          }
         }
-        failedUploads++
+        failedUploads += p.targets.length
       }
 
       uploaded++

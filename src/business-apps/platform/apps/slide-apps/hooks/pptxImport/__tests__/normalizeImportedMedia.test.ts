@@ -105,6 +105,75 @@ describe('normalizeImportedSlideMedia', () => {
     ])
   })
 
+  it('reuses hosted urls for repeated embedded videos and generated previews', async () => {
+    mockUploadDataUrl.mockResolvedValueOnce('https://drive.example/video.mp4')
+    mockUploadImageFromBase64.mockResolvedValueOnce('https://drive.example/video.jpg')
+    mockCaptureVideoPreviewImage.mockResolvedValueOnce('data:image/jpeg;base64,PREVIEW')
+
+    const firstVideo = createVideoElement('data:video/mp4;base64,VIDEO', {
+      id: 'video-1',
+      sourceUrl: 'ppt/media/video1.mp4',
+      videoKind: 'file'
+    })
+    const secondVideo = createVideoElement('data:video/mp4;base64,VIDEO', {
+      id: 'video-2',
+      sourceUrl: 'ppt/media/video1.mp4',
+      videoKind: 'file'
+    })
+
+    const result = await normalizeImportedSlideMedia([makeSlide([firstVideo, secondVideo])])
+
+    expect(result.slides[0].elements[0]).toMatchObject<Partial<VideoElement>>({
+      type: 'video',
+      src: 'https://drive.example/video.mp4',
+      sourceUrl: 'https://drive.example/video.mp4',
+      previewImageUrl: 'https://drive.example/video.jpg'
+    })
+    expect(result.slides[0].elements[1]).toMatchObject<Partial<VideoElement>>({
+      type: 'video',
+      src: 'https://drive.example/video.mp4',
+      sourceUrl: 'https://drive.example/video.mp4',
+      previewImageUrl: 'https://drive.example/video.jpg'
+    })
+    expect(mockUploadDataUrl).toHaveBeenCalledTimes(1)
+    expect(mockUploadImageFromBase64).toHaveBeenCalledTimes(1)
+    expect(mockCaptureVideoPreviewImage).toHaveBeenCalledTimes(1)
+  })
+
+  it('uploads identical inline preview images once even when videos differ', async () => {
+    mockUploadDataUrl
+      .mockResolvedValueOnce('https://drive.example/video-1.mp4')
+      .mockResolvedValueOnce('https://drive.example/video-2.mp4')
+    mockUploadImageFromBase64.mockResolvedValueOnce('https://drive.example/shared-preview.jpg')
+
+    const sharedPreview = 'data:image/png;base64,PREVIEW'
+    const firstVideo = createVideoElement('data:video/mp4;base64,VIDEO1', {
+      id: 'video-1',
+      sourceUrl: 'ppt/media/video1.mp4',
+      previewImageUrl: sharedPreview,
+      videoKind: 'file'
+    })
+    const secondVideo = createVideoElement('data:video/mp4;base64,VIDEO2', {
+      id: 'video-2',
+      sourceUrl: 'ppt/media/video2.mp4',
+      previewImageUrl: sharedPreview,
+      videoKind: 'file'
+    })
+
+    const result = await normalizeImportedSlideMedia([makeSlide([firstVideo, secondVideo])])
+
+    expect(result.slides[0].elements[0]).toMatchObject<Partial<VideoElement>>({
+      type: 'video',
+      previewImageUrl: 'https://drive.example/shared-preview.jpg'
+    })
+    expect(result.slides[0].elements[1]).toMatchObject<Partial<VideoElement>>({
+      type: 'video',
+      previewImageUrl: 'https://drive.example/shared-preview.jpg'
+    })
+    expect(mockUploadDataUrl).toHaveBeenCalledTimes(2)
+    expect(mockUploadImageFromBase64).toHaveBeenCalledTimes(1)
+  })
+
   it('replaces failed embedded image uploads with the provided placeholder after retry', async () => {
     const placeholderDataUrl = 'data:image/svg+xml;base64,PLACEHOLDER'
     mockUploadImageFromBase64.mockRejectedValue(new Error('upload failed'))

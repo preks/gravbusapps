@@ -36,6 +36,37 @@ describe('uploadSlideImages', () => {
     expect(mockUploadImageFromBase64).not.toHaveBeenCalled()
   })
 
+  it('uploads repeated raster sources once and reuses the returned url', async () => {
+    const sharedDataUrl = 'data:image/png;base64,SHARED'
+    const slide: SlideData = {
+      id: 'slide-1',
+      background: { type: 'image', imageUrl: sharedDataUrl },
+      elements: [
+        createImageElement(sharedDataUrl, { id: 'image-1' }),
+        createImageElement(sharedDataUrl, { id: 'image-2' })
+      ]
+    }
+
+    mockUploadImageFromBase64.mockResolvedValueOnce('https://drive.example/shared.png')
+
+    const progressCalls: Array<{ total: number; uploaded: number }> = []
+    const result = await uploadSlideImages([slide], {
+      onProgress: progress => {
+        progressCalls.push(progress)
+      }
+    })
+
+    expect(result.slides[0].background).toEqual({ type: 'image', imageUrl: 'https://drive.example/shared.png' })
+    expect(result.slides[0].elements[0]).toMatchObject({ type: 'image', src: 'https://drive.example/shared.png' })
+    expect(result.slides[0].elements[1]).toMatchObject({ type: 'image', src: 'https://drive.example/shared.png' })
+    expect(result.failedUploads).toBe(0)
+    expect(mockUploadImageFromBase64).toHaveBeenCalledTimes(1)
+    expect(progressCalls).toEqual([
+      { total: 1, uploaded: 0 },
+      { total: 1, uploaded: 1 }
+    ])
+  })
+
   it('replaces failed embedded image and background uploads with placeholders after retry', async () => {
     const placeholderDataUrl = 'data:image/svg+xml;base64,PLACEHOLDER'
     const slide: SlideData = {
@@ -55,6 +86,32 @@ describe('uploadSlideImages', () => {
     expect(result.slides[0].elements[0]).toMatchObject({ type: 'image', src: placeholderDataUrl })
     expect(result.failedUploads).toBe(2)
     expect(mockUploadImageFromBase64).toHaveBeenCalledTimes(4)
+  })
+
+  it('applies placeholder to every repeated raster target when the shared upload fails', async () => {
+    const placeholderDataUrl = 'data:image/svg+xml;base64,PLACEHOLDER'
+    const sharedDataUrl = 'data:image/png;base64,SHARED'
+    const slide: SlideData = {
+      id: 'slide-1',
+      background: { type: 'image', imageUrl: sharedDataUrl },
+      elements: [
+        createImageElement(sharedDataUrl, { id: 'image-1' }),
+        createImageElement(sharedDataUrl, { id: 'image-2' })
+      ]
+    }
+
+    mockUploadImageFromBase64.mockRejectedValue(new Error('upload failed'))
+
+    const result = await uploadSlideImages([slide], {
+      failurePlaceholderDataUrl: placeholderDataUrl,
+      retryCount: 1
+    })
+
+    expect(result.slides[0].background).toEqual({ type: 'image', imageUrl: placeholderDataUrl })
+    expect(result.slides[0].elements[0]).toMatchObject({ type: 'image', src: placeholderDataUrl })
+    expect(result.slides[0].elements[1]).toMatchObject({ type: 'image', src: placeholderDataUrl })
+    expect(result.failedUploads).toBe(3)
+    expect(mockUploadImageFromBase64).toHaveBeenCalledTimes(2)
   })
 
   it('reports exact upload counts for batched image progress', async () => {
