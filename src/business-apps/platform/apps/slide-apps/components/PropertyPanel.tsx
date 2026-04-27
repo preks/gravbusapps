@@ -60,21 +60,22 @@ import type {
   TransitionTrigger
 } from './slideElements'
 import {
-  FONT_FAMILIES,
-  FONT_SIZES,
   COLOR_PRESETS,
   PRESET_GRADIENTS,
   CHART_TYPES,
-  CODE_LANGUAGES,
-  CODE_FONT_SIZES,
   gradientToCss,
   DEFAULT_TRANSITION,
+  getCodeFontSizeOptions,
+  getCodeLanguageOptions,
+  getFontFamilyOptions,
+  getFontSizeOptions,
   getShapeGeometry
 } from './slideElements'
 import { GradientBuilder } from './GradientBuilder'
 import { TransitionPreview } from './TransitionPreview'
 import { sanitizeImageSourceUrl } from '@/common/utils/safeUrlUtils'
 import translations from '../_i18n'
+import type { ResolvedTextFormattingState, TextFormattingToggleState } from '../utils/richTextEditing'
 
 const TRANSITION_TYPES: { value: SlideTransitionType; label: string }[] = [
   { value: 'none', label: 'transition-none' },
@@ -97,15 +98,22 @@ const TRANSITION_TYPES: { value: SlideTransitionType; label: string }[] = [
 function PanelColorPicker({
   value,
   onChange,
-  label
+  label,
+  isMixed = false,
+  mixedLabel = 'Mixed'
 }: {
   value: string
   onChange: (color: string) => void
   label: string
+  isMixed?: boolean
+  mixedLabel?: string
 }) {
   return (
     <div className="gba:space-y-2">
-      <Label className="gba:text-xs">{label}</Label>
+      <Label className="gba:text-xs">
+        {label}
+        {isMixed ? ` (${mixedLabel})` : ''}
+      </Label>
       <div className="gba:flex gba:gap-2 gba:items-center">
         <input
           type="color"
@@ -113,7 +121,11 @@ function PanelColorPicker({
           onChange={e => onChange(e.target.value)}
           className="gba:w-8 gba:h-8 gba:rounded gba:border gba:cursor-pointer"
         />
-        <Input value={value} onChange={e => onChange(e.target.value)} className="gba:flex-1 gba:text-xs" />
+        <Input
+          value={isMixed ? mixedLabel : value}
+          onChange={e => onChange(e.target.value)}
+          className="gba:flex-1 gba:text-xs"
+        />
       </div>
       <div className="gba:flex gba:flex-wrap gba:gap-1">
         {COLOR_PRESETS.slice(0, 12).map(color => (
@@ -382,6 +394,7 @@ function ChartDataEditor({
 
 interface PropertyPanelProps {
   element: AnySlideElement | null
+  textFormatting?: ResolvedTextFormattingState | null
   onUpdate: (updates: Partial<AnySlideElement>) => void
   onDelete: () => void
   onDuplicate: () => void
@@ -403,12 +416,22 @@ interface PropertyPanelProps {
   onFlip?: (axis: 'horizontal' | 'vertical') => void
   onGroup?: () => void
   onUngroup?: () => void
+  hasUnlockedSelection?: boolean
+  hasLockedSelection?: boolean
   /**
    * Enter "Edit Points" mode for the currently selected shape. Only wired
    * when a single shape is selected; SlideEditor owns the active editing id.
    * Same semantics as the right-click → Edit Points entry point.
    */
   onEditPoints?: (id: string) => void
+}
+
+function toggleVariantForState(state: TextFormattingToggleState): 'default' | 'outline' {
+  return state === 'off' ? 'outline' : 'default'
+}
+
+function toggleClassNameForState(state: TextFormattingToggleState): string | undefined {
+  return state === 'mixed' ? 'gba:opacity-60' : undefined
 }
 
 /** Tight signature for the translation fn; avoids pulling the full i18n types. */
@@ -418,6 +441,7 @@ interface ShapeSubsectionProps {
   element: ShapeElement
   onUpdate: (updates: Partial<AnySlideElement>) => void
   t: Translator
+  disabled?: boolean
 }
 
 /**
@@ -425,7 +449,7 @@ interface ShapeSubsectionProps {
  * shared {@link ShapeGeometryMetadata} so editor-native and imported shapes
  * behave identically and the flip survives round-trip to PPTX export.
  */
-const FlipControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t }) => {
+const FlipControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t, disabled = false }) => {
   const geometry = getShapeGeometry(element)
   const flipH = geometry?.flipH ?? false
   const flipV = geometry?.flipV ?? false
@@ -447,6 +471,7 @@ const FlipControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t }) 
         size="sm"
         onClick={() => applyFlip('h')}
         title={t('props-flip-horizontal')}
+        disabled={disabled}
       >
         <FlipHorizontal className="gba:w-3 gba:h-3" />
       </Button>
@@ -455,6 +480,7 @@ const FlipControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, t }) 
         size="sm"
         onClick={() => applyFlip('v')}
         title={t('props-flip-vertical')}
+        disabled={disabled}
       >
         <FlipVertical className="gba:w-3 gba:h-3" />
       </Button>
@@ -842,6 +868,7 @@ const ShapeTextControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, 
 
 export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   element,
+  textFormatting,
   onUpdate,
   onDelete,
   onDuplicate,
@@ -857,12 +884,15 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onFlip,
   onGroup,
   onUngroup,
+  hasUnlockedSelection = true,
+  hasLockedSelection = false,
   onEditPoints
 }) => {
   const { t } = useTranslation(translations)
   const replaceImageInputRef = useRef<HTMLInputElement>(null)
 
   const currentTransition = slideTransition || DEFAULT_TRANSITION
+  const hasOnlyLockedSelection = hasLockedSelection && !hasUnlockedSelection
 
   const handleTransitionChange = (updates: Partial<SlideTransition>) => {
     if (onSlideTransitionChange) {
@@ -1009,7 +1039,13 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           >
             {element.locked ? <Lock className="gba:w-4 gba:h-4" /> : <Unlock className="gba:w-4 gba:h-4" />}
           </Button>
-          <Button variant="ghost" size="sm" onClick={onDuplicate} title={t('props-duplicate')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDuplicate}
+            title={t('props-duplicate')}
+            disabled={hasOnlyLockedSelection}
+          >
             <Copy className="gba:w-4 gba:h-4" />
           </Button>
           <Button
@@ -1018,6 +1054,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             onClick={onDelete}
             title={t('props-delete')}
             className="gba:text-destructive"
+            disabled={hasOnlyLockedSelection}
           >
             <Trash2 className="gba:w-4 gba:h-4" />
           </Button>
@@ -1037,6 +1074,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               value={Math.round(element.position.x)}
               onChange={e => onUpdate({ position: { ...element.position, x: Number(e.target.value) } })}
               className="gba:text-xs"
+              disabled={element.locked}
             />
           </div>
           <div>
@@ -1046,6 +1084,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               value={Math.round(element.position.y)}
               onChange={e => onUpdate({ position: { ...element.position, y: Number(e.target.value) } })}
               className="gba:text-xs"
+              disabled={element.locked}
             />
           </div>
           <div>
@@ -1055,6 +1094,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               value={Math.round(element.size.width)}
               onChange={e => onUpdate({ size: { ...element.size, width: Number(e.target.value) } })}
               className="gba:text-xs"
+              disabled={element.locked}
             />
           </div>
           <div>
@@ -1064,6 +1104,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               value={Math.round(element.size.height)}
               onChange={e => onUpdate({ size: { ...element.size, height: Number(e.target.value) } })}
               className="gba:text-xs"
+              disabled={element.locked}
             />
           </div>
         </div>
@@ -1078,9 +1119,16 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             value={element.rotation}
             onChange={e => onUpdate({ rotation: Number(e.target.value) })}
             className="gba:w-16 gba:text-xs"
+            disabled={element.locked}
           />
           <span className="gba:text-xs">°</span>
-          <Button variant="ghost" size="sm" onClick={() => onUpdate({ rotation: 0 })} title={t('props-reset-rotation')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onUpdate({ rotation: 0 })}
+            title={t('props-reset-rotation')}
+            disabled={element.locked}
+          >
             <RotateCcw className="gba:w-3 gba:h-3" />
           </Button>
         </div>
@@ -1102,11 +1150,11 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {/* Layer Order */}
       <div className="gba:flex gba:items-center gba:gap-2">
         <Label className="gba:text-xs gba:flex-1">{t('props-layer')}</Label>
-        <Button variant="outline" size="sm" onClick={onBringForward}>
+        <Button variant="outline" size="sm" onClick={onBringForward} disabled={element.locked}>
           <MoveUp className="gba:w-3 gba:h-3 gba:mr-1" />
           {t('props-forward')}
         </Button>
-        <Button variant="outline" size="sm" onClick={onSendBackward}>
+        <Button variant="outline" size="sm" onClick={onSendBackward} disabled={element.locked}>
           <MoveDown className="gba:w-3 gba:h-3 gba:mr-1" />
           {t('props-back')}
         </Button>
@@ -1124,7 +1172,13 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             <Label className="gba:text-xs gba:font-semibold">{t('props-arrange')}</Label>
             {onAlign && (
               <div className="gba:grid gba:grid-cols-6 gba:gap-1">
-                <Button variant="outline" size="sm" onClick={() => onAlign('left')} title={t('props-align-left')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onAlign('left')}
+                  title={t('props-align-left')}
+                  disabled={hasOnlyLockedSelection}
+                >
                   ⇤
                 </Button>
                 <Button
@@ -1132,13 +1186,26 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('center-h')}
                   title={t('props-align-center-horizontal')}
+                  disabled={hasOnlyLockedSelection}
                 >
                   ⇔
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => onAlign('right')} title={t('props-align-right')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onAlign('right')}
+                  title={t('props-align-right')}
+                  disabled={hasOnlyLockedSelection}
+                >
                   ⇥
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => onAlign('top')} title={t('props-align-top')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onAlign('top')}
+                  title={t('props-align-top')}
+                  disabled={hasOnlyLockedSelection}
+                >
                   ⤒
                 </Button>
                 <Button
@@ -1146,10 +1213,17 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('center-v')}
                   title={t('props-align-center-vertical')}
+                  disabled={hasOnlyLockedSelection}
                 >
                   ⇕
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => onAlign('bottom')} title={t('props-align-bottom')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onAlign('bottom')}
+                  title={t('props-align-bottom')}
+                  disabled={hasOnlyLockedSelection}
+                >
                   ⤓
                 </Button>
               </div>
@@ -1160,7 +1234,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => onDistribute('horizontal')}
-                  disabled={selectionCount < 3}
+                  disabled={selectionCount < 3 || hasOnlyLockedSelection}
                 >
                   {t('props-distribute-horizontal')}
                 </Button>
@@ -1168,7 +1242,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => onDistribute('vertical')}
-                  disabled={selectionCount < 3}
+                  disabled={selectionCount < 3 || hasOnlyLockedSelection}
                 >
                   {t('props-distribute-vertical')}
                 </Button>
@@ -1176,11 +1250,21 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             )}
             {onFlip && element?.type === 'shape' && (
               <div className="gba:grid gba:grid-cols-2 gba:gap-1">
-                <Button variant="outline" size="sm" onClick={() => onFlip('horizontal')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onFlip('horizontal')}
+                  disabled={hasOnlyLockedSelection}
+                >
                   <FlipHorizontal className="gba:w-3 gba:h-3 gba:mr-1" />
                   {t('props-flip-horizontal')}
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => onFlip('vertical')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onFlip('vertical')}
+                  disabled={hasOnlyLockedSelection}
+                >
                   <FlipVertical className="gba:w-3 gba:h-3 gba:mr-1" />
                   {t('props-flip-vertical')}
                 </Button>
@@ -1189,12 +1273,22 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             {(onGroup || onUngroup) && (
               <div className="gba:grid gba:grid-cols-2 gba:gap-1">
                 {onGroup && (
-                  <Button variant="outline" size="sm" onClick={onGroup} disabled={selectionCount < 2}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onGroup}
+                    disabled={selectionCount < 2 || hasOnlyLockedSelection}
+                  >
                     {t('props-group')}
                   </Button>
                 )}
                 {onUngroup && (
-                  <Button variant="outline" size="sm" onClick={onUngroup} disabled={!hasGroupInSelection}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onUngroup}
+                    disabled={!hasGroupInSelection || hasOnlyLockedSelection}
+                  >
                     {t('props-ungroup')}
                   </Button>
                 )}
@@ -1210,159 +1304,189 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {textElement && (
         <div className="gba:space-y-4">
           <Label className="gba:text-xs gba:font-semibold">{t('props-text-formatting')}</Label>
+          {(() => {
+            const mixedLabel = t('editor-mixed') || 'Mixed'
+            const fontFamilyValue = textFormatting?.isFontFamilyMixed
+              ? ''
+              : (textFormatting?.fontFamily ?? textElement.fontFamily)
+            const resolvedFontSize = textFormatting?.isFontSizeMixed
+              ? undefined
+              : (textFormatting?.fontSize ?? textElement.fontSize)
+            const fontSizeValue = resolvedFontSize === undefined ? '' : String(resolvedFontSize)
+            const fontFamilyOptions = getFontFamilyOptions(fontFamilyValue)
+            const fontSizeOptions = getFontSizeOptions(resolvedFontSize)
+            const resolvedTextAlign = textFormatting?.isTextAlignMixed
+              ? undefined
+              : (textFormatting?.textAlign ?? textElement.textAlign)
+            const resolvedColor = textFormatting?.isColorMixed
+              ? '#111111'
+              : (textFormatting?.color ?? textElement.color)
+            const boldState = textFormatting?.fontWeightState ?? (textElement.fontWeight === 'bold' ? 'on' : 'off')
+            const italicState = textFormatting?.fontStyleState ?? (textElement.fontStyle === 'italic' ? 'on' : 'off')
+            const underlineState =
+              textFormatting?.underlineState ?? (textElement.textDecoration === 'underline' ? 'on' : 'off')
+            const strikethroughState =
+              textFormatting?.strikethroughState ?? (textElement.textDecoration === 'line-through' ? 'on' : 'off')
 
-          {/* Font Family */}
-          <div>
-            <Label className="gba:text-xs">{t('props-font-family')}</Label>
-            <Select value={textElement.fontFamily} onValueChange={value => onUpdate({ fontFamily: value })}>
-              <SelectTrigger className="gba:text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FONT_FAMILIES.map(font => (
-                  <SelectItem key={font.value} value={font.value} style={{ fontFamily: font.value }}>
-                    {font.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            return (
+              <>
+                {/* Font Family */}
+                <div>
+                  <Label className="gba:text-xs">{t('props-font-family')}</Label>
+                  <Select value={fontFamilyValue} onValueChange={value => value && onUpdate({ fontFamily: value })}>
+                    <SelectTrigger className="gba:text-xs">
+                      <SelectValue placeholder={textFormatting?.isFontFamilyMixed ? '' : undefined} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fontFamilyOptions.map(font => (
+                        <SelectItem key={font.value} value={font.value} style={{ fontFamily: font.value }}>
+                          {font.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-          {/* Font Size */}
-          <div>
-            <Label className="gba:text-xs">{t('props-font-size')}</Label>
-            <Select value={String(textElement.fontSize)} onValueChange={value => onUpdate({ fontSize: Number(value) })}>
-              <SelectTrigger className="gba:text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FONT_SIZES.map(size => (
-                  <SelectItem key={size} value={String(size)}>
-                    {size}px
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+                {/* Font Size */}
+                <div>
+                  <Label className="gba:text-xs">{t('props-font-size')}</Label>
+                  <Select value={fontSizeValue} onValueChange={value => value && onUpdate({ fontSize: Number(value) })}>
+                    <SelectTrigger className="gba:text-xs">
+                      <SelectValue placeholder={textFormatting?.isFontSizeMixed ? '' : undefined} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fontSizeOptions.map(size => (
+                        <SelectItem key={size} value={String(size)}>
+                          {size}px
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-          {/* Font Style Buttons */}
-          <div className="gba:flex gba:gap-1">
-            <Button
-              variant={textElement.fontWeight === 'bold' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onUpdate({ fontWeight: textElement.fontWeight === 'bold' ? 'normal' : 'bold' })}
-            >
-              <Bold className="gba:w-4 gba:h-4" />
-            </Button>
-            <Button
-              variant={textElement.fontStyle === 'italic' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onUpdate({ fontStyle: textElement.fontStyle === 'italic' ? 'normal' : 'italic' })}
-            >
-              <Italic className="gba:w-4 gba:h-4" />
-            </Button>
-            <Button
-              variant={textElement.textDecoration === 'underline' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() =>
-                onUpdate({ textDecoration: textElement.textDecoration === 'underline' ? 'none' : 'underline' })
-              }
-            >
-              <Underline className="gba:w-4 gba:h-4" />
-            </Button>
-            <Button
-              variant={textElement.textDecoration === 'line-through' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() =>
-                onUpdate({ textDecoration: textElement.textDecoration === 'line-through' ? 'none' : 'line-through' })
-              }
-            >
-              <Strikethrough className="gba:w-4 gba:h-4" />
-            </Button>
-          </div>
+                {/* Font Style Buttons */}
+                <div className="gba:flex gba:gap-1">
+                  <Button
+                    variant={toggleVariantForState(boldState)}
+                    className={toggleClassNameForState(boldState)}
+                    size="sm"
+                    onClick={() => onUpdate({ fontWeight: boldState === 'on' ? 'normal' : 'bold' })}
+                  >
+                    <Bold className="gba:w-4 gba:h-4" />
+                  </Button>
+                  <Button
+                    variant={toggleVariantForState(italicState)}
+                    className={toggleClassNameForState(italicState)}
+                    size="sm"
+                    onClick={() => onUpdate({ fontStyle: italicState === 'on' ? 'normal' : 'italic' })}
+                  >
+                    <Italic className="gba:w-4 gba:h-4" />
+                  </Button>
+                  <Button
+                    variant={toggleVariantForState(underlineState)}
+                    className={toggleClassNameForState(underlineState)}
+                    size="sm"
+                    onClick={() => onUpdate({ textDecoration: underlineState === 'on' ? 'none' : 'underline' })}
+                  >
+                    <Underline className="gba:w-4 gba:h-4" />
+                  </Button>
+                  <Button
+                    variant={toggleVariantForState(strikethroughState)}
+                    className={toggleClassNameForState(strikethroughState)}
+                    size="sm"
+                    onClick={() => onUpdate({ textDecoration: strikethroughState === 'on' ? 'none' : 'line-through' })}
+                  >
+                    <Strikethrough className="gba:w-4 gba:h-4" />
+                  </Button>
+                </div>
 
-          {/* Text Alignment */}
-          <div className="gba:flex gba:gap-1">
-            <Button
-              variant={textElement.textAlign === 'left' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onUpdate({ textAlign: 'left' })}
-            >
-              <AlignLeft className="gba:w-4 gba:h-4" />
-            </Button>
-            <Button
-              variant={textElement.textAlign === 'center' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onUpdate({ textAlign: 'center' })}
-            >
-              <AlignCenter className="gba:w-4 gba:h-4" />
-            </Button>
-            <Button
-              variant={textElement.textAlign === 'right' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onUpdate({ textAlign: 'right' })}
-            >
-              <AlignRight className="gba:w-4 gba:h-4" />
-            </Button>
-          </div>
+                {/* Text Alignment */}
+                <div className="gba:flex gba:gap-1">
+                  <Button
+                    variant={resolvedTextAlign === 'left' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => onUpdate({ textAlign: 'left' })}
+                  >
+                    <AlignLeft className="gba:w-4 gba:h-4" />
+                  </Button>
+                  <Button
+                    variant={resolvedTextAlign === 'center' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => onUpdate({ textAlign: 'center' })}
+                  >
+                    <AlignCenter className="gba:w-4 gba:h-4" />
+                  </Button>
+                  <Button
+                    variant={resolvedTextAlign === 'right' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => onUpdate({ textAlign: 'right' })}
+                  >
+                    <AlignRight className="gba:w-4 gba:h-4" />
+                  </Button>
+                </div>
 
-          {/* Text Color */}
-          <PanelColorPicker
-            value={textElement.color}
-            onChange={color => onUpdate({ color })}
-            label={t('props-text-color')}
-          />
+                {/* Text Color */}
+                <PanelColorPicker
+                  value={resolvedColor}
+                  onChange={color => onUpdate({ color })}
+                  label={t('props-text-color')}
+                  isMixed={!!textFormatting?.isColorMixed}
+                  mixedLabel={mixedLabel}
+                />
 
-          {/* Background Color */}
-          <PanelColorPicker
-            value={textElement.backgroundColor === 'transparent' ? '#ffffff' : textElement.backgroundColor}
-            onChange={color => onUpdate({ backgroundColor: color, gradient: undefined })}
-            label={t('props-background-color')}
-          />
+                {/* Background Color */}
+                <PanelColorPicker
+                  value={textElement.backgroundColor === 'transparent' ? '#ffffff' : textElement.backgroundColor}
+                  onChange={color => onUpdate({ backgroundColor: color, gradient: undefined })}
+                  label={t('props-background-color')}
+                />
 
-          {/* Gradient */}
-          <PanelGradientSection
-            gradient={textElement.gradient}
-            onChange={gradient => {
-              if (gradient) {
-                onUpdate({ gradient, backgroundColor: 'transparent' })
-              } else {
-                const restoredBg =
-                  textElement.backgroundColor === 'transparent' ? '#ffffff' : textElement.backgroundColor
-                onUpdate({ gradient, backgroundColor: restoredBg })
-              }
-            }}
-          />
+                {/* Gradient */}
+                <PanelGradientSection
+                  gradient={textElement.gradient}
+                  onChange={gradient => {
+                    if (gradient) {
+                      onUpdate({ gradient, backgroundColor: 'transparent' })
+                    } else {
+                      const restoredBg =
+                        textElement.backgroundColor === 'transparent' ? '#ffffff' : textElement.backgroundColor
+                      onUpdate({ gradient, backgroundColor: restoredBg })
+                    }
+                  }}
+                />
 
-          {/* Line Height */}
-          <div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">{t('props-line-height')}</Label>
-              <span className="gba:text-xs gba:text-muted-foreground">{textElement.lineHeight}</span>
-            </div>
-            <Slider
-              value={[textElement.lineHeight * 100]}
-              min={80}
-              max={200}
-              step={10}
-              onValueChange={([value]) => onUpdate({ lineHeight: value / 100 })}
-            />
-          </div>
+                {/* Line Height */}
+                <div>
+                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                    <Label className="gba:text-xs">{t('props-line-height')}</Label>
+                    <span className="gba:text-xs gba:text-muted-foreground">{textElement.lineHeight}</span>
+                  </div>
+                  <Slider
+                    value={[textElement.lineHeight * 100]}
+                    min={80}
+                    max={200}
+                    step={10}
+                    onValueChange={([value]) => onUpdate({ lineHeight: value / 100 })}
+                  />
+                </div>
 
-          {/* Letter Spacing */}
-          <div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">{t('props-letter-spacing')}</Label>
-              <span className="gba:text-xs gba:text-muted-foreground">{textElement.letterSpacing}px</span>
-            </div>
-            <Slider
-              value={[textElement.letterSpacing]}
-              min={-5}
-              max={20}
-              step={1}
-              onValueChange={([value]) => onUpdate({ letterSpacing: value })}
-            />
-          </div>
+                {/* Letter Spacing */}
+                <div>
+                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                    <Label className="gba:text-xs">{t('props-letter-spacing')}</Label>
+                    <span className="gba:text-xs gba:text-muted-foreground">{textElement.letterSpacing}px</span>
+                  </div>
+                  <Slider
+                    value={[textElement.letterSpacing]}
+                    min={-5}
+                    max={20}
+                    step={1}
+                    onValueChange={([value]) => onUpdate({ letterSpacing: value })}
+                  />
+                </div>
+              </>
+            )
+          })()}
         </div>
       )}
 
@@ -1502,7 +1626,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           )}
 
           {/* Flip controls */}
-          <FlipControls element={shapeElement} onUpdate={onUpdate} t={t} />
+          <FlipControls element={shapeElement} onUpdate={onUpdate} t={t} disabled={shapeElement.locked} />
 
           {/* Geometry / Edit Points — converts the preset to an editable
               custGeom path so the user can drag individual anchors. */}
@@ -1515,6 +1639,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 onClick={() => onEditPoints(shapeElement.id)}
                 title={t('props-edit-points-tooltip')}
                 data-testid="property-panel-edit-points"
+                disabled={shapeElement.locked}
               >
                 {t('props-edit-points')}
               </Button>
@@ -1674,142 +1799,154 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       )}
 
       {/* CODE PROPERTIES */}
-      {codeElement && (
-        <div className="gba:space-y-4">
-          <Label className="gba:text-xs gba:font-semibold">{t('props-code-styling')}</Label>
+      {codeElement &&
+        (() => {
+          const codeLanguageOptions = getCodeLanguageOptions(codeElement.language)
+          const codeFontSizeOptions = getCodeFontSizeOptions(codeElement.fontSize)
 
-          {/* Language */}
-          <div>
-            <Label className="gba:text-xs">{t('props-code-language')}</Label>
-            <Select value={codeElement.language} onValueChange={value => onUpdate({ language: value })}>
-              <SelectTrigger className="gba:text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CODE_LANGUAGES.map(lang => (
-                  <SelectItem key={lang.value} value={lang.value}>
-                    {lang.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          return (
+            <div className="gba:space-y-4">
+              <Label className="gba:text-xs gba:font-semibold">{t('props-code-styling')}</Label>
 
-          {/* Theme */}
-          <div>
-            <Label className="gba:text-xs">{t('props-code-theme')}</Label>
-            <Select value={codeElement.theme} onValueChange={(value: 'dark' | 'light') => onUpdate({ theme: value })}>
-              <SelectTrigger className="gba:text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="dark">{t('props-code-theme-dark')}</SelectItem>
-                <SelectItem value="light">{t('props-code-theme-light')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              {/* Language */}
+              <div>
+                <Label className="gba:text-xs">{t('props-code-language')}</Label>
+                <Select value={codeElement.language} onValueChange={value => onUpdate({ language: value })}>
+                  <SelectTrigger className="gba:text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {codeLanguageOptions.map(lang => (
+                      <SelectItem key={lang.value} value={lang.value}>
+                        {lang.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* Font Size */}
-          <div>
-            <Label className="gba:text-xs">{t('props-code-font-size')}</Label>
-            <Select value={String(codeElement.fontSize)} onValueChange={value => onUpdate({ fontSize: Number(value) })}>
-              <SelectTrigger className="gba:text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CODE_FONT_SIZES.map(size => (
-                  <SelectItem key={size} value={String(size)}>
-                    {size}px
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              {/* Theme */}
+              <div>
+                <Label className="gba:text-xs">{t('props-code-theme')}</Label>
+                <Select
+                  value={codeElement.theme}
+                  onValueChange={(value: 'dark' | 'light') => onUpdate({ theme: value })}
+                >
+                  <SelectTrigger className="gba:text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dark">{t('props-code-theme-dark')}</SelectItem>
+                    <SelectItem value="light">{t('props-code-theme-light')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* Show Line Numbers */}
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <Label className="gba:text-xs">{t('props-code-show-line-numbers')}</Label>
-            <Switch
-              checked={codeElement.showLineNumbers}
-              onCheckedChange={showLineNumbers => onUpdate({ showLineNumbers })}
-            />
-          </div>
+              {/* Font Size */}
+              <div>
+                <Label className="gba:text-xs">{t('props-code-font-size')}</Label>
+                <Select
+                  value={String(codeElement.fontSize)}
+                  onValueChange={value => onUpdate({ fontSize: Number(value) })}
+                >
+                  <SelectTrigger className="gba:text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {codeFontSizeOptions.map(size => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size}px
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <Separator />
+              {/* Show Line Numbers */}
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <Label className="gba:text-xs">{t('props-code-show-line-numbers')}</Label>
+                <Switch
+                  checked={codeElement.showLineNumbers}
+                  onCheckedChange={showLineNumbers => onUpdate({ showLineNumbers })}
+                />
+              </div>
 
-          {/* Text Color */}
-          <PanelColorPicker
-            value={codeElement.textColor || (codeElement.theme === 'dark' ? '#d4d4d4' : '#333333')}
-            onChange={textColor => onUpdate({ textColor })}
-            label={t('props-text-color')}
-          />
+              <Separator />
 
-          {/* Background Color */}
-          <PanelColorPicker
-            value={codeElement.backgroundColor || (codeElement.theme === 'dark' ? '#1e1e1e' : '#f8f8f8')}
-            onChange={backgroundColor => onUpdate({ backgroundColor })}
-            label={t('props-background-color')}
-          />
+              {/* Text Color */}
+              <PanelColorPicker
+                value={codeElement.textColor || (codeElement.theme === 'dark' ? '#d4d4d4' : '#333333')}
+                onChange={textColor => onUpdate({ textColor })}
+                label={t('props-text-color')}
+              />
 
-          {/* Border Radius */}
-          <div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">{t('props-border-radius')}</Label>
-              <span className="gba:text-xs gba:text-muted-foreground">{codeElement.borderRadius ?? 8}px</span>
+              {/* Background Color */}
+              <PanelColorPicker
+                value={codeElement.backgroundColor || (codeElement.theme === 'dark' ? '#1e1e1e' : '#f8f8f8')}
+                onChange={backgroundColor => onUpdate({ backgroundColor })}
+                label={t('props-background-color')}
+              />
+
+              {/* Border Radius */}
+              <div>
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                  <Label className="gba:text-xs">{t('props-border-radius')}</Label>
+                  <span className="gba:text-xs gba:text-muted-foreground">{codeElement.borderRadius ?? 8}px</span>
+                </div>
+                <Slider
+                  value={[codeElement.borderRadius ?? 8]}
+                  min={0}
+                  max={32}
+                  step={1}
+                  onValueChange={([value]) => onUpdate({ borderRadius: value })}
+                />
+              </div>
+
+              {/* Border Width */}
+              <div>
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                  <Label className="gba:text-xs">{t('props-border-width')}</Label>
+                  <span className="gba:text-xs gba:text-muted-foreground">{codeElement.borderWidth ?? 0}px</span>
+                </div>
+                <Slider
+                  value={[codeElement.borderWidth ?? 0]}
+                  min={0}
+                  max={10}
+                  step={1}
+                  onValueChange={([value]) => onUpdate({ borderWidth: value })}
+                />
+              </div>
+
+              {/* Border Color */}
+              <PanelColorPicker
+                value={codeElement.borderColor || '#333333'}
+                onChange={borderColor => onUpdate({ borderColor })}
+                label={t('props-border-color')}
+              />
+
+              {/* Padding */}
+              <div>
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                  <Label className="gba:text-xs">{t('props-code-padding')}</Label>
+                  <span className="gba:text-xs gba:text-muted-foreground">{codeElement.padding ?? 16}px</span>
+                </div>
+                <Slider
+                  value={[codeElement.padding ?? 16]}
+                  min={0}
+                  max={48}
+                  step={2}
+                  onValueChange={([value]) => onUpdate({ padding: value })}
+                />
+              </div>
+
+              {/* Shadow */}
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <Label className="gba:text-xs">{t('props-drop-shadow')}</Label>
+                <Switch checked={codeElement.shadow ?? false} onCheckedChange={shadow => onUpdate({ shadow })} />
+              </div>
             </div>
-            <Slider
-              value={[codeElement.borderRadius ?? 8]}
-              min={0}
-              max={32}
-              step={1}
-              onValueChange={([value]) => onUpdate({ borderRadius: value })}
-            />
-          </div>
-
-          {/* Border Width */}
-          <div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">{t('props-border-width')}</Label>
-              <span className="gba:text-xs gba:text-muted-foreground">{codeElement.borderWidth ?? 0}px</span>
-            </div>
-            <Slider
-              value={[codeElement.borderWidth ?? 0]}
-              min={0}
-              max={10}
-              step={1}
-              onValueChange={([value]) => onUpdate({ borderWidth: value })}
-            />
-          </div>
-
-          {/* Border Color */}
-          <PanelColorPicker
-            value={codeElement.borderColor || '#333333'}
-            onChange={borderColor => onUpdate({ borderColor })}
-            label={t('props-border-color')}
-          />
-
-          {/* Padding */}
-          <div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">{t('props-code-padding')}</Label>
-              <span className="gba:text-xs gba:text-muted-foreground">{codeElement.padding ?? 16}px</span>
-            </div>
-            <Slider
-              value={[codeElement.padding ?? 16]}
-              min={0}
-              max={48}
-              step={2}
-              onValueChange={([value]) => onUpdate({ padding: value })}
-            />
-          </div>
-
-          {/* Shadow */}
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <Label className="gba:text-xs">{t('props-drop-shadow')}</Label>
-            <Switch checked={codeElement.shadow ?? false} onCheckedChange={shadow => onUpdate({ shadow })} />
-          </div>
-        </div>
-      )}
+          )
+        })()}
 
       {/* IMAGE PROPERTIES */}
       {imageElement && (

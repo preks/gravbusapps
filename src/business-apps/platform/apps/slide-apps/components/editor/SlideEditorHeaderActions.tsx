@@ -81,6 +81,7 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
       const snapshot = await SlidesApiService.getVersion(slideId, versionNumber)
       const contentJson = (snapshot?.contentJson as Record<string, unknown> | undefined) || null
       if (!contentJson) return
+      await SlidesApiService.resetSlideYjsState(slideId, contentJson)
       await applyContentJsonSnapshot(contentJson)
       setShowVersionHistory(false)
     },

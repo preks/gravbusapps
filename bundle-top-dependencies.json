@@ -4627,8 +4627,8 @@
     ]
   },
   "core/create/apps/ai-builder-admin": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
     "chunkJsBytes": 162114,
     "top": [
       {
@@ -7448,8 +7448,8 @@
     ]
   },
   "core/create/debug/apps/generated-resource-urls-debug": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
     "chunkJsBytes": 134564,
     "top": [
       {
@@ -9621,9 +9621,9 @@
     ]
   },
   "core/office/apps/documents": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
-    "chunkJsBytes": 1755152,
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
+    "chunkJsBytes": 1756772,
     "top": [
       {
         "kind": "bucket",
@@ -9664,8 +9664,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 322166,
-        "gzip": 77647,
+        "rendered": 324442,
+        "gzip": 78050,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/components/DynamicFormDisplay.tsx",
@@ -9673,9 +9673,9 @@
             "gzip": 7248
           },
           {
-            "name": "src/business-apps/platform/apps/shared/components/VersionHistory.tsx",
-            "rendered": 17814,
-            "gzip": 3672
+            "name": "src/business-apps/platform/apps/shared/services/SocketIoYjsProvider.ts",
+            "rendered": 19018,
+            "gzip": 4166
           }
         ]
       },
@@ -9938,8 +9938,8 @@
     ]
   },
   "core/office/apps/drive": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
     "chunkJsBytes": 851991,
     "top": [
       {
@@ -10549,15 +10549,15 @@
     ]
   },
   "core/office/apps/notes": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
-    "chunkJsBytes": 549129,
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
+    "chunkJsBytes": 550749,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 746147,
-        "gzip": 171444,
+        "rendered": 748423,
+        "gzip": 171847,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/note-apps/NoteEditor.tsx",
@@ -11583,15 +11583,15 @@
     ]
   },
   "core/office/apps/slides": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
-    "chunkJsBytes": 1474655,
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
+    "chunkJsBytes": 1498853,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 2148349,
-        "gzip": 436227,
+        "rendered": 2206591,
+        "gzip": 448840,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/slide-apps/components/OfficeShapeRenderer.tsx",
@@ -11599,9 +11599,9 @@
             "gzip": 16001
           },
           {
-            "name": "src/business-apps/platform/apps/slide-apps/services/SlideLayoutService.ts",
-            "rendered": 126477,
-            "gzip": 13790
+            "name": "src/business-apps/platform/apps/slide-apps/components/SlideEditor.tsx",
+            "rendered": 130674,
+            "gzip": 23662
           }
         ]
       },
@@ -11900,8 +11900,8 @@
     ]
   },
   "core/office/apps/spaces": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
     "chunkJsBytes": 1393894,
     "top": [
       {
@@ -12217,9 +12217,9 @@
     ]
   },
   "core/office/apps/spreadsheets": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
-    "chunkJsBytes": 1309059,
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
+    "chunkJsBytes": 1309467,
     "top": [
       {
         "kind": "bucket",
@@ -12242,8 +12242,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 252314,
-        "gzip": 61105,
+        "rendered": 252997,
+        "gzip": 61212,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/components/links/constants/entityConfig.ts",
@@ -12252,8 +12252,8 @@
           },
           {
             "name": "src/business-apps/platform/apps/slide-apps/services/SlidesApiService.ts",
-            "rendered": 20320,
-            "gzip": 4187
+            "rendered": 21003,
+            "gzip": 4294
           }
         ]
       },
@@ -13960,8 +13960,8 @@
     ]
   },
   "crm/core/apps/customer-relations": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
     "chunkJsBytes": 1572618,
     "top": [
       {
@@ -24020,9 +24020,9 @@
     ]
   },
   "every/apps/every-box": {
-    "bitbucketBuildNumber": 11347,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11347/",
-    "chunkJsBytes": 2039050,
+    "bitbucketBuildNumber": 11378,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11378/",
+    "chunkJsBytes": 2040661,
     "top": [
       {
         "kind": "bucket",
@@ -24063,8 +24063,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 347279,
-        "gzip": 84086,
+        "rendered": 349555,
+        "gzip": 84489,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/components/DynamicFormDisplay.tsx",
@@ -24367,8 +24367,8 @@
     ]
   },
   "fin/expenses/apps/backoffice-expenses": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
     "chunkJsBytes": 1056608,
     "top": [
       {
@@ -29153,9 +29153,9 @@
     ]
   },
   "fin/expenses/apps/personal-expenses": {
-    "bitbucketBuildNumber": 11347,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11347/",
-    "chunkJsBytes": 2400607,
+    "bitbucketBuildNumber": 11378,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11378/",
+    "chunkJsBytes": 2402218,
     "top": [
       {
         "kind": "bucket",
@@ -29232,8 +29232,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 298072,
-        "gzip": 72030,
+        "rendered": 300348,
+        "gzip": 72433,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/components/DynamicFormDisplay.tsx",
@@ -29241,9 +29241,9 @@
             "gzip": 7254
           },
           {
-            "name": "src/business-apps/platform/apps/shared/components/VersionHistory.tsx",
-            "rendered": 17826,
-            "gzip": 3671
+            "name": "src/business-apps/platform/apps/shared/services/SocketIoYjsProvider.ts",
+            "rendered": 19018,
+            "gzip": 4166
           }
         ]
       },
@@ -40104,8 +40104,8 @@
     ]
   },
   "hr/core/apps/assets": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
     "chunkJsBytes": 812605,
     "top": [
       {
@@ -41563,9 +41563,9 @@
     ]
   },
   "hr/core/apps/human-resources": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
-    "chunkJsBytes": 2593436,
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
+    "chunkJsBytes": 2595056,
     "top": [
       {
         "kind": "bucket",
@@ -41642,8 +41642,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 298050,
-        "gzip": 72024,
+        "rendered": 300326,
+        "gzip": 72427,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/components/DynamicFormDisplay.tsx",
@@ -41651,9 +41651,9 @@
             "gzip": 7254
           },
           {
-            "name": "src/business-apps/platform/apps/shared/components/VersionHistory.tsx",
-            "rendered": 17826,
-            "gzip": 3672
+            "name": "src/business-apps/platform/apps/shared/services/SocketIoYjsProvider.ts",
+            "rendered": 19018,
+            "gzip": 4166
           }
         ]
       },
@@ -87633,15 +87633,15 @@
     ]
   },
   "platform/apps/board-apps": {
-    "bitbucketBuildNumber": 11347,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11347/",
-    "chunkJsBytes": 1271685,
+    "bitbucketBuildNumber": 11378,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11378/",
+    "chunkJsBytes": 1273296,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 1521511,
-        "gzip": 363416,
+        "rendered": 1523787,
+        "gzip": 363819,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/components/DynamicFormDisplay.tsx",
@@ -87950,20 +87950,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
-    "chunkJsBytes": 1834361,
+    "bitbucketBuildNumber": 11386,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11386/",
+    "chunkJsBytes": 1834239,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1530120,
-        "gzip": 92731,
+        "rendered": 1529997,
+        "gzip": 93104,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1530120,
-            "gzip": 92731
+            "rendered": 1529997,
+            "gzip": 93104
           }
         ]
       },
@@ -92271,15 +92271,15 @@
     ]
   },
   "platform/apps/note-apps": {
-    "bitbucketBuildNumber": 11315,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11315/",
-    "chunkJsBytes": 549021,
+    "bitbucketBuildNumber": 11378,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11378/",
+    "chunkJsBytes": 550681,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 745917,
-        "gzip": 171397,
+        "rendered": 748424,
+        "gzip": 171848,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/note-apps/NoteEditor.tsx",
@@ -93300,15 +93300,15 @@
     ]
   },
   "platform/apps/slide-apps": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
-    "chunkJsBytes": 1474580,
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
+    "chunkJsBytes": 1498778,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 2148343,
-        "gzip": 436226,
+        "rendered": 2206585,
+        "gzip": 448839,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/slide-apps/components/OfficeShapeRenderer.tsx",
@@ -93316,9 +93316,9 @@
             "gzip": 16001
           },
           {
-            "name": "src/business-apps/platform/apps/slide-apps/services/SlideLayoutService.ts",
-            "rendered": 126477,
-            "gzip": 13790
+            "name": "src/business-apps/platform/apps/slide-apps/components/SlideEditor.tsx",
+            "rendered": 130674,
+            "gzip": 23662
           }
         ]
       },
@@ -93617,8 +93617,8 @@
     ]
   },
   "platform/apps/spaces": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
     "chunkJsBytes": 1393817,
     "top": [
       {
@@ -93934,8 +93934,8 @@
     ]
   },
   "platform/dataset-addon/apps/query-executor": {
-    "bitbucketBuildNumber": 11347,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11347/",
+    "bitbucketBuildNumber": 11386,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11386/",
     "chunkJsBytes": 113426,
     "top": [
       {
@@ -100406,9 +100406,9 @@
     ]
   },
   "platform/apps/spreadsheet-apps": {
-    "bitbucketBuildNumber": 11369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11369/",
-    "chunkJsBytes": 1309064,
+    "bitbucketBuildNumber": 11381,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
+    "chunkJsBytes": 1309472,
     "top": [
       {
         "kind": "bucket",
@@ -100431,8 +100431,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 252314,
-        "gzip": 61105,
+        "rendered": 252997,
+        "gzip": 61212,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/components/links/constants/entityConfig.ts",
@@ -100441,8 +100441,8 @@
           },
           {
             "name": "src/business-apps/platform/apps/slide-apps/services/SlidesApiService.ts",
-            "rendered": 20320,
-            "gzip": 4187
+            "rendered": 21003,
+            "gzip": 4294
           }
         ]
       },
@@ -100723,9 +100723,9 @@
     ]
   },
   "core/office/apps/whiteboards": {
-    "bitbucketBuildNumber": 11339,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11339/",
-    "chunkJsBytes": 1304644,
+    "bitbucketBuildNumber": 11378,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11378/",
+    "chunkJsBytes": 1306264,
     "top": [
       {
         "kind": "bucket",
@@ -100766,18 +100766,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 71989,
-        "gzip": 16208,
+        "rendered": 74265,
+        "gzip": 16610,
         "leaves": [
+          {
+            "name": "src/business-apps/platform/apps/shared/services/SocketIoYjsProvider.ts",
+            "rendered": 19008,
+            "gzip": 4161
+          },
           {
             "name": "src/business-apps/platform/apps/shared/components/OfficeTrashList.tsx",
             "rendered": 17377,
             "gzip": 3315
-          },
-          {
-            "name": "src/business-apps/platform/apps/shared/services/SocketIoYjsProvider.ts",
-            "rendered": 16732,
-            "gzip": 3759
           }
         ]
       },
@@ -101872,8 +101872,8 @@
     ]
   },
   "platform/apps/setup-add-employees": {
-    "bitbucketBuildNumber": 11352,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11352/",
+    "bitbucketBuildNumber": 11386,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11386/",
     "chunkJsBytes": 145695,
     "top": [
       {
@@ -103484,9 +103484,9 @@
     ]
   },
   "platform/apps/people": {
-    "bitbucketBuildNumber": 11352,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11352/",
-    "chunkJsBytes": 374804,
+    "bitbucketBuildNumber": 11386,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11386/",
+    "chunkJsBytes": 379849,
     "top": [
       {
         "kind": "bucket",
@@ -103509,18 +103509,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 92342,
-        "gzip": 24589,
+        "rendered": 99113,
+        "gzip": 26871,
         "leaves": [
+          {
+            "name": "src/business-apps/platform/apps/people/PeopleRemoteApp.tsx",
+            "rendered": 19807,
+            "gzip": 3954
+          },
           {
             "name": "src/business-apps/platform/apps/setup-add-employees/EditEmployeeForm.tsx",
             "rendered": 16538,
             "gzip": 3503
-          },
-          {
-            "name": "src/business-apps/platform/apps/people/PeopleRemoteApp.tsx",
-            "rendered": 15590,
-            "gzip": 3309
           }
         ]
       },
@@ -103545,8 +103545,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 31423,
-        "gzip": 7755,
+        "rendered": 34537,
+        "gzip": 8706,
         "leaves": [
           {
             "name": "src/common/network/users/UserManagementClient.ts",
@@ -103663,6 +103663,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 478,
+        "gzip": 304,
+        "leaves": [
+          {
+            "name": "src/common/types/enums/Services.ts",
+            "rendered": 330,
+            "gzip": 191
+          },
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 148,
+            "gzip": 113
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/wrapWithLocalizationProvider.tsx",
         "rendered": 451,
         "gzip": 254,
@@ -103715,19 +103733,6 @@
       },
       {
         "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
         "name": "(src)/common/runtime",
         "rendered": 38,
         "gzip": 58,
@@ -103743,7 +103748,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-24T20:27:25.611Z",
+    "generatedAt": "2026-04-27T05:43:46.321Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }

@@ -77,8 +77,12 @@ export interface InsertTabContentProps {
     themeId: string,
     masters?: import('../../types/slideMaster').SlideMaster[]
   ) => void
-  onRefineSlide?: () => void
-  onGenerateSlides?: () => void
+  onRefineSlide?: (refinedSlide: SlideData) => void
+  onGenerateSlides?: (
+    slides: SlideData[],
+    title: string,
+    matchedTemplate?: { id: string; name: string; themeId?: string }
+  ) => void
   testId?: string
 }
 

@@ -63,8 +63,12 @@ export interface SlideToolbarRibbonProps {
   onSaveNow?: () => void
   onExportPptx?: () => void
   onExportPdf?: () => void
-  onRefineSlide?: () => void
-  onGenerateSlides?: () => void
+  onRefineSlide?: (refinedSlide: SlideData) => void
+  onGenerateSlides?: (
+    slides: SlideData[],
+    title: string,
+    matchedTemplate?: { id: string; name: string; themeId?: string }
+  ) => void
   onOpenMasterView?: () => void
   masters?: import('../../types/slideMaster').SlideMaster[]
   onChangeLayout?: (layoutId: string, masterId: string) => void

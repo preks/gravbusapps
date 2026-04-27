@@ -275,18 +275,18 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
       // Close the template browser dialog
       setShowTemplateBrowserDialog(false)
 
-      // Create a new slide
-      const created = await createSlide({ title: t('title-untitled-slide') })
-      if (created) {
-        // Store the pending template to apply when editor loads
-        setPendingTemplateSlides({ slides: templateSlides, themeId })
-        setSelectedSlideId(created.id)
+      const result = await importSlide({
+        title: t('title-untitled-slide'),
+        contentJson: { slides: templateSlides, themeId }
+      })
+      if (result) {
+        setPendingTemplateSlides(null)
+        setSelectedSlideId(result.slide.id)
         setCurrentView('editor')
-        updateUrl(created.id, 'editor')
-        loadSlide(created.id)
+        updateUrl(result.slide.id, 'editor')
       }
     },
-    [createSlide, loadSlide, updateUrl, t]
+    [importSlide, updateUrl, t]
   )
 
   /** Clear pending template after it's been applied */
@@ -915,20 +915,16 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                     ? t('slides-empty-favorites-title')
                     : activeSection === 'shared'
                       ? t('slides-empty-shared-title')
-                      : activeSection === 'archived'
-                        ? t('empty-archived-title')
-                        : t('slides-empty-default-title')}
+                      : t('slides-empty-default-title')}
                 </h3>
                 <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
                   {activeSection === 'favorites'
                     ? t('slides-empty-favorites-description')
                     : activeSection === 'shared'
                       ? t('slides-empty-shared-description')
-                      : activeSection === 'archived'
-                        ? t('empty-archived-description')
-                        : t('slides-empty-default-description')}
+                      : t('slides-empty-default-description')}
                 </p>
-                {activeSection !== 'favorites' && activeSection !== 'shared' && activeSection !== 'archived' && (
+                {activeSection !== 'favorites' && activeSection !== 'shared' && (
                   <Button onClick={handleCreateNew}>
                     <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
                     {t('empty-create-slide')}

@@ -37,10 +37,12 @@ ensureImportedWebFonts()
 import { SlideChartRenderer } from './SlideChartRenderer'
 import { TextWithLinks } from './TextWithLinks'
 import { RichTextContent } from './RichTextContent'
+import { InlineRichTextEditor } from './InlineRichTextEditor'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import { ShapePointEditor } from './ShapePointEditor'
 import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
 import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
+import { createDefaultShapeText, type RichTextSelectionRange } from '../utils/richTextEditing'
 
 const hexToRgba = (hex: string, alpha: number): string => {
   const cleanHex = hex.replace('#', '')
@@ -69,8 +71,11 @@ const sanitizeMediaUrl = (url: string | undefined, allowedTypes: string[] = ['im
 }
 interface InlineEditingProps {
   editingTextId: string | null
+  editorElement?: TextElement | null
   onTextChange: (value: string) => void
+  onSelectionChange: (range: RichTextSelectionRange | null) => void
   onFinishEditing: () => void
+  rehydrateToken?: number
   voiceInput?: {
     isListening: boolean
     isSupported: boolean
@@ -406,12 +411,22 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       // Call onElementClick for presenter view highlighting (works even on locked elements)
       onElementClick?.(element.id)
 
-      if (element.locked) return
-
       // In Edit Points mode the ShapePointEditor owns pointer events for the
       // active shape. Swallow canvas-level drag/select events so the user
       // can manipulate anchors without moving the whole shape by accident.
       if (editingPointsId && editingPointsId === element.id) return
+
+      const editorTarget = (e.target as HTMLElement).closest<HTMLElement>('[contenteditable="true"]')
+      const isActiveInlineEditorTarget =
+        inlineEditing?.editingTextId === element.id &&
+        (element.type === 'text' || element.type === 'shape') &&
+        !!editorTarget &&
+        e.currentTarget.contains(editorTarget)
+
+      // Keep native caret/selection behavior inside the active inline editor.
+      // Moving an actively edited element happens from the dedicated drag
+      // handle, not from the contentEditable surface.
+      if (isActiveInlineEditorTarget) return
 
       const isSelected = selectedIds.has(element.id)
       const isCtrlKey = e.ctrlKey || e.metaKey
@@ -452,6 +467,11 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         setAnchorElementId(element.id)
       }
 
+      if (element.locked) {
+        mouseDownElementRef.current = null
+        return
+      }
+
       // Start dragging
       setIsDragging(true)
       onDragStart?.()
@@ -483,7 +503,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         effectiveSelection = isSelected ? selectedIds : new Set([element.id])
       }
 
-      effectiveSelection.forEach(id => {
+      const movableEffectiveSelectionIds = [...effectiveSelection].filter(id => {
+        const selectedElement = elements.find(candidate => candidate.id === id)
+        return !!selectedElement && !selectedElement.locked
+      })
+
+      movableEffectiveSelectionIds.forEach(id => {
         const el = elements.find(e => e.id === id)
         if (el) positions.set(id, { ...el.position })
       })
@@ -635,11 +660,19 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         const deltaX = currentX - dragStart.x
         const deltaY = currentY - dragStart.y
 
+        const movableSelectionIds = [...selectedIds].filter(id => {
+          const element = elements.find(candidate => candidate.id === id)
+          return !!element && !element.locked
+        })
+        const movableSelectionIdSet = new Set(movableSelectionIds)
+
         if (isDragging) {
+          if (movableSelectionIds.length === 0) return
+
           // Multi-element drag
-          if (selectedIds.size > 1 && multiDragStart.size > 0) {
+          if (movableSelectionIds.length > 1 && multiDragStart.size > 0) {
             // Calculate bounding box of all selected elements for snapping
-            const selectedElements = elements.filter(el => selectedIds.has(el.id))
+            const selectedElements = elements.filter(el => movableSelectionIdSet.has(el.id))
             const minX = Math.min(...selectedElements.map(el => el.position.x))
             const minY = Math.min(...selectedElements.map(el => el.position.y))
             const maxX = Math.max(...selectedElements.map(el => el.position.x + el.size.width))
@@ -655,7 +688,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             const { snappedPosition, guides } = calculateSnap(
               { x: newBoundsX, y: newBoundsY },
               { width: boundsWidth, height: boundsHeight },
-              selectedIds
+              movableSelectionIdSet
             )
 
             // Calculate the snap offset
@@ -678,7 +711,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             setSnapGuides(guides)
           } else {
             // Single element drag with snapping
-            const selectedId = [...selectedIds][0]
+            const selectedId = movableSelectionIds[0]
             const selectedElement = elements.find(el => el.id === selectedId)
             if (selectedId && selectedElement) {
               const newPosition = {
@@ -686,7 +719,11 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 y: elementStart.position.y + deltaY
               }
 
-              const { snappedPosition, guides } = calculateSnap(newPosition, selectedElement.size, selectedIds)
+              const { snappedPosition, guides } = calculateSnap(
+                newPosition,
+                selectedElement.size,
+                movableSelectionIdSet
+              )
 
               onUpdateElement(selectedId, { position: snappedPosition })
               setSnapGuides(guides)
@@ -999,6 +1036,52 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       }
     }
 
+    const renderInlineEditingMoveEdges = (elementId: string) => {
+      const edgeThickness = 12 / scale
+      const edgeStyles: Record<'top' | 'right' | 'bottom' | 'left', React.CSSProperties> = {
+        top: {
+          top: -edgeThickness / 2,
+          left: 0,
+          right: 0,
+          height: edgeThickness
+        },
+        right: {
+          top: 0,
+          right: -edgeThickness / 2,
+          bottom: 0,
+          width: edgeThickness
+        },
+        bottom: {
+          bottom: -edgeThickness / 2,
+          left: 0,
+          right: 0,
+          height: edgeThickness
+        },
+        left: {
+          top: 0,
+          left: -edgeThickness / 2,
+          bottom: 0,
+          width: edgeThickness
+        }
+      }
+
+      return (['top', 'right', 'bottom', 'left'] as const).map(edge => (
+        <div
+          key={`${elementId}-${edge}`}
+          data-testid={`slide-inline-editor-move-edge-${elementId}-${edge}`}
+          title="Drag to move"
+          style={{
+            position: 'absolute',
+            backgroundColor: 'transparent',
+            cursor: 'move',
+            userSelect: 'none',
+            zIndex: 900,
+            ...edgeStyles[edge]
+          }}
+        />
+      ))
+    }
+
     const renderElement = (element: AnySlideElement) => {
       const isSelected = selectedIds.has(element.id)
       const isSingleSelection = selectedIds.size === 1
@@ -1042,15 +1125,15 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               e.preventDefault()
               e.stopPropagation()
               if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
-              onShapeContextMenu(element.id)
+              if (!element.locked) onShapeContextMenu(element.id)
             }
           }}
           onMouseDown={e => handleElementMouseDown(e, element)}
           onKeyDown={e => {
-            if (element.locked) return
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault()
               if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
+              if (element.locked) return
               if (e.key === 'Enter' && (element.type === 'text' || element.type === 'shape')) {
                 if (inlineEditing?.editingTextId !== element.id) {
                   onEditText(element.id)
@@ -1096,47 +1179,22 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 >
                   {inlineEditing?.editingTextId === element.id ? (
                     <>
-                      <textarea
-                        ref={el => {
-                          if (el && textareaInitializedRef.current !== element.id) {
-                            textareaInitializedRef.current = element.id
-                            el.focus()
-                            el.selectionStart = el.selectionEnd = el.value.length
-                          }
+                      {renderInlineEditingMoveEdges(element.id)}
+                      <InlineRichTextEditor
+                        key={element.id}
+                        element={
+                          inlineEditing.editorElement && inlineEditing.editingTextId === element.id
+                            ? inlineEditing.editorElement
+                            : textEl
+                        }
+                        onTextChange={inlineEditing.onTextChange}
+                        onSelectionChange={inlineEditing.onSelectionChange}
+                        onFinishEditing={() => {
+                          textareaInitializedRef.current = null
+                          inlineEditing.onFinishEditing()
                         }}
-                        value={textEl.content}
-                        onChange={e => inlineEditing.onTextChange(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Escape') {
-                            e.preventDefault()
-                            textareaInitializedRef.current = null
-                            inlineEditing.onFinishEditing()
-                          }
-                        }}
-                        onClick={e => e.stopPropagation()}
-                        onMouseDown={e => e.stopPropagation()}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          fontFamily: resolveFontStack(textEl.fontFamily),
-                          fontSize: textEl.fontSize,
-                          fontWeight: textEl.fontWeight,
-                          fontStyle: textEl.fontStyle,
-                          textDecoration: textEl.textDecoration,
-                          textAlign: textEl.textAlign,
-                          color: textEl.color,
-                          lineHeight: textEl.lineHeight,
-                          letterSpacing: textEl.letterSpacing,
-                          ...textTransformToCss(textEl.textTransform),
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          background: 'transparent',
-                          border: 'none',
-                          outline: 'none',
-                          resize: 'none',
-                          padding: 0,
-                          margin: 0
-                        }}
+                        rehydrateToken={inlineEditing.rehydrateToken}
+                        data-testid={`slide-text-editor-${element.id}`}
                       />
                       {/* Inline editing toolbar */}
                       <div
@@ -1192,6 +1250,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                           }}
                           className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-md gba:border-0 gba:cursor-pointer gba:bg-primary gba:text-primary-foreground gba:transition-all"
                           title="Done editing"
+                          data-testid={`slide-text-editor-done-${element.id}`}
                         >
                           <Check className="gba:w-4 gba:h-4" />
                         </button>
@@ -1356,24 +1415,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 // When editing, force a default ShapeInText so the user has a
                 // real text container to type into even on shapes that did not
                 // previously have a label.
-                const st =
-                  se.shapeText ??
-                  (isEditingLabel
-                    ? {
-                        content: '',
-                        fontFamily: 'Inter',
-                        fontSize: 16,
-                        fontWeight: 'normal' as const,
-                        fontStyle: 'normal' as const,
-                        textDecoration: 'none' as const,
-                        textAlign: 'center' as const,
-                        verticalAlign: 'middle' as const,
-                        color: '#1e293b',
-                        lineHeight: 1.3,
-                        letterSpacing: 0,
-                        padding: 8
-                      }
-                    : null)
+                const st = se.shapeText ?? (isEditingLabel ? createDefaultShapeText() : null)
                 if (!st) return null
                 const te = textElementStubForShapeInText(se, st)
                 return (
@@ -1391,56 +1433,32 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                             ? 'flex-end'
                             : 'center',
                       padding: st.padding,
-                      overflow: 'hidden',
+                      overflow: isEditingLabel ? 'visible' : 'hidden',
                       boxSizing: 'border-box',
                       pointerEvents: isEditingLabel ? 'auto' : 'none',
                       zIndex: 1
                     }}
                   >
                     {isEditingLabel ? (
-                      <textarea
-                        ref={el => {
-                          if (el && textareaInitializedRef.current !== se.id) {
-                            textareaInitializedRef.current = se.id
-                            el.focus()
-                            el.selectionStart = el.selectionEnd = el.value.length
+                      <>
+                        {renderInlineEditingMoveEdges(se.id)}
+                        <InlineRichTextEditor
+                          key={se.id}
+                          element={
+                            inlineEditing?.editorElement && inlineEditing.editingTextId === se.id
+                              ? inlineEditing.editorElement
+                              : te
                           }
-                        }}
-                        value={st.content}
-                        onChange={e => inlineEditing?.onTextChange(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Escape') {
-                            e.preventDefault()
+                          onTextChange={value => inlineEditing?.onTextChange(value)}
+                          onSelectionChange={range => inlineEditing?.onSelectionChange(range)}
+                          onFinishEditing={() => {
                             textareaInitializedRef.current = null
                             inlineEditing?.onFinishEditing()
-                          }
-                        }}
-                        onClick={e => e.stopPropagation()}
-                        onMouseDown={e => e.stopPropagation()}
-                        placeholder=""
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          fontFamily: resolveFontStack(te.fontFamily),
-                          fontSize: te.fontSize,
-                          fontWeight: te.fontWeight,
-                          fontStyle: te.fontStyle,
-                          textDecoration: te.textDecoration,
-                          textAlign: te.textAlign,
-                          color: te.color,
-                          lineHeight: te.lineHeight,
-                          letterSpacing: te.letterSpacing,
-                          ...textTransformToCss(te.textTransform),
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          background: 'transparent',
-                          border: 'none',
-                          outline: 'none',
-                          resize: 'none',
-                          padding: 0,
-                          margin: 0
-                        }}
-                      />
+                          }}
+                          rehydrateToken={inlineEditing?.rehydrateToken}
+                          data-testid={`slide-shape-text-editor-${se.id}`}
+                        />
+                      </>
                     ) : st.paragraphs && st.paragraphs.length > 0 ? (
                       <RichTextContent element={te} paragraphs={st.paragraphs} />
                     ) : (
