@@ -4,6 +4,7 @@ import translations from '../_i18n'
 import { CheckCircleIcon, CopyIcon } from '@phosphor-icons/react'
 import { ThumbsUp, ThumbsDown } from 'lucide-react'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import type {
   OutputItem,
   AnswerOutput,
@@ -733,8 +734,60 @@ export const CalendarDisplay: React.FC<{ data: CalendarViewData }> = ({ data }) 
   return <FlowbotCalendarDisplay data={data} />
 }
 
+function isSpreadsheetFile(mimeType: string, filename: string): boolean {
+  const spreadsheetMimeTypes = [
+    'text/csv',
+    'application/csv',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ]
+  if (spreadsheetMimeTypes.some(t => mimeType.toLowerCase().includes(t))) {
+    return true
+  }
+  const lower = filename.toLowerCase()
+  return lower.endsWith('.csv') || lower.endsWith('.xls') || lower.endsWith('.xlsx')
+}
+
+interface FileDisplayProps {
+  data: { filename: string; mimeType: string; content: string }
+  accessToken?: string
+}
+
 // Premium File Display with prominent download button
-export const FileDisplay: React.FC<{ data: { filename: string; mimeType: string; content: string } }> = ({ data }) => {
+export const FileDisplay: React.FC<FileDisplayProps> = ({ data, accessToken }) => {
+  const [isImporting, setIsImporting] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+
+  const handleOpenInSpreadsheet = async () => {
+    if (!accessToken) return
+    setIsImporting(true)
+    setImportError(null)
+    try {
+      const baseUrl = resolveFlowbotBaseUrl()
+      const response = await fetch(`${baseUrl}/flowbot/api/agent/import-csv-to-spreadsheet`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          filename: data.filename,
+          content: data.content,
+          mimeType: data.mimeType
+        })
+      })
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(errorText || `HTTP ${response.status}`)
+      }
+      const { url } = await response.json()
+      navigateTo(url)
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Failed to open in EverySpreadsheet')
+    } finally {
+      setIsImporting(false)
+    }
+  }
   const getFileIcon = (mimeType: string) => {
     if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
       return (
@@ -794,21 +847,43 @@ export const FileDisplay: React.FC<{ data: { filename: string; mimeType: string;
             <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">
               {data.mimeType.split('/').pop()?.toUpperCase() || 'FILE'} • {getFileSize()}
             </p>
-            <a
-              href={`data:${data.mimeType};base64,${data.content}`}
-              download={data.filename}
-              className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-xl gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:text-ai-foreground gba:font-semibold gba:shadow-md hover:gba:shadow-lg gba:transition-all gba:text-sm"
-            >
-              <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
-              </svg>
-              <span>Download File</span>
-            </a>
+            <div className="gba:flex gba:flex-wrap gba:gap-2">
+              <a
+                href={`data:${data.mimeType};base64,${data.content}`}
+                download={data.filename}
+                className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-xl gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:text-ai-foreground gba:font-semibold gba:shadow-md hover:gba:shadow-lg gba:transition-all gba:text-sm"
+              >
+                <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  />
+                </svg>
+                <span>Download File</span>
+              </a>
+              {isSpreadsheetFile(data.mimeType, data.filename) && accessToken && (
+                <button
+                  type="button"
+                  onClick={handleOpenInSpreadsheet}
+                  disabled={isImporting}
+                  data-testid="open-in-everyspreadsheet"
+                  className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-xl gba:bg-success gba:text-success-foreground gba:font-semibold gba:shadow-md hover:gba:shadow-lg gba:transition-all gba:text-sm disabled:gba:opacity-60 disabled:gba:cursor-not-allowed"
+                >
+                  <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <span>{isImporting ? 'Opening…' : 'Open in EverySpreadsheet'}</span>
+                </button>
+              )}
+            </div>
+            {importError && <p className="gba:mt-2 gba:text-xs gba:text-destructive">{importError}</p>}
           </div>
         </div>
       </CardContent>
@@ -840,7 +915,7 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
     case 'entity':
       return renderEntity(item, accessToken)
     case 'file':
-      return <FileDisplay key={idx} data={item} />
+      return <FileDisplay key={idx} data={item} accessToken={accessToken} />
     case 'chat_reference':
       return <ChatSnippetDisplay key={idx} data={item} />
     case 'reminder':
