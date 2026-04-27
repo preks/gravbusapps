@@ -1,5 +1,12 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import type { MenuItemDTO } from '@/common/data/resources/types/menuItem.types'
+import type {
+  EnrichedMenuItem,
+  MenuTreeState,
+  ExpansionState,
+  SpaceType,
+  GroupedBySpace
+} from '../types/menuTree.types'
 
 type MutableMenuItemNode = MenuItemDTO & { children: MutableMenuItemNode[] }
 
@@ -67,13 +74,30 @@ function mergeDraftsIntoMenuTree(menuItems: MenuItemDTO[], draftMenuItems: MenuI
 
   return [...topLevelDraftHubs, ...mergedMenuTree]
 }
-import type {
-  EnrichedMenuItem,
-  MenuTreeState,
-  ExpansionState,
-  SpaceType,
-  GroupedBySpace
-} from '../types/menuTree.types'
+
+function removeDraftNodesFromTree(items: MenuItemDTO[]): MenuItemDTO[] {
+  return items
+    .filter(item => !item.id.startsWith('draft:'))
+    .map(item => ({
+      ...item,
+      children: removeDraftNodesFromTree(item.children || [])
+    }))
+}
+
+function enrichTreePreservingOrder(
+  items: MenuItemDTO[],
+  parentClass: 'space' | 'hub' | 'menuitem'
+): EnrichedMenuItem[] {
+  const itemClass = parentClass === 'space' ? 'hub' : 'menuitem'
+
+  return items.map(item => ({
+    ...item,
+    class: itemClass,
+    parentClass,
+    loadedRank: (item as EnrichedMenuItem).loadedRank ?? item.rank,
+    children: enrichTreePreservingOrder(item.children || [], 'menuitem')
+  }))
+}
 
 interface UseMenuTreeStateProps {
   menuItemsProp: MenuItemDTO[]
@@ -208,8 +232,10 @@ export function useMenuTreeState(props: UseMenuTreeStateProps): UseMenuTreeState
       }
 
       if (draftItemsChanged) {
-        // Only drafts changed - update to include new drafts
-        return enriched
+        // Only drafts changed: preserve current target ordering/structure and re-merge drafts on top
+        const targetWithoutDrafts = removeDraftNodesFromTree(prev)
+        const targetWithDrafts = mergeDraftsIntoMenuTree(targetWithoutDrafts, draftMenuItems)
+        return enrichTreePreservingOrder(targetWithDrafts, 'space')
       }
 
       // Nothing relevant changed (shouldn't reach here due to early return above)

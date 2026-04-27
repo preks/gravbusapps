@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import type { MenuItemDTO } from '@/common/data/resources/types/menuItem.types'
 import type { UseEditableStateResult } from '../../../../../../hooks/useEditableState'
 import { useCreateMenuItem } from '@/common/data/resources/hooks/useCreateMenuItem'
@@ -55,6 +55,10 @@ export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeA
 
   const { createMenuItem } = useCreateMenuItem(context)
   const { updateMenuItem } = useUpdateMenuItem(context)
+
+  const { setState: setEditableState, onDiscardEntry, isDraft } = editableState
+  const editableStateRef = useRef(editableState)
+  editableStateRef.current = editableState
 
   // Quick add child
   const handleQuickAdd = useCallback(
@@ -140,7 +144,7 @@ export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeA
       }
 
       // Seed edits and mark as draft
-      editableState.setState(prev => {
+      setEditableState(prev => {
         const newEdited = new Map(prev.editedEntries)
         newEdited.set(draftId, { name: '' })
         const newDrafts = new Set(prev.draftEntryIds)
@@ -154,21 +158,22 @@ export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeA
 
       console.log('[QuickAdd] Draft created:', { draftId, parentId: parentItem.id, level: newDraft.level })
     },
-    [editableState, setDraftMenuItems, setExpandedItems]
+    [setEditableState, setDraftMenuItems, setExpandedItems]
   )
 
-  // Save entry
+  // Save entry (ref keeps latest edit state; callback identity stable during typing in other fields)
   const handleSaveEntry = useCallback(
     async (itemId: string) => {
-      editableState.setSaving(itemId, true)
+      const es = editableStateRef.current
+      es.setSaving(itemId, true)
 
       try {
-        const edits = editableState.state.editedEntries.get(itemId)
+        const edits = es.state.editedEntries.get(itemId)
         const item = allMenuItemsFlat.find(m => m.id === itemId)
         if (!item) return
 
         const isHub = item.level === 0
-        const isDraft = itemId.startsWith('draft:')
+        const isNewDraft = itemId.startsWith('draft:')
 
         const updates = {
           name: (edits?.name as string | undefined) ?? item.name,
@@ -185,10 +190,10 @@ export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeA
           type: item.type
         }
 
-        if (isDraft) {
+        if (isNewDraft) {
           await createMenuItem(updates, isHub)
           setDraftMenuItems(prev => prev.filter(d => d.id !== itemId))
-          editableState.setState(prev => {
+          es.setState(prev => {
             const newEdited = new Map(prev.editedEntries)
             newEdited.delete(itemId)
             const newDrafts = new Set(prev.draftEntryIds)
@@ -197,32 +202,31 @@ export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeA
           })
         } else {
           await updateMenuItem(itemId, updates, isHub)
-          editableState.onDiscardEntry(itemId)
+          es.onDiscardEntry(itemId)
         }
 
         await refetchMenuItems()
       } catch {
         // Error handled
       } finally {
-        editableState.setSaving(itemId, false)
+        editableStateRef.current.setSaving(itemId, false)
       }
     },
-    [editableState, allMenuItemsFlat, createMenuItem, updateMenuItem, refetchMenuItems, setDraftMenuItems]
+    [allMenuItemsFlat, createMenuItem, updateMenuItem, refetchMenuItems, setDraftMenuItems]
   )
 
   // Discard entry (cascade for drafts)
   const handleDiscardEntry = useCallback(
     (itemId: string) => {
-      const isDraft = editableState.isDraft(itemId)
-      if (isDraft) {
+      if (isDraft(itemId)) {
         const idsToRemove = collectDraftSubtreeIds(itemId, draftMenuItems)
         setDraftMenuItems(prev => prev.filter(d => !idsToRemove.has(d.id)))
-        idsToRemove.forEach(id => editableState.onDiscardEntry(id))
+        idsToRemove.forEach(id => onDiscardEntry(id))
       } else {
-        editableState.onDiscardEntry(itemId)
+        onDiscardEntry(itemId)
       }
     },
-    [editableState, setDraftMenuItems, draftMenuItems]
+    [isDraft, onDiscardEntry, setDraftMenuItems, draftMenuItems]
   )
 
   // Delete item — drafts are removed locally; persisted items are marked for deletion
@@ -231,7 +235,7 @@ export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeA
       if (itemId.startsWith('draft:')) {
         const idsToRemove = collectDraftSubtreeIds(itemId, draftMenuItems)
         setDraftMenuItems(prev => prev.filter(d => !idsToRemove.has(d.id)))
-        idsToRemove.forEach(id => editableState.onDiscardEntry(id))
+        idsToRemove.forEach(id => onDiscardEntry(id))
         return
       }
       setPendingDeletes(prev => {
@@ -240,13 +244,16 @@ export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeA
         return newSet
       })
     },
-    [setPendingDeletes, draftMenuItems, setDraftMenuItems, editableState]
+    [onDiscardEntry, setPendingDeletes, draftMenuItems, setDraftMenuItems]
   )
 
-  return {
-    handleQuickAdd,
-    handleSaveEntry,
-    handleDiscardEntry,
-    handleDelete
-  }
+  return useMemo(
+    () => ({
+      handleQuickAdd,
+      handleSaveEntry,
+      handleDiscardEntry,
+      handleDelete
+    }),
+    [handleQuickAdd, handleSaveEntry, handleDiscardEntry, handleDelete]
+  )
 }
