@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { PropertyPanel } from '../PropertyPanel'
 import { TextFormattingTools } from '../toolbar/TextFormattingTools'
 import {
@@ -17,6 +17,12 @@ import {
 } from '../slideElements'
 import type { ResolvedTextFormattingState } from '../../utils/richTextEditing'
 import { createDefaultShapeText } from '../../utils/richTextEditing'
+
+jest.mock('../../services', () => ({
+  SlidesApiService: {
+    uploadFile: jest.fn().mockResolvedValue('')
+  }
+}))
 
 jest.mock('@newwork/nw-design-system', () => {
   const actualReact = jest.requireActual('react') as typeof import('react')
@@ -342,5 +348,30 @@ describe('font picker display', () => {
     screen.getAllByRole('button', { name: 'props-flip-vertical' }).forEach(button => {
       expect(button).toBeDisabled()
     })
+  })
+
+  it('lets shape selections clear the fill without affecting the stroke controls', () => {
+    const onUpdate = jest.fn()
+
+    renderPropertyPanel(
+      makeShapeElement({
+        fill: '#3b82f6',
+        gradient: {
+          type: 'linear',
+          angle: 90,
+          stops: [
+            { color: '#EA5929', position: 0 },
+            { color: '#54275F', position: 100 }
+          ]
+        }
+      }),
+      undefined,
+      { onUpdate }
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'props-no-fill' }))
+
+    expect(onUpdate).toHaveBeenCalledWith({ fill: 'transparent', gradient: undefined })
+    expect(screen.getByText('props-stroke-color')).toBeInTheDocument()
   })
 })

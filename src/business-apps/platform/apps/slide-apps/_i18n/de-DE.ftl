@@ -605,6 +605,7 @@ props-custom = Benutzerdefiniert
 props-no-gradient = Kein Verlauf
 props-shape-styling = Formgestaltung
 props-fill-color = Füllfarbe
+props-no-fill = Keine Füllung
 props-stroke-color = Konturfarbe
 props-stroke-width = Konturstärke
 props-stroke-style = Konturart

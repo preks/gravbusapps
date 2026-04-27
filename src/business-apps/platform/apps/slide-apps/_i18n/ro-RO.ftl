@@ -586,6 +586,7 @@ props-custom = Personalizat
 props-no-gradient = Fără gradient
 props-shape-styling = Stilizare formă
 props-fill-color = Culoare umplere
+props-no-fill = Fără umplere
 props-stroke-color = Culoare contur
 props-stroke-width = Grosime contur
 props-stroke-style = Stil contur

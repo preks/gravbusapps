@@ -80,16 +80,21 @@ describe('OfficeShapeRenderer preset coverage', () => {
 })
 
 describe('OfficeShapeRenderer gradient fills', () => {
-  it.each(['rect', 'roundRect'])('%s emits an SVG gradient definition instead of a raw CSS gradient fill', prst => {
-    const container = renderPresetGradient(prst)
-    const gradient = container.querySelector('linearGradient')
-    const rect = container.querySelector('rect')
+  it.each(['rect', 'roundRect', 'ellipse', 'wave'])(
+    '%s emits an SVG gradient definition instead of a raw CSS gradient fill',
+    prst => {
+      const container = renderPresetGradient(prst)
+      const gradient = container.querySelector('linearGradient')
+      const filledPrimitive = container.querySelector(
+        'path[fill], rect[fill], ellipse[fill], polygon[fill], circle[fill]'
+      )
 
-    expect(gradient).not.toBeNull()
-    expect(rect).not.toBeNull()
-    expect(rect?.getAttribute('fill')).toMatch(/^url\(#.+\)$/)
-    expect(rect?.getAttribute('fill')).not.toContain('linear-gradient(')
-  })
+      expect(gradient).not.toBeNull()
+      expect(filledPrimitive).not.toBeNull()
+      expect(filledPrimitive?.getAttribute('fill')).toMatch(/^url\(#.+\)$/)
+      expect(filledPrimitive?.getAttribute('fill')).not.toContain('linear-gradient(')
+    }
+  )
 
   it('splits rgba gradient stops into stop-color plus stop-opacity for SVG fidelity', () => {
     const node = tryRenderOfficePresetShape({

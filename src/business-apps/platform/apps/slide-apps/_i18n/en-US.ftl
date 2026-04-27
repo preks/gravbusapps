@@ -608,6 +608,7 @@ props-custom = Custom
 props-no-gradient = No gradient
 props-shape-styling = Shape Styling
 props-fill-color = Fill Color
+props-no-fill = No fill
 props-stroke-color = Stroke Color
 props-stroke-width = Stroke Width
 props-stroke-style = Stroke Style

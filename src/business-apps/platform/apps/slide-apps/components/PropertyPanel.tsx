@@ -103,14 +103,20 @@ function PanelColorPicker({
   onChange,
   label,
   isMixed = false,
-  mixedLabel = 'Mixed'
+  mixedLabel = 'Mixed',
+  allowTransparent = false,
+  transparentLabel
 }: {
   value: string
   onChange: (color: string) => void
   label: string
   isMixed?: boolean
   mixedLabel?: string
+  allowTransparent?: boolean
+  transparentLabel?: string
 }) {
+  const colorInputValue = /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#ffffff'
+
   return (
     <div className="gba:space-y-2">
       <Label className="gba:text-xs">
@@ -120,7 +126,7 @@ function PanelColorPicker({
       <div className="gba:flex gba:gap-2 gba:items-center">
         <input
           type="color"
-          value={value}
+          value={colorInputValue}
           onChange={e => onChange(e.target.value)}
           className="gba:w-8 gba:h-8 gba:rounded gba:border gba:cursor-pointer"
         />
@@ -141,6 +147,19 @@ function PanelColorPicker({
           />
         ))}
       </div>
+      {allowTransparent && transparentLabel ? (
+        <Button
+          type="button"
+          variant={value === 'transparent' ? 'default' : 'outline'}
+          size="sm"
+          className="gba:h-8"
+          data-testid="property-panel-shape-no-fill"
+          aria-pressed={value === 'transparent'}
+          onClick={() => onChange('transparent')}
+        >
+          {transparentLabel}
+        </Button>
+      ) : null}
     </div>
   )
 }
@@ -1511,6 +1530,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             value={shapeElement.fill}
             onChange={fill => onUpdate({ fill, gradient: undefined })}
             label={t('props-fill-color')}
+            allowTransparent
+            transparentLabel={t('props-no-fill')}
           />
 
           {/* Gradient */}

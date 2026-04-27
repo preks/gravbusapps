@@ -99,6 +99,19 @@ function renderPresetGradientDefs(
   return renderSvgGradientDefs(ctx.gradient, ctx.gradientId, Math.max(viewBoxWidth, viewBoxHeight))
 }
 
+function injectPresetGradientDefs(node: React.ReactNode, ctx: PresetRenderContext): React.ReactNode {
+  if (!ctx.gradient || !ctx.gradientId || !React.isValidElement(node)) return node
+  if (typeof node.type !== 'string' || node.type !== 'svg') return node
+
+  const svgNode = node as React.ReactElement<{ children?: React.ReactNode }>
+  const children = React.Children.toArray(svgNode.props.children)
+  const alreadyHasDefs = children.some(child => React.isValidElement(child) && child.type === 'defs')
+
+  if (alreadyHasDefs) return node
+
+  return React.cloneElement(svgNode, undefined, renderPresetGradientDefs(ctx), ...children)
+}
+
 function shapeSvg(ctx: PresetRenderContext, path: string): React.ReactNode {
   const { width, height, fillStyle, strokeColor, strokeWidth, shadow, lineCompound } = ctx
   const strokeAttrs = svgStrokeAttrs(ctx)
@@ -4697,7 +4710,7 @@ export function tryRenderOfficePresetShape(input: TryRenderOfficePresetInput): R
     ...(input.element.lineJoin ? { lineJoin: input.element.lineJoin } : {}),
     ...(input.element.lineCompound ? { lineCompound: input.element.lineCompound } : {})
   }
-  return renderer(ctx)
+  return injectPresetGradientDefs(renderer(ctx), ctx)
 }
 
 function renderCustomPath(input: TryRenderOfficePresetInput, normalisedPath: string): React.ReactNode {
