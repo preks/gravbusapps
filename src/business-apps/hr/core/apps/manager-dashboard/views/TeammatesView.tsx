@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Badge } from '@newwork/nw-design-system'
-import { ChevronLeft } from 'lucide-react'
+import { CaretLeftIcon as ChevronLeft } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DirectReport } from '../hooks/useDirectReports'
 import { MatrixTeamMember } from '../hooks/useMatrixTeams'
@@ -30,7 +30,6 @@ export interface TeammatesViewProps {
   employeeAllocations: Array<{ id: string; allocationPercent: number }>
   lastFeedbackByEmployeeId: Record<string, string | null>
   onNavigateBack: () => void
-  onNavigateToEmployee: (employeeId: string) => void
   onOpenMemberPanel: (employeeId: string) => void
   userOrgData?: {
     organizationalUnitId?: string
@@ -60,7 +59,6 @@ export const TeammatesView: React.FC<TeammatesViewProps> = ({
   employeeAllocations,
   lastFeedbackByEmployeeId,
   onNavigateBack,
-  onNavigateToEmployee,
   onOpenMemberPanel,
   userOrgData
 }) => {
@@ -165,7 +163,7 @@ export const TeammatesView: React.FC<TeammatesViewProps> = ({
   }))
 
   const handleSelectEmployee = (employee: Employee) => {
-    onNavigateToEmployee(employee.id)
+    onOpenMemberPanel(employee.id)
   }
 
   return (

@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow
 } from '@newwork/nw-design-system'
-import { ChevronLeft, MessageSquare } from 'lucide-react'
+import { CaretLeft, ChatCircleDots } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TeamBirthday } from '../hooks/useTeamBirthdays'
 import { useChatClient } from '@/common/network/chat/useChatClient'
@@ -55,6 +55,7 @@ export const BirthdaysView: React.FC<BirthdaysViewProps> = ({
 }) => {
   const [sendingToUserId, setSendingToUserId] = useState<string | null>(null)
   const [messageDraft, setMessageDraft] = useState<{ person: TeamBirthday; message: string } | null>(null)
+  const today = dayjs()
 
   const chatClient = useChatClient(accessToken)
 
@@ -99,7 +100,7 @@ export const BirthdaysView: React.FC<BirthdaysViewProps> = ({
             className="gba:mr-4"
             data-testid="manager-dashboard-birthdays-back-button"
           >
-            <ChevronLeft size={16} className="gba:mr-1" />
+            <CaretLeft size={16} className="gba:mr-1" />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
               'Back to Dashboard'
@@ -125,7 +126,7 @@ export const BirthdaysView: React.FC<BirthdaysViewProps> = ({
           <p>
             {getTranslationFromI18nKeyAndLabel(
               'master-data:hr.manager_dashboard.no_upcoming_birthdays',
-              'No upcoming birthdays in the next 30 days'
+              'No birthdays this month'
             )}
           </p>
           <p className="gba:mt-2 gba:text-sm">Use this window to schedule recognition moments for your team.</p>
@@ -150,6 +151,11 @@ export const BirthdaysView: React.FC<BirthdaysViewProps> = ({
               {upcomingBirthdays.map(person => {
                 const userKey = person.userId || person.id
                 const isSending = sendingToUserId === userKey
+                const birthdayDate = dayjs(person.birthDate)
+                const isBirthdayToday =
+                  birthdayDate.isValid() &&
+                  birthdayDate.month() === today.month() &&
+                  birthdayDate.date() === today.date()
 
                 return (
                   <TableRow
@@ -180,15 +186,17 @@ export const BirthdaysView: React.FC<BirthdaysViewProps> = ({
                         size="sm"
                         onClick={event => {
                           event.stopPropagation()
+                          if (!isBirthdayToday) return
                           setMessageDraft({
                             person,
                             message: buildBirthdayMessage(person.firstName, `${person.id}-${person.birthDate || ''}`)
                           })
                         }}
-                        disabled={isSending}
+                        disabled={isSending || !isBirthdayToday}
+                        title={isBirthdayToday ? '' : 'Available on the birthday date'}
                         data-testid={`manager-dashboard-birthday-chat-${person.id}`}
                       >
-                        <MessageSquare size={16} className="gba:mr-1" />
+                        <ChatCircleDots size={16} className="gba:mr-1" />
                         {isSending
                           ? getTranslationFromI18nKeyAndLabel('master-data:sending', 'Sending...')
                           : getTranslationFromI18nKeyAndLabel(

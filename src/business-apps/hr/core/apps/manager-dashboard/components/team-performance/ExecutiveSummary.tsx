@@ -1,7 +1,13 @@
 import React, { useMemo } from 'react'
 import { SectionKpiCards } from '@newwork/nw-design-system'
 import type { KpiCardData } from '@newwork/nw-design-system'
-import { TrendingUp, Heart, Lightbulb, Target, Zap } from 'lucide-react'
+import {
+  TrendUpIcon as TrendingUp,
+  HeartIcon as Heart,
+  LightbulbIcon as Lightbulb,
+  TargetIcon as Target,
+  LightningIcon as Zap
+} from '@phosphor-icons/react'
 
 export interface ExecutiveSummaryProps {
   teamOverallScore: number | null
@@ -91,7 +97,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         id: 'team-overall',
         title: 'Team Overall Score',
         value: formatScoreValue(teamOverallScore, ratingScaleLimit),
-        icon: <TrendingUp className="nw:size-4" />,
+        icon: <TrendingUp className="gba:size-4" />,
         trend: buildTrend(changeOverall, 'score'),
         progress: scoreProgress(teamOverallScore, ratingScaleLimit)
       },
@@ -99,7 +105,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         id: 'company-values',
         title: 'Company Values Score',
         value: formatScoreValue(teamCompanyValuesAvg, ratingScaleLimit),
-        icon: <Heart className="nw:size-4" />,
+        icon: <Heart className="gba:size-4" />,
         trend: buildTrend(changeCompanyValues, 'score'),
         progress: scoreProgress(teamCompanyValuesAvg, ratingScaleLimit)
       },
@@ -107,7 +113,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         id: 'skills-score',
         title: 'Skills Score',
         value: formatScoreValue(teamSkillsAvg, ratingScaleLimit),
-        icon: <Lightbulb className="nw:size-4" />,
+        icon: <Lightbulb className="gba:size-4" />,
         trend: buildTrend(changeSkills, 'score'),
         progress: scoreProgress(teamSkillsAvg, ratingScaleLimit)
       },
@@ -115,7 +121,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         id: 'goals-completion',
         title: 'Goals Completion',
         value: `${Math.round(goalsCompletionRate)}%`,
-        icon: <Target className="nw:size-4" />,
+        icon: <Target className="gba:size-4" />,
         trend: buildTrend(null, 'percent'),
         progress: pctProgress(goalsCompletionRate)
       },
@@ -123,7 +129,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         id: 'skill-growth',
         title: 'Skill Growth',
         value: `${Math.round(skillGrowthRate)}%`,
-        icon: <Zap className="nw:size-4" />,
+        icon: <Zap className="gba:size-4" />,
         trend: buildTrend(null, 'percent'),
         progress: pctProgress(skillGrowthRate)
       }
@@ -151,10 +157,10 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
           { id: 'loading-4', title: 'Goals Completion', value: '—' },
           { id: 'loading-5', title: 'Skill Growth', value: '—' }
         ]}
-        className="gba:w-full gba:md:grid-cols-5 nw:md:grid-cols-5"
+        className="gba:w-full gba:md:grid-cols-5"
       />
     )
   }
 
-  return <SectionKpiCards cards={cards} className="gba:w-full gba:md:grid-cols-5 nw:md:grid-cols-5" />
+  return <SectionKpiCards cards={cards} className="gba:w-full gba:md:grid-cols-5" />
 }

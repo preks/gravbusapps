@@ -22,7 +22,7 @@ import {
   Sheet,
   SheetContent
 } from '@newwork/nw-design-system'
-import { ChevronLeft, Cake, Trophy, Users, MailOpen } from 'lucide-react'
+import { CaretLeft, Cake, EnvelopeOpen, Trophy, UsersThree } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TeamBirthday } from '../hooks/useTeamBirthdays'
 import { TeamAnniversary } from '../hooks/useTeamAnniversaries'
@@ -87,6 +87,7 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
 }) => {
   const [isPositionSheetOpen, setIsPositionSheetOpen] = useState(false)
   const [selectedPosition, setSelectedPosition] = useState<JobPosition | null>(null)
+  const today = dayjs()
 
   const handleOpenPositionSheet = (positionId: string) => {
     const position = fullPositions.find(p => p.id === positionId)
@@ -109,7 +110,7 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
               className="gba:mr-4"
               data-testid="manager-dashboard-insights-back-button"
             >
-              <ChevronLeft size={16} className="gba:mr-1" />
+              <CaretLeft size={16} className="gba:mr-1" />
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
                 'Back to Dashboard'
@@ -146,7 +147,7 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                 </TabsTrigger>
                 <TabsTrigger value="open-positions">
                   <div className="gba:flex gba:flex-row gba:items-center gba:gap-2">
-                    <Users size={16} />
+                    <UsersThree size={16} />
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
                         'master-data:hr.manager_dashboard.open_positions',
@@ -164,7 +165,7 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                   isEmpty={upcomingBirthdays.length === 0}
                   emptyMessage={getTranslationFromI18nKeyAndLabel(
                     'master-data:hr.manager_dashboard.no_upcoming_birthdays',
-                    'No upcoming birthdays in the next 30 days'
+                    'No birthdays this month'
                   )}
                 >
                   <div className="gba:border gba:rounded-lg gba:overflow-hidden">
@@ -186,43 +187,58 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {upcomingBirthdays.map(person => (
-                          <TableRow
-                            key={person.id}
-                            className="gba:cursor-pointer hover:gba:bg-gray-50"
-                            onClick={() => onNavigateToEmployee(person.id)}
-                          >
-                            <TableCell>
-                              <div className="gba:flex gba:items-center gba:space-x-3">
-                                <Avatar size="sm" className="gba:h-8 gba:w-8">
-                                  <AvatarImage
-                                    src={
-                                      person.pictureThumbnail && !person.pictureThumbnail.startsWith('{')
-                                        ? `data:image/jpeg;base64,${person.pictureThumbnail}`
-                                        : undefined
-                                    }
-                                    alt={person.fullName}
-                                  />
-                                  <AvatarFallback>
-                                    {`${person.firstName[0]}${person.lastName[0]}`.toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="gba:font-medium">{person.fullName}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="gba:text-sm gba:text-neutral-600">
-                                {person.birthDate ? dayjs(person.birthDate).format('MMMM D') : '-'}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={!person.email}
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  if (person.email) {
+                        {upcomingBirthdays.map(person => {
+                          const birthdayDate = dayjs(person.birthDate)
+                          const isBirthdayToday =
+                            birthdayDate.isValid() &&
+                            birthdayDate.month() === today.month() &&
+                            birthdayDate.date() === today.date()
+                          const isActionDisabled = !person.email || !isBirthdayToday
+                          const disabledReason = !person.email
+                            ? getTranslationFromI18nKeyAndLabel(
+                                'master-data:hr.manager_dashboard.no_email',
+                                'No email available'
+                              )
+                            : 'Available on the birthday date'
+
+                          return (
+                            <TableRow
+                              key={person.id}
+                              className="gba:cursor-pointer hover:gba:bg-muted/50"
+                              onClick={() => onNavigateToEmployee(person.id)}
+                            >
+                              <TableCell>
+                                <div className="gba:flex gba:items-center gba:space-x-3">
+                                  <Avatar size="sm" className="gba:h-8 gba:w-8">
+                                    <AvatarImage
+                                      src={
+                                        person.pictureThumbnail && !person.pictureThumbnail.startsWith('{')
+                                          ? `data:image/jpeg;base64,${person.pictureThumbnail}`
+                                          : undefined
+                                      }
+                                      alt={person.fullName}
+                                    />
+                                    <AvatarFallback>
+                                      {`${person.firstName[0]}${person.lastName[0]}`.toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="gba:font-medium">{person.fullName}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="gba:text-sm gba:text-muted-foreground">
+                                  {person.birthDate ? dayjs(person.birthDate).format('MMMM D') : '-'}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={isActionDisabled}
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    if (isActionDisabled || !person.email) return
+
                                     const subject = encodeURIComponent(
                                       getTranslationFromI18nKeyAndLabel(
                                         'master-data:hr.manager_dashboard.birthday_email_subject',
@@ -236,26 +252,19 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                                       )
                                     )
                                     globalThis.location.href = `mailto:${person.email}?subject=${subject}&body=${body}`
-                                  }
-                                }}
-                                title={
-                                  person.email
-                                    ? ''
-                                    : getTranslationFromI18nKeyAndLabel(
-                                        'master-data:hr.manager_dashboard.no_email',
-                                        'No email available'
-                                      )
-                                }
-                              >
-                                <MailOpen size={16} className="gba:mr-1" />
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'master-data:hr.manager_dashboard.send_message',
-                                  'Send Message'
-                                )}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                                  }}
+                                  title={isActionDisabled ? disabledReason : ''}
+                                >
+                                  <EnvelopeOpen size={16} className="gba:mr-1" />
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'master-data:hr.manager_dashboard.send_message',
+                                    'Send Message'
+                                  )}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
                       </TableBody>
                     </Table>
                   </div>
@@ -269,7 +278,7 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                   isEmpty={upcomingAnniversaries.length === 0}
                   emptyMessage={getTranslationFromI18nKeyAndLabel(
                     'master-data:hr.manager_dashboard.no_upcoming_anniversaries',
-                    'No upcoming work anniversaries in the next 30 days'
+                    'No work anniversaries this month'
                   )}
                 >
                   <div className="gba:border gba:rounded-lg gba:overflow-hidden">
@@ -294,48 +303,61 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {upcomingAnniversaries.map(person => (
-                          <TableRow
-                            key={person.id}
-                            className="gba:cursor-pointer hover:gba:bg-gray-50"
-                            onClick={() => onNavigateToEmployee(person.id)}
-                          >
-                            <TableCell>
-                              <div className="gba:flex gba:items-center gba:space-x-3">
-                                <Avatar size="sm" className="gba:h-8 gba:w-8">
-                                  <AvatarImage
-                                    src={
-                                      person.pictureThumbnail && !person.pictureThumbnail.startsWith('{')
-                                        ? `data:image/jpeg;base64,${person.pictureThumbnail}`
-                                        : undefined
-                                    }
-                                    alt={person.fullName}
-                                  />
-                                  <AvatarFallback>
-                                    {`${person.firstName[0]}${person.lastName[0]}`.toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="gba:font-medium">{person.fullName}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="gba:text-sm gba:text-neutral-600">
-                                {person.hireDate ? dayjs(person.hireDate).format('MMMM D') : '-'}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="info" size="sm">
-                                {person.yearsOfService} {person.yearsOfService === 1 ? 'year' : 'years'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={!person.email}
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  if (person.email) {
+                        {upcomingAnniversaries.map(person => {
+                          const hireDate = dayjs(person.hireDate)
+                          const isAnniversaryToday =
+                            hireDate.isValid() && hireDate.month() === today.month() && hireDate.date() === today.date()
+                          const isActionDisabled = !person.email || !isAnniversaryToday
+                          const disabledReason = !person.email
+                            ? getTranslationFromI18nKeyAndLabel(
+                                'master-data:hr.manager_dashboard.no_email',
+                                'No email available'
+                              )
+                            : 'Available on the anniversary date'
+
+                          return (
+                            <TableRow
+                              key={person.id}
+                              className="gba:cursor-pointer hover:gba:bg-muted/50"
+                              onClick={() => onNavigateToEmployee(person.id)}
+                            >
+                              <TableCell>
+                                <div className="gba:flex gba:items-center gba:space-x-3">
+                                  <Avatar size="sm" className="gba:h-8 gba:w-8">
+                                    <AvatarImage
+                                      src={
+                                        person.pictureThumbnail && !person.pictureThumbnail.startsWith('{')
+                                          ? `data:image/jpeg;base64,${person.pictureThumbnail}`
+                                          : undefined
+                                      }
+                                      alt={person.fullName}
+                                    />
+                                    <AvatarFallback>
+                                      {`${person.firstName[0]}${person.lastName[0]}`.toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="gba:font-medium">{person.fullName}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="gba:text-sm gba:text-muted-foreground">
+                                  {person.hireDate ? dayjs(person.hireDate).format('MMMM D') : '-'}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="info" size="sm">
+                                  {person.yearsOfService} {person.yearsOfService === 1 ? 'year' : 'years'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={isActionDisabled}
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    if (isActionDisabled || !person.email) return
+
                                     const subject = encodeURIComponent(
                                       getTranslationFromI18nKeyAndLabel(
                                         'master-data:hr.manager_dashboard.anniversary_email_subject',
@@ -349,26 +371,19 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                                       )
                                     )
                                     globalThis.location.href = `mailto:${person.email}?subject=${subject}&body=${body}`
-                                  }
-                                }}
-                                title={
-                                  person.email
-                                    ? ''
-                                    : getTranslationFromI18nKeyAndLabel(
-                                        'master-data:hr.manager_dashboard.no_email',
-                                        'No email available'
-                                      )
-                                }
-                              >
-                                <MailOpen size={16} className="gba:mr-1" />
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'master-data:hr.manager_dashboard.send_message',
-                                  'Send Message'
-                                )}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                                  }}
+                                  title={isActionDisabled ? disabledReason : ''}
+                                >
+                                  <EnvelopeOpen size={16} className="gba:mr-1" />
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'master-data:hr.manager_dashboard.send_message',
+                                    'Send Message'
+                                  )}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
                       </TableBody>
                     </Table>
                   </div>
@@ -419,7 +434,7 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                         {openPositions.map(position => (
                           <TableRow
                             key={position.id}
-                            className="gba:cursor-pointer hover:gba:bg-gray-50"
+                            className="gba:cursor-pointer hover:gba:bg-muted/50"
                             onClick={() => handleOpenPositionSheet(position.id)}
                           >
                             <TableCell>
@@ -431,12 +446,14 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                               </div>
                             </TableCell>
                             <TableCell>
-                              <div className="gba:text-sm gba:text-neutral-600">
+                              <div className="gba:text-sm gba:text-muted-foreground">
                                 {position.organizationalUnitName || '-'}
                               </div>
                             </TableCell>
                             <TableCell>
-                              <div className="gba:text-sm gba:text-neutral-600">{position.jobFunctionName || '-'}</div>
+                              <div className="gba:text-sm gba:text-muted-foreground">
+                                {position.jobFunctionName || '-'}
+                              </div>
                             </TableCell>
                             <TableCell>
                               <Badge variant="warning" size="sm">

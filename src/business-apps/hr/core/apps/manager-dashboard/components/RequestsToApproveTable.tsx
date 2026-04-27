@@ -155,13 +155,13 @@ const RequestsToApproveTable = ({
               <div className="gba:text-4xl gba:mb-4">
                 <WalletIcon size={36} />
               </div>
-              <h3 className="gba:text-lg gba:font-medium gba:text-neutral-900 gba:mb-2">
+              <h3 className="gba:mb-2 gba:text-lg gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   'master-data:hr.manager_dashboard.status.no_expense_requests',
                   'No expense requests'
                 )}
               </h3>
-              <p className="gba:text-neutral-500">
+              <p className="gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   'master-data:hr.manager_dashboard.no_pending_expense_requests',
                   'There are no pending expense requests to approve.'
@@ -267,7 +267,7 @@ const RequestsToApproveTable = ({
                         </TableCell>
                         <TableCell>
                           {isTrip ? (
-                            <div className="gba:text-sm gba:text-neutral-600">
+                            <div className="gba:text-sm gba:text-muted-foreground">
                               {request.startDate && request.endDate
                                 ? `${getTranslationFromI18nKeyAndLabel(
                                     'lowcoder:personal_expenses.from_date',
@@ -279,11 +279,11 @@ const RequestsToApproveTable = ({
                                   )}
                             </div>
                           ) : (
-                            <div className="gba:text-sm gba:text-neutral-600">-</div>
+                            <div className="gba:text-sm gba:text-muted-foreground">-</div>
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className="gba:text-sm gba:text-neutral-600">
+                          <div className="gba:text-sm gba:text-muted-foreground">
                             {request.description ||
                               getTranslationFromI18nKeyAndLabel(
                                 'master-data:hr.manager_dashboard.status.no_notes_provided',
@@ -292,7 +292,7 @@ const RequestsToApproveTable = ({
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className="gba:font-medium gba:text-green-600">
+                          <span className="gba:font-medium gba:text-success">
                             {formatCurrency(request.totalAmount)}
                           </span>
                         </TableCell>
@@ -302,7 +302,7 @@ const RequestsToApproveTable = ({
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="gba:text-sm gba:text-neutral-500">{getTimeAgo(request.createdAt)}</div>
+                          <div className="gba:text-sm gba:text-muted-foreground">{getTimeAgo(request.createdAt)}</div>
                         </TableCell>
                         <TableCell>
                           <div className="gba:flex gba:space-x-2">
@@ -329,7 +329,7 @@ const RequestsToApproveTable = ({
 
                             <Button
                               size="sm"
-                              className="gba:bg-primary-600 gba:text-white"
+                              className="gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90"
                               onClick={() =>
                                 handleApproveExpense({
                                   task: request,
@@ -364,13 +364,13 @@ const RequestsToApproveTable = ({
               <div className="gba:text-4xl gba:mb-4">
                 <AirplaneTiltIcon size={36} />
               </div>
-              <h3 className="gba:text-lg gba:font-medium gba:text-neutral-900 gba:mb-2">
+              <h3 className="gba:mb-2 gba:text-lg gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   'master-data:hr.manager_dashboard.status.no_absence_requests',
                   'No absence requests'
                 )}
               </h3>
-              <p className="gba:text-neutral-500">
+              <p className="gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   'master-data:hr.manager_dashboard.no_pending_absence_requests',
                   'There are no pending absence requests to approve.'
@@ -469,7 +469,7 @@ const RequestsToApproveTable = ({
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="gba:text-sm gba:text-neutral-500">{getTimeAgo(request.createdAt)}</div>
+                        <div className="gba:text-sm gba:text-muted-foreground">{getTimeAgo(request.createdAt)}</div>
                       </TableCell>
                       <TableCell>
                         <div className="gba:flex gba:space-x-2">
@@ -495,7 +495,7 @@ const RequestsToApproveTable = ({
 
                           <Button
                             size="sm"
-                            className="gba:bg-primary-600 gba:text-white"
+                            className="gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90"
                             disabled={isSubmitting}
                             onClick={() =>
                               handleApproveAbsence({
@@ -528,13 +528,13 @@ const RequestsToApproveTable = ({
               <div className="gba:text-4xl gba:mb-4">
                 <UserIcon size={36} />
               </div>
-              <h3 className="gba:text-lg gba:font-medium gba:text-neutral-900 gba:mb-2">
+              <h3 className="gba:mb-2 gba:text-lg gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   'master-data:hr.manager_dashboard.status.no_personal_changes',
                   'No personal data changes'
                 )}
               </h3>
-              <p className="gba:text-neutral-500">
+              <p className="gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   'master-data:hr.manager_dashboard.status.no_pending_personal_changes',
                   'There are no pending personal data changes to review.'
@@ -606,7 +606,7 @@ const RequestsToApproveTable = ({
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="gba:text-sm gba:text-neutral-600">{change.description || '-'}</div>
+                        <div className="gba:text-sm gba:text-muted-foreground">{change.description || '-'}</div>
                       </TableCell>
                       <TableCell>
                         <Badge variant={getPersonalChangePriorityVariant(change)} size="sm">
@@ -620,7 +620,7 @@ const RequestsToApproveTable = ({
                         <div className="gba:flex gba:space-x-2">
                           <Button
                             size="sm"
-                            className="gba:bg-primary-600 gba:text-white"
+                            className="gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90"
                             disabled={isSubmitting || (employeeId && change.employee.id === employeeId)}
                             onClick={() =>
                               handleApprovePersonalChange({

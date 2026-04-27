@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
-import { Sparkles, ChevronRight } from 'lucide-react'
+import { SparkleIcon as Sparkles, CaretRightIcon as ChevronRight } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TeamAnniversary } from '../hooks/useTeamAnniversaries'
 
