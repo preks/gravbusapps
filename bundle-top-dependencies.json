@@ -8788,9 +8788,9 @@
     ]
   },
   "core/manage/apps/catalog-manager": {
-    "bitbucketBuildNumber": 11433,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11433/",
-    "chunkJsBytes": 217101,
+    "bitbucketBuildNumber": 11454,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11454/",
+    "chunkJsBytes": 217510,
     "top": [
       {
         "kind": "bucket",
@@ -8898,18 +8898,18 @@
       {
         "kind": "bucket",
         "name": "(src)/components/translatable-field",
-        "rendered": 12858,
-        "gzip": 3340,
+        "rendered": 13883,
+        "gzip": 3654,
         "leaves": [
           {
             "name": "src/components/translatable-field/TranslatableField.tsx",
-            "rendered": 6680,
-            "gzip": 1699
+            "rendered": 7480,
+            "gzip": 1930
           },
           {
             "name": "src/components/translatable-field/TranslationWidget.tsx",
-            "rendered": 4533,
-            "gzip": 1102
+            "rendered": 4922,
+            "gzip": 1203
           }
         ]
       },
@@ -9069,15 +9069,15 @@
     ]
   },
   "core/manage/apps/resource-manager": {
-    "bitbucketBuildNumber": 11433,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11433/",
-    "chunkJsBytes": 606568,
+    "bitbucketBuildNumber": 11454,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11454/",
+    "chunkJsBytes": 607053,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 563199,
-        "gzip": 118364,
+        "rendered": 563482,
+        "gzip": 118316,
         "leaves": [
           {
             "name": "src/business-apps/core/manage/apps/resource-manager/views/bundles-view/dialogs/screen-bundle-dialog/ScreenBundleDialog.tsx",
@@ -9192,18 +9192,18 @@
       {
         "kind": "bucket",
         "name": "(src)/components/translatable-field",
-        "rendered": 12862,
-        "gzip": 3349,
+        "rendered": 13887,
+        "gzip": 3659,
         "leaves": [
           {
             "name": "src/components/translatable-field/TranslatableField.tsx",
-            "rendered": 6680,
-            "gzip": 1703
+            "rendered": 7480,
+            "gzip": 1931
           },
           {
             "name": "src/components/translatable-field/TranslationWidget.tsx",
-            "rendered": 4537,
-            "gzip": 1107
+            "rendered": 4926,
+            "gzip": 1207
           }
         ]
       },
@@ -59718,9 +59718,9 @@
     ]
   },
   "hr/recruiting/forms/job-posting-form": {
-    "bitbucketBuildNumber": 11410,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11410/",
-    "chunkJsBytes": 242803,
+    "bitbucketBuildNumber": 11454,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11454/",
+    "chunkJsBytes": 243211,
     "top": [
       {
         "kind": "bucket",
@@ -59840,6 +59840,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/components/translatable-field",
+        "rendered": 13867,
+        "gzip": 3646,
+        "leaves": [
+          {
+            "name": "src/components/translatable-field/TranslatableField.tsx",
+            "rendered": 7462,
+            "gzip": 1925
+          },
+          {
+            "name": "src/components/translatable-field/TranslationWidget.tsx",
+            "rendered": 4924,
+            "gzip": 1200
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/components/app-action-form",
         "rendered": 12864,
         "gzip": 3427,
@@ -59853,24 +59871,6 @@
             "name": "src/components/app-action-form/_i18n/de-DE.ftl?raw",
             "rendered": 484,
             "gzip": 255
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/components/translatable-field",
-        "rendered": 12844,
-        "gzip": 3333,
-        "leaves": [
-          {
-            "name": "src/components/translatable-field/TranslatableField.tsx",
-            "rendered": 6664,
-            "gzip": 1696
-          },
-          {
-            "name": "src/components/translatable-field/TranslationWidget.tsx",
-            "rendered": 4535,
-            "gzip": 1098
           }
         ]
       },
@@ -87947,20 +87947,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11448,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11448/",
-    "chunkJsBytes": 1834563,
+    "bitbucketBuildNumber": 11454,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11454/",
+    "chunkJsBytes": 1834561,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1530384,
-        "gzip": 92490,
+        "gzip": 92511,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1530384,
-            "gzip": 92490
+            "gzip": 92511
           }
         ]
       },
@@ -90989,9 +90989,9 @@
     ]
   },
   "platform/apps/launcher-manager": {
-    "bitbucketBuildNumber": 11433,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11433/",
-    "chunkJsBytes": 468023,
+    "bitbucketBuildNumber": 11454,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11454/",
+    "chunkJsBytes": 468432,
     "top": [
       {
         "kind": "bucket",
@@ -91099,18 +91099,18 @@
       {
         "kind": "bucket",
         "name": "(src)/components/translatable-field",
-        "rendered": 12864,
-        "gzip": 3348,
+        "rendered": 13889,
+        "gzip": 3659,
         "leaves": [
           {
             "name": "src/components/translatable-field/TranslatableField.tsx",
-            "rendered": 6680,
-            "gzip": 1703
+            "rendered": 7480,
+            "gzip": 1931
           },
           {
             "name": "src/components/translatable-field/TranslationWidget.tsx",
-            "rendered": 4539,
-            "gzip": 1106
+            "rendered": 4928,
+            "gzip": 1207
           }
         ]
       },
@@ -103745,7 +103745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-27T14:43:31.210Z",
+    "generatedAt": "2026-04-27T16:05:28.338Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
