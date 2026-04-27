@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { computeContainedGoalRollup } from '../utils/managerPerformanceGoalMetrics'
+import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
 
 export interface PerformanceGoal {
   id: string
@@ -90,6 +91,9 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
             firstName
             lastName
             pictureThumbnail
+            workingCondition {
+              hireDate
+            }
             employeePosition {
               jobPosition {
                 name
@@ -100,7 +104,7 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
       `
 
       const directReportsResponse = await graphQLClient.request(directReportsQuery, { managerId })
-      const employees = directReportsResponse?.Employee || []
+      const employees = filterEmployeesByStartedEmployment(directReportsResponse?.Employee || [])
 
       if (employees.length === 0) {
         setTeamPerformance([])

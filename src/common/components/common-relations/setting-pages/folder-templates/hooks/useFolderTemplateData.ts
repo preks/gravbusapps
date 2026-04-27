@@ -25,6 +25,11 @@ export const useFolderTemplateData = (accessToken: string, moduleType: ModuleTyp
 
   const loadFolderTemplate = useCallback(async () => {
     if (!accessToken) return
+    if (!catalogCode) {
+      setIsLoading(false)
+      setError(`Folder template is not configured for ${moduleType}/${entityType}`)
+      return
+    }
 
     setIsLoading(true)
     setError(null)

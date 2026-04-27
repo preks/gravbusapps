@@ -55,7 +55,9 @@ export const taskSchema = z.object({
     .optional(),
 
   // Helper fields for MultiEmployeeSelect (not sent to backend)
-  assignedEmployeeIds: z.array(z.string()).optional(),
+  // Canonical user-facing assignee field for both single- and multi-assignee modes
+  // (TaskSegment populates a single-element array in single-select mode).
+  assignedEmployeeIds: z.array(z.string()).min(1, 'At least one assignee is required'),
   assignedEmployees: z.array(z.any()).optional(),
 
   // Documents

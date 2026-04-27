@@ -14,7 +14,7 @@ export function useSubmissionsOrgUnitTableModel(
   t: TranslateFn,
   sourceRows: SubmissionsOrgUnitTableRow[],
   hasCompanyBudgetRows: boolean,
-  onReviewTeam?: (row: SubmissionsOrgUnitTableRow) => void
+  compensationPlanSelected = true
 ) {
   const [searchInput, setSearchInput] = useState('')
   const debouncedSearch = useDebounce(searchInput, 300)
@@ -79,6 +79,9 @@ export function useSubmissionsOrgUnitTableModel(
   )
 
   const emptyMessage = useMemo(() => {
+    if (!compensationPlanSelected) {
+      return t('submissions-table-empty-select-compensation-cycle')
+    }
     if (!hasCompanyBudgetRows) {
       return t('submissions-table-empty-no-company-budgets')
     }
@@ -89,7 +92,7 @@ export function useSubmissionsOrgUnitTableModel(
       return t('submissions-table-empty-filtered')
     }
     return t('submissions-table-empty-no-org-unit-rows')
-  }, [hasActiveFilters, hasCompanyBudgetRows, sourceRows.length, t])
+  }, [compensationPlanSelected, hasActiveFilters, hasCompanyBudgetRows, sourceRows.length, t])
 
   const filtersObject = useMemo(() => {
     const obj: Record<string, unknown> = {}
@@ -104,10 +107,7 @@ export function useSubmissionsOrgUnitTableModel(
     setSelectedOrgUnitBudgetStatuses(statuses)
   }, [])
 
-  const columns = useMemo(
-    () => buildSubmissionsOrgUnitTableColumns(t, formatStatus, onReviewTeam),
-    [formatStatus, onReviewTeam, t]
-  )
+  const columns = useMemo(() => buildSubmissionsOrgUnitTableColumns(t, formatStatus), [formatStatus, t])
 
   const visibleTableColumns = useMemo(
     () =>

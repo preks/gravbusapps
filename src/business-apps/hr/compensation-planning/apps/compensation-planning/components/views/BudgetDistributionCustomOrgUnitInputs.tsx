@@ -1,6 +1,8 @@
 import React from 'react'
 import { Input, Label, RadioGroup, RadioGroupItem } from '@newwork/nw-design-system'
 import { formatCurrency } from '@/common/utils/numberFormatter'
+import { cn } from '@/common/utils/cn'
+import { parseCustomAmountInput, roundMoney2 } from '../../utils/parseCustomBudgetInputs'
 import type { CustomBudgetInputMode, OrgUnitCustomBudgetInput } from './budgetDistributionCustomTypes'
 import { defaultOrgUnitCustomBudgetInput } from './budgetDistributionCustomTypes'
 
@@ -41,6 +43,63 @@ export interface BudgetDistributionCustomOrgUnitInputsProps {
   useRemainingPoolForPercentSemantics?: boolean
 }
 
+interface BudgetDistributionCustomOrgUnitSummaryColumnProps {
+  orgUnitId: string
+  currencyCode: string
+  amount: number
+  poolForPercent: number | null
+  showDerivedDetails: boolean
+  showGlobalPoolRemainingInDetails: boolean
+  customPoolUnallocatedGlobal: number | null
+  t: Translate
+}
+
+function BudgetDistributionCustomOrgUnitSummaryColumn({
+  orgUnitId,
+  currencyCode,
+  amount,
+  poolForPercent,
+  showDerivedDetails,
+  showGlobalPoolRemainingInDetails,
+  customPoolUnallocatedGlobal,
+  t
+}: Readonly<BudgetDistributionCustomOrgUnitSummaryColumnProps>) {
+  if (!showDerivedDetails) {
+    return <div className="gba:min-w-0" data-testid={`budget-distribution-custom-details-placeholder-${orgUnitId}`} />
+  }
+  const showPoolRemainingLine =
+    showGlobalPoolRemainingInDetails &&
+    customPoolUnallocatedGlobal != null &&
+    Number.isFinite(customPoolUnallocatedGlobal)
+
+  return (
+    <div
+      className="gba:flex gba:min-w-0 gba:flex-col gba:gap-0.5 gba:border-l gba:border-border gba:pl-4 gba:text-xs gba:text-muted-foreground"
+      data-testid={`budget-distribution-custom-meaning-${orgUnitId}`}
+    >
+      <p data-testid={`budget-distribution-custom-parsed-${orgUnitId}`}>
+        {t('budget-distribution-custom-parsed-amount', {
+          amount: formatCurrency(amount, currencyCode)
+        })}
+      </p>
+      {poolForPercent != null && amount > 0 ? (
+        <p data-testid={`budget-distribution-custom-pool-pct-${orgUnitId}`}>
+          {t('budget-distribution-custom-percent-of-pool', {
+            percent: formatPercentOfWhole(amount, poolForPercent) ?? '—'
+          })}
+        </p>
+      ) : null}
+      {showPoolRemainingLine && customPoolUnallocatedGlobal != null ? (
+        <p data-testid={`budget-distribution-custom-pool-remaining-${orgUnitId}`}>
+          {t('budget-distribution-custom-pool-unallocated-global', {
+            amount: formatCurrency(customPoolUnallocatedGlobal, currencyCode)
+          })}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 export function BudgetDistributionCustomOrgUnitInputs({
   orgUnitId,
   currencyCode,
@@ -71,37 +130,22 @@ export function BudgetDistributionCustomOrgUnitInputs({
   const amountInputId = `budget-distribution-custom-amount-${orgUnitId}`
   const percentInputId = `budget-distribution-custom-percent-${orgUnitId}`
 
+  const amountRequested = mode === 'amount' ? parseCustomAmountInput(entry.amountRaw) : 0
+  const rowRequestExceedsPreviewAmount =
+    mode === 'amount' && entry.amountRaw.trim() !== '' && amountRequested > roundMoney2(amount) + 0.01
   const showDerivedDetails = amount > 0 || entry.amountRaw.trim() !== '' || entry.percentRaw.trim() !== ''
 
-  const summaryColumn = showDerivedDetails ? (
-    <div
-      className="gba:flex gba:min-w-0 gba:flex-col gba:gap-0.5 gba:border-l gba:border-border gba:pl-4 gba:text-xs gba:text-muted-foreground"
-      data-testid={`budget-distribution-custom-meaning-${orgUnitId}`}
-    >
-      <p data-testid={`budget-distribution-custom-parsed-${orgUnitId}`}>
-        {t('budget-distribution-custom-parsed-amount', {
-          amount: formatCurrency(amount, currencyCode)
-        })}
-      </p>
-      {poolForPercent != null && amount > 0 ? (
-        <p data-testid={`budget-distribution-custom-pool-pct-${orgUnitId}`}>
-          {t('budget-distribution-custom-percent-of-pool', {
-            percent: formatPercentOfWhole(amount, poolForPercent) ?? '—'
-          })}
-        </p>
-      ) : null}
-      {showGlobalPoolRemainingInDetails &&
-      customPoolUnallocatedGlobal != null &&
-      Number.isFinite(customPoolUnallocatedGlobal) ? (
-        <p data-testid={`budget-distribution-custom-pool-remaining-${orgUnitId}`}>
-          {t('budget-distribution-custom-pool-unallocated-global', {
-            amount: formatCurrency(customPoolUnallocatedGlobal, currencyCode)
-          })}
-        </p>
-      ) : null}
-    </div>
-  ) : (
-    <div className="gba:min-w-0" data-testid={`budget-distribution-custom-details-placeholder-${orgUnitId}`} />
+  const summaryColumn = (
+    <BudgetDistributionCustomOrgUnitSummaryColumn
+      orgUnitId={orgUnitId}
+      currencyCode={currencyCode}
+      amount={amount}
+      poolForPercent={poolForPercent}
+      showDerivedDetails={showDerivedDetails}
+      showGlobalPoolRemainingInDetails={showGlobalPoolRemainingInDetails}
+      customPoolUnallocatedGlobal={customPoolUnallocatedGlobal}
+      t={t}
+    />
   )
 
   return (
@@ -157,13 +201,28 @@ export function BudgetDistributionCustomOrgUnitInputs({
               inputMode="decimal"
               min={0}
               step="0.01"
-              className="gba:w-full gba:max-w-full"
+              className={cn(
+                'gba:w-full gba:max-w-full',
+                rowRequestExceedsPreviewAmount && 'gba:border-destructive gba:ring-1 gba:ring-destructive/30'
+              )}
+              aria-invalid={rowRequestExceedsPreviewAmount}
               value={entry.amountRaw}
               onChange={e => onAmountRawChange(orgUnitId, e.target.value)}
               placeholder="0"
               data-testid={`budget-distribution-custom-input-${orgUnitId}`}
               disabled={disabled}
             />
+            {rowRequestExceedsPreviewAmount ? (
+              <p
+                className="gba:text-xs gba:font-medium gba:leading-snug gba:text-destructive"
+                data-testid={`budget-distribution-custom-row-exceeds-${orgUnitId}`}
+              >
+                {t('budget-distribution-custom-row-exceeds-preview', {
+                  requested: formatCurrency(amountRequested, currencyCode),
+                  applied: formatCurrency(amount, currencyCode)
+                })}
+              </p>
+            ) : null}
           </div>
         ) : (
           <div className="gba:flex gba:flex-col gba:gap-1">

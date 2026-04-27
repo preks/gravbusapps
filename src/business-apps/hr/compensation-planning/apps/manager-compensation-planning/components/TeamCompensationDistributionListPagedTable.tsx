@@ -2,7 +2,10 @@ import React from 'react'
 import { Alert, AlertDescription } from '@newwork/nw-design-system'
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
-import { BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS } from '../../compensation-planning/components/views/budgetDistributionDepartmentGrid'
+import {
+  BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS,
+  MANAGER_TEAM_DISTRIBUTION_PERFORMANCE_ROW_GRID_CLASS
+} from '../../compensation-planning/components/views/budgetDistributionDepartmentGrid'
 import type {
   CustomBudgetInputMode,
   OrgUnitCustomBudgetInput
@@ -17,7 +20,6 @@ export interface TeamCompensationDistributionListPagedTableProps {
   isCustom: boolean
   isSalaryCostMethod: boolean
   isPerformanceMethod: boolean
-  performanceFallbackToEqual: boolean
   currencyCode: string
   totalSalaryCostAcrossEmployees: number
   grandTotalPositivePerformanceScores: number
@@ -45,7 +47,6 @@ export function TeamCompensationDistributionListPagedTable({
   isCustom,
   isSalaryCostMethod,
   isPerformanceMethod,
-  performanceFallbackToEqual,
   currencyCode,
   totalSalaryCostAcrossEmployees,
   grandTotalPositivePerformanceScores,
@@ -71,6 +72,11 @@ export function TeamCompensationDistributionListPagedTable({
     return null
   }
 
+  const standardHeaderGridClass =
+    isPerformanceMethod && !isCustom
+      ? MANAGER_TEAM_DISTRIBUTION_PERFORMANCE_ROW_GRID_CLASS
+      : BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS
+
   return (
     <>
       <div
@@ -80,10 +86,13 @@ export function TeamCompensationDistributionListPagedTable({
         <ul className="gba:min-w-[28rem] gba:divide-y gba:divide-border">
           {isCustom ? null : (
             <li
-              className={`${BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS} gba:sticky gba:top-0 gba:z-10 gba:border-b gba:border-border gba:bg-background/95 gba:px-4 gba:py-2 gba:backdrop-blur-sm gba:text-xs gba:font-medium gba:text-muted-foreground`}
+              className={`${standardHeaderGridClass} gba:sticky gba:top-0 gba:z-10 gba:border-b gba:border-border gba:bg-background/95 gba:px-4 gba:py-2 gba:backdrop-blur-sm gba:text-xs gba:font-medium gba:text-muted-foreground`}
               data-testid="manager-team-distribution-standard-column-headers"
             >
               <span>{tBudget('manager-team-distribution-col-employee')}</span>
+              {isPerformanceMethod ? (
+                <span className="gba:text-right">{tBudget('manager-team-distribution-col-overall-score')}</span>
+              ) : null}
               <span className="gba:text-right">{tBudget('budget-distribution-col-allocation')}</span>
               <span className="gba:text-right">{tBudget('budget-distribution-col-pool-share')}</span>
             </li>
@@ -105,7 +114,6 @@ export function TeamCompensationDistributionListPagedTable({
               isCustom={isCustom}
               isSalaryCostMethod={isSalaryCostMethod}
               isPerformanceMethod={isPerformanceMethod}
-              performanceFallbackToEqual={performanceFallbackToEqual}
               currencyCode={currencyCode}
               amount={allocationByEmployeeId.get(member.employeeId) ?? 0}
               distributionPool={distributionPool}

@@ -24,6 +24,7 @@ import {
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
 import { refreshOrgUnitAllocationAmountFromEmployees } from '../../../utils/reduceOrgUnitBudgetPoolByAmount'
+import { sumEmployeeAllocationsForOrgUnitRollup } from '../../../utils/orgUnitAllocationAmountRollup'
 import { computeManagerProposalAmountsFromIncrease } from '../utils/buildManagerEmployeeBudgetSaveBody'
 import { buildSentBackEmployeeProposalRevisionBody } from '../utils/buildSentBackEmployeeProposalRevisionBody'
 import type { SentBackProposalTableRow } from './sentBackProposalTableRow'
@@ -105,7 +106,7 @@ export function SentBackProposalEditDialog({
             CompensationBudgetPlanOrganizationalUnit: Array<{ salaryBudgetAmount: unknown }>
           }>(GET_COMPENSATION_BUDGET_PLAN_ORG_UNIT_BUDGET_ROW_BY_ID, { id: planOuId }),
           graphqlClient.request<{
-            CompensationBudgetPlanEmployee: Array<{ allocationAmount: unknown }>
+            CompensationBudgetPlanEmployee: Array<{ allocationAmount: unknown; budgetPlanStatus: unknown }>
           }>(GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_ALLOCATION_AMOUNTS_BY_ORG_UNIT_BUDGET_ID, {
             orgUnitBudgetId: planOuId
           })
@@ -115,12 +116,9 @@ export function SentBackProposalEditDialog({
         }
         const ou = ouRes.CompensationBudgetPlanOrganizationalUnit?.[0]
         const cap = ou != null ? roundMoney2(num(ou.salaryBudgetAmount)) : null
-        const total = (allocRes.CompensationBudgetPlanEmployee ?? []).reduce(
-          (sum, r) => roundMoney2(sum + roundMoney2(num(r.allocationAmount))),
-          0
-        )
+        const total = sumEmployeeAllocationsForOrgUnitRollup(allocRes.CompensationBudgetPlanEmployee ?? [])
         setDepartmentSalaryCap(cap)
-        setSumAllocationsOnDepartment(roundMoney2(total))
+        setSumAllocationsOnDepartment(total)
       } catch {
         if (!cancelled) {
           setDepartmentSalaryCap(null)

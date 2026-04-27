@@ -21,6 +21,8 @@ import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
 import translations from '../_i18n'
 import { TeamCompensationSaveAllocationsDialogRows } from './TeamCompensationSaveAllocationsDialogRows'
 
+const EMPTY_EMPLOYEE_ID_SET: ReadonlySet<string> = new Set()
+
 export interface TeamCompensationSaveAllocationsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -36,6 +38,11 @@ export interface TeamCompensationSaveAllocationsDialogProps {
   managerOrganizationalUnitId: string | null
   /** Called after successful saves; includes REST row ids keyed by employee id when returned by the API. */
   onSaved?: (createdIdsByEmployeeId?: Record<string, string>) => void | Promise<void>
+  /**
+   * Employees who already have a proposal in the review pipeline (e.g. submitted); cannot be
+   * selected for another manager submit.
+   */
+  employeeIdsBlockedFromManagerResubmit?: ReadonlySet<string>
 }
 
 export function TeamCompensationSaveAllocationsDialog({
@@ -51,7 +58,8 @@ export function TeamCompensationSaveAllocationsDialog({
   currencyCode,
   planOuRowIdByOrganizationalUnitId,
   managerOrganizationalUnitId,
-  onSaved
+  onSaved,
+  employeeIdsBlockedFromManagerResubmit = EMPTY_EMPLOYEE_ID_SET
 }: Readonly<TeamCompensationSaveAllocationsDialogProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
@@ -90,29 +98,59 @@ export function TeamCompensationSaveAllocationsDialog({
     hasInitializedSelectionForOpenRef.current = true
     const next = new Set<string>()
     for (const m of sortedMembers) {
+      if (employeeIdsBlockedFromManagerResubmit.has(m.employeeId)) {
+        continue
+      }
       const raw = allocationByEmployeeId.get(m.employeeId) ?? 0
       if (roundMoney2(raw) > 0) {
         next.add(m.employeeId)
       }
     }
     setSelectedEmployeeIds(next)
-  }, [open, sortedMembers, allocationByEmployeeId])
+  }, [open, sortedMembers, allocationByEmployeeId, employeeIdsBlockedFromManagerResubmit])
 
-  const toggleEmployee = useCallback((employeeId: string, checked: boolean) => {
+  useEffect(() => {
+    if (!open) {
+      return
+    }
     setSelectedEmployeeIds(prev => {
+      let changed = false
       const next = new Set(prev)
-      if (checked) {
-        next.add(employeeId)
-      } else {
-        next.delete(employeeId)
+      for (const id of employeeIdsBlockedFromManagerResubmit) {
+        if (next.has(id)) {
+          next.delete(id)
+          changed = true
+        }
       }
-      return next
+      return changed ? next : prev
     })
-  }, [])
+  }, [open, employeeIdsBlockedFromManagerResubmit])
+
+  const toggleEmployee = useCallback(
+    (employeeId: string, checked: boolean) => {
+      if (employeeIdsBlockedFromManagerResubmit.has(employeeId)) {
+        return
+      }
+      setSelectedEmployeeIds(prev => {
+        const next = new Set(prev)
+        if (checked) {
+          next.add(employeeId)
+        } else {
+          next.delete(employeeId)
+        }
+        return next
+      })
+    },
+    [employeeIdsBlockedFromManagerResubmit]
+  )
 
   const selectAll = useCallback(() => {
-    setSelectedEmployeeIds(new Set(sortedMembers.map(m => m.employeeId)))
-  }, [sortedMembers])
+    setSelectedEmployeeIds(
+      new Set(
+        sortedMembers.filter(m => !employeeIdsBlockedFromManagerResubmit.has(m.employeeId)).map(m => m.employeeId)
+      )
+    )
+  }, [sortedMembers, employeeIdsBlockedFromManagerResubmit])
 
   const selectNone = useCallback(() => {
     setSelectedEmployeeIds(new Set())
@@ -138,6 +176,12 @@ export function TeamCompensationSaveAllocationsDialog({
     const ids = [...selectedEmployeeIds]
     if (ids.length === 0) {
       setErrorMessage(t('manager-team-save-dialog-none-selected'))
+      return
+    }
+
+    const blockedSelected = ids.filter(id => employeeIdsBlockedFromManagerResubmit.has(id))
+    if (blockedSelected.length > 0) {
+      setErrorMessage(t('manager-team-save-dialog-includes-already-submitted'))
       return
     }
 
@@ -172,7 +216,8 @@ export function TeamCompensationSaveAllocationsDialog({
         allocationByEmployeeId,
         planOuRowIdByOrganizationalUnitId,
         managerOrganizationalUnitId,
-        managerEmployeeId
+        managerEmployeeId,
+        employeeIdsBlockedFromManagerResubmit
       })
       await onSaved?.(createdIdsByEmployeeId)
       onOpenChange(false)
@@ -197,7 +242,8 @@ export function TeamCompensationSaveAllocationsDialog({
     poolOk,
     restClient,
     selectedEmployeeIds,
-    t
+    t,
+    employeeIdsBlockedFromManagerResubmit
   ])
 
   return (
@@ -249,6 +295,7 @@ export function TeamCompensationSaveAllocationsDialog({
           sortedMembers={sortedMembers}
           allocationByEmployeeId={allocationByEmployeeId}
           selectedEmployeeIds={selectedEmployeeIds}
+          employeeIdsBlockedFromManagerResubmit={employeeIdsBlockedFromManagerResubmit}
           distributionPool={distributionPool}
           poolOk={poolOk}
           currencyCode={currencyCode}

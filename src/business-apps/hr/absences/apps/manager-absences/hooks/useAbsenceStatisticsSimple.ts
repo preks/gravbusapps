@@ -25,7 +25,6 @@ interface AbsenceStatistics {
   unplannedAbsences: number
   unplannedAbsencesDays: number
   absences: any[]
-  yearOverYearData: any[]
 }
 
 interface UseAbsenceStatisticsSimpleReturn {
@@ -58,8 +57,7 @@ export const useAbsenceStatisticsSimple = (context: BusinessAppContextProps): Us
     plannedAbsencesDays: 0,
     unplannedAbsences: 0,
     unplannedAbsencesDays: 0,
-    absences: [],
-    yearOverYearData: []
+    absences: []
   })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -78,21 +76,15 @@ export const useAbsenceStatisticsSimple = (context: BusinessAppContextProps): Us
 
     try {
       const currentYear = new Date().getFullYear()
-      const previousYear = currentYear - 1
       const currentYearStart = `${currentYear}-01-01 00:00:00+00`
       const currentYearEnd = `${currentYear}-12-31 23:59:59+00`
-      const previousYearStart = `${previousYear}-01-01 00:00:00+00`
 
       const [apiResults, sickAbsencesByMonthResult] = await Promise.all([
-        executeStatisticsRequests(graphqlClient, supervisorId, currentYearStart, currentYearEnd, previousYearStart),
+        executeStatisticsRequests(graphqlClient, supervisorId, currentYearStart, currentYearEnd),
         executeSickAbsencesByMonthRequest(graphqlClient, supervisorId, currentYearStart, currentYearEnd)
       ])
 
-      const finalStatistics = processStatisticsData(
-        { ...apiResults, sickAbsencesByMonthResult },
-        currentYear,
-        previousYear
-      )
+      const finalStatistics = processStatisticsData({ ...apiResults, sickAbsencesByMonthResult })
 
       setStatistics(finalStatistics as AbsenceStatistics)
     } catch (err) {

@@ -109,7 +109,7 @@ function GET_JOB_FUNCTION_DATA(params: JobFunctionQueryParameters): string {
     whereConditions.push(`id: {_eq: "${jobFunctionId}"}`)
   }
   if (jobFamilyId) {
-    whereConditions.push(`jobFamilyId: {_eq: "${jobFamilyId}"}`)
+    whereConditions.push(`jobFamily: {id: {_eq: "${jobFamilyId}"}}`)
   }
   if (search) {
     whereConditions.push(`_or: [{name: {_ilike: "%${search}%"}}, {code: {_ilike: "%${search}%"}}]`)
@@ -158,7 +158,7 @@ function GET_JOB_PROFILE_DATA(params: JobProfileQueryParameters): string {
     whereConditions.push(`jobFunctionId: {_eq: "${jobFunctionId}"}`)
   }
   if (jobFamilyId) {
-    whereConditions.push(`jobFunction: {jobFamilyId: {_eq: "${jobFamilyId}"}}`)
+    whereConditions.push(`jobFunction: {jobFamily: {id: {_eq: "${jobFamilyId}"}}}`)
   }
   if (jobLevelId) {
     whereConditions.push(`jobLevelId: {_eq: "${jobLevelId}"}`)

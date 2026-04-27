@@ -4,6 +4,7 @@ import translations from '../_i18n'
 import { CheckCircleIcon, CopyIcon } from '@phosphor-icons/react'
 import { ThumbsUp, ThumbsDown } from 'lucide-react'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import type {
   OutputItem,
   AnswerOutput,
@@ -19,7 +20,9 @@ import type {
   DocumentStreamChunkOutput,
   DocumentStreamCompleteOutput,
   DocumentStreamErrorOutput,
-  DocumentStreamStartOutput
+  DocumentStreamStartOutput,
+  ReasoningStepOutput,
+  ReasoningStepKind
 } from '../types/models'
 import DynamicFormDisplay from './DynamicFormDisplay'
 // Standardized entity card
@@ -47,6 +50,13 @@ import {
   TreemapDisplay
 } from './displays/visual-elements'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  REASONING_KIND_LABEL,
+  REASONING_STATUS_STYLE,
+  extractCodeHint,
+  formatReasoningDuration,
+  prettifyJson
+} from './reasoningStepUtils'
 
 interface FlowProposalBoundaryProps {
   data: FlowProposalOutput
@@ -733,8 +743,60 @@ export const CalendarDisplay: React.FC<{ data: CalendarViewData }> = ({ data }) 
   return <FlowbotCalendarDisplay data={data} />
 }
 
+function isSpreadsheetFile(mimeType: string, filename: string): boolean {
+  const spreadsheetMimeTypes = [
+    'text/csv',
+    'application/csv',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ]
+  if (spreadsheetMimeTypes.some(t => mimeType.toLowerCase().includes(t))) {
+    return true
+  }
+  const lower = filename.toLowerCase()
+  return lower.endsWith('.csv') || lower.endsWith('.xls') || lower.endsWith('.xlsx')
+}
+
+interface FileDisplayProps {
+  data: { filename: string; mimeType: string; content: string }
+  accessToken?: string
+}
+
 // Premium File Display with prominent download button
-export const FileDisplay: React.FC<{ data: { filename: string; mimeType: string; content: string } }> = ({ data }) => {
+export const FileDisplay: React.FC<FileDisplayProps> = ({ data, accessToken }) => {
+  const [isImporting, setIsImporting] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+
+  const handleOpenInSpreadsheet = async () => {
+    if (!accessToken) return
+    setIsImporting(true)
+    setImportError(null)
+    try {
+      const baseUrl = resolveFlowbotBaseUrl()
+      const response = await fetch(`${baseUrl}/flowbot/api/agent/import-csv-to-spreadsheet`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          filename: data.filename,
+          content: data.content,
+          mimeType: data.mimeType
+        })
+      })
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(errorText || `HTTP ${response.status}`)
+      }
+      const { url } = await response.json()
+      navigateTo(url)
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Failed to open in EverySpreadsheet')
+    } finally {
+      setIsImporting(false)
+    }
+  }
   const getFileIcon = (mimeType: string) => {
     if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
       return (
@@ -794,21 +856,43 @@ export const FileDisplay: React.FC<{ data: { filename: string; mimeType: string;
             <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">
               {data.mimeType.split('/').pop()?.toUpperCase() || 'FILE'} • {getFileSize()}
             </p>
-            <a
-              href={`data:${data.mimeType};base64,${data.content}`}
-              download={data.filename}
-              className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-xl gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:text-ai-foreground gba:font-semibold gba:shadow-md hover:gba:shadow-lg gba:transition-all gba:text-sm"
-            >
-              <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
-              </svg>
-              <span>Download File</span>
-            </a>
+            <div className="gba:flex gba:flex-wrap gba:gap-2">
+              <a
+                href={`data:${data.mimeType};base64,${data.content}`}
+                download={data.filename}
+                className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-xl gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:text-ai-foreground gba:font-semibold gba:shadow-md hover:gba:shadow-lg gba:transition-all gba:text-sm"
+              >
+                <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  />
+                </svg>
+                <span>Download File</span>
+              </a>
+              {isSpreadsheetFile(data.mimeType, data.filename) && accessToken && (
+                <button
+                  type="button"
+                  onClick={handleOpenInSpreadsheet}
+                  disabled={isImporting}
+                  data-testid="open-in-everyspreadsheet"
+                  className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-xl gba:bg-success gba:text-success-foreground gba:font-semibold gba:shadow-md hover:gba:shadow-lg gba:transition-all gba:text-sm disabled:gba:opacity-60 disabled:gba:cursor-not-allowed"
+                >
+                  <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <span>{isImporting ? 'Opening…' : 'Open in EverySpreadsheet'}</span>
+                </button>
+              )}
+            </div>
+            {importError && <p className="gba:mt-2 gba:text-xs gba:text-destructive">{importError}</p>}
           </div>
         </div>
       </CardContent>
@@ -840,7 +924,7 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
     case 'entity':
       return renderEntity(item, accessToken)
     case 'file':
-      return <FileDisplay key={idx} data={item} />
+      return <FileDisplay key={idx} data={item} accessToken={accessToken} />
     case 'chat_reference':
       return <ChatSnippetDisplay key={idx} data={item} />
     case 'reminder':
@@ -1067,6 +1151,214 @@ export const AnswerOutputRenderer: React.FC<{
   )
 }
 
+// ---------------------------------------------------------------------------
+// Cursor-style expandable reasoning step
+// ---------------------------------------------------------------------------
+
+/**
+ * Short, human-friendly label for each step kind. Used alongside the title so
+ * a glance at the collapsed row already tells the user WHAT kind of action
+ * ran (tool call vs. RAG lookup vs. inner GraphQL generation).
+ */
+const ReasoningSection: React.FC<{ title: string; payload: unknown; kind: ReasoningStepKind }> = ({
+  title,
+  payload,
+  kind
+}) => {
+  if (payload === undefined || payload === null || payload === '') return null
+  const codeHint = extractCodeHint(kind, payload)
+  const [showFull, setShowFull] = useState(false)
+
+  const json = prettifyJson(payload)
+  const TRUNCATE_CHARS = 2000
+  const isLarge = json.length > TRUNCATE_CHARS
+  const displayed = showFull || !isLarge ? json : json.slice(0, TRUNCATE_CHARS) + '…'
+
+  return (
+    <div className="gba:flex gba:flex-col gba:gap-1">
+      <div className="gba:text-[10px] gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:font-semibold">
+        {title}
+      </div>
+      {codeHint ? (
+        <pre className="gba:text-xs gba:font-mono gba:whitespace-pre-wrap gba:break-words gba:bg-muted/60 gba:border gba:border-border gba:rounded gba:p-2 gba:overflow-x-auto">
+          <code data-language={codeHint.language}>{codeHint.code}</code>
+        </pre>
+      ) : (
+        <pre className="gba:text-xs gba:font-mono gba:whitespace-pre-wrap gba:break-words gba:bg-muted/60 gba:border gba:border-border gba:rounded gba:p-2 gba:overflow-x-auto">
+          <code>{displayed}</code>
+        </pre>
+      )}
+      {isLarge && !codeHint && (
+        <button
+          type="button"
+          onClick={() => setShowFull(prev => !prev)}
+          className="gba:self-start gba:text-[11px] gba:text-primary gba:underline-offset-2 hover:gba:underline"
+        >
+          {showFull ? 'Collapse' : 'Show full'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Cursor-style collapsible row for a single reasoning step. Collapsed by
+ * default; expand state is kept per mounted row so reloading the page
+ * returns to the default collapsed state (users treat them as debug-ish
+ * artifacts, not first-class content).
+ *
+ * Rendering does NOT recurse into nested children here — the parent
+ * ``ReasoningStepTree`` component handles the indentation because children
+ * may arrive before or after their parent in the output list.
+ */
+export const ReasoningStepDisplay: React.FC<{
+  step: ReasoningStepOutput
+  children?: React.ReactNode
+  depth?: number
+}> = ({ step, children, depth = 0 }) => {
+  const [expanded, setExpanded] = useState(false)
+  const kindLabel = REASONING_KIND_LABEL[step.kind] ?? 'Step'
+  const statusClass = REASONING_STATUS_STYLE[step.status] ?? 'gba:text-muted-foreground'
+  const duration = formatReasoningDuration(step.started_at, step.ended_at)
+  const statusIcon =
+    step.status === 'running' ? (
+      <span
+        className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-primary gba:animate-pulse"
+        aria-hidden
+      />
+    ) : step.status === 'done' ? (
+      <CheckCircleIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
+    ) : (
+      <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-destructive" aria-hidden />
+    )
+
+  return (
+    <div
+      className="gba:flex gba:flex-col gba:gap-1 gba:text-xs"
+      style={depth > 0 ? { marginLeft: `${depth * 14}px` } : undefined}
+      data-testid={`reasoning-step-${step.kind}`}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded(prev => !prev)}
+        className="gba:flex gba:items-center gba:gap-2 gba:rounded gba:px-1.5 gba:py-1 gba:text-left hover:gba:bg-muted/60 gba:transition-colors"
+        aria-expanded={expanded}
+      >
+        <span className={`gba:flex gba:items-center ${statusClass}`}>{statusIcon}</span>
+        <span className="gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:text-[10px] gba:font-semibold">
+          {kindLabel}
+        </span>
+        <span className="gba:text-foreground gba:font-medium gba:truncate">{step.title}</span>
+        {duration && <span className="gba:text-muted-foreground gba:text-[11px] gba:ml-auto">{duration}</span>}
+        <span
+          className="gba:text-muted-foreground gba:transition-transform"
+          style={{ transform: expanded ? 'rotate(90deg)' : undefined }}
+          aria-hidden
+        >
+          ›
+        </span>
+      </button>
+      {expanded && (
+        <div
+          className="gba:flex gba:flex-col gba:gap-2 gba:pl-6 gba:pr-2 gba:py-2 gba:border-l gba:border-border/60"
+          data-testid="reasoning-step-body"
+        >
+          <ReasoningSection title="Input" payload={step.args} kind={step.kind} />
+          <ReasoningSection title="Output" payload={step.result} kind={step.kind} />
+          {step.error && (
+            <div className="gba:text-xs gba:text-destructive gba:font-mono gba:whitespace-pre-wrap gba:break-words">
+              {step.error}
+            </div>
+          )}
+        </div>
+      )}
+      {children && expanded && <div className="gba:mt-1 gba:flex gba:flex-col gba:gap-1">{children}</div>}
+    </div>
+  )
+}
+
+/**
+ * Render a reasoning step inside the output list. This single-step renderer
+ * is plugged into ``OutputItemRenderer``'s switch; nested children are
+ * handled via ``parent_id`` lookups at the conversation layer (future work)
+ * — for now each step renders flat and nests via its own ``parent_id`` only
+ * if the parent is provided via ``children``.
+ */
+const ReasoningStepRenderer: React.FC<{ item: ReasoningStepOutput }> = ({ item }) => {
+  return <ReasoningStepDisplay step={item} />
+}
+
+/**
+ * Collapsed-by-default container that hides a turn's reasoning trail behind
+ * one button once the agent has finished talking. While the answer is still
+ * streaming each step renders inline (handled by ``UnifiedAIMessageRenderer``);
+ * after the canonical answer arrives we want the chat to be visually tidy
+ * but the reasoning to still be one click away — exactly like Cursor.
+ */
+export const ReasoningStepsGroup: React.FC<{
+  steps: ReasoningStepOutput[]
+  defaultExpanded?: boolean
+}> = ({ steps, defaultExpanded = false }) => {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  if (steps.length === 0) return null
+
+  const hasError = steps.some(s => s.status === 'error')
+  const stillRunning = steps.some(s => s.status === 'running')
+  const totalDuration = computeGroupDuration(steps)
+
+  const summaryIcon = hasError ? (
+    <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-destructive" aria-hidden />
+  ) : stillRunning ? (
+    <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-primary gba:animate-pulse" aria-hidden />
+  ) : (
+    <CheckCircleIcon className="gba:h-3.5 gba:w-3.5 gba:text-emerald-600 dark:gba:text-emerald-400" weight="fill" />
+  )
+
+  return (
+    <div className="gba:flex gba:flex-col gba:gap-1 gba:text-xs" data-testid="reasoning-steps-group">
+      <button
+        type="button"
+        onClick={() => setExpanded(prev => !prev)}
+        className="gba:self-start gba:flex gba:items-center gba:gap-2 gba:rounded gba:px-1.5 gba:py-1 gba:text-left hover:gba:bg-muted/60 gba:transition-colors gba:text-muted-foreground"
+        aria-expanded={expanded}
+        data-testid="reasoning-steps-group-toggle"
+      >
+        <span className="gba:flex gba:items-center">{summaryIcon}</span>
+        <span className="gba:text-[11px] gba:font-medium">
+          {expanded ? 'Hide reasoning' : `Show reasoning · ${steps.length} step${steps.length === 1 ? '' : 's'}`}
+        </span>
+        {totalDuration && !expanded && (
+          <span className="gba:text-[11px] gba:text-muted-foreground/80">· {totalDuration}</span>
+        )}
+        <span
+          className="gba:transition-transform"
+          style={{ transform: expanded ? 'rotate(90deg)' : undefined }}
+          aria-hidden
+        >
+          ›
+        </span>
+      </button>
+      {expanded && (
+        <div
+          className="gba:flex gba:flex-col gba:gap-1 gba:pl-2 gba:border-l gba:border-border/60 gba:ml-1"
+          data-testid="reasoning-steps-group-body"
+        >
+          {steps.map(step => (
+            <ReasoningStepDisplay key={step.id} step={step} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function computeGroupDuration(steps: ReasoningStepOutput[]): string | null {
+  const starts = steps.map(s => s.started_at).filter((t): t is number => typeof t === 'number')
+  const ends = steps.map(s => s.ended_at).filter((t): t is number => typeof t === 'number')
+  if (!starts.length || !ends.length) return null
+  return formatReasoningDuration(Math.min(...starts), Math.max(...ends))
+}
+
 // Output Item Renderer
 export const OutputItemRenderer: React.FC<{
   item: OutputItem
@@ -1094,6 +1386,16 @@ export const OutputItemRenderer: React.FC<{
       return <AnswerOutputRenderer data={item} accessToken={accessToken} sessionId={sessionId} />
     case 'tool':
       return <ToolOutput name={item.name} reason={item.reason} />
+    case 'reasoning_step':
+      return <ReasoningStepRenderer item={item} />
+    case 'reasoning_step_update':
+      // Updates are merged into their originating step by the hook before
+      // this renderer ever sees them. If one slips through (replay of a
+      // malformed saved message, e.g.), render nothing rather than noise.
+      return null
+    case 'text_delta':
+      // Deltas are folded into a streaming `answer` bubble by the hook.
+      return null
     case 'document_stream_start':
       return <DocumentStreamStartDisplay data={item} />
     case 'document_stream_chunk':

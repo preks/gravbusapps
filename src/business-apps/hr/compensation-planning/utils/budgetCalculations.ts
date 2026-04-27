@@ -33,9 +33,9 @@ export function computeCompanyBudgetSummary(company: CompensationCycleCompany) {
 /**
  * Inputs for {@link distributeToOrgUnits} (headcount, salary mass, optional performance weight per org unit).
  *
- * **Performance (department score):** For each employee we read `performanceOverallScore` (same “overall score” as
- * Performance Evaluation). For each department, `totalPerformanceScore` is the **sum** of those scores; the preview
- * uses weight_i = totalPerformanceScore_i / sum_j(totalPerformanceScore_j) and allocation_i = pool × weight_i.
+ * **Performance (department):** `performance_weighted` uses **`averagePerformanceRating`** (mean of employee
+ * `performanceOverallScore` in that unit), not the sum, so headcount does not inflate a department’s weight.
+ * `totalPerformanceScore` is still the raw sum for reference.
  */
 export interface OrgUnitDistributionInput {
   orgUnitId: string
@@ -44,9 +44,9 @@ export interface OrgUnitDistributionInput {
   currentTotalSalaryCost: number
   /** Sum of `currentBonusTotal` (YTD) for employees in this org unit; overview / analytics only. */
   currentTotalBonusYtd: number
-  /** Sum of employee `performanceOverallScore` values in this department; drives `performance_weighted` weights. */
+  /** Sum of employee `performanceOverallScore` in this org unit (not used as the `performance_weighted` weight). */
   totalPerformanceScore: number
-  /** Mean of employee overall scores (for display only). */
+  /** Mean of employee overall scores; drives `performance_weighted` weights. */
   averagePerformanceRating: number | null
 }
 
@@ -213,14 +213,6 @@ export function distributeToEmployees(
   }
 }
 
-/**
- * Preview split of the salary increase pool across org units.
- *
- * - **equal** — same total per org unit (500k / 3 → three shares that sum to exactly 500k).
- * - **proportional_headcount** — share of the pool ∝ headcount (e.g. 30:20:10 → 30/60, 20/60, 10/60 of 500k).
- *   Same as “equal per employee” within the company: each unit gets `headcount × (pool / total headcount)`.
- * - **performance_weighted** — department weight = sum of employee overall performance scores; pool split by those weights.
- */
 export function distributeToOrgUnits(
   totalBudget: number,
   orgUnits: OrgUnitDistributionInput[],
@@ -237,11 +229,12 @@ export function distributeToOrgUnits(
     case 'proportional_salary_cost':
       return allocateProportionalToWeights(totalBudget, orgUnits, ou => ou.currentTotalSalaryCost)
     case 'performance_weighted': {
-      const ratedPositive = orgUnits.filter(ou => ou.totalPerformanceScore > 0)
+      const weight = (ou: OrgUnitDistributionInput) => Math.max(0, ou.averagePerformanceRating ?? 0)
+      const ratedPositive = orgUnits.filter(ou => weight(ou) > 0)
       if (ratedPositive.length === 0) {
         return distributeToOrgUnits(totalBudget, orgUnits, 'proportional_headcount')
       }
-      return allocateProportionalToWeights(totalBudget, orgUnits, ou => Math.max(0, ou.totalPerformanceScore))
+      return allocateProportionalToWeights(totalBudget, orgUnits, weight)
     }
     case 'custom':
     default:

@@ -42,9 +42,9 @@ export interface TeamCompensationDistributionSplitPanelProps {
   dataDisplay: { searchQuery: string; setSearchQuery: (value: string) => void }
   canShowSaveAction: boolean
   onOpenSubmitProposals: () => void
-  selectedCompanyId: string | null
-  sentBackProposalCount?: number
-  onOpenSentBackProposals?: () => void
+  /** After "New proposal", show a way to return to the submitted-proposals table without changing cycle. */
+  showBackToProposalsTable?: boolean
+  onBackToProposalsTable?: () => void
 }
 
 export function TeamCompensationDistributionSplitPanel({
@@ -69,9 +69,8 @@ export function TeamCompensationDistributionSplitPanel({
   dataDisplay,
   canShowSaveAction,
   onOpenSubmitProposals,
-  selectedCompanyId,
-  sentBackProposalCount = 0,
-  onOpenSentBackProposals
+  showBackToProposalsTable = false,
+  onBackToProposalsTable
 }: Readonly<TeamCompensationDistributionSplitPanelProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
@@ -85,15 +84,15 @@ export function TeamCompensationDistributionSplitPanel({
           {tBudget('budget-distribution-split-panel-title')}
         </CardTitle>
         <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-          {onOpenSentBackProposals != null && sentBackProposalCount > 0 && selectedCompanyId != null ? (
+          {showBackToProposalsTable && onBackToProposalsTable != null ? (
             <Button
               type="button"
               variant="outline"
               className="gba:shrink-0"
-              onClick={onOpenSentBackProposals}
-              data-testid="manager-team-sent-back-proposals-open"
+              onClick={onBackToProposalsTable}
+              data-testid="manager-team-back-to-proposals-table"
             >
-              {t('manager-team-sent-back-proposals-toolbar-with-count', { count: sentBackProposalCount })}
+              {t('manager-team-back-to-proposals-list')}
             </Button>
           ) : null}
           <Button

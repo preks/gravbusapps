@@ -3,23 +3,23 @@
 
 import { useState, useCallback } from 'react'
 import JSZip from 'jszip'
-import type { SlideData } from '../components/slideElements'
-import { createTextElement } from '../components/slideElements'
-import type { AnySlideElement } from '../components/slideElements'
+import {
+  type SlideData,
+  type SlideCanvasSize,
+  type AnySlideElement,
+  createTextElement,
+  DEFAULT_SLIDE_CANVAS_SIZE
+} from '../components/slideElements'
 import { parseXML, getChild, emuToPixels, extractTransform } from './pptxImport/ooxmlUtils'
 import { extractTheme, mapThemeToSlideThemeId } from './pptxImport/extractTheme'
 import {
   extractAllMedia,
   resolveSlideRelationships,
-  resolveLayoutRelationships,
-  resolveMasterRelationships
+  resolveLayoutRelationships
 } from './pptxImport/resolveRelationships'
 import { assembleSlide } from './pptxImport/assembleSlide'
-import { extractTextElements } from './pptxImport/extractText'
-import { extractShapeElements } from './pptxImport/extractShapes'
-import { extractImageElements } from './pptxImport/extractImages'
-import { flattenGroupedShapes } from './pptxImport/flattenGroups'
-import type { OoxmlTheme, SlideRelationships } from './pptxImport/types'
+import { extractSlideSize, type ParsedSlideSize } from './pptxImport/extractSlideSize'
+import type { OoxmlTheme } from './pptxImport/types'
 
 export interface ParsedPowerPointDocument {
   fileName: string
@@ -28,6 +28,12 @@ export interface ParsedPowerPointDocument {
   slideCount: number
   themeId: string
   messages: ParserMessage[]
+  /**
+   * Canvas dimensions and preset derived from the deck's <p:sldSz>. Falls
+   * back to the 16:9 default when the file omits a size.
+   */
+  canvasSize: SlideCanvasSize
+  slideSizePreset?: ParsedSlideSize['preset']
 }
 
 export interface ParserMessage {
@@ -50,106 +56,6 @@ interface UsePowerPointParserResult extends UsePowerPointParserState {
 
 export interface UsePowerPointParserOptions {
   t?: (key: string) => string
-}
-
-const SP_TREE_NS = 'http://schemas.openxmlformats.org/presentationml/2006/main'
-const DRAWING_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main'
-const RELS_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
-const FAKE_DOC = `<p:sld xmlns:p="${SP_TREE_NS}" xmlns:a="${DRAWING_NS}" xmlns:r="${RELS_NS}"><p:cSld><p:spTree></p:spTree></p:cSld></p:sld>`
-
-function wrapElement(element: Element): Document {
-  const doc = new DOMParser().parseFromString(FAKE_DOC, 'text/xml')
-  const spTree = doc.getElementsByTagName('p:spTree')[0]
-  spTree.appendChild(doc.importNode(element, true))
-  return doc
-}
-
-function isPlaceholder(el: Element): boolean {
-  const nvSpPr = getChild(el, 'p:nvSpPr')
-  if (!nvSpPr) return false
-  const nvPr = getChild(nvSpPr, 'p:nvPr')
-  if (!nvPr) return false
-  return !!getChild(nvPr, 'p:ph')
-}
-
-function extractNonPlaceholderEls(
-  xml: Document,
-  rels: SlideRelationships,
-  imageData: Map<string, string>,
-  theme: OoxmlTheme | undefined,
-  messages: ParserMessage[],
-  slideIndex: number
-): AnySlideElement[] {
-  const result: AnySlideElement[] = []
-  const spTree = xml.getElementsByTagName('p:spTree')[0]
-  if (!spTree) return result
-
-  for (let i = 0; i < spTree.childNodes.length; i++) {
-    const child = spTree.childNodes[i] as Element
-    if (!child.tagName) continue
-
-    if (child.tagName === 'p:sp') {
-      if (isPlaceholder(child)) continue
-      const doc = wrapElement(child)
-      const texts = extractTextElements(doc, theme, rels)
-      if (texts.length > 0) {
-        result.push(...texts)
-      } else {
-        const shapes = extractShapeElements(doc, theme, messages, slideIndex)
-        result.push(...shapes)
-      }
-    } else if (child.tagName === 'p:pic') {
-      const doc = wrapElement(child)
-      result.push(...extractImageElements(doc, rels, imageData))
-    } else if (child.tagName === 'p:grpSp') {
-      const groupEls = flattenGroupedShapes(xml, theme, rels, imageData, messages, slideIndex, child)
-      result.push(...groupEls)
-    }
-  }
-  return result
-}
-
-async function getInheritedElements(
-  zip: JSZip,
-  relationships: SlideRelationships,
-  imageData: Map<string, string>,
-  theme: OoxmlTheme | undefined,
-  messages: ParserMessage[],
-  slideIndex: number
-): Promise<AnySlideElement[]> {
-  const inherited: AnySlideElement[] = []
-  if (!relationships.layoutPath) return inherited
-
-  const layoutFile = zip.file(relationships.layoutPath)
-  if (!layoutFile) return inherited
-
-  const layoutXml = parseXML(await layoutFile.async('text'))
-  const layoutRels = await resolveLayoutRelationships(zip, relationships.layoutPath)
-  const layoutRelationships: SlideRelationships = {
-    images: layoutRels.images,
-    hyperlinks: new Map(),
-    chartPaths: new Map()
-  }
-  const layoutEls = extractNonPlaceholderEls(layoutXml, layoutRelationships, imageData, theme, messages, slideIndex)
-  fixTextColorsFromStyle(layoutXml, layoutEls, theme)
-  inherited.push(...layoutEls)
-
-  if (layoutRels.masterPath) {
-    const masterFile = zip.file(layoutRels.masterPath)
-    if (masterFile) {
-      const masterXml = parseXML(await masterFile.async('text'))
-      const masterRels = await resolveMasterRelationships(zip, layoutRels.masterPath)
-      const masterRelationships: SlideRelationships = {
-        images: masterRels.images,
-        hyperlinks: new Map(),
-        chartPaths: new Map()
-      }
-      const masterEls = extractNonPlaceholderEls(masterXml, masterRelationships, imageData, theme, messages, slideIndex)
-      fixTextColorsFromStyle(masterXml, masterEls, theme)
-      inherited.push(...masterEls)
-    }
-  }
-  return inherited
 }
 
 function getPlaceholderType(sp: Element): string | null {
@@ -342,6 +248,11 @@ export function usePowerPointParser(options?: UsePowerPointParserOptions): UsePo
         const slideIds = presentationXml.getElementsByTagName('p:sldId')
         const slideCount = slideIds.length
 
+        const parsedSize = extractSlideSize(presentationXml)
+        const canvasSize: SlideCanvasSize = parsedSize
+          ? { width: parsedSize.width, height: parsedSize.height }
+          : DEFAULT_SLIDE_CANVAS_SIZE
+
         setState(prev => ({ ...prev, progress: 30 }))
 
         const theme = await extractTheme(zip)
@@ -382,6 +293,7 @@ export function usePowerPointParser(options?: UsePowerPointParserOptions): UsePo
           const relationships = await resolveSlideRelationships(zip, slideNumber)
 
           const slideData = await assembleSlide(slideXml, relationships, imageData, theme, zip, i, messages)
+          slideData.canvasSize = canvasSize
 
           let layoutStyleMap: Map<string, string> | undefined
           let masterTextStyles: MasterTextStyles | undefined
@@ -403,15 +315,8 @@ export function usePowerPointParser(options?: UsePowerPointParserOptions): UsePo
           }
           fixTextColorsFromStyle(slideXml, slideData.elements, theme, layoutStyleMap, masterTextStyles)
 
-          const inherited = await getInheritedElements(zip, relationships, imageData, theme, messages, i)
-          if (inherited.length > 0) {
-            const combined = [...inherited, ...slideData.elements]
-            combined.forEach((el, idx) => {
-              el.zIndex = idx + 1
-            })
-            slideData.elements = combined
-          }
-
+          // Inherited (layout/master) elements are already merged inside
+          // `assembleSlide`. Avoid re-merging here to prevent duplication.
           slides.push(slideData)
 
           setState(prev => ({ ...prev, progress: 50 + ((i + 1) / slideCount) * 40 }))
@@ -432,12 +337,25 @@ export function usePowerPointParser(options?: UsePowerPointParserOptions): UsePo
                 color: '#1e293b'
               })
             ],
-            background: { type: 'solid', color: '#ffffff' }
+            background: { type: 'solid', color: '#ffffff' },
+            canvasSize
           })
 
           messages.push({
             type: 'warning',
             message: 'parser-no-slides-parsed'
+          })
+        }
+
+        if (parsedSize) {
+          messages.push({
+            type: 'info',
+            message: 'parser-slide-size-detected',
+            params: {
+              width: String(parsedSize.width),
+              height: String(parsedSize.height),
+              preset: parsedSize.preset
+            }
           })
         }
 
@@ -456,7 +374,9 @@ export function usePowerPointParser(options?: UsePowerPointParserOptions): UsePo
           slides,
           slideCount: slides.length,
           themeId,
-          messages
+          messages,
+          canvasSize,
+          slideSizePreset: parsedSize?.preset
         }
 
         setState({ isLoading: false, progress: 100, error: null, parsedDocument })

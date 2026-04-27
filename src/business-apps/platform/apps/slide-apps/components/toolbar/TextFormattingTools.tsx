@@ -22,31 +22,62 @@ import {
 import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Link, Palette } from 'lucide-react'
 import translations from '../../_i18n'
 import type { TextElement } from '../slideElements'
-import { FONT_FAMILIES, FONT_SIZES, COLOR_PRESETS } from '../slideElements'
+import { COLOR_PRESETS, getFontFamilyOptions, getFontSizeOptions } from '../slideElements'
+import type { ResolvedTextFormattingState, TextFormattingToggleState } from '../../utils/richTextEditing'
 
 export interface TextFormattingToolsProps {
   element: TextElement
+  formatting?: ResolvedTextFormattingState
   onUpdateElement: (id: string, updates: Partial<TextElement>) => void
   onShowLinkDialog: () => void
   testId?: string
 }
 
-export function TextFormattingTools({ element, onUpdateElement, onShowLinkDialog, testId }: TextFormattingToolsProps) {
+function toggleVariantForState(state: TextFormattingToggleState): 'secondary' | 'ghost' {
+  return state === 'off' ? 'ghost' : 'secondary'
+}
+
+function toggleClassNameForState(state: TextFormattingToggleState): string | undefined {
+  return state === 'mixed' ? 'gba:opacity-60' : undefined
+}
+
+export function TextFormattingTools({
+  element,
+  formatting,
+  onUpdateElement,
+  onShowLinkDialog,
+  testId
+}: TextFormattingToolsProps) {
   const { t } = useTranslation(translations)
+  const mixedLabel = t('editor-mixed') || 'Mixed'
 
   const handleUpdate = (updates: Partial<TextElement>) => {
     onUpdateElement(element.id, updates)
   }
 
+  const fontFamilyValue = formatting?.isFontFamilyMixed ? '' : (formatting?.fontFamily ?? element.fontFamily)
+  const resolvedFontSize = formatting?.isFontSizeMixed ? undefined : (formatting?.fontSize ?? element.fontSize)
+  const fontSizeValue = resolvedFontSize === undefined ? '' : String(resolvedFontSize)
+  const fontFamilyOptions = getFontFamilyOptions(fontFamilyValue)
+  const fontSizeOptions = getFontSizeOptions(resolvedFontSize)
+  const resolvedTextAlign = formatting?.isTextAlignMixed ? undefined : (formatting?.textAlign ?? element.textAlign)
+  const resolvedColor = formatting?.isColorMixed ? undefined : (formatting?.color ?? element.color)
+
+  const boldState = formatting?.fontWeightState ?? (element.fontWeight === 'bold' ? 'on' : 'off')
+  const italicState = formatting?.fontStyleState ?? (element.fontStyle === 'italic' ? 'on' : 'off')
+  const underlineState = formatting?.underlineState ?? (element.textDecoration === 'underline' ? 'on' : 'off')
+  const strikethroughState =
+    formatting?.strikethroughState ?? (element.textDecoration === 'line-through' ? 'on' : 'off')
+
   return (
     <>
       {/* Font Family */}
-      <Select value={element.fontFamily} onValueChange={value => handleUpdate({ fontFamily: value })}>
+      <Select value={fontFamilyValue} onValueChange={value => value && handleUpdate({ fontFamily: value })}>
         <SelectTrigger className="gba:w-[140px] gba:h-8">
-          <SelectValue placeholder={t('editor-font-family')} />
+          <SelectValue placeholder={formatting?.isFontFamilyMixed ? '' : t('editor-font-family')} />
         </SelectTrigger>
         <SelectContent>
-          {FONT_FAMILIES.map(font => (
+          {fontFamilyOptions.map(font => (
             <SelectItem key={font.value} value={font.value} style={{ fontFamily: font.value }}>
               {font.label}
             </SelectItem>
@@ -55,12 +86,12 @@ export function TextFormattingTools({ element, onUpdateElement, onShowLinkDialog
       </Select>
 
       {/* Font Size */}
-      <Select value={String(element.fontSize)} onValueChange={value => handleUpdate({ fontSize: Number(value) })}>
+      <Select value={fontSizeValue} onValueChange={value => value && handleUpdate({ fontSize: Number(value) })}>
         <SelectTrigger className="gba:w-[70px] gba:h-8">
-          <SelectValue placeholder={t('editor-font-size')} />
+          <SelectValue placeholder={formatting?.isFontSizeMixed ? '' : t('editor-font-size')} />
         </SelectTrigger>
         <SelectContent>
-          {FONT_SIZES.map(size => (
+          {fontSizeOptions.map(size => (
             <SelectItem key={String(size)} value={String(size)}>
               {size}
             </SelectItem>
@@ -72,10 +103,11 @@ export function TextFormattingTools({ element, onUpdateElement, onShowLinkDialog
 
       {/* Bold */}
       <Button
-        variant={element.fontWeight === 'bold' ? 'secondary' : 'ghost'}
+        variant={toggleVariantForState(boldState)}
         size="sm"
-        onClick={() => handleUpdate({ fontWeight: element.fontWeight === 'bold' ? 'normal' : 'bold' })}
-        title={t('editor-bold')}
+        className={toggleClassNameForState(boldState)}
+        onClick={() => handleUpdate({ fontWeight: boldState === 'on' ? 'normal' : 'bold' })}
+        title={boldState === 'mixed' ? `${t('editor-bold')} (${mixedLabel})` : t('editor-bold')}
         data-testid={testId ? `${testId}-bold` : undefined}
       >
         <Bold className="gba:w-4 gba:h-4" />
@@ -83,10 +115,11 @@ export function TextFormattingTools({ element, onUpdateElement, onShowLinkDialog
 
       {/* Italic */}
       <Button
-        variant={element.fontStyle === 'italic' ? 'secondary' : 'ghost'}
+        variant={toggleVariantForState(italicState)}
         size="sm"
-        onClick={() => handleUpdate({ fontStyle: element.fontStyle === 'italic' ? 'normal' : 'italic' })}
-        title={t('editor-italic')}
+        className={toggleClassNameForState(italicState)}
+        onClick={() => handleUpdate({ fontStyle: italicState === 'on' ? 'normal' : 'italic' })}
+        title={italicState === 'mixed' ? `${t('editor-italic')} (${mixedLabel})` : t('editor-italic')}
         data-testid={testId ? `${testId}-italic` : undefined}
       >
         <Italic className="gba:w-4 gba:h-4" />
@@ -94,10 +127,11 @@ export function TextFormattingTools({ element, onUpdateElement, onShowLinkDialog
 
       {/* Underline */}
       <Button
-        variant={element.textDecoration === 'underline' ? 'secondary' : 'ghost'}
+        variant={toggleVariantForState(underlineState)}
         size="sm"
-        onClick={() => handleUpdate({ textDecoration: element.textDecoration === 'underline' ? 'none' : 'underline' })}
-        title={t('editor-underline')}
+        className={toggleClassNameForState(underlineState)}
+        onClick={() => handleUpdate({ textDecoration: underlineState === 'on' ? 'none' : 'underline' })}
+        title={underlineState === 'mixed' ? `${t('editor-underline')} (${mixedLabel})` : t('editor-underline')}
         data-testid={testId ? `${testId}-underline` : undefined}
       >
         <Underline className="gba:w-4 gba:h-4" />
@@ -105,12 +139,13 @@ export function TextFormattingTools({ element, onUpdateElement, onShowLinkDialog
 
       {/* Strikethrough */}
       <Button
-        variant={element.textDecoration === 'line-through' ? 'secondary' : 'ghost'}
+        variant={toggleVariantForState(strikethroughState)}
         size="sm"
-        onClick={() =>
-          handleUpdate({ textDecoration: element.textDecoration === 'line-through' ? 'none' : 'line-through' })
+        className={toggleClassNameForState(strikethroughState)}
+        onClick={() => handleUpdate({ textDecoration: strikethroughState === 'on' ? 'none' : 'line-through' })}
+        title={
+          strikethroughState === 'mixed' ? `${t('editor-strikethrough')} (${mixedLabel})` : t('editor-strikethrough')
         }
-        title={t('editor-strikethrough')}
         data-testid={testId ? `${testId}-strikethrough` : undefined}
       >
         <Strikethrough className="gba:w-4 gba:h-4" />
@@ -120,7 +155,7 @@ export function TextFormattingTools({ element, onUpdateElement, onShowLinkDialog
 
       {/* Alignment */}
       <Button
-        variant={element.textAlign === 'left' ? 'secondary' : 'ghost'}
+        variant={resolvedTextAlign === 'left' ? 'secondary' : 'ghost'}
         size="sm"
         onClick={() => handleUpdate({ textAlign: 'left' })}
         title={t('editor-align-left')}
@@ -129,7 +164,7 @@ export function TextFormattingTools({ element, onUpdateElement, onShowLinkDialog
         <AlignLeft className="gba:w-4 gba:h-4" />
       </Button>
       <Button
-        variant={element.textAlign === 'center' ? 'secondary' : 'ghost'}
+        variant={resolvedTextAlign === 'center' ? 'secondary' : 'ghost'}
         size="sm"
         onClick={() => handleUpdate({ textAlign: 'center' })}
         title={t('editor-align-center')}
@@ -138,7 +173,7 @@ export function TextFormattingTools({ element, onUpdateElement, onShowLinkDialog
         <AlignCenter className="gba:w-4 gba:h-4" />
       </Button>
       <Button
-        variant={element.textAlign === 'right' ? 'secondary' : 'ghost'}
+        variant={resolvedTextAlign === 'right' ? 'secondary' : 'ghost'}
         size="sm"
         onClick={() => handleUpdate({ textAlign: 'right' })}
         title={t('editor-align-right')}
@@ -160,9 +195,15 @@ export function TextFormattingTools({ element, onUpdateElement, onShowLinkDialog
           >
             <Palette className="gba:w-4 gba:h-4" />
             <div
-              className="gba:w-3 gba:h-3 gba:ml-1 gba:rounded-sm gba:border"
-              style={{ backgroundColor: element.color }}
-            />
+              className={`gba:w-3 gba:h-3 gba:ml-1 gba:rounded-sm gba:border ${
+                formatting?.isColorMixed
+                  ? 'gba:border-dashed gba:flex gba:items-center gba:justify-center gba:text-[9px] gba:text-muted-foreground'
+                  : ''
+              }`}
+              style={resolvedColor ? { backgroundColor: resolvedColor } : undefined}
+            >
+              {formatting?.isColorMixed ? 'M' : null}
+            </div>
           </Button>
         </PopoverTrigger>
         <PopoverContent className="gba:w-48">

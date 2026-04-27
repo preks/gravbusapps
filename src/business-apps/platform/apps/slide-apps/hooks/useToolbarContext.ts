@@ -16,12 +16,13 @@ import type {
   CodeElement,
   TableElement
 } from '../components/slideElements'
+import type { ResolvedTextFormattingState } from '../utils/richTextEditing'
 
 export type ToolbarContextType = 'none' | 'text' | 'shape' | 'image' | 'video' | 'chart' | 'code' | 'table' | 'multi'
 
 export type ToolbarContext =
   | { type: 'none' }
-  | { type: 'text'; element: TextElement }
+  | { type: 'text'; element: TextElement; formatting?: ResolvedTextFormattingState }
   | { type: 'shape'; element: ShapeElement }
   | { type: 'image'; element: ImageElement }
   | { type: 'video'; element: VideoElement }

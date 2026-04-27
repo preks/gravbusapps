@@ -10,6 +10,9 @@ export const GET_TEAM_MEMBERS = `
       id
       firstName
       lastName
+      workingCondition {
+        hireDate
+      }
       workingHours {
         mondayHours
         tuesdayHours

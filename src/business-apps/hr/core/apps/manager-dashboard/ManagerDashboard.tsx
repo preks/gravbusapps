@@ -185,15 +185,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
               grid-template-columns: 2fr 1fr !important;
             }
           }
-          [data-layout="bottom-row-3col"] {
-            display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-          }
-          [data-layout="bottom-row-3col"] > div {
-            flex: 1 1 0 !important;
-            min-width: 0 !important;
-          }
           @media (min-width: 1920px) {
             [data-testid="manager-dashboard-content"] { font-size: 110%; }
           }
@@ -215,7 +206,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
           }}
           data-desktop-grid="2fr-1fr-main"
         >
-          {/* LEFT COLUMN: Today's Priorities + Your Team */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 1.5vw, 2rem)' }}>
             <TodaysPrioritiesSection
               items={vm.priorities.items}
@@ -238,9 +228,28 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
               onNavigateToTeammates={vm.actions.navigateToTeammates}
               onMemberClick={vm.actions.openMemberPanel}
             />
+
+            <div
+              className="gba:grid"
+              style={{
+                gap: 'clamp(1rem, 1.2vw, 1.5rem)',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'
+              }}
+            >
+              <WorkCapacitySection
+                utilizationPercent={vm.workCapacity.utilizationPercent}
+                idleCount={vm.workCapacity.idleCount}
+                loading={vm.workCapacity.loading.allocation}
+                onNavigateToUnallocatedTeammates={vm.actions.navigateToUnallocatedTeammates}
+              />
+              <OpenPositionsSection
+                openPositions={vm.workCapacity.openPositions}
+                loading={vm.workCapacity.loading.positions}
+                onNavigateToOpenPositions={vm.actions.navigateToOpenPositions}
+              />
+            </div>
           </div>
 
-          {/* RIGHT COLUMN: Team Health + Current Cycle Performance */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 1.5vw, 2rem)' }}>
             <TeamHealthSection
               summary={vm.teamHealth.summary}
@@ -263,34 +272,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
               onNavigateToAtRiskGoals={vm.actions.navigateToGoalsAtRisk}
               onNavigateToTeamPerformanceOverview={vm.actions.navigateToTeamPerformanceOverview}
             />
-          </div>
-        </div>
 
-        {/* BOTTOM ROW: Secondary utility cards — 3 equal columns */}
-        <div
-          data-layout="bottom-row-3col"
-          style={{
-            display: 'flex',
-            gap: 'clamp(1rem, 1.2vw, 1.5rem)',
-            marginBottom: 'clamp(1.5rem, 1.5vw, 2rem)'
-          }}
-        >
-          <div style={{ flex: '1 1 0', minWidth: 0 }}>
-            <WorkCapacitySection
-              utilizationPercent={vm.workCapacity.utilizationPercent}
-              idleCount={vm.workCapacity.idleCount}
-              loading={vm.workCapacity.loading.allocation}
-              onNavigateToUnallocatedTeammates={vm.actions.navigateToUnallocatedTeammates}
-            />
-          </div>
-          <div style={{ flex: '1 1 0', minWidth: 0 }}>
-            <OpenPositionsSection
-              openPositions={vm.workCapacity.openPositions}
-              loading={vm.workCapacity.loading.positions}
-              onNavigateToOpenPositions={vm.actions.navigateToOpenPositions}
-            />
-          </div>
-          <div style={{ flex: '1 1 0', minWidth: 0 }}>
             <PeopleMomentsSection
               birthdays={vm.peopleMoments.birthdays}
               anniversaries={vm.peopleMoments.anniversaries}
