@@ -11,6 +11,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 export type AnalysisType = 'WARNING' | 'INFO'
 
@@ -139,14 +140,20 @@ const normalizeExpenseInsightsResponse = (input: unknown): ExpenseRequestAnalysi
  * Fetch expense insights from the API
  * @param expenseRequestId - The expense request ID to analyze
  * @param accessToken - The access token for authentication
+ * @param language - BCP-47 locale (e.g. 'ro-RO') used to localize `user_text` in the response
  * @returns Promise with the analysis response
  */
-const fetchExpenseInsights = async (expenseRequestId: string, accessToken: string): Promise<ExpenseRequestAnalysis> => {
+const fetchExpenseInsights = async (
+  expenseRequestId: string,
+  accessToken: string,
+  language: string
+): Promise<ExpenseRequestAnalysis> => {
   const url = `${resolveFlowbotBaseUrl()}${EXPENSE_INSIGHTS_ENDPOINT}`
 
   // Send as form-urlencoded (required by the flowbot API)
   const formBody = new URLSearchParams()
   formBody.append('expense_request_id', expenseRequestId)
+  formBody.append('language', language)
 
   const response = await fetch(url, {
     method: 'POST',
@@ -184,6 +191,10 @@ export const useExpenseRequestAnalysis = ({
   const [error, setError] = useState<Error | null>(null)
   const [fetchTrigger, setFetchTrigger] = useState<number>(0)
 
+  // Resolve the active user locale at fetch time so the AI insights are returned
+  // in the user's language. Falls back to 'en-US' inside getCurrentActiveUserLocale.
+  const language = getCurrentActiveUserLocale() || 'en-US'
+
   const fetchAnalysis = useCallback(async () => {
     if (!expenseRequestId) {
       setAnalysis(null)
@@ -201,7 +212,7 @@ export const useExpenseRequestAnalysis = ({
     setError(null)
 
     try {
-      const data = await fetchExpenseInsights(expenseRequestId, accessToken)
+      const data = await fetchExpenseInsights(expenseRequestId, accessToken, language)
       setAnalysis(data)
     } catch (err) {
       console.error('[useExpenseRequestAnalysis] Error fetching analysis:', err)
@@ -210,7 +221,7 @@ export const useExpenseRequestAnalysis = ({
     } finally {
       setLoading(false)
     }
-  }, [expenseRequestId, accessToken, fetchTrigger])
+  }, [expenseRequestId, accessToken, language, fetchTrigger])
 
   useEffect(() => {
     fetchAnalysis()

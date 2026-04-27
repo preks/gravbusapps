@@ -1,6 +1,6 @@
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
 import { RestClient } from '@/common/network/rest/RestClient'
-import { FLOWBOT_API_URL } from '@/common/utils/serviceResolver'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 interface TranslationApiResponse {
   translations: string[]
@@ -22,7 +22,7 @@ export class ContentTranslatorService {
   private readonly restClient: RestClient
 
   constructor(accessToken: string) {
-    this.restClient = new RestClient(FLOWBOT_API_URL, {
+    this.restClient = new RestClient(resolveFlowbotBaseUrl(), {
       Authorization: setAccessTokenToAuthorizationHeader(accessToken)
     })
   }
@@ -60,6 +60,6 @@ export class ContentTranslatorService {
     }
 
     // TODO: Move these content translation calls back into the shared Flowbot client once its translation API is ready.
-    return this.restClient.post<TranslationApiResponse>('/translation/translate', requestBody)
+    return this.restClient.post<TranslationApiResponse>('/flowbot/translation/translate', requestBody)
   }
 }

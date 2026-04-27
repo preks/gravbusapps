@@ -9,6 +9,8 @@ sidebar-brand-subtitle = Aplicații NEWWORK
 sidebar-new = Nou
 sidebar-blank-spreadsheet = Foaie goală
 sidebar-blank-spreadsheet-desc = Începe de la zero
+sidebar-generate-ai = Generează cu AI
+sidebar-generate-ai-desc = Creează foaia cu Flowbot
 sidebar-upload-excel = Încarcă Excel
 sidebar-upload-excel-desc = Importă fișier .xlsx sau .xls
 sidebar-home = Acasă
@@ -420,6 +422,13 @@ dialog-create-name-label = Nume
 dialog-create-name-placeholder = Foaia mea
 dialog-create-cancel = Anulare
 dialog-create-submit = Creează
+dialog-generate-ai-title = Generează cu AI
+dialog-generate-ai-description = Descrie foaia de calcul pe care vrei să o creezi
+dialog-generate-ai-name-label = Titlu
+dialog-generate-ai-name-placeholder = Foaie fără titlu
+dialog-generate-ai-prompt-label = Ce ar trebui să includă foaia de calcul?
+dialog-generate-ai-prompt-placeholder = ex. Creează un tracker pentru pipeline-ul de vânzări cu nume de conturi, responsabili, etape, valori estimate și date de închidere.
+dialog-generate-ai-submit = Deschide în EveryAI
 
 # Toasts / Messages
 toast-removed-from-favorites = Eliminat din favorite
