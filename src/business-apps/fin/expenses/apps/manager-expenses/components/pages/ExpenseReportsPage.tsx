@@ -273,6 +273,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
                 loading={isLoading}
                 error={error}
                 totalCount={totalCount}
+                tableLayout="auto"
                 pagination={pagination}
                 onPaginationChange={handlePaginationChange}
                 emptyMessage={[
