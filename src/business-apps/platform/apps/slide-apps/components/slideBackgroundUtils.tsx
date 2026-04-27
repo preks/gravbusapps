@@ -1,13 +1,11 @@
 import React from 'react'
 import type { SlideBackground } from './slideElements'
 import { gradientToCss } from './slideElements'
-import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
+import { useResolvedSlideMediaUrl } from '../hooks/useResolvedSlideMediaUrl'
 import { sanitizeSlideImageUrl, sanitizeSlideVideoUrl } from '../utils/slideMediaUrl'
 
 export function resolveSlideImageUrl(url: string | undefined): string {
-  const sanitized = sanitizeSlideImageUrl(url)
-  if (!sanitized) return ''
-  return getCachedImageUrl(sanitized)
+  return sanitizeSlideImageUrl(url)
 }
 
 export function resolveSlideVideoUrl(url: string | undefined): string {
@@ -26,17 +24,11 @@ export function getSlideBackgroundStyle(background: SlideBackground): React.CSSP
       return layers.length > 0 ? { background: `${layers.join(', ')}, ${baseColor}` } : { backgroundColor: baseColor }
     }
     case 'image': {
-      const imageUrl = resolveSlideImageUrl(background.imageUrl)
-      return imageUrl
-        ? {
-            backgroundImage: `url(${imageUrl})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center'
-          }
-        : {}
+      return { backgroundColor: background.color || '#000000' }
     }
-    case 'video':
+    case 'video': {
       return { backgroundColor: '#000000' }
+    }
     default:
       return { backgroundColor: background.color || '#ffffff' }
   }
@@ -57,9 +49,22 @@ export function SlideBackgroundMedia({
   className,
   style
 }: SlideBackgroundMediaProps) {
-  if (!renderVideo || background.type !== 'video' || !background.videoUrl) return null
+  const imageUrl = useResolvedSlideMediaUrl(resolveSlideImageUrl(background.imageUrl))
+  const videoUrl = useResolvedSlideMediaUrl(resolveSlideVideoUrl(background.videoUrl))
+  const videoPreviewImageUrl = useResolvedSlideMediaUrl(resolveSlideImageUrl(background.videoPreviewImageUrl))
 
-  const videoUrl = resolveSlideVideoUrl(background.videoUrl)
+  if (background.type === 'image' && imageUrl) {
+    return <img src={imageUrl} alt="" className={className} style={style} draggable={false} />
+  }
+
+  if (background.type !== 'video' || !background.videoUrl) return null
+
+  if (!renderVideo) {
+    return videoPreviewImageUrl ? (
+      <img src={videoPreviewImageUrl} alt="" className={className} style={style} draggable={false} />
+    ) : null
+  }
+
   if (!videoUrl) return null
 
   return (
@@ -68,6 +73,8 @@ export function SlideBackgroundMedia({
       loop={background.videoLoop !== false}
       muted={background.videoMuted !== false}
       playsInline
+      preload="metadata"
+      poster={videoPreviewImageUrl || undefined}
       className={className}
       style={style}
     >

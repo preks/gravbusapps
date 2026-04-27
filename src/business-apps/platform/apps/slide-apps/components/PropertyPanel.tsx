@@ -20,6 +20,7 @@ import {
   CollapsibleTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
+import { toast } from 'sonner'
 import {
   Bold,
   Italic,
@@ -74,8 +75,10 @@ import {
 import { GradientBuilder } from './GradientBuilder'
 import { TransitionPreview } from './TransitionPreview'
 import { sanitizeImageSourceUrl } from '@/common/utils/safeUrlUtils'
+import { SlidesApiService } from '../services'
 import translations from '../_i18n'
 import type { ResolvedTextFormattingState, TextFormattingToggleState } from '../utils/richTextEditing'
+import { getVideoSourceUrl, isEmbedVideoElement } from '../utils/videoElement'
 
 const TRANSITION_TYPES: { value: SlideTransitionType; label: string }[] = [
   { value: 'none', label: 'transition-none' },
@@ -900,15 +903,17 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
     }
   }
 
-  const handleReplaceImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleReplaceImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      onUpdate({ src: reader.result as string })
+    try {
+      const uploadedUrl = await SlidesApiService.uploadFile(file)
+      onUpdate({ src: uploadedUrl })
+    } catch (error) {
+      console.error('[PropertyPanel] Failed to replace image:', error)
+      toast.error(t('editor-image-upload-failed'))
     }
-    reader.readAsDataURL(file)
 
     if (replaceImageInputRef.current) {
       replaceImageInputRef.current.value = ''
@@ -2075,40 +2080,66 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
         <div className="gba:space-y-4">
           <Label className="gba:text-xs gba:font-semibold">{t('props-video-styling')}</Label>
 
-          {/* Object Fit */}
-          <div>
-            <Label className="gba:text-xs">{t('props-object-fit')}</Label>
-            <Select
-              value={videoElement.objectFit}
-              onValueChange={(value: 'cover' | 'contain' | 'fill') => onUpdate({ objectFit: value })}
-            >
-              <SelectTrigger className="gba:text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cover">{t('props-cover')}</SelectItem>
-                <SelectItem value="contain">{t('props-contain')}</SelectItem>
-                <SelectItem value="fill">{t('props-fill')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Playback Options */}
           <div className="gba:space-y-2">
             <Label className="gba:text-xs gba:font-semibold">{t('props-playback')}</Label>
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <Label className="gba:text-xs">{t('props-autoplay')}</Label>
-              <Switch checked={videoElement.autoplay} onCheckedChange={autoplay => onUpdate({ autoplay })} />
-            </div>
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <Label className="gba:text-xs">{t('props-loop')}</Label>
-              <Switch checked={videoElement.loop} onCheckedChange={loop => onUpdate({ loop })} />
-            </div>
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <Label className="gba:text-xs">{t('props-muted')}</Label>
-              <Switch checked={videoElement.muted} onCheckedChange={muted => onUpdate({ muted })} />
-            </div>
+            <p className="gba:text-[11px] gba:text-muted-foreground">{t('props-video-manual-playback')}</p>
           </div>
+
+          {isEmbedVideoElement(videoElement) && (
+            <div className="gba:space-y-3">
+              <div>
+                <Label className="gba:text-xs">{t('props-video-provider')}</Label>
+                <Input
+                  value={videoElement.provider === 'youtube' ? 'YouTube' : t('props-video-type-online')}
+                  readOnly
+                  className="gba:text-xs"
+                  data-testid="slide-props-video-provider-input"
+                />
+              </div>
+              <div>
+                <Label className="gba:text-xs">{t('props-video-source')}</Label>
+                <Input
+                  value={getVideoSourceUrl(videoElement)}
+                  readOnly
+                  className="gba:text-xs"
+                  data-testid="slide-props-video-source-input"
+                />
+              </div>
+            </div>
+          )}
+
+          {!isEmbedVideoElement(videoElement) && (
+            <>
+              {/* Object Fit */}
+              <div>
+                <Label className="gba:text-xs">{t('props-object-fit')}</Label>
+                <Select
+                  value={videoElement.objectFit}
+                  onValueChange={(value: 'cover' | 'contain' | 'fill') => onUpdate({ objectFit: value })}
+                >
+                  <SelectTrigger className="gba:text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cover">{t('props-cover')}</SelectItem>
+                    <SelectItem value="contain">{t('props-contain')}</SelectItem>
+                    <SelectItem value="fill">{t('props-fill')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="gba:space-y-2">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <Label className="gba:text-xs">{t('props-loop')}</Label>
+                  <Switch checked={videoElement.loop} onCheckedChange={loop => onUpdate({ loop })} />
+                </div>
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <Label className="gba:text-xs">{t('props-muted')}</Label>
+                  <Switch checked={videoElement.muted} onCheckedChange={muted => onUpdate({ muted })} />
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Border Radius */}
           <div>

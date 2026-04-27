@@ -90,6 +90,7 @@ function createYBackground(background: SlideData['background']): Y.Map<any> {
   if (background.gradient) yBackground.set('gradient', background.gradient)
   if (background.imageUrl) yBackground.set('imageUrl', background.imageUrl)
   if (background.videoUrl) yBackground.set('videoUrl', background.videoUrl)
+  if (background.videoPreviewImageUrl) yBackground.set('videoPreviewImageUrl', background.videoPreviewImageUrl)
   if (background.videoMuted !== undefined) yBackground.set('videoMuted', background.videoMuted)
   if (background.videoLoop !== undefined) yBackground.set('videoLoop', background.videoLoop)
   return yBackground
@@ -120,8 +121,31 @@ function createYTransition(transition: NonNullable<SlideData['transition']>): Y.
   return yTransition
 }
 
-function jsonEqual(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right)
+function deepEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true
+
+  if (Array.isArray(left) && Array.isArray(right)) {
+    if (left.length !== right.length) return false
+    return left.every((item, index) => deepEqual(item, right[index]))
+  }
+
+  if (
+    left &&
+    right &&
+    typeof left === 'object' &&
+    typeof right === 'object' &&
+    !Array.isArray(left) &&
+    !Array.isArray(right)
+  ) {
+    const leftRecord = left as Record<string, unknown>
+    const rightRecord = right as Record<string, unknown>
+    const leftKeys = Object.keys(leftRecord)
+    const rightKeys = Object.keys(rightRecord)
+    if (leftKeys.length !== rightKeys.length) return false
+    return leftKeys.every(key => deepEqual(leftRecord[key], rightRecord[key]))
+  }
+
+  return false
 }
 
 function setYMapJson(yMap: Y.Map<any>, nextValues: Record<string, unknown>) {
@@ -138,7 +162,7 @@ function setYMapJson(yMap: Y.Map<any>, nextValues: Record<string, unknown>) {
       yMap.delete(key)
       return
     }
-    if (!jsonEqual(yMap.get(key), value)) {
+    if (!deepEqual(yMap.get(key), value)) {
       yMap.set(key, value)
     }
   })
@@ -151,6 +175,7 @@ function backgroundToJson(background: SlideData['background']): Record<string, u
     gradient: background.gradient,
     imageUrl: background.imageUrl,
     videoUrl: background.videoUrl,
+    videoPreviewImageUrl: background.videoPreviewImageUrl,
     videoMuted: background.videoMuted,
     videoLoop: background.videoLoop
   }
@@ -255,6 +280,7 @@ function yjsToSlides(ySlides: Y.Array<Y.Map<any>>): SlideData[] {
         gradient: yBackground.get('gradient'),
         imageUrl: yBackground.get('imageUrl'),
         videoUrl: yBackground.get('videoUrl'),
+        videoPreviewImageUrl: yBackground.get('videoPreviewImageUrl'),
         videoMuted: yBackground.get('videoMuted'),
         videoLoop: yBackground.get('videoLoop')
       }
@@ -543,8 +569,6 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
       // Overwriting with [] would lose the REST-loaded initial slides.
       if (newSlides.length === 0) return
       setSlides(prevSlides => {
-        const prevJson = JSON.stringify(prevSlides)
-        const newJson = JSON.stringify(newSlides)
         if (prevSlides.length !== newSlides.length) {
           console.info('[useSlideCollaboration] Slide count changed from Yjs:', {
             slideId,
@@ -553,7 +577,7 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
             nextSlideIds: newSlides.map(slide => slide.id)
           })
         }
-        return prevJson !== newJson ? newSlides : prevSlides
+        return deepEqual(prevSlides, newSlides) ? prevSlides : newSlides
       })
     }
 

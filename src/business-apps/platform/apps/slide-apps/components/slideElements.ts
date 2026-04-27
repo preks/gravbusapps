@@ -585,6 +585,11 @@ export interface CodeElement extends SlideElement {
 export interface VideoElement extends SlideElement {
   type: 'video'
   src: string
+  sourceUrl?: string
+  embedUrl?: string
+  previewImageUrl?: string
+  videoKind?: 'file' | 'embed'
+  provider?: 'youtube'
   autoplay: boolean
   loop: boolean
   muted: boolean
@@ -854,6 +859,7 @@ export interface SlideBackground {
   overlay?: GradientConfig
   imageUrl?: string
   videoUrl?: string
+  videoPreviewImageUrl?: string
   videoMuted?: boolean
   videoLoop?: boolean
   brandPreset?: 'newwork-dark' | 'newwork-light' | string
@@ -1123,7 +1129,8 @@ export const createVideoElement = (src: string, partial?: Partial<VideoElement>)
   locked: false,
   zIndex: 1,
   src,
-  autoplay: true,
+  videoKind: 'file',
+  autoplay: false,
   loop: true,
   muted: true,
   objectFit: 'cover',

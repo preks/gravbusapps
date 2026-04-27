@@ -1,7 +1,14 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { SlideThumbnail } from '../SlideThumbnail'
-import type { ImageElement, LogoElement, RichTextParagraph, SlideData, TextElement } from '../slideElements'
+import type {
+  ImageElement,
+  LogoElement,
+  RichTextParagraph,
+  SlideData,
+  TextElement,
+  VideoElement
+} from '../slideElements'
 
 void React
 
@@ -77,6 +84,30 @@ function makeLogoElement(overrides: Partial<LogoElement> = {}): LogoElement {
     zIndex: 1,
     preset: 'newwork-light',
     showText: true,
+    ...overrides
+  }
+}
+
+function makeVideoElement(overrides: Partial<VideoElement> = {}): VideoElement {
+  return {
+    id: 'video-1',
+    type: 'video',
+    position: { x: 120, y: 120 },
+    size: { width: 320, height: 180 },
+    rotation: 0,
+    opacity: 1,
+    locked: false,
+    zIndex: 1,
+    src: 'https://cdn.example.com/demo.mp4',
+    sourceUrl: 'https://cdn.example.com/demo.mp4',
+    previewImageUrl: TINY_PNG,
+    videoKind: 'file',
+    autoplay: false,
+    loop: true,
+    muted: true,
+    objectFit: 'contain',
+    borderRadius: 8,
+    shadow: false,
     ...overrides
   }
 }
@@ -174,5 +205,21 @@ describe('SlideThumbnail', () => {
     )
 
     expect(screen.getByTestId('slide-static-element-logo-1')).toHaveTextContent('NEWWORK')
+  })
+
+  it('renders a stored poster image for video previews', () => {
+    render(
+      <SlideThumbnail
+        slide={makeSlide({
+          elements: [makeVideoElement()]
+        })}
+        index={-1}
+        thumbScale={0.125}
+      />
+    )
+
+    const preview = screen.getByTestId('slide-static-element-video-1').querySelector('img')
+    expect(preview).not.toBeNull()
+    expect(preview).toHaveAttribute('src', expect.stringContaining('data:image/png'))
   })
 })

@@ -20,6 +20,7 @@ import { RichTextContent } from './RichTextContent'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import { renderShape as renderSharedShape } from './slideRenderUtils'
 import { sanitizeSlideImageUrl } from '../utils/slideMediaUrl'
+import { getVideoSourceUrl, isEmbedVideoElement, resolveVideoPreviewUrl } from '../utils/videoElement'
 
 /**
  * Default export dimensions when the deck has no declared canvas size.
@@ -257,6 +258,8 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
       {element.type === 'video' &&
         (() => {
           const videoEl: VideoElement = element
+          const previewImageUrl = sanitizeSlideImageUrl(resolveVideoPreviewUrl(videoEl))
+          const label = isEmbedVideoElement(videoEl) ? 'Online video' : 'Video'
           return (
             <div
               style={{
@@ -268,10 +271,35 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'hsl(var(--background))',
-                fontSize: '14px'
+                fontSize: '14px',
+                position: 'relative',
+                overflow: 'hidden'
               }}
             >
-              <span>Video: {videoEl.src}</span>
+              {previewImageUrl ? (
+                <img
+                  src={previewImageUrl}
+                  alt=""
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: videoEl.objectFit,
+                    position: 'absolute',
+                    inset: 0
+                  }}
+                />
+              ) : null}
+              <span
+                style={{
+                  position: 'relative',
+                  zIndex: 1,
+                  padding: '6px 10px',
+                  borderRadius: 999,
+                  background: 'hsl(var(--foreground) / 0.65)'
+                }}
+              >
+                {label}: {getVideoSourceUrl(videoEl)}
+              </span>
             </div>
           )
         })()}
@@ -379,7 +407,14 @@ const getBackgroundStyle = (background: SlideData['background']): React.CSSPrope
           }
         : {}
     case 'video':
-      return { backgroundColor: '#000000' }
+      return background.videoPreviewImageUrl
+        ? {
+            backgroundImage: `url(${sanitizeSlideImageUrl(background.videoPreviewImageUrl)})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundColor: '#000000'
+          }
+        : { backgroundColor: '#000000' }
     default:
       return { backgroundColor: background.color || '#ffffff' }
   }
@@ -412,7 +447,7 @@ const ExportSlide: React.FC<{ slide: SlideData }> = ({ slide }) => {
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundColor: 'hsl(var(--foreground))',
+            backgroundColor: slide.background.videoPreviewImageUrl ? 'transparent' : 'hsl(var(--foreground))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

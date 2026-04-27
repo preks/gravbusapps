@@ -2,7 +2,7 @@ import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { SlideCanvas } from '../SlideCanvas'
 import { createShapeFromPreset } from '../slideElements'
-import type { CodeElement, ShapeElement, TextElement } from '../slideElements'
+import type { CodeElement, ShapeElement, TextElement, VideoElement } from '../slideElements'
 import { createDefaultShapeText } from '../../utils/richTextEditing'
 
 void React
@@ -80,6 +80,32 @@ function makeGenericTriangleElement(overrides: Partial<ShapeElement> = {}): Shap
       shapeType: 'triangle',
       geometry: { sourceFormat: 'native' }
     }),
+    ...overrides
+  }
+}
+
+function makeVideoElement(overrides: Partial<VideoElement> = {}): VideoElement {
+  return {
+    id: 'video-1',
+    type: 'video',
+    position: { x: 100, y: 100 },
+    size: { width: 480, height: 270 },
+    rotation: 0,
+    opacity: 1,
+    locked: false,
+    zIndex: 1,
+    src: 'https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0',
+    sourceUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0',
+    previewImageUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+    videoKind: 'embed',
+    provider: 'youtube',
+    autoplay: false,
+    loop: false,
+    muted: true,
+    objectFit: 'contain',
+    borderRadius: 8,
+    shadow: false,
     ...overrides
   }
 }
@@ -374,5 +400,23 @@ describe('SlideCanvas inline editing drag behavior', () => {
     expect(filledPrimitive).not.toBeNull()
     expect(filledPrimitive?.getAttribute('fill')).toMatch(/^url\(#.+\)$/)
     expect(filledPrimitive?.getAttribute('fill')).not.toContain('linear-gradient(')
+  })
+})
+
+describe('SlideCanvas video rendering', () => {
+  it('renders embedded videos as iframes', () => {
+    render(
+      <SlideCanvas
+        elements={[makeVideoElement()]}
+        selectedIds={new Set()}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={() => {}}
+      />
+    )
+
+    expect(screen.getByTestId('slide-video-embed-video-1')).toBeInTheDocument()
   })
 })

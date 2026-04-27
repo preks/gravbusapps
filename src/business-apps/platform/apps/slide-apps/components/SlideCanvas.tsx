@@ -43,8 +43,9 @@ import { ShapePointEditor } from './ShapePointEditor'
 import { SlideStaticElementContent } from './SlideStaticElementContent'
 import { getSlideBackgroundStyle, SlideBackgroundMedia } from './slideBackgroundUtils'
 import { renderShape as renderSharedShape } from './slideRenderUtils'
-import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
+import { useResolvedSlideMediaUrl } from '../hooks/useResolvedSlideMediaUrl'
 import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
+import { isEmbedVideoElement, resolveVideoPlaybackUrl, resolveVideoPreviewUrl } from '../utils/videoElement'
 import { createDefaultShapeText, type RichTextSelectionRange } from '../utils/richTextEditing'
 
 const hexToRgba = (hex: string, alpha: number): string => {
@@ -71,6 +72,95 @@ const sanitizeMediaUrl = (url: string | undefined, allowedTypes: string[] = ['im
     if (sanitized) return sanitized
   }
   return ''
+}
+
+function CanvasImageElement({ element, onError }: { element: ImageElement; onError: () => void }) {
+  const imageUrl = useResolvedSlideMediaUrl(sanitizeMediaUrl(element.src, ['image/']))
+  const crop = getImageCropStyles(element.cropRect)
+  const commonVisualStyle = {
+    borderRadius: element.borderRadius,
+    border: element.borderWidth > 0 ? `${element.borderWidth}px solid ${element.borderColor}` : 'none',
+    boxShadow: element.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+  }
+
+  if (!imageUrl) return null
+
+  if (crop.wrapperNeeded) {
+    return (
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+          ...commonVisualStyle
+        }}
+      >
+        <img src={imageUrl} alt={element.alt} style={crop.imgStyle} draggable={false} onError={onError} />
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={imageUrl}
+      alt={element.alt}
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: element.objectFit,
+        ...commonVisualStyle
+      }}
+      draggable={false}
+      onError={onError}
+    />
+  )
+}
+
+function CanvasVideoElement({ element }: { element: VideoElement }) {
+  const previewImageUrl = useResolvedSlideMediaUrl(resolveVideoPreviewUrl(element))
+  const playbackUrl = useResolvedSlideMediaUrl(resolveVideoPlaybackUrl(element))
+
+  if (!playbackUrl) return null
+
+  if (isEmbedVideoElement(element)) {
+    return (
+      <iframe
+        src={playbackUrl}
+        title={element.provider === 'youtube' ? 'YouTube video' : 'Embedded video'}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+        data-testid={`slide-video-embed-${element.id}`}
+        style={{
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          borderRadius: element.borderRadius,
+          boxShadow: element.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+        }}
+      />
+    )
+  }
+
+  return (
+    <video
+      src={playbackUrl}
+      controls
+      loop={element.loop}
+      muted={element.muted}
+      playsInline
+      preload="metadata"
+      poster={previewImageUrl || undefined}
+      data-testid={`slide-video-element-${element.id}`}
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: element.objectFit,
+        borderRadius: element.borderRadius,
+        boxShadow: element.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+      }}
+    />
+  )
 }
 interface InlineEditingProps {
   editingTextId: string | null
@@ -1595,70 +1685,25 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
 
           {element.type === 'image' && (
             <>
-              {!failedImages.has(element.id) && sanitizeMediaUrl(element.src, ['image/'])
-                ? (() => {
-                    const imgEl: ImageElement = element
-                    const crop = getImageCropStyles(imgEl.cropRect)
-                    const commonVisualStyle = {
-                      borderRadius: imgEl.borderRadius,
-                      border: imgEl.borderWidth > 0 ? `${imgEl.borderWidth}px solid ${imgEl.borderColor}` : 'none',
-                      boxShadow: imgEl.shadow
-                        ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-                        : 'none'
-                    }
-
-                    if (crop.wrapperNeeded) {
-                      return (
-                        <div
-                          style={{
-                            position: 'relative',
-                            width: '100%',
-                            height: '100%',
-                            overflow: 'hidden',
-                            ...commonVisualStyle
-                          }}
-                        >
-                          <img
-                            src={getCachedImageUrl(sanitizeMediaUrl(imgEl.src, ['image/']))}
-                            alt={imgEl.alt}
-                            style={crop.imgStyle}
-                            draggable={false}
-                            onError={() => handleImageError(element.id)}
-                          />
-                        </div>
-                      )
-                    }
-
-                    return (
-                      <img
-                        src={getCachedImageUrl(sanitizeMediaUrl(imgEl.src, ['image/']))}
-                        alt={imgEl.alt}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: imgEl.objectFit,
-                          ...commonVisualStyle
-                        }}
-                        draggable={false}
-                        onError={() => handleImageError(element.id)}
-                      />
-                    )
-                  })()
-                : (() => {
-                    const imgEl: ImageElement = element
-                    return (
-                      <div
-                        className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:text-muted-foreground gba:rounded"
-                        style={{
-                          borderRadius: imgEl.borderRadius,
-                          border: imgEl.borderWidth > 0 ? `${imgEl.borderWidth}px solid ${imgEl.borderColor}` : 'none'
-                        }}
-                      >
-                        <ImageOff className="gba:w-8 gba:h-8 gba:mb-2" />
-                        <span className="gba:text-xs">Image failed to load</span>
-                      </div>
-                    )
-                  })()}
+              {!failedImages.has(element.id) && sanitizeMediaUrl(element.src, ['image/']) ? (
+                <CanvasImageElement element={element} onError={() => handleImageError(element.id)} />
+              ) : (
+                (() => {
+                  const imgEl: ImageElement = element
+                  return (
+                    <div
+                      className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:text-muted-foreground gba:rounded"
+                      style={{
+                        borderRadius: imgEl.borderRadius,
+                        border: imgEl.borderWidth > 0 ? `${imgEl.borderWidth}px solid ${imgEl.borderColor}` : 'none'
+                      }}
+                    >
+                      <ImageOff className="gba:w-8 gba:h-8 gba:mb-2" />
+                      <span className="gba:text-xs">Image failed to load</span>
+                    </div>
+                  )
+                })()
+              )}
             </>
           )}
 
@@ -1734,30 +1779,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               )
             })()}
 
-          {element.type === 'video' &&
-            (() => {
-              const videoEl: VideoElement = element
-              const sanitized = sanitizeMediaUrl(videoEl.src, ['video/'])
-              if (!sanitized) return null
-              return (
-                <video
-                  src={sanitized}
-                  autoPlay={videoEl.autoplay}
-                  loop={videoEl.loop}
-                  muted={videoEl.muted}
-                  playsInline
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: videoEl.objectFit,
-                    borderRadius: videoEl.borderRadius,
-                    boxShadow: videoEl.shadow
-                      ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-                      : 'none'
-                  }}
-                />
-              )
-            })()}
+          {element.type === 'video' && (() => <CanvasVideoElement element={element} />)()}
 
           {element.type === 'table' &&
             (() => {

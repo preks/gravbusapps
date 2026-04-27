@@ -21,14 +21,116 @@ import { SlideChartRenderer } from './SlideChartRenderer'
 import { RichTextContent } from './RichTextContent'
 import { TextWithLinks } from './TextWithLinks'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
-import { resolveSlideImageUrl, resolveSlideVideoUrl } from './slideBackgroundUtils'
 import { renderShape as renderSharedShape } from './slideRenderUtils'
+import { useResolvedSlideMediaUrl } from '../hooks/useResolvedSlideMediaUrl'
+import { isEmbedVideoElement, resolveVideoPlaybackUrl, resolveVideoPreviewUrl } from '../utils/videoElement'
 
 interface SlideStaticElementContentProps {
   element: AnySlideElement
   isPresenting?: boolean
   onLinkClick?: (url: string, linkId: string, e: React.MouseEvent) => void
   renderVideoElement?: boolean
+}
+
+function StaticImageContent({ element }: { element: ImageElement }) {
+  const imageUrl = useResolvedSlideMediaUrl(element.src)
+  const crop = getImageCropStyles(element.cropRect)
+  const commonStyle = {
+    borderRadius: element.borderRadius,
+    border: element.borderWidth > 0 ? `${element.borderWidth}px solid ${element.borderColor}` : 'none',
+    boxShadow: element.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+  }
+
+  if (!imageUrl) return null
+
+  return crop.wrapperNeeded ? (
+    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', ...commonStyle }}>
+      <img src={imageUrl} alt={element.alt} style={crop.imgStyle} draggable={false} />
+    </div>
+  ) : (
+    <img
+      src={imageUrl}
+      alt={element.alt}
+      style={{ width: '100%', height: '100%', objectFit: element.objectFit, ...commonStyle }}
+      draggable={false}
+    />
+  )
+}
+
+function StaticVideoContent({ element, renderVideoElement }: { element: VideoElement; renderVideoElement: boolean }) {
+  const previewImageUrl = useResolvedSlideMediaUrl(resolveVideoPreviewUrl(element))
+  const videoUrl = useResolvedSlideMediaUrl(resolveVideoPlaybackUrl(element))
+
+  if (!renderVideoElement) {
+    if (previewImageUrl) {
+      return (
+        <img
+          src={previewImageUrl}
+          alt=""
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: element.objectFit,
+            borderRadius: element.borderRadius,
+            boxShadow: element.shadow
+              ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+              : 'none'
+          }}
+          draggable={false}
+        />
+      )
+    }
+
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'hsl(var(--foreground))',
+          borderRadius: element.borderRadius
+        }}
+      />
+    )
+  }
+
+  if (!videoUrl) return null
+
+  if (isEmbedVideoElement(element)) {
+    return (
+      <iframe
+        src={videoUrl}
+        title={element.provider === 'youtube' ? 'YouTube video' : 'Embedded video'}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+        style={{
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          borderRadius: element.borderRadius,
+          boxShadow: element.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+        }}
+      />
+    )
+  }
+
+  return (
+    <video
+      src={videoUrl}
+      controls
+      loop={element.loop}
+      muted={element.muted}
+      playsInline
+      preload="metadata"
+      poster={previewImageUrl || undefined}
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: element.objectFit,
+        borderRadius: element.borderRadius,
+        boxShadow: element.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+      }}
+    />
+  )
 }
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -389,30 +491,7 @@ export function SlideStaticElementContent({
 
   if (element.type === 'shape') return renderShapeContent(element, isPresenting, onLinkClick)
 
-  if (element.type === 'image') {
-    const imageEl: ImageElement = element
-    const imageUrl = resolveSlideImageUrl(imageEl.src)
-    if (!imageUrl) return null
-    const crop = getImageCropStyles(imageEl.cropRect)
-    const commonStyle = {
-      borderRadius: imageEl.borderRadius,
-      border: imageEl.borderWidth > 0 ? `${imageEl.borderWidth}px solid ${imageEl.borderColor}` : 'none',
-      boxShadow: imageEl.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
-    }
-
-    return crop.wrapperNeeded ? (
-      <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', ...commonStyle }}>
-        <img src={imageUrl} alt={imageEl.alt} style={crop.imgStyle} draggable={false} />
-      </div>
-    ) : (
-      <img
-        src={imageUrl}
-        alt={imageEl.alt}
-        style={{ width: '100%', height: '100%', objectFit: imageEl.objectFit, ...commonStyle }}
-        draggable={false}
-      />
-    )
-  }
+  if (element.type === 'image') return <StaticImageContent element={element} />
 
   if (element.type === 'code') {
     const codeEl: CodeElement = element
@@ -442,39 +521,7 @@ export function SlideStaticElementContent({
     )
   }
 
-  if (element.type === 'video') {
-    const videoEl: VideoElement = element
-    const videoUrl = resolveSlideVideoUrl(videoEl.src)
-    if (!renderVideoElement || !videoUrl) {
-      return (
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'hsl(var(--foreground))',
-            borderRadius: videoEl.borderRadius
-          }}
-        />
-      )
-    }
-
-    return (
-      <video
-        src={videoUrl}
-        autoPlay={videoEl.autoplay}
-        loop={videoEl.loop}
-        muted={videoEl.muted}
-        playsInline
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: videoEl.objectFit,
-          borderRadius: videoEl.borderRadius,
-          boxShadow: videoEl.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
-        }}
-      />
-    )
-  }
+  if (element.type === 'video') return <StaticVideoContent element={element} renderVideoElement={renderVideoElement} />
 
   if (element.type === 'table') {
     const tableEl: TableElement = element
