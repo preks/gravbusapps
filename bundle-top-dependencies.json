@@ -87947,20 +87947,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11436,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11436/",
-    "chunkJsBytes": 1834549,
+    "bitbucketBuildNumber": 11441,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11441/",
+    "chunkJsBytes": 1834556,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1530384,
-        "gzip": 92425,
+        "gzip": 92490,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1530384,
-            "gzip": 92425
+            "gzip": 92490
           }
         ]
       },
@@ -103481,9 +103481,9 @@
     ]
   },
   "platform/apps/people": {
-    "bitbucketBuildNumber": 11423,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11423/",
-    "chunkJsBytes": 408766,
+    "bitbucketBuildNumber": 11441,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11441/",
+    "chunkJsBytes": 409139,
     "top": [
       {
         "kind": "bucket",
@@ -103506,8 +103506,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 137286,
-        "gzip": 35209,
+        "rendered": 137696,
+        "gzip": 35331,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/people/PeopleRemoteApp.tsx",
@@ -103745,7 +103745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-27T13:13:09.364Z",
+    "generatedAt": "2026-04-27T14:21:39.363Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
