@@ -1,5 +1,10 @@
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 import type { SetupAddEmployeesOuType } from '../setup-add-employees/setupAddEmployeesHasura'
+import {
+  buildOuEnrichmentMap,
+  fetchPeopleOrgchartStructure,
+  type PeopleOrgchartOuEnrichment
+} from './peopleDepartmentOrgchart'
 
 /** Row for People employees tab (sourced from `hrActiveEmployees` dataset). */
 export type PeopleEmployeeRow = {
@@ -24,6 +29,15 @@ export type PeopleOrganizationalUnitRow = {
   type?: string | null
   /** Display string for employee(s) with Manager role on this OU; null if none. */
   managerDisplayName: string | null
+  /** Orgchart graph node id for create/update APIs; absent if structure could not be merged. */
+  nodeId?: string | null
+  description?: string | null
+  companyId?: string | null
+  costCenterId?: string | null
+  costCenterName?: string | null
+  /** `organizationalUnitData.type` from orgchart (e.g. DEPARTMENT, TEAM, MANAGEMENT). */
+  orgchartUnitType?: string | null
+  rank?: number | null
 }
 
 type PeopleOuManagerLinkGql = {
@@ -188,13 +202,31 @@ export async function fetchOrganizationalUnitsPage(
     managersByOuId = groupManagersByOrganizationalUnitId(mgrData.EmployeeOrganizationalUnit ?? [])
   }
 
+  let enrichmentByOuId = new Map<string, PeopleOrgchartOuEnrichment>()
+  try {
+    const { nodes } = await fetchPeopleOrgchartStructure(accessToken, structureId)
+    enrichmentByOuId = buildOuEnrichmentMap(nodes)
+  } catch {
+    enrichmentByOuId = new Map()
+  }
+
   return {
-    rows: raw.map(ou => ({
-      id: ou.id,
-      name: ou.name,
-      type: ou.type,
-      managerDisplayName: formatManagerDisplayName(managersByOuId.get(ou.id) ?? null)
-    })),
+    rows: raw.map(ou => {
+      const e = enrichmentByOuId.get(ou.id)
+      return {
+        id: ou.id,
+        name: ou.name,
+        type: ou.type,
+        managerDisplayName: formatManagerDisplayName(managersByOuId.get(ou.id) ?? null),
+        nodeId: e?.nodeId ?? null,
+        description: e ? e.description : null,
+        companyId: e?.companyId ?? null,
+        costCenterId: e?.costCenterId ?? null,
+        costCenterName: e?.costCenterName ?? null,
+        orgchartUnitType: e?.orgchartUnitType ?? null,
+        rank: e?.rank ?? null
+      }
+    }),
     totalCount: data.OrganizationalUnitAggregate?.aggregate?.count ?? 0
   }
 }

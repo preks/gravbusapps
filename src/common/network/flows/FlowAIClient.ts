@@ -50,7 +50,6 @@ export class FlowAIClient {
    */
   async generateFlowTemplate(prompt: string, accessToken: string): Promise<FlowTemplate> {
     try {
-      // Use resolveFlowbotBaseUrl to automatically route to localhost:8000 when running locally
       const baseUrl = resolveFlowbotBaseUrl()
 
       const formData = new URLSearchParams()

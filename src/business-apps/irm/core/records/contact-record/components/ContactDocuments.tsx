@@ -109,6 +109,7 @@ const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context 
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}
       deleteActionProps={documentDeleteActionProps}
+      aiOrganizeConfig={{ moduleType: 'IRM', entityType: 'CONTACT', domain: 'investment' }}
       toolbarActions={uploadToolbarActions}
       data-testid="contact-document-section"
       {...context}

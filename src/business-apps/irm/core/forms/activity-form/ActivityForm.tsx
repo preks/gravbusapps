@@ -103,6 +103,23 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     [relatedEntityIds]
   )
 
+  // True when the loaded activity already has at least one related entity. We
+  // only lock the association pickers in update mode if the activity actually
+  // has something to lock — otherwise we let the user pick an entity now.
+  const hasExistingEntity = useMemo(
+    () =>
+      Boolean(
+        activity?.accountId ||
+          activity?.contactId ||
+          activity?.opportunityId ||
+          activity?.leadId ||
+          activity?.investmentId
+      ),
+    [activity]
+  )
+
+  const lockEntityAssociations = isUpdateMode && hasExistingEntity
+
   const activityRef = useRef(activity)
   useEffect(() => {
     if (activityRef.current?.id !== activity?.id) {
@@ -130,11 +147,18 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   }, [activity?.id, activity, form, hydrateEntityById, occurredAt])
 
   useEffect(() => {
-    if (accessToken && !activityId) {
-      // Only trigger initial search in create mode
+    if (!accessToken) return
+    // Create mode: always seed the entity search.
+    if (!activityId) {
+      searchEntities('')
+      return
+    }
+    // Update mode: also seed the search once the activity has loaded with no
+    // existing related entity, so the user can still pick one.
+    if (activity && !hasExistingEntity) {
       searchEntities('')
     }
-  }, [accessToken, activityId, searchEntities])
+  }, [accessToken, activityId, activity, hasExistingEntity, searchEntities])
 
   const handleSubmit = useCallback(
     async (data: z.infer<typeof activitySchema>) => {
@@ -143,17 +167,18 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
         delete data._pendingFiles
         delete data.relatedEntityId
 
-        // In update mode, all entity associations + the owner are locked in the UI.
-        // Re-stamp the canonical ids from the loaded activity so the payload always
-        // round-trips the original associations regardless of any transient form
-        // state (avoids accidental clears caused by re-renders / hydration races).
+        // In update mode, owner + any pre-existing entity associations are
+        // locked in the UI. Re-stamp the canonical ids from the loaded activity
+        // for fields that were already populated so the payload round-trips the
+        // original associations regardless of any transient form state. Slots
+        // that were empty on load remain editable, so we keep the user's choice.
         const loaded = activityRef.current
         if (isUpdateMode && loaded) {
-          ;(data as any).accountId = loaded.accountId ?? null
-          ;(data as any).contactId = loaded.contactId ?? null
-          ;(data as any).leadId = loaded.leadId ?? null
-          ;(data as any).opportunityId = loaded.opportunityId ?? null
-          ;(data as any).investmentId = loaded.investmentId ?? null
+          if (loaded.accountId) (data as any).accountId = loaded.accountId
+          if (loaded.contactId) (data as any).contactId = loaded.contactId
+          if (loaded.leadId) (data as any).leadId = loaded.leadId
+          if (loaded.opportunityId) (data as any).opportunityId = loaded.opportunityId
+          if (loaded.investmentId) (data as any).investmentId = loaded.investmentId
           ;(data as any).ownerEmployeeId = loaded.ownerEmployeeId ?? loaded.ownerEmployee?.id ?? null
         }
 
@@ -345,7 +370,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
           readOnlyOwner={isUpdateMode}
           data-testid="investment-activity-layout"
           associationFields={
-            isUpdateMode ? (
+            lockEntityAssociations ? (
               <ActivityAssociationsReadOnly
                 variant="irm"
                 activity={activity}

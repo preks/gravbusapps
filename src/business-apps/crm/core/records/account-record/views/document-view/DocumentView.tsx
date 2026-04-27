@@ -110,6 +110,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}
       deleteActionProps={documentDeleteActionProps}
+      aiOrganizeConfig={{ moduleType: 'CRM', entityType: 'ACCOUNT', domain: 'customer' }}
       toolbarActions={uploadToolbarActions}
       data-testid="account-document-section"
       accessToken={context.accessToken}

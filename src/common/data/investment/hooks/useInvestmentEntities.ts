@@ -202,6 +202,7 @@ export const useInvestmentEntities = (context: BusinessAppContextProps) => {
         const key = `${variables.searchPattern}|${variables.limit}|${variables.offset}`
         if (inFlightRef.current?.key === key) {
           await inFlightRef.current.promise
+          return
         }
         const promise = graphqlClient.request<InvestmentEntitiesResponse>(
           GET_INVESTMENT_RELATION_ENTITIES_QUERY,
@@ -317,7 +318,7 @@ export const useInvestmentEntities = (context: BusinessAppContextProps) => {
   )
 
   const loadMore = useCallback(async () => {
-    if (!searchTerm || loading || !hasMore) return
+    if (loading || !hasMore) return
     await fetchPage(searchTerm, offset + PAGE_SIZE, true)
   }, [fetchPage, hasMore, loading, offset, PAGE_SIZE, searchTerm])
 
