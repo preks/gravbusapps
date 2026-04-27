@@ -2,7 +2,7 @@ import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { SlideCanvas } from '../SlideCanvas'
 import { createShapeFromPreset } from '../slideElements'
-import type { ShapeElement, TextElement } from '../slideElements'
+import type { CodeElement, ShapeElement, TextElement } from '../slideElements'
 import { createDefaultShapeText } from '../../utils/richTextEditing'
 
 void React
@@ -45,6 +45,32 @@ function makeShapeElement(overrides: Partial<ShapeElement> = {}): ShapeElement {
     }),
     ...overrides
   })
+}
+
+function makeCodeElement(overrides: Partial<CodeElement> = {}): CodeElement {
+  return {
+    id: 'code-1',
+    type: 'code',
+    position: { x: 100, y: 100 },
+    size: { width: 320, height: 180 },
+    rotation: 0,
+    opacity: 1,
+    locked: false,
+    zIndex: 1,
+    code: 'const answer = 42;',
+    language: 'typescript',
+    theme: 'dark',
+    showLineNumbers: false,
+    fontSize: 16,
+    textColor: '#d4d4d4',
+    backgroundColor: '#1e1e1e',
+    borderRadius: 8,
+    borderWidth: 0,
+    borderColor: '#333333',
+    shadow: false,
+    padding: 16,
+    ...overrides
+  }
 }
 
 function makeGenericTriangleElement(overrides: Partial<ShapeElement> = {}): ShapeElement {
@@ -144,6 +170,36 @@ describe('SlideCanvas inline editing drag behavior', () => {
     expect(onDragStart).not.toHaveBeenCalled()
     expect(onUpdateElement).not.toHaveBeenCalled()
     expect(onDragEnd).not.toHaveBeenCalled()
+  })
+
+  it('does not cancel Space or Enter while editing a code element', () => {
+    const onSelectElements = jest.fn()
+    const onFinishEditing = jest.fn()
+
+    render(
+      <SlideCanvas
+        elements={[makeCodeElement()]}
+        selectedIds={new Set(['code-1'])}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={onSelectElements}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={() => {}}
+        inlineEditing={{
+          editingTextId: 'code-1',
+          onTextChange: () => {},
+          onSelectionChange: () => {},
+          onFinishEditing
+        }}
+      />
+    )
+
+    const editor = screen.getByRole('textbox')
+
+    expect(fireEvent.keyDown(editor, { key: ' ' })).toBe(true)
+    expect(fireEvent.keyDown(editor, { key: 'Enter' })).toBe(true)
+    expect(onSelectElements).not.toHaveBeenCalled()
+    expect(onFinishEditing).not.toHaveBeenCalled()
   })
 
   it('selects a locked element without starting drag or inline editing', () => {

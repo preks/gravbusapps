@@ -145,6 +145,19 @@ interface SlideCanvasProps {
 
 type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
 
+function isKeyboardEventFromTextInput(target: EventTarget | null): boolean {
+  const targetElement = target instanceof HTMLElement ? target : target instanceof Node ? target.parentElement : null
+
+  if (!targetElement) return false
+
+  return (
+    targetElement.tagName === 'INPUT' ||
+    targetElement.tagName === 'TEXTAREA' ||
+    targetElement.isContentEditable ||
+    targetElement.closest('[contenteditable="true"]') !== null
+  )
+}
+
 function shouldUseSharedStaticRenderer(
   element: AnySlideElement,
   editingTextId: string | null | undefined,
@@ -1158,6 +1171,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             }}
             onMouseDown={e => handleElementMouseDown(e, element)}
             onKeyDown={e => {
+              if (isKeyboardEventFromTextInput(e.target)) return
+
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
                 if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
@@ -1212,6 +1227,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           }}
           onMouseDown={e => handleElementMouseDown(e, element)}
           onKeyDown={e => {
+            if (isKeyboardEventFromTextInput(e.target)) return
+
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault()
               if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
@@ -1681,6 +1698,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                     value={ce.code}
                     onChange={e => inlineEditing.onTextChange(e.target.value)}
                     onKeyDown={e => {
+                      if (e.key !== 'Escape') {
+                        e.stopPropagation()
+                      }
+
                       if (e.key === 'Escape') {
                         e.preventDefault()
                         textareaInitializedRef.current = null
