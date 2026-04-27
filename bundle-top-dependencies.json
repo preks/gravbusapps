@@ -24367,9 +24367,9 @@
     ]
   },
   "fin/expenses/apps/backoffice-expenses": {
-    "bitbucketBuildNumber": 11381,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
-    "chunkJsBytes": 1056608,
+    "bitbucketBuildNumber": 11406,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11406/",
+    "chunkJsBytes": 1056968,
     "top": [
       {
         "kind": "bucket",
@@ -24392,8 +24392,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/fin",
-        "rendered": 647566,
-        "gzip": 169815,
+        "rendered": 648052,
+        "gzip": 169940,
         "leaves": [
           {
             "name": "src/business-apps/fin/expenses/apps/backoffice-expenses/hooks/useDashboardStats.ts",
@@ -28811,9 +28811,9 @@
     ]
   },
   "fin/expenses/apps/manager-expenses": {
-    "bitbucketBuildNumber": 11347,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11347/",
-    "chunkJsBytes": 2650777,
+    "bitbucketBuildNumber": 11406,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11406/",
+    "chunkJsBytes": 2652098,
     "top": [
       {
         "kind": "bucket",
@@ -28872,8 +28872,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/fin",
-        "rendered": 498978,
-        "gzip": 127063,
+        "rendered": 499165,
+        "gzip": 127712,
         "leaves": [
           {
             "name": "src/business-apps/fin/expenses/apps/manager-expenses/components/pages/TeamSpendingAnalyticsPage.tsx",
@@ -28890,8 +28890,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 347303,
-        "gzip": 84097,
+        "rendered": 350170,
+        "gzip": 84572,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/components/DynamicFormDisplay.tsx",
@@ -28908,8 +28908,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 159654,
-        "gzip": 41210,
+        "rendered": 159628,
+        "gzip": 41202,
         "leaves": [
           {
             "name": "src/common/data/relations/types/leadTypes.ts",
@@ -29153,9 +29153,9 @@
     ]
   },
   "fin/expenses/apps/personal-expenses": {
-    "bitbucketBuildNumber": 11393,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11393/",
-    "chunkJsBytes": 2402536,
+    "bitbucketBuildNumber": 11406,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11406/",
+    "chunkJsBytes": 2402552,
     "top": [
       {
         "kind": "bucket",
@@ -29214,8 +29214,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/fin",
-        "rendered": 580414,
-        "gzip": 156795,
+        "rendered": 580432,
+        "gzip": 156797,
         "leaves": [
           {
             "name": "src/business-apps/fin/expenses/apps/personal-expenses/components/tabs/advance-payments-tab/hooks/useAdvancePaymentsTableModel.tsx",
@@ -87937,20 +87937,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11404,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11404/",
-    "chunkJsBytes": 1834135,
+    "bitbucketBuildNumber": 11406,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11406/",
+    "chunkJsBytes": 1834141,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1529882,
-        "gzip": 93177,
+        "gzip": 93247,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1529882,
-            "gzip": 93177
+            "gzip": 93247
           }
         ]
       },
@@ -103735,7 +103735,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-27T08:46:24.159Z",
+    "generatedAt": "2026-04-27T09:08:32.469Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
