@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { JobPosition } from '@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/hooks/useJobPositionListData'
+import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
 
 // Re-export JobPosition for use in ManagerDashboard
 export type { JobPosition }
@@ -69,6 +70,9 @@ export const useOpenJobPositions = ({
               isDeleted: { _eq: false }
             }
           ) {
+            workingCondition {
+              hireDate
+            }
             employeePosition {
               organizationalUnitId
               organizationalUnit {
@@ -87,7 +91,8 @@ export const useOpenJobPositions = ({
       // Extract unique org unit IDs from direct reports
       const orgUnitIds: string[] = []
       if (orgUnitsResponse?.Employee) {
-        orgUnitsResponse.Employee.forEach((emp: any) => {
+        const activeEmployees = filterEmployeesByStartedEmployment(orgUnitsResponse.Employee)
+        activeEmployees.forEach((emp: any) => {
           const orgUnitId = emp.employeePosition?.organizationalUnitId
           if (orgUnitId && !orgUnitIds.includes(orgUnitId)) {
             orgUnitIds.push(orgUnitId)

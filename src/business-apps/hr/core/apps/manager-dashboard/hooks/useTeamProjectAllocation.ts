@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
 
 export interface TeamAllocationData {
   teamId: string
@@ -46,6 +47,9 @@ const DIRECT_REPORT_IDS_QUERY = `
       }
     ) {
       id
+      workingCondition {
+        hireDate
+      }
     }
   }
 `
@@ -89,8 +93,10 @@ const ALLOCATION_QUERY_WITHOUT_STRUCTURE = `
   }
 `
 
-const employeeIdsFromResponse = (response: any): string[] =>
-  response?.Employee?.map((employee: any) => employee.id) ?? []
+const employeeIdsFromResponse = (response: any): string[] => {
+  const employees = filterEmployeesByStartedEmployment(response?.Employee ?? [])
+  return employees.map((employee: any) => employee.id)
+}
 
 const baseEmployeeAllocationMap = (employeeIds: string[]): Map<string, number> => {
   const map = new Map<string, number>()
