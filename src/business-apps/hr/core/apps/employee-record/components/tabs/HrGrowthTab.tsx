@@ -224,7 +224,13 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
           {devFeatureFlag ? (
             <SkillsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
           ) : (
-            <SkillsTabOld employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
+            <SkillsTabOld
+              employee={employee}
+              accessToken={accessToken}
+              employeeId={employeeId}
+              userInfo={userInfo}
+              devFeatureFlag={devFeatureFlag}
+            />
           )}
         </TabsContent>
 

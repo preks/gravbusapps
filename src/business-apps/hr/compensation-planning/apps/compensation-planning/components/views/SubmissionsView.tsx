@@ -95,6 +95,7 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({
         loading={listLoading}
         error={listError}
         hasCompanyBudgetRows={hasCompanyBudgetRows}
+        compensationPlanSelected={selectedCompensationPlanId != null}
         companyToolbar={submissionsToolbar}
         onReviewTeam={handleReviewTeam}
       />

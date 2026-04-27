@@ -233,6 +233,7 @@ export const SUPPORTED_PROTOCOLS = [
   'service_workflow',
   'workflow_template',
   'meetings',
+  'reminder',
   'note',
   'slide',
   'document',

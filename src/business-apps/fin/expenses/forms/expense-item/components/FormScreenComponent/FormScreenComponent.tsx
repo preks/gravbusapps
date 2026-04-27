@@ -504,7 +504,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             </Form.Item>
           </Col>
           <Col span={12} data-testid="total-currency-col">
-            {hasLinkedExpenseRequest && (
+            {hasLinkedExpenseRequest && !isEmbeddedInRequestWizard && (
               <Alert
                 message={t(
                   'lowcoder:create_expense_item.linked_request_currency_warning',
@@ -631,7 +631,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           disabled={
             isCreating ||
             isProcessingFiles ||
-            (isEditMode && hadBackendRequestRef.current && !selectedExpenseRequestId) ||
+            (!isEmbeddedInRequestWizard && isEditMode && hadBackendRequestRef.current && !selectedExpenseRequestId) ||
             !!receiptCurrencyError
           }
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"

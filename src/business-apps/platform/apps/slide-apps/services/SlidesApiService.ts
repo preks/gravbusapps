@@ -64,6 +64,17 @@ interface PaginatedResponse<T> {
   totalPages: number
 }
 
+export interface SlideImportJob {
+  id: string
+  status: 'queued' | 'processing' | 'completed' | 'failed'
+  progress: number
+  diagnostics: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+  slideId?: string
+  error?: string
+}
+
 function mapPermission(apiPermission: string): SlidePermission {
   if (apiPermission === 'admin') return 'owner'
   return apiPermission as SlidePermission
@@ -107,6 +118,20 @@ function mapApiSlideToSummary(api: Record<string, unknown>): SlideSummary {
     isOwner: api.isOwner as boolean | undefined,
     spaceId: (api.spaceId as string | null | undefined) ?? null,
     trashedAt: (api.trashedAt as string | null | undefined) ?? null
+  }
+}
+
+function mapApiVersionToVersion(versionData: Record<string, unknown>): Version {
+  return {
+    id: versionData.id as string,
+    version: versionData.versionNumber as number,
+    content: JSON.stringify(versionData.contentSnapshot),
+    createdAt: versionData.createdAt as string,
+    createdBy: versionData.changedBy as string,
+    changeDescription: versionData.changeSummary as string | undefined,
+    isCheckpoint: !(versionData.isAutoSave as boolean),
+    isAutoSave: versionData.isAutoSave as boolean,
+    fileSize: (versionData.fileSize as number) || 0
   }
 }
 
@@ -173,9 +198,40 @@ export const SlidesApiService = {
     return mapApiSlideToSlide(created)
   },
 
+  async importSlide(payload: {
+    title: string
+    description?: string
+    contentJson: Record<string, unknown>
+    spaceId?: string
+  }): Promise<Slide> {
+    const imported = await apiRequest<Record<string, unknown>>('/slides/import', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+    return mapApiSlideToSlide(imported)
+  },
+
+  async createImportJob(payload: {
+    title: string
+    description?: string
+    contentJson: Record<string, unknown>
+    spaceId?: string
+    sourceFileName?: string
+    sourceType?: string
+  }): Promise<SlideImportJob> {
+    return apiRequest<SlideImportJob>('/slides/import-jobs', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+  },
+
+  async getImportJob(jobId: string): Promise<SlideImportJob> {
+    return apiRequest<SlideImportJob>(`/slides/import-jobs/${jobId}`)
+  },
+
   async updateSlide(
     id: string,
-    updates: Partial<Pick<Slide, 'title' | 'description' | 'content' | 'contentJson'>>,
+    updates: Partial<Pick<Slide, 'title' | 'description' | 'content'>>,
     options?: { createVersion?: boolean }
   ): Promise<Slide> {
     const payload: Record<string, unknown> = { ...updates, createVersion: options?.createVersion ?? false }
@@ -185,6 +241,14 @@ export const SlidesApiService = {
     const updated = await apiRequest<Record<string, unknown>>(`/slides/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload)
+    })
+    return mapApiSlideToSlide(updated)
+  },
+
+  async resetSlideYjsState(id: string, contentJson: Record<string, unknown>): Promise<Slide> {
+    const updated = await apiRequest<Record<string, unknown>>(`/slides/${id}/yjs-reset`, {
+      method: 'POST',
+      body: JSON.stringify({ contentJson })
     })
     return mapApiSlideToSlide(updated)
   },
@@ -262,6 +326,20 @@ export const SlidesApiService = {
   },
   // ============ Versions ============
 
+  async createCheckpoint(slideId: string, changeDescription?: string): Promise<Version | null> {
+    try {
+      const versionData = await apiRequest<Record<string, unknown>>(`/slides/${slideId}/checkpoint`, {
+        method: 'POST',
+        body: JSON.stringify({ changeDescription })
+      })
+
+      return mapApiVersionToVersion(versionData)
+    } catch (error) {
+      console.error('[SlidesApiService] Failed to create slide checkpoint:', error)
+      return null
+    }
+  },
+
   async createVersion(
     slideId: string,
     options: {
@@ -271,6 +349,10 @@ export const SlidesApiService = {
     }
   ): Promise<Version | null> {
     try {
+      if (options.isCheckpoint) {
+        return await this.createCheckpoint(slideId, options.changeDescription)
+      }
+
       // Get the current slide if content not provided
       let contentSnapshot: Record<string, unknown>
       if (options.content) {
@@ -308,17 +390,7 @@ export const SlidesApiService = {
         })
       })
 
-      return {
-        id: versionData.id as string,
-        version: versionData.versionNumber as number,
-        content: JSON.stringify(versionData.contentSnapshot),
-        createdAt: versionData.createdAt as string,
-        createdBy: versionData.changedBy as string,
-        changeDescription: versionData.changeSummary as string | undefined,
-        isCheckpoint: !(versionData.isAutoSave as boolean),
-        isAutoSave: versionData.isAutoSave as boolean,
-        fileSize: (versionData.fileSize as number) || 0
-      }
+      return mapApiVersionToVersion(versionData)
     } catch (error) {
       console.error('[SlidesApiService] Failed to create version:', error)
       return null

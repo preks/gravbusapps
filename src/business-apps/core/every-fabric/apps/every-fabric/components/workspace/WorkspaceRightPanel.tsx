@@ -1,9 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   ArrowsClockwiseIcon,
   BrainIcon,
-  CaretDownIcon,
-  CaretUpIcon,
   CheckCircleIcon,
   DatabaseIcon,
   DownloadSimpleIcon,
@@ -12,92 +10,32 @@ import {
   FileHtmlIcon,
   FileIcon,
   FileTextIcon,
-  ListChecksIcon,
   NoteIcon,
   PresentationIcon,
   ShareNetworkIcon,
+  SparkleIcon,
   SpinnerGapIcon,
-  WifiHighIcon,
-  WifiXIcon,
   WrenchIcon,
   XCircleIcon
 } from '@phosphor-icons/react'
+import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
+import type { DecisionItem } from '../../hooks/useFabricDecisions'
 import type { ActivityEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
 import type { ArtifactFile, FabricSubAgent, FabricTaskNode } from '../../types/fabric'
-import { toolCategoryColor } from '../../utils/renderUtils'
-import { FabricProgressTaskRow } from './fabricProgressShared'
-
-// ─── Shared card shell ────────────────────────────────────────────────────────
-
-interface CardProps {
-  title: string
-  badge?: number
-  extra?: React.ReactNode
-  defaultOpen?: boolean
-  children: React.ReactNode
-}
-
-const Card: React.FC<CardProps> = ({ title, badge, extra, defaultOpen = true, children }) => {
-  const [open, setOpen] = useState(defaultOpen)
-  const slug = title.toLowerCase().replace(/\s+/g, '-')
-
-  return (
-    <div className="gba:flex gba:min-h-0 gba:flex-col gba:rounded-[1.25rem] sm:gba:rounded-[1.5rem] gba:border gba:border-border/75 gba:bg-card/96 gba:backdrop-blur-sm gba:overflow-hidden gba:shadow-[0_4px_14px_rgba(15,23,42,0.03)]">
-      <div className="gba:flex gba:min-h-0 gba:items-stretch gba:border-b gba:border-border/50 gba:shrink-0">
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => setOpen(v => !v)}
-          className="gba:flex gba:flex-1 gba:min-w-0 gba:items-center gba:justify-between gba:gap-2 gba:px-3.5 sm:gba:px-4 gba:py-2.5 sm:gba:py-3 gba:text-left gba:hover:bg-muted/15 gba:transition-colors"
-          data-testid={`fabric-panel-card-${slug}`}
-        >
-          <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2">
-            <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:tracking-wide">{title}</span>
-            {badge !== undefined && badge > 0 && (
-              <span className="gba:inline-flex gba:shrink-0 gba:items-center gba:justify-center gba:min-w-[18px] gba:h-[18px] gba:px-1 gba:rounded-full gba:text-[10px] gba:font-semibold gba:bg-muted gba:text-muted-foreground">
-                {badge}
-              </span>
-            )}
-          </div>
-          {open ? (
-            <CaretUpIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-muted-foreground/60" aria-hidden />
-          ) : (
-            <CaretDownIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-muted-foreground/60" aria-hidden />
-          )}
-        </button>
-        {extra != null && (
-          <div className="gba:flex gba:shrink-0 gba:items-center gba:border-l gba:border-border/40 gba:px-3 sm:gba:px-3.5">
-            {extra}
-          </div>
-        )}
-      </div>
-      {open && children}
-    </div>
-  )
-}
-
-function rightPanelProgressLabel(params: {
-  totalCount: number
-  isStreaming: boolean
-  hasActiveWork: boolean
-  completedCount: number
-}): string {
-  const { totalCount, isStreaming, hasActiveWork, completedCount } = params
-  if (totalCount === 0) return 'Waiting to start'
-  if (isStreaming && hasActiveWork) return `${completedCount} of ${totalCount} done`
-  if (isStreaming && completedCount >= totalCount) return 'Finalizing response…'
-  return `${completedCount} of ${totalCount} done`
-}
+import { parseIsoTimestamp, toolCategoryColor } from '../../utils/renderUtils'
+import { DecisionsCard } from './DecisionsCard'
+import { LivePreviewCard } from './LivePreviewCard'
+import { PanelCard } from './PanelCard'
+import { PlanCard } from './PlanCard'
 
 function activityTimestampSortValue(timestamp: string): number {
-  const date = new Date(timestamp)
-  const value = date.getTime()
-  return Number.isNaN(value) ? 0 : value
+  const date = parseIsoTimestamp(timestamp)
+  return date ? date.getTime() : 0
 }
 
 function formatActivityTimestamp(timestamp: string): string {
-  const date = new Date(timestamp)
-  if (Number.isNaN(date.getTime())) return ''
+  const date = parseIsoTimestamp(timestamp)
+  if (!date) return ''
 
   return date.toLocaleString([], {
     month: 'short',
@@ -105,85 +43,6 @@ function formatActivityTimestamp(timestamp: string): string {
     hour: 'numeric',
     minute: '2-digit'
   })
-}
-
-// ─── Progress card ────────────────────────────────────────────────────────────
-
-interface ProgressCardProps {
-  nodes: FabricTaskNode[]
-  completedCount: number
-  totalCount: number
-  progressPercent: number
-  isConnected: boolean
-  isStreaming: boolean
-}
-
-const ProgressCard: React.FC<ProgressCardProps> = ({
-  nodes,
-  completedCount,
-  totalCount,
-  progressPercent,
-  isConnected,
-  isStreaming
-}) => {
-  const hasActiveWork = nodes.some(node => node.status === 'active' || node.status === 'pending')
-  const displayPercent = isStreaming && totalCount > 0 && completedCount >= totalCount ? 96 : progressPercent
-  const progressLabel = rightPanelProgressLabel({
-    totalCount,
-    isStreaming,
-    hasActiveWork,
-    completedCount
-  })
-  const connectionBadge = (
-    <div className="gba:flex gba:items-center gba:gap-1">
-      {isConnected ? (
-        <>
-          <WifiHighIcon className="gba:h-3 gba:w-3 gba:text-green-500" />
-          <span className="gba:text-[11px] gba:text-green-600 gba:font-medium">Live</span>
-        </>
-      ) : (
-        <WifiXIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground/40" />
-      )}
-    </div>
-  )
-
-  return (
-    <Card title="Progress" extra={connectionBadge} defaultOpen>
-      <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain">
-        <div className="gba:px-4 gba:pt-3 gba:pb-1">
-          {/* Mini progress bar */}
-          {totalCount > 0 && (
-            <div className="gba:mb-3">
-              <div className="gba:flex gba:items-center gba:justify-between gba:mb-1.5">
-                <span className="gba:text-[11px] gba:text-muted-foreground/60">{progressLabel}</span>
-                <span className="gba:text-[11px] gba:font-semibold gba:text-foreground">{displayPercent}%</span>
-              </div>
-              <div className="gba:h-1 gba:w-full gba:rounded-full gba:bg-border gba:overflow-hidden">
-                <div
-                  className="gba:h-full gba:rounded-full gba:bg-primary gba:transition-all gba:duration-500"
-                  style={{ width: `${displayPercent}%` }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {nodes.length === 0 ? (
-          <div className="gba:px-4 gba:pb-4">
-            <p className="gba:text-xs gba:text-muted-foreground/50 gba:italic">
-              Steps will appear once the agent starts…
-            </p>
-          </div>
-        ) : (
-          <div className="gba:min-h-0 gba:py-1 gba:space-y-0.5">
-            {nodes.map((node, i) => (
-              <FabricProgressTaskRow key={node.id} node={node} index={i} />
-            ))}
-          </div>
-        )}
-      </div>
-    </Card>
-  )
 }
 
 // ─── Artifacts card ───────────────────────────────────────────────────────────
@@ -215,13 +74,13 @@ const workspaceDocPanelIcon = (type: WorkspaceDocument['type']) => {
 }
 
 const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[] }> = ({ docs }) => (
-  <Card title="Workspace Documents" badge={docs.length} defaultOpen>
+  <PanelCard title="Workspace Documents" badge={docs.length} defaultOpen>
     <div className="gba:py-1">
       {docs.map(doc => (
         <a
           key={doc.id}
           href={doc.url}
-          target="_self"
+          target="_blank"
           rel="noopener noreferrer"
           className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:hover:bg-muted/30 gba:transition-colors gba:no-underline"
           data-testid={`fabric-workspace-doc-${doc.id}`}
@@ -234,14 +93,14 @@ const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[] }> = ({ docs 
         </a>
       ))}
     </div>
-  </Card>
+  </PanelCard>
 )
 
 const ArtifactsCard: React.FC<{ artifacts: ArtifactFile[]; onView: (id: string) => void }> = ({
   artifacts,
   onView
 }) => (
-  <Card title="Artifacts" badge={artifacts.length} defaultOpen>
+  <PanelCard title="Artifacts" badge={artifacts.length} defaultOpen>
     <div className="gba:py-1">
       {artifacts.map(file => (
         <div
@@ -276,7 +135,7 @@ const ArtifactsCard: React.FC<{ artifacts: ArtifactFile[]; onView: (id: string) 
         </div>
       ))}
     </div>
-  </Card>
+  </PanelCard>
 )
 
 const ENTERPRISE_EXPERT_ACCENT = {
@@ -405,7 +264,7 @@ const EnterpriseExpertsCard: React.FC<{
   if (experts.length === 0) return null
 
   return (
-    <Card title="Enterprise experts" badge={experts.length} defaultOpen>
+    <PanelCard title="Enterprise experts" badge={experts.length} defaultOpen>
       <div className="gba:py-1 gba:space-y-1">
         {experts.map(expert => (
           <div
@@ -431,7 +290,7 @@ const EnterpriseExpertsCard: React.FC<{
           </div>
         ))}
       </div>
-    </Card>
+    </PanelCard>
   )
 }
 
@@ -440,7 +299,6 @@ const EnterpriseExpertsCard: React.FC<{
 const EVENT_ICON: Record<ActivityEvent['type'], React.ReactNode> = {
   tool_call: <WrenchIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
   tool_result: <ArrowsClockwiseIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
-  plan_update: <ListChecksIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
   reflection: <BrainIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
   subagent_spawn: <ShareNetworkIcon className="gba:h-3.5 gba:w-3.5 gba:text-sky-600" />,
   memory_access: <DatabaseIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
@@ -453,6 +311,22 @@ const isLikelyTaskText = (value?: string) => {
   return compact.length > 42 || compact.split(/\s+/).length > 5
 }
 
+const isSkillLoadActivity = (event: ActivityEvent): boolean =>
+  event.type === 'tool_call' && event.toolName === 'skill_load' && !!event.skillId
+
+const activityRowIcon = (event: ActivityEvent): React.ReactNode => {
+  if (isSkillLoadActivity(event)) {
+    return <SparkleIcon className="gba:h-3.5 gba:w-3.5 gba:text-amber-500" weight="duotone" />
+  }
+  return EVENT_ICON[event.type]
+}
+
+const getActivityBorderClass = (isSubagent: boolean, isSkillLoad: boolean): string => {
+  if (isSubagent) return 'gba:border-l-2 gba:border-sky-400/60'
+  if (isSkillLoad) return 'gba:border-l-2 gba:border-amber-400/60'
+  return ''
+}
+
 const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
   const sortedEvents = useMemo(
     () => [...events].sort((a, b) => activityTimestampSortValue(b.timestamp) - activityTimestampSortValue(a.timestamp)),
@@ -460,10 +334,11 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
   )
 
   return (
-    <Card title="Activity" badge={events.length} defaultOpen={false}>
+    <PanelCard title="Activity" badge={events.length} defaultOpen={false}>
       <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain gba:py-1">
         {sortedEvents.map(event => {
           const isSubagent = event.type === 'subagent_spawn'
+          const isSkillLoad = isSkillLoadActivity(event)
           const showAgentBadge =
             isSubagent &&
             !!event.agent &&
@@ -473,19 +348,27 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
           return (
             <div
               key={event.id}
-              className={`gba:flex gba:items-start gba:gap-2.5 gba:px-4 gba:py-2 gba:hover:bg-muted/20 gba:transition-colors ${
-                isSubagent ? 'gba:border-l-2 gba:border-sky-400/60' : ''
-              }`}
+              className={`gba:flex gba:items-start gba:gap-2.5 gba:px-4 gba:py-2 gba:hover:bg-muted/20 gba:transition-colors ${getActivityBorderClass(
+                isSubagent,
+                isSkillLoad
+              )}`}
               data-testid={`fabric-activity-${event.id}`}
             >
-              <div className="gba:shrink-0 gba:mt-0.5">{EVENT_ICON[event.type]}</div>
+              <div className="gba:shrink-0 gba:mt-0.5">{activityRowIcon(event)}</div>
               <div className="gba:flex-1 gba:min-w-0">
-                {event.toolName && (
-                  <span
-                    className={`gba:inline-flex gba:items-center gba:px-1.5 gba:py-0.5 gba:rounded gba:text-[11px] gba:font-mono gba:font-semibold gba:mb-0.5 ${toolCategoryColor(event.toolName)}`}
-                  >
-                    {event.toolName}
+                {isSkillLoad ? (
+                  <span className="gba:mb-0.5 gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-amber-500/20 gba:bg-amber-500/10 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-amber-700 dark:gba:text-amber-300">
+                    <SparkleIcon className="gba:h-3 gba:w-3" weight="duotone" />
+                    Skill: {event.skillName ?? event.skillId}
                   </span>
+                ) : (
+                  event.toolName && (
+                    <span
+                      className={`gba:inline-flex gba:items-center gba:px-1.5 gba:py-0.5 gba:rounded gba:text-[11px] gba:font-mono gba:font-semibold gba:mb-0.5 ${toolCategoryColor(event.toolName)}`}
+                    >
+                      {event.toolName}
+                    </span>
+                  )
                 )}
                 {showAgentBadge && (
                   <span className="gba:mb-0.5 gba:inline-flex gba:items-center gba:rounded-full gba:bg-sky-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
@@ -505,7 +388,7 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
           )
         })}
       </div>
-    </Card>
+    </PanelCard>
   )
 }
 
@@ -513,48 +396,86 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
 
 interface WorkspaceRightPanelProps {
   taskNodes: FabricTaskNode[]
+  hasPlan: boolean
   completedCount: number
   totalCount: number
   progressPercent: number
   activityEvents: ActivityEvent[]
+  decisions: DecisionItem[]
   artifacts: ArtifactFile[]
   workspaceDocs?: WorkspaceDocument[]
   isConnected: boolean
   isStreaming: boolean
   onViewArtifact: (name: string) => void
+  latestPreview?: ArtifactPreview | null
+  accessToken?: string
+  sessionId?: string
+  /** Invoked when the user clicks "Try again" on a preview error card. */
+  onRetryPreview?: (preview: ArtifactPreview) => void
 }
 
 export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   taskNodes,
+  hasPlan,
   completedCount,
   totalCount,
   progressPercent,
   activityEvents,
+  decisions,
   artifacts,
   workspaceDocs,
   isConnected,
   isStreaming,
-  onViewArtifact
-}) => (
-  <div
-    className="gba:flex gba:h-full gba:max-h-full gba:min-h-0 gba:flex-col gba:overflow-y-auto gba:rounded-[1.5rem] sm:gba:rounded-[2rem] gba:bg-transparent gba:p-0 sm:gba:p-1 gba:space-y-2 sm:gba:space-y-3"
-    data-testid="fabric-right-panel"
-  >
-    <ProgressCard
-      nodes={taskNodes}
-      completedCount={completedCount}
-      totalCount={totalCount}
-      progressPercent={progressPercent}
-      isConnected={isConnected}
-      isStreaming={isStreaming}
-    />
+  onViewArtifact,
+  latestPreview,
+  accessToken = '',
+  sessionId = '',
+  onRetryPreview
+}) => {
+  const showPreview =
+    !!latestPreview &&
+    (latestPreview.status === 'generating' ||
+      latestPreview.status === 'draft_ready' ||
+      latestPreview.status === 'ready' ||
+      latestPreview.status === 'error')
 
-    <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} isStreaming={isStreaming} />
+  return (
+    <div
+      className="gba:flex gba:h-full gba:max-h-full gba:min-h-0 gba:flex-col gba:overflow-y-auto gba:bg-transparent gba:px-0 sm:gba:px-1 gba:py-1 sm:gba:py-1.5 gba:space-y-2 sm:gba:space-y-3"
+      data-testid="fabric-right-panel"
+    >
+      {showPreview && (
+        <div>
+          <LivePreviewCard
+            preview={latestPreview}
+            accessToken={accessToken}
+            sessionId={sessionId}
+            onRetry={onRetryPreview ? () => onRetryPreview(latestPreview) : undefined}
+          />
+        </div>
+      )}
 
-    {artifacts.length > 0 && <ArtifactsCard artifacts={artifacts} onView={onViewArtifact} />}
+      {hasPlan && (
+        <PlanCard
+          nodes={taskNodes}
+          completedCount={completedCount}
+          totalCount={totalCount}
+          progressPercent={progressPercent}
+          isConnected={isConnected}
+          isStreaming={isStreaming}
+          defaultCollapsed={showPreview}
+        />
+      )}
 
-    {workspaceDocs && workspaceDocs.length > 0 && <WorkspaceDocumentsCard docs={workspaceDocs} />}
+      {decisions.length > 0 && <DecisionsCard decisions={decisions} defaultCollapsed={showPreview} />}
 
-    {activityEvents.length > 0 && <ActivityCard events={activityEvents} />}
-  </div>
-)
+      <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} isStreaming={isStreaming} />
+
+      {artifacts.length > 0 && <ArtifactsCard artifacts={artifacts} onView={onViewArtifact} />}
+
+      {workspaceDocs && workspaceDocs.length > 0 && <WorkspaceDocumentsCard docs={workspaceDocs} />}
+
+      {activityEvents.length > 0 && <ActivityCard events={activityEvents} />}
+    </div>
+  )
+}

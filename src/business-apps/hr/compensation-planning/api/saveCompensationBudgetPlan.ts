@@ -23,6 +23,7 @@ export interface SaveCompensationBudgetPlanCompanyRowInput {
   companyId: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
+  allocationAmount: number
   currentTotalSalaryCost: number
   currencyRef: string | null
 }
@@ -40,6 +41,7 @@ export interface CompensationBudgetPlanOrganizationalUnitRestPayload {
   version?: number
   salaryBudgetAmount: number
   salaryBudgetPercent: number
+  allocationAmount: number
   bonusBudgetAmount: number
   bonusBudgetPercent: number
   budgetPlanStatus: BudgetPlanStatusApi
@@ -76,6 +78,7 @@ export function buildSaveCompensationBudgetPlanCompanyUpdateBody(
       version: row.version,
       salaryBudgetAmount: row.salaryBudgetAmount,
       salaryBudgetPercent: row.salaryBudgetPercent,
+      allocationAmount: row.allocationAmount,
       currencyRef: row.currencyRef,
       currentTotalSalaryCost: row.currentTotalSalaryCost,
       compensationBudgetPlan: row.compensationBudgetPlanId,
@@ -121,6 +124,7 @@ export interface CompensationBudgetPlanEmployeeRestPayload {
   id?: string
   /** Required for UPDATE — optimistic locking (from GraphQL `version`). */
   version?: number
+  allocationAmount: number
   proposedSalaryIncreaseAmount: number
   proposedSalaryIncreasePercent: number
   proposedNewSalary: number

@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { PenTool, Orbit, Briefcase } from 'lucide-react'
@@ -10,6 +11,7 @@ import {
   PlatformVisualization,
   PillarCardProps
 } from './components'
+import translations from './_i18n'
 
 export interface NewworkMainProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -26,17 +28,17 @@ export interface NewworkMainProps extends BusinessAppContextProps {
  * All unified by AI at the core of the enterprise platform.
  */
 export const NewworkMain: React.FC<NewworkMainProps> = ({ 'data-testid': testId = 'newwork-main' }) => {
+  const { t } = useTranslation(translations)
   // Three pillar definitions
   const pillars: Array<Omit<PillarCardProps, 'data-testid' | 'onClick'> & { id: string; href: string }> = [
     {
       id: 'create',
       title: 'CREATE',
       subtitle: 'Build anything',
-      description:
-        'Design screens, automate workflows, build AI task experts, and create serverless functions. The complete creation suite for enterprise applications.',
+      description: t('pillar-create-description'),
       icon: PenTool,
       href: '/platform/apps/create',
-      features: ['AI Builder', 'Flow Designer', 'Task Experts', 'Functions'],
+      features: ['AI Builder', 'Flow Designer', t('pillar-create-feature-enterprise-agents'), 'Functions'],
       accentColor: 'ai'
     },
     {
@@ -75,6 +77,8 @@ export const NewworkMain: React.FC<NewworkMainProps> = ({ 'data-testid': testId 
       'flow',
       'workflow',
       'task expert',
+      'enterprise agent',
+      'agent',
       'function',
       'design',
       'automate'

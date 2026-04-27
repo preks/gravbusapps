@@ -31,9 +31,10 @@ import {
   Eye,
   PartyPopper
 } from 'lucide-react'
-import { Card, CardContent, Button, Badge, cn } from '@newwork/nw-design-system'
+import { Card, CardContent, Button, Badge, cn, useTranslation } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { ComponentSpec, ComponentType } from '../../types'
+import translations from '../../../../_i18n'
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -71,7 +72,7 @@ const COMPONENT_TYPE_META: Record<
   },
   agent: {
     icon: Bot,
-    label: 'Task Expert',
+    label: 'Agent',
     color: 'gba:text-amber-600',
     route: (id: string) => `/platform/create/prompt-manager?expertId=${id}`
   },
@@ -180,8 +181,10 @@ const ComponentCard: React.FC<{
   component: ComponentSpec
   showError?: boolean
 }> = ({ component, showError = false }) => {
+  const { t } = useTranslation(translations)
   const [errorExpanded, setErrorExpanded] = useState(false)
-  const typeMeta = COMPONENT_TYPE_META[component.type] || DEFAULT_COMPONENT_TYPE_META
+  const baseTypeMeta = COMPONENT_TYPE_META[component.type] || DEFAULT_COMPONENT_TYPE_META
+  const typeMeta = component.type === 'agent' ? { ...baseTypeMeta, label: t('type-label-agent') } : baseTypeMeta
   const statusMeta = STATUS_META[component.status] || STATUS_META.completed
   const TypeIcon = typeMeta.icon
   const StatusIcon = statusMeta.icon

@@ -312,6 +312,9 @@ export interface DocumentTemplate {
   placeholders?: TemplatePlaceholder[]
 }
 
+export type DocumentTemplateMutationInput = Pick<DocumentTemplate, 'name' | 'content' | 'category' | 'isPublic'> &
+  Partial<Pick<DocumentTemplate, 'description' | 'tags' | 'formatting' | 'placeholders'>>
+
 /**
  * Template placeholder for variable substitution
  */

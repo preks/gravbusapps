@@ -12,7 +12,6 @@ import {
   GET_PLANNED_VS_UNPLANNED_2025,
   GET_AVERAGE_DAYS_PER_REQUEST,
   GET_USAGE_TRENDS_DATA,
-  GET_YEAR_OVER_YEAR_DATA,
   GET_AVERAGE_WORK_STREAK
 } from '../queries/StatisticsQueries'
 
@@ -20,8 +19,7 @@ export const executeStatisticsRequests = async (
   graphqlClient: GraphQLClient,
   supervisorId: string,
   currentYearStart: string,
-  currentYearEnd: string,
-  previousYearStart: string
+  currentYearEnd: string
 ) => {
   const today = new Date()
   const todayStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00+00`
@@ -62,10 +60,6 @@ export const executeStatisticsRequests = async (
     },
     { query: GET_USAGE_TRENDS_DATA, variables: { supervisorId, currentYearStart, currentYearEnd } },
     {
-      query: GET_YEAR_OVER_YEAR_DATA,
-      variables: { supervisorId, previousYearStart, currentYearEnd }
-    },
-    {
       query: GET_AVERAGE_WORK_STREAK,
       variables: { supervisorId, currentYearStart, currentYearEnd }
     }
@@ -83,8 +77,7 @@ export const executeStatisticsRequests = async (
     plannedVsUnplannedResult: results[6],
     averageDaysResult: results[7],
     usageTrendsResult: results[8],
-    yearOverYearResult: results[9],
-    averageWorkStreakResult: results[10]
+    averageWorkStreakResult: results[9]
   }
 }
 

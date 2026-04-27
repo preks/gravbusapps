@@ -60,6 +60,14 @@ function defaultPaymentDate(cutOff: string): string {
   return addDays(cutOff, 10)
 }
 
+function isDateAfter(firstDate: string, secondDate: string): boolean {
+  if (!firstDate || !secondDate) {
+    return false
+  }
+
+  return firstDate > secondDate
+}
+
 function buildInitialFormState() {
   const now = new Date()
   const month = now.getMonth() + 1
@@ -118,7 +126,9 @@ export const CreatePayrollRunDialog: React.FC<CreatePayrollRunDialogProps> = ({
     [existingRuns, month, year]
   )
 
-  const isValid = cutOffDate && paymentDate && !isDuplicate
+  const hasRequiredDates = Boolean(cutOffDate) && Boolean(paymentDate)
+  const isPaymentDateValid = isDateAfter(paymentDate, cutOffDate)
+  const isValid = hasRequiredDates && isPaymentDateValid && !isDuplicate
 
   const handleSubmit = async () => {
     if (!isValid) return
@@ -128,7 +138,7 @@ export const CreatePayrollRunDialog: React.FC<CreatePayrollRunDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-md">
+      <DialogContent className="gba:max-w-md" onInteractOutside={event => event.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{t('create-run-title')}</DialogTitle>
           <DialogDescription>{t('create-run-description')}</DialogDescription>
@@ -197,7 +207,10 @@ export const CreatePayrollRunDialog: React.FC<CreatePayrollRunDialogProps> = ({
             />
           </div>
 
-          {isDuplicate && <p className="gba:text-sm gba:text-destructive">{t('create-run-duplicate-error')}</p>}
+          {isDuplicate ? <p className="gba:text-sm gba:text-destructive">{t('create-run-duplicate-error')}</p> : null}
+          {hasRequiredDates && !isPaymentDateValid ? (
+            <p className="gba:text-sm gba:text-destructive">{t('create-run-payment-date-error')}</p>
+          ) : null}
         </div>
 
         <DialogFooter>

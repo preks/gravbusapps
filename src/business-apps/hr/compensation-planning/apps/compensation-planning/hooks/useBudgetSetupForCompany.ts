@@ -41,6 +41,7 @@ export interface CompensationBudgetPlanCompanyRow {
   companyId: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
+  allocationAmount: number
   bonusBudgetAmount: number
   bonusBudgetPercent: number
   budgetPlanStatus: string
@@ -86,12 +87,25 @@ function fillPlanListItem(
   }
 }
 
-function sortPlans(list: CompensationBudgetPlanListItem[]): CompensationBudgetPlanListItem[] {
-  return [...list].sort((a, b) => {
-    const fy = (b.fiscalYear ?? 0) - (a.fiscalYear ?? 0)
-    if (fy !== 0) return fy
-    return a.name.localeCompare(b.name)
-  })
+/**
+ * Budget setup / compensation cycle toolbar: only approved plans, ordered by `effectiveDate` ascending
+ * (earliest first). Null `effectiveDate` last; then by name.
+ */
+function filterApprovedCompensationCyclePlansSorted(
+  list: CompensationBudgetPlanListItem[]
+): CompensationBudgetPlanListItem[] {
+  return list
+    .filter(p => p.budgetPlanStatus === DEFAULT_BUDGET_PLAN_STATUS_APPROVED)
+    .sort((a, b) => {
+      const aD = a.effectiveDate
+      const bD = b.effectiveDate
+      if (aD == null && bD == null) return a.name.localeCompare(b.name)
+      if (aD == null) return 1
+      if (bD == null) return -1
+      const byDate = aD.localeCompare(bD)
+      if (byDate !== 0) return byDate
+      return a.name.localeCompare(b.name)
+    })
 }
 
 function num(v: unknown): number {
@@ -108,6 +122,7 @@ export interface CompensationBudgetPlanCompanyGraphqlRow {
   companyId: string
   salaryBudgetAmount: unknown
   salaryBudgetPercent: unknown
+  allocationAmount?: unknown
   bonusBudgetAmount: unknown
   bonusBudgetPercent: unknown
   budgetPlanStatus: string | null
@@ -125,6 +140,7 @@ function mapGraphqlCompanyRow(raw: CompensationBudgetPlanCompanyGraphqlRow): Com
     companyId: raw.companyId,
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
     salaryBudgetPercent: num(raw.salaryBudgetPercent),
+    allocationAmount: num(raw.allocationAmount),
     bonusBudgetAmount: num(raw.bonusBudgetAmount),
     bonusBudgetPercent: num(raw.bonusBudgetPercent),
     budgetPlanStatus: raw.budgetPlanStatus ?? '',
@@ -144,12 +160,18 @@ function buildCompanyBudgetChanges(input: SaveCompanyBudgetInput) {
   }
 }
 
-function applyPlanListAndDefaultSelection(list: CompensationBudgetPlanListItem[]): void {
+/**
+ * Keeps `selectedBudgetPlanId` when it still exists in the approved cycle list; clears it when invalid.
+ * Does **not** auto-select the first plan — user must pick a compensation cycle to see setup / submissions data.
+ */
+function applyCompensationCycleSelectorListAndDefaultSelection(list: CompensationBudgetPlanListItem[]): void {
   const { selectedBudgetPlanId: currentId, selectBudgetPlan: pickPlan } = useCompensationPlanningStore.getState()
   if (list.length === 0) {
     pickPlan(null)
-  } else if (!currentId || !list.some(p => p.id === currentId)) {
-    pickPlan(list[0].id)
+    return
+  }
+  if (currentId != null && !list.some(p => p.id === currentId)) {
+    pickPlan(null)
   }
 }
 
@@ -161,6 +183,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
   const companyIdRef = useRef(companyId)
   const previousCompanyIdRef = useRef<string | null>(null)
 
+  /** All plans from GraphQL (any status), for table / label resolution. */
   const [plans, setPlans] = useState<CompensationBudgetPlanListItem[]>([])
   const [companyBudgetPlanRows, setCompanyBudgetPlanRows] = useState<CompensationBudgetPlanCompanyRow[]>([])
   const [loadingPlans, setLoadingPlans] = useState(false)
@@ -175,6 +198,8 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
     }
     return companyBudgetPlanRows.find(r => r.compensationBudgetPlanId === selectedBudgetPlanId) ?? null
   }, [companyBudgetPlanRows, selectedBudgetPlanId])
+
+  const compensationCycleSelectorPlans = useMemo(() => filterApprovedCompensationCyclePlansSorted(plans), [plans])
 
   useEffect(() => {
     companyIdRef.current = companyId
@@ -208,9 +233,10 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
         const result = await graphqlClient.request<{
           CompensationBudgetPlan: CompensationBudgetPlanListItem[]
         }>(LIST_COMPENSATION_BUDGET_PLANS)
-        const list = sortPlans((result.CompensationBudgetPlan ?? []).map(fillPlanListItem))
+        const list = (result.CompensationBudgetPlan ?? []).map(fillPlanListItem)
         setPlans(list)
-        applyPlanListAndDefaultSelection(list)
+        const forCycleSelector = filterApprovedCompensationCyclePlansSorted(list)
+        applyCompensationCycleSelectorListAndDefaultSelection(forCycleSelector)
         setCompanyBudgetPlanRows([])
         return
       }
@@ -225,9 +251,10 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
         return
       }
 
-      const list = sortPlans((result.CompensationBudgetPlan ?? []).map(fillPlanListItem))
+      const list = (result.CompensationBudgetPlan ?? []).map(fillPlanListItem)
       setPlans(list)
-      applyPlanListAndDefaultSelection(list)
+      const forCycleSelector = filterApprovedCompensationCyclePlansSorted(list)
+      applyCompensationCycleSelectorListAndDefaultSelection(forCycleSelector)
 
       const next: CompensationBudgetPlanCompanyRow[] = []
       for (const raw of result.CompensationBudgetPlanCompany ?? []) {
@@ -269,6 +296,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
             company: c.companyId,
             salaryBudgetAmount: roundMoney2(c.salaryBudgetAmount),
             salaryBudgetPercent: roundMoney2(c.salaryBudgetPercent),
+            allocationAmount: 0,
             bonusBudgetAmount: 0,
             bonusBudgetPercent: 0,
             budgetPlanStatus: 'BUDGET_PLAN_APPROVED',
@@ -303,6 +331,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
       input: {
         salaryBudgetAmount: number
         salaryBudgetPercent: number
+        allocationAmount: number
         currencyRef: string | null
       }
     ): Promise<boolean> => {
@@ -317,6 +346,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
           companyId: row.companyId,
           salaryBudgetAmount: roundMoney2(input.salaryBudgetAmount),
           salaryBudgetPercent: roundMoney2(input.salaryBudgetPercent),
+          allocationAmount: roundMoney2(input.allocationAmount),
           currentTotalSalaryCost: roundMoney2(row.currentTotalSalaryCost),
           currencyRef: input.currencyRef
         }
@@ -357,6 +387,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
             companyId: companyRow.companyId,
             salaryBudgetAmount,
             salaryBudgetPercent,
+            allocationAmount: roundMoney2(companyRow.allocationAmount),
             currentTotalSalaryCost,
             currencyRef
           }
@@ -370,6 +401,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
               company: companyId,
               salaryBudgetAmount: roundMoney2(changes.salaryBudgetAmount),
               salaryBudgetPercent: roundMoney2(changes.salaryBudgetPercent),
+              allocationAmount: 0,
               bonusBudgetAmount: 0,
               bonusBudgetPercent: 0,
               budgetPlanStatus: DEFAULT_BUDGET_PLAN_STATUS_APPROVED,
@@ -401,6 +433,8 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
 
   return {
     plans,
+    /** Toolbar / create dialog: approved cycles only, `effectiveDate` ascending. */
+    compensationCycleSelectorPlans,
     selectedBudgetPlanId,
     selectBudgetPlan,
     companyRow,

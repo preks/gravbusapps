@@ -16,9 +16,15 @@ import {
   ScrollArea,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Calendar, Clock, Video, ArrowRight, CalendarBlank, Users } from '@phosphor-icons/react'
+import { Calendar, Clock, Video, Phone, ArrowRight, ArrowUpRight, CalendarBlank, Users } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useChatClient } from '@/common/network/chat/useChatClient'
+import {
+  canJoinMeeting,
+  getMeetingCallType,
+  handleMeetingJoin,
+  hasExternalMeetingLink
+} from '@/business-apps/platform/apps/chat/calendar/utils/meetingJoin'
 import type { LinkedCalendar } from '../types/space.types'
 import translations from '../_i18n'
 import { formatMeetingTimeRange } from '../utils/spaceLocalization'
@@ -40,6 +46,8 @@ export interface SpaceMeeting {
   status?: string
   conversationId?: string
   meetingLink?: string
+  callType?: 'audio' | 'video'
+  metadata?: Record<string, unknown>
 }
 
 export interface SpaceCalendarProps {
@@ -49,6 +57,8 @@ export interface SpaceCalendarProps {
   accessToken?: string
   /** Maximum number of meetings to show */
   maxMeetings?: number
+  /** Trigger a refetch after external meeting changes */
+  refreshToken?: number
   /** Callback to schedule a new meeting */
   onScheduleMeeting?: () => void
   'data-testid'?: string
@@ -58,6 +68,7 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   calendar,
   accessToken,
   maxMeetings = 5,
+  refreshToken = 0,
   onScheduleMeeting,
   'data-testid': testId = 'space-calendar'
 }) => {
@@ -109,7 +120,11 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
 
   useEffect(() => {
     fetchMeetings()
-  }, [fetchMeetings])
+  }, [fetchMeetings, refreshToken])
+
+  const handleJoinMeetingClick = useCallback((meeting: SpaceMeeting) => {
+    handleMeetingJoin(meeting)
+  }, [])
 
   // Navigate to full calendar
   const handleViewCalendar = useCallback(() => {
@@ -179,7 +194,12 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
             </div>
             <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('calendar-no-upcoming')}</p>
             {onScheduleMeeting && (
-              <Button variant="secondary" size="sm" onClick={onScheduleMeeting}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onScheduleMeeting}
+                data-testid={`${testId}-schedule-meeting`}
+              >
                 {t('common-schedule-meeting')}
               </Button>
             )}
@@ -187,46 +207,78 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
         ) : (
           <ScrollArea className="gba:max-h-64">
             <div className="gba:space-y-2">
-              {meetings.map(meeting => (
-                <div
-                  key={meeting.id}
-                  className="gba:p-3 gba:rounded-lg gba:bg-muted/50 gba:border gba:border-border/50 gba:transition-colors gba:hover:bg-muted"
-                  data-testid={`${testId}-meeting-${meeting.id}`}
-                >
-                  <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
-                    <div className="gba:flex-1 gba:min-w-0">
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
-                          {meeting.title}
-                        </h4>
-                        {isMeetingLive(meeting) && (
-                          <Badge variant="success" className="gba:text-xs gba:px-1.5 gba:py-0">
-                            {t('common-live')}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="gba:flex gba:items-center gba:gap-3 gba:mt-1 gba:text-xs gba:text-muted-foreground">
-                        <span className="gba:flex gba:items-center gba:gap-1">
-                          <Clock className="gba:w-3 gba:h-3" />
-                          {formatMeetingTimeRange(meeting.start, meeting.end, locale, t)}
-                        </span>
-                        {meeting.isVideoCall && (
+              {meetings.map(meeting => {
+                const joinable = canJoinMeeting(meeting)
+                const hasExternalLink = hasExternalMeetingLink(meeting)
+                const callType = getMeetingCallType(meeting)
+                const isLive = isMeetingLive(meeting)
+
+                return (
+                  <div
+                    key={meeting.id}
+                    className="gba:p-3 gba:rounded-lg gba:bg-muted/50 gba:border gba:border-border/50 gba:transition-colors gba:hover:bg-muted"
+                    data-testid={`${testId}-meeting-${meeting.id}`}
+                  >
+                    <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+                      <div className="gba:flex-1 gba:min-w-0">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
+                            {meeting.title}
+                          </h4>
+                          {isLive && (
+                            <Badge variant="success" className="gba:text-xs gba:px-1.5 gba:py-0">
+                              {t('common-live')}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-3 gba:mt-1 gba:text-xs gba:text-muted-foreground">
                           <span className="gba:flex gba:items-center gba:gap-1">
-                            <Video className="gba:w-3 gba:h-3" />
-                            {t('calendar-video')}
+                            <Clock className="gba:w-3 gba:h-3" />
+                            {formatMeetingTimeRange(meeting.start, meeting.end, locale, t)}
                           </span>
-                        )}
-                        {meeting.participantCount && (
-                          <span className="gba:flex gba:items-center gba:gap-1">
-                            <Users className="gba:w-3 gba:h-3" />
-                            {meeting.participantCount}
-                          </span>
-                        )}
+                          {meeting.isVideoCall && (
+                            <span className="gba:flex gba:items-center gba:gap-1">
+                              <Video className="gba:w-3 gba:h-3" />
+                              {t('calendar-video')}
+                            </span>
+                          )}
+                          {meeting.participantCount && (
+                            <span className="gba:flex gba:items-center gba:gap-1">
+                              <Users className="gba:w-3 gba:h-3" />
+                              {meeting.participantCount}
+                            </span>
+                          )}
+                        </div>
                       </div>
+                      {joinable && (
+                        <Button
+                          variant={isLive ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleJoinMeetingClick(meeting)}
+                          className="gba:flex-shrink-0 gba:gap-1.5"
+                          data-testid={`${testId}-meeting-${meeting.id}-join`}
+                        >
+                          {hasExternalLink ? (
+                            <>
+                              <ArrowUpRight className="gba:w-3.5 gba:h-3.5" />
+                              {t('common-open')}
+                            </>
+                          ) : (
+                            <>
+                              {callType === 'audio' ? (
+                                <Phone className="gba:w-3.5 gba:h-3.5" />
+                              ) : (
+                                <Video className="gba:w-3.5 gba:h-3.5" />
+                              )}
+                              {t('common-join')}
+                            </>
+                          )}
+                        </Button>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </ScrollArea>
         )}

@@ -21,8 +21,10 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import { FileText, AlignLeft, Info, User, Users, MessageSquare, CheckCircle, Code2, Bot, Sparkles } from 'lucide-react'
 import { FlowRenderer } from '@/business-apps/flow/common/components'
 import { FlowStep, FlowStepType, AssignmentMode } from '../../types/flowTemplate'
@@ -57,6 +59,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
   onCancel,
   'data-testid': testId = 'flow-designer'
 }) => {
+  const { t } = useTranslation(translations)
   // Convert initial template to FlowStep format if provided
   const getInitialSteps = (): FlowStep[] => {
     if (initialTemplate?.steps && initialTemplate.steps.length > 0) {
@@ -946,7 +949,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                         }`}
                       >
                         <Bot className="gba:h-5 gba:w-5" />
-                        <span className="gba:text-xs gba:font-medium">Task Expert</span>
+                        <span className="gba:text-xs gba:font-medium">{t('designer-step-tile-enterprise-agent')}</span>
                       </button>
                       <button
                         onClick={() => updateStep({ type: FlowStepType.FUNCTION, kind: 'SYSTEM' })}
@@ -1061,7 +1064,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                         {selectedStep.type === FlowStepType.AI_TASK_EXPERT && accessToken && (
                           <div className="gba:space-y-4 gba:border-t gba:pt-4">
                             <div className="gba:text-sm gba:font-semibold gba:text-muted-foreground">
-                              Task Expert Configuration
+                              {t('designer-section-enterprise-agent-config')}
                             </div>
                             <div className="gba:pl-4">
                               <AgentConfiguration

@@ -4,6 +4,7 @@ export interface TeamMember {
   id: string
   firstName: string
   lastName: string
+  hireDate?: string
   pictureThumbnail?: string
   orgUnit?: string
   workingHours?: WeeklyWorkingHours
@@ -42,6 +43,12 @@ export interface TeamAbsenceToday {
   status: string
   dayDate: string
   employeeAbsenceId: string
+  typeLabel?: string
+  parentEntryId?: string
+  startDate?: string
+  endDate?: string
+  employeeName?: string
+  pictureThumbnail?: string
 }
 
 export interface AbsenceNetEntry {
@@ -64,6 +71,24 @@ export interface PendingAbsenceRequest {
     value: string
     parentEntryId: string
   }
+  employee: {
+    id: string
+    firstName: string
+    lastName: string
+    pictureThumbnail?: string
+  }
+}
+
+export interface PendingActionItem {
+  id: string
+  kind: 'absence' | 'time-correction'
+  status: string
+  createdAt: string
+  attendanceDate?: string
+  startDate?: string
+  endDate?: string
+  effectiveDays?: number
+  typeLabel?: string
   employee: {
     id: string
     firstName: string
@@ -124,7 +149,7 @@ export interface MatrixImpactScenario {
   newCoverage: number
   newRisk: CoverageRisk
   description: string
-  affectedCapabilities: { capabilityName: string; newCoverage: number; newRisk: CoverageRisk }[]
+  affectedCapabilities: { capabilityId?: string; capabilityName: string; newCoverage: number; newRisk: CoverageRisk }[]
 }
 
 export interface MatrixTeamCoverage {
@@ -150,6 +175,7 @@ export interface OrgUnitCoverage {
   members: string[]
   absentMembers: string[]
   impactedMatrixTeams: {
+    matrixTeamId?: string
     matrixTeamName: string
     coverage: number
     risk: CoverageRisk

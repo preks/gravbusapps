@@ -48,7 +48,6 @@ const UnallocatedExpenseItems: React.FC<UnallocatedExpenseItemsProps> = ({ acces
     removeFilter,
     clearFilters,
     selectedFilters,
-    filterGroups,
     filterLabelMap,
     getFilters,
     setFilters,
@@ -122,7 +121,6 @@ const UnallocatedExpenseItems: React.FC<UnallocatedExpenseItemsProps> = ({ acces
           addFilter={addFilter}
           removeFilter={removeFilter}
           clearFilters={clearFilters}
-          filterGroups={filterGroups}
           filterLabelMap={filterLabelMap}
           getFilters={getFilters}
           setFilters={setFilters}

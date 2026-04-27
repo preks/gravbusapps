@@ -1,4 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react'
+import type { VersionHistoryMessages } from '@/business-apps/platform/apps/shared/components/VersionHistory'
+import type { CheckpointDialogMessages } from '@/business-apps/platform/apps/shared/components/CheckpointDialog'
 import {
   Button,
   DropdownMenu,
@@ -10,6 +12,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { FileText, History, Lock, Share2, Save, Unlock } from 'lucide-react'
+import { toast } from 'sonner'
 import type { Version } from '@/business-apps/platform/apps/shared/types/versioning'
 import { useVersioning } from '@/business-apps/platform/apps/shared/hooks/useVersioning'
 import { useFileLock } from '@/business-apps/platform/apps/shared/hooks/useFileLock'
@@ -31,6 +34,7 @@ export interface SlideEditorHeaderActionsProps {
    * The snapshot content is typically `{ slides, themeId }` inside `contentJson`.
    */
   applyContentJsonSnapshot: (contentJson: Record<string, unknown>) => Promise<void> | void
+  flushPendingCollaborationUpdates?: () => Promise<void> | void
   'data-testid'?: string
 }
 
@@ -41,9 +45,10 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
   currentUserId,
   currentUserName,
   applyContentJsonSnapshot,
+  flushPendingCollaborationUpdates,
   'data-testid': testId = 'slide-editor-header-actions'
 }) => {
-  const { t } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
   const [showShareDialog, setShowShareDialog] = useState(false)
@@ -79,10 +84,44 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
       const snapshot = await SlidesApiService.getVersion(slideId, versionNumber)
       const contentJson = (snapshot?.contentJson as Record<string, unknown> | undefined) || null
       if (!contentJson) return
+      await SlidesApiService.resetSlideYjsState(slideId, contentJson)
       await applyContentJsonSnapshot(contentJson)
       setShowVersionHistory(false)
     },
     [applyContentJsonSnapshot, slideId]
+  )
+
+  const versionHistoryMessages: VersionHistoryMessages = useMemo(
+    () => ({
+      title: t('version-history-title'),
+      empty: t('version-no-history-yet'),
+      loading: t('version-loading'),
+      versionLabel: (num: number) => t('version-number', { number: num }),
+      current: t('version-current'),
+      checkpoint: t('version-checkpoint'),
+      autosave: t('version-autosave'),
+      restoreTitle: t('version-restore-title'),
+      restoreConfirm: (num: number) => t('version-restore-confirm-msg', { number: num }),
+      compareMode: t('version-compare-mode'),
+      cancelCompare: t('version-cancel-compare'),
+      compareSelected: t('version-compare-selected'),
+      compareHint: t('version-compare-hint'),
+      unknownUser: t('version-unknown-user')
+    }),
+    [t]
+  )
+
+  const checkpointMessages: CheckpointDialogMessages = useMemo(
+    () => ({
+      title: t('checkpoint-title'),
+      descriptionLabel: t('checkpoint-description-label'),
+      descriptionPlaceholder: t('checkpoint-description-placeholder'),
+      descriptionHint: t('checkpoint-description-hint'),
+      cancel: t('checkpoint-cancel'),
+      save: t('checkpoint-save'),
+      saving: t('checkpoint-saving')
+    }),
+    [t]
   )
 
   return (
@@ -91,7 +130,7 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
       {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
         <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
           <Lock className="gba:h-3 gba:w-3" />
-          Locked
+          {t('header-locked')}
         </span>
       )}
 
@@ -147,10 +186,13 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
         <VersionHistory
           versions={versioning.versions as Version[]}
           isLoading={versioning.isLoading}
+          error={versioning.error}
           onRestore={handleRestore}
           onClose={() => setShowVersionHistory(false)}
           currentVersion={currentVersionNumber}
           showAutoSaves={false}
+          messages={versionHistoryMessages}
+          locale={locale}
           data-testid={`${testId}-version-history-dialog`}
         />
       )}
@@ -160,8 +202,23 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
         onClose={() => setShowCheckpointDialog(false)}
         isSaving={versioning.isSaving}
         onSave={async description => {
-          await versioning.createCheckpoint(description)
+          try {
+            await flushPendingCollaborationUpdates?.()
+            const checkpoint = await versioning.createCheckpoint(description)
+            if (!checkpoint) {
+              toast.error(t('checkpoint-save-failed'))
+              return false
+            }
+
+            await versioning.loadVersions()
+            return true
+          } catch (error) {
+            console.error('[SlideEditorHeaderActions] Failed to create checkpoint:', error)
+            toast.error(t('checkpoint-save-failed'))
+            return false
+          }
         }}
+        messages={checkpointMessages}
         data-testid={`${testId}-checkpoint-dialog`}
       />
 

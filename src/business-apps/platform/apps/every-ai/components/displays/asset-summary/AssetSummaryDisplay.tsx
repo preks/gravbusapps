@@ -15,41 +15,30 @@ import {
 import type { AssetSummaryData, AssetStatusTrendSeries } from './types'
 
 const PIE_COLOR_TOKENS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-  'hsl(var(--chart-6))',
-  'hsl(var(--chart-7))',
-  'hsl(var(--chart-8))',
-  'hsl(var(--chart-9))',
-  'hsl(var(--chart-10))'
+  'var(--nw-chart-1)',
+  'var(--nw-chart-2)',
+  'var(--nw-chart-3)',
+  'var(--nw-chart-4)',
+  'var(--nw-chart-5)',
+  'var(--nw-chart-6)',
+  'var(--nw-chart-7)',
+  'var(--nw-chart-8)',
+  'var(--nw-chart-1)',
+  'var(--nw-chart-2)'
 ]
 
-const FALLBACK_PIE_COLORS = [
-  '#3b82f6',
-  '#22c55e',
-  '#f59e0b',
-  '#a855f7',
-  '#ef4444',
-  '#06b6d4',
-  '#84cc16',
-  '#f97316',
-  '#ec4899',
-  '#6366f1'
-]
+const FALLBACK_PIE_COLORS = [...PIE_COLOR_TOKENS]
 
 const TREND_COLOR_TOKENS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-  'hsl(var(--chart-6))'
+  'var(--nw-chart-1)',
+  'var(--nw-chart-2)',
+  'var(--nw-chart-3)',
+  'var(--nw-chart-4)',
+  'var(--nw-chart-5)',
+  'var(--nw-chart-6)'
 ]
 
-const FALLBACK_TREND_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4']
+const FALLBACK_TREND_COLORS = [...TREND_COLOR_TOKENS]
 
 function resolveCssColor(token: string, fallback: string): string {
   if (typeof document === 'undefined' || typeof window === 'undefined') return fallback
@@ -85,9 +74,11 @@ export const AssetSummaryDisplay: React.FC<{ data: AssetSummaryData }> = ({ data
   const [trendColors, setTrendColors] = useState<string[]>(FALLBACK_TREND_COLORS)
 
   useLayoutEffect(() => {
-    setPieColors(PIE_COLOR_TOKENS.map((token, idx) => resolveCssColor(token, FALLBACK_PIE_COLORS[idx] ?? '#3b82f6')))
+    setPieColors(
+      PIE_COLOR_TOKENS.map((token, idx) => resolveCssColor(token, FALLBACK_PIE_COLORS[idx] ?? 'var(--nw-chart-1)'))
+    )
     setTrendColors(
-      TREND_COLOR_TOKENS.map((token, idx) => resolveCssColor(token, FALLBACK_TREND_COLORS[idx] ?? '#3b82f6'))
+      TREND_COLOR_TOKENS.map((token, idx) => resolveCssColor(token, FALLBACK_TREND_COLORS[idx] ?? 'var(--nw-chart-1)'))
     )
   }, [])
 
@@ -196,7 +187,7 @@ export const AssetSummaryDisplay: React.FC<{ data: AssetSummaryData }> = ({ data
           {hasTrend ? (
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={trendRows} margin={{ top: 8, right: 8, left: 8, bottom: 24 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-border)" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                 <Tooltip />

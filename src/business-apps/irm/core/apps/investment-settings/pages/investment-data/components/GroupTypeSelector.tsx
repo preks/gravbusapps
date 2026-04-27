@@ -9,7 +9,7 @@ import {
   TabSwitchContent
 } from '@newwork/nw-design-system'
 import { DatabaseIcon, TrendUpIcon, DropIcon } from '@phosphor-icons/react'
-import { CatalogEntryWithConfig } from '../types'
+import { CatalogEntryRaw, CatalogEntryWithConfig } from '../types'
 import { InvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 
 interface GroupTypeSelectorProps {
@@ -17,11 +17,11 @@ interface GroupTypeSelectorProps {
   selectedGroup: CatalogEntryWithConfig | null
   selectedType: CatalogEntryWithConfig | null
   selectedLiquidFundType: CatalogEntryWithConfig | null
-  currentTypes: any[]
-  currentLiquidFundTypes: any[]
-  onGroupSelect: (group: any) => void
-  onTypeSelect: (type: any) => void
-  onLiquidFundTypeSelect: (liquidFundType: any) => void
+  currentTypes: CatalogEntryRaw[]
+  currentLiquidFundTypes: CatalogEntryRaw[]
+  onGroupSelect: (group: CatalogEntryRaw) => void
+  onTypeSelect: (type: CatalogEntryRaw) => void
+  onLiquidFundTypeSelect: (liquidFundType: CatalogEntryRaw) => void
   onGeneralSelect: () => void
   prefixDataTestId?: string
 }
@@ -48,14 +48,14 @@ export const GroupTypeSelector: React.FC<GroupTypeSelectorProps> = ({
     <TabSwitch
       value={selectedGroup?.id}
       onValueChange={value => {
-        const group = catalogData?.investmentGroups?.find((g: any) => g.id === value)
+        const group = catalogData?.investmentGroups?.find(g => g.id === value)
         if (group) onGroupSelect(group)
       }}
       className="gba:w-full"
       data-testid={`${prefixDataTestId}-${DATA_TEST_ID}`}
     >
       <TabSwitchList>
-        {catalogData?.investmentGroups?.map((group: any) => (
+        {catalogData?.investmentGroups?.map(group => (
           <TabSwitchTrigger
             key={group.id}
             value={group.id}
@@ -67,7 +67,7 @@ export const GroupTypeSelector: React.FC<GroupTypeSelectorProps> = ({
         ))}
       </TabSwitchList>
 
-      {catalogData?.investmentGroups?.map((group: any) => (
+      {catalogData?.investmentGroups?.map(group => (
         <TabSwitchContent key={group.id} value={group.id}>
           {selectedGroup?.id === group.id && (
             <div className="gba:space-y-2 gba:mt-6" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-type-selector`}>
@@ -77,7 +77,7 @@ export const GroupTypeSelector: React.FC<GroupTypeSelectorProps> = ({
                   if (value === 'general') {
                     onGeneralSelect()
                   } else {
-                    const type = currentTypes.find((t: any) => t.id === value)
+                    const type = currentTypes.find(t => t.id === value)
                     if (type) onTypeSelect(type)
                   }
                 }}
@@ -91,7 +91,7 @@ export const GroupTypeSelector: React.FC<GroupTypeSelectorProps> = ({
                     General Group Settings
                   </TabsTrigger>
 
-                  {currentTypes.map((type: any) => (
+                  {currentTypes.map(type => (
                     <TabsTrigger
                       key={type.id}
                       value={type.id}
@@ -110,12 +110,12 @@ export const GroupTypeSelector: React.FC<GroupTypeSelectorProps> = ({
                   <Tabs
                     value={selectedLiquidFundType?.id || ''}
                     onValueChange={value => {
-                      const liquidFundType = currentLiquidFundTypes.find((lft: any) => lft.id === value)
+                      const liquidFundType = currentLiquidFundTypes.find(lft => lft.id === value)
                       if (liquidFundType) onLiquidFundTypeSelect(liquidFundType)
                     }}
                   >
                     <TabsList className="gba:w-full gba:justify-start gba:flex-wrap">
-                      {currentLiquidFundTypes.map((liquidFundType: any) => (
+                      {currentLiquidFundTypes.map(liquidFundType => (
                         <TabsTrigger
                           key={liquidFundType.id}
                           value={liquidFundType.id}

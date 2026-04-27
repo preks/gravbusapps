@@ -5,7 +5,8 @@
  */
 
 import React, { useMemo, useState, useEffect, useRef } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../../_i18n'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { Upload, Loader2, CheckCircle2, ExternalLink, XCircle, Download, AlertTriangle, RefreshCw } from 'lucide-react'
 import { ScreenPreview } from '../preview/ScreenPreview'
@@ -156,6 +157,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   const [activeTab, setActiveTab] = useState<CanvasTab>('screen')
   const [pendingImportMode, setPendingImportMode] = useState<'update' | 'new' | null>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
+  const { t } = useTranslation(translations)
   const visibleTabs = useMemo(() => getVisibleCanvasTabs(components), [components])
   const previewComponent = useMemo(() => firstScreenWithSession(components), [components])
   const dataModelItems = useMemo(
@@ -281,8 +283,8 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
           return (
             <ComponentPlaceholderList
               components={components.filter(c => c.type === 'agent')}
-              typeLabel="Task Expert"
-              emptyMessage="No task experts were built."
+              typeLabel={t('type-label-agent')}
+              emptyMessage={t('complete-view-empty-agents')}
             />
           )
         }

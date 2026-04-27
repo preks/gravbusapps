@@ -59,6 +59,8 @@ import {
 } from '../types/reportTypes'
 import type { ReportFilters } from '../components/pages/reportFilterUtils'
 
+const EMPTY_ACTIVE_FILTERS: ReportFilters = { status: [], employeeName: [], departmentName: [] }
+
 export { ReportType } from '../types/reportTypes'
 export type {
   ReportItem,
@@ -133,7 +135,9 @@ export const useBackofficeExpenseReportData = (
   const reportQuerySignatureRef = useRef<Partial<Record<ReportType, string>>>({})
   const expensesSlaPolicyRef = useRef<ExpensesSlaPolicy>(DEFAULT_EXPENSES_SLA_POLICY)
   const reportOrderBy = useMemo(() => mapSortingToOrderBy(selectedReportType, sorting), [selectedReportType, sorting])
-  const activeFilters = selectedReportType ? (activeFiltersByReportType[selectedReportType] ?? {}) : {}
+  const activeFilters: ReportFilters = selectedReportType
+    ? (activeFiltersByReportType[selectedReportType] ?? EMPTY_ACTIVE_FILTERS)
+    : EMPTY_ACTIVE_FILTERS
 
   const selectedDateFrom = useMemo(() => {
     const raw = (activeFilters as any)?.dateFrom
@@ -693,20 +697,21 @@ export const useBackofficeExpenseReportData = (
       (selectedReportType !== ReportType.EXPENSE_ITEM && selectedReportType !== ReportType.APPROVAL_PAYOUT_CYCLE)
     )
       return
+    // EXPENSE_ITEM and APPROVAL_PAYOUT_CYCLE use fetchReport with status/emp/dept/dates. The
+    // signature must include those filters for both, or changing filters while on the Item tab
+    // would not refetch (signature stayed identical: filters were only folded in for Payout).
+    const isItemOrPayout =
+      selectedReportType === ReportType.EXPENSE_ITEM || selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
     const signature = JSON.stringify({
       selectedReportType,
       currentPage,
       pageSize,
       searchTerm,
       reportOrderBy,
-      selectedStatusFilters: selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedStatusFilters : [],
-      selectedEmployeeFilters: selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedEmployeeFilters : [],
-      selectedDepartmentFilters:
-        selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedDepartmentFilters : [],
-      selectedDates:
-        selectedReportType === ReportType.EXPENSE_ITEM || selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
-          ? selectedDates
-          : {}
+      selectedStatusFilters: isItemOrPayout ? selectedStatusFilters : [],
+      selectedEmployeeFilters: isItemOrPayout ? selectedEmployeeFilters : [],
+      selectedDepartmentFilters: isItemOrPayout ? selectedDepartmentFilters : [],
+      selectedDates: isItemOrPayout ? selectedDates : {}
     })
     if (lastFetchSignatureRef.current === signature) return
     if (

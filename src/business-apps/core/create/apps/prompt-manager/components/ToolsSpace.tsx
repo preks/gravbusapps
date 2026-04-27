@@ -14,13 +14,16 @@ import {
   TableBody,
   TableCell,
   Spinner,
-  Badge
+  Badge,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTaskExpertToolsCatalog } from '../hooks/useTaskExpertToolsCatalog'
 import { ToolEditor } from './ToolEditor'
+import translations from '../_i18n'
 
 export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
+  const { t } = useTranslation(translations)
   const [search, setSearch] = useState('')
   const [limit] = useState(5)
   const [offset, setOffset] = useState(0)
@@ -87,7 +90,7 @@ export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
     <Card data-testid="prompt-manager-tools-space">
       <CardHeader>
         <CardTitle>MCP Servers</CardTitle>
-        <CardDescription>Manage MCP server connections for AI Task Experts</CardDescription>
+        <CardDescription>{t('tools-space-card-description')}</CardDescription>
       </CardHeader>
       <CardContent className="gba:space-y-4">
         <div className="gba:flex gba:items-center gba:gap-3">

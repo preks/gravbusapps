@@ -22,13 +22,14 @@ interface SkillsTabOldProps {
   accessToken: string
   employeeId?: string // Optional employeeId override for permissions check
   userInfo?: UserInfoProps // Current user info for self-view check
+  devFeatureFlag: boolean
 }
 
 /**
  * Skills Tab Component
  * Displays skills for the employee with enhanced visual design
  */
-const SkillsTabOld: React.FC<SkillsTabOldProps> = ({ employee, accessToken }) => {
+const SkillsTabOld: React.FC<SkillsTabOldProps> = ({ employee, accessToken, devFeatureFlag }) => {
   const { t } = useTranslation(translations)
   // Use employee skills data directly
   const employeeSkills = useMemo(() => {
@@ -47,26 +48,28 @@ const SkillsTabOld: React.FC<SkillsTabOldProps> = ({ employee, accessToken }) =>
 
   return (
     <div className="gba:skills-tab gba:space-y-8" data-testid="skills-tab">
-      <div className="gba:flex gba:justify-between gba:items-start" data-testid="skills-header">
-        <div className="gba:skills-header">
-          <div className="gba:font-bold gba:text-2xl" data-testid="skills-title">
-            {t('skills-title')}
+      {devFeatureFlag && (
+        <div className="gba:flex gba:justify-between gba:items-start" data-testid="skills-header">
+          <div className="gba:skills-header">
+            <div className="gba:font-bold gba:text-2xl" data-testid="skills-title">
+              {t('skills-title')}
+            </div>
+            <div className="gba:text-muted-foreground gba:text-lg" data-testid="skills-description">
+              {t('skills-description')}
+            </div>
           </div>
-          <div className="gba:text-muted-foreground gba:text-lg" data-testid="skills-description">
-            {t('skills-description')}
-          </div>
+          <AppAction
+            variant="update-primary"
+            data-testid="employee-skills-edit-button"
+            contexts={[{ context: FlowContextName.updateEmployeeSkill, contextData: { employeeId: employee?.id } }]}
+            prefixDataTestId="employee-skills-edit"
+            accessToken={accessToken}
+            autoExecute={true}
+          >
+            {t('skills-edit-button')}
+          </AppAction>
         </div>
-        <AppAction
-          variant="update-primary"
-          data-testid="employee-skills-edit-button"
-          contexts={[{ context: FlowContextName.updateEmployeeSkill, contextData: { employeeId: employee?.id } }]}
-          prefixDataTestId="employee-skills-edit"
-          accessToken={accessToken}
-          autoExecute={true}
-        >
-          {t('skills-edit-button')}
-        </AppAction>
-      </div>
+      )}
 
       {validSkills.length === 0 ? (
         <EmptyState title={t('skills-empty')} data-testid="skills-empty" />

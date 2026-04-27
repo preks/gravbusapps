@@ -31,6 +31,11 @@ interface ManagerPlanningState {
   pageSize: number
   /** Salary increase pool preview split method (manager team distribution UI). */
   distributionMethod: DistributionMethod
+  /**
+   * `CompensationBudgetPlan` id for this company’s team budget and proposals (not the company-budget row id).
+   * Cleared when the company changes. When null, team data and the distribution preview are not loaded until the user picks a cycle.
+   */
+  selectedCompensationPlanId: string | null
 
   setSearchQuery: (query: string) => void
   setSortFromTable: (field: string, order: 'ASC' | 'DESC' | '') => void
@@ -43,6 +48,7 @@ interface ManagerPlanningState {
   setCurrentPage: (page: number) => void
   setPageSize: (size: number) => void
   setDistributionMethod: (method: DistributionMethod) => void
+  setSelectedCompensationPlanId: (planId: string | null) => void
   resetTableUi: () => void
 }
 
@@ -59,6 +65,7 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
   currentPage: 1,
   pageSize: 10,
   distributionMethod: DEFAULT_DISTRIBUTION_METHOD,
+  selectedCompensationPlanId: null,
 
   setSearchQuery: query => set({ searchQuery: query, currentPage: 1 }),
 
@@ -88,6 +95,7 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
   setSelectedCompanyId: id =>
     set({
       selectedCompanyId: id,
+      selectedCompensationPlanId: null,
       currentPage: 1,
       sidebarFilterIds: [],
       filterSalaryMin: null,
@@ -137,6 +145,8 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
     }),
 
   setDistributionMethod: method => set({ distributionMethod: method }),
+
+  setSelectedCompensationPlanId: planId => set({ selectedCompensationPlanId: planId }),
 
   resetTableUi: () =>
     set({

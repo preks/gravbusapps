@@ -121,7 +121,7 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
                 <Send className="gba:h-3.5 gba:w-3.5 gba:text-warning" />
               </div>
               <span className="gba:text-sm gba:font-semibold">
-                {mode === 'actions' ? 'Selection Actions' : headerTitle}
+                {mode === 'actions' ? t('inline-comment-selection-actions') : headerTitle}
               </span>
             </div>
             <Button
@@ -158,7 +158,7 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
                   onClick={onEditWithAI}
                   data-testid={`${testId}-action-ai`}
                 >
-                  AI Edit
+                  {t('inline-comment-ai-edit')}
                 </AiButton>
               )}
             </div>
@@ -196,7 +196,7 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
                       data-testid={`${testId}-back`}
                       className="gba:h-8 gba:px-2"
                     >
-                      Back
+                      {t('inline-comment-back')}
                     </Button>
                   )}
                   <Button

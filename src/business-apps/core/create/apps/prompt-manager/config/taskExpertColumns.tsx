@@ -21,14 +21,7 @@ const formatDateTime = (iso: string | undefined): string => {
   }).format(d)
 }
 
-const parseToolsCount = (raw: unknown): number => {
-  if (Array.isArray(raw)) return raw.length
-  if (typeof raw !== 'string') return 0
-  return raw
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean).length
-}
+const parseToolsCount = (raw: string[] | undefined): number => raw?.length ?? 0
 
 export const createTaskExpertColumns = (
   t: TranslationFn,
@@ -93,21 +86,9 @@ export const createTaskExpertColumns = (
     size: 140,
     meta: { align: 'right' },
     enableSorting: false,
-    accessorFn: row => {
-      return parseToolsCount((row as any).tools)
-    },
+    accessorFn: row => parseToolsCount(row.tools),
     cell: ({ row }) => {
-      const raw = row.original.tools
-      const list = Array.isArray(raw)
-        ? raw
-        : typeof raw === 'string'
-          ? raw
-              .split(',')
-              .map(s => s.trim())
-              .filter(Boolean)
-          : []
-
-      const count = list.length
+      const count = parseToolsCount(row.original.tools)
 
       return (
         <div className="gba:flex gba:justify-end">

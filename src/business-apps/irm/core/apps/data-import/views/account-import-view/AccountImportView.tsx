@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { EntityImportView } from '@/common/components/common-relations/apps/data-import/components'
+import { IrmEntityImportView } from '@/common/components/common-relations/apps/data-import/components'
 import { investmentAccountImportConfig } from '@/common/data/investment/types/investmentAccountImportConfig'
 import translations from './_i18n'
 
@@ -18,7 +18,7 @@ export const AccountImportView: React.FC<AccountImportViewProps> = ({
   const { t } = useTranslation(translations)
 
   return (
-    <EntityImportView
+    <IrmEntityImportView
       config={investmentAccountImportConfig}
       headerTitle={t('account-page-title')}
       headerDescription={t('account-page-description')}

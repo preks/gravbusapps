@@ -1,0 +1,12 @@
+approve-skill-assignment-title = Approve Skill Assignment
+approve-skill-assignment-details-title = Skill Changes
+approve-skill-assignment-no-changes = No changes detected in this request.
+approve-skill-assignment-valid-from = Valid from
+approve-skill-assignment-level = Level
+approve-skill-assignment-approve = Approve
+approve-skill-assignment-reject = Reject
+approve-skill-assignment-change-new = New
+approve-skill-assignment-change-to-create = To create
+approve-skill-assignment-change-modified = Modified
+approve-skill-assignment-change-deleted = Removed
+approve-skill-assignment-info = The employee has requested changes to their skill assignments. Please review the changes below and approve or reject the request.

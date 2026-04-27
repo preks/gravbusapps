@@ -16,10 +16,6 @@ export { default as InvestmentTileSection } from './InvestmentTileSection'
 // Utilities and Hooks
 export { useReportGenerationMonitor } from './useReportGenerationMonitor'
 
-// Table Components
-export { default as TransposedTable } from './TransposedTable'
-export { default as ReportFilters } from './ReportFilters'
-
 // Other exports
 export * from './columnDefinitions'
 

@@ -1,10 +1,11 @@
 import React from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { GitBranch, Sparkles, SplitSquareHorizontal } from 'lucide-react'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import type { DesignerMode } from '../../types/studioTypes'
 import type { FlowNodeType } from '@/common/components/flow/flow-viewer'
 import { TaskCategoryTiles } from './shared/TaskCategoryTiles'
+import translations from '../../_i18n'
 
 const CONTROL_INSERT_OPTIONS: Array<{
   type: FlowNodeType
@@ -37,6 +38,7 @@ export const AddStepPanel: React.FC<AddStepPanelProps> = ({
   mode,
   'data-testid': testId = 'flow-studio-add-step'
 }) => {
+  const { t } = useTranslation(translations)
   const edges = useFlowStudioStore(s => s.edges)
   const nodes = useFlowStudioStore(s => s.nodes)
   const edge = edges.find(e => e.id === edgeId)
@@ -114,7 +116,7 @@ export const AddStepPanel: React.FC<AddStepPanelProps> = ({
         <ul className="gba:list-disc gba:pl-5 gba:space-y-1">
           <li>Picking a tile inserts a new step on this edge and opens its configuration.</li>
           <li>The canvas stays auto-laid out — no manual positioning needed.</li>
-          {mode === 'simple' && <li>Switch to Advanced mode to unlock Function Tasks and AI Task Expert steps.</li>}
+          {mode === 'simple' && <li>{t('add-step-tip-advanced-mode')}</li>}
         </ul>
       </div>
     </div>

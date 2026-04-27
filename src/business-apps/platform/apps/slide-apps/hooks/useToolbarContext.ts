@@ -16,12 +16,13 @@ import type {
   CodeElement,
   TableElement
 } from '../components/slideElements'
+import type { ResolvedTextFormattingState } from '../utils/richTextEditing'
 
 export type ToolbarContextType = 'none' | 'text' | 'shape' | 'image' | 'video' | 'chart' | 'code' | 'table' | 'multi'
 
 export type ToolbarContext =
   | { type: 'none' }
-  | { type: 'text'; element: TextElement }
+  | { type: 'text'; element: TextElement; formatting?: ResolvedTextFormattingState }
   | { type: 'shape'; element: ShapeElement }
   | { type: 'image'; element: ImageElement }
   | { type: 'video'; element: VideoElement }
@@ -50,6 +51,18 @@ export function useToolbarContext({
 }: UseToolbarContextOptions): UseToolbarContextReturn {
   return useMemo(() => {
     if (selectedCount > 1) {
+      const allSameType =
+        selectedElements.length > 0 && selectedElements.every(e => e.type === selectedElements[0].type)
+      if (allSameType) {
+        const elementType = selectedElements[0].type
+        const context = { type: elementType, element: selectedElements[0] } as ToolbarContext
+        return {
+          context,
+          contextType: elementType as ToolbarContextType,
+          hasSelection: true,
+          isMultiSelect: true
+        }
+      }
       return {
         context: { type: 'multi', count: selectedCount, elements: selectedElements },
         contextType: 'multi' as const,

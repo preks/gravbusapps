@@ -5,8 +5,9 @@
  */
 
 import React, { useState } from 'react'
-import { Button, Textarea } from '@newwork/nw-design-system'
+import { Button, Textarea, useTranslation } from '@newwork/nw-design-system'
 import { Send } from 'lucide-react'
+import sharedTranslations from '../_i18n'
 
 export interface CommentEditorMessages {
   cancel?: string
@@ -28,23 +29,24 @@ export interface CommentEditorProps {
 /**
  * Simple comment editor with textarea
  */
-const DEFAULT_EDITOR_MESSAGES: Required<CommentEditorMessages> = {
-  cancel: 'Cancel',
-  send: 'Send',
-  sending: 'Sending...',
-  sendHint: '⌘+Enter to send'
-}
-
 export const CommentEditor: React.FC<CommentEditorProps> = ({
   initialValue = '',
   onSubmit,
   onCancel,
   isSubmitting = false,
-  placeholder = 'Write a comment...',
+  placeholder,
   messages: messagesProp,
   'data-testid': testId = 'comment-editor'
 }) => {
-  const m = { ...DEFAULT_EDITOR_MESSAGES, ...messagesProp }
+  const { t } = useTranslation(sharedTranslations)
+  const defaultEditorMessages: Required<CommentEditorMessages> = {
+    cancel: t('comment-editor-cancel'),
+    send: t('comment-editor-send'),
+    sending: t('comment-editor-sending'),
+    sendHint: t('comment-editor-send-hint')
+  }
+  const m = { ...defaultEditorMessages, ...messagesProp }
+  const effectivePlaceholder = placeholder || t('comment-editor-placeholder-default')
   const [content, setContent] = useState(initialValue)
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -90,7 +92,7 @@ export const CommentEditor: React.FC<CommentEditorProps> = ({
         value={content}
         onChange={e => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={placeholder}
+        placeholder={effectivePlaceholder}
         rows={2}
         disabled={isSubmitting}
         className="gba:resize-none gba:text-sm gba:border-border/50 focus-visible:gba:ring-primary/20 gba:min-h-[56px] gba:max-h-28 gba:overflow-y-auto"

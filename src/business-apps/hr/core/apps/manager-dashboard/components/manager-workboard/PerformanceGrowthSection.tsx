@@ -1,33 +1,38 @@
 // NO BUSINESS LOGIC HERE. Data + actions come from useManagerWorkboardVM.
 
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button, Progress, Badge } from '@newwork/nw-design-system'
-import { CheckCircle2, XCircle, Target } from 'lucide-react'
+import { Card, CardHeader, CardTitle, CardContent, Button, Progress } from '@newwork/nw-design-system'
+import { BarChart3, Users } from 'lucide-react'
 
 interface PerformanceGrowthSectionProps {
   onTrack: number
   atRisk: number
   behind: number
+  completed: number
   totalGoals: number
   averageProgress: number
   loading: boolean
   onNavigateToTeamPerformance: () => void
   onNavigateToAtRiskGoals: () => void
+  onNavigateToTeamPerformanceOverview?: () => void
 }
 
 export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> = ({
   onTrack,
   atRisk,
   behind,
+  completed,
   totalGoals,
   averageProgress,
   loading,
   onNavigateToTeamPerformance,
-  onNavigateToAtRiskGoals
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onNavigateToAtRiskGoals,
+  onNavigateToTeamPerformanceOverview
 }) => {
   if (loading) {
     return (
-      <Card style={{ borderRadius: '12px' }} className="gba:p-4">
+      <Card className="gba:rounded-xl gba:p-4 gba:min-h-80">
         <CardHeader className="gba:pb-2">
           <CardTitle className="gba:text-base">Performance & Growth</CardTitle>
         </CardHeader>
@@ -41,70 +46,72 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
     )
   }
 
-  const hasGoals = totalGoals > 0
+  const metrics = [
+    { label: 'On track', value: onTrack, colorClass: 'gba:text-success' },
+    { label: 'At risk', value: atRisk, colorClass: 'gba:text-warning' },
+    { label: 'Behind', value: behind, colorClass: 'gba:text-destructive' },
+    { label: 'Completed', value: completed, colorClass: 'gba:text-foreground' }
+  ]
 
   return (
-    <Card data-testid="performance-growth-section" style={{ borderRadius: '12px' }} className="gba:p-4">
+    <Card data-testid="performance-growth-section" className="gba:rounded-xl gba:p-4 gba:min-h-80">
       <CardHeader className="gba:pb-2">
-        <CardTitle className="gba:text-base gba:font-semibold">Performance & Growth</CardTitle>
-        <p className="gba:text-xs gba:text-muted-foreground">Goals progress distribution</p>
+        <CardTitle className="gba:text-base">Performance & Growth</CardTitle>
+        <p className="gba:text-xs gba:text-muted-foreground">Active cycle goal progress</p>
       </CardHeader>
-      <CardContent className="gba:space-y-2">
-        {hasGoals ? (
-          <>
-            {/* Distribution (Primary) */}
-            <div className="gba:space-y-1.5">
-              {onTrack > 0 && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:p-1.5 gba:rounded-lg gba:bg-surface">
-                  <div className="gba:flex gba:items-center gba:gap-1.5">
-                    <CheckCircle2 className="gba:text-info-on-card" size={16} />
-                    <span className="gba:text-xs gba:font-medium gba:text-info-on-card">On track</span>
-                  </div>
-                  <Badge variant="success" className="gba:text-xs gba:px-2 gba:py-0">
-                    {onTrack}
-                  </Badge>
-                </div>
-              )}
-
-              {behind > 0 && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:p-1.5 gba:rounded-lg gba:bg-surface">
-                  <div className="gba:flex gba:items-center gba:gap-1.5">
-                    <XCircle className="gba:text-destructive-on-card" size={16} />
-                    <span className="gba:text-xs gba:font-medium gba:text-destructive-on-card">Behind</span>
-                  </div>
-                  <Badge variant="destructive" className="gba:text-xs gba:px-2 gba:py-0">
-                    {behind}
-                  </Badge>
-                </div>
-              )}
-            </div>
-
-            {/* Progress indicator (Secondary) */}
-            <div className="gba:border-t gba:pt-2">
-              <Progress value={averageProgress} className="gba:h-1.5 gba:mb-1" />
-              <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-                {averageProgress}% avg. progress · {totalGoals} total goals
+      <CardContent className="gba:space-y-3">
+        <style>{`
+          [data-layout="perf-metrics"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 0.5rem;
+          }
+          [data-layout="perf-metrics"] > div {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+          }
+          [data-layout="perf-buttons"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 0.5rem;
+          }
+          [data-layout="perf-buttons"] > button {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+          }
+        `}</style>
+        <div data-layout="perf-metrics">
+          {metrics.map(m => (
+            <div key={m.label} className="gba:text-center gba:py-2 gba:px-1 gba:rounded-lg gba:bg-muted/30">
+              <p className={`gba:text-xl gba:font-bold gba:leading-tight gba:tabular-nums ${m.colorClass}`}>
+                {m.value ?? 0}
               </p>
+              <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-0.5 gba:leading-tight">{m.label}</p>
             </div>
+          ))}
+        </div>
 
-            {/* Action Button */}
-            {(atRisk > 0 || behind > 0) && (
-              <Button onClick={onNavigateToAtRiskGoals} variant="outline" size="sm" className="gba:w-full gba:h-8">
-                <Target size={14} className="gba:mr-1.5" />
-                Review at-risk goals
-              </Button>
-            )}
-          </>
-        ) : (
-          <div className="gba:text-center gba:py-6 gba:text-muted-foreground">
-            <Target size={40} className="gba:mx-auto gba:mb-2 gba:opacity-50" />
-            <p className="gba:text-sm gba:font-medium">No performance goals set</p>
-            <p className="gba:text-xs gba:mb-3">Set goals to track team progress</p>
-            <Button onClick={onNavigateToTeamPerformance} variant="outline" size="sm">
-              Set goals
+        <div>
+          <Progress value={averageProgress} className="gba:h-1.5 gba:mb-1" />
+          <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
+            {averageProgress}% avg. progress · {totalGoals} total goals
+          </p>
+        </div>
+
+        <div data-layout="perf-buttons">
+          <Button onClick={onNavigateToTeamPerformance} variant="outline" size="sm" className="gba:h-8">
+            <Users size={14} className="gba:mr-1" />
+            Team goals
+          </Button>
+          {onNavigateToTeamPerformanceOverview && (
+            <Button onClick={onNavigateToTeamPerformanceOverview} variant="outline" size="sm" className="gba:h-8">
+              <BarChart3 size={14} className="gba:mr-1" />
+              Trends
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </CardContent>
     </Card>
   )

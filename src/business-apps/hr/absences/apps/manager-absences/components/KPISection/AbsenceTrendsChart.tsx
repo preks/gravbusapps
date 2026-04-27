@@ -17,6 +17,15 @@ export const AbsenceTrendsChart: React.FC<AbsenceTrendsChartProps> = ({
   uniqueGroups,
   groupColors
 }) => {
+  const formatDayValue = (value: unknown): string => {
+    const numericValue = Number(value)
+    if (Number.isNaN(numericValue)) {
+      return '0'
+    }
+
+    return Number(numericValue.toFixed(2)).toString()
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -79,7 +88,8 @@ export const AbsenceTrendsChart: React.FC<AbsenceTrendsChartProps> = ({
                                 style={{ background: color }}
                               />
                               <span>
-                                {type}: {value} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.days', 'days')}
+                                {type}: {formatDayValue(value)}{' '}
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.days', 'days')}
                               </span>
                             </div>
                           )

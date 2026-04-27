@@ -22,6 +22,18 @@ export const CYCLE_STATUS_LABELS: Record<CycleStatus, string> = {
 
 export type BudgetType = 'absolute' | 'percentage'
 
+/** Company-level budget inputs for `computeCompanyBudgetSummary` (absolute/percentage vs cost baselines). */
+export interface CompensationCycleCompany {
+  salaryBudgetType: BudgetType
+  salaryBudgetValue: number
+  currentTotalSalaryCost: number
+  bonusBudgetType: BudgetType
+  bonusBudgetValue: number
+  benefitsBudgetType: BudgetType
+  benefitsBudgetValue: number
+  currentTotalBenefitsCost: number
+}
+
 export type DistributionMethod =
   | 'proportional_headcount'
   | 'proportional_salary_cost'

@@ -316,8 +316,16 @@ notification-feedback-request-sent-success-on-behalf = Cererea de feedback a fos
 feedback-request-missing-user-id = Unii angajati selectati nu au user ID. Selectati-i din nou si incercati din nou.
 entitlements-valid-from-month-start-hint = Data trimisa va fi intotdeauna prima zi a lunii selectate, indiferent de ziua aleasa.
 entitlements-valid-from = Valabil de la
+entitlements-update-title = Actualizează drepturile
+entitlements-add-title = Adaugă drept
+entitlements-total = Drept / Alocare anuală
+entitlements-total-annual = Drept / Alocare anuală
 entitlements-effective-from = Efectiv de la
 entitlements-effective-to = Efectiv pana la
+entitlements-valid-from-hire-date-error = Efectiv de la nu poate fi mai devreme decat data angajarii angajatului
+entitlements-duplicate-error = Exista deja un drept cu acelasi tip si aceeasi data de intrare in vigoare.
+entitlements-in-between-error = Efectiv de la nu poate fi mai devreme decat cea mai recenta intrare existenta pentru acest tip de drept
+entitlements-hire-date-hint = Cea mai devreme data permisa
 
 # ============================================
 # Create Employee Form
@@ -375,6 +383,8 @@ create-absence-insufficient-balance = Sold insuficient
 create-absence-requested = Solicitat
 create-absence-available = Disponibil
 create-absence-days = zile
+create-absence-effective-days-label = Zile efective
+create-absence-calendar-days-label = Zile calendaristice
 create-absence-end-date-after-start = Data de încheiere trebuie să fie după data de început.
 create-absence-single-day-bank-holiday-blocked = Ziua selectată este o sărbătoare legală. Nu puteți trimite o absență de o zi pentru această dată.
 create-absence-validation-failed = Validarea a eșuat. Vă rugăm să încercați din nou.

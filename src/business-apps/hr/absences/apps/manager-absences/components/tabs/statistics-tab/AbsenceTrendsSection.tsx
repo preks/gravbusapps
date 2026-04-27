@@ -1,14 +1,38 @@
 import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useAbsenceKPIData } from '../../../hooks/useAbsenceKPIData'
+import dayjs from 'dayjs'
 import { AbsenceTrendsChart } from '../../KPISection/AbsenceTrendsChart'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTeamCoverageData } from '../../../hooks/useTeamCoverageData'
+import { TeamDailyFactsSource, useTeamDailyFactsByTypeMonthly } from '../../../hooks/useTeamDailyFacts'
+import { useAbsenceTypeCatalog } from '../../../../personal-absences/hooks/useAbsenceTypeCatalog'
 
-export const AbsenceTrendsSection: React.FC<BusinessAppContextProps> = props => {
-  const { data, loading: dataLoading, error: dataError } = useAbsenceKPIData(props)
+interface AbsenceTrendsSectionProps extends BusinessAppContextProps {
+  factsSource?: TeamDailyFactsSource
+}
 
-  const loading = dataLoading
-  const error = dataError
+export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = ({ factsSource = 'net', ...props }) => {
+  const { accessToken } = props
+  const { teamMemberIds, isLoading: coverageLoading, error: coverageError } = useTeamCoverageData(props)
+  const { mapType } = useAbsenceTypeCatalog(accessToken)
+  const from = dayjs().startOf('year').format('YYYY-MM-DD')
+  const to = dayjs().endOf('year').format('YYYY-MM-DD')
+  const {
+    data,
+    loading: factsLoading,
+    error: factsError
+  } = useTeamDailyFactsByTypeMonthly(
+    accessToken,
+    teamMemberIds,
+    from,
+    to,
+    mapType,
+    factsSource === 'net' ? undefined : ['APPROVED'],
+    factsSource
+  )
+
+  const loading = coverageLoading || factsLoading
+  const error = coverageError || (factsError ? factsError.message : null)
 
   if (!props.userInfo?.employeeDetails?.employeeId) {
     return (
@@ -34,7 +58,7 @@ export const AbsenceTrendsSection: React.FC<BusinessAppContextProps> = props => 
     )
   }
 
-  if (!data) {
+  if (!data || data.barChartData.length === 0) {
     return (
       <div className="gba:p-6 gba:text-center" data-testid="absence-trends-no-data">
         No absence trends data available.

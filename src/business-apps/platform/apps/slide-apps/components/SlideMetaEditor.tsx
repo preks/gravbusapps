@@ -146,7 +146,7 @@ export const SlideMetaEditor: React.FC<SlideMetaEditorProps> = ({
 
   const handleMaxUsageChange = useCallback(
     (value: string) => {
-      const num = parseInt(value, 10)
+      const num = Number.parseInt(value, 10)
       onChange({ ...slideMeta, maxUsage: isNaN(num) || num <= 0 ? undefined : num })
     },
     [slideMeta, onChange]
@@ -514,7 +514,7 @@ export const SlideMetaEditor: React.FC<SlideMetaEditorProps> = ({
                   max={20}
                   value={slideMeta.capabilities.maxBullets ?? ''}
                   onChange={e => {
-                    const val = parseInt(e.target.value, 10)
+                    const val = Number.parseInt(e.target.value, 10)
                     handleCapabilityChange('maxBullets', isNaN(val) ? 0 : val)
                   }}
                   disabled={disabled}
@@ -534,7 +534,7 @@ export const SlideMetaEditor: React.FC<SlideMetaEditorProps> = ({
                   max={4}
                   value={slideMeta.capabilities.columnCount ?? 2}
                   onChange={e => {
-                    const val = parseInt(e.target.value, 10)
+                    const val = Number.parseInt(e.target.value, 10)
                     handleCapabilityChange('columnCount', isNaN(val) ? 2 : val)
                   }}
                   disabled={disabled}

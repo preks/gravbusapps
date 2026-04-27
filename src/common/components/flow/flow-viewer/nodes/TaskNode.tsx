@@ -1,6 +1,7 @@
 import React from 'react'
 import { Handle, Position } from '@xyflow/react'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import {
   Bot,
   Brain,
@@ -47,7 +48,7 @@ const VARIANT_META: Record<
   INFORMATION: { label: 'Information', Icon: Info },
   FUNCTION: { label: 'Function', Icon: Code2 },
   AI_AGENT: { label: 'EveryAI Agent', Icon: Brain, isAI: true },
-  AI_TASK_EXPERT: { label: 'AI Task Expert', Icon: Bot, isAI: true }
+  AI_TASK_EXPERT: { label: '', Icon: Bot, isAI: true }
 }
 
 function getStatusBorder(status?: StepStatus, isSelected?: boolean, isOnActivePath?: boolean): string {
@@ -70,8 +71,10 @@ function getStatusBg(status?: StepStatus, isSelected?: boolean, isOnActivePath?:
 }
 
 export const TaskNode: React.FC<{ data: TaskNodeData }> = ({ data }) => {
+  const { t } = useTranslation(translations)
   const variant = data.taskVariant ?? 'TASK'
-  const meta = (VARIANT_META as Record<string, (typeof VARIANT_META)[TaskVariant]>)[variant] ?? VARIANT_META.TASK
+  const baseMeta = (VARIANT_META as Record<string, (typeof VARIANT_META)[TaskVariant]>)[variant] ?? VARIANT_META.TASK
+  const meta = variant === 'AI_TASK_EXPERT' ? { ...baseMeta, label: t('task-node-label-enterprise-agent') } : baseMeta
   const borderClass = getStatusBorder(data.status, data.isSelected, data.isOnActivePath)
   const bgClass = getStatusBg(data.status, data.isSelected, data.isOnActivePath)
   const isAI = meta.isAI === true

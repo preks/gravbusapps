@@ -11,6 +11,7 @@ import { JOB_POSITION_QUERY } from '../queries/JobPositionQueries'
 export interface JobFunction {
   id: string
   name: string
+  code?: string | null
   jobFamily: JobFamily | null
 }
 
@@ -20,6 +21,8 @@ export interface JobFunction {
 export interface JobLevel {
   id: string
   name: string
+  code?: string | null
+  hierarchyOrder?: number | null
 }
 
 /**
@@ -28,6 +31,8 @@ export interface JobLevel {
 export interface JobProfile {
   id: string
   name: string
+  title: string
+  code: string
 }
 
 /**
@@ -46,6 +51,7 @@ export interface JobFamily {
   value: string
   id: string
   code: string
+  name: string
   catalogId: string
   translations: JobFamilyTranslation[]
 }
@@ -96,6 +102,7 @@ export interface EmploymentType {
 export interface OrganizationalUnit {
   name: string
   id: string
+  code?: string | null
 }
 
 /**
@@ -103,6 +110,7 @@ export interface OrganizationalUnit {
  */
 export interface OrganizationalUnitEmployee {
   organizationalUnit: OrganizationalUnit
+  siteLocation: JobPositionSiteLocation | null
 }
 
 /**
@@ -129,12 +137,24 @@ export interface EmployeePosition {
 }
 
 /**
+ * Site location on a job position (for editing in job-position-2 form).
+ */
+export interface JobPositionSiteLocation {
+  id: string
+  name: string
+  code?: string | null
+}
+
+/**
  * Job Position type definition for the list.
  */
 export interface JobPosition {
   id: string
   name: string
+  version?: number | null
   activeTo?: string | null
+  siteLocationId?: string | null
+  siteLocation?: JobPositionSiteLocation | null
   jobFunction: JobFunction | null
   jobLevel: JobLevel | null
   jobProfile: JobProfile | null

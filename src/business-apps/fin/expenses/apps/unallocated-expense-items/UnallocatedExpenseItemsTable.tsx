@@ -1,7 +1,6 @@
 import React from 'react'
 import ExpenseItemsTable from '../personal-expenses/components/tabs/expense-items-tab/table/ExpenseItemsTable'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { ExpenseFilter } from '../personal-expenses/hooks/useGetExpenseItems'
 
 export interface UnallocatedExpenseItemsTableProps extends BusinessAppContextProps {
@@ -10,7 +9,6 @@ export interface UnallocatedExpenseItemsTableProps extends BusinessAppContextPro
   addFilter: (filterId: string) => void
   removeFilter: (filterId: string) => void
   clearFilters: () => void
-  filterGroups: DataFilterGroup[]
   filterLabelMap: Record<string, string>
   getFilters: (filtersToApply?: string[]) => ExpenseFilter
   setFilters: (filters: string[]) => void

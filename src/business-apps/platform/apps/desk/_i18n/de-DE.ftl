@@ -12,7 +12,7 @@ hero-nav-spreadsheets = Tabellen
 hero-nav-notes = Notizen
 hero-nav-slides = Folien
 hero-nav-drive = Drive
-hero-nav-spaces = Räume
+hero-nav-spaces = Spaces
 hero-nav-emails = Mail
 
 # DeskHub – Spaces & Work

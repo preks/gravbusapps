@@ -52,8 +52,7 @@ export function ChartFormattingTools({ element, onUpdateElement, testId }: Chart
     <>
       {/* Chart Type */}
       <Select value={element.chartType} onValueChange={(value: ChartType) => handleUpdate({ chartType: value })}>
-        <SelectTrigger className="gba:w-[120px] gba:h-8">
-          {CHART_TYPE_ICONS[element.chartType]}
+        <SelectTrigger className="gba:w-[160px] gba:h-8">
           <SelectValue placeholder={t('props-chart-type') || 'Chart Type'} />
         </SelectTrigger>
         <SelectContent>

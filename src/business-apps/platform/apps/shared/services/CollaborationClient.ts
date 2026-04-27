@@ -47,6 +47,10 @@ export interface CollaborationWebSocketOptions {
 
 export type CollaborationEventHandler = (data: any) => void
 
+function resolveSocketTransports(enablePollingFallback: boolean) {
+  return enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
+}
+
 export class CollaborationClient {
   private socket: Socket | null = null
   private accessToken = ''
@@ -114,7 +118,8 @@ export class CollaborationClient {
 
     this.accessToken = nextToken
     // Build transports array based on configuration
-    const transports = this.options.enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
+    const enablePollingFallback = this.options.enablePollingFallback !== false
+    const transports = resolveSocketTransports(enablePollingFallback)
 
     if (this.debug) {
       console.log('[CollaborationClient] INITIATING CONNECTION')
@@ -131,6 +136,7 @@ export class CollaborationClient {
         clientVersion: CLIENT_VERSION
       },
       transports,
+      tryAllTransports: enablePollingFallback,
       path: this.options.path,
       reconnection: true,
       reconnectionDelay: 5000,

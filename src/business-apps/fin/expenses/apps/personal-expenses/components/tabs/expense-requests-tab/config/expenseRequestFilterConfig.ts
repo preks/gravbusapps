@@ -3,6 +3,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   createDateRangeFilterGroup,
   createExpenseTripMultiSelectOptions,
+  createNumberRangeFilterGroup,
   createStatusFilterGroup,
   createTypeFilterGroup
 } from '../../../../../../common/config/filterConfigHelpers'
@@ -45,6 +46,18 @@ export function createExpenseRequestFilterConfig({
       'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
       'Request Type',
       requestTypeOptions
+    ),
+    createNumberRangeFilterGroup(
+      'reimbursable-amount',
+      'reimbursableAmount',
+      'lowcoder:approve_expense_request.reimbursable',
+      'Reimbursable Amount'
+    ),
+    createNumberRangeFilterGroup(
+      'advance-total',
+      'advanceTotal',
+      'lowcoder:manager_expense_request_list.expense_table.advance',
+      'Advance'
     )
   ]
 

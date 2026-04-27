@@ -1,5 +1,4 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   createDateColumn,
   createEmployeeColumn,
@@ -11,21 +10,7 @@ import {
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { getAdvancePaymentStatusDisplay } from '../../../utils'
 import type { AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments'
-
-const EXPENSE_PLAN = 'lowcoder:create_expense_request.initial_expense_plan_select_label'
-const EXPENSE_PLAN_LABEL = 'Expense Plan'
-const START_DATE = 'lowcoder:personal_expenses.start_date'
-const START_DATE_LABEL = 'Start Date'
-const END_DATE = 'lowcoder:personal_expenses.end_date'
-const END_DATE_LABEL = 'End Date'
-const EMPLOYEE = 'lowcoder:expense_config_calculation_rule_list.expense_table.employee'
-const EMPLOYEE_LABEL = 'Employee'
-const CREATION_DATE = 'lowcoder:manager_expense_request_list.expense_table.creation_date'
-const CREATION_DATE_LABEL = 'Creation Date'
-const AMOUNT = 'lowcoder:sales_hub.amount'
-const AMOUNT_LABEL = 'Amount'
-const STATUS = 'lowcoder:expense_item_list.expense_table.status'
-const STATUS_LABEL = 'Status'
+import { getAdvancePaymentColumnHeader } from './config/advancePaymentColumnDefinitions'
 
 /**
  * Builds column definitions for the manager advance payments table.
@@ -46,7 +31,7 @@ export function createAdvancePaymentColumns(currencyFilter: string | null): Colu
     {
       id: 'expensePlan.title',
       accessorFn: (row: AdvancePaymentItem) => row.expensePlan?.title ?? null,
-      header: getTranslationFromI18nKeyAndLabel(EXPENSE_PLAN, EXPENSE_PLAN_LABEL),
+      header: getAdvancePaymentColumnHeader('expensePlan.title'),
       size: 200,
       minSize: 160,
       maxSize: 320,
@@ -59,30 +44,28 @@ export function createAdvancePaymentColumns(currencyFilter: string | null): Colu
     },
     createDateColumn<AdvancePaymentItem>(
       'expensePlan.startDate',
-      getTranslationFromI18nKeyAndLabel(START_DATE, START_DATE_LABEL),
+      getAdvancePaymentColumnHeader('expensePlan.startDate'),
       (row: AdvancePaymentItem) => row.expensePlan?.startDate ?? null,
       { formatDate }
     ),
     createDateColumn<AdvancePaymentItem>(
       'expensePlan.endDate',
-      getTranslationFromI18nKeyAndLabel(END_DATE, END_DATE_LABEL),
+      getAdvancePaymentColumnHeader('expensePlan.endDate'),
       (row: AdvancePaymentItem) => row.expensePlan?.endDate ?? null,
       { formatDate }
     ),
     createEmployeeColumn<AdvancePaymentItem>(
       'expensePlan.employee.fullName',
-      getTranslationFromI18nKeyAndLabel(EMPLOYEE, EMPLOYEE_LABEL),
-      (row: AdvancePaymentItem) => row.expensePlan?.employee ?? null
+      getAdvancePaymentColumnHeader('expensePlan.employee.fullName'),
+      (row: AdvancePaymentItem) => row.expensePlan?.employee ?? null,
+      { showEmployeeAvatar: false }
     ),
-    createDateColumn<AdvancePaymentItem>(
-      'createdAt',
-      getTranslationFromI18nKeyAndLabel(CREATION_DATE, CREATION_DATE_LABEL),
-      'createdAt',
-      { formatDate }
-    ),
+    createDateColumn<AdvancePaymentItem>('createdAt', getAdvancePaymentColumnHeader('createdAt'), 'createdAt', {
+      formatDate
+    }),
     createCurrencyColumn<AdvancePaymentItem>(
       'amount',
-      getTranslationFromI18nKeyAndLabel(AMOUNT, AMOUNT_LABEL),
+      getAdvancePaymentColumnHeader('amount'),
       (row: AdvancePaymentItem) => (typeof row.amount === 'number' ? row.amount : 0),
       (row: AdvancePaymentItem) =>
         currencyFilter ? normalizeCurrency(currencyFilter) : normalizeCurrency(row.currencyRef),
@@ -90,7 +73,7 @@ export function createAdvancePaymentColumns(currencyFilter: string | null): Colu
     ),
     createStatusBadgeColumn<AdvancePaymentItem>(
       'status',
-      getTranslationFromI18nKeyAndLabel(STATUS, STATUS_LABEL),
+      getAdvancePaymentColumnHeader('status'),
       (row: AdvancePaymentItem) => getAdvancePaymentStatusDisplay(row.status)
     )
   ]
