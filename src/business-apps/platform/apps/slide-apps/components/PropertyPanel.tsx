@@ -1259,10 +1259,11 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               </div>
             )}
             {onDistribute && (
-              <div className="gba:grid gba:grid-cols-2 gba:gap-1">
+              <div className="gba:flex gba:flex-col gba:gap-1">
                 <Button
                   variant="outline"
                   size="sm"
+                  className="gba:w-full gba:shrink-0 gba:whitespace-normal"
                   onClick={() => onDistribute('horizontal')}
                   disabled={selectionCount < 3 || hasOnlyLockedSelection}
                 >
@@ -1271,6 +1272,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 <Button
                   variant="outline"
                   size="sm"
+                  className="gba:w-full gba:shrink-0 gba:whitespace-normal"
                   onClick={() => onDistribute('vertical')}
                   disabled={selectionCount < 3 || hasOnlyLockedSelection}
                 >
