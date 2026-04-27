@@ -87947,20 +87947,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11441,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11441/",
-    "chunkJsBytes": 1834556,
+    "bitbucketBuildNumber": 11443,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11443/",
+    "chunkJsBytes": 1834563,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1530384,
-        "gzip": 92490,
+        "gzip": 92504,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1530384,
-            "gzip": 92490
+            "gzip": 92504
           }
         ]
       },
@@ -88205,15 +88205,15 @@
     ]
   },
   "platform/apps/chat": {
-    "bitbucketBuildNumber": 11424,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11424/",
-    "chunkJsBytes": 3743788,
+    "bitbucketBuildNumber": 11443,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11443/",
+    "chunkJsBytes": 3743794,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
         "rendered": 4251306,
-        "gzip": 1843747,
+        "gzip": 1843745,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/chat/worklets/rnnoise-processor.ts?inline",
@@ -90159,15 +90159,15 @@
     ]
   },
   "platform/apps/every-ai": {
-    "bitbucketBuildNumber": 11424,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11424/",
-    "chunkJsBytes": 960426,
+    "bitbucketBuildNumber": 11443,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11443/",
+    "chunkJsBytes": 960506,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
         "rendered": 789098,
-        "gzip": 183659,
+        "gzip": 183657,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/hooks/useFlowBot.ts",
@@ -103745,7 +103745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-27T14:21:39.363Z",
+    "generatedAt": "2026-04-27T14:33:30.022Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
