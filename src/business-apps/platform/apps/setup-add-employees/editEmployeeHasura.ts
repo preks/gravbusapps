@@ -1,5 +1,9 @@
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 
+/**
+ * OU assignments via `Employee.organizationalUnitEmployees` (nw_employee → nw_orgchart.organizational_unit_employee).
+ * Avoids root `EmployeeOrganizationalUnit` / `OrganizationalUnitEmployee`, which differ across tenants.
+ */
 const EDIT_EMPLOYEE_FORM_DATA = `
   query EditEmployeeFormData($employeeId: uuid!, $structureId: uuid!) {
     Employee(where: { id: { _eq: $employeeId }, isDeleted: { _eq: false } }, limit: 1) {
@@ -22,6 +26,17 @@ const EDIT_EMPLOYEE_FORM_DATA = `
         value
         valueExtension
       }
+      organizationalUnitEmployees(
+        where: { structureId: { _eq: $structureId } }
+        limit: 10
+      ) {
+        id
+        role
+        organizationalUnitId
+        jobPositionId
+        employeeId
+        structureId
+      }
     }
     EmployeePosition(
       where: { employeeId: { _eq: $employeeId }, structureId: { _eq: $structureId } }
@@ -38,17 +53,6 @@ const EDIT_EMPLOYEE_FORM_DATA = `
         id
         name
       }
-    }
-    EmployeeOrganizationalUnit(
-      where: { employeeId: { _eq: $employeeId }, structureId: { _eq: $structureId } }
-      limit: 10
-    ) {
-      id
-      role
-      organizationalUnitId
-      jobPositionId
-      employeeId
-      structureId
     }
   }
 `
@@ -95,6 +99,10 @@ export type EditEmployeeFormBootstrap = {
   }>
 }
 
+type EditEmployeeEmployeeGqlRow = NonNullable<EditEmployeeFormBootstrap['employee']> & {
+  organizationalUnitEmployees?: EditEmployeeFormBootstrap['employeeOrganizationalUnits']
+}
+
 export async function fetchEmployeeForEditForm(
   accessToken: string,
   employeeId: string,
@@ -102,14 +110,22 @@ export async function fetchEmployeeForEditForm(
 ): Promise<EditEmployeeFormBootstrap> {
   graphQLClient.setAccessToken(accessToken)
   const data = await graphQLClient.request<{
-    Employee: EditEmployeeFormBootstrap['employee'][]
+    Employee: Array<EditEmployeeEmployeeGqlRow | null>
     EmployeePosition: EditEmployeeFormBootstrap['employeePosition'][]
-    EmployeeOrganizationalUnit: EditEmployeeFormBootstrap['employeeOrganizationalUnits']
   }>(EDIT_EMPLOYEE_FORM_DATA, { employeeId, structureId })
 
+  const raw = data.Employee?.[0] ?? null
+  if (!raw) {
+    return {
+      employee: null,
+      employeePosition: data.EmployeePosition?.[0] ?? null,
+      employeeOrganizationalUnits: []
+    }
+  }
+  const { organizationalUnitEmployees: ouAssignments = [], ...employeeRest } = raw
   return {
-    employee: data.Employee?.[0] ?? null,
+    employee: employeeRest as EditEmployeeFormBootstrap['employee'],
     employeePosition: data.EmployeePosition?.[0] ?? null,
-    employeeOrganizationalUnits: data.EmployeeOrganizationalUnit ?? []
+    employeeOrganizationalUnits: ouAssignments
   }
 }
