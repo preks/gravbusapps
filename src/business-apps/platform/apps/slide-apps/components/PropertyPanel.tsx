@@ -816,9 +816,9 @@ const ShapeTextControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="top">{t('props-align-top')}</SelectItem>
-                  <SelectItem value="middle">{t('props-align-middle')}</SelectItem>
-                  <SelectItem value="bottom">{t('props-align-bottom')}</SelectItem>
+                  <SelectItem value="top">{t('props-shape-text-valign-top')}</SelectItem>
+                  <SelectItem value="middle">{t('props-shape-text-valign-middle')}</SelectItem>
+                  <SelectItem value="bottom">{t('props-shape-text-valign-bottom')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1177,6 +1177,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('left')}
                   title={t('props-align-left')}
+                  aria-label={t('props-align-left')}
                   disabled={hasOnlyLockedSelection}
                 >
                   ⇤
@@ -1186,6 +1187,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('center-h')}
                   title={t('props-align-center-horizontal')}
+                  aria-label={t('props-align-center-horizontal')}
                   disabled={hasOnlyLockedSelection}
                 >
                   ⇔
@@ -1195,6 +1197,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('right')}
                   title={t('props-align-right')}
+                  aria-label={t('props-align-right')}
                   disabled={hasOnlyLockedSelection}
                 >
                   ⇥
@@ -1204,6 +1207,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('top')}
                   title={t('props-align-top')}
+                  aria-label={t('props-align-top')}
                   disabled={hasOnlyLockedSelection}
                 >
                   ⤒
@@ -1213,6 +1217,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('center-v')}
                   title={t('props-align-center-vertical')}
+                  aria-label={t('props-align-center-vertical')}
                   disabled={hasOnlyLockedSelection}
                 >
                   ⇕
@@ -1222,6 +1227,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('bottom')}
                   title={t('props-align-bottom')}
+                  aria-label={t('props-align-bottom')}
                   disabled={hasOnlyLockedSelection}
                 >
                   ⤓
