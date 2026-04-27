@@ -22,6 +22,7 @@ import { RichTextContent } from './RichTextContent'
 import { TextWithLinks } from './TextWithLinks'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import { resolveSlideImageUrl, resolveSlideVideoUrl } from './slideBackgroundUtils'
+import { renderShape as renderSharedShape } from './slideRenderUtils'
 
 interface SlideStaticElementContentProps {
   element: AnySlideElement
@@ -62,6 +63,7 @@ function renderShapeBody(element: ShapeElement): React.ReactNode {
   const officePreset = tryRenderOfficePresetShape({
     element,
     fillStyle: pictureFill || patternFill ? 'transparent' : fillStyle,
+    ...(gradient ? { gradient } : {}),
     strokeColor,
     strokeWidth,
     shadow,
@@ -101,6 +103,10 @@ function renderShapeBody(element: ShapeElement): React.ReactNode {
     }
 
     return <div style={{ width: '100%', height: '100%' }}>{officePreset}</div>
+  }
+
+  if (!pictureFill && !patternFill) {
+    return renderSharedShape(element, 'slide-static')
   }
 
   const baseStyle: React.CSSProperties = {

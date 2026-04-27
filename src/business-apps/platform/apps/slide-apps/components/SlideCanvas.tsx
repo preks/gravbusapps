@@ -42,6 +42,7 @@ import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import { ShapePointEditor } from './ShapePointEditor'
 import { SlideStaticElementContent } from './SlideStaticElementContent'
 import { getSlideBackgroundStyle, SlideBackgroundMedia } from './slideBackgroundUtils'
+import { renderShape as renderSharedShape } from './slideRenderUtils'
 import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
 import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
 import { createDefaultShapeText, type RichTextSelectionRange } from '../utils/richTextEditing'
@@ -850,6 +851,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       const officePreset = tryRenderOfficePresetShape({
         element,
         fillStyle: pictureFill || patternFill ? 'transparent' : fillStyle,
+        ...(gradient ? { gradient } : {}),
         strokeColor,
         strokeWidth,
         shadow,
@@ -886,6 +888,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           )
         }
         return <div style={{ width: '100%', height: '100%' }}>{officePreset}</div>
+      }
+
+      if (!pictureFill && !patternFill) {
+        return renderSharedShape(element, 'slide-canvas')
       }
 
       const divBackground = pictureFill

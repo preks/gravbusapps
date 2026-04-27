@@ -47,6 +47,17 @@ function makeShapeElement(overrides: Partial<ShapeElement> = {}): ShapeElement {
   })
 }
 
+function makeGenericTriangleElement(overrides: Partial<ShapeElement> = {}): ShapeElement {
+  return {
+    ...makeShapeElement({
+      id: 'shape-triangle',
+      shapeType: 'triangle',
+      geometry: { sourceFormat: 'native' }
+    }),
+    ...overrides
+  }
+}
+
 function renderInlineEditingCanvas(element: TextElement | ShapeElement) {
   const onSelectElements = jest.fn()
   const onUpdateElement = jest.fn()
@@ -269,5 +280,43 @@ describe('SlideCanvas inline editing drag behavior', () => {
     expect(linkText).not.toBeNull()
     expect(linkText?.parentElement?.parentElement).not.toBeNull()
     expect((linkText?.parentElement?.parentElement as HTMLElement).style.overflow).toBe('hidden')
+  })
+
+  it('renders generic SVG shape gradients via SVG defs instead of a black fallback', () => {
+    render(
+      <SlideCanvas
+        elements={[
+          makeGenericTriangleElement({
+            fill: 'transparent',
+            gradient: {
+              type: 'linear',
+              angle: 90,
+              stops: [
+                { color: '#EA5929', position: 0 },
+                { color: '#54275F', position: 100 }
+              ]
+            },
+            strokeWidth: 0
+          })
+        ]}
+        selectedIds={new Set()}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={() => {}}
+      />
+    )
+
+    const shapeRoot = document.querySelector('[data-element-id="shape-triangle"]')
+    const gradient = shapeRoot?.querySelector('linearGradient')
+    const filledPrimitive = shapeRoot?.querySelector(
+      'polygon[fill], path[fill], rect[fill], circle[fill], ellipse[fill]'
+    )
+
+    expect(gradient).not.toBeNull()
+    expect(filledPrimitive).not.toBeNull()
+    expect(filledPrimitive?.getAttribute('fill')).toMatch(/^url\(#.+\)$/)
+    expect(filledPrimitive?.getAttribute('fill')).not.toContain('linear-gradient(')
   })
 })
