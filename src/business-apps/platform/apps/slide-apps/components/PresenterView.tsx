@@ -136,28 +136,31 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
     return () => clearInterval(interval)
   }, [])
 
-  // Calculate scales for slide display
+  // Calculate scales for slide display. Sourced from the current / next
+  // slide's own canvas size so imported 4:3 / A4 / custom decks display at
+  // their true aspect ratio instead of being stretched into 16:9.
+  const mainCanvasWidth = currentSlide?.canvasSize?.width ?? 1280
+  const mainCanvasHeight = currentSlide?.canvasSize?.height ?? 720
+  const previewCanvasWidth = nextSlide?.canvasSize?.width ?? mainCanvasWidth
+  const previewCanvasHeight = nextSlide?.canvasSize?.height ?? mainCanvasHeight
+
   useEffect(() => {
     const calculateScales = () => {
       if (mainSlideContainerRef.current) {
         const container = mainSlideContainerRef.current
-        const slideWidth = 1280
-        const slideHeight = 720
         const containerWidth = container.clientWidth - 32
         const containerHeight = container.clientHeight - 32
-        const scaleX = containerWidth / slideWidth
-        const scaleY = containerHeight / slideHeight
+        const scaleX = containerWidth / mainCanvasWidth
+        const scaleY = containerHeight / mainCanvasHeight
         setMainSlideScale(Math.min(scaleX, scaleY, 1))
       }
 
       if (previewContainerRef.current) {
         const container = previewContainerRef.current
-        const slideWidth = 1280
-        const slideHeight = 720
         const containerWidth = container.clientWidth - 16
         const containerHeight = container.clientHeight - 16
-        const scaleX = containerWidth / slideWidth
-        const scaleY = containerHeight / slideHeight
+        const scaleX = containerWidth / previewCanvasWidth
+        const scaleY = containerHeight / previewCanvasHeight
         setPreviewScale(Math.min(scaleX, scaleY, 0.2))
       }
     }
@@ -165,7 +168,7 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
     calculateScales()
     window.addEventListener('resize', calculateScales)
     return () => window.removeEventListener('resize', calculateScales)
-  }, [notesExpanded])
+  }, [notesExpanded, mainCanvasWidth, mainCanvasHeight, previewCanvasWidth, previewCanvasHeight])
 
   // Navigation helpers
   const goToPrev = useCallback(() => navigateToSlide(currentSlideIndex - 1), [currentSlideIndex, navigateToSlide])
@@ -375,8 +378,8 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
             <div
               className="gba:relative gba:overflow-hidden gba:flex-shrink-0"
               style={{
-                width: 1280 * mainSlideScale,
-                height: 720 * mainSlideScale
+                width: mainCanvasWidth * mainSlideScale,
+                height: mainCanvasHeight * mainSlideScale
               }}
             >
               <SlideTransitionPlayer
@@ -396,6 +399,7 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
                       onEditText={() => {}}
                       scale={mainSlideScale}
                       isPresenting={true}
+                      canvasSize={previousSlide.canvasSize}
                     />
                   )
                 }
@@ -411,6 +415,7 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
                   onElementClick={onElementClick}
                   scale={mainSlideScale}
                   isPresenting={true}
+                  canvasSize={currentSlide.canvasSize}
                 />
               </SlideTransitionPlayer>
             </div>
@@ -533,8 +538,8 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
                   <div
                     className="gba:relative gba:overflow-hidden gba:flex-shrink-0"
                     style={{
-                      width: 1280 * previewScale,
-                      height: 720 * previewScale
+                      width: previewCanvasWidth * previewScale,
+                      height: previewCanvasHeight * previewScale
                     }}
                   >
                     <SlideCanvas
@@ -547,6 +552,7 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
                       onEditText={() => {}}
                       scale={previewScale}
                       isPresenting={true}
+                      canvasSize={nextSlide.canvasSize}
                     />
                   </div>
                 ) : (

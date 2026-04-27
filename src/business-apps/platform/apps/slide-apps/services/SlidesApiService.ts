@@ -64,6 +64,17 @@ interface PaginatedResponse<T> {
   totalPages: number
 }
 
+export interface SlideImportJob {
+  id: string
+  status: 'queued' | 'processing' | 'completed' | 'failed'
+  progress: number
+  diagnostics: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+  slideId?: string
+  error?: string
+}
+
 function mapPermission(apiPermission: string): SlidePermission {
   if (apiPermission === 'admin') return 'owner'
   return apiPermission as SlidePermission
@@ -173,9 +184,40 @@ export const SlidesApiService = {
     return mapApiSlideToSlide(created)
   },
 
+  async importSlide(payload: {
+    title: string
+    description?: string
+    contentJson: Record<string, unknown>
+    spaceId?: string
+  }): Promise<Slide> {
+    const imported = await apiRequest<Record<string, unknown>>('/slides/import', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+    return mapApiSlideToSlide(imported)
+  },
+
+  async createImportJob(payload: {
+    title: string
+    description?: string
+    contentJson: Record<string, unknown>
+    spaceId?: string
+    sourceFileName?: string
+    sourceType?: string
+  }): Promise<SlideImportJob> {
+    return apiRequest<SlideImportJob>('/slides/import-jobs', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+  },
+
+  async getImportJob(jobId: string): Promise<SlideImportJob> {
+    return apiRequest<SlideImportJob>(`/slides/import-jobs/${jobId}`)
+  },
+
   async updateSlide(
     id: string,
-    updates: Partial<Pick<Slide, 'title' | 'description' | 'content' | 'contentJson'>>,
+    updates: Partial<Pick<Slide, 'title' | 'description' | 'content'>>,
     options?: { createVersion?: boolean }
   ): Promise<Slide> {
     const payload: Record<string, unknown> = { ...updates, createVersion: options?.createVersion ?? false }
@@ -185,6 +227,14 @@ export const SlidesApiService = {
     const updated = await apiRequest<Record<string, unknown>>(`/slides/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload)
+    })
+    return mapApiSlideToSlide(updated)
+  },
+
+  async resetSlideYjsState(id: string, contentJson: Record<string, unknown>): Promise<Slide> {
+    const updated = await apiRequest<Record<string, unknown>>(`/slides/${id}/yjs-reset`, {
+      method: 'POST',
+      body: JSON.stringify({ contentJson })
     })
     return mapApiSlideToSlide(updated)
   },

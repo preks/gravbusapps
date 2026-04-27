@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
 import {
+  Alert,
+  AlertDescription,
   Button,
   Card,
   CardContent,
@@ -12,6 +14,8 @@ import {
   DataTable,
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   Spinner,
@@ -22,18 +26,19 @@ import {
   TooltipProvider,
   useTranslation
 } from '@newwork/nw-design-system'
-import { getWorkEmailFromCommunication } from '@/common/data/employee/useEmployeeSearch'
 import { fetchActiveStructureBootstrap } from '../setup/lib/activeStructureBootstrap'
+import { UserManagementClient } from '@/common/network/users/UserManagementClient'
 import { AddEmployeeForm } from '../setup-add-employees/AddEmployeeForm'
 import { EditEmployeeForm } from '../setup-add-employees/EditEmployeeForm'
 import { ResetEmployeePasswordForm } from '../setup-add-employees/ResetEmployeePasswordForm'
 import peopleTranslations from './_i18n'
 import {
-  fetchEmployeesPage,
   fetchOrganizationalUnitsPage,
   type PeopleEmployeeRow,
   type PeopleOrganizationalUnitRow
 } from './peopleStructureData'
+import { fetchHrActiveEmployeesPage } from './peopleHrActiveEmployeesApi'
+import { startTerminateEmployeeProcess } from './peopleTerminateEmployeeApi'
 
 export type PeopleRemoteAppViewProps = {
   accessToken?: string
@@ -141,6 +146,13 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
   const [addOpen, setAddOpen] = useState(false)
   const [editEmployeeId, setEditEmployeeId] = useState<string | null>(null)
   const [resetPasswordEmployeeId, setResetPasswordEmployeeId] = useState<string | null>(null)
+  const [terminateTarget, setTerminateTarget] = useState<{
+    id: string
+    displayName: string
+    userId?: string | null
+  } | null>(null)
+  const [terminateBusy, setTerminateBusy] = useState(false)
+  const [terminateError, setTerminateError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [activeTab, setActiveTab] = useState<PeopleTab>('employees')
@@ -207,13 +219,14 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
     void (async () => {
       try {
         if (activeTab === 'employees') {
-          const r = await fetchEmployeesPage(accessToken, {
-            structureId,
+          const localeCode = typeof navigator !== 'undefined' ? navigator.language : undefined
+          const r = await fetchHrActiveEmployeesPage(accessToken, {
             limit,
             offset,
             search: searchQuery,
             sortColumnId,
-            sortDesc
+            sortDesc,
+            localeCode
           })
           if (cancelled) return
           setEmployeeRows(r.rows)
@@ -283,12 +296,12 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
       },
       {
         id: 'email',
-        accessorFn: row => getWorkEmailFromCommunication(row.communication ?? []) || '—',
+        accessorFn: row => row.workEmail?.trim() || '—',
         header: t('col-email')
       },
       {
         id: 'jobTitle',
-        accessorFn: row => row.employeePosition?.jobPosition?.name ?? '—',
+        accessorFn: row => row.jobTitle?.trim() || '—',
         header: t('col-job-title')
       },
       {
@@ -316,6 +329,21 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
               </span>
               <Button type="button" variant="outline" size="sm" onClick={() => setEditEmployeeId(row.original.id)}>
                 {t('action-edit')}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  setTerminateError(null)
+                  setTerminateTarget({
+                    id: row.original.id,
+                    displayName: displayNameForRow(row.original),
+                    userId: row.original.userId
+                  })
+                }}
+              >
+                {t('action-remove-employee')}
               </Button>
             </div>
           )
@@ -374,7 +402,7 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
 
   return (
     <div className="gba:bg-background gba:min-h-[50vh] gba:p-6">
-      <Card className="gba:mx-auto gba:max-w-4xl">
+      <Card className="gba:mx-auto gba:max-w-7xl">
         <CardHeader className="gba:flex gba:flex-row gba:items-start gba:justify-between gba:gap-4">
           <div>
             <CardTitle>{t('people-title')}</CardTitle>
@@ -503,6 +531,83 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
               }}
             />
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(terminateTarget)}
+        onOpenChange={open => {
+          if (!open) {
+            setTerminateTarget(null)
+            setTerminateError(null)
+            setTerminateBusy(false)
+          }
+        }}
+      >
+        <DialogContent className="gba:max-w-md" data-testid="people-terminate-employee-dialog">
+          <DialogHeader>
+            <DialogTitle>{t('dialog-terminate-title')}</DialogTitle>
+            <DialogDescription>
+              {terminateTarget ? t('dialog-terminate-description', { name: terminateTarget.displayName }) : null}
+            </DialogDescription>
+          </DialogHeader>
+          {terminateError ? (
+            <Alert variant="destructive" data-testid="people-terminate-employee-error">
+              <AlertDescription>{terminateError}</AlertDescription>
+            </Alert>
+          ) : null}
+          <DialogFooter className="gba:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={terminateBusy}
+              onClick={() => {
+                setTerminateTarget(null)
+                setTerminateError(null)
+              }}
+            >
+              {t('dialog-terminate-cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={terminateBusy || !accessToken?.trim() || !terminateTarget}
+              onClick={() => {
+                if (!accessToken?.trim() || !terminateTarget) return
+                setTerminateBusy(true)
+                setTerminateError(null)
+                const row = employeeRows.find(e => e.id === terminateTarget.id)
+                const terminateJobPosition = Boolean(row?.jobTitle?.trim())
+                const userIdToDeactivate = terminateTarget.userId?.trim()
+                void startTerminateEmployeeProcess(accessToken, {
+                  employeeId: terminateTarget.id,
+                  terminateJobPosition
+                })
+                  .then(async () => {
+                    if (userIdToDeactivate) {
+                      try {
+                        const um = new UserManagementClient()
+                        um.setAccessToken(accessToken)
+                        await um.activateUser(userIdToDeactivate, { active: false })
+                      } catch (e) {
+                        console.error('[People] deactivate user after terminate failed', e)
+                      }
+                    }
+                    setTerminateTarget(null)
+                    setRefreshKey(k => k + 1)
+                  })
+                  .catch(e => {
+                    setTerminateError(e instanceof Error ? e.message : t('error-load'))
+                  })
+                  .finally(() => {
+                    setTerminateBusy(false)
+                  })
+              }}
+              data-testid="people-terminate-employee-confirm"
+            >
+              {terminateBusy ? t('dialog-terminate-busy') : t('dialog-terminate-confirm')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

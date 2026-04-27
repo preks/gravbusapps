@@ -5,7 +5,15 @@ import type { ChartElement, ChartType, ChartDataPoint, ChartSeries } from '../..
 import { createChartElement } from '../../components/slideElements'
 import type { SlideRelationships } from './types'
 import type { ParserMessage } from '../usePowerPointParser'
-import { emuToPixels, extractTransform, parseXML, getChild, getChildren, isInsideGroup } from './ooxmlUtils'
+import {
+  emuToPixels,
+  extractTransform,
+  parseXML,
+  getChild,
+  getChildren,
+  isInsideGroup,
+  nextImportUid
+} from './ooxmlUtils'
 
 const CHART_TYPE_MAP: Record<string, ChartType> = {
   'c:barChart': 'bar',
@@ -37,10 +45,10 @@ function extractNumericValues(serEl: Element, tagName: string): number[] {
   if (numCache) {
     const pts = getChildren(numCache, 'c:pt')
     return pts
-      .sort((a, b) => parseInt(a.getAttribute('idx') || '0') - parseInt(b.getAttribute('idx') || '0'))
+      .sort((a, b) => Number.parseInt(a.getAttribute('idx') || '0') - Number.parseInt(b.getAttribute('idx') || '0'))
       .map(pt => {
         const v = getChild(pt, 'c:v')
-        return v ? parseFloat(v.textContent || '0') : 0
+        return v ? Number.parseFloat(v.textContent || '0') : 0
       })
   }
 
@@ -55,7 +63,7 @@ function extractStringValues(serEl: Element, tagName: string): string[] {
   if (strCache) {
     const pts = getChildren(strCache, 'c:pt')
     return pts
-      .sort((a, b) => parseInt(a.getAttribute('idx') || '0') - parseInt(b.getAttribute('idx') || '0'))
+      .sort((a, b) => Number.parseInt(a.getAttribute('idx') || '0') - Number.parseInt(b.getAttribute('idx') || '0'))
       .map(pt => {
         const v = getChild(pt, 'c:v')
         return v?.textContent || ''
@@ -191,8 +199,7 @@ export async function extractChartElements(
   const elements: ChartElement[] = []
   const graphicFrames = slideXml.getElementsByTagName('p:graphicFrame')
 
-  for (let fi = 0; fi < graphicFrames.length; fi++) {
-    const frame = graphicFrames[fi]
+  for (const frame of Array.from(graphicFrames)) {
     if (isInsideGroup(frame)) continue
 
     const graphic = getChild(frame, 'a:graphic')
@@ -225,7 +232,7 @@ export async function extractChartElements(
 
     elements.push(
       createChartElement(parsed.chartType, {
-        id: `chart-import-${Date.now()}-${fi}`,
+        id: nextImportUid('chart-import'),
         position: { x: Math.max(0, x), y: Math.max(0, y) },
         size: { width: Math.max(200, width), height: Math.max(150, height) },
         title: parsed.title,

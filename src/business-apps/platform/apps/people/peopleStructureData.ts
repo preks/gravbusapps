@@ -1,18 +1,18 @@
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
-import { COMMUNICATION_CHANNEL_EMAIL_REF } from '@/common/data/employee/constants/employeeConstants'
 import type { SetupAddEmployeesOuType } from '../setup-add-employees/setupAddEmployeesHasura'
 
+/** Row for People employees tab (sourced from `hrActiveEmployees` dataset). */
 export type PeopleEmployeeRow = {
   id: string
-  /** Keycloak / directory user id when synced; required for in-app password reset. */
+  /** Keycloak / directory user id when synced; required for password reset and deactivate. */
   userId?: string | null
   firstName?: string | null
   lastName?: string | null
   displayName?: string | null
-  communication?: Array<{ value?: string; channelRef?: string }> | null
-  employeePosition?: {
-    jobPosition?: { name?: string | null } | null
-  } | null
+  /** Work e-mail from dataset (`work_email`); preferred over legacy communication for this list. */
+  workEmail?: string | null
+  /** Job title from dataset (`job_title`). */
+  jobTitle?: string | null
 }
 
 export type PeoplePagedResult<T> = { rows: T[]; totalCount: number }
@@ -71,105 +71,6 @@ function formatManagerDisplayName(links: Array<PeopleOuManagerLinkGql | null> | 
 
 function escapeIlike(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
-}
-
-function buildEmployeeWhere(structureId: string, search: string): Record<string, unknown> {
-  const base: Record<string, unknown> = {
-    isDeleted: { _eq: false },
-    employeePosition: { structureId: { _eq: structureId } }
-  }
-  const q = search.trim()
-  if (!q) return base
-  const pattern = `%${escapeIlike(q)}%`
-  return {
-    _and: [
-      base,
-      {
-        _or: [
-          { displayName: { _ilike: pattern } },
-          { firstName: { _ilike: pattern } },
-          { lastName: { _ilike: pattern } },
-          { employeePosition: { jobPosition: { name: { _ilike: pattern } } } },
-          {
-            communication: {
-              value: { _ilike: pattern },
-              channelRef: { _eq: COMMUNICATION_CHANNEL_EMAIL_REF },
-              isDeleted: { _eq: false }
-            }
-          }
-        ]
-      }
-    ]
-  }
-}
-
-function buildEmployeeOrderBy(sortColumnId: string | null, sortDesc: boolean): Array<Record<string, unknown>> {
-  const dir = sortDesc ? 'DESC' : 'ASC'
-  switch (sortColumnId) {
-    case 'jobTitle':
-      return [{ employeePosition: { jobPosition: { name: dir } } }]
-    case 'email':
-      return [{ displayName: dir }, { firstName: dir }, { lastName: dir }]
-    case 'name':
-    default:
-      return [{ firstName: dir }, { lastName: dir }]
-  }
-}
-
-const PEOPLE_EMPLOYEES_PAGE = `
-  query PeopleEmployeesPage($where: EmployeeBoolExp!, $limit: Int!, $offset: Int!, $orderBy: [EmployeeOrderBy!]!) {
-    Employee(where: $where, limit: $limit, offset: $offset, orderBy: $orderBy) {
-      id
-      userId
-      firstName
-      lastName
-      displayName
-      communication(where: { isDeleted: { _eq: false } }) {
-        value
-        channelRef
-      }
-      employeePosition {
-        jobPosition {
-          name
-        }
-      }
-    }
-    EmployeeAggregate(where: $where) {
-      aggregate {
-        count
-      }
-    }
-  }
-`
-
-export async function fetchEmployeesPage(
-  accessToken: string,
-  params: {
-    structureId: string
-    limit: number
-    offset: number
-    search: string
-    sortColumnId: string | null
-    sortDesc: boolean
-  }
-): Promise<PeoplePagedResult<PeopleEmployeeRow>> {
-  const { structureId, limit, offset, search, sortColumnId, sortDesc } = params
-  graphQLClient.setAccessToken(accessToken)
-  const where = buildEmployeeWhere(structureId, search)
-  const orderBy = buildEmployeeOrderBy(sortColumnId, sortDesc)
-  const data = await graphQLClient.request<{
-    Employee: PeopleEmployeeRow[]
-    EmployeeAggregate: { aggregate: { count: number } | null } | null
-  }>(PEOPLE_EMPLOYEES_PAGE, {
-    where,
-    limit,
-    offset,
-    orderBy
-  })
-  return {
-    rows: data.Employee ?? [],
-    totalCount: data.EmployeeAggregate?.aggregate?.count ?? 0
-  }
 }
 
 function buildOrganizationalUnitWhere(
