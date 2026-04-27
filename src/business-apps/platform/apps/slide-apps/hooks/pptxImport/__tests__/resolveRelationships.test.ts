@@ -1,13 +1,13 @@
 // Mock the metafile renderer so this suite never pays the cost of loading
 // rtf.js and its bundles. The renderer has its own tests covering the
-// happy/error paths; here we only care that extractAllMedia falls back to
-// the placeholder when both the embedded-raster extractor and the vector
-// renderer return undefined.
+// happy/error paths; here we only care that extractAllMedia picks the right
+// preview source in this order: rendered SVG, embedded raster, placeholder.
 jest.mock('../metafileRenderer', () => ({
   renderMetafileToSvgDataUrl: jest.fn().mockResolvedValue(undefined)
 }))
 
 import JSZip from 'jszip'
+import { renderMetafileToSvgDataUrl } from '../metafileRenderer'
 import {
   resolveSlideRelationships,
   resolveLayoutRelationships,
@@ -17,6 +17,10 @@ import {
   METAFILE_PLACEHOLDER_DATA_URL,
   isMetafileExtension
 } from '../resolveRelationships'
+
+const mockRenderMetafileToSvgDataUrl = renderMetafileToSvgDataUrl as jest.MockedFunction<
+  typeof renderMetafileToSvgDataUrl
+>
 
 function makeRelsXml(entries: Array<{ id: string; type: string; target: string }>): string {
   const body = entries.map(e => `<Relationship Id="${e.id}" Type="${e.type}" Target="${e.target}"/>`).join('')
@@ -113,6 +117,11 @@ describe('resolveLayoutRelationships', () => {
 })
 
 describe('extractAllMedia metafile fallback', () => {
+  beforeEach(() => {
+    mockRenderMetafileToSvgDataUrl.mockReset()
+    mockRenderMetafileToSvgDataUrl.mockResolvedValue(undefined)
+  })
+
   it('flags EMF/WMF extensions', () => {
     expect(isMetafileExtension('emf')).toBe(true)
     expect(isMetafileExtension('WMF')).toBe(true)
@@ -131,6 +140,27 @@ describe('extractAllMedia metafile fallback', () => {
     expect(media.get('diagram.emf')).toBe(METAFILE_PLACEHOLDER_DATA_URL)
     expect(media.get('legacy.wmf')).toBe(METAFILE_PLACEHOLDER_DATA_URL)
     expect(media.get('image1.png')).toMatch(/^data:image\/png;base64,/)
+  })
+
+  it('prefers a rendered SVG over an embedded raster fallback when both are available', async () => {
+    mockRenderMetafileToSvgDataUrl.mockResolvedValueOnce('data:image/svg+xml;base64,RENDERED')
+
+    const header = new Uint8Array(64).fill(0)
+    const pngStart = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+    const pngBody = new Array(400).fill(0x42)
+    const pngEnd = [0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]
+    const embeddedPng = [...pngStart, ...pngBody, ...pngEnd]
+    const emfBytes = new Uint8Array(header.length + embeddedPng.length)
+    emfBytes.set(header, 0)
+    emfBytes.set(embeddedPng, header.length)
+
+    const zip = new JSZip()
+    zip.file('ppt/media/diagram.emf', emfBytes)
+
+    const media = await extractAllMedia(zip)
+
+    expect(media.get('diagram.emf')).toBe('data:image/svg+xml;base64,RENDERED')
+    expect(mockRenderMetafileToSvgDataUrl).toHaveBeenCalledWith(emfBytes, 'emf')
   })
 
   it('extracts an embedded PNG fallback bitmap from an EMF+ metafile so the image shows in the editor', async () => {
@@ -157,6 +187,7 @@ describe('extractAllMedia metafile fallback', () => {
     expect(url).toBeDefined()
     expect(url!.startsWith('data:image/png;base64,')).toBe(true)
     expect(url).not.toBe(METAFILE_PLACEHOLDER_DATA_URL)
+    expect(mockRenderMetafileToSvgDataUrl).toHaveBeenCalledWith(emfBytes, 'emf')
   })
 
   it('extractEmbeddedRasterFromMetafile finds an embedded JPEG fallback', () => {

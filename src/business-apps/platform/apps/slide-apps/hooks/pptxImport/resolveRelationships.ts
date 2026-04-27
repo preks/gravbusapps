@@ -559,21 +559,21 @@ export async function extractAllMedia(zip: JSZip): Promise<Map<string, string>> 
         if (isMetafileExtension(ext)) {
           // EMF/WMF resolution fidelity, in order of preference:
           //
-          //   1. Embedded raster fallback (PNG/JPEG/BMP/DIB inside the
-          //      metafile) — lossless-ish, present in most PowerPoint-
-          //      authored EMF+ files.
-          //   2. True vector rendering via WMFJS/EMFJS (rtf.js) for files
+          //   1. True vector rendering via WMFJS/EMFJS (rtf.js) for files
           //      that contain only GDI drawing records. This is the only
           //      path that works for older WMFs and third-party authored
           //      vector content; the library is dynamically imported so
           //      it never ships with decks that have no metafiles.
+          //   2. Embedded raster fallback (PNG/JPEG/BMP/DIB inside the
+          //      metafile) — present in many PowerPoint-authored EMF+ files,
+          //      but can be visibly blurry compared to the real vector.
           //   3. Neutral SVG placeholder — preserves the bounding box and
           //      lets the user see that something was there, even when
           //      the first two paths failed.
           const metafileBytes = new Uint8Array(await file.async('arraybuffer'))
-          let preview = extractEmbeddedRasterFromMetafile(metafileBytes)
+          let preview = await renderMetafileToSvgDataUrl(metafileBytes, ext === 'emf' ? 'emf' : 'wmf')
           if (!preview) {
-            preview = await renderMetafileToSvgDataUrl(metafileBytes, ext === 'emf' ? 'emf' : 'wmf')
+            preview = extractEmbeddedRasterFromMetafile(metafileBytes)
           }
           preview = preview ?? METAFILE_PLACEHOLDER_DATA_URL
 
