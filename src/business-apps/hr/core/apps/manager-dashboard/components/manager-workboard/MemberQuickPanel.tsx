@@ -1,12 +1,22 @@
 // NO BUSINESS LOGIC HERE. Data + actions come from useManagerWorkboardVM.
 
 import React from 'react'
-import { Sheet, SheetContent, Button, Separator } from '@newwork/nw-design-system'
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Button,
+  Card,
+  ScrollArea,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle
+} from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
-import { Briefcase, CalendarBlank, ChatCircleDots, Target } from '@phosphor-icons/react'
+import { Briefcase, CalendarBlank, CaretRight, ChatCircleDots, Target } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { EmployeePanelHeader } from '../shared/EmployeePanelHeader'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 
 interface DirectReport {
@@ -36,6 +46,13 @@ interface MemberQuickPanelProps {
   onNavigateToEmployee: (employeeId: string) => void
   onAssignProject: (employeeId: string) => void
 }
+
+const InfoRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+  <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+    <span className="gba:text-sm gba:text-muted-foreground">{label}</span>
+    <span className="gba:text-sm gba:font-medium gba:text-foreground">{value}</span>
+  </div>
+)
 
 const formatLastFeedback = (isoDate: string | null): string => {
   if (!isoDate) return 'No feedback yet'
@@ -73,6 +90,7 @@ export const MemberQuickPanel: React.FC<MemberQuickPanelProps> = ({
   const hasGoals = memberGoals && memberGoals.totalGoals > 0
   const isAvailable = member.status === 'Available'
   const formattedLastFeedback = formatLastFeedback(lastFeedbackDate)
+  const fullName = `${member.firstName} ${member.lastName}`.trim()
 
   const handleViewProfile = () => {
     onNavigateToEmployee(member.id)
@@ -113,98 +131,101 @@ export const MemberQuickPanel: React.FC<MemberQuickPanelProps> = ({
         if (!open) onClose()
       }}
     >
-      <SheetContent className="gba:w-full sm:gba:max-w-md gba:p-5" data-testid="member-quick-panel">
-        <EmployeePanelHeader
-          title="Employee details"
-          description="Quick profile and common manager actions"
-          onClose={onClose}
-          employee={{
-            firstName: member.firstName,
-            lastName: member.lastName,
-            pictureThumbnail: member.pictureThumbnail,
-            roleLabel: member.jobPositionName
-          }}
-        />
+      <SheetContent side="right" className="gba:flex gba:flex-col gba:p-0" data-testid="member-quick-panel">
+        <SheetHeader className="gba:border-b gba:border-border gba:px-6 gba:py-4 gba:pr-14">
+          <SheetTitle className="gba:text-left">Employee details</SheetTitle>
+        </SheetHeader>
 
-        <div className="gba:space-y-6 gba:py-4">
-          <Separator />
+        <ScrollArea className="gba:flex-1 gba:min-h-0">
+          <div className="gba:space-y-4 gba:px-6 gba:py-4">
+            <div className="gba:border-b gba:border-border gba:pb-6">
+              <div className="gba:flex gba:flex-col gba:items-center">
+                <Avatar size="xl" className="gba:h-24 gba:w-24 gba:text-3xl">
+                  <AvatarImage
+                    src={member.pictureThumbnail ? `data:image/jpeg;base64,${member.pictureThumbnail}` : undefined}
+                    alt={fullName}
+                  />
+                  <AvatarFallback>
+                    {`${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
 
-          {/* Key Stats */}
-          <div className="gba:space-y-4">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:text-sm gba:text-muted-foreground">Availability</span>
-              <span className="gba:text-sm gba:font-medium">{isAvailable ? 'Available' : member.status}</span>
+                <button
+                  type="button"
+                  onClick={handleViewProfile}
+                  className="gba:mt-2 gba:flex gba:items-center gba:justify-center gba:gap-1 gba:text-center"
+                  data-testid={`member-quick-panel-open-profile-${member.id}`}
+                >
+                  <span className="gba:text-2xl gba:font-black gba:text-foreground gba:hover:underline">
+                    {fullName}
+                  </span>
+                  <CaretRight size={20} className="gba:shrink-0 gba:text-foreground" />
+                </button>
+
+                <p className="gba:text-sm gba:text-muted-foreground">{member.jobPositionName || '-'}</p>
+              </div>
             </div>
 
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:text-sm gba:text-muted-foreground">Project allocation</span>
-              <span className="gba:text-sm gba:font-medium">{allocationPercent}%</span>
-            </div>
+            <Card className="gba:p-4">
+              <div className="gba:space-y-3">
+                <InfoRow label="Availability" value={isAvailable ? 'Available' : member.status} />
+                <InfoRow label="Project allocation" value={`${allocationPercent}%`} />
+                <InfoRow label="Goals set" value={hasGoals ? 'Yes' : 'No'} />
+                <InfoRow label="Last feedback" value={formattedLastFeedback} />
+              </div>
+            </Card>
 
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:text-sm gba:text-muted-foreground">Goals set</span>
-              <span className="gba:text-sm gba:font-medium">{hasGoals ? 'Yes' : 'No'}</span>
-            </div>
+            <Card className="gba:p-4">
+              <h4 className="gba:mb-3 gba:text-sm gba:font-semibold gba:text-foreground">Manager actions</h4>
+              <div className="gba:space-y-2">
+                <Button onClick={handleAssignProject} variant="outline" className="gba:w-full gba:justify-start">
+                  <Briefcase size={16} className="gba:mr-2" />
+                  Assign project
+                </Button>
 
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:text-sm gba:text-muted-foreground">Last feedback</span>
-              <span className="gba:text-sm gba:font-medium">{formattedLastFeedback}</span>
-            </div>
+                <Button onClick={handleSetGoals} variant="outline" className="gba:w-full gba:justify-start">
+                  <Target size={16} className="gba:mr-2" />
+                  Set goals
+                </Button>
+
+                <Button onClick={handleScheduleOneOnOne} variant="outline" className="gba:w-full gba:justify-start">
+                  <CalendarBlank size={16} className="gba:mr-2" />
+                  Schedule 1:1
+                </Button>
+
+                <AppAction
+                  mode="button"
+                  buttonVariant="outline"
+                  buttonSize="default"
+                  autoExecute
+                  className="gba:w-full gba:justify-start"
+                  contexts={[
+                    {
+                      context: FlowContextName.employeeGiveFeedback,
+                      contextData: {
+                        employeeId: currentUserEmployeeId,
+                        receiverId: member.userId || member.id,
+                        targetEmployeeId: member.id
+                      }
+                    }
+                  ]}
+                  accessToken={accessToken}
+                  onClick={onClose}
+                  prefixDataTestId={`member-quick-panel-give-feedback-${member.id}`}
+                >
+                  <>
+                    <ChatCircleDots size={16} className="gba:mr-2" />
+                    Give feedback
+                  </>
+                </AppAction>
+
+                <Button onClick={handleViewProfile} variant="default" className="gba:mt-2 gba:w-full">
+                  View full profile
+                </Button>
+              </div>
+            </Card>
           </div>
-
-          <Separator />
-
-          {/* Actions */}
-          <div className="gba:space-y-2">
-            <Button onClick={handleAssignProject} variant="outline" className="gba:w-full gba:justify-start">
-              <Briefcase size={16} className="gba:mr-2" />
-              Assign project
-            </Button>
-
-            <Button onClick={handleSetGoals} variant="outline" className="gba:w-full gba:justify-start">
-              <Target size={16} className="gba:mr-2" />
-              Set goals
-            </Button>
-
-            <Button onClick={handleScheduleOneOnOne} variant="outline" className="gba:w-full gba:justify-start">
-              <CalendarBlank size={16} className="gba:mr-2" />
-              Schedule 1:1
-            </Button>
-
-            <AppAction
-              mode="button"
-              buttonVariant="outline"
-              buttonSize="default"
-              autoExecute
-              className="gba:w-full gba:justify-start"
-              contexts={[
-                {
-                  context: FlowContextName.employeeGiveFeedback,
-                  contextData: {
-                    employeeId: currentUserEmployeeId,
-                    receiverId: member.userId || member.id,
-                    targetEmployeeId: member.id
-                  }
-                }
-              ]}
-              accessToken={accessToken}
-              onClick={onClose}
-              prefixDataTestId={`member-quick-panel-give-feedback-${member.id}`}
-            >
-              <>
-                <ChatCircleDots size={16} className="gba:mr-2" />
-                Give feedback
-              </>
-            </AppAction>
-          </div>
-
-          <Separator />
-
-          {/* View Full Profile */}
-          <Button onClick={handleViewProfile} variant="default" className="gba:w-full">
-            View full profile
-          </Button>
-        </div>
+        </ScrollArea>
       </SheetContent>
     </Sheet>
   )
