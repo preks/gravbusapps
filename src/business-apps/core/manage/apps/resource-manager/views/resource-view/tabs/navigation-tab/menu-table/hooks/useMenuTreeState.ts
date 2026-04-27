@@ -1,14 +1,71 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import type { MenuItemDTO } from '@/common/data/resources/types/menuItem.types'
 
-function buildDraftSubtree(draft: MenuItemDTO, allDrafts: MenuItemDTO[]): MenuItemDTO {
-  const children = allDrafts.filter(d =>
-    draft.level === 0 ? d.hubId === draft.id && d.level === 1 : d.parentId === draft.id
-  )
-  return {
-    ...draft,
-    children: children.map(child => buildDraftSubtree(child, allDrafts))
+type MutableMenuItemNode = MenuItemDTO & { children: MutableMenuItemNode[] }
+
+function cloneMenuTree(items: MenuItemDTO[]): MutableMenuItemNode[] {
+  return items.map(item => ({
+    ...item,
+    children: cloneMenuTree(item.children || [])
+  }))
+}
+
+function flattenMenuTree(items: MutableMenuItemNode[]): MutableMenuItemNode[] {
+  const flat: MutableMenuItemNode[] = []
+  const traverse = (nodes: MutableMenuItemNode[]) => {
+    nodes.forEach(node => {
+      flat.push(node)
+      if (node.children.length > 0) {
+        traverse(node.children)
+      }
+    })
   }
+  traverse(items)
+  return flat
+}
+
+function mergeDraftsIntoMenuTree(menuItems: MenuItemDTO[], draftMenuItems: MenuItemDTO[]): MenuItemDTO[] {
+  const mergedMenuTree = cloneMenuTree(menuItems)
+  const nodeMap = new Map<string, MutableMenuItemNode>()
+
+  flattenMenuTree(mergedMenuTree).forEach(node => {
+    nodeMap.set(node.id, node)
+  })
+
+  const draftNodes = draftMenuItems.map(draft => ({
+    ...draft,
+    children: [] as MutableMenuItemNode[]
+  }))
+
+  draftNodes.forEach(draftNode => {
+    nodeMap.set(draftNode.id, draftNode)
+  })
+
+  const topLevelDraftHubs: MutableMenuItemNode[] = []
+
+  draftNodes.forEach(draftNode => {
+    if (draftNode.level === 0) {
+      topLevelDraftHubs.push(draftNode)
+      return
+    }
+
+    if (draftNode.parentId) {
+      const parentNode = nodeMap.get(draftNode.parentId)
+      if (parentNode) {
+        parentNode.children = [draftNode, ...parentNode.children]
+        return
+      }
+    }
+
+    if (draftNode.level === 1 && draftNode.hubId) {
+      const hubNode = nodeMap.get(draftNode.hubId)
+      if (hubNode) {
+        hubNode.children = [draftNode, ...hubNode.children]
+      }
+    }
+  })
+
+  return [...topLevelDraftHubs, ...mergedMenuTree]
 }
 import type {
   EnrichedMenuItem,
@@ -108,33 +165,6 @@ export function useMenuTreeState(props: UseMenuTreeStateProps): UseMenuTreeState
     []
   )
 
-  // Helper function to insert drafts into menu items
-  const insertDrafts = useCallback((items: MenuItemDTO[], drafts: MenuItemDTO[]): MenuItemDTO[] => {
-    return items.map(item => {
-      const cloned = { ...item }
-
-      if (cloned.children && cloned.children.length > 0) {
-        cloned.children = insertDrafts(cloned.children, drafts)
-      } else {
-        cloned.children = []
-      }
-
-      const itemDrafts = drafts.filter(draft => {
-        if (item.level === 0) {
-          return draft.hubId === item.id && draft.level === 1
-        } else {
-          return draft.parentId === item.id
-        }
-      })
-
-      if (itemDrafts.length > 0) {
-        cloned.children = [...itemDrafts, ...cloned.children]
-      }
-
-      return cloned
-    })
-  }, [])
-
   // Track previous values to detect what changed
   const prevMenuItemsPropRef = useRef<MenuItemDTO[]>([])
   const prevDraftMenuItemsRef = useRef<MenuItemDTO[]>([])
@@ -158,10 +188,7 @@ export function useMenuTreeState(props: UseMenuTreeStateProps): UseMenuTreeState
     prevMenuItemsPropRef.current = menuItemsProp
     prevDraftMenuItemsRef.current = draftMenuItems
 
-    const menuItemsWithDrafts = insertDrafts(menuItemsProp, draftMenuItems)
-    const draftHubs = draftMenuItems.filter(draft => draft.level === 0)
-    const draftHubsWithChildren = draftHubs.map(hub => buildDraftSubtree(hub, draftMenuItems))
-    const allItemsWithDrafts = [...draftHubsWithChildren, ...menuItemsWithDrafts]
+    const allItemsWithDrafts = mergeDraftsIntoMenuTree(menuItemsProp, draftMenuItems)
     const enriched = enrichTree(allItemsWithDrafts, 'space')
 
     setSourceTree(enriched)
@@ -188,7 +215,7 @@ export function useMenuTreeState(props: UseMenuTreeStateProps): UseMenuTreeState
       // Nothing relevant changed (shouldn't reach here due to early return above)
       return prev
     })
-  }, [menuItemsProp, draftMenuItems, enrichTree, isDragging, insertDrafts])
+  }, [menuItemsProp, draftMenuItems, enrichTree, isDragging])
 
   // Flatten tree recursively for finding items by ID
   const flattenTree = useCallback((items: EnrichedMenuItem[]): EnrichedMenuItem[] => {

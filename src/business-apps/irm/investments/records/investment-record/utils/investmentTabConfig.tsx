@@ -124,6 +124,8 @@ export const createInvestmentTabsConfig = (
             <InvestmentDocuments
               investmentId={investmentId}
               context={props}
+              investmentGroupId={investment?.investmentGroup?.id}
+              investmentGroupCode={investment?.investmentGroup?.code}
               data-testid="investment-documents-section"
             />
           ) : (

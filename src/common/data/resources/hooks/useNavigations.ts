@@ -12,6 +12,7 @@ interface UseNavigationsResult {
   loadMore: () => Promise<void>
   hasMore: boolean
   reset: () => void
+  removeNavigation: (id: string) => void
 }
 
 export const useNavigations = (
@@ -26,24 +27,12 @@ export const useNavigations = (
   const has401Error = useRef(false)
   const paramsRef = useRef(params)
   const currentOffsetRef = useRef(0)
-  const lastSearchSortRef = useRef<string>('')
   const isFetchingRef = useRef(false)
 
   // Update params ref when params change
   useEffect(() => {
     paramsRef.current = params
   }, [params])
-
-  // Check if search/sort params changed (requires reset)
-  useEffect(() => {
-    const searchSortKey = `${params?.search || ''}-${params?.sort || ''}`
-    if (searchSortKey !== lastSearchSortRef.current) {
-      lastSearchSortRef.current = searchSortKey
-      // Reset offset when search/sort changes
-      currentOffsetRef.current = 0
-      setNavigations([])
-    }
-  }, [params?.search, params?.sort])
 
   const fetchNavigations = useCallback(
     async (append = false) => {
@@ -98,11 +87,6 @@ export const useNavigations = (
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch navigations'
         setError(errorMessage)
         console.error('Error fetching navigations:', err)
-
-        if (!append) {
-          setNavigations([])
-          setTotalCount(0)
-        }
       } finally {
         setIsLoading(false)
         isFetchingRef.current = false
@@ -116,6 +100,10 @@ export const useNavigations = (
 
   const refetch = useCallback(async () => {
     has401Error.current = false
+    // Wait for any in-flight fetch (e.g. loadMore) to complete so refetch is not silently dropped
+    while (isFetchingRef.current) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
     currentOffsetRef.current = 0
     await fetchNavigations(false)
   }, [fetchNavigations])
@@ -135,6 +123,12 @@ export const useNavigations = (
     isFetchingRef.current = false
   }, [])
 
+  const removeNavigation = useCallback((id: string) => {
+    setNavigations(prev => prev.filter(nav => nav.id !== id))
+    setTotalCount(count => Math.max(0, count - 1))
+    currentOffsetRef.current = Math.max(0, currentOffsetRef.current - 1)
+  }, [])
+
   const hasMore = navigations.length < totalCount
 
   return {
@@ -145,6 +139,7 @@ export const useNavigations = (
     refetch,
     loadMore,
     hasMore,
-    reset
+    reset,
+    removeNavigation
   }
 }

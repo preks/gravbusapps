@@ -64,10 +64,9 @@ export const useComponents = (context: BusinessAppContextProps): UseComponentsRe
             currentOffsetRef.current = response.data.length
           }
           setTotalCount(response.paging?.totalRecords ?? response.data.length)
-        } else {
-          if (!append) {
-            setComponents([])
-          }
+        } else if (!append) {
+          setComponents([])
+          setTotalCount(0)
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch components'
@@ -82,6 +81,10 @@ export const useComponents = (context: BusinessAppContextProps): UseComponentsRe
   )
 
   const refetch = useCallback(async () => {
+    // Wait for any in-flight fetch (e.g. loadMore) to complete so refetch is not silently dropped
+    while (isFetchingRef.current) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
     currentOffsetRef.current = 0
     await fetchComponents(false, searchTermRef.current)
   }, [fetchComponents])

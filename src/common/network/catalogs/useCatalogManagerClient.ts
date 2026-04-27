@@ -1,8 +1,10 @@
 import { useEffect } from 'react'
 import { catalogManagerClient } from './CatalogManagerClient'
 
-export const useCatalogManagerClient = (accessToken: string) => {
-  catalogManagerClient.setAccessToken(accessToken)
+export const useCatalogManagerClient = (accessToken?: string) => {
+  if (accessToken) {
+    catalogManagerClient.setAccessToken(accessToken)
+  }
 
   useEffect(
     function addRefreshedTokenToAuthorizationHeader() {
@@ -12,7 +14,9 @@ export const useCatalogManagerClient = (accessToken: string) => {
       }
 
       function listener() {
-        catalogManagerClient.setAccessToken(accessToken)
+        if (accessToken) {
+          catalogManagerClient.setAccessToken(accessToken)
+        }
       }
     },
     [accessToken]

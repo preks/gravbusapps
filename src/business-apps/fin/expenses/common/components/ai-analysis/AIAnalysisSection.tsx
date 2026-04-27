@@ -6,10 +6,10 @@
  */
 
 import React from 'react'
-import { Alert, Spinner, Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { Alert, Spinner, Button, Card, CardContent, CardHeader, CardTitle, useTranslation } from '@newwork/nw-design-system'
 import { WarningIcon, InfoIcon, ArrowClockwiseIcon, SparkleIcon } from '@phosphor-icons/react'
 import { type AnalysisType, type ExpenseRequestAnalysis } from '../../hooks/useExpenseRequestAnalysis'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../_i18n'
 
 interface AIAnalysisSectionProps {
   analysis: ExpenseRequestAnalysis | null
@@ -51,30 +51,29 @@ const FormattedAnalysisText: React.FC<{ text: string }> = ({ text }) => {
   )
 }
 
-/**
- * Get styling and icon based on analysis type
- */
-const getAnalysisStyles = (type: AnalysisType) => {
-  if (type === 'WARNING') {
+const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading, error, onRefresh }) => {
+  const { t } = useTranslation(translations)
+
+  const getAnalysisStyles = (type: AnalysisType) => {
+    if (type === 'WARNING') {
+      return {
+        icon: <WarningIcon className="gba:h-5 gba:w-5 gba:text-warning gba:flex-shrink-0" />,
+        containerClass: 'gba:border-border',
+        textClass: 'gba:text-foreground',
+        titleClass: 'gba:text-warning',
+        title: t('ai-analysis-attention-required')
+      }
+    }
+
     return {
-      icon: <WarningIcon className="gba:h-5 gba:w-5 gba:text-warning gba:flex-shrink-0" />,
+      icon: <InfoIcon className="gba:h-5 gba:w-5 gba:text-info gba:flex-shrink-0" />,
       containerClass: 'gba:border-border',
       textClass: 'gba:text-foreground',
-      titleClass: 'gba:text-warning',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.attention_required', 'Attention Required')
+      titleClass: 'gba:text-info',
+      title: t('ai-analysis-analysis-complete')
     }
   }
 
-  return {
-    icon: <InfoIcon className="gba:h-5 gba:w-5 gba:text-info gba:flex-shrink-0" />,
-    containerClass: 'gba:border-border',
-    textClass: 'gba:text-foreground',
-    titleClass: 'gba:text-info',
-    title: getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.analysis_complete', 'Analysis Complete')
-  }
-}
-
-const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading, error, onRefresh }) => {
   // Loading state
   if (loading) {
     return (
@@ -82,14 +81,14 @@ const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading
         <CardHeader className="gba:pb-3">
           <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">
             <SparkleIcon className="gba:h-5 gba:w-5 gba:text-primary" />
-            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.title', 'AI Analysis')}
+            {t('ai-analysis-title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="gba:flex gba:items-center gba:justify-center gba:py-6 gba:gap-3">
             <Spinner />
             <span className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.analyzing', 'Analyzing expense request...')}
+              {t('ai-analysis-analyzing')}
             </span>
           </div>
         </CardContent>
@@ -104,7 +103,7 @@ const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading
         <CardHeader className="gba:pb-3">
           <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">
             <SparkleIcon className="gba:h-5 gba:w-5 gba:text-primary" />
-            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.title', 'AI Analysis')}
+            {t('ai-analysis-title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -113,7 +112,7 @@ const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading
               <WarningIcon className="gba:h-4 gba:w-4 gba:mt-0.5" />
               <div>
                 <p className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.error_title', 'Analysis Failed')}
+                  {t('ai-analysis-error-title')}
                 </p>
                 <p className="gba:text-sm gba:mt-1">{error.message}</p>
               </div>
@@ -128,7 +127,7 @@ const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading
               data-testid="ai-analysis-retry-button"
             >
               <ArrowClockwiseIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.retry', 'Retry Analysis')}
+              {t('ai-analysis-retry')}
             </Button>
           )}
         </CardContent>
@@ -150,7 +149,7 @@ const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">
             <SparkleIcon className="gba:h-5 gba:w-5 gba:text-primary" />
-            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.title', 'AI Analysis')}
+            {t('ai-analysis-title')}
           </CardTitle>
           {onRefresh && (
             <Button
@@ -158,7 +157,7 @@ const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading
               size="sm"
               onClick={onRefresh}
               className="gba:h-8 gba:w-8 gba:p-0"
-              title={getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.refresh', 'Refresh analysis')}
+              title={t('ai-analysis-refresh')}
               data-testid="ai-analysis-refresh-button"
             >
               <ArrowClockwiseIcon className="gba:h-4 gba:w-4" />
@@ -171,13 +170,10 @@ const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading
           className={`gba:rounded-lg gba:border gba:p-4 ${styles.containerClass}`}
           data-testid={`ai-analysis-${analysis.type.toLowerCase()}`}
         >
-          {/* Header with icon and title */}
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
             {styles.icon}
             <span className={`gba:font-semibold gba:text-sm ${styles.titleClass}`}>{styles.title}</span>
           </div>
-
-          {/* Analysis content */}
           <div className={styles.textClass}>
             <FormattedAnalysisText text={analysis.user_text} />
           </div>
