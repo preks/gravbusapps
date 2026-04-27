@@ -15,6 +15,11 @@ import {
   INVESTMENT_REPORT_DESCRIPTORS,
   type InvestmentReport
 } from '@/common/data/investment/types/investmentReportTypes'
+import {
+  investmentGroup as INVESTMENT_GROUP_CATALOG,
+  investmentType as INVESTMENT_TYPE_CATALOG,
+  investmentLiquidFundType as INVESTMENT_LIQUID_FUND_TYPE_CATALOG
+} from '@/common/data/investment/constants/investmentCatalogs'
 import { getReportGroupConfiguration } from '../../config/reportGroupConfigurations'
 
 export interface UseInvestmentReportDataConfig {
@@ -76,7 +81,7 @@ const buildScopeConditions = (investmentGroup: string, currentSection?: string):
   const conditions: Record<string, any>[] = [
     {
       investment: {
-        investmentGroup: { id: { _eq: `InvestmentGroup:v1:${investmentGroup}` } }
+        investmentGroup: { id: { _eq: `${INVESTMENT_GROUP_CATALOG}:${investmentGroup}` } }
       }
     }
   ]
@@ -87,13 +92,13 @@ const buildScopeConditions = (investmentGroup: string, currentSection?: string):
     if (groupConfig.subSectionStrategy === 'liquidFundTypes') {
       conditions.push({
         liquidFundInvestmentReport: {
-          investmentLiquidFundType: { id: { _eq: `InvestmentLiquidFundType:v1:${currentSection}` } }
+          investmentLiquidFundType: { id: { _eq: `${INVESTMENT_LIQUID_FUND_TYPE_CATALOG}:${currentSection}` } }
         }
       })
     } else {
       conditions.push({
         investment: {
-          investmentType: { id: { _eq: `InvestmentType:v1:${currentSection}` } }
+          investmentType: { id: { _eq: `${INVESTMENT_TYPE_CATALOG}:${currentSection}` } }
         }
       })
     }
