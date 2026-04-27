@@ -12,7 +12,7 @@ hero-nav-spreadsheets = Tabellen
 hero-nav-notes = Notizen
 hero-nav-slides = Folien
 hero-nav-drive = Drive
-hero-nav-spaces = Räume
+hero-nav-spaces = Spaces
 hero-nav-emails = Mail
 
 # DeskHub – Spaces & Work
@@ -88,9 +88,9 @@ untitled = Ohne Titel
 results-for-prefix = Ergebnisse für
 pick-up-where = Machen Sie dort weiter, wo Sie aufgehört haben
 empty-search-title = Keine passenden Inhalte gefunden
-empty-default-title = Noch keine letzten Inhalte
+desk-empty-default-title = Noch keine letzten Inhalte
 empty-search-description = Probieren Sie einen anderen Suchbegriff
-empty-default-description = Erstellen Sie Ihr erstes Dokument, Ihre erste Tabelle oder Notiz
+desk-empty-default-description = Erstellen Sie Ihr erstes Dokument, Ihre erste Tabelle oder Notiz
 
 # App card
 app-shared-count = { $count } geteilt

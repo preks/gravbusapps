@@ -1,13 +1,17 @@
 import React, { useCallback, useEffect } from 'react'
-import { DataDisplay, DataTable, useTranslation } from '@newwork/nw-design-system'
-import { Code, KeyRound, List, ListPlus } from 'lucide-react'
+import { CreateLayout, DataDisplay, DataTable, useTranslation } from '@newwork/nw-design-system'
+import { CodeIcon, KeyIcon, ListIcon, PlusIcon } from '@phosphor-icons/react'
 import type { SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { CreateLayout } from '@/components/create-layout'
-import { LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
+import {
+  FUNCTION_CATEGORIES,
+  type FunctionCategory,
+  type LatestFunctionItem
+} from '@/common/network/functions/FunctionsServiceClient'
 import { deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 import { FunctionEditor } from './components/FunctionEditor'
-import { useFunctionsData } from './hooks/useFunctionsData'
+import { useFunctionsData, type CategoryFilter } from './hooks/useFunctionsData'
 import { createFunctionsColumns } from './config/functionsColumns'
 import translations from './_i18n'
 import { FunctionManagerSecretsView } from './components/FunctionManagerSecretsView'
@@ -85,17 +89,57 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
 
   const {
     data,
+    allItems,
     total,
+    categoryCounts,
     loading,
     error,
     search,
     setSearch,
+    category,
+    setCategory,
     pagination,
     setPagination,
     visibleColumns,
     setVisibleColumns,
     refetch
   } = useFunctionsData(context.accessToken, sorting)
+
+  const categoryLabels: Record<CategoryFilter, string> = React.useMemo(
+    () => ({
+      All: t('category-all'),
+      General: t('category-general'),
+      HR: t('category-hr'),
+      CRM: t('category-crm'),
+      Expenses: t('category-expenses'),
+      Office: t('category-office'),
+      Service: t('category-service'),
+      Custom: t('category-custom')
+    }),
+    [t]
+  )
+
+  const categoryTitleSections = React.useMemo(() => {
+    const tabs: CategoryFilter[] = ['All', ...FUNCTION_CATEGORIES]
+    return tabs.map(value => ({
+      id: value,
+      label: categoryLabels[value],
+      metadata: { count: categoryCounts[value] ?? 0 }
+    }))
+  }, [categoryCounts, categoryLabels])
+
+  const handleCategorySectionChange = React.useCallback(
+    (value: string) => {
+      if (value === 'All') {
+        setCategory('All')
+        return
+      }
+      if ((FUNCTION_CATEGORIES as readonly string[]).includes(value)) {
+        setCategory(value as FunctionCategory)
+      }
+    },
+    [setCategory]
+  )
 
   // Build columns on each render so headers always match current locale
   const allColumns = createFunctionsColumns(t)
@@ -111,9 +155,13 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
     updateUrlWithFunctionId(fn.id, true)
   }, [])
 
-  const editingFunction = editingFunctionId ? data.find(f => f.id === editingFunctionId) : null
+  // Use the full unpaginated list so deep-links (?functionId=) resolve even when the target
+  // function is not on the current page slice. Falls back to `data` (current page) only for safety.
+  const editingFunction = editingFunctionId
+    ? (allItems.find(f => f.id === editingFunctionId) ?? data.find(f => f.id === editingFunctionId) ?? null)
+    : null
 
-  // Clear editingFunctionId from URL if the function is not in loaded data (e.g. invalid id or not in page)
+  // Clear editingFunctionId from URL only when the id is truly not in the loaded full list (invalid id).
   useEffect(() => {
     if (!loading && editingFunctionId && !editingFunction) {
       setEditingFunctionId(null)
@@ -203,12 +251,12 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
     const functionsTab = {
       value: 'functions',
       label: t('tab-functions'),
-      icon: <List className="gba:h-4 gba:w-4" />
+      icon: <ListIcon className="gba:h-4 gba:w-4" />
     }
     if (!showCredentialsTab) return [functionsTab]
     return [
       functionsTab,
-      { value: 'credentials', label: t('tab-credentials'), icon: <KeyRound className="gba:h-4 gba:w-4" /> }
+      { value: 'credentials', label: t('tab-credentials'), icon: <KeyIcon className="gba:h-4 gba:w-4" /> }
     ]
   }, [showCredentialsTab, t])
 
@@ -262,9 +310,10 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
     <CreateLayout
       heroVariant="overview"
       heroOverline="Create"
-      heroIcon={<Code className="gba:w-8 gba:h-8 gba:text-white" />}
+      heroIcon={<CodeIcon className="gba:w-8 gba:h-8 gba:text-white" />}
       heroTitle={t('page-title')}
       heroSubtitle={t('page-description')}
+      heroBackground={<PremiumHeroBackground />}
       views={overviewViews}
       currentView={listView}
       onViewChange={handleListViewChange}
@@ -273,14 +322,9 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
           <FunctionManagerSecretsView accessToken={context.accessToken} />
         ) : (
           <DataDisplay
-            titleSections={[
-              {
-                id: 'functions',
-                label: t('section-label'),
-                metadata: { count: total }
-              }
-            ]}
-            currentSection="functions"
+            titleSections={categoryTitleSections}
+            currentSection={category}
+            onSectionChange={handleCategorySectionChange}
             searchValue={search}
             searchPlaceholder={t('search-placeholder')}
             onSearchChange={setSearch}
@@ -293,7 +337,7 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
             primaryAction={{
               label: t('new-function'),
               onClick: openCreate,
-              icon: ListPlus
+              icon: PlusIcon
             }}
             toolbarDensity="default"
           >
@@ -321,7 +365,7 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
         )
       }
       className={className}
-      testId={DATA_TEST_ID}
+      data-testid={DATA_TEST_ID}
     />
   )
 }

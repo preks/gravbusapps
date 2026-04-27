@@ -34,6 +34,21 @@ function sanitizeDocumentHtml(html: string): string {
   return sanitizeDocumentHtmlForEditor(html || '')
 }
 
+function getApprovalStatusFromMetadata(doc: RecordData): DocumentSummary['approvalStatus'] {
+  const settings = (doc.settings as RecordData | undefined) ?? {}
+  const approvalMetadata = (settings.approvalMetadata as RecordData | undefined) ?? {}
+
+  if (approvalMetadata.hasOpenApproval) {
+    return 'pending'
+  }
+
+  if (approvalMetadata.currentApprovedVersion) {
+    return 'approved'
+  }
+
+  return undefined
+}
+
 export function mapApiDocumentToDocument(apiDoc: RecordData): Document {
   let permission = apiDoc.permission as Document['permission']
   if (permission === 'admin') {
@@ -112,13 +127,7 @@ export function mapApiDocToSummary(doc: RecordData): DocumentSummary {
     spaceId: (doc.spaceId as string | null | undefined) ?? null,
     trashedAt: (doc.trashedAt as string | null | undefined) ?? null,
     wordCount: (doc.wordCount as number) || 0,
-    approvalStatus: (doc.status === 'pending_approval'
-      ? 'pending'
-      : doc.status === 'approved'
-        ? 'approved'
-        : doc.status === 'rejected'
-          ? 'rejected'
-          : undefined) as DocumentSummary['approvalStatus'],
+    approvalStatus: getApprovalStatusFromMetadata(doc),
     isShared: doc.isShared as boolean | undefined,
     sharedBy: doc.sharedBy as string | undefined,
     permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission'],
@@ -530,7 +539,10 @@ export function buildDocumentApprovalRequest(
       respondedAt: step.respondedAt as string | undefined,
       comments: step.comments as string | undefined
     })),
-    message: latest.message as string | undefined
+    message: latest.message as string | undefined,
+    dueDate: latest.dueDate as string | undefined,
+    versionAtRequest: latest.versionAtRequest as number | undefined,
+    entityUrl: latest.entityUrl as string | undefined
   }
 }
 

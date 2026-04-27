@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Checkbox,
@@ -31,6 +31,61 @@ function percentOfPool(amount: number, pool: number): number {
   return Math.round((10000 * amount) / pool) / 100
 }
 
+/** Selected OUs get new slices; unselected OUs keep their current department `salary_budget_amount` in the total. */
+function totalSalaryBudgetDeployedToDepartments(
+  selectedOuIds: string[],
+  selectedSet: Set<string>,
+  allocationByOrgUnitId: ReadonlyMap<string, number>,
+  orgUnitBudgetRows: CompensationBudgetPlanOrganizationalUnitRow[]
+): number {
+  let total = 0
+  for (const ouId of selectedOuIds) {
+    total = roundMoney2(total + roundMoney2(allocationByOrgUnitId.get(ouId) ?? 0))
+  }
+  for (const r of orgUnitBudgetRows) {
+    if (!selectedSet.has(r.organizationalUnitId)) {
+      total = roundMoney2(total + roundMoney2(r.salaryBudgetAmount))
+    }
+  }
+  return total
+}
+
+async function saveDistributedOrgUnitRows(
+  restClient: RestClient,
+  accessToken: string,
+  selectedOuIds: string[],
+  rowByOuId: ReadonlyMap<string, CompensationBudgetPlanOrganizationalUnitRow>,
+  allocationByOrgUnitId: ReadonlyMap<string, number>,
+  distributionPool: number,
+  companyBudgetRow: CompensationBudgetPlanCompanyRow
+): Promise<void> {
+  for (const ouId of selectedOuIds) {
+    const row = rowByOuId.get(ouId)
+    const rawAmount = allocationByOrgUnitId.get(ouId) ?? 0
+    const sliceAmount = roundMoney2(rawAmount)
+    const isInsert = row == null
+    const slicePercent = distributionPool > 0 ? percentOfPool(sliceAmount, distributionPool) : 0
+    const unitPayload: CompensationBudgetPlanOrganizationalUnitRestPayload = {
+      salaryBudgetAmount: sliceAmount,
+      salaryBudgetPercent: slicePercent,
+      allocationAmount: 0,
+      bonusBudgetAmount: 0,
+      bonusBudgetPercent: 0,
+      budgetPlanStatus: 'BUDGET_PLAN_DRAFT',
+      compensationBudgetPlanCompany: companyBudgetRow.id,
+      organizationalUnit: ouId
+    }
+    if (!isInsert && row) {
+      unitPayload.id = row.id
+      unitPayload.version = row.version
+    }
+    await saveCompensationBudgetPlanOrganizationalUnit(restClient, accessToken, {
+      changeMode: isInsert ? 'INSERT' : 'UPDATE',
+      compensationBudgetPlanOrganizationalUnit: unitPayload
+    })
+  }
+}
+
 export interface BudgetDistributionDistributeDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -39,6 +94,7 @@ export interface BudgetDistributionDistributeDialogProps {
   sortedOrgUnits: CompanyOrganizationalUnit[]
   orgUnitBudgetRows: CompensationBudgetPlanOrganizationalUnitRow[]
   allocationByOrgUnitId: ReadonlyMap<string, number>
+  /** Current company salary-increase pool (from `salary_budget_amount` / resolve); basis for OU % and remainder. */
   distributionPool: number | null
   currencyCode: string
   companyBudgetRow: CompensationBudgetPlanCompanyRow | null
@@ -62,6 +118,8 @@ export function BudgetDistributionDistributeDialog({
   const [selectedOuIds, setSelectedOuIds] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  /** Avoid resetting checkbox state when parent re-renders while the dialog stays open. */
+  const hasInitializedSelectionForOpenRef = useRef(false)
 
   const saveableOrgUnits = useMemo(() => sortedOrgUnits.filter(u => u.id !== UNASSIGNED_ORG_UNIT_ID), [sortedOrgUnits])
 
@@ -75,11 +133,26 @@ export function BudgetDistributionDistributeDialog({
 
   useEffect(() => {
     if (!open) {
+      hasInitializedSelectionForOpenRef.current = false
       return
     }
     setErrorMessage(null)
-    setSelectedOuIds(new Set(saveableOrgUnits.map(u => u.id)))
-  }, [open, saveableOrgUnits])
+    if (hasInitializedSelectionForOpenRef.current) {
+      return
+    }
+    if (saveableOrgUnits.length === 0) {
+      return
+    }
+    hasInitializedSelectionForOpenRef.current = true
+    const next = new Set<string>()
+    for (const u of saveableOrgUnits) {
+      const raw = allocationByOrgUnitId.get(u.id) ?? 0
+      if (roundMoney2(raw) > 0) {
+        next.add(u.id)
+      }
+    }
+    setSelectedOuIds(next)
+  }, [open, saveableOrgUnits, allocationByOrgUnitId])
 
   const toggleOu = useCallback((ouId: string, checked: boolean) => {
     setSelectedOuIds(prev => {
@@ -123,40 +196,34 @@ export function BudgetDistributionDistributeDialog({
     setErrorMessage(null)
 
     try {
-      for (const ouId of ids) {
-        const row = rowByOuId.get(ouId)
-        const rawAmount = allocationByOrgUnitId.get(ouId) ?? 0
-        const salaryBudgetAmount = roundMoney2(rawAmount)
-        const salaryBudgetPercent = percentOfPool(salaryBudgetAmount, distributionPool)
-        const isInsert = row == null
+      const selectedSet = new Set(ids)
+      const pool = distributionPool
 
-        const unitPayload: CompensationBudgetPlanOrganizationalUnitRestPayload = {
-          salaryBudgetAmount,
-          salaryBudgetPercent,
-          bonusBudgetAmount: 0,
-          bonusBudgetPercent: 0,
-          budgetPlanStatus: 'BUDGET_PLAN_APPROVED',
-          compensationBudgetPlanCompany: companyBudgetRow.id,
-          organizationalUnit: ouId
-        }
+      await saveDistributedOrgUnitRows(
+        restClient,
+        accessToken,
+        ids,
+        rowByOuId,
+        allocationByOrgUnitId,
+        pool,
+        companyBudgetRow
+      )
 
-        if (!isInsert && row) {
-          unitPayload.id = row.id
-        }
-
-        await saveCompensationBudgetPlanOrganizationalUnit(restClient, accessToken, {
-          changeMode: isInsert ? 'INSERT' : 'UPDATE',
-          compensationBudgetPlanOrganizationalUnit: unitPayload
-        })
-      }
+      const totalAllocatedToOrgUnits = totalSalaryBudgetDeployedToDepartments(
+        ids,
+        selectedSet,
+        allocationByOrgUnitId,
+        orgUnitBudgetRows
+      )
 
       const companyBody = buildSaveCompensationBudgetPlanCompanyUpdateBody({
         id: companyBudgetRow.id,
         version: companyBudgetRow.version,
         compensationBudgetPlanId: companyBudgetRow.compensationBudgetPlanId,
         companyId: companyBudgetRow.companyId,
-        salaryBudgetAmount: companyBudgetRow.salaryBudgetAmount,
-        salaryBudgetPercent: companyBudgetRow.salaryBudgetPercent,
+        salaryBudgetAmount: roundMoney2(companyBudgetRow.salaryBudgetAmount),
+        salaryBudgetPercent: roundMoney2(companyBudgetRow.salaryBudgetPercent),
+        allocationAmount: roundMoney2(totalAllocatedToOrgUnits),
         currentTotalSalaryCost: companyBudgetRow.currentTotalSalaryCost,
         currencyRef: companyBudgetRow.currencyRef
       })
@@ -177,6 +244,7 @@ export function BudgetDistributionDistributeDialog({
     distributionPool,
     onOpenChange,
     onSaved,
+    orgUnitBudgetRows,
     restClient,
     rowByOuId,
     selectedOuIds,
@@ -188,7 +256,7 @@ export function BudgetDistributionDistributeDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="gba:max-h-[85vh] gba:max-w-2xl gba:overflow-y-auto"
+        className="gba:max-h-[85vh] gba:max-w-2xl gba:overflow-y-auto gba:sm:max-w-3xl"
         data-testid="budget-distribution-distribute-dialog"
       >
         <DialogHeader>
@@ -236,23 +304,35 @@ export function BudgetDistributionDistributeDialog({
           </p>
         ) : null}
 
-        <ul className="gba:divide-y gba:divide-border gba:rounded-md gba:border gba:border-border">
+        <ul
+          className="gba:grid gba:max-h-[min(50vh,28rem)] gba:grid-cols-1 gba:content-start gba:gap-2 gba:overflow-y-auto gba:overflow-x-hidden gba:rounded-md gba:border gba:border-border gba:p-2 gba:sm:grid-cols-2"
+          data-testid="budget-distribution-distribute-department-list"
+        >
           {saveableOrgUnits.map(ou => {
             const amount = allocationByOrgUnitId.get(ou.id) ?? 0
             const pct = poolOk && distributionPool != null ? percentOfPool(amount, distributionPool) : null
             const checked = selectedOuIds.has(ou.id)
             return (
-              <li key={ou.id} className="gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2">
+              <li
+                key={ou.id}
+                className="gba:flex gba:min-h-0 gba:min-w-0 gba:items-start gba:gap-2 gba:rounded-sm gba:border gba:border-border/70 gba:bg-background gba:px-2.5 gba:py-2"
+              >
                 <Checkbox
                   checked={checked}
                   onCheckedChange={v => toggleOu(ou.id, v === true)}
                   disabled={saving || !poolOk}
+                  className="gba:mt-0.5"
                   aria-label={t('budget-distribution-distribute-checkbox-aria', { name: ou.name })}
                   data-testid={`budget-distribution-distribute-row-checkbox-${ou.id}`}
                 />
                 <div className="gba:min-w-0 gba:flex-1">
-                  <p className="gba:truncate gba:text-sm gba:font-medium gba:text-foreground">{ou.name}</p>
-                  <p className="gba:text-xs gba:text-muted-foreground">
+                  <p
+                    className="gba:break-words gba:text-sm gba:font-medium gba:leading-snug gba:text-foreground"
+                    title={ou.name}
+                  >
+                    {ou.name}
+                  </p>
+                  <p className="gba:mt-0.5 gba:text-xs gba:leading-snug gba:text-muted-foreground">
                     {formatCurrency(roundMoney2(amount), currencyCode)}
                     {typeof pct === 'number'
                       ? ` · ${t('budget-distribution-distribute-percent-of-pool', { percent: pct })}`

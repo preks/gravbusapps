@@ -1,5 +1,4 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   createDateColumn,
   createEmployeeColumn,
@@ -10,26 +9,9 @@ import {
   renderTitleCodeCell,
   renderCodeCell
 } from '../../../common/columns/expenseColumnHelpers'
-import { getExpensePlanStatusDisplay } from '../../../utils'
+import { getExpensePlanStatusDisplay, type ExpenseStatus } from '../../../utils'
 import type { ExpensePlan } from '../../../hooks/useMainViewExpensePlans'
-import type { ExpenseStatus } from '../../../utils'
-
-const TITLE = 'lowcoder:expense_item_list.expense_table.title'
-const TITLE_LABEL = 'Title'
-const REQUEST_CODE = 'lowcoder:expense_request_list.expense_request_filter.request_number_input'
-const REQUEST_CODE_LABEL = 'Request Code'
-const START_DATE = 'lowcoder:personal_expenses.start_date'
-const START_DATE_LABEL = 'Start Date'
-const END_DATE = 'lowcoder:personal_expenses.end_date'
-const END_DATE_LABEL = 'End Date'
-const EMPLOYEE = 'lowcoder:hr_absences.create_absence.employee'
-const EMPLOYEE_LABEL = 'Employee'
-const CREATION_DATE = 'lowcoder:manager_expense_request_list.expense_table.creation_date'
-const CREATION_DATE_LABEL = 'Creation Date'
-const AMOUNT = 'lowcoder:sales_hub.amount'
-const AMOUNT_LABEL = 'Amount'
-const STATUS = 'lowcoder:expense_request_list.expense_plan_table.status'
-const STATUS_LABEL = 'Status'
+import { getExpensePlanColumnHeader } from './config/expensePlanColumnDefinitions'
 
 /**
  * Builds column definitions for the manager expense plans table.
@@ -43,7 +25,7 @@ export function createExpensePlanColumns(currencyFilter: string | null): ColumnD
     {
       id: 'title',
       accessorKey: 'title',
-      header: getTranslationFromI18nKeyAndLabel(TITLE, TITLE_LABEL),
+      header: getExpensePlanColumnHeader('title'),
       size: 200,
       minSize: 160,
       maxSize: 320,
@@ -56,7 +38,7 @@ export function createExpensePlanColumns(currencyFilter: string | null): ColumnD
         Array.isArray(row.expenseRequest) && row.expenseRequest.length > 0
           ? (row.expenseRequest[0]?.code ?? null)
           : null,
-      header: getTranslationFromI18nKeyAndLabel(REQUEST_CODE, REQUEST_CODE_LABEL),
+      header: getExpensePlanColumnHeader('requestCode'),
       size: 120,
       minSize: 90,
       maxSize: 180,
@@ -68,37 +50,26 @@ export function createExpensePlanColumns(currencyFilter: string | null): ColumnD
         return renderCodeCell(code)
       }
     },
-    createDateColumn<ExpensePlan>(
-      'startDate',
-      getTranslationFromI18nKeyAndLabel(START_DATE, START_DATE_LABEL),
-      'startDate',
-      { formatDate }
-    ),
-    createDateColumn<ExpensePlan>('endDate', getTranslationFromI18nKeyAndLabel(END_DATE, END_DATE_LABEL), 'endDate', {
+    createDateColumn<ExpensePlan>('startDate', getExpensePlanColumnHeader('startDate'), 'startDate', { formatDate }),
+    createDateColumn<ExpensePlan>('endDate', getExpensePlanColumnHeader('endDate'), 'endDate', {
       formatDate
     }),
     createEmployeeColumn<ExpensePlan>(
       'employee',
-      getTranslationFromI18nKeyAndLabel(EMPLOYEE, EMPLOYEE_LABEL),
-      (row: ExpensePlan) => row.employee ?? null
+      getExpensePlanColumnHeader('employee'),
+      (row: ExpensePlan) => row.employee ?? null,
+      { showEmployeeAvatar: false }
     ),
-    createDateColumn<ExpensePlan>(
-      'createdAt',
-      getTranslationFromI18nKeyAndLabel(CREATION_DATE, CREATION_DATE_LABEL),
-      'createdAt',
-      { formatDate }
-    ),
+    createDateColumn<ExpensePlan>('createdAt', getExpensePlanColumnHeader('createdAt'), 'createdAt', { formatDate }),
     createCurrencyColumn<ExpensePlan>(
       'totalAmount',
-      getTranslationFromI18nKeyAndLabel(AMOUNT, AMOUNT_LABEL),
+      getExpensePlanColumnHeader('totalAmount'),
       (row: ExpensePlan) => (typeof row.totalAmount === 'number' ? row.totalAmount : 0),
       (row: ExpensePlan) => currencyFilter ?? row.currency ?? 'EUR',
       formatCurrency
     ),
-    createStatusBadgeColumn<ExpensePlan>(
-      'status',
-      getTranslationFromI18nKeyAndLabel(STATUS, STATUS_LABEL),
-      (row: ExpensePlan) => getExpensePlanStatusDisplay(row.status as ExpenseStatus)
+    createStatusBadgeColumn<ExpensePlan>('status', getExpensePlanColumnHeader('status'), (row: ExpensePlan) =>
+      getExpensePlanStatusDisplay(row.status as ExpenseStatus)
     )
   ]
 }

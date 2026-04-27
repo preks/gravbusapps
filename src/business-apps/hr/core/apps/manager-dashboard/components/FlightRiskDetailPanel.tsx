@@ -49,6 +49,7 @@ import {
   RiskLevel,
   SignalCategory
 } from '../types/flightRisk.types'
+import { formatTenure } from '../utils/tenureFormat'
 
 interface FlightRiskDetailPanelProps {
   summary: FlightRiskSummary
@@ -270,7 +271,7 @@ const EmployeeRow: React.FC<{
             </Badge>
             <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:justify-end">
               <TrendIcon trend={employee.riskTrend} />
-              <span>{employee.tenureMonths} mo</span>
+              <span>{formatTenure(employee.tenureMonths)}</span>
             </div>
           </div>
           {isExpanded ? (
@@ -480,6 +481,9 @@ export const FlightRiskDetailPanel: React.FC<FlightRiskDetailPanelProps> = ({
               'master-data:hr.flight_risk.no_team_members',
               'No team members to analyze'
             )}
+          </p>
+          <p className="gba:mt-2 gba:text-sm gba:text-muted-foreground">
+            Add direct reports or refresh organization data to enable retention insights.
           </p>
         </div>
       )}

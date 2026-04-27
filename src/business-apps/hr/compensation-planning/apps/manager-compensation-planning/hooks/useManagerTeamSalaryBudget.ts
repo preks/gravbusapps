@@ -59,6 +59,7 @@ function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanComp
     companyId: graphqlUnknownToString(raw.companyId),
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
     salaryBudgetPercent: num(raw.salaryBudgetPercent),
+    allocationAmount: num(raw.allocationAmount),
     bonusBudgetAmount: num(raw.bonusBudgetAmount),
     bonusBudgetPercent: num(raw.bonusBudgetPercent),
     budgetPlanStatus: graphqlUnknownToString(raw.budgetPlanStatus),
@@ -67,6 +68,29 @@ function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanComp
     headcount: num(raw.headcount),
     currencyRef: graphqlUnknownToStringOrNull(raw.currencyRef)
   }
+}
+
+/** Earlier dates first; null/invalid effective dates last (stable for tie-break: label). */
+function comparePlanEffectiveDateAsc(
+  a: { effectiveDate: string | null; label: string },
+  b: { effectiveDate: string | null; label: string }
+): number {
+  const aD = a.effectiveDate
+  const bD = b.effectiveDate
+  if (aD == null && bD == null) {
+    return a.label.localeCompare(b.label)
+  }
+  if (aD == null) {
+    return 1
+  }
+  if (bD == null) {
+    return -1
+  }
+  const byDate = aD.localeCompare(bD)
+  if (byDate !== 0) {
+    return byDate
+  }
+  return a.label.localeCompare(b.label)
 }
 
 function buildCompanyBudgetPlanOptions(
@@ -94,7 +118,14 @@ function buildCompanyBudgetPlanOptions(
     })
   }
 
-  return options
+  return [...options].sort((oa, ob) => {
+    const pa = planById.get(oa.compensationBudgetPlanId)
+    const pb = planById.get(ob.compensationBudgetPlanId)
+    return comparePlanEffectiveDateAsc(
+      { effectiveDate: pa?.effectiveDate ?? null, label: oa.label },
+      { effectiveDate: pb?.effectiveDate ?? null, label: ob.label }
+    )
+  })
 }
 
 function pickLatestCompanyBudgetRowId(
@@ -105,14 +136,56 @@ function pickLatestCompanyBudgetRowId(
     return null
   }
   const sorted = [...options].sort((a, b) => {
-    const fa = planById.get(a.compensationBudgetPlanId)?.fiscalYear ?? 0
-    const fb = planById.get(b.compensationBudgetPlanId)?.fiscalYear ?? 0
-    if (fb !== fa) {
-      return fb - fa
-    }
-    return a.label.localeCompare(b.label)
+    const pa = planById.get(a.compensationBudgetPlanId)
+    const pb = planById.get(b.compensationBudgetPlanId)
+    return -comparePlanEffectiveDateAsc(
+      { effectiveDate: pa?.effectiveDate ?? null, label: a.label },
+      { effectiveDate: pb?.effectiveDate ?? null, label: b.label }
+    )
   })
   return sorted[0]?.id ?? null
+}
+
+/** One row per compensation cycle that has a company budget for this legal entity. */
+function buildCompensationPlanChoices(
+  options: CompanyBudgetPlanOption[],
+  planById: Map<string, CompensationBudgetPlanListItem>
+): { id: string; name: string }[] {
+  const byPlanId = new Map<string, { id: string; name: string }>()
+  for (const opt of options) {
+    const plan = planById.get(opt.compensationBudgetPlanId)
+    if (!plan) {
+      continue
+    }
+    if (!byPlanId.has(plan.id)) {
+      byPlanId.set(plan.id, { id: plan.id, name: `${plan.name} (${plan.fiscalYear})` })
+    }
+  }
+  return [...byPlanId.values()].sort((a, b) => {
+    const pa = planById.get(a.id)
+    const pb = planById.get(b.id)
+    return comparePlanEffectiveDateAsc(
+      { effectiveDate: pa?.effectiveDate ?? null, label: a.name },
+      { effectiveDate: pb?.effectiveDate ?? null, label: b.name }
+    )
+  })
+}
+
+function pickCompanyBudgetRowIdForPlan(
+  options: CompanyBudgetPlanOption[],
+  planById: Map<string, CompensationBudgetPlanListItem>,
+  preferredCompensationPlanId: string | null
+): string | null {
+  if (options.length === 0) {
+    return null
+  }
+  if (preferredCompensationPlanId) {
+    const match = options.find(o => o.compensationBudgetPlanId === preferredCompensationPlanId)
+    if (match) {
+      return match.id
+    }
+  }
+  return pickLatestCompanyBudgetRowId(options, planById)
 }
 
 /** Distinct org unit ids from rows shown in the team table. */
@@ -126,6 +199,46 @@ function orgUnitIdsFromTeamMembers(teamMembers: TeamMemberCompensationData[]): S
   return ids
 }
 
+function buildManagerOrgUnitPlanRowMap(rows: Array<Record<string, unknown>>): Map<string, string> {
+  const ouPlanRowMap = new Map<string, string>()
+  for (const r of rows) {
+    const ouId = graphqlUnknownToString(r.organizationalUnitId)
+    const rowId = graphqlUnknownToString(r.id)
+    if (ouId && rowId && !ouPlanRowMap.has(ouId)) {
+      ouPlanRowMap.set(ouId, rowId)
+    }
+  }
+  return ouPlanRowMap
+}
+
+/** Department salary budget from HR (`salary_budget_amount`). */
+function sumSalaryBudgetAmountForRelevantOrgUnits(
+  rows: Array<Record<string, unknown>>,
+  relevantOuIds: Set<string>
+): number {
+  let amount = 0
+  for (const r of rows) {
+    if (relevantOuIds.has(graphqlUnknownToString(r.organizationalUnitId))) {
+      amount += num(r.salaryBudgetAmount)
+    }
+  }
+  return amount
+}
+
+/** Roll-up of committed proposal amounts on each org-unit row (`allocation_amount` from employees). */
+function sumAllocationAmountForRelevantOrgUnits(
+  rows: Array<Record<string, unknown>>,
+  relevantOuIds: Set<string>
+): number {
+  let amount = 0
+  for (const r of rows) {
+    if (relevantOuIds.has(graphqlUnknownToString(r.organizationalUnitId))) {
+      amount += num(r.allocationAmount)
+    }
+  }
+  return amount
+}
+
 interface ManagerBudgetContextResponse {
   managerEmployeePosition: Array<{ organizationalUnitId: string | null } | null> | null
   compensationBudgetPlans: CompensationBudgetPlanListItem[] | null
@@ -133,17 +246,19 @@ interface ManagerBudgetContextResponse {
 }
 
 /**
- * Sums `salary_budget_amount` from `compensation_budget_plan_organizational_unit` for org units on listed team
- * members (fallback: manager position OU). Uses two GraphQL round-trips: one combined context query, then org-unit
- * rows for the chosen `compensation_budget_plan_company` id.
+ * Sums `salary_budget_amount` (HR slice per department) for team org units. Uses two GraphQL round-trips.
+ * When `selectedCompensationBudgetPlanId` is set, uses that cycle’s `CompensationBudgetPlanCompany` row and loads OU budget rows.
+ * When null, only the snapshot is loaded so {@link buildCompensationPlanChoices} can populate the cycle selector; no salary totals or OU map until the user picks a cycle.
  */
 export function useManagerTeamSalaryBudget(params: {
   accessToken: string | undefined
   companyId: string | null
   managerEmployeeId: string | undefined
   teamMembers: TeamMemberCompensationData[]
+  /** `CompensationBudgetPlan.id` — which cycle’s company/org-unit budget rows to load. */
+  selectedCompensationBudgetPlanId: string | null
 }) {
-  const { accessToken, companyId, managerEmployeeId, teamMembers } = params
+  const { accessToken, companyId, managerEmployeeId, teamMembers, selectedCompensationBudgetPlanId } = params
   const graphqlClient = useGraphQLClient(accessToken ?? '')
 
   /** Stable while team composition (ids + OU ids) is unchanged; avoids refetching the pool on unrelated array identity changes. */
@@ -157,6 +272,8 @@ export function useManagerTeamSalaryBudget(params: {
   )
 
   const [totalSalaryBudget, setTotalSalaryBudget] = useState<number | null>(null)
+  /** Sum of OU `allocation_amount` for team departments (matches rolled-up employee proposal totals). */
+  const [totalOrgUnitAllocationAmount, setTotalOrgUnitAllocationAmount] = useState<number | null>(null)
   const [loadingBudget, setLoadingBudget] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [planOuRowIdByOrganizationalUnitId, setPlanOuRowIdByOrganizationalUnitId] = useState<
@@ -164,14 +281,25 @@ export function useManagerTeamSalaryBudget(params: {
   >(() => new Map())
   const [managerOrganizationalUnitId, setManagerOrganizationalUnitId] = useState<string | null>(null)
   const [activeCompensationBudgetPlanId, setActiveCompensationBudgetPlanId] = useState<string | null>(null)
+  const [compensationPlanChoices, setCompensationPlanChoices] = useState<{ id: string; name: string }[]>([])
+
+  const clearBudgetPlanSlice = useCallback(() => {
+    setTotalSalaryBudget(null)
+    setTotalOrgUnitAllocationAmount(null)
+    setPlanOuRowIdByOrganizationalUnitId(new Map())
+    setActiveCompensationBudgetPlanId(null)
+    setCompensationPlanChoices([])
+  }, [])
 
   const fetchBudgetTotal = useCallback(async () => {
     if (!accessToken || !companyId || !managerEmployeeId) {
       setTotalSalaryBudget(null)
+      setTotalOrgUnitAllocationAmount(null)
       setError(null)
       setPlanOuRowIdByOrganizationalUnitId(new Map())
       setManagerOrganizationalUnitId(null)
       setActiveCompensationBudgetPlanId(null)
+      setCompensationPlanChoices([])
       return
     }
 
@@ -187,6 +315,30 @@ export function useManagerTeamSalaryBudget(params: {
       const managerOu = snapshot.managerEmployeePosition?.[0]?.organizationalUnitId ?? null
       setManagerOrganizationalUnitId(managerOu)
 
+      const plans = sortPlans((snapshot.compensationBudgetPlans ?? []).map(p => fillPlanListItem(p)))
+      const planById = new Map(plans.map(p => [p.id, p]))
+      const companyRows = (snapshot.compensationBudgetPlanCompanies ?? []).map(mapCompanyRow)
+      const options = buildCompanyBudgetPlanOptions(companyRows, plans)
+      setCompensationPlanChoices(buildCompensationPlanChoices(options, planById))
+
+      if (selectedCompensationBudgetPlanId == null) {
+        setActiveCompensationBudgetPlanId(null)
+        setTotalSalaryBudget(null)
+        setTotalOrgUnitAllocationAmount(null)
+        setPlanOuRowIdByOrganizationalUnitId(new Map())
+        return
+      }
+
+      const companyBudgetId = pickCompanyBudgetRowIdForPlan(options, planById, selectedCompensationBudgetPlanId)
+
+      if (!companyBudgetId) {
+        clearBudgetPlanSlice()
+        return
+      }
+
+      const planIdForCompanyBudget = options.find(o => o.id === companyBudgetId)?.compensationBudgetPlanId ?? null
+      setActiveCompensationBudgetPlanId(planIdForCompanyBudget)
+
       let relevantOuIds = orgUnitIdsFromTeamMembers(teamMembers)
       if (relevantOuIds.size === 0 && managerOu) {
         relevantOuIds = new Set([managerOu])
@@ -194,66 +346,43 @@ export function useManagerTeamSalaryBudget(params: {
 
       if (relevantOuIds.size === 0) {
         setTotalSalaryBudget(null)
+        setTotalOrgUnitAllocationAmount(null)
         setPlanOuRowIdByOrganizationalUnitId(new Map())
-        setActiveCompensationBudgetPlanId(null)
         return
       }
-
-      const plans = sortPlans((snapshot.compensationBudgetPlans ?? []).map(p => fillPlanListItem(p)))
-      const planById = new Map(plans.map(p => [p.id, p]))
-      const companyRows = (snapshot.compensationBudgetPlanCompanies ?? []).map(mapCompanyRow)
-      const options = buildCompanyBudgetPlanOptions(companyRows, plans)
-      const companyBudgetId = pickLatestCompanyBudgetRowId(options, planById)
-
-      if (!companyBudgetId) {
-        setTotalSalaryBudget(null)
-        setPlanOuRowIdByOrganizationalUnitId(new Map())
-        setActiveCompensationBudgetPlanId(null)
-        return
-      }
-
-      const planIdForCompanyBudget = options.find(o => o.id === companyBudgetId)?.compensationBudgetPlanId ?? null
-      setActiveCompensationBudgetPlanId(planIdForCompanyBudget)
 
       const ouResult = await graphqlClient.request<{
-        CompensationBudgetPlanOrganizationalUnit: Array<{
-          id: string
-          organizationalUnitId: string
-          salaryBudgetAmount: unknown
-        }>
+        CompensationBudgetPlanOrganizationalUnit: Array<Record<string, unknown>>
       }>(LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET, {
         compensationBudgetPlanCompanyId: companyBudgetId
       })
 
       const rows = ouResult.CompensationBudgetPlanOrganizationalUnit ?? []
-      const ouPlanRowMap = new Map<string, string>()
-      for (const r of rows) {
-        const ouId = String(r.organizationalUnitId)
-        const rowId = String(r.id)
-        if (ouId && rowId && !ouPlanRowMap.has(ouId)) {
-          ouPlanRowMap.set(ouId, rowId)
-        }
-      }
-      setPlanOuRowIdByOrganizationalUnitId(ouPlanRowMap)
+      setPlanOuRowIdByOrganizationalUnitId(buildManagerOrgUnitPlanRowMap(rows))
 
-      let amount = 0
-      for (const r of rows) {
-        if (relevantOuIds.has(String(r.organizationalUnitId))) {
-          amount += num(r.salaryBudgetAmount)
-        }
-      }
-      setTotalSalaryBudget(amount)
+      setTotalSalaryBudget(sumSalaryBudgetAmountForRelevantOrgUnits(rows, relevantOuIds))
+      setTotalOrgUnitAllocationAmount(sumAllocationAmountForRelevantOrgUnits(rows, relevantOuIds))
     } catch (err) {
       logBudgetGraphqlFailure('useManagerTeamSalaryBudget', err)
       const message = err instanceof Error ? err.message : 'Failed to load manager team salary budget'
       setError(message)
       setTotalSalaryBudget(null)
+      setTotalOrgUnitAllocationAmount(null)
       setPlanOuRowIdByOrganizationalUnitId(new Map())
       setActiveCompensationBudgetPlanId(null)
+      setCompensationPlanChoices([])
     } finally {
       setLoadingBudget(false)
     }
-  }, [accessToken, companyId, graphqlClient, managerEmployeeId, budgetRelevantTeamKey])
+  }, [
+    accessToken,
+    clearBudgetPlanSlice,
+    companyId,
+    graphqlClient,
+    managerEmployeeId,
+    budgetRelevantTeamKey,
+    selectedCompensationBudgetPlanId
+  ])
 
   useEffect(() => {
     void fetchBudgetTotal()
@@ -261,11 +390,13 @@ export function useManagerTeamSalaryBudget(params: {
 
   return {
     totalSalaryBudget,
+    totalOrgUnitAllocationAmount,
     loading: loadingBudget,
     error,
     refetch: fetchBudgetTotal,
     planOuRowIdByOrganizationalUnitId,
     managerOrganizationalUnitId,
-    activeCompensationBudgetPlanId
+    activeCompensationBudgetPlanId,
+    compensationPlanChoices
   }
 }

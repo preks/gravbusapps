@@ -4,7 +4,7 @@ import { startProcess } from '@/common/utils/start-process'
 import personalTranslations from '../../../../_i18n'
 import { useExpensePlanFileService } from '../../../../utils/expensePlanFileService'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { buildFilteredEmptyMessage, buildDefaultEmptyMessage } from '../../../../utils/tableUtils'
+import { buildDefaultEmptyMessage } from '../../../../utils/tableUtils'
 import { useTableSetup } from '@/business-apps/fin/expenses/common/hooks/useTableSetup'
 import { useVisibleColumns } from '@/business-apps/fin/expenses/common/hooks/useSharedTabState'
 import { expensePlanAvailableColumns } from '../config/expensePlanAvailableColumns'
@@ -51,6 +51,10 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     setEndDateRange,
     effectiveDateRange,
     setEffectiveDateRange,
+    reimbursableAmountRange,
+    setReimbursableAmountRange,
+    paidAdvanceAmountRange,
+    setPaidAdvanceAmountRange,
     onFiltersChange,
     availableStatuses = [],
     ...contextProps
@@ -76,6 +80,10 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     setStartDateRange,
     endDateRange,
     setEndDateRange,
+    reimbursableAmountRange,
+    setReimbursableAmountRange,
+    paidAdvanceAmountRange,
+    setPaidAdvanceAmountRange,
     setFilters: props.setFilters,
     onFiltersChange,
     currencyStats: props.currencyStats || [],
@@ -236,7 +244,7 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
   )
 
   const emptyMessage = hasActiveFilters
-    ? buildFilteredEmptyMessage()
+    ? tPersonal('table-empty-filtered')
     : buildDefaultEmptyMessage(
         'lowcoder:personal_expenses.no_plan_data',
         'No expense plans found. Create your first expense plan to get started.'

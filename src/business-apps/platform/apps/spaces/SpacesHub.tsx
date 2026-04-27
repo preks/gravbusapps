@@ -108,7 +108,10 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
         const newUrl = `${window.location.pathname}?${urlParams.toString()}`
         window.history.pushState({ spaceId: space.id }, '', newUrl)
         onOpenSpace(space.id)
+        return true
       }
+
+      return false
     },
     [createSpace, onOpenSpace]
   )
@@ -281,6 +284,7 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         onCreate={handleCreateSpace}
+        error={error}
         accessToken={accessToken}
         currentUserId={currentUserId}
         data-testid={`${testId}-create-dialog`}

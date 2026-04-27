@@ -1,5 +1,4 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@newwork/nw-design-system'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import type { BudgetPlanStatusApi } from '../../../../types/budgetPlanGraphqlEnums'
 import { BudgetPlanStatusBadge } from '../shared/BudgetPlanStatusBadge'
@@ -20,8 +19,9 @@ function submissionsColumnHeader(t: TranslateFn, messageKey: string, align: 'lef
   }
 }
 
-function formatPercentCell(value: number): string {
-  if (value == null || Number.isNaN(value) || value === 0) {
+/** Computed allocation share: show percent including 0%; em dash only when unknown (no company pool). */
+function formatAllocationSharePercentCell(value: number | null): string {
+  if (value == null || Number.isNaN(value)) {
     return '—'
   }
   return `${formatNumberFunction(String(value), '0.00[,]00')}%`
@@ -35,36 +35,14 @@ const COL = {
   status: { size: 180, minSize: 160 },
   money: { size: 200, minSize: 180 },
   percent: { size: 160, minSize: 140 },
-  review: { size: 140, minSize: 120 }
+  proposedNewSalary: { size: 200, minSize: 180 },
+  ouCurrentSalary: { size: 200, minSize: 180 }
 } as const
 
 export function buildSubmissionsOrgUnitTableColumns(
   t: TranslateFn,
-  formatBudgetPlanStatus: (value: string | null | undefined) => string,
-  onReviewTeam?: (row: SubmissionsOrgUnitTableRow) => void
+  formatBudgetPlanStatus: (value: string | null | undefined) => string
 ): ColumnDef<SubmissionsOrgUnitTableRow>[] {
-  const reviewColumn: ColumnDef<SubmissionsOrgUnitTableRow> | null =
-    onReviewTeam == null
-      ? null
-      : {
-          id: 'reviewTeam',
-          header: submissionsColumnHeader(t, 'submissions-table-col-review'),
-          size: COL.review.size,
-          minSize: COL.review.minSize,
-          meta: { align: 'left', type: 'text' },
-          cell: ({ row }) => (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              data-testid={`submissions-review-team-${row.original.id}`}
-              onClick={() => onReviewTeam(row.original)}
-            >
-              {t('submissions-table-review-team')}
-            </Button>
-          )
-        }
-
   return [
     {
       id: 'organizationalUnitName',
@@ -101,7 +79,7 @@ export function buildSubmissionsOrgUnitTableColumns(
         if (v) {
           return (
             <div className="gba:flex gba:min-w-0 gba:w-full gba:justify-start gba:text-left gba:pl-2">
-              <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} />
+              <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} label={formatBudgetPlanStatus(v)} />
             </div>
           )
         }
@@ -111,7 +89,7 @@ export function buildSubmissionsOrgUnitTableColumns(
     {
       id: 'salaryBudgetAmount',
       accessorKey: 'salaryBudgetAmount',
-      header: submissionsColumnHeader(t, 'budget-setup-table-col-salary-budget-amount', 'right'),
+      header: submissionsColumnHeader(t, 'submissions-table-col-department-salary-budget', 'right'),
       size: COL.money.size,
       minSize: COL.money.minSize,
       meta: { align: 'right', type: 'currency' },
@@ -124,18 +102,76 @@ export function buildSubmissionsOrgUnitTableColumns(
       }
     },
     {
-      id: 'salaryBudgetPercent',
-      accessorKey: 'salaryBudgetPercent',
-      header: submissionsColumnHeader(t, 'budget-setup-table-col-salary-budget-percent', 'right'),
+      id: 'allocationAmount',
+      accessorKey: 'allocationAmount',
+      header: submissionsColumnHeader(t, 'submissions-table-col-org-unit-allocation-amount', 'right'),
+      size: COL.money.size,
+      minSize: COL.money.minSize,
+      meta: { align: 'right', type: 'currency' },
+      accessorFn: row => sortNumberOrFallback(row.allocationAmount),
+      cell: ({ row }) => {
+        const r = row.original
+        const isOverDepartmentBudget = r.allocationAmount > r.salaryBudgetAmount
+        const overBudgetClasses = isOverDepartmentBudget
+          ? 'gba:font-semibold gba:text-destructive gba:rounded gba:px-1.5 gba:py-0.5 gba:bg-destructive/10'
+          : ''
+        return (
+          <span
+            className={`${TABLE_BODY_NUM_RIGHT} ${overBudgetClasses}`}
+            title={isOverDepartmentBudget ? t('submissions-allocation-exceeds-department-budget-hint') : undefined}
+            data-testid={isOverDepartmentBudget ? 'submissions-allocation-amount-over-department-budget' : undefined}
+          >
+            {formatCurrencyCell(r.allocationAmount, r.displayCurrency)}
+          </span>
+        )
+      }
+    },
+    {
+      id: 'allocationShareOfCompanyPoolPercent',
+      accessorKey: 'allocationShareOfCompanyPoolPercent',
+      header: submissionsColumnHeader(t, 'submissions-table-col-allocation-share-percent', 'right'),
       size: COL.percent.size,
       minSize: COL.percent.minSize,
       meta: { align: 'right', type: 'number' },
-      accessorFn: row => sortNumberOrFallback(row.salaryBudgetPercent),
+      accessorFn: row => sortNumberOrFallback(row.allocationShareOfCompanyPoolPercent),
       cell: ({ row }) => (
-        <span className={TABLE_BODY_NUM_RIGHT}>{formatPercentCell(row.original.salaryBudgetPercent)}</span>
+        <span className={TABLE_BODY_NUM_RIGHT}>
+          {formatAllocationSharePercentCell(row.original.allocationShareOfCompanyPoolPercent)}
+        </span>
       )
     },
-    ...(reviewColumn == null ? [] : [reviewColumn])
+    {
+      id: 'proposedNewSalary',
+      accessorKey: 'proposedNewSalary',
+      header: submissionsColumnHeader(t, 'submissions-table-col-proposed-new-salary', 'right'),
+      size: COL.proposedNewSalary.size,
+      minSize: COL.proposedNewSalary.minSize,
+      meta: { align: 'right', type: 'currency' },
+      accessorFn: row => sortNumberOrFallback(row.proposedNewSalary),
+      cell: ({ row }) => {
+        const r = row.original
+        return (
+          <span className={TABLE_BODY_NUM_RIGHT}>{formatCurrencyCell(r.proposedNewSalary, r.displayCurrency)}</span>
+        )
+      }
+    },
+    {
+      id: 'organizationalUnitCurrentTotalSalary',
+      accessorKey: 'organizationalUnitCurrentTotalSalary',
+      header: submissionsColumnHeader(t, 'submissions-table-col-org-unit-current-total-salary', 'right'),
+      size: COL.ouCurrentSalary.size,
+      minSize: COL.ouCurrentSalary.minSize,
+      meta: { align: 'right', type: 'currency' },
+      accessorFn: row => sortNumberOrFallback(row.organizationalUnitCurrentTotalSalary),
+      cell: ({ row }) => {
+        const r = row.original
+        return (
+          <span className={TABLE_BODY_NUM_RIGHT}>
+            {formatCurrencyCell(r.organizationalUnitCurrentTotalSalary, r.displayCurrency)}
+          </span>
+        )
+      }
+    }
   ]
 }
 
@@ -144,6 +180,8 @@ export const SUBMISSIONS_ORG_UNIT_TABLE_VISIBLE_COLUMN_IDS = [
   'budgetPlanLabel',
   'budgetPlanStatus',
   'salaryBudgetAmount',
-  'salaryBudgetPercent',
-  'reviewTeam'
+  'allocationAmount',
+  'allocationShareOfCompanyPoolPercent',
+  'proposedNewSalary',
+  'organizationalUnitCurrentTotalSalary'
 ] as const

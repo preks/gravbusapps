@@ -2,6 +2,8 @@ import type {
   CompensationBudgetPlanCompanyRow,
   CompensationBudgetPlanListItem
 } from '../../hooks/useBudgetSetupForCompany'
+import { resolveCompanySalaryIncreasePool } from '../../../../utils/budgetCalculations'
+import { roundMoney2 } from '../../../../utils/budgetAmountPercentSync'
 import { formatBudgetPlanChosenLabel } from './budgetSetupPlanTableRows'
 import { formatCurrencyRefForDisplay } from '../../utils/displayFormatUtils'
 
@@ -11,6 +13,7 @@ export interface SubmissionsOrgUnitGraphqlRow {
   organizationalUnitId: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
+  allocationAmount: number
   bonusBudgetAmount: number
   bonusBudgetPercent: number
   budgetPlanStatus: string
@@ -27,9 +30,20 @@ export interface SubmissionsOrgUnitTableRow {
   compensationBudgetPlanCompanyId: string
   budgetPlanLabel: string
   displayCurrency: string
+  /** HR slice per department (`salary_budget_amount`), rounded for display. */
   salaryBudgetAmount: number
-  salaryBudgetPercent: number
+  /** Employee-level roll-up (`allocation_amount`); empty until distributed to employees. */
+  allocationAmount: number
+  /**
+   * Department salary budget as a share of the parent company salary-increase pool.
+   * Display-only — derived from `salary_budget_amount` vs company pool.
+   */
+  allocationShareOfCompanyPoolPercent: number | null
   budgetPlanStatus: string
+  /** Aggregated annual salary for employees in this org unit (workforce baseline). */
+  organizationalUnitCurrentTotalSalary: number
+  /** Sum of employee `proposed_new_salary` for this org-unit budget row (GraphQL does not expose OU-level field). */
+  proposedNewSalary: number
 }
 
 export function buildSubmissionsOrgUnitTableRows(
@@ -38,6 +52,8 @@ export function buildSubmissionsOrgUnitTableRows(
   plans: CompensationBudgetPlanListItem[],
   orgUnitNameById: Map<string, string>,
   teamOrgUnitNameById: ReadonlyMap<string, string>,
+  orgUnitCurrentTotalSalaryById: ReadonlyMap<string, number>,
+  proposedNewSalarySumByOrgUnitBudgetRowId: ReadonlyMap<string, number>,
   defaultCurrencyCode: string
 ): SubmissionsOrgUnitTableRow[] {
   return orgRows.map(raw => {
@@ -52,6 +68,19 @@ export function buildSubmissionsOrgUnitTableRows(
     const nameFromChart = orgUnitNameById.get(ouId)?.trim()
     const nameFromTeam = teamOrgUnitNameById.get(ouId)?.trim()
 
+    const salaryBudget = roundMoney2(raw.salaryBudgetAmount)
+    const alloc = roundMoney2(raw.allocationAmount)
+    const companyPool =
+      companyRow == null
+        ? 0
+        : resolveCompanySalaryIncreasePool({
+            salaryBudgetAmount: companyRow.salaryBudgetAmount,
+            salaryBudgetPercent: companyRow.salaryBudgetPercent,
+            currentTotalSalaryCost: companyRow.currentTotalSalaryCost
+          })
+    const allocationShareOfCompanyPoolPercent =
+      companyPool > 0 && Number.isFinite(salaryBudget) ? Math.round((10000 * salaryBudget) / companyPool) / 100 : null
+
     return {
       id: raw.id,
       organizationalUnitId: ouId,
@@ -59,9 +88,12 @@ export function buildSubmissionsOrgUnitTableRows(
       compensationBudgetPlanCompanyId: raw.compensationBudgetPlanCompanyId,
       budgetPlanLabel,
       displayCurrency,
-      salaryBudgetAmount: raw.salaryBudgetAmount,
-      salaryBudgetPercent: raw.salaryBudgetPercent,
-      budgetPlanStatus: raw.budgetPlanStatus ?? ''
+      salaryBudgetAmount: salaryBudget,
+      allocationAmount: alloc,
+      allocationShareOfCompanyPoolPercent,
+      budgetPlanStatus: raw.budgetPlanStatus ?? '',
+      organizationalUnitCurrentTotalSalary: roundMoney2(orgUnitCurrentTotalSalaryById.get(ouId) ?? 0),
+      proposedNewSalary: roundMoney2(proposedNewSalarySumByOrgUnitBudgetRowId.get(raw.id) ?? 0)
     }
   })
 }

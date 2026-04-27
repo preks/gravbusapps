@@ -37,8 +37,8 @@ import {
   ChevronUp,
   ChevronDown
 } from 'lucide-react'
-import type { CreateMeetingData, InternalCalendarSummary, MeetingRecurrence, UpdateMeetingData } from '../types'
-import { REMINDER_OPTIONS } from '../types'
+import type { CreateMeetingData, InternalCalendarSummary, UpdateMeetingData } from '../types'
+import { MeetingRecurrence, REMINDER_OPTIONS } from '../types'
 import type { AgendaItem } from '../utils/agendaUtils'
 import { getAgendaFromMetadata, getTotalAgendaDuration } from '../utils/agendaUtils'
 import { createEmployeeSearchService, CalendarEmployee } from '../services/employeeSearchService'
@@ -56,6 +56,8 @@ interface CreateMeetingModalProps {
   defaultCalendarId?: string
   initialDate?: Date
   initialHour?: number
+  initialTitle?: string
+  initialParticipants?: CalendarEmployee[]
   // For editing existing meeting
   editMeeting?: {
     id: string
@@ -65,6 +67,7 @@ interface CreateMeetingModalProps {
     endTime: Date
     location?: string
     meetingLink?: string
+    conversationId?: string
     isAllDay?: boolean
     recurrence?: MeetingRecurrence
     recurrenceEndDate?: Date
@@ -86,6 +89,8 @@ const formatDateForInput = (date: Date): string => {
 const formatTimeForInput = (date: Date): string => {
   return date.toTimeString().slice(0, 5)
 }
+
+const getDefaultCreateConversation = (isVideoCall: boolean): boolean => isVideoCall
 
 const resolveSelectableCalendarId = ({
   requestedCalendarId,
@@ -122,6 +127,8 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   defaultCalendarId,
   initialDate,
   initialHour,
+  initialTitle,
+  initialParticipants = [],
   editMeeting
 }) => {
   const { t } = useTranslation(translations)
@@ -161,12 +168,15 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   )
   const [location, setLocation] = useState('')
   const [isVideoCall, setIsVideoCall] = useState(false)
+  const [createConversation, setCreateConversation] = useState(getDefaultCreateConversation(false))
+  const [hasManualCreateConversationOverride, setHasManualCreateConversationOverride] = useState(false)
   const [isAllDay, setIsAllDay] = useState(false)
-  const [recurrence, setRecurrence] = useState<MeetingRecurrence>('none')
+  const [recurrence, setRecurrence] = useState<MeetingRecurrence>(MeetingRecurrence.NONE)
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
   const [reminderMinutes, setReminderMinutes] = useState<number[]>([15])
   const [enableAITranscription, setEnableAITranscription] = useState(false)
   const [selectedCalendarId, setSelectedCalendarId] = useState<string>(defaultCalendarId || 'personal')
+  const [hasUserChosenCalendar, setHasUserChosenCalendar] = useState(false)
 
   // Agenda state
   const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([])
@@ -181,6 +191,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const editableCalendars = useMemo(() => availableCalendars.filter(calendar => calendar.canEdit), [availableCalendars])
   const shouldShowCalendarSelect = includePersonal || editableCalendars.length > 0
+  const hasExistingConversation = Boolean(editMeeting?.conversationId)
   const previousOpenRef = useRef(false)
   const previousEditMeetingIdRef = useRef<string | null>(null)
 
@@ -236,6 +247,27 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   // Calculate total agenda duration
   const totalAgendaDuration = useMemo(() => getTotalAgendaDuration(agendaItems), [agendaItems])
 
+  const applyVideoCallState = useCallback(
+    (nextIsVideoCall: boolean) => {
+      setIsVideoCall(nextIsVideoCall)
+
+      if (hasExistingConversation) {
+        setCreateConversation(true)
+        return
+      }
+
+      if (!hasManualCreateConversationOverride) {
+        setCreateConversation(getDefaultCreateConversation(nextIsVideoCall))
+      }
+    },
+    [hasExistingConversation, hasManualCreateConversationOverride]
+  )
+
+  const handleCalendarChange = useCallback((nextCalendarId: string) => {
+    setSelectedCalendarId(nextCalendarId)
+    setHasUserChosenCalendar(true)
+  }, [])
+
   const resetForm = useCallback(() => {
     const nextCalendarId = resolveSelectableCalendarId({
       requestedCalendarId: defaultCalendarId,
@@ -243,24 +275,27 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       editableCalendars
     })
 
-    setTitle('')
+    setTitle(initialTitle || '')
     setDescription('')
     setDate(formatDateForInput(new Date()))
     setStartTime(formatTimeForInput(new Date()))
     setEndTime(formatTimeForInput(new Date(Date.now() + 60 * 60 * 1000)))
     setLocation('')
     setIsVideoCall(false)
+    setCreateConversation(getDefaultCreateConversation(false))
+    setHasManualCreateConversationOverride(false)
     setIsAllDay(false)
-    setRecurrence('none')
+    setRecurrence(MeetingRecurrence.NONE)
     setRecurrenceEndDate('')
     setReminderMinutes([15])
+    setHasUserChosenCalendar(false)
     setSelectedCalendarId(nextCalendarId)
     setEnableAITranscription(false)
     setAgendaItems([])
-    setSelectedParticipants([])
+    setSelectedParticipants(initialParticipants.map(participant => ({ ...participant })))
     setSearchQuery('')
     setSearchResults([])
-  }, [defaultCalendarId, editableCalendars, includePersonal])
+  }, [defaultCalendarId, editableCalendars, includePersonal, initialParticipants, initialTitle])
 
   // Initialize form when editMeeting changes
   useEffect(() => {
@@ -282,10 +317,15 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       setEndTime(formatTimeForInput(editMeeting.endTime))
       setLocation(editMeeting.location || '')
       setIsVideoCall(!!editMeeting.meetingLink)
+      setCreateConversation(
+        Boolean(editMeeting.conversationId) || getDefaultCreateConversation(!!editMeeting.meetingLink)
+      )
+      setHasManualCreateConversationOverride(false)
       setIsAllDay(editMeeting.isAllDay || false)
-      setRecurrence(editMeeting.recurrence || 'none')
+      setRecurrence(editMeeting.recurrence || MeetingRecurrence.NONE)
       setRecurrenceEndDate(editMeeting.recurrenceEndDate ? formatDateForInput(editMeeting.recurrenceEndDate) : '')
       setReminderMinutes(editMeeting.reminderMinutes || [15])
+      setHasUserChosenCalendar(false)
       setSelectedCalendarId(nextCalendarId)
 
       const transcriptionValue = editMeeting.metadata?.aiTranscriptionEnabled === true
@@ -301,7 +341,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           editMeeting.participants.map(p => ({
             id: p.id,
             userId: p.id,
-            displayName: p.displayName,
+            displayName: p.displayName || [p.firstName, p.lastName].filter(Boolean).join(' ') || p.id,
             firstName: p.firstName,
             lastName: p.lastName
           }))
@@ -320,6 +360,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       }
       previousEditMeetingIdRef.current = null
     } else if (!isOpen) {
+      setHasUserChosenCalendar(false)
       previousEditMeetingIdRef.current = null
     }
 
@@ -332,7 +373,8 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
     }
 
     const nextCalendarId = resolveSelectableCalendarId({
-      requestedCalendarId: selectedCalendarId,
+      requestedCalendarId:
+        !isEditMode && !hasUserChosenCalendar && defaultCalendarId ? defaultCalendarId : selectedCalendarId,
       includePersonal,
       editableCalendars
     })
@@ -340,7 +382,15 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
     if (nextCalendarId !== selectedCalendarId) {
       setSelectedCalendarId(nextCalendarId)
     }
-  }, [editableCalendars, includePersonal, isOpen, selectedCalendarId])
+  }, [
+    defaultCalendarId,
+    editableCalendars,
+    hasUserChosenCalendar,
+    includePersonal,
+    isEditMode,
+    isOpen,
+    selectedCalendarId
+  ])
 
   // Employee search service
   const employeeSearchService = useMemo(() => {
@@ -457,7 +507,8 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           },
           // For updates, use addParticipantIds and removeParticipantIds
           ...(addParticipantIds.length > 0 && { addParticipantIds }),
-          ...(removeParticipantIds.length > 0 && { removeParticipantIds })
+          ...(removeParticipantIds.length > 0 && { removeParticipantIds }),
+          createConversation
         }
 
         await onUpdate(editMeeting.id, updateData)
@@ -480,6 +531,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           calendarId: selectedCalendarId === 'personal' ? undefined : selectedCalendarId,
           reminderMinutes,
           participantIds: selectedParticipants.map(p => p.userId || p.id),
+          createConversation,
           metadata: {
             aiTranscriptionEnabled: enableAITranscription,
             ...(validAgendaItems.length > 0 && { agenda: validAgendaItems })
@@ -541,7 +593,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           {shouldShowCalendarSelect && (
             <div className="gba:space-y-2">
               <Label htmlFor="meeting-calendar-select">Calendar</Label>
-              <Select value={selectedCalendarId} onValueChange={setSelectedCalendarId}>
+              <Select value={selectedCalendarId} onValueChange={handleCalendarChange}>
                 <SelectTrigger id="meeting-calendar-select" data-testid="meeting-calendar-select">
                   <SelectValue placeholder="Choose calendar" />
                 </SelectTrigger>
@@ -626,11 +678,35 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                 type="button"
                 variant={isVideoCall ? 'default' : 'outline'}
                 size="icon"
-                onClick={() => setIsVideoCall(!isVideoCall)}
+                onClick={() => applyVideoCallState(!isVideoCall)}
                 title={isVideoCall ? t('calendar-removeVideoCall') : t('calendar-addVideoCall')}
+                data-testid="meeting-video-call-toggle"
               >
                 <Video className="gba:h-4 gba:w-4" />
               </Button>
+            </div>
+          </div>
+
+          <div className="gba:space-y-2">
+            <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:border-border gba:rounded-lg gba:bg-muted/50">
+              <div className="gba:flex-1">
+                <Label htmlFor="meeting-create-chat" className="gba:font-medium gba:cursor-pointer">
+                  {t('calendar-createMeetingChat')}
+                </Label>
+                <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+                  {t('calendar-createMeetingChatDescription')}
+                </p>
+              </div>
+              <Switch
+                id="meeting-create-chat"
+                checked={createConversation}
+                disabled={hasExistingConversation}
+                onCheckedChange={checked => {
+                  setCreateConversation(checked)
+                  setHasManualCreateConversationOverride(true)
+                }}
+                data-testid="meeting-create-chat-toggle"
+              />
             </div>
           </div>
 

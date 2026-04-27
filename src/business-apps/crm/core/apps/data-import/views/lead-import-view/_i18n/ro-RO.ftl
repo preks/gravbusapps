@@ -2,7 +2,7 @@
 
 # Page Header
 lead-page-title = Import Lead-uri cu mapare AI
-lead-page-description = Încărcați un fișier CSV, lăsați AI să analizeze și să mapeze câmpurile, apoi convertiți în formatul CustomerLead
+lead-page-description = Încărcați un fișier CSV sau Excel, lăsați AI să analizeze și să mapeze câmpurile, apoi convertiți în formatul CustomerLead
 
 # Entity Type Labels
 lead-entity-type = lead-uri

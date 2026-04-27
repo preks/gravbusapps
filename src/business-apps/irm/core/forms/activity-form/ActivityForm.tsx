@@ -21,6 +21,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getReferenceEntityType } from '@/common/data/investment/utils'
 import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/investment/constants/investmentConstants'
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { ActivityAssociationsReadOnly } from '@/common/components/common-relations/activity-association'
 import { IrmActivityAssociationFields } from './IrmActivityAssociationFields'
 
 export interface ActivityFormProps extends BusinessAppContextProps {
@@ -135,23 +136,40 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     }
   }, [accessToken, activityId, searchEntities])
 
-  const handleSubmit = useCallback(async (data: z.infer<typeof activitySchema>) => {
-    try {
-      delete data.files
-      delete data._pendingFiles
-      delete data.relatedEntityId
+  const handleSubmit = useCallback(
+    async (data: z.infer<typeof activitySchema>) => {
+      try {
+        delete data.files
+        delete data._pendingFiles
+        delete data.relatedEntityId
 
-      // Build payload (buildPayload will include creator fields from activityData)
-      const { investmentActivity } = buildInvestmentActivityPayload(data as Partial<InvestmentActivity>)
+        // In update mode, all entity associations + the owner are locked in the UI.
+        // Re-stamp the canonical ids from the loaded activity so the payload always
+        // round-trips the original associations regardless of any transient form
+        // state (avoids accidental clears caused by re-renders / hydration races).
+        const loaded = activityRef.current
+        if (isUpdateMode && loaded) {
+          ;(data as any).accountId = loaded.accountId ?? null
+          ;(data as any).contactId = loaded.contactId ?? null
+          ;(data as any).leadId = loaded.leadId ?? null
+          ;(data as any).opportunityId = loaded.opportunityId ?? null
+          ;(data as any).investmentId = loaded.investmentId ?? null
+          ;(data as any).ownerEmployeeId = loaded.ownerEmployeeId ?? loaded.ownerEmployee?.id ?? null
+        }
 
-      return {
-        investmentActivity
+        // Build payload (buildPayload will include creator fields from activityData)
+        const { investmentActivity } = buildInvestmentActivityPayload(data as Partial<InvestmentActivity>)
+
+        return {
+          investmentActivity
+        }
+      } catch (error) {
+        console.error('Error submitting activity:', error)
+        throw error
       }
-    } catch (error) {
-      console.error('Error submitting activity:', error)
-      throw error
-    }
-  }, [])
+    },
+    [isUpdateMode]
+  )
 
   const handlePreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -324,13 +342,22 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
           existingDocuments={form.watch('documents') || []}
           onDocumentRemove={handleDocumentRemove}
           loading={activityLoading && isUpdateMode}
+          readOnlyOwner={isUpdateMode}
           data-testid="investment-activity-layout"
           associationFields={
-            <IrmActivityAssociationFields
-              accessToken={accessToken}
-              entitySearchOptions={entities}
-              data-testid="irm-activity-associations"
-            />
+            isUpdateMode ? (
+              <ActivityAssociationsReadOnly
+                variant="irm"
+                activity={activity}
+                data-testid="irm-activity-associations-readonly"
+              />
+            ) : (
+              <IrmActivityAssociationFields
+                accessToken={accessToken}
+                entitySearchOptions={entities}
+                data-testid="irm-activity-associations"
+              />
+            )
           }
         />
       </AppActionForm>

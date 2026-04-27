@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import { FolderSimpleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -7,6 +8,9 @@ import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
+import { useAppActionData } from '@/common/hooks/useAppActionData'
+
+const FOLDER_UPLOAD_CONTEXTS = [FlowContextName.investmentFolderUpload]
 
 interface DocumentViewProps {
   opportunityId: string
@@ -14,10 +18,8 @@ interface DocumentViewProps {
 }
 
 const DocumentView: React.FC<DocumentViewProps> = ({ opportunityId, context }) => {
-  // Fetch documents using the generic IRM hook
   const { fetchDocuments } = useGetIrmDocuments('opportunity', context)
 
-  // Use shared hook for document management
   const { documents, isLoading, error, refetch } = useInvestmentDocuments({
     entityId: opportunityId,
     context,
@@ -25,10 +27,35 @@ const DocumentView: React.FC<DocumentViewProps> = ({ opportunityId, context }) =
     errorMessage: getTranslationFromI18nKeyAndLabel('error.loading.documents', 'Failed to load documents')
   })
 
-  // REST client for document operations (IRM uses Kogito processes)
+  const folderUploadActionConfig = useMemo(
+    () => ({
+      contextsArray: FOLDER_UPLOAD_CONTEXTS,
+      externalContextData: { opportunityId },
+      accessToken: context.accessToken || '',
+      deferMainContextRequestsUntilClick: false,
+      prefixDataTestId: 'opportunity-document-upload-folder'
+    }),
+    [opportunityId, context.accessToken]
+  )
+
+  const folderUploadActionData = useAppActionData(folderUploadActionConfig, 'UploadFolder')
+
+  const uploadToolbarActions = useMemo(
+    () => [
+      {
+        key: 'upload-folder',
+        label: getTranslationFromI18nKeyAndLabel('document.upload.folder', 'Upload Folder'),
+        icon: <FolderSimpleIcon className="gba:h-4 gba:w-4" />,
+        onClick: () => folderUploadActionData.combinedData[0]?.onClick?.(),
+        variant: 'outline' as const,
+        testId: 'opportunity-document-upload-folder-button'
+      }
+    ],
+    [folderUploadActionData.combinedData]
+  )
+
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
-  // Memoized action props for document operations
   const documentCreateFolderActionProps = useMemo(
     () => ({
       contextsArray: [FlowContextName.investmentDocumentCreate],
@@ -84,6 +111,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({ opportunityId, context }) =
       updateActionProps={documentUpdateActionProps}
       deleteActionProps={documentDeleteActionProps}
       aiOrganizeConfig={{ moduleType: 'IRM', entityType: 'OPPORTUNITY', domain: 'investment' }}
+      toolbarActions={uploadToolbarActions}
       data-testid="opportunity-document-section"
       {...context}
     />

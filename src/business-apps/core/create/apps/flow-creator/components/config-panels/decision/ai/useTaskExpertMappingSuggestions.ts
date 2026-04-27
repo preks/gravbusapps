@@ -1,12 +1,15 @@
 import { useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { ExpressionSuggestionItem, ExpressionValueType } from '@/common/components/flow/expression-editor'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { collectJsonSchemaPaths } from '../decisionConfigUtils'
+import translations from '../../../../_i18n'
 
 export function useTaskExpertMappingSuggestions(prompt: Pick<PromptODM, 'response_schema'> | undefined): {
   schemaPaths: string[]
   suggestions: ExpressionSuggestionItem[]
 } {
+  const { t } = useTranslation(translations)
   const schemaPaths = useMemo(() => {
     return collectJsonSchemaPaths(prompt?.response_schema ?? null)
   }, [prompt])
@@ -67,7 +70,7 @@ export function useTaskExpertMappingSuggestions(prompt: Pick<PromptODM, 'respons
         expression: `$steps.self.resultData.${path}`,
         source: 'steps',
         dataType: type,
-        description: 'From the selected Task Expert output schema.'
+        description: t('decision-ai-taskexpert-mapping-suggestion-description')
       }
     })
 
@@ -80,7 +83,7 @@ export function useTaskExpertMappingSuggestions(prompt: Pick<PromptODM, 'respons
       seen.add(key)
       return true
     })
-  }, [prompt, schemaPaths])
+  }, [prompt, schemaPaths, t])
 
   return { schemaPaths, suggestions }
 }

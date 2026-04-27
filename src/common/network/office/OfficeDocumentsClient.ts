@@ -29,6 +29,15 @@ export class OfficeDocumentsClient {
   update<T = any>(id: string, body: any, options?: RequestOptions) {
     return this.client.patch<T>(`/documents/${id}`, body, options)
   }
+  submitForApproval<T = any>(id: string, body: any, options?: RequestOptions) {
+    return this.client.post<T>(`/documents/${id}/submit-for-approval`, body, options)
+  }
+  getReviewContext<T = any>(id: string, version: number, options?: RequestOptions) {
+    return this.client.get<T>(`/documents/${id}/review`, {
+      ...options,
+      params: { ...options?.params, version }
+    } as any)
+  }
   delete(id: string, options?: RequestOptions) {
     return this.client.delete(`/documents/${id}`, options)
   }
@@ -87,8 +96,20 @@ export class OfficeDocumentsClient {
   createApproval<T = any>(body: any, options?: RequestOptions) {
     return this.client.post<T>('/approvals', body, options)
   }
+  getApprovalRequest<T = any>(approvalId: string, options?: RequestOptions) {
+    return this.client.get<T>(`/approvals/${approvalId}`, options)
+  }
   getApprovalsForDocument<T = any>(documentId: string, options?: RequestOptions) {
     return this.client.get<T>(`/approvals/entity/document/${documentId}`, options)
+  }
+  listApprovalRequests<T = any>(params?: string, options?: RequestOptions) {
+    return this.client.get<T>(`/approvals${params ? `?${params}` : ''}`, options)
+  }
+  respondToApproval<T = any>(approvalId: string, body: any, options?: RequestOptions) {
+    return this.client.post<T>(`/approvals/${approvalId}/respond`, body, options)
+  }
+  syncApproval<T = any>(approvalId: string, options?: RequestOptions) {
+    return this.client.post<T>(`/approvals/${approvalId}/sync`, undefined, options)
   }
   deleteApproval(approvalId: string, options?: RequestOptions) {
     return this.client.delete(`/approvals/${approvalId}`, options)

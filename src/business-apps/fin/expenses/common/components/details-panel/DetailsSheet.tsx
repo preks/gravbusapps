@@ -1,5 +1,5 @@
 import React from 'react'
-import { Sheet, SheetContent } from '@newwork/nw-design-system'
+import { Sheet, SheetContent, SheetTitle } from '@newwork/nw-design-system'
 import ExpenseDetailsShell from './ExpenseDetailsShell'
 
 const DEFAULT_CONTENT_CLASS = 'gba:w-[600px] gba:sm:w-[600px] gba:max-w-none'
@@ -25,7 +25,8 @@ export const DetailsSheet = React.memo(function DetailsSheet({
 }: DetailsSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange} data-testid={testId}>
-      <SheetContent side="right" className={contentClassName ?? DEFAULT_CONTENT_CLASS}>
+      <SheetContent side="right" className={contentClassName ?? DEFAULT_CONTENT_CLASS} aria-describedby={undefined}>
+        <SheetTitle className="gba:sr-only">{title}</SheetTitle>
         <ExpenseDetailsShell title={title} onClose={onClose} dataTestIdPrefix={`${testId}-details`}>
           {children}
         </ExpenseDetailsShell>

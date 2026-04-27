@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import translations from '../_i18n'
 
 interface UseDocumentAIOptions {
   accessToken: string
@@ -18,6 +20,7 @@ export const useDocumentAI = ({ accessToken }: UseDocumentAIOptions): UseDocumen
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const client = usePromptManagerClient(accessToken)
+  const { t } = useTranslation(translations)
   const agentIdRef = useRef<string | null>(null)
 
   // Look up the DocumentGenerator agent
@@ -56,9 +59,7 @@ export const useDocumentAI = ({ accessToken }: UseDocumentAIOptions): UseDocumen
 
         if (!agentId) {
           // No AI agent configured - return a helpful message
-          setError(
-            'AI document generation is not configured. Please create a "DocumentGenerator" expert in Task Expert Studio.'
-          )
+          setError(t('error-document-generator-not-configured'))
           return null
         }
 

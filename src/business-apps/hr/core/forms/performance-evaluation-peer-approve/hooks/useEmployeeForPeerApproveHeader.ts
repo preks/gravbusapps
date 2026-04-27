@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { useEmployeeById } from '@/common/data/employee/hooks/useEmployeeById'
-import { getProcessIdFromEndpoint } from './useNominatedPeersFromProcess'
+import { useEmployeeByUserId } from '@/common/data/employee/hooks/useEmployeeByUserId'
+import { resolveProcessId } from './useNominatedPeersFromProcess'
 import type { EmployeeForHeader } from '../context/PerformanceEvaluationPeerApproveContext'
 
 interface ProcessGetResponse {
@@ -19,11 +20,14 @@ export interface UseEmployeeForPeerApproveHeaderReturn {
 }
 
 /**
- * Fetches the employee to show in the Peer Approve form header by:
- * 1. Extracting processId from psi_processMetadata.endpoint
- * 2. Calling GET /processes/employee/performanceEvaluation/{processId}
- * 3. Reading employeeId from response.employeePerformanceEvaluation.employee
- * 4. Fetching employee details by employeeId and mapping to header display
+ * Resolves the evaluated employee for the Peer Approve form header.
+ *
+ * Priority:
+ * 1. Read `employeeUserId` directly from the task payload (primary — added by the BE)
+ *    and resolve it to an employeeId via GraphQL.
+ * 2. Fallback: GET /processes/employee/performanceEvaluation/{processId} and read
+ *    `employeePerformanceEvaluation.employee` from the response. This fallback is kept
+ *    only for tasks whose payload does not yet expose `employeeUserId`.
  */
 export function useEmployeeForPeerApproveHeader(
   accessToken: string | undefined,
@@ -31,10 +35,37 @@ export function useEmployeeForPeerApproveHeader(
 ): UseEmployeeForPeerApproveHeaderReturn {
   const [employeeIdFromProcess, setEmployeeIdFromProcess] = useState<string | null>(null)
   const [processFetchError, setProcessFetchError] = useState<string | null>(null)
-  const [processLoading, setProcessLoading] = useState(true)
+  const [processLoading, setProcessLoading] = useState(false)
 
   const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? ''
   const restClient = useRestClient(baseUrl)
+
+  const employeeUserIdFromPayload = useMemo(() => {
+    const taskPayload = additionalData?.psi_taskPayload as Record<string, unknown> | undefined
+    const initialParams = taskPayload?.psi_initialParameters as Record<string, unknown> | undefined
+    const processInputs = (additionalData?.psi_processMetadata as Record<string, unknown> | undefined)?.inputs as
+      | Record<string, unknown>
+      | undefined
+
+    const candidate =
+      (taskPayload?.employeeUserId as string | undefined) ??
+      (initialParams?.employeeUserId as string | undefined) ??
+      (processInputs?.employeeUserId as string | undefined)
+
+    return typeof candidate === 'string' && candidate.length > 0 ? candidate : null
+  }, [additionalData])
+
+  const {
+    employee: employeeByUserId,
+    employeeId: employeeIdFromUserIdLookup,
+    loading: employeeByUserIdLoading,
+    error: employeeByUserIdError
+  } = useEmployeeByUserId({
+    accessToken: accessToken ?? '',
+    userId: employeeUserIdFromPayload ?? undefined
+  })
+
+  const shouldUseRestFallback = employeeUserIdFromPayload == null
 
   const fetchProcessAndSetEmployeeId = useCallback(async () => {
     if (!accessToken) {
@@ -42,14 +73,20 @@ export function useEmployeeForPeerApproveHeader(
       return
     }
 
-    const metadata = additionalData?.psi_processMetadata as Record<string, unknown> | undefined
-    const endpoint = metadata?.endpoint as string | undefined
-    const processId = getProcessIdFromEndpoint(endpoint)
+    if (!shouldUseRestFallback) {
+      // Payload already provides employeeUserId — no need for the REST call.
+      setEmployeeIdFromProcess(null)
+      setProcessLoading(false)
+      setProcessFetchError(null)
+      return
+    }
+
+    const processId = resolveProcessId(additionalData)
 
     if (!processId) {
       setEmployeeIdFromProcess(null)
       setProcessLoading(false)
-      setProcessFetchError('Could not determine process ID from endpoint')
+      setProcessFetchError('Could not determine process ID from payload or endpoint')
       return
     }
 
@@ -72,33 +109,50 @@ export function useEmployeeForPeerApproveHeader(
     } finally {
       setProcessLoading(false)
     }
-  }, [accessToken, additionalData, restClient])
+  }, [accessToken, additionalData, restClient, shouldUseRestFallback])
 
   useEffect(() => {
     fetchProcessAndSetEmployeeId()
   }, [fetchProcessAndSetEmployeeId])
 
-  const { employee: employeeById, loading: employeeLoading } = useEmployeeById({
+  const employeeIdForFallbackLookup = shouldUseRestFallback ? employeeIdFromProcess : null
+
+  const { employee: employeeByIdFallback, loading: employeeByIdFallbackLoading } = useEmployeeById({
     accessToken: accessToken ?? '',
-    employeeId: employeeIdFromProcess ?? undefined
+    employeeId: employeeIdForFallbackLookup ?? undefined
   })
 
   const employeeForHeader = useMemo((): EmployeeForHeader | null => {
-    if (!employeeById) return null
-    return {
-      firstName: employeeById.firstName ?? '',
-      lastName: employeeById.lastName ?? '',
-      pictureThumbnail: employeeById.employee?.pictureThumbnail ?? undefined,
-      jobTitle: employeeById.jobPosition?.name ?? undefined
+    if (employeeUserIdFromPayload && employeeByUserId) {
+      return {
+        firstName: employeeByUserId.firstName ?? '',
+        lastName: employeeByUserId.lastName ?? '',
+        pictureThumbnail: undefined,
+        jobTitle: undefined
+      }
     }
-  }, [employeeById])
+    if (employeeByIdFallback) {
+      return {
+        firstName: employeeByIdFallback.firstName ?? '',
+        lastName: employeeByIdFallback.lastName ?? '',
+        pictureThumbnail: employeeByIdFallback.employee?.pictureThumbnail ?? undefined,
+        jobTitle: employeeByIdFallback.jobPosition?.name ?? undefined
+      }
+    }
+    return null
+  }, [employeeUserIdFromPayload, employeeByUserId, employeeByIdFallback])
 
-  const loading = processLoading || (employeeIdFromProcess != null && employeeLoading)
-  const error = processFetchError ?? null
+  const evaluatedEmployeeId = employeeUserIdFromPayload ? employeeIdFromUserIdLookup : employeeIdFromProcess
+
+  const loading = shouldUseRestFallback
+    ? processLoading || (employeeIdFromProcess != null && employeeByIdFallbackLoading)
+    : employeeByUserIdLoading
+
+  const error = shouldUseRestFallback ? processFetchError : (employeeByUserIdError ?? null)
 
   return {
     employeeForHeader,
-    evaluatedEmployeeId: employeeIdFromProcess,
+    evaluatedEmployeeId: evaluatedEmployeeId ?? null,
     loading,
     error
   }

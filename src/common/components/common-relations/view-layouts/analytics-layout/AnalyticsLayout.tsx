@@ -37,7 +37,7 @@ export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
       items.push({
         key: 'overview',
         label: 'Overview',
-        icon: <ChartBarIcon size={16} className="gba:mr-2" />,
+        icon: <ChartBarIcon size={16} />,
         content: <OverviewTabLayout moduleColor={moduleColor} {...overviewProps} />
       })
     }
@@ -45,7 +45,7 @@ export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
       items.push({
         key: 'leads',
         label: 'Leads',
-        icon: <UsersIcon size={16} className="gba:mr-2" />,
+        icon: <UsersIcon size={16} />,
         content: <LeadsTabLayout moduleColor={moduleColor} {...leadsProps} />
       })
     }
@@ -53,7 +53,7 @@ export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
       items.push({
         key: 'accounts',
         label: 'Accounts',
-        icon: <BankIcon size={16} className="gba:mr-2" />,
+        icon: <BankIcon size={16} />,
         content: <AccountsTabLayout moduleColor={moduleColor} {...accountsProps} />
       })
     }
@@ -61,7 +61,7 @@ export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
       items.push({
         key: 'opportunities',
         label: 'Opportunities',
-        icon: <CurrencyCircleDollarIcon size={16} className="gba:mr-2" />,
+        icon: <CurrencyCircleDollarIcon size={16} />,
         content: <OpportunitiesTabLayout moduleColor={moduleColor} {...opportunitiesProps} />
       })
     }
@@ -69,7 +69,7 @@ export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
       items.push({
         key: 'contacts',
         label: 'Contacts',
-        icon: <AddressBookIcon size={16} className="gba:mr-2" />,
+        icon: <AddressBookIcon size={16} />,
         content: <ContactsTabLayout moduleColor={moduleColor} {...contactsProps} />
       })
     }
@@ -94,10 +94,9 @@ export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
   return (
     <div data-testid="analytics-layout" className="gba:h-full">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full" data-testid="analytics-tabs">
-        <TabsList className="gba:mb-6 gba:grid gba:w-full gba:grid-cols-5">
+        <TabsList className="gba:mb-6">
           {tabs.map(t => (
-            <TabsTrigger key={t.key} value={t.key} data-testid={`${t.key}-analytics-tab`}>
-              {t.icon}
+            <TabsTrigger key={t.key} value={t.key} startIcon={t.icon} data-testid={`${t.key}-analytics-tab`}>
               {t.label}
             </TabsTrigger>
           ))}

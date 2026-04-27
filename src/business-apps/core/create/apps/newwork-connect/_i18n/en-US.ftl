@@ -1,5 +1,5 @@
 connect-page-title = NEWWORK CONNECT
-connect-page-description = Centralize AnyPoint, DataBridge, and MCP connections in one place and reuse them across Task Experts, tools, functions, and imports.
+connect-page-description = Centralize AnyPoint, DataBridge, and MCP connections in one place and reuse them across agents, tools, functions, and imports.
 connect-summary-title = Connection overview
 connect-summary-anypoint = AnyPoint: { $count }
 connect-summary-data-bridge = DataBridge: { $count }
@@ -166,7 +166,7 @@ connect-auth-header-name = Header name
 connect-auth-header-value = Header value
 connect-consumer-types-label = Where can this connection be used?
 connect-consumer-mcp-tool = MCP Tools (Tool Editor)
-connect-consumer-task-expert = Task Experts / AI Agents
+connect-consumer-task-expert = Enterprise Agents
 connect-consumer-function = Functions
 connect-consumer-board-import = Board Apps (Data Import)
 connect-consumer-document-import = Document Apps (File Import)

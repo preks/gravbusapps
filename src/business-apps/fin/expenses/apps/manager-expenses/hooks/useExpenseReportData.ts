@@ -5,8 +5,14 @@ import { GET_EXPENSE_PLANS_BY_MANAGER } from '../queries/expensePlans'
 import { GET_EXPENSE_REQUESTS_BY_MANAGER } from '../queries/expenseRequests'
 import { GET_EXPENSE_ITEMS_BY_MANAGER } from '../queries/expenseItems'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getExpenseItemCategoryLabel } from '../../../common/utils/expenseItemCategoryLabel'
 import { GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER } from '../queries/advancePayments'
-import { getExpenseRequestStatusDisplay, getExpensePlanStatusDisplay, getAdvancePaymentStatusDisplay } from '../utils'
+import {
+  getExpenseItemStatusDisplay,
+  getExpenseRequestStatusDisplay,
+  getExpensePlanStatusDisplay,
+  getAdvancePaymentStatusDisplay
+} from '../utils'
 import { useManagerExpensesOverview } from './useManagerExpensesOverview'
 
 // Define report types
@@ -132,11 +138,15 @@ export const useExpenseReportData = ({
 
   // State for pagination and filtering
   const [currentPage, setCurrentPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(10)
+  const [pageSize, setPageSize] = useState<number>(20)
   const [searchTerm, setSearchTerm] = useState<string>('')
 
-  // State for selected report type
+  // State for selected report type (setter also resets page so a new type never reuses a stale high page)
   const [selectedReportType, setSelectedReportType] = useState<ReportType | null>(ReportType.EXPENSE_ITEM)
+  const updateSelectedReportType = useCallback((type: ReportType) => {
+    setSelectedReportType(type)
+    setCurrentPage(1)
+  }, [])
 
   // Shared helper to build a human-readable employee name
   const buildEmployeeDisplayName = (e: any): string => {
@@ -243,6 +253,12 @@ export const useExpenseReportData = ({
     })
   }, [])
 
+  const offsetIsPastEnd = useCallback((rowCount: number, total: number, page: number, size: number) => {
+    if (rowCount > 0) return false
+    if (total <= 0) return false
+    return (page - 1) * size >= total
+  }, [])
+
   const mapPaymentsFromOverview = useCallback((rows: any[]): AdvancePaymentReport[] => {
     return (rows || []).map((p: any) => {
       const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
@@ -272,23 +288,38 @@ export const useExpenseReportData = ({
     if (!overview.isLoading) {
       switch (selectedReportType) {
         case ReportType.EXPENSE_REQUEST: {
+          const total = overview.data?.expenseRequestsTotal || 0
           const rows = mapRequestsFromOverview(overview.data?.expenseRequests || [])
+          if (offsetIsPastEnd(rows.length, total, currentPage, pageSize)) {
+            setCurrentPage(1)
+            return
+          }
           setReportData(rows)
-          setTotalCount(overview.data?.expenseRequestsTotal || 0)
+          setTotalCount(total)
           setError(null)
           break
         }
         case ReportType.EXPENSE_PLAN: {
+          const total = overview.data?.expensePlansTotal || 0
           const rows = mapPlansFromOverview(overview.data?.expensePlans || [])
+          if (offsetIsPastEnd(rows.length, total, currentPage, pageSize)) {
+            setCurrentPage(1)
+            return
+          }
           setReportData(rows)
-          setTotalCount(overview.data?.expensePlansTotal || 0)
+          setTotalCount(total)
           setError(null)
           break
         }
         case ReportType.ADVANCE_PAYMENT: {
+          const total = overview.data?.advancePaymentsTotal || 0
           const rows = mapPaymentsFromOverview(overview.data?.advancePayments || [])
+          if (offsetIsPastEnd(rows.length, total, currentPage, pageSize)) {
+            setCurrentPage(1)
+            return
+          }
           setReportData(rows)
-          setTotalCount(overview.data?.advancePaymentsTotal || 0)
+          setTotalCount(total)
           setError(null)
           break
         }
@@ -301,7 +332,8 @@ export const useExpenseReportData = ({
     overview.error,
     mapRequestsFromOverview,
     mapPlansFromOverview,
-    mapPaymentsFromOverview
+    mapPaymentsFromOverview,
+    offsetIsPastEnd
   ])
 
   /**
@@ -335,16 +367,17 @@ export const useExpenseReportData = ({
   const processExpenseItemsData = (data: any): ExpenseItemReport[] => {
     if (!data?.ExpenseItem?.length) return []
 
-    return data.ExpenseItem.map((item: any) => {
-      // Get the first expense group from positions or use 'Uncategorized'
-      const expenseGroup =
-        item.expensePosition && item.expensePosition.length > 0 && item.expensePosition[0].expenseGroupRef
-          ? item.expensePosition[0].expenseGroupRef.replaceAll('ExpenseGroup:v1:', '')
-          : 'Uncategorized'
+    const categoryWhenMissing = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:team_expenses_page.dashboard_tab.uncategorized',
+      'Uncategorized'
+    )
 
-      const statusDisplay = item.expenseRequest?.status
-        ? getExpenseRequestStatusDisplay(item.expenseRequest.status)
-        : { label: '', type: 'draft' }
+    return data.ExpenseItem.map((item: any) => {
+      const expenseGroupValue = getExpenseItemCategoryLabel(item, categoryWhenMissing)
+
+      const statusDisplay = item.status
+        ? getExpenseItemStatusDisplay(item.status)
+        : { label: '-', type: 'draft' as const }
 
       return {
         id: item.id,
@@ -360,7 +393,7 @@ export const useExpenseReportData = ({
             : item.expenseDate || '',
         title: item.title || '',
         description: item.description || '',
-        category: expenseGroup,
+        category: expenseGroupValue,
         amount: item.totalAmount || 0,
         employeeName: buildEmployeeDisplayName(item.employee),
         status: statusDisplay.label
@@ -432,15 +465,20 @@ export const useExpenseReportData = ({
         searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
       })
 
+      const itemTotal = result?.ExpenseItemAggregate?.aggregate?.count || 0
       const processedData = processExpenseItemsData(result)
+      if (offsetIsPastEnd(processedData.length, itemTotal, currentPage, pageSize)) {
+        setCurrentPage(1)
+        return
+      }
       setReportData(processedData)
-      setTotalCount(result?.ExpenseItemAggregate?.aggregate?.count || 0)
+      setTotalCount(itemTotal)
     } catch {
       setError('Failed to load expense items data')
     } finally {
       setIsLoading(false)
     }
-  }, [graphqlClient, pageSize, currentPage, searchTerm, managerId])
+  }, [graphqlClient, pageSize, currentPage, searchTerm, managerId, offsetIsPastEnd])
 
   // (legacy list fetchers for plans/requests/payments removed; overview handles lists)
 
@@ -585,24 +623,26 @@ export const useExpenseReportData = ({
     }
   }, [selectedReportType, fetchExpenseItems])
 
-  // StrictMode-safe: run once per parameter signature
+  // Deduplicate strict-mode / identical-param runs; `managerId` is in the signature so a later
+  // `userInfo`-driven id change is not treated as a duplicate and skips the real fetch.
   const lastFetchSignatureRef = useRef<string | null>(null)
   useEffect(() => {
     const signature = JSON.stringify({
       selectedReportType,
       currentPage,
       pageSize,
-      searchTerm
+      searchTerm,
+      managerId
     })
     if (lastFetchSignatureRef.current === signature) return
     lastFetchSignatureRef.current = signature
     void fetchReportData()
-  }, [selectedReportType, currentPage, pageSize, searchTerm, fetchReportData])
+  }, [selectedReportType, currentPage, pageSize, searchTerm, managerId, fetchReportData])
 
   return {
     reportTypes,
     selectedReportType,
-    setSelectedReportType,
+    setSelectedReportType: updateSelectedReportType,
     reportData,
     isLoading,
     error,

@@ -4,11 +4,15 @@ import { SiteLocationData, SiteLocation, SiteLocationCountry, SiteLocationRegion
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useGeoZoneQueries } from '../queries/useGeoZoneQueries'
+import { GeoZone } from '../types/GeoZone.types'
 
-// Cache for resolved countries and regions to avoid duplicate API calls
-interface CountryRegionCache {
+// Cache for resolved countries, regions, and geo zones to avoid duplicate API calls
+interface CountryRegionGeoZoneCache {
   countries: Map<string, SiteLocationCountry>
   regions: Map<string, SiteLocationRegion[]>
+  geoZones: GeoZone[]
+  geoZonesLoaded: boolean
 }
 
 export const useSiteLocations = (context: BusinessAppContextProps, initialPageSize: number = 10) => {
@@ -20,14 +24,17 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
   const [error, setError] = useState<string | null>(null)
   const structureId = useRef<string>(getCurrentActiveStructureId() ?? '')
 
-  // Cache for countries and regions to avoid duplicate API calls
-  const cache = useRef<CountryRegionCache>({
+  // Cache for countries, regions, and geo zones to avoid duplicate API calls
+  const cache = useRef<CountryRegionGeoZoneCache>({
     countries: new Map(),
-    regions: new Map()
+    regions: new Map(),
+    geoZones: [],
+    geoZonesLoaded: false
   })
 
   const orgchartClient = useOrgchartClient(context.accessToken)
   const catalogClient = useCatalogManagerClient(context.accessToken)
+  const { fetchGeoZones } = useGeoZoneQueries(context.accessToken)
 
   // Helper function to extract country code from country_ref
   const extractCountryCode = (countryRef: string): string => {
@@ -55,6 +62,12 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
     return regionCode
   }
 
+  // Helper function to resolve geo zone name from ID
+  const resolveGeoZoneName = (geoZoneId: string): string => {
+    const geoZone = cache.current.geoZones.find(gz => gz.id === geoZoneId)
+    return geoZone?.name || geoZoneId
+  }
+
   // Transform API site location data to UI-friendly SiteLocation interface
   const transformSiteLocation = useCallback(
     (locationData: SiteLocationData): SiteLocation => {
@@ -79,6 +92,7 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
       // Resolve actual names from cached data
       const country = countryCode ? resolveCountryName(countryCode) : undefined
       const region = regionCode && countryCode ? resolveRegionName(regionCode, countryCode) : undefined
+      const geoZone = locationData.geo_zone ? resolveGeoZoneName(locationData.geo_zone) : undefined
 
       // Determine status based on having employees or cost centers
       const status: 'Active' | 'Inactive' =
@@ -94,6 +108,7 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
         locality: locationData.locality,
         region,
         country,
+        geoZone,
         employeeCount: locationData.employees.length,
         costCenterCount: locationData.costCenters.length,
         employees: locationData.employees,
@@ -103,7 +118,7 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
         ...(locationData.addressLine ? { addressLine: locationData.addressLine } : {})
       }
     },
-    [resolveCountryName, resolveRegionName]
+    [resolveCountryName, resolveRegionName, resolveGeoZoneName]
   )
 
   // Fetch raw site locations data from orgchart API
@@ -249,6 +264,29 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
     [catalogClient]
   )
 
+  // Fetch geo zones for the active structure
+  const fetchGeoZonesForStructure = useCallback(async (): Promise<GeoZone[]> => {
+    try {
+      // Check if geo zones are already cached
+      if (cache.current.geoZonesLoaded) {
+        return cache.current.geoZones
+      }
+
+      const response = await fetchGeoZones({ structureId: structureId.current })
+      const geoZones = response.geoZones
+
+      // Cache geo zones
+      cache.current.geoZones = geoZones
+      cache.current.geoZonesLoaded = true
+
+      return geoZones
+    } catch (error) {
+      console.error('Error fetching geo zones:', error)
+      // Return empty array on error but don't throw to avoid breaking the entire flow
+      return []
+    }
+  }, [fetchGeoZones])
+
   // Change page or page size
   const changePage = useCallback(
     async (page: number, size?: number) => {
@@ -305,6 +343,9 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
       // First, fetch countries (cached after first call)
       await fetchCountriesAndRegions()
 
+      // Fetch geo zones for the structure (cached after first call)
+      await fetchGeoZonesForStructure()
+
       // Fetch raw site locations data
       const rawLocationsData = await fetchRawSiteLocations(currentPage, pageSize)
 
@@ -341,6 +382,7 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
     fetchRawSiteLocations,
     fetchCountriesAndRegions,
     fetchRegionsForCountries,
+    fetchGeoZonesForStructure,
     transformSiteLocation,
     currentPage,
     pageSize
@@ -462,6 +504,7 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
     countries: Array.from(cache.current.countries.values()).sort((a, b) => a.value.localeCompare(b.value)),
     fetchRegionsForCountries,
     getRegionsForCountry,
+    geoZones: cache.current.geoZones,
 
     // Statistics
     totalLocations: siteLocations.length,

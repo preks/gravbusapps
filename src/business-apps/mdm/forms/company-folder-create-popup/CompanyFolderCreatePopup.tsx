@@ -22,13 +22,27 @@ import type { Company } from '@/common/data/orgchart/types/companyTypes'
 import translations from './_i18n'
 import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
+/** Minimal company when the remote shell omits `company` (platform passes only accessToken / userInfo / additionalData). */
+const REMOTE_SHELL_COMPANY_STUB: Company = {
+  id: '00000000-0000-0000-0000-000000000001',
+  name: '',
+  code: 'REMOTE',
+  structureId: '00000000-0000-0000-0000-000000000002',
+  createdAt: '',
+  createdBy: '',
+  updatedAt: '',
+  updatedBy: '',
+  isDeleted: false
+}
+
 export interface CompanyFolderCreatePopupProps {
-  open: boolean
-  company: Company
+  /** Omitted in `RenderRemoteComponent` — stub used for smoke / dev host. */
+  open?: boolean
+  company?: Company
   accessToken: string
   parentFolderId?: string // Optional parent folder ID
-  onClose: () => void
-  onSuccess: () => void
+  onClose?: () => void
+  onSuccess?: () => void
   mode?: 'create' | 'update' // Default to 'create'
   folder?: any // Existing folder for update mode
 }
@@ -39,16 +53,17 @@ interface FormState {
 }
 
 const CompanyFolderCreatePopup: React.FC<CompanyFolderCreatePopupProps> = ({
-  open,
-  company,
+  open = true,
+  company: companyProp,
   accessToken,
   parentFolderId,
-  onClose,
-  onSuccess,
+  onClose = () => {},
+  onSuccess = () => {},
   mode = 'create',
   folder
 }) => {
   const { t } = useTranslation(translations)
+  const company = companyProp ?? REMOTE_SHELL_COMPANY_STUB
   const companyId = company.id
   const [formState, setFormState] = useState<FormState>({
     name: '',

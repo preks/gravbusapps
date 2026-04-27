@@ -1,5 +1,4 @@
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
 
 export interface ExpensePlansTableProps extends BusinessAppContextProps {
@@ -14,7 +13,6 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   onSearchChange: (search: string) => void
   selectedFilters: string[]
   setFilters: (filters: string[]) => void
-  filterGroups: DataFilterGroup[]
   handleFilterChange: (filterId: string, selected: boolean) => void
   clearFilters: () => void
   filterLabelMap: Record<string, string>
@@ -32,6 +30,10 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   setEndDateRange?: (range: [Date | null, Date | null] | null) => void
   effectiveDateRange?: [Date | null, Date | null] | null
   setEffectiveDateRange?: (range: [Date | null, Date | null] | null) => void
+  reimbursableAmountRange?: { min?: number; max?: number } | null
+  setReimbursableAmountRange?: (range: { min?: number; max?: number } | null) => void
+  paidAdvanceAmountRange?: { min?: number; max?: number } | null
+  setPaidAdvanceAmountRange?: (range: { min?: number; max?: number } | null) => void
   onFiltersChange?: () => void
   availableStatuses?: string[]
   widgetTopDestinationFilterTokens?: string[]

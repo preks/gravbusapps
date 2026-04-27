@@ -139,13 +139,16 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-lg gba:max-h-[90vh] gba:flex gba:flex-col gba:overflow-hidden"
+        data-testid={testId}
+      >
         <DialogHeader>
           <DialogTitle>{t('whiteboard-manage-shares-title')}</DialogTitle>
           <DialogDescription>{t('whiteboard-manage-shares-description')}</DialogDescription>
         </DialogHeader>
 
-        <div className="gba:space-y-3 gba:max-h-64 gba:overflow-y-auto">
+        <div className="gba:space-y-2 gba:py-2 gba:overflow-y-auto gba:flex-1 gba:-mx-6 gba:px-6">
           {isLoading && <div className="gba:text-sm gba:text-muted-foreground">Loading...</div>}
           {!isLoading && users.length === 0 && (
             <div className="gba:text-sm gba:text-muted-foreground">No shared users</div>
@@ -153,26 +156,26 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
           {users.map(user => {
             const name = user.displayName || `User ${user.userId.slice(0, 8)}`
             return (
-              <div key={user.userId} className="gba:flex gba:items-center gba:justify-between gba:gap-3">
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Avatar className="gba:h-8 gba:w-8">
-                    {user.avatar && <AvatarImage src={user.avatar} />}
-                    <AvatarFallback className="gba:text-xs">{getInitials(name)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="gba:text-sm gba:font-medium">{name}</div>
-                    {user.userId === currentUserId && (
-                      <span className="gba:text-xs gba:text-muted-foreground">{t('whiteboard-you')}</span>
-                    )}
-                  </div>
+              <div key={user.userId} className="gba:flex gba:items-center gba:gap-2 gba:p-2">
+                <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+                  {user.avatar && <AvatarImage src={user.avatar} />}
+                  <AvatarFallback className="gba:text-xs">{getInitials(name)}</AvatarFallback>
+                </Avatar>
+                <div className="gba:flex-1 gba:min-w-0">
+                  <div className="gba:text-sm gba:font-medium gba:truncate">{name}</div>
+                  {user.userId === currentUserId && (
+                    <span className="gba:text-xs gba:text-muted-foreground">{t('whiteboard-you')}</span>
+                  )}
                 </div>
-                <Badge variant="outline">{user.permission}</Badge>
+                <Badge variant="outline" className="gba:flex-shrink-0">
+                  {user.permission}
+                </Badge>
               </div>
             )
           })}
         </div>
 
-        <div className="gba:flex gba:justify-end gba:pt-4">
+        <div className="gba:flex gba:justify-end">
           <Button variant="outline" onClick={() => onOpenChange(false)} data-testid={`${testId}-close`}>
             Close
           </Button>

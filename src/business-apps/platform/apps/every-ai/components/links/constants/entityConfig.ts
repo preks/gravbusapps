@@ -525,6 +525,14 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
   },
 
   // -------------------------------------------------------------------------
+  // Reminder entities (deep-link into EveryBox inbox at the exact task)
+  // -------------------------------------------------------------------------
+  reminder: {
+    urlTemplate: '/platform/task-manager?view=inbox&taskId={id}',
+    icon: createEmojiIcon('⏰')
+  },
+
+  // -------------------------------------------------------------------------
   // Notes and documents
   // -------------------------------------------------------------------------
   note: {
@@ -541,6 +549,14 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
   // -------------------------------------------------------------------------
   slide: {
     urlTemplate: '/platform/every-office/slides?slideId={id}&view=editor',
+    icon: DEFAULT_ICON
+  },
+
+  // -------------------------------------------------------------------------
+  // Spreadsheets
+  // -------------------------------------------------------------------------
+  spreadsheet: {
+    urlTemplate: '/platform/every-office/spreadsheets?appId={id}&view=viewer',
     icon: DEFAULT_ICON
   },
 

@@ -37,11 +37,36 @@ import { EditorToolbar } from './EditorToolbar'
 import { ApprovalStatusBadge, SaveStatusIndicator } from './PagedDocumentEditorHeaderStatus'
 import type { RightSidebar } from './hooks/usePagedDocumentInteractionDialogs'
 
+function formatPresenceRelativeTime(
+  date: Date | string | number | undefined,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  locale?: string
+): string {
+  if (!date) return t('presence-time-just-now')
+  const resolved = date instanceof Date ? date : new Date(date)
+  if (Number.isNaN(resolved.getTime())) return t('presence-time-just-now')
+
+  const now = new Date()
+  const diffMs = now.getTime() - resolved.getTime()
+  const diffMinutes = Math.floor(diffMs / 60000)
+
+  if (diffMinutes < 1) return t('presence-time-just-now')
+  if (diffMinutes === 1) return t('presence-time-minute-ago')
+  if (diffMinutes < 60) return t('presence-time-minutes-ago', { count: diffMinutes })
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours === 1) return t('presence-time-hour-ago')
+  if (diffHours < 24) return t('presence-time-hours-ago', { count: diffHours })
+
+  return resolved.toLocaleDateString(locale || undefined)
+}
+
 export interface PagedDocumentEditorHeaderProps {
   document?: Document
   paginationConfig?: PageLayoutPaginationConfig | null
   title: string
   isReadOnly: boolean
+  isReviewMode: boolean
   isTrashedDocument: boolean
   isSaving: boolean
   isExporting: boolean
@@ -49,6 +74,8 @@ export interface PagedDocumentEditorHeaderProps {
   lastSaved: Date | null
   participants: React.ComponentProps<typeof PresenceIndicator>['participants']
   unresolvedCommentCount: number
+  versionHistoryApprovedCount: number
+  versionHistoryPendingCount: number
   rightSidebar: RightSidebar
   publishingStatus: string
   setHeaderChromeNode: (node: HTMLDivElement | null) => void
@@ -82,6 +109,7 @@ export interface PagedDocumentEditorHeaderProps {
   onOpenFind: () => void
   onOpenReplace: () => void
   onTranslate: (key: string, vars?: Record<string, string | number>) => string
+  currentLocale?: string
   headerExtra?: ReactNode
   approvalRequest?: DocumentApprovalRequest
   isLocked: boolean
@@ -94,6 +122,7 @@ export function PagedDocumentEditorHeader({
   paginationConfig = null,
   title,
   isReadOnly,
+  isReviewMode,
   isTrashedDocument,
   isSaving,
   isExporting,
@@ -101,6 +130,8 @@ export function PagedDocumentEditorHeader({
   lastSaved,
   participants,
   unresolvedCommentCount,
+  versionHistoryApprovedCount,
+  versionHistoryPendingCount,
   rightSidebar,
   publishingStatus,
   setHeaderChromeNode,
@@ -134,6 +165,7 @@ export function PagedDocumentEditorHeader({
   onOpenFind,
   onOpenReplace,
   onTranslate,
+  currentLocale,
   headerExtra,
   approvalRequest,
   isLocked,
@@ -190,6 +222,9 @@ export function PagedDocumentEditorHeader({
     onTitleBlur()
   }
 
+  const showApprovedCount = versionHistoryApprovedCount > 0
+  const showPendingCount = versionHistoryPendingCount > 0
+
   return (
     <div ref={setHeaderChromeNode} className="gba:border-b gba:border-border/50 gba:bg-background">
       <div className="gba:px-4 gba:py-3">
@@ -227,170 +262,229 @@ export function PagedDocumentEditorHeader({
               </div>
             </div>
 
-            {approvalRequest && <ApprovalStatusBadge approvalRequest={approvalRequest} />}
+            {approvalRequest && !isReviewMode && <ApprovalStatusBadge approvalRequest={approvalRequest} />}
           </div>
 
           <div className="gba:flex gba:items-center gba:gap-2">
-            {participants.length > 0 && (
-              <PresenceIndicator
-                participants={participants}
-                maxVisible={3}
-                size="sm"
-                showLabel={false}
-                className="gba:mr-2"
-              />
-            )}
-
-            <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2">
-              <SaveStatusIndicator
-                isSaving={isSaving}
-                hasUnsavedChanges={hasUnsavedChanges}
-                lastSaved={lastSaved}
-                t={onTranslate}
-              />
-            </div>
-
-            <Separator orientation="vertical" className="gba:h-6" />
-
-            {!document?.id && !isReadOnly && (
-              <Button
-                onClick={onSave}
-                disabled={isSaving}
-                variant="default"
-                size="sm"
-                data-testid="save-new-document-button"
-                className="gba:bg-primary gba:text-primary-foreground"
-              >
-                <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                {isSaving ? onTranslate('editor-saving') : onTranslate('editor-save-document')}
-              </Button>
-            )}
-
-            {document?.id && !isReadOnly && (
-              <Button
-                onClick={onSave}
-                disabled={isSaving}
-                variant="ghost"
-                size="sm"
-                title={isSaving ? onTranslate('editor-saving') : onTranslate('editor-save-document')}
-                data-testid="save-document-button"
-                className="gba:h-8"
-              >
-                <Save className="gba:w-4 gba:h-4" />
-              </Button>
-            )}
-
-            {!isTrashedDocument && document?.id && (
+            {isReviewMode ? (
               <>
-                <Button
-                  variant={rightSidebar === 'comments' ? 'default' : 'ghost'}
-                  size="sm"
-                  onPointerDownCapture={onCommentsButtonPointerDown}
-                  onClick={onToggleCommentsSidebar}
-                  title={onTranslate('editor-comments-title')}
-                  data-testid="comments-button"
-                  className="gba:h-8"
-                >
-                  <MessageSquare className="gba:w-4 gba:h-4" />
-                  {unresolvedCommentCount > 0 && (
-                    <Badge variant="warning" className="gba:ml-1 gba:px-1 gba:py-0 gba:h-4 gba:text-xs">
-                      {unresolvedCommentCount}
-                    </Badge>
-                  )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                      {onTranslate('editor-export')}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" style={{ zIndex: 1100 }}>
+                    <DropdownMenuItem onClick={onExportWord} disabled={isExporting}>
+                      <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                      {onTranslate('editor-export-word')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onExportPDF} disabled={isExporting}>
+                      <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                      {onTranslate('editor-export-pdf')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="outline" size="sm" onClick={onPrint}>
+                  <Printer className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {onTranslate('editor-print')}
                 </Button>
-
-                {isLocked && isLockedByMe && (
-                  <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
-                    <Lock className="gba:h-3 gba:w-3" />
-                    {onTranslate('editor-locked')}
-                  </Badge>
+              </>
+            ) : (
+              <>
+                {participants.length > 0 && (
+                  <PresenceIndicator
+                    participants={participants}
+                    maxVisible={3}
+                    size="sm"
+                    showLabel={false}
+                    className="gba:mr-2"
+                    formatParticipantStatus={lastActiveAt =>
+                      onTranslate('presence-status-active', {
+                        time: formatPresenceRelativeTime(lastActiveAt, onTranslate, currentLocale)
+                      })
+                    }
+                  />
                 )}
 
-                <StatusBadge status={publishingStatus || 'draft'} />
-              </>
-            )}
+                <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2">
+                  <SaveStatusIndicator
+                    isSaving={isSaving}
+                    hasUnsavedChanges={hasUnsavedChanges}
+                    lastSaved={lastSaved}
+                    t={onTranslate}
+                  />
+                </div>
 
-            {!isTrashedDocument && document?.id && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {onTranslate('editor-document-menu')}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={onOpenVersionHistory}>
-                    <History className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {onTranslate('editor-version-history')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onOpenCheckpointDialog}>
+                <Separator orientation="vertical" className="gba:h-6" />
+
+                {!document?.id && !isReadOnly && (
+                  <Button
+                    onClick={onSave}
+                    disabled={isSaving}
+                    variant="default"
+                    size="sm"
+                    data-testid="save-new-document-button"
+                    className="gba:bg-primary gba:text-primary-foreground"
+                  >
                     <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {onTranslate('editor-save-checkpoint')}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {isLockedByMe ? (
-                    <DropdownMenuItem onClick={onReleaseLock}>
-                      <Unlock className="gba:w-4 gba:h-4 gba:mr-2" />
-                      {onTranslate('editor-unlock-document')}
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem onClick={onAcquireLock}>
-                      <Lock className="gba:w-4 gba:h-4 gba:mr-2" />
-                      {onTranslate('editor-lock-document')}
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onOpenPublishDialog}>
-                    <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {onTranslate('editor-publish')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onOpenPageSetupDialog} data-testid="page-setup-button">
-                    <LayoutPanelLeft className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {onTranslate('page-setup-title')}
-                  </DropdownMenuItem>
-                  {onSaveAsTemplate && (
-                    <DropdownMenuItem onClick={onSaveAsTemplate}>
-                      <BookTemplate className="gba:w-4 gba:h-4 gba:mr-2" />
-                      {onTranslate('editor-save-template')}
-                    </DropdownMenuItem>
-                  )}
-                  {onSendForApproval && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={onSendForApproval}>
-                        <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-                        {onTranslate('editor-send-for-approval')}
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onExportWord} disabled={isExporting}>
-                    <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {onTranslate('editor-export-word')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onExportPDF} disabled={isExporting}>
-                    <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {onTranslate('editor-export-pdf')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onPrint}>
-                    <Printer className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {onTranslate('editor-print')}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+                    {isSaving ? onTranslate('editor-saving') : onTranslate('editor-save-document')}
+                  </Button>
+                )}
 
-            {!isTrashedDocument && document?.id && (
-              <AiButton
-                size="sm"
-                showIcon
-                icon={<Wand2 className="gba:w-4 gba:h-4" />}
-                iconPosition="before"
-                onClick={onAiEditClick}
-                data-testid="ai-edit-button"
-              >
-                {onTranslate('editor-ai-edit')}
-              </AiButton>
+                {document?.id && !isReadOnly && (
+                  <Button
+                    onClick={onSave}
+                    disabled={isSaving}
+                    variant="ghost"
+                    size="sm"
+                    title={isSaving ? onTranslate('editor-saving') : onTranslate('editor-save-document')}
+                    data-testid="save-document-button"
+                    className="gba:h-8"
+                  >
+                    <Save className="gba:w-4 gba:h-4" />
+                  </Button>
+                )}
+
+                {!isTrashedDocument && document?.id && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onOpenVersionHistory}
+                      title={onTranslate('editor-version-history')}
+                      data-testid="version-history-button"
+                      className="gba:h-8 gba:px-2"
+                    >
+                      <History className="gba:h-4 gba:w-4" />
+                      {(showApprovedCount || showPendingCount) && (
+                        <span className="gba:ml-1 gba:flex gba:items-center gba:gap-1">
+                          {showApprovedCount && (
+                            <span className="gba:inline-flex gba:h-5 gba:min-w-5 gba:items-center gba:justify-center gba:rounded-full gba:bg-success/15 gba:px-1 gba:text-xs gba:font-semibold gba:text-success">
+                              {versionHistoryApprovedCount}
+                            </span>
+                          )}
+                          {showPendingCount && (
+                            <span className="gba:inline-flex gba:h-5 gba:min-w-5 gba:items-center gba:justify-center gba:rounded-full gba:bg-warning/15 gba:px-1 gba:text-xs gba:font-semibold gba:text-warning">
+                              {versionHistoryPendingCount}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </Button>
+
+                    <Button
+                      variant={rightSidebar === 'comments' ? 'default' : 'ghost'}
+                      size="sm"
+                      onPointerDownCapture={onCommentsButtonPointerDown}
+                      onClick={onToggleCommentsSidebar}
+                      title={onTranslate('editor-comments-title')}
+                      data-testid="comments-button"
+                      className="gba:h-8"
+                    >
+                      <MessageSquare className="gba:w-4 gba:h-4" />
+                      {unresolvedCommentCount > 0 && (
+                        <Badge variant="warning" className="gba:ml-1 gba:px-1 gba:py-0 gba:h-4 gba:text-xs">
+                          {unresolvedCommentCount}
+                        </Badge>
+                      )}
+                    </Button>
+
+                    {isLocked && isLockedByMe && (
+                      <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
+                        <Lock className="gba:h-3 gba:w-3" />
+                        {onTranslate('editor-locked')}
+                      </Badge>
+                    )}
+
+                    <StatusBadge status={publishingStatus || 'draft'} />
+                  </>
+                )}
+
+                {!isTrashedDocument && document?.id && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {onTranslate('editor-document-menu')}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" style={{ zIndex: 1100 }}>
+                      <DropdownMenuItem onClick={onOpenCheckpointDialog}>
+                        <Save className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {onTranslate('editor-save-checkpoint')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={onOpenVersionHistory} data-testid="document-menu-version-history">
+                        <History className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {onTranslate('editor-version-history')}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {isLockedByMe ? (
+                        <DropdownMenuItem onClick={onReleaseLock}>
+                          <Unlock className="gba:w-4 gba:h-4 gba:mr-2" />
+                          {onTranslate('editor-unlock-document')}
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem onClick={onAcquireLock}>
+                          <Lock className="gba:w-4 gba:h-4 gba:mr-2" />
+                          {onTranslate('editor-lock-document')}
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={onOpenPublishDialog}>
+                        <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {onTranslate('editor-publish')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={onOpenPageSetupDialog} data-testid="page-setup-button">
+                        <LayoutPanelLeft className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {onTranslate('page-setup-title')}
+                      </DropdownMenuItem>
+                      {onSaveAsTemplate && (
+                        <DropdownMenuItem onClick={onSaveAsTemplate}>
+                          <BookTemplate className="gba:w-4 gba:h-4 gba:mr-2" />
+                          {onTranslate('editor-save-template')}
+                        </DropdownMenuItem>
+                      )}
+                      {onSendForApproval && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={onSendForApproval}>
+                            <Send className="gba:w-4 gba:h-4 gba:mr-2" />
+                            {onTranslate('editor-send-for-approval')}
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={onExportWord} disabled={isExporting}>
+                        <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {onTranslate('editor-export-word')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={onExportPDF} disabled={isExporting}>
+                        <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {onTranslate('editor-export-pdf')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={onPrint}>
+                        <Printer className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {onTranslate('editor-print')}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+
+                {!isTrashedDocument && document?.id && (
+                  <AiButton
+                    size="sm"
+                    showIcon
+                    icon={<Wand2 className="gba:w-4 gba:h-4" />}
+                    iconPosition="before"
+                    onClick={onAiEditClick}
+                    data-testid="ai-edit-button"
+                  >
+                    {onTranslate('editor-ai-edit')}
+                  </AiButton>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -398,19 +492,21 @@ export function PagedDocumentEditorHeader({
 
       {headerExtra && <div className="gba:px-4 gba:pb-3">{headerExtra}</div>}
 
-      <EditorToolbar
-        editor={isTrashedDocument ? null : activeEditor}
-        paginationConfig={paginationConfig}
-        onOpenLinkDialog={onOpenLinkDialog}
-        onOpenInsertImageDialog={onOpenInsertImageDialog}
-        onOpenInsertSignatureDialog={onOpenInsertSignatureDialog}
-        onOpenInsertTableDialog={onOpenInsertTableDialog}
-        onOpenTableSidebar={onOpenTableSidebar}
-        onOpenPageNumbersDialog={canOpenPageNumbersDialog ? onOpenPageNumbersDialog : undefined}
-        onOpenFind={onOpenFind}
-        onOpenReplace={onOpenReplace}
-        data-testid={`${testId}-toolbar`}
-      />
+      {!isReviewMode && (
+        <EditorToolbar
+          editor={isTrashedDocument ? null : activeEditor}
+          paginationConfig={paginationConfig}
+          onOpenLinkDialog={onOpenLinkDialog}
+          onOpenInsertImageDialog={onOpenInsertImageDialog}
+          onOpenInsertSignatureDialog={onOpenInsertSignatureDialog}
+          onOpenInsertTableDialog={onOpenInsertTableDialog}
+          onOpenTableSidebar={onOpenTableSidebar}
+          onOpenPageNumbersDialog={canOpenPageNumbersDialog ? onOpenPageNumbersDialog : undefined}
+          onOpenFind={onOpenFind}
+          onOpenReplace={onOpenReplace}
+          data-testid={`${testId}-toolbar`}
+        />
+      )}
     </div>
   )
 }

@@ -60,6 +60,7 @@ export function createCustomCellAttributes() {
       default: null,
       parseHTML: element =>
         normalizeCellTextAlign(element.getAttribute('data-cell-text-align')) ??
+        normalizeCellTextAlign(element.getAttribute('align')) ??
         (element instanceof HTMLElement ? getElementStyles(element).textAlign : null),
       renderHTML: attributes => {
         const cellTextAlign = normalizeCellTextAlign(attributes.cellTextAlign)

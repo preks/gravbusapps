@@ -548,8 +548,11 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
       return
     }
 
-    // No discrepancies - submit directly
-    performSubmit(modifiedBookings)
+    // No discrepancies - show simple confirmation dialog
+    setDiscrepancies([])
+    setDiscrepancyType('ok')
+    setPendingBookings(modifiedBookings)
+    setShowConfirmDialog(true)
   }, [form, currentBookings, getDayEditStatus, recordedHoursByDate, performSubmit])
 
   // Handle dialog cancel

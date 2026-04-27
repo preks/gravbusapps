@@ -2,6 +2,9 @@
 inline-comment-add = Kommentar hinzufügen
 inline-comment-placeholder = Kommentar hinzufügen...
 inline-comment-button = Kommentar
+inline-comment-selection-actions = Auswahlaktionen
+inline-comment-ai-edit = Mit KI bearbeiten
+inline-comment-back = Zurück
 
 # CommentEditor
 comment-editor-cancel = Abbrechen
@@ -16,6 +19,7 @@ comment-thread-edit = Bearbeiten
 comment-thread-resolve = Lösen
 comment-thread-delete = Löschen
 comment-thread-resolved = Gelöst
+comment-thread-cell-reference = Zelle { $reference }
 comment-thread-confirm-delete = Möchten Sie diesen Kommentar wirklich löschen?
 comment-thread-edit-placeholder = Kommentar bearbeiten...
 comment-thread-reply-placeholder = Antwort schreiben...
@@ -83,7 +87,7 @@ autosave-version-placeholder = v—
 # MoveToSpace
 move-to-space-menu-label = In Space verschieben
 move-to-space-title = In Space verschieben
-move-to-space-description-with-name = „{ $name }" in einen Space verschieben
+move-to-space-description-with-name = „{ $name }“ in einen Space verschieben
 move-to-space-description-generic = Wählen Sie einen Space, um dieses { $type } zu verschieben
 move-to-space-type-document = Dokument
 move-to-space-type-note = Notiz
@@ -161,6 +165,7 @@ shared-error-load-versions = Versionen konnten nicht geladen werden
 shared-error-create-checkpoint = Checkpoint konnte nicht erstellt werden
 shared-error-auto-save = Auto-Speichern fehlgeschlagen
 shared-error-restore-version = Wiederherstellung der Version fehlgeschlagen
+shared-error-restore-version-owner-only = Du kannst nur Versionen von Dateien wiederherstellen, die dir gehören. Bitte den Eigentümer, diese Version wiederherzustellen.
 shared-error-delete-version = Version konnte nicht gelöscht werden
 shared-error-compare-versions = Versionen konnten nicht verglichen werden
 shared-error-publish = Veröffentlichung fehlgeschlagen

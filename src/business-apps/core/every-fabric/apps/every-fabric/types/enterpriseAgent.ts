@@ -11,7 +11,8 @@ export interface DeepAgentSession {
   reflection?: ReflectionResult
   quality_score?: number
   cost_summary?: CostSummary
-  duration_ms?: number
+  duration_ms?: number // Turn duration (most recent request)
+  total_duration_ms?: number // Total session duration from creation
   created_at: string
   updated_at: string
   started_at?: string
@@ -19,6 +20,7 @@ export interface DeepAgentSession {
   config?: SessionConfig
   human_question?: string | null
   structured_input_request?: StructuredInputRequestEvent | null
+  active_external_connection_ids?: string[]
 }
 
 export interface StartSessionResponse {
@@ -174,6 +176,46 @@ export interface StructuredInputRequestEvent {
   description: string
   fields: InputFieldSchema[]
   allow_partial_submit: boolean
+  /**
+   * Present when `form_id === 'compose_email'` — carries the agent-drafted
+   * email payload so the frontend can hydrate the EmailComposerBubble.
+   */
+  email_draft?: ComposeEmailDraft
+}
+
+export interface ComposeEmailRecipient {
+  name?: string
+  address: string
+}
+
+export interface ComposeEmailDraft {
+  to: ComposeEmailRecipient[]
+  cc?: ComposeEmailRecipient[]
+  bcc?: ComposeEmailRecipient[]
+  subject: string
+  html_body: string
+  text_body?: string | null
+  signature?: string | null
+  account_id?: string | null
+  crm_entity_type?: string | null
+  crm_entity_id?: string | null
+}
+
+export type ComposeEmailAction = 'send' | 'draft' | 'cancel'
+
+export interface ComposeEmailSubmission {
+  form_id: 'compose_email'
+  action: ComposeEmailAction
+  to: ComposeEmailRecipient[]
+  cc?: ComposeEmailRecipient[]
+  bcc?: ComposeEmailRecipient[]
+  subject: string
+  htmlBody: string
+  textBody?: string
+  signature?: string
+  accountId?: string
+  crmEntityType?: string
+  crmEntityId?: string
 }
 
 export interface InputFieldSchema {
@@ -213,6 +255,59 @@ export interface SkillDetectionSkippedEvent {
   reason: string
 }
 
+export interface ArtifactPreviewEvent {
+  type: 'artifact_preview'
+  seq: number
+  event_id: string
+  timestamp: string
+  subtype: 'start' | 'progress' | 'draft_ready' | 'complete' | 'error'
+  artifact_id: string
+  artifact_type: 'slides' | 'document' | 'note' | 'chart'
+  title: string
+  content?: Record<string, unknown>
+  /**
+   * Human-readable error summary. Kept for backwards compatibility with
+   * older traces; new consumers should prefer ``user_message`` and the
+   * structured fields below to render a friendly state.
+   */
+  error?: string
+  /** Machine-readable tag, e.g. ``model_response_invalid``, ``rate_limited``. */
+  error_code?: string
+  /** Whether a retry is likely to succeed on a fresh attempt. */
+  retryable?: boolean
+  /** One-sentence, UI-safe copy. Never includes HTTP codes or raw JSON. */
+  user_message?: string
+  /** Compact dev-facing detail string (status + trimmed body preview). */
+  technical_detail?: string
+}
+
+/**
+ * Category of a discrete agent decision surfaced in the Decisions side panel.
+ * Kept loose (string union) to let the backend introduce new categories
+ * without breaking older clients; the UI falls back to a generic icon.
+ */
+export type DecisionCategory = 'skill' | 'tool_routing' | 'reflection' | 'hitl' | 'plan'
+
+export interface AgentDecisionEvent {
+  type: 'decision'
+  seq: number
+  event_id: string
+  timestamp: string
+  category: DecisionCategory
+  /** Short headline for the decision (e.g. "Loaded skill CRM"). */
+  title: string
+  /** Machine-readable id/label of the chosen option. */
+  chosen: string
+  /** One- to three-sentence explanation shown as secondary text. */
+  rationale: string
+  /** Optional list of other options the agent considered. */
+  alternatives?: string[]
+  /** Optional confidence score in [0, 1]. */
+  confidence?: number
+  /** Category-specific free-form metadata (e.g. `{ form_id }` for hitl). */
+  metadata?: Record<string, unknown>
+}
+
 export type AgentStreamEvent =
   | AgentChunkEvent
   | AgentTerminalEvent
@@ -227,6 +322,8 @@ export type AgentStreamEvent =
   | StructuredInputRequestEvent
   | SkillLoadedEvent
   | SkillDetectionSkippedEvent
+  | ArtifactPreviewEvent
+  | AgentDecisionEvent
 
 export interface ReflectionResult {
   complete: boolean
@@ -323,13 +420,21 @@ export type ActivityDelegationStatus = 'running' | 'done' | 'failed'
 export interface ActivityEvent {
   id: string
   timestamp: string
-  type: 'tool_call' | 'tool_result' | 'plan_update' | 'reflection' | 'subagent_spawn' | 'memory_access'
+  type: 'tool_call' | 'tool_result' | 'reflection' | 'subagent_spawn' | 'memory_access'
   agent?: string
   toolName?: string
   summary: string
   durationMs?: number
   /** When `type === 'subagent_spawn'`, whether the delegated step has finished (from SSE completions). */
   delegationStatus?: ActivityDelegationStatus
+  /** When `type === 'tool_result'`, whether the tool succeeded or failed. */
+  resultStatus?: 'done' | 'failed'
+  /** When `type === 'tool_result'`, the originating `step_started` id so the card can pair rows. */
+  parentStepId?: string
+  /** Present on `skill_load` tool rows: backend skill id (e.g. `"create-hook"`). */
+  skillId?: string
+  /** Present on `skill_load` tool rows: humanised display name. */
+  skillName?: string
 }
 
 export interface ActionSummary {

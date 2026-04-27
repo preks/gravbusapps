@@ -5,10 +5,18 @@
  */
 
 import React from 'react'
-import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
+import {
+  Badge,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { Signal, Database, RefreshCw, Loader2 } from 'lucide-react'
 import { PresenceIndicator } from '../../../../../platform/apps/shared/components/PresenceIndicator'
 import type { CollaborationParticipant } from '../../../../../platform/apps/shared/hooks/useCollaboration'
+import translations from '../_i18n'
 
 export interface StatusIndicatorsProps {
   // Collaboration
@@ -34,13 +42,17 @@ export const StatusIndicators: React.FC<StatusIndicatorsProps> = ({
   isEntityDataLoading,
   'data-testid': testId = 'status-indicators'
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <div className="gba:flex gba:items-center gba:gap-2" data-testid={testId}>
       {/* Collaboration presence indicator - shows active users */}
       {headerParticipants.length > 0 && (
         <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2 gba:pr-2 gba:border-r">
           <PresenceIndicator participants={headerParticipants} maxVisible={3} size="sm" showLabel={false} />
-          <span className="gba:text-xs gba:text-muted-foreground">{headerParticipants.length} active</span>
+          <span className="gba:text-xs gba:text-muted-foreground">
+            {t('status-indicator-active-count', { count: headerParticipants.length })}
+          </span>
         </div>
       )}
 
@@ -51,11 +63,11 @@ export const StatusIndicators: React.FC<StatusIndicatorsProps> = ({
             <TooltipTrigger asChild>
               <Badge variant="success" className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-default">
                 <Signal className="gba:w-3.5 gba:h-3.5 gba:text-success" />
-                <span className="gba:text-xs gba:font-medium">Live</span>
+                <span className="gba:text-xs gba:font-medium">{t('status-indicator-live')}</span>
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              <span>Real-time collaboration active. Others will appear when they join.</span>
+              <span>{t('status-indicator-collaboration-live')}</span>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -88,7 +100,9 @@ export const StatusIndicators: React.FC<StatusIndicatorsProps> = ({
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <span>Connected to {entityDataSource.entityDisplayName} data source</span>
+              <span>
+                {t('status-indicator-data-source-connected', { name: entityDataSource.entityDisplayName || '' })}
+              </span>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

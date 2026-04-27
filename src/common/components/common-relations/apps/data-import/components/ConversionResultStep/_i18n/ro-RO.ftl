@@ -33,5 +33,13 @@ more-warnings-text = ... și încă { $count } avertismente
 all-fields-good-message = Toate câmpurile au acoperire bună - gata de import!
 
 # Import Button
-import-button = Importă { $count } { $entityType } în CRM
-importing-button = Se importă în CRM...
+import-button = Importă { $count } { $entityType }
+importing-button = Se importă...
+
+# Calitate CSV
+csv-quality-warning-title = Deplasare coloane detectată
+csv-quality-warning-message = { $shiftedRows } din { $totalRows } rânduri au posibile probleme de aliniere a coloanelor. Puteți încerca repararea intensivă — unele date se pot modifica.
+csv-quality-repair-button = Reparare intensivă și extragere date
+csv-quality-repairing-button = Se repară...
+csv-quality-residual-message = { $shiftedRows } rând(uri) nu au putut fi reparate complet. Aceste rânduri pot avea valori lipsă sau deplasate.
+csv-quality-success-message = Toate rândurile au fost reparate cu succes.

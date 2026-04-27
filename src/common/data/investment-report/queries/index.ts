@@ -5,7 +5,6 @@
 export {
   GET_INVESTMENT_REPORTS,
   GET_INVESTMENT_REPORT_BY_ID,
-  GET_INVESTMENT_REPORTS_BY_INVESTMENT_ID,
   SEARCH_INVESTMENT_REPORTS,
   buildInvestmentReportWhereCondition,
   type InvestmentReportQueryVariables

@@ -1,223 +1,170 @@
-import React, { useState } from 'react'
+import { SetStateAction, Dispatch, useMemo, ReactNode, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormWrapperModal } from '@/components/form-wrapper'
+import { FieldValues } from 'react-hook-form'
+import { useJobLevelQueries } from '@/business-apps/mdm/apps/job-structure-data/queries/useJobLevelQueries.ts'
+import { JobLevel, JobLevelMutationPayload } from '@/business-apps/mdm/apps/job-structure-data/utils/JobLevel.types'
 import {
-  Input,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  Textarea,
-  Combobox
-} from '@newwork/nw-design-system'
-import { CompensationBand } from '../../apps/compensation-data'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
-import { JobLevel } from '../../apps/job-structure-data'
-import { formatDataTestId } from '@/common/utils/formatDataTestId'
+  jobLevelSchema,
+  JobLevelFormValues,
+  validateJobLevelCode
+} from '@/business-apps/mdm/apps/job-structure-data/validation/JobLevel.validation'
+import { ErrorBoundary } from '@/business-apps/core/every/apps/every-box/components/ErrorBoundary'
+import { TextField, TextAreaField, NumberField } from '@/business-apps/mdm/components/form-fields/FormFields'
+import { toast } from '@newwork/nw-design-system'
 
-const DATA_TEST_ID_PREFIX = 'JobLevelForm'
-
-export interface JobLevelFormProps extends BusinessAppContextProps {
-  jobLevel?: JobLevel
+interface JobLevelFormProps extends BusinessAppContextProps {
+  childAddButton?: ReactNode
+  jobLevel?: Partial<JobLevel>
   onCancel?: () => void
-  prefixDataTestId?: string
-  childAddButton: React.ReactNode
-  compensationBands: CompensationBand[]
-  groupId: string
+  prefixDataTestId: string
   refetch: () => void
-  defaultValues?: Record<string, any>
   isDrawerActive?: boolean
+  open?: boolean
+  setOpen?: Dispatch<SetStateAction<boolean>>
+  usedCodes?: string[]
 }
 
-const JobLevelForm: React.FC<JobLevelFormProps> = ({
+export default function JobLevelForm({
+  childAddButton,
   jobLevel,
   onCancel,
   prefixDataTestId,
-  childAddButton,
-  compensationBands,
-  groupId,
   accessToken,
   refetch,
-  defaultValues = {},
-  isDrawerActive = false
-}) => {
-  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
-
+  isDrawerActive = false,
+  open,
+  setOpen,
+  usedCodes = []
+}: Readonly<JobLevelFormProps>) {
+  const [internalOpen, setInternalOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = async (values: any) => {
-    try {
-      setLoading(true)
+  const { createJobLevel, updateJobLevel } = useJobLevelQueries(accessToken)
 
-      const payload = {
-        changeMode: 'INSERT',
-        jobLevel: {
-          code: values.code,
-          name: values.name,
-          jobLevelGroupRef: groupId,
-          ...(values.description ? { description: values.description } : {}),
-          ...(values.experienceYears ? { additionalProperties: { additionalProp1: values.experienceYears } } : {}),
-          hierarchyOrder: values.level,
-          compensationBand:
-            values.compensationBandId && values.compensationBandId.trim() !== '' ? values.compensationBandId : null,
-          ...(jobLevel ? { version: jobLevel.version, id: jobLevel.id } : {})
-        }
+  const dialogOpen = open ?? internalOpen
+  const setDialogOpen = setOpen || setInternalOpen
+
+  const handleSubmit = async (values: FieldValues) => {
+    const validationResult = jobLevelSchema.safeParse(values)
+    if (!validationResult.success) {
+      throw new Error('Invalid form data: ' + validationResult.error.issues.map(e => e.message).join(', '))
+    }
+
+    const validatedValues = validationResult.data
+
+    if (!jobLevel) {
+      const codeError = validateJobLevelCode(validatedValues.code, usedCodes)
+      if (codeError) {
+        throw new Error(codeError)
       }
+    }
 
-      await restClient.post('/employee/saveJobLevel', payload, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      })
+    const payload: JobLevelMutationPayload = {
+      changeMode: 'INSERT',
+      jobLevel: {
+        code: validatedValues.code,
+        name: validatedValues.name,
+        description: validatedValues.description || '',
+        hierarchyOrder: validatedValues.hierarchyOrder,
+        ...(jobLevel ? { id: jobLevel.id, version: jobLevel.version } : {})
+      }
+    }
 
-      setTimeout(() => {
-        refetch()
-      }, 2000)
-    } catch (error) {
-      console.error('Form validation error:', error)
+    setLoading(true)
+    setError(null)
+
+    try {
+      await (jobLevel ? updateJobLevel : createJobLevel)(payload)
+      toast.success(jobLevel ? 'Job level updated successfully!' : 'Job level created successfully!')
+      refetch()
+      setOpen?.(false)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      throw err
     } finally {
       setLoading(false)
     }
   }
 
+  const defaultValues = useMemo(
+    (): JobLevelFormValues => ({
+      name: jobLevel?.name || '',
+      code: jobLevel?.code || '',
+      description: jobLevel?.description || '',
+      hierarchyOrder: jobLevel?.hierarchyOrder || 1
+    }),
+    [jobLevel]
+  )
+
   return (
-    <FormWrapperModal
-      childAddButton={childAddButton}
-      title={jobLevel ? 'Edit Job Level' : 'Create Job Level'}
-      description="Configure job level details and requirements"
-      onSubmit={handleSubmit}
-      onCancel={onCancel}
-      defaultValues={
-        jobLevel
-          ? {
-              ...jobLevel,
-              compensationBand: jobLevel.compensationBandId || jobLevel.compensationBand?.id || ''
-            }
-          : {
-              ...defaultValues
-            }
-      }
-      isEditing={!!jobLevel}
-      loading={loading}
-      dataTestId={dataTestId}
-      isDrawerActive={isDrawerActive}
-    >
-      <FormField
-        name="name"
-        rules={{ required: 'Please enter job level name' }}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Job Level Name</FormLabel>
-            <FormControl>
-              <Input placeholder="e.g., Senior Software Engineer, Engineering Manager" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+    <ErrorBoundary>
+      <FormWrapperModal
+        childAddButton={childAddButton}
+        title={jobLevel ? 'Edit Job Level' : 'Create Job Level'}
+        description={
+          jobLevel ? 'Update the job level information' : 'Create a new job level to define career progression stages'
+        }
+        onSubmit={handleSubmit}
+        onCancel={onCancel}
+        defaultValues={defaultValues}
+        isEditing={!!jobLevel}
+        loading={loading}
+        dataTestId={`${prefixDataTestId}-form-modal`}
+        isDrawerActive={isDrawerActive}
+        open={dialogOpen}
+        setOpen={setDialogOpen}
+        errorMessage={error ?? ''}
+      >
+        <TextField<JobLevelFormValues>
+          name="name"
+          label="Name"
+          required
+          placeholder="e.g., Junior, Senior, Principal"
+          maxLength={100}
+          dataTestId={`${prefixDataTestId}-name-input`}
+        />
 
-      <FormField
-        name="code"
-        rules={{ required: 'Please enter code' }}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Code</FormLabel>
-            <FormControl>
-              <Input placeholder="e.g., SSE, EM" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
+        {!jobLevel && (
+          <TextField<JobLevelFormValues>
+            name="code"
+            label="Code"
+            required
+            placeholder="e.g., JNR, SNR, PRIN"
+            maxLength={20}
+            pattern={/^[A-Z0-9_]+$/}
+            patternMessage="Code must contain only uppercase letters, numbers, and underscores"
+            transform={value => value.toUpperCase()}
+            validate={(value: string) => {
+              const error = validateJobLevelCode(value, usedCodes)
+              return error || true
+            }}
+            dataTestId={`${prefixDataTestId}-code-input`}
+          />
         )}
-      />
 
-      <FormField
-        name="level"
-        rules={{ required: 'Please enter level number' }}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Level Number</FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                min={1}
-                max={20}
-                placeholder="1-20"
-                className="gba:w-full"
-                {...field}
-                onChange={e => field.onChange(parseInt(e.target.value) || 0)}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+        <NumberField<JobLevelFormValues>
+          name="hierarchyOrder"
+          label="Hierarchy Order"
+          required
+          placeholder="e.g., 1, 2, 3"
+          min={1}
+          max={99}
+          step={1}
+          dataTestId={`${prefixDataTestId}-hierarchy-order-input`}
+        />
 
-      <FormField
-        name="experienceYears"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Experience Required (Years)</FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                min={0}
-                max={30}
-                placeholder="Years of experience"
-                className="gba:w-full"
-                {...field}
-                onChange={e => field.onChange(parseInt(e.target.value) || 0)}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        name="description"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Description</FormLabel>
-            <FormControl>
-              <Textarea
-                placeholder="Describe the responsibilities and requirements for this level"
-                rows={3}
-                {...field}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        name="compensationBandId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Compensation Band</FormLabel>
-            <FormControl>
-              <Combobox
-                key={`combobox-${field.value || 'empty'}`}
-                options={compensationBands.map(band => ({
-                  value: band.id,
-                  label: band.name || ''
-                }))}
-                value={field.value || ''}
-                onValueChange={field.onChange}
-                placeholder="Select compensation band (optional)"
-                searchPlaceholder="Search compensation bands..."
-                emptyText="No compensation bands found"
-                className="gba:!w-full"
-                data-testid={`${dataTestId}-compensation-band-combobox`}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-    </FormWrapperModal>
+        <TextAreaField<JobLevelFormValues>
+          name="description"
+          label="Description"
+          placeholder="Describe the responsibilities and expectations for this level"
+          rows={3}
+          maxLength={500}
+          dataTestId={`${prefixDataTestId}-description-textarea`}
+        />
+      </FormWrapperModal>
+    </ErrorBoundary>
   )
 }
-
-export default JobLevelForm

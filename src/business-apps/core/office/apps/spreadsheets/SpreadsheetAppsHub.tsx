@@ -94,6 +94,8 @@ import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/compon
 import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 // Services
 import { generateAppSchemaFromParsedFile, generateEmptyAppSchema } from './services/SchemaGenerator'
@@ -544,6 +546,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // Get current user ID
   const currentUserId = resolveCurrentUserId(userInfo)
   const flowTaskUserId = userInfo?.id || currentUserId
+  const previewFeature = useFeature<boolean>(Feature.Preview.Enabled.Key)
+  const previewEnabled = previewFeature === true
 
   // Ensure SpreadsheetApiService can authenticate in published screens (token might not be in localStorage)
   useEffect(() => {
@@ -593,7 +597,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     clearCurrentApp,
     addRow,
     updateRow,
-    updateSheet
+    updateSheet,
+    addSheet,
+    deleteSheet
   } = useSpreadsheetApps(accessToken, currentUserId)
 
   const { ownerInfoMap, sharedUsersMap } = useSpreadsheetAppsHubUserLookup({
@@ -613,10 +619,17 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     setCurrentView,
     activeSection,
     setActiveSection,
+    showSharedSection: previewEnabled,
     onLoadFailed: () => {
       toast.error(t('toast-spreadsheet-not-found'))
     }
   })
+
+  useEffect(() => {
+    if (!previewEnabled && activeSection === 'shared') {
+      setActiveSection('my-files')
+    }
+  }, [activeSection, previewEnabled])
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
   useEffect(() => {
@@ -1372,7 +1385,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         if (!newSheetId) return
 
         const targetSheet = refreshed?.sheets?.find(s => s.id === newSheetId)
-        if (targetSheet && (targetSheet.data?.length ?? 0) > 0) {
+        if (targetSheet) {
           return
         }
 
@@ -1399,8 +1412,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             onShare={isReadonlyTrashView ? undefined : () => handleShareApp(app.id)}
             onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
-            onAppRefreshNeeded={canEdit ? handleAppRefreshNeeded : undefined}
+            onAppRefreshNeeded={isReadonlyTrashView ? undefined : handleAppRefreshNeeded}
             onSheetUpdate={canEdit ? updateSheet : undefined}
+            onSheetAdd={canEdit ? addSheet : undefined}
+            onSheetDelete={canEdit ? deleteSheet : undefined}
             onRowAdd={canEdit ? addRow : undefined}
             onRowUpdate={canEdit ? updateRow : undefined}
             // Keep hub-level replay off: SpreadsheetAppViewer persists Univer edits via row/cell ops.
@@ -1452,6 +1467,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [
       accessToken,
       addRow,
+      addSheet,
+      deleteSheet,
       currentAppPermission,
       currentUserId,
       currentUserName,
@@ -1562,6 +1579,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             onSectionChange={s => setActiveSection(s as SidebarSection)}
             tabBadges={heroTabBadges}
             newButton={heroNewButton}
+            showSharedTab={previewEnabled}
             t={t}
             data-testid={`${testId}-hero`}
           />
@@ -1569,7 +1587,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             <div className="gba:relative">
               <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
               <Input
-                placeholder={t('header-search-placeholder')}
+                placeholder={t('spreadsheets-header-search-placeholder')}
                 value={trashSearchQuery}
                 onChange={e => setTrashSearchQuery(e.target.value)}
                 className="gba:h-12 gba:pl-11 gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm"
@@ -1582,8 +1600,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               <OfficeTrashList
                 accessToken={accessToken}
                 entityType="spreadsheet_app"
-                emptyTitle={t('empty-trash-title')}
-                emptyDescription={t('empty-trash-description')}
+                emptyTitle={t('spreadsheets-empty-trash-title')}
+                emptyDescription={t('spreadsheets-empty-trash-description')}
                 layout="list"
                 searchQuery={trashSearchQuery}
                 listControls={{
@@ -1613,6 +1631,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           onSectionChange={s => setActiveSection(s)}
           tabBadges={heroTabBadges}
           newButton={heroNewButton}
+          showSharedTab={previewEnabled}
           t={t}
           data-testid={`${testId}-hero`}
         />
@@ -1676,7 +1695,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     <div className="gba:relative">
                       <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
                       <Input
-                        placeholder={t('action-search-placeholder')}
+                        placeholder={t('spreadsheets-header-search-placeholder')}
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         className="gba:pl-12 gba:pr-4 gba:h-12 gba:text-base gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm hover:gba:shadow-md hover:gba:bg-muted/70 hover:gba:border-border gba:transition-all gba:duration-200"
@@ -1947,7 +1966,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                               {t('action-sort-created')}
                               {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                             </div>
-                            <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">{t('table-rows')}</div>
                             <div className="gba:w-10 gba:flex-shrink-0" />
                           </div>
                         </div>
@@ -2103,11 +2121,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                   {formatDate(app.createdAt, t, locale)}
                                 </div>
 
-                                {/* Rows */}
-                                <div className="gba:w-20 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground gba:text-right">
-                                  {app.rowCount.toLocaleString()}
-                                </div>
-
                                 {/* Actions */}
                                 <div
                                   className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end"
@@ -2124,12 +2137,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                         <Play className="gba:w-4 gba:h-4 gba:mr-2" />
                                         {t('action-open')}
                                       </DropdownMenuItem>
-                                      {isOwner && (
-                                        <DropdownMenuItem onClick={() => handleShareApp(app.id)}>
-                                          <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                          {t('action-share')}
-                                        </DropdownMenuItem>
-                                      )}
                                       {isOwner && sharedWith.length > 0 && (
                                         <DropdownMenuItem onClick={() => handleManageShares(app.id)}>
                                           <Users className="gba:w-4 gba:h-4 gba:mr-2" />

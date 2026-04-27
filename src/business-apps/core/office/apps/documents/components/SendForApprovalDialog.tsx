@@ -22,14 +22,14 @@ import {
   Spinner,
   Avatar,
   AvatarImage,
-  AvatarFallback,
-  Checkbox
+  AvatarFallback
 } from '@newwork/nw-design-system'
 import { Send, Search, User, X, Calendar, AlertCircle, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
-import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
+import { officeClient } from '@/common/network/office/OfficeClient'
 import translations from '../_i18n'
+import { getApproverUserIdsNeedingShare } from './sendForApprovalPermissions'
 
 export interface SendForApprovalDialogProps {
   open: boolean
@@ -40,180 +40,9 @@ export interface SendForApprovalDialogProps {
   currentUserId: string
   currentUserName?: string
   accessToken: string
-  onApprovalSent?: (approverIds: string[], approverWorkflows?: ApproverWorkflow[]) => void
+  onApprovalSent?: (approverIds: string[]) => void
   shareDocument?: (id: string, userIds: string[], permission: 'view' | 'edit' | 'comment') => Promise<boolean>
   'data-testid'?: string
-}
-
-// Export the type for use elsewhere
-export type { ApproverWorkflow }
-
-/**
- * Helper to create assignment targets for Flow Engine
- */
-const createAssignmentTargets = (userIds: string[]) => ({
-  users: userIds,
-  capabilities: [],
-  organizationalUnits: [],
-  companies: [],
-  siteLocations: [],
-  costCenters: [],
-  matrixTeams: []
-})
-
-/**
- * Send approval request via Flow Engine
- */
-interface ApproverWorkflow {
-  userId: string
-  userName: string
-  userPicture?: string
-  workflowId: string
-}
-
-interface ApproverInfo {
-  userId: string
-  userName: string
-  userPicture?: string
-}
-
-type TranslationFn = (key: string, vars?: Record<string, string | number>) => string
-
-const sendApprovalRequest = async (
-  accessToken: string,
-  t: TranslationFn,
-  payload: {
-    documentId: string
-    documentTitle: string
-    documentPath?: string
-    approvers: ApproverInfo[]
-    initiatorId: string
-    initiatorName?: string
-    message?: string
-    dueDate?: string
-  }
-): Promise<{ success: boolean; workflowIds?: string[]; approverWorkflows?: ApproverWorkflow[]; error?: string }> => {
-  try {
-    const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
-    const timestamp = Date.now()
-    const blinkGroupId = `doc_approval_${timestamp}_${payload.initiatorId}`
-
-    const workflowIds: string[] = []
-    const approverWorkflows: ApproverWorkflow[] = []
-
-    const documentUrl = `/platform/every-office/documents?docId=${payload.documentId}&view=editor`
-
-    // Calculate due date in minutes from now (default 3 days = 4320 minutes)
-    let dueInMinutes = 4320
-    if (payload.dueDate) {
-      const dueDateTime = new Date(payload.dueDate)
-      const now = new Date()
-      const diffMs = dueDateTime.getTime() - now.getTime()
-      dueInMinutes = Math.max(60, Math.ceil(diffMs / 60000)) // Minimum 1 hour
-    }
-
-    for (const approver of payload.approvers) {
-      const { userId, userName, userPicture } = approver
-
-      // Build entity link for the links array (displayed in task inbox)
-      const entityLink = {
-        name: payload.documentTitle,
-        url: `${globalThis.location?.origin || ''}${documentUrl}`,
-        type: 'entity:document',
-        metadata: {
-          entityType: 'document',
-          entityId: payload.documentId
-        }
-      }
-
-      // Build tags object (for outbox list display)
-      const tags: Record<string, string> = {
-        app: 'document-approval',
-        blinkGroupId,
-        assignedUserId: userId,
-        entityType: 'document',
-        entityId: payload.documentId,
-        entityName: payload.documentTitle,
-        entityDisplayUrl: documentUrl
-      }
-
-      // Build the message
-      const initiator = payload.initiatorName || t('approval-task-someone')
-      const taskMessage = payload.message
-        ? t('approval-task-requested-with-message', {
-            initiator,
-            title: payload.documentTitle,
-            message: payload.message
-          })
-        : t('approval-task-requested', { initiator, title: payload.documentTitle })
-
-      const requestPayload = {
-        templateDefinition: {
-          type: 'TEMPLATE',
-          name: t('approval-task-title', { title: payload.documentTitle }),
-          description: t('approval-task-description', { title: payload.documentTitle }),
-          version: 1,
-          steps: [
-            {
-              type: 'TASK',
-              title: t('approval-task-title', { title: payload.documentTitle }),
-              message: taskMessage,
-              form: [],
-              links: [entityLink],
-              assignment: {
-                assignmentMode: 'ASSIGN',
-                targets: null,
-                allowReassignment: false
-              },
-              dueInMinutes
-            }
-          ],
-          tags
-        },
-        initiatorId: payload.initiatorId,
-        stepAssignments: {
-          step_0: {
-            assignment: {
-              assignmentMode: 'ASSIGN',
-              targets: createAssignmentTargets([userId]),
-              allowReassignment: false
-            }
-          }
-        }
-      }
-
-      const response = await fetch(`${baseUrl}/templates/execute-dynamic`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify(requestPayload)
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('[SendForApproval] Failed to create approval task:', response.status, errorText)
-        throw new Error(t('approval-task-error-create', { status: response.statusText }))
-      }
-
-      const data = await response.json()
-      if (data.data?.workflowId) {
-        workflowIds.push(data.data.workflowId)
-        approverWorkflows.push({
-          userId,
-          userName,
-          userPicture,
-          workflowId: data.data.workflowId
-        })
-      }
-    }
-
-    return { success: true, workflowIds, approverWorkflows }
-  } catch (err) {
-    console.error('[SendForApproval] Error sending approval request:', err)
-    return { success: false, error: err instanceof Error ? err.message : t('approval-task-error-send') }
-  }
 }
 
 /**
@@ -224,9 +53,7 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
   onOpenChange,
   documentId,
   documentTitle,
-  documentPath,
   currentUserId,
-  currentUserName,
   accessToken,
   onApprovalSent,
   shareDocument,
@@ -332,78 +159,63 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
     setError(null)
 
     try {
-      // Build approvers with full user info
-      const approvers = selectedUsers
-        .filter(u => Boolean(u.userId || u.id))
-        .map(u => ({
-          userId: (u.userId || u.id) as string,
-          userName: u.displayName,
-          userPicture: u.pictureThumbnail
-        }))
+      const approvers = selectedUsers.filter(u => Boolean(u.userId || u.id))
 
       if (approvers.length === 0) {
         setError(t('approval-dialog-error-valid'))
         return
       }
 
-      const approverUserIds = approvers.map(a => a.userId)
+      const approverUserIds = approvers.map(user => (user.userId || user.id) as string)
+      officeClient.setAccessToken(accessToken)
 
-      // First, share the document with all approvers so they can access it
+      // Share only approvers who do not already have direct document access.
       if (shareDocument) {
-        const shareSuccess = await shareDocument(documentId, approverUserIds, 'view')
-        if (!shareSuccess) {
+        let approverUserIdsNeedingShare = approverUserIds
+
+        try {
+          const existingShares =
+            await officeClient.getSharingForDocument<Array<{ userId: string; permission: string }>>(documentId)
+          approverUserIdsNeedingShare = getApproverUserIdsNeedingShare(approverUserIds, existingShares ?? [])
+        } catch (shareLookupError) {
           console.warn(
-            '[SendForApproval] Failed to share document with approvers, but continuing with approval request'
+            '[SendForApproval] Failed to load existing shares, falling back to view sharing',
+            shareLookupError
           )
+        }
+
+        if (approverUserIdsNeedingShare.length > 0) {
+          const shareSuccess = await shareDocument(documentId, approverUserIdsNeedingShare, 'view')
+          if (!shareSuccess) {
+            console.warn(
+              '[SendForApproval] Failed to share document with approvers, but continuing with approval request'
+            )
+          }
         }
       }
 
-      const result = await sendApprovalRequest(accessToken, t, {
-        documentId,
-        documentTitle,
-        documentPath,
-        approvers,
-        initiatorId: currentUserId,
-        initiatorName: currentUserName,
+      await officeClient.documents.submitForApproval(documentId, {
+        approvers: approverUserIds.map(userId => ({ userId })),
         message: message.trim() || undefined,
         dueDate: dueDate || undefined
       })
+      setSentSuccess(true)
+      onApprovalSent?.(approverUserIds)
 
-      if (result.success) {
-        setSentSuccess(true)
-        onApprovalSent?.(approverUserIds, result.approverWorkflows)
+      const count = selectedUsers.length
+      toast.success(t('approval-dialog-toast', { count }))
 
-        const count = selectedUsers.length
-        toast.success(t('approval-dialog-toast', { count }))
-
-        // Close dialog after a short delay
-        setTimeout(() => {
-          onOpenChange(false)
-        }, 1500)
-      } else {
-        setError(result.error || t('approval-dialog-error-send'))
-      }
+      // Close dialog after a short delay
+      setTimeout(() => {
+        onOpenChange(false)
+      }, 1500)
     } catch (err) {
       console.error('[SendForApproval] Submit failed:', err)
       setError(err instanceof Error ? err.message : t('approval-dialog-error-send'))
     } finally {
       setIsSubmitting(false)
     }
-  }, [
-    selectedUsers,
-    message,
-    dueDate,
-    documentId,
-    documentTitle,
-    documentPath,
-    currentUserId,
-    currentUserName,
-    accessToken,
-    onApprovalSent,
-    onOpenChange,
-    shareDocument,
-    t
-  ])
+  }, [selectedUsers, message, dueDate, documentId, accessToken, onApprovalSent, onOpenChange, shareDocument, t])
 
   // Calculate minimum date (today)
   const minDate = new Date().toISOString().split('T')[0]
@@ -472,33 +284,29 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
                 <div className="gba:relative gba:z-50">
                   <div className="gba:max-h-40 gba:overflow-y-auto gba:border gba:rounded-md gba:bg-card gba:shadow-lg">
                     <div className="gba:p-1">
-                      {filteredResults.map(user => {
-                        const isSelected = selectedUsers.some(u => u.id === user.id)
-                        return (
-                          <button
-                            key={user.id}
-                            type="button"
-                            className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-2 gba:rounded-md hover:gba:bg-muted gba:transition-colors gba:text-left"
-                            onClick={() => toggleUser(user)}
-                          >
-                            <Checkbox checked={isSelected} className="gba:pointer-events-none" />
-                            <Avatar className="gba:h-8 gba:w-8">
-                              {user.pictureThumbnail && (
-                                <AvatarImage src={getAvatarUrl(user.pictureThumbnail)} alt={user.displayName} />
-                              )}
-                              <AvatarFallback className="gba:text-xs">{getInitials(user.displayName)}</AvatarFallback>
-                            </Avatar>
-                            <div className="gba:flex-1 gba:min-w-0">
-                              <p className="gba:font-medium gba:text-sm gba:truncate">{user.displayName}</p>
-                              {(user.jobPositionName || user.organizationalUnitName) && (
-                                <p className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                                  {[user.jobPositionName, user.organizationalUnitName].filter(Boolean).join(' • ')}
-                                </p>
-                              )}
-                            </div>
-                          </button>
-                        )
-                      })}
+                      {filteredResults.map(user => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-2 gba:rounded-md hover:gba:bg-muted gba:transition-colors gba:text-left"
+                          onClick={() => toggleUser(user)}
+                        >
+                          <Avatar className="gba:h-8 gba:w-8">
+                            {user.pictureThumbnail && (
+                              <AvatarImage src={getAvatarUrl(user.pictureThumbnail)} alt={user.displayName} />
+                            )}
+                            <AvatarFallback className="gba:text-xs">{getInitials(user.displayName)}</AvatarFallback>
+                          </Avatar>
+                          <div className="gba:flex-1 gba:min-w-0">
+                            <p className="gba:font-medium gba:text-sm gba:truncate">{user.displayName}</p>
+                            {(user.jobPositionName || user.organizationalUnitName) && (
+                              <p className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                                {[user.jobPositionName, user.organizationalUnitName].filter(Boolean).join(' • ')}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>

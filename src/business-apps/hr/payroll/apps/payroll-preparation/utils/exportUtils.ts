@@ -1,9 +1,13 @@
 import ExcelJS from 'exceljs'
 import type { PayrollEmployee, ExportOptions, PayrollRun } from '../types/payrollTypes'
 
+function sanitizeExportText(value: string): string {
+  return value.replace(/[\u200e\u200f\u2066\u2067\u2068\u2069]/g, '')
+}
+
 function escapeCSVField(value: string | number | boolean | null | undefined): string {
   if (value == null) return ''
-  const str = String(value)
+  const str = sanitizeExportText(String(value))
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {
     return `"${str.replace(/"/g, '""')}"`
   }
@@ -68,7 +72,7 @@ function toOptionalStringValue(value: string | number | boolean | null | undefin
     return ''
   }
 
-  return String(value)
+  return sanitizeExportText(String(value))
 }
 
 function employeeToRow(employee: PayrollEmployee, includeIssues: boolean): string[] {
@@ -168,12 +172,12 @@ export function generateExceptionsCSV(employees: PayrollEmployee[]): string {
     for (const issue of emp.issues) {
       rows.push([
         emp.employeeId,
-        `${emp.firstName} ${emp.lastName}`,
+        emp.fullName,
         issue.issueCode,
         issue.category,
         issue.severity,
-        issue.message,
-        issue.recommendedAction,
+        sanitizeExportText(issue.message),
+        sanitizeExportText(issue.recommendedAction),
         issue.status
       ])
     }
@@ -183,6 +187,55 @@ export function generateExceptionsCSV(employees: PayrollEmployee[]): string {
   const dataRows = rows.map(row => row.map(escapeCSVField).join(','))
 
   return [headerRow, ...dataRows].join('\n')
+}
+
+export async function generateExceptionsXLSX(employees: PayrollEmployee[]): Promise<Blob> {
+  const headers = [
+    'Employee ID',
+    'Employee Name',
+    'Issue Code',
+    'Category',
+    'Severity',
+    'Message',
+    'Recommended Action',
+    'Status'
+  ]
+
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'Payroll Preparation'
+  workbook.created = new Date()
+
+  const dataSheet = workbook.addWorksheet('Exceptions')
+  const headerRow = dataSheet.addRow(headers)
+  const HEADER_BG = 'FFF2F2F2'
+
+  headerRow.eachCell(cell => {
+    cell.font = { bold: true }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } }
+    cell.border = { bottom: { style: 'thin' } }
+  })
+
+  for (const emp of employees) {
+    for (const issue of emp.issues) {
+      dataSheet.addRow([
+        emp.employeeId,
+        emp.fullName,
+        issue.issueCode,
+        issue.category,
+        issue.severity,
+        sanitizeExportText(issue.message),
+        sanitizeExportText(issue.recommendedAction),
+        issue.status
+      ])
+    }
+  }
+
+  dataSheet.columns.forEach(col => {
+    col.width = Math.max(16, (col.header?.toString().length ?? 0) + 4)
+  })
+
+  const buffer = await workbook.xlsx.writeBuffer()
+  return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
 }
 
 export async function generatePayrollXLSX(
@@ -243,5 +296,5 @@ export function downloadBlob(blob: Blob, filename: string): void {
 }
 
 export function downloadCSV(content: string, filename: string): void {
-  downloadBlob(new Blob([content], { type: 'text/csv;charset=utf-8;' }), filename)
+  downloadBlob(new Blob(['\uFEFF', content], { type: 'text/csv;charset=utf-8;' }), filename)
 }

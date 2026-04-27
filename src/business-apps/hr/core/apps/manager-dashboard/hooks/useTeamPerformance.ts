@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { computeContainedGoalRollup } from '../utils/managerPerformanceGoalMetrics'
+import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
 
 export interface PerformanceGoal {
   id: string
@@ -10,6 +12,8 @@ export interface PerformanceGoal {
   progressPercent: number
   status: 'ON_TRACK' | 'BEHIND_TARGET' | 'AT_RISK' | 'ACHIEVED' | 'NOT_ACHIEVED'
   employeeId: string
+  /** Timeline-based track state (aligned with employee-record Performance / Goals KPIs) */
+  trackState?: 'ON_TRACK' | 'BEHIND_TARGET'
 }
 
 export interface TeamMemberPerformance {
@@ -25,6 +29,7 @@ export interface TeamMemberPerformance {
   goalsOnTrack: number
   goalsAtRisk: number
   goalsBehindTarget: number
+  goalsAchieved: number
 }
 
 export interface TeamPerformanceResult {
@@ -34,6 +39,7 @@ export interface TeamPerformanceResult {
   goalsOnTrack: number
   goalsAtRisk: number
   goalsBehindTarget: number
+  goalsAchieved: number
   loading: boolean
   error: Error | null
   refetch: () => void
@@ -55,6 +61,7 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
   const [goalsOnTrack, setGoalsOnTrack] = useState(0)
   const [goalsAtRisk, setGoalsAtRisk] = useState(0)
   const [goalsBehindTarget, setGoalsBehindTarget] = useState(0)
+  const [goalsAchieved, setGoalsAchieved] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -84,6 +91,9 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
             firstName
             lastName
             pictureThumbnail
+            workingCondition {
+              hireDate
+            }
             employeePosition {
               jobPosition {
                 name
@@ -94,7 +104,7 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
       `
 
       const directReportsResponse = await graphQLClient.request(directReportsQuery, { managerId })
-      const employees = directReportsResponse?.Employee || []
+      const employees = filterEmployeesByStartedEmployment(directReportsResponse?.Employee || [])
 
       if (employees.length === 0) {
         setTeamPerformance([])
@@ -103,20 +113,99 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
         setGoalsOnTrack(0)
         setGoalsAtRisk(0)
         setGoalsBehindTarget(0)
+        setGoalsAchieved(0)
         setLoading(false)
         return
       }
 
-      // Get employee IDs for the next query
       const employeeIds = employees.map((emp: any) => emp.id)
 
-      // Step 2: Query EmployeePerformanceGoal directly for all team members
+      const today = new Date().toISOString()
+      const currentCycleQuery = `
+        query GetCurrentPerformanceCycle($today: timestamp!) {
+          PerformanceCycle(
+            where: {
+              isDeleted: { _eq: false },
+              evaluationPeriodStartDate: { _lte: $today },
+              evaluationPeriodEndDate: { _gte: $today }
+            },
+            limit: 1,
+            orderBy: { evaluationPeriodStartDate: DESC }
+          ) {
+            id
+            name
+            startDate
+            endDate
+            evaluationPeriodStartDate
+            evaluationPeriodEndDate
+          }
+        }
+      `
+
+      const cycleResponse = await graphQLClient.request(currentCycleQuery, { today })
+      let currentCycle = cycleResponse?.PerformanceCycle?.[0]
+      let currentCycleId: string | null = currentCycle?.id ?? null
+
+      if (!currentCycleId) {
+        const activeCycleQuery = `
+          query GetActivePerformanceCycleForGoals {
+            PerformanceCycle(
+              where: {
+                isDeleted: { _eq: false },
+                status: { _eq: "ACTIVE_PERFORMANCE_CYCLE_STATUS" }
+              },
+              limit: 1,
+              orderBy: { evaluationPeriodStartDate: DESC }
+            ) {
+              id
+              name
+              startDate
+              endDate
+              evaluationPeriodStartDate
+              evaluationPeriodEndDate
+            }
+          }
+        `
+        const activeResponse = await graphQLClient.request(activeCycleQuery)
+        currentCycle = activeResponse?.PerformanceCycle?.[0]
+        currentCycleId = currentCycle?.id ?? null
+      }
+
+      if (!currentCycleId) {
+        setTeamPerformance(
+          employees.map((emp: any) => ({
+            employeeId: emp.id,
+            userId: emp.userId || emp.id,
+            firstName: emp.firstName,
+            lastName: emp.lastName,
+            pictureThumbnail: emp.pictureThumbnail,
+            jobPositionName: emp.employeePosition?.[0]?.jobPosition?.name || '',
+            goals: [],
+            averageProgress: 0,
+            totalGoals: 0,
+            goalsOnTrack: 0,
+            goalsAtRisk: 0,
+            goalsBehindTarget: 0,
+            goalsAchieved: 0
+          }))
+        )
+        setAverageTeamProgress(0)
+        setTotalGoals(0)
+        setGoalsOnTrack(0)
+        setGoalsAtRisk(0)
+        setGoalsBehindTarget(0)
+        setGoalsAchieved(0)
+        setLoading(false)
+        return
+      }
+
       const performanceGoalsQuery = `
-        query GetTeamPerformanceGoals($employeeIds: [uuid!]!) {
+        query GetTeamPerformanceGoals($employeeIds: [uuid!]!, $cycleId: uuid!) {
           EmployeePerformanceGoal(
             where: {
               employeeId: { _in: $employeeIds },
-              isDeleted: { _eq: false }
+              isDeleted: { _eq: false },
+              performanceCycleId: { _eq: $cycleId }
             },
             orderBy: { progressPercent: DESC }
           ) {
@@ -128,22 +217,38 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
             progressPercent
             status
             employeeId
+            performanceCycleId
+            updatedAt
+            employeePerformanceGoalUpdate(orderBy: { updateTime: ASC }) {
+              id
+              progressPercent
+              comment
+              updateTime
+              employee {
+                firstName
+                lastName
+              }
+            }
           }
         }
       `
 
-      const goalsResponse = await graphQLClient.request(performanceGoalsQuery, { employeeIds })
-      const allGoals: PerformanceGoal[] = goalsResponse?.EmployeePerformanceGoal || []
+      const goalsResponse = await graphQLClient.request(performanceGoalsQuery, {
+        employeeIds,
+        cycleId: currentCycleId
+      })
+      const allGoals = goalsResponse?.EmployeePerformanceGoal || []
 
-      // Step 3: Group goals by employee and calculate stats
-      const goalsByEmployee = new Map<string, PerformanceGoal[]>()
+      const cycleStart = currentCycle?.evaluationPeriodStartDate || currentCycle?.startDate || ''
+      const cycleEnd = currentCycle?.evaluationPeriodEndDate || currentCycle?.endDate || ''
 
-      // Initialize map with empty arrays for all employees
+      // Step 3: Group raw goals by employee, then apply same containment + track rules as employee-record
+      const goalsByEmployee = new Map<string, typeof allGoals>()
+
       for (const empId of employeeIds) {
         goalsByEmployee.set(empId, [])
       }
 
-      // Populate goals
       for (const goal of allGoals) {
         const empGoals = goalsByEmployee.get(goal.employeeId)
         if (empGoals) {
@@ -151,47 +256,49 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
         }
       }
 
-      // Calculate team-wide stats
       let allGoalsProgress = 0
       let allGoalsCount = 0
       let onTrackCount = 0
       let atRiskCount = 0
       let behindTargetCount = 0
+      let achievedCount = 0
 
       const teamData: TeamMemberPerformance[] = employees.map((emp: any) => {
-        const goals = goalsByEmployee.get(emp.id) || []
+        const rawGoals = goalsByEmployee.get(emp.id) || []
+        const rollup =
+          cycleStart && cycleEnd
+            ? computeContainedGoalRollup(rawGoals, cycleStart, cycleEnd)
+            : {
+                goals: [] as PerformanceGoal[],
+                totalGoals: 0,
+                goalsOnTrack: 0,
+                goalsAtRisk: 0,
+                goalsBehindTarget: 0,
+                goalsAchieved: 0,
+                averageProgress: 0
+              }
 
-        // Calculate stats for this employee
-        const employeeGoalsOnTrack = goals.filter(g => g.status === 'ON_TRACK' || g.status === 'ACHIEVED').length
-        const employeeGoalsAtRisk = goals.filter(g => g.status === 'AT_RISK').length
-        const employeeGoalsBehindTarget = goals.filter(
-          g => g.status === 'BEHIND_TARGET' || g.status === 'NOT_ACHIEVED'
-        ).length
-
-        // Calculate average progress for this employee
-        const avgProgress =
-          goals.length > 0 ? Math.round(goals.reduce((sum, g) => sum + (g.progressPercent || 0), 0) / goals.length) : 0
-
-        // Accumulate team totals
-        allGoalsCount += goals.length
-        allGoalsProgress += goals.reduce((sum, g) => sum + (g.progressPercent || 0), 0)
-        onTrackCount += employeeGoalsOnTrack
-        atRiskCount += employeeGoalsAtRisk
-        behindTargetCount += employeeGoalsBehindTarget
+        allGoalsCount += rollup.totalGoals
+        allGoalsProgress += rollup.totalGoals > 0 ? rollup.averageProgress * rollup.totalGoals : 0
+        onTrackCount += rollup.goalsOnTrack
+        atRiskCount += rollup.goalsAtRisk
+        behindTargetCount += rollup.goalsBehindTarget
+        achievedCount += rollup.goalsAchieved
 
         return {
           employeeId: emp.id,
-          userId: emp.userId || emp.id, // Fallback to employee ID if userId doesn't exist
+          userId: emp.userId || emp.id,
           firstName: emp.firstName,
           lastName: emp.lastName,
           pictureThumbnail: emp.pictureThumbnail,
           jobPositionName: emp.employeePosition?.[0]?.jobPosition?.name || '',
-          goals,
-          averageProgress: avgProgress,
-          totalGoals: goals.length,
-          goalsOnTrack: employeeGoalsOnTrack,
-          goalsAtRisk: employeeGoalsAtRisk,
-          goalsBehindTarget: employeeGoalsBehindTarget
+          goals: rollup.goals,
+          averageProgress: rollup.averageProgress,
+          totalGoals: rollup.totalGoals,
+          goalsOnTrack: rollup.goalsOnTrack,
+          goalsAtRisk: rollup.goalsAtRisk,
+          goalsBehindTarget: rollup.goalsBehindTarget,
+          goalsAchieved: rollup.goalsAchieved
         }
       })
 
@@ -204,6 +311,7 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
       setGoalsOnTrack(onTrackCount)
       setGoalsAtRisk(atRiskCount)
       setGoalsBehindTarget(behindTargetCount)
+      setGoalsAchieved(achievedCount)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch team performance'))
       console.error('Error fetching team performance:', err)
@@ -223,6 +331,7 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
     goalsOnTrack,
     goalsAtRisk,
     goalsBehindTarget,
+    goalsAchieved,
     loading,
     error,
     refetch: () => {

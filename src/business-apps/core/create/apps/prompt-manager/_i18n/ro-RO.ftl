@@ -1,14 +1,14 @@
-# Task Expert Studio Translations (Romanian)
+# Enterprise Agent Studio Translations (Romanian)
 
 # Page Header
-page-title = Studio experti AI pentru sarcini
-page-description = Creati experti AI pentru sarcini din prompturi si testati integrarile.
+page-title = Enterprise Agent Studio
+page-description = Creati agenți din prompturi si testati integrarile.
 
 # Section
-section-label = Experti AI pentru sarcini
+section-label = Agenți
 
 # Actions
-new-task-expert = AI Task Expert nou
+new-task-expert = Enterprise Agent nou
 view = Vizualizare
 edit = Editare
 test = Testare
@@ -17,13 +17,13 @@ added-to-mesh = Adaugat in Mesh
 already-in-mesh = Deja in Mesh
 
 # Tabs
-tab-task-experts = Experti AI pentru sarcini
+tab-task-experts = Agenți
 tab-tools = Setări
 tab-monitoring = Monitoring
 tab-dashboard = Dashboard
 
 # Search
-search-placeholder = Cautati experti AI pentru sarcini...
+search-placeholder = Cautati agenți...
 
 # Navigation / Common actions
 back = Inapoi
@@ -65,12 +65,31 @@ agent-type-decision = Decizie
 badge-public = Public
 
 # Empty State
-empty-message = Nu s-au gasit AI task experts. Faceti clic pe 'AI Task Expert nou' pentru a crea unul.
+empty-message = Nu s-au gasit agenți. Faceti clic pe 'Enterprise Agent nou' pentru a crea unul.
 
 # Editor
-create-task-expert = Creare AI Task Expert
-edit-task-expert = Editare AI Task Expert
-view-task-expert = AI Task Expert
+create-task-expert = Creare Enterprise Agent
+edit-task-expert = Editare Agent
+view-task-expert = Agent
+
+# Form errors
+form-error-create-failed = Crearea agentului a esuat
+form-error-load-failed = Incarcarea agentilor a esuat
+form-error-generate-failed = Generarea agentului a esuat
+
+# Test panel
+test-dialog-title = Testeaza agentul
+
+# Tools space
+tools-space-card-description = Gestionati conexiunile serverelor MCP pentru agenți
+
+# MCP tools panel
+mcp-tools-configure-help-prefix = Alegeți ce acțiuni poate apela acest agent pentru
+mcp-tools-configure-help-fallback = acest server MCP
+
+# Internal tools panel
+internal-tools-step-add-to-agent = Adaugati functia ca tool in agentul dvs.
+internal-tools-dialog-description = Tools predefinite pentru agenți pentru interacțiunea cu datele platformei.
 
 # View Mode
 view-edit-button = Configuratie

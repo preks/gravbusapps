@@ -1,14 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getSkillValidationError } from '../utils/addSkillUtils'
-import type { AddSkillFormValues, PendingSkill, SelectedSkill, SkillOption } from '../addSkill.types'
+import type { AddSkillFormValues, SelectedSkill, SkillOption } from '../addSkill.types'
 
 interface UseAddSkillFormControllerParams {
   employee: any
   flowFormParams: any
   changeLevelParams: any
   searchSkills: (term: string) => Promise<any[]>
-  createSkillAndFetchByNames: (name: string, existingNames: string[]) => Promise<Array<{ id: string; name: string }>>
-  t: (key: string, args?: Record<string, unknown>) => string
 }
 
 const clampLevel = (level: string | number | null | undefined) => {
@@ -21,18 +19,15 @@ export const useAddSkillFormController = ({
   employee,
   flowFormParams,
   changeLevelParams,
-  searchSkills,
-  createSkillAndFetchByNames,
-  t
+  searchSkills
 }: UseAddSkillFormControllerParams) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [results, setResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [selectedSkills, setSelectedSkills] = useState<SelectedSkill[]>([])
-  const [pendingSkills, setPendingSkills] = useState<PendingSkill[]>([])
+  const [skillsToAssign, setSkillsToAssign] = useState<SelectedSkill[]>([])
   const [inputKey, setInputKey] = useState(0)
-  const [addedNames, setAddedNames] = useState<string[]>([])
   const [addError, setAddError] = useState<string | null>(null)
   const [verificationFileList, setVerificationFileList] = useState<any[]>([])
 
@@ -47,18 +42,17 @@ export const useAddSkillFormController = ({
 
   const filteredResults = useMemo(() => {
     const selectedIdSet = new Set(selectedSkills.map(s => s.id))
-    const selectedNameSet = new Set(selectedSkills.map(s => (s.name || '').trim().toLowerCase()))
-    const pendingIdSet = new Set(pendingSkills.map(s => s.id))
-    const pendingNameSet = new Set(pendingSkills.map(s => (s.name || '').trim().toLowerCase()))
+    const assignIdSet = new Set(skillsToAssign.map(s => s.id))
+    const assignNameSet = new Set(skillsToAssign.map(s => (s.name || '').trim().toLowerCase()))
 
     return (results || []).filter((sk: any) => {
       const id = sk?.id
       const nameKey = (sk?.name || '').trim().toLowerCase()
-      if (id && (selectedIdSet.has(id) || pendingIdSet.has(id))) return false
-      if (nameKey && (selectedNameSet.has(nameKey) || pendingNameSet.has(nameKey))) return false
+      if (id && (selectedIdSet.has(id) || assignIdSet.has(id))) return false
+      if (nameKey && assignNameSet.has(nameKey)) return false
       return true
     })
-  }, [results, selectedSkills, pendingSkills])
+  }, [results, selectedSkills, skillsToAssign])
 
   const existingSkillsList = useMemo(
     () =>
@@ -117,6 +111,8 @@ export const useAddSkillFormController = ({
       return initialLevel === currentLevel
     }
 
+    if (skillsToAssign.length > 0) return false
+
     const skillsChanged =
       initialSkillMap.size !== currentSkillMap.size ||
       Array.from(initialSkillMap.keys()).some(id => !currentSkillMap.has(id)) ||
@@ -128,7 +124,14 @@ export const useAddSkillFormController = ({
     })
 
     return !(skillsChanged || levelsChanged)
-  }, [existingSkillsList, selectedSkills, changeLevelParams?.skillId, flowFormParams?.mode, verificationFileList])
+  }, [
+    existingSkillsList,
+    selectedSkills,
+    skillsToAssign,
+    changeLevelParams?.skillId,
+    flowFormParams?.mode,
+    verificationFileList
+  ])
 
   const activeSelectedSkills = useMemo(
     () =>
@@ -198,22 +201,15 @@ export const useAddSkillFormController = ({
 
   const handleSelectSkill = useCallback(
     (skill: SkillOption) => {
-      setPendingSkills(prev => (prev.some(x => x.id === skill.id) ? prev : [...prev, { ...skill, level: 1 }]))
+      setSkillsToAssign(prev =>
+        prev.some(x => x.id === skill.id) ? prev : [...prev, { ...skill, isNew: false, level: 1 }]
+      )
       resetSearchInputState()
     },
     [resetSearchInputState]
   )
 
-  const applyFetchedToPending = useCallback(
-    (prev: PendingSkill[], fetched: SkillOption[]): PendingSkill[] =>
-      prev.map(s => {
-        const resolved = fetched.find(r => r.name.toLowerCase() === s.name.toLowerCase())
-        return resolved === undefined ? s : { id: resolved.id, name: resolved.name, level: s.level }
-      }),
-    []
-  )
-
-  const handleAddNewSkill = useCallback(async () => {
+  const handleAddNewSkill = useCallback(() => {
     const name = searchTerm.trim()
     if (!name) return
 
@@ -225,21 +221,13 @@ export const useAddSkillFormController = ({
 
     setAddError(null)
     const newId = `new-${nextNewIdRef.current++}`
-    setPendingSkills(prev => {
+    setSkillsToAssign(prev => {
       if (prev.some(s => s.name.toLowerCase() === name.toLowerCase())) return prev
-      return [...prev, { id: newId, name, level: 1 }]
+      return [...prev, { id: newId, name, isNew: true, level: 1 }]
     })
-    setAddedNames(prev => Array.from(new Set([...prev, name])))
-
-    try {
-      const fetched = await createSkillAndFetchByNames(name, addedNames)
-      setPendingSkills(prev => applyFetchedToPending(prev, fetched))
-    } catch (error) {
-      setAddError(error instanceof Error ? error.message : t('add-skill-form-skill-add-error'))
-    }
 
     resetSearchInputState()
-  }, [searchTerm, createSkillAndFetchByNames, addedNames, applyFetchedToPending, t, resetSearchInputState])
+  }, [searchTerm, resetSearchInputState])
 
   const runBlurCloseCheck = useCallback((relatedTarget: HTMLElement | null) => {
     if (
@@ -320,25 +308,16 @@ export const useAddSkillFormController = ({
     setSelectedSkills(prev => prev.filter(s => s.id !== id))
   }, [])
 
-  const handleRemovePendingSkill = useCallback((id: string) => {
-    setPendingSkills(prev => prev.filter(s => s.id !== id))
+  const handleRemoveSkillToAssign = useCallback((id: string) => {
+    setSkillsToAssign(prev => prev.filter(s => s.id !== id))
   }, [])
 
-  const handleUpdatePendingSkillLevel = useCallback((id: string, level: number) => {
-    setPendingSkills(prev => prev.map(s => (s.id === id ? { ...s, level } : s)))
+  const handleUpdateSkillToAssignLevel = useCallback((id: string, level: number) => {
+    setSkillsToAssign(prev => prev.map(s => (s.id === id ? { ...s, level } : s)))
   }, [])
 
   const handleUpdateExistingSkillLevel = useCallback((id: string, level: number) => {
     setSelectedSkills(prev => prev.map(s => (s.id === id ? { ...s, level } : s)))
-  }, [])
-
-  const handleAddPendingSkillToEmployee = useCallback((pendingSkill: PendingSkill) => {
-    setSelectedSkills(prev =>
-      prev.some(x => x.id === pendingSkill.id)
-        ? prev
-        : [...prev, { id: pendingSkill.id, name: pendingSkill.name, isNew: false, level: pendingSkill.level }]
-    )
-    setPendingSkills(prev => prev.filter(s => s.id !== pendingSkill.id))
   }, [])
 
   return {
@@ -353,7 +332,7 @@ export const useAddSkillFormController = ({
     isDropdownOpen,
     setIsDropdownOpen,
     selectedSkills,
-    pendingSkills,
+    skillsToAssign,
     inputKey,
     addError,
     verificationFileList,
@@ -365,9 +344,8 @@ export const useAddSkillFormController = ({
     handleSearchBlur,
     handleSearchFocus,
     handleRemoveSkill,
-    handleRemovePendingSkill,
-    handleUpdatePendingSkillLevel,
-    handleUpdateExistingSkillLevel,
-    handleAddPendingSkillToEmployee
+    handleRemoveSkillToAssign,
+    handleUpdateSkillToAssignLevel,
+    handleUpdateExistingSkillLevel
   }
 }

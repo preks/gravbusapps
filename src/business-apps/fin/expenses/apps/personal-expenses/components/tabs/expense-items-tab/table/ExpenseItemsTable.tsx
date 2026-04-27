@@ -4,7 +4,6 @@ import React, { useState, useCallback, useMemo } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useGetExpenseItems, ExpenseFilter, type ExpenseItem } from '../../../../hooks/useGetExpenseItems'
 import { useExpenseCurrencies, type CurrencyStat } from '../../../../hooks/useExpenseCurrencies'
-import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { createExpenseItemColumns } from './expenseItemColumns'
 import { createExpenseItemSortableColumns } from '../config/expenseItemSortableColumns'
@@ -27,7 +26,6 @@ export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   addFilter: (filterId: string) => void
   removeFilter: (filterId: string) => void
   clearFilters: () => void
-  filterGroups: DataFilterGroup[]
   filterLabelMap: Record<string, string>
   getFilters: (filtersToApply?: string[]) => ExpenseFilter
   setFilters: (filters: string[]) => void
@@ -162,7 +160,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   const emptyMessage = useEmptyMessage(
     hasActiveFilters,
     'lowcoder:personal_expenses.no_expense_items_found',
-    'No expense items found. Create your first expense item to get started.'
+    'No expense items found. Create your first expense item to get started.',
+    tPersonal('table-empty-filtered')
   )
 
   const columns = useMemo<ColumnDef<ExpenseItem>[]>(

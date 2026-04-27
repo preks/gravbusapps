@@ -320,6 +320,7 @@ export interface UsePagedDocumentSelectionSidebarsParams {
   isHeaderFooterEditing: boolean
   headerFooterSettingsSessionOpen: boolean
   rightSidebar: RightSidebar
+  isReviewMode?: boolean
 }
 
 export interface UsePagedDocumentSelectionSidebarsResult {
@@ -353,7 +354,8 @@ export function usePagedDocumentSelectionSidebars({
   activeHeaderFooterType,
   isHeaderFooterEditing,
   headerFooterSettingsSessionOpen,
-  rightSidebar
+  rightSidebar,
+  isReviewMode = false
 }: UsePagedDocumentSelectionSidebarsParams): UsePagedDocumentSelectionSidebarsResult {
   const replaceImagePosRef = useRef<number | null>(null)
   const [selectedImageSidebar, setSelectedImageSidebar] = useState<SelectedImageSidebarState>(CLOSED_IMAGE_SIDEBAR)
@@ -458,6 +460,12 @@ export function usePagedDocumentSelectionSidebars({
   }, [])
 
   useEffect(() => {
+    if (isReviewMode) {
+      replaceImagePosRef.current = null
+      setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
+      return
+    }
+
     if (!editor && !activeEditor) {
       replaceImagePosRef.current = null
       setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
@@ -591,9 +599,14 @@ export function usePagedDocumentSelectionSidebars({
         ed.off('transaction', transactionFn)
       }
     }
-  }, [activeEditor, editor, setSelectedImageSidebarState])
+  }, [activeEditor, editor, isReviewMode, setSelectedImageSidebarState])
 
   useEffect(() => {
+    if (isReviewMode) {
+      setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
+      return
+    }
+
     if (!editor && !activeEditor) {
       setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
       return
@@ -712,9 +725,14 @@ export function usePagedDocumentSelectionSidebars({
         ed.off('transaction', transactionFn)
       }
     }
-  }, [activeEditor, editor, setSelectedTableSidebarState])
+  }, [activeEditor, editor, isReviewMode, setSelectedTableSidebarState])
 
   useEffect(() => {
+    if (isReviewMode) {
+      setSelectedSignatureSidebarState(CLOSED_SIGNATURE_SIDEBAR)
+      return
+    }
+
     if (!editor && !activeEditor) {
       setSelectedSignatureSidebarState(CLOSED_SIGNATURE_SIDEBAR)
       return
@@ -846,7 +864,7 @@ export function usePagedDocumentSelectionSidebars({
         ed.off('transaction', transactionFn)
       }
     }
-  }, [activeEditor, editor, setSelectedSignatureSidebarState])
+  }, [activeEditor, editor, isReviewMode, setSelectedSignatureSidebarState])
 
   useEffect(() => {
     if (!selectedImageSidebar.open) return
@@ -1031,6 +1049,7 @@ export function usePagedDocumentSelectionSidebars({
   }, [setSelectedSignatureSidebarState])
 
   const openTableSettingsSidebar = useCallback(() => {
+    if (isReviewMode) return
     if (!activeEditor) return
 
     const selection = getSelectedTableState(activeEditor)
@@ -1041,7 +1060,7 @@ export function usePagedDocumentSelectionSidebars({
       editor: activeEditor,
       tablePos: selection.tablePos
     })
-  }, [activeEditor, setSelectedTableSidebarState])
+  }, [activeEditor, isReviewMode, setSelectedTableSidebarState])
 
   const presentationState = resolveSidebarPresentationState({
     rightSidebar,

@@ -40,7 +40,7 @@ sh-parent-label = Every Office
 sh-title = Foi de calcul
 sh-tabs-aria-label = Secțiuni foi de calcul
 sh-tab-my-files = Foile mele
-sh-tab-shared = Partajate cu mine
+sh-tab-shared = Partajate
 sh-tab-tasks = Sarcinile mele
 sh-tab-recent = Recente
 sh-tab-automations = Automatizări
@@ -74,7 +74,7 @@ action-sort-name = Nume
 action-sort-modified = Modificat
 action-sort-created = Creat
 action-search-placeholder = Caută...
-header-search-placeholder = Caută foi de calcul...
+spreadsheets-header-search-placeholder = Caută foi de calcul...
 header-refresh = Reîmprospătează
 sort-name = Nume
 sort-trashed = Mutat în coș la
@@ -88,9 +88,39 @@ table-modified-by = Modificat de
 table-rows = Rânduri
 
 # Empty states
-empty-trash-title = Nicio foaie de calcul în coș
-empty-trash-description = Foile de calcul mutate în coș vor apărea aici.
+spreadsheets-empty-trash-title = Nicio foaie de calcul în coș
+spreadsheets-empty-trash-description = Foile de calcul mutate în coș vor apărea aici.
 rows-label = rânduri
+app-preview-sheet-count = { $count } { $count ->
+  [one] foaie
+ *[other] foi
+}
+app-preview-row-count = { $count } { $count ->
+  [one] rând
+ *[other] rânduri
+}
+app-preview-status-draft = Ciornă
+app-preview-status-file-based = Bazată pe fișier
+app-preview-status-database = Bază de date
+app-preview-status-archived = Arhivată
+app-preview-manage-sharing = Gestionează partajarea
+app-preview-promote-database = Transformă în bază de date
+app-preview-owner-tooltip = Proprietar: { $name }
+app-preview-shared-with-you = Partajată cu tine
+app-preview-shared-by = de { $name }
+app-preview-can-edit = Poate edita
+app-preview-view-only = Doar vizualizare
+app-preview-permission-view = vizualizare
+app-preview-permission-comment = comentare
+app-preview-permission-edit = editare
+app-preview-shared = Partajată
+app-preview-shared-with-count = Partajată cu { $count } { $count ->
+  [one] persoană
+ *[other] persoane
+}
+app-preview-more-people = încă { $count } persoane
+app-preview-no-apps-title = Nicio aplicație încă
+app-preview-no-apps-description = Încarcă un fișier Excel pentru a-l transforma într-o aplicație de business puternică. AI îți va analiza datele și va sugera cea mai bună structură pentru aplicație.
 
 # Empty states
 empty-no-favorites = Niciun favorit încă
@@ -118,6 +148,7 @@ action-delete-spreadsheet = Șterge
 
 # Spreadsheet Actions Menu (dropdown under Spreadsheet button)
 menu-spreadsheet = Foaie de calcul
+menu-coming-soon = În curând
 menu-version-history = Istoric versiuni
 menu-save-checkpoint = Salvează checkpoint
 menu-lock-spreadsheet = Blochează foaia
@@ -130,6 +161,10 @@ menu-manage-columns = Gestionează coloanele
 menu-ai-analytics = Analiză AI
 menu-automations = Automatizări
 menu-check-collection-responses = Verifică răspunsurile colectării
+status-indicator-live = Live
+status-indicator-active-count = { $count } activi
+status-indicator-collaboration-live = Colaborarea în timp real este activă. Ceilalți vor apărea când se conectează.
+status-indicator-data-source-connected = Conectat la sursa de date { $name }
 menu-settings = Setări
 
 # AI Capability Menu
@@ -417,6 +452,11 @@ time-hours-ago = acum { $count } ore
 time-yesterday = Ieri
 time-days-ago = acum { $count } zile
 
+# User fallback
+editor-user-fallback = Utilizator
+editor-user-unknown = Necunoscut
+editor-user-id-fallback = Utilizator { $id }
+
 # Table - unknown owner
 table-unknown-owner = Necunoscut
 
@@ -516,6 +556,7 @@ persist-rows-add-failed = Rândurile noi nu au putut fi salvate.
 persist-snapshot-failed = Aspectul foii nu a putut fi salvat pe server.
 persist-recovery-failed = Conflictul de salvare nu a putut fi rezolvat. Te rugăm să reîncarci pagina.
 persist-snapshot-too-large = Formatarea nu a putut fi salvată deoarece foaia este prea mare. Datele celulelor sunt în continuare salvate.
+unsaved-leave-confirm = Există modificări nesalvate care nu au fost încă trimise la server. Părăsești foaia oricum?
 
 # Share App Dialog
 share-dialog-title = Partajează „{ $name }"
@@ -638,6 +679,19 @@ sheets-ai-no-review = Încă nu există verificare
 sheets-ai-review-empty-description = Rulează verificarea inteligentă pentru a evalua calitatea foii și a evidenția îmbunătățiri.
 sheets-ai-no-insights = Încă nu există perspective
 sheets-ai-run-insights = Rulează perspectivele AI
+ai-default-unknown = Necunoscut
+ai-default-view-name = Vizualizare implicită
+ai-default-sheet-name = Foaie
+ai-default-purpose = Stocare de date
+ai-default-view-table-name = Vizualizare tabel
+ai-default-view-table-description = Vezi și editează toate datele într-un format tabelar
+ai-default-view-form-name = Vizualizare formular
+ai-default-view-form-description = Adaugă și editează înregistrări folosind un formular
+ai-default-view-kanban-name = Panou Kanban
+ai-default-view-kanban-description = Vizualizează după { $column }
+ai-default-view-dashboard-name = Dashboard
+ai-default-view-dashboard-description = Vizualizează indicatorii cheie și tendințele
+ai-analysis-failed = Analiza a eșuat. Te rugăm să încerci din nou sau să încarci un alt fișier.
 slides-load-failed = Nu s-au putut încărca prezentările
 slides-select-presentation = Selectează o prezentare
 slides-chart-export-failed = Diagrama nu a putut fi exportată ca imagine
@@ -760,6 +814,8 @@ link-editor-title-placeholder = Introduceți textul linkului
 link-editor-url-label = URL
 link-editor-url-placeholder = https://example.com
 link-editor-open-new-tab = Deschide în filă nouă
+link-editor-open-link = Deschide linkul
+univer-link-view-response = Vezi răspunsul
 link-editor-save = Salvează
 column-type-edit-column = Editare coloană
 column-type-display-label = Etichetă afișată

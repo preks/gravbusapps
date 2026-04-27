@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircle, XCircle, SparkleIcon, CaretDown, CaretUp, WarningCircle, Info } from '@phosphor-icons/react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import translations from '../_i18n'
 
 export interface ReviewAnnotation {
   id: string
@@ -30,6 +31,7 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
   onAnnotationsChange,
   accessToken
 }) => {
+  const { t } = useTranslation(translations)
   // COLLAPSED BY DEFAULT
   const [isExpanded, setIsExpanded] = useState(false)
   const [isReviewing, setIsReviewing] = useState(false)
@@ -106,7 +108,7 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
         agentId = reviewer?._id
       }
       if (!agentId) {
-        setError('Document Reviewer not configured. Create a "DocumentReviewer" expert in Task Expert Studio.')
+        setError(t('error-document-reviewer-not-configured'))
         setIsReviewing(false)
         return
       }

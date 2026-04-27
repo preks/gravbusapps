@@ -15,8 +15,10 @@ import {
   Spinner,
   Alert,
   AlertDescription,
-  Button
+  Button,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { Network, ExternalLink, UserPlus, Plus } from 'lucide-react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
@@ -46,6 +48,7 @@ export const AgentMeshPreview: React.FC<AgentMeshPreviewProps> = ({
   agentIds,
   'data-testid': testId = 'agent-mesh-preview'
 }) => {
+  const { t } = useTranslation(translations)
   const [addedAgentIds, setAddedAgentIds] = useState<string[]>([])
   const [addModalOpen, setAddModalOpen] = useState(false)
   const combinedAgentIds = useMemo(() => [...agentIds, ...addedAgentIds], [agentIds, addedAgentIds])
@@ -135,9 +138,7 @@ export const AgentMeshPreview: React.FC<AgentMeshPreviewProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="gba:text-sm gba:text-muted-foreground">
-              No agents in this build. Add existing agents from the registry or create a new Task Expert.
-            </p>
+            <p className="gba:text-sm gba:text-muted-foreground">{t('mesh-empty-build-cta')}</p>
             <div className="gba:mt-4 gba:flex gba:flex-wrap gba:gap-2">
               <Button
                 variant="outline"

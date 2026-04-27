@@ -243,13 +243,17 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           initialRequestsHydratedRef.current = true
         }
 
-        // Get expenseRequestId from either the wizard or task payload
-        const expenseRequestId =
-          additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest
-        if (expenseRequestId) {
-          form.setFieldsValue({ expenseRequestId })
-        } else if (!isEditMode) {
-          form.setFieldsValue({ expenseRequestId: '0' })
+        // Get expenseRequestId from either the wizard or task payload.
+        // Skip in edit mode: initializeEditMode already applies the correct value
+        // after setByEdit completes, so we avoid overwriting it here.
+        if (!isEditMode) {
+          const expenseRequestId =
+            additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest
+          if (expenseRequestId) {
+            form.setFieldsValue({ expenseRequestId })
+          } else {
+            form.setFieldsValue({ expenseRequestId: '0' })
+          }
         }
       } catch {
         suppressRequestResetRef.current = false
@@ -508,9 +512,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setInitialItemValues
     )
 
-    // Check if the expense item is linked to any expense request
+    // Check if the expense item is linked to any expense request.
+    // Also treat it as linked when the wizard embeds this form with an expenseRequestId
+    // (even if the item has no backend link yet) so the currency field is locked.
     const linkedRequest = editData?.ExpenseItemByPk?.expenseRequest
-    setHasLinkedExpenseRequest(!!linkedRequest?.id)
+    const isEmbeddedWithRequest = !!additionalData?.expenseRequestId && additionalData.expenseRequestId !== '0'
+    setHasLinkedExpenseRequest(!!linkedRequest?.id || isEmbeddedWithRequest)
 
     try {
       const itemCurrencyId = editData?.ExpenseItemByPk?.currency?.id || form.getFieldValue('currency')
@@ -522,6 +529,21 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     } catch {
       suppressRequestResetRef.current = false
     }
+
+    // If the item has no backend link but the wizard passes one, apply it now.
+    // setByEdit sets expenseRequestId:'0' for unlinked items; we override it here
+    // after all async work is done so it wins any race with hydrateRequestsForInitialCurrency.
+    if (!linkedRequest?.id) {
+      const wizardRequestId = additionalData?.expenseRequestId
+      if (wizardRequestId) {
+        form.setFieldsValue({ expenseRequestId: wizardRequestId })
+      }
+    }
+
+    // Clear fixedCurrency so the currency field is always editable when editing
+    // a standalone item. The wizard may have set this from a previous create-item flow.
+    form.setFieldsValue({ fixedCurrency: false })
+
     setIsEditMode(true)
   }
 

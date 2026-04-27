@@ -11,32 +11,23 @@ import type {
   ShapeElement,
   ImageElement,
   VideoElement,
+  CodeElement,
   TableElement
 } from './slideElements'
-import { gradientToCss } from './slideElements'
-
-const SLIDE_WIDTH = 1280
-const SLIDE_HEIGHT = 720
+import { gradientToCss, getImageCropStyles, textTransformToCss, textElementStubForShapeInText } from './slideElements'
+import { resolveFontStack } from './fontStack'
+import { RichTextContent } from './RichTextContent'
+import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
+import { sanitizeSlideImageUrl } from '../utils/slideMediaUrl'
 
 /**
- * Sanitize media URL to prevent XSS attacks.
- * Only allows https, http, data:image, blob, or relative paths.
+ * Default export dimensions when the deck has no declared canvas size.
+ * Matches the legacy 16:9 widescreen preset (1280x720 @ 96 DPI).
  */
-const sanitizeMediaUrl = (url: string | undefined): string => {
-  if (!url) return ''
-  const trimmed = url.trim()
-  if (
-    trimmed.startsWith('https://') ||
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('data:image/') ||
-    trimmed.startsWith('blob:') ||
-    trimmed.startsWith('/') ||
-    trimmed.startsWith('./')
-  ) {
-    return trimmed
-  }
-  return ''
-}
+const DEFAULT_SLIDE_WIDTH = 1280
+const DEFAULT_SLIDE_HEIGHT = 720
+
+const sanitizeMediaUrl = sanitizeSlideImageUrl
 
 interface SlideExportRendererProps {
   slides: SlideData[]
@@ -49,6 +40,22 @@ interface SlideExportRendererProps {
 const renderShape = (element: ShapeElement): React.ReactNode => {
   const { shapeType, fill, gradient, strokeColor, strokeWidth, strokeStyle, cornerRadius, shadow } = element
   const fillStyle = gradient ? gradientToCss(gradient) : fill
+
+  // Preset-aware renderer for PPTX-imported shapes. When the shape does not
+  // carry importMeta (or the preset is not implemented) we fall back to the
+  // generic shapeType switch below, so editor-native shapes are unaffected.
+  const officePreset = tryRenderOfficePresetShape({
+    element,
+    fillStyle,
+    strokeColor,
+    strokeWidth,
+    shadow,
+    width: element.size.width,
+    height: element.size.height
+  })
+  if (officePreset) {
+    return <div style={{ width: '100%', height: '100%' }}>{officePreset}</div>
+  }
 
   const baseStyle: React.CSSProperties = {
     width: '100%',
@@ -216,188 +223,286 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
 
   return (
     <div key={element.id} style={wrapperStyle}>
-      {element.type === 'text' && (
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            backgroundColor: (element as TextElement).gradient ? undefined : (element as TextElement).backgroundColor,
-            background: (element as TextElement).gradient
-              ? gradientToCss((element as TextElement).gradient!)
-              : undefined,
-            padding: (element as TextElement).padding,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent:
-              (element as TextElement).verticalAlign === 'top'
-                ? 'flex-start'
-                : (element as TextElement).verticalAlign === 'bottom'
-                  ? 'flex-end'
-                  : 'center',
-            overflow: 'hidden'
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              fontFamily: (element as TextElement).fontFamily,
-              fontSize: (element as TextElement).fontSize,
-              fontWeight: (element as TextElement).fontWeight,
-              fontStyle: (element as TextElement).fontStyle,
-              textDecoration: (element as TextElement).textDecoration,
-              textAlign: (element as TextElement).textAlign,
-              color: (element as TextElement).color,
-              lineHeight: (element as TextElement).lineHeight,
-              letterSpacing: (element as TextElement).letterSpacing,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word'
-            }}
-          >
-            {(element as TextElement).content}
-          </div>
-        </div>
-      )}
+      {element.type === 'text' &&
+        (() => {
+          const textEl: TextElement = element
+          return (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                backgroundColor: textEl.gradient ? undefined : textEl.backgroundColor,
+                background: textEl.gradient ? gradientToCss(textEl.gradient) : undefined,
+                padding: textEl.padding,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent:
+                  textEl.verticalAlign === 'top'
+                    ? 'flex-start'
+                    : textEl.verticalAlign === 'bottom'
+                      ? 'flex-end'
+                      : 'center',
+                overflow: 'hidden'
+              }}
+            >
+              <div
+                style={{
+                  width: '100%',
+                  fontFamily: resolveFontStack(textEl.fontFamily),
+                  fontSize: textEl.fontSize,
+                  fontWeight: textEl.fontWeight,
+                  fontStyle: textEl.fontStyle,
+                  textDecoration: textEl.textDecoration,
+                  textAlign: textEl.textAlign,
+                  color: textEl.color,
+                  lineHeight: textEl.lineHeight,
+                  letterSpacing: textEl.letterSpacing,
+                  ...textTransformToCss(textEl.textTransform),
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
+                }}
+              >
+                {textEl.paragraphs && textEl.paragraphs.length > 0 ? (
+                  <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
+                ) : (
+                  textEl.content
+                )}
+              </div>
+            </div>
+          )
+        })()}
 
-      {element.type === 'shape' && renderShape(element as ShapeElement)}
-
-      {element.type === 'image' && sanitizeMediaUrl((element as ImageElement).src) && (
-        <img
-          src={sanitizeMediaUrl((element as ImageElement).src)}
-          alt={(element as ImageElement).alt}
-          crossOrigin="anonymous"
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: (element as ImageElement).objectFit,
-            borderRadius: (element as ImageElement).borderRadius,
-            border:
-              (element as ImageElement).borderWidth > 0
-                ? `${(element as ImageElement).borderWidth}px solid ${(element as ImageElement).borderColor}`
-                : 'none',
-            boxShadow: (element as ImageElement).shadow
-              ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-              : 'none'
-          }}
-          draggable={false}
-        />
-      )}
-
-      {element.type === 'code' && (
-        <pre
-          style={{
-            width: '100%',
-            height: '100%',
-            margin: 0,
-            padding: '1rem',
-            backgroundColor: (element as any).theme === 'dark' ? '#1e1e1e' : '#f8f8f8',
-            color: (element as any).theme === 'dark' ? '#d4d4d4' : '#333',
-            fontFamily: 'monospace',
-            fontSize: (element as any).fontSize,
-            overflow: 'hidden',
-            borderRadius: '8px'
-          }}
-        >
-          <code>{(element as any).code}</code>
-        </pre>
-      )}
-
-      {element.type === 'video' && (
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'hsl(var(--foreground))',
-            borderRadius: (element as VideoElement).borderRadius,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'hsl(var(--background))',
-            fontSize: '14px'
-          }}
-        >
-          <span>Video: {(element as VideoElement).src}</span>
-        </div>
-      )}
-
-      {element.type === 'table' && (
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            overflow: 'hidden',
-            borderRadius: (element as TableElement).borderRadius,
-            border: `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
-          }}
-        >
-          <table
-            style={{
-              width: '100%',
-              height: '100%',
-              borderCollapse: 'collapse',
-              tableLayout: 'fixed'
-            }}
-          >
-            <thead>
-              <tr>
-                {(element as TableElement).headers.map((header, idx) => (
-                  <th
-                    key={`header-${idx}`}
+      {element.type === 'shape' && (
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+          {renderShape(element)}
+          {(() => {
+            const se: ShapeElement = element
+            const st = se.shapeText
+            if (!st) return null
+            const te = textElementStubForShapeInText(se, st)
+            return (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'stretch',
+                  justifyContent:
+                    te.verticalAlign === 'top' ? 'flex-start' : te.verticalAlign === 'bottom' ? 'flex-end' : 'center',
+                  padding: st.padding,
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  zIndex: 1
+                }}
+              >
+                {st.paragraphs && st.paragraphs.length > 0 ? (
+                  <RichTextContent element={te} paragraphs={st.paragraphs} />
+                ) : (
+                  <div
                     style={{
-                      backgroundColor: (element as TableElement).headerBackground,
-                      color: (element as TableElement).headerTextColor,
-                      fontSize: (element as TableElement).headerFontSize,
-                      fontWeight: 'bold',
-                      padding: (element as TableElement).cellPadding,
-                      textAlign: 'left',
-                      borderBottom: `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`,
-                      borderRight:
-                        idx < (element as TableElement).headers.length - 1
-                          ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
-                          : 'none'
+                      width: '100%',
+                      fontFamily: resolveFontStack(te.fontFamily),
+                      fontSize: te.fontSize,
+                      fontWeight: te.fontWeight,
+                      fontStyle: te.fontStyle,
+                      textDecoration: te.textDecoration,
+                      textAlign: te.textAlign,
+                      color: te.color,
+                      lineHeight: te.lineHeight,
+                      letterSpacing: te.letterSpacing,
+                      ...textTransformToCss(te.textTransform),
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word'
                     }}
                   >
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {(element as TableElement).rows.map((row, rowIdx) => (
-                <tr key={`row-${rowIdx}`}>
-                  {row.map((cell, cellIdx) => (
-                    <td
-                      key={`cell-${rowIdx}-${cellIdx}`}
-                      style={{
-                        backgroundColor:
-                          (element as TableElement).rowAlternateBackground && rowIdx % 2 === 1
-                            ? (element as TableElement).rowAlternateBackground
-                            : (element as TableElement).rowBackground,
-                        color: (element as TableElement).rowTextColor,
-                        fontSize: (element as TableElement).fontSize,
-                        padding: (element as TableElement).cellPadding,
-                        textAlign: 'left',
-                        borderBottom:
-                          rowIdx < (element as TableElement).rows.length - 1
-                            ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
-                            : 'none',
-                        borderRight:
-                          cellIdx < row.length - 1
-                            ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
-                            : 'none',
-                        verticalAlign: 'middle',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}
-                    >
-                      {cell}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {st.content}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
+
+      {element.type === 'image' &&
+        sanitizeMediaUrl(element.src) &&
+        (() => {
+          const imgEl: ImageElement = element
+          const crop = getImageCropStyles(imgEl.cropRect)
+          const commonVisualStyle = {
+            borderRadius: imgEl.borderRadius,
+            border: imgEl.borderWidth > 0 ? `${imgEl.borderWidth}px solid ${imgEl.borderColor}` : 'none',
+            boxShadow: imgEl.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+          }
+
+          if (crop.wrapperNeeded) {
+            return (
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: '100%',
+                  overflow: 'hidden',
+                  ...commonVisualStyle
+                }}
+              >
+                <img
+                  src={sanitizeMediaUrl(imgEl.src)}
+                  alt={imgEl.alt}
+                  crossOrigin="anonymous"
+                  style={crop.imgStyle}
+                  draggable={false}
+                />
+              </div>
+            )
+          }
+
+          return (
+            <img
+              src={sanitizeMediaUrl(imgEl.src)}
+              alt={imgEl.alt}
+              crossOrigin="anonymous"
+              style={{ width: '100%', height: '100%', objectFit: imgEl.objectFit, ...commonVisualStyle }}
+              draggable={false}
+            />
+          )
+        })()}
+
+      {element.type === 'code' &&
+        (() => {
+          const ce: CodeElement = element
+          const defaultBg = ce.theme === 'dark' ? '#1e1e1e' : '#f8f8f8'
+          const defaultColor = ce.theme === 'dark' ? '#d4d4d4' : '#333'
+          return (
+            <pre
+              style={{
+                width: '100%',
+                height: '100%',
+                margin: 0,
+                padding: ce.padding ?? 16,
+                backgroundColor: ce.backgroundColor || defaultBg,
+                color: ce.textColor || defaultColor,
+                fontFamily: 'monospace',
+                fontSize: ce.fontSize,
+                overflow: 'hidden',
+                borderRadius: ce.borderRadius ?? 8,
+                border: (ce.borderWidth ?? 0) > 0 ? `${ce.borderWidth}px solid ${ce.borderColor || '#333333'}` : 'none',
+                boxShadow: ce.shadow
+                  ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+                  : 'none'
+              }}
+            >
+              <code>{ce.code}</code>
+            </pre>
+          )
+        })()}
+
+      {element.type === 'video' &&
+        (() => {
+          const videoEl: VideoElement = element
+          return (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'hsl(var(--foreground))',
+                borderRadius: videoEl.borderRadius,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'hsl(var(--background))',
+                fontSize: '14px'
+              }}
+            >
+              <span>Video: {videoEl.src}</span>
+            </div>
+          )
+        })()}
+
+      {element.type === 'table' &&
+        (() => {
+          const tableEl: TableElement = element
+          return (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                overflow: 'hidden',
+                borderRadius: tableEl.borderRadius,
+                border: `${tableEl.borderWidth}px solid ${tableEl.borderColor}`
+              }}
+            >
+              <table
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderCollapse: 'collapse',
+                  tableLayout: 'fixed'
+                }}
+              >
+                <thead>
+                  <tr>
+                    {tableEl.headers.map((header, idx) => (
+                      <th
+                        key={`header-${idx}`}
+                        style={{
+                          backgroundColor: tableEl.headerBackground,
+                          color: tableEl.headerTextColor,
+                          fontSize: tableEl.headerFontSize,
+                          fontWeight: 'bold',
+                          padding: tableEl.cellPadding,
+                          textAlign: 'left',
+                          borderBottom: `${tableEl.borderWidth}px solid ${tableEl.borderColor}`,
+                          borderRight:
+                            idx < tableEl.headers.length - 1
+                              ? `${tableEl.borderWidth}px solid ${tableEl.borderColor}`
+                              : 'none'
+                        }}
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableEl.rows.map((row, rowIdx) => (
+                    <tr key={`row-${rowIdx}`}>
+                      {row.map((cell, cellIdx) => (
+                        <td
+                          key={`cell-${rowIdx}-${cellIdx}`}
+                          style={{
+                            backgroundColor:
+                              tableEl.rowAlternateBackground && rowIdx % 2 === 1
+                                ? tableEl.rowAlternateBackground
+                                : tableEl.rowBackground,
+                            color: tableEl.rowTextColor,
+                            fontSize: tableEl.fontSize,
+                            padding: tableEl.cellPadding,
+                            textAlign: 'left',
+                            borderBottom:
+                              rowIdx < tableEl.rows.length - 1
+                                ? `${tableEl.borderWidth}px solid ${tableEl.borderColor}`
+                                : 'none',
+                            borderRight:
+                              cellIdx < row.length - 1
+                                ? `${tableEl.borderWidth}px solid ${tableEl.borderColor}`
+                                : 'none',
+                            verticalAlign: 'middle',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        })()}
     </div>
   )
 }
@@ -429,13 +534,17 @@ const getBackgroundStyle = (background: SlideData['background']): React.CSSPrope
  */
 const ExportSlide: React.FC<{ slide: SlideData }> = ({ slide }) => {
   const sortedElements = [...slide.elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
+  // Render at the slide's declared canvas size so PPTX imports preserve
+  // their original aspect ratio (4:3, A4, etc.) in PDF / image exports.
+  const slideWidth = slide.canvasSize?.width ?? DEFAULT_SLIDE_WIDTH
+  const slideHeight = slide.canvasSize?.height ?? DEFAULT_SLIDE_HEIGHT
 
   return (
     <div
       data-export-slide="true"
       style={{
-        width: SLIDE_WIDTH,
-        height: SLIDE_HEIGHT,
+        width: slideWidth,
+        height: slideHeight,
         position: 'relative',
         overflow: 'hidden',
         flexShrink: 0,

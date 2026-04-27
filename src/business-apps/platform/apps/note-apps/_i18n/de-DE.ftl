@@ -4,7 +4,7 @@ nh-title = Notizen
 nh-tabs-aria-label = Notizbereiche
 nh-tab-my-notes = Meine Notizen
 nh-tab-shared = Geteilt
-nh-tab-pinned = Angepinnt
+nh-tab-pinned = Angeheftet
 nh-tab-recent = Zuletzt verwendet
 nh-tab-archived = Papierkorb
 nh-tab-trash = Papierkorb
@@ -39,7 +39,7 @@ menu-new-template-title = Aus Vorlage
 menu-new-template-description = Vorlage auswählen
 
 header-sort = Sortieren
-header-search-placeholder = Suchen...
+notes-header-search-placeholder = Notizen suchen...
 sort-name = Name
 sort-modified = Geändert
 sort-created = Erstellt
@@ -47,14 +47,14 @@ table-owner = Besitzer
 
 empty-pinned-title = Keine angehefteten Notizen
 empty-pinned-description = Heften Sie wichtige Notizen an für schnellen Zugriff.
-empty-shared-title = Nichts mit Ihnen geteilt
-empty-shared-description = Geteilte Notizen erscheinen hier.
+notes-empty-shared-title = Nichts mit Ihnen geteilt
+notes-empty-shared-description = Geteilte Notizen erscheinen hier.
 empty-archived-title = Keine Notizen im Papierkorb
 empty-archived-description = In den Papierkorb verschobene Notizen erscheinen hier.
-empty-trash-title = Keine Notizen im Papierkorb
-empty-trash-description = In den Papierkorb verschobene Notizen erscheinen hier.
-empty-default-title = Noch keine Notizen
-empty-default-description = Erstellen Sie Ihre erste Notiz.
+notes-empty-trash-title = Keine Notizen im Papierkorb
+notes-empty-trash-description = In den Papierkorb verschobene Notizen erscheinen hier.
+notes-empty-default-title = Noch keine Notizen
+notes-empty-default-description = Erstellen Sie Ihre erste Notiz, um loszulegen.
 empty-create-note = Notiz erstellen
 loading-message = Wird geladen...
 
@@ -69,7 +69,7 @@ menu-add-favorite = Zu Favoriten hinzufügen
 menu-archive = Löschen
 menu-delete = Löschen
 delete-confirm-title = In den Papierkorb verschieben?
-delete-confirm-single = "{$name}" wird in den Papierkorb verschoben. Sie können es innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-single = "{$name}" wird in den Papierkorb verschoben. Sie können die Notiz innerhalb von 30 Tagen wiederherstellen.
 delete-confirm-multi = {$count} Elemente werden in den Papierkorb verschoben. Sie können sie innerhalb von 30 Tagen wiederherstellen.
 delete-confirm-cancel = Abbrechen
 delete-confirm-action = In den Papierkorb verschieben
@@ -129,7 +129,7 @@ folder-create-to-start = Erstellen Sie eine Notiz zum Start
 folder-settings = Einstellungen
 
 # ShareNoteDialog
-share-title = „{ $title }" teilen
+share-title = „{ $title }“ teilen
 share-description = Diese Notiz mit Teammitgliedern teilen. Echtzeit-Zusammenarbeit möglich.
 share-add-people = Personen hinzufügen
 share-search-placeholder = Nach Name oder E-Mail suchen...
@@ -158,14 +158,14 @@ share-add-above = Personen oben hinzufügen zum Teilen
 share-done = Fertig
 share-error-select = Bitte mindestens einen Benutzer auswählen
 share-error-failed = Notiz konnte nicht geteilt werden. Bitte erneut versuchen.
-share-toast-success = „{ $title }" mit { $count } { $count ->
+share-toast-success = „{ $title }“ mit { $count } { $count ->
   [one] Person
  *[other] Personen
 } geteilt!
 
 # ManageSharesDialog
 manage-title = Freigabe verwalten
-manage-description = Verwalten, wer Zugriff auf „{ $title }" hat
+manage-description = Verwalten, wer Zugriff auf „{ $title }“ hat
 manage-retry = Erneut versuchen
 manage-load-failed = Freigabeinformationen konnten nicht geladen werden
 manage-people-tab = Personen ({ $count })
@@ -489,7 +489,7 @@ translation-language-ar = Arabisch
 # Quick Access
 qa-all-notes = Alle Notizen
 qa-favorites = Favoriten
-qa-pinned = Angepinnt
+qa-pinned = Angeheftet
 qa-shared = Mit mir geteilt
 qa-recent = Zuletzt verwendet
 qa-archived = Papierkorb
@@ -521,7 +521,7 @@ trashed-readonly-deleting = Wird gelöscht...
 
 # Tree sidebar
 tree-label = Notizen
-tree-empty = Keine Notizen im Baum
+tree-empty = Noch keine Notizen
 tree-drag-hint = Ziehen, um Notizen neu anzuordnen oder zu verschachteln
 tree-drop-inside = Hier hinein ablegen
 tree-drop-after = Danach ablegen

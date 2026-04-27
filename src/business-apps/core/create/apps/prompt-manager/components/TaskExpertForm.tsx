@@ -13,11 +13,13 @@ import {
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem
+  SelectItem,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { AIModelODM, WorkspaceODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import translations from '../_i18n'
 
 export interface TaskExpertFormProps extends BusinessAppContextProps {
   open: boolean
@@ -28,6 +30,7 @@ export interface TaskExpertFormProps extends BusinessAppContextProps {
 export const TaskExpertForm: React.FC<TaskExpertFormProps> = props => {
   const { open, onClose, onSaved } = props
   const client = usePromptManagerClient(props.accessToken)
+  const { t } = useTranslation(translations)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -89,7 +92,7 @@ export const TaskExpertForm: React.FC<TaskExpertFormProps> = props => {
       onClose()
     } catch (e) {
       setLoading(false)
-      setError(e instanceof Error ? e.message : 'Failed to create AI task expert')
+      setError(e instanceof Error ? e.message : t('form-error-create-failed'))
     }
   }, [client, name, description, workspaceId, modelId, userContent, systemContent, onSaved, onClose])
 
@@ -97,7 +100,7 @@ export const TaskExpertForm: React.FC<TaskExpertFormProps> = props => {
     <Dialog open={open} onOpenChange={v => (!v ? onClose() : undefined)}>
       <DialogContent data-testid="task-expert-form-dialog">
         <DialogHeader>
-          <DialogTitle>Create AI Task Expert</DialogTitle>
+          <DialogTitle>{t('create-task-expert')}</DialogTitle>
         </DialogHeader>
         <div className="gba:space-y-4">
           {error && (

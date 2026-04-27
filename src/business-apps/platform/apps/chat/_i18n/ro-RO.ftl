@@ -191,6 +191,7 @@ chat-continue = Continuă
 chat-memberCount = {$count} membri selectați
 chat-createGroupError = Nu s-a putut crea grupul. Vă rugăm să încercați din nou.
 chat-groupCreationFailed = Nu s-a putut crea grupul. Vă rugăm să încercați din nou.
+chat-groupCreationDuplicate = Există deja un chat de grup pentru acest grup.
 
 # Dimension Picker
 chat-selectFrom = Selectează din
@@ -232,7 +233,7 @@ chat-activeCallShort = În Apel
 chat-addExpert = Adaugă Expert
 chat-searchExperts = Caută experți...
 chat-noExpertsFound = Nu s-au găsit experți
-chat-createExpertsHint = Creați experți în Task Expert Studio
+chat-createExpertsHint = Creați agenți în Enterprise Agent Studio
 chat-expertActive = Activ
 chat-add = Adaugă
 chat-knowledgeSourceCount = {$count ->
@@ -619,6 +620,7 @@ calendar-sidebar-dimensionViewerAccess = {$count ->
 }
 calendar-sidebar-membersPreview = Membri
 calendar-sidebar-calendarExistsInfo = Există deja un calendar partajat pentru acest grup, așa că a fost selectat calendarul existent.
+calendar-sidebar-calendarExistsError = Există deja un calendar partajat pentru acest grup.
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Programează Întâlnire
@@ -640,6 +642,8 @@ calendar-videoCallPlaceholder = Link-ul video va fi generat
 calendar-enterLocation = Introduceți locația
 calendar-removeVideoCall = Șterge apelul video
 calendar-addVideoCall = Adaugă apel video
+calendar-createMeetingChat = Creează chat pentru întâlnire
+calendar-createMeetingChatDescription = Creează un chat de grup pentru actualizări și discuții despre această întâlnire
 calendar-description = Descriere
 calendar-descriptionPlaceholder = Adăugați descriere sau agendă...
 calendar-inviteParticipants = Invită Participanți

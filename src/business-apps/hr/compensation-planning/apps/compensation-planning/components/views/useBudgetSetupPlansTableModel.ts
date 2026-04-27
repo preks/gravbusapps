@@ -54,6 +54,7 @@ export function useBudgetSetupPlansTableModel(
   const [selectedCompanyBudgetStatuses, setSelectedCompanyBudgetStatuses] = useState<string[]>([])
   const [salaryAmountRange, setSalaryAmountRange] = useState<{ min?: number; max?: number } | null>(null)
   const [salaryPercentRange, setSalaryPercentRange] = useState<{ min?: number; max?: number } | null>(null)
+  const [allocationAmountRange, setAllocationAmountRange] = useState<{ min?: number; max?: number } | null>(null)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'companyBudgetStatus', desc: false }])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...BUDGET_SETUP_PLANS_VISIBLE_COLUMN_IDS])
@@ -101,7 +102,8 @@ export function useBudgetSetupPlansTableModel(
           row.companyId.toLowerCase().includes(q) ||
           statusLabel.includes(q) ||
           String(row.salaryBudgetAmount).includes(q) ||
-          String(row.salaryBudgetPercent).includes(q)
+          String(row.salaryBudgetPercent).includes(q) ||
+          String(row.allocationAmount).includes(q)
         )
       })
     }
@@ -119,19 +121,40 @@ export function useBudgetSetupPlansTableModel(
       list = list.filter(row => matchesNumberRange(row.salaryBudgetPercent, salaryPercentRange))
     }
 
+    if (allocationAmountRange != null) {
+      list = list.filter(row => matchesNumberRange(row.allocationAmount, allocationAmountRange))
+    }
+
     return list
-  }, [allRows, debouncedSearch, selectedCompanyBudgetStatuses, salaryAmountRange, salaryPercentRange, t])
+  }, [
+    allRows,
+    debouncedSearch,
+    selectedCompanyBudgetStatuses,
+    salaryAmountRange,
+    salaryPercentRange,
+    allocationAmountRange,
+    t
+  ])
 
   const hasActiveFilters = useMemo(
     () =>
       debouncedSearch.trim() !== '' ||
       selectedCompanyBudgetStatuses.length > 0 ||
       salaryAmountRange != null ||
-      salaryPercentRange != null,
-    [debouncedSearch, selectedCompanyBudgetStatuses, salaryAmountRange, salaryPercentRange]
+      salaryPercentRange != null ||
+      allocationAmountRange != null,
+    [debouncedSearch, selectedCompanyBudgetStatuses, salaryAmountRange, salaryPercentRange, allocationAmountRange]
   )
 
-  const emptyMessage = hasActiveFilters ? t('budget-setup-table-empty-filtered') : t('budget-setup-table-empty')
+  const emptyMessage = useMemo(() => {
+    if (selectedCompensationPlanId == null) {
+      return t('budget-setup-table-select-cycle-first')
+    }
+    if (hasActiveFilters) {
+      return t('budget-setup-table-empty-filtered')
+    }
+    return t('budget-setup-table-empty')
+  }, [hasActiveFilters, selectedCompensationPlanId, t])
 
   const filtersObject = useMemo(() => {
     const obj: Record<string, unknown> = {}
@@ -144,8 +167,11 @@ export function useBudgetSetupPlansTableModel(
     if (salaryPercentRange != null) {
       obj.salaryBudgetPercent = { ...salaryPercentRange }
     }
+    if (allocationAmountRange != null) {
+      obj.allocationAmount = { ...allocationAmountRange }
+    }
     return obj
-  }, [selectedCompanyBudgetStatuses, salaryAmountRange, salaryPercentRange])
+  }, [selectedCompanyBudgetStatuses, salaryAmountRange, salaryPercentRange, allocationAmountRange])
 
   const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
     const statuses = (filters.companyBudgetStatuses as string[] | undefined) ?? []
@@ -153,6 +179,7 @@ export function useBudgetSetupPlansTableModel(
 
     setSalaryAmountRange(parseOptionalNumberRange(filters.salaryBudgetAmount))
     setSalaryPercentRange(parseOptionalNumberRange(filters.salaryBudgetPercent))
+    setAllocationAmountRange(parseOptionalNumberRange(filters.allocationAmount))
   }, [])
 
   const columns = useMemo(
@@ -174,6 +201,7 @@ export function useBudgetSetupPlansTableModel(
       { id: 'companyBudgetStatus', label: t('budget-setup-table-col-budget-plan-status') },
       { id: 'salaryBudgetAmount', label: t('budget-setup-table-col-salary-budget-amount') },
       { id: 'salaryBudgetPercent', label: t('budget-setup-table-col-salary-budget-percent') },
+      { id: 'allocationAmount', label: t('budget-setup-table-col-allocation-amount') },
       { id: 'salaryBaseline', label: t('budget-setup-table-col-salary-baseline') },
       { id: 'actions', label: '' }
     ],
@@ -193,6 +221,7 @@ export function useBudgetSetupPlansTableModel(
     selectedCompanyBudgetStatuses,
     salaryAmountRange,
     salaryPercentRange,
+    allocationAmountRange,
     sorting,
     selectedCompensationPlanId
   ])

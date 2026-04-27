@@ -58,6 +58,22 @@ interface SelectedUser extends EmployeeLiteOption {
   permission: Permission
 }
 
+type TranslationVars = Record<string, string | number>
+
+const translateWithFallback = (
+  t: (key: string, vars?: TranslationVars) => string,
+  key: string,
+  fallback: string,
+  vars?: TranslationVars
+): string => {
+  try {
+    return t(key, vars)
+  } catch (error) {
+    console.error(`[ShareDocument] Failed to translate "${key}"`, error)
+    return fallback
+  }
+}
+
 /**
  * Helper to create assignment targets for Flow Engine
  */
@@ -221,6 +237,31 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sentSuccess, setSentSuccess] = useState(false)
+
+  const dialogTitle = translateWithFallback(t, 'share-dialog-title', 'Share Document')
+  const dialogDescription = translateWithFallback(
+    t,
+    'share-dialog-description',
+    `Share "${documentTitle}" with others and set their access level.`,
+    { title: documentTitle }
+  )
+  const singleRecipientName =
+    selectedUsers[0]?.displayName?.trim() || translateWithFallback(t, 'share-task-someone', 'Someone')
+  const successTitle = translateWithFallback(t, 'share-dialog-success-title', 'Document Shared!')
+  const successMessage =
+    selectedUsers.length === 1
+      ? translateWithFallback(
+          t,
+          'share-dialog-success-single',
+          `${singleRecipientName} has been notified and can now access this document.`,
+          { name: singleRecipientName }
+        )
+      : translateWithFallback(
+          t,
+          'share-dialog-success-multi',
+          `${selectedUsers.length} people have been notified and can now access this document.`,
+          { count: selectedUsers.length }
+        )
 
   // Employee search
   const { employees: searchResults, loading: isSearching, search: searchEmployees } = useEmployeeSearch(accessToken)
@@ -398,13 +439,16 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-lg" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-lg gba:max-h-[90vh] gba:flex gba:flex-col gba:overflow-hidden"
+        data-testid={testId}
+      >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
-            {t('share-dialog-title')}
+            {dialogTitle}
           </DialogTitle>
-          <DialogDescription>{t('share-dialog-description', { title: documentTitle })}</DialogDescription>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
 
         {sentSuccess ? (
@@ -412,15 +456,11 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
             <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-success/10 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
               <CheckCircle className="gba:w-8 gba:h-8 gba:text-success" />
             </div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{t('share-dialog-success-title')}</h3>
-            <p className="gba:text-muted-foreground">
-              {selectedUsers.length === 1
-                ? t('share-dialog-success-single', { name: selectedUsers[0].displayName })
-                : t('share-dialog-success-multi', { count: selectedUsers.length })}
-            </p>
+            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{successTitle}</h3>
+            <p className="gba:text-muted-foreground">{successMessage}</p>
           </div>
         ) : (
-          <div className="gba:space-y-6 gba:py-4">
+          <div className="gba:space-y-5 gba:py-2 gba:overflow-y-auto gba:flex-1 gba:-mx-6 gba:px-6">
             {/* Default permission selector */}
             <div className="gba:space-y-2">
               <Label>{t('share-dialog-default-permission')}</Label>
@@ -516,8 +556,8 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
                 <Label>{t('share-dialog-people-access', { count: selectedUsers.length })}</Label>
                 <div className="gba:border gba:rounded-md gba:divide-y gba:max-h-48 gba:overflow-y-auto">
                   {selectedUsers.map(user => (
-                    <div key={user.id} className="gba:flex gba:items-center gba:gap-3 gba:p-3">
-                      <Avatar className="gba:h-8 gba:w-8">
+                    <div key={user.id} className="gba:flex gba:items-center gba:gap-2 gba:p-2">
+                      <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
                         {user.pictureThumbnail && (
                           <AvatarImage src={getAvatarUrl(user.pictureThumbnail)} alt={user.displayName} />
                         )}
@@ -535,7 +575,7 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
                         value={user.permission}
                         onValueChange={v => updateUserPermission(user.id, v as Permission)}
                       >
-                        <SelectTrigger className="gba:w-32 gba:h-8">
+                        <SelectTrigger size="sm" className="gba:flex-shrink-0">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -562,7 +602,7 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="gba:h-8 gba:w-8 hover:gba:bg-destructive/10 hover:gba:text-destructive"
+                        className="gba:h-8 gba:w-8 gba:flex-shrink-0 hover:gba:bg-destructive/10 hover:gba:text-destructive"
                         onClick={() => removeUser(user.id)}
                         data-testid={`${testId}-remove-user-${user.id}`}
                       >

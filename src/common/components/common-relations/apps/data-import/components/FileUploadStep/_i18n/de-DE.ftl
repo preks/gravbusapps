@@ -1,10 +1,12 @@
 # File Upload Step Translations (German - Germany)
 
 # Step Header
-file-upload-step-title = Schritt 1: CSV-Datei hochladen
+file-upload-step-title = Schritt 1: CSV- oder Excel-Datei hochladen
 
 # Form Labels
-file-select-label = CSV-Datei auswählen
+file-select-label = CSV- oder Excel-Datei auswählen
+file-accepted-formats-hint = Unterstützte Formate: CSV, XLSX, XLS
+file-unsupported-format-error = Nicht unterstütztes Dateiformat. Bitte laden Sie eine CSV-, XLSX- oder XLS-Datei hoch.
 
 # File Info
 file-loaded-text = Datei geladen: { $fileName } ({ $fileSize } KB)
@@ -12,20 +14,20 @@ file-loaded-text = Datei geladen: { $fileName } ({ $fileSize } KB)
 # Campaign
 campaign-id-label = Kampagne (Optional)
 
+# Shared
+enforced-required-hint = Bitte füllen Sie alle Pflichtfelder aus, bevor Sie analysieren.
+
 # Lead Defaults
 lead-status-label = Standard-Lead-Status
 lead-source-label = Standard-Lead-Quelle
 lead-rating-label = Standard-Lead-Bewertung
-lead-status-placeholder = Lead-Status auswählen...
-lead-source-placeholder = Lead-Quelle auswählen...
-lead-rating-placeholder = Lead-Bewertung auswählen...
-loading-placeholder = Wird geladen...
-lead-defaults-required-hint = Bitte wählen Sie Standard-Lead-Status, Standard-Lead-Quelle und Standard-Lead-Bewertung aus, bevor Sie analysieren.
 
 # Investment Defaults
+investment-group-label = Investmentgruppe
 investment-type-label = Investmenttyp (Optional)
-investment-type-placeholder = Einen Typ für alle Zeilen auswählen...
-investment-type-none-option = Pro Zeile automatisch erkennen (Flowbot)
+
+# Liquid Fund Defaults
+liquid-fund-type-label = Fondstyp (Optional)
 
 # Button Labels
 analyze-button = Mit KI-Agent analysieren

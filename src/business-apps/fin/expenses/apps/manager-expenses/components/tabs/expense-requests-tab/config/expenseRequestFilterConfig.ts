@@ -2,6 +2,7 @@ import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   createDateRangeFilterGroup,
+  createExpenseAmountRangeFilterGroup,
   createStatusFilterGroup,
   createTypeFilterGroup
 } from '../../../../common/config/filterConfigHelpers'
@@ -53,6 +54,12 @@ export function createExpenseRequestFilterConfig({
       'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
       'Request Type',
       requestTypeOptions
+    ),
+    createExpenseAmountRangeFilterGroup(
+      'request-total-amount',
+      'totalAmount',
+      'lowcoder:sales_hub.amount.amount',
+      'Amount'
     )
   ]
 

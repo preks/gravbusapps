@@ -12,9 +12,12 @@ import {
   applyDateRangeFromFilter,
   resolveSelectedCurrencyCode,
   applyCurrencyChange,
-  buildFilteredEmptyMessage,
   buildDefaultEmptyMessage
 } from '../../../../utils/tableUtils'
+import {
+  applyAmountRangeFromFilters,
+  isAmountRangeFilterActive
+} from '@/business-apps/fin/expenses/common/utils/amountRangeFilterUtils'
 import { useTableSetup } from '@/business-apps/fin/expenses/common/hooks/useTableSetup'
 import { useVisibleColumns } from '@/business-apps/fin/expenses/common/hooks/useSharedTabState'
 import { CurrencyDropdown } from '../../../shared/TableSharedComponents'
@@ -102,6 +105,8 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
   const startDateRange = props.startDateRange ?? null
   const endDateRange = props.endDateRange ?? null
   const effectiveDateRange = props.effectiveDateRange ?? null
+  const reimbursableAmountRange = props.reimbursableAmountRange ?? null
+  const advanceAmountRange = props.advanceAmountRange ?? null
   const currencyStats = props.currencyStats ?? []
 
   const expenseRequestsFilterConfig = useMemo(
@@ -129,8 +134,25 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
     if (startDateStr) obj.startDateRange = startDateStr
     const endDateStr = formatDateRangeForChip(endDateRange)
     if (endDateStr) obj.endDateRange = endDateStr
+    if (
+      reimbursableAmountRange &&
+      (reimbursableAmountRange.min !== undefined || reimbursableAmountRange.max !== undefined)
+    ) {
+      obj.reimbursableAmount = { ...reimbursableAmountRange }
+    }
+    if (advanceAmountRange && (advanceAmountRange.min !== undefined || advanceAmountRange.max !== undefined)) {
+      obj.advanceTotal = { ...advanceAmountRange }
+    }
     return obj
-  }, [selectedFilters, requestDateRange, effectiveDateRange, startDateRange, endDateRange])
+  }, [
+    selectedFilters,
+    requestDateRange,
+    effectiveDateRange,
+    startDateRange,
+    endDateRange,
+    reimbursableAmountRange,
+    advanceAmountRange
+  ])
 
   const handleFilterChangeFromDisplay = useCallback(
     (filters: Record<string, unknown>) => {
@@ -145,8 +167,27 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       if (applyDateRangeFromFilter(filters.startDateRange, props.setStartDateRange))
         dateRangeTokens.push('startDateRange')
       if (applyDateRangeFromFilter(filters.endDateRange, props.setEndDateRange)) dateRangeTokens.push('endDateRange')
+      const amountTokens: string[] = []
+      if (props.setReimbursableAmountRange) {
+        applyAmountRangeFromFilters(
+          filters.reimbursableAmount as { min?: number; max?: number } | undefined,
+          props.setReimbursableAmountRange
+        )
+        if (isAmountRangeFilterActive(filters.reimbursableAmount)) {
+          amountTokens.push('reimbursableAmountRange')
+        }
+      }
+      if (props.setAdvanceAmountRange) {
+        applyAmountRangeFromFilters(
+          filters.advanceTotal as { min?: number; max?: number } | undefined,
+          props.setAdvanceAmountRange
+        )
+        if (isAmountRangeFilterActive(filters.advanceTotal)) {
+          amountTokens.push('advanceAmountRange')
+        }
+      }
       if (props.setFilters) {
-        props.setFilters([...statusIds, ...requestTypeIds, ...currencyTokens, ...dateRangeTokens])
+        props.setFilters([...statusIds, ...requestTypeIds, ...currencyTokens, ...dateRangeTokens, ...amountTokens])
       }
       if (onTableChange) onTableChange({ current: 1, pageSize }, {}, expenseRequestSorterArg(sortField, sortOrder))
     },
@@ -157,6 +198,8 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       props.setEffectiveDateRange,
       props.setStartDateRange,
       props.setEndDateRange,
+      props.setReimbursableAmountRange,
+      props.setAdvanceAmountRange,
       onTableChange,
       pageSize,
       sortField,
@@ -277,7 +320,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
   )
 
   const emptyMessage = hasActiveFilters
-    ? buildFilteredEmptyMessage()
+    ? tPersonal('table-empty-filtered')
     : buildDefaultEmptyMessage(
         'lowcoder:personal_expenses.no_expense_request_data',
         'No expense requests found. Create your first expense request to get started.'

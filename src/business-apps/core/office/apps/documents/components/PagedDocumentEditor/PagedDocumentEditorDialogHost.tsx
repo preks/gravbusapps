@@ -18,16 +18,22 @@ export interface PagedDocumentEditorDialogHostProps {
   versionUserDisplayMap: ComponentProps<typeof VersionHistory>['userDisplayMap']
   versionLoading: boolean
   currentVersion: ComponentProps<typeof VersionHistory>['currentVersion']
+  versionHistoryMessages?: ComponentProps<typeof VersionHistory>['messages']
+  versionHistoryLocale?: ComponentProps<typeof VersionHistory>['locale']
+  approvalDetailsByVersion?: ComponentProps<typeof VersionHistory>['approvalDetailsByVersion']
   onRestoreVersion: ComponentProps<typeof VersionHistory>['onRestore']
+  onOpenApprovalReview?: ComponentProps<typeof VersionHistory>['onOpenApprovalReview']
   onCloseVersionHistory: () => void
   showCheckpointDialog: boolean
   onCloseCheckpointDialog: () => void
   onSaveCheckpoint: ComponentProps<typeof CheckpointDialog>['onSave']
   isSavingCheckpoint: boolean
+  checkpointDialogMessages?: ComponentProps<typeof CheckpointDialog>['messages']
   showPublishDialog: boolean
   onClosePublishDialog: () => void
   onPublish: ComponentProps<typeof PublishDialog>['onPublish']
   isPublishing: boolean
+  publishDialogMessages?: ComponentProps<typeof PublishDialog>['messages']
   showPageSetupDialog: boolean
   setShowPageSetupDialog: Dispatch<SetStateAction<boolean>>
   layoutFormatting: DocumentFormatting
@@ -66,16 +72,22 @@ export function PagedDocumentEditorDialogHost({
   versionUserDisplayMap,
   versionLoading,
   currentVersion,
+  versionHistoryMessages,
+  versionHistoryLocale,
+  approvalDetailsByVersion,
   onRestoreVersion,
+  onOpenApprovalReview,
   onCloseVersionHistory,
   showCheckpointDialog,
   onCloseCheckpointDialog,
   onSaveCheckpoint,
   isSavingCheckpoint,
+  checkpointDialogMessages,
   showPublishDialog,
   onClosePublishDialog,
   onPublish,
   isPublishing,
+  publishDialogMessages,
   showPageSetupDialog,
   setShowPageSetupDialog,
   layoutFormatting,
@@ -113,9 +125,13 @@ export function PagedDocumentEditorDialogHost({
           versions={versions}
           isLoading={versionLoading}
           userDisplayMap={versionUserDisplayMap}
+          approvalDetailsByVersion={approvalDetailsByVersion}
           onRestore={onRestoreVersion}
+          onOpenApprovalReview={onOpenApprovalReview}
           onClose={onCloseVersionHistory}
           currentVersion={currentVersion}
+          messages={versionHistoryMessages}
+          locale={versionHistoryLocale}
           showAutoSaves={false}
           data-testid="document-version-history"
         />
@@ -127,6 +143,7 @@ export function PagedDocumentEditorDialogHost({
           onClose={onCloseCheckpointDialog}
           onSave={onSaveCheckpoint}
           isSaving={isSavingCheckpoint}
+          messages={checkpointDialogMessages}
           data-testid="document-checkpoint-dialog"
         />
       )}
@@ -138,6 +155,7 @@ export function PagedDocumentEditorDialogHost({
           onPublish={onPublish}
           isPublishing={isPublishing}
           entityType="document"
+          messages={publishDialogMessages}
           data-testid="document-publish-dialog"
         />
       )}

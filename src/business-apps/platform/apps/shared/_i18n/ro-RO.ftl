@@ -2,6 +2,9 @@
 inline-comment-add = Adăugați comentariu
 inline-comment-placeholder = Adăugați un comentariu...
 inline-comment-button = Comentariu
+inline-comment-selection-actions = Acțiuni pentru selecție
+inline-comment-ai-edit = Editare AI
+inline-comment-back = Înapoi
 
 # CommentEditor
 comment-editor-cancel = Anulare
@@ -16,6 +19,7 @@ comment-thread-edit = Editați
 comment-thread-resolve = Rezolvați
 comment-thread-delete = Ștergeți
 comment-thread-resolved = Rezolvat
+comment-thread-cell-reference = Celula { $reference }
 comment-thread-confirm-delete = Sunteți sigur că doriți să ștergeți acest comentariu?
 comment-thread-edit-placeholder = Editați comentariul...
 comment-thread-reply-placeholder = Scrieți un răspuns...

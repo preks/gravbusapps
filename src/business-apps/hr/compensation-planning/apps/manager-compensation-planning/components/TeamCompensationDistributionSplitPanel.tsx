@@ -40,11 +40,11 @@ export interface TeamCompensationDistributionSplitPanelProps {
   totalSalaryCostAcrossEmployees: number
   grandTotalPositivePerformanceScores: number
   dataDisplay: { searchQuery: string; setSearchQuery: (value: string) => void }
-  canSubmitProposals: boolean
-  submitting: boolean
-  submitDraftProposals: () => void | Promise<void>
   canShowSaveAction: boolean
-  onOpenSaveAllocations: () => void
+  onOpenSubmitProposals: () => void
+  /** After "New proposal", show a way to return to the submitted-proposals table without changing cycle. */
+  showBackToProposalsTable?: boolean
+  onBackToProposalsTable?: () => void
 }
 
 export function TeamCompensationDistributionSplitPanel({
@@ -67,11 +67,10 @@ export function TeamCompensationDistributionSplitPanel({
   totalSalaryCostAcrossEmployees,
   grandTotalPositivePerformanceScores,
   dataDisplay,
-  canSubmitProposals,
-  submitting,
-  submitDraftProposals,
   canShowSaveAction,
-  onOpenSaveAllocations
+  onOpenSubmitProposals,
+  showBackToProposalsTable = false,
+  onBackToProposalsTable
 }: Readonly<TeamCompensationDistributionSplitPanelProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
@@ -85,24 +84,25 @@ export function TeamCompensationDistributionSplitPanel({
           {tBudget('budget-distribution-split-panel-title')}
         </CardTitle>
         <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            className="gba:shrink-0"
-            disabled={!canSubmitProposals}
-            onClick={() => void submitDraftProposals()}
-            data-testid="manager-team-submit-proposals"
-          >
-            {submitting ? t('manager-team-submitting') : t('manager-team-submit-proposals')}
-          </Button>
+          {showBackToProposalsTable && onBackToProposalsTable != null ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="gba:shrink-0"
+              onClick={onBackToProposalsTable}
+              data-testid="manager-team-back-to-proposals-table"
+            >
+              {t('manager-team-back-to-proposals-list')}
+            </Button>
+          ) : null}
           <Button
             type="button"
             className="gba:shrink-0"
             disabled={!canShowSaveAction}
-            onClick={onOpenSaveAllocations}
-            data-testid="manager-team-save-allocations-open"
+            onClick={onOpenSubmitProposals}
+            data-testid="manager-team-submit-proposals-open"
           >
-            {t('manager-team-save-allocations')}
+            {t('manager-team-submit-proposals-toolbar')}
           </Button>
         </div>
       </CardHeader>

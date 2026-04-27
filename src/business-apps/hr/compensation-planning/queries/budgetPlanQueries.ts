@@ -60,6 +60,7 @@ export const GET_BUDGET_SETUP_PLANS_AND_COMPANY_BUDGET_ROWS = `
       companyId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus
@@ -108,6 +109,7 @@ export const GET_MANAGER_COMPENSATION_BUDGET_CONTEXT = `
       companyId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus
@@ -133,6 +135,7 @@ export const LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY = `
       companyId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus
@@ -162,10 +165,12 @@ export const LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET
       limit: 500
     ) {
       id
+      version
       compensationBudgetPlanCompanyId
       organizationalUnitId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus
@@ -189,10 +194,12 @@ export const LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET
       limit: 2000
     ) {
       id
+      version
       compensationBudgetPlanCompanyId
       organizationalUnitId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus
@@ -224,6 +231,25 @@ export const LIST_COMPENSATION_BUDGET_PLAN_EMPLOYEES_BY_ORG_UNIT_IDS = `
       reviewNotes
       compensationBudgetPlanOrganizationalUnitId
       submittedByEmployeeId
+      allocationAmount
+    }
+  }
+`
+
+/** Sum driver for OU `allocation_amount` (roll-up uses submitted / approved / executed rows only; see `orgUnitAllocationAmountRollup`). */
+export const GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_ALLOCATION_AMOUNTS_BY_ORG_UNIT_BUDGET_ID = `
+  query GetCompensationBudgetPlanEmployeeAllocationAmountsByOrgUnitBudgetId($orgUnitBudgetId: uuid!) {
+    CompensationBudgetPlanEmployee(
+      where: {
+        _and: [
+          { compensationBudgetPlanOrganizationalUnitId: { _eq: $orgUnitBudgetId } },
+          { isDeleted: { _eq: false } }
+        ]
+      }
+      limit: 5000
+    ) {
+      allocationAmount
+      budgetPlanStatus
     }
   }
 `
@@ -244,6 +270,50 @@ export const GET_COMPENSATION_BUDGET_PLAN_COMPANY = `
       companyId
       salaryBudgetAmount
       salaryBudgetPercent
+      allocationAmount
+      bonusBudgetAmount
+      bonusBudgetPercent
+      budgetPlanStatus
+      currentTotalSalaryCost
+      distributionMethod
+      headcount
+      currencyRef
+    }
+  }
+`
+
+/** Single org-unit budget line (supervisor approve → refresh remaining team pool in DB). */
+export const GET_COMPENSATION_BUDGET_PLAN_ORG_UNIT_BUDGET_ROW_BY_ID = `
+  query GetCompensationBudgetPlanOrgUnitBudgetRowById($id: uuid!) {
+    CompensationBudgetPlanOrganizationalUnit(
+      where: { id: { _eq: $id }, isDeleted: { _eq: false } }
+      limit: 1
+    ) {
+      id
+      version
+      compensationBudgetPlanCompanyId
+      organizationalUnitId
+      salaryBudgetAmount
+      salaryBudgetPercent
+      allocationAmount
+      bonusBudgetAmount
+      bonusBudgetPercent
+      budgetPlanStatus
+    }
+  }
+`
+
+/** Parent company budget row for the org-unit line (company save after OU update, same as HR distribute). */
+export const GET_COMPENSATION_BUDGET_PLAN_COMPANY_ROW_BY_ID = `
+  query GetCompensationBudgetPlanCompanyRowById($id: uuid!) {
+    CompensationBudgetPlanCompany(where: { id: { _eq: $id }, isDeleted: { _eq: false } }, limit: 1) {
+      id
+      version
+      compensationBudgetPlanId
+      companyId
+      salaryBudgetAmount
+      salaryBudgetPercent
+      allocationAmount
       bonusBudgetAmount
       bonusBudgetPercent
       budgetPlanStatus

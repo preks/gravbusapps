@@ -9,13 +9,14 @@ query MyQuery($structureId: uuid!) {
   
 }`
 
-export const EMPLOYEE_DATA_QUERY = `query MyQuery($employeeId: uuid!, $activeUserLocale: String!, $firstDayOfCurrentYear: timestamp!, $lastDayOfCurrentYear: timestamp!) {
+export const EMPLOYEE_DATA_QUERY = `query MyQuery($employeeId: uuid!, $activeUserLocale: String!) {
   Employee(where: {id: {_eq: $employeeId}, isDeleted: {_eq: false}}) {
     id
     firstName
     lastName
     pictureThumbnail
     employeePosition{
+      hireDate
       organizationalUnitId
       organizationalUnit {
         name
@@ -25,15 +26,14 @@ export const EMPLOYEE_DATA_QUERY = `query MyQuery($employeeId: uuid!, $activeUse
       }
     }
     workingCondition {
+      hireDate
       vacationDays
     }
   }
   EmployeeAbsenceEntitlement(
     where: {
       isDeleted: {_eq: false},
-      employeeId: {_eq: $employeeId},
-      validFrom: {_gte: $firstDayOfCurrentYear},
-      _or: [{validTo: {_lte: $lastDayOfCurrentYear}}, {validTo: {_isNull: true}}]
+      employeeId: {_eq: $employeeId}
     },
     orderBy: {type: {code: ASC}}
   ) {

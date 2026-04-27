@@ -13,6 +13,17 @@ jest.mock('../hooks/useFunctionEditorState', () => ({
 }))
 
 jest.mock('@newwork/nw-design-system', () => ({
+  CreateLayout: ({ onBack, canvasPanel, chatPanel, 'data-testid': testId }: any) => (
+    <div data-testid={testId}>
+      {onBack ? (
+        <button type="button" data-testid="function-editor-hero-back" onClick={onBack}>
+          Back
+        </button>
+      ) : null}
+      {canvasPanel}
+      {chatPanel}
+    </div>
+  ),
   Avatar: ({ children }: any) => <div data-testid="mock-avatar">{children}</div>,
   AvatarFallback: ({ children }: any) => <div data-testid="mock-avatar-fallback">{children}</div>,
   Button: ({ children, onClick, type = 'button', ...props }: any) => (
@@ -27,20 +38,6 @@ jest.mock('./editor/FunctionDefinitionCard', () => ({
   FunctionDefinitionCard: ({ isFixingWithAi, fixWithAiError }: any) => (
     <div data-testid="mock-function-definition-card">
       {isFixingWithAi ? 'fixing' : 'idle'}|{fixWithAiError || ''}
-    </div>
-  )
-}))
-
-jest.mock('@/components/create-layout', () => ({
-  CreateLayout: ({ onBack, canvasPanel, chatPanel }: any) => (
-    <div data-testid="mock-create-layout">
-      {onBack ? (
-        <button type="button" onClick={onBack} data-testid="mock-create-layout-back">
-          Back
-        </button>
-      ) : null}
-      <div data-testid="mock-create-layout-chat">{chatPanel}</div>
-      <div data-testid="mock-create-layout-canvas">{canvasPanel}</div>
     </div>
   )
 }))
@@ -148,7 +145,7 @@ describe('FunctionEditor', () => {
     )
   })
 
-  it('keeps a single back action when rendered inside CreateLayout', () => {
+  it('keeps a single back action when rendered with a hero', () => {
     render(
       <FunctionEditor
         mode="create"
@@ -160,14 +157,14 @@ describe('FunctionEditor', () => {
       />
     )
 
-    expect(screen.getByTestId('mock-create-layout-back')).toBeInTheDocument()
+    expect(screen.getByTestId('function-editor-hero-back')).toBeInTheDocument()
     expect(screen.queryByTestId('function-editor-header-back')).not.toBeInTheDocument()
   })
 
-  it('keeps the header back action when CreateLayout is not used', () => {
+  it('keeps the header back action when the hero is not used', () => {
     render(<FunctionEditor mode="create" accessToken="token" onSaved={jest.fn()} onBack={jest.fn()} />)
 
     expect(screen.getByTestId('function-editor-header-back')).toBeInTheDocument()
-    expect(screen.queryByTestId('mock-create-layout')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('function-editor-hero-back')).not.toBeInTheDocument()
   })
 })

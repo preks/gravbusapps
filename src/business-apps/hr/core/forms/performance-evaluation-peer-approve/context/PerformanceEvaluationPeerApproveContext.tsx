@@ -52,6 +52,7 @@ interface PerformanceEvaluationPeerApproveContextType {
   canAddPeers: boolean
   canRemovePeers: boolean
   isValid: boolean
+  hasDuplicates: boolean
   replacementEmployees: Array<{
     id: string
     name: string
@@ -79,9 +80,25 @@ interface PerformanceEvaluationPeerApproveProviderProps {
   onSubmit?: (values: PerformanceEvaluationPeerApproveFormValues) => Promise<void>
 }
 
+// NOTE: despite the misleading name, `psi_taskPayload.peerReviewerUserIds` actually contains
+// Employee ids (not user ids). Confirmed against the database. The BE may rename this field
+// in the future; until then we consume it as-is.
+function getPeerIdsFromTaskPayload(taskPayload: Record<string, unknown> | undefined): string[] {
+  if (!taskPayload) return []
+  const ids = taskPayload.peerReviewerUserIds
+  if (Array.isArray(ids) && ids.length > 0) return ids.map(String)
+  return []
+}
+
 function getNominatedPeersFromPayload(ad: Record<string, unknown> | undefined): NominatedPeer[] {
   if (!ad) return []
   const taskPayload = ad.psi_taskPayload as Record<string, unknown> | undefined
+
+  const directIds = getPeerIdsFromTaskPayload(taskPayload)
+  if (directIds.length > 0) {
+    return directIds.map(id => ({ id, name: id }))
+  }
+
   const processInputs = (ad.psi_processMetadata as Record<string, unknown> | undefined)?.inputs as
     | Record<string, unknown>
     | undefined
@@ -169,9 +186,25 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
   const canAddPeers = totalPeerCount < MAX_PEERS
   const canRemovePeers = totalPeerCount > MIN_PEERS
   const allAdditionalSlotsFilled = additionalSlots.every(s => s.employeeId != null)
-  const isValid = totalPeerCount >= MIN_PEERS && totalPeerCount <= MAX_PEERS && allAdditionalSlotsFilled
 
-  const resolvedError = error ?? peersError ?? employeeForHeaderError
+  // Safety-net: flag the final effective list if it somehow contains duplicate employeeIds.
+  // The component-level filter already prevents this, but we keep this check so a future
+  // regression (or a BE payload with duplicates) still disables the Approve button.
+  const hasDuplicates = useMemo(() => {
+    const effectiveIds: string[] = []
+    for (const peer of activeNominatedPeers) {
+      effectiveIds.push(peerReplacements[peer.id] ?? peer.id)
+    }
+    for (const slot of additionalSlots) {
+      if (slot.employeeId) effectiveIds.push(slot.employeeId)
+    }
+    return new Set(effectiveIds).size !== effectiveIds.length
+  }, [activeNominatedPeers, peerReplacements, additionalSlots])
+
+  const isValid =
+    totalPeerCount >= MIN_PEERS && totalPeerCount <= MAX_PEERS && allAdditionalSlotsFilled && !hasDuplicates
+
+  const resolvedError = error ?? (peersFromPayload.length > 0 ? null : peersError) ?? employeeForHeaderError
   const peersLoadingResolved = peersLoading || (peerIds.length > 0 && namesLoading)
 
   const clearError = useCallback(() => setError(null), [])
@@ -331,6 +364,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       canAddPeers,
       canRemovePeers,
       isValid,
+      hasDuplicates,
       replacementEmployees: structureEmployees,
       replacementEmployeesLoading,
       searchReplacementEmployees,
@@ -361,6 +395,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       canAddPeers,
       canRemovePeers,
       isValid,
+      hasDuplicates,
       structureEmployees,
       replacementEmployeesLoading,
       searchReplacementEmployees,

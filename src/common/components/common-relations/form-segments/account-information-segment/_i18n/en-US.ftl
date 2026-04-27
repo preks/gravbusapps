@@ -18,8 +18,6 @@ customer-description = Active customer with established relationship
 portfolio-description = Active portfolio company with investment holdings
 
 # Company Information
-legal-form-label = Legal Form
-legal-form-placeholder = Please Select...
 priority-label = Priority
 priority-placeholder = Please Select...
 industry-label = Industry

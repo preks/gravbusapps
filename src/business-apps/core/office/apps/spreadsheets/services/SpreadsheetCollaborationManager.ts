@@ -32,8 +32,13 @@ const rowMatchesRemoteRowId = (row: ViewerRow, remoteRowId: string): boolean => 
 export interface CellsChangedCell {
   rowId: string
   column: string
-  value: unknown
+  /** When omitted, this payload is formatting-only (still applies {@link univerCell} on the grid). */
+  value?: unknown
   cellRef?: string
+  /** Serialized Univer {@link ICellData} for the cell (may include inline or ref style). */
+  univerCell?: Record<string, unknown>
+  /** Style definitions keyed by id when {@link univerCell} uses string style refs. Remotes call `addStyles` before `setValue`. */
+  univerStyles?: Record<string, unknown>
 }
 
 export interface CellsChangedPayload {
@@ -90,7 +95,7 @@ const MAX_PENDING_OPS = 200
 export type CollaborationOperation = {
   userId: string
   userName: string
-  operation: { type: string; data?: unknown; broadcastOnly?: boolean }
+  operation: { type: string; data?: unknown; broadcastOnly?: boolean; _clientOpId?: string }
   version?: number
   timestamp: number
 }
@@ -102,6 +107,12 @@ const CELL_OP_TYPES = new Set(['set_cell', 'set_range', 'clear_cell', 'cells_cha
 const LIVE_PERSISTED_CELL_OP_TYPES = new Set(['set_cell', 'set_range', 'clear_cell'])
 const LIVE_STRUCTURAL_OP_TYPES = new Set(['row_add', 'row_delete', 'add_rows', 'delete_rows'])
 const MAX_LIVE_REMOTE_CELL_APPLY = 500
+const CLIENT_OP_ECHO_TTL_MS = 15000
+
+type TaggedDocumentOperation = DocumentOperation & {
+  _retried?: boolean
+  _clientOpId?: string
+}
 
 export class SpreadsheetCollaborationManager {
   private callbacks: CollaborationCallbacks
@@ -109,12 +120,14 @@ export class SpreadsheetCollaborationManager {
   private emitCursorFn: ((pos: { path?: string[] }) => void) | null = null
   private connected = false
   private joined = false
-  private pendingOps: DocumentOperation[] = []
+  private pendingOps: TaggedDocumentOperation[] = []
   private pendingCursor: { path?: string[] } | null = null
   private currentUserId: string | null = null
   private lastKnownVersion = 0
   private reconciling = false
   private collabDiagSeq = 0
+  private deferredCellsChangedBySheet = new Map<string, CellsChangedPayload[]>()
+  private recentOutgoingClientOpIds = new Map<string, number>()
 
   constructor(callbacks: CollaborationCallbacks) {
     this.callbacks = callbacks
@@ -160,6 +173,16 @@ export class SpreadsheetCollaborationManager {
   /** Compatibility no-op: spreadsheet cell writes must stay on HTTP batch paths. */
   tryFlushDeferredCellEmits(): void {}
 
+  flushDeferredCellsChangedForSheet(sheetId: string): void {
+    if (!sheetId) return
+    const queued = this.deferredCellsChangedBySheet.get(sheetId)
+    if (!queued || queued.length === 0) return
+    this.deferredCellsChangedBySheet.delete(sheetId)
+    for (const payload of queued) {
+      this.handleCellsChanged(payload)
+    }
+  }
+
   emitCursor(path: string[]): void {
     const pos = { path }
     if (!this.connected || !this.joined) {
@@ -175,8 +198,8 @@ export class SpreadsheetCollaborationManager {
   }
 
   handleAckFailure(op: DocumentOperation): void {
-    if ((op as DocumentOperation & { _retried?: boolean })._retried) return
-    const tagged = { ...op, _retried: true } as DocumentOperation & { _retried: boolean }
+    if ((op as TaggedDocumentOperation)._retried) return
+    const tagged = { ...(op as TaggedDocumentOperation), _retried: true } as TaggedDocumentOperation
     this.pendingOps.push(tagged)
     if (this.connected && this.joined) {
       this.flushPendingOps()
@@ -188,6 +211,31 @@ export class SpreadsheetCollaborationManager {
   handleOperation(payload: CollaborationOperation): void {
     const { operation, version } = payload
     const activeSheetId = this.callbacks.getActiveSheetId()
+    const clientOpId = typeof operation._clientOpId === 'string' ? operation._clientOpId : ''
+    if (clientOpId && this.hasRecentOutgoingClientOpId(clientOpId)) {
+      this.updateVersion(operation.data, version)
+      this.collabDiag('collab_receive_client_echo_skipped', {
+        opType: operation.type,
+        hasVersion: typeof version === 'number'
+      })
+      return
+    }
+
+    // The room can have multiple tabs for the SAME authenticated user. Dropping
+    // events by `userId` here would suppress legitimate cross-tab updates (for
+    // example style-only `cells_changed` broadcasts). The viewer-level
+    // `shouldIgnoreReceivedOperation` hook already filters true local echoes via
+    // recently-committed versions, so the manager must stay permissive and apply
+    // same-user events that belong to another tab/session.
+    const senderUserId = typeof payload.userId === 'string' ? payload.userId : ''
+    const isSameAuthenticatedUser = Boolean(senderUserId && this.currentUserId && senderUserId === this.currentUserId)
+    if (isSameAuthenticatedUser) {
+      this.collabDiag('collab_receive_same_user', {
+        opType: operation.type,
+        senderUserId,
+        hasVersion: typeof version === 'number'
+      })
+    }
 
     if (operation.type === 'dimension_sync') {
       const d = operation.data as CellDimensionsPayload | undefined
@@ -268,7 +316,17 @@ export class SpreadsheetCollaborationManager {
       return
     }
     if (d.sheetId !== activeSheetId) {
-      this.collabDiag('collab_receive_skipped', { reason: 'other_sheet' })
+      const queued = this.deferredCellsChangedBySheet.get(d.sheetId) ?? []
+      queued.push({
+        sheetId: d.sheetId,
+        cells: Array.isArray(d.cells) ? d.cells.map(cell => ({ ...cell })) : []
+      })
+      this.deferredCellsChangedBySheet.set(d.sheetId, queued)
+      this.collabDiag('collab_receive_deferred', {
+        reason: 'other_sheet',
+        sheetId: d.sheetId,
+        queuedCount: queued.length
+      })
       return
     }
     if (!Array.isArray(d.cells) || d.cells.length === 0) {
@@ -280,8 +338,8 @@ export class SpreadsheetCollaborationManager {
 
     for (const cell of d.cells) {
       if (!cell?.rowId) continue
-      if (!Object.prototype.hasOwnProperty.call(cell, 'value')) continue
       if (cell.column == null) continue
+      if (!Object.prototype.hasOwnProperty.call(cell, 'value')) continue
       const remoteRowId = String(cell.rowId)
       const targetColumnName = this.resolveColumnName(cell.column)
       const rowUpdates = updatesByRowId.get(remoteRowId) ?? {}
@@ -289,11 +347,20 @@ export class SpreadsheetCollaborationManager {
       updatesByRowId.set(remoteRowId, rowUpdates)
     }
 
-    if (updatesByRowId.size === 0) {
+    const cellQualifiesForGridApply = (cell: CellsChangedCell | undefined): boolean => {
+      if (!cell?.rowId || cell.column == null) return false
+      const hasValue = Object.prototype.hasOwnProperty.call(cell, 'value')
+      const hasRich = Boolean(cell.univerCell && typeof cell.univerCell === 'object')
+      return hasValue || hasRich
+    }
+
+    if (updatesByRowId.size === 0 && !d.cells.some(cellQualifiesForGridApply)) {
       this.collabDiag('collab_receive_skipped', { reason: 'no_valid_cell_payloads', wireCellCount: d.cells.length })
       return
     }
-    this.applyDataModelUpdates(updatesByRowId)
+    if (updatesByRowId.size > 0) {
+      this.applyDataModelUpdates(updatesByRowId)
+    }
 
     let withA1Applied = 0
     let withCoordsApplied = 0
@@ -302,17 +369,29 @@ export class SpreadsheetCollaborationManager {
 
     // Prefer A1 cellRef from the sender's Univer grid (same as cursor). Data-array row indices can drift
     // after row insert/delete so resolveCoordinates(rowId, column) may target the wrong sheet cell.
+    const richOptions = (cell: CellsChangedCell): ApplyRemoteCellUpdateOptions | undefined => {
+      if (!cell.univerCell && !cell.univerStyles) return undefined
+      return { univerCell: cell.univerCell, univerStyles: cell.univerStyles }
+    }
+
     for (const cell of d.cells) {
       if (!cell?.rowId) continue
-      if (!Object.prototype.hasOwnProperty.call(cell, 'value')) continue
       if (cell.column == null) continue
+      const hasValue = Object.prototype.hasOwnProperty.call(cell, 'value')
+      const hasRich = Boolean(cell.univerCell && typeof cell.univerCell === 'object')
+      if (!hasValue && !hasRich) continue
       const remoteRowId = String(cell.rowId)
       const targetColumnName = this.resolveColumnName(cell.column)
+      const wireValue = hasValue ? cell.value : undefined
+      const opts = richOptions(cell)
       const trimmedRef = typeof cell.cellRef === 'string' ? cell.cellRef.trim() : ''
       if (trimmedRef) {
         const a1 = parseA1Reference(trimmedRef)
         if (a1 && a1.row >= 0 && a1.col >= 0) {
-          this.callbacks.applyRemoteCellUpdate(a1.row, a1.col, cell.value, remoteRowId, { useSenderA1Row: true })
+          this.callbacks.applyRemoteCellUpdate(a1.row, a1.col, wireValue, remoteRowId, {
+            useSenderA1Row: true,
+            ...opts
+          })
           withA1Applied += 1
           continue
         }
@@ -320,7 +399,11 @@ export class SpreadsheetCollaborationManager {
       }
       const { rowIndex, colIndex } = this.resolveCoordinates(targetColumnName, remoteRowId)
       if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
-        this.callbacks.applyRemoteCellUpdate(rowIndex, colIndex, cell.value, remoteRowId)
+        if (opts) {
+          this.callbacks.applyRemoteCellUpdate(rowIndex, colIndex, wireValue, remoteRowId, opts)
+        } else {
+          this.callbacks.applyRemoteCellUpdate(rowIndex, colIndex, wireValue, remoteRowId)
+        }
         withCoordsApplied += 1
       } else {
         skippedApply += 1
@@ -455,19 +538,47 @@ export class SpreadsheetCollaborationManager {
 
   // --- Private: Helpers ---
 
+  private nextClientOpId(): string {
+    return `collab-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  }
+
+  private cleanupRecentOutgoingClientOpIds(now = Date.now()): void {
+    for (const [clientOpId, expiresAt] of this.recentOutgoingClientOpIds) {
+      if (expiresAt <= now) {
+        this.recentOutgoingClientOpIds.delete(clientOpId)
+      }
+    }
+  }
+
+  private hasRecentOutgoingClientOpId(clientOpId: string): boolean {
+    this.cleanupRecentOutgoingClientOpIds()
+    return this.recentOutgoingClientOpIds.has(clientOpId)
+  }
+
+  private withClientOpId(op: DocumentOperation): TaggedDocumentOperation {
+    const tagged = op as TaggedDocumentOperation
+    const shouldTag = tagged.broadcastOnly === true || tagged.type === 'cells_changed'
+    if (!shouldTag) return tagged
+    const clientOpId = tagged._clientOpId || this.nextClientOpId()
+    this.cleanupRecentOutgoingClientOpIds()
+    this.recentOutgoingClientOpIds.set(clientOpId, Date.now() + CLIENT_OP_ECHO_TTL_MS)
+    return { ...tagged, _clientOpId: clientOpId }
+  }
+
   private enqueueOrSend(op: DocumentOperation): void {
+    const taggedOp = this.withClientOpId(op)
     if (!this.connected || !this.joined || !this.emitFn) {
-      this.pendingOps.push(op)
-      const broadcastOnly = Boolean((op as { broadcastOnly?: boolean }).broadcastOnly)
+      this.pendingOps.push(taggedOp)
+      const broadcastOnly = Boolean(taggedOp.broadcastOnly)
       const cellCount =
-        op.type === 'cells_changed' &&
-        op.data &&
-        typeof op.data === 'object' &&
-        Array.isArray((op.data as CellsChangedPayload).cells)
-          ? (op.data as CellsChangedPayload).cells.length
+        taggedOp.type === 'cells_changed' &&
+        taggedOp.data &&
+        typeof taggedOp.data === 'object' &&
+        Array.isArray((taggedOp.data as CellsChangedPayload).cells)
+          ? (taggedOp.data as CellsChangedPayload).cells.length
           : undefined
       this.collabDiag('collab_op_queued_offline', {
-        opType: op.type,
+        opType: taggedOp.type,
         pendingLen: this.pendingOps.length,
         broadcastOnly,
         connected: this.connected,
@@ -482,22 +593,22 @@ export class SpreadsheetCollaborationManager {
       }
       return
     }
-    if (op.type === 'cells_changed' && op.data && typeof op.data === 'object') {
-      const cells = (op.data as CellsChangedPayload).cells
+    if (taggedOp.type === 'cells_changed' && taggedOp.data && typeof taggedOp.data === 'object') {
+      const cells = (taggedOp.data as CellsChangedPayload).cells
       const cellCount = Array.isArray(cells) ? cells.length : 0
       const withA1Ref = Array.isArray(cells)
         ? cells.filter(c => typeof c?.cellRef === 'string' && String(c.cellRef).trim().length > 0).length
         : 0
       this.collabDiag('collab_op_send_immediate', {
-        opType: op.type,
-        broadcastOnly: Boolean((op as { broadcastOnly?: boolean }).broadcastOnly),
+        opType: taggedOp.type,
+        broadcastOnly: Boolean(taggedOp.broadcastOnly),
         cellCount,
         withA1Ref
       })
     } else {
-      this.collabDiag('collab_op_send_immediate', { opType: op.type })
+      this.collabDiag('collab_op_send_immediate', { opType: taggedOp.type })
     }
-    this.emitFn(op)
+    this.emitFn(taggedOp)
   }
 
   private flushPendingOps(): void {
@@ -617,9 +728,15 @@ export class SpreadsheetCollaborationManager {
           const column = String(cell.columnName ?? cell.column ?? '')
           if (!rowId || !column) continue
           const existing = updatesByRowId.get(rowId) ?? {}
-          existing[this.resolveColumnName(column)] = Object.prototype.hasOwnProperty.call(cell, 'value')
-            ? cell.value
-            : null
+          if (change.operationType === 'set_range') {
+            existing[this.resolveColumnName(column)] = Object.prototype.hasOwnProperty.call(cell, 'value')
+              ? cell.value
+              : null
+          } else if (Object.prototype.hasOwnProperty.call(cell, 'value')) {
+            existing[this.resolveColumnName(column)] = cell.value
+          } else {
+            continue
+          }
           updatesByRowId.set(rowId, existing)
         }
       }

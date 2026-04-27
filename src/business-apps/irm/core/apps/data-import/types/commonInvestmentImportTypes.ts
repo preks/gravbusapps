@@ -3,61 +3,54 @@
  * Shared type definitions for investment imports across all investment types
  */
 
+import { ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
+
 /**
- * Common Investment Data Structure
- * Represents the investment table fields used in CSV imports
- * Uses string references (Refs) instead of full catalog objects
+ * Descriptor for an `InvestmentGroup` catalog entry used as a data-import
+ * card entry. Produced by `toInvestmentImportGroupDescriptors` from raw
+ * catalog entries.
  */
-export interface CommonInvestmentImportData {
-  // Identity
-  name: string
-  code?: string
-  isin?: string
+export interface InvestmentImportGroupDescriptor {
+  /** Catalog entry id (e.g. 'InvestmentGroup:v1:REAL_ESTATE'). */
+  id: string
+  /** Normalized catalog code (e.g. 'REAL_ESTATE'). */
+  code: string
+  /** Localized display label (falls back to title-cased code). */
+  label: string
+  /** URL-safe tab id (e.g. 'real-estate'). */
+  tabId: string
+  /** Full entity type used as `DataImportLayout` view key (e.g. 'real-estate-investment'). */
+  entityType: string
+  /**
+   * The Java entity subtype key from `objectValue.requiredSubtypeKey` in the
+   * catalog (e.g. `'liquidFundInvestment'`, `'equityInvestment'`). Used as
+   * the payload key for `createInvestments`. When absent, falls back to
+   * the code-derived key.
+   */
+  requiredSubtypeKey?: string
+}
 
-  // Catalog References (string refs, not full objects)
-  investmentGroupRef?: string
-  investmentTypeRef?: string
-  investmentPhaseRef?: string
-  investmentStatusRef?: string
-  investmentStakeTypeRef?: string
-  investmentRiskLevelRef?: string
-  currencyRef?: string
+/**
+ * i18n key slots for the generic investment import view. Overrides in
+ * `GROUP_IMPORT_CONFIGURATIONS` can set any of these to a curated key; when
+ * unset the generic keys (`page-title-generic`, …) are used with
+ * `$groupLabel` argument substitution.
+ */
+export interface InvestmentImportViewLabels {
+  pageTitleKey?: string
+  pageDescriptionKey?: string
+  entityTypePluralKey?: string
+  entityTypeSingularKey?: string
+  /** Used to derive the `data-testid` prefix (defaults to `{tabId}-investment-import-view`). */
+  dataTestIdPrefix?: string
+}
 
-  // Financial Fields
-  stakePercentage?: number
-  initialInvestmentAmount?: number
-  totalInvestmentAmount?: number
-  investmentMarketValue?: number
-  debtFinancingAmount?: number
-  requiredCapitalAmount?: number
-  forecastedRevenueAmount?: number
-  forecastedProfitAmount?: number
-
-  // Dates
-  acquisitionDate?: string
-  planedExit?: string | boolean
-  plannedExitDate?: string
-  exitDate?: string
-
-  // Loan Information
-  loanRecipientName?: string
-  loanAmount?: number
-  loanOpenCommitmentAmount?: number
-  loanInterestRate?: number
-  loanStartDate?: string
-  loanEndDate?: string
-  loanInterestClaim?: number
-
-  // Fund Information
-  totalCommitmentAmount?: number
-  totalDistributionAmount?: number
-  fundManagerName?: string
-
-  // Performance Metrics
-  irr?: number
-  moic?: number
-
-  // Relationships
-  ownerEmployeeId?: string
-  investmentAccountId?: string
+/**
+ * Fully resolved definition for a single investment group's import flow:
+ * its catalog descriptor, merged `ImportConfig`, and label slots.
+ */
+export interface InvestmentGroupImportDefinition {
+  group: InvestmentImportGroupDescriptor
+  importConfig: ImportConfig
+  labels: InvestmentImportViewLabels
 }

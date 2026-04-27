@@ -1,18 +1,23 @@
-import { useEffect, useMemo, useCallback } from 'react'
+import { useEffect, useMemo, useCallback, type Dispatch, type SetStateAction } from 'react'
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { ReportType } from '../../hooks/useBackofficeExpenseReportData'
 import { getActiveStructureDepartmentOptions } from '../../utils/departmentOptions'
-import { EMPTY_REPORT_FILTERS, normalizeReportFilters, areReportFiltersEqual } from './reportFilterUtils'
+import {
+  type ReportFilters,
+  EMPTY_REPORT_FILTERS,
+  normalizeReportFilters,
+  areReportFiltersEqual
+} from './reportFilterUtils'
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string
 
-interface UseReportFiltersParams {
+export interface UseReportFiltersParams {
   selectedReportType: ReportType | null
   reportRowsWithGroupedStatuses: any[]
   organizationalUnits: any[] | undefined
   allEmployeeNames: string[]
-  filtersByReportType: Partial<Record<ReportType, Record<string, any>>>
-  setFiltersByReportType: React.Dispatch<React.SetStateAction<Partial<Record<ReportType, Record<string, any>>>>>
+  filtersByReportType: Partial<Record<ReportType, ReportFilters>>
+  setFiltersByReportType: Dispatch<SetStateAction<Partial<Record<ReportType, ReportFilters>>>>
   setCurrentPage: (page: number) => void
   setLocalSearchText: (text: string) => void
   setSearchTerm: (term: string) => void
@@ -265,7 +270,7 @@ export const useReportFilters = (params: UseReportFiltersParams) => {
   const hasClientSideFilters = false
 
   const handleFilterChange = useCallback(
-    (filters: Record<string, any>) => {
+    (filters: Record<string, unknown>) => {
       if (!selectedReportType) return
 
       const extractRange = (key: string): [string | undefined, string | undefined] => {

@@ -1,42 +1,34 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import { ErrorBoundary } from '@/business-apps/core/every/apps/every-box/components/ErrorBoundary'
+import { CardTabHeaderComponent } from '@/business-apps/mdm/apps/generic-components/card'
+import useJobFamilies from '@/business-apps/mdm/apps/job-structure-data/hooks/useJobFamilies.ts'
+import JobFamilyForm from '@/business-apps/mdm/forms/job-family-form/JobFamilyForm'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useJobFamilies } from '../../hooks'
-import { JobFamily } from '../../types'
-import {
-  Card,
-  Button,
-  Alert,
-  AlertTitle,
-  AlertDescription,
-  Spinner,
-  TreeView,
-  Badge,
-  TreeViewAction
-} from '@newwork/nw-design-system'
-import { CardTabHeaderComponent } from '../../../generic-components/card/CardTabHeaderComponent'
-import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
-import JobFamilyForm from '@/business-apps/mdm/forms/job-family-form'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import {
-  InfoIcon,
-  TreeStructureIcon,
-  PlusIcon,
-  PencilSimpleLineIcon,
-  FolderSimpleIcon,
-  GraphIcon,
-  FileCodeIcon,
-  XCircleIcon,
-  FolderIcon,
-  EyeIcon,
-  TrashIcon,
-  CopyIcon
-} from '@phosphor-icons/react'
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  DataTable,
+  Input,
+  Spinner
+} from '@newwork/nw-design-system'
+import { FolderSimpleIcon, InfoIcon, PencilSimpleLineIcon, PlusIcon, XCircleIcon } from '@phosphor-icons/react'
+import { ColumnDef, SortingState } from '@tanstack/react-table'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
+import { JobFamily } from '../../utils/JobFamily.types'
 import {
-  JOB_FAMILY_CATALOG,
-  JOB_FAMILY_VERSION
-} from '@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/hooks/useJobFamilyFilters'
+  SortableHeader,
+  ActionsColumnHeader,
+  BadgeCell,
+  TextCell,
+  DescriptionCell,
+  ActionsCell
+} from '@/business-apps/mdm/utils/tableUtils'
 
 export interface JobFamiliesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -44,155 +36,99 @@ export interface JobFamiliesTabProps extends BusinessAppContextProps {
 
 const DATA_TEST_ID_PREFIX = 'JobFamiliesTab'
 
-const JobFamiliesTab: React.FC<JobFamiliesTabProps> = context => {
+export default function JobFamiliesTab(context: Readonly<JobFamiliesTabProps>) {
+  // ─── Component State ────────────────────────────────────────────────────────
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedFamily, setSelectedFamily] = useState<JobFamily | null>(null)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState<string | null>(null)
+
+  // ─── Context & Configuration ───────────────────────────────────────────────
   const { prefixDataTestId, accessToken } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
 
-  const { rootFamilies, isLoading, error, refetch, getFamilyById } = useJobFamilies(context)
+  // ─── Data & Actions Hook ───────────────────────────────────────────────────
+  const { jobFamilies, isLoading, error, refetch, searchJobFamilies, removeJobFamily } = useJobFamilies(context)
 
-  const [selectedFamily, setSelectedFamily] = useState<JobFamily | null>(null)
-  const [drawerVisible, setDrawerVisible] = useState(false)
-  const [isRemoveFamilyOpen, setIsRemoveFamilyOpen] = useState(false)
-  const [isEditFamilyOpen, setIsEditFamilyOpen] = useState(false)
+  // ─── Computed Values & Effects ─────────────────────────────────────────────
+  const usedCodes = useMemo(() => jobFamilies.map(f => f.code), [jobFamilies])
 
-  const catalogClient = useCatalogManagerClient(accessToken)
-  const usedCodes = useMemo(() => {
-    return rootFamilies.map(family => family.code)
-  }, [rootFamilies])
-
-  useEffect(() => {
-    if (selectedFamily) {
-      const newFamily = getFamilyById(selectedFamily.id)
-
-      if (newFamily) {
-        setSelectedFamily(newFamily)
-      }
-    }
-  }, [rootFamilies])
-
-  const handleDeleteFamily = async (family: JobFamily) => {
-    await catalogClient.deleteCatalogEntry(JOB_FAMILY_CATALOG, JOB_FAMILY_VERSION, family.id)
-
-    refetch()
-    setIsRemoveFamilyOpen(false)
-    setSelectedFamily(null)
-  }
-
-  // Handle job family selection and drawer open/close
-  const handleFamilySelect = useCallback(
-    (selectedKeys: string) => {
-      if (selectedKeys.length === 0) return
-      const family = getFamilyById(selectedKeys.toString())
-      if (family) {
-        setSelectedFamily(family)
-        setDrawerVisible(true)
-      }
-    },
-    [getFamilyById]
+  const filteredFamilies = useMemo(
+    () => (searchTerm ? searchJobFamilies(searchTerm) : jobFamilies),
+    [searchTerm, searchJobFamilies, jobFamilies]
   )
 
-  const nodes = useMemo(() => {
-    return rootFamilies.map(family => ({
-      id: family.id,
-      values: {
-        code: family.code,
-        name: family.name,
-        level: family.level,
-        status: family.isActive ? (
-          <Badge variant="success">Active</Badge>
-        ) : (
-          <Badge variant="destructive">Inactive</Badge>
-        ),
-        description: family.description ?? '-'
-      },
-      icon: FolderIcon,
-      children: []
-    }))
-  }, [rootFamilies])
+  // Update selected family when data changes
+  useEffect(() => {
+    if (selectedFamily) {
+      const updated = jobFamilies.find(f => f.id === selectedFamily.id)
+      if (updated) setSelectedFamily(updated)
+    }
+  }, [jobFamilies])
 
-  const treeColumns = [
-    { key: 'name', header: 'Name', sortable: true, align: 'left' as const },
-    { key: 'code', header: 'Code', sortable: true, align: 'center' as const },
-    { key: 'level', header: 'Level', sortable: true, align: 'center' as const },
+  // ─── Event Handlers ────────────────────────────────────────────────────────
+  const handleDelete = useCallback(
+    async (family: JobFamily) => {
+      await removeJobFamily({ id: family.id, version: family.version })
+    },
+    [removeJobFamily]
+  )
+
+  const handleView = useCallback((family: JobFamily) => {
+    setSelectedFamily(family)
+    setIsDrawerOpen(true)
+  }, [])
+
+  // ─── Table Configuration ───────────────────────────────────────────────────
+  const columns: ColumnDef<JobFamily>[] = [
     {
-      key: 'status',
-      header: 'Status',
-      sortable: true,
-      align: 'center' as const
+      accessorKey: 'code',
+      header: ({ column }) => SortableHeader({ column, children: 'Code' }),
+      enableSorting: true,
+      cell: ({ getValue }) => BadgeCell({ value: getValue() as string, variant: 'info' })
     },
     {
-      key: 'description',
+      accessorKey: 'name',
+      header: ({ column }) => SortableHeader({ column, children: 'Name' }),
+      enableSorting: true,
+      cell: ({ getValue }) => TextCell({ value: getValue() as string, className: 'gba:font-semibold' })
+    },
+    {
+      accessorKey: 'description',
       header: 'Description',
-      sortable: true,
-      align: 'center' as const
+      enableSorting: false,
+      cell: ({ getValue }) => DescriptionCell({ value: getValue() as string | undefined })
+    },
+    {
+      id: 'actions',
+      header: () => ActionsColumnHeader(),
+      enableSorting: false,
+      cell: ({ row }) =>
+        ActionsCell({
+          record: row.original,
+          dataTestId,
+          onView: handleView,
+          onEdit: setEditDialogOpen,
+          onDelete: handleDelete,
+          itemNameGetter: record => record.name,
+          itemTitle: 'Job Family'
+        })
     }
   ]
 
-  const treeActions: TreeViewAction[] = [
-    {
-      id: 'view-root-family',
-      label: 'View Job Family',
-      icon: EyeIcon,
-      onClick: node => {
-        handleFamilySelect(node?.id ?? '')
-      },
-      variant: 'ghost' as const,
-      size: 'sm' as const
-    },
-    {
-      id: 'edit-root-family',
-      label: 'Edit Job Family',
-      icon: PencilSimpleLineIcon,
-      onClick: node => {
-        const family = getFamilyById(node?.id ?? '')
-        if (family) {
-          setSelectedFamily(family)
-          setIsEditFamilyOpen(true)
-        }
-      },
-      variant: 'ghost' as const,
-      size: 'sm' as const
-    },
-    {
-      id: 'remove-root-family',
-      label: 'Delete Job Family',
-      icon: TrashIcon,
-      onClick: node => {
-        const family = getFamilyById(node?.id ?? '')
-        if (family) {
-          setSelectedFamily(family)
-          setIsRemoveFamilyOpen(true)
-        }
-      },
-      variant: 'ghost' as const,
-      size: 'sm' as const
-    }
-  ]
-
+  // ─── Drawer Configuration ──────────────────────────────────────────────────
   const drawerItems = useMemo(() => {
     if (!selectedFamily) return []
-    const items = [
+    return [
       {
         icon: <InfoIcon />,
         title: 'Basic Information',
         verticalTable: true,
         items: [
-          {
-            label: 'Name',
-            value: selectedFamily.name ?? '-'
-          },
-          {
-            label: 'Code',
-            value: <Badge variant="info">{selectedFamily.code || 'N/A'}</Badge>
-          },
-          {
-            label: 'Description',
-            value: selectedFamily?.description ?? '-'
-          },
-          {
-            label: 'Hierarchy Level',
-            value: `Level ${selectedFamily.level}  ${selectedFamily.level === 0 ? ' (Root)' : ''}`
-          },
+          { label: 'Name', value: selectedFamily.name },
+          { label: 'Code', value: <Badge variant="info">{selectedFamily.code}</Badge> },
+          { label: 'Description', value: selectedFamily.description || '—' },
           {
             label: 'Status',
             value: (
@@ -202,93 +138,14 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = context => {
             )
           }
         ]
-      },
-      {
-        icon: <TreeStructureIcon />,
-        title: 'Hierarchy Information',
-        verticalTable: true,
-        items: [
-          {
-            label: 'Parent Family',
-            value: selectedFamily.parentFamily
-              ? selectedFamily.parentFamily.code && <Badge variant="info">{selectedFamily.parentFamily.code}</Badge>
-              : 'No parent (Root level)'
-          },
-          {
-            label: 'Child Families',
-            value:
-              selectedFamily.children.length > 0 ? (
-                <div className="gba:flex gba:flex-col gba:gap-2">
-                  {selectedFamily.children.map(child => (
-                    <div className="gba:flex gba:items-center gba:space-x-2 gba:w-full" key={child.id}>
-                      <div>
-                        <GraphIcon className="gba:text-green-500" />
-                      </div>
-                      <div className="gba:w-full gba:flex gba:items-center gba:justify-between gba:gap-2 gba:overflow-hidden">
-                        <div className="gba:flex-1 gba:flex gba:gap-1 gba:items-center gba:overflow-hidden gba:truncate">
-                          <p className="gba:font-medium gba:overflow-hidden gba:truncate">{child.name}</p>
-                          {child.code && (
-                            <Badge variant="info" className="gba:max-w-2/3">
-                              {child.code}
-                            </Badge>
-                          )}
-                        </div>
-                        {child.children.length > 0 && <Badge variant="success">{child.children.length} children</Badge>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="gba:text-center gba:py-8 gba:flex gba:flex-col gba:items-center gba:justify-center">
-                  <FolderSimpleIcon className="gba:h-12 gba:w-12 gba:text-gray-400" />
-                  <p className="gba:font-normal gba:text-gray-500">No child families</p>
-                </div>
-              )
-          }
-        ]
       }
     ]
-
-    if (selectedFamily.parentEntryId) {
-      items[2].items.push({
-        label: 'Parent ID',
-        value: (
-          <div className="gba:flex gba:items-center gba:gap-1 gba:w-full gba:overflow-hidden">
-            <p className="gba:font-medium gba:truncate">{selectedFamily.parentEntryId}</p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                navigator.clipboard.writeText(selectedFamily.parentEntryId!)
-              }}
-              data-testid={`${dataTestId}-copy-children-text`}
-            >
-              <CopyIcon className="gba:h-4 gba:w-4 gba:text-blue-400" />
-            </Button>
-          </div>
-        )
-      })
-    }
-
-    if (selectedFamily.children.length > 0) {
-      items[2].items.push({
-        label: 'Child Count',
-        value: (
-          <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
-            <TreeStructureIcon className="gba:text-blue-500" />
-            <p className="gba:font-medium">{selectedFamily?.children?.length}</p>
-            <p className="gba:font-normal gba:text-gray-500">direct children</p>
-          </div>
-        )
-      })
-    }
-
-    return items
   }, [selectedFamily])
 
+  // ─── Loading & Error States ────────────────────────────────────────────────
   if (error) {
     return (
-      <div data-testid={`${prefixDataTestId}-PayGradesTab`} className="gba:p-4">
+      <div data-testid={`${prefixDataTestId}-JobFamiliesTab2`} className="gba:p-4">
         <Alert className="gba:w-full gba:!flex gba:justify-between gba:!items-center" variant="destructive">
           <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
             <XCircleIcon className="h-4 w-4" />
@@ -304,135 +161,147 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = context => {
     )
   }
 
-  if (isLoading && rootFamilies.length === 0) {
+  if (isLoading && jobFamilies.length === 0) {
     return (
-      <div data-testid={`${dataTestId}`} className="gba:flex gba:justify-center gba:items-center gba:h-64">
+      <div data-testid={dataTestId} className="gba:flex gba:justify-center gba:items-center gba:h-64">
         <Spinner />
       </div>
     )
   }
 
+  // ─── Main Render ───────────────────────────────────────────────────────────
   return (
-    <Card>
-      {!isLoading && (
-        <CardTabHeaderComponent
-          addButton={
-            <JobFamilyForm
-              usedCodes={usedCodes}
-              childAddButton={
-                <Button
-                  variant="default"
-                  onClick={event => event.stopPropagation()}
-                  data-testid={`${dataTestId}-add-root-family`}
-                >
-                  <PlusIcon /> Add Root Family
-                </Button>
-              }
-              prefixDataTestId={dataTestId}
-              loading={isLoading}
-              accessToken={context.accessToken}
-              refetch={refetch}
-            />
-          }
-          cardTitle={`Job Families (${rootFamilies.length})`}
-          cardDescription="Manage job families in a hierarchical structure. Job families help
-            categorize and organize different types of roles."
-        />
-      )}
-
-      <div className="gba:min-h-96">
-        {rootFamilies.length === 0 && !isLoading ? (
-          <div className="gba:text-center gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
-            <FolderSimpleIcon className="gba:h-12 gba:w-12 gba:text-gray-400" />
-            <p className="gba:font-normal gba:text-gray-500">No job families found</p>
-            <div className="gba:mt-2">
-              <JobFamilyForm
-                usedCodes={usedCodes}
-                childAddButton={
-                  <Button
-                    variant="default"
-                    onClick={event => event.stopPropagation()}
-                    data-testid={`${prefixDataTestId}-add-root-family`}
-                  >
-                    <PlusIcon /> Create First Job Family
-                  </Button>
-                }
-                prefixDataTestId={`${prefixDataTestId}`}
-                loading={isLoading}
-                accessToken={context.accessToken}
-                refetch={refetch}
-              />
-            </div>
-          </div>
-        ) : (
-          <TreeView
-            data={nodes}
-            columns={treeColumns}
-            className="gba:px-6"
-            searchPlaceholder="Search job families..."
-            showSelectColumn={false}
-            actions={treeActions}
-            multipleSelection={false}
+    <ErrorBoundary>
+      <Card className="gba:rounded-lg gba:border gba:bg-card gba:text-card-foreground gba:shadow-sm gba:overflow-hidden">
+        {!isLoading && (
+          <CardTabHeaderComponent
+            addButton={
+              <ErrorBoundary>
+                <JobFamilyForm
+                  usedCodes={usedCodes}
+                  childAddButton={
+                    <Button
+                      variant="default"
+                      onClick={e => e.stopPropagation()}
+                      data-testid={`${dataTestId}-add-family`}
+                    >
+                      <PlusIcon /> Add Job Family
+                    </Button>
+                  }
+                  prefixDataTestId={dataTestId}
+                  accessToken={accessToken}
+                  refetch={refetch}
+                />
+              </ErrorBoundary>
+            }
+            cardTitle={`Job Families (${jobFamilies.length})`}
+            cardDescription="Manage job families and their classifications"
           />
         )}
-      </div>
-      {selectedFamily && isRemoveFamilyOpen && (
-        <DeleteButton
-          onDelete={() => handleDeleteFamily(selectedFamily)}
-          itemName={selectedFamily?.name}
-          itemTitle="Job Family"
-          open={isRemoveFamilyOpen}
-          setOpen={setIsRemoveFamilyOpen}
-          showCancelButton={false}
-        />
-      )}
-      {selectedFamily && isEditFamilyOpen && (
-        <JobFamilyForm
-          usedCodes={usedCodes}
-          jobFamily={selectedFamily}
-          prefixDataTestId={`${prefixDataTestId}`}
-          loading={isLoading}
-          accessToken={context.accessToken}
-          refetch={refetch}
-          open={isEditFamilyOpen}
-          setOpen={setIsEditFamilyOpen}
-        />
-      )}
 
-      {selectedFamily && (
-        <SheetWrapperComponent
-          prefixDataTestId={dataTestId}
-          isDrawerVisible={drawerVisible}
-          onOpenChange={openStatus => {
-            if (!openStatus) {
-              setSelectedFamily(null)
-            }
-            setDrawerVisible(openStatus)
-          }}
-          title="Job Family Details"
-          titleIcon={FileCodeIcon}
-          drawerItems={drawerItems}
-          footerButtons={[
-            <JobFamilyForm
-              usedCodes={usedCodes}
-              childAddButton={
-                <Button data-testid={`${prefixDataTestId || ''}-JobFamiliesTab-EditButton`}>
-                  <PencilSimpleLineIcon /> Edit
-                </Button>
-              }
-              jobFamily={selectedFamily}
-              prefixDataTestId={`${prefixDataTestId}`}
-              loading={isLoading}
-              accessToken={context.accessToken}
-              refetch={refetch}
-              isDrawerActive={true}
-              key={selectedFamily.id}
+        <CardContent className="gba:relative">
+          <div className="gba:mb-6 gba:relative gba:max-w-sm">
+            <Input
+              placeholder="Search job families..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              data-testid={`${dataTestId}-search-input`}
             />
-          ]}
-        />
-      )}
-    </Card>
+          </div>
+
+          {jobFamilies.length === 0 && !isLoading ? (
+            <div className="gba:text-center gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
+              <FolderSimpleIcon className="gba:h-12 gba:w-12 gba:text-gray-400" />
+              <p className="gba:font-normal gba:text-gray-500">No job families found</p>
+              <div className="gba:mt-2">
+                <ErrorBoundary>
+                  <JobFamilyForm
+                    usedCodes={usedCodes}
+                    childAddButton={
+                      <Button
+                        variant="default"
+                        onClick={e => e.stopPropagation()}
+                        data-testid={`${prefixDataTestId}-create-first-family`}
+                      >
+                        <PlusIcon /> Create First Job Family
+                      </Button>
+                    }
+                    prefixDataTestId={`${prefixDataTestId}`}
+                    accessToken={accessToken}
+                    refetch={refetch}
+                  />
+                </ErrorBoundary>
+              </div>
+            </div>
+          ) : (
+            <ErrorBoundary>
+              <DataTable
+                data={filteredFamilies}
+                columns={columns}
+                sorting={sorting}
+                onSortingChange={setSorting}
+                enableSorting
+                enablePagination
+              />
+            </ErrorBoundary>
+          )}
+        </CardContent>
+
+        {selectedFamily && (
+          <ErrorBoundary>
+            <SheetWrapperComponent
+              prefixDataTestId={dataTestId}
+              isDrawerVisible={isDrawerOpen}
+              onOpenChange={openStatus => {
+                if (!openStatus) setSelectedFamily(null)
+                setIsDrawerOpen(openStatus)
+              }}
+              title="Job Family Details"
+              titleIcon={FolderSimpleIcon}
+              drawerItems={drawerItems}
+              footerButtons={[
+                <ErrorBoundary key="edit-form">
+                  <JobFamilyForm
+                    usedCodes={usedCodes}
+                    childAddButton={
+                      <Button data-testid={`${prefixDataTestId || ''}-JobFamiliesTab2-EditButton`}>
+                        <PencilSimpleLineIcon /> Edit
+                      </Button>
+                    }
+                    jobFamily={selectedFamily}
+                    prefixDataTestId={`${prefixDataTestId}`}
+                    accessToken={accessToken}
+                    refetch={refetch}
+                    isDrawerActive={isDrawerOpen}
+                    key={selectedFamily.id}
+                  />
+                </ErrorBoundary>
+              ]}
+            />
+          </ErrorBoundary>
+        )}
+      </Card>
+
+      {/* Edit dialog rendered outside the DataTable so it is never unmounted by table re-renders */}
+      {editDialogOpen &&
+        (() => {
+          const recordToEdit = jobFamilies.find(f => f.id === editDialogOpen) ?? null
+          if (!recordToEdit) return null
+          return (
+            <ErrorBoundary>
+              <JobFamilyForm
+                key={editDialogOpen}
+                jobFamily={recordToEdit}
+                usedCodes={usedCodes}
+                prefixDataTestId={dataTestId}
+                accessToken={accessToken}
+                refetch={refetch}
+                open={true}
+                setOpen={open => setEditDialogOpen(open ? editDialogOpen : null)}
+              />
+            </ErrorBoundary>
+          )
+        })()}
+    </ErrorBoundary>
   )
 }
-
-export default JobFamiliesTab
