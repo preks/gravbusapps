@@ -5,7 +5,7 @@
  * pulling in the full ``OutputRenderers.tsx`` dependency tree (charts,
  * calendar, design-system primitives, …).
  */
-import type { ReasoningStepKind, ReasoningStepStatus } from '../types/models'
+import type { AnswerOutput, OutputItem, ReasoningStepKind, ReasoningStepStatus } from '../types/models'
 
 /**
  * Short, ALL-CAPS label shown next to the status icon. Lets the user
@@ -51,6 +51,45 @@ export function prettifyJson(value: unknown): string {
  * hint inline instead of as pure JSON. Looks at conventional key names only
  * — anything unrecognised falls back to prettified JSON.
  */
+/**
+ * Decide whether the agent has finished delivering its answer for the
+ * current turn. The reasoning trail collapses behind a single "Show
+ * reasoning" button only after this returns true — until then we keep
+ * each step inline so the user can watch the agent think live.
+ *
+ * "Complete" means the turn contains at least one *finalized* deliverable:
+ *   - an ``answer`` without the streaming sentinel,
+ *   - a flow proposal / entity card / scheduled meeting / error / etc.
+ *
+ * Intermediate items (``tool``, ``loading``, ``reasoning_step``,
+ * ``reasoning_step_update``, ``text_delta``, document-stream chunks) do
+ * NOT count as completion signals.
+ */
+export function isTurnComplete(outputs: ReadonlyArray<OutputItem | null | undefined>): boolean {
+  for (const output of outputs) {
+    const outputType = output?.type ?? 'unknown'
+    if (
+      outputType === 'tool' ||
+      outputType === 'loading' ||
+      outputType === 'reasoning_step' ||
+      outputType === 'reasoning_step_update' ||
+      outputType === 'text_delta' ||
+      outputType === 'document_stream_start' ||
+      outputType === 'document_stream_chunk' ||
+      outputType === 'unknown'
+    ) {
+      continue
+    }
+    if (outputType === 'answer') {
+      const ans = output as AnswerOutput & { __streaming?: boolean }
+      if (ans.__streaming !== true) return true
+      continue
+    }
+    return true
+  }
+  return false
+}
+
 export function extractCodeHint(
   kind: ReasoningStepKind,
   payload: unknown

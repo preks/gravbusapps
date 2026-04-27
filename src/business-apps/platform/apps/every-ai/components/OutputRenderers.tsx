@@ -1288,6 +1288,77 @@ const ReasoningStepRenderer: React.FC<{ item: ReasoningStepOutput }> = ({ item }
   return <ReasoningStepDisplay step={item} />
 }
 
+/**
+ * Collapsed-by-default container that hides a turn's reasoning trail behind
+ * one button once the agent has finished talking. While the answer is still
+ * streaming each step renders inline (handled by ``UnifiedAIMessageRenderer``);
+ * after the canonical answer arrives we want the chat to be visually tidy
+ * but the reasoning to still be one click away — exactly like Cursor.
+ */
+export const ReasoningStepsGroup: React.FC<{
+  steps: ReasoningStepOutput[]
+  defaultExpanded?: boolean
+}> = ({ steps, defaultExpanded = false }) => {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  if (steps.length === 0) return null
+
+  const hasError = steps.some(s => s.status === 'error')
+  const stillRunning = steps.some(s => s.status === 'running')
+  const totalDuration = computeGroupDuration(steps)
+
+  const summaryIcon = hasError ? (
+    <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-destructive" aria-hidden />
+  ) : stillRunning ? (
+    <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-primary gba:animate-pulse" aria-hidden />
+  ) : (
+    <CheckCircleIcon className="gba:h-3.5 gba:w-3.5 gba:text-emerald-600 dark:gba:text-emerald-400" weight="fill" />
+  )
+
+  return (
+    <div className="gba:flex gba:flex-col gba:gap-1 gba:text-xs" data-testid="reasoning-steps-group">
+      <button
+        type="button"
+        onClick={() => setExpanded(prev => !prev)}
+        className="gba:self-start gba:flex gba:items-center gba:gap-2 gba:rounded gba:px-1.5 gba:py-1 gba:text-left hover:gba:bg-muted/60 gba:transition-colors gba:text-muted-foreground"
+        aria-expanded={expanded}
+        data-testid="reasoning-steps-group-toggle"
+      >
+        <span className="gba:flex gba:items-center">{summaryIcon}</span>
+        <span className="gba:text-[11px] gba:font-medium">
+          {expanded ? 'Hide reasoning' : `Show reasoning · ${steps.length} step${steps.length === 1 ? '' : 's'}`}
+        </span>
+        {totalDuration && !expanded && (
+          <span className="gba:text-[11px] gba:text-muted-foreground/80">· {totalDuration}</span>
+        )}
+        <span
+          className="gba:transition-transform"
+          style={{ transform: expanded ? 'rotate(90deg)' : undefined }}
+          aria-hidden
+        >
+          ›
+        </span>
+      </button>
+      {expanded && (
+        <div
+          className="gba:flex gba:flex-col gba:gap-1 gba:pl-2 gba:border-l gba:border-border/60 gba:ml-1"
+          data-testid="reasoning-steps-group-body"
+        >
+          {steps.map(step => (
+            <ReasoningStepDisplay key={step.id} step={step} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function computeGroupDuration(steps: ReasoningStepOutput[]): string | null {
+  const starts = steps.map(s => s.started_at).filter((t): t is number => typeof t === 'number')
+  const ends = steps.map(s => s.ended_at).filter((t): t is number => typeof t === 'number')
+  if (!starts.length || !ends.length) return null
+  return formatReasoningDuration(Math.min(...starts), Math.max(...ends))
+}
+
 // Output Item Renderer
 export const OutputItemRenderer: React.FC<{
   item: OutputItem

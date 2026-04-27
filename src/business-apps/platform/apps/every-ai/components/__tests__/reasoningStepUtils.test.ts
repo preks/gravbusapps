@@ -1,8 +1,10 @@
+import type { OutputItem } from '../../types/models'
 import {
   REASONING_KIND_LABEL,
   REASONING_STATUS_STYLE,
   extractCodeHint,
   formatReasoningDuration,
+  isTurnComplete,
   prettifyJson
 } from '../reasoningStepUtils'
 
@@ -161,5 +163,70 @@ describe('extractCodeHint', () => {
       language: 'json',
       code: 'daniel'
     })
+  })
+})
+
+describe('isTurnComplete', () => {
+  const reasoningStep: OutputItem = {
+    type: 'reasoning_step',
+    id: 'tc_1',
+    kind: 'tool_call',
+    title: 'lookup',
+    status: 'done'
+  } as OutputItem
+
+  const toolChip: OutputItem = { type: 'tool', name: 'run_graphql_query', reason: 'lookup' } as OutputItem
+  const loading: OutputItem = { type: 'loading' } as OutputItem
+  const textDelta: OutputItem = { type: 'text_delta', delta: 'Hel' } as OutputItem
+
+  const streamingAnswer = {
+    type: 'answer',
+    displayData: [{ type: 'textBlock', text: 'partial' }],
+    nextStepProposals: [],
+    __streaming: true
+  } as unknown as OutputItem
+
+  const finalAnswer = {
+    type: 'answer',
+    displayData: [{ type: 'textBlock', text: 'final' }],
+    nextStepProposals: []
+  } as unknown as OutputItem
+
+  it('returns false for an empty turn', () => {
+    expect(isTurnComplete([])).toBe(false)
+  })
+
+  it('returns false while only intermediate items are present', () => {
+    expect(isTurnComplete([loading, toolChip, reasoningStep, textDelta])).toBe(false)
+  })
+
+  it('returns false for a streaming answer bubble (still in progress)', () => {
+    expect(isTurnComplete([reasoningStep, streamingAnswer])).toBe(false)
+  })
+
+  it('returns true once a non-streaming answer arrives', () => {
+    expect(isTurnComplete([reasoningStep, finalAnswer])).toBe(true)
+  })
+
+  it('returns true for non-answer terminal items (flow proposals, errors, …)', () => {
+    const flowProposal = {
+      type: 'flow_proposal',
+      flow_name: 'createTask',
+      module_name: 'tasks',
+      flow_schema: {}
+    } as unknown as OutputItem
+    expect(isTurnComplete([reasoningStep, flowProposal])).toBe(true)
+
+    const error = { type: 'error', text: 'boom' } as unknown as OutputItem
+    expect(isTurnComplete([error])).toBe(true)
+  })
+
+  it('treats a streaming answer followed by a final answer as complete', () => {
+    expect(isTurnComplete([reasoningStep, streamingAnswer, finalAnswer])).toBe(true)
+  })
+
+  it('ignores null / undefined entries safely', () => {
+    expect(isTurnComplete([null as unknown as OutputItem, undefined as unknown as OutputItem, finalAnswer])).toBe(true)
+    expect(isTurnComplete([null as unknown as OutputItem, reasoningStep])).toBe(false)
   })
 })

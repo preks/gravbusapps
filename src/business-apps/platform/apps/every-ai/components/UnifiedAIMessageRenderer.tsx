@@ -1,6 +1,7 @@
 import React from 'react'
-import type { OutputItem, ConversationTurn } from '../types/models'
-import { OutputItemRenderer } from './OutputRenderers'
+import type { OutputItem, ConversationTurn, ReasoningStepOutput } from '../types/models'
+import { OutputItemRenderer, ReasoningStepsGroup } from './OutputRenderers'
+import { isTurnComplete } from './reasoningStepUtils'
 import { SparkleIcon } from '@phosphor-icons/react'
 
 interface UnifiedAIMessageRendererProps {
@@ -57,15 +58,38 @@ export const UnifiedAIMessageRenderer: React.FC<UnifiedAIMessageRendererProps> =
     )
   })
 
+  // Once the turn has produced a *finalized* deliverable (a non-streaming
+  // answer, a flow proposal, an entity card, …) the reasoning trail should
+  // collapse behind a single "Show reasoning" button so the chat stays
+  // tidy. While we're still streaming each step renders inline so the user
+  // can watch the agent think live.
+  const turnIsComplete = isTurnComplete(filteredOutputs)
+  const reasoningSteps: ReasoningStepOutput[] = filteredOutputs.filter(
+    (o): o is ReasoningStepOutput => (o as OutputItem)?.type === 'reasoning_step'
+  )
+  const shouldGroupReasoning = turnIsComplete && reasoningSteps.length > 0
+
   if (filteredOutputs.length === 0) {
     return null
   }
+
+  // When grouping kicks in we render the group at the position of the FIRST
+  // reasoning step and skip the rest, so the relative ordering (reasoning
+  // before the final answer) is preserved.
+  let firstReasoningRendered = false
 
   const content = (
     <div className={`gba:flex-1 gba:flex gba:flex-col ${isThinkingOnly ? 'gba:gap-1' : 'gba:gap-4'}`}>
       {filteredOutputs.map((output: any, outputIdx: number) => {
         const outputType = output?.type ?? 'unknown'
         const outputKey = `output-${outputIdx}-${outputType}`
+
+        if (shouldGroupReasoning && outputType === 'reasoning_step') {
+          if (firstReasoningRendered) return null
+          firstReasoningRendered = true
+          return <ReasoningStepsGroup key="reasoning-group" steps={reasoningSteps} />
+        }
+
         return (
           <OutputItemRenderer
             key={outputKey}
