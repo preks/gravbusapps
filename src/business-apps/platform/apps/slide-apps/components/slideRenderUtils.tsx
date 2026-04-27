@@ -5,26 +5,6 @@ import React from 'react'
 import type { ShapeElement, GradientConfig } from './slideElements'
 import { gradientToCss, gradientToSvgAttrs } from './slideElements'
 
-export function sanitizeMediaUrl(url: string | undefined, allowedDataTypes: string[] = ['image/', 'video/']): string {
-  if (!url) return ''
-  const trimmed = url.trim()
-  if (
-    trimmed.startsWith('https://') ||
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('blob:') ||
-    trimmed.startsWith('/') ||
-    trimmed.startsWith('./')
-  ) {
-    return trimmed
-  }
-  for (const type of allowedDataTypes) {
-    if (trimmed.startsWith(`data:${type}`)) {
-      return trimmed
-    }
-  }
-  return ''
-}
-
 export function renderSvgGradientDefs(gradient: GradientConfig, id: string, viewBox = 100): React.ReactNode {
   const attrs = gradientToSvgAttrs(gradient, viewBox)
   const getStopAttrs = (color: string): { stopColor: string; stopOpacity?: number } => {

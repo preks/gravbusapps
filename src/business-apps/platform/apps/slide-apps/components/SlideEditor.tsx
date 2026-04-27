@@ -3633,21 +3633,26 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     : undefined
                 }}
               >
-                {currentSlide.background.type === 'video' && (
-                  <>
-                    {sanitizeMediaUrl(currentSlide.background.videoPreviewImageUrl, ['image/']) ? (
+                {currentSlide.background.type === 'video' &&
+                  (() => {
+                    const safeVideoPreviewSrc = sanitizeMediaUrl(currentSlide.background.videoPreviewImageUrl, [
+                      'image/'
+                    ])
+                    if (!safeVideoPreviewSrc) {
+                      return (
+                        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black gba:text-white/70">
+                          <Play className="gba:w-8 gba:h-8" />
+                        </div>
+                      )
+                    }
+                    return (
                       <img
-                        src={sanitizeMediaUrl(currentSlide.background.videoPreviewImageUrl, ['image/'])}
+                        src={safeVideoPreviewSrc}
                         alt=""
                         className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover"
                       />
-                    ) : (
-                      <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black gba:text-white/70">
-                        <Play className="gba:w-8 gba:h-8" />
-                      </div>
-                    )}
-                  </>
-                )}
+                    )
+                  })()}
               </div>
             </div>
 
