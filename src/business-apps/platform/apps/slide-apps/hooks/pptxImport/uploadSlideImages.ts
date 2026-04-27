@@ -1,7 +1,9 @@
-// Uploads base64-encoded images from parsed slides to the drive service.
-// Embedded PPTX images must not remain inline after import: successful uploads
-// are replaced with hosted URLs, and failed uploads are replaced with a visible
-// placeholder instead of preserving the original data URL.
+// Uploads base64-encoded raster images from parsed slides to the drive service.
+// Embedded PPTX raster images must not remain inline after import: successful
+// uploads are replaced with hosted URLs, and failed uploads are replaced with a
+// visible placeholder instead of preserving the original data URL. Inline SVGs
+// stay inline because the importer already relies on them for rendered vector
+// content such as metafiles and Office SVG siblings.
 
 import type { SlideData } from '../../components/slideElements'
 import { SlidesApiService } from '../../services/SlidesApiService'
@@ -12,6 +14,8 @@ import {
 } from './mediaHosting'
 
 const isBase64DataUrl = (url: string | undefined): url is string => typeof url === 'string' && url.startsWith('data:')
+const isInlineSvgDataUrl = (url: string | undefined): url is string =>
+  typeof url === 'string' && url.startsWith('data:image/svg+xml')
 
 /**
  * Pick a filename extension that matches the data URL MIME so the drive
@@ -82,7 +86,11 @@ export async function uploadSlideImages(
   for (let si = 0; si < slides.length; si++) {
     const slide = slides[si]
 
-    if (slide.background?.type === 'image' && isBase64DataUrl(slide.background.imageUrl)) {
+    if (
+      slide.background?.type === 'image' &&
+      isBase64DataUrl(slide.background.imageUrl) &&
+      !isInlineSvgDataUrl(slide.background.imageUrl)
+    ) {
       const bgUrl = slide.background.imageUrl
       pending.push({
         slideIdx: si,
@@ -95,7 +103,12 @@ export async function uploadSlideImages(
 
     for (let ei = 0; ei < slide.elements.length; ei++) {
       const el = slide.elements[ei]
-      if (el.type === 'image' && 'src' in el && isBase64DataUrl((el as { src: string }).src)) {
+      if (
+        el.type === 'image' &&
+        'src' in el &&
+        isBase64DataUrl((el as { src: string }).src) &&
+        !isInlineSvgDataUrl((el as { src: string }).src)
+      ) {
         const src = (el as { src: string }).src
         pending.push({
           slideIdx: si,

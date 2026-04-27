@@ -91,6 +91,16 @@ describe('normalizeImportedSlideMedia', () => {
     expect(result.warnings.imageUploadFailures).toBe(1)
   })
 
+  it('keeps imported svg images inline without attempting upload', async () => {
+    const svgDataUrl = 'data:image/svg+xml;base64,SVGDATA'
+
+    const result = await normalizeImportedSlideMedia([makeSlide([createImageElement(svgDataUrl, { id: 'image-1' })])])
+
+    expect(result.slides[0].elements[0]).toMatchObject({ type: 'image', src: svgDataUrl })
+    expect(result.warnings.imageUploadFailures).toBe(0)
+    expect(mockUploadImageFromBase64).not.toHaveBeenCalled()
+  })
+
   it('drops embedded videos when upload fails and records a warning', async () => {
     mockUploadDataUrl.mockRejectedValue(new Error('upload failed'))
     mockCaptureVideoPreviewImage.mockResolvedValueOnce(null)

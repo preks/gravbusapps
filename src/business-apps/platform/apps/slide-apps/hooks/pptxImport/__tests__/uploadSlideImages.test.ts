@@ -17,6 +17,25 @@ describe('uploadSlideImages', () => {
     mockUploadImageFromBase64.mockReset()
   })
 
+  it('keeps inline svg images and backgrounds unchanged', async () => {
+    const svgDataUrl = 'data:image/svg+xml;base64,SVGDATA'
+    const slide: SlideData = {
+      id: 'slide-1',
+      background: { type: 'image', imageUrl: svgDataUrl },
+      elements: [createImageElement(svgDataUrl, { id: 'image-1' })]
+    }
+
+    const result = await uploadSlideImages([slide], {
+      failurePlaceholderDataUrl: 'data:image/svg+xml;base64,PLACEHOLDER',
+      retryCount: 1
+    })
+
+    expect(result.slides[0].background).toEqual({ type: 'image', imageUrl: svgDataUrl })
+    expect(result.slides[0].elements[0]).toMatchObject({ type: 'image', src: svgDataUrl })
+    expect(result.failedUploads).toBe(0)
+    expect(mockUploadImageFromBase64).not.toHaveBeenCalled()
+  })
+
   it('replaces failed embedded image and background uploads with placeholders after retry', async () => {
     const placeholderDataUrl = 'data:image/svg+xml;base64,PLACEHOLDER'
     const slide: SlideData = {
