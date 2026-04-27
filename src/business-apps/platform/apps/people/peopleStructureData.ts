@@ -133,23 +133,34 @@ const PEOPLE_ORG_UNITS_PAGE = `
   }
 `
 
-/** Managers for a set of OUs (no nested field on OrganizationalUnit in this Hasura schema). */
+/**
+ * Managers per OU via the relationship on `OrganizationalUnit` (not root `EmployeeOrganizationalUnit`).
+ * Some tenants omit custom GraphQL root names for `nw_orgchart.organizational_unit_employee`, so the
+ * root field is missing while `OrganizationalUnit.organizationalUnitEmployee` still works.
+ */
 const PEOPLE_ORG_UNIT_MANAGERS = `
   query PeopleOrgUnitManagers($structureId: uuid!, $ouIds: [uuid!]!) {
-    EmployeeOrganizationalUnit(
+    OrganizationalUnit(
       where: {
         structureId: { _eq: $structureId }
-        organizationalUnitId: { _in: $ouIds }
-        role: { _eq: "Manager" }
-        employee: { isDeleted: { _eq: false } }
+        id: { _in: $ouIds }
+        isDeleted: { _eq: false }
       }
-      limit: 200
     ) {
-      organizationalUnitId
-      employee {
-        displayName
-        firstName
-        lastName
+      id
+      organizationalUnitEmployee(
+        where: {
+          structureId: { _eq: $structureId }
+          role: { _eq: "Manager" }
+          employee: { isDeleted: { _eq: false } }
+        }
+        limit: 50
+      ) {
+        employee {
+          displayName
+          firstName
+          lastName
+        }
       }
     }
   }
@@ -191,15 +202,24 @@ export async function fetchOrganizationalUnitsPage(
   let managersByOuId = new Map<string, PeopleOuManagerLinkGql[]>()
   if (ouIds.length > 0) {
     const mgrData = await graphQLClient.request<{
-      EmployeeOrganizationalUnit: Array<{
-        organizationalUnitId?: string | null
-        employee?: PeopleOuManagerLinkGql['employee']
+      OrganizationalUnit: Array<{
+        id: string
+        organizationalUnitEmployee?: Array<{
+          employee?: PeopleOuManagerLinkGql['employee']
+        } | null> | null
       } | null>
     }>(PEOPLE_ORG_UNIT_MANAGERS, {
       structureId,
       ouIds
     })
-    managersByOuId = groupManagersByOrganizationalUnitId(mgrData.EmployeeOrganizationalUnit ?? [])
+    const flat: Array<{ organizationalUnitId: string; employee?: PeopleOuManagerLinkGql['employee'] }> = []
+    for (const ou of mgrData.OrganizationalUnit ?? []) {
+      if (!ou?.id) continue
+      for (const link of ou.organizationalUnitEmployee ?? []) {
+        flat.push({ organizationalUnitId: ou.id, employee: link?.employee })
+      }
+    }
+    managersByOuId = groupManagersByOrganizationalUnitId(flat)
   }
 
   let enrichmentByOuId = new Map<string, PeopleOrgchartOuEnrichment>()
