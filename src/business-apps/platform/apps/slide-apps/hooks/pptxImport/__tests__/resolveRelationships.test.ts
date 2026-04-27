@@ -22,8 +22,13 @@ const mockRenderMetafileToSvgDataUrl = renderMetafileToSvgDataUrl as jest.Mocked
   typeof renderMetafileToSvgDataUrl
 >
 
-function makeRelsXml(entries: Array<{ id: string; type: string; target: string }>): string {
-  const body = entries.map(e => `<Relationship Id="${e.id}" Type="${e.type}" Target="${e.target}"/>`).join('')
+function makeRelsXml(entries: Array<{ id: string; type: string; target: string; targetMode?: string }>): string {
+  const body = entries
+    .map(e => {
+      const targetModeAttr = e.targetMode ? ` TargetMode="${e.targetMode}"` : ''
+      return `<Relationship Id="${e.id}" Type="${e.type}" Target="${e.target}"${targetModeAttr}/>`
+    })
+    .join('')
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   ${body}
@@ -36,7 +41,9 @@ const REL = {
   notes: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide',
   chart: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart',
   layout: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout',
-  master: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster'
+  master: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster',
+  video: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/video',
+  media: 'http://schemas.microsoft.com/office/2007/relationships/media'
 }
 
 describe('resolveSlideRelationships', () => {
@@ -49,24 +56,28 @@ describe('resolveSlideRelationships', () => {
     expect(rels.layoutPath).toBeUndefined()
   })
 
-  it('resolves image, hyperlink, notes, chart, and layout paths', async () => {
+  it('resolves image, video, hyperlink, notes, chart, and layout paths', async () => {
     const zip = new JSZip()
     zip.file(
       'ppt/slides/_rels/slide1.xml.rels',
       makeRelsXml([
         { id: 'rId1', type: REL.image, target: '../media/image1.png' },
-        { id: 'rId2', type: REL.hyperlink, target: 'https://example.com' },
-        { id: 'rId3', type: REL.notes, target: '../notesSlides/notesSlide1.xml' },
-        { id: 'rId4', type: REL.chart, target: '../charts/chart1.xml' },
-        { id: 'rId5', type: REL.layout, target: '../slideLayouts/slideLayout2.xml' }
+        { id: 'rId2', type: REL.video, target: '../media/video1.mp4' },
+        { id: 'rId3', type: REL.media, target: '../media/video1.mp4' },
+        { id: 'rId4', type: REL.hyperlink, target: 'https://example.com' },
+        { id: 'rId5', type: REL.notes, target: '../notesSlides/notesSlide1.xml' },
+        { id: 'rId6', type: REL.chart, target: '../charts/chart1.xml' },
+        { id: 'rId7', type: REL.layout, target: '../slideLayouts/slideLayout2.xml' }
       ])
     )
 
     const rels = await resolveSlideRelationships(zip, 1)
     expect(rels.images.get('rId1')).toBe('ppt/media/image1.png')
-    expect(rels.hyperlinks.get('rId2')).toBe('https://example.com')
+    expect(rels.videos?.get('rId2')).toBe('ppt/media/video1.mp4')
+    expect(rels.videos?.get('rId3')).toBe('ppt/media/video1.mp4')
+    expect(rels.hyperlinks.get('rId4')).toBe('https://example.com')
     expect(rels.notesSlidePath).toBe('ppt/notesSlides/notesSlide1.xml')
-    expect(rels.chartPaths.get('rId4')).toBe('ppt/charts/chart1.xml')
+    expect(rels.chartPaths.get('rId6')).toBe('ppt/charts/chart1.xml')
     expect(rels.layoutPath).toBe('ppt/slideLayouts/slideLayout2.xml')
   })
 
@@ -79,6 +90,21 @@ describe('resolveSlideRelationships', () => {
 
     const rels = await resolveSlideRelationships(zip, 1)
     expect(rels.images.get('rId1')).toBe('ppt/media/Brand Hero.png')
+  })
+
+  it('preserves linked external image and video URLs', async () => {
+    const zip = new JSZip()
+    zip.file(
+      'ppt/slides/_rels/slide1.xml.rels',
+      makeRelsXml([
+        { id: 'rIdImage', type: REL.image, target: 'https://example.com/image.png', targetMode: 'External' },
+        { id: 'rIdVideo', type: REL.video, target: 'https://example.com/video.mp4', targetMode: 'External' }
+      ])
+    )
+
+    const rels = await resolveSlideRelationships(zip, 1)
+    expect(rels.images.get('rIdImage')).toBe('https://example.com/image.png')
+    expect(rels.videos?.get('rIdVideo')).toBe('https://example.com/video.mp4')
   })
 
   it('ignores unknown relationship types', async () => {
@@ -114,6 +140,17 @@ describe('resolveLayoutRelationships', () => {
     expect(result.images.size).toBe(0)
     expect(result.masterPath).toBeUndefined()
   })
+
+  it('preserves linked external layout images', async () => {
+    const zip = new JSZip()
+    zip.file(
+      'ppt/slideLayouts/_rels/slideLayout2.xml.rels',
+      makeRelsXml([{ id: 'rId1', type: REL.image, target: 'https://example.com/layout.png', targetMode: 'External' }])
+    )
+
+    const result = await resolveLayoutRelationships(zip, 'ppt/slideLayouts/slideLayout2.xml')
+    expect(result.images.get('rId1')).toBe('https://example.com/layout.png')
+  })
 })
 
 describe('extractAllMedia metafile fallback', () => {
@@ -140,6 +177,17 @@ describe('extractAllMedia metafile fallback', () => {
     expect(media.get('diagram.emf')).toBe(METAFILE_PLACEHOLDER_DATA_URL)
     expect(media.get('legacy.wmf')).toBe(METAFILE_PLACEHOLDER_DATA_URL)
     expect(media.get('image1.png')).toMatch(/^data:image\/png;base64,/)
+  })
+
+  it('extracts embedded video files as data video URLs', async () => {
+    const zip = new JSZip()
+    zip.file(
+      'ppt/media/video1.mp4',
+      new Uint8Array([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d])
+    )
+
+    const media = await extractAllMedia(zip)
+    expect(media.get('video1.mp4')).toMatch(/^data:video\/mp4;base64,/)
   })
 
   it('prefers a rendered SVG over an embedded raster fallback when both are available', async () => {

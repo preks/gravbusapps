@@ -416,8 +416,8 @@ describe('usePowerPointParser integration', () => {
     })
 
     const image = parsed!.slides[0].elements.find(el => el.type === 'image') as ImageElement | undefined
-    expect(image).toBeUndefined()
-    expect(parsed!.messages.some(m => m.message === 'parser-image-linked-unsupported')).toBe(true)
+    expect(image?.src).toBe('https://example.com/external.png')
+    expect(parsed!.messages.some(m => m.message === 'parser-image-linked-unsupported')).toBe(false)
   })
 
   it('imports images that live inside nested groups (not just top-level pictures)', async () => {

@@ -80,7 +80,11 @@ import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 import type { SlideSummary } from './types'
 import type { ParsedPowerPointDocument } from './hooks/usePowerPointParser'
-import { compressSlideImages } from './hooks/pptxImport'
+import { normalizeImportedSlideMedia } from './hooks/pptxImport'
+import {
+  createMediaFailurePlaceholderDataUrl,
+  DEFAULT_PPTX_MEDIA_UPLOAD_RETRY_COUNT
+} from './hooks/pptxImport/mediaHosting'
 import translations from './_i18n'
 
 export interface SlidesAppsHubProps extends BusinessAppContextProps {
@@ -520,11 +524,13 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const handlePowerPointImport = useCallback(
     async (parsedDoc: ParsedPowerPointDocument) => {
       try {
-        let decodeFailures = 0
-        let strippedForSize = 0
-        const uploadedSlides = await compressSlideImages(parsedDoc.slides, undefined, warning => {
-          if (warning.type === 'decode-failed') decodeFailures++
-          else if (warning.type === 'stripped-for-size') strippedForSize++
+        const imageFailurePlaceholderDataUrl = createMediaFailurePlaceholderDataUrl({
+          title: t('import-image-upload-placeholder-title'),
+          subtitle: t('import-image-upload-placeholder-subtitle')
+        })
+        const normalizedMedia = await normalizeImportedSlideMedia(parsedDoc.slides, {
+          imageFailurePlaceholderDataUrl,
+          uploadRetryCount: DEFAULT_PPTX_MEDIA_UPLOAD_RETRY_COUNT
         })
 
         // Pre-flight: measure the final JSON payload. The document service
@@ -535,7 +541,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         // `toast-import-partial-too-large`. 10.5 MB gives headroom for the
         // title/wrapper fields added on top of the slide array.
         const contentJson = {
-          slides: uploadedSlides,
+          slides: normalizedMedia.slides,
           themeId: parsedDoc.themeId || 'corporate'
         }
         const payloadBytes = JSON.stringify(contentJson).length
@@ -563,14 +569,27 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
 
         if (result.contentSaved) {
           toast.success(t('toast-imported-slides', { count: parsedDoc.slideCount }))
-          // Surface compression-time issues as non-blocking warnings so users
-          // can tell why an imported image might look off (decode failure) or
-          // missing (stripped for size), rather than seeing a silent blank.
-          if (strippedForSize > 0) {
-            toast.warning(t('parser-image-stripped-for-size'))
+          if (normalizedMedia.warnings.imageUploadFailures > 0) {
+            toast.warning(
+              t('parser-image-upload-failed', { count: String(normalizedMedia.warnings.imageUploadFailures) })
+            )
           }
-          if (decodeFailures > 0) {
-            toast.warning(t('parser-image-decode-failed', { slide: String(decodeFailures) }))
+          if (normalizedMedia.warnings.embeddedVideoUploadFailures > 0) {
+            toast.warning(
+              t('parser-video-upload-failed', { count: String(normalizedMedia.warnings.embeddedVideoUploadFailures) })
+            )
+          }
+          if (normalizedMedia.warnings.videoPreviewFailures > 0) {
+            toast.warning(
+              t('parser-video-preview-failed', { count: String(normalizedMedia.warnings.videoPreviewFailures) })
+            )
+          }
+          if (normalizedMedia.warnings.videoPreviewUploadFailures > 0) {
+            toast.warning(
+              t('parser-video-preview-upload-failed', {
+                count: String(normalizedMedia.warnings.videoPreviewUploadFailures)
+              })
+            )
           }
         } else if (exceedsBackendLimit) {
           toast.warning(t('toast-import-partial-too-large', { size: payloadMb.toFixed(1) }))

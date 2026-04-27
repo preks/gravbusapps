@@ -1,6 +1,10 @@
-// Compresses base64-encoded images in parsed slides using canvas downscaling
-// and JPEG re-encoding to keep the contentJson payload under the
-// document-service 10 MB JSON body limit.
+// Legacy safeguard for unexpected inline image payloads. Strict PPTX media
+// hosting should upload embedded assets or replace them before persistence, so
+// this utility is no longer part of the normal import path.
+//
+// When invoked explicitly, it compresses base64-encoded images in parsed slides
+// using canvas downscaling and JPEG re-encoding to keep the contentJson payload
+// under the document-service 10 MB JSON body limit.
 //
 // Design rule: this step MUST never silently blank an imported image.
 //  - If recompression fails (undecodable format), keep the original src so the

@@ -89,6 +89,8 @@ export const ImportPreviewDialog: React.FC<ImportPreviewDialogProps> = ({
       'parser-image-missing',
       'parser-image-decode-failed',
       'parser-image-linked-unsupported',
+      'parser-video-missing',
+      'parser-video-linked-unsupported',
       'parser-shape-picture-fill-unsupported'
     ])
 

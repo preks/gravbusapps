@@ -1,9 +1,15 @@
-// Uploads base64-encoded images from parsed slides to the drive service,
-// replacing inline data URLs with remote download URLs to stay within
-// the document-service 10 MB JSON body limit.
+// Uploads base64-encoded images from parsed slides to the drive service.
+// Embedded PPTX images must not remain inline after import: successful uploads
+// are replaced with hosted URLs, and failed uploads are replaced with a visible
+// placeholder instead of preserving the original data URL.
 
 import type { SlideData } from '../../components/slideElements'
 import { SlidesApiService } from '../../services/SlidesApiService'
+import {
+  createMediaFailurePlaceholderDataUrl,
+  DEFAULT_PPTX_MEDIA_UPLOAD_RETRY_COUNT,
+  retryMediaUpload
+} from './mediaHosting'
 
 const isBase64DataUrl = (url: string | undefined): url is string => typeof url === 'string' && url.startsWith('data:')
 
@@ -40,10 +46,21 @@ interface UploadProgress {
   uploaded: number
 }
 
+interface UploadSlideImagesOptions {
+  failurePlaceholderDataUrl?: string
+  onProgress?: (progress: UploadProgress) => void
+  retryCount?: number
+}
+
+export interface UploadSlideImagesResult {
+  slides: SlideData[]
+  failedUploads: number
+}
+
 export async function uploadSlideImages(
   slides: SlideData[],
-  onProgress?: (progress: UploadProgress) => void
-): Promise<SlideData[]> {
+  options: UploadSlideImagesOptions = {}
+): Promise<UploadSlideImagesResult> {
   interface PendingUpload {
     slideIdx: number
     elementIdx: number | null
@@ -53,6 +70,14 @@ export async function uploadSlideImages(
   }
 
   const pending: PendingUpload[] = []
+  const {
+    failurePlaceholderDataUrl = createMediaFailurePlaceholderDataUrl({
+      title: 'Image import failed',
+      subtitle: 'Upload unavailable'
+    }),
+    onProgress,
+    retryCount = DEFAULT_PPTX_MEDIA_UPLOAD_RETRY_COUNT
+  } = options
 
   for (let si = 0; si < slides.length; si++) {
     const slide = slides[si]
@@ -83,18 +108,21 @@ export async function uploadSlideImages(
     }
   }
 
-  if (pending.length === 0) return slides
+  if (pending.length === 0) return { slides, failedUploads: 0 }
 
   const result: SlideData[] = JSON.parse(JSON.stringify(slides))
 
   let uploaded = 0
+  let failedUploads = 0
   onProgress?.({ total: pending.length, uploaded: 0 })
 
   const BATCH_SIZE = 3
   for (let i = 0; i < pending.length; i += BATCH_SIZE) {
     const batch = pending.slice(i, i + BATCH_SIZE)
 
-    const urls = await Promise.allSettled(batch.map(p => SlidesApiService.uploadImageFromBase64(p.base64, p.filename)))
+    const urls = await Promise.allSettled(
+      batch.map(p => retryMediaUpload(() => SlidesApiService.uploadImageFromBase64(p.base64, p.filename), retryCount))
+    )
 
     for (let j = 0; j < batch.length; j++) {
       const p = batch[j]
@@ -110,11 +138,12 @@ export async function uploadSlideImages(
       } else {
         console.warn(`[uploadSlideImages] Failed to upload ${p.filename}:`, outcome.reason)
         if (p.elementIdx === null) {
-          result[p.slideIdx].background = { type: 'solid', color: '#f0f0f0' }
+          result[p.slideIdx].background = { type: 'image', imageUrl: failurePlaceholderDataUrl }
         } else {
           const el = result[p.slideIdx].elements[p.elementIdx] as unknown as Record<string, unknown>
-          el.src = ''
+          el.src = failurePlaceholderDataUrl
         }
+        failedUploads++
       }
 
       uploaded++
@@ -123,5 +152,5 @@ export async function uploadSlideImages(
     onProgress?.({ total: pending.length, uploaded })
   }
 
-  return result
+  return { slides: result, failedUploads }
 }

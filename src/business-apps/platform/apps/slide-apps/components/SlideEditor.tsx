@@ -120,7 +120,12 @@ import {
 
 import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
 import { parseOnlineVideoUrl } from '../utils/onlineVideo'
-import { captureVideoPreviewFromFile, captureVideoPreviewImage } from '../utils/videoPreview'
+import {
+  createVideoPreviewUrl,
+  looksLikeDirectVideoUrl,
+  replaceFileExtension,
+  sanitizeUploadFileName
+} from '../utils/videoImport'
 import {
   applyCaretFormattingToInsertedText,
   applyRichTextFormatting,
@@ -158,22 +163,6 @@ function sanitizeMediaUrl(url: string | undefined, allowedDataTypes: string[] = 
     if (sanitized) return sanitized
   }
   return ''
-}
-
-function sanitizeUploadFileName(fileName: string, fallbackStem: string): string {
-  const trimmed = fileName.trim()
-  if (!trimmed) return fallbackStem
-  return trimmed.replace(/[^A-Za-z0-9._-]+/g, '-')
-}
-
-function replaceFileExtension(fileName: string, nextExtension: string): string {
-  const base = fileName.replace(/\.[^/.]+$/, '')
-  return `${base}.${nextExtension}`
-}
-
-function looksLikeDirectVideoUrl(url: string): boolean {
-  if (url.startsWith('blob:') || url.startsWith('data:video/')) return true
-  return /\.(mp4|webm|mov|m4v|ogg|ogv)([?#].*)?$/i.test(url)
 }
 
 type ActiveRichTextDraft =
@@ -1446,26 +1435,6 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     return SlidesApiService.uploadFile(file)
   }, [])
 
-  const uploadPreviewImage = useCallback(async (dataUrl: string | null, fileName: string) => {
-    if (!dataUrl) return undefined
-    try {
-      return await SlidesApiService.uploadImageFromBase64(dataUrl, fileName)
-    } catch (error) {
-      console.warn('[SlideEditor] Failed to upload media preview:', error)
-      return undefined
-    }
-  }, [])
-
-  const createVideoPreviewUrl = useCallback(
-    async (source: File | string, fileName: string) => {
-      const previewDataUrl =
-        typeof source === 'string' ? await captureVideoPreviewImage(source) : await captureVideoPreviewFromFile(source)
-
-      return uploadPreviewImage(previewDataUrl, fileName)
-    },
-    [uploadPreviewImage]
-  )
-
   const addUploadedImageElement = useCallback(
     async (
       file: File,
@@ -1515,7 +1484,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         toast.error(t('editor-video-upload-failed'))
       }
     },
-    [addElement, createVideoPreviewUrl, t, uploadDriveFile]
+    [addElement, t, uploadDriveFile]
   )
 
   const buildVideoElementFromUrl = useCallback(
@@ -1556,7 +1525,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         ...partial
       })
     },
-    [createVideoPreviewUrl]
+    []
   )
 
   const deleteElement = useCallback(() => {

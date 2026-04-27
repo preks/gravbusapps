@@ -4,6 +4,7 @@ import type JSZip from 'jszip'
 import type { SlideRelationships } from './types'
 import { parseXML } from './ooxmlUtils'
 import { renderMetafileToSvgDataUrl } from './metafileRenderer'
+import { sanitizeSlideImageUrl, sanitizeSlideVideoUrl } from '../../utils/slideMediaUrl'
 
 const REL_TYPE_IMAGE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image'
 const REL_TYPE_HYPERLINK = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink'
@@ -11,6 +12,8 @@ const REL_TYPE_NOTES = 'http://schemas.openxmlformats.org/officeDocument/2006/re
 const REL_TYPE_CHART = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart'
 const REL_TYPE_SLIDE_LAYOUT = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout'
 const REL_TYPE_SLIDE_MASTER = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster'
+const REL_TYPE_VIDEO = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/video'
+const REL_TYPE_MEDIA = 'http://schemas.microsoft.com/office/2007/relationships/media'
 
 function safeDecodeUriComponent(value: string): string {
   try {
@@ -99,9 +102,32 @@ export function resolveMediaData(mediaPath: string | undefined, mediaData: Map<s
   return undefined
 }
 
+export function resolveImportedImageUrl(
+  mediaPath: string | undefined,
+  mediaData: Map<string, string>
+): string | undefined {
+  const embedded = resolveMediaData(mediaPath, mediaData)
+  if (embedded) return embedded
+
+  const external = sanitizeSlideImageUrl(mediaPath)
+  return external || undefined
+}
+
+export function resolveImportedVideoUrl(
+  mediaPath: string | undefined,
+  mediaData: Map<string, string>
+): string | undefined {
+  const embedded = resolveMediaData(mediaPath, mediaData)
+  if (embedded) return embedded
+
+  const external = sanitizeSlideVideoUrl(mediaPath)
+  return external || undefined
+}
+
 export async function resolveSlideRelationships(zip: JSZip, slideNumber: number): Promise<SlideRelationships> {
   const result: SlideRelationships = {
     images: new Map(),
+    videos: new Map(),
     hyperlinks: new Map(),
     chartPaths: new Map()
   }
@@ -122,9 +148,9 @@ export async function resolveSlideRelationships(zip: JSZip, slideNumber: number)
 
     if (!id) continue
     if (isExternalTarget(target, targetMode)) {
-      if (type === REL_TYPE_HYPERLINK) {
-        result.hyperlinks.set(id, target)
-      }
+      if (type === REL_TYPE_HYPERLINK) result.hyperlinks.set(id, target)
+      else if (type === REL_TYPE_IMAGE) result.images.set(id, target)
+      else if (type === REL_TYPE_VIDEO || type === REL_TYPE_MEDIA) result.videos?.set(id, target)
       continue
     }
 
@@ -133,6 +159,10 @@ export async function resolveSlideRelationships(zip: JSZip, slideNumber: number)
     switch (type) {
       case REL_TYPE_IMAGE:
         result.images.set(id, normalizedTarget)
+        break
+      case REL_TYPE_VIDEO:
+      case REL_TYPE_MEDIA:
+        result.videos?.set(id, normalizedTarget)
         break
       case REL_TYPE_HYPERLINK:
         result.hyperlinks.set(id, target)
@@ -174,7 +204,10 @@ export async function resolveLayoutRelationships(
     const type = rel.getAttribute('Type') || ''
     const targetMode = rel.getAttribute('TargetMode')
     if (!id) continue
-    if (isExternalTarget(target, targetMode)) continue
+    if (isExternalTarget(target, targetMode)) {
+      if (type === REL_TYPE_IMAGE) images.set(id, target)
+      continue
+    }
 
     const normalizedTarget = normalizeRelTarget(target, 'ppt/slideLayouts/')
 
@@ -209,7 +242,10 @@ export async function resolveMasterRelationships(
     const type = rel.getAttribute('Type') || ''
     const targetMode = rel.getAttribute('TargetMode')
     if (!id) continue
-    if (isExternalTarget(target, targetMode)) continue
+    if (isExternalTarget(target, targetMode)) {
+      if (type === REL_TYPE_IMAGE) images.set(id, target)
+      continue
+    }
 
     if (type === REL_TYPE_IMAGE) {
       images.set(id, normalizeRelTarget(target, 'ppt/slideMasters/'))
@@ -230,7 +266,17 @@ const EXTENSION_MIME: Record<string, string> = {
   svg: 'image/svg+xml',
   webp: 'image/webp',
   emf: 'image/x-emf',
-  wmf: 'image/x-wmf'
+  wmf: 'image/x-wmf',
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  mov: 'video/quicktime',
+  m4v: 'video/x-m4v',
+  ogg: 'video/ogg',
+  ogv: 'video/ogg',
+  avi: 'video/x-msvideo',
+  mpg: 'video/mpeg',
+  mpeg: 'video/mpeg',
+  wmv: 'video/x-ms-wmv'
 }
 
 /**
@@ -268,6 +314,38 @@ export function sniffImageMime(bytes: Uint8Array): string | null {
   // TIFF: 49 49 2A 00 (little-endian) or 4D 4D 00 2A (big-endian)
   if (bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2a && bytes[3] === 0x00) return 'image/tiff'
   if (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a) return 'image/tiff'
+  return null
+}
+
+export function sniffVideoMime(bytes: Uint8Array): string | null {
+  if (bytes.length < 12) return null
+  // MP4 / QuickTime family: size + 'ftyp'
+  if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
+    const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]).toLowerCase()
+    if (brand.startsWith('qt')) return 'video/quicktime'
+    return 'video/mp4'
+  }
+  // WebM / Matroska: 1A 45 DF A3
+  if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
+    return 'video/webm'
+  }
+  // Ogg: "OggS"
+  if (bytes[0] === 0x4f && bytes[1] === 0x67 && bytes[2] === 0x67 && bytes[3] === 0x53) {
+    return 'video/ogg'
+  }
+  // RIFF/AVI: "RIFF....AVI "
+  if (
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x41 &&
+    bytes[9] === 0x56 &&
+    bytes[10] === 0x49 &&
+    bytes[11] === 0x20
+  ) {
+    return 'video/x-msvideo'
+  }
   return null
 }
 
@@ -594,7 +672,7 @@ export async function extractAllMedia(zip: JSZip): Promise<Map<string, string>> 
         let mime = EXTENSION_MIME[ext]
         if (!mime) {
           const sniffed = sniffImageMime(headerBytes)
-          mime = sniffed || 'image/png'
+          mime = sniffed || sniffVideoMime(headerBytes) || 'image/png'
         }
 
         const typedBlob = new Blob([arrayBuf], { type: mime })

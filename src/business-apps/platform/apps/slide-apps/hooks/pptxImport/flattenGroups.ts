@@ -6,6 +6,7 @@ import type { ParserMessage } from '../usePowerPointParser'
 import { getChild, isInsideGroup } from './ooxmlUtils'
 import { extractPSpToSingleElement } from './extractShapes'
 import { extractImageElements, markDuplicatedBackgroundPictures } from './extractImages'
+import { extractVideoElements } from './extractVideos'
 
 interface GroupTransform {
   x: number
@@ -181,9 +182,10 @@ function flattenSingleGroup(
       const el = extractPSpToSingleElement(d, theme, relationships, messages, slideIndex, undefined)
       if (el) childElements.push(el)
     } else if (child.tagName === 'p:pic') {
-      childElements.push(
-        ...extractImageElements(wrapNodeInMiniSlideDoc(child), relationships, imageData, messages, slideIndex)
-      )
+      const doc = wrapNodeInMiniSlideDoc(child)
+      const videos = extractVideoElements(doc, relationships, imageData, messages, slideIndex)
+      if (videos.length > 0) childElements.push(...videos)
+      else childElements.push(...extractImageElements(doc, relationships, imageData, messages, slideIndex))
     } else if (child.tagName === 'p:grpSp') {
       // Nested group: flatten recursively. The inner flatten produces
       // elements in the OUTER group's child coordinate space, which is

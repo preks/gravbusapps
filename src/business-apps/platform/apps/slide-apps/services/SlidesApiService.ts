@@ -838,9 +838,13 @@ export const SlidesApiService = {
   },
 
   async uploadImageFromBase64(base64DataUrl: string, filename: string): Promise<string> {
-    const mimeMatch = base64DataUrl.match(/^data:([^;]+);/)
-    const mime = mimeMatch?.[1] || 'image/png'
-    const raw = atob(base64DataUrl.split(',')[1])
+    return this.uploadDataUrl(base64DataUrl, filename, 'image/png')
+  },
+
+  async uploadDataUrl(dataUrl: string, filename: string, fallbackMime = 'application/octet-stream'): Promise<string> {
+    const mimeMatch = dataUrl.match(/^data:([^;]+);/)
+    const mime = mimeMatch?.[1] || fallbackMime
+    const raw = atob(dataUrl.split(',')[1])
     const bytes = new Uint8Array(raw.length)
     for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i)
     const blob = new Blob([bytes], { type: mime })
