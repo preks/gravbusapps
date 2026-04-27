@@ -135,6 +135,9 @@ import {
   shouldRehydrateFromLiveUpdate
 } from '../utils/liveEditingSync'
 
+/** Default editor canvas zoom (1.0 = 100%). */
+const DEFAULT_CANVAS_SCALE = 1.05
+
 /**
  * Local adapter over the shared slide-media sanitizer so existing call sites
  * can keep passing the `['image/', 'video/']`-style `allowedDataTypes` array.
@@ -450,7 +453,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [isPresentMode, setIsPresentMode] = useState(false)
   const [presentScale, setPresentScale] = useState(1)
 
-  const [canvasScale, setCanvasScale] = useState(0.65)
+  const [canvasScale, setCanvasScale] = useState(DEFAULT_CANVAS_SCALE)
   const [showImageDialog, setShowImageDialog] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const [showVideoDialog, setShowVideoDialog] = useState(false)
@@ -2857,7 +2860,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setCanvasScale(0.65)}
+                  onClick={() => setCanvasScale(DEFAULT_CANVAS_SCALE)}
                   className="gba:h-8 gba:px-2 gba:text-xs gba:min-w-[50px]"
                 >
                   {Math.round(canvasScale * 100)}%
