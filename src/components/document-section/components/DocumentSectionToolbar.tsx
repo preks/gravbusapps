@@ -1,5 +1,5 @@
 import React from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { AiButton, Button } from '@newwork/nw-design-system'
 import {
   UploadSimpleIcon,
   FolderNotchIcon,
@@ -7,7 +7,8 @@ import {
   ArrowsOutIcon,
   ArrowsInIcon,
   TreeStructureIcon,
-  ListBulletsIcon
+  ListBulletsIcon,
+  SparkleIcon
 } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
@@ -44,6 +45,8 @@ interface DocumentSectionToolbarProps {
   readonly handleUpload: () => void
   readonly handleExpandAll: () => void
   readonly handleCollapseAll: () => void
+  readonly showAiOrganize?: boolean
+  readonly onAiOrganize?: () => void
 }
 
 export function DocumentSectionToolbar({
@@ -61,7 +64,9 @@ export function DocumentSectionToolbar({
   handleCreateFolder,
   handleUpload,
   handleExpandAll,
-  handleCollapseAll
+  handleCollapseAll,
+  showAiOrganize = false,
+  onAiOrganize
 }: DocumentSectionToolbarProps) {
   // Cache the selected folder to avoid redundant array traversals
   const selectedFolder =
@@ -114,6 +119,20 @@ export function DocumentSectionToolbar({
               <UploadSimpleIcon className="gba:h-4 gba:w-4 gba:mr-2" />
               {getTranslationFromI18nKeyAndLabel('document.upload.files', 'Upload Documents')}
             </Button>
+          )}
+          {showAiOrganize && onAiOrganize && (
+            <AiButton
+              variant="default"
+              size="sm"
+              showIcon={true}
+              icon={<SparkleIcon size={16} />}
+              autoExecuteSingleAction={false}
+              emptyStateBehavior="enable"
+              onClick={onAiOrganize}
+              data-testid={`${dataTestId}-ai-organize-button`}
+            >
+              {getTranslationFromI18nKeyAndLabel('document.ai.organize.button', 'Organize with AI')}
+            </AiButton>
           )}
           {toolbarActions.map(action => (
             <Button
