@@ -110,7 +110,16 @@ export const buildInvestmentActivityByIdQuery = (
     opportunityFields: InvestmentOpportunityFields
   }
 
-  return buildActivityByIdQuery('InvestmentActivity', id, fields, relationBuilders, relationFields)
+  // IRM-specific: include the investment relation + id so update mode can render
+  // the linked investment as a read-only field without an extra round-trip.
+  const additionalFields = `
+    ${fields.investment} {
+      ${INVESTMENT_REF}
+    }
+    ${fields.investmentId}
+  `
+
+  return buildActivityByIdQuery('InvestmentActivity', id, fields, relationBuilders, relationFields, additionalFields)
 }
 
 /**

@@ -40,44 +40,86 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     loading,
     regionCatalogIsFull
   } = useWorkingConditionsLookups(context)
-
-  const [employmentType, setEmploymentType] = useState<string | undefined>(undefined)
-  const [contractType, setContractType] = useState<string | undefined>(undefined)
-  const [remote, setRemote] = useState<string | undefined>(undefined)
-  const [region, setRegion] = useState<string | undefined>(undefined)
+  const [employmentType, setEmploymentType] = useState<string>('')
+  const [contractType, setContractType] = useState<string>('')
+  const [remote, setRemote] = useState<string>('')
+  const [region, setRegion] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [probationEndDate, setProbationEndDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
   const [fixedTermReason, setFixedTermReason] = useState<string>('')
-
   useEffect(() => {
-    if (current) {
-      setEmploymentType(current.employmentTypeRef)
-      setContractType(current.contractTypeRef)
-      setRemote(current.remoteRef)
-      setRegion(current.regionRef)
-      const toDateInput = (val?: string | null): string => {
-        if (!val) return ''
-        const idx = val.indexOf('T')
-        return idx > 0 ? val.substring(0, idx) : val
-      }
-      setStartDate(toDateInput(current.startDate))
-      setProbationEndDate(toDateInput(current.probationEndDate))
-      setEndDate(toDateInput(current.endDate))
-      setFixedTermReason(current.additionalProperties?.fixedTermReason || '')
+    if (!current) {
+      return
     }
+
+    const toDateInput = (val?: string | null): string => {
+      if (!val) return ''
+      const idx = val.indexOf('T')
+      return idx > 0 ? val.substring(0, idx) : val
+    }
+
+    setStartDate(toDateInput(current.startDate))
+    setProbationEndDate(toDateInput(current.probationEndDate))
+    setEndDate(toDateInput(current.endDate))
+    setFixedTermReason(current.additionalProperties?.fixedTermReason || '')
   }, [current])
 
   useEffect(() => {
-    if (!regionCatalogIsFull && !region && Array.isArray(regions) && regions.length === 1) {
+    if (!regionCatalogIsFull && !current?.regionRef && !region && Array.isArray(regions) && regions.length === 1) {
       setRegion(regions[0].id)
     }
-  }, [regions, region, regionCatalogIsFull])
+  }, [current?.regionRef, regions, region, regionCatalogIsFull])
+
+  const selectedEmploymentType = employmentType || current?.employmentTypeRef || ''
+  const selectedContractType = contractType || current?.contractTypeRef || ''
+  const selectedRemote = remote || current?.remoteRef || ''
+  const selectedRegion = region || current?.regionRef || ''
+
+  useEffect(() => {
+    if (employmentType) {
+      return
+    }
+    const nextEmploymentType = current?.employmentTypeRef || ''
+    if (!nextEmploymentType || employmentTypes.some(option => option.id === nextEmploymentType)) {
+      setEmploymentType(nextEmploymentType)
+    }
+  }, [current?.employmentTypeRef, employmentType, employmentTypes])
+
+  useEffect(() => {
+    if (contractType) {
+      return
+    }
+    const nextContractType = current?.contractTypeRef || ''
+    if (!nextContractType || contractTypes.some(option => option.id === nextContractType)) {
+      setContractType(nextContractType)
+    }
+  }, [contractType, contractTypes, current?.contractTypeRef])
+
+  useEffect(() => {
+    if (remote) {
+      return
+    }
+    const nextRemote = current?.remoteRef || ''
+    if (!nextRemote || remoteOptions.some(option => option.id === nextRemote)) {
+      setRemote(nextRemote)
+    }
+  }, [current?.remoteRef, remote, remoteOptions])
+
+  useEffect(() => {
+    if (region) {
+      return
+    }
+    const nextRegion = current?.regionRef || ''
+    if (!nextRegion || regions.some(option => option.id === nextRegion)) {
+      setRegion(nextRegion)
+    }
+  }, [current?.regionRef, region, regions])
 
   const probationPeriodText = useMemo(() => {
-    if (!contractType) return null
+    if (!selectedContractType) return null
 
-    const selectedContract = contractTypes.find(ct => ct.id === contractType)
+    const selectedContract = contractTypes.find(ct => ct.id === selectedContractType)
     if (!selectedContract?.additionalValue2) return null
 
     try {
@@ -111,7 +153,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     }
 
     return null
-  }, [contractType, contractTypes, t])
+  }, [selectedContractType, contractTypes, t])
 
   const calculateProbationEndDate = useCallback(
     (start: string, ctId: string): string | null => {
@@ -159,22 +201,22 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   )
 
   useEffect(() => {
-    if (startDate && contractType) {
-      const calculatedEndDate = calculateProbationEndDate(startDate, contractType)
+    if (startDate && selectedContractType) {
+      const calculatedEndDate = calculateProbationEndDate(startDate, selectedContractType)
       if (calculatedEndDate) {
         setProbationEndDate(calculatedEndDate)
       } else {
         setProbationEndDate('')
       }
     }
-  }, [startDate, contractType, calculateProbationEndDate])
+  }, [startDate, selectedContractType, calculateProbationEndDate])
 
   const isProbationException = useMemo(() => {
-    if (!startDate || !contractType || !probationEndDate) return false
+    if (!startDate || !selectedContractType || !probationEndDate) return false
 
-    const calculatedEndDate = calculateProbationEndDate(startDate, contractType)
+    const calculatedEndDate = calculateProbationEndDate(startDate, selectedContractType)
     return calculatedEndDate !== null && probationEndDate !== calculatedEndDate
-  }, [startDate, contractType, probationEndDate, calculateProbationEndDate])
+  }, [startDate, selectedContractType, probationEndDate, calculateProbationEndDate])
 
   const isProbationEndBeforeStart = useMemo(() => {
     if (!startDate || !probationEndDate) return false
@@ -184,8 +226,18 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   }, [startDate, probationEndDate])
 
   const isValid = useMemo(() => {
-    return Boolean(employmentType && contractType && remote && region && startDate) && !isProbationEndBeforeStart
-  }, [employmentType, contractType, remote, region, startDate, isProbationEndBeforeStart])
+    return (
+      Boolean(selectedEmploymentType && selectedContractType && selectedRemote && selectedRegion && startDate) &&
+      !isProbationEndBeforeStart
+    )
+  }, [
+    selectedEmploymentType,
+    selectedContractType,
+    selectedRemote,
+    selectedRegion,
+    startDate,
+    isProbationEndBeforeStart
+  ])
 
   const title = useMemo(
     () => getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.title', 'Update Working Conditions'),
@@ -199,22 +251,32 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     const curEnd = current.endDate ? current.endDate.split('T')[0] : ''
     const curFixedTermReason = current.additionalProperties?.fixedTermReason || ''
     return (
-      employmentType !== current.employmentTypeRef ||
-      contractType !== current.contractTypeRef ||
-      remote !== current.remoteRef ||
-      region !== current.regionRef ||
+      selectedEmploymentType !== (current.employmentTypeRef || '') ||
+      selectedContractType !== (current.contractTypeRef || '') ||
+      selectedRemote !== (current.remoteRef || '') ||
+      selectedRegion !== (current.regionRef || '') ||
       (startDate || '') !== curStart ||
       (probationEndDate || '') !== curProb ||
       (endDate || '') !== curEnd ||
       fixedTermReason !== curFixedTermReason
     )
-  }, [current, employmentType, contractType, remote, region, startDate, probationEndDate, endDate, fixedTermReason])
+  }, [
+    current,
+    selectedEmploymentType,
+    selectedContractType,
+    selectedRemote,
+    selectedRegion,
+    startDate,
+    probationEndDate,
+    endDate,
+    fixedTermReason
+  ])
 
   const validateForm = () => {
     if (isProbationEndBeforeStart) {
       return [t('working-conditions-probation-end-before-start')]
     }
-    if (!employmentType || !contractType || !remote || !region || !startDate) {
+    if (!selectedEmploymentType || !selectedContractType || !selectedRemote || !selectedRegion || !startDate) {
       return [
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:working_conditions_form.required',
@@ -236,10 +298,10 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       employeeWorkingCondition: {
         id: current?.id,
         version: typeof current?.version === 'number' ? current?.version : undefined,
-        employmentTypeRef: employmentType,
-        contractTypeRef: contractType,
-        remoteRef: remote,
-        regionRef: region,
+        employmentTypeRef: selectedEmploymentType,
+        contractTypeRef: selectedContractType,
+        remoteRef: selectedRemote,
+        regionRef: selectedRegion,
         hireDate: startDate || undefined,
         probationEnd: probationEndDate || undefined,
         exitDate: endDate || undefined,
@@ -320,7 +382,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                 )}
                 *
               </div>
-              <Select value={employmentType} onValueChange={setEmploymentType} disabled={loading}>
+              <Select value={selectedEmploymentType} onValueChange={setEmploymentType} disabled={loading}>
                 <SelectTrigger
                   className="gba:w-full gba:truncate"
                   data-testid="flw_updateWorkingConditions_employmentTypeSelect"
@@ -343,7 +405,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <div className="gba:text-sm gba:font-medium">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.contractType', 'Contract Type')}*
               </div>
-              <Select value={contractType} onValueChange={setContractType} disabled={loading}>
+              <Select value={selectedContractType} onValueChange={setContractType} disabled={loading}>
                 <SelectTrigger
                   className="gba:w-full gba:truncate"
                   data-testid="flw_updateWorkingConditions_contractTypeSelect"
@@ -366,7 +428,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <div className="gba:text-sm gba:font-medium">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.remote', 'Remote')}*
               </div>
-              <Select value={remote} onValueChange={setRemote} disabled={loading}>
+              <Select value={selectedRemote} onValueChange={setRemote} disabled={loading}>
                 <SelectTrigger
                   className="gba:w-full gba:truncate"
                   data-testid="flw_updateWorkingConditions_remoteSelect"
@@ -389,7 +451,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <div className="gba:text-sm gba:font-medium">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.region', 'Region')}*
               </div>
-              <Select value={region} onValueChange={setRegion}>
+              <Select value={selectedRegion} onValueChange={setRegion}>
                 <SelectTrigger
                   className="gba:w-full gba:truncate"
                   data-testid="flw_updateWorkingConditions_regionSelect"

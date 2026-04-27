@@ -1,5 +1,7 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Sparkles } from 'lucide-react'
+import translations from '../../../_i18n'
 
 interface HeroSectionProps {
   'data-testid'?: string
@@ -23,6 +25,7 @@ const keyframesStyles = `
  * Features an animated gradient background with a bold headline
  */
 export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId = 'create-workspace-hero' }) => {
+  const { t } = useTranslation(translations)
   return (
     <>
       <style>{keyframesStyles}</style>
@@ -98,8 +101,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
             style={{ animation: 'fadeInUp 0.6s ease-out 0.2s both' }}
             data-testid={`${testId}-subtitle`}
           >
-            Design screens, automate flows, build task experts, create functions, and define data models. All powered by
-            AI, all in one place.
+            {t('hero-subtitle')}
           </p>
         </div>
       </section>

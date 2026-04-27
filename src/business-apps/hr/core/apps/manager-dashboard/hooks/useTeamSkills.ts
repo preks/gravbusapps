@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
 
 export interface SkillGap {
   skillId: string
@@ -112,6 +113,9 @@ export const useTeamSkills = ({
             firstName
             lastName
             pictureThumbnail
+            workingCondition {
+              hireDate
+            }
             employeePosition {
               jobPosition {
                 name
@@ -151,7 +155,7 @@ export const useTeamSkills = ({
       `
 
       const response = await graphQLClient.request(directReportsQuery, { managerId })
-      const employees = response?.Employee || []
+      const employees = filterEmployeesByStartedEmployment(response?.Employee || [])
 
       if (employees.length === 0) {
         setMembers([])

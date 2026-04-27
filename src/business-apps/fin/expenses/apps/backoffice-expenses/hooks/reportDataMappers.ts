@@ -12,6 +12,8 @@ import {
   getAdvancePaymentStatusDisplay
 } from '../utils/utils'
 import { extractCurrencyCode } from '../utils/sharedUtils'
+import { getExpenseItemCategoryLabel } from '../../../common/utils/expenseItemCategoryLabel'
+import { formatPaymentMethodForExpenseTables } from '../../../common/utils/paymentMethodListDisplay'
 import {
   advancePaidFromApiOrSettled,
   buildEmployeeDisplayName,
@@ -28,6 +30,12 @@ import {
   type ExpensesSlaPolicy,
   DEFAULT_EXPENSES_SLA_POLICY
 } from './backofficeReportUtils'
+
+const REPORT_DASH = '-'
+
+function formatAdvancePaymentMethodForReport(raw: unknown): string {
+  return formatPaymentMethodForExpenseTables(raw, REPORT_DASH)
+}
 
 type NameResolver = (candidates: Array<string | undefined | null>, employeeNameById: Record<string, string>) => string
 
@@ -134,7 +142,7 @@ export const mapPaymentsFromOverview = (
         buildEmployeeDisplayName(p.employee) ||
         resolveDisplayName([p.expensePlan?.employeeId, p.createdBy], employeeNameById),
       departmentName: resolveDepartmentName([p.expensePlan?.employeeId, p.createdBy, p.expensePlan?.createdBy]),
-      paymentMethod: p.paymentMethod || undefined,
+      paymentMethod: formatAdvancePaymentMethodForReport(p.paymentMethod),
       costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
       currency: extractCurrencyCode(p.currencyRef)
     } as AdvancePaymentReport
@@ -149,10 +157,7 @@ export const processExpenseItemsData = (
 ): ExpenseItemReport[] => {
   if (!data?.ExpenseItem?.length) return []
   return data.ExpenseItem.map((item: any) => {
-    const expenseGroup =
-      item.expensePosition && item.expensePosition.length > 0 && item.expensePosition[0].expenseGroupRef
-        ? item.expensePosition[0].expenseGroupRef.replaceAll('ExpenseGroup:v1:', '')
-        : t('report-uncategorized')
+    const category = getExpenseItemCategoryLabel(item, t('report-uncategorized'))
     const statusDisplay = item.expenseRequest?.status
       ? getExpenseRequestStatusDisplay(item.expenseRequest.status, t)
       : { label: '', type: 'draft' }
@@ -166,7 +171,7 @@ export const processExpenseItemsData = (
           : item.expenseDate || '',
       title: item.title || '',
       description: item.description || '',
-      category: expenseGroup,
+      category,
       amount: item.reimbursableAmount ?? 0,
       employeeName:
         buildEmployeeDisplayName(item.employee) ||
@@ -240,7 +245,7 @@ export const mapAdvancePaymentToReport = (
     amount: coerceReportAmount(p.amount),
     employeeName: resolveDisplayName([p.expensePlan?.employeeId, p.createdBy], employeeNameById),
     departmentName: resolveDepartmentName([p.expensePlan?.employeeId, p.createdBy, p.expensePlan?.createdBy]),
-    paymentMethod: p.paymentMethod || undefined,
+    paymentMethod: formatAdvancePaymentMethodForReport(p.paymentMethod),
     costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
     currency: extractCurrencyCode(p.currencyRef)
   }

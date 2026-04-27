@@ -18,7 +18,6 @@ export interface UseSlidesHubFilteringReturn {
   mySlides: SlideSummary[]
   sharedSlides: SlideSummary[]
   recentSlides: SlideSummary[]
-  archivedSlides: SlideSummary[]
   filteredSlides: SlideSummary[]
 }
 
@@ -55,10 +54,9 @@ function sortSlides(slides: SlideSummary[], sortBy: SlideHubSortBy, sortOrder: S
 export function useSlidesHubFiltering(params: UseSlidesHubFilteringParams): UseSlidesHubFilteringReturn {
   const { slides, activeSection, favorites, searchQuery, sortBy, sortOrder } = params
 
-  const { mySlides, sharedSlides, recentSlides, archivedSlides } = useMemo(() => {
+  const { mySlides, sharedSlides, recentSlides } = useMemo(() => {
     const my: SlideSummary[] = []
     const shared: SlideSummary[] = []
-    const archived: SlideSummary[] = []
 
     // Sort by updatedAt for recent
     const sortedByDate = [...slides].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -66,7 +64,6 @@ export function useSlidesHubFiltering(params: UseSlidesHubFilteringParams): UseS
 
     for (const slide of slides) {
       if (slide.status === 'archived') {
-        archived.push(slide)
         continue
       }
       if (isSharedWithMe(slide)) {
@@ -76,7 +73,7 @@ export function useSlidesHubFiltering(params: UseSlidesHubFilteringParams): UseS
       }
     }
 
-    return { mySlides: my, sharedSlides: shared, recentSlides: recent, archivedSlides: archived }
+    return { mySlides: my, sharedSlides: shared, recentSlides: recent }
   }, [slides])
 
   const filteredSlides = useMemo(() => {
@@ -85,6 +82,9 @@ export function useSlidesHubFiltering(params: UseSlidesHubFilteringParams): UseS
     switch (activeSection) {
       case 'home':
         baseSlides = [...mySlides, ...sharedSlides]
+        break
+      case 'my-slides':
+        baseSlides = mySlides
         break
       case 'shared':
         baseSlides = sharedSlides
@@ -95,28 +95,15 @@ export function useSlidesHubFiltering(params: UseSlidesHubFilteringParams): UseS
       case 'recent':
         baseSlides = recentSlides
         break
-      case 'archived':
-        baseSlides = archivedSlides
+      case 'trash':
+        baseSlides = []
         break
-      default:
-        baseSlides = mySlides
     }
 
     const next = applySearchFilter(baseSlides, searchQuery)
     sortSlides(next, sortBy, sortOrder)
     return next
-  }, [
-    activeSection,
-    archivedSlides,
-    slides,
-    favorites,
-    mySlides,
-    recentSlides,
-    searchQuery,
-    sharedSlides,
-    sortBy,
-    sortOrder
-  ])
+  }, [activeSection, slides, favorites, mySlides, recentSlides, searchQuery, sharedSlides, sortBy, sortOrder])
 
-  return { mySlides, sharedSlides, recentSlides, archivedSlides, filteredSlides }
+  return { mySlides, sharedSlides, recentSlides, filteredSlides }
 }

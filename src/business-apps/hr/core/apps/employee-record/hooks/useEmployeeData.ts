@@ -56,7 +56,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         id
         name
         jobFamily {
-          value
+          value: code
         }
       }
       jobLevel{

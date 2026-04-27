@@ -462,25 +462,6 @@ export const GET_INVESTMENT_REPORT_BY_ID = (id: string): string => {
   `
 }
 
-// Get Investment Reports by Investment ID
-export const GET_INVESTMENT_REPORTS_BY_INVESTMENT_ID = (investmentId: string): string => {
-  // Sanitize investmentId to prevent GraphQL injection
-  const sanitizedId = investmentId.replace(/[^a-zA-Z0-9-]/g, '')
-  return `
-    query GetInvestmentReportsByInvestmentId {
-      InvestmentReport(
-        where: { 
-          investment: { id: { _eq: "${sanitizedId}" } }
-          isDeleted: { _eq: false }
-        }
-        orderBy: [{ date: DESC }]
-      ) {
-        ${INVESTMENT_REPORT}
-      }
-    }
-  `
-}
-
 // Search Investment Reports (lightweight for autocomplete)
 export const SEARCH_INVESTMENT_REPORTS = (variables: InvestmentReportQueryVariables): string => {
   const { limit = 10 } = variables

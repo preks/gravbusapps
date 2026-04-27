@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
 
 export interface TeamMemberAttendance {
   employeeId: string
@@ -78,6 +79,9 @@ export const useTeamAttendance = ({
             firstName
             lastName
             pictureThumbnail
+            workingCondition {
+              hireDate
+            }
             employeePosition {
               jobPosition {
                 name
@@ -88,7 +92,7 @@ export const useTeamAttendance = ({
       `
 
       const directReportsResponse = await graphQLClient.request(directReportsQuery, { managerId })
-      const employees = directReportsResponse?.Employee || []
+      const employees = filterEmployeesByStartedEmployment(directReportsResponse?.Employee || [])
 
       if (employees.length === 0) {
         setTeamAttendance([])

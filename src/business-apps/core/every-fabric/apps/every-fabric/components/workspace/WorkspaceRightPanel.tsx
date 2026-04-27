@@ -13,6 +13,7 @@ import {
   NoteIcon,
   PresentationIcon,
   ShareNetworkIcon,
+  SparkleIcon,
   SpinnerGapIcon,
   WrenchIcon,
   XCircleIcon
@@ -310,6 +311,22 @@ const isLikelyTaskText = (value?: string) => {
   return compact.length > 42 || compact.split(/\s+/).length > 5
 }
 
+const isSkillLoadActivity = (event: ActivityEvent): boolean =>
+  event.type === 'tool_call' && event.toolName === 'skill_load' && !!event.skillId
+
+const activityRowIcon = (event: ActivityEvent): React.ReactNode => {
+  if (isSkillLoadActivity(event)) {
+    return <SparkleIcon className="gba:h-3.5 gba:w-3.5 gba:text-amber-500" weight="duotone" />
+  }
+  return EVENT_ICON[event.type]
+}
+
+const getActivityBorderClass = (isSubagent: boolean, isSkillLoad: boolean): string => {
+  if (isSubagent) return 'gba:border-l-2 gba:border-sky-400/60'
+  if (isSkillLoad) return 'gba:border-l-2 gba:border-amber-400/60'
+  return ''
+}
+
 const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
   const sortedEvents = useMemo(
     () => [...events].sort((a, b) => activityTimestampSortValue(b.timestamp) - activityTimestampSortValue(a.timestamp)),
@@ -321,6 +338,7 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
       <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain gba:py-1">
         {sortedEvents.map(event => {
           const isSubagent = event.type === 'subagent_spawn'
+          const isSkillLoad = isSkillLoadActivity(event)
           const showAgentBadge =
             isSubagent &&
             !!event.agent &&
@@ -330,19 +348,27 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
           return (
             <div
               key={event.id}
-              className={`gba:flex gba:items-start gba:gap-2.5 gba:px-4 gba:py-2 gba:hover:bg-muted/20 gba:transition-colors ${
-                isSubagent ? 'gba:border-l-2 gba:border-sky-400/60' : ''
-              }`}
+              className={`gba:flex gba:items-start gba:gap-2.5 gba:px-4 gba:py-2 gba:hover:bg-muted/20 gba:transition-colors ${getActivityBorderClass(
+                isSubagent,
+                isSkillLoad
+              )}`}
               data-testid={`fabric-activity-${event.id}`}
             >
-              <div className="gba:shrink-0 gba:mt-0.5">{EVENT_ICON[event.type]}</div>
+              <div className="gba:shrink-0 gba:mt-0.5">{activityRowIcon(event)}</div>
               <div className="gba:flex-1 gba:min-w-0">
-                {event.toolName && (
-                  <span
-                    className={`gba:inline-flex gba:items-center gba:px-1.5 gba:py-0.5 gba:rounded gba:text-[11px] gba:font-mono gba:font-semibold gba:mb-0.5 ${toolCategoryColor(event.toolName)}`}
-                  >
-                    {event.toolName}
+                {isSkillLoad ? (
+                  <span className="gba:mb-0.5 gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-amber-500/20 gba:bg-amber-500/10 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-amber-700 dark:gba:text-amber-300">
+                    <SparkleIcon className="gba:h-3 gba:w-3" weight="duotone" />
+                    Skill: {event.skillName ?? event.skillId}
                   </span>
+                ) : (
+                  event.toolName && (
+                    <span
+                      className={`gba:inline-flex gba:items-center gba:px-1.5 gba:py-0.5 gba:rounded gba:text-[11px] gba:font-mono gba:font-semibold gba:mb-0.5 ${toolCategoryColor(event.toolName)}`}
+                    >
+                      {event.toolName}
+                    </span>
+                  )
                 )}
                 {showAgentBadge && (
                   <span className="gba:mb-0.5 gba:inline-flex gba:items-center gba:rounded-full gba:bg-sky-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">

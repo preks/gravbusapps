@@ -10,6 +10,10 @@ import { FormFieldErrorMessage } from '../../shims/FormFieldErrorMessage'
 import { wizardSectionTheme } from './theme'
 import { getSetupProgressItems, setupProgressStepIndex } from './progress-steps'
 import { MAX_CHARACTERS_FOR_NAME } from '../../shims/ui'
+import {
+  SETUP_ENTERPRISE_MANAGEMENT_DEPARTMENT_ID,
+  SETUP_ROOT_ORGANIZATIONAL_UNIT_DISPLAY_NAME
+} from '../../setupConstants'
 
 export interface YourDepartmentStepProps<T extends FieldValues = FieldValues> {
   readonly onNext: () => void
@@ -29,10 +33,14 @@ function YourDepartmentStep<T extends FieldValues = FieldValues>({ onNext, onBac
   const firstName = watch('firstName')
   const lastName = watch('lastName')
   const jobPosition = watch('jobPosition')
-  const isUserInOrg = userPlacementMode === 'existing_department'
 
   const isFormValid = useMemo(() => {
-    if (userPlacementMode === 'not_in_org') return true
+    if (userPlacementMode === 'not_in_org') {
+      return true
+    }
+    if (userPlacementMode === 'ceo') {
+      return Boolean(firstName?.trim() && lastName?.trim())
+    }
     if (userPlacementMode === 'existing_department') {
       return Boolean(selectedDepartmentId && firstName?.trim() && lastName?.trim() && jobPosition?.trim())
     }
@@ -59,20 +67,35 @@ function YourDepartmentStep<T extends FieldValues = FieldValues>({ onNext, onBac
   )
 
   const handlePlacementModeChange = useCallback(
-    (mode: 'existing_department' | 'not_in_org') => {
+    (mode: 'ceo' | 'existing_department' | 'not_in_org') => {
       setValue('userPlacementMode', mode)
       setValue('customDepartmentName', null)
 
       if (mode === 'not_in_org') {
         setValue('selectedDepartmentId', null)
         setValue('selectedDepartmentName', null)
+        setValue('jobPosition', '')
+        return
+      }
+
+      if (mode === 'ceo') {
+        setValue('jobPosition', 'CEO')
+        setValue('selectedDepartmentId', SETUP_ENTERPRISE_MANAGEMENT_DEPARTMENT_ID)
+        setValue('selectedDepartmentName', SETUP_ROOT_ORGANIZATIONAL_UNIT_DISPLAY_NAME)
+        return
       }
 
       if (mode === 'existing_department') {
-        return
+        if (selectedDepartmentId === SETUP_ENTERPRISE_MANAGEMENT_DEPARTMENT_ID) {
+          setValue('selectedDepartmentId', null)
+          setValue('selectedDepartmentName', null)
+        }
+        if (jobPosition === 'CEO') {
+          setValue('jobPosition', '')
+        }
       }
     },
-    [setValue]
+    [jobPosition, selectedDepartmentId, setValue]
   )
 
   const getErrorMessage = useCallback(
@@ -119,6 +142,30 @@ function YourDepartmentStep<T extends FieldValues = FieldValues>({ onNext, onBac
     [control, getErrorMessage]
   )
 
+  const placementOptions = useMemo(
+    () => [
+      {
+        id: 'ceo' as const,
+        title: t('your-department-ceo-title'),
+        description: t('your-department-ceo-description')
+      },
+      {
+        id: 'existing_department' as const,
+        title: t('your-department-existing-department-title'),
+        description: t('your-department-existing-department-description')
+      },
+      {
+        id: 'not_in_org' as const,
+        title: t('your-department-not-in-org-title'),
+        description: t('your-department-not-in-org-description')
+      }
+    ],
+    [t]
+  )
+
+  const showDepartmentSelect = userPlacementMode === 'existing_department'
+  const showUserProfileFields = userPlacementMode === 'ceo' || userPlacementMode === 'existing_department'
+
   return (
     <PlatformShellLayout
       backgroundColorIcon={wizardSectionTheme.departments.shellIconBackground}
@@ -135,18 +182,7 @@ function YourDepartmentStep<T extends FieldValues = FieldValues>({ onNext, onBac
     >
       <div className="gba:w-full gba:space-y-5">
         <div className="gba:grid gba:gap-4">
-          {[
-            {
-              id: 'existing_department',
-              title: t('your-department-existing-department-title'),
-              description: t('your-department-existing-department-description')
-            },
-            {
-              id: 'not_in_org',
-              title: t('your-department-not-in-org-title'),
-              description: t('your-department-not-in-org-description')
-            }
-          ].map(option => {
+          {placementOptions.map(option => {
             const isSelected = userPlacementMode === option.id
 
             return (
@@ -163,7 +199,7 @@ function YourDepartmentStep<T extends FieldValues = FieldValues>({ onNext, onBac
                   type="radio"
                   name="userPlacementMode"
                   checked={isSelected}
-                  onChange={() => handlePlacementModeChange(option.id as 'existing_department' | 'not_in_org')}
+                  onChange={() => handlePlacementModeChange(option.id)}
                   className="gba:mt-1"
                 />
                 <div className="gba:min-w-0">
@@ -177,7 +213,7 @@ function YourDepartmentStep<T extends FieldValues = FieldValues>({ onNext, onBac
           })}
         </div>
 
-        {userPlacementMode === 'existing_department' && (
+        {showDepartmentSelect && (
           <div className="gba:rounded-2xl gba:border gba:border-[#E7E5E4] gba:bg-white gba:p-5 gba:shadow-sm">
             <Controller
               name="selectedDepartmentId"
@@ -224,7 +260,7 @@ function YourDepartmentStep<T extends FieldValues = FieldValues>({ onNext, onBac
           </div>
         )}
 
-        {isUserInOrg && (
+        {showUserProfileFields && (
           <div className="gba:space-y-4 gba:rounded-2xl gba:border gba:border-[#E7E5E4] gba:bg-[#FAFAF9] gba:p-5 gba:shadow-sm">
             <div>
               <div className={`gba:text-lg gba:font-semibold ${wizardSectionTheme.departments.titleText}`}>
@@ -237,9 +273,11 @@ function YourDepartmentStep<T extends FieldValues = FieldValues>({ onNext, onBac
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               {renderTextField('firstName', t('user-details-first-name'), t('user-details-enter-first-name'))}
               {renderTextField('lastName', t('user-details-last-name'), t('user-details-enter-last-name'))}
-              <div className="gba:col-span-2">
-                {renderTextField('jobPosition', t('user-details-job-position'), t('user-details-enter-job-position'))}
-              </div>
+              {userPlacementMode === 'existing_department' && (
+                <div className="gba:col-span-2">
+                  {renderTextField('jobPosition', t('user-details-job-position'), t('user-details-enter-job-position'))}
+                </div>
+              )}
             </div>
           </div>
         )}

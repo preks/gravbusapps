@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { Employee, EmployeeAbsence } from '../types/employee.types'
+import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
 
 export interface DirectReport {
   displayName: string
@@ -91,6 +92,7 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
               }
             }
             workingCondition {
+              hireDate
               employmentType {
                 value
               }
@@ -146,7 +148,12 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
       })
 
       if (response?.Employee && response.Employee.length > 0) {
-        const employees = response.Employee
+        const employees = filterEmployeesByStartedEmployment(response.Employee)
+        if (employees.length === 0) {
+          setDirectReports([])
+          setLoading(false)
+          return
+        }
         const employeeIds = employees.map((emp: Employee) => emp.id)
 
         // Fetch absences for all employees

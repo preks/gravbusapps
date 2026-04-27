@@ -51,7 +51,7 @@ function SummaryStep({ onNext, onBack }: SummaryStepProps) {
 
   const getUserDepartmentText = useCallback(() => {
     if (formData.userPlacementMode === 'ceo') {
-      return t('summary-root-level')
+      return t('summary-enterprise-management')
     }
 
     if (formData.userPlacementMode === 'not_in_org') {
@@ -87,7 +87,10 @@ function SummaryStep({ onNext, onBack }: SummaryStepProps) {
       nextButtonText={t('summary-finalize-setup')}
       className="gba:w-full gba:max-w-[760px]"
     >
-      <div className="gba:mb-12 gba:w-full gba:space-y-5" data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'summary-content')}>
+      <div
+        className="gba:mb-12 gba:w-full gba:space-y-5"
+        data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'summary-content')}
+      >
         <div className="gba:grid gba:grid-cols-2 gba:gap-4">
           <div
             className={`${wizardSectionTheme.departments.selectedBackground} gba:rounded-2xl gba:p-6`}
@@ -202,7 +205,10 @@ function SummaryStep({ onNext, onBack }: SummaryStepProps) {
 
               <div>
                 <div className="gba:mb-1 gba:text-sm gba:text-[#595959]">{t('summary-additional-employees')}</div>
-                <div className="gba:font-medium" data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'additional-employees-count')}>
+                <div
+                  className="gba:font-medium"
+                  data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'additional-employees-count')}
+                >
                   {additionalEmployeesCount}
                 </div>
               </div>

@@ -87,7 +87,16 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
       employeeId
       createdBy
       title
-      expensePosition { expenseGroupRef }
+      expensePosition {
+        expenseGroupRef
+        expenseGroup {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
+      }
       expenseDate
       totalAmount
       reimbursableAmount

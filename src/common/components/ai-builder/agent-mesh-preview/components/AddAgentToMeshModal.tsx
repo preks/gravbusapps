@@ -11,10 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
   Button,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { AgentRegistryEntry } from '@/business-apps/platform/apps/agent-mesh/types/agentMesh'
+import translations from '../../_i18n'
 
 const NODE_OFFSET_X = 280
 
@@ -37,6 +39,7 @@ export const AddAgentToMeshModal: React.FC<AddAgentToMeshModalProps> = ({
   onAdded,
   'data-testid': testId = 'add-agent-to-mesh-modal'
 }) => {
+  const { t } = useTranslation(translations)
   const promptManagerClient = usePromptManagerClient(accessToken)
   const [agents, setAgents] = useState<AgentRegistryEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -99,11 +102,7 @@ export const AddAgentToMeshModal: React.FC<AddAgentToMeshModalProps> = ({
       return <p className="gba:text-sm gba:text-destructive">{error}</p>
     }
     if (agents.length === 0) {
-      return (
-        <p className="gba:text-sm gba:text-muted-foreground">
-          No other agents in the registry. Create a new Task Expert to add more.
-        </p>
-      )
+      return <p className="gba:text-sm gba:text-muted-foreground">{t('mesh-empty-create-new')}</p>
     }
     return (
       <ul className="gba:space-y-1 gba:max-h-[280px] gba:overflow-y-auto">

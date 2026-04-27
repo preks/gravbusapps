@@ -4,7 +4,7 @@ import { useExportBase } from '@/common/hooks/useExportBase'
 import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 import type { InvestmentReport } from '@/common/data/investment/types/investmentReportTypes'
 import type { InvestmentReportExportHelpers, ExportColumnDef } from '../components/shared/InvestmentReportTable'
-import type { DynamicTableColumn } from '../tabs/liquid-fund-report-tab/utils/liquidFundReportColumnTransformer'
+import type { DynamicTableColumn } from '../utils/liquidFundReportColumnTransformer'
 
 const FIXED_EXPORT_COLUMNS = [
   { key: 'investment', title: 'Investment' },

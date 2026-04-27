@@ -47,7 +47,7 @@ const SheetWrapperComponent = ({
 
   return (
     <Sheet open={isDrawerVisible} onOpenChange={onOpenChange}>
-      <style jsx>{`
+      <style>{`
         [data-slot='sheet-overlay'] {
           z-index: 1000 !important;
         }
@@ -71,6 +71,7 @@ const SheetWrapperComponent = ({
             {drawerItems.map(item => {
               return (
                 <VerticalTable
+                  key={item.title}
                   icon={item.icon}
                   title={item.title}
                   items={item.items}

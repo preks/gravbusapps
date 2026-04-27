@@ -1,23 +1,43 @@
 import React from 'react'
-import { useTranslation } from '@newwork/nw-design-system'
-import { BriefcaseIcon, UserIcon, BuildingIcon, TagIcon, CalendarIcon } from '@phosphor-icons/react'
+import { BriefcaseIcon, UserIcon, BuildingIcon, TagIcon, CalendarIcon, CaretDownIcon } from '@phosphor-icons/react'
 import { JobPosition } from '../hooks/useJobPositionListData'
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import jobPositionTranslations from '../_i18n'
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Spinner,
+  useTranslation
+} from '@newwork/nw-design-system'
 
 interface JobPositionDetailsProps {
   jobPosition: JobPosition
   accessToken: string
+  /** When both are set, an actions menu (update / terminate) is shown. */
+  onEditJobPosition?: (jobPosition: JobPosition) => void
+  onRequestTerminateJobPosition?: (jobPosition: JobPosition) => void
+  terminateMutationLoading?: boolean
+  terminatingJobPositionId?: string | null
 }
 
 /**
  * JobPositionDetails component displays detailed information about a job position
  * in a sidebar format for the DataContainer details panel.
  */
-export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosition, accessToken }) => {
+export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({
+  jobPosition,
+  accessToken,
+  onEditJobPosition,
+  onRequestTerminateJobPosition,
+  terminateMutationLoading = false,
+  terminatingJobPositionId = null
+}) => {
   const { t } = useTranslation(jobPositionTranslations)
+  const hasRowActions = Boolean(onEditJobPosition && onRequestTerminateJobPosition)
+  const isTerminatingThis = Boolean(terminateMutationLoading && terminatingJobPositionId === jobPosition.id)
 
   // Helper function to get contract type display value
   const getContractTypeDisplay = (contractType: any): string => {
@@ -43,11 +63,11 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
     )
   }
 
-  // Helper function to get job family display value
-  const getJobFamilyDisplay = (jobFamily: any): string => {
-    const v = getCatalogValue(jobFamily)
+  // Helper function to get department name
+  const getDepartmentName = (): string => {
+    const orgUnit = jobPosition.organizationalUnitEmployees?.[0]?.organizationalUnit
     return (
-      v ||
+      orgUnit?.name ||
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.job_positions_section.not_specified',
         'Not specified'
@@ -56,8 +76,8 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
   }
 
   // Helper function to get department name
-  const getDepartmentName = (): string => {
-    const orgUnit = jobPosition.organizationalUnitEmployees?.[0]?.organizationalUnit
+  const getSiteLocationName = (): string => {
+    const orgUnit = jobPosition.organizationalUnitEmployees?.[0]?.siteLocation
     return (
       orgUnit?.name ||
       getTranslationFromI18nKeyAndLabel(
@@ -82,20 +102,64 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
   return (
     <div className="gba:p-6 gba:space-y-6 gba:relative">
       {/* Action button in top right corner with absolute positioning */}
-      {accessToken && (
+      {accessToken && hasRowActions && (
         <div className="gba:absolute gba:top-4 gba:right-2" onClick={e => e.stopPropagation()}>
-          <AppActionButton
-            data-testid="job-position-details-action-button"
-            contextsArray={[FlowContextName.jobPositionEntity]}
-            externalContextData={{
-              jobPositionId: jobPosition.id
-            }}
-            prefixDataTestId="job-position-details-action"
-            accessToken={accessToken}
-            disabled={Boolean(jobPosition.activeTo)}
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.employees_section.actions', 'Actions')}
-          </AppActionButton>
+          {isTerminatingThis ? (
+            <div
+              className="gba:flex gba:h-9 gba:items-center gba:justify-center gba:px-3"
+              data-testid="job-position-details-action-loading"
+            >
+              <Spinner size="sm" />
+            </div>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  className="gba:gap-1"
+                  data-testid="job-position-details-action-button"
+                  disabled={Boolean(jobPosition.activeTo)}
+                >
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.employees_section.actions',
+                    'Actions'
+                  )}
+                  <CaretDownIcon className="gba:h-4 gba:w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="gba:min-w-40">
+                <DropdownMenuItem
+                  data-testid="job-position-details-action-update"
+                  onSelect={e => {
+                    e.preventDefault()
+                    onEditJobPosition?.(jobPosition)
+                  }}
+                >
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.job_positions_section.update_position',
+                    'Update'
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  data-testid="job-position-details-action-terminate"
+                  disabled={Boolean(jobPosition.activeTo)}
+                  onSelect={e => {
+                    e.preventDefault()
+                    if (!jobPosition.activeTo) {
+                      onRequestTerminateJobPosition?.(jobPosition)
+                    }
+                  }}
+                >
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.job_positions_section.terminate',
+                    'Terminate'
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       )}
 
@@ -213,7 +277,11 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
                 )}
               </p>
               <p className="gba:text-sm gba:text-foreground">
-                {getJobFamilyDisplay(jobPosition.jobFunction?.jobFamily)}
+                {jobPosition.jobFunction?.jobFamily?.name ||
+                  getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.job_positions_section.not_specified',
+                    'Not specified'
+                  )}
               </p>
             </div>
           </div>
@@ -278,6 +346,19 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
                 )}
               </p>
               <p className="gba:text-sm gba:text-foreground">{getDepartmentName()}</p>
+            </div>
+          </div>
+
+          <div className="gba:flex gba:items-start gba:gap-3">
+            <BuildingIcon className="gba:text-muted-foreground gba:mt-1" />
+            <div>
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.job_positions_section.department',
+                  'SiteLocation'
+                )}
+              </p>
+              <p className="gba:text-sm gba:text-foreground">{getSiteLocationName()}</p>
             </div>
           </div>
 

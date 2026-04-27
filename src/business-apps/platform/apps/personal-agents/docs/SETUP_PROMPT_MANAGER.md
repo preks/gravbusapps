@@ -1,6 +1,6 @@
 # Setting Up Agent Parser Prompt in Prompt Manager
 
-## Option 1: Via Task Expert Studio (Easiest)
+## Option 1: Via Enterprise Agent Studio (Easiest)
 
 1. **Navigate to Prompt Manager**
    - Go to https://newwork-dev.newwork.com/platform/create/prompt-manager
@@ -9,7 +9,7 @@
    - Click "Create New Prompt"
    - Set **Name**: `agent_parser_v1` (no hyphens - only alphanumeric and underscores allowed)
    - Set **Description**: `Parses natural language requests into Personal AI Agent configurations`
-   - Set **Type**: `Task Expert`
+   - Set **Type**: `Enterprise Agent`
 
 3. **System Prompt** (copy from below):
 
@@ -223,7 +223,7 @@ If you see "AI parsing failed, using fallback parser", the prompt is not registe
 **Error: "Prompt not found"**
 
 - Make sure the prompt name is exactly `agent_parser_v1` (underscores, not hyphens)
-- Check in Task Expert Studio that the prompt exists
+- Check in Enterprise Agent Studio that the prompt exists
 
 **Error: "REST request failed: 400"**
 
@@ -235,4 +235,4 @@ If you see "AI parsing failed, using fallback parser", the prompt is not registe
 
 - Check the prompt's system message includes all event types
 - Verify the response format matches the AgentConfig interface
-- Test the prompt in Task Expert Studio first
+- Test the prompt in Enterprise Agent Studio first

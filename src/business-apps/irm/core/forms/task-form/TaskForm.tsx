@@ -19,10 +19,9 @@ import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/inv
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 
 const investmentTaskSchema = taskSchema.extend({
-  investmentId: z.string().nullable().optional(),
-  // IRM-specific: Multi-assignee support
-  assignedEmployeeIds: z.array(z.string()).optional(),
-  assignedEmployees: z.array(z.any()).optional()
+  investmentId: z.string().nullable().optional()
+  // assignedEmployeeIds / assignedEmployees inherited from base taskSchema
+  // (assignedEmployeeIds is required there; multi-assignee mode toggled via TaskLayout prop)
 })
 
 export interface TaskFormProps extends BusinessAppContextProps {

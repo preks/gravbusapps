@@ -17,6 +17,11 @@ export interface ExpenseDataTableProps<T = unknown> {
   emptyMessage?: string
   dataTestId?: string
   rowsPerPage?: number
+  /**
+   * `fixed` (default) uses column size hints; `auto` lets the browser size columns closer to content
+   * (useful for wide, many-column report tables so e.g. employee name does not reserve a huge track).
+   */
+  tableLayout?: 'fixed' | 'auto'
 }
 
 function normalizeTotalCountForDataTable(value: number | undefined): number {
@@ -39,7 +44,8 @@ export function ExpenseDataTable<T extends { id?: string }>(props: Readonly<Expe
     actions,
     emptyMessage = 'No data found',
     dataTestId = 'expense-data-table',
-    rowsPerPage
+    rowsPerPage,
+    tableLayout = 'fixed'
   } = props
 
   const safeTotalCount = normalizeTotalCountForDataTable(totalCount)
@@ -61,7 +67,7 @@ export function ExpenseDataTable<T extends { id?: string }>(props: Readonly<Expe
       enableSelection={false}
       enableColumnPinning
       enableResizing={false}
-      tableLayout="fixed"
+      tableLayout={tableLayout}
       rowsPerPageOptions={[10, 20, 50, 100]}
       showPageNumbers
       maxVisiblePages={7}

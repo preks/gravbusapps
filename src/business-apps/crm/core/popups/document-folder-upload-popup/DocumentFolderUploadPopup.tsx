@@ -8,9 +8,13 @@
  *
  * Mirrors the wrapper pattern used by `DocumentPopup`: the common logic
  * lives in `/common`, and each app only owns the entity-extraction + app
- * config. Submit payload uses `investmentDocumentTree` because CRM and IRM
- * currently share the same folder-upload Kogito task; swap the key here
- * once CRM has its own.
+ * config.
+ *
+ * Submits `{ documentTree: FolderUploadPayload }` which is the shape the
+ * `saveCrmDocumentTree` Kogito task expects — its
+ * `SaveCrmDocumentTreeModelInput` declares the wrapper field as
+ * `documentTree` (whereas the IRM equivalent uses `investmentDocumentTree`).
+ * Wired via the `customerFolderUpload` flow context.
  */
 
 import React, { useMemo } from 'react'
@@ -103,7 +107,7 @@ export const DocumentFolderUploadPopup: React.FC<DocumentFolderUploadPopupProps>
     entityType,
     entityId,
     entityIds,
-    payloadKey: 'investmentDocumentTree',
+    payloadKey: 'documentTree',
     'data-testid': 'crm-document-folder-upload-popup'
   }
 

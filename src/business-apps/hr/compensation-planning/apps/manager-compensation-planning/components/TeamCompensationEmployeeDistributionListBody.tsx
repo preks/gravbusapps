@@ -88,13 +88,10 @@ export function TeamCompensationEmployeeDistributionListBody({
         performanceFallbackToEqual={performanceFallbackToEqual}
         performancePartialScores={performancePartialScores}
         isSalaryCostMethod={isSalaryCostMethod}
-        isPerformanceMethod={isPerformanceMethod}
         sortedMembersLength={sortedMembersLength}
         loading={loading}
         totalSalaryCostAcrossEmployees={totalSalaryCostAcrossEmployees}
         currencyCode={currencyCode}
-        grandTotalPositivePerformanceScores={grandTotalPositivePerformanceScores}
-        distributionPool={distributionPool}
         tBudget={tBudget}
       />
       <TeamCompensationDistributionListPagedTable
@@ -102,7 +99,6 @@ export function TeamCompensationEmployeeDistributionListBody({
         isCustom={isCustom}
         isSalaryCostMethod={isSalaryCostMethod}
         isPerformanceMethod={isPerformanceMethod}
-        performanceFallbackToEqual={performanceFallbackToEqual}
         currencyCode={currencyCode}
         totalSalaryCostAcrossEmployees={totalSalaryCostAcrossEmployees}
         grandTotalPositivePerformanceScores={grandTotalPositivePerformanceScores}

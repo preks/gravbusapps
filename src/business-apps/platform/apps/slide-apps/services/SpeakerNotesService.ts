@@ -152,7 +152,7 @@ function parseSpeakerNotesResponse(rawContent: string, slideCount: number): Spea
   const sections = rawContent.split(slidePattern)
 
   for (let i = 1; i < sections.length; i += 2) {
-    const slideNumber = parseInt(sections[i], 10)
+    const slideNumber = Number.parseInt(sections[i], 10)
     const content = sections[i + 1] || ''
 
     const talkingPoints: string[] = []

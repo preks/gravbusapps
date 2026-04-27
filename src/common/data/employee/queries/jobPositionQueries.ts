@@ -70,8 +70,6 @@ export const buildJobPositionFragment = (fields: string[]): string => {
       jobFamily {
         id
         code
-        value
-        catalogId
       }
     `
     )}

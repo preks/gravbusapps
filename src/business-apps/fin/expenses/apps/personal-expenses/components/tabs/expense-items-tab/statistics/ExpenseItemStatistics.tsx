@@ -3,7 +3,6 @@ import { formatCurrencyDisplay } from '../../../../utils'
 import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
 import React, { useMemo, useCallback } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { CurrencyEurIcon, WalletIcon } from '@phosphor-icons/react'
 
 interface ExpenseItemStatisticsProps {
   items: any[]
@@ -164,7 +163,6 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
           currentMonthName,
         value: formatCurrencyDisplay(totalExpenses ?? 0, currencyCode),
         valueIsString: true,
-        prefix: <CurrencyEurIcon size={16} />,
         color: '#3f8600',
         span: { xs: 24, sm: 12, md: 8, lg: 8 },
         description: getTranslationFromI18nKeyAndLabel(
@@ -183,7 +181,6 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
         ),
         value: formatCurrencyDisplay(pendingReimbursement, currencyCode),
         valueIsString: true,
-        prefix: <WalletIcon size={16} />,
         color: '#1677ff',
         span: { xs: 24, sm: 12, md: 8, lg: 8 },
         description: getTranslationFromI18nKeyAndLabel(

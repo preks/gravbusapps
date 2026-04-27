@@ -19,10 +19,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormWrapperModal } from '@/components/form-wrapper'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import {
-  CONTRACT_TYPE_CATALOG,
-  CONTRACT_TYPE_VERSION
-} from '@/business-apps/hr/core/forms/job-position/hooks/useContractTypes'
+import { CONTRACT_TYPE_CATALOG, CONTRACT_TYPE_VERSION } from '@/business-apps/mdm/apps/employment-data/types'
 import { useUserLocale } from '@/common/locale/useUserLocale'
 import { useCodeError } from '@/business-apps/mdm/hooks/useCodeError'
 import { ContractTypeTable } from '../../apps/employment-data/components/tabs/ContractTypesTab'

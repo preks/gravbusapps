@@ -271,7 +271,7 @@ export interface EmployeeSalaryResponse {
   EmployeePosition: Array<{
     jobPosition?: {
       jobLevel?: {
-        compensationBand?: any
+        compensationBandId?: string | null
       }
     }
   }>

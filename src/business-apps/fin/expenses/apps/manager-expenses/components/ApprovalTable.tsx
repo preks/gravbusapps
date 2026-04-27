@@ -1,30 +1,19 @@
-import React from 'react'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Spinner,
-  Alert,
-  AlertDescription,
-  cn
-} from '@newwork/nw-design-system'
+import React, { useCallback, useMemo } from 'react'
+import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FlowExecutionTask } from '@/common/network/flow-metrics/FlowMetricsClient'
 import { ApprovalRequest } from '../types'
-import { mapFlowTasksToApprovalRequests } from '../utils/flowTaskMapper'
+import { mapFlowTaskToApprovalRequest } from '../utils/flowTaskMapper'
 import { validateTaskSelection } from '../utils/taskValidation'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import { getExpenseRequestStatusDisplay } from '../utils'
-import Pill from '@/components/pill'
-import ApprovalTablePagination from './ApprovalTablePagination'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import ApprovalTableActions from './ApprovalTableActions'
 import { useApprovalHandling } from '../hooks/useApprovalHandling'
+import { ExpenseDataTable } from '../../../common/components/table/ExpenseDataTable'
+import { useTableSetup } from '../../../common/hooks/useTableSetup'
+import { type ApprovalTableRow, createApprovalTableColumns } from './approvalTableColumns'
 
 interface ApprovalTableProps extends BusinessAppContextProps {
-  tasks: any[]
+  tasks: FlowExecutionTask[]
   totalCount: number
   isLoading: boolean
   error: string | null
@@ -41,10 +30,11 @@ interface ApprovalTableProps extends BusinessAppContextProps {
   onApprovalSuccess?: () => void
   onRowClick?: (task: FlowExecutionTask) => void
   activeTaskId?: string | null
+  emptyMessage: string
 }
 
 const ApprovalTable: React.FC<ApprovalTableProps> = ({
-  tasks,
+  tasks: rawTasks,
   totalCount,
   isLoading,
   error,
@@ -62,11 +52,8 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
   accessToken,
   onApprovalSuccess,
   onRowClick,
-  activeTaskId
+  emptyMessage
 }) => {
-  const rawTasks = tasks
-  const approvalRequests = mapFlowTasksToApprovalRequests(tasks)
-
   const { isApproving, approvalError, handleApproveClick } = useApprovalHandling({
     selectedTasks,
     setSelectedTasks,
@@ -77,41 +64,92 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
     onApprovalSuccess
   })
 
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPageSize(newPageSize)
-    setCurrentPage(1)
-  }
+  const tableRows: ApprovalTableRow[] = useMemo(
+    () =>
+      (rawTasks as FlowExecutionTask[]).map(t => ({
+        id: t.id,
+        flowTask: t,
+        approval: mapFlowTaskToApprovalRequest(t)
+      })),
+    [rawTasks]
+  )
 
-  const handleTaskSelection = (task: ApprovalRequest) => {
-    setValidationError(null)
+  const allRequests = useMemo(() => tableRows.map(r => r.approval), [tableRows])
 
-    const isAlreadySelected = selectedTasks.some(selected => selected.id === task.id)
+  const handleSelectAll = useCallback(
+    (nextChecked: boolean) => {
+      if (nextChecked) {
+        if (selectedTasks.length > 0) {
+          const firstTaskGroup = selectedTasks[0].taskGroup
+          setSelectedTasks(allRequests.filter(t => t.taskGroup === firstTaskGroup))
+        } else {
+          setSelectedTasks([...allRequests])
+        }
+        return
+      }
+      setSelectedTasks([])
+    },
+    [allRequests, selectedTasks, setSelectedTasks]
+  )
 
-    if (isAlreadySelected) {
-      setSelectedTasks(selectedTasks.filter((selected: ApprovalRequest) => selected.id !== task.id))
-      return
-    }
+  const handleTaskSelection = useCallback(
+    (task: ApprovalRequest) => {
+      setValidationError(null)
 
-    const validation = validateTaskSelection(selectedTasks, task)
+      const isAlreadySelected = selectedTasks.some(selected => selected.id === task.id)
+      if (isAlreadySelected) {
+        setSelectedTasks(selectedTasks.filter(s => s.id !== task.id))
+        return
+      }
+      const validation = validateTaskSelection(selectedTasks, task)
+      if (!validation.isValid) {
+        setValidationError(
+          validation.errorMessage ||
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:manager_expenses_landing_page.invalid_task_selection',
+              'Invalid task selection'
+            )
+        )
+        return
+      }
+      setSelectedTasks([...selectedTasks, task])
+    },
+    [selectedTasks, setSelectedTasks, setValidationError]
+  )
 
-    if (!validation.isValid) {
-      setValidationError(
-        validation.errorMessage ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:manager_expenses_landing_page.invalid_task_selection',
-            'Invalid task selection'
-          )
-      )
-      return
-    }
+  const handleRowClick = useCallback(
+    (row: ApprovalTableRow) => {
+      onRowClick?.(row.flowTask)
+    },
+    [onRowClick]
+  )
 
-    setSelectedTasks([...selectedTasks, task])
-  }
+  const allColumns = useMemo(
+    () =>
+      createApprovalTableColumns({
+        dataTestIdPrefix,
+        allRequests,
+        selectedTasks,
+        onSelectAll: handleSelectAll,
+        onToggleRow: handleTaskSelection
+      }),
+    [dataTestIdPrefix, allRequests, handleSelectAll, handleTaskSelection, selectedTasks]
+  )
 
-  const handleClearSelection = () => {
+  const { columns, pagination, handlePaginationChange } = useTableSetup(
+    { accessToken, userInfo },
+    allColumns,
+    [],
+    currentPage,
+    pageSize,
+    setCurrentPage,
+    setPageSize
+  )
+
+  const handleClearSelection = useCallback(() => {
     setSelectedTasks([])
     setValidationError(null)
-  }
+  }, [setSelectedTasks, setValidationError])
 
   const handleApproveClickWithValidation = async () => {
     if (selectedTasks.length === 0) {
@@ -130,7 +168,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
     }
   }
 
-  if (isLoading && !approvalRequests.length) {
+  if (isLoading && allRequests.length === 0) {
     return (
       <div className="gba:flex gba:justify-center gba:p-8">
         <Spinner data-testid={`${dataTestIdPrefix}-loading-spinner`} />
@@ -138,27 +176,8 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
     )
   }
 
-  if (approvalRequests.length === 0) {
-    return (
-      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
-        <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:manager_expenses_landing_page.no_pending_approvals',
-            'No pending approval requests found'
-          )}
-        </div>
-        <div className="gba:text-muted-foreground gba:mb-4">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:manager_expenses_landing_page.all_approvals_processed',
-            'All approval requests have been processed.'
-          )}
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div data-testid={`${dataTestIdPrefix}-container`}>
+    <div data-testid={`${dataTestIdPrefix}-container`} className="gba:min-w-0">
       {error && (
         <Alert className="gba:mb-4" data-testid={`${dataTestIdPrefix}-error-alert`}>
           <AlertDescription>
@@ -167,149 +186,32 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
         </Alert>
       )}
 
-      <ApprovalTableActions
-        selectedTasks={selectedTasks}
-        validationError={validationError}
-        approvalError={approvalError}
-        isApproving={isApproving}
-        onClearSelection={handleClearSelection}
-        onApproveClick={handleApproveClickWithValidation}
-        dataTestIdPrefix={dataTestIdPrefix}
-      />
+      {allRequests.length > 0 && (
+        <ApprovalTableActions
+          selectedTasks={selectedTasks}
+          validationError={validationError}
+          approvalError={approvalError}
+          isApproving={isApproving}
+          onClearSelection={handleClearSelection}
+          onApproveClick={handleApproveClickWithValidation}
+          dataTestIdPrefix={dataTestIdPrefix}
+        />
+      )}
 
-      <div className="gba:border gba:border-border gba:rounded-md gba:bg-background">
-        <div className="gba:overflow-x-auto">
-          <Table data-testid={`${dataTestIdPrefix}-table`} className="gba:w-full">
-            <TableHeader className="gba:sticky gba:top-0 gba:bg-muted gba:z-10 gba:border-b gba:border-border">
-              <TableRow>
-                <TableHead className="gba:w-[5%]">
-                  <input
-                    type="checkbox"
-                    checked={selectedTasks.length > 0 && selectedTasks.length === approvalRequests.length}
-                    onChange={e => {
-                      if (e.target.checked) {
-                        if (selectedTasks.length > 0) {
-                          const firstTaskGroup = selectedTasks[0].taskGroup
-                          const sameTypeTasks = approvalRequests.filter(task => task.taskGroup === firstTaskGroup)
-                          setSelectedTasks(sameTypeTasks)
-                        } else {
-                          setSelectedTasks(approvalRequests)
-                        }
-                      } else {
-                        setSelectedTasks([])
-                      }
-                    }}
-                    data-testid={`${dataTestIdPrefix}-select-all-checkbox`}
-                  />
-                </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_plan_list.expense_plan_table.create_date',
-                    'Date'
-                  )}
-                </TableHead>
-                <TableHead className="gba:w-[20%]">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.request', 'Title')}
-                </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:manager_expenses_landing_page.task_group', 'Task Group')}
-                </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.expense_plan_table.amount',
-                    'Amount'
-                  )}
-                </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
-                </TableHead>
-                <TableHead className="gba:w-[10%]">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.expense_plan_table.status',
-                    'Status'
-                  )}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {approvalRequests.map((request: ApprovalRequest, index: number) => {
-                const rawTask = rawTasks[index] as FlowExecutionTask | undefined
-                const isActive = activeTaskId === request.id
-                return (
-                  <TableRow
-                    key={request.id}
-                    className={cn('gba:cursor-pointer gba:hover:bg-accent', isActive && 'gba:bg-accent')}
-                    onClick={() => {
-                      if (onRowClick && rawTask) {
-                        onRowClick(rawTask)
-                      }
-                    }}
-                    data-testid={`${dataTestIdPrefix}-table-row-${request.id}`}
-                  >
-                    <TableCell className="gba:py-3 gba:px-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedTasks.some(selected => selected.id === request.id)}
-                        onClick={e => e.stopPropagation()}
-                        onChange={() => handleTaskSelection(request)}
-                        data-testid={`${dataTestIdPrefix}-select-checkbox-${request.id}`}
-                      />
-                    </TableCell>
-                    <TableCell className="gba:text-sm gba:py-3 gba:px-4">
-                      {request.requestDate
-                        ? new Intl.DateTimeFormat(getCurrentActiveUserLocale(), {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit'
-                          }).format(new Date(request.requestDate))
-                        : '-'}
-                    </TableCell>
-                    <TableCell className="gba:py-3 gba:px-4">
-                      <div className="gba:font-medium gba:text-sm">{request.title}</div>
-                    </TableCell>
-                    <TableCell className="gba:text-sm gba:py-3 gba:px-4">
-                      <div className="gba:text-muted-foreground">{request.taskGroup}</div>
-                    </TableCell>
-                    <TableCell className="gba:text-right gba:text-sm">
-                      {request.totalAmount > 0
-                        ? new Intl.NumberFormat(getCurrentActiveUserLocale(), {
-                            style: 'currency',
-                            currency: request.currency || 'EUR',
-                            currencyDisplay: 'code'
-                          }).format(request.totalAmount)
-                        : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="gba:text-sm">{request.employee.fullName}</div>
-                    </TableCell>
-                    <TableCell className="gba:pr-6">
-                      {(() => {
-                        const { type, label } = getExpenseRequestStatusDisplay(request.status)
-                        return (
-                          <Pill
-                            type={type as any}
-                            label={label}
-                            data-testid={`${dataTestIdPrefix}-status-pill-${request.status?.toLowerCase()}`}
-                          />
-                        )
-                      })()}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
+      <div className="gba:min-w-0 gba:mt-0">
+        <ExpenseDataTable<ApprovalTableRow>
+          data={tableRows}
+          columns={columns}
+          loading={isLoading}
+          error={error}
+          totalCount={totalCount}
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
+          onRowClick={onRowClick ? handleRowClick : undefined}
+          emptyMessage={emptyMessage}
+          dataTestId={`${dataTestIdPrefix}-table`}
+        />
       </div>
-
-      <ApprovalTablePagination
-        currentPage={currentPage}
-        setCurrentPage={setCurrentPage}
-        pageSize={pageSize}
-        handlePageSizeChange={handlePageSizeChange}
-        totalCount={totalCount}
-        dataTestIdPrefix={dataTestIdPrefix}
-      />
     </div>
   )
 }

@@ -156,7 +156,7 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
 
   return (
     <>
-      <Card data-testid="team-health-section" className="gba:rounded-xl gba:p-5 gba:flex gba:flex-col">
+      <Card data-testid="team-health-section" className="gba:rounded-xl gba:p-5 gba:h-fit">
         <CardHeader className="gba:flex-none gba:pb-3">
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle className="gba:text-lg">Team Health</CardTitle>
@@ -185,7 +185,7 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
             )}
           </div>
         </CardHeader>
-        <CardContent className="gba:space-y-3 gba:flex-1">
+        <CardContent className="gba:space-y-3">
           {/* Summary Stats - Clickable to open detail panel */}
           {summary && summary.totalEmployees > 0 && (
             <div className="gba:grid gba:grid-cols-4 gba:gap-2">

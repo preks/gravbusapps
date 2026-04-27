@@ -21,11 +21,28 @@ search-placeholder = Cautare dupa nume, descriere, versiune...
 # Table Columns
 column-name = Nume
 column-description = Descriere
+column-category = Categorie
+column-subcategory = Subcategorie
 column-version = Versiune
 column-last-version = Ultima actualizare
 column-agent = Agent
 column-workflow = Workflow
 column-connector = Conector
+
+# Category tabs (filter Function Manager by first-class category)
+category-all = Toate
+category-general = General
+category-hr = HR
+category-crm = CRM
+category-expenses = Cheltuieli
+category-office = Office
+category-service = Service
+category-custom = Personalizat
+
+# Editor fields for category / subcategory
+field-category = Categorie
+field-subcategory = Subcategorie
+field-subcategory-placeholder = ex. employees, time-off
 
 # Empty State
 empty-message = Nu s-au gasit functii
