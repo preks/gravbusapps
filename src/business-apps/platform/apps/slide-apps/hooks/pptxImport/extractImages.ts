@@ -5,7 +5,7 @@ import { createImageElement } from '../../components/slideElements'
 import type { SlideRelationships } from './types'
 import type { ParserMessage } from '../usePowerPointParser'
 import { emuToPixels, rotationToAngle, extractTransform, getChild, isInsideGroup, nextImportUid } from './ooxmlUtils'
-import { METAFILE_PLACEHOLDER_DATA_URL, resolveMediaData } from './resolveRelationships'
+import { resolveMediaData } from './resolveRelationships'
 
 /**
  * Parse <a:srcRect l="..." t="..." r="..." b="..."> into a normalized
@@ -183,19 +183,6 @@ export function extractImageElements(
         })
       }
       continue
-    }
-
-    // Diagnostic: when we end up using the metafile placeholder the user gets
-    // a blank-looking frame even though import "succeeded". Surface that so
-    // the cause (EMF/WMF without SVG sibling AND without embedded raster) is
-    // visible in the import result panel instead of looking like a render
-    // bug.
-    if (imageBase64 === METAFILE_PLACEHOLDER_DATA_URL && messages && slideNumber) {
-      messages.push({
-        type: 'warning',
-        message: 'parser-image-metafile-placeholder',
-        params: { slide: slideNumber, path: imagePath }
-      })
     }
 
     const x = emuToPixels(transform.x)

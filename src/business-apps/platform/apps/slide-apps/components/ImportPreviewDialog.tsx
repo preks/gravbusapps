@@ -260,7 +260,6 @@ export const ImportPreviewDialog: React.FC<ImportPreviewDialogProps> = ({
     // Slide 6 of the Enterprise AI deck hits this via 16 `image18.emf`
     // bullet checkmarks.
     const PER_SLIDE_GROUPED_KEYS = new Set<string>([
-      'parser-image-metafile-placeholder',
       'parser-image-missing',
       'parser-image-decode-failed',
       'parser-image-linked-unsupported',
@@ -287,17 +286,11 @@ export const ImportPreviewDialog: React.FC<ImportPreviewDialogProps> = ({
       }
 
       const formatted: string[] = []
-      for (const [key, { count, translated }] of perSlide) {
-        const [messageKey] = key.split('@@')
-        // Translator entries already carry the slide number (and a sample
-        // path for metafile errors). We prepend "N×" so the aggregated
-        // count is the first thing a user sees.
+      for (const [, { count, translated }] of perSlide) {
+        // Translator entries already carry the slide number. We prepend "N×" so
+        // the aggregated count is the first thing a user sees.
         const countLabel = count > 1 ? `${count}× ` : ''
-        formatted.push(
-          messageKey === 'parser-image-metafile-placeholder' && count > 1
-            ? `${countLabel}${translated}`
-            : `${countLabel}${translated}`
-        )
+        formatted.push(`${countLabel}${translated}`)
       }
       for (const { count, translated } of generic.values()) {
         formatted.push(count > 1 ? `${translated} (+${count - 1} more)` : translated)
