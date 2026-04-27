@@ -121,6 +121,20 @@ function mapApiSlideToSummary(api: Record<string, unknown>): SlideSummary {
   }
 }
 
+function mapApiVersionToVersion(versionData: Record<string, unknown>): Version {
+  return {
+    id: versionData.id as string,
+    version: versionData.versionNumber as number,
+    content: JSON.stringify(versionData.contentSnapshot),
+    createdAt: versionData.createdAt as string,
+    createdBy: versionData.changedBy as string,
+    changeDescription: versionData.changeSummary as string | undefined,
+    isCheckpoint: !(versionData.isAutoSave as boolean),
+    isAutoSave: versionData.isAutoSave as boolean,
+    fileSize: (versionData.fileSize as number) || 0
+  }
+}
+
 export const SlidesApiService = {
   /** Store the access token in memory for all subsequent API requests. */
   setAccessToken(token: string | null) {
@@ -312,6 +326,20 @@ export const SlidesApiService = {
   },
   // ============ Versions ============
 
+  async createCheckpoint(slideId: string, changeDescription?: string): Promise<Version | null> {
+    try {
+      const versionData = await apiRequest<Record<string, unknown>>(`/slides/${slideId}/checkpoint`, {
+        method: 'POST',
+        body: JSON.stringify({ changeDescription })
+      })
+
+      return mapApiVersionToVersion(versionData)
+    } catch (error) {
+      console.error('[SlidesApiService] Failed to create slide checkpoint:', error)
+      return null
+    }
+  },
+
   async createVersion(
     slideId: string,
     options: {
@@ -321,6 +349,10 @@ export const SlidesApiService = {
     }
   ): Promise<Version | null> {
     try {
+      if (options.isCheckpoint) {
+        return await this.createCheckpoint(slideId, options.changeDescription)
+      }
+
       // Get the current slide if content not provided
       let contentSnapshot: Record<string, unknown>
       if (options.content) {
@@ -358,17 +390,7 @@ export const SlidesApiService = {
         })
       })
 
-      return {
-        id: versionData.id as string,
-        version: versionData.versionNumber as number,
-        content: JSON.stringify(versionData.contentSnapshot),
-        createdAt: versionData.createdAt as string,
-        createdBy: versionData.changedBy as string,
-        changeDescription: versionData.changeSummary as string | undefined,
-        isCheckpoint: !(versionData.isAutoSave as boolean),
-        isAutoSave: versionData.isAutoSave as boolean,
-        fileSize: (versionData.fileSize as number) || 0
-      }
+      return mapApiVersionToVersion(versionData)
     } catch (error) {
       console.error('[SlidesApiService] Failed to create version:', error)
       return null

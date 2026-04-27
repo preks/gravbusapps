@@ -556,6 +556,7 @@ checkpoint-description-hint = Add a description to help you remember what change
 checkpoint-cancel = Cancel
 checkpoint-save = Save Checkpoint
 checkpoint-saving = Saving...
+checkpoint-save-failed = Failed to create checkpoint
 
 # Property Panel
 props-select-element = Select an element to edit its properties

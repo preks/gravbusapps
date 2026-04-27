@@ -2820,6 +2820,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     accessToken={accessToken}
                     currentUserId={currentUserId}
                     currentUserName={currentUserName}
+                    flushPendingCollaborationUpdates={() => {
+                      flushPendingUpdates()
+                    }}
                     applyContentJsonSnapshot={contentJson => {
                       applyContentJsonSnapshot(contentJson)
                     }}

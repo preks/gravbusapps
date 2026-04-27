@@ -534,6 +534,7 @@ checkpoint-description-hint = Adăugați o descriere pentru a vă aminti ce s-a 
 checkpoint-cancel = Anulare
 checkpoint-save = Salvare punct de control
 checkpoint-saving = Se salvează...
+checkpoint-save-failed = Nu s-a putut crea punctul de control
 
 # Property Panel
 props-select-element = Selectați un element pentru a edita proprietățile

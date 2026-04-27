@@ -553,6 +553,7 @@ checkpoint-description-hint = Fügen Sie eine Beschreibung hinzu, um sich zu mer
 checkpoint-cancel = Abbrechen
 checkpoint-save = Sicherungspunkt speichern
 checkpoint-saving = Wird gespeichert...
+checkpoint-save-failed = Checkpoint konnte nicht erstellt werden
 
 # Property Panel
 props-select-element = Element auswählen, um Eigenschaften zu bearbeiten
