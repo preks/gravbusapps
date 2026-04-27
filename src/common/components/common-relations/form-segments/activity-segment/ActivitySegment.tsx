@@ -17,7 +17,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CatalogSelect } from '@/components/catalog-select'
 import EntitySelect from '../../selects/reference-select/EntitySelect'
-import { EmployeeSelect } from '@/components/employee-select'
+import { OwnerSelect } from '../../selects/owner-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import {
@@ -110,6 +110,13 @@ export interface ActivitySegmentProps {
   /** Optional slot after "Related entity" (e.g. CRM association pickers) */
   associationFields?: React.ReactNode
 
+  /**
+   * When true, the owner field is rendered as a read-only display of the
+   * provided `ownerEmployee` instead of the editable EmployeeSelect. Used by
+   * the activity form in update mode where the owner is intentionally locked.
+   */
+  readOnlyOwner?: boolean
+
   ['data-testid']?: string
 }
 
@@ -132,6 +139,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   onDocumentRemove,
   customFields,
   associationFields,
+  readOnlyOwner = false,
   'data-testid': dataTestId = 'activity-segment'
 }) => {
   const form = useFormContext()
@@ -329,28 +337,41 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
       />
 
       {/* Owner Employee */}
-      <FormField
-        control={form.control}
-        name="ownerEmployeeId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t('activity-owner-label')}</FormLabel>
-            <FormControl>
-              <EmployeeSelect
-                className="gba:w-full gba:h-auto"
-                accessToken={accessToken}
-                businessAppContext={businessAppContext}
-                initialEmployee={ownerEmployee}
-                autoSelect={isNewEntity ? 'current-user' : undefined}
-                value={field.value || ''}
-                onValueChange={(v: string | null) => field.onChange(v || '')}
-                data-testid={`${dataTestId}-owner`}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {readOnlyOwner ? (
+        <FormItem>
+          <FormLabel>{t('activity-owner-label')}</FormLabel>
+          <FormControl>
+            <Input
+              value={ownerEmployee?.displayName || ownerEmployee?.fullName || ''}
+              disabled
+              readOnly
+              data-testid={`${dataTestId}-owner-readonly`}
+            />
+          </FormControl>
+        </FormItem>
+      ) : (
+        <FormField
+          control={form.control}
+          name="ownerEmployeeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('activity-owner-label')}</FormLabel>
+              <FormControl>
+                <OwnerSelect
+                  className="gba:w-full gba:h-auto"
+                  businessAppContext={businessAppContext ?? { accessToken }}
+                  ownerEmployee={ownerEmployee}
+                  isNewEntity={isNewEntity}
+                  value={field.value || null}
+                  onValueChange={(v: string | null) => field.onChange(v || '')}
+                  data-testid={`${dataTestId}-owner`}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* Attach Documents */}
       {onFilesChange && (
