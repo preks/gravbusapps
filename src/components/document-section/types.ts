@@ -177,6 +177,11 @@ export interface ApiConfig {
 // AI document organization props
 export interface AiOrganizeConfig {
   moduleType: 'CRM' | 'IRM'
-  entityType: 'LEAD' | 'CONTACT' | 'ACCOUNT' | 'OPPORTUNITY'
+  entityType: 'LEAD' | 'CONTACT' | 'ACCOUNT' | 'OPPORTUNITY' | 'INVESTMENT'
   domain?: string
+  investmentTemplate?: {
+    catalogType?: 'GROUP' | 'TYPE' | 'LIQUID_FUND_TYPE'
+    entryId?: string
+    entryCode?: string
+  }
 }

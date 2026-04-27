@@ -19,6 +19,7 @@ import {
   findFoldersForCleanup,
   findFilesInFolderSubtrees,
   planManagedFolderDeletion,
+  groupFoldersByDepth,
   MANAGED_FOLDER_MARKER
 } from '../utils/organizeUtils'
 import type { DocumentItem, ApiConfig, RestClient, AiOrganizeConfig } from '../types'
@@ -71,7 +72,7 @@ export function useDocumentOrganize({
     documentsRef.current = documents
   }, [documents])
 
-  const fileDocuments = documents.filter(doc => !doc.folder && doc.mimeType)
+  const fileDocuments = documents.filter(doc => !doc.folder && (doc.mimeType || doc.fileInfo))
   const hasDocuments = fileDocuments.length > 0
 
   const openDialog = useCallback(() => {
@@ -178,11 +179,13 @@ export function useDocumentOrganize({
     try {
       const cleanupWarnings: string[] = []
       const selectedDocumentIds = new Set(state.decisions.map(d => d.document_id))
+      const currentDocuments = documentsRef.current
+      const hasDeleteCapability = Boolean(apiConfig.endpoints?.delete || apiConfig.endpoints?.update)
 
-      // --- Phase 1: Evacuate files from old folders ---
-      const foldersToClean = findFoldersForCleanup(documents)
+      // --- Phase 1: Evacuate selected files from old folders to root ---
+      const foldersToClean = findFoldersForCleanup(currentDocuments)
       const { deletableFolderIds, preservedFolderIds } = planManagedFolderDeletion(
-        documents,
+        currentDocuments,
         foldersToClean,
         selectedDocumentIds
       )
@@ -191,15 +194,15 @@ export function useDocumentOrganize({
         cleanupWarnings.push(
           getTranslationFromI18nKeyAndLabel(
             'document.ai.organize.cleanup.preserved',
-            'Some managed folders were kept because they contain unselected documents.'
+            'Some folders were kept because they contain documents not included in this organization.'
           )
         )
       }
 
       if (foldersToClean.length > 0 && apiConfig.endpoints?.update && selectedDocumentIds.size > 0) {
         const folderIdsToClean = new Set(foldersToClean.map(f => f.id))
-        const selectedFilesInManagedFolders = findFilesInFolderSubtrees(documents, folderIdsToClean).filter(file =>
-          selectedDocumentIds.has(file.id)
+        const selectedFilesInManagedFolders = findFilesInFolderSubtrees(currentDocuments, folderIdsToClean).filter(
+          file => selectedDocumentIds.has(file.id)
         )
 
         for (const file of selectedFilesInManagedFolders) {
@@ -220,27 +223,38 @@ export function useDocumentOrganize({
         }
       }
 
-      // --- Phase 2: Delete old folders (deepest-first) ---
-      if (deletableFolderIds.size > 0 && apiConfig.endpoints?.delete) {
-        // Re-read after evacuation to get fresh folder list
+      // --- Phase 2: Delete old folders (deepest-first, level by level) ---
+      if (deletableFolderIds.size > 0 && hasDeleteCapability) {
         const freshFoldersToDelete = findFoldersForCleanup(documentsRef.current).filter(folder =>
           deletableFolderIds.has(folder.id)
         )
         const failedFolderDeletes: string[] = []
 
-        for (const folder of freshFoldersToDelete) {
-          try {
-            await deleteDocument({
-              documentId: folder.id,
-              document: folder,
-              entityId,
-              apiConfig,
-              accessToken,
-              restClient
-            })
-          } catch {
-            failedFolderDeletes.push(folder.name || folder.id)
-            console.error('Failed to delete folder:', folder.name)
+        const foldersByDepth = groupFoldersByDepth(freshFoldersToDelete, documentsRef.current)
+        const sortedDepths = [...foldersByDepth.keys()].sort((a, b) => b - a)
+
+        for (const depth of sortedDepths) {
+          const foldersAtDepth = foldersByDepth.get(depth) ?? []
+
+          for (const folder of foldersAtDepth) {
+            try {
+              await deleteDocument({
+                documentId: folder.id,
+                document: folder,
+                entityId,
+                apiConfig,
+                accessToken,
+                restClient
+              })
+            } catch {
+              failedFolderDeletes.push(folder.name || folder.id)
+              console.error('Failed to delete folder:', folder.name)
+            }
+          }
+
+          if (onRefresh) {
+            onRefresh()
+            await new Promise(r => setTimeout(r, REFRESH_SETTLE_DELAY_MS))
           }
         }
 
@@ -251,11 +265,6 @@ export function useDocumentOrganize({
               'Some managed folders could not be deleted and were kept.'
             )
           )
-        }
-
-        if (onRefresh) {
-          onRefresh()
-          await new Promise(r => setTimeout(r, REFRESH_SETTLE_DELAY_MS))
         }
       }
 

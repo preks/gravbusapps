@@ -98,8 +98,9 @@ export interface DeleteDocumentParams {
 }
 
 /**
- * Deletes a document or folder via the configured delete endpoint.
- * Used by the organize cleanup to remove empty folders after reorganization.
+ * Deletes a document or folder via the dedicated delete endpoint.
+ * Falls back to the update endpoint if no delete endpoint is configured.
+ * Sends a complete payload so the Kogito process can identify the record.
  */
 export async function deleteDocument({
   documentId,
@@ -109,16 +110,20 @@ export async function deleteDocument({
   accessToken,
   restClient
 }: DeleteDocumentParams): Promise<void> {
-  if (!apiConfig.endpoints?.delete) {
-    throw new Error('Delete endpoint not configured')
+  const endpoint = apiConfig.endpoints?.delete ?? apiConfig.endpoints?.update
+  if (!endpoint) {
+    throw new Error('No delete or update endpoint configured')
   }
 
   await restClient.post(
-    apiConfig.endpoints.delete,
+    endpoint,
     {
       [apiConfig.documentFieldName]: {
         id: documentId,
         version: document.version,
+        name: document.name,
+        folder: document.folder || false,
+        description: document.description,
         [apiConfig.entityFieldName]: entityId
       }
     },

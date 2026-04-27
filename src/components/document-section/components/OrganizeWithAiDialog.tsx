@@ -16,7 +16,12 @@ import {
 import { SparkleIcon, TreeStructureIcon, TextAaIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFolderTemplateData } from '@/common/components/common-relations/setting-pages/folder-templates/hooks/useFolderTemplateData'
-import { ModuleType, EntityType } from '@/common/components/common-relations/setting-pages/folder-templates/types'
+import {
+  ModuleType,
+  EntityType,
+  InvestmentCatalogType
+} from '@/common/components/common-relations/setting-pages/folder-templates/types'
+import { useInvestmentFolderTemplates } from '@/common/components/common-relations/setting-pages/folder-templates/hooks/useInvestmentFolderTemplates'
 import type { DocumentItem, AiOrganizeConfig } from '../types'
 import type { OrganizeState } from '../hooks/useDocumentOrganize'
 import type { FolderNode } from '@/common/components/common-relations/setting-pages/folder-templates/types'
@@ -39,6 +44,23 @@ interface OrganizeWithAiDialogProps {
 
 const DATA_TEST_ID = 'organize-with-ai'
 
+const ENTITY_TYPE_MAP: Record<AiOrganizeConfig['entityType'], EntityType> = {
+  LEAD: EntityType.LEAD,
+  CONTACT: EntityType.CONTACT,
+  ACCOUNT: EntityType.ACCOUNT,
+  OPPORTUNITY: EntityType.OPPORTUNITY,
+  INVESTMENT: EntityType.INVESTMENT
+}
+
+const INVESTMENT_CATALOG_TYPE_MAP: Record<
+  NonNullable<NonNullable<AiOrganizeConfig['investmentTemplate']>['catalogType']>,
+  InvestmentCatalogType
+> = {
+  GROUP: InvestmentCatalogType.GROUP,
+  TYPE: InvestmentCatalogType.TYPE,
+  LIQUID_FUND_TYPE: InvestmentCatalogType.LIQUID_FUND_TYPE
+}
+
 export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
   open,
   onClose,
@@ -57,9 +79,41 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
   const [description, setDescription] = useState('')
 
   const moduleType = aiOrganizeConfig.moduleType === 'IRM' ? ModuleType.IRM : ModuleType.CRM
-  const entityType = EntityType[aiOrganizeConfig.entityType] || EntityType.ACCOUNT
+  const entityType = ENTITY_TYPE_MAP[aiOrganizeConfig.entityType]
+  const isInvestmentEntity = moduleType === ModuleType.IRM && entityType === EntityType.INVESTMENT
 
-  const templateData = useFolderTemplateData(accessToken, moduleType, entityType)
+  const genericTemplateData = useFolderTemplateData(isInvestmentEntity ? '' : accessToken, moduleType, entityType)
+  const investmentCatalogType = INVESTMENT_CATALOG_TYPE_MAP[aiOrganizeConfig.investmentTemplate?.catalogType ?? 'GROUP']
+  const investmentTemplateData = useInvestmentFolderTemplates(
+    isInvestmentEntity ? accessToken : '',
+    investmentCatalogType
+  )
+  const investmentTemplateEntry = useMemo(() => {
+    if (!isInvestmentEntity) return null
+
+    const entryId = aiOrganizeConfig.investmentTemplate?.entryId
+    if (entryId) {
+      const byId = investmentTemplateData.entries.find(entry => entry.id === entryId)
+      if (byId) return byId
+    }
+
+    const entryCode = aiOrganizeConfig.investmentTemplate?.entryCode?.toLowerCase()
+    if (entryCode) {
+      const byCode = investmentTemplateData.entries.find(entry => entry.code?.toLowerCase() === entryCode)
+      if (byCode) return byCode
+    }
+
+    return null
+  }, [
+    isInvestmentEntity,
+    aiOrganizeConfig.investmentTemplate?.entryId,
+    aiOrganizeConfig.investmentTemplate?.entryCode,
+    investmentTemplateData.entries
+  ])
+  const templateFolders = isInvestmentEntity
+    ? (investmentTemplateEntry?.objectValue?.initFolders ?? [])
+    : genericTemplateData.folders
+  const templateLoading = isInvestmentEntity ? investmentTemplateData.isLoading : genericTemplateData.isLoading
 
   const allSelected = selectedDocIds.length === fileDocuments.length
 
@@ -74,7 +128,7 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
   const handleOrganize = () => {
     if (selectedDocIds.length === 0) return
     if (activeTab === 'template') {
-      onOrganizeByTemplate(selectedDocIds, { folders: templateData.folders })
+      onOrganizeByTemplate(selectedDocIds, { folders: templateFolders })
     } else {
       onOrganizeByDescription(selectedDocIds, description)
     }
@@ -82,9 +136,9 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
 
   const canOrganize = useMemo(() => {
     if (selectedDocIds.length === 0) return false
-    if (activeTab === 'template') return templateData.folders.length > 0
+    if (activeTab === 'template') return templateFolders.length > 0
     return description.trim().length > 0
-  }, [selectedDocIds, activeTab, templateData.folders, description])
+  }, [selectedDocIds, activeTab, templateFolders, description])
 
   const isProcessing = state.phase === 'loading' || state.phase === 'applying'
   const showPreview = state.phase === 'preview'
@@ -160,11 +214,7 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
             </TabsList>
 
             <TabsContent value="template" className="gba:space-y-4 gba:mt-4">
-              <TemplatePreviewSection
-                isLoading={templateData.isLoading}
-                folders={templateData.folders}
-                dataTestId={dataTestId}
-              />
+              <TemplatePreviewSection isLoading={templateLoading} folders={templateFolders} dataTestId={dataTestId} />
             </TabsContent>
 
             <TabsContent value="description" className="gba:space-y-4 gba:mt-4">

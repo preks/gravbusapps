@@ -12,9 +12,16 @@ import { env } from '@/common/env/EnvUtils'
 interface InvestmentPortalDocumentsProps {
   investmentId: string
   context: BusinessAppContextProps
+  investmentGroupId?: string
+  investmentGroupCode?: string
 }
 
-const InvestmentPortalDocuments: React.FC<InvestmentPortalDocumentsProps> = ({ investmentId, context }) => {
+const InvestmentPortalDocuments: React.FC<InvestmentPortalDocumentsProps> = ({
+  investmentId,
+  context,
+  investmentGroupId,
+  investmentGroupCode
+}) => {
   // Get current user ID for filtering
   const currentUserId = context.userInfo?.id
 
@@ -100,6 +107,16 @@ const InvestmentPortalDocuments: React.FC<InvestmentPortalDocumentsProps> = ({ i
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}
       deleteActionProps={documentDeleteActionProps}
+      aiOrganizeConfig={{
+        moduleType: 'IRM',
+        entityType: 'INVESTMENT',
+        domain: 'investment',
+        investmentTemplate: {
+          catalogType: 'GROUP',
+          entryId: investmentGroupId,
+          entryCode: investmentGroupCode
+        }
+      }}
       data-testid="investment-portal-document-section"
       accessToken={context.accessToken}
       userInfo={context.userInfo}

@@ -45,13 +45,10 @@ export function collectAllPaths(templateNodes: TemplateTreeNode[]): string[] {
 export const MANAGED_FOLDER_MARKER = 'flowbot-managed'
 
 /**
- * Find AI-managed folders (created by Organize with AI).
- * Returns them sorted deepest-first so callers can delete children before parents.
+ * Sort folders deepest-first for safe bottom-up deletion.
  */
-export function findManagedFolders(documents: DocumentItem[]): DocumentItem[] {
-  const managed = documents.filter(d => d.folder && d.description === MANAGED_FOLDER_MARKER)
-
-  const idToDoc = new Map(documents.filter(d => d.folder).map(d => [d.id, d]))
+function sortDeepestFirst(folders: DocumentItem[], allDocuments: DocumentItem[]): DocumentItem[] {
+  const idToDoc = new Map(allDocuments.filter(d => d.folder).map(d => [d.id, d]))
   const depthOf = (doc: DocumentItem): number => {
     let depth = 0
     let current = doc.parentDocument ? idToDoc.get(doc.parentDocument) : undefined
@@ -61,23 +58,19 @@ export function findManagedFolders(documents: DocumentItem[]): DocumentItem[] {
     }
     return depth
   }
-
-  return managed.sort((a, b) => depthOf(b) - depthOf(a))
+  return [...folders].sort((a, b) => depthOf(b) - depthOf(a))
 }
 
 /**
- * Determine which folders to clean up before a new Apply.
- * Only marker-managed folders are eligible for cleanup.
+ * Return ALL existing folders as cleanup candidates, sorted deepest-first.
+ * Selection protection (keeping folders that contain unselected files)
+ * is handled by planManagedFolderDeletion, not here.
  */
 export function findFoldersForCleanup(documents: DocumentItem[]): DocumentItem[] {
-  return findManagedFolders(documents)
-}
+  const allFolders = documents.filter(d => d.folder)
+  if (allFolders.length === 0) return []
 
-/**
- * Find files that live inside any of the given folder IDs (direct children only).
- */
-export function findFilesInFolders(documents: DocumentItem[], folderIds: Set<string>): DocumentItem[] {
-  return documents.filter(d => !d.folder && d.parentDocument && folderIds.has(d.parentDocument))
+  return sortDeepestFirst(allFolders, documents)
 }
 
 /**
@@ -112,11 +105,43 @@ export function collectFolderSubtreeIds(documents: DocumentItem[], rootFolderIds
 }
 
 /**
- * Find files that belong to one or more folder subtrees.
+ * Find real files (with mimeType or fileInfo) that belong to one or more folder subtrees.
+ * Ghost records (folder=false but no mimeType/fileInfo) are excluded.
  */
 export function findFilesInFolderSubtrees(documents: DocumentItem[], rootFolderIds: Set<string>): DocumentItem[] {
   const subtreeFolderIds = collectFolderSubtreeIds(documents, rootFolderIds)
-  return documents.filter(d => !d.folder && d.parentDocument && subtreeFolderIds.has(d.parentDocument))
+  return documents.filter(
+    d => !d.folder && d.parentDocument && subtreeFolderIds.has(d.parentDocument) && (d.mimeType || d.fileInfo)
+  )
+}
+
+/**
+ * Group folders by depth level for level-by-level processing.
+ * Returns a Map from depth number to folder list at that depth.
+ */
+export function groupFoldersByDepth(
+  folders: DocumentItem[],
+  allDocuments: DocumentItem[]
+): Map<number, DocumentItem[]> {
+  const idToDoc = new Map(allDocuments.filter(d => d.folder).map(d => [d.id, d]))
+  const depthOf = (doc: DocumentItem): number => {
+    let depth = 0
+    let current = doc.parentDocument ? idToDoc.get(doc.parentDocument) : undefined
+    while (current) {
+      depth++
+      current = current.parentDocument ? idToDoc.get(current.parentDocument) : undefined
+    }
+    return depth
+  }
+
+  const groups = new Map<number, DocumentItem[]>()
+  for (const folder of folders) {
+    const depth = depthOf(folder)
+    const list = groups.get(depth) ?? []
+    list.push(folder)
+    groups.set(depth, list)
+  }
+  return groups
 }
 
 export interface ManagedFolderDeletePlan {
