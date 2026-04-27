@@ -48,6 +48,7 @@ export const ActionTable: React.FC<ActionTableProps> = ({
   actions,
   totalCount,
   isLoading,
+  error,
   refetchActions,
   loadMore,
   hasMore,
@@ -454,8 +455,21 @@ export const ActionTable: React.FC<ActionTableProps> = ({
     return <TableSkeleton rowCount={10} columnCount={12} />
   }
 
+  if (error && filteredData.length === 0) {
+    return (
+      <div className="gba:p-6">
+        <p className="gba:text-destructive">{error}</p>
+      </div>
+    )
+  }
+
   return (
     <>
+      {error && (
+        <div className="gba:mb-3 gba:p-3 gba:border gba:border-destructive gba:bg-destructive/10 gba:rounded-lg gba:text-destructive gba:text-sm">
+          {error}
+        </div>
+      )}
       <div className="gba:flex gba:flex-col gba:h-full gba:overflow-auto gba:border gba:rounded-lg">
         <Table className="gba:table-fixed gba:w-full">
           <TableHeader>

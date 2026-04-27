@@ -1,4 +1,6 @@
-import { sortSpreadsheetRowsBySheetSettings } from '../useSpreadsheetViewerState'
+import { act, renderHook } from '@testing-library/react'
+import type { SpreadsheetApp } from '../../types'
+import { sortSpreadsheetRowsBySheetSettings, useSpreadsheetViewerState } from '../useSpreadsheetViewerState'
 
 describe('sortSpreadsheetRowsBySheetSettings', () => {
   it('falls back to backend row ids when persisted rows share a duplicate client row id', () => {
@@ -31,5 +33,60 @@ describe('sortSpreadsheetRowsBySheetSettings', () => {
         column_c: 'new'
       }
     ])
+  })
+})
+
+describe('useSpreadsheetViewerState', () => {
+  it('keeps the intended active sheet id during transient sheet replacement', () => {
+    const baseApp: SpreadsheetApp = {
+      id: 'app-1',
+      name: 'Workbook',
+      sheets: [
+        {
+          id: 'sheet-1',
+          name: 'Sheet1',
+          columns: [{ id: 'col-a', name: 'a', label: 'A', type: 'text', order: 0, isVisible: true }],
+          data: [{ _id: 'row-1', a: 'alpha' }],
+          views: [],
+          viewType: 'table'
+        },
+        {
+          id: 'sheet-2-temp',
+          name: 'Sheet2',
+          columns: [{ id: 'col-a', name: 'a', label: 'A', type: 'text', order: 0, isVisible: true }],
+          data: [],
+          views: [],
+          viewType: 'table'
+        }
+      ]
+    } as SpreadsheetApp
+
+    const { result, rerender } = renderHook(({ app }) => useSpreadsheetViewerState({ app }), {
+      initialProps: { app: baseApp }
+    })
+
+    act(() => {
+      result.current.setActiveSheetId('sheet-2-temp')
+    })
+
+    expect(result.current.activeSheetId).toBe('sheet-2-temp')
+    expect(result.current.activeSheet.id).toBe('sheet-2-temp')
+
+    const reconciledApp: SpreadsheetApp = {
+      ...baseApp,
+      sheets: [
+        baseApp.sheets[0],
+        {
+          ...baseApp.sheets[1],
+          id: 'sheet-2-persisted'
+        }
+      ]
+    }
+
+    rerender({ app: reconciledApp })
+
+    expect(result.current.activeSheetId).toBe('sheet-2-temp')
+    expect(result.current.activeSheet.id).toBe('sheet-2-temp')
+    expect(result.current.activeSheet.columns).toEqual(baseApp.sheets[1].columns)
   })
 })

@@ -84,6 +84,7 @@ export function useSpreadsheetViewerState({
   initialViewId,
   forceSyncToken = 0
 }: UseSpreadsheetViewerStateProps): SpreadsheetViewerState {
+  const fallbackSheetRef = useRef<SpreadsheetSheet | null>(null)
   // Active sheet state
   const [activeSheetId, setActiveSheetId] = useState(initialSheetId || app.sheets[0]?.id || '')
 
@@ -120,6 +121,9 @@ export function useSpreadsheetViewerState({
   useEffect(() => {
     const currentSheetIds = app.sheets.map(s => s.id)
     const sheet = app.sheets.find(s => s.id === activeSheetId)
+    if (sheet) {
+      fallbackSheetRef.current = sheet
+    }
     const activeSheetChanged = prevSheetIdRef.current !== activeSheetId
     const newSheetAdded =
       currentSheetIds.length > prevSheetIdsRef.current.length ||
@@ -135,10 +139,22 @@ export function useSpreadsheetViewerState({
   }, [activeSheetId, app.sheets, forceSyncToken])
 
   // Get active sheet
-  const activeSheet = useMemo(
-    () => app.sheets.find(s => s.id === activeSheetId) || app.sheets[0],
-    [app.sheets, activeSheetId]
-  )
+  const activeSheet = useMemo(() => {
+    const matchedSheet = app.sheets.find(s => s.id === activeSheetId)
+    if (matchedSheet) {
+      fallbackSheetRef.current = matchedSheet
+      return matchedSheet
+    }
+
+    if (fallbackSheetRef.current) {
+      return {
+        ...fallbackSheetRef.current,
+        id: activeSheetId || fallbackSheetRef.current.id
+      }
+    }
+
+    return app.sheets[0]
+  }, [app.sheets, activeSheetId])
 
   // Get active view
   const activeView = useMemo(() => {
