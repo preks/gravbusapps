@@ -128,6 +128,11 @@ function getRowIdentityCandidates(row: Record<string, unknown>): string[] {
   )
 }
 
+function getVisualRowIndex(row: Record<string, unknown>, fallbackIndex: number): number {
+  const raw = Number(row._gridRowIndex)
+  return Number.isFinite(raw) && raw >= 0 ? Math.trunc(raw) : fallbackIndex
+}
+
 function isAvatarColumn(column: SpreadsheetColumn): boolean {
   const normalizedName = normalizeColumnToken(String(column.name || ''))
   const normalizedId = normalizeColumnToken(String(column.id || ''))
@@ -338,7 +343,9 @@ function buildCellData(data: Record<string, unknown>[], visibleColumns: Spreadsh
   const cellData: UniverSheetCellData = {}
   for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
     const rowCells = buildRowCells(data[rowIndex], visibleColumns)
-    if (Object.keys(rowCells).length > 0) cellData[rowIndex] = rowCells
+    if (Object.keys(rowCells).length === 0) continue
+    const targetRowIndex = getVisualRowIndex(data[rowIndex], rowIndex)
+    cellData[targetRowIndex] = rowCells
   }
   return cellData
 }
@@ -360,9 +367,14 @@ function buildRowHeights(data: Record<string, unknown>[]): Record<number, { h?: 
   const rowData: Record<number, { h?: number }> = {}
   for (let idx = 0; idx < data.length; idx++) {
     const h = data[idx]._height
-    if (typeof h === 'number' && h > 0) rowData[idx] = { h }
+    if (typeof h === 'number' && h > 0) rowData[getVisualRowIndex(data[idx], idx)] = { h }
   }
   return rowData
+}
+
+function getWorkbookRowCount(data: Record<string, unknown>[]): number {
+  const maxVisualRowIndex = data.reduce((max, row, index) => Math.max(max, getVisualRowIndex(row, index)), -1)
+  return Math.max(maxVisualRowIndex + 1, data.length, DEFAULT_MIN_ROWS)
 }
 
 /**
@@ -385,7 +397,7 @@ export function buildWorkbookSnapshot(
     name: sheet.name,
     cellData,
     mergeData,
-    rowCount: Math.max(data.length, DEFAULT_MIN_ROWS),
+    rowCount: getWorkbookRowCount(data),
     columnCount: Math.max(visibleColumns.length, 1),
     defaultColumnWidth: UNIVER_DEFAULT_COL_WIDTH,
     defaultRowHeight: UNIVER_DEFAULT_ROW_HEIGHT,
@@ -1016,13 +1028,14 @@ export function createUniverConversionContext(
     indexToExcelCol.set(index, excelCol)
   })
   data.forEach((row, index) => {
+    const rowIndex = getVisualRowIndex(row, index)
     const candidateRowIds = getRowIdentityCandidates(row)
     const canonicalRowId = candidateRowIds[0] || `row_${index}`
     candidateRowIds.forEach(rowId => {
-      rowIdToIndex.set(rowId, index)
+      rowIdToIndex.set(rowId, rowIndex)
     })
-    rowIdToIndex.set(canonicalRowId, index)
-    rowIndexToId.set(index, canonicalRowId)
+    rowIdToIndex.set(canonicalRowId, rowIndex)
+    rowIndexToId.set(rowIndex, canonicalRowId)
   })
   return {
     columnIdToIndex,
