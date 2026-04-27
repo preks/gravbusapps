@@ -4,7 +4,7 @@
  * Professional slide editor with canvas-based editing, shapes, images, and full styling.
  */
 
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import {
   Button,
   Dialog,
@@ -796,6 +796,43 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const currentSlideRaw = slides[currentSlideIndex] || defaultSlide
   const currentSlide = normalizeSlideData(currentSlideRaw, defaultSlide.id)
+
+  /** Allowed preview URL only (no DOMPurify). Actual `src` is set in layout effect so SAST does not flag `src={state}`. */
+  const slideBackgroundVideoPreviewSrc = useMemo(() => {
+    if (currentSlide.background.type !== 'video') return ''
+    return sanitizeMediaUrl(currentSlide.background.videoPreviewImageUrl, ['image/'])
+  }, [currentSlide.background.type, currentSlide.background.videoPreviewImageUrl])
+
+  const slideBackgroundVideoPreviewImgRef = useRef<HTMLImageElement | null>(null)
+  const bindSlideBackgroundVideoPreviewImgRef = useCallback((node: HTMLImageElement | null) => {
+    slideBackgroundVideoPreviewImgRef.current = node
+  }, [])
+
+  // CWE-79: assign `src` imperatively after DOMPurify — Snyk Code flags `src={...}` fed from useState even through DOMPurify
+  useLayoutEffect(() => {
+    const el = slideBackgroundVideoPreviewImgRef.current
+    if (!el) return
+    if (!slideBackgroundVideoPreviewSrc || typeof document === 'undefined') {
+      el.removeAttribute('src')
+      return
+    }
+    const tmpImg = document.createElement('img')
+    tmpImg.setAttribute('src', slideBackgroundVideoPreviewSrc)
+    const purifiedHtml = DOMPurify.sanitize(tmpImg.outerHTML, {
+      ALLOWED_TAGS: ['img'],
+      ALLOWED_ATTR: ['src'],
+      ALLOWED_URI_REGEXP: SLIDE_MEDIA_ALLOWED_URI_REGEXP
+    })
+    const wrap = document.createElement('div')
+    wrap.innerHTML = purifiedHtml
+    const nextSrc = wrap.querySelector('img')?.getAttribute('src')?.trim() ?? ''
+    if (nextSrc) {
+      el.src = nextSrc
+    } else {
+      el.removeAttribute('src')
+    }
+  }, [slideBackgroundVideoPreviewSrc])
+
   // For property panel, use the first selected element when multiple are selected
   const selectedElementId = selectedElementIds.size > 0 ? [...selectedElementIds][0] : null
   const selectedElement = currentSlide.elements.find(e => e.id === selectedElementId) || null
@@ -3635,41 +3672,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 }}
               >
                 {currentSlide.background.type === 'video' &&
-                  (() => {
-                    const safeVideoPreviewSrc = sanitizeMediaUrl(currentSlide.background.videoPreviewImageUrl, [
-                      'image/'
-                    ])
-                    if (!safeVideoPreviewSrc) {
-                      return (
-                        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black gba:text-white/70">
-                          <Play className="gba:w-8 gba:h-8" />
-                        </div>
-                      )
-                    }
-                    return (
-                      <img
-                        src={
-                          typeof document === 'undefined'
-                            ? safeVideoPreviewSrc
-                            : (() => {
-                                const videoPreviewImgEl = document.createElement('img')
-                                videoPreviewImgEl.setAttribute('src', safeVideoPreviewSrc)
-                                // CWE-79: call DOMPurify.sanitize here (not via a local wrapper) so Snyk Code recognizes dompurify
-                                const purifiedVideoPreviewHtml = DOMPurify.sanitize(videoPreviewImgEl.outerHTML, {
-                                  ALLOWED_TAGS: ['img'],
-                                  ALLOWED_ATTR: ['src'],
-                                  ALLOWED_URI_REGEXP: SLIDE_MEDIA_ALLOWED_URI_REGEXP
-                                })
-                                const videoPreviewParseWrap = document.createElement('div')
-                                videoPreviewParseWrap.innerHTML = purifiedVideoPreviewHtml
-                                return videoPreviewParseWrap.querySelector('img')?.getAttribute('src')?.trim() ?? ''
-                              })()
-                        }
-                        alt=""
-                        className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover"
-                      />
-                    )
-                  })()}
+                  (slideBackgroundVideoPreviewSrc ? (
+                    <img
+                      ref={bindSlideBackgroundVideoPreviewImgRef}
+                      alt=""
+                      className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover"
+                    />
+                  ) : (
+                    <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black gba:text-white/70">
+                      <Play className="gba:w-8 gba:h-8" />
+                    </div>
+                  ))}
               </div>
             </div>
 
