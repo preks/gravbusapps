@@ -30,6 +30,7 @@ interface SlideStaticElementContentProps {
   isPresenting?: boolean
   onLinkClick?: (url: string, linkId: string, e: React.MouseEvent) => void
   renderVideoElement?: boolean
+  disableMediaPointerEvents?: boolean
 }
 
 function StaticImageContent({ element }: { element: ImageElement }) {
@@ -57,7 +58,15 @@ function StaticImageContent({ element }: { element: ImageElement }) {
   )
 }
 
-function StaticVideoContent({ element, renderVideoElement }: { element: VideoElement; renderVideoElement: boolean }) {
+function StaticVideoContent({
+  element,
+  renderVideoElement,
+  disableMediaPointerEvents = false
+}: {
+  element: VideoElement
+  renderVideoElement: boolean
+  disableMediaPointerEvents?: boolean
+}) {
   const previewImageUrl = useResolvedSlideMediaUrl(resolveVideoPreviewUrl(element))
   const videoUrl = useResolvedSlideMediaUrl(resolveVideoPlaybackUrl(element))
 
@@ -102,12 +111,17 @@ function StaticVideoContent({ element, renderVideoElement }: { element: VideoEle
         title={element.provider === 'youtube' ? 'YouTube video' : 'Embedded video'}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowFullScreen
+        data-testid={`slide-video-embed-${element.id}`}
         style={{
           width: '100%',
           height: '100%',
           border: 'none',
           borderRadius: element.borderRadius,
-          boxShadow: element.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+          boxShadow: element.shadow
+            ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+            : 'none',
+          pointerEvents: disableMediaPointerEvents ? 'none' : 'auto',
+          cursor: disableMediaPointerEvents ? 'inherit' : 'auto'
         }}
       />
     )
@@ -122,12 +136,15 @@ function StaticVideoContent({ element, renderVideoElement }: { element: VideoEle
       playsInline
       preload="metadata"
       poster={previewImageUrl || undefined}
+      data-testid={`slide-video-element-${element.id}`}
       style={{
         width: '100%',
         height: '100%',
         objectFit: element.objectFit,
         borderRadius: element.borderRadius,
-        boxShadow: element.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+        boxShadow: element.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none',
+        pointerEvents: disableMediaPointerEvents ? 'none' : 'auto',
+        cursor: disableMediaPointerEvents ? 'inherit' : 'auto'
       }}
     />
   )
@@ -438,7 +455,8 @@ export function SlideStaticElementContent({
   element,
   isPresenting = false,
   onLinkClick,
-  renderVideoElement = true
+  renderVideoElement = true,
+  disableMediaPointerEvents = false
 }: SlideStaticElementContentProps) {
   if (element.type === 'text') {
     const textEl: TextElement = element
@@ -521,7 +539,15 @@ export function SlideStaticElementContent({
     )
   }
 
-  if (element.type === 'video') return <StaticVideoContent element={element} renderVideoElement={renderVideoElement} />
+  if (element.type === 'video') {
+    return (
+      <StaticVideoContent
+        element={element}
+        renderVideoElement={renderVideoElement}
+        disableMediaPointerEvents={disableMediaPointerEvents}
+      />
+    )
+  }
 
   if (element.type === 'table') {
     const tableEl: TableElement = element

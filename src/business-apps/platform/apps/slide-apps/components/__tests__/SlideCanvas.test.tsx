@@ -110,6 +110,18 @@ function makeVideoElement(overrides: Partial<VideoElement> = {}): VideoElement {
   }
 }
 
+function makeFileVideoElement(overrides: Partial<VideoElement> = {}): VideoElement {
+  return makeVideoElement({
+    src: 'https://example.com/demo.mp4',
+    sourceUrl: 'https://example.com/demo.mp4',
+    embedUrl: undefined,
+    previewImageUrl: 'https://example.com/demo.jpg',
+    videoKind: 'file',
+    provider: undefined,
+    ...overrides
+  })
+}
+
 function renderInlineEditingCanvas(element: TextElement | ShapeElement) {
   const onSelectElements = jest.fn()
   const onUpdateElement = jest.fn()
@@ -404,7 +416,7 @@ describe('SlideCanvas inline editing drag behavior', () => {
 })
 
 describe('SlideCanvas video rendering', () => {
-  it('renders embedded videos as iframes', () => {
+  it('keeps unselected embedded videos selectable from the canvas surface', () => {
     render(
       <SlideCanvas
         elements={[makeVideoElement()]}
@@ -417,6 +429,90 @@ describe('SlideCanvas video rendering', () => {
       />
     )
 
-    expect(screen.getByTestId('slide-video-embed-video-1')).toBeInTheDocument()
+    expect(screen.getByTestId('slide-video-embed-video-1')).toHaveStyle({ pointerEvents: 'none' })
+  })
+
+  it('lets selected embedded videos stay playable and movable', () => {
+    const onUpdateElement = jest.fn()
+    const onDragStart = jest.fn()
+    const onDragEnd = jest.fn()
+
+    render(
+      <SlideCanvas
+        elements={[makeVideoElement()]}
+        selectedIds={new Set(['video-1'])}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={onUpdateElement}
+        onUpdateMultipleElements={() => {}}
+        onEditText={() => {}}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+      />
+    )
+
+    expect(screen.getByTestId('slide-video-embed-video-1')).toHaveStyle({ pointerEvents: 'auto' })
+
+    dragFrom(screen.getByTestId('slide-video-move-edge-video-1-top'), { x: 150, y: 100 }, { x: 190, y: 130 })
+
+    expect(onDragStart).toHaveBeenCalledTimes(1)
+    expect(onDragEnd).toHaveBeenCalledTimes(1)
+    expect(onUpdateElement).toHaveBeenLastCalledWith('video-1', { position: { x: 140, y: 130 } })
+  })
+
+  it('temporarily disables selected embedded video pointer events while dragging from the edge', () => {
+    render(
+      <SlideCanvas
+        elements={[makeVideoElement()]}
+        selectedIds={new Set(['video-1'])}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={() => {}}
+      />
+    )
+
+    const embed = screen.getByTestId('slide-video-embed-video-1')
+    const moveEdge = screen.getByTestId('slide-video-move-edge-video-1-top')
+
+    expect(embed).toHaveStyle({ pointerEvents: 'auto' })
+
+    fireEvent.mouseDown(moveEdge, { clientX: 150, clientY: 100 })
+    expect(embed).toHaveStyle({ pointerEvents: 'none' })
+
+    fireEvent.mouseUp(window, { clientX: 150, clientY: 100 })
+    expect(embed).toHaveStyle({ pointerEvents: 'auto' })
+  })
+
+  it('does not start dragging when interacting with a selected file video player', () => {
+    const onDragStart = jest.fn()
+    const onDragEnd = jest.fn()
+    const onUpdateElement = jest.fn()
+
+    render(
+      <SlideCanvas
+        elements={[makeFileVideoElement()]}
+        selectedIds={new Set(['video-1'])}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={onUpdateElement}
+        onUpdateMultipleElements={() => {}}
+        onEditText={() => {}}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+      />
+    )
+
+    const videoPlayer = screen.getByTestId('slide-video-element-video-1')
+    expect(videoPlayer).toHaveStyle({ cursor: 'auto' })
+
+    fireEvent.mouseDown(videoPlayer, { clientX: 150, clientY: 150 })
+    fireEvent.mouseMove(window, { clientX: 190, clientY: 180 })
+    fireEvent.mouseUp(window, { clientX: 190, clientY: 180 })
+
+    expect(onDragStart).not.toHaveBeenCalled()
+    expect(onDragEnd).not.toHaveBeenCalled()
+    expect(onUpdateElement).not.toHaveBeenCalled()
   })
 })

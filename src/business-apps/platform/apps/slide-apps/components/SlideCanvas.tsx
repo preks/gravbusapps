@@ -1127,7 +1127,11 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       }
     }
 
-    const renderInlineEditingMoveEdges = (elementId: string) => {
+    const renderMoveEdges = (
+      elementId: string,
+      testIdPrefix: string,
+      onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void
+    ) => {
       const edgeThickness = 12 / scale
       const edgeStyles: Record<'top' | 'right' | 'bottom' | 'left', React.CSSProperties> = {
         top: {
@@ -1159,7 +1163,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       return (['top', 'right', 'bottom', 'left'] as const).map(edge => (
         <div
           key={`${elementId}-${edge}`}
-          data-testid={`slide-inline-editor-move-edge-${elementId}-${edge}`}
+          data-testid={`${testIdPrefix}-${elementId}-${edge}`}
           title="Drag to move"
           style={{
             position: 'absolute',
@@ -1169,8 +1173,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             zIndex: 900,
             ...edgeStyles[edge]
           }}
+          onMouseDown={onMouseDown}
         />
       ))
+    }
+
+    const renderInlineEditingMoveEdges = (elementId: string) => {
+      return renderMoveEdges(elementId, 'slide-inline-editor-move-edge')
     }
 
     const renderElement = (element: AnySlideElement) => {
@@ -1235,11 +1244,30 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           </>
         ) : null
 
+      const videoMoveEdgeNodes =
+        element.type === 'video' && isSelected && !isPresenting && !element.locked ? (
+          <>
+            {renderMoveEdges(element.id, 'slide-video-move-edge', e => {
+              e.stopPropagation()
+              handleElementMouseDown(e, element)
+            })}
+          </>
+        ) : null
+
       const useSharedStaticRenderer = shouldUseSharedStaticRenderer(
         element,
         inlineEditing?.editingTextId,
         editingPointsId
       )
+
+      const handleWrapperMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (element.type === 'video' && isSelected && e.target !== e.currentTarget) {
+          e.stopPropagation()
+          return
+        }
+
+        handleElementMouseDown(e, element)
+      }
 
       if (useSharedStaticRenderer) {
         return (
@@ -1259,7 +1287,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 if (!element.locked) onShapeContextMenu(element.id)
               }
             }}
-            onMouseDown={e => handleElementMouseDown(e, element)}
+            onMouseDown={handleWrapperMouseDown}
             onKeyDown={e => {
               if (isKeyboardEventFromTextInput(e.target)) return
 
@@ -1289,7 +1317,11 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               isPresenting={isPresenting}
               onLinkClick={onLinkClick}
               renderVideoElement={true}
+              disableMediaPointerEvents={
+                !isPresenting && element.type === 'video' && (!isSelected || isDragging || isResizing)
+              }
             />
+            {videoMoveEdgeNodes}
             {resizeHandleNodes}
           </div>
         )
@@ -1315,7 +1347,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               if (!element.locked) onShapeContextMenu(element.id)
             }
           }}
-          onMouseDown={e => handleElementMouseDown(e, element)}
+          onMouseDown={handleWrapperMouseDown}
           onKeyDown={e => {
             if (isKeyboardEventFromTextInput(e.target)) return
 
