@@ -56,4 +56,29 @@ describe('uploadSlideImages', () => {
     expect(result.failedUploads).toBe(2)
     expect(mockUploadImageFromBase64).toHaveBeenCalledTimes(4)
   })
+
+  it('reports exact upload counts for batched image progress', async () => {
+    const slide: SlideData = {
+      id: 'slide-progress-1',
+      background: { type: 'image', imageUrl: 'data:image/png;base64,BACKGROUND' },
+      elements: [createImageElement('data:image/png;base64,IMAGE', { id: 'image-progress-1' })]
+    }
+
+    mockUploadImageFromBase64
+      .mockResolvedValueOnce('https://drive.example/background.png')
+      .mockResolvedValueOnce('https://drive.example/image.png')
+
+    const progressCalls: Array<{ total: number; uploaded: number }> = []
+    const result = await uploadSlideImages([slide], {
+      onProgress: progress => {
+        progressCalls.push(progress)
+      }
+    })
+
+    expect(result.failedUploads).toBe(0)
+    expect(progressCalls).toEqual([
+      { total: 2, uploaded: 0 },
+      { total: 2, uploaded: 2 }
+    ])
+  })
 })

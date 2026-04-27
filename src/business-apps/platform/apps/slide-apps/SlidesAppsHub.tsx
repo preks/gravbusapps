@@ -81,6 +81,14 @@ import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 import type { SlideSummary } from './types'
 import type { ParsedPowerPointDocument } from './hooks/usePowerPointParser'
 import { normalizeImportedSlideMedia } from './hooks/pptxImport'
+import type { NormalizeImportedMediaProgress } from './hooks/pptxImport/normalizeImportedMedia'
+import type { PptxImportProgressState } from './hooks/pptxImport/importProgress'
+import {
+  createImageUploadImportProgress,
+  createPreparingImportProgress,
+  createVideoProcessingImportProgress,
+  ensureMonotonicImportProgress
+} from './hooks/pptxImport/importProgress'
 import {
   createMediaFailurePlaceholderDataUrl,
   DEFAULT_PPTX_MEDIA_UPLOAD_RETRY_COUNT
@@ -183,6 +191,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [slideForManageShares, setSlideForManageShares] = useState<string | null>(null)
   const [showImportDialog, setShowImportDialog] = useState(false)
+  const [powerPointImportProgress, setPowerPointImportProgress] = useState<PptxImportProgressState | null>(null)
   const [showTemplateBrowserDialog, setShowTemplateBrowserDialog] = useState(false)
   const [showGenerateDialogChat, setShowGenerateDialogChat] = useState(false)
   const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
@@ -252,6 +261,34 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     setActiveSection,
     onInitialLoadComplete: () => setInitialUrlProcessed(true)
   })
+
+  const updatePowerPointImportProgress = useCallback((nextProgress: PptxImportProgressState) => {
+    setPowerPointImportProgress(previousProgress => ensureMonotonicImportProgress(nextProgress, previousProgress))
+  }, [])
+
+  const resetPowerPointImportProgress = useCallback(() => {
+    setPowerPointImportProgress(null)
+  }, [])
+
+  const handleNormalizedMediaProgress = useCallback(
+    (progress: NormalizeImportedMediaProgress) => {
+      if (progress.phase === 'uploading-images') {
+        updatePowerPointImportProgress(createImageUploadImportProgress(progress.current, progress.total))
+        return
+      }
+
+      updatePowerPointImportProgress(createVideoProcessingImportProgress(progress.current, progress.total))
+    },
+    [updatePowerPointImportProgress]
+  )
+
+  const handleImportDialogOpenChange = useCallback(
+    (open: boolean) => {
+      setShowImportDialog(open)
+      if (!open) resetPowerPointImportProgress()
+    },
+    [resetPowerPointImportProgress]
+  )
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
   // Only run after initial URL processing is complete to avoid clearing slideId on refresh
@@ -524,13 +561,15 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const handlePowerPointImport = useCallback(
     async (parsedDoc: ParsedPowerPointDocument) => {
       try {
+        updatePowerPointImportProgress(createPreparingImportProgress())
         const imageFailurePlaceholderDataUrl = createMediaFailurePlaceholderDataUrl({
           title: t('import-image-upload-placeholder-title'),
           subtitle: t('import-image-upload-placeholder-subtitle')
         })
         const normalizedMedia = await normalizeImportedSlideMedia(parsedDoc.slides, {
           imageFailurePlaceholderDataUrl,
-          uploadRetryCount: DEFAULT_PPTX_MEDIA_UPLOAD_RETRY_COUNT
+          uploadRetryCount: DEFAULT_PPTX_MEDIA_UPLOAD_RETRY_COUNT,
+          onProgress: handleNormalizedMediaProgress
         })
 
         // Pre-flight: measure the final JSON payload. The document service
@@ -549,17 +588,24 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         console.info(`[SlidesAppsHub] Import payload: ${payloadMb.toFixed(2)} MB, ${parsedDoc.slideCount} slides`)
         const exceedsBackendLimit = payloadBytes > 10 * 1024 * 1024
 
-        const result = await importSlide({
-          title: parsedDoc.fileName.replace('.pptx', ''),
-          contentJson
-        })
+        const result = await importSlide(
+          {
+            title: parsedDoc.fileName.replace('.pptx', ''),
+            contentJson
+          },
+          {
+            onProgress: updatePowerPointImportProgress
+          }
+        )
 
         if (!result) {
+          resetPowerPointImportProgress()
           toast.error(t('toast-import-failed'))
           return
         }
 
         setShowImportDialog(false)
+        resetPowerPointImportProgress()
         setSelectedSlideId(result.slide.id)
         setCurrentView('editor')
         updateUrl(result.slide.id, 'editor')
@@ -597,11 +643,19 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
           toast.warning(t('toast-import-partial'))
         }
       } catch (err) {
+        resetPowerPointImportProgress()
         console.error('[SlidesAppsHub] Import error:', err)
         toast.error(t('toast-import-failed'))
       }
     },
-    [importSlide, updateUrl, t]
+    [
+      handleNormalizedMediaProgress,
+      importSlide,
+      resetPowerPointImportProgress,
+      t,
+      updatePowerPointImportProgress,
+      updateUrl
+    ]
   )
 
   // Check if this is a cast receiver view (standalone page for external display)
@@ -1313,15 +1367,16 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
       )}
 
       {/* Import PowerPoint Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+      <Dialog open={showImportDialog} onOpenChange={handleImportDialogOpenChange}>
         <DialogContent className="gba:max-w-2xl">
           <PowerPointUploader
             onFileParsed={handlePowerPointImport}
-            onCancel={() => setShowImportDialog(false)}
+            onCancel={() => handleImportDialogOpenChange(false)}
             onError={err => {
               console.error('[SlidesAppsHub] Import error:', err)
               toast.error(t('toast-import-failed'))
             }}
+            importProgress={powerPointImportProgress}
             data-testid={`${testId}-import-uploader`}
           />
         </DialogContent>

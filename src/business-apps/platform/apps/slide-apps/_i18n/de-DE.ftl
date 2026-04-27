@@ -386,6 +386,28 @@ toast-import-failed-generic = Import fehlgeschlagen
 import-drop-pptx = Bitte eine PowerPoint-Datei (.pptx) ablegen
 import-importing-title = PowerPoint wird importiert
 import-parsing = Folien werden geparst und Inhalte extrahiert...
+import-progress-phase-parsing = PowerPoint wird analysiert
+import-progress-phase-preparing = Medienimport wird vorbereitet
+import-progress-phase-uploading-images = Bilder werden hochgeladen
+import-progress-phase-processing-videos = Videos werden verarbeitet
+import-progress-phase-saving = Präsentation wird gespeichert
+import-progress-phase-finalizing = Präsentation wird finalisiert
+import-progress-phase-completed = Import abgeschlossen
+import-progress-detail-parsing = Folien, Layouts und eingebettete Medien werden gelesen
+import-progress-detail-preparing = Bilder und Videos werden für den Import vorbereitet
+import-progress-detail-images = { $total ->
+  [one] { $current } von { $total } Bild hochgeladen
+ *[other] { $current } von { $total } Bildern hochgeladen
+}
+import-progress-detail-videos = { $total ->
+  [one] { $current } von { $total } Video verarbeitet
+ *[other] { $current } von { $total } Videos verarbeitet
+}
+import-progress-detail-saving = Importauftrag ist zu { $progress }% abgeschlossen
+import-progress-detail-finalizing = Es wird darauf gewartet, dass die Präsentation gespeichert wird
+import-progress-detail-finalizing-estimated = Der Fortschritt des letzten Upload-Schritts ist geschätzt
+import-progress-detail-completed = Präsentation ist bereit
+import-progress-estimated = Der Fortschritt wird beim letzten Upload geschätzt
 import-failed-title = Import fehlgeschlagen
 import-try-again = Erneut versuchen
 import-success-title = Import erfolgreich

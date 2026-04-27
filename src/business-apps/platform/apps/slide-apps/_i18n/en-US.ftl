@@ -387,6 +387,28 @@ toast-import-failed-generic = Import failed
 import-drop-pptx = Please drop a PowerPoint (.pptx) file
 import-importing-title = Importing PowerPoint
 import-parsing = Parsing slides and extracting content...
+import-progress-phase-parsing = Parsing PowerPoint
+import-progress-phase-preparing = Preparing media import
+import-progress-phase-uploading-images = Uploading images
+import-progress-phase-processing-videos = Processing videos
+import-progress-phase-saving = Saving presentation
+import-progress-phase-finalizing = Finalizing presentation
+import-progress-phase-completed = Import complete
+import-progress-detail-parsing = Reading slides, layouts, and embedded assets
+import-progress-detail-preparing = Preparing images and videos for import
+import-progress-detail-images = { $total ->
+  [one] { $current } of { $total } image uploaded
+ *[other] { $current } of { $total } images uploaded
+}
+import-progress-detail-videos = { $total ->
+  [one] { $current } of { $total } video processed
+ *[other] { $current } of { $total } videos processed
+}
+import-progress-detail-saving = Import job is { $progress }% complete
+import-progress-detail-finalizing = Waiting for the presentation to be saved
+import-progress-detail-finalizing-estimated = Final upload progress is estimated for this step
+import-progress-detail-completed = Presentation is ready
+import-progress-estimated = Progress is estimated during the final upload
 import-failed-title = Import Failed
 import-try-again = Try Again
 import-success-title = Import Successful

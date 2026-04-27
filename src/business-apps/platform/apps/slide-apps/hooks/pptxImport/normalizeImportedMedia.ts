@@ -23,6 +23,13 @@ export interface NormalizeImportedMediaWarnings {
 export interface NormalizeImportedMediaOptions {
   imageFailurePlaceholderDataUrl?: string
   uploadRetryCount?: number
+  onProgress?: (progress: NormalizeImportedMediaProgress) => void
+}
+
+export interface NormalizeImportedMediaProgress {
+  phase: 'uploading-images' | 'processing-videos'
+  current: number
+  total: number
 }
 
 function buildImportedMediaFileName(
@@ -154,6 +161,7 @@ export async function normalizeImportedSlideMedia(
   warnings: NormalizeImportedMediaWarnings
 }> {
   const retryCount = options.uploadRetryCount ?? DEFAULT_PPTX_MEDIA_UPLOAD_RETRY_COUNT
+  const onProgress = options.onProgress
   const imageFailurePlaceholderDataUrl =
     options.imageFailurePlaceholderDataUrl ??
     createMediaFailurePlaceholderDataUrl({
@@ -169,11 +177,31 @@ export async function normalizeImportedSlideMedia(
 
   const uploadedImages = await uploadSlideImages(slides, {
     failurePlaceholderDataUrl: imageFailurePlaceholderDataUrl,
+    onProgress: progress => {
+      onProgress?.({
+        phase: 'uploading-images',
+        current: progress.uploaded,
+        total: progress.total
+      })
+    },
     retryCount
   })
   warnings.imageUploadFailures = uploadedImages.failedUploads
 
   const normalizedSlides: SlideData[] = []
+  const totalVideos = uploadedImages.slides.reduce(
+    (count, slide) => count + slide.elements.filter(element => element.type === 'video').length,
+    0
+  )
+  let processedVideos = 0
+
+  if (totalVideos > 0) {
+    onProgress?.({
+      phase: 'processing-videos',
+      current: 0,
+      total: totalVideos
+    })
+  }
 
   for (let slideIndex = 0; slideIndex < uploadedImages.slides.length; slideIndex++) {
     const slide = uploadedImages.slides[slideIndex]
@@ -188,6 +216,12 @@ export async function normalizeImportedSlideMedia(
 
       const normalizedVideo = await normalizeVideoElement(element, slideIndex, elementIndex, retryCount, warnings)
       if (normalizedVideo) nextElements.push(normalizedVideo)
+      processedVideos++
+      onProgress?.({
+        phase: 'processing-videos',
+        current: processedVideos,
+        total: totalVideos
+      })
     }
 
     normalizedSlides.push({ ...slide, elements: nextElements })

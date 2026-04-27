@@ -74,6 +74,37 @@ describe('normalizeImportedSlideMedia', () => {
     expect(JSON.stringify(result.slides)).not.toContain('data:video/')
   })
 
+  it('reports exact progress for image uploads and video processing', async () => {
+    mockUploadImageFromBase64
+      .mockResolvedValueOnce('https://drive.example/image.png')
+      .mockResolvedValueOnce('https://drive.example/video.jpg')
+    mockUploadDataUrl.mockResolvedValueOnce('https://drive.example/video.mp4')
+    mockCaptureVideoPreviewImage.mockResolvedValueOnce('data:image/jpeg;base64,PREVIEW')
+
+    const progressCalls: Array<{ phase: string; current: number; total: number }> = []
+    const embeddedVideo = createVideoElement('data:video/mp4;base64,VIDEO', {
+      id: 'video-progress-1',
+      sourceUrl: 'ppt/media/video-progress.mp4',
+      videoKind: 'file'
+    })
+
+    await normalizeImportedSlideMedia(
+      [makeSlide([createImageElement('data:image/png;base64,IMAGE', { id: 'image-progress-1' }), embeddedVideo])],
+      {
+        onProgress: progress => {
+          progressCalls.push(progress)
+        }
+      }
+    )
+
+    expect(progressCalls).toEqual([
+      { phase: 'uploading-images', current: 0, total: 1 },
+      { phase: 'uploading-images', current: 1, total: 1 },
+      { phase: 'processing-videos', current: 0, total: 1 },
+      { phase: 'processing-videos', current: 1, total: 1 }
+    ])
+  })
+
   it('replaces failed embedded image uploads with the provided placeholder after retry', async () => {
     const placeholderDataUrl = 'data:image/svg+xml;base64,PLACEHOLDER'
     mockUploadImageFromBase64.mockRejectedValue(new Error('upload failed'))

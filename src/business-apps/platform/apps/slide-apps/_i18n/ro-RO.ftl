@@ -367,6 +367,28 @@ toast-import-failed-generic = Import eșuat
 import-drop-pptx = Plasați un fișier PowerPoint (.pptx)
 import-importing-title = Import PowerPoint
 import-parsing = Se parsează slide-urile...
+import-progress-phase-parsing = Se parsează PowerPoint-ul
+import-progress-phase-preparing = Se pregătește importul media
+import-progress-phase-uploading-images = Se încarcă imaginile
+import-progress-phase-processing-videos = Se procesează videoclipurile
+import-progress-phase-saving = Se salvează prezentarea
+import-progress-phase-finalizing = Se finalizează prezentarea
+import-progress-phase-completed = Import finalizat
+import-progress-detail-parsing = Se citesc slide-urile, layout-urile și fișierele media încorporate
+import-progress-detail-preparing = Imaginile și videoclipurile sunt pregătite pentru import
+import-progress-detail-images = { $total ->
+  [one] { $current } din { $total } imagine încărcată
+ *[other] { $current } din { $total } imagini încărcate
+}
+import-progress-detail-videos = { $total ->
+  [one] { $current } din { $total } videoclip procesat
+ *[other] { $current } din { $total } videoclipuri procesate
+}
+import-progress-detail-saving = Jobul de import este finalizat în proporție de { $progress }%
+import-progress-detail-finalizing = Se așteaptă salvarea prezentării
+import-progress-detail-finalizing-estimated = Progresul pentru ultimul pas de upload este estimat
+import-progress-detail-completed = Prezentarea este pregătită
+import-progress-estimated = Progresul este estimat în timpul ultimului upload
 import-failed-title = Import eșuat
 import-try-again = Încercați din nou
 import-success-title = Import reușit
