@@ -290,15 +290,15 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   // Prepare initial data from slide prop (used for bootstrap initializer / pre-sync rendering).
   const initialSlides = useMemo(
     () => normalizeSlidesData(slide.contentJson?.slides as SlideData[] | undefined, defaultSlide),
-    [slide.id, defaultSlide]
+    [slide.contentJson?.slides, defaultSlide]
   )
   const initialThemeId = useMemo(
     () => (slide.contentJson?.themeId as string | undefined) || SLIDE_THEMES[0].id,
-    [slide.id]
+    [slide.contentJson?.themeId]
   )
   const initialMasters = useMemo(
     () => (slide.contentJson?.masters as SlideMaster[] | undefined) || undefined,
-    [slide.id]
+    [slide.contentJson?.masters]
   )
 
   // Memoize callback to prevent recreation

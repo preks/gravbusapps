@@ -353,6 +353,7 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
   const [isInitialized, setIsInitialized] = useState(false)
   const providerRef = useRef<SocketIoYjsProvider | null>(null)
   const isBootstrappingRef = useRef(false)
+  const didSeedEmptySlidesRef = useRef(false)
   const didDedupeRef = useRef(false)
 
   // Store initial data in refs to avoid recreating provider
@@ -372,6 +373,10 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
     initialThemeIdRef.current = initialThemeId
   }, [initialThemeId])
 
+  useEffect(() => {
+    didSeedEmptySlidesRef.current = false
+  }, [slideId])
+
   // Get Yjs arrays
   const ySlides = useMemo(() => ydoc.getArray<Y.Map<any>>('slides'), [ydoc])
   const yMeta = useMemo(() => ydoc.getMap('meta'), [ydoc])
@@ -380,6 +385,29 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
   // Do NOT pre-seed the Yjs document from REST content before the first sync.
   // If the server already has a Yjs state, pre-seeding causes divergent docs and duplicates on merge
   // (e.g. two slides with id `slide-1`), which breaks real-time syncing between clients.
+
+  const seedInitialSlidesState = useCallback(
+    async (options?: { waitForProviderReady?: boolean }) => {
+      const slideData = initialSlidesRef.current || []
+      const theme = initialThemeIdRef.current || 'corporate'
+
+      if (options?.waitForProviderReady) {
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
+
+      if (ySlides.length === 0 && slideData.length > 0) {
+        Y.transact(ydoc, () => {
+          slidesToYjs(slideData, ySlides)
+          yMeta.set('themeId', theme)
+        })
+      }
+
+      setSlides(slideData)
+      setThemeId(theme)
+      setIsInitialized(true)
+    },
+    [ydoc, yMeta, ySlides]
+  )
 
   // Collaboration hook
   const { participants, socket: collaborationSocket } = useCollaboration({
@@ -411,25 +439,7 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
         isBootstrappingRef.current = true
 
         try {
-          // Seed from REST-loaded slide content (best effort).
-          const slideData = initialSlidesRef.current || []
-          const theme = initialThemeIdRef.current || 'corporate'
-
-          // Wait briefly for Yjs to be ready
-          await new Promise(resolve => setTimeout(resolve, 50))
-
-          // Initialize Yjs structures (only if empty to avoid duplicating existing server state)
-          if (ySlides.length === 0) {
-            Y.transact(ydoc, () => {
-              slidesToYjs(slideData, ySlides)
-              yMeta.set('themeId', theme)
-            })
-          }
-
-          // Update local state
-          setSlides(slideData)
-          setThemeId(theme)
-          setIsInitialized(true)
+          await seedInitialSlidesState({ waitForProviderReady: true })
         } catch (err) {
           console.error('[useSlideCollaboration] Bootstrap error:', err)
         } finally {
@@ -450,7 +460,27 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
       providerRef.current = null
       setIsSynced(false)
     }
-  }, [enabled, slideId, collaborationSocket, ydoc, awareness, ySlides, yMeta, onSynced])
+  }, [enabled, slideId, collaborationSocket, ydoc, awareness, ySlides, yMeta, onSynced, seedInitialSlidesState])
+
+  useEffect(() => {
+    if (!enabled || !slideId || !isSynced) return
+    if (didSeedEmptySlidesRef.current) return
+
+    if (ySlides.length > 0) {
+      didSeedEmptySlidesRef.current = true
+      return
+    }
+
+    if ((initialSlidesRef.current || []).length === 0) {
+      return
+    }
+
+    didSeedEmptySlidesRef.current = true
+    void seedInitialSlidesState().catch(err => {
+      didSeedEmptySlidesRef.current = false
+      console.error('[useSlideCollaboration] Failed to seed empty slide deck after sync:', err)
+    })
+  }, [enabled, initialSlides, isSynced, seedInitialSlidesState, slideId, ySlides])
 
   // One-time de-duplication safeguard after sync.
   // If earlier builds created duplicate slide IDs (e.g. `slide-1` twice), remove extras
