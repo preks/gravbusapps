@@ -4,16 +4,9 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { Button, Checkbox, ScrollArea, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircle, FileSpreadsheet } from 'lucide-react'
 import type { ParsedPowerPointDocument } from '../hooks/usePowerPointParser'
-import {
-  gradientToCss,
-  textTransformToCss,
-  type SlideData,
-  type ShapeElement,
-  type RichTextTransform
-} from './slideElements'
-import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
+import { DEFAULT_SLIDE_CANVAS_SIZE, type SlideData } from './slideElements'
+import { SlideThumbnail } from './SlideThumbnail'
 import translations from '../_i18n'
-import { sanitizeSlideImageUrl } from '../utils/slideMediaUrl'
 
 export interface ImportPreviewDialogProps {
   parsedDocument: ParsedPowerPointDocument
@@ -29,183 +22,16 @@ function formatFileSize(bytes: number): string {
 }
 
 const THUMB_SCALE = 1 / 8
-/** Fallback canvas used when a slide has no explicit <p:sldSz> (legacy decks). */
-const DEFAULT_CANVAS_W = 1280
-const DEFAULT_CANVAS_H = 720
-
-function ThumbImage({ src, style }: { src: string; style: React.CSSProperties }) {
-  const [failed, setFailed] = React.useState(false)
-  // Preview must use the same image URL sanitization as the editor so that a
-  // slide that passes preview cannot later render as a blank frame in the
-  // canvas (or vice versa).
-  const safeSrc = sanitizeSlideImageUrl(src)
-  if (failed || !safeSrc) {
-    return <div style={{ ...style, backgroundColor: 'var(--nw-muted)' }} />
-  }
-  return <img src={safeSrc} alt="" style={{ ...style, objectFit: 'cover' }} onError={() => setFailed(true)} />
-}
-
-function ThumbElement({ el, idx }: { el: SlideData['elements'][number]; idx: number }) {
-  const base: React.CSSProperties = {
-    position: 'absolute',
-    left: el.position.x * THUMB_SCALE,
-    top: el.position.y * THUMB_SCALE,
-    width: el.size.width * THUMB_SCALE,
-    height: el.size.height * THUMB_SCALE,
-    opacity: el.opacity ?? 1,
-    overflow: 'hidden',
-    zIndex: el.zIndex ?? idx,
-    ...(el.rotation ? { transform: `rotate(${el.rotation}deg)` } : {})
-  }
-
-  if (el.type === 'text') {
-    const te = el as SlideData['elements'][number] & {
-      content?: string
-      fontSize?: number
-      color?: string
-      fontWeight?: string
-      fontFamily?: string
-      textAlign?: string
-      backgroundColor?: string
-      textTransform?: RichTextTransform
-    }
-    const bgColor = te.backgroundColor && te.backgroundColor !== 'transparent' ? te.backgroundColor : undefined
-    return (
-      <div
-        style={{
-          ...base,
-          fontSize: Math.max(1, (te.fontSize || 16) * THUMB_SCALE),
-          lineHeight: 1.2,
-          color: te.color || '#000',
-          fontWeight: te.fontWeight || 'normal',
-          fontFamily: te.fontFamily || 'Inter',
-          textAlign: (te.textAlign as React.CSSProperties['textAlign']) || 'left',
-          ...textTransformToCss(te.textTransform),
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          backgroundColor: bgColor
-        }}
-      >
-        {(te.content || '').slice(0, 200)}
-      </div>
-    )
-  }
-
-  if (el.type === 'image') {
-    return <ThumbImage src={el.src || ''} style={base} />
-  }
-
-  if (el.type === 'shape') {
-    const se: ShapeElement = el
-    const fillColor = se.fill || 'transparent'
-    const fillStyle = se.gradient ? gradientToCss(se.gradient) : fillColor
-    // Preset-aware preview: when the imported shape carries Office metadata,
-    // render it using the same SVG paths the editor uses so users see the
-    // real geometry before committing to import.
-    const officePreset = tryRenderOfficePresetShape({
-      element: se,
-      fillStyle: fillStyle === 'transparent' ? 'transparent' : fillStyle,
-      strokeColor: se.strokeColor || '#888',
-      strokeWidth: se.strokeWidth ? Math.max(0.5, se.strokeWidth * THUMB_SCALE) : 0,
-      shadow: false,
-      width: Math.max(1, se.size.width * THUMB_SCALE),
-      height: Math.max(1, se.size.height * THUMB_SCALE)
-    })
-
-    if (officePreset) {
-      return (
-        <div style={{ ...base, position: 'relative' as const }}>
-          {officePreset}
-          {se.shapeText?.content && (
-            <div
-              className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:px-0.5 gba:overflow-hidden gba:text-center gba:leading-tight gba:line-clamp-2"
-              style={{
-                color: se.shapeText.color || 'inherit',
-                fontSize: Math.max(3, (se.shapeText.fontSize || 12) * 0.08 * THUMB_SCALE)
-              }}
-            >
-              {se.shapeText.content.slice(0, 40)}
-            </div>
-          )}
-        </div>
-      )
-    }
-
-    const borderRadius =
-      se.shapeType === 'circle' || se.shapeType === 'ellipse' ? '50%' : se.shapeType === 'rounded-rectangle' ? 4 : 0
-    return (
-      <div
-        style={{
-          ...base,
-          position: 'relative' as const,
-          backgroundColor: fillColor === 'transparent' ? 'transparent' : fillColor,
-          borderRadius,
-          border: se.strokeWidth
-            ? `${Math.max(0.5, se.strokeWidth * THUMB_SCALE)}px solid ${se.strokeColor || '#888'}`
-            : undefined
-        }}
-      >
-        {se.shapeText?.content && (
-          <div
-            className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:px-0.5 gba:overflow-hidden gba:text-center gba:leading-tight gba:line-clamp-2"
-            style={{
-              color: se.shapeText.color || 'inherit',
-              fontSize: Math.max(3, (se.shapeText.fontSize || 12) * 0.08 * THUMB_SCALE)
-            }}
-          >
-            {se.shapeText.content.slice(0, 40)}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  if (el.type === 'table') {
-    return <div style={{ ...base, backgroundColor: 'var(--nw-muted)', border: '0.5px solid var(--nw-border)' }} />
-  }
-
-  if (el.type === 'chart') {
-    return <div style={{ ...base, backgroundColor: 'var(--nw-accent)', border: '0.5px solid var(--nw-ring)' }} />
-  }
-
-  return <div style={base} />
-}
 
 function SlideThumb({ slide, index }: { slide: SlideData; index: number }) {
-  const bgStyle = useMemo(() => {
-    const bg = slide.background
-    if (bg.type === 'solid') return { backgroundColor: bg.color || '#ffffff' }
-    if (bg.type === 'gradient' && bg.gradient) return { background: gradientToCss(bg.gradient) }
-    if (bg.type === 'image' && bg.imageUrl) {
-      const safeBgUrl = sanitizeSlideImageUrl(bg.imageUrl)
-      if (safeBgUrl) {
-        return { backgroundImage: `url(${safeBgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-      }
-    }
-    return { backgroundColor: '#ffffff' }
-  }, [slide.background])
-
-  const sortedElements = useMemo(
-    () => [...slide.elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)),
-    [slide.elements]
-  )
-
-  // Preview thumbs match the slide's original canvas aspect ratio so 4:3 /
-  // A4 / custom decks aren't squished into 16:9.
-  const canvasW = slide.canvasSize?.width ?? DEFAULT_CANVAS_W
-  const canvasH = slide.canvasSize?.height ?? DEFAULT_CANVAS_H
+  const canvasSize = slide.canvasSize ?? DEFAULT_SLIDE_CANVAS_SIZE
 
   return (
     <div
       className="gba:relative gba:rounded gba:border gba:border-border gba:overflow-hidden gba:flex-shrink-0"
-      style={{ ...bgStyle, width: canvasW * THUMB_SCALE, height: canvasH * THUMB_SCALE }}
+      style={{ width: canvasSize.width * THUMB_SCALE, height: canvasSize.height * THUMB_SCALE }}
     >
-      {sortedElements.map((el, idx) => (
-        <ThumbElement key={el.id} el={el} idx={idx} />
-      ))}
-      <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-black/50 gba:text-white gba:text-[9px] gba:text-center gba:py-0.5">
-        {index + 1}
-      </div>
+      <SlideThumbnail slide={slide} index={index} thumbScale={THUMB_SCALE} />
     </div>
   )
 }
