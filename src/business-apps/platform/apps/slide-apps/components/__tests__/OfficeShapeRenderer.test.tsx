@@ -38,6 +38,28 @@ function renderPreset(prst: string, width = 200, height = 120): HTMLElement {
   return container
 }
 
+function renderPresetGradient(prst: string, width = 200, height = 120): HTMLElement {
+  const node = tryRenderOfficePresetShape({
+    element: makeShape(prst, width, height),
+    fillStyle: 'linear-gradient(90deg, #EA5929 0%, #54275F 100%)',
+    gradient: {
+      type: 'linear',
+      angle: 90,
+      stops: [
+        { color: '#EA5929', position: 0 },
+        { color: '#54275F', position: 100 }
+      ]
+    },
+    strokeColor: '#1e40af',
+    strokeWidth: 1,
+    shadow: false,
+    width,
+    height
+  })
+  const { container } = render(<div>{node as React.ReactNode}</div>)
+  return container
+}
+
 /**
  * Baseline: the preset library keeps growing toward full ECMA-376 parity
  * (~187 `ST_ShapeType` values). This guard keeps the supported list from
@@ -54,6 +76,50 @@ describe('OfficeShapeRenderer preset coverage', () => {
       expect(isOfficePresetSupported(prst)).toBe(true)
     }
     expect(isOfficePresetSupported('thisIsNotARealPresetId')).toBe(false)
+  })
+})
+
+describe('OfficeShapeRenderer gradient fills', () => {
+  it.each(['rect', 'roundRect', 'ellipse', 'wave'])(
+    '%s emits an SVG gradient definition instead of a raw CSS gradient fill',
+    prst => {
+      const container = renderPresetGradient(prst)
+      const gradient = container.querySelector('linearGradient')
+      const filledPrimitive = container.querySelector(
+        'path[fill], rect[fill], ellipse[fill], polygon[fill], circle[fill]'
+      )
+
+      expect(gradient).not.toBeNull()
+      expect(filledPrimitive).not.toBeNull()
+      expect(filledPrimitive?.getAttribute('fill')).toMatch(/^url\(#.+\)$/)
+      expect(filledPrimitive?.getAttribute('fill')).not.toContain('linear-gradient(')
+    }
+  )
+
+  it('splits rgba gradient stops into stop-color plus stop-opacity for SVG fidelity', () => {
+    const node = tryRenderOfficePresetShape({
+      element: makeShape('roundRect'),
+      fillStyle: 'linear-gradient(90deg, #EA5929 0%, rgba(84, 39, 95, 0.88) 100%)',
+      gradient: {
+        type: 'linear',
+        angle: 90,
+        stops: [
+          { color: '#EA5929', position: 0 },
+          { color: 'rgba(84, 39, 95, 0.88)', position: 100 }
+        ]
+      },
+      strokeColor: '#1e40af',
+      strokeWidth: 1,
+      shadow: false,
+      width: 200,
+      height: 120
+    })
+    const { container } = render(<div>{node as React.ReactNode}</div>)
+    const stops = container.querySelectorAll('stop')
+
+    expect(stops).toHaveLength(2)
+    expect(stops[1].getAttribute('stop-color')).toBe('rgb(84, 39, 95)')
+    expect(stops[1].getAttribute('stop-opacity')).toBe('0.88')
   })
 })
 

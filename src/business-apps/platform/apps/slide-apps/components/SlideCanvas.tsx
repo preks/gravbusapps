@@ -40,8 +40,12 @@ import { RichTextContent } from './RichTextContent'
 import { InlineRichTextEditor } from './InlineRichTextEditor'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import { ShapePointEditor } from './ShapePointEditor'
-import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
+import { SlideStaticElementContent } from './SlideStaticElementContent'
+import { getSlideBackgroundStyle, SlideBackgroundMedia } from './slideBackgroundUtils'
+import { renderShape as renderSharedShape } from './slideRenderUtils'
+import { useResolvedSlideMediaUrl } from '../hooks/useResolvedSlideMediaUrl'
 import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
+import { isEmbedVideoElement, resolveVideoPlaybackUrl, resolveVideoPreviewUrl } from '../utils/videoElement'
 import { createDefaultShapeText, type RichTextSelectionRange } from '../utils/richTextEditing'
 
 const hexToRgba = (hex: string, alpha: number): string => {
@@ -68,6 +72,95 @@ const sanitizeMediaUrl = (url: string | undefined, allowedTypes: string[] = ['im
     if (sanitized) return sanitized
   }
   return ''
+}
+
+function CanvasImageElement({ element, onError }: { element: ImageElement; onError: () => void }) {
+  const imageUrl = useResolvedSlideMediaUrl(sanitizeMediaUrl(element.src, ['image/']))
+  const crop = getImageCropStyles(element.cropRect)
+  const commonVisualStyle = {
+    borderRadius: element.borderRadius,
+    border: element.borderWidth > 0 ? `${element.borderWidth}px solid ${element.borderColor}` : 'none',
+    boxShadow: element.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+  }
+
+  if (!imageUrl) return null
+
+  if (crop.wrapperNeeded) {
+    return (
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+          ...commonVisualStyle
+        }}
+      >
+        <img src={imageUrl} alt={element.alt} style={crop.imgStyle} draggable={false} onError={onError} />
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={imageUrl}
+      alt={element.alt}
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: element.objectFit,
+        ...commonVisualStyle
+      }}
+      draggable={false}
+      onError={onError}
+    />
+  )
+}
+
+function CanvasVideoElement({ element }: { element: VideoElement }) {
+  const previewImageUrl = useResolvedSlideMediaUrl(resolveVideoPreviewUrl(element))
+  const playbackUrl = useResolvedSlideMediaUrl(resolveVideoPlaybackUrl(element))
+
+  if (!playbackUrl) return null
+
+  if (isEmbedVideoElement(element)) {
+    return (
+      <iframe
+        src={playbackUrl}
+        title={element.provider === 'youtube' ? 'YouTube video' : 'Embedded video'}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+        data-testid={`slide-video-embed-${element.id}`}
+        style={{
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          borderRadius: element.borderRadius,
+          boxShadow: element.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+        }}
+      />
+    )
+  }
+
+  return (
+    <video
+      src={playbackUrl}
+      controls
+      loop={element.loop}
+      muted={element.muted}
+      playsInline
+      preload="metadata"
+      poster={previewImageUrl || undefined}
+      data-testid={`slide-video-element-${element.id}`}
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: element.objectFit,
+        borderRadius: element.borderRadius,
+        boxShadow: element.shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+      }}
+    />
+  )
 }
 interface InlineEditingProps {
   editingTextId: string | null
@@ -142,6 +235,44 @@ interface SlideCanvasProps {
 
 type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
 
+function isKeyboardEventFromTextInput(target: EventTarget | null): boolean {
+  const targetElement = target instanceof HTMLElement ? target : target instanceof Node ? target.parentElement : null
+
+  if (!targetElement) return false
+
+  return (
+    targetElement.tagName === 'INPUT' ||
+    targetElement.tagName === 'TEXTAREA' ||
+    targetElement.isContentEditable ||
+    targetElement.closest('[contenteditable="true"]') !== null
+  )
+}
+
+function shouldUseSharedStaticRenderer(
+  element: AnySlideElement,
+  editingTextId: string | null | undefined,
+  editingPointsId: string | null | undefined
+): boolean {
+  if (element.type === 'text' || element.type === 'code') {
+    return editingTextId !== element.id
+  }
+
+  if (element.type === 'shape') {
+    return editingTextId !== element.id && editingPointsId !== element.id
+  }
+
+  return (
+    element.type === 'image' ||
+    element.type === 'video' ||
+    element.type === 'table' ||
+    element.type === 'chart' ||
+    element.type === 'logo' ||
+    element.type === 'footer' ||
+    element.type === 'connector' ||
+    element.type === 'group'
+  )
+}
+
 // Memoized to prevent re-renders from parent state changes (like AI assist volume/cooldown)
 export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
   ({
@@ -204,60 +335,15 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       setFailedImages(prev => new Set(prev).add(elementId))
     }, [])
 
-    const getBackgroundStyle = (): React.CSSProperties => {
-      switch (background.type) {
-        case 'gradient':
-          return background.gradient ? { background: gradientToCss(background.gradient) } : {}
-        case 'branded': {
-          // Branded backgrounds layer: overlay (top) + gradient (middle) + base color (bottom)
-          const layers: string[] = []
+    const getBackgroundStyle = (): React.CSSProperties => getSlideBackgroundStyle(background)
 
-          if (background.overlay) {
-            layers.push(gradientToCss(background.overlay))
-          }
-          if (background.gradient) {
-            layers.push(gradientToCss(background.gradient))
-          }
-
-          const baseColor = background.color || '#0a0a0a'
-
-          if (layers.length > 0) {
-            return { background: `${layers.join(', ')}, ${baseColor}` }
-          }
-          return { backgroundColor: baseColor }
-        }
-        case 'image':
-          return background.imageUrl
-            ? {
-                backgroundImage: `url(${getCachedImageUrl(background.imageUrl)})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
-              }
-            : {}
-        case 'video':
-          return { backgroundColor: '#000000' }
-        default:
-          return { backgroundColor: background.color || '#ffffff' }
-      }
-    }
-
-    const renderVideoBackground = () => {
-      if (background.type !== 'video' || !background.videoUrl) return null
-      const sanitizedVideoUrl = sanitizeMediaUrl(background.videoUrl, ['video/'])
-      if (!sanitizedVideoUrl) return null
-      return (
-        <video
-          autoPlay
-          loop={background.videoLoop !== false}
-          muted={background.videoMuted !== false}
-          playsInline
-          className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-          style={{ zIndex: 0 }}
-        >
-          <source src={sanitizedVideoUrl} type="video/mp4" />
-        </video>
-      )
-    }
+    const renderVideoBackground = () => (
+      <SlideBackgroundMedia
+        background={background}
+        className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
+        style={{ zIndex: 0 }}
+      />
+    )
 
     const handleCanvasMouseDown = (e: React.MouseEvent) => {
       // Start marquee selection when clicking on empty canvas area
@@ -868,6 +954,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       const officePreset = tryRenderOfficePresetShape({
         element,
         fillStyle: pictureFill || patternFill ? 'transparent' : fillStyle,
+        ...(gradient ? { gradient } : {}),
         strokeColor,
         strokeWidth,
         shadow,
@@ -904,6 +991,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           )
         }
         return <div style={{ width: '100%', height: '100%' }}>{officePreset}</div>
+      }
+
+      if (!pictureFill && !patternFill) {
+        return renderSharedShape(element, 'slide-canvas')
       }
 
       const divBackground = pictureFill
@@ -1036,7 +1127,11 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       }
     }
 
-    const renderInlineEditingMoveEdges = (elementId: string) => {
+    const renderMoveEdges = (
+      elementId: string,
+      testIdPrefix: string,
+      onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void
+    ) => {
       const edgeThickness = 12 / scale
       const edgeStyles: Record<'top' | 'right' | 'bottom' | 'left', React.CSSProperties> = {
         top: {
@@ -1068,7 +1163,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       return (['top', 'right', 'bottom', 'left'] as const).map(edge => (
         <div
           key={`${elementId}-${edge}`}
-          data-testid={`slide-inline-editor-move-edge-${elementId}-${edge}`}
+          data-testid={`${testIdPrefix}-${elementId}-${edge}`}
           title="Drag to move"
           style={{
             position: 'absolute',
@@ -1078,8 +1173,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             zIndex: 900,
             ...edgeStyles[edge]
           }}
+          onMouseDown={onMouseDown}
         />
       ))
+    }
+
+    const renderInlineEditingMoveEdges = (elementId: string) => {
+      return renderMoveEdges(elementId, 'slide-inline-editor-move-edge')
     }
 
     const renderElement = (element: AnySlideElement) => {
@@ -1107,6 +1207,125 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       }
 
       const resizeHandles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as ResizeHandle[]
+      const resizeHandleNodes =
+        isSelected && isSingleSelection && !element.locked ? (
+          <>
+            {resizeHandles.map(handle => {
+              const handleStyle: React.CSSProperties = {
+                position: 'absolute',
+                width: 10,
+                height: 10,
+                backgroundColor: '#3b82f6',
+                border: '2px solid white',
+                borderRadius: '50%',
+                cursor: getCursor(handle),
+                zIndex: 1000
+              }
+
+              const positions: Record<ResizeHandle, React.CSSProperties> = {
+                nw: { top: -5, left: -5 },
+                n: { top: -5, left: '50%', transform: 'translateX(-50%)' },
+                ne: { top: -5, right: -5 },
+                e: { top: '50%', right: -5, transform: 'translateY(-50%)' },
+                se: { bottom: -5, right: -5 },
+                s: { bottom: -5, left: '50%', transform: 'translateX(-50%)' },
+                sw: { bottom: -5, left: -5 },
+                w: { top: '50%', left: -5, transform: 'translateY(-50%)' }
+              }
+
+              return (
+                <div
+                  key={handle}
+                  style={{ ...handleStyle, ...positions[handle] }}
+                  onMouseDown={e => handleResizeMouseDown(e, handle, element)}
+                />
+              )
+            })}
+          </>
+        ) : null
+
+      const videoMoveEdgeNodes =
+        element.type === 'video' && isSelected && !isPresenting && !element.locked ? (
+          <>
+            {renderMoveEdges(element.id, 'slide-video-move-edge', e => {
+              e.stopPropagation()
+              handleElementMouseDown(e, element)
+            })}
+          </>
+        ) : null
+
+      const useSharedStaticRenderer = shouldUseSharedStaticRenderer(
+        element,
+        inlineEditing?.editingTextId,
+        editingPointsId
+      )
+
+      const handleWrapperMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (element.type === 'video' && isSelected && e.target !== e.currentTarget) {
+          e.stopPropagation()
+          return
+        }
+
+        handleElementMouseDown(e, element)
+      }
+
+      if (useSharedStaticRenderer) {
+        return (
+          <div
+            key={element.id}
+            data-slide-element="true"
+            data-element-id={element.id}
+            role="button"
+            tabIndex={element.locked ? -1 : 0}
+            aria-label={`${element.type} element`}
+            style={wrapperStyle}
+            onContextMenu={e => {
+              if (element.type === 'shape' && onShapeContextMenu) {
+                e.preventDefault()
+                e.stopPropagation()
+                if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
+                if (!element.locked) onShapeContextMenu(element.id)
+              }
+            }}
+            onMouseDown={handleWrapperMouseDown}
+            onKeyDown={e => {
+              if (isKeyboardEventFromTextInput(e.target)) return
+
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
+                if (element.locked) return
+                if (e.key === 'Enter' && (element.type === 'text' || element.type === 'shape')) {
+                  if (inlineEditing?.editingTextId !== element.id) {
+                    onEditText(element.id)
+                  }
+                }
+              }
+            }}
+            onDoubleClick={e => {
+              if (element.locked) return
+              if (element.type === 'text' || element.type === 'shape') {
+                e.stopPropagation()
+                if (inlineEditing?.editingTextId !== element.id) {
+                  onEditText(element.id)
+                }
+              }
+            }}
+          >
+            <SlideStaticElementContent
+              element={element}
+              isPresenting={isPresenting}
+              onLinkClick={onLinkClick}
+              renderVideoElement={true}
+              disableMediaPointerEvents={
+                !isPresenting && element.type === 'video' && (!isSelected || isDragging || isResizing)
+              }
+            />
+            {videoMoveEdgeNodes}
+            {resizeHandleNodes}
+          </div>
+        )
+      }
 
       return (
         <div
@@ -1128,8 +1347,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               if (!element.locked) onShapeContextMenu(element.id)
             }
           }}
-          onMouseDown={e => handleElementMouseDown(e, element)}
+          onMouseDown={handleWrapperMouseDown}
           onKeyDown={e => {
+            if (isKeyboardEventFromTextInput(e.target)) return
+
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault()
               if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
@@ -1418,6 +1639,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 const st = se.shapeText ?? (isEditingLabel ? createDefaultShapeText() : null)
                 if (!st) return null
                 const te = textElementStubForShapeInText(se, st)
+                const shouldAllowOverflow = isEditingLabel || st.allowOverflow === true
                 return (
                   <div
                     style={{
@@ -1433,7 +1655,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                             ? 'flex-end'
                             : 'center',
                       padding: st.padding,
-                      overflow: isEditingLabel ? 'visible' : 'hidden',
+                      overflow: shouldAllowOverflow ? 'visible' : 'hidden',
                       boxSizing: 'border-box',
                       pointerEvents: isEditingLabel ? 'auto' : 'none',
                       zIndex: 1
@@ -1495,70 +1717,25 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
 
           {element.type === 'image' && (
             <>
-              {!failedImages.has(element.id) && sanitizeMediaUrl(element.src, ['image/'])
-                ? (() => {
-                    const imgEl: ImageElement = element
-                    const crop = getImageCropStyles(imgEl.cropRect)
-                    const commonVisualStyle = {
-                      borderRadius: imgEl.borderRadius,
-                      border: imgEl.borderWidth > 0 ? `${imgEl.borderWidth}px solid ${imgEl.borderColor}` : 'none',
-                      boxShadow: imgEl.shadow
-                        ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-                        : 'none'
-                    }
-
-                    if (crop.wrapperNeeded) {
-                      return (
-                        <div
-                          style={{
-                            position: 'relative',
-                            width: '100%',
-                            height: '100%',
-                            overflow: 'hidden',
-                            ...commonVisualStyle
-                          }}
-                        >
-                          <img
-                            src={getCachedImageUrl(sanitizeMediaUrl(imgEl.src, ['image/']))}
-                            alt={imgEl.alt}
-                            style={crop.imgStyle}
-                            draggable={false}
-                            onError={() => handleImageError(element.id)}
-                          />
-                        </div>
-                      )
-                    }
-
-                    return (
-                      <img
-                        src={getCachedImageUrl(sanitizeMediaUrl(imgEl.src, ['image/']))}
-                        alt={imgEl.alt}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: imgEl.objectFit,
-                          ...commonVisualStyle
-                        }}
-                        draggable={false}
-                        onError={() => handleImageError(element.id)}
-                      />
-                    )
-                  })()
-                : (() => {
-                    const imgEl: ImageElement = element
-                    return (
-                      <div
-                        className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:text-muted-foreground gba:rounded"
-                        style={{
-                          borderRadius: imgEl.borderRadius,
-                          border: imgEl.borderWidth > 0 ? `${imgEl.borderWidth}px solid ${imgEl.borderColor}` : 'none'
-                        }}
-                      >
-                        <ImageOff className="gba:w-8 gba:h-8 gba:mb-2" />
-                        <span className="gba:text-xs">Image failed to load</span>
-                      </div>
-                    )
-                  })()}
+              {!failedImages.has(element.id) && sanitizeMediaUrl(element.src, ['image/']) ? (
+                <CanvasImageElement element={element} onError={() => handleImageError(element.id)} />
+              ) : (
+                (() => {
+                  const imgEl: ImageElement = element
+                  return (
+                    <div
+                      className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:text-muted-foreground gba:rounded"
+                      style={{
+                        borderRadius: imgEl.borderRadius,
+                        border: imgEl.borderWidth > 0 ? `${imgEl.borderWidth}px solid ${imgEl.borderColor}` : 'none'
+                      }}
+                    >
+                      <ImageOff className="gba:w-8 gba:h-8 gba:mb-2" />
+                      <span className="gba:text-xs">Image failed to load</span>
+                    </div>
+                  )
+                })()
+              )}
             </>
           )}
 
@@ -1598,6 +1775,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                     value={ce.code}
                     onChange={e => inlineEditing.onTextChange(e.target.value)}
                     onKeyDown={e => {
+                      if (e.key !== 'Escape') {
+                        e.stopPropagation()
+                      }
+
                       if (e.key === 'Escape') {
                         e.preventDefault()
                         textareaInitializedRef.current = null
@@ -1630,30 +1811,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               )
             })()}
 
-          {element.type === 'video' &&
-            (() => {
-              const videoEl: VideoElement = element
-              const sanitized = sanitizeMediaUrl(videoEl.src, ['video/'])
-              if (!sanitized) return null
-              return (
-                <video
-                  src={sanitized}
-                  autoPlay={videoEl.autoplay}
-                  loop={videoEl.loop}
-                  muted={videoEl.muted}
-                  playsInline
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: videoEl.objectFit,
-                    borderRadius: videoEl.borderRadius,
-                    boxShadow: videoEl.shadow
-                      ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-                      : 'none'
-                  }}
-                />
-              )
-            })()}
+          {element.type === 'video' && (() => <CanvasVideoElement element={element} />)()}
 
           {element.type === 'table' &&
             (() => {
@@ -2227,43 +2385,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               )
             })()}
 
-          {/* Resize handles - only for single selection */}
-          {isSelected && isSingleSelection && !element.locked && (
-            <>
-              {resizeHandles.map(handle => {
-                const handleStyle: React.CSSProperties = {
-                  position: 'absolute',
-                  width: 10,
-                  height: 10,
-
-                  backgroundColor: '#3b82f6',
-                  border: '2px solid white',
-                  borderRadius: '50%',
-                  cursor: getCursor(handle),
-                  zIndex: 1000
-                }
-
-                const positions: Record<ResizeHandle, React.CSSProperties> = {
-                  nw: { top: -5, left: -5 },
-                  n: { top: -5, left: '50%', transform: 'translateX(-50%)' },
-                  ne: { top: -5, right: -5 },
-                  e: { top: '50%', right: -5, transform: 'translateY(-50%)' },
-                  se: { bottom: -5, right: -5 },
-                  s: { bottom: -5, left: '50%', transform: 'translateX(-50%)' },
-                  sw: { bottom: -5, left: -5 },
-                  w: { top: '50%', left: -5, transform: 'translateY(-50%)' }
-                }
-
-                return (
-                  <div
-                    key={handle}
-                    style={{ ...handleStyle, ...positions[handle] }}
-                    onMouseDown={e => handleResizeMouseDown(e, handle, element)}
-                  />
-                )
-              })}
-            </>
-          )}
+          {resizeHandleNodes}
         </div>
       )
     }

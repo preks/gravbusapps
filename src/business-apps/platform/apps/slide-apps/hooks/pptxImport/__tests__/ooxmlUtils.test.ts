@@ -190,12 +190,33 @@ describe('ooxmlUtils', () => {
 
       expect(result).toBeDefined()
       expect(result!.type).toBe('linear')
-      expect(result!.angle).toBe(90)
+      expect(result!.angle).toBe(180)
       expect(result!.stops).toHaveLength(2)
       expect(result!.stops[0].color).toBe('#FF0000')
       expect(result!.stops[0].position).toBe(0)
       expect(result!.stops[1].color).toBe('#0000FF')
       expect(result!.stops[1].position).toBe(100)
+    })
+
+    it('normalizes OOXML 0deg to the app left-to-right angle', () => {
+      const xml = parseXML(`
+        <a:gradFill xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+          <a:gsLst>
+            <a:gs pos="0">
+              <a:srgbClr val="EA5929"/>
+            </a:gs>
+            <a:gs pos="100000">
+              <a:srgbClr val="54275F"/>
+            </a:gs>
+          </a:gsLst>
+          <a:lin ang="0"/>
+        </a:gradFill>
+      `)
+      const result = parseGradientFill(xml.documentElement)
+
+      expect(result).toBeDefined()
+      expect(result!.type).toBe('linear')
+      expect(result!.angle).toBe(90)
     })
   })
 })
