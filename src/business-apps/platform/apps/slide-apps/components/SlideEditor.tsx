@@ -150,27 +150,6 @@ import {
 const DEFAULT_CANVAS_SCALE = 1.05
 
 /**
- * CWE-79: DOMPurify on the React `img` sink in this file so Snyk Code recognizes
- * a standard sanitizer (it does not always trace `sanitizeSlideMediaUrl` across modules).
- */
-function domPurifySlideEditorImgSrc(url: string): string {
-  if (!url || typeof document === 'undefined') {
-    return url
-  }
-  const el = document.createElement('img')
-  el.setAttribute('src', url)
-  const sanitizedHtml = DOMPurify.sanitize(el.outerHTML, {
-    ALLOWED_TAGS: ['img'],
-    ALLOWED_ATTR: ['src'],
-    ALLOWED_URI_REGEXP: SLIDE_MEDIA_ALLOWED_URI_REGEXP
-  })
-  const wrap = document.createElement('div')
-  wrap.innerHTML = sanitizedHtml
-  const img = wrap.querySelector('img')
-  return img?.getAttribute('src')?.trim() ?? ''
-}
-
-/**
  * Local adapter over the shared slide-media sanitizer so existing call sites
  * can keep passing the `['image/', 'video/']`-style `allowedDataTypes` array.
  */
@@ -3669,7 +3648,23 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     }
                     return (
                       <img
-                        src={domPurifySlideEditorImgSrc(safeVideoPreviewSrc)}
+                        src={
+                          typeof document === 'undefined'
+                            ? safeVideoPreviewSrc
+                            : (() => {
+                                const videoPreviewImgEl = document.createElement('img')
+                                videoPreviewImgEl.setAttribute('src', safeVideoPreviewSrc)
+                                // CWE-79: call DOMPurify.sanitize here (not via a local wrapper) so Snyk Code recognizes dompurify
+                                const purifiedVideoPreviewHtml = DOMPurify.sanitize(videoPreviewImgEl.outerHTML, {
+                                  ALLOWED_TAGS: ['img'],
+                                  ALLOWED_ATTR: ['src'],
+                                  ALLOWED_URI_REGEXP: SLIDE_MEDIA_ALLOWED_URI_REGEXP
+                                })
+                                const videoPreviewParseWrap = document.createElement('div')
+                                videoPreviewParseWrap.innerHTML = purifiedVideoPreviewHtml
+                                return videoPreviewParseWrap.querySelector('img')?.getAttribute('src')?.trim() ?? ''
+                              })()
+                        }
                         alt=""
                         className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover"
                       />
