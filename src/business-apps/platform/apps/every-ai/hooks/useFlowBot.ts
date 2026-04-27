@@ -1232,13 +1232,20 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         outputs.pop()
       }
 
-      const tailIdx = outputs.length - 1
-      const tail = tailIdx >= 0 ? outputs[tailIdx] : null
-      const tailIsStreaming =
-        tail?.type === 'answer' && (tail as AnswerOutput & { __streaming?: boolean }).__streaming === true
+      // Search backwards through all outputs for any streaming answer bubble.
+      // This handles the case where reasoning steps arrive between text_delta
+      // and the final answer, pushing the streaming bubble away from the tail.
+      let streamingIdx = -1
+      for (let i = outputs.length - 1; i >= 0; i--) {
+        const out = outputs[i]
+        if (out?.type === 'answer' && (out as AnswerOutput & { __streaming?: boolean }).__streaming === true) {
+          streamingIdx = i
+          break
+        }
+      }
 
-      if (tailIsStreaming) {
-        outputs[tailIdx] = answer
+      if (streamingIdx >= 0) {
+        outputs[streamingIdx] = answer
       } else {
         outputs.push(answer)
       }
