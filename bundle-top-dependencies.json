@@ -87950,20 +87950,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11381,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11381/",
-    "chunkJsBytes": 1834236,
+    "bitbucketBuildNumber": 11386,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11386/",
+    "chunkJsBytes": 1834239,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1530003,
-        "gzip": 93111,
+        "rendered": 1529997,
+        "gzip": 93104,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1530003,
-            "gzip": 93111
+            "rendered": 1529997,
+            "gzip": 93104
           }
         ]
       },
@@ -93934,8 +93934,8 @@
     ]
   },
   "platform/dataset-addon/apps/query-executor": {
-    "bitbucketBuildNumber": 11347,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11347/",
+    "bitbucketBuildNumber": 11386,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11386/",
     "chunkJsBytes": 113426,
     "top": [
       {
@@ -101872,8 +101872,8 @@
     ]
   },
   "platform/apps/setup-add-employees": {
-    "bitbucketBuildNumber": 11352,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11352/",
+    "bitbucketBuildNumber": 11386,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11386/",
     "chunkJsBytes": 145695,
     "top": [
       {
@@ -103484,9 +103484,9 @@
     ]
   },
   "platform/apps/people": {
-    "bitbucketBuildNumber": 11352,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11352/",
-    "chunkJsBytes": 374804,
+    "bitbucketBuildNumber": 11386,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11386/",
+    "chunkJsBytes": 379849,
     "top": [
       {
         "kind": "bucket",
@@ -103509,18 +103509,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 92342,
-        "gzip": 24589,
+        "rendered": 99113,
+        "gzip": 26871,
         "leaves": [
+          {
+            "name": "src/business-apps/platform/apps/people/PeopleRemoteApp.tsx",
+            "rendered": 19807,
+            "gzip": 3954
+          },
           {
             "name": "src/business-apps/platform/apps/setup-add-employees/EditEmployeeForm.tsx",
             "rendered": 16538,
             "gzip": 3503
-          },
-          {
-            "name": "src/business-apps/platform/apps/people/PeopleRemoteApp.tsx",
-            "rendered": 15590,
-            "gzip": 3309
           }
         ]
       },
@@ -103545,8 +103545,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 31423,
-        "gzip": 7755,
+        "rendered": 34537,
+        "gzip": 8706,
         "leaves": [
           {
             "name": "src/common/network/users/UserManagementClient.ts",
@@ -103663,6 +103663,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 478,
+        "gzip": 304,
+        "leaves": [
+          {
+            "name": "src/common/types/enums/Services.ts",
+            "rendered": 330,
+            "gzip": 191
+          },
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 148,
+            "gzip": 113
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/wrapWithLocalizationProvider.tsx",
         "rendered": 451,
         "gzip": 254,
@@ -103715,19 +103733,6 @@
       },
       {
         "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
         "name": "(src)/common/runtime",
         "rendered": 38,
         "gzip": 58,
@@ -103743,7 +103748,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-26T22:13:29.399Z",
+    "generatedAt": "2026-04-27T05:43:46.321Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
