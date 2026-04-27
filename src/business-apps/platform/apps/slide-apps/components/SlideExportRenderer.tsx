@@ -291,7 +291,7 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
                   justifyContent:
                     te.verticalAlign === 'top' ? 'flex-start' : te.verticalAlign === 'bottom' ? 'flex-end' : 'center',
                   padding: st.padding,
-                  overflow: 'hidden',
+                  overflow: st.allowOverflow === true ? 'visible' : 'hidden',
                   boxSizing: 'border-box',
                   zIndex: 1
                 }}

@@ -310,6 +310,12 @@ export interface ShapeInText {
   letterSpacing: number
   textTransform?: RichTextTransform
   padding: number
+  /**
+   * PowerPoint can let shape text paint outside the geometry when shrink-to-fit
+   * is not active. Imported shapes carry this so renderers can avoid clipping
+   * descenders that PowerPoint visibly shows.
+   */
+  allowOverflow?: boolean
 }
 
 /**

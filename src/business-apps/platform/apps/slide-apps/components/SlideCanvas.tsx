@@ -1494,6 +1494,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 const st = se.shapeText ?? (isEditingLabel ? createDefaultShapeText() : null)
                 if (!st) return null
                 const te = textElementStubForShapeInText(se, st)
+                const shouldAllowOverflow = isEditingLabel || st.allowOverflow === true
                 return (
                   <div
                     style={{
@@ -1509,7 +1510,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                             ? 'flex-end'
                             : 'center',
                       padding: st.padding,
-                      overflow: isEditingLabel ? 'visible' : 'hidden',
+                      overflow: shouldAllowOverflow ? 'visible' : 'hidden',
                       boxSizing: 'border-box',
                       pointerEvents: isEditingLabel ? 'auto' : 'none',
                       zIndex: 1

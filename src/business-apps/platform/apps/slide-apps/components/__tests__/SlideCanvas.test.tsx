@@ -214,4 +214,60 @@ describe('SlideCanvas inline editing drag behavior', () => {
       expect.objectContaining({ position: expect.any(Object) })
     )
   })
+
+  it('allows imported explicit textbox shape labels to overflow like PowerPoint', () => {
+    render(
+      <SlideCanvas
+        elements={[
+          makeShapeElement({
+            size: { width: 120, height: 12 },
+            shapeText: createDefaultShapeText({
+              content: 'Agents',
+              fontSize: 16,
+              fontWeight: 'bold',
+              padding: 0,
+              verticalAlign: 'middle',
+              allowOverflow: true
+            })
+          })
+        ]}
+        selectedIds={new Set()}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={() => {}}
+      />
+    )
+
+    const linkText = document.querySelector(
+      '[data-element-id="shape-1"] [data-testid="text-with-links"]'
+    ) as HTMLElement | null
+
+    expect(linkText).not.toBeNull()
+    expect(linkText?.parentElement?.parentElement).not.toBeNull()
+    expect((linkText?.parentElement?.parentElement as HTMLElement).style.overflow).toBe('visible')
+  })
+
+  it('keeps normal shape labels clipped to the shape bounds', () => {
+    render(
+      <SlideCanvas
+        elements={[makeShapeElement({ shapeText: createDefaultShapeText({ content: 'Shape label', padding: 0 }) })]}
+        selectedIds={new Set()}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={() => {}}
+      />
+    )
+
+    const linkText = document.querySelector(
+      '[data-element-id="shape-1"] [data-testid="text-with-links"]'
+    ) as HTMLElement | null
+
+    expect(linkText).not.toBeNull()
+    expect(linkText?.parentElement?.parentElement).not.toBeNull()
+    expect((linkText?.parentElement?.parentElement as HTMLElement).style.overflow).toBe('hidden')
+  })
 })

@@ -264,7 +264,7 @@ function renderShapeContent(
             justifyContent:
               st.verticalAlign === 'top' ? 'flex-start' : st.verticalAlign === 'bottom' ? 'flex-end' : 'center',
             padding: st.padding,
-            overflow: 'hidden',
+            overflow: st.allowOverflow === true ? 'visible' : 'hidden',
             boxSizing: 'border-box',
             zIndex: 1
           }}

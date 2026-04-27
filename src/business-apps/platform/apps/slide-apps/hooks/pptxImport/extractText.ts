@@ -665,10 +665,18 @@ function estimateRequiredTextHeight(
   const innerWidth = Math.max(1, width - padding * 2)
   const lines = estimateWrappedLineCount(content, fontSize, innerWidth)
   if (lines === 0) return 0
+  const lineBoxHeight = fontSize * lineHeight
+  const halfLeading = Math.max(0, (lineBoxHeight - fontSize) / 2)
+  // Zero-inset PowerPoint text boxes often rely on the line box's descender
+  // room rather than explicit bottom padding. Browsers clip these boxes
+  // slightly earlier under `overflow: hidden`, so reserve a tiny bit of extra
+  // space when the existing bottom breathing room is under a typical
+  // descender depth (~0.25em).
+  const descenderSlack = Math.max(0, Math.ceil(fontSize * 0.25 - (padding + halfLeading)))
   // `lineHeight` is multiplicative (1.4 matches the editor's default for
   // imported text). The trailing padding is symmetric so the ascender of the
   // first line and the descender of the last line both breathe.
-  return Math.ceil(lines * fontSize * lineHeight + padding * 2)
+  return Math.ceil(lines * lineBoxHeight + padding * 2 + descenderSlack)
 }
 
 function buildTextAndLinks(
@@ -770,7 +778,8 @@ export function extractShapeInTextForAutoshave(
     lineHeight: 1.4,
     letterSpacing: 0,
     padding: bodyLayout.padding,
-    textTransform: formatting.textTransform
+    textTransform: formatting.textTransform,
+    allowOverflow: autofit.mode !== 'normal'
   }
 }
 
