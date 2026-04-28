@@ -55,21 +55,41 @@ export const ActivityFields = {
   title: 'title'
 } as const
 
+/**
+ * Activity Form → Payload Field Mapping.
+ *
+ * IMPORTANT: Only id-form fields are listed for related entities. The full nested
+ * objects (`account`, `contact`, `opportunity`, `lead`, `ownerEmployee`, `investment`,
+ * `activityType`) are intentionally NOT mapped — they exist in the form schema purely
+ * for display. Including them here previously caused stale objects to leak into
+ * payloads (the loaded display object would win over the cleared `xId`).
+ *
+ * Note: in create mode, only ids that the user actually picked are sent. In update
+ * mode the activity form re-stamps the canonical ids from the loaded entity, so
+ * associations are always round-tripped unchanged (the UI does not allow clearing
+ * an association on an existing activity).
+ */
 export const ActivityFormFields = {
-  ...ActivityFields,
+  // Renamed Id → entity (associations).
   accountId: 'account',
-  activityTypeRef: 'activityTypeRef',
-  completedAt: 'completedAt',
   contactId: 'contact',
-  description: 'description',
-  documents: 'documents',
-  id: 'id',
   leadId: 'lead',
-  occuredAt: 'occuredAt',
   opportunityId: 'opportunity',
   ownerEmployeeId: 'ownerEmployee',
+
+  // Catalog ref fields (no rename)
+  activityTypeRef: 'activityTypeRef',
+
+  // Scalars
+  completedAt: 'completedAt',
+  description: 'description',
+  documents: 'documents',
+  occurredAt: 'occurredAt',
   source: 'source',
   title: 'title',
+
+  // Identity
+  id: 'id',
   version: 'version'
 } as const
 

@@ -24,10 +24,12 @@ no-salary-record = No salary record
 
 # Compensation Band
 band-title = Compensation Band
+band-short-label = Band
 band-name = Band Name
 band-salary-range = Salary Range
 band-pay-grade = Pay Grade
 band-level = Level
+band-position-label = Position in compensation band
 band-loading = Loading compensation band...
 band-no-band-assigned = No compensation band assigned. Compensation bands are linked through job levels.
 

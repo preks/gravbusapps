@@ -138,6 +138,45 @@ export function useBudgetDistributionCustomBudgetMaps(
     return buildCustomAllocationMap(distributionOrgUnitsForList, state.byId, pool, state.inputOrder)
   }, [selectedMethod, state.byId, state.inputOrder, distributionOrgUnitsForList, salaryIncreasePool])
 
+  /**
+   * Sum of amount-mode inputs (parsed) — can exceed the pool; preview allocation is still capped per waterfall.
+   * Used for over-budget warnings in KPIs and alerts.
+   */
+  const customAmountModeRawTotalRequested = useMemo(() => {
+    if (selectedMethod !== 'custom') {
+      return null
+    }
+    if (salaryIncreasePool == null || salaryIncreasePool <= 0) {
+      return null
+    }
+    let sum = 0
+    for (const u of distributionOrgUnitsForList) {
+      const entry = state.byId[u.id] ?? defaultOrgUnitCustomBudgetInput()
+      if (entry.mode !== 'amount' || entry.amountRaw.trim() === '') {
+        continue
+      }
+      sum += parseCustomAmountInput(entry.amountRaw)
+    }
+    return roundMoney2(sum)
+  }, [distributionOrgUnitsForList, salaryIncreasePool, selectedMethod, state.byId])
+
+  const customAmountRequestExceedsPool = useMemo(
+    () =>
+      customAmountModeRawTotalRequested != null &&
+      salaryIncreasePool != null &&
+      salaryIncreasePool > 0 &&
+      customAmountModeRawTotalRequested > salaryIncreasePool + 0.01,
+    [customAmountModeRawTotalRequested, salaryIncreasePool]
+  )
+
+  const customOverPoolAmount = useMemo(
+    () =>
+      customAmountRequestExceedsPool && customAmountModeRawTotalRequested != null && salaryIncreasePool != null
+        ? roundMoney2(customAmountModeRawTotalRequested - salaryIncreasePool)
+        : null,
+    [customAmountModeRawTotalRequested, customAmountRequestExceedsPool, salaryIncreasePool]
+  )
+
   const handleCustomAmountRawChange = useCallback(
     (orgUnitId: string, value: string) => {
       setState(prev => {
@@ -163,6 +202,10 @@ export function useBudgetDistributionCustomBudgetMaps(
     },
     [orgUnitIdSet]
   )
+
+  const clearCustomBudgetInputs = useCallback(() => {
+    setState(initialCustomState)
+  }, [])
 
   const handleCustomModeChange = useCallback(
     (orgUnitId: string, mode: CustomBudgetInputMode) => {
@@ -206,8 +249,12 @@ export function useBudgetDistributionCustomBudgetMaps(
   return {
     customBudgetByOrgUnitId: state.byId,
     previewCustomAllocationByOrgUnit,
+    customAmountModeRawTotalRequested,
+    customAmountRequestExceedsPool,
+    customOverPoolAmount,
     handleCustomAmountRawChange,
     handleCustomPercentRawChange,
-    handleCustomModeChange
+    handleCustomModeChange,
+    clearCustomBudgetInputs
   }
 }

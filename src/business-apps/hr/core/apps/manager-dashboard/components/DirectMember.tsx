@@ -12,7 +12,7 @@ export const DirectMember = ({ report, handleNavigateToEmployee }: DirectMemberP
     <button
       key={report.id}
       type="button"
-      className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors gba:w-full gba:text-left gba:bg-transparent gba:border-0"
+      className="gba:flex gba:w-full gba:cursor-pointer gba:items-center gba:justify-between gba:rounded-lg gba:border-0 gba:bg-transparent gba:px-2 gba:py-2 gba:text-left gba:transition-colors gba:hover:bg-muted/50"
       data-testid={`manager-dashboard-direct-report-${report.id}`}
       onClick={() => handleNavigateToEmployee(report.id)}
       title={getTranslationFromI18nKeyAndLabel(
@@ -41,25 +41,25 @@ export const DirectMember = ({ report, handleNavigateToEmployee }: DirectMemberP
         </div>
         <div>
           <div
-            className="gba:font-medium gba:text-blue-600 gba:hover:underline"
+            className="gba:font-medium gba:text-primary gba:hover:underline"
             data-testid={`manager-dashboard-direct-report-name-${report.id}`}
           >
             {report.displayName}
           </div>
           <div
-            className="gba:text-sm gba:text-neutral-500"
+            className="gba:text-sm gba:text-muted-foreground"
             data-testid={`manager-dashboard-direct-report-title-${report.id}`}
           >
             {report.jobPositionName ||
               getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.direct_report', 'Direct Report')}
           </div>
           {report.organizationalUnitName && (
-            <div className="gba:text-xs gba:text-neutral-400">{report.organizationalUnitName}</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{report.organizationalUnitName}</div>
           )}
           {/* Absence Information */}
           {report.status === 'On Leave' && report.currentAbsence && (
             <div
-              className="gba:text-xs gba:text-orange-600 gba:mt-1"
+              className="gba:mt-1 gba:text-xs gba:text-warning"
               data-testid={`manager-dashboard-current-absence-${report.id}`}
             >
               {`${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.on_leave_since', 'On leave since')} ${formatDate(report.currentAbsence.startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.to', 'to').toLowerCase()} ${formatDate(report.currentAbsence.endDate)}`}
@@ -67,7 +67,7 @@ export const DirectMember = ({ report, handleNavigateToEmployee }: DirectMemberP
           )}
           {report.status === 'Available' && report.nextAbsence && (
             <div
-              className="gba:text-xs gba:font-medium gba:text-neutral-500 gba:mt-1"
+              className="gba:mt-1 gba:text-xs gba:font-medium gba:text-muted-foreground"
               data-testid={`manager-dashboard-next-absence-${report.id}`}
             >
               {`${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.on_leave_from', 'On leave from')} ${formatDate(report.nextAbsence.startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.to', 'to').toLowerCase()} ${formatDate(report.nextAbsence.endDate)}`}

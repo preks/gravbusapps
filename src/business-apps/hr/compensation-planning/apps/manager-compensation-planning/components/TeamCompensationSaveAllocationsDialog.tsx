@@ -12,9 +12,6 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { RestClient } from '@/common/network/rest/RestClient'
 import type { DistributionMethod, TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import compensationPlanningTranslations from '../../compensation-planning/_i18n'
-import type { CompensationBudgetPlanCompanyRow } from '../../compensation-planning/hooks/useBudgetSetupForCompany'
-import type { ManagerOrgUnitBudgetSnapshot } from '../hooks/useManagerTeamSalaryBudget'
-import { persistManagerTeamBudgetAfterAllocations } from '../utils/persistManagerTeamBudgetAfterAllocations'
 import {
   persistAllocationsForSelectedEmployees,
   validateCustomPoolForSelected,
@@ -23,6 +20,8 @@ import {
 import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
 import translations from '../_i18n'
 import { TeamCompensationSaveAllocationsDialogRows } from './TeamCompensationSaveAllocationsDialogRows'
+
+const EMPTY_EMPLOYEE_ID_SET: ReadonlySet<string> = new Set()
 
 export interface TeamCompensationSaveAllocationsDialogProps {
   open: boolean
@@ -37,10 +36,13 @@ export interface TeamCompensationSaveAllocationsDialogProps {
   currencyCode: string
   planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
   managerOrganizationalUnitId: string | null
-  managerCompanyBudgetRow: CompensationBudgetPlanCompanyRow | null
-  orgUnitBudgetSnapshotsByPlanRowId: ReadonlyMap<string, ManagerOrgUnitBudgetSnapshot>
   /** Called after successful saves; includes REST row ids keyed by employee id when returned by the API. */
   onSaved?: (createdIdsByEmployeeId?: Record<string, string>) => void | Promise<void>
+  /**
+   * Employees who already have a proposal in the review pipeline (e.g. submitted); cannot be
+   * selected for another manager submit.
+   */
+  employeeIdsBlockedFromManagerResubmit?: ReadonlySet<string>
 }
 
 export function TeamCompensationSaveAllocationsDialog({
@@ -56,9 +58,8 @@ export function TeamCompensationSaveAllocationsDialog({
   currencyCode,
   planOuRowIdByOrganizationalUnitId,
   managerOrganizationalUnitId,
-  managerCompanyBudgetRow,
-  orgUnitBudgetSnapshotsByPlanRowId,
-  onSaved
+  onSaved,
+  employeeIdsBlockedFromManagerResubmit = EMPTY_EMPLOYEE_ID_SET
 }: Readonly<TeamCompensationSaveAllocationsDialogProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
@@ -97,29 +98,59 @@ export function TeamCompensationSaveAllocationsDialog({
     hasInitializedSelectionForOpenRef.current = true
     const next = new Set<string>()
     for (const m of sortedMembers) {
+      if (employeeIdsBlockedFromManagerResubmit.has(m.employeeId)) {
+        continue
+      }
       const raw = allocationByEmployeeId.get(m.employeeId) ?? 0
       if (roundMoney2(raw) > 0) {
         next.add(m.employeeId)
       }
     }
     setSelectedEmployeeIds(next)
-  }, [open, sortedMembers, allocationByEmployeeId])
+  }, [open, sortedMembers, allocationByEmployeeId, employeeIdsBlockedFromManagerResubmit])
 
-  const toggleEmployee = useCallback((employeeId: string, checked: boolean) => {
+  useEffect(() => {
+    if (!open) {
+      return
+    }
     setSelectedEmployeeIds(prev => {
+      let changed = false
       const next = new Set(prev)
-      if (checked) {
-        next.add(employeeId)
-      } else {
-        next.delete(employeeId)
+      for (const id of employeeIdsBlockedFromManagerResubmit) {
+        if (next.has(id)) {
+          next.delete(id)
+          changed = true
+        }
       }
-      return next
+      return changed ? next : prev
     })
-  }, [])
+  }, [open, employeeIdsBlockedFromManagerResubmit])
+
+  const toggleEmployee = useCallback(
+    (employeeId: string, checked: boolean) => {
+      if (employeeIdsBlockedFromManagerResubmit.has(employeeId)) {
+        return
+      }
+      setSelectedEmployeeIds(prev => {
+        const next = new Set(prev)
+        if (checked) {
+          next.add(employeeId)
+        } else {
+          next.delete(employeeId)
+        }
+        return next
+      })
+    },
+    [employeeIdsBlockedFromManagerResubmit]
+  )
 
   const selectAll = useCallback(() => {
-    setSelectedEmployeeIds(new Set(sortedMembers.map(m => m.employeeId)))
-  }, [sortedMembers])
+    setSelectedEmployeeIds(
+      new Set(
+        sortedMembers.filter(m => !employeeIdsBlockedFromManagerResubmit.has(m.employeeId)).map(m => m.employeeId)
+      )
+    )
+  }, [sortedMembers, employeeIdsBlockedFromManagerResubmit])
 
   const selectNone = useCallback(() => {
     setSelectedEmployeeIds(new Set())
@@ -148,6 +179,12 @@ export function TeamCompensationSaveAllocationsDialog({
       return
     }
 
+    const blockedSelected = ids.filter(id => employeeIdsBlockedFromManagerResubmit.has(id))
+    if (blockedSelected.length > 0) {
+      setErrorMessage(t('manager-team-save-dialog-includes-already-submitted'))
+      return
+    }
+
     if (!validateCustomPoolForSelected(distributionMethod, distributionPool, ids, allocationByEmployeeId)) {
       setErrorMessage(t('manager-team-save-dialog-custom-exceeds-pool-selected'))
       return
@@ -164,14 +201,14 @@ export function TeamCompensationSaveAllocationsDialog({
       return
     }
 
-    if (!managerCompanyBudgetRow) {
-      setErrorMessage(t('manager-team-save-missing-budget-context'))
-      return
-    }
-
     setSaving(true)
     try {
+      /**
+       * Inserts employee rows with `allocationAmount` in the REST payload (same value as `proposedSalaryIncreaseAmount`),
+       * then rolls that sum into `compensation_budget_plan_organizational_unit.allocation_amount` per plan-OU row.
+       */
       const createdIdsByEmployeeId = await persistAllocationsForSelectedEmployees({
+        graphqlClient,
         restClient,
         accessToken,
         selectedIds: ids,
@@ -179,19 +216,8 @@ export function TeamCompensationSaveAllocationsDialog({
         allocationByEmployeeId,
         planOuRowIdByOrganizationalUnitId,
         managerOrganizationalUnitId,
-        managerEmployeeId
-      })
-      await persistManagerTeamBudgetAfterAllocations({
-        graphqlClient,
-        restClient,
-        accessToken,
-        companyBudgetRow: managerCompanyBudgetRow,
-        orgUnitBudgetSnapshotsByPlanRowId,
-        selectedEmployeeIds: ids,
-        memberById,
-        allocationByEmployeeId,
-        planOuRowIdByOrganizationalUnitId,
-        managerOrganizationalUnitId
+        managerEmployeeId,
+        employeeIdsBlockedFromManagerResubmit
       })
       await onSaved?.(createdIdsByEmployeeId)
       onOpenChange(false)
@@ -207,18 +233,17 @@ export function TeamCompensationSaveAllocationsDialog({
     distributionMethod,
     distributionPool,
     graphqlClient,
-    managerCompanyBudgetRow,
     managerEmployeeId,
     memberById,
     managerOrganizationalUnitId,
-    orgUnitBudgetSnapshotsByPlanRowId,
     onOpenChange,
     onSaved,
     planOuRowIdByOrganizationalUnitId,
     poolOk,
     restClient,
     selectedEmployeeIds,
-    t
+    t,
+    employeeIdsBlockedFromManagerResubmit
   ])
 
   return (
@@ -270,6 +295,7 @@ export function TeamCompensationSaveAllocationsDialog({
           sortedMembers={sortedMembers}
           allocationByEmployeeId={allocationByEmployeeId}
           selectedEmployeeIds={selectedEmployeeIds}
+          employeeIdsBlockedFromManagerResubmit={employeeIdsBlockedFromManagerResubmit}
           distributionPool={distributionPool}
           poolOk={poolOk}
           currencyCode={currencyCode}

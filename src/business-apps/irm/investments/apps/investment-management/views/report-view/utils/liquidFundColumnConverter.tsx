@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import type { DynamicTableColumn } from '../tabs/liquid-fund-report-tab/utils/liquidFundReportColumnTransformer'
+import type { DynamicTableColumn } from './liquidFundReportColumnTransformer'
 import type { ColumnConfig } from '../components/shared/types'
 
 /**

@@ -1,203 +1,197 @@
-import React, { useEffect } from 'react'
-import { Form, Input, Select, InputNumber, Button } from 'antd'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useTranslation } from 'react-i18next'
+import { SetStateAction, Dispatch, useMemo, ReactNode, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext.ts'
+import { FormWrapperModal } from '@/components/form-wrapper'
+import { FieldValues } from 'react-hook-form'
+import { useCompensationBandQueries } from '@/business-apps/mdm/apps/compensation-data/queries/CompensationBandQueries.ts'
+import {
+  CompensationBand,
+  CompensationBandMutationPayload
+} from '@/business-apps/mdm/apps/compensation-data/utils/CompensationBand.types.ts'
+import {
+  compensationBandSchema,
+  CompensationBandFormValues,
+  validateCompensationBandName
+} from '@/business-apps/mdm/apps/compensation-data/validation/CompensationBand.validation.ts'
+import { ErrorBoundary } from '@/business-apps/core/every/apps/every-box/components/ErrorBoundary.tsx'
+import {
+  TextField,
+  TextAreaField,
+  SelectField,
+  NumberField
+} from '@/business-apps/mdm/components/form-fields/FormFields.tsx'
+import { toast } from '@newwork/nw-design-system'
 
-interface Currency {
-  value: string
-  label: string
+interface CompensationBandFormProps extends BusinessAppContextProps {
+  childAddButton?: ReactNode
+  compensationBand?: Partial<CompensationBand>
+  onCancel?: () => void
+  prefixDataTestId: string
+  refetch: () => void
+  isDrawerActive?: boolean
+  open?: boolean
+  setOpen?: Dispatch<SetStateAction<boolean>>
+  usedNames?: string[]
 }
 
-export interface CompensationBandFormProps extends BusinessAppContextProps {
-  prefixDataTestId?: string
-  initialValues?: any
-  onSubmit?: (values: any) => Promise<void>
-  currencies?: Currency[]
-}
-
-const defaultCurrencies = [
-  { value: 'EUR', label: 'Euro (EUR)' },
-  { value: 'USD', label: 'US Dollar (USD)' },
-  { value: 'GBP', label: 'British Pound (GBP)' },
-  { value: 'CHF', label: 'Swiss Franc (CHF)' }
-]
-
-export const CompensationBandForm: React.FC<CompensationBandFormProps> = ({
+export default function CompensationBandForm({
+  childAddButton,
+  compensationBand,
+  onCancel,
   prefixDataTestId,
-  initialValues,
-  onSubmit,
-  currencies = defaultCurrencies
-}) => {
-  const [form] = Form.useForm()
-  const { t } = useTranslation('master-data')
+  accessToken,
+  refetch,
+  isDrawerActive = false,
+  open,
+  setOpen,
+  usedNames = []
+}: Readonly<CompensationBandFormProps>) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (initialValues) {
-      form.setFieldsValue(initialValues)
-    } else {
-      form.resetFields()
+  const { createCompensationBand, updateCompensationBand } = useCompensationBandQueries(accessToken)
+
+  // Use external state if provided, otherwise use internal
+  const dialogOpen = open ?? internalOpen
+  const setDialogOpen = setOpen || setInternalOpen
+
+  const handleSubmit = async (values: FieldValues) => {
+    // Validate form data with Zod schema
+    const validationResult = compensationBandSchema.safeParse(values)
+    if (!validationResult.success) {
+      throw new Error('Invalid form data: ' + validationResult.error.issues.map(e => e.message).join(', '))
     }
-  }, [form, initialValues])
 
-  const handleSave = async () => {
-    try {
-      const values = await form.validateFields()
-      if (onSubmit) {
-        await onSubmit(values)
+    const validatedValues = validationResult.data
+
+    // Additional name validation for new compensation bands
+    if (!compensationBand) {
+      const nameError = validateCompensationBandName(validatedValues.name, usedNames)
+      if (nameError) {
+        throw new Error(nameError)
       }
-    } catch (error) {
-      console.error('Validation failed:', error)
+    }
+
+    const payload: CompensationBandMutationPayload = {
+      changeMode: 'INSERT',
+      compensationBand: {
+        name: validatedValues.name,
+        description: validatedValues.description || '',
+        currency: validatedValues.currencyRef,
+        minSalary: validatedValues.minSalary,
+        maxSalary: validatedValues.maxSalary,
+        ...(compensationBand ? { id: compensationBand.id, version: compensationBand.version } : {})
+      }
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      await (compensationBand ? updateCompensationBand : createCompensationBand)(payload)
+      toast.success(
+        compensationBand ? 'Compensation band updated successfully!' : 'Compensation band created successfully!'
+      )
+      refetch()
+      setOpen?.(false)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleCancel = () => {
-    form.resetFields()
-  }
+  const defaultValues = useMemo(
+    (): CompensationBandFormValues => ({
+      name: compensationBand?.name || '',
+      description: compensationBand?.description || '',
+      minSalary: compensationBand?.minSalary ?? 0,
+      maxSalary: compensationBand?.maxSalary ?? 0,
+      currencyRef: compensationBand?.currencyRef || 'Currency:v1:EUR'
+    }),
+    [compensationBand]
+  )
+
   return (
-    <Form
-      form={form}
-      layout="vertical"
-      data-testid={`${prefixDataTestId}-compensation-band-form`}
-      className="gba:w-full"
-    >
-      <Form.Item
-        label={t('forms.compensationBand.fields.name.label', { defaultValue: 'Name' })}
-        name="name"
-        rules={[
-          {
-            required: true,
-            message: t('forms.compensationBand.fields.name.validation', {
-              defaultValue: 'Please enter compensation band name'
-            })
-          }
-        ]}
+    <ErrorBoundary>
+      <FormWrapperModal
+        childAddButton={childAddButton}
+        title={compensationBand ? 'Edit Compensation Band' : 'Create Compensation Band'}
+        description={compensationBand ? 'Update the compensation band information' : 'Create a new compensation band'}
+        onSubmit={handleSubmit}
+        onCancel={onCancel}
+        defaultValues={defaultValues}
+        isEditing={!!compensationBand}
+        loading={loading}
+        dataTestId={`${prefixDataTestId}-form-modal`}
+        isDrawerActive={isDrawerActive}
+        open={dialogOpen}
+        setOpen={setDialogOpen}
+        errorMessage={error ?? ''}
       >
-        <Input
-          placeholder={t('forms.compensationBand.fields.name.placeholder', {
-            defaultValue: 'Enter compensation band name'
-          })}
+        <TextField<CompensationBandFormValues>
+          name="name"
+          label="Name"
+          required
+          placeholder="e.g., Band A, Senior Level, Executive"
+          maxLength={100}
+          dataTestId={`${prefixDataTestId}-name-input`}
+          validate={(value: string) => {
+            if (!compensationBand) {
+              const error = validateCompensationBandName(value, usedNames)
+              return error || true
+            }
+            return true
+          }}
         />
-      </Form.Item>
 
-      <Form.Item
-        label={t('forms.compensationBand.fields.code.label', { defaultValue: 'Code' })}
-        name="code"
-        rules={[
-          {
-            required: true,
-            message: t('forms.compensationBand.fields.code.validation', {
-              defaultValue: 'Please enter compensation band code'
-            })
-          }
-        ]}
-      >
-        <Input
-          placeholder={t('forms.compensationBand.fields.code.placeholder', {
-            defaultValue: 'Enter compensation band code'
-          })}
+        <TextAreaField<CompensationBandFormValues>
+          name="description"
+          label="Description"
+          placeholder="Describe the compensation band and its purpose"
+          rows={3}
+          maxLength={500}
+          dataTestId={`${prefixDataTestId}-description-textarea`}
         />
-      </Form.Item>
 
-      <div className="gba:grid gba:grid-cols-3 gba:gap-4">
-        <Form.Item
-          label={t('forms.compensationBand.fields.minSalary.label', { defaultValue: 'Minimum Salary' })}
-          name="minSalary"
-          rules={[
-            {
-              required: true,
-              message: t('forms.compensationBand.fields.minSalary.validation', {
-                defaultValue: 'Please enter minimum salary'
-              })
-            }
-          ]}
-        >
-          <InputNumber
-            placeholder={t('forms.compensationBand.fields.minSalary.placeholder', {
-              defaultValue: 'Enter minimum salary'
-            })}
+        <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+          <NumberField<CompensationBandFormValues>
+            name="minSalary"
+            label="Minimum Salary"
+            required
+            placeholder="0"
             min={0}
-            style={{ width: '100%' }}
-            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            step={50}
+            dataTestId={`${prefixDataTestId}-min-salary-input`}
           />
-        </Form.Item>
 
-        <Form.Item
-          label={t('forms.compensationBand.fields.standardSalary.label', { defaultValue: 'Standard Salary' })}
-          name="standardSalary"
-          rules={[
-            {
-              required: true,
-              message: t('forms.compensationBand.fields.standardSalary.validation', {
-                defaultValue: 'Please enter standard salary'
-              })
-            }
-          ]}
-        >
-          <InputNumber
-            placeholder={t('forms.compensationBand.fields.standardSalary.placeholder', {
-              defaultValue: 'Enter standard salary'
-            })}
+          <NumberField<CompensationBandFormValues>
+            name="maxSalary"
+            label="Maximum Salary"
+            required
+            placeholder="0"
             min={0}
-            style={{ width: '100%' }}
-            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            step={50}
+            dataTestId={`${prefixDataTestId}-max-salary-input`}
           />
-        </Form.Item>
+        </div>
 
-        <Form.Item
-          label={t('forms.compensationBand.fields.maxSalary.label', { defaultValue: 'Maximum Salary' })}
-          name="maxSalary"
-          rules={[
-            {
-              required: true,
-              message: t('forms.compensationBand.fields.maxSalary.validation', {
-                defaultValue: 'Please enter maximum salary'
-              })
-            }
+        {/* TODO: These options should be dynamic (from Catalog)*/}
+        <SelectField<CompensationBandFormValues>
+          name="currencyRef"
+          label="Currency"
+          required
+          options={[
+            { value: 'Currency:v1:EUR', label: 'Euro (EUR)' },
+            { value: 'Currency:v1:USD', label: 'US Dollar (USD)' },
+            { value: 'Currency:v1:RON', label: 'Romanian Leu (RON)' }
           ]}
-        >
-          <InputNumber
-            placeholder={t('forms.compensationBand.fields.maxSalary.placeholder', {
-              defaultValue: 'Enter maximum salary'
-            })}
-            min={0}
-            style={{ width: '100%' }}
-            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-          />
-        </Form.Item>
-      </div>
-
-      <Form.Item
-        label={t('forms.compensationBand.fields.currency.label', { defaultValue: 'Currency' })}
-        name="currency"
-        rules={[
-          {
-            required: true,
-            message: t('forms.compensationBand.fields.currency.validation', { defaultValue: 'Please select currency' })
-          }
-        ]}
-        initialValue="EUR"
-      >
-        <Select
-          placeholder={t('forms.compensationBand.fields.currency.placeholder', { defaultValue: 'Select currency' })}
-        >
-          {currencies.map(currency => (
-            <Select.Option key={currency.value} value={currency.value}>
-              {currency.label}
-            </Select.Option>
-          ))}
-        </Select>
-      </Form.Item>
-
-      <div className="gba:flex gba:justify-end gba:gap-2 gba:mt-4">
-        <Button onClick={handleCancel}>{t('forms.common.buttons.cancel', { defaultValue: 'Cancel' })}</Button>
-        <Button type="primary" onClick={handleSave}>
-          {initialValues
-            ? t('forms.common.buttons.update', { defaultValue: 'Update' })
-            : t('forms.common.buttons.create', { defaultValue: 'Create' })}
-        </Button>
-      </div>
-    </Form>
+          placeholder="Select currency"
+          dataTestId={`${prefixDataTestId}-currency-select`}
+        />
+      </FormWrapperModal>
+    </ErrorBoundary>
   )
 }
-
-export default CompensationBandForm

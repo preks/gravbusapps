@@ -141,7 +141,7 @@ trashed-readonly-title = Dieses Dokument befindet sich im Papierkorb
 trashed-readonly-description = "{ $title }" befindet sich im Papierkorb und wird bis zur Wiederherstellung nur schreibgeschützt geöffnet.
 trashed-readonly-owner-note = Um dieses Dokument wieder zu bearbeiten, holen Sie es aus dem Papierkorb.
 trashed-readonly-shared-note = Um dieses Dokument wieder zu bearbeiten, bitte den Besitzer, es aus dem Papierkorb zu holen.
-trashed-readonly-go-home = Zur Docs-Startseite
+trashed-readonly-go-home = Zur Dokumenten-Startseite
 trashed-readonly-restore = Aus dem Papierkorb holen
 trashed-readonly-restoring = Wird wiederhergestellt...
 
@@ -170,8 +170,11 @@ upload-word-progress = { $progress }% abgeschlossen
 upload-word-file-size-exceeds = Dateigröße überschreitet { $max }MB-Limit
 upload-word-preview = Vorschau
 upload-word-images-found = { $count } Bilder gefunden
-upload-word-parsed-ready = Dokument erfolgreich geparst. Bereit zur Bearbeitung!
-upload-word-parse-failed = Dokument konnte nicht geparst werden
+upload-word-parsed-ready = Dokument erfolgreich eingelesen. Bereit zur Bearbeitung!
+upload-word-saving-draft = Dokument wird gespeichert...
+upload-word-saved-ready = Dokument gespeichert. Bereit zum Öffnen.
+upload-word-open-document = Dokument öffnen
+upload-word-parse-failed = Dokument konnte nicht eingelesen werden
 upload-word-try-again = Erneut versuchen
 upload-word-drop-here = Datei hier ablegen
 upload-word-title-dropzone = Word-Dokument hochladen
@@ -376,7 +379,7 @@ ai-edit-clear-selection-title = Auswahl aufheben
 ai-edit-generating = Wird generiert…
 ai-edit-discard = Verwerfen
 ai-edit-undo = Rückgängig
-ai-edit-new = Neu
+ai-edit-new = Neue Bearbeitung
 ai-edit-active = (aktiv)
 
 # Quill/Editor heading labels (for picker)
@@ -418,10 +421,18 @@ editor-toolbar-align-right = Rechtsbündig
 editor-toolbar-justify = Blocksatz
 editor-dictate-tooltip = Text per Spracheingabe diktieren
 editor-dictate-label = Diktieren
-editor-dictate-listening = Hören…
+editor-dictate-listening = Hört zu…
 editor-dictate-unavailable = Spracheingabe nicht verfügbar
-editor-dictate-hint = Klicken zum Starten der Spracheingabe
+editor-dictate-hint = Klicken, um die Spracheingabe zu starten
 editor-dictate-tooltip-secondary = Sprechen Sie deutlich in Ihr Mikrofon.
+editor-dictate-unsupported-browser = Spracheingabe wird in diesem Browser nicht unterstützt. Verwenden Sie Chrome oder Edge.
+editor-dictate-retry = Klicken, um es erneut zu versuchen
+editor-dictate-error-not-allowed = Mikrofonzugriff verweigert. Bitte erlauben Sie den Zugriff auf das Mikrofon.
+editor-dictate-error-network = Es ist ein Netzwerkfehler aufgetreten. Bitte überprüfen Sie Ihre Verbindung.
+editor-dictate-error-audio-capture = Es wurde kein Mikrofon gefunden. Bitte schließen Sie ein Mikrofon an.
+editor-dictate-error-aborted = Die Spracheingabe wurde abgebrochen.
+editor-dictate-error-native-unavailable = Spracheingabe ist auf diesem Gerät derzeit nicht verfügbar.
+editor-dictate-error-generic = Fehler bei der Spracheingabe: { $error }
 editor-toolbar-line-paragraph-spacing = Zeilen- und Absatzabstand
 editor-line-spacing-single = Einfach
 editor-line-spacing-1-15 = 1,15
@@ -1262,7 +1273,7 @@ doc-apps-toast-approval-cancelled = Genehmigung abgebrochen
 doc-apps-toast-cancel-approval-failed = Genehmigung konnte nicht abgebrochen werden
 
 # AI Edit
-ai-edit-error-generate = KI-Bearbeitung konnte nicht generiert werden
+ai-edit-error-generate = KI-Bearbeitung konnte nicht erstellt werden
 
 # Template entity fields (fallbacks)
 template-field-code = Code

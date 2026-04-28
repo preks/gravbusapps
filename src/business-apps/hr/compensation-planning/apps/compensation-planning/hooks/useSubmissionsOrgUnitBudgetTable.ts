@@ -54,6 +54,7 @@ function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanComp
     companyId: graphqlUnknownToString(raw.companyId),
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
     salaryBudgetPercent: num(raw.salaryBudgetPercent),
+    allocationAmount: num(raw.allocationAmount),
     bonusBudgetAmount: num(raw.bonusBudgetAmount),
     bonusBudgetPercent: num(raw.bonusBudgetPercent),
     budgetPlanStatus: graphqlUnknownToString(raw.budgetPlanStatus),
@@ -71,6 +72,7 @@ function mapOrgUnitRow(raw: Record<string, unknown>): SubmissionsOrgUnitGraphqlR
     organizationalUnitId: graphqlUnknownToString(raw.organizationalUnitId),
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
     salaryBudgetPercent: num(raw.salaryBudgetPercent),
+    allocationAmount: num(raw.allocationAmount),
     bonusBudgetAmount: num(raw.bonusBudgetAmount),
     bonusBudgetPercent: num(raw.bonusBudgetPercent),
     budgetPlanStatus: graphqlUnknownToString(raw.budgetPlanStatus)
@@ -97,7 +99,7 @@ export function useSubmissionsOrgUnitBudgetTable(
   companyId: string | null,
   defaultCurrencyCode: string,
   teamMembers: TeamMemberCompensationData[],
-  /** When set, only org-unit rows under this compensation cycle’s company budget are shown. */
+  /** When null, no data is loaded and the submissions table stays empty (user must pick a cycle). */
   selectedCompensationPlanId: string | null
 ) {
   const graphqlClient = useGraphQLClient(accessToken)
@@ -195,6 +197,17 @@ export function useSubmissionsOrgUnitBudgetTable(
     setLoadingGraphql(true)
     setError(null)
     try {
+      if (selectedCompensationPlanId == null) {
+        if (companyIdRef.current === companyIdForRequest) {
+          setOrgRows([])
+          setProposedNewSalarySumByOrgUnitBudgetRowId(new Map())
+          setCompanyRowById(new Map())
+          setPlans([])
+          setError(null)
+        }
+        return
+      }
+
       const [plansResult, companyRowsResult] = await Promise.all([
         graphqlClient.request<{ CompensationBudgetPlan: CompensationBudgetPlanListItem[] }>(
           LIST_COMPENSATION_BUDGET_PLANS
@@ -210,10 +223,7 @@ export function useSubmissionsOrgUnitBudgetTable(
 
       const nextPlans = sortPlans((plansResult.CompensationBudgetPlan ?? []).map(fillPlanListItem))
       const companyRowsAll = (companyRowsResult.CompensationBudgetPlanCompany ?? []).map(mapCompanyRow)
-      const companyRows =
-        selectedCompensationPlanId == null
-          ? companyRowsAll
-          : companyRowsAll.filter(r => r.compensationBudgetPlanId === selectedCompensationPlanId)
+      const companyRows = companyRowsAll.filter(r => r.compensationBudgetPlanId === selectedCompensationPlanId)
       const nextCompanyRowById = new Map(companyRows.map(r => [r.id, r]))
       const companyBudgetIds = companyRows.map(r => r.id)
 

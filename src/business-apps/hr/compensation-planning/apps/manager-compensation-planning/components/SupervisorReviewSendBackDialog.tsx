@@ -1,4 +1,6 @@
 import {
+  Alert,
+  AlertDescription,
   Button,
   Dialog,
   DialogContent,
@@ -17,6 +19,8 @@ export interface SupervisorReviewSendBackDialogProps {
   busy: boolean
   onConfirm: () => void | Promise<void>
   t: TranslateFn
+  /** Shown inside the dialog (e.g. API failure) so the message is not hidden behind the modal. */
+  errorMessage?: string | null
 }
 
 export function SupervisorReviewSendBackDialog({
@@ -26,14 +30,23 @@ export function SupervisorReviewSendBackDialog({
   onSendBackNotesChange,
   busy,
   onConfirm,
-  t
+  t,
+  errorMessage
 }: Readonly<SupervisorReviewSendBackDialogProps>) {
+  const hasNotes = sendBackNotes.trim().length > 0
+  const canSend = hasNotes && !busy
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gba:max-w-md" data-testid="supervisor-review-send-back-dialog">
         <DialogHeader>
           <DialogTitle>{t('supervisor-review-send-back-title')}</DialogTitle>
         </DialogHeader>
+        {errorMessage != null && errorMessage !== '' ? (
+          <Alert variant="destructive" data-testid="supervisor-review-send-back-dialog-error">
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        ) : null}
         <Textarea
           value={sendBackNotes}
           onChange={e => onSendBackNotesChange(e.target.value)}
@@ -42,7 +55,7 @@ export function SupervisorReviewSendBackDialog({
           data-testid="supervisor-review-send-back-notes"
         />
         <DialogFooter className="gba:gap-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             {t('supervisor-review-send-back-cancel')}
           </Button>
           <Button
@@ -50,7 +63,8 @@ export function SupervisorReviewSendBackDialog({
             onClick={() => {
               Promise.resolve(onConfirm()).catch(() => {})
             }}
-            disabled={busy}
+            disabled={!canSend}
+            title={hasNotes ? undefined : t('supervisor-review-send-back-notes-required')}
             data-testid="supervisor-review-send-back-confirm"
           >
             {t('supervisor-review-send-back-confirm')}

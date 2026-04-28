@@ -6,6 +6,10 @@ import type { Investment } from '@/common/data/investment/types/investmentTypes.
 export interface UseInvestmentSectionStateParams {
   accessToken: string
   selectedFilters: Record<string, any>
+  initialSorting?: Array<{ id: string; desc: boolean }> | null
+  onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
+  initialVisibleColumns?: string[] | null
+  onVisibleColumnsChange?: (columns: string[]) => void
 }
 
 export interface UseInvestmentSectionStateReturn {
@@ -34,26 +38,59 @@ export interface UseInvestmentSectionStateReturn {
   handlePaginationChange: (pagination: { pageIndex: number; pageSize: number }) => void
 }
 
+const getBooleanFilterValue = (value: unknown): boolean | null => {
+  const normalizedValue = Array.isArray(value) ? (value.length === 1 ? value[0] : undefined) : value
+
+  if (typeof normalizedValue === 'boolean') return normalizedValue
+  if (normalizedValue === 'true') return true
+  if (normalizedValue === 'false') return false
+  return null
+}
+
+const normalizePlanedExitFilter = (filters: Record<string, any>): Record<string, any> => {
+  if (!('planedExit' in filters)) {
+    return filters
+  }
+
+  const planedExit = getBooleanFilterValue(filters.planedExit)
+  const normalizedFilters = { ...filters }
+
+  if (planedExit === null) {
+    delete normalizedFilters.planedExit
+    return normalizedFilters
+  }
+
+  normalizedFilters.planedExit = planedExit
+  return normalizedFilters
+}
+
+const DEFAULT_VISIBLE_COLUMNS = [
+  'name',
+  'investmentGroup',
+  'investmentType',
+  'totalInvestmentAmount',
+  'ownerEmployee',
+  'investmentStatus',
+  'createdAt',
+  'actions'
+]
+
 export const useInvestmentSectionState = ({
   accessToken,
-  selectedFilters
+  selectedFilters,
+  initialSorting,
+  onSortingChange,
+  initialVisibleColumns,
+  onVisibleColumnsChange
 }: UseInvestmentSectionStateParams): UseInvestmentSectionStateReturn => {
+  const initialSort = initialSorting?.[0]
   // State
   const [search, setSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
-  const [sortField, setSortField] = useState('')
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'name',
-    'investmentGroup',
-    'investmentType',
-    'totalInvestmentAmount',
-    'ownerEmployee',
-    'investmentStatus',
-    'createdAt',
-    'actions'
-  ])
+  const [sortField, setSortField] = useState(initialSort?.id ?? '')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>(initialSort?.desc === false ? 'ASC' : 'DESC')
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(initialVisibleColumns ?? DEFAULT_VISIBLE_COLUMNS)
   const initialLoadDone = useRef(false)
 
   // Convert currencyIds → currency.code customCondition (relation path works; scalar path does not).
@@ -66,9 +103,10 @@ export const useInvestmentSectionState = ({
 
   // Query variables — strip currencyIds from direct filter path (handled via currencyConditions).
   const queryVariables: InvestmentQueryVariables = useMemo(() => {
-    const existingConditions: Record<string, any>[] = selectedFilters.customConditions ?? []
+    const normalizedSelectedFilters = normalizePlanedExitFilter(selectedFilters)
+    const existingConditions: Record<string, any>[] = normalizedSelectedFilters.customConditions ?? []
     const listFilters = Object.fromEntries(
-      Object.entries(selectedFilters).filter(([key]) => key !== 'currencyIds' && key !== 'customConditions')
+      Object.entries(normalizedSelectedFilters).filter(([key]) => key !== 'currencyIds' && key !== 'customConditions')
     )
     const mergedConditions = [...existingConditions, ...currencyConditions]
     return {
@@ -117,18 +155,31 @@ export const useInvestmentSectionState = ({
   )
 
   // Handlers
-  const handleSortingChange = useCallback((newSorting: Array<{ id: string; desc: boolean }>) => {
-    if (newSorting.length === 0) {
-      setSortField('')
-      setSortOrder('DESC')
-      setCurrentPage(1)
-    } else {
-      const firstSort = newSorting[0]
-      setSortField(firstSort.id)
-      setSortOrder(firstSort.desc ? 'DESC' : 'ASC')
-      setCurrentPage(1)
-    }
-  }, [])
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      onSortingChange?.(newSorting)
+
+      if (newSorting.length === 0) {
+        setSortField('')
+        setSortOrder('DESC')
+        setCurrentPage(1)
+      } else {
+        const firstSort = newSorting[0]
+        setSortField(firstSort.id)
+        setSortOrder(firstSort.desc ? 'DESC' : 'ASC')
+        setCurrentPage(1)
+      }
+    },
+    [onSortingChange]
+  )
+
+  const handleVisibleColumnsChange = useCallback(
+    (columns: string[]) => {
+      setVisibleColumns(columns)
+      onVisibleColumnsChange?.(columns)
+    },
+    [onVisibleColumnsChange]
+  )
 
   const handlePaginationChange = useCallback((newPagination: { pageIndex: number; pageSize: number }) => {
     setCurrentPage(newPagination.pageIndex + 1)
@@ -149,7 +200,7 @@ export const useInvestmentSectionState = ({
     sortField,
     sortOrder,
     visibleColumns,
-    setVisibleColumns,
+    setVisibleColumns: handleVisibleColumnsChange,
     sorting,
     pagination,
     isInitialLoading,

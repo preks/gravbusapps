@@ -315,7 +315,8 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
               label: field.label,
               property: field.property,
               required: field.required,
-              displayOrder: field.displayOrder
+              displayOrder: field.displayOrder,
+              ...(typeof field.report === 'boolean' ? { report: field.report } : {})
             }))
           }))
           return { formFields: dynamicFormFields }

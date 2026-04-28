@@ -1,1 +1,6 @@
 export { ReportView } from './ReportView'
+export { InvestmentReportPanel, type InvestmentReportPanelProps } from './components/InvestmentReportPanel'
+export { ReportFiltersHeader, type ReportFiltersHeaderProps } from './components/ReportFiltersHeader'
+export { useReportFilters, type UseReportFiltersReturn } from './hooks'
+export { getReportGroupConfiguration, type ReportGroupConfiguration } from './config/reportGroupConfigurations'
+export { getSubSectionsForStrategy, type SubSection, type SubSectionStrategy } from './utils/subSectionHelpers'

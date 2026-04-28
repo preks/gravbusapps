@@ -19,6 +19,13 @@ interface AddressLinesProps {
   addressLinesError: string | null
   setAddressLinesError: (msg: string | null) => void
   getValues: () => any
+  /**
+   * When true, the first address line (street + house number) is rendered readonly.
+   * Used by the address form when the autocomplete map is available so the street
+   * address can only be set via the autocomplete tools. Additional lines (apartment,
+   * floor, door code, etc.) remain editable since providers don't return that data.
+   */
+  firstLineReadonly?: boolean
 }
 
 const AddressLines: React.FC<AddressLinesProps> = ({
@@ -27,7 +34,8 @@ const AddressLines: React.FC<AddressLinesProps> = ({
   setAddressLineCount,
   addressLinesError,
   setAddressLinesError,
-  getValues
+  getValues,
+  firstLineReadonly
 }) => {
   const labelBase = getTranslationFromI18nKeyAndLabel(
     'lowcoder:employee_profile.details_layout.address_container.address_line',
@@ -73,6 +81,7 @@ const AddressLines: React.FC<AddressLinesProps> = ({
                         {...field}
                         className="gba:w-full"
                         placeholder={placeholder}
+                        readOnly={Boolean(firstLineReadonly && index === 0)}
                         onChange={e => {
                           field.onChange(e)
                           if (addressLinesError && String(e.target.value || '').trim() !== '') {

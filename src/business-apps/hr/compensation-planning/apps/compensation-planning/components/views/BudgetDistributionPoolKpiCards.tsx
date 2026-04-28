@@ -18,7 +18,13 @@ export interface BudgetDistributionPoolKpiCardsProps {
   selectedMethod: DistributionMethod
   loading: boolean
   t: (key: string, args?: Record<string, string | number>) => string
+  /** Custom mode: sum of raw amount inputs exceeds the pool (preview stays capped). */
+  customRequestExceedsPool?: boolean
+  /** Positive euros over the pool (when `customRequestExceedsPool`). */
+  overPoolAmount?: number | null
 }
+
+const KPI_REMAINING_EXCEEDED_COLOR = 'var(--nw-color-destructive-500)'
 
 export function BudgetDistributionPoolKpiCards({
   pool,
@@ -26,7 +32,9 @@ export function BudgetDistributionPoolKpiCards({
   currencyCode,
   selectedMethod,
   loading,
-  t
+  t,
+  customRequestExceedsPool = false,
+  overPoolAmount
 }: Readonly<BudgetDistributionPoolKpiCardsProps>) {
   const totalPreviewAllocated = useMemo(() => {
     let sum = 0
@@ -42,7 +50,11 @@ export function BudgetDistributionPoolKpiCards({
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }
-    const remaining = roundMoney2(Math.max(0, pool - totalPreviewAllocated))
+    const remainingBasedOnPreview = roundMoney2(Math.max(0, pool - totalPreviewAllocated))
+    const hasOver = Boolean(customRequestExceedsPool && overPoolAmount != null && overPoolAmount > 0.01)
+    const remainingDisplay = hasOver
+      ? formatCurrencyString(-roundMoney2(overPoolAmount), kpiMoney)
+      : formatCurrencyString(remainingBasedOnPreview, kpiMoney)
     return [
       {
         key: 'budget-distribution-kpi-pool',
@@ -59,14 +71,19 @@ export function BudgetDistributionPoolKpiCards({
       {
         key: 'budget-distribution-kpi-remaining',
         title: t('budget-distribution-kpi-remaining-title'),
-        value: formatCurrencyString(remaining, kpiMoney),
+        value: remainingDisplay,
         valueIsString: true,
         prefix: <ChartPieSliceIcon size={24} aria-hidden />,
-        color: KPI_COLORS.remaining,
-        span: { xs: 24, sm: 12, lg: 12 }
+        color: hasOver ? KPI_REMAINING_EXCEEDED_COLOR : KPI_COLORS.remaining,
+        span: { xs: 24, sm: 12, lg: 12 },
+        description: hasOver
+          ? t('budget-distribution-kpi-remaining-exceeds-pool', {
+              over: formatCurrencyString(roundMoney2(overPoolAmount as number), kpiMoney)
+            })
+          : undefined
       }
     ]
-  }, [currencyCode, pool, selectedMethod, t, totalPreviewAllocated])
+  }, [currencyCode, customRequestExceedsPool, overPoolAmount, pool, selectedMethod, t, totalPreviewAllocated])
 
   return (
     <WidgetGroup

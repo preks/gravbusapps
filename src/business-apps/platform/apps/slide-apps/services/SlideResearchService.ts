@@ -408,7 +408,7 @@ function parseResearchResponse(rawContent: string, topic: string): ResearchResul
         const pairs = dataStr.split(',').map(s => s.trim())
         for (const pair of pairs) {
           const [label, valueStr] = pair.split(':').map(s => s.trim())
-          const value = parseFloat(valueStr?.replace(/[^0-9.]/g, '') || '0')
+          const value = Number.parseFloat(valueStr?.replace(/[^0-9.]/g, '') || '0')
           if (label && !isNaN(value)) {
             dataPoints.push({ label, value })
           }

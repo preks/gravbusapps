@@ -4,7 +4,7 @@ import { Card } from '@newwork/nw-design-system'
 import { AbsenceDistributionChart } from '../../KPISection/AbsenceDistributionChart'
 import dayjs from 'dayjs'
 import { useTeamCoverageData } from '../../../hooks/useTeamCoverageData'
-import { useTeamDailyFactsByType } from '../../../hooks/useTeamDailyFacts'
+import { TeamDailyFactsSource, useTeamDailyFactsByType } from '../../../hooks/useTeamDailyFacts'
 import { useAbsenceTypeCatalog } from '../../../../personal-absences/hooks/useAbsenceTypeCatalog'
 import { translateManagerAbsencesText } from '../../../utils/managerAbsencesI18n'
 
@@ -24,6 +24,7 @@ type DistributionDisplayVariant = 'default' | 'insights'
 
 interface AbsenceDistributionSectionProps extends BusinessAppContextProps {
   displayVariant?: DistributionDisplayVariant
+  factsSource?: TeamDailyFactsSource
 }
 
 type PieChartDatum = {
@@ -96,6 +97,7 @@ const assignDistinctColors = (data: PieChartDatum[]): PieChartDatum[] => {
 
 export const AbsenceDistributionSection: React.FC<AbsenceDistributionSectionProps> = ({
   displayVariant = 'default',
+  factsSource = 'net',
   ...props
 }) => {
   const { accessToken } = props
@@ -107,7 +109,7 @@ export const AbsenceDistributionSection: React.FC<AbsenceDistributionSectionProp
     data: byType,
     loading: factsLoading,
     error: factsError
-  } = useTeamDailyFactsByType(accessToken, teamMemberIds, from, to, mapType, ['APPROVED'])
+  } = useTeamDailyFactsByType(accessToken, teamMemberIds, from, to, mapType, ['APPROVED'], factsSource)
 
   const loading = coverageLoading || factsLoading
   const error = coverageError || (factsError ? factsError.message : null)

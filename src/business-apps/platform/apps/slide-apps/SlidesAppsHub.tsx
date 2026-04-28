@@ -80,7 +80,19 @@ import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 import type { SlideSummary } from './types'
 import type { ParsedPowerPointDocument } from './hooks/usePowerPointParser'
-import { compressSlideImages } from './hooks/pptxImport'
+import { normalizeImportedSlideMedia } from './hooks/pptxImport'
+import type { NormalizeImportedMediaProgress } from './hooks/pptxImport/normalizeImportedMedia'
+import type { PptxImportProgressState } from './hooks/pptxImport/importProgress'
+import {
+  createImageUploadImportProgress,
+  createPreparingImportProgress,
+  createVideoProcessingImportProgress,
+  ensureMonotonicImportProgress
+} from './hooks/pptxImport/importProgress'
+import {
+  createMediaFailurePlaceholderDataUrl,
+  DEFAULT_PPTX_MEDIA_UPLOAD_RETRY_COUNT
+} from './hooks/pptxImport/mediaHosting'
 import translations from './_i18n'
 
 export interface SlidesAppsHubProps extends BusinessAppContextProps {
@@ -179,6 +191,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [slideForManageShares, setSlideForManageShares] = useState<string | null>(null)
   const [showImportDialog, setShowImportDialog] = useState(false)
+  const [powerPointImportProgress, setPowerPointImportProgress] = useState<PptxImportProgressState | null>(null)
   const [showTemplateBrowserDialog, setShowTemplateBrowserDialog] = useState(false)
   const [showGenerateDialogChat, setShowGenerateDialogChat] = useState(false)
   const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
@@ -249,6 +262,34 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     onInitialLoadComplete: () => setInitialUrlProcessed(true)
   })
 
+  const updatePowerPointImportProgress = useCallback((nextProgress: PptxImportProgressState) => {
+    setPowerPointImportProgress(previousProgress => ensureMonotonicImportProgress(nextProgress, previousProgress))
+  }, [])
+
+  const resetPowerPointImportProgress = useCallback(() => {
+    setPowerPointImportProgress(null)
+  }, [])
+
+  const handleNormalizedMediaProgress = useCallback(
+    (progress: NormalizeImportedMediaProgress) => {
+      if (progress.phase === 'uploading-images') {
+        updatePowerPointImportProgress(createImageUploadImportProgress(progress.current, progress.total))
+        return
+      }
+
+      updatePowerPointImportProgress(createVideoProcessingImportProgress(progress.current, progress.total))
+    },
+    [updatePowerPointImportProgress]
+  )
+
+  const handleImportDialogOpenChange = useCallback(
+    (open: boolean) => {
+      setShowImportDialog(open)
+      if (!open) resetPowerPointImportProgress()
+    },
+    [resetPowerPointImportProgress]
+  )
+
   // Update URL whenever activeSection changes (when user clicks sidebar)
   // Only run after initial URL processing is complete to avoid clearing slideId on refresh
   useEffect(() => {
@@ -275,18 +316,18 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
       // Close the template browser dialog
       setShowTemplateBrowserDialog(false)
 
-      // Create a new slide
-      const created = await createSlide({ title: t('title-untitled-slide') })
-      if (created) {
-        // Store the pending template to apply when editor loads
-        setPendingTemplateSlides({ slides: templateSlides, themeId })
-        setSelectedSlideId(created.id)
+      const result = await importSlide({
+        title: t('title-untitled-slide'),
+        contentJson: { slides: templateSlides, themeId }
+      })
+      if (result) {
+        setPendingTemplateSlides(null)
+        setSelectedSlideId(result.slide.id)
         setCurrentView('editor')
-        updateUrl(created.id, 'editor')
-        loadSlide(created.id)
+        updateUrl(result.slide.id, 'editor')
       }
     },
-    [createSlide, loadSlide, updateUrl, t]
+    [importSlide, updateUrl, t]
   )
 
   /** Clear pending template after it's been applied */
@@ -520,38 +561,101 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const handlePowerPointImport = useCallback(
     async (parsedDoc: ParsedPowerPointDocument) => {
       try {
-        const uploadedSlides = await compressSlideImages(parsedDoc.slides)
-
-        const result = await importSlide({
-          title: parsedDoc.fileName.replace('.pptx', ''),
-          contentJson: {
-            slides: uploadedSlides,
-            themeId: parsedDoc.themeId || 'corporate'
-          }
+        updatePowerPointImportProgress(createPreparingImportProgress())
+        const imageFailurePlaceholderDataUrl = createMediaFailurePlaceholderDataUrl({
+          title: t('import-image-upload-placeholder-title'),
+          subtitle: t('import-image-upload-placeholder-subtitle')
+        })
+        const normalizedMedia = await normalizeImportedSlideMedia(parsedDoc.slides, {
+          imageFailurePlaceholderDataUrl,
+          uploadRetryCount: DEFAULT_PPTX_MEDIA_UPLOAD_RETRY_COUNT,
+          onProgress: handleNormalizedMediaProgress
         })
 
+        // Pre-flight: measure the final JSON payload. The document service
+        // rejects bodies over 10 MB (which surfaces as a generic "content
+        // could not be saved" toast and leaves an empty deck behind). We
+        // surface a specific "too large" warning instead so the user knows
+        // what to do (split the deck, strip images) — see
+        // `toast-import-partial-too-large`. 10.5 MB gives headroom for the
+        // title/wrapper fields added on top of the slide array.
+        const contentJson = {
+          slides: normalizedMedia.slides,
+          themeId: parsedDoc.themeId || 'corporate'
+        }
+        const payloadBytes = JSON.stringify(contentJson).length
+        const payloadMb = payloadBytes / 1024 / 1024
+        console.info(`[SlidesAppsHub] Import payload: ${payloadMb.toFixed(2)} MB, ${parsedDoc.slideCount} slides`)
+        const exceedsBackendLimit = payloadBytes > 10 * 1024 * 1024
+
+        const result = await importSlide(
+          {
+            title: parsedDoc.fileName.replace('.pptx', ''),
+            contentJson
+          },
+          {
+            onProgress: updatePowerPointImportProgress
+          }
+        )
+
         if (!result) {
+          resetPowerPointImportProgress()
           toast.error(t('toast-import-failed'))
           return
         }
 
         setShowImportDialog(false)
+        resetPowerPointImportProgress()
         setSelectedSlideId(result.slide.id)
         setCurrentView('editor')
         updateUrl(result.slide.id, 'editor')
-        await loadSlide(result.slide.id)
+        // `importSlide()` already stores the freshly updated slide in local
+        // state. Re-fetching immediately can race against backend persistence
+        // and replace the imported content with a stale snapshot.
 
         if (result.contentSaved) {
           toast.success(t('toast-imported-slides', { count: parsedDoc.slideCount }))
+          if (normalizedMedia.warnings.imageUploadFailures > 0) {
+            toast.warning(
+              t('parser-image-upload-failed', { count: String(normalizedMedia.warnings.imageUploadFailures) })
+            )
+          }
+          if (normalizedMedia.warnings.embeddedVideoUploadFailures > 0) {
+            toast.warning(
+              t('parser-video-upload-failed', { count: String(normalizedMedia.warnings.embeddedVideoUploadFailures) })
+            )
+          }
+          if (normalizedMedia.warnings.videoPreviewFailures > 0) {
+            toast.warning(
+              t('parser-video-preview-failed', { count: String(normalizedMedia.warnings.videoPreviewFailures) })
+            )
+          }
+          if (normalizedMedia.warnings.videoPreviewUploadFailures > 0) {
+            toast.warning(
+              t('parser-video-preview-upload-failed', {
+                count: String(normalizedMedia.warnings.videoPreviewUploadFailures)
+              })
+            )
+          }
+        } else if (exceedsBackendLimit) {
+          toast.warning(t('toast-import-partial-too-large', { size: payloadMb.toFixed(1) }))
         } else {
           toast.warning(t('toast-import-partial'))
         }
       } catch (err) {
+        resetPowerPointImportProgress()
         console.error('[SlidesAppsHub] Import error:', err)
         toast.error(t('toast-import-failed'))
       }
     },
-    [importSlide, loadSlide, updateUrl, t]
+    [
+      handleNormalizedMediaProgress,
+      importSlide,
+      resetPowerPointImportProgress,
+      t,
+      updatePowerPointImportProgress,
+      updateUrl
+    ]
   )
 
   // Check if this is a cast receiver view (standalone page for external display)
@@ -884,20 +988,16 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                     ? t('slides-empty-favorites-title')
                     : activeSection === 'shared'
                       ? t('slides-empty-shared-title')
-                      : activeSection === 'archived'
-                        ? t('empty-archived-title')
-                        : t('slides-empty-default-title')}
+                      : t('slides-empty-default-title')}
                 </h3>
                 <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
                   {activeSection === 'favorites'
                     ? t('slides-empty-favorites-description')
                     : activeSection === 'shared'
                       ? t('slides-empty-shared-description')
-                      : activeSection === 'archived'
-                        ? t('empty-archived-description')
-                        : t('slides-empty-default-description')}
+                      : t('slides-empty-default-description')}
                 </p>
-                {activeSection !== 'favorites' && activeSection !== 'shared' && activeSection !== 'archived' && (
+                {activeSection !== 'favorites' && activeSection !== 'shared' && (
                   <Button onClick={handleCreateNew}>
                     <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
                     {t('empty-create-slide')}
@@ -1267,15 +1367,16 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
       )}
 
       {/* Import PowerPoint Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+      <Dialog open={showImportDialog} onOpenChange={handleImportDialogOpenChange}>
         <DialogContent className="gba:max-w-2xl">
           <PowerPointUploader
             onFileParsed={handlePowerPointImport}
-            onCancel={() => setShowImportDialog(false)}
+            onCancel={() => handleImportDialogOpenChange(false)}
             onError={err => {
               console.error('[SlidesAppsHub] Import error:', err)
               toast.error(t('toast-import-failed'))
             }}
+            importProgress={powerPointImportProgress}
             data-testid={`${testId}-import-uploader`}
           />
         </DialogContent>

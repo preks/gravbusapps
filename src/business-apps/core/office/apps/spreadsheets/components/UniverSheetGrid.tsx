@@ -65,6 +65,7 @@ const CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX = 48
 const UNIVER_COMMAND_TYPE_MUTATION = 2
 const REMOTE_ECHO_SUPPRESSION_TTL_MS = 800
 const SELECTION_RECONCILE_LOCAL_EDIT_SUPPRESSION_MS = 400
+const COPY_ORIGIN_RESTORE_WINDOW_MS = 30000
 const GERMAN_NUMFMT_LOCALE = 'de_DE'
 /** Same grid pattern as context-menu injection (`tryInjectViaGridContainer`): inner list lives in `univer-grid` + `gap-1`. */
 const NUMFMT_GRID_ROW_SELECTOR = ':scope > div.univer-flex.univer-h-7'
@@ -79,11 +80,121 @@ const NUMFMT_MENU_ITEM_ROW_SELECTOR = 'div.univer-flex.univer-h-7'
  */
 const UNIVER_DE_LOCALE = {
   design: {
+    Confirm: {
+      cancel: 'Abbrechen',
+      confirm: 'OK'
+    },
     CascaderList: {
       empty: 'Keine'
     },
     Select: {
       empty: 'Keine'
+    },
+    ColorPicker: {
+      more: 'Weitere Farben',
+      cancel: 'Abbrechen',
+      confirm: 'OK'
+    }
+  },
+  sheets: {
+    tabs: {
+      sheetCopy: '(Kopie{0})',
+      sheet: 'Tabelle'
+    }
+  },
+  definedName: {
+    managerTitle: 'Benannte Bereiche',
+    managerDescription:
+      'Erstelle einen benannten Bereich, indem du Zellen oder Formeln auswählst und den gewünschten Namen in das Textfeld einträgst.',
+    addButton: 'Benannten Bereich hinzufügen',
+    featureTitle: 'Benannte Bereiche',
+    ratioRange: 'Bereich',
+    ratioFormula: 'Formel',
+    confirm: 'Bestätigen',
+    cancel: 'Abbrechen',
+    scopeWorkbook: 'Arbeitsmappe',
+    inputNamePlaceholder: 'Bitte gib einen Namen ein (keine Leerzeichen erlaubt)',
+    inputCommentPlaceholder: 'Bitte gib einen Kommentar ein',
+    inputRangePlaceholder: 'Bitte gib einen Bereich ein (keine Leerzeichen erlaubt)',
+    inputFormulaPlaceholder: 'Bitte gib eine Formel ein (keine Leerzeichen erlaubt)',
+    nameEmpty: 'Der Name darf nicht leer sein',
+    nameDuplicate: 'Der Name existiert bereits',
+    formulaOrRefStringEmpty: 'Formel oder Bezugszeichenkette darf nicht leer sein',
+    formulaOrRefStringInvalid: 'Ungültige Formel oder Bezugszeichenkette',
+    defaultName: 'BenannterBereich',
+    updateButton: 'Aktualisieren',
+    deleteButton: 'Löschen',
+    deleteConfirmText: 'Möchtest du diesen benannten Bereich wirklich löschen?',
+    nameConflict: 'Der Name steht im Konflikt mit einem Funktionsnamen',
+    nameInvalid: 'Der Name ist ungültig',
+    nameSheetConflict: 'Der Name steht im Konflikt mit einem Tabellennamen'
+  },
+  permission: {
+    toolbarMenu: 'Schutz',
+    panel: {
+      title: 'Zeilen und Spalten schützen',
+      name: 'Name',
+      protectedRange: 'Geschützter Bereich',
+      permissionDirection: 'Berechtigungsbeschreibung',
+      permissionDirectionPlaceholder: 'Berechtigungsbeschreibung eingeben',
+      editPermission: 'Bearbeitungsberechtigungen',
+      onlyICanEdit: 'Nur ich kann bearbeiten',
+      designedUserCanEdit: 'Bestimmte Personen können bearbeiten',
+      viewPermission: 'Anzeigeberechtigungen',
+      othersCanView: 'Andere können ansehen',
+      noOneElseCanView: 'Niemand sonst kann ansehen',
+      designedPerson: 'Bestimmte Personen',
+      addPerson: 'Person hinzufügen',
+      canEdit: 'Kann bearbeiten',
+      canView: 'Kann ansehen',
+      delete: 'Löschen',
+      currentSheet: 'Aktuelle Tabelle',
+      allSheet: 'Alle Tabellen',
+      edit: 'Bearbeiten',
+      Print: 'Drucken',
+      Comment: 'Kommentar',
+      Copy: 'Kopieren',
+      SetCellStyle: 'Zellformat festlegen',
+      SetCellValue: 'Zellwert festlegen',
+      SetHyperLink: 'Hyperlink festlegen',
+      Sort: 'Sortieren',
+      Filter: 'Filtern',
+      PivotTable: 'Pivot-Tabelle',
+      FloatImage: 'Schwebendes Bild',
+      RowHeightColWidth: 'Zeilenhöhe und Spaltenbreite',
+      RowHeightColWidthReadonly: 'Zeilenhöhe und Spaltenbreite (schreibgeschützt)',
+      FilterReadonly: 'Filter (schreibgeschützt)',
+      nameError: 'Der Name darf nicht leer sein',
+      created: 'Erstellt',
+      iCanEdit: 'Ich kann bearbeiten',
+      iCanNotEdit: 'Ich kann nicht bearbeiten',
+      iCanView: 'Ich kann ansehen',
+      iCanNotView: 'Ich kann nicht ansehen',
+      emptyRangeError: 'Der Bereich darf nicht leer sein',
+      rangeOverlapError: 'Bereiche dürfen sich nicht überlappen',
+      rangeOverlapOverPermissionError:
+        'Der Bereich darf sich nicht mit einem Bereich überlappen, der dieselben Berechtigungen hat',
+      InsertHyperlink: 'Hyperlink einfügen',
+      SetRowStyle: 'Zeilenformat festlegen',
+      SetColumnStyle: 'Spaltenformat festlegen',
+      InsertColumn: 'Spalte einfügen',
+      InsertRow: 'Zeile einfügen',
+      DeleteRow: 'Zeile löschen',
+      DeleteColumn: 'Spalte löschen',
+      EditExtraObject: 'Zusätzliches Objekt bearbeiten'
+    },
+    dialog: {
+      allowUserToEdit: 'Nutzer:innen Bearbeitung erlauben',
+      allowedPermissionType: 'Erlaubte Berechtigungstypen',
+      setCellValue: 'Zellwert festlegen',
+      setCellStyle: 'Zellformat festlegen',
+      copy: 'Kopieren',
+      alert: 'Hinweis',
+      search: 'Suchen',
+      alertContent:
+        'Dieser Bereich ist geschützt und es sind derzeit keine Bearbeitungsberechtigungen verfügbar. Wenn du bearbeiten möchtest, wende dich bitte an die Erstellerin/den Ersteller.',
+      userEmpty: 'Keine bestimmten Personen. Teile den Link, um bestimmte Personen einzuladen.',
+      listEmpty: 'Du hast noch keine Bereiche oder Tabellen als geschützt eingerichtet.'
     }
   },
   align: {
@@ -483,14 +594,30 @@ function readAuthoritativeRowCellValue(row: Record<string, unknown>, column: Spr
   return value
 }
 
+function getAuthoritativeGridRowIndex(row: Record<string, unknown>, fallbackIndex: number): number {
+  const raw = Number(row._gridRowIndex)
+  return Number.isFinite(raw) && raw >= 0 ? Math.trunc(raw) : fallbackIndex
+}
+
+function buildAuthoritativeRowsByGridIndex(data: Record<string, unknown>[]): Map<number, Record<string, unknown>> {
+  const rowsByGridIndex = new Map<number, Record<string, unknown>>()
+  data.forEach((row, index) => {
+    rowsByGridIndex.set(getAuthoritativeGridRowIndex(row, index), row)
+  })
+  return rowsByGridIndex
+}
+
+function getAuthoritativeGridRowExtent(data: Record<string, unknown>[]): number {
+  return data.reduce((max, row, index) => Math.max(max, getAuthoritativeGridRowIndex(row, index) + 1), 0)
+}
+
 function buildAuthoritativeCellSignatureMap(
   data: Record<string, unknown>[],
   columns: SpreadsheetColumn[]
 ): Map<string, string> {
   const visibleColumns = columns.filter(column => column.isVisible !== false)
   const signatures = new Map<string, string>()
-  for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
-    const row = data[rowIndex]
+  for (const [rowIndex, row] of buildAuthoritativeRowsByGridIndex(data).entries()) {
     for (let colIndex = 0; colIndex < visibleColumns.length; colIndex++) {
       const value = readAuthoritativeRowCellValue(row, visibleColumns[colIndex]) ?? ''
       signatures.set(remoteEchoKey(rowIndex, colIndex), toEchoSignature(value))
@@ -762,7 +889,12 @@ function buildNewRowsFromCellMatrix(params: {
   return newRowIndices.map(rowIndex => {
     const rowCells = cellValue[rowIndex]
     const globalRowIndex = rowIndex + rowOffset
-    const row: Record<string, unknown> = { _id: getClientRowId(globalRowIndex) }
+    const row: Record<string, unknown> = {
+      _id: getClientRowId(globalRowIndex),
+      // Preserve the user's visual grid row so snapshot/bootstrap can keep sparse
+      // empty rows above newly-created rows instead of compacting them upward.
+      _gridRowIndex: globalRowIndex
+    }
     if (!rowCells || typeof rowCells !== 'object') return row
 
     for (const colKey of Object.keys(rowCells)) {
@@ -1133,6 +1265,12 @@ interface SnapshotDimensions {
   rowHeaderWidth: number
   columnHeaderHeight: number
   zoomRatio: number
+}
+
+type ActiveSelectionPosition = {
+  sheetId: string
+  row: number
+  col: number
 }
 
 function areDimensionMapsEqual(
@@ -1742,10 +1880,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const lastSyncedGridColumnCountRef = useRef(0)
     const lastProcessedAuthoritativeDataSyncTokenRef = useRef<number>(props.authoritativeDataSyncToken ?? 0)
     const lastProcessedAuthoritativeReapplySeedRef = useRef(0)
+    const skipNextAuthoritativeSyncAfterSnapshotInitRef = useRef(false)
     const newRowClientIdByIndexRef = useRef<Map<number, string>>(new Map())
     const recentLocalMutationSignaturesRef = useRef<Map<string, number>>(new Map())
     const recentLocallyMutatedGridCellsRef = useRef<Map<string, number>>(new Map())
-    const activeSelectionRef = useRef<{ row: number; col: number } | null>(null)
+    const activeSelectionRef = useRef<ActiveSelectionPosition | null>(null)
+    const copiedSelectionAnchorRef = useRef<(ActiveSelectionPosition & { copiedAt: number }) | null>(null)
     const contextRef = useRef<ReturnType<typeof createUniverConversionContext> | null>(null)
     const propsRef = useRef({
       sheet,
@@ -2873,6 +3013,24 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         authoritativeReapplySeed !== lastProcessedAuthoritativeReapplySeedRef.current
       if (!shouldSyncWorkbook) return
       const visibleColumns = columns.filter(column => column.isVisible !== false)
+      const isForcedAuthoritativeReapply = authoritativeReapplySeed !== lastProcessedAuthoritativeReapplySeedRef.current
+      if (skipNextAuthoritativeSyncAfterSnapshotInitRef.current && !isForcedAuthoritativeReapply) {
+        // Snapshot-based remounts already carry the live workbook values/styles.
+        // Replaying every authoritative cell immediately afterward via setValue()
+        // can strip style-only details like font color from the restored cells.
+        skipNextAuthoritativeSyncAfterSnapshotInitRef.current = false
+        lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(data, columns)
+        lastSyncedGridRowCountRef.current = getAuthoritativeGridRowExtent(data)
+        lastSyncedGridColumnCountRef.current = visibleColumns.length
+        lastProcessedAuthoritativeDataSyncTokenRef.current = nextToken
+        lastProcessedAuthoritativeReapplySeedRef.current = authoritativeReapplySeed
+        debugRemoteApply('skip_authoritative_reapply_after_snapshot_init', {
+          rowCount: data.length,
+          columnCount: visibleColumns.length,
+          token: nextToken
+        })
+        return
+      }
       // Mutate the existing signature map in place rather than building a
       // replacement. The seed planted by `handleDetectedCellMutation` for
       // rows that are still en-route through `processUniverDataChange`'s
@@ -2890,25 +3048,30 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const signatures = lastSyncedGridCellSignaturesRef.current
       const previousRowCount = lastSyncedGridRowCountRef.current
       const previousColumnCount = lastSyncedGridColumnCountRef.current
-      const maxRowCount = Math.max(previousRowCount, data.length)
+      const rowsByGridIndex = buildAuthoritativeRowsByGridIndex(data)
+      const nextRowCount = getAuthoritativeGridRowExtent(data)
+      const maxRowCount = Math.max(previousRowCount, nextRowCount)
       const maxColumnCount = Math.max(previousColumnCount, visibleColumns.length)
       const nowForLocalMutationCheck = Date.now()
       for (let rowIndex = 0; rowIndex < maxRowCount; rowIndex++) {
-        const row = data[rowIndex]
-        const rowInBounds = rowIndex < data.length
+        const row = rowsByGridIndex.get(rowIndex)
+        const rowInBounds = rowsByGridIndex.has(rowIndex)
         for (let colIndex = 0; colIndex < maxColumnCount; colIndex++) {
           const column = visibleColumns[colIndex]
           const colInBounds = colIndex < visibleColumns.length
           const key = remoteEchoKey(rowIndex, colIndex)
           if (!rowInBounds || !colInBounds) {
             signatures.delete(key)
+            if (isForcedAuthoritativeReapply) {
+              applyRemoteCellUpdate(rowIndex, colIndex, '')
+            }
             continue
           }
           const nextValue = row && column ? (readAuthoritativeRowCellValue(row, column) ?? '') : ''
           const nextSignature = toEchoSignature(nextValue)
           const previousSignature = signatures.get(key)
           signatures.set(key, nextSignature)
-          if (previousSignature === nextSignature) continue
+          if (previousSignature === nextSignature && !isForcedAuthoritativeReapply) continue
           // Defense in depth: skip `applyRemoteCellUpdate` when the user just mutated
           // this cell locally. Univer already holds the edited value from the user's
           // direct interaction (typing, drag-fill, paste), so re-dispatching a
@@ -2916,12 +3079,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           // down and redraw that cell — the visible "whole-grid blink" observed on
           // drag-fill and fast multi-cell typing.
           const localMutationExpiresAt = recentLocallyMutatedGridCellsRef.current.get(key) ?? 0
-          if (localMutationExpiresAt > nowForLocalMutationCheck) continue
+          if (localMutationExpiresAt > nowForLocalMutationCheck && !isForcedAuthoritativeReapply) continue
           applyRemoteCellUpdate(rowIndex, colIndex, nextValue)
         }
       }
 
-      lastSyncedGridRowCountRef.current = data.length
+      lastSyncedGridRowCountRef.current = nextRowCount
       lastSyncedGridColumnCountRef.current = visibleColumns.length
       lastProcessedAuthoritativeDataSyncTokenRef.current = nextToken
       lastProcessedAuthoritativeReapplySeedRef.current = authoritativeReapplySeed
@@ -3010,8 +3173,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       lastEmittedWorksheetIdRef.current = ''
       const { sheet: s, data: d, columns: c, initialSnapshot: initialSnapshotForSheet } = propsRef.current
       let snapshotForInit: UniverWorkbookSnapshot
+      const initializedFromProvidedSnapshot =
+        Boolean(initialSnapshotForSheet && typeof initialSnapshotForSheet === 'object') && forceRowSnapshotSeed === 0
       try {
-        if (initialSnapshotForSheet && typeof initialSnapshotForSheet === 'object' && forceRowSnapshotSeed === 0) {
+        if (initializedFromProvidedSnapshot) {
           snapshotForInit = initialSnapshotForSheet as UniverWorkbookSnapshot
           transformAvatarFormulasInSnapshot(snapshotForInit as unknown as Record<string, unknown>, c)
         } else {
@@ -3023,9 +3188,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
       contextRef.current = createUniverConversionContext(c, d)
       lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(d, c)
-      lastSyncedGridRowCountRef.current = d.length
+      lastSyncedGridRowCountRef.current = getAuthoritativeGridRowExtent(d)
       lastSyncedGridColumnCountRef.current = c.filter(column => column.isVisible !== false).length
       lastProcessedAuthoritativeDataSyncTokenRef.current = props.authoritativeDataSyncToken ?? 0
+      skipNextAuthoritativeSyncAfterSnapshotInitRef.current = initializedFromProvidedSnapshot
 
       const univerLocaleData =
         appLocale === 'de-DE'
@@ -3068,7 +3234,73 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         lastSyncedGridRowCountRef.current = 0
         lastSyncedGridColumnCountRef.current = 0
         lastProcessedAuthoritativeDataSyncTokenRef.current = props.authoritativeDataSyncToken ?? 0
+        skipNextAuthoritativeSyncAfterSnapshotInitRef.current = false
         return
+      }
+
+      const getActiveWorksheetIdFromUniver = (): string | null => {
+        try {
+          const wb = univerAPIRef.current?.getActiveWorkbook?.() as
+            | {
+                getActiveSheet?: () => { getSheetId?: () => string }
+              }
+            | undefined
+          const activeWorksheet = wb?.getActiveSheet?.()
+          return activeWorksheet?.getSheetId?.() ?? null
+        } catch {
+          return null
+        }
+      }
+
+      const selectCellInWorksheet = (worksheetId: string, row: number, col: number): void => {
+        try {
+          const wb = univerAPIRef.current?.getActiveWorkbook?.() as
+            | {
+                getSheetBySheetId?: (id: string) => {
+                  getRange?: (row: number, col: number) => unknown
+                  setActiveSelection?: (range: unknown) => unknown
+                  setActiveRange?: (range: unknown) => unknown
+                } | null
+              }
+            | undefined
+          const worksheet = wb?.getSheetBySheetId?.(worksheetId)
+          const range = worksheet?.getRange?.(row, col)
+          if (!range) return
+          ;(worksheet.setActiveSelection ?? worksheet.setActiveRange)?.(range)
+          activeSelectionRef.current = { sheetId: worksheetId, row, col }
+        } catch {
+          /* ignore */
+        }
+      }
+
+      const captureCopiedSelectionAnchor = (): void => {
+        const workbook = univerAPIRef.current?.getActiveWorkbook?.()
+        const worksheetId = getActiveWorksheetIdFromUniver()
+        const cachedActive = activeSelectionRef.current
+        const active =
+          cachedActive && cachedActive.sheetId === worksheetId ? cachedActive : extractActiveRangePosition(workbook)
+        if (!worksheetId || !active) return
+        copiedSelectionAnchorRef.current = {
+          sheetId: worksheetId,
+          row: active.row,
+          col: active.col,
+          copiedAt: Date.now()
+        }
+      }
+
+      const restoreCopiedSelectionAnchorOnSheetSwitch = (worksheetId: string): void => {
+        const anchor = copiedSelectionAnchorRef.current
+        if (!anchor || anchor.sheetId === worksheetId) return
+        if (Date.now() - anchor.copiedAt > COPY_ORIGIN_RESTORE_WINDOW_MS) {
+          copiedSelectionAnchorRef.current = null
+          return
+        }
+
+        globalThis.setTimeout(() => {
+          const latest = copiedSelectionAnchorRef.current
+          if (!latest || latest.sheetId === worksheetId) return
+          selectCellInWorksheet(worksheetId, latest.row, latest.col)
+        }, 0)
       }
 
       const emitWorksheetFromUniver = () => {
@@ -3084,6 +3316,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           lastEmittedWorksheetIdRef.current = worksheetId
           const worksheetName =
             typeof activeWorksheet?.getSheetName === 'function' ? activeWorksheet.getSheetName() : ''
+          restoreCopiedSelectionAnchorOnSheetSwitch(worksheetId)
           callbacksRef.current.onActiveWorksheetChange?.(worksheetId, worksheetName)
         } catch {
           /* ignore */
@@ -3783,6 +4016,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               range?: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
             }
           | undefined
+        if (commandId.includes('copy') && !commandId.includes('paste')) {
+          captureCopiedSelectionAnchor()
+        }
         if (commandId.includes('comment') || commandId.includes('thread')) {
           callbacksRef.current.onOpenCommentRequest?.()
         }
@@ -3850,17 +4086,19 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
         // Only MUTATION (type 2) represents an actual data change. COMMAND (type 0)
         // includes selection/navigation commands which must not trigger snapshots.
-        if (
-          shouldScheduleSnapshotForMutation({
-            commandType: t,
-            mutationCommandType: UNIVER_COMMAND_TYPE_MUTATION,
-            commandId,
-            params,
-            now: Date.now(),
-            lastCellValueMutationAt: lastCellValueMutationAtRef.current
-          })
-        ) {
+        const shouldCheckpointSnapshot = shouldScheduleSnapshotForMutation({
+          commandType: t,
+          mutationCommandType: UNIVER_COMMAND_TYPE_MUTATION,
+          commandId,
+          params,
+          now: Date.now(),
+          lastCellValueMutationAt: lastCellValueMutationAtRef.current
+        })
+        if (shouldCheckpointSnapshot) {
           markDirtyAndScheduleSnapshot()
+          if (isStyleOnlySheetMutationCommand(commandId)) {
+            queueMicrotask(() => requestSnapshotCheckpoint(true))
+          }
         }
       })
       const eventKey =
@@ -3945,8 +4183,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
       // Emits cursor position using A1 notation (cellRef) as the primary coordinate.
       // row:/col: entries are kept for backward compatibility.
-      const emitCursorByRowCol = (startRow: number, startColumn: number) => {
-        activeSelectionRef.current = { row: startRow, col: startColumn }
+      const emitCursorByRowCol = (sheetId: string, startRow: number, startColumn: number) => {
+        activeSelectionRef.current = { sheetId, row: startRow, col: startColumn }
         const onCursorEmitCb = callbacksRef.current.onCursorEmit
         if (!onCursorEmitCb) return
         const a1 = toA1Reference(startRow, startColumn)
@@ -3959,6 +4197,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const emitCursorFromWorksheetSelection = () => {
         const workbook = univerAPIRef.current?.getActiveWorkbook?.()
         const worksheet = workbook?.getActiveSheet?.()
+        const worksheetId = (worksheet as { getSheetId?: () => string } | undefined)?.getSheetId?.()
+        if (!worksheetId) return
         const selection = (
           worksheet as { getSelection?: () => { getCurrentCell?: () => unknown } | null } | undefined
         )?.getSelection?.()
@@ -3969,19 +4209,23 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         const col = currentCell?.actualColumn ?? currentCell?.column
         if (typeof row === 'number' && typeof col === 'number') {
           const previous = activeSelectionRef.current
-          if (previous && (previous.row !== row || previous.col !== col)) {
+          if (previous && previous.sheetId === worksheetId && (previous.row !== row || previous.col !== col)) {
             reconcileSingleCell(previous.row, previous.col, 'selection-reconcile')
           }
-          emitCursorByRowCol(row, col)
+          emitCursorByRowCol(worksheetId, row, col)
           return
         }
         const fromRange = extractActiveRangePosition(workbook)
         if (fromRange) {
           const previous = activeSelectionRef.current
-          if (previous && (previous.row !== fromRange.row || previous.col !== fromRange.col)) {
+          if (
+            previous &&
+            previous.sheetId === worksheetId &&
+            (previous.row !== fromRange.row || previous.col !== fromRange.col)
+          ) {
             reconcileSingleCell(previous.row, previous.col, 'selection-reconcile')
           }
-          emitCursorByRowCol(fromRange.row, fromRange.col)
+          emitCursorByRowCol(worksheetId, fromRange.row, fromRange.col)
         }
       }
       const scheduleCursorEmitFromWorksheetSelection = (delayMs = 80) => {
@@ -4006,6 +4250,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const currentSelectionChangeDisposable = (
         univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
       ).addEvent?.('CurrentSelectionChanged', emitCursorFromSelectionEvent)
+      const captureCopyFromDomEvent = () => {
+        captureCopiedSelectionAnchor()
+      }
+      document.addEventListener('copy', captureCopyFromDomEvent, true)
       const startupCursorPollStartedAt = Date.now()
       const cursorPollIntervalId = setInterval(() => {
         if (lastEmittedCursorPathRef.current) {
@@ -4048,6 +4296,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         try {
           currentSelectionChangeDisposable?.dispose()
         } catch {}
+        document.removeEventListener('copy', captureCopyFromDomEvent, true)
         if (pendingCursorEmitTimeoutId) {
           clearTimeout(pendingCursorEmitTimeoutId)
           pendingCursorEmitTimeoutId = null

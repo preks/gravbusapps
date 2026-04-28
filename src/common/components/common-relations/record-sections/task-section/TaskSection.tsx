@@ -159,6 +159,10 @@ export interface TaskSectionProps extends BusinessAppContextProps {
   defaultTaskStatusRef?: string
   /** Optional pre-submit handler (e.g. uploads _pendingFiles and returns data with documents). When set, called before buildTaskPayload/executeAction so files are included like in full forms. */
   preSubmit?: (data: Record<string, any>) => Promise<Record<string, any>>
+  /** Optional override for the empty-state title shown when no tasks exist. */
+  emptyStateTitle?: string
+  /** Optional override for the empty-state description shown when no tasks exist. */
+  emptyStateDescription?: string
 }
 
 const TaskSection: React.FC<TaskSectionProps> = ({
@@ -181,7 +185,9 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   contactId,
   opportunityId,
   leadId,
-  investmentId
+  investmentId,
+  emptyStateTitle,
+  emptyStateDescription
 }) => {
   const { t } = useTranslation(translations)
   const { statusMap, ensureStatus, statusVersion } = useEnvelopeStatusCache(accessToken)
@@ -359,7 +365,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         taskPriorityRef: z.string().min(1, 'Priority is required'),
         taskTiming: z.enum(['DEADLINE', 'SCHEDULED']),
         assignedEmployeeIds: z.array(z.string()).min(1, 'At least one assignee is required'),
-        deadline: z.string().optional(),
+        deadline: z.string().min(1, 'Deadline is required'),
         _pendingFiles: z.array(z.any()).optional()
       }),
     [isApprovalTaskSection]
@@ -870,8 +876,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         ) : (
           <EmptyState
             type="no-data"
-            title="No Tasks"
-            description={t('tasks-emptyState')}
+            title={emptyStateTitle ?? 'No Tasks'}
+            description={emptyStateDescription ?? t('tasks-emptyState')}
             data-testid="task-section-empty-state"
           />
         )}

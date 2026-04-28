@@ -14,7 +14,7 @@ export function useSubmissionsOrgUnitTableModel(
   t: TranslateFn,
   sourceRows: SubmissionsOrgUnitTableRow[],
   hasCompanyBudgetRows: boolean,
-  onReviewTeam?: (row: SubmissionsOrgUnitTableRow) => void
+  compensationPlanSelected = true
 ) {
   const [searchInput, setSearchInput] = useState('')
   const debouncedSearch = useDebounce(searchInput, 300)
@@ -57,7 +57,8 @@ export function useSubmissionsOrgUnitTableModel(
           row.budgetPlanLabel.toLowerCase().includes(q) ||
           statusLabel.includes(q) ||
           String(row.salaryBudgetAmount).includes(q) ||
-          String(row.salaryBudgetPercent).includes(q) ||
+          String(row.allocationAmount).includes(q) ||
+          String(row.allocationShareOfCompanyPoolPercent ?? '').includes(q) ||
           String(row.proposedNewSalary).includes(q) ||
           String(row.organizationalUnitCurrentTotalSalary).includes(q)
         )
@@ -78,6 +79,9 @@ export function useSubmissionsOrgUnitTableModel(
   )
 
   const emptyMessage = useMemo(() => {
+    if (!compensationPlanSelected) {
+      return t('submissions-table-empty-select-compensation-cycle')
+    }
     if (!hasCompanyBudgetRows) {
       return t('submissions-table-empty-no-company-budgets')
     }
@@ -88,7 +92,7 @@ export function useSubmissionsOrgUnitTableModel(
       return t('submissions-table-empty-filtered')
     }
     return t('submissions-table-empty-no-org-unit-rows')
-  }, [hasActiveFilters, hasCompanyBudgetRows, sourceRows.length, t])
+  }, [compensationPlanSelected, hasActiveFilters, hasCompanyBudgetRows, sourceRows.length, t])
 
   const filtersObject = useMemo(() => {
     const obj: Record<string, unknown> = {}
@@ -103,10 +107,7 @@ export function useSubmissionsOrgUnitTableModel(
     setSelectedOrgUnitBudgetStatuses(statuses)
   }, [])
 
-  const columns = useMemo(
-    () => buildSubmissionsOrgUnitTableColumns(t, formatStatus, onReviewTeam),
-    [formatStatus, onReviewTeam, t]
-  )
+  const columns = useMemo(() => buildSubmissionsOrgUnitTableColumns(t, formatStatus), [formatStatus, t])
 
   const visibleTableColumns = useMemo(
     () =>
@@ -121,8 +122,9 @@ export function useSubmissionsOrgUnitTableModel(
       { id: 'organizationalUnitName', label: t('submissions-table-col-org-unit') },
       { id: 'budgetPlanLabel', label: t('submissions-table-col-company-budget-plan') },
       { id: 'budgetPlanStatus', label: t('budget-setup-table-col-budget-plan-status') },
-      { id: 'salaryBudgetAmount', label: t('budget-setup-table-col-salary-budget-amount') },
-      { id: 'salaryBudgetPercent', label: t('budget-setup-table-col-salary-budget-percent') },
+      { id: 'salaryBudgetAmount', label: t('submissions-table-col-department-salary-budget') },
+      { id: 'allocationAmount', label: t('submissions-table-col-org-unit-allocation-amount') },
+      { id: 'allocationShareOfCompanyPoolPercent', label: t('submissions-table-col-allocation-share-percent') },
       { id: 'proposedNewSalary', label: t('submissions-table-col-proposed-new-salary') },
       { id: 'organizationalUnitCurrentTotalSalary', label: t('submissions-table-col-org-unit-current-total-salary') }
     ],

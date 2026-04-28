@@ -27,8 +27,10 @@ import {
   Label,
   Alert,
   AlertTitle,
-  AlertDescription
+  AlertDescription,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import {
   UserPlusIcon,
   BuildingIcon,
@@ -73,6 +75,7 @@ const CATEGORY_COLORS: Record<string, 'info' | 'success' | 'warning' | 'default'
 }
 
 export const InternalToolsPanel: React.FC<InternalToolsPanelProps> = ({ open, onClose, accessToken }) => {
+  const { t } = useTranslation(translations)
   const [selectedTool, setSelectedTool] = useState<InternalToolDefinition | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>('all')
@@ -339,7 +342,7 @@ export const InternalToolsPanel: React.FC<InternalToolsPanelProps> = ({ open, on
                 <strong>Important:</strong> Configure the function with an{' '}
                 <code className="gba:bg-muted gba:px-1 gba:rounded">accessToken</code> in the config
               </li>
-              <li>Add the function to your Task Expert as a tool</li>
+              <li>{t('internal-tools-step-add-to-agent')}</li>
             </ol>
           </CardContent>
         </Card>
@@ -355,7 +358,7 @@ export const InternalToolsPanel: React.FC<InternalToolsPanelProps> = ({ open, on
             <WrenchIcon className="gba:w-5 gba:h-5" />
             Internal Tools
           </DialogTitle>
-          <DialogDescription>Pre-built tools for Task Experts to interact with platform data.</DialogDescription>
+          <DialogDescription>{t('internal-tools-dialog-description')}</DialogDescription>
         </DialogHeader>
 
         {/* Register All Button */}

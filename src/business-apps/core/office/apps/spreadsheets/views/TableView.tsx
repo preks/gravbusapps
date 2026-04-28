@@ -199,9 +199,9 @@ export const TableView = memo<TableViewProps>(function TableView({
 
   // Handle data change from Univer
   const handleDataChange = useCallback(
-    (newData: Record<string, unknown>[]) => {
+    (newData: Record<string, unknown>[], sourceSheetId?: string) => {
       if (onDataChange) {
-        onDataChange(newData, sheet.id)
+        onDataChange(newData, sourceSheetId ?? sheet.id)
       }
     },
     [onDataChange, sheet.id]

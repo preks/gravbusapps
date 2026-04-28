@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { FlowStepType, InputType, type InputBlock } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { FlowStepType, InputType, type InputBlock } from '@/common/data/flow/types/flowTemplate'
 import { useExpressionSuggestions } from '@/common/components/flow/expression-editor'
 import type { ExpressionSuggestionItem, ExpressionValueType } from '@/common/components/flow/expression-editor'
 import { useFlowStudioStore } from './useFlowStudioStore'

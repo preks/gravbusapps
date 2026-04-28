@@ -38,11 +38,11 @@ policy_counter_flows = Verknüpfte Flows: { $count }
 
 policy_action_send_ack = Zur Bestätigung senden
 policy_action_send_approval = Zur Genehmigung senden
-policy_action_create_expert = Task-Experte aus Richtlinie erstellen
+policy_action_create_expert = Enterprise Agent aus Richtlinie erstellen
 policy_action_generate_flow = Flow aus Richtlinie generieren
 policy_action_send_ack_short = Bestaetigung senden
 policy_action_send_approval_short = Zur Genehmigung senden
-policy_action_create_expert_short = Task-Experte erstellen
+policy_action_create_expert_short = Enterprise Agent erstellen
 policy_action_generate_flow_short = Flow generieren
 policy_action_ask_everyai = EveryAI fragen
 
@@ -71,7 +71,7 @@ policy_sidebar_signal_approvals = Genehmigungen
 policy_sidebar_actions = Aktionen
 policy_sidebar_action_ack_desc = Bestaetigungs-Workflow fuer eine Zielgruppe starten.
 policy_sidebar_action_approval_desc = Diese Richtlinie zur Pruefung und Genehmigung an Genehmiger senden.
-policy_sidebar_action_expert_desc = Task-Experte mit dieser Richtlinie als Wissensquelle erstellen.
+policy_sidebar_action_expert_desc = Agent mit dieser Richtlinie als Wissensquelle erstellen.
 policy_sidebar_action_flow_desc = Automatisierungs-Flows aus dieser Richtlinie generieren oder verknuepfen.
 policy_sidebar_action_everyai_desc = EveryAI analysieren und Verbesserungen vorschlagen lassen.
 policy_sidebar_details = Details
@@ -106,12 +106,12 @@ policy_impact_open_approval_monitoring = Genehmigungs-Monitoring oeffnen
 policy_impact_analysis_section = Analyse & Feedback
 
 # Ausfuehrungs-Tab Abschnitte
-policy_execution_experts_section = Verknuepfte Task-Experten
+policy_execution_experts_section = Verknüpfte Agenten
 policy_execution_flows_section = Verknuepfte Flow Templates
 
 policy_feature_coming_soon = Diese Funktion wird bald verfügbar sein
 policy_acknowledgements_placeholder = Starten Sie eine Bestätigungskampagne aus dieser Richtlinie, um Abschluss und Follow-ups zu verfolgen.
-policy_experts_placeholder = Erstellen oder verknüpfen Sie Task-Experten, die diese Richtlinie als Wissensquelle verwenden.
+policy_experts_placeholder = Erstellen oder verknüpfen Sie Agenten, die diese Richtlinie als Wissensquelle verwenden.
 policy_flows_placeholder = Generieren oder verknuepfen Sie Flows, die aus dieser Richtlinie abgeleitet sind.
 policy_insights_placeholder = Sehen Sie Ausführungssignale und Feedback und erstellen Sie dann eine verbesserte Richtlinienversion.
 
@@ -151,21 +151,21 @@ mark_as_policy_error = Eintrag konnte nicht als Policy markiert werden
 # Policy experts
 policy_experts_error_title = Experten konnten nicht geladen werden
 policy_experts_count = { $count } { $count ->
-    [one] Task Expert
-   *[other] Task Experts
+    [one] Agent
+   *[other] Agenten
 }
 policy_experts_empty = Noch keine verknüpften Experten. Erstellen Sie einen, um diese Richtlinie zu operationalisieren.
 
 # Create expert dialog
 cancel = Abbrechen
-policy_create_expert_dialog_title = Task-Experte erstellen
+policy_create_expert_dialog_title = Enterprise Agent erstellen
 policy_create_expert_name_label = Name
 policy_create_expert_desc_label = Beschreibung
 policy_create_expert_instructions_label = Eigene Anweisungen (optional)
 policy_create_expert_instructions_placeholder = Domainspezifische Hinweise, Einschränkungen oder Kontext hinzufügen...
 policy_create_expert_knowledge_label = Wissensquelle
 policy_create_expert_submit = Experte erstellen
-policy_create_expert_success = Task-Experte erstellt
+policy_create_expert_success = Agent erstellt
 policy_create_expert_error = Experte konnte nicht erstellt werden
 policy_create_expert_advanced = Im Expertenmodus öffnen für volle Konfiguration
 
@@ -254,7 +254,7 @@ policy_activate_success = Richtlinie erfolgreich aktiviert
 policy_activate_error = Richtlinie konnte nicht aktiviert werden
 
 policy_execution_workflows_section = Genehmigungen & Bestaetigungen
-policy_kpi_expert_executions = Task-Experten-Laeufe
+policy_kpi_expert_executions = Enterprise-Agent-Läufe
 policy_kpi_flow_executions = Flow-Laeufe
 policy_execution_workflows_desc = Genehmigungs- und Bestaetigungs-Workflows zu dieser Richtlinie.
 policy_workflows_count = { $count } { $count ->

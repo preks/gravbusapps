@@ -8,41 +8,34 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
       firstName
       lastName
       hireDate
-      companyId
-      company {
-        id
-        name
-      }
       organizationalUnitId
       organizationalUnit {
         id
         name
       }
+      siteLocationId
       supervisorEmployeeId
       jobPosition {
-        id
         name
-        jobLevel {
-          compensationBand {
+        jobFunction {
+          jobFamily {
             id
-            name
-            payGrade
-            minSalary
-            maxSalary
-            currencyRef
-            currency {
+          }
+        }
+        jobProfile {
+          jobFunction {
+            jobFamily {
               id
-              code
-              value
             }
           }
         }
+        jobLevel {
+          id
+        }
       }
       employee {
-        id
         code
         displayName
-        fullName
         pictureThumbnail
         workingCondition {
           hireDate
@@ -50,6 +43,31 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
         workingHours(orderBy: [{ activeFrom: DESC }], limit: 1) {
           weeklyHours
           fullTimeEquivalent
+        }
+      }
+    }
+  }
+`
+
+export const GET_COMPENSATION_BAND_POLICIES_FOR_TEAM = `
+  query GetCompensationBandPoliciesForTeam($jobFamilyIds: [uuid!]!, $jobLevelIds: [uuid!]!, $geoZoneIds: [uuid!]!) {
+    CompensationBandPolicy(
+      where: {
+        jobFamilyId: { _in: $jobFamilyIds }
+        jobLevelId: { _in: $jobLevelIds }
+        geoZoneId: { _in: $geoZoneIds }
+      }
+      orderBy: [{ priority: ASC }]
+    ) {
+      jobFamilyId
+      jobLevelId
+      geoZoneId
+      compensationBand {
+        payGrade
+        minSalary
+        maxSalary
+        currency {
+          value
         }
       }
     }
@@ -136,7 +154,11 @@ export const GET_TEAM_BONUSES = `
   }
 `
 
-/** One request for current salaries, full salary history, and YTD bonuses (replaces three parallel `EmployeeSalary`/`EmployeeBonus` calls). */
+/**
+ * One request for current salaries, full salary history, and YTD bonuses.
+ * @deprecated Prefer the split queries below: some Hasura/Postgres setups error on multi-root
+ *   selections (`"database query error"`, `path: "$"`) but succeed with separate round-trips.
+ */
 export const GET_TEAM_COMPENSATION_SALARIES_AND_BONUSES = `
   query GetTeamCompensationSalariesAndBonuses($employeeIds: [uuid!]!, $today: date!, $yearStart: date!) {
     teamCurrentSalaries: EmployeeSalary(
@@ -183,6 +205,87 @@ export const GET_TEAM_COMPENSATION_SALARIES_AND_BONUSES = `
       createdAt
     }
     teamBonuses: EmployeeBonus(
+      where: {
+        employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
+        paymentDate: { _gte: $yearStart, _lte: $today }
+      }
+      orderBy: { paymentDate: DESC }
+    ) {
+      id
+      employeeId
+      employeeBonusType {
+        ${CATALOG_ENTRY_REF}
+      }
+      amount
+      currency {
+        id
+        code
+        value
+      }
+      paymentDate
+      fiscalYear
+    }
+  }
+`
+
+/** Team compensation: split from {@link GET_TEAM_COMPENSATION_SALARIES_AND_BONUSES} for problematic backends. */
+export const GET_TEAM_CURRENT_SALARIES_FOR_COMPENSATION = `
+  query GetTeamCurrentSalariesForCompensation($employeeIds: [uuid!]!, $today: date!) {
+    EmployeeSalary(
+      where: {
+        employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
+        requestStatus: { _eq: "APPROVED_SALARY_ADJUSTMENT" }
+        startDate: { _lte: $today }
+      }
+      orderBy: [{ startDate: DESC }, { createdAt: DESC }]
+      limit: 2000
+    ) {
+      id
+      employeeId
+      annualGrossSalary
+      monthlyGrossSalary
+      hourlyGrossSalary
+      currency {
+        id
+        code
+        value
+      }
+      currencyRef
+      startDate
+      endDate
+    }
+  }
+`
+
+export const GET_TEAM_SALARY_HISTORY_FOR_COMPENSATION = `
+  query GetTeamSalaryHistoryForCompensation($employeeIds: [uuid!]!) {
+    EmployeeSalary(
+      where: {
+        employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
+        requestStatus: { _eq: "APPROVED_SALARY_ADJUSTMENT" }
+      }
+      orderBy: [{ startDate: DESC_NULLS_LAST }, { createdAt: DESC }]
+      limit: 2000
+    ) {
+      id
+      employeeId
+      annualGrossSalary
+      monthlyGrossSalary
+      startDate
+      endDate
+      requestedPercent
+      requestedAmount
+      createdAt
+    }
+  }
+`
+
+export const GET_TEAM_BONUSES_FOR_COMPENSATION = `
+  query GetTeamBonusesForCompensation($employeeIds: [uuid!]!, $yearStart: date!, $today: date!) {
+    EmployeeBonus(
       where: {
         employeeId: { _in: $employeeIds }
         isDeleted: { _eq: false }

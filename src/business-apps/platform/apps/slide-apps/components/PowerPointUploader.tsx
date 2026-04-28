@@ -2,10 +2,15 @@
 // Shows progress, then an import preview dialog for slide selection.
 
 import React, { useCallback, useState } from 'react'
-import { Button, Card, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { Button, Card, Progress, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { Upload, AlertCircle, X, Presentation, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { usePowerPointParser, type ParsedPowerPointDocument } from '../hooks/usePowerPointParser'
+import {
+  createParsingImportProgress,
+  createPreparingImportProgress,
+  type PptxImportProgressState
+} from '../hooks/pptxImport/importProgress'
 import { ImportPreviewDialog } from './ImportPreviewDialog'
 import translations from '../_i18n'
 
@@ -15,6 +20,7 @@ export interface PowerPointUploaderProps {
   onCancel?: () => void
   showPreview?: boolean
   maxFileSize?: number
+  importProgress?: PptxImportProgressState | null
   'data-testid'?: string
 }
 
@@ -32,6 +38,7 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
   onCancel,
   showPreview = true,
   maxFileSize = MAX_FILE_SIZE_DEFAULT,
+  importProgress = null,
   'data-testid': testId = 'powerpoint-uploader'
 }) => {
   const { t } = useTranslation(translations)
@@ -51,8 +58,17 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
       const result = await parseFile(file)
 
       if (result && !showPreview) {
-        toast.success(t('toast-import-success'))
-        onFileParsed(result)
+        setIsImporting(true)
+        try {
+          await onFileParsed(result)
+          toast.success(t('toast-import-success'))
+        } catch (err) {
+          console.error('[PowerPointUploader] Import failed:', err)
+          toast.error(t('toast-import-failed-generic'))
+          onError?.(err instanceof Error ? err.message : t('toast-import-failed-generic'))
+        } finally {
+          setIsImporting(false)
+        }
       } else if (!result && error) {
         toast.error(t('toast-import-failed-generic'))
         onError?.(error)
@@ -123,35 +139,38 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
     reset()
   }, [reset])
 
-  if (isImporting) {
-    return (
-      <Card className="gba:p-8 gba:text-center" data-testid={testId}>
-        <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
-          <Spinner size="lg" />
-          <div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{t('import-importing-title')}</h3>
-            <p className="gba:text-muted-foreground gba:text-sm">{t('import-saving')}</p>
-          </div>
-        </div>
-      </Card>
-    )
-  }
+  const activeProgress =
+    importProgress ??
+    (isImporting ? createPreparingImportProgress() : isLoading ? createParsingImportProgress(progress) : null)
 
-  if (isLoading) {
+  if (activeProgress) {
     return (
-      <Card className="gba:p-8 gba:text-center" data-testid={testId}>
-        <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
-          <Spinner size="lg" />
-          <div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{t('import-importing-title')}</h3>
-            <p className="gba:text-muted-foreground gba:text-sm">{t('import-parsing')}</p>
-            <div className="gba:mt-4 gba:w-64 gba:h-2 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-              <div
-                className="gba:h-full gba:bg-primary gba:transition-all gba:duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">{Math.round(progress)}%</p>
+      <Card className="gba:p-8 gba:text-center" data-testid={`${testId}-progress`}>
+        <div className="gba:flex gba:flex-col gba:items-center gba:gap-5">
+          <Spinner size="lg" data-testid={`${testId}-progress-spinner`} />
+          <div className="gba:space-y-2">
+            <h3 className="gba:text-lg gba:font-semibold" data-testid={`${testId}-progress-title`}>
+              {t('import-importing-title')}
+            </h3>
+            <p className="gba:text-muted-foreground gba:text-sm" data-testid={`${testId}-progress-phase`}>
+              {t(activeProgress.labelKey)}
+            </p>
+            {activeProgress.detailKey && (
+              <p className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-progress-detail`}>
+                {t(activeProgress.detailKey, activeProgress.detailValues)}
+              </p>
+            )}
+            {activeProgress.estimated && (
+              <p className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-progress-estimated`}>
+                {t('import-progress-estimated')}
+              </p>
+            )}
+          </div>
+          <div className="gba:w-full gba:max-w-xs gba:space-y-2" data-testid={`${testId}-progress-bar`}>
+            <Progress value={activeProgress.percent} className="gba:h-2" />
+            <p className="gba:text-xs gba:font-medium gba:text-foreground" data-testid={`${testId}-progress-percent`}>
+              {Math.round(activeProgress.percent)}%
+            </p>
           </div>
         </div>
       </Card>

@@ -10,6 +10,12 @@ interface EmployeeSearchFieldProps {
   readonly placeholder?: string
   readonly required?: boolean
   readonly accessToken?: string
+  /**
+   * When true, renders the currently selected employee as a non-interactive
+   * summary (no "Change" affordance, no search input). Used when the
+   * surrounding structured-input form is locked after submission.
+   */
+  readonly readOnly?: boolean
 }
 
 export function EmployeeSearchField({
@@ -17,7 +23,8 @@ export function EmployeeSearchField({
   onChange,
   placeholder = 'Search and select employee...',
   required,
-  accessToken
+  accessToken,
+  readOnly = false
 }: EmployeeSearchFieldProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -111,11 +118,15 @@ export function EmployeeSearchField({
         <button
           type="button"
           onClick={() => {
+            if (readOnly) return
             setSelectedEmployee(null)
             setSearchQuery('')
             setIsOpen(true)
           }}
-          className="gba:w-full gba:px-3 gba:py-2.5 gba:flex gba:items-center gba:gap-3 gba:border gba:border-input gba:rounded-lg gba:bg-background gba:hover:bg-muted/50 gba:transition-colors gba:text-left"
+          disabled={readOnly}
+          className={`gba:w-full gba:px-3 gba:py-2.5 gba:flex gba:items-center gba:gap-3 gba:border gba:border-input gba:rounded-lg gba:bg-background gba:text-left gba:transition-colors ${
+            readOnly ? 'gba:cursor-default gba:opacity-95' : 'gba:hover:bg-muted/50'
+          }`}
         >
           {selectedEmployee.pictureThumbnail ? (
             <img
@@ -143,7 +154,7 @@ export function EmployeeSearchField({
               </div>
             )}
           </div>
-          <span className="gba:text-xs gba:text-muted-foreground">Change</span>
+          {!readOnly && <span className="gba:text-xs gba:text-muted-foreground">Change</span>}
         </button>
       ) : (
         <div className="gba:relative">
@@ -153,9 +164,13 @@ export function EmployeeSearchField({
               setSearchQuery(e.target.value)
               setIsOpen(true)
             }}
-            onFocus={() => setIsOpen(true)}
+            onFocus={() => {
+              if (readOnly) return
+              setIsOpen(true)
+            }}
             placeholder={placeholder}
             required={required}
+            disabled={readOnly}
             className="gba:pr-8"
           />
           <div className="gba:absolute gba:right-2 gba:top-1/2 gba:-translate-y-1/2 gba:pointer-events-none gba:flex gba:items-center gba:gap-1">

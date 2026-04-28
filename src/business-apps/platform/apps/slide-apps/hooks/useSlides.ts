@@ -10,6 +10,12 @@ import { toast } from 'sonner'
 import { useTranslation } from '@newwork/nw-design-system'
 import { SlidesApiService } from '../services/SlidesApiService'
 import type { Slide, SlideSummary } from '../types'
+import type { PptxImportProgressState } from './pptxImport/importProgress'
+import {
+  createCompletedImportProgress,
+  createFinalizingImportProgress,
+  createSavingImportProgress
+} from './pptxImport/importProgress'
 import translations from '../_i18n'
 
 interface UseSlidesState {
@@ -24,6 +30,14 @@ export interface ImportSlideResult {
   contentSaved: boolean
 }
 
+interface ImportSlideOptions {
+  onProgress?: (progress: PptxImportProgressState) => void
+}
+
+const LARGE_IMPORT_SLIDE_THRESHOLD = 100
+const LARGE_IMPORT_POLL_INTERVAL_MS = 1000
+const LARGE_IMPORT_MAX_POLLS = 120
+
 interface UseSlidesResult extends UseSlidesState {
   loadSlide: (id: string) => Promise<Slide | null>
   loadTrashedSlide: (id: string) => Promise<Slide | null>
@@ -32,7 +46,10 @@ interface UseSlidesResult extends UseSlidesState {
     description?: string
     contentJson?: Record<string, unknown>
   }) => Promise<Slide | null>
-  importSlide: (payload: { title: string; contentJson: Record<string, unknown> }) => Promise<ImportSlideResult | null>
+  importSlide: (
+    payload: { title: string; contentJson: Record<string, unknown> },
+    options?: ImportSlideOptions
+  ) => Promise<ImportSlideResult | null>
   updateSlide: (
     id: string,
     updates: Partial<Pick<Slide, 'title' | 'description' | 'content'>>,
@@ -156,30 +173,53 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
   )
 
   const importSlide = useCallback(
-    async (payload: { title: string; contentJson: Record<string, unknown> }): Promise<ImportSlideResult | null> => {
+    async (
+      payload: { title: string; contentJson: Record<string, unknown> },
+      options: ImportSlideOptions = {}
+    ): Promise<ImportSlideResult | null> => {
       if (!accessToken) return null
       try {
-        const created = await SlidesApiService.createSlide({
-          title: payload.title || t('slides-default-title')
-        })
-        await refreshSlides()
-
-        let contentSaved = false
-        let finalSlide = created
-        try {
-          finalSlide = await SlidesApiService.updateSlide(created.id, {
+        const onProgress = options.onProgress
+        const slideCount = Array.isArray(payload.contentJson.slides) ? payload.contentJson.slides.length : 0
+        let created: Slide
+        if (slideCount >= LARGE_IMPORT_SLIDE_THRESHOLD) {
+          const job = await SlidesApiService.createImportJob({
+            title: payload.title || t('slides-default-title'),
+            contentJson: payload.contentJson,
+            sourceType: 'pptx'
+          })
+          onProgress?.(createSavingImportProgress(job.progress))
+          let completedJob = job
+          for (let attempt = 0; attempt < LARGE_IMPORT_MAX_POLLS; attempt++) {
+            if (completedJob.status === 'completed' || completedJob.status === 'failed') break
+            await new Promise(resolve => globalThis.setTimeout(resolve, LARGE_IMPORT_POLL_INTERVAL_MS))
+            completedJob = await SlidesApiService.getImportJob(job.id)
+            onProgress?.(createSavingImportProgress(completedJob.progress))
+          }
+          if (completedJob.status !== 'completed' || !completedJob.slideId) {
+            throw new Error(completedJob.error || 'Slide import job did not complete')
+          }
+          const loaded = await SlidesApiService.getSlide(completedJob.slideId)
+          if (!loaded) {
+            throw new Error('Imported slide deck could not be loaded')
+          }
+          created = loaded
+        } else {
+          onProgress?.(createFinalizingImportProgress(10))
+          created = await SlidesApiService.importSlide({
+            title: payload.title || t('slides-default-title'),
             contentJson: payload.contentJson
           })
-          contentSaved = true
-        } catch (err) {
-          console.error('[useSlides] importSlide content update failed:', err)
+          onProgress?.(createFinalizingImportProgress(70))
         }
+        await refreshSlides()
 
         // Set currentSlide immediately so the editor gets correct contentJson
         // without depending on a separate GET that might return stale data
-        setState(prev => ({ ...prev, currentSlide: finalSlide }))
+        setState(prev => ({ ...prev, currentSlide: created }))
+        onProgress?.(createCompletedImportProgress())
 
-        return { slide: finalSlide, contentSaved }
+        return { slide: created, contentSaved: true }
       } catch (err) {
         console.error('[useSlides] importSlide create failed:', err)
         toast.error(t('slides-toast-create-failed'))

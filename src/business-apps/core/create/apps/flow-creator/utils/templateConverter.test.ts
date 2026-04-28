@@ -2,7 +2,7 @@ import { studioGraphToTemplate, templateToStudioGraph } from './templateConverte
 import type { StudioNode } from '../types/studioTypes'
 import type { FlowGraphEdge } from '@/common/components/flow/flow-viewer'
 import { START_ID, END_ID } from './graphStoreUtils'
-import { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { FlowStepType } from '@/common/data/flow/types/flowTemplate'
 import { AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
 
 function makeStartNode(partial?: Partial<StudioNode>): StudioNode {

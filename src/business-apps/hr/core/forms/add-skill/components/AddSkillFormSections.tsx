@@ -385,12 +385,14 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
         </div>
       )}
 
-      <span
-        className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-2 gba:mt-5"
-        data-testid="add-skill-employee-skills-label"
-      >
-        {t('add-skill-form-current-employee-skills-label')}
-      </span>
+      {activeSelectedSkills.length > 0 && (
+        <span
+          className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-2 gba:mt-5"
+          data-testid="add-skill-employee-skills-label"
+        >
+          {t('add-skill-form-current-employee-skills-label')}
+        </span>
+      )}
 
       {showExistingList && (
         <div

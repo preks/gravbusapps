@@ -1,22 +1,49 @@
-import React from 'react'
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
-import { BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS } from '../../compensation-planning/components/views/budgetDistributionDepartmentGrid'
+import {
+  MANAGER_TEAM_DISTRIBUTION_PERFORMANCE_ROW_GRID_CLASS,
+  MANAGER_TEAM_DISTRIBUTION_STANDARD_ROW_GRID_CLASS
+} from '../../compensation-planning/components/views/budgetDistributionDepartmentGrid'
 import { BudgetDistributionCustomOrgUnitInputs } from '../../compensation-planning/components/views/BudgetDistributionCustomOrgUnitInputs'
 import type {
   CustomBudgetInputMode,
   OrgUnitCustomBudgetInput
 } from '../../compensation-planning/components/views/budgetDistributionCustomTypes'
+import { CompaRatioBar } from './CompaRatioBar'
 import { formatPercentOfPool, formatPerformanceScoreValue, formatShareOfTotal } from './managerTeamDistributionFormat'
 
 type TranslateBudget = (id: string, args?: Record<string, string | number>) => string
+
+function managerTeamMemberRowGridClass(isCustom: boolean, showPerformanceScoreColumn: boolean): string {
+  if (isCustom) {
+    return 'gba:grid gba:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gba:items-start gba:gap-x-4 gba:gap-y-2 gba:px-4 gba:py-3'
+  }
+  if (showPerformanceScoreColumn) {
+    return `${MANAGER_TEAM_DISTRIBUTION_PERFORMANCE_ROW_GRID_CLASS} gba:px-4 gba:py-3`
+  }
+  return `${MANAGER_TEAM_DISTRIBUTION_STANDARD_ROW_GRID_CLASS} gba:px-4 gba:py-3`
+}
+
+function managerTeamOverallScorePrimary(
+  hasResolvedPerformanceScore: boolean,
+  performanceSumDisplay: string,
+  performanceRatingScaleMax: number | null | undefined,
+  tBudget: TranslateBudget
+): string {
+  if (hasResolvedPerformanceScore && performanceRatingScaleMax != null) {
+    return tBudget('manager-team-distribution-overall-score-out-of', {
+      score: performanceSumDisplay,
+      max: String(performanceRatingScaleMax)
+    })
+  }
+  return performanceSumDisplay
+}
 
 export interface TeamCompensationEmployeeDistributionMemberRowProps {
   member: TeamMemberCompensationData
   isCustom: boolean
   isSalaryCostMethod: boolean
   isPerformanceMethod: boolean
-  performanceFallbackToEqual: boolean
   currencyCode: string
   amount: number
   distributionPool: number | null
@@ -36,7 +63,6 @@ export function TeamCompensationEmployeeDistributionMemberRow({
   isCustom,
   isSalaryCostMethod,
   isPerformanceMethod,
-  performanceFallbackToEqual,
   currencyCode,
   amount,
   distributionPool,
@@ -52,17 +78,29 @@ export function TeamCompensationEmployeeDistributionMemberRow({
 }: Readonly<TeamCompensationEmployeeDistributionMemberRowProps>) {
   const poolPercentPoints = formatPercentOfPool(amount, distributionPool)
   const annual = member.currentAnnualSalary ?? 0
-  const score = member.performanceOverallScore ?? 0
+
+  const hasResolvedPerformanceScore =
+    member.performanceOverallScore != null && Number.isFinite(member.performanceOverallScore)
+  const performanceSumDisplay = hasResolvedPerformanceScore
+    ? formatPerformanceScoreValue(member.performanceOverallScore as number)
+    : '—'
+  const performanceShareDisplay =
+    hasResolvedPerformanceScore && grandTotalPositivePerformanceScores > 0
+      ? formatShareOfTotal(Math.max(0, member.performanceOverallScore as number), grandTotalPositivePerformanceScores)
+      : '—'
+
+  const showPerformanceScoreColumn = isPerformanceMethod && !isCustom
+  const rowGridClass = managerTeamMemberRowGridClass(isCustom, showPerformanceScoreColumn)
+
+  const overallScorePrimary = managerTeamOverallScorePrimary(
+    hasResolvedPerformanceScore,
+    performanceSumDisplay,
+    member.performanceRatingScaleMax,
+    tBudget
+  )
 
   return (
-    <li
-      className={
-        isCustom
-          ? 'gba:grid gba:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gba:items-start gba:gap-x-4 gba:gap-y-2 gba:px-4 gba:py-3'
-          : `${BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS} gba:px-4 gba:py-3`
-      }
-      data-testid={`manager-team-distribution-row-${member.employeeId}`}
-    >
+    <li className={rowGridClass} data-testid={`manager-team-distribution-row-${member.employeeId}`}>
       <div className="gba:min-w-0">
         <div className="gba:font-medium gba:text-foreground">{member.displayName}</div>
         {member.jobPosition ? (
@@ -79,18 +117,31 @@ export function TeamCompensationEmployeeDistributionMemberRow({
             })}
           </div>
         ) : null}
-        {isPerformanceMethod && !isCustom && !performanceFallbackToEqual ? (
-          <div
-            className="gba:mt-0.5 gba:text-sm gba:text-muted-foreground"
-            data-testid={`manager-team-distribution-performance-${member.employeeId}`}
-          >
-            {tBudget('budget-distribution-performance-row-detail', {
-              sum: formatPerformanceScoreValue(score),
-              share: formatShareOfTotal(score, grandTotalPositivePerformanceScores)
-            })}
-          </div>
-        ) : null}
       </div>
+      {!isCustom ? (
+        <div className="gba:min-w-0" data-testid={`manager-team-distribution-compensation-band-${member.employeeId}`}>
+          <CompaRatioBar
+            band={member.compensationBand}
+            currentSalary={member.currentAnnualSalary}
+            currencyCode={currencyCode}
+          />
+        </div>
+      ) : null}
+      {showPerformanceScoreColumn ? (
+        <div
+          className="gba:pt-0.5 gba:text-right"
+          data-testid={`manager-team-distribution-performance-${member.employeeId}`}
+        >
+          <div className="gba:tabular-nums gba:font-medium gba:text-foreground">{overallScorePrimary}</div>
+          {hasResolvedPerformanceScore && performanceShareDisplay !== '—' ? (
+            <div className="gba:mt-0.5 gba:text-xs gba:tabular-nums gba:text-muted-foreground">
+              {tBudget('manager-team-distribution-performance-weight-fraction', {
+                share: performanceShareDisplay
+              })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {isCustom ? (
         <BudgetDistributionCustomOrgUnitInputs
           orgUnitId={member.employeeId}

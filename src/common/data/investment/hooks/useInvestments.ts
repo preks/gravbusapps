@@ -44,10 +44,10 @@ export const useGetInvestments = (context: BusinessAppContextProps) => {
 
   const fetchInvestments = useCallback(
     async (variables: InvestmentQueryVariables = {}) => {
-      const query = GET_INVESTMENTS(variables)
+      const { query, variables: gqlVariables } = GET_INVESTMENTS(variables)
 
       try {
-        const result = await graphqlClient.request<InvestmentQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentQueryResponse>(query, gqlVariables)
 
         // Transform base types to enhanced types using mapper
         const enhancedInvestments = result.Investment.map(toInvestment)
@@ -100,10 +100,10 @@ export const useSearchInvestments = (context: BusinessAppContextProps) => {
   const searchInvestments = useCallback(
     async (searchTerm: string, variables: InvestmentQueryVariables = {}) => {
       const searchVariables = { ...variables, search: searchTerm }
-      const query = GET_INVESTMENTS(searchVariables)
+      const { query, variables: gqlVariables } = GET_INVESTMENTS(searchVariables)
 
       try {
-        const result = await graphqlClient.request<InvestmentQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentQueryResponse>(query, gqlVariables)
 
         // Transform base types to enhanced types using mapper
         const enhancedInvestments = result.Investment.map(toInvestment)
@@ -168,10 +168,10 @@ export const useGetInvestmentsByAccountId = (context: BusinessAppContextProps) =
         limit: 100
       }
 
-      const query = GET_INVESTMENTS(variables)
+      const { query, variables: gqlVariables } = GET_INVESTMENTS(variables)
 
       try {
-        const result = await graphqlClient.request<InvestmentQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentQueryResponse>(query, gqlVariables)
         const enhancedInvestments = result.Investment.map(toInvestment)
 
         return {
@@ -204,10 +204,10 @@ export const useGetInvestmentsByContactId = (context: BusinessAppContextProps) =
         limit: 100
       }
 
-      const query = GET_INVESTMENTS(variables)
+      const { query, variables: gqlVariables } = GET_INVESTMENTS(variables)
 
       try {
-        const result = await graphqlClient.request<InvestmentQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentQueryResponse>(query, gqlVariables)
         const enhancedInvestments = result.Investment.map(toInvestment)
 
         return {

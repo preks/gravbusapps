@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react'
-import { Button, Label } from '@newwork/nw-design-system'
+import { Button, Label, useTranslation } from '@newwork/nw-design-system'
 import { Bot, Brain, CheckCircle2, ClipboardList, Code2, Info, Plug, UserCheck } from 'lucide-react'
-import { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { FlowStepType } from '@/common/data/flow/types/flowTemplate'
+import translations from '../../../_i18n'
 
 const META: Record<
   FlowStepType,
@@ -17,7 +18,7 @@ const META: Record<
   ACKNOWLEDGE: { Icon: CheckCircle2, description: 'Quick acknowledgment.' },
   FUNCTION: { Icon: Code2, description: 'Run an automated function.' },
   AI_AGENT: { Icon: Brain, description: 'Agent step with permissions.', isAI: true },
-  AI_TASK_EXPERT: { Icon: Bot, description: 'AI Task Expert prompt step.', isAI: true }
+  AI_TASK_EXPERT: { Icon: Bot, description: '', isAI: true }
 }
 
 /**
@@ -53,6 +54,11 @@ export const TaskStepTypeSelector: React.FC<TaskStepTypeSelectorProps> = ({
   onFunctionCategoryChange,
   'data-testid': testId = 'task-step-type-selector'
 }) => {
+  const { t } = useTranslation(translations)
+  const getDescription = (type: FlowStepType): string => {
+    if (type === FlowStepType.AI_TASK_EXPERT) return t('task-step-type-ai-task-expert-description')
+    return META[type]?.description ?? ''
+  }
   const available = useMemo(() => {
     // Always include currently selected value so legacy steps still render.
     const unique = Array.from(new Set([...options, value]))
@@ -162,7 +168,7 @@ export const TaskStepTypeSelector: React.FC<TaskStepTypeSelectorProps> = ({
                       <span className="gba:text-xs gba:font-semibold gba:text-foreground">{getLabel(type)}</span>
                     </div>
                     <span className="gba:text-[11px] gba:text-muted-foreground gba:line-clamp-2">
-                      {meta?.description}
+                      {getDescription(type)}
                     </span>
                   </Button>
                 )

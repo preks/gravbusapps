@@ -1,0 +1,2 @@
+export const MAX_CHARACTERS_FOR_NAME = 64
+export const MAX_CHARACTERS_FOR_CODE = 20

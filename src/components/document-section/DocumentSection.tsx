@@ -15,6 +15,8 @@ import { createDocumentTableColumns } from './components/DocumentTableColumns'
 import { DocumentSectionToolbar } from './components/DocumentSectionToolbar'
 import { DocumentSectionTable } from './components/DocumentSectionTable'
 import { DocumentSectionModals } from './components/DocumentSectionModals'
+import { useDocumentOrganize } from './hooks/useDocumentOrganize'
+import { OrganizeWithAiDialog } from './components/OrganizeWithAiDialog'
 
 export const DocumentSection: React.FC<DocumentSectionProps> = ({
   entityId,
@@ -35,6 +37,7 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
   updateActionProps,
   deleteActionProps,
   accessToken,
+  aiOrganizeConfig,
   'data-testid': dataTestId = 'document-section'
 }) => {
   // Listen for process completion events to refresh documents after update/delete flows
@@ -159,6 +162,17 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
     setSelectedItems: state.setSelectedItems
   })
 
+  // Initialize AI document organization
+  const aiOrganize = useDocumentOrganize({
+    documents,
+    entityId,
+    accessToken,
+    apiConfig,
+    restClient,
+    aiOrganizeConfig,
+    onRefresh
+  })
+
   // Create table columns
   const columns = createDocumentTableColumns({
     dataTestId,
@@ -218,6 +232,8 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
           handleUpload={actions.handleUpload}
           handleExpandAll={actions.handleExpandAll}
           handleCollapseAll={actions.handleCollapseAll}
+          showAiOrganize={!!aiOrganizeConfig && aiOrganize.hasDocuments}
+          onAiOrganize={aiOrganize.openDialog}
         />
 
         {/* Table */}
@@ -271,6 +287,23 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
           accessToken={accessToken}
         />
       </div>
+
+      {/* AI Organize Dialog */}
+      {aiOrganizeConfig && accessToken && (
+        <OrganizeWithAiDialog
+          open={aiOrganize.dialogOpen}
+          onClose={aiOrganize.closeDialog}
+          fileDocuments={aiOrganize.fileDocuments}
+          aiOrganizeConfig={aiOrganizeConfig}
+          accessToken={accessToken}
+          state={aiOrganize.state}
+          onOrganizeByTemplate={aiOrganize.organizeByTemplate}
+          onOrganizeByDescription={aiOrganize.organizeByDescription}
+          onApply={aiOrganize.applyDecisions}
+          onReset={aiOrganize.reset}
+          dataTestId={`${dataTestId}-ai-organize`}
+        />
+      )}
     </div>
   )
 }

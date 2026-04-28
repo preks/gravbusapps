@@ -7,11 +7,17 @@ import {
 } from '../api/saveCompensationBudgetPlan'
 import {
   GET_COMPENSATION_BUDGET_PLAN_COMPANY_ROW_BY_ID,
+  GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_ALLOCATION_AMOUNTS_BY_ORG_UNIT_BUDGET_ID,
   GET_COMPENSATION_BUDGET_PLAN_ORG_UNIT_BUDGET_ROW_BY_ID
 } from '../queries/budgetPlanQueries'
 import type { BudgetPlanStatusApi } from '../types/budgetPlanGraphqlEnums'
-import { roundMoney2 } from './budgetAmountPercentSync'
-import { graphqlUnknownToString, graphqlUnknownToStringOrNull } from './graphqlUnknownToString'
+import { percentFromAmount, roundMoney2 } from './budgetAmountPercentSync'
+import { graphqlUnknownToString } from './graphqlUnknownToString'
+import { sumEmployeeAllocationsForOrgUnitRollup } from './orgUnitAllocationAmountRollup'
+import {
+  mapGraphqlCompanyBudgetRowToSaveInputStrict,
+  mapGraphqlCompanyBudgetRowToSaveInputWithFallback
+} from './mapGraphqlCompanyBudgetRowToSaveInput'
 
 function num(v: unknown): number {
   if (typeof v === 'number' && !Number.isNaN(v)) {
@@ -19,13 +25,6 @@ function num(v: unknown): number {
   }
   const n = Number(v)
   return Number.isNaN(n) ? 0 : n
-}
-
-function percentOfPool(amount: number, pool: number): number {
-  if (pool <= 0 || !Number.isFinite(amount) || !Number.isFinite(pool)) {
-    return 0
-  }
-  return Math.round((10000 * amount) / pool) / 100
 }
 
 function coerceOuStatus(raw: unknown): BudgetPlanStatusApi {
@@ -36,42 +35,25 @@ function coerceOuStatus(raw: unknown): BudgetPlanStatusApi {
   return s as BudgetPlanStatusApi
 }
 
-function mapCompanyRowToSaveInput(raw: Record<string, unknown>) {
-  return {
-    id: String(raw.id),
-    version: num(raw.version),
-    compensationBudgetPlanId: String(raw.compensationBudgetPlanId),
-    companyId: String(raw.companyId),
-    salaryBudgetAmount: num(raw.salaryBudgetAmount),
-    salaryBudgetPercent: num(raw.salaryBudgetPercent),
-    currentTotalSalaryCost: num(raw.currentTotalSalaryCost),
-    currencyRef: graphqlUnknownToStringOrNull(raw.currencyRef)
-  }
-}
-
 export interface ReduceOrgUnitBudgetPoolOptions {
   /** When set (e.g. supervisor approve-all), persisted on the org-unit row instead of the previous status. */
   orgUnitBudgetPlanStatus?: BudgetPlanStatusApi
 }
 
 /**
- * Reduces `compensation_budget_plan_organizational_unit.salary_budget_amount` by the consumed allocation
- * and refreshes `salary_budget_percent` vs the parent company pool; then touches the company row (same as HR Distribute).
- * With `orgUnitBudgetPlanStatus`, still runs an UPDATE when the consumed amount is zero (status-only change).
+ * After supervisor/HR actions on employee rows: keeps OU `salary_budget_*` as the HR department slice (unchanged).
+ * Sets OU `allocation_amount` to the sum of employee `allocationAmount` for rows that still count toward the
+ * department pool (submitted / approved / executed; excludes sent-back, draft, etc.).
+ * Optionally overrides `budgetPlanStatus` (e.g. `BUDGET_PLAN_APPROVED`). Then touches the company row.
  */
 export async function reduceOrgUnitBudgetPoolByAmount(
   graphqlClient: GraphQLClient,
   restClient: RestClient,
   accessToken: string,
   planOuRowId: string,
-  amountConsumedFromPool: number,
   options?: ReduceOrgUnitBudgetPoolOptions
 ): Promise<void> {
-  const delta = roundMoney2(amountConsumedFromPool)
   const statusOverride = options?.orgUnitBudgetPlanStatus
-  if (delta <= 0 && statusOverride == null) {
-    return
-  }
 
   const ouResult = await graphqlClient.request<{
     CompensationBudgetPlanOrganizationalUnit: Record<string, unknown>[]
@@ -96,10 +78,22 @@ export async function reduceOrgUnitBudgetPoolByAmount(
     throw new Error('Company budget row not found')
   }
 
-  const companyPool = num(company.salaryBudgetAmount)
-  const currentOuAmount = roundMoney2(num(ou.salaryBudgetAmount))
-  const nextOuAmount = Math.max(0, roundMoney2(currentOuAmount - delta))
-  const nextOuPercent = percentOfPool(nextOuAmount, companyPool)
+  const companySavePrior = mapGraphqlCompanyBudgetRowToSaveInputStrict(company)
+
+  const companyBaseline = roundMoney2(num(company.currentTotalSalaryCost))
+  const nextOuSalary = roundMoney2(num(ou.salaryBudgetAmount))
+
+  const allocResult = await graphqlClient.request<{
+    CompensationBudgetPlanEmployee: { allocationAmount: unknown; budgetPlanStatus: unknown }[]
+  }>(GET_COMPENSATION_BUDGET_PLAN_EMPLOYEE_ALLOCATION_AMOUNTS_BY_ORG_UNIT_BUDGET_ID, {
+    orgUnitBudgetId: planOuRowId
+  })
+  const nextOuAllocation = sumEmployeeAllocationsForOrgUnitRollup(allocResult.CompensationBudgetPlanEmployee ?? [])
+
+  const nextOuPercent =
+    companyBaseline > 0
+      ? roundMoney2(percentFromAmount(nextOuSalary, companyBaseline))
+      : roundMoney2(num(ou.salaryBudgetPercent))
 
   const ouVersion = num(ou.version)
   if (!Number.isFinite(ouVersion)) {
@@ -109,8 +103,9 @@ export async function reduceOrgUnitBudgetPoolByAmount(
   const unitPayload = {
     id: graphqlUnknownToString(ou.id),
     version: ouVersion,
-    salaryBudgetAmount: nextOuAmount,
+    salaryBudgetAmount: nextOuSalary,
     salaryBudgetPercent: nextOuPercent,
+    allocationAmount: nextOuAllocation,
     bonusBudgetAmount: num(ou.bonusBudgetAmount),
     bonusBudgetPercent: num(ou.bonusBudgetPercent),
     budgetPlanStatus: statusOverride ?? coerceOuStatus(ou.budgetPlanStatus),
@@ -132,6 +127,27 @@ export async function reduceOrgUnitBudgetPoolByAmount(
     throw new Error('Company budget row not found after org unit update')
   }
 
-  const companyBody = buildSaveCompensationBudgetPlanCompanyUpdateBody(mapCompanyRowToSaveInput(companyAfterOu))
+  const companyBody = buildSaveCompensationBudgetPlanCompanyUpdateBody(
+    mapGraphqlCompanyBudgetRowToSaveInputWithFallback(companyAfterOu, companySavePrior)
+  )
   await saveCompensationBudgetPlanCompany(restClient, accessToken, companyBody)
+}
+
+/**
+ * Recomputes OU `allocation_amount` as the sum of employee `allocationAmount` for rows that count toward the
+ * pool (same status filter as {@link sumEmployeeAllocationsForOrgUnitRollup}).
+ * Leaves `salary_budget_*` and OU `budget_plan_status` unchanged (no supervisor status override).
+ * Use after manager revises a sent-back employee row so department roll-up stays correct.
+ */
+export async function refreshOrgUnitAllocationAmountFromEmployees(
+  graphqlClient: GraphQLClient,
+  restClient: RestClient,
+  accessToken: string,
+  planOuRowId: string
+): Promise<void> {
+  const id = planOuRowId.trim()
+  if (id === '') {
+    return
+  }
+  await reduceOrgUnitBudgetPoolByAmount(graphqlClient, restClient, accessToken, id)
 }

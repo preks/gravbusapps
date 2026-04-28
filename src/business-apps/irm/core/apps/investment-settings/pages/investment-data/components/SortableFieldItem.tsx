@@ -1,7 +1,7 @@
 import React from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Button, Badge } from '@newwork/nw-design-system'
+import { Badge, Button, Card, CardAction, CardContent, CardHeader } from '@newwork/nw-design-system'
 import { DotsSixVerticalIcon, PencilIcon, TrashIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FieldDefinition } from '../types'
@@ -28,24 +28,27 @@ export const SortableFieldItem: React.FC<SortableFieldItemProps> = ({
   }
 
   return (
-    <div
+    <Card
       ref={setNodeRef}
+      variant="default"
       style={style}
-      className="gba:flex gba:flex-col gba:gap-2 gba:p-3 gba:rounded-md gba:border gba:border-border gba:bg-card gba:h-full"
+      data-field-id={field.id}
+      className="gba:group gba:relative gba:gap-2 gba:py-3 gba:h-full gba:shadow-sm gba:transition-shadow gba:duration-300 hover:gba:shadow-md"
       data-testid={prefixDataTestId}
     >
-      {/* Header with drag handle and actions */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-        <div
+      <CardHeader className="gba:px-3 gba:items-center">
+        <button
+          type="button"
           {...listeners}
           {...attributes}
-          className="gba:cursor-grab gba:flex gba:items-center gba:text-muted-foreground"
+          className="gba:cursor-grab gba:flex gba:items-center gba:bg-transparent gba:border-0 gba:p-0 gba:text-muted-foreground gba:rounded gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring"
           data-testid={`${prefixDataTestId}-drag-handle`}
+          aria-label={`Drag ${field.label}`}
         >
           <DotsSixVerticalIcon size={20} />
-        </div>
+        </button>
 
-        <div className="gba:flex gba:items-center gba:gap-1">
+        <CardAction className="gba:flex gba:items-center gba:gap-1">
           <Button
             size="icon"
             variant="ghost"
@@ -64,23 +67,20 @@ export const SortableFieldItem: React.FC<SortableFieldItemProps> = ({
           >
             <TrashIcon />
           </Button>
-        </div>
-      </div>
+        </CardAction>
+      </CardHeader>
 
-      {/* Field Info */}
-      <div className="gba:flex-1" data-testid={`${prefixDataTestId}-info`}>
+      <CardContent className="gba:px-3 gba:flex-1" data-testid={`${prefixDataTestId}-info`}>
         <div className="gba:mb-2">
           <span className="gba:font-semibold gba:text-sm gba:block">{field.label}</span>
         </div>
         <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1 gba:mb-2">
           {field.required && <Badge variant="destructive">Required</Badge>}
           <Badge variant="outline">{field.type}</Badge>
-          <Badge variant="secondary" className="gba:bg-info-secondary gba:text-info-secondary-foreground">
-            {field.displayOrder}
-          </Badge>
+          <Badge variant="info">{field.displayOrder}</Badge>
         </div>
         <div className="gba:text-xs gba:text-muted-foreground gba:break-all">{field.property}</div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }

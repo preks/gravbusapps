@@ -62,6 +62,7 @@ import { VirtualizedDocumentViewport } from './VirtualizedDocumentViewport'
 import { DOCUMENT_TOC_OPEN_FORMAT_EVENT } from './components/DocumentTableOfContentsView'
 import { useDocumentContextMenu } from './useDocumentContextMenu'
 import translations from '../../_i18n'
+import sharedTranslations from '@/business-apps/platform/apps/shared/_i18n'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 import {
@@ -254,6 +255,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     ref
   ) {
     const { t, locale: currentLocale } = useTranslation(translations)
+    const { t: sharedT } = useTranslation(sharedTranslations)
     const translateRef = useRef(t)
     translateRef.current = t
     const translateStable = useCallback((key: string) => translateRef.current(key), [])
@@ -1562,6 +1564,21 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       }),
       [t]
     )
+    const publishDialogMessages = useMemo(() => {
+      const entityType = sharedT('publish-dialog-entity-document')
+
+      return {
+        title: sharedT('publish-dialog-title', { entityType }),
+        alert: sharedT('publish-dialog-info', { entityType }),
+        notesLabel: sharedT('publish-dialog-notes-label'),
+        notesPlaceholder: sharedT('publish-dialog-notes-placeholder'),
+        notesHint: sharedT('publish-dialog-notes-hint'),
+        createCheckpointLabel: sharedT('publish-dialog-create-checkpoint'),
+        cancel: sharedT('publish-dialog-cancel'),
+        confirm: sharedT('publish-dialog-publish'),
+        publishing: sharedT('publish-dialog-publishing')
+      }
+    }, [sharedT])
     const handleOpenApprovalReview = useCallback(
       (versionNumber: number) => {
         setShowVersionHistory(false)
@@ -1872,6 +1889,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           onClosePublishDialog={() => setShowPublishDialog(false)}
           onPublish={handlePublishDocument}
           isPublishing={publishing.isPublishing}
+          publishDialogMessages={publishDialogMessages}
           showPageSetupDialog={showPageSetupDialog}
           setShowPageSetupDialog={setShowPageSetupDialog}
           layoutFormatting={layoutFormatting}

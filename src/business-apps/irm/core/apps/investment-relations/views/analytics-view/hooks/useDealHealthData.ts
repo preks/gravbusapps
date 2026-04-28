@@ -1,16 +1,31 @@
 /**
- * Re-export shared useDealHealthData hook from common location
- * This reduces code duplication between CRM and IRM modules
+ * IRM-specific wrapper around the shared useDealHealthData hook.
  *
- * Note: IRM uses 'InvestmentOpportunity' entity and doesn't have winningChance field
+ * `InvestmentOpportunity` does not expose `winningChance`, so per-deal scoring
+ * uses stage progress (from the IRM pipeline-stage catalog) plus a close-date
+ * risk factor instead.
  */
-import { useDealHealthData as useSharedDealHealthData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
+import { useMemo } from 'react'
+import {
+  useDealHealthData as useSharedDealHealthData,
+  type DealHealthConfig
+} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
-/**
- * Wrapper hook for IRM that uses 'InvestmentOpportunity' entity without winningChance
- */
 export const useDealHealthData = (accessToken: string) => {
-  return useSharedDealHealthData(accessToken, 'InvestmentOpportunity', false)
+  const config = useMemo<DealHealthConfig>(
+    () => ({
+      entityName: 'InvestmentOpportunity',
+      scoringStrategy: 'stageAndCloseDate',
+      pipelineField: 'opportunityPipeline',
+      stageField: 'opportunityPipelineStage',
+      stagesCatalogIdentifier: 'InvestmentOpportunityPipelineStage',
+      // InvestmentOpportunityStatus codes are tenant-specific; the canonical bucket
+      // (OPEN/WON/LOST) lives in `type`.
+      statusFilterField: 'type'
+    }),
+    []
+  )
+  return useSharedDealHealthData(accessToken, config)
 }
 
 export type {

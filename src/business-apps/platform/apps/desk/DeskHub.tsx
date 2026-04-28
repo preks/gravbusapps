@@ -251,7 +251,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
           onCreateSpreadsheet={handleCreateSpreadsheet}
           onCreateNote={handleCreateNote}
           onCreateSlide={handleCreateSlide}
-          onCreateWhiteboard={handleCreateWhiteboard}
+          onCreateWhiteboard={previewEnabled ? handleCreateWhiteboard : undefined}
           searchResults={displayItems}
           onItemClick={handleItemClick}
           isLoading={isLoading}
@@ -263,7 +263,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
         {previewEnabled && <NexusTeaser data-testid={`${testId}-nexus-teaser`} />}
 
         {/* Spaces Section */}
-        {spaces.length > 0 && (
+        {previewEnabled && spaces.length > 0 && (
           <section
             className="gba:py-6 gba:px-6 gba:relative"
             data-testid={`${testId}-spaces-section`}

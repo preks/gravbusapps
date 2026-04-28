@@ -4,8 +4,7 @@ import { ArrowRightIcon, PauseCircleIcon, PencilSimpleIcon, XIcon } from '@phosp
 import {
   WORKSPACE_CHAT_GUTTER_CLASS,
   WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS,
-  WORKSPACE_CHAT_RAIL_CLASS,
-  WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS
+  WORKSPACE_CHAT_RAIL_CLASS
 } from './workspaceLayout.constants'
 
 // ─── Option parsing ───────────────────────────────────────────────────────────
@@ -128,10 +127,13 @@ export interface ClarificationPromptProps {
   question: string
   isOpen: boolean
   /**
-   * Mirrors `ConversationPanel.isChatOffset` — when the right workspace panel
-   * is docked + open, slide the modal's rail left so it tracks the chat column.
+   * Mirrors `ConversationPanel.chatOffsetClass` — the resolved right-offset
+   * utility class (regular or preview-width variant) when the right workspace
+   * panel is open, otherwise an empty string. Applied on an **outer** wrapper
+   * around the gutter so it can't collide with the responsive gutter's
+   * `padding-right` in the Tailwind cascade.
    */
-  isChatOffset?: boolean
+  chatOffsetClass?: string
   onAnswer: (answer: string) => void
   onDismiss?: () => void
 }
@@ -139,7 +141,7 @@ export interface ClarificationPromptProps {
 export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
   question,
   isOpen,
-  isChatOffset = false,
+  chatOffsetClass = '',
   onAnswer,
   onDismiss
 }) => {
@@ -198,16 +200,12 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
         aria-modal="true"
         aria-label="Agent clarification"
         data-testid="fabric-clarification-prompt"
-        className={`gba:absolute gba:inset-x-0 gba:bottom-[9.625rem] sm:gba:bottom-[10.875rem] lg:gba:bottom-[11.625rem] gba:z-[60] gba:m-0 gba:pointer-events-none gba:max-h-none gba:w-full gba:max-w-none gba:border-0 gba:bg-transparent gba:p-0 gba:shadow-none gba:backdrop:bg-transparent gba:transition-all gba:duration-300 gba:ease-out ${
+        className={`gba:absolute gba:inset-x-0 gba:bottom-[9.625rem] sm:gba:bottom-[10.875rem] lg:gba:bottom-[11.625rem] gba:z-[60] gba:m-0 gba:pointer-events-none gba:max-h-none gba:w-full gba:max-w-none gba:border-0 gba:bg-transparent gba:p-0 gba:shadow-none gba:backdrop:bg-transparent gba:transition-all gba:duration-300 gba:ease-out ${chatOffsetClass} ${WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS} ${
           isOpen ? 'gba:translate-y-0 gba:opacity-100' : 'gba:translate-y-4 gba:opacity-0 gba:pointer-events-none'
         }`}
+        data-chat-offset={chatOffsetClass ? 'true' : 'false'}
       >
-        <div
-          className={`${WORKSPACE_CHAT_GUTTER_CLASS} ${
-            isChatOffset ? WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS : ''
-          } ${WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS}`}
-          data-chat-offset={isChatOffset ? 'true' : 'false'}
-        >
+        <div className={WORKSPACE_CHAT_GUTTER_CLASS}>
           <div className={`${WORKSPACE_CHAT_RAIL_CLASS} gba:mx-auto gba:pointer-events-auto`}>
             <div className="gba:rounded-[1.6rem] gba:border gba:border-border/85 gba:bg-card/98 gba:backdrop-blur-xl gba:shadow-[0_20px_60px_rgba(15,23,42,0.14)] gba:overflow-hidden">
               <div className="gba:flex gba:items-center gba:gap-2.5 gba:px-4 sm:gba:px-5 gba:pt-4 gba:pb-3">

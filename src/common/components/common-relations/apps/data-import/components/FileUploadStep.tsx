@@ -91,6 +91,26 @@ const EnforcedCatalogField: React.FC<EnforcedCatalogFieldProps> = ({ config, tes
   )
 }
 
+// Accepted import formats. Backend (Flowbot) handles parsing; the FE only
+// gates the picker + surfaces an inline error when the user selects an
+// unsupported file. Keep the extension list and `ACCEPTED_FILE_TYPES` in
+// sync — extensions are checked client-side because some browsers report
+// empty `File.type` for `.csv`/`.xls` on certain OSes.
+const ACCEPTED_EXTENSIONS = ['.csv', '.xlsx', '.xls'] as const
+const ACCEPTED_FILE_TYPES = [
+  '.csv',
+  '.xlsx',
+  '.xls',
+  'text/csv',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+].join(',')
+
+const isAcceptedFile = (file: File): boolean => {
+  const lower = file.name.toLowerCase()
+  return ACCEPTED_EXTENSIONS.some(ext => lower.endsWith(ext))
+}
+
 export const FileUploadStep: React.FC<FileUploadStepProps> = ({
   file,
   isLoading,
@@ -104,9 +124,26 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
   'data-testid': testId = 'file-upload-step'
 }) => {
   const { t } = useTranslation(translations)
+  const [formatError, setFormatError] = React.useState<string | null>(null)
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null
+
+    if (!selectedFile) {
+      setFormatError(null)
+      onFileChange(null)
+      return
+    }
+
+    if (!isAcceptedFile(selectedFile)) {
+      setFormatError(t('file-unsupported-format-error'))
+      onFileChange(null)
+      // Reset the native input so the same bad file can be re-selected after fix.
+      e.target.value = ''
+      return
+    }
+
+    setFormatError(null)
     onFileChange(selectedFile)
   }
 
@@ -125,12 +162,24 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
             <Input
               id="file-upload"
               type="file"
-              accept=".csv"
+              accept={ACCEPTED_FILE_TYPES}
               onChange={handleFileInputChange}
               className="gba:mt-2"
               data-testid={`${testId}-file-input`}
             />
+            <p
+              className="gba:mt-1 gba:text-xs gba:text-muted-foreground"
+              data-testid={`${testId}-accepted-formats-hint`}
+            >
+              {t('file-accepted-formats-hint')}
+            </p>
           </div>
+
+          {formatError && (
+            <p className="gba:text-xs gba:text-destructive" data-testid={`${testId}-format-error`}>
+              {formatError}
+            </p>
+          )}
 
           {file && (
             <div

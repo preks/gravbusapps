@@ -275,7 +275,7 @@ export function PagedDocumentEditorHeader({
                       {onTranslate('editor-export')}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" style={{ zIndex: 1100 }}>
                     <DropdownMenuItem onClick={onExportWord} disabled={isExporting}>
                       <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
                       {onTranslate('editor-export-word')}
@@ -410,7 +410,7 @@ export function PagedDocumentEditorHeader({
                         {onTranslate('editor-document-menu')}
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" style={{ zIndex: 1100 }}>
                       <DropdownMenuItem onClick={onOpenCheckpointDialog}>
                         <Save className="gba:w-4 gba:h-4 gba:mr-2" />
                         {onTranslate('editor-save-checkpoint')}

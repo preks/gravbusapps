@@ -8,6 +8,7 @@ import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { normalizeSalaryData, hasAnySalaryData } from '../../utils/salaryCalculations'
+import { CompaRatioBar } from '@/business-apps/hr/compensation-planning/apps/manager-compensation-planning/components/CompaRatioBar'
 
 interface CompensationKPICardsProps {
   t: (key: string, params?: any) => string
@@ -37,6 +38,7 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
   const { currentCompensation, totalBonusesYTD, activeBonusesCount, activeBenefitsCount } = compensationData
 
   const currencyCode = currentCompensation?.currency?.code || 'EUR'
+  const compensationBand = currentCompensation?.compensationBand ?? null
 
   // Normalize salary data: calculate missing values and determine what to display
   const normalizedSalary = normalizeSalaryData(
@@ -123,6 +125,25 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
                         </div>
                       )}
                     </>
+                  )}
+                  {normalizedSalary.yearly != null && compensationBand && (
+                    <div className="gba:mt-4">
+                      <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
+                        {t('band-position-label', 'Position in compensation band')}
+                      </div>
+                      <CompaRatioBar
+                        band={compensationBand}
+                        currentSalary={normalizedSalary.yearly}
+                        currencyCode={currencyCode}
+                        align="start"
+                        fullWidth
+                      />
+                      <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground gba:tabular-nums">
+                        <span className="gba:font-medium gba:text-foreground">{t('band-short-label', 'Band')}:</span>{' '}
+                        {formatCurrencyString(compensationBand.minSalary, currencyFormatOptions)} -{' '}
+                        {formatCurrencyString(compensationBand.maxSalary, currencyFormatOptions)}
+                      </div>
+                    </div>
                   )}
                 </>
               ) : (

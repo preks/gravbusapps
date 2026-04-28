@@ -1,6 +1,10 @@
 import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { WorkspaceLayout } from '../WorkspaceLayout'
+import {
+  WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS,
+  WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_OPEN_CLASS
+} from '../workspaceLayout.constants'
 
 const mockUseFabric = jest.fn()
 const mockUseFabricConnectors = jest.fn()
@@ -17,12 +21,24 @@ jest.mock('../ArtifactViewer', () => ({
   ArtifactViewer: () => null
 }))
 
-jest.mock('../ClarificationPrompt', () => ({
-  ClarificationPrompt: () => null
+// Use a lightweight ConversationPanel stub that echoes `chatOffsetClass` onto
+// a testable wrapper so we can assert that the resolved class actually reaches
+// it — the real bug was that the offset class was silently cancelled by the
+// Tailwind cascade when it was applied to the same element as the gutter.
+jest.mock('../ConversationPanel', () => ({
+  ConversationPanel: ({ chatOffsetClass }: { chatOffsetClass?: string }) => (
+    <div
+      data-testid="fabric-conversation-panel"
+      data-chat-offset-class={chatOffsetClass ?? ''}
+      data-chat-offset={chatOffsetClass && chatOffsetClass.length > 0 ? 'true' : 'false'}
+    />
+  )
 }))
 
-jest.mock('../ConversationPanel', () => ({
-  ConversationPanel: () => <div data-testid="fabric-conversation-panel" />
+jest.mock('../ClarificationPrompt', () => ({
+  ClarificationPrompt: ({ chatOffsetClass }: { chatOffsetClass?: string }) => (
+    <div data-testid="fabric-clarification-prompt" data-chat-offset-class={chatOffsetClass ?? ''} />
+  )
 }))
 
 jest.mock('../WorkspaceRightPanel', () => ({
@@ -31,6 +47,10 @@ jest.mock('../WorkspaceRightPanel', () => ({
 
 jest.mock('../WorkspaceSkillIndicator', () => ({
   WorkspaceSkillIndicator: () => null
+}))
+
+jest.mock('../WorkspaceConnectorIndicator', () => ({
+  WorkspaceConnectorIndicator: () => null
 }))
 
 jest.mock('../WorkspaceStreamingIsland', () => ({
@@ -53,7 +73,7 @@ function setWindowWidth(width: number): void {
   })
 }
 
-function createFabricState() {
+function createFabricState(overrides: Record<string, unknown> = {}) {
   return {
     session: {
       session_id: 'session-1',
@@ -64,25 +84,34 @@ function createFabricState() {
     messages: [],
     streamingGreeting: '',
     streamingContent: '',
+    streamingThinking: '',
     statusHeadline: null,
     accessToken: 'token',
     isStreaming: false,
     isConnected: true,
     isWaitingForInput: false,
     taskNodes: [],
+    hasPlan: false,
     completedCount: 0,
     totalCount: 0,
     progressPercent: 0,
+    currentTodoText: null,
     activityEvents: [],
+    decisions: [],
     activeSkill: null,
     sessionConnectorIds: [],
     artifacts: [],
     workspaceDocs: [],
     activeArtifact: null,
+    artifactPreviews: [],
+    latestPreview: null,
+    hasActivePreview: false,
+    refreshArtifacts: jest.fn(),
     reply: jest.fn(),
     stopSession: jest.fn(),
     newSession: jest.fn(),
-    setActiveArtifactId: jest.fn()
+    setActiveArtifactId: jest.fn(),
+    ...overrides
   }
 }
 
@@ -165,5 +194,62 @@ describe('WorkspaceLayout right panel', () => {
 
     fireEvent.click(screen.getByTestId('fabric-workspace-panel-toggle'))
     expect(composerStack).toHaveAttribute('data-chat-offset', 'true')
+  })
+
+  /**
+   * Regression: the chat rail inside `ConversationPanel` was visibly not
+   * shifting when the panel opened, because the `pr-[calc(20rem+2rem)]` offset
+   * class lived on the same element as the responsive gutter
+   * (`sm:px-6 / lg:px-8`) and lost the cascade at ≥640px. We now pass the
+   * already-resolved class string down and apply it on a separate outer
+   * wrapper, so it can't collide with the gutter. These tests assert the
+   * offset class actually reaches both conversation + clarification.
+   */
+  it('passes the chat-offset class string to ConversationPanel and ClarificationPrompt when the panel is open', () => {
+    setWindowWidth(1600)
+    mockUseFabric.mockReturnValue(
+      createFabricState({
+        isWaitingForInput: true,
+        session: {
+          session_id: 'session-1',
+          status: 'waiting_for_human',
+          human_question: 'Are you sure?',
+          structured_input_request: null
+        }
+      })
+    )
+
+    render(<WorkspaceLayout />)
+
+    const conversationPanel = screen.getByTestId('fabric-conversation-panel')
+    expect(conversationPanel).toHaveAttribute('data-chat-offset-class', WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS)
+
+    const clarification = screen.getByTestId('fabric-clarification-prompt')
+    expect(clarification).toHaveAttribute('data-chat-offset-class', WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS)
+  })
+
+  it('clears the chat-offset class for ConversationPanel when the panel is closed', () => {
+    setWindowWidth(1600)
+
+    render(<WorkspaceLayout />)
+
+    fireEvent.click(screen.getByTestId('fabric-workspace-panel-toggle'))
+
+    expect(screen.getByTestId('fabric-conversation-panel')).toHaveAttribute('data-chat-offset-class', '')
+  })
+
+  it('uses the wider preview offset class when a live canvas preview is active', () => {
+    setWindowWidth(1600)
+    mockUseFabric.mockReturnValue(createFabricState({ hasActivePreview: true }))
+
+    render(<WorkspaceLayout />)
+
+    const composerStack = screen.getByTestId('fabric-workspace-composer-stack')
+    expect(composerStack.className).toContain(WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_OPEN_CLASS)
+
+    expect(screen.getByTestId('fabric-conversation-panel')).toHaveAttribute(
+      'data-chat-offset-class',
+      WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_OPEN_CLASS
+    )
   })
 })

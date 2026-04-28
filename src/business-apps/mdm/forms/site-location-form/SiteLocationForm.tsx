@@ -7,6 +7,7 @@ import {
   SiteLocationCountry,
   SiteLocationRegion
 } from '@/business-apps/mdm/apps/organizational-data/types'
+import { GeoZone } from '@/business-apps/mdm/apps/organizational-data/types/GeoZone.types'
 import { FormWrapperModal } from '@/components/form-wrapper'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
@@ -28,6 +29,7 @@ interface SiteLocationFormProps extends BusinessAppContextProps {
   countries?: SiteLocationCountry[]
   fetchRegionsForCountries?: (_countryCodes: string[]) => Promise<void>
   getRegionsForCountry?: (_countryCode: string) => SiteLocationRegion[]
+  geoZones: GeoZone[]
 }
 
 const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
@@ -44,7 +46,8 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
   accessToken,
   countries = [],
   fetchRegionsForCountries = async () => {},
-  getRegionsForCountry = () => []
+  getRegionsForCountry = () => [],
+  geoZones
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const { t } = useTranslation('master-data')
@@ -60,6 +63,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
       name: siteLocation?.name || '',
       country: siteLocation?.country || '',
       region: siteLocation?.region || '',
+      geoZone: siteLocation?.geoZone || '',
       city: siteLocation?.locality || '',
       streetAddress: siteLocation?.addressLine?.streetAddress || '',
       addressLine2: siteLocation?.addressLine?.addressLine2 || '',
@@ -139,6 +143,8 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
         ? countriesOptions.find(country => country.value === values.country)?.code
         : undefined
 
+      const geoZoneId = values.geoZone ? geoZones.find(geoZone => geoZone.name === values.geoZone)?.id : undefined
+
       const siteLocationData = {
         structureId,
         code: values.code,
@@ -155,7 +161,8 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
         ...(values.postalCode ? { postalCode: values.postalCode } : {}),
         locality: values.city,
         ...(regionCode ? { region_ref: `CountryRegion:v1:${regionCode}` } : {}),
-        country_ref: countryCode ? `Country:v1:${countryCode}` : undefined
+        country_ref: countryCode ? `Country:v1:${countryCode}` : undefined,
+        geo_zone: geoZoneId ?? ''
       }
 
       if (isEditSiteLocation && siteLocation?.id) {
@@ -342,6 +349,39 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
             )}
           />
         )}
+
+        {/* Geo Zone Field */}
+        <FormField
+          name="geoZone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('forms.siteLocation.fields.geoZone.label', { defaultValue: 'Geo Zone' })}</FormLabel>
+              <FormControl>
+                <Combobox
+                  options={geoZones.map(geoZone => ({
+                    value: geoZone.name,
+                    label: geoZone.name,
+                    id: geoZone.id
+                  }))}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  placeholder={t('forms.siteLocation.fields.geoZone.placeholder', {
+                    defaultValue: 'Select geo zone'
+                  })}
+                  searchPlaceholder={t('forms.siteLocation.fields.geoZone.searchPlaceholder', {
+                    defaultValue: 'Search geo zones...'
+                  })}
+                  emptyText={t('forms.siteLocation.fields.geoZone.emptyText', {
+                    defaultValue: 'No geo zones found.'
+                  })}
+                  disabled={geoZones.length === 0}
+                  data-testid={`${dataTestId}-geo-zone-combobox`}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {/* City Field */}
         <FormField

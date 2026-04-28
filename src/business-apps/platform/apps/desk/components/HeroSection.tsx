@@ -45,7 +45,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
   const previewFeature = useFeature<boolean>(Feature.Preview.Enabled.Key)
   const previewEnabled = previewFeature === true
   const visibleNavItems = useMemo(
-    () => APP_NAV_ITEMS.filter(item => previewEnabled || item.id !== 'emails'),
+    () => APP_NAV_ITEMS.filter(item => previewEnabled || !['emails', 'spaces'].includes(item.id)),
     [previewEnabled]
   )
 

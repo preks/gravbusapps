@@ -50,7 +50,8 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
     replacementEmployeesLoading,
     searchReplacementEmployees,
     evaluatedEmployeeId,
-    managerEmployeeId
+    managerEmployeeId,
+    hasDuplicates
   } = usePerformanceEvaluationPeerApprove()
 
   const employeeOptionsForSelect = useMemo<Employee[]>(
@@ -70,13 +71,18 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
     [replacementEmployees]
   )
 
+  // Reserve both the original peer id AND the replacement (when set) so that a nominated
+  // peer cannot also be picked as an additional/replacement elsewhere. This prevents a
+  // duplicate arising if the replacement is later cleared (the original would otherwise
+  // re-enter the effective list while the other slot already holds it).
   const allSelectedIds = useMemo(() => {
     const ids = new Set<string>()
     if (evaluatedEmployeeId) ids.add(evaluatedEmployeeId)
     if (managerEmployeeId) ids.add(managerEmployeeId)
     for (const peer of nominatedPeers) {
+      ids.add(peer.id)
       const replacement = peerReplacements[peer.id]
-      ids.add(replacement ?? peer.id)
+      if (replacement) ids.add(replacement)
     }
     for (const slot of additionalSlots) {
       if (slot.employeeId) ids.add(slot.employeeId)
@@ -235,6 +241,15 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
                     data-testid={formatDataTestId(prefixDataTestId, 'MinPeersError')}
                   >
                     {t('peers-min-error', { min: MIN_PEERS })}
+                  </p>
+                )}
+
+                {hasDuplicates && (
+                  <p
+                    className="gba:text-xs gba:text-destructive gba:m-0"
+                    data-testid={formatDataTestId(prefixDataTestId, 'DuplicatePeersError')}
+                  >
+                    {t('peers-duplicate-error')}
                   </p>
                 )}
               </>

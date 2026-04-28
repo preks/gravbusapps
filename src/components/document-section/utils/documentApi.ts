@@ -87,3 +87,46 @@ export async function updateDocumentLocation({
     }
   }, DOCUMENT_REFRESH_DELAY_MS)
 }
+
+export interface DeleteDocumentParams {
+  documentId: string
+  document: DocumentItem
+  entityId: string
+  apiConfig: ApiConfig
+  accessToken: string
+  restClient: RestClient
+}
+
+/**
+ * Deletes a document or folder via the dedicated delete endpoint.
+ * Falls back to the update endpoint if no delete endpoint is configured.
+ * Sends a complete payload so the Kogito process can identify the record.
+ */
+export async function deleteDocument({
+  documentId,
+  document,
+  entityId,
+  apiConfig,
+  accessToken,
+  restClient
+}: DeleteDocumentParams): Promise<void> {
+  const endpoint = apiConfig.endpoints?.delete ?? apiConfig.endpoints?.update
+  if (!endpoint) {
+    throw new Error('No delete or update endpoint configured')
+  }
+
+  await restClient.post(
+    endpoint,
+    {
+      [apiConfig.documentFieldName]: {
+        id: documentId,
+        version: document.version,
+        name: document.name,
+        folder: document.folder || false,
+        description: document.description,
+        [apiConfig.entityFieldName]: entityId
+      }
+    },
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  )
+}

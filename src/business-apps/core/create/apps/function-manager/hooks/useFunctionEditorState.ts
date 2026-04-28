@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   FunctionsServiceClient,
+  type FunctionCategory,
   type LatestFunctionItem,
   type ConnectorKind,
   type FunctionConnectionBinding,
@@ -49,6 +50,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
   // Core fields
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [category, setCategory] = useState<FunctionCategory>('General')
+  const [subcategory, setSubcategory] = useState<string>('')
   const [agentEnabled, setAgentEnabled] = useState(false)
   const [workflowEnabled, setWorkflowEnabled] = useState(false)
   const [connectorEnabled, setConnectorEnabled] = useState(false)
@@ -66,10 +69,17 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
   const [isLoadingConnections, setIsLoadingConnections] = useState(false)
 
   // Assistant
-  const [assistantOpen, setAssistantOpen] = useState(true)
+  // Assistant panel defaults:
+  //   - `create` mode: opened so new-function authors land on the use-case picker.
+  //   - `edit`   mode: closed so the editor itself gets full width; the user can
+  //     re-open via the header's AI button. This prevents the panel from
+  //     covering most of the screen when inspecting an existing function.
+  const [assistantOpen, setAssistantOpen] = useState(mode === 'create')
   const [assistantUndoSnapshot, setAssistantUndoSnapshot] = useState<{
     name: string
     description: string
+    category: FunctionCategory
+    subcategory: string
     agentEnabled: boolean
     workflowEnabled: boolean
     connectorEnabled: boolean
@@ -159,6 +169,48 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     return (inputSchemaParsed.required as string[]) || []
   }, [inputSchemaParsed])
 
+  /**
+   * Example payloads for the Test tab. Two sources, in order of preference:
+   *   1. `inputSchema.x-testExamples` — our richer form: [{ name, description, payload }]
+   *   2. `inputSchema.examples` — standard JSON Schema: [payload, payload, ...]
+   * Both are normalised to { name, description?, payload } so the Test card can
+   * render them uniformly.
+   */
+  const testExamples = useMemo(() => {
+    const schema = inputSchemaParsed
+    if (!schema || typeof schema !== 'object') return []
+    const rich = (schema as Record<string, unknown>)['x-testExamples']
+    if (Array.isArray(rich)) {
+      return rich
+        .map((raw, idx) => {
+          if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+          const entry = raw as Record<string, unknown>
+          const payload = entry.payload
+          if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null
+          return {
+            name: typeof entry.name === 'string' && entry.name.trim() ? entry.name.trim() : `Example ${idx + 1}`,
+            description: typeof entry.description === 'string' ? entry.description : undefined,
+            payload: payload as Record<string, unknown>
+          }
+        })
+        .filter(Boolean) as Array<{ name: string; description?: string; payload: Record<string, unknown> }>
+    }
+    const plain = (schema as Record<string, unknown>).examples
+    if (Array.isArray(plain)) {
+      return plain
+        .map((raw, idx) => {
+          if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+          return {
+            name: `Example ${idx + 1}`,
+            description: undefined,
+            payload: raw as Record<string, unknown>
+          }
+        })
+        .filter(Boolean) as Array<{ name: string; description?: string; payload: Record<string, unknown> }>
+    }
+    return []
+  }, [inputSchemaParsed])
+
   const updatePayloadField = (key: string, value: unknown) => {
     setTestPayloadObj(prev => ({ ...prev, [key]: value }))
   }
@@ -171,9 +223,11 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
         const propObj = prop as Record<string, unknown>
         if ('default' in propObj && propObj.default !== undefined) {
           defaults[key] = propObj.default
+        } else if (propObj.type === 'array') {
+          defaults[key] = []
         }
       })
-      setTestPayloadObj(Object.keys(defaults).length > 0 ? defaults : {})
+      setTestPayloadObj(defaults)
     } else {
       setTestPayloadObj({})
     }
@@ -199,6 +253,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     if (mode === 'edit' && func) {
       setName(func.name)
       setDescription(func.description || '')
+      setCategory((func.category as FunctionCategory) || 'General')
+      setSubcategory(func.subcategory || '')
       setAgentEnabled(func.agentEnabled)
       setWorkflowEnabled(func.workflowEnabled ?? false)
       setConnectorEnabled(func.connectorEnabled ?? false)
@@ -242,6 +298,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     } else {
       setName('')
       setDescription('')
+      setCategory('General')
+      setSubcategory('')
       setAgentEnabled(false)
       setWorkflowEnabled(false)
       setConnectorEnabled(false)
@@ -368,6 +426,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     setAssistantUndoSnapshot({
       name,
       description,
+      category,
+      subcategory,
       agentEnabled,
       workflowEnabled,
       connectorEnabled,
@@ -397,6 +457,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     if (!snap) return
     setName(snap.name)
     setDescription(snap.description)
+    setCategory(snap.category)
+    setSubcategory(snap.subcategory)
     setAgentEnabled(snap.agentEnabled)
     setWorkflowEnabled(snap.workflowEnabled)
     setConnectorEnabled(snap.connectorEnabled)
@@ -449,6 +511,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
         await client.createFunctionWithVersion({
           name: name.trim(),
           description: description.trim() || undefined,
+          category,
+          subcategory: subcategory.trim() || undefined,
           agentEnabled,
           workflowEnabled,
           connectorEnabled,
@@ -459,7 +523,10 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
         })
       } else if (func?.id) {
         await client.updateFunction(func.id, {
+          name: name.trim(),
           description: description.trim() || undefined,
+          category,
+          subcategory: subcategory.trim() || undefined,
           agentEnabled,
           workflowEnabled,
           connectorEnabled,
@@ -589,6 +656,10 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     setName,
     description,
     setDescription,
+    category,
+    setCategory,
+    subcategory,
+    setSubcategory,
     agentEnabled,
     setAgentEnabled,
     workflowEnabled,
@@ -617,6 +688,7 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
 
     schemaProperties,
     requiredFields,
+    testExamples,
     testPayloadObj,
     setTestPayloadObj,
     updatePayloadField,

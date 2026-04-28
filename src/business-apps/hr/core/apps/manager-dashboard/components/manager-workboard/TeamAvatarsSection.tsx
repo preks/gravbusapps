@@ -10,7 +10,7 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { Users } from 'lucide-react'
+import { UsersThreeIcon as Users } from '@phosphor-icons/react'
 
 interface DirectReport {
   id: string
@@ -73,7 +73,7 @@ export const TeamAvatarsSection: React.FC<TeamAvatarsSectionProps> = ({
 }) => {
   if (loading) {
     return (
-      <Card style={{ borderRadius: '12px' }} className="gba:p-5">
+      <Card className="gba:rounded-xl gba:p-5">
         <CardHeader>
           <CardTitle>Your Team</CardTitle>
         </CardHeader>
@@ -89,11 +89,11 @@ export const TeamAvatarsSection: React.FC<TeamAvatarsSectionProps> = ({
   }
 
   return (
-    <Card data-testid="team-avatars-section" style={{ borderRadius: '12px' }} className="gba:p-5">
+    <Card data-testid="team-avatars-section" className="gba:rounded-xl gba:p-5">
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
           <div>
-            <CardTitle className="gba:text-lg gba:font-semibold">Your Team ({directReports.length})</CardTitle>
+            <CardTitle className="gba:text-lg">Your Team ({directReports.length})</CardTitle>
             <p className="gba:text-sm gba:text-muted-foreground">Click avatar to view details</p>
           </div>
           <button

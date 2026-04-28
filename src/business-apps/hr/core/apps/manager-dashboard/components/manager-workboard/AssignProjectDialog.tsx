@@ -19,7 +19,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
-import { Search, AlertCircle } from 'lucide-react'
+import { MagnifyingGlassIcon as Search, WarningCircleIcon as AlertCircle } from '@phosphor-icons/react'
 import { ProjectStatusBE, ProjectStatusUI } from '@/business-apps/mdm/apps/project-management/types'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'

@@ -28,11 +28,13 @@ export const ChangeWorkingHours: React.FC<BusinessAppContextProps> = props => {
   )
 
   return (
-    <div className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[600px] gba:p-0">
+    <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]">
       <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
-      <ChangeWorkingHoursProvider accessToken={accessToken} userInfo={userInfo} employeeId={employeeId}>
-        <ChangeWorkingHoursForm />
-      </ChangeWorkingHoursProvider>
+      <div className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-working-hours-form']]:!pt-0">
+        <ChangeWorkingHoursProvider accessToken={accessToken} userInfo={userInfo} employeeId={employeeId}>
+          <ChangeWorkingHoursForm />
+        </ChangeWorkingHoursProvider>
+      </div>
     </div>
   )
 }

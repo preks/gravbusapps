@@ -6,6 +6,7 @@
  */
 
 import { Node, mergeAttributes } from '@tiptap/core'
+import { TagParseRule } from '@tiptap/pm/model'
 
 export interface PageBreakOptions {
   HTMLAttributes: Record<string, unknown>
@@ -24,24 +25,12 @@ declare module '@tiptap/core' {
 
 export const PageBreak = Node.create<PageBreakOptions>({
   name: 'pageBreak',
+  priority: 1000,
 
   group: 'block',
 
-  parseHTML() {
-    return [
-      {
-        tag: 'div[data-page-break]'
-      },
-      {
-        tag: 'hr.page-break'
-      },
-      {
-        style: 'page-break-after: always'
-      },
-      {
-        style: 'page-break-before: always'
-      }
-    ]
+  parseHTML(): readonly TagParseRule[] {
+    return [{ tag: 'div[data-page-break]' }, { tag: 'hr.page-break', priority: 1000 }]
   },
 
   renderHTML({ HTMLAttributes }) {
@@ -64,8 +53,12 @@ export const PageBreak = Node.create<PageBreakOptions>({
     return {
       setPageBreak:
         () =>
-        ({ chain }) => {
-          return chain().insertContent({ type: this.name }).run()
+        ({ chain, editor }) => {
+          const inserted = chain().insertContent({ type: this.name }).run()
+          if (inserted) {
+            editor.commands.refreshPagesAndStabilize?.()
+          }
+          return inserted
         }
     }
   },

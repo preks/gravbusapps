@@ -1,14 +1,14 @@
-# Task Expert Studio Translations (German)
+# Enterprise Agent Studio Translations (German)
 
 # Page Header
-page-title = KI Task Expert Studio
-page-description = Erstellen Sie KI-Aufgabenexperten aus Prompts und testen Sie Integrationen.
+page-title = Enterprise Agent Studio
+page-description = Erstellen Sie Agenten aus Prompts und testen Sie Integrationen.
 
 # Section
-section-label = KI Aufgabenexperten
+section-label = Agenten
 
 # Actions
-new-task-expert = Neuer AI Task Expert
+new-task-expert = Neuer Enterprise Agent
 view = Anzeigen
 edit = Bearbeiten
 test = Testen
@@ -17,13 +17,13 @@ added-to-mesh = Zum Mesh hinzugefuegt
 already-in-mesh = Bereits im Mesh
 
 # Tabs
-tab-task-experts = KI Aufgabenexperten
+tab-task-experts = Agenten
 tab-tools = Einstellungen
 tab-monitoring = Monitoring
 tab-dashboard = Dashboard
 
 # Search
-search-placeholder = AI Task Experts suchen...
+search-placeholder = Agenten suchen...
 
 # Navigation / Common actions
 back = Zurueck
@@ -65,12 +65,31 @@ agent-type-decision = Entscheidung
 badge-public = Oeffentlich
 
 # Empty State
-empty-message = Keine AI Task Experts gefunden. Klicken Sie auf 'Neuer AI Task Expert' um einen zu erstellen.
+empty-message = Keine Agenten gefunden. Klicken Sie auf 'Neuer Enterprise Agent', um einen zu erstellen.
 
 # Editor
-create-task-expert = AI Task Expert erstellen
-edit-task-expert = AI Task Expert bearbeiten
-view-task-expert = AI Task Expert
+create-task-expert = Enterprise Agent erstellen
+edit-task-expert = Agent bearbeiten
+view-task-expert = Agent
+
+# Form errors
+form-error-create-failed = Agent konnte nicht erstellt werden
+form-error-load-failed = Agenten konnten nicht geladen werden
+form-error-generate-failed = Agent konnte nicht generiert werden
+
+# Test panel
+test-dialog-title = Agent testen
+
+# Tools space
+tools-space-card-description = MCP-Server-Verbindungen für Agenten verwalten
+
+# MCP tools panel
+mcp-tools-configure-help-prefix = Wählen Sie aus, welche Aktionen dieser Agent ausführen kann für
+mcp-tools-configure-help-fallback = diesen MCP-Server
+
+# Internal tools panel
+internal-tools-step-add-to-agent = Fügen Sie die Funktion als Tool zu Ihrem Agenten hinzu
+internal-tools-dialog-description = Vorgefertigte Tools für Agenten zur Interaktion mit Plattform-Daten.
 
 # View Mode
 view-edit-button = Konfiguration

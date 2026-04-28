@@ -24,10 +24,12 @@ no-salary-record = Nu există înregistrare salarială
 
 # Compensation Band
 band-title = Bandă de compensare
+band-short-label = Bandă
 band-name = Nume bandă
 band-salary-range = Interval salarial
 band-pay-grade = Grad de salarizare
 band-level = Nivel
+band-position-label = Poziția în banda de compensare
 band-loading = Se încarcă banda de compensare...
 band-no-band-assigned = Nicio bandă de compensare atribuită. Benzile de compensare sunt legate prin niveluri de muncă.
 

@@ -14,7 +14,7 @@ The Document Reviewer is an AI agent that analyzes documents (knowledge articles
 
 ## Step 1: Register the Tool
 
-### Option A: Via Task Expert Studio (Recommended)
+### Option A: Via Enterprise Agent Studio (Recommended)
 
 1. Navigate to **Prompt Manager**: https://newwork-dev.newwork.com/platform/create/prompt-manager
 
@@ -75,13 +75,13 @@ async function register(accessToken: string, workspaceId: string, modelId: strin
 
 ## Step 2: Register the Agent
 
-### Option A: Via Task Expert Studio
+### Option A: Via Enterprise Agent Studio
 
-1. Navigate to **Task Expert Studio**
+1. Navigate to **Enterprise Agent Studio**
 
-2. Go to the **Task Experts** tab
+2. Go to the **Agents** tab
 
-3. Click **New Task Expert**
+3. Click **New Enterprise Agent**
 
 4. Fill in the form:
    - **Name**: `document_reviewer`
@@ -395,9 +395,9 @@ await reviewDocument({
 
 ## Testing
 
-### Test in Task Expert Studio
+### Test in Enterprise Agent Studio
 
-1. Open the `document_reviewer` agent in Task Expert Studio
+1. Open the `document_reviewer` agent in Enterprise Agent Studio
 2. Click **Test**
 3. Enter a test request:
 
@@ -460,7 +460,7 @@ const testReview = async () => {
 ## Next Steps
 
 1. **Register the tool and agent** in Prompt Manager
-2. **Test** using Task Expert Studio
+2. **Test** using Enterprise Agent Studio
 3. **Integrate** into your document views
 4. **Customize** review presets for your content types
 5. **Add** chat sidebar integration for conversational reviews

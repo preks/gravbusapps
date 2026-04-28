@@ -57,7 +57,8 @@ export function createExpensePlanColumns(currencyFilter: string | null): ColumnD
     createEmployeeColumn<ExpensePlan>(
       'employee',
       getExpensePlanColumnHeader('employee'),
-      (row: ExpensePlan) => row.employee ?? null
+      (row: ExpensePlan) => row.employee ?? null,
+      { showEmployeeAvatar: false }
     ),
     createDateColumn<ExpensePlan>('createdAt', getExpensePlanColumnHeader('createdAt'), 'createdAt', { formatDate }),
     createCurrencyColumn<ExpensePlan>(

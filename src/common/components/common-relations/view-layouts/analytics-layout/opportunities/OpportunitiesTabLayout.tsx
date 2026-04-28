@@ -89,7 +89,7 @@ export interface OpportunitiesTabLayoutProps {
   }>
   topDealsLoading?: boolean
   velocityData?: { averageDaysInPipeline: number; velocityTrend: any[]; quickWins: any[]; slowMovers: any[] } | null
-  dealHealthData?: { healthDistribution: any; matrixData: any[] } | null
+  dealHealthData?: { healthDistribution: any; matrixData: any[]; xMetric?: any } | null
   moduleColor?: string
 
   // Currency filter props
@@ -320,7 +320,8 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
           data={
             dealHealthData || {
               healthDistribution: { excellent: 0, healthy: 0, warning: 0, critical: 0 },
-              matrixData: []
+              matrixData: [],
+              xMetric: { dataKey: 'winningChance', label: 'Win Chance', unit: '%' }
             }
           }
           moduleColor={moduleColor}

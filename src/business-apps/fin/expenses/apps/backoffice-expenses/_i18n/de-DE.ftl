@@ -124,7 +124,7 @@ report-expense-plan = Spesenpläne
 report-expense-plan-desc = Budgetpläne und Zuweisungen
 report-expense-request = Spesenabrechnungen
 report-expense-request-desc = Eingereichte Spesenabrechnungen und Genehmigungen
-report-advance-payment = Vorauszahlungsbericht
+report-advance-payment = Vorauszahlungen
 report-advance-payment-desc = Vorschüsse und Vorauszahlungen
 
 # Report Actions & Labels

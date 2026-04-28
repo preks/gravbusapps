@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChartBarIcon } from '@phosphor-icons/react'
 import type { DeepAgentSession } from '../../../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from '../../../hooks/useEnterpriseAgentClient'
+import { parseIsoTimestampMs } from '../../../utils/renderUtils'
 import { SectionHeader, MetricCard } from './SettingsShared'
 import { MetricsGridSkeleton } from './SkeletonLoader'
 
@@ -50,7 +51,10 @@ export const MetricsSection: React.FC<MetricsSectionProps> = ({ client, isOpen }
       cutoff = now - 30 * MILLISECONDS_PER_DAY
     }
 
-    const filtered = sessions.filter(s => new Date(s.created_at).getTime() >= cutoff)
+    const filtered = sessions.filter(s => {
+      const createdAtMs = parseIsoTimestampMs(s.created_at)
+      return createdAtMs !== null && createdAtMs >= cutoff
+    })
     const totalSessions = filtered.length
     const tokensUsed = filtered.reduce((sum, s) => sum + (s.cost_summary?.tokens_used ?? 0), 0)
     const estimatedCost = filtered.reduce((sum, s) => sum + (s.cost_summary?.estimated_cost_usd ?? 0), 0)
