@@ -374,6 +374,9 @@ export const INVESTMENT_REF = `
     initialInvestmentAmount
     totalInvestmentAmount
     investmentMarketValue
+    securityQuantity
+    timeWeightedPerformance
+    maturityDate
     acquisitionDate
     exitDate
     plannedExitDate

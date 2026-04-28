@@ -110,6 +110,28 @@ export const baseInvestmentFilterConfig: FilterConfiguration = {
       ]
     },
     {
+      id: 'planned-exit-group',
+      label: 'Planned Exit',
+      collapsible: true,
+      defaultExpanded: false,
+      filters: [
+        {
+          id: 'planedExit',
+          field: 'planedExit',
+          label: 'Planned Exit',
+          type: 'multi-select',
+          config: {
+            options: [
+              { id: 'true', label: 'Yes' },
+              { id: 'false', label: 'No' }
+            ],
+            totalCount: 2,
+            hasMore: false
+          }
+        }
+      ]
+    },
+    {
       id: 'date-group',
       label: 'Date Ranges',
       collapsible: true,

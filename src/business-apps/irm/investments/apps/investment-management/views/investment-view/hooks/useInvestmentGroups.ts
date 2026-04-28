@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
+import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
+import type { FormFieldsDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 
 export interface InvestmentGroup {
   id: string
@@ -7,7 +9,52 @@ export interface InvestmentGroup {
   value: string
   label: string
   tabId: string
+  objectValue?: FormFieldsDefinition | null
 }
+
+export interface InvestmentCatalogEntry {
+  id: string
+  code?: string
+  value?: string
+  parentEntryId?: string
+  parentEntry?: {
+    id: string
+    code?: string
+  }
+  objectValue?: FormFieldsDefinition | null
+}
+
+export interface InvestmentListCatalogData {
+  investmentGroups: InvestmentCatalogEntry[]
+  investmentTypes: InvestmentCatalogEntry[]
+  investmentLiquidFundTypes: InvestmentCatalogEntry[]
+}
+
+const parseFormFieldsDefinition = (objectValue: unknown): FormFieldsDefinition | null => {
+  if (!objectValue) return null
+  if (typeof objectValue === 'string') {
+    try {
+      return JSON.parse(objectValue) as FormFieldsDefinition
+    } catch {
+      return null
+    }
+  }
+  return objectValue as FormFieldsDefinition
+}
+
+const toInvestmentCatalogEntry = (entry: CatalogEntry): InvestmentCatalogEntry => ({
+  id: entry.id,
+  code: entry.code,
+  value: entry.value,
+  parentEntryId: entry.parentEntryId,
+  parentEntry: entry.parentEntry
+    ? {
+        id: entry.parentEntry.id,
+        code: entry.parentEntry.code
+      }
+    : undefined,
+  objectValue: parseFormFieldsDefinition(entry.objectValue)
+})
 
 /**
  * Hook to fetch all investment groups from catalog and format them for UI
@@ -15,7 +62,11 @@ export interface InvestmentGroup {
  */
 export const useInvestmentGroups = (accessToken: string) => {
   const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken })
-  const [entries, setEntries] = useState<any[]>([])
+  const [catalogData, setCatalogData] = useState<InvestmentListCatalogData>({
+    investmentGroups: [],
+    investmentTypes: [],
+    investmentLiquidFundTypes: []
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -29,8 +80,17 @@ export const useInvestmentGroups = (accessToken: string) => {
       try {
         setIsLoading(true)
         setError(null)
-        const result = await fetchCatalogEntriesByIdentifier('InvestmentGroup')
-        setEntries(result.entries || [])
+        const [groupsResult, typesResult, liquidFundTypesResult] = await Promise.all([
+          fetchCatalogEntriesByIdentifier('InvestmentGroup', { limit: 1000 }),
+          fetchCatalogEntriesByIdentifier('InvestmentType', { includeParentCatalogEntry: true, limit: 1000 }),
+          fetchCatalogEntriesByIdentifier('InvestmentLiquidFundType', { includeParentCatalogEntry: true, limit: 1000 })
+        ])
+
+        setCatalogData({
+          investmentGroups: (groupsResult.entries || []).map(toInvestmentCatalogEntry),
+          investmentTypes: (typesResult.entries || []).map(toInvestmentCatalogEntry),
+          investmentLiquidFundTypes: (liquidFundTypesResult.entries || []).map(toInvestmentCatalogEntry)
+        })
       } catch (err) {
         console.error('[useInvestmentGroups] Error fetching investment groups:', err)
         setError(err instanceof Error ? err.message : 'Failed to load investment groups')
@@ -43,19 +103,21 @@ export const useInvestmentGroups = (accessToken: string) => {
   }, [accessToken, fetchCatalogEntriesByIdentifier])
 
   const investmentGroups = useMemo<InvestmentGroup[]>(() => {
-    if (!entries || entries.length === 0) return []
+    if (catalogData.investmentGroups.length === 0) return []
 
-    return entries.map(entry => ({
+    return catalogData.investmentGroups.map(entry => ({
       id: entry.id,
-      code: entry.code,
-      value: entry.value,
-      label: entry.value,
-      tabId: entry.code.toLowerCase().replace(/_/g, '-')
+      code: entry.code || '',
+      value: entry.value || '',
+      label: entry.value || entry.code || '',
+      tabId: (entry.code || '').toLowerCase().replace(/_/g, '-'),
+      objectValue: entry.objectValue
     }))
-  }, [entries])
+  }, [catalogData.investmentGroups])
 
   return {
     investmentGroups,
+    catalogData,
     isLoading,
     error
   }

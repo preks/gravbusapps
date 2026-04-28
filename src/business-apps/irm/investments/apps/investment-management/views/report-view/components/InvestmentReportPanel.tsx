@@ -247,8 +247,8 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   // Liquid Fund, …), so it can be passed straight through.
   const reportFiltersForTable = useMemo(() => {
     return {
-      startDate: reportFilters.computedFilters.startDate,
-      endDate: reportFilters.computedFilters.endDate,
+      dateFrom: reportFilters.computedFilters.startDate,
+      dateTo: reportFilters.computedFilters.endDate,
       currencyIds: reportFilters.computedFilters.currencyIds,
       investmentType: currentSection || '',
       search: search || undefined,

@@ -59,6 +59,9 @@ export interface Investment {
   plannedExitDate: string | null
   requiredCapitalAmount: number | null
   stakePercentage: number | null
+  securityQuantity: number | null
+  timeWeightedPerformance: number | null
+  maturityDate: string | null
   totalCommitmentAmount: number | null
   totalDistributionAmount: number | null
   totalInvestmentAmount: number | null
@@ -131,6 +134,9 @@ export interface InvestmentReport {
   requiredCapitalAmount: number | null
   scope: string
   stakePercentage: number | null
+  initialInvestmentAmount: number | null
+  securityQuantity: number | null
+  timeWeightedPerformance: number | null
   totalCommitmentAmount: number | null
   totalDistributionAmount: number | null
   totalInvestmentAmount: number | null

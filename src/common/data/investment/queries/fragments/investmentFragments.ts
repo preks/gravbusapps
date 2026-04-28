@@ -219,6 +219,9 @@ export const INVESTMENT = `
     forecastedRevenueAmount
     forecastedProfitAmount
     stakePercentage
+    securityQuantity
+    timeWeightedPerformance
+    maturityDate
     loanRecipientName
     loanAmount
     loanOpenCommitmentAmount
