@@ -231,7 +231,7 @@ describe('buildPageBreakSpacerDecorations', () => {
     expect(decorations.find()).toHaveLength(0)
   })
 
-  it('emits a spacer per break using ordinal page targeting', () => {
+  it('emits a spacer per break using measured page targeting', () => {
     const doc = buildDoc([
       makeParagraph('p1'),
       makePageBreak(),
@@ -253,7 +253,7 @@ describe('buildPageBreakSpacerDecorations', () => {
 
     const found = decorations.find()
     expect(found).toHaveLength(2)
-    expect(parseSpacerHeightsFromKeys(found)).toEqual([400, 500])
+    expect(parseSpacerHeightsFromKeys(found)).toEqual([400, 100])
   })
 
   it('emits two spacers for consecutive page breaks so content lands after a blank page', () => {
@@ -272,15 +272,15 @@ describe('buildPageBreakSpacerDecorations', () => {
 
     const found = decorations.find()
     expect(found).toHaveLength(2)
-    // First spacer fills page 1 remaining, second spacer fills page 2 entirely
-    // so content after the second break flows onto page 3.
-    expect(parseSpacerHeightsFromKeys(found)).toEqual([600, 1490])
+    // First spacer fills page 1 remaining; the second break is measured after
+    // that planned spacer, so it fills the next page instead of reusing page 1.
+    expect(parseSpacerHeightsFromKeys(found)).toEqual([600, 890])
   })
 
-  it('targets each break by ordinal regardless of where it currently renders', () => {
+  it('targets later breaks after the spacer height planned for earlier breaks', () => {
     // Simulate initial render where breaks are clustered near the top before
-    // any spacers have been applied. Each break should still target its
-    // ordinal page body, not the page where it currently sits.
+    // any spacers have been applied. Each later break should be measured from
+    // where it will land after the earlier spacer widgets are inserted.
     const doc = buildDoc([
       makeParagraph('p1'),
       makePageBreak(),
@@ -305,14 +305,12 @@ describe('buildPageBreakSpacerDecorations', () => {
 
     const found = decorations.find()
     expect(found).toHaveLength(3)
-    expect(parseSpacerHeightsFromKeys(found)).toEqual([700, 1500, 2300])
+    expect(parseSpacerHeightsFromKeys(found)).toEqual([700, 800, 800])
   })
 
-  it('falls forward to a later band when a break has drifted past its ordinal target', () => {
-    // break[0] is expected to end page 1 but has drifted past page 1's body
-    // (e.g. because preceding content overflowed). The spacer should fall
-    // forward to the next available band so it still pushes content onto a
-    // new page rather than disappearing.
+  it('uses the measured current page when content before the break already spans pages', () => {
+    // The first manual break can be physically on a later page when preceding
+    // content is long. It should fill that measured page, not the first page.
     const doc = buildDoc([makeParagraph('tall'), makePageBreak(), makeParagraph('after')])
     const entries = collectPageBreakEntries(doc)
 
@@ -326,6 +324,25 @@ describe('buildPageBreakSpacerDecorations', () => {
     expect(found).toHaveLength(1)
     // 1700 (page 2 bottom) - 850 = 850
     expect(parseSpacerHeightsFromKeys(found)).toEqual([850])
+  })
+
+  it('keeps sequential breaks correct when both start after several pages of content', () => {
+    const doc = buildDoc([makeParagraph('tall'), makePageBreak(), makePageBreak(), makeParagraph('after')])
+    const entries = collectPageBreakEntries(doc)
+    const bottomByPos: Record<number, number> = {
+      [entries[0]!.pos]: 1900,
+      [entries[1]!.pos]: 1910
+    }
+
+    const decorations = buildPageBreakSpacerDecorations(doc, {
+      view: null,
+      bandsOverride: [bandFor(1, 0, 800), bandFor(2, 900, 1700), bandFor(3, 1800, 2600), bandFor(4, 2700, 3500)],
+      resolveNodeBottomOverride: entry => bottomByPos[entry.pos] ?? null
+    })
+
+    const found = decorations.find()
+    expect(found).toHaveLength(2)
+    expect(parseSpacerHeightsFromKeys(found)).toEqual([700, 890])
   })
 
   it('skips a spacer when no band is available for the break (e.g. outside the windowed range)', () => {

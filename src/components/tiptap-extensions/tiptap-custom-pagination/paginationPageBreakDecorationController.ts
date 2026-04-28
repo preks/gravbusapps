@@ -15,23 +15,21 @@ export const PAGE_BREAK_SPACER_CLASS = 'rm-page-break-spacer'
  * number of pages) are enforced independently by `paginationForcedBoundaries.ts`.
  *
  * Targeting model (Word-like):
- * - Each `pageBreak` at ordinal i (0-indexed in document order) is the
- *   boundary that ends page (i + 1) and starts page (i + 2).
- * - The spacer that follows break[i] fills the remaining vertical space
- *   on page (i + 1)'s body, so that content after the break flows onto
- *   page (i + 2).
+ * - Each `pageBreak` is resolved against the page body where it currently
+ *   lands after earlier manual break spacers are accounted for.
+ * - The spacer that follows the break fills the remaining vertical space
+ *   on that page's body, so that content after the break flows onto the
+ *   next page.
  * - Consecutive page breaks are NOT collapsed. Two adjacent breaks both
  *   produce spacers: the first fills the current page, the second then
  *   fills the entire next page, producing the blank page between content
  *   that Word shows.
  *
- * Targeting is strictly ordinal - NOT based on where the break currently
- * renders in the DOM. This keeps the spacer stable when cumulative
- * measurement errors would otherwise push later breaks past their
- * expected page body. When a break has drifted past its ordinal target
- * (e.g. because of a tall table on the preceding page), we fall forward
- * to the next available band whose bottom is beyond the break's current
- * position so the spacer can still push content onto a later page boundary.
+ * Targeting uses live measured page body bands, not hardcoded page heights.
+ * Because decorations are calculated before their spacer widgets are mounted,
+ * later breaks are evaluated with the spacer height already planned for
+ * earlier breaks. This keeps multiple imported/inserted breaks stable even
+ * when content before them spans more pages than the number of manual breaks.
  */
 
 const BAND_MATCH_TOLERANCE_PX = 0.5
@@ -102,34 +100,22 @@ export function isFollowedByAnotherPageBreak(entry: PageBreakEntry): boolean {
 }
 
 /**
- * Resolve the target band for a break at a given ordinal.
- *
- * Primary strategy: use the band whose pageNumber matches the break's ordinal
- * (break[i] targets page i + 1). When the break has already rendered past
- * that page's body bottom (drifted forward due to tall preceding content),
- * fall forward to the earliest later band whose bottom is beyond the break's
- * current position so the spacer still pushes content onto a new page.
+ * Resolve the page body band that contains, or immediately follows, the break
+ * anchor after earlier manual-break spacers have been accounted for.
  */
-function resolveTargetBandForOrdinal(
+function resolveTargetBandForAnchor(
   bandsByPageNumber: ReadonlyMap<number, PageBodyMeasurementBand>,
-  targetPageNumber: number,
-  nodeBottomInEditor: number,
+  anchorBottomInEditor: number,
   maxPageNumber: number
 ): PageBodyMeasurementBand | null {
-  const preferredBand = bandsByPageNumber.get(targetPageNumber) ?? null
-
-  if (preferredBand && preferredBand.bottom > nodeBottomInEditor - BAND_MATCH_TOLERANCE_PX) {
-    return preferredBand
-  }
-
-  for (let pageNumber = targetPageNumber + 1; pageNumber <= maxPageNumber; pageNumber += 1) {
+  for (let pageNumber = 1; pageNumber <= maxPageNumber; pageNumber += 1) {
     const candidate = bandsByPageNumber.get(pageNumber)
-    if (candidate && candidate.bottom > nodeBottomInEditor) {
+    if (candidate && candidate.bottom > anchorBottomInEditor - BAND_MATCH_TOLERANCE_PX) {
       return candidate
     }
   }
 
-  return preferredBand
+  return null
 }
 
 function toEditorRelativeBottom(view: EditorView, coords: { bottom: number }): number {
@@ -177,6 +163,14 @@ export function resolvePageBreakAnchorInEditor(view: EditorView, entry: PageBrea
 export interface BuildPageBreakSpacerDecorationsOptions {
   view: EditorView | null
   /**
+   * True only when bootstrapping from a DOM that does not yet contain any page
+   * break spacer widgets. In that case later breaks must account for the
+   * spacer heights planned for earlier breaks. Once spacers already exist in
+   * the live DOM, anchor coordinates already include those offsets and adding
+   * them again would double count.
+   */
+  bootstrapWithPlannedSpacerOffsets?: boolean
+  /**
    * Optional override for measured bands, used primarily in tests to avoid a
    * real DOM. When omitted the bands are read from the live editor DOM via
    * getPageBodyMeasurementBands.
@@ -218,31 +212,159 @@ export function buildPageBreakSpacerDecorations(
     ((entry: PageBreakEntry) => (view ? resolvePageBreakAnchorInEditor(view, entry) : null))
 
   const decorations: Decoration[] = []
+  const bootstrapWithPlannedSpacerOffsets = options.bootstrapWithPlannedSpacerOffsets ?? true
+  let accumulatedManualBreakSpacerHeight = 0
+  const sampledBreaks: Array<{
+    pos: number
+    nodeBottomInEditor: number | null
+    adjustedNodeBottomInEditor: number | null
+    targetPageNumber: number | null
+    targetBandBottom: number | null
+    height: number
+    nodeSelected: boolean | null
+    nextBlockTag: string | null
+    nextBlockTopInEditor: number | null
+    nextContentTag: string | null
+    nextContentTopInEditor: number | null
+    modelNextSiblingType: string | null
+    modelNextSiblingEmptyParagraph: boolean | null
+    modelPreviousSiblingType: string | null
+    modelNodeIsAtom: boolean
+    modelNodeIsLeaf: boolean
+  }> = []
+  let nullAnchorCount = 0
+  let noTargetBandCount = 0
+  let zeroHeightCount = 0
 
-  for (let index = 0; index < entries.length; index += 1) {
-    const entry = entries[index]!
+  const resolveDomContext = (entry: PageBreakEntry) => {
+    if (!view) {
+      return {
+        nodeSelected: null,
+        nextBlockTag: null,
+        nextBlockTopInEditor: null
+      }
+    }
 
+    const nodeDom = view.nodeDOM(entry.pos)
+    if (!(nodeDom instanceof HTMLElement)) {
+      return {
+        nodeSelected: null,
+        nextBlockTag: null,
+        nextBlockTopInEditor: null
+      }
+    }
+
+    const nextBlock = nodeDom.nextElementSibling
+    let nextContentSibling: Element | null = nextBlock
+    while (
+      nextContentSibling instanceof HTMLElement &&
+      (nextContentSibling.classList.contains('ProseMirror-widget') ||
+        nextContentSibling.classList.contains(PAGE_BREAK_SPACER_CLASS))
+    ) {
+      nextContentSibling = nextContentSibling.nextElementSibling
+    }
+    const editorRect = view.dom.getBoundingClientRect()
+    const nextBlockTopInEditor =
+      nextBlock instanceof HTMLElement
+        ? nextBlock.getBoundingClientRect().top - editorRect.top + view.dom.scrollTop
+        : null
+    const nextContentTopInEditor =
+      nextContentSibling instanceof HTMLElement
+        ? nextContentSibling.getBoundingClientRect().top - editorRect.top + view.dom.scrollTop
+        : null
+
+    return {
+      nodeSelected: nodeDom.classList.contains('ProseMirror-selectednode'),
+      nextBlockTag: nextBlock instanceof HTMLElement ? nextBlock.tagName.toLowerCase() : null,
+      nextBlockTopInEditor,
+      nextContentTag: nextContentSibling instanceof HTMLElement ? nextContentSibling.tagName.toLowerCase() : null,
+      nextContentTopInEditor
+    }
+  }
+
+  for (const entry of entries) {
+    const domContext = resolveDomContext(entry)
+    const modelNextSibling =
+      entry.parent.childCount > entry.indexInParent + 1 ? entry.parent.child(entry.indexInParent + 1) : null
+    const modelPreviousSibling = entry.indexInParent > 0 ? entry.parent.child(entry.indexInParent - 1) : null
+    const modelContext = {
+      modelNextSiblingType: modelNextSibling?.type?.name ?? null,
+      modelNextSiblingEmptyParagraph:
+        modelNextSibling?.type?.name === 'paragraph' ? modelNextSibling.content.size === 0 : null,
+      modelPreviousSiblingType: modelPreviousSibling?.type?.name ?? null,
+      modelNodeIsAtom: entry.node.isAtom,
+      modelNodeIsLeaf: entry.node.isLeaf
+    }
     const nodeBottomInEditor = resolveNodeBottom(entry)
     if (nodeBottomInEditor === null || !Number.isFinite(nodeBottomInEditor)) {
+      nullAnchorCount += 1
+      if (sampledBreaks.length < 5) {
+        sampledBreaks.push({
+          pos: entry.pos,
+          nodeBottomInEditor: null,
+          adjustedNodeBottomInEditor: null,
+          targetPageNumber: null,
+          targetBandBottom: null,
+          height: 0,
+          ...domContext,
+          ...modelContext
+        })
+      }
       continue
     }
 
-    const targetPageNumber = index + 1
-    const targetBand = resolveTargetBandForOrdinal(
-      bandsByPageNumber,
-      targetPageNumber,
-      nodeBottomInEditor,
-      maxPageNumber
-    )
+    const adjustedNodeBottomInEditor = bootstrapWithPlannedSpacerOffsets
+      ? nodeBottomInEditor + accumulatedManualBreakSpacerHeight
+      : nodeBottomInEditor
+    const targetBand = resolveTargetBandForAnchor(bandsByPageNumber, adjustedNodeBottomInEditor, maxPageNumber)
     if (!targetBand) {
+      noTargetBandCount += 1
+      if (sampledBreaks.length < 5) {
+        sampledBreaks.push({
+          pos: entry.pos,
+          nodeBottomInEditor,
+          adjustedNodeBottomInEditor,
+          targetPageNumber: null,
+          targetBandBottom: null,
+          height: 0,
+          ...domContext,
+          ...modelContext
+        })
+      }
       continue
     }
 
-    const height = Math.max(0, Math.round(targetBand.bottom - nodeBottomInEditor))
+    const height = Math.max(0, Math.round(targetBand.bottom - adjustedNodeBottomInEditor))
     if (height <= 0) {
+      zeroHeightCount += 1
+      if (sampledBreaks.length < 5) {
+        sampledBreaks.push({
+          pos: entry.pos,
+          nodeBottomInEditor,
+          adjustedNodeBottomInEditor,
+          targetPageNumber: targetBand.pageNumber,
+          targetBandBottom: targetBand.bottom,
+          height,
+          ...domContext,
+          ...modelContext
+        })
+      }
       continue
     }
 
+    if (sampledBreaks.length < 5) {
+      sampledBreaks.push({
+        pos: entry.pos,
+        nodeBottomInEditor,
+        adjustedNodeBottomInEditor,
+        targetPageNumber: targetBand.pageNumber,
+        targetBandBottom: targetBand.bottom,
+        height,
+        ...domContext,
+        ...modelContext
+      })
+    }
+    accumulatedManualBreakSpacerHeight += height
     const widgetPosition = entry.pos + entry.node.nodeSize
     const decorationKey = `page-break-spacer:${entry.pos}:${height}`
 
@@ -254,6 +376,35 @@ export function buildPageBreakSpacerDecorations(
       })
     )
   }
+
+  // #region agent log
+  if (typeof globalThis.fetch === 'function') {
+    fetch('http://127.0.0.1:7702/ingest/91afea52-34bb-4fee-ae2c-a538b0bae61d', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a41470' },
+      body: JSON.stringify({
+        sessionId: 'a41470',
+        runId: 'post-fix',
+        hypothesisId: 'H2',
+        location: 'paginationPageBreakDecorationController.ts:283',
+        message: 'page-break spacer build summary',
+        data: {
+          entryCount: entries.length,
+          bandCount: bands.length,
+          maxPageNumber,
+          bootstrapWithPlannedSpacerOffsets,
+          nullAnchorCount,
+          noTargetBandCount,
+          zeroHeightCount,
+          decorationCount: decorations.length,
+          accumulatedManualBreakSpacerHeight,
+          sampledBreaks
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+  }
+  // #endregion
 
   if (decorations.length === 0) {
     return DecorationSet.empty

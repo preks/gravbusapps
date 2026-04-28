@@ -66,8 +66,34 @@ export const PageBreak = Node.create<PageBreakOptions>({
     return {
       setPageBreak:
         () =>
-        ({ chain }) => {
-          return chain().insertContent({ type: this.name }).run()
+        ({ chain, editor }) => {
+          const inserted = chain().insertContent({ type: this.name }).run()
+          // #region agent log
+          if (typeof globalThis.fetch === 'function') {
+            fetch('http://127.0.0.1:7702/ingest/91afea52-34bb-4fee-ae2c-a538b0bae61d', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a41470' },
+              body: JSON.stringify({
+                sessionId: 'a41470',
+                runId: 'pre-fix',
+                hypothesisId: 'H1',
+                location: 'PageBreak.ts:71',
+                message: 'page-break command executed',
+                data: {
+                  inserted,
+                  hasRefreshCommand: typeof editor.commands.refreshPagesAndStabilize === 'function',
+                  selectionFrom: editor.state.selection.from,
+                  selectionTo: editor.state.selection.to
+                },
+                timestamp: Date.now()
+              })
+            }).catch(() => {})
+          }
+          // #endregion
+          if (inserted) {
+            editor.commands.refreshPagesAndStabilize?.()
+          }
+          return inserted
         }
     }
   },
