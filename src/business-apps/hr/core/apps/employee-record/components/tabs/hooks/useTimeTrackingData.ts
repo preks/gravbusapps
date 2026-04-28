@@ -14,7 +14,10 @@ import {
 import { GET_EMPLOYEE_ABSENCES } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
-import { fetchOfficeAndGeoLocation } from '../../../services/service-geo-location/geoLocationService'
+import {
+  fetchOfficeAndGeoLocation,
+  fetchEmployeeLocationCoords
+} from '../../../services/service-geo-location/geoLocationService'
 import {
   parseDurationToMinutes,
   minutesToHHMM,
@@ -105,10 +108,41 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   // proximity info parsed from notes of most recent entry (today)
   const [isNearHome, setIsNearHome] = useState<boolean>(false)
   const [isNearOffice, setIsNearOffice] = useState<boolean>(false)
+  // Whether the employee's home/office records carry stored latitude+longitude. Used by
+  // the location card to surface a "address needs review" warning when either side is
+  // missing (legacy data, or pre-backfill). Pre-fetched on mount so the warning is
+  // visible BEFORE the user attempts to clock in. Default to true so we don't flash a
+  // bogus warning during the initial fetch.
+  const [homeHasCoords, setHomeHasCoords] = useState<boolean>(true)
+  const [officeHasCoords, setOfficeHasCoords] = useState<boolean>(true)
   // whether there is any attendance record (open or closed) for today
   const [hasTodayAttendanceRecord, setHasTodayAttendanceRecord] = useState<boolean>(false)
   // transient message shown after user confirms a new location from modal
   const [locationBanner, setLocationBanner] = useState<null | 'home' | 'office' | 'remote'>(null)
+
+  // Pre-fetch home + office coord availability on mount so the location card can show
+  // the "address needs review" warning before the user attempts to clock in. We do
+  // this without requesting the device geolocation — that prompt is reserved for the
+  // actual clock-in action so users don't see a permission popup on page open.
+  useEffect(() => {
+    if (!employeeId) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const availability = await fetchEmployeeLocationCoords(graphqlClient, employeeId)
+        if (cancelled) return
+        setHomeHasCoords(availability.homeHasCoords)
+        setOfficeHasCoords(availability.officeHasCoords)
+      } catch {
+        // Leave the defaults as-is on failure — the hook will just not show the
+        // warning. The clock-in path will surface the missing coords again at submit
+        // time and the enum will fall through to IS_OTHER_LOCATION.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [graphqlClient, employeeId])
 
   const prevMonth = useCallback(() => {
     setPage(1)
@@ -514,6 +548,10 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         'UNKNOWN_LOCATION'
       try {
         const geo = await fetchOfficeAndGeoLocation(graphqlClient, employeeId)
+        // Refresh the missing-coords flags from the live result. They may differ from
+        // the mount-time prefetch if an admin updated the address records in the meantime.
+        setHomeHasCoords(geo.homeHasCoords)
+        setOfficeHasCoords(geo.officeHasCoords)
         const nearHome = Boolean(geo?.comparisons?.isNearHome)
         const nearOffice = Boolean(geo?.comparisons?.isNearOffice)
         attendanceLocation = nearHome ? 'IS_NEAR_HOME' : nearOffice ? 'IS_NEAR_OFFICE' : 'IS_OTHER_LOCATION'
@@ -803,6 +841,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     error,
     isNearHome,
     isNearOffice,
+    homeHasCoords,
+    officeHasCoords,
     hasTodayAttendanceRecord,
     entries,
     entriesForReport: sortedFilledEntries,
