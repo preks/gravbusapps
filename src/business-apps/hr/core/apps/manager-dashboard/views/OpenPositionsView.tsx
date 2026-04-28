@@ -12,7 +12,7 @@ import {
   Sheet,
   SheetContent
 } from '@newwork/nw-design-system'
-import { ChevronLeft } from 'lucide-react'
+import { CaretLeftIcon as ChevronLeft } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { OpenJobPosition, JobPosition } from '../hooks/useOpenJobPositions'
 import { JobPositionDetails } from '@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/components/JobPositionDetails'

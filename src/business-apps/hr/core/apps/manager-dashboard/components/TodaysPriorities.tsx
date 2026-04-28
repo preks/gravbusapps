@@ -1,6 +1,12 @@
 import React, { useMemo } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
-import { AlertTriangle, ChevronRight, Clock, Target, Sparkles } from 'lucide-react'
+import {
+  WarningIcon as AlertTriangle,
+  CaretRightIcon as ChevronRight,
+  ClockIcon as Clock,
+  TargetIcon as Target,
+  SparkleIcon as Sparkles
+} from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface TodaysPrioritiesProps {
