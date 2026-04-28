@@ -40743,15 +40743,15 @@
     ]
   },
   "hr/core/apps/employee-record": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 1373219,
+    "bitbucketBuildNumber": 11480,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11480/",
+    "chunkJsBytes": 1373004,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 1228891,
-        "gzip": 295478,
+        "rendered": 1228598,
+        "gzip": 295438,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/PerformanceTab.tsx",
@@ -51923,9 +51923,9 @@
     ]
   },
   "hr/core/forms/employee-termination": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 133551,
+    "bitbucketBuildNumber": 11480,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11480/",
+    "chunkJsBytes": 133566,
     "top": [
       {
         "kind": "bucket",
@@ -51966,13 +51966,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 18421,
-        "gzip": 4886,
+        "rendered": 18438,
+        "gzip": 4900,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/employee-termination/components/EmployeeTerminationForm.tsx",
-            "rendered": 9188,
-            "gzip": 2039
+            "rendered": 9205,
+            "gzip": 2053
           },
           {
             "name": "src/business-apps/hr/core/forms/employee-termination/hooks/useEmployeeTerminationData.ts",
@@ -57029,25 +57029,25 @@
     ]
   },
   "hr/core/forms/update-working-conditions": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 200565,
+    "bitbucketBuildNumber": 11480,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11480/",
+    "chunkJsBytes": 199562,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 96305,
-        "gzip": 21505,
+        "rendered": 94045,
+        "gzip": 21337,
         "leaves": [
-          {
-            "name": "src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsScreen.tsx",
-            "rendered": 23227,
-            "gzip": 3628
-          },
           {
             "name": "src/business-apps/hr/core/forms/_i18n/ro-RO.ftl?raw",
             "rendered": 21416,
             "gzip": 5164
+          },
+          {
+            "name": "src/business-apps/hr/core/forms/_i18n/de-DE.ftl?raw",
+            "rendered": 21257,
+            "gzip": 5300
           }
         ]
       },
@@ -87947,20 +87947,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11479,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11479/",
-    "chunkJsBytes": 1834454,
+    "bitbucketBuildNumber": 11480,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11480/",
+    "chunkJsBytes": 1834459,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1530279,
-        "gzip": 92470,
+        "gzip": 92478,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1530279,
-            "gzip": 92470
+            "gzip": 92478
           }
         ]
       },
@@ -103745,7 +103745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-28T08:09:16.806Z",
+    "generatedAt": "2026-04-28T08:39:45.824Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
