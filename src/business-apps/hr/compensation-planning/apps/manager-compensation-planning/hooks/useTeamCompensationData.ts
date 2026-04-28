@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import {
+  GET_COMPENSATION_BAND_POLICIES_FOR_TEAM,
   GET_COMPENSATION_TEAM_MEMBERS,
-  GET_JOB_LEVELS_FOR_COMPENSATION_BANDS,
   GET_TEAM_BONUSES_FOR_COMPENSATION,
   GET_TEAM_CURRENT_SALARIES_FOR_COMPENSATION,
   GET_TEAM_SALARY_HISTORY_FOR_COMPENSATION
@@ -10,23 +12,29 @@ import {
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import { computeCompaRatio } from '../../../utils/budgetCalculations'
 
-/** Band fields returned under `compensationBandPolicies` on `JobLevel`. */
 interface CompensationBandGraphql {
-  id: string
-  name: string
   payGrade: number | null
   minSalary: number
   maxSalary: number
-  currencyRef: string
-  currency: { id: string; code: string; value: string }
+  currency: { value: string }
 }
 
-/** Row from `GET_JOB_LEVELS_FOR_COMPENSATION_BANDS`. */
-interface JobLevelForCompensationBandQuery {
+interface CompensationBandPolicyForTeamQuery {
+  jobFamilyId: string
+  jobLevelId: string
+  geoZoneId: string
+  compensationBand: CompensationBandGraphql | null
+}
+
+interface SiteLocationResult {
   id: string
-  compensationBandPolicies: Array<{
-    compensationBand: CompensationBandGraphql | null
-  } | null> | null
+  geo_zone?: string | null
+}
+
+type SiteLocationResponse = SiteLocationResult[] | { data?: SiteLocationResult[] }
+
+interface ActiveStructureResponse {
+  structure?: { structureId?: string }
 }
 
 interface EmployeePositionResult {
@@ -35,21 +43,21 @@ interface EmployeePositionResult {
   firstName: string
   lastName: string
   hireDate: string | null
-  companyId: string
-  company: { id: string; name: string } | null
   organizationalUnitId: string | null
   organizationalUnit: { id: string; name: string } | null
+  siteLocationId: string | null
   supervisorEmployeeId: string | null
   jobPosition: {
-    id: string
     name: string
+    jobFunction: { jobFamily: { id: string } | null } | null
+    jobProfile: {
+      jobFunction: { jobFamily: { id: string } | null } | null
+    } | null
     jobLevel: { id: string } | null
   } | null
   employee: {
-    id: string
     code: string
     displayName: string
-    fullName: string
     pictureThumbnail: string | null
     workingCondition: { hireDate: string | null } | null
     workingHours: Array<{ weeklyHours: number | null; fullTimeEquivalent: number | null }>
@@ -83,51 +91,58 @@ interface BonusResult {
   fiscalYear: number | null
 }
 
-/** First non-null `compensationBand` in the job level’s policies (order matches API / Hasura). */
-function pickCompensationBandFromPolicies(
-  jobLevel:
-    | { compensationBandPolicies: Array<{ compensationBand: CompensationBandGraphql | null } | null> | null }
-    | null
-    | undefined
-): CompensationBandGraphql | null {
-  const policies = jobLevel?.compensationBandPolicies
-  if (policies == null) {
-    return null
-  }
-  for (const row of policies) {
-    const band = row?.compensationBand
-    if (band) {
-      return band
-    }
-  }
-  return null
-}
-
 function jobLevelIdFromPosition(pos: EmployeePositionResult): string | null {
   return pos.jobPosition?.jobLevel?.id?.trim() || null
 }
 
-function compensationBandForPosition(
+function jobFamilyIdFromPosition(pos: EmployeePositionResult): string | null {
+  return (
+    pos.jobPosition?.jobFunction?.jobFamily?.id?.trim() ||
+    pos.jobPosition?.jobProfile?.jobFunction?.jobFamily?.id?.trim() ||
+    null
+  )
+}
+
+function geoZoneIdFromPosition(
   pos: EmployeePositionResult,
-  bandByJobLevelId: Map<string, CompensationBandGraphql | null>
-): CompensationBandGraphql | null {
-  const jlId = jobLevelIdFromPosition(pos)
-  if (jlId == null) {
+  geoZoneBySiteLocationId: Map<string, string>
+): string | null {
+  const siteLocationId = pos.siteLocationId?.trim()
+  if (!siteLocationId) {
     return null
   }
-  return bandByJobLevelId.get(jlId) ?? null
+  return geoZoneBySiteLocationId.get(siteLocationId) ?? siteLocationId
+}
+
+function compensationBandPolicyKey(jobFamilyId: string, jobLevelId: string, geoZoneId: string): string {
+  return `${jobFamilyId}:${jobLevelId}:${geoZoneId}`
+}
+
+function compensationBandForPosition(
+  pos: EmployeePositionResult,
+  bandByFamilyLevelAndGeoZoneId: Map<string, CompensationBandGraphql | null>,
+  geoZoneBySiteLocationId: Map<string, string>
+): CompensationBandGraphql | null {
+  const jlId = jobLevelIdFromPosition(pos)
+  const jfId = jobFamilyIdFromPosition(pos)
+  const geoZoneId = geoZoneIdFromPosition(pos, geoZoneBySiteLocationId)
+  if (jlId == null || jfId == null || geoZoneId == null) {
+    return null
+  }
+  return bandByFamilyLevelAndGeoZoneId.get(compensationBandPolicyKey(jfId, jlId, geoZoneId)) ?? null
 }
 
 function buildTeamMemberFromPosition(
   pos: EmployeePositionResult,
-  bandByJobLevelId: Map<string, CompensationBandGraphql | null>,
+  bandByFamilyLevelAndGeoZoneId: Map<string, CompensationBandGraphql | null>,
+  geoZoneBySiteLocationId: Map<string, string>,
   currentSalaryMap: Map<string, SalaryResult>,
   lastRaiseMap: Map<string, { date: string; amount: number | null; percent: number | null }>,
   bonusTotalMap: Map<string, number>
 ): TeamMemberCompensationData {
   const salary = currentSalaryMap.get(pos.employeeId)
   const lastRaise = lastRaiseMap.get(pos.employeeId)
-  const band = compensationBandForPosition(pos, bandByJobLevelId)
+  const band = compensationBandForPosition(pos, bandByFamilyLevelAndGeoZoneId, geoZoneBySiteLocationId)
   const currencyCode = salary?.currency?.code ?? band?.currency?.value ?? 'EUR'
   const bandData = band ? { minSalary: band.minSalary, maxSalary: band.maxSalary, payGrade: band.payGrade } : null
   const currentAnnual = salary?.annualGrossSalary ?? null
@@ -165,19 +180,10 @@ interface UseTeamCompensationDataParams {
   orgUnitId?: string | null
   supervisorEmployeeId?: string | null
   supervisorOnly?: boolean
-  /**
-   * When true, only positions whose employee has a non-deleted working condition with a contract type
-   * catalog `objectValue` containing `payroll_relevant: true` (same signal as payroll preparation).
-   */
   requirePayrollRelevantContractType?: boolean
-  /** When false, skips all fetches and keeps an empty list (e.g. manager must pick a cycle first). */
   enabled?: boolean
 }
 
-/**
- * Single `employee` object for `EmployeePosition` filters so payroll rules combine with `isDeleted` reliably.
- * Accepts boolean or string `"true"` in catalog JSON (matches {@link usePayrollEmployees} `resolvePayrollRelevant`).
- */
 function buildEmployeeWhereForPosition(requirePayrollRelevantContractType: boolean): Record<string, unknown> {
   const employee: Record<string, unknown> = {
     isDeleted: { _eq: false }
@@ -196,6 +202,42 @@ function buildEmployeeWhereForPosition(requirePayrollRelevantContractType: boole
   return employee
 }
 
+function extractSiteLocations(response: SiteLocationResponse): SiteLocationResult[] {
+  if (Array.isArray(response)) {
+    return response
+  }
+  return response.data ?? []
+}
+
+function buildSiteLocationGeoZoneMap(siteLocations: SiteLocationResult[]): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const siteLocation of siteLocations) {
+    const geoZoneId = siteLocation.geo_zone?.trim()
+    if (geoZoneId) {
+      map.set(siteLocation.id, geoZoneId)
+    }
+  }
+  return map
+}
+
+async function resolveActiveStructureId(
+  orgchartClient: ReturnType<typeof useOrgchartClient>,
+  accessToken: string
+): Promise<string | null> {
+  const activeStructureId = getCurrentActiveStructureId()
+  if (activeStructureId) {
+    return activeStructureId
+  }
+
+  return orgchartClient
+    .getStructuresActive<ActiveStructureResponse>(
+      { nodeType: 'cost_center', isPlanningMode: false },
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    )
+    .then(response => response.structure?.structureId ?? null)
+    .catch(() => null)
+}
+
 export function useTeamCompensationData({
   accessToken,
   companyId,
@@ -210,6 +252,7 @@ export function useTeamCompensationData({
   const [error, setError] = useState<string | null>(null)
 
   const graphqlClient = useGraphQLClient(accessToken)
+  const orgchartClient = useOrgchartClient(accessToken)
 
   const fetchData = useCallback(async () => {
     if (!enabled) {
@@ -237,7 +280,6 @@ export function useTeamCompensationData({
       const whereConditions: Record<string, unknown>[] = [
         { employee: buildEmployeeWhereForPosition(requirePayrollRelevantContractType) }
       ]
-      /** Company selector: only positions tied to the selected company. */
       if (companyId) whereConditions.push({ companyId: { _eq: companyId } })
       if (orgUnitId) whereConditions.push({ organizationalUnitId: { _eq: orgUnitId } })
       if (supervisorEmployeeId) whereConditions.push({ supervisorEmployeeId: { _eq: supervisorEmployeeId } })
@@ -263,19 +305,52 @@ export function useTeamCompensationData({
       const jobLevelIds = [
         ...new Set(positions.map(jobLevelIdFromPosition).filter((id): id is string => id != null && id.length > 0))
       ]
+      const jobFamilyIds = [
+        ...new Set(positions.map(jobFamilyIdFromPosition).filter((id): id is string => id != null && id.length > 0))
+      ]
+      const siteLocationIds = [
+        ...new Set(positions.map(pos => pos.siteLocationId?.trim()).filter((id): id is string => Boolean(id)))
+      ]
+      const structureId = await resolveActiveStructureId(orgchartClient, accessToken)
+      const geoZoneBySiteLocationId =
+        siteLocationIds.length > 0 && structureId
+          ? await orgchartClient
+              .getSiteLocations<SiteLocationResponse>(
+                { structureId, limit: 1000, offset: 0 },
+                { headers: { Authorization: `Bearer ${accessToken}` } }
+              )
+              .then(response => buildSiteLocationGeoZoneMap(extractSiteLocations(response)))
+              .catch((e: unknown) => {
+                console.warn(
+                  '[useTeamCompensationData] Site location geo zone lookup failed; falling back to site location ids.',
+                  e
+                )
+                return new Map<string, string>()
+              })
+          : new Map<string, string>()
+      const geoZoneIds = [
+        ...new Set(
+          positions
+            .map(pos => geoZoneIdFromPosition(pos, geoZoneBySiteLocationId))
+            .filter((id): id is string => id != null && id.length > 0)
+        )
+      ]
 
-      const bandByJobLevelId = new Map<string, CompensationBandGraphql | null>()
-      if (jobLevelIds.length > 0) {
+      const bandByFamilyLevelAndGeoZoneId = new Map<string, CompensationBandGraphql | null>()
+      if (jobFamilyIds.length > 0 && jobLevelIds.length > 0 && geoZoneIds.length > 0) {
         try {
-          const levelRows = await graphqlClient.request<{
-            JobLevel: JobLevelForCompensationBandQuery[]
-          }>(GET_JOB_LEVELS_FOR_COMPENSATION_BANDS, { jobLevelIds })
-          for (const row of levelRows.JobLevel ?? []) {
-            bandByJobLevelId.set(row.id, pickCompensationBandFromPolicies(row))
+          const policyRows = await graphqlClient.request<{
+            CompensationBandPolicy: CompensationBandPolicyForTeamQuery[]
+          }>(GET_COMPENSATION_BAND_POLICIES_FOR_TEAM, { jobFamilyIds, jobLevelIds, geoZoneIds })
+          for (const row of policyRows.CompensationBandPolicy ?? []) {
+            const key = compensationBandPolicyKey(row.jobFamilyId, row.jobLevelId, row.geoZoneId)
+            if (!bandByFamilyLevelAndGeoZoneId.has(key)) {
+              bandByFamilyLevelAndGeoZoneId.set(key, row.compensationBand)
+            }
           }
         } catch (e) {
           console.warn(
-            '[useTeamCompensationData] JobLevel / compensationBandPolicies query failed; compa and band min/max are omitted.',
+            '[useTeamCompensationData] CompensationBandPolicy query failed; compa and band min/max are omitted.',
             e
           )
         }
@@ -285,9 +360,8 @@ export function useTeamCompensationData({
       const now = new Date()
       const y = now.getFullYear()
       const pad = (n: number) => String(n).padStart(2, '0')
-      const todayLocal = `${y}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+      const today = `${y}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
       const yearStart = `${y}-01-01`
-      const today = todayLocal
 
       const [currentSalRes, historyRes, bonusRes] = await Promise.all([
         graphqlClient
@@ -310,18 +384,19 @@ export function useTeamCompensationData({
         throw new Error(`Team salaries / history / bonuses: ${m}`)
       })
 
-      const batchResult = {
-        teamCurrentSalaries: currentSalRes,
-        teamSalaryHistory: historyRes,
-        teamBonuses: bonusRes
-      }
-
-      const currentSalaryMap = buildCurrentSalaryMap(batchResult.teamCurrentSalaries ?? [], today)
-      const lastRaiseMap = buildLastRaiseMap(batchResult.teamSalaryHistory ?? [])
-      const bonusTotalMap = buildBonusTotalMap(batchResult.teamBonuses ?? [])
+      const currentSalaryMap = buildCurrentSalaryMap(currentSalRes, today)
+      const lastRaiseMap = buildLastRaiseMap(historyRes)
+      const bonusTotalMap = buildBonusTotalMap(bonusRes)
 
       const members: TeamMemberCompensationData[] = positions.map(pos =>
-        buildTeamMemberFromPosition(pos, bandByJobLevelId, currentSalaryMap, lastRaiseMap, bonusTotalMap)
+        buildTeamMemberFromPosition(
+          pos,
+          bandByFamilyLevelAndGeoZoneId,
+          geoZoneBySiteLocationId,
+          currentSalaryMap,
+          lastRaiseMap,
+          bonusTotalMap
+        )
       )
 
       setTeamMembers(members)
@@ -341,7 +416,8 @@ export function useTeamCompensationData({
     supervisorOnly,
     requirePayrollRelevantContractType,
     enabled,
-    graphqlClient
+    graphqlClient,
+    orgchartClient
   ])
 
   useEffect(() => {
@@ -369,7 +445,6 @@ function groupSalariesByEmployee<T extends { employeeId: string }>(rows: T[]): M
   return by
 }
 
-/** Picks the active salary with the latest effective `startDate` per employee (matches Compensation History “current” row). */
 function buildCurrentSalaryMap(salaries: SalaryResult[], today: string): Map<string, SalaryResult> {
   const map = new Map<string, SalaryResult>()
   const byEmployee = groupSalariesByEmployee(salaries)
@@ -387,10 +462,6 @@ function buildCurrentSalaryMap(salaries: SalaryResult[], today: string): Map<str
   return map
 }
 
-/**
- * Last raise column: effective date of the latest approved salary (`startDate` of the most recent history row),
- * with amount/percent vs the previous period when two or more rows exist (otherwise API request fields).
- */
 function buildLastRaiseMap(
   salaries: SalaryHistoryResult[]
 ): Map<string, { date: string; amount: number | null; percent: number | null }> {
@@ -429,7 +500,6 @@ function buildLastRaiseMap(
   return map
 }
 
-/** Sums bonus amounts per employee (query already scopes to calendar YTD by paymentDate). */
 function buildBonusTotalMap(bonuses: BonusResult[]): Map<string, number> {
   const map = new Map<string, number>()
   for (const bonus of bonuses) {

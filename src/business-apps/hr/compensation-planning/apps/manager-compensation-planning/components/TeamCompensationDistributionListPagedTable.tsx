@@ -3,8 +3,8 @@ import { Alert, AlertDescription } from '@newwork/nw-design-system'
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import {
-  BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS,
-  MANAGER_TEAM_DISTRIBUTION_PERFORMANCE_ROW_GRID_CLASS
+  MANAGER_TEAM_DISTRIBUTION_PERFORMANCE_ROW_GRID_CLASS,
+  MANAGER_TEAM_DISTRIBUTION_STANDARD_ROW_GRID_CLASS
 } from '../../compensation-planning/components/views/budgetDistributionDepartmentGrid'
 import type {
   CustomBudgetInputMode,
@@ -75,7 +75,7 @@ export function TeamCompensationDistributionListPagedTable({
   const standardHeaderGridClass =
     isPerformanceMethod && !isCustom
       ? MANAGER_TEAM_DISTRIBUTION_PERFORMANCE_ROW_GRID_CLASS
-      : BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS
+      : MANAGER_TEAM_DISTRIBUTION_STANDARD_ROW_GRID_CLASS
 
   return (
     <>
@@ -83,13 +83,14 @@ export function TeamCompensationDistributionListPagedTable({
         className="gba:min-w-0 gba:overflow-x-auto gba:rounded-md gba:border gba:border-border"
         data-testid="manager-team-distribution-table-scroll"
       >
-        <ul className="gba:min-w-[28rem] gba:divide-y gba:divide-border">
+        <ul className="gba:min-w-[44rem] gba:divide-y gba:divide-border">
           {isCustom ? null : (
             <li
               className={`${standardHeaderGridClass} gba:sticky gba:top-0 gba:z-10 gba:border-b gba:border-border gba:bg-background/95 gba:px-4 gba:py-2 gba:backdrop-blur-sm gba:text-xs gba:font-medium gba:text-muted-foreground`}
               data-testid="manager-team-distribution-standard-column-headers"
             >
               <span>{tBudget('manager-team-distribution-col-employee')}</span>
+              <span className="gba:text-center">{tBudget('manager-team-distribution-col-compensation-band')}</span>
               {isPerformanceMethod ? (
                 <span className="gba:text-right">{tBudget('manager-team-distribution-col-overall-score')}</span>
               ) : null}
