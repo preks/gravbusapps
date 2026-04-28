@@ -252,6 +252,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, addit
         isSubmitDisabled={noteLoading}
       >
         <NoteLayout
+          accessToken={accessToken}
           entities={entities}
           entitiesLoading={entitiesLoading}
           entitiesHasMore={entitiesHasMore}

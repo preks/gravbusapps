@@ -12,12 +12,7 @@ import {
 } from '@newwork/nw-design-system'
 import flowSmall from '@/assets/icons/flowSmall.svg'
 import { useEmployeeTerminationContext } from '../context/EmployeeTerminationContext'
-import {
-  getTranslationFromI18nKeyAndLabel,
-  formatDateToISO,
-  getCurrentActiveUserLocale,
-  getDateFormat
-} from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDateToISO, getDateFormat } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 import FormHeader from '../../components/FormHeader'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
@@ -163,28 +158,29 @@ export const EmployeeTerminationForm: React.FC = () => {
               )}
             </div>
 
-            <div className="gba:mb-6">
+            <div className="gba:mb-6 gba:overflow-hidden">
               <label className="gba:block gba:mb-2 gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:employee_termination.exit_date_input', 'Exit Date')}
                 <span className="gba:text-destructive"> *</span>
               </label>
               <DateInput
                 type="date"
+                className="gba:w-full"
                 value={formValues.terminationDate?.isValid() ? formValues.terminationDate.format('YYYY-MM-DD') : ''}
-                onChange={(v?: string) => {
-                  if (v) {
-                    setFormValues({ terminationDate: dayjs(v) })
-                  } else {
-                    setFormValues({ terminationDate: undefined as any })
+                onChange={value => {
+                  const nextDateValue = typeof value === 'string' ? value : null
+
+                  if (nextDateValue) {
+                    setFormValues({ terminationDate: dayjs(nextDateValue) })
+                    return
                   }
+                  setFormValues({ terminationDate: dayjs('') })
                 }}
                 placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:absences_overview_entry_screen.select_placeholder',
                   'Please Select'
                 )}
                 data-testid="exit-date-picker"
-                className="gba:w-full"
-                locale={getCurrentActiveUserLocale()}
               />
             </div>
 

@@ -10,6 +10,8 @@ export interface ManagerFeedbackResult {
   hasFeedbackRecently: boolean
   /** Total feedback count to team members */
   totalFeedbackCount: number
+  /** Last feedback date per employee (ISO date string) */
+  lastFeedbackByEmployeeId: Record<string, string | null>
   loading: boolean
   error: Error | null
 }
@@ -33,6 +35,7 @@ export const useManagerFeedback = ({
   const [lastFeedbackDate, setLastFeedbackDate] = useState<Date | null>(null)
   const [hasFeedbackRecently, setHasFeedbackRecently] = useState(true)
   const [totalFeedbackCount, setTotalFeedbackCount] = useState(0)
+  const [lastFeedbackByEmployeeId, setLastFeedbackByEmployeeId] = useState<Record<string, string | null>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -43,6 +46,7 @@ export const useManagerFeedback = ({
       setLoading(false)
       setDaysSinceLastFeedback(null)
       setHasFeedbackRecently(true) // No team, so no feedback needed
+      setLastFeedbackByEmployeeId({})
       return
     }
 
@@ -60,7 +64,7 @@ export const useManagerFeedback = ({
               isDeleted: { _eq: false }
             },
             orderBy: { feedbackDate: DESC },
-            limit: 1
+            limit: 500
           ) {
             id
             feedbackDate
@@ -90,6 +94,19 @@ export const useManagerFeedback = ({
       const totalCount = response?.EmployeeFeedbackAggregate?.aggregate?.count || 0
 
       setTotalFeedbackCount(totalCount)
+      const latestByEmployee: Record<string, string | null> = {}
+
+      for (const employeeId of directReportIds) {
+        latestByEmployee[employeeId] = null
+      }
+
+      feedbackRecords.forEach((record: { employeeId: string; feedbackDate: string }) => {
+        if (!latestByEmployee[record.employeeId]) {
+          latestByEmployee[record.employeeId] = record.feedbackDate
+        }
+      })
+
+      setLastFeedbackByEmployeeId(latestByEmployee)
 
       if (feedbackRecords.length > 0) {
         const lastFeedback = feedbackRecords[0]
@@ -124,8 +141,8 @@ export const useManagerFeedback = ({
     lastFeedbackDate,
     hasFeedbackRecently,
     totalFeedbackCount,
+    lastFeedbackByEmployeeId,
     loading,
     error
   }
 }
-

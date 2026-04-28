@@ -1,6 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import './setup'
-import { extractTextElements } from '../extractText'
+import { extractTextElements, parseBodyAutofit, resolveTypeface } from '../extractText'
+import { getChild } from '../ooxmlUtils'
 import { parseXML } from '../ooxmlUtils'
 import type { OoxmlTheme, SlideRelationships } from '../types'
 
@@ -149,6 +148,49 @@ describe('extractTextElements', () => {
     expect(elements).toHaveLength(0)
   })
 
+  it('resolves +mj-lt to the theme major font on a run', () => {
+    const xml = slideXml(`
+      <p:sp>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:p>
+            <a:r>
+              <a:rPr lang="en-US"><a:latin typeface="+mj-lt"/></a:rPr>
+              <a:t>Title</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+    const elements = extractTextElements(xml, theme, emptyRels)
+    expect(elements[0].fontFamily).toBe('Calibri Light')
+  })
+
+  it('resolves +mn-lt on the paragraph default to the theme minor font', () => {
+    const xml = slideXml(`
+      <p:sp>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:p>
+            <a:pPr>
+              <a:defRPr sz="2400"><a:latin typeface="+mn-lt"/></a:defRPr>
+            </a:pPr>
+            <a:r>
+              <a:rPr lang="en-US"/>
+              <a:t>Body text</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+    const elements = extractTextElements(xml, theme, emptyRels)
+    expect(elements[0].fontFamily).toBe('Calibri')
+  })
+
   it('concatenates multiple paragraphs with newline', () => {
     const xml = slideXml(`
       <p:sp>
@@ -164,5 +206,256 @@ describe('extractTextElements', () => {
 
     const elements = extractTextElements(xml, theme, emptyRels)
     expect(elements[0].content).toBe('Line one\nLine two')
+  })
+
+  it('maps bodyPr anchor and insets onto text box vertical alignment and padding', () => {
+    const xml = slideXml(`
+      <p:sp>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr anchor="b" lIns="190500" rIns="190500" tIns="95250" bIns="95250"/>
+          <a:p><a:r><a:t>Bottom aligned text</a:t></a:r></a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+
+    const elements = extractTextElements(xml, theme, emptyRels)
+    expect(elements[0].verticalAlign).toBe('bottom')
+    expect(elements[0].padding).toBe(15)
+  })
+
+  it('does not override explicit tx1 run color with style fontRef fallback', () => {
+    const themed: OoxmlTheme = {
+      colors: new Map([
+        ['dk1', '#000000'],
+        ['lt1', '#FFFFFF']
+      ]),
+      majorFont: 'Calibri Light',
+      minorFont: 'Calibri'
+    }
+    const xml = slideXml(`
+      <p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="1" name="Styled TextBox"/>
+          <p:cNvSpPr txBox="1"/>
+          <p:nvPr/>
+        </p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="1828800" cy="457200"/></a:xfrm>
+        </p:spPr>
+        <p:style>
+          <a:fontRef idx="minor"><a:schemeClr val="lt1"/></a:fontRef>
+        </p:style>
+        <p:txBody>
+          <a:p>
+            <a:r>
+              <a:rPr><a:solidFill><a:schemeClr val="tx1"/></a:solidFill></a:rPr>
+              <a:t>Should stay black</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+
+    const elements = extractTextElements(xml, themed, emptyRels)
+    expect(elements).toHaveLength(1)
+    expect(elements[0].color).toBe('#000000')
+    expect(elements[0].paragraphs?.[0].runs[0].color).toBe('#000000')
+  })
+})
+
+describe('resolveTypeface', () => {
+  it('maps +mj-* to the theme major font', () => {
+    expect(resolveTypeface('+mj-lt', theme)).toBe('Calibri Light')
+    expect(resolveTypeface('+mj-ea', theme)).toBe('Calibri Light')
+  })
+
+  it('maps +mn-* to the theme minor font', () => {
+    expect(resolveTypeface('+mn-lt', theme)).toBe('Calibri')
+  })
+
+  it('returns undefined for theme references when no theme is provided', () => {
+    expect(resolveTypeface('+mj-lt', undefined)).toBeUndefined()
+  })
+
+  it('passes literal font names through untouched', () => {
+    expect(resolveTypeface('Aptos Display', theme)).toBe('Aptos Display')
+  })
+
+  it('returns undefined for null/empty input', () => {
+    expect(resolveTypeface(null, theme)).toBeUndefined()
+    expect(resolveTypeface('', theme)).toBeUndefined()
+    expect(resolveTypeface('   ', theme)).toBeUndefined()
+  })
+})
+
+describe('extractTextElements caps + autofit', () => {
+  it('translates cap="all" on a run to RichTextRun.textTransform = uppercase', () => {
+    const xml = slideXml(`
+      <p:sp>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:p>
+            <a:r>
+              <a:rPr lang="en-US" cap="all" sz="4400"/>
+              <a:t>Solution Requirements</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+
+    const elements = extractTextElements(xml, theme, emptyRels)
+    expect(elements).toHaveLength(1)
+    expect(elements[0].content).toBe('Solution Requirements')
+    // Stored text keeps original casing — display-only transform.
+    expect(elements[0].textTransform).toBe('uppercase')
+    expect(elements[0].paragraphs?.[0].runs[0].textTransform).toBe('uppercase')
+  })
+
+  it('inherits cap from paragraph defRPr when a run omits it', () => {
+    const xml = slideXml(`
+      <p:sp>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:p>
+            <a:pPr><a:defRPr sz="2400" cap="small"/></a:pPr>
+            <a:r>
+              <a:rPr lang="en-US"/>
+              <a:t>SubTitle Line</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+    const elements = extractTextElements(xml, theme, emptyRels)
+    expect(elements[0].textTransform).toBe('small-caps')
+  })
+
+  it('does not promote cap to element-level when runs disagree', () => {
+    const xml = slideXml(`
+      <p:sp>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:p>
+            <a:r><a:rPr cap="all"/><a:t>Loud </a:t></a:r>
+            <a:r><a:rPr/><a:t>whisper</a:t></a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+    const elements = extractTextElements(xml, theme, emptyRels)
+    expect(elements[0].textTransform).toBeUndefined()
+    expect(elements[0].paragraphs?.[0].runs[0].textTransform).toBe('uppercase')
+    expect(elements[0].paragraphs?.[0].runs[1].textTransform).toBeUndefined()
+  })
+
+  it('scales imported run font sizes when <a:normAutofit fontScale> is present', () => {
+    const xml = slideXml(`
+      <p:sp>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr><a:normAutofit fontScale="50000" lnSpcReduction="10000"/></a:bodyPr>
+          <a:p>
+            <a:r>
+              <a:rPr lang="en-US" sz="4400"/>
+              <a:t>Huge title shrunk to fit</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+    const elements = extractTextElements(xml, theme, emptyRels)
+    // sz=4400 (44pt) × 50% scale = 22pt ≈ 29.3px (22 * 1.333).
+    expect(elements[0].fontSize).toBe(29)
+    expect(Math.round(elements[0].paragraphs![0].runs[0].fontSize!)).toBe(29)
+  })
+
+  it('adds descender breathing room for zero-inset spAutoFit labels like Enterprise AI slide 13', () => {
+    const xml = slideXml(`
+      <p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="25" name="Text 35"/>
+          <p:cNvSpPr txBox="1"/>
+          <p:nvPr/>
+        </p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="7951724" y="2811949"/><a:ext cx="1169290" cy="109728"/></a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0" anchor="ctr">
+            <a:spAutoFit/>
+          </a:bodyPr>
+          <a:p>
+            <a:pPr marL="0" indent="0" algn="ctr" fontAlgn="base">
+              <a:buNone/>
+            </a:pPr>
+            <a:r>
+              <a:rPr lang="en-US" sz="1200" b="1">
+                <a:solidFill><a:srgbClr val="E66329"/></a:solidFill>
+                <a:latin typeface="Roboto"/>
+              </a:rPr>
+              <a:t>Agents</a:t>
+            </a:r>
+            <a:endParaRPr lang="en-US" sz="1200"/>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+
+    const elements = extractTextElements(xml, theme, emptyRels)
+
+    expect(elements).toHaveLength(1)
+    expect(elements[0].fontSize).toBe(16)
+    expect(elements[0].fontWeight).toBe('bold')
+    expect(elements[0].verticalAlign).toBe('middle')
+    expect(elements[0].padding).toBe(0)
+    expect(elements[0].size.height).toBe(24)
+  })
+
+  it('parseBodyAutofit reads fontScale/lineSpaceReduction as ratios', () => {
+    const xml = new DOMParser().parseFromString(
+      `<a:bodyPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+        <a:normAutofit fontScale="92500" lnSpcReduction="20000"/>
+      </a:bodyPr>`,
+      'application/xml'
+    )
+    const bodyPr = xml.documentElement
+    const autofit = parseBodyAutofit(bodyPr)
+    expect(autofit.mode).toBe('normal')
+    expect(autofit.fontScale).toBeCloseTo(0.925, 3)
+    expect(autofit.lineSpaceReduction).toBeCloseTo(0.2, 3)
+  })
+
+  it('parseBodyAutofit falls back to mode=none when no autofit child is present', () => {
+    // Use a wrapper element so getChild/helpers work regardless of namespace default.
+    const xml = new DOMParser().parseFromString(
+      `<a:bodyPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/>`,
+      'application/xml'
+    )
+    const autofit = parseBodyAutofit(xml.documentElement)
+    expect(autofit.mode).toBe('none')
+    expect(autofit.fontScale).toBe(1)
+  })
+
+  // Sanity: getChild is re-exported so tests can still reach into fixture XML.
+  it('getChild finds direct a:normAutofit child', () => {
+    const xml = new DOMParser().parseFromString(
+      `<a:bodyPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+        <a:normAutofit/>
+      </a:bodyPr>`,
+      'application/xml'
+    )
+    expect(getChild(xml.documentElement, 'a:normAutofit')).toBeDefined()
   })
 })

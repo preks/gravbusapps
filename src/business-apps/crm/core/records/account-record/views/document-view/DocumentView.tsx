@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import { FolderSimpleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -7,6 +8,9 @@ import { useGetCrmDocuments, getCrmDocumentApiConfig } from '@/business-apps/crm
 import { useCrmDocuments } from '@/business-apps/crm/common/hooks/useCrmDocuments'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
+import { useAppActionData } from '@/common/hooks/useAppActionData'
+
+const FOLDER_UPLOAD_CONTEXTS = [FlowContextName.customerFolderUpload]
 
 interface DocumentViewProps {
   accountId: string
@@ -23,7 +27,33 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
     errorMessage: getTranslationFromI18nKeyAndLabel('error.loading.documents', 'Failed to load documents')
   })
 
-  // REST client for document operations (CRM uses Kogito processes)
+  const folderUploadActionConfig = useMemo(
+    () => ({
+      contextsArray: FOLDER_UPLOAD_CONTEXTS,
+      externalContextData: { accountId },
+      accessToken: context.accessToken || '',
+      deferMainContextRequestsUntilClick: false,
+      prefixDataTestId: 'account-document-upload-folder'
+    }),
+    [accountId, context.accessToken]
+  )
+
+  const folderUploadActionData = useAppActionData(folderUploadActionConfig, 'UploadFolder')
+
+  const uploadToolbarActions = useMemo(
+    () => [
+      {
+        key: 'upload-folder',
+        label: getTranslationFromI18nKeyAndLabel('document.upload.folder', 'Upload Folder'),
+        icon: <FolderSimpleIcon className="gba:h-4 gba:w-4" />,
+        onClick: () => folderUploadActionData.combinedData[0]?.onClick?.(),
+        variant: 'outline' as const,
+        testId: 'account-document-upload-folder-button'
+      }
+    ],
+    [folderUploadActionData.combinedData]
+  )
+
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   const documentCreateFolderActionProps = useMemo(
@@ -80,6 +110,8 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}
       deleteActionProps={documentDeleteActionProps}
+      aiOrganizeConfig={{ moduleType: 'CRM', entityType: 'ACCOUNT', domain: 'customer' }}
+      toolbarActions={uploadToolbarActions}
       data-testid="account-document-section"
       accessToken={context.accessToken}
       userInfo={context.userInfo}

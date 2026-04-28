@@ -5,10 +5,17 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogSettings } from '@/common/components/common-relations/setting-pages/hooks/useCatalogSettings'
 import { CatalogTab } from '@/common/components/common-relations/setting-pages/components/CatalogTab'
 
+type InvestmentSpecificTab = 'roles' | 'statuses' | 'stake-types'
+
+const TABS: ReadonlyArray<InvestmentSpecificTab> = ['roles', 'statuses', 'stake-types']
+
+const isInvestmentSpecificTab = (value: string): value is InvestmentSpecificTab =>
+  (TABS as ReadonlyArray<string>).includes(value)
+
 export interface InvestmentSpecificDataPageProps extends BusinessAppContextProps {
   className?: string
   prefixDataTestId?: string
-  initialTab?: 'roles' | 'statuses' | 'stake-types'
+  initialTab?: InvestmentSpecificTab
   onBack?: () => void
 }
 
@@ -21,7 +28,7 @@ const InvestmentSpecificDataPage: React.FC<InvestmentSpecificDataPageProps> = ({
   className,
   ...context
 }) => {
-  const [active, setActive] = useState<'roles' | 'statuses' | 'stake-types'>(initialTab)
+  const [active, setActive] = useState<InvestmentSpecificTab>(initialTab)
 
   const roles = useCatalogSettings(context, 'InvestmentRole')
   const statuses = useCatalogSettings(context, 'InvestmentStatus')
@@ -38,7 +45,9 @@ const InvestmentSpecificDataPage: React.FC<InvestmentSpecificDataPageProps> = ({
     >
       <Tabs
         value={active}
-        onValueChange={k => setActive(k as any)}
+        onValueChange={k => {
+          if (isInvestmentSpecificTab(k)) setActive(k)
+        }}
         data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Tabs`}
       >
         <TabsList>

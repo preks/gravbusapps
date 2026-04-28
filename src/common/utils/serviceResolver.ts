@@ -37,6 +37,34 @@ export function normalizeCustomFlowEngineApiBaseUrl(resolved: string): string {
   return `${trimmed}/api`
 }
 
+// ============================================================================
+// Gravity Platform (Next `gravity-platform` app: JSON under `/api/*`, static under `/platform/*`)
+// Used by remote bundles `platform/apps/setup` and `platform/apps/setup-add-employees`.
+// ============================================================================
+
+/** Host: `NEXT_PUBLIC_BASE_URL` → `NEXT_PUBLIC_PLATFORM_URL` → `window.location.origin` (same host as the embedded screen). */
+export function resolveGravityPlatformAppOrigin(): string {
+  const explicit = env('NEXT_PUBLIC_BASE_URL') || env('NEXT_PUBLIC_PLATFORM_URL')
+  if (explicit) {
+    return explicit.replace(/\/$/, '')
+  }
+  if (typeof globalThis.window !== 'undefined' && globalThis.window.location?.origin) {
+    return globalThis.window.location.origin
+  }
+  return ''
+}
+
+/** Gravity Platform route handlers (`/api/active-structure`, `/api/setup`, …). */
+export function resolveGravityPlatformApiRoot(): string {
+  const base = resolveGravityPlatformAppOrigin().replace(/\/$/, '')
+  return `${base}/api`
+}
+
+export function resolveGravityPlatformWordmarkUrl(): string {
+  const base = resolveGravityPlatformAppOrigin().replace(/\/$/, '')
+  return `${base}/platform/wordmark.svg`
+}
+
 /**
  * Resolve service URL based on environment.
  *
@@ -138,10 +166,6 @@ export const FLOW_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC_FLOW_MANAGER_
 export const FLOW_METRICS_API_URL = resolveServiceUrl('NEXT_PUBLIC_FLOW_METRICS_API_URL', {
   servicePath: '/flow-metrics',
   apiPath: '/api/v1'
-})
-export const FLOWBOT_API_URL = resolveServiceUrl('NEXT_PUBLIC_FLOWBOT_API_URL', {
-  servicePath: '/flowbot',
-  apiPath: ''
 })
 export const FLOW_REGISTRY_API_URL = resolveServiceUrl('NEXT_PUBLIC_FLOW_REGISTRY_API_URL', {
   servicePath: '/flow-registry',

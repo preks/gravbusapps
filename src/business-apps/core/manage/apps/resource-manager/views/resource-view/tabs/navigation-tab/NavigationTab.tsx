@@ -125,7 +125,8 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
     error: navigationsError,
     refetch: refetchNavigations,
     loadMore: loadMoreNavigations,
-    hasMore: hasMoreNavigations
+    hasMore: hasMoreNavigations,
+    removeNavigation
   } = useNavigations(context, navigationParams)
 
   const {
@@ -389,11 +390,10 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
 
       const success = await deleteNavigation(navigation.id)
       if (success) {
-        setUrlsPagination(prev => ({ ...prev, pageIndex: 0 }))
-        await refetchNavigations()
+        removeNavigation(navigation.id)
       }
     },
-    [deleteNavigation, refetchNavigations]
+    [deleteNavigation, removeNavigation]
   )
 
   return (

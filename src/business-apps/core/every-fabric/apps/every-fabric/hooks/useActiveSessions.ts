@@ -4,7 +4,10 @@ import type {
   ActiveSessionsStatusCounts,
   ActiveStreamEvent,
   ActiveStreamOverviewEvent,
-  ActiveStreamSessionEvent
+  ActiveStreamSessionAddedEvent,
+  ActiveStreamSessionEvent,
+  ActiveStreamSessionRemovedEvent,
+  ActiveStreamStatusChangedEvent
 } from '../types/activeSession'
 import { useEnterpriseAgentClient } from './useEnterpriseAgentClient'
 
@@ -108,6 +111,60 @@ function activityFromEvent(
   return null
 }
 
+function applyWaitingForHuman(
+  map: SessionMap,
+  sid: string,
+  existing: ActiveSessionSnapshot,
+  event: ActiveStreamSessionEvent
+): SessionMap {
+  const timestamp = typeof event.timestamp === 'string' ? event.timestamp : existing.updated_at
+  const pendingQuestion =
+    typeof event.human_question === 'string' && event.human_question
+      ? event.human_question
+      : (existing.pending_human_question ?? null)
+  const pendingStructured =
+    event.structured_input_request && typeof event.structured_input_request === 'object'
+      ? (event.structured_input_request as Record<string, unknown>)
+      : (existing.pending_structured_input ?? null)
+  const nextSnapshot: ActiveSessionSnapshot = {
+    ...existing,
+    status: 'waiting_for_human',
+    pending_human_question: pendingQuestion,
+    pending_structured_input: pendingStructured,
+    updated_at: timestamp ?? existing.updated_at,
+    current_activity: {
+      step: 'awaiting_human',
+      label: pendingQuestion ? String(pendingQuestion).slice(0, 200) : 'Waiting for your input',
+      started_at: timestamp ?? null
+    }
+  }
+  const next = new Map(map)
+  next.set(sid, nextSnapshot)
+  return next
+}
+
+function applyTerminalEvent(
+  map: SessionMap,
+  sid: string,
+  existing: ActiveSessionSnapshot | undefined,
+  event: ActiveStreamSessionEvent
+): SessionMap {
+  const status = typeof event.status === 'string' ? event.status : 'completed'
+  if (TERMINAL_STATUSES.has(status)) {
+    if (!existing) return map
+    const next = new Map(map)
+    next.delete(sid)
+    return next
+  }
+  // A `waiting_for_human` terminal event keeps the session active, but we
+  // MUST reflect the new status on the snapshot so the sidebar pill updates
+  // without waiting for the next overview event.
+  if (status === 'waiting_for_human' && existing) {
+    return applyWaitingForHuman(map, sid, existing, event)
+  }
+  return map
+}
+
 function applySessionEvent(map: SessionMap, event: ActiveStreamSessionEvent): SessionMap {
   const sid = event.session_id
   if (!sid) return map
@@ -115,19 +172,12 @@ function applySessionEvent(map: SessionMap, event: ActiveStreamSessionEvent): Se
   const existing = map.get(sid)
 
   if (event.type === 'terminal') {
-    const status = typeof event.status === 'string' ? event.status : 'completed'
-    if (TERMINAL_STATUSES.has(status)) {
-      if (!existing) return map
-      const next = new Map(map)
-      next.delete(sid)
-      return next
-    }
-    // A `waiting_for_human` terminal event keeps the session active; fall through.
+    return applyTerminalEvent(map, sid, existing, event)
   }
 
   if (!existing) {
-    // We don't have a snapshot yet for this session — the next REST refetch or
-    // overview event will materialise it; skip for now.
+    // We don't have a snapshot yet for this session — the next REST refetch,
+    // overview, or `session_added` event will materialise it; skip for now.
     return map
   }
 
@@ -136,7 +186,9 @@ function applySessionEvent(map: SessionMap, event: ActiveStreamSessionEvent): Se
     ...existing,
     updated_at: timestamp ?? existing.updated_at,
     next_event_seq:
-      typeof event.seq === 'number' ? Math.max(existing.next_event_seq, event.seq + 1) : existing.next_event_seq
+      typeof event.seq === 'number' ? Math.max(existing.next_event_seq, event.seq + 1) : existing.next_event_seq,
+    last_event_seq:
+      typeof event.seq === 'number' ? Math.max(existing.last_event_seq ?? 0, event.seq) : existing.last_event_seq
   }
 
   const activity = activityFromEvent(event, timestamp)
@@ -149,6 +201,50 @@ function applySessionEvent(map: SessionMap, event: ActiveStreamSessionEvent): Se
   return next
 }
 
+function applySessionAdded(map: SessionMap, event: ActiveStreamSessionAddedEvent): SessionMap {
+  if (!event.session?.session_id) return map
+  const next = new Map(map)
+  next.set(event.session.session_id, event.session)
+  return next
+}
+
+function applySessionRemoved(map: SessionMap, event: ActiveStreamSessionRemovedEvent): SessionMap {
+  if (!event.session_id || !map.has(event.session_id)) return map
+  const next = new Map(map)
+  next.delete(event.session_id)
+  return next
+}
+
+function applyStatusChanged(map: SessionMap, event: ActiveStreamStatusChangedEvent): SessionMap {
+  const sid = event.session_id
+  if (!sid) return map
+
+  // If the BE included a full snapshot, prefer it (atomic replacement).
+  if (event.session?.session_id === sid) {
+    const next = new Map(map)
+    next.set(sid, event.session)
+    return next
+  }
+
+  const existing = map.get(sid)
+  if (!existing) return map
+
+  const nextSnapshot: ActiveSessionSnapshot = {
+    ...existing,
+    status: event.status ?? existing.status,
+    current_activity: event.current_activity ?? existing.current_activity,
+    todos_summary: event.todos_summary ?? existing.todos_summary,
+    pending_human_question:
+      event.pending_human_question === undefined ? existing.pending_human_question : event.pending_human_question,
+    pending_structured_input:
+      event.pending_structured_input === undefined ? existing.pending_structured_input : event.pending_structured_input,
+    updated_at: event.updated_at ?? existing.updated_at
+  }
+  const next = new Map(map)
+  next.set(sid, nextSnapshot)
+  return next
+}
+
 export interface UseActiveSessionsResult {
   activeSessions: ActiveSessionSnapshot[]
   statusCounts: ActiveSessionsStatusCounts
@@ -156,6 +252,12 @@ export interface UseActiveSessionsResult {
   isLive: boolean
   isLoading: boolean
   refetch: () => Promise<void>
+  /**
+   * Optimistically drop a session from the active map. Used by the sidebar
+   * Stop button so the row disappears immediately, without waiting for the
+   * backend's next poll tick to emit a `terminal` / `session_removed` event.
+   */
+  removeActive: (sessionId: string) => void
 }
 
 /**
@@ -243,6 +345,18 @@ export const useActiveSessions = (accessToken: string): UseActiveSessionsResult 
           setIsLoading(false)
           return
         }
+        if (event.type === 'session_added') {
+          setSessionMap(prev => applySessionAdded(prev, event as ActiveStreamSessionAddedEvent))
+          return
+        }
+        if (event.type === 'session_removed') {
+          setSessionMap(prev => applySessionRemoved(prev, event as ActiveStreamSessionRemovedEvent))
+          return
+        }
+        if (event.type === 'status_changed') {
+          setSessionMap(prev => applyStatusChanged(prev, event as ActiveStreamStatusChangedEvent))
+          return
+        }
         setSessionMap(prev => applySessionEvent(prev, event as ActiveStreamSessionEvent))
       } catch {
         // malformed payload — ignore
@@ -301,11 +415,21 @@ export const useActiveSessions = (accessToken: string): UseActiveSessionsResult 
 
   const statusCounts = useMemo(() => statusCountsOf(activeSessions), [activeSessions])
 
+  const removeActive = useCallback((sessionId: string) => {
+    setSessionMap(prev => {
+      if (!prev.has(sessionId)) return prev
+      const next = new Map(prev)
+      next.delete(sessionId)
+      return next
+    })
+  }, [])
+
   return {
     activeSessions,
     statusCounts,
     isLive,
     isLoading,
-    refetch: hydrateFromRest
+    refetch: hydrateFromRest,
+    removeActive
   }
 }

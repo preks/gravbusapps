@@ -13,6 +13,10 @@ export type OfficeWebSocketOptions = {
   enablePollingFallback?: boolean
 }
 
+function resolveSocketTransports(enablePollingFallback: boolean) {
+  return enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
+}
+
 export type OfficeSocketConnectionStatus = {
   connected: boolean
   socketId?: string
@@ -162,11 +166,12 @@ export class OfficeWebSocketClient {
 
     const target = this.resolveConnectBase()
     const options = this.getConnectOptions()
-    const transports = options.enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
+    const transports = resolveSocketTransports(options.enablePollingFallback)
 
     this.socket = io(target.socketUrl, {
       auth: toSocketAuth(this.accessToken),
       transports,
+      tryAllTransports: options.enablePollingFallback,
       path: options.path,
       reconnection: true,
       reconnectionDelay: 5000,

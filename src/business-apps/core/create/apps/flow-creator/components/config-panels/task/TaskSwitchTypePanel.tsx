@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { Label } from '@newwork/nw-design-system'
-import { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { FlowStepType } from '@/common/data/flow/types/flowTemplate'
 import type { DesignerMode, TaskNodeConfig } from '../../types/studioTypes'
 import { TaskCategoryTiles } from '../shared/TaskCategoryTiles'
 

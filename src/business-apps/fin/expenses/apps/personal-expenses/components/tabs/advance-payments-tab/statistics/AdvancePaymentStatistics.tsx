@@ -1,5 +1,4 @@
 import React, { useMemo, useCallback } from 'react'
-import { CurrencyDollarIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useGetAdvancePaymentStatistics } from '../../../../hooks/useGetAdvancePaymentStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -164,7 +163,6 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           ' ' +
           currentMonthName,
         value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), currencyCode)}`,
-        prefix: <CurrencyDollarIcon size={16} />,
         color: '#3f8600',
         span: { xs: 24, sm: 12, md: 6 },
         description: getTranslationFromI18nKeyAndLabel(

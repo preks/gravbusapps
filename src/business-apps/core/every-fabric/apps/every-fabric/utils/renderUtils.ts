@@ -71,11 +71,50 @@ export function formatDuration(ms: number): string {
   return `${minutes}m ${seconds}s`
 }
 
+/**
+ * Backend timestamps may arrive as "naive" ISO strings without a timezone
+ * suffix (e.g. `"2026-04-22T08:22:55.123456"`). This happens because MongoDB
+ * stores `datetime` objects as UTC but PyMongo (with default `tz_aware=False`)
+ * deserializes them as naive `datetime`s, whose `.isoformat()` omits the
+ * offset. Per ECMAScript, `new Date(<date-time-without-offset>)` treats such
+ * strings as **local time**, which produces an apparent skew equal to the
+ * user's UTC offset (e.g. a "2h ago" label for a session created 5 minutes
+ * ago in UTC+2).
+ *
+ * This helper normalizes the input: if the string contains a time component
+ * but no timezone suffix, append `Z` so the browser parses it as UTC. Strings
+ * that already carry a `Z`, `z`, or `±HH:MM` / `±HHMM` offset are untouched,
+ * as are `Date` inputs and date-only strings (which ES parses as UTC anyway).
+ */
+export function parseIsoTimestamp(input: string | Date | null | undefined): Date | null {
+  if (input === null || input === undefined) return null
+  if (input instanceof Date) return Number.isNaN(input.getTime()) ? null : input
+
+  const trimmed = input.trim()
+  if (!trimmed) return null
+
+  const hasTime = trimmed.includes('T') || trimmed.includes('t') || / \d{2}:\d{2}/.test(trimmed)
+  const hasOffset = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(trimmed)
+  const normalized = hasTime && !hasOffset ? `${trimmed}Z` : trimmed
+
+  const date = new Date(normalized)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+/** Convenience: parse to epoch milliseconds, or `null` if unparseable. */
+export function parseIsoTimestampMs(input: string | Date | null | undefined): number | null {
+  const date = parseIsoTimestamp(input)
+  return date ? date.getTime() : null
+}
+
 /** Format relative time from ISO string */
 export function formatRelativeTime(isoString: string): string {
-  const date = new Date(isoString)
+  const date = parseIsoTimestamp(isoString)
+  if (!date) return ''
   const now = new Date()
-  const diff = now.getTime() - date.getTime()
+  // Clamp small negative diffs (e.g. backend clock slightly ahead of the
+  // browser) to 0 so we render "Just now" instead of a confusing future label.
+  const diff = Math.max(0, now.getTime() - date.getTime())
   const minutes = Math.floor(diff / 60000)
   if (minutes < 1) return 'Just now'
   if (minutes < 60) return `${minutes}m ago`

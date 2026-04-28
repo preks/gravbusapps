@@ -21,6 +21,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getReferenceEntityType } from '@/common/data/investment/utils'
 import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/investment/constants/investmentConstants'
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { ActivityAssociationsReadOnly } from '@/common/components/common-relations/activity-association'
 import { IrmActivityAssociationFields } from './IrmActivityAssociationFields'
 
 export interface ActivityFormProps extends BusinessAppContextProps {
@@ -102,6 +103,23 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     [relatedEntityIds]
   )
 
+  // True when the loaded activity already has at least one related entity. We
+  // only lock the association pickers in update mode if the activity actually
+  // has something to lock — otherwise we let the user pick an entity now.
+  const hasExistingEntity = useMemo(
+    () =>
+      Boolean(
+        activity?.accountId ||
+          activity?.contactId ||
+          activity?.opportunityId ||
+          activity?.leadId ||
+          activity?.investmentId
+      ),
+    [activity]
+  )
+
+  const lockEntityAssociations = isUpdateMode && hasExistingEntity
+
   const activityRef = useRef(activity)
   useEffect(() => {
     if (activityRef.current?.id !== activity?.id) {
@@ -129,29 +147,54 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   }, [activity?.id, activity, form, hydrateEntityById, occurredAt])
 
   useEffect(() => {
-    if (accessToken && !activityId) {
-      // Only trigger initial search in create mode
+    if (!accessToken) return
+    // Create mode: always seed the entity search.
+    if (!activityId) {
+      searchEntities('')
+      return
+    }
+    // Update mode: also seed the search once the activity has loaded with no
+    // existing related entity, so the user can still pick one.
+    if (activity && !hasExistingEntity) {
       searchEntities('')
     }
-  }, [accessToken, activityId, searchEntities])
+  }, [accessToken, activityId, activity, hasExistingEntity, searchEntities])
 
-  const handleSubmit = useCallback(async (data: z.infer<typeof activitySchema>) => {
-    try {
-      delete data.files
-      delete data._pendingFiles
-      delete data.relatedEntityId
+  const handleSubmit = useCallback(
+    async (data: z.infer<typeof activitySchema>) => {
+      try {
+        delete data.files
+        delete data._pendingFiles
+        delete data.relatedEntityId
 
-      // Build payload (buildPayload will include creator fields from activityData)
-      const { investmentActivity } = buildInvestmentActivityPayload(data as Partial<InvestmentActivity>)
+        // In update mode, owner + any pre-existing entity associations are
+        // locked in the UI. Re-stamp the canonical ids from the loaded activity
+        // for fields that were already populated so the payload round-trips the
+        // original associations regardless of any transient form state. Slots
+        // that were empty on load remain editable, so we keep the user's choice.
+        const loaded = activityRef.current
+        if (isUpdateMode && loaded) {
+          if (loaded.accountId) (data as any).accountId = loaded.accountId
+          if (loaded.contactId) (data as any).contactId = loaded.contactId
+          if (loaded.leadId) (data as any).leadId = loaded.leadId
+          if (loaded.opportunityId) (data as any).opportunityId = loaded.opportunityId
+          if (loaded.investmentId) (data as any).investmentId = loaded.investmentId
+          ;(data as any).ownerEmployeeId = loaded.ownerEmployeeId ?? loaded.ownerEmployee?.id ?? null
+        }
 
-      return {
-        investmentActivity
+        // Build payload (buildPayload will include creator fields from activityData)
+        const { investmentActivity } = buildInvestmentActivityPayload(data as Partial<InvestmentActivity>)
+
+        return {
+          investmentActivity
+        }
+      } catch (error) {
+        console.error('Error submitting activity:', error)
+        throw error
       }
-    } catch (error) {
-      console.error('Error submitting activity:', error)
-      throw error
-    }
-  }, [])
+    },
+    [isUpdateMode]
+  )
 
   const handlePreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -324,13 +367,22 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
           existingDocuments={form.watch('documents') || []}
           onDocumentRemove={handleDocumentRemove}
           loading={activityLoading && isUpdateMode}
+          readOnlyOwner={isUpdateMode}
           data-testid="investment-activity-layout"
           associationFields={
-            <IrmActivityAssociationFields
-              accessToken={accessToken}
-              entitySearchOptions={entities}
-              data-testid="irm-activity-associations"
-            />
+            lockEntityAssociations ? (
+              <ActivityAssociationsReadOnly
+                variant="irm"
+                activity={activity}
+                data-testid="irm-activity-associations-readonly"
+              />
+            ) : (
+              <IrmActivityAssociationFields
+                accessToken={accessToken}
+                entitySearchOptions={entities}
+                data-testid="irm-activity-associations"
+              />
+            )
           }
         />
       </AppActionForm>

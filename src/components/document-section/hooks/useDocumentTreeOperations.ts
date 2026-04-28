@@ -1,6 +1,33 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { DocumentItem, DocumentItemWithTreeInfo } from '../types'
 import { MAX_FOLDER_DEPTH } from '../constants'
+
+/**
+ * Walk every document that satisfies the search predicate and add all of
+ * its ancestor folders (up to MAX_FOLDER_DEPTH) to the kept set. This
+ * ensures a matching file whose parent folder does NOT itself match the
+ * term is still rendered inside its folder context instead of being
+ * orphaned at the root of the tree.
+ */
+function collectKeptDocumentIds(documents: DocumentItem[], isSearchHit: (doc: DocumentItem) => boolean): Set<string> {
+  const byId = new Map(documents.map(doc => [doc.id, doc]))
+  const keep = new Set<string>()
+
+  for (const doc of documents) {
+    if (!isSearchHit(doc)) continue
+    keep.add(doc.id)
+
+    let parentId = doc.parentDocument
+    let depth = 0
+    while (parentId && depth < MAX_FOLDER_DEPTH && !keep.has(parentId)) {
+      keep.add(parentId)
+      parentId = byId.get(parentId)?.parentDocument ?? null
+      depth++
+    }
+  }
+
+  return keep
+}
 
 interface UseDocumentTreeOperationsProps {
   documents: DocumentItem[]
@@ -107,28 +134,57 @@ export function useDocumentTreeOperations({
     return result
   }
 
-  // Filter documents by search term (local only)
-  // If parent provides onSearchChange, they handle filtering and pass filtered documents
-  // Otherwise, we do simple local filtering
+  // Filter documents by search term (local only). If parent provides
+  // onSearchChange, they handle filtering and pass filtered documents in.
+  //
+  // When filtering locally, a document that matches the term also keeps
+  // all of its ancestor folders in the result set so matches remain
+  // visible within their folder hierarchy rather than orphaned at root.
   const filteredDocuments = useMemo(() => {
-    // If parent is handling search, just use documents as-is
-    if (onSearchChange) {
-      return documents
+    if (onSearchChange) return documents
+    const trimmed = searchTerm.trim()
+    if (!trimmed) return documents
+
+    // Lowercase the term and rely on plain substring comparison (no regex),
+    // which is linear in the combined length of field + term and therefore
+    // safe from ReDoS regardless of how long the user's search input is.
+    const term = trimmed.toLowerCase()
+    const isSearchHit = (doc: DocumentItem): boolean => {
+      const name = doc.name?.toLowerCase() ?? ''
+      const description = doc.description?.toLowerCase() ?? ''
+      const docType = doc.documentType?.value?.toLowerCase() ?? ''
+      const docGroup = doc.documentGroup?.value?.toLowerCase() ?? ''
+      return name.includes(term) || description.includes(term) || docType.includes(term) || docGroup.includes(term)
     }
 
-    // Otherwise, do local filtering if search term exists
-    if (!searchTerm.trim()) {
-      return documents
-    }
-
-    return documents.filter(
-      doc =>
-        doc.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.documentType?.value?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.documentGroup?.value?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const keep = collectKeptDocumentIds(documents, isSearchHit)
+    return documents.filter(doc => keep.has(doc.id))
   }, [documents, searchTerm, onSearchChange])
+
+  // While a search is active, auto-expand any folder that survived the
+  // filter so matching descendants are visible without extra clicks. We
+  // only add folder ids — never remove — so clearing the search leaves
+  // the user's own expansion state intact.
+  useEffect(() => {
+    if (!searchTerm.trim()) return
+
+    const folderIdsToExpand: string[] = []
+    for (const doc of filteredDocuments) {
+      if (doc.folder) folderIdsToExpand.push(doc.id)
+    }
+    if (folderIdsToExpand.length === 0) return
+
+    setExpandedFolders(prev => {
+      let changed = false
+      const next = new Set(prev)
+      for (const id of folderIdsToExpand) {
+        if (next.has(id)) continue
+        next.add(id)
+        changed = true
+      }
+      return changed ? next : prev
+    })
+  }, [searchTerm, filteredDocuments, setExpandedFolders])
 
   const organizedDocuments = organizeDocumentsForTree(filteredDocuments)
   const displayDocuments =

@@ -2,6 +2,9 @@
 inline-comment-add = Kommentar hinzufügen
 inline-comment-placeholder = Kommentar hinzufügen...
 inline-comment-button = Kommentar
+inline-comment-selection-actions = Auswahlaktionen
+inline-comment-ai-edit = Mit KI bearbeiten
+inline-comment-back = Zurück
 
 # CommentEditor
 comment-editor-cancel = Abbrechen
@@ -16,6 +19,7 @@ comment-thread-edit = Bearbeiten
 comment-thread-resolve = Lösen
 comment-thread-delete = Löschen
 comment-thread-resolved = Gelöst
+comment-thread-cell-reference = Zelle { $reference }
 comment-thread-confirm-delete = Möchten Sie diesen Kommentar wirklich löschen?
 comment-thread-edit-placeholder = Kommentar bearbeiten...
 comment-thread-reply-placeholder = Antwort schreiben...

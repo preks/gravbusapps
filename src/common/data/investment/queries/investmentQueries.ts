@@ -53,6 +53,12 @@ export interface InvestmentQueryVariables {
   debtFinancingMaxAmount?: number
   forecastedProfitMinAmount?: number
   forecastedProfitMaxAmount?: number
+  securityQuantityMin?: number
+  securityQuantityMax?: number
+  timeWeightedPerformanceMin?: number
+  timeWeightedPerformanceMax?: number
+  maturityDateFrom?: string
+  maturityDateTo?: string
   // Liquid fund specialization filters
   liquidFundBankAccountContains?: string
   liquidFundEarlyTermination?: boolean
@@ -71,171 +77,224 @@ export interface InvestmentDocumentQueryVariables {
   offset?: number
 }
 
-// Build where condition for Investment queries
-export const buildInvestmentWhereCondition = (variables: InvestmentQueryVariables = {}) => {
-  let whereClause = 'where: { isDeleted: { _eq: false }'
+/**
+ * Build a Hasura `InvestmentBoolExp` as a plain JavaScript object suitable for
+ * passing as a GraphQL variable (e.g. `{ where: $where }`).
+ *
+ * Prefer this over building a where clause via string concatenation:
+ *   - User input (search terms, free-text filters) is sent in the GraphQL
+ *     variables payload, never embedded in the query body — this eliminates
+ *     GraphQL injection risk and makes the query identical for any input.
+ *   - Hasura can cache the parsed/compiled query plan because the query body
+ *     no longer changes per request.
+ */
+type RangeExpression<T> = { _gte?: T; _lte?: T }
 
-  // Search across multiple fields (only using fields that exist in the schema)
-  if (variables.search?.trim()) {
-    const searchTerm = variables.search.trim()
-    whereClause += `, _or: [
-      { name: { _ilike: "%${searchTerm}%" } },
-      { code: { _ilike: "%${searchTerm}%" } },
-      { isin: { _ilike: "%${searchTerm}%" } },
-      { fundManagerName: { _ilike: "%${searchTerm}%" } },
-      { loanRecipientName: { _ilike: "%${searchTerm}%" } }
-    ]`
+const addRange = <T>(
+  where: Record<string, unknown>,
+  field: string,
+  min: T | undefined,
+  max: T | undefined,
+  isPresent: (v: T | undefined) => boolean
+): void => {
+  const range: RangeExpression<T> = {}
+  if (isPresent(min)) range._gte = min
+  if (isPresent(max)) range._lte = max
+  if (Object.keys(range).length) where[field] = range
+}
+
+const isNonEmptyString = (v: string | undefined): v is string => typeof v === 'string' && v.length > 0
+const isNumber = (v: number | undefined): v is number => typeof v === 'number'
+
+export const buildInvestmentWhereObject = (variables: InvestmentQueryVariables = {}): Record<string, unknown> => {
+  const where: Record<string, unknown> = { isDeleted: { _eq: false } }
+
+  // Free-text search — applied as a single _or block across the indexed
+  // text fields. The search term is interpolated into _ilike but flows through
+  // GraphQL variables, so quoting/escaping is handled by the transport.
+  const searchTerm = variables.search?.trim()
+  if (searchTerm) {
+    const pattern = `%${searchTerm}%`
+    where._or = [
+      { name: { _ilike: pattern } },
+      { code: { _ilike: pattern } },
+      { isin: { _ilike: pattern } },
+      { fundManagerName: { _ilike: pattern } },
+      { loanRecipientName: { _ilike: pattern } }
+    ]
   }
 
-  // Filter by specific fields
+  // ID-list filters (catalog references)
   if (variables.investmentTypeIds?.length) {
-    whereClause += `, investmentType: { id: { _in: [${variables.investmentTypeIds.map(id => `"${id}"`).join(', ')}] } }`
+    where.investmentType = { id: { _in: variables.investmentTypeIds } }
   }
-
   if (variables.investmentStatusIds?.length) {
-    whereClause += `, investmentStatus: { id: { _in: [${variables.investmentStatusIds.map(id => `"${id}"`).join(', ')}] } }`
+    where.investmentStatus = { id: { _in: variables.investmentStatusIds } }
   }
-
   if (variables.investmentGroupIds?.length) {
-    whereClause += `, investmentGroup: { id: { _in: [${variables.investmentGroupIds.map(id => `"${id}"`).join(', ')}] } }`
+    where.investmentGroup = { id: { _in: variables.investmentGroupIds } }
   }
-
   if (variables.investmentPhaseIds?.length) {
-    whereClause += `, investmentPhase: { id: { _in: [${variables.investmentPhaseIds.map(id => `"${id}"`).join(', ')}] } }`
+    where.investmentPhase = { id: { _in: variables.investmentPhaseIds } }
   }
-
   if (variables.investmentRiskLevelIds?.length) {
-    whereClause += `, investmentRiskLevel: { id: { _in: [${variables.investmentRiskLevelIds.map(id => `"${id}"`).join(', ')}] } }`
+    where.investmentRiskLevel = { id: { _in: variables.investmentRiskLevelIds } }
   }
 
+  // Currency: prefer ID list, fall back to bare code
   if (variables.currencyIds?.length) {
-    whereClause += `, currency: { id: { _in: [${variables.currencyIds.map(id => `"${id}"`).join(', ')}] } }`
+    where.currency = { id: { _in: variables.currencyIds } }
   } else if (variables.currencyCode?.trim()) {
-    // Simple currency code filter - uses currency.code instead of currency.id
-    whereClause += `, currency: { code: { _eq: "${variables.currencyCode.trim()}" } }`
+    where.currency = { code: { _eq: variables.currencyCode.trim() } }
   }
 
-  // Text contains filters
+  // Free-text "contains" filters
   if (variables.isinContains?.trim()) {
-    whereClause += `, isin: { _ilike: "%${variables.isinContains.trim()}%" }`
+    where.isin = { _ilike: `%${variables.isinContains.trim()}%` }
   }
   if (variables.fundManagerNameContains?.trim()) {
-    whereClause += `, fundManagerName: { _ilike: "%${variables.fundManagerNameContains.trim()}%" }`
+    where.fundManagerName = { _ilike: `%${variables.fundManagerNameContains.trim()}%` }
   }
-
-  // Phase (already supported earlier; keep guard only if variable exists)
-  if ((variables as any).investmentPhaseIds?.length) {
-    const ids = (variables as any).investmentPhaseIds as string[]
-    whereClause += `, investmentPhase: { id: { _in: [${ids.map(id => `"${id}"`).join(', ')}] } }`
-  }
-
-  // Note: Investment entity doesn't have a direct 'country' field based on schema analysis
 
   if (variables.ownerEmployeeIds?.length) {
-    whereClause += `, ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } }`
+    where.ownerEmployee = { id: { _in: variables.ownerEmployeeIds } }
   }
-
-  // Creation date range
-  {
-    const createdParts: string[] = []
-    if (variables.createdAfter) createdParts.push(`_gte: "${variables.createdAfter}"`)
-    if (variables.createdBefore) createdParts.push(`_lte: "${variables.createdBefore}"`)
-    if (createdParts.length) {
-      whereClause += `, createdAt: { ${createdParts.join(', ')} }`
-    }
-  }
-
   if (variables.accountIds?.length) {
-    const accountIdsList = variables.accountIds.map(id => `"${id}"`).join(', ')
-    // Updated to use junction table path
-    whereClause += `, investmentAccounts: { investmentAccountId: { _in: [${accountIdsList}] } }`
+    where.investmentAccounts = { investmentAccountId: { _in: variables.accountIds } }
   }
-
   if (variables.opportunityIds?.length) {
-    const opportunityIdsList = variables.opportunityIds.map(id => `"${id}"`).join(', ')
-    whereClause += `, investmentOpportunity: { id: { _in: [${opportunityIdsList}] } }`
+    where.investmentOpportunity = { id: { _in: variables.opportunityIds } }
   }
 
-  // Numeric ranges
-  {
-    const parts: string[] = []
-    if (typeof variables.initialInvestmentMinAmount === 'number')
-      parts.push(`_gte: ${variables.initialInvestmentMinAmount}`)
-    if (typeof variables.initialInvestmentMaxAmount === 'number')
-      parts.push(`_lte: ${variables.initialInvestmentMaxAmount}`)
-    if (parts.length) whereClause += `, initialInvestmentAmount: { ${parts.join(', ')} }`
-  }
-  {
-    const parts: string[] = []
-    if (typeof variables.marketValueMinAmount === 'number') parts.push(`_gte: ${variables.marketValueMinAmount}`)
-    if (typeof variables.marketValueMaxAmount === 'number') parts.push(`_lte: ${variables.marketValueMaxAmount}`)
-    if (parts.length) whereClause += `, investmentMarketValue: { ${parts.join(', ')} }`
-  }
+  // Date and numeric ranges
+  addRange<string>(where, 'createdAt', variables.createdAfter, variables.createdBefore, isNonEmptyString)
+  addRange<string>(
+    where,
+    'acquisitionDate',
+    variables.acquisitionDateFrom,
+    variables.acquisitionDateTo,
+    isNonEmptyString
+  )
+  addRange<string>(where, 'exitDate', variables.exitDateFrom, variables.exitDateTo, isNonEmptyString)
+  addRange<string>(where, 'maturityDate', variables.maturityDateFrom, variables.maturityDateTo, isNonEmptyString)
+  addRange<string>(
+    where,
+    'plannedExitDate',
+    variables.plannedExitDateFrom,
+    variables.plannedExitDateTo,
+    isNonEmptyString
+  )
 
-  {
-    const acqParts: string[] = []
-    if (variables.acquisitionDateFrom) acqParts.push(`_gte: "${variables.acquisitionDateFrom}"`)
-    if (variables.acquisitionDateTo) acqParts.push(`_lte: "${variables.acquisitionDateTo}"`)
-    if (acqParts.length) whereClause += `, acquisitionDate: { ${acqParts.join(', ')} }`
-  }
+  addRange<number>(
+    where,
+    'initialInvestmentAmount',
+    variables.initialInvestmentMinAmount,
+    variables.initialInvestmentMaxAmount,
+    isNumber
+  )
+  addRange<number>(
+    where,
+    'investmentMarketValue',
+    variables.marketValueMinAmount,
+    variables.marketValueMaxAmount,
+    isNumber
+  )
+  addRange<number>(where, 'stakePercentage', variables.stakePercentageMin, variables.stakePercentageMax, isNumber)
+  addRange<number>(
+    where,
+    'totalInvestmentAmount',
+    variables.totalInvestmentMinAmount,
+    variables.totalInvestmentMaxAmount,
+    isNumber
+  )
+  addRange<number>(
+    where,
+    'debtFinancingAmount',
+    variables.debtFinancingMinAmount,
+    variables.debtFinancingMaxAmount,
+    isNumber
+  )
+  addRange<number>(
+    where,
+    'forecastedProfitAmount',
+    variables.forecastedProfitMinAmount,
+    variables.forecastedProfitMaxAmount,
+    isNumber
+  )
+  addRange<number>(where, 'securityQuantity', variables.securityQuantityMin, variables.securityQuantityMax, isNumber)
+  addRange<number>(
+    where,
+    'timeWeightedPerformance',
+    variables.timeWeightedPerformanceMin,
+    variables.timeWeightedPerformanceMax,
+    isNumber
+  )
 
-  {
-    const exitParts: string[] = []
-    if (variables.exitDateFrom) exitParts.push(`_gte: "${variables.exitDateFrom}"`)
-    if (variables.exitDateTo) exitParts.push(`_lte: "${variables.exitDateTo}"`)
-    if (exitParts.length) whereClause += `, exitDate: { ${exitParts.join(', ')} }`
-  }
-
-  {
-    const pexitParts: string[] = []
-    if (variables.plannedExitDateFrom) pexitParts.push(`_gte: "${variables.plannedExitDateFrom}"`)
-    if (variables.plannedExitDateTo) pexitParts.push(`_lte: "${variables.plannedExitDateTo}"`)
-    if (pexitParts.length) whereClause += `, plannedExitDate: { ${pexitParts.join(', ')} }`
-  }
-
-  // Stake percentage
-  {
-    const parts: string[] = []
-    if (typeof variables.stakePercentageMin === 'number') parts.push(`_gte: ${variables.stakePercentageMin}`)
-    if (typeof variables.stakePercentageMax === 'number') parts.push(`_lte: ${variables.stakePercentageMax}`)
-    if (parts.length) whereClause += `, stakePercentage: { ${parts.join(', ')} }`
-  }
-
-  // Totals / Debt / Forecasted Profit
-  {
-    const parts: string[] = []
-    if (typeof variables.totalInvestmentMinAmount === 'number')
-      parts.push(`_gte: ${variables.totalInvestmentMinAmount}`)
-    if (typeof variables.totalInvestmentMaxAmount === 'number')
-      parts.push(`_lte: ${variables.totalInvestmentMaxAmount}`)
-    if (parts.length) whereClause += `, totalInvestmentAmount: { ${parts.join(', ')} }`
-  }
-  {
-    const parts: string[] = []
-    if (typeof variables.debtFinancingMinAmount === 'number') parts.push(`_gte: ${variables.debtFinancingMinAmount}`)
-    if (typeof variables.debtFinancingMaxAmount === 'number') parts.push(`_lte: ${variables.debtFinancingMaxAmount}`)
-    if (parts.length) whereClause += `, debtFinancingAmount: { ${parts.join(', ')} }`
-  }
-  {
-    const parts: string[] = []
-    if (typeof variables.forecastedProfitMinAmount === 'number')
-      parts.push(`_gte: ${variables.forecastedProfitMinAmount}`)
-    if (typeof variables.forecastedProfitMaxAmount === 'number')
-      parts.push(`_lte: ${variables.forecastedProfitMaxAmount}`)
-    if (parts.length) whereClause += `, forecastedProfitAmount: { ${parts.join(', ')} }`
-  }
-
-  // Liquid fund nested filters
+  // Liquid fund nested filters — merged so that supplying both
+  // bankAccountContains and earlyTermination produces a single object.
+  const liquidFund: Record<string, unknown> = {}
   if (variables.liquidFundBankAccountContains?.trim()) {
-    whereClause += `, liquidFundInvestment: { bankAccountNumber: { _ilike: "%${variables.liquidFundBankAccountContains.trim()}%" } }`
+    liquidFund.bankAccountNumber = { _ilike: `%${variables.liquidFundBankAccountContains.trim()}%` }
   }
   if (typeof variables.liquidFundEarlyTermination === 'boolean') {
-    const val = variables.liquidFundEarlyTermination ? 'true' : 'false'
-    whereClause += `, liquidFundInvestment: { earlyTerminationAllowed: { _eq: ${val} } }`
+    liquidFund.earlyTerminationAllowed = { _eq: variables.liquidFundEarlyTermination }
+  }
+  if (Object.keys(liquidFund).length) {
+    where.liquidFundInvestment = liquidFund
   }
 
-  whereClause += ' }'
-  return whereClause
+  return where
+}
+
+/**
+ * Build the Hasura `[InvestmentOrderBy!]` array as plain JS objects, ready
+ * to be sent as a GraphQL variable. Returns the default (`createdAt DESC`)
+ * when no requested field is supported.
+ */
+const ORDER_BY_DEFAULT: Array<Record<string, unknown>> = [{ createdAt: 'DESC_NULLS_LAST' }]
+
+const ORDER_BY_NESTED_FIELDS: Record<string, (direction: string) => Record<string, unknown>> = {
+  'investmentType.value': direction => ({ investmentType: { value: direction } }),
+  'investmentStatus.value': direction => ({ investmentStatus: { value: direction } }),
+  'investmentGroup.value': direction => ({ investmentGroup: { value: direction } }),
+  'ownerEmployee.displayName': direction => ({ ownerEmployee: { displayName: direction } })
+}
+
+const ORDER_BY_ALLOWED_ROOT_FIELDS = new Set<string>([
+  'name',
+  'code',
+  'createdAt',
+  'updatedAt',
+  'acquisitionDate',
+  'plannedExitDate',
+  'exitDate',
+  'maturityDate',
+  'initialInvestmentAmount',
+  'totalInvestmentAmount',
+  'investmentMarketValue',
+  'securityQuantity',
+  'timeWeightedPerformance',
+  'stakePercentage',
+  'fundManagerName',
+  'loanInterestRate',
+  'investmentType',
+  'investmentStatus',
+  'investmentGroup'
+])
+
+export const buildInvestmentOrderBy = (variables: InvestmentQueryVariables = {}): Array<Record<string, unknown>> => {
+  const entries: Array<Record<string, unknown>> = []
+  for (const ob of variables.orderBy || []) {
+    const nested = ORDER_BY_NESTED_FIELDS[ob.field]
+    if (nested) {
+      entries.push(nested(ob.direction))
+      continue
+    }
+    if (ORDER_BY_ALLOWED_ROOT_FIELDS.has(ob.field)) {
+      entries.push({ [ob.field]: ob.direction })
+    }
+  }
+  return entries.length ? entries : ORDER_BY_DEFAULT
 }
 
 /**
@@ -260,79 +319,63 @@ export const buildInvestmentsByAccountIdQueryBody = (accountId: string): string 
   `
 }
 
-// Get Investments with all specializations
-export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100)
-  const offset = variables.offset || 0
-  const where = buildInvestmentWhereCondition(variables)
+/**
+ * Variables payload sent alongside the parameterized `GET_INVESTMENTS_QUERY`.
+ * All dynamic input flows through this object — never the query body.
+ */
+export interface BuiltInvestmentsQueryVariables {
+  where: Record<string, unknown>
+  limit: number
+  offset: number
+  orderBy: Array<Record<string, unknown>>
+}
 
-  // Build orderBy safely. Support nested fields using GraphQL syntax
-  // Allowed sort fields on Investment root or immediate nested objects with scalar values
-  const allowedSortFields = new Set<string>([
-    // Root scalars
-    'name',
-    'code',
-    'createdAt',
-    'updatedAt',
-    'acquisitionDate',
-    'plannedExitDate',
-    'exitDate',
-    'initialInvestmentAmount',
-    'totalInvestmentAmount',
-    'investmentMarketValue',
-    'stakePercentage',
-    'fundManagerName',
-    'loanInterestRate',
-    // Nested catalog value sorts
-    'investmentType',
-    'investmentStatus',
-    'investmentGroup'
-  ])
-
-  // Build one orderBy entry string
-  const buildOrderByEntry = (field: string, direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'): string | null => {
-    // Nested catalog value sorts
-    if (field === 'investmentType.value') return `{ investmentType: { value: ${direction} } }`
-    if (field === 'investmentStatus.value') return `{ investmentStatus: { value: ${direction} } }`
-    if (field === 'investmentGroup.value') return `{ investmentGroup: { value: ${direction} } }`
-    // Nested owner display name
-    if (field === 'ownerEmployee.displayName') return `{ ownerEmployee: { displayName: ${direction} } }`
-
-    // Direct root field
-    if (allowedSortFields.has(field)) return `{ ${field}: ${direction} }`
-
-    // Unsupported field (e.g., computed performancePercentage)
-    return null
-  }
-
-  const orderByEntries: string[] = []
-  for (const ob of variables.orderBy || []) {
-    const entry = buildOrderByEntry(ob.field, ob.direction)
-    if (entry) orderByEntries.push(entry)
-  }
-
-  const orderByClause = orderByEntries.length
-    ? `orderBy: [${orderByEntries.join(', ')}]`
-    : 'orderBy: [{ createdAt: DESC_NULLS_LAST }]'
-
-  return `
-    query GetInvestments {
+/**
+ * Parameterized GetInvestments query. Reuses the same `$where` for both the
+ * paginated `Investment` selection and the `InvestmentAggregate` count, so we
+ * never have to re-serialize the filter.
+ */
+const GET_INVESTMENTS_QUERY = `
+    query GetInvestments(
+      $where: InvestmentBoolExp
+      $limit: Int
+      $offset: Int
+      $orderBy: [InvestmentOrderBy!]
+    ) {
       Investment(
-        limit: ${limit}
-        offset: ${offset}
-        ${orderByClause}
-        ${where}
+        limit: $limit
+        offset: $offset
+        orderBy: $orderBy
+        where: $where
       ) {
         ${INVESTMENT}
       }
-      
-      InvestmentAggregate(${where}) {
+
+      InvestmentAggregate(where: $where) {
         aggregate {
           count
         }
       }
     }
   `
+
+/**
+ * Build the GetInvestments request as a `{ query, variables }` pair so callers
+ * can do `graphqlClient.request(query, variables)` — keeping all dynamic input
+ * out of the query body.
+ */
+export const GET_INVESTMENTS = (
+  variables: InvestmentQueryVariables = {}
+): { query: string; variables: BuiltInvestmentsQueryVariables } => {
+  return {
+    query: GET_INVESTMENTS_QUERY,
+    variables: {
+      where: buildInvestmentWhereObject(variables),
+      limit: Math.min(variables.limit || 50, 100),
+      offset: variables.offset || 0,
+      orderBy: buildInvestmentOrderBy(variables)
+    }
+  }
 }
 
 // Get Investment Activities by Investment ID
@@ -429,6 +472,9 @@ export const SEARCH_INVESTMENTS = (variables: InvestmentQueryVariables): string 
         initialInvestmentAmount
         totalInvestmentAmount
         investmentMarketValue
+        securityQuantity
+        timeWeightedPerformance
+        maturityDate
         acquisitionDate
         exitDate
         stakePercentage

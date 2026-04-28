@@ -62,12 +62,15 @@ class FakeSocket {
 
 describe('OfficeWebSocketClient', () => {
   let fakeSocket: FakeSocket
+  let lastConnectOptions: Record<string, unknown> | undefined
 
   beforeEach(() => {
     fakeSocket = new FakeSocket()
+    lastConnectOptions = undefined
     mockIo.mockReset()
-    mockIo.mockImplementation((_url: string, options?: { auth?: Record<string, unknown> }) => {
+    mockIo.mockImplementation((_url: string, options?: Record<string, unknown>) => {
       fakeSocket.auth = options?.auth ?? {}
+      lastConnectOptions = options
       return fakeSocket
     })
   })
@@ -81,6 +84,30 @@ describe('OfficeWebSocketClient', () => {
     expect(fakeSocket.auth).toEqual({
       token: 'token-1',
       clientVersion: '1'
+    })
+  })
+
+  it('enables long-polling fallback when requested', () => {
+    const client = new OfficeWebSocketClient('http://localhost:3002/document')
+
+    client.connect('token-1')
+
+    expect(lastConnectOptions).toMatchObject({
+      transports: ['websocket', 'polling'],
+      tryAllTransports: true
+    })
+  })
+
+  it('keeps websocket-only mode when polling fallback is disabled', () => {
+    const client = new OfficeWebSocketClient('http://localhost:3002/document', {
+      enablePollingFallback: false
+    })
+
+    client.connect('token-1')
+
+    expect(lastConnectOptions).toMatchObject({
+      transports: ['websocket'],
+      tryAllTransports: false
     })
   })
 

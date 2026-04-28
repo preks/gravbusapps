@@ -1,5 +1,6 @@
 import type { ActiveSessionSnapshot } from '../../types/activeSession'
 import type { FabricSessionSummary } from '../../types/fabric'
+import { parseIsoTimestampMs } from '../../utils/renderUtils'
 
 /**
  * Pure helpers that split the single source-of-truth session list into the two
@@ -51,8 +52,10 @@ export function groupRecentsByDay(sessions: FabricSessionSummary[]): RecentsGrou
   }
 
   for (const session of sessions) {
-    const ts = Date.parse(session.updated_at ?? session.created_at ?? '')
-    if (Number.isNaN(ts)) {
+    // Normalize naive-UTC strings from the backend so day bucketing lines up
+    // with the user's local calendar (see `parseIsoTimestamp` for details).
+    const ts = parseIsoTimestampMs(session.updated_at ?? session.created_at ?? null)
+    if (ts === null) {
       buckets.Earlier.push(session)
       continue
     }

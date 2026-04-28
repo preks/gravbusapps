@@ -18,9 +18,10 @@ import {
   Workflow,
   Database
 } from 'lucide-react'
-import { Card, CardContent, Button, Badge, cn } from '@newwork/nw-design-system'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { Card, CardContent, Button, Badge, cn, useTranslation } from '@newwork/nw-design-system'
+import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import type { ComponentSpec, ComponentType } from '../../types'
+import translations from '../../../../_i18n'
 
 export interface SuccessStateProps {
   components: ComponentSpec[]
@@ -43,7 +44,7 @@ const componentTypeInfo: Record<
   },
   agent: {
     icon: Bot,
-    label: 'Task Expert',
+    label: 'Agent',
     route: (id: string) => `/platform/create/prompt-manager?expertId=${id}`
   },
   function: {
@@ -54,7 +55,7 @@ const componentTypeInfo: Record<
   flow: {
     icon: Workflow,
     label: 'Flow',
-    route: (id: string) => `/platform/apps/flow/apps/creator?templateId=${id}`
+    route: (id: string) => buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR, { flowId: id })
   },
   data_model: {
     icon: Database,
@@ -72,6 +73,12 @@ export const SuccessState: React.FC<SuccessStateProps> = ({
   className,
   'data-testid': testId = 'success-state'
 }) => {
+  const { t } = useTranslation(translations)
+  const resolveTypeInfo = (type: ComponentType) => {
+    const base = componentTypeInfo[type]
+    if (type === 'agent') return { ...base, label: t('type-label-agent') }
+    return base
+  }
   const createdComponents = components.filter(c => c.status === 'completed' && c.createdId)
   const reusedComponents = components.filter(c => c.status === 'reused')
 
@@ -168,7 +175,7 @@ export const SuccessState: React.FC<SuccessStateProps> = ({
           </h3>
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
             {createdComponents.map(component => {
-              const typeInfo = componentTypeInfo[component.type]
+              const typeInfo = resolveTypeInfo(component.type)
               const Icon = typeInfo.icon
 
               return (
@@ -263,7 +270,7 @@ export const SuccessState: React.FC<SuccessStateProps> = ({
           </h3>
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
             {reusedComponents.map(component => {
-              const typeInfo = componentTypeInfo[component.type]
+              const typeInfo = resolveTypeInfo(component.type)
               const Icon = typeInfo.icon
 
               return (

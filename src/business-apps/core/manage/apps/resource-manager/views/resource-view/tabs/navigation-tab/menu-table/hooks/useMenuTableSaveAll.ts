@@ -95,9 +95,9 @@ function buildCreatePayload(change: any, draftIdMap: Map<string, string>): any {
     rank: change.rank ?? 0
   }
 
-  // Add resourceUrlId if present
-  if (change.resourceUrlId) {
-    payload.resourceUrlId = change.resourceUrlId
+  // Add resourceUrlId (allow explicit clearing via null)
+  if ('resourceUrlId' in change) {
+    payload.resourceUrlId = change.resourceUrlId ? change.resourceUrlId : null
   }
 
   // Resolve draft IDs to real IDs
@@ -202,6 +202,10 @@ function buildUpdatePayload(change: any, targetTree: EnrichedMenuItem[], draftId
       // Resolve draft IDs
       if ((field === 'parentId' || field === 'hubId') && typeof value === 'string' && value.startsWith('draft:')) {
         value = draftIdMap.get(value) ?? value
+      }
+
+      if (field === 'resourceUrlId' && value === '') {
+        value = null
       }
 
       payload[field] = value

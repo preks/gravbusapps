@@ -13,7 +13,10 @@ import {
   TotalInvestmentAmountCell,
   OwnerEmployeeCell,
   InvestmentStatusCell,
-  CreatedAtCell
+  CreatedAtCell,
+  AccountCell,
+  PlanedExitCell,
+  PlannedExitDateCell
 } from './cellRenderers'
 import { InvestmentListAggregatesBar } from './InvestmentListAggregatesBar'
 
@@ -73,6 +76,8 @@ export interface GenericInvestmentsListProps extends BusinessAppContextProps {
   visibleColumns?: string[]
   /** Server-side totals for current filters (all pages). Omit to hide the bar. */
   listAggregates?: InvestmentListAggregates
+  /** Catalog-derived columns for dynamic investment group tabs. */
+  catalogColumns?: ColumnDef<Investment>[]
   showAggregatesBar?: boolean
   /** Equity tab: extra EBITDA and portfolio performance from aggregates. */
   showEquityMetrics?: boolean
@@ -123,6 +128,7 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
   onPaginationChange,
   visibleColumns,
   listAggregates = DEFAULT_LIST_AGGREGATES,
+  catalogColumns,
   showAggregatesBar = false,
   showEquityMetrics = false,
   displayCurrencyCode = 'EUR'
@@ -156,17 +162,23 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
 
   // Build column definitions
   const columns = useMemo(() => {
+    const nameColumn: ColumnDef<Investment> = {
+      id: 'name',
+      header: 'Investment',
+      accessorKey: 'name',
+      size: 250,
+      minSize: 200,
+      maxSize: 400,
+      enableResizing: false,
+      cell: NameCell
+    }
+
+    if (catalogColumns) {
+      return [nameColumn, ...catalogColumns]
+    }
+
     const baseColumns: ColumnDef<Investment>[] = [
-      {
-        id: 'name',
-        header: 'Investment',
-        accessorKey: 'name',
-        size: 250,
-        minSize: 200,
-        maxSize: 400,
-        enableResizing: false,
-        cell: NameCell
-      },
+      nameColumn,
       {
         id: 'investmentType',
         header: 'Investment Type',
@@ -212,10 +224,44 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
         cell: OwnerEmployeeCell
       },
       {
+        id: 'account',
+        header: 'Account',
+        accessorKey: 'investmentAccounts',
+        enableSorting: false,
+        size: 180,
+        minSize: 150,
+        maxSize: 240,
+        enableResizing: false,
+        cell: AccountCell
+      },
+      {
         id: 'investmentStatus',
         header: 'Status',
         accessorKey: 'investmentStatus.value',
         cell: InvestmentStatusCell
+      },
+      {
+        id: 'planedExit',
+        header: 'Planned Exit',
+        accessorKey: 'planedExit',
+        size: 140,
+        minSize: 120,
+        maxSize: 160,
+        enableResizing: false,
+        cell: PlanedExitCell
+      },
+      {
+        id: 'plannedExitDate',
+        header: 'Planned Exit Date',
+        accessorKey: 'plannedExitDate',
+        size: 170,
+        minSize: 150,
+        maxSize: 200,
+        enableResizing: false,
+        meta: {
+          type: 'date' as const
+        },
+        cell: PlannedExitDateCell
       },
       {
         id: 'createdAt',
@@ -233,7 +279,7 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
     ]
 
     return [...columnsWithExtras, ...remainingColumns]
-  }, [config.defaultTypeLabel, config.extraColumns, config.insertExtraColumnsAfter])
+  }, [catalogColumns, config.defaultTypeLabel, config.extraColumns, config.insertExtraColumnsAfter])
 
   // Filter columns based on visibleColumns
   const filteredColumns = useMemo(() => {

@@ -154,6 +154,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   const [touchedType, setTouchedType] = useState(false)
   const typeError = touchedType && !absenceTypeRef
   const minimumValidFrom = useMemo(() => toDateInputValue(employeeHireDate), [employeeHireDate])
+  const minimumValidFromMonthStart = useMemo(() => toMonthStartDateInputValue(employeeHireDate), [employeeHireDate])
   const normalizedValidFrom = useMemo(() => toMonthStartDateInputValue(validFrom), [validFrom])
   const isFirstEntitlementEntry = !selectedLine && existingEntitlements.length === 0
   const latestExistingValidFromForType = useMemo(() => {
@@ -177,14 +178,16 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   }, [absenceTypeRef, existingEntitlements, selectedLine?.id])
   const minimumDateForSelectedType = useMemo(() => {
     if (!latestExistingValidFromForType) {
-      return minimumValidFrom
+      return minimumValidFromMonthStart
     }
 
-    return minimumValidFrom
-      ? maxDateValue(latestExistingValidFromForType, minimumValidFrom)
+    return minimumValidFromMonthStart
+      ? maxDateValue(latestExistingValidFromForType, minimumValidFromMonthStart)
       : latestExistingValidFromForType
-  }, [latestExistingValidFromForType, minimumValidFrom])
-  const hireDateViolation = Boolean(normalizedValidFrom && minimumValidFrom && normalizedValidFrom < minimumValidFrom)
+  }, [latestExistingValidFromForType, minimumValidFromMonthStart])
+  const hireDateViolation = Boolean(
+    normalizedValidFrom && minimumValidFromMonthStart && normalizedValidFrom < minimumValidFromMonthStart
+  )
   const inBetweenViolation = Boolean(
     normalizedValidFrom && latestExistingValidFromForType && normalizedValidFrom < latestExistingValidFromForType
   )

@@ -92,21 +92,14 @@ export const BudgetSetupCompanyBudgetSection: React.FC<BudgetSetupCompanyBudgetS
   })
 
   const summary = computeCompanyBudgetSummary({
-    id: '',
-    cycleId: '',
-    companyId: '',
-    companyName: '',
     salaryBudgetType: salaryType,
     salaryBudgetValue: salaryValue,
     bonusBudgetType: 'absolute',
     bonusBudgetValue: 0,
     benefitsBudgetType: 'absolute',
     benefitsBudgetValue: 0,
-    currency: currencyCode,
     currentTotalSalaryCost: currentSalaryCost,
-    currentTotalBenefitsCost: 0,
-    headcount: 0,
-    averageSalary: 0
+    currentTotalBenefitsCost: 0
   })
 
   return (

@@ -3,8 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TreeStructureIcon } from '@phosphor-icons/react'
-import { Tabs, TabsList, TabsTrigger, TabsContent, Toaster } from '@newwork/nw-design-system'
-import { JobFamiliesTab, JobLevelGroupDetails, JobFunctionsTab, JobProfilesTab } from './components/tabs'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
+import { JobFamiliesTab } from './components/tabs'
+import JobLevelsTab from './components/tabs/JobLevelsTab'
+import JobProfilesTab from './components/tabs/JobProfilesTab'
+import JobFunctionsTab from './components/tabs/JobFunctionsTab'
 import { useTabQueryParamSync } from '../../hooks/useTabQueryParamSync'
 
 export enum JobStructureDataTabs {
@@ -52,10 +55,7 @@ const JobStructureData: React.FC<JobStructureDataProps> = ({ className, prefixDa
               </TabsContent>
 
               <TabsContent value={JobStructureDataTabs.JOB_LEVELS}>
-                <JobLevelGroupDetails
-                  {...contextProps}
-                  prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-                />
+                <JobLevelsTab {...contextProps} prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`} />
               </TabsContent>
 
               <TabsContent value={JobStructureDataTabs.JOB_FUNCTIONS}>
@@ -67,7 +67,6 @@ const JobStructureData: React.FC<JobStructureDataProps> = ({ className, prefixDa
               </TabsContent>
             </Tabs>
           </div>
-          <Toaster position="bottom-right" richColors />
         </div>
       }
     />

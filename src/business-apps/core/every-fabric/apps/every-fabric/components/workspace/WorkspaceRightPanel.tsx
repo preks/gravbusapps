@@ -10,46 +10,32 @@ import {
   FileHtmlIcon,
   FileIcon,
   FileTextIcon,
-  ListChecksIcon,
   NoteIcon,
   PresentationIcon,
   ShareNetworkIcon,
+  SparkleIcon,
   SpinnerGapIcon,
-  WifiHighIcon,
-  WifiXIcon,
   WrenchIcon,
   XCircleIcon
 } from '@phosphor-icons/react'
 import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
+import type { DecisionItem } from '../../hooks/useFabricDecisions'
 import type { ActivityEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
 import type { ArtifactFile, FabricSubAgent, FabricTaskNode } from '../../types/fabric'
-import { toolCategoryColor } from '../../utils/renderUtils'
-import { FabricProgressTaskRow } from './fabricProgressShared'
+import { parseIsoTimestamp, toolCategoryColor } from '../../utils/renderUtils'
+import { DecisionsCard } from './DecisionsCard'
 import { LivePreviewCard } from './LivePreviewCard'
 import { PanelCard } from './PanelCard'
-
-function rightPanelProgressLabel(params: {
-  totalCount: number
-  isStreaming: boolean
-  hasActiveWork: boolean
-  completedCount: number
-}): string {
-  const { totalCount, isStreaming, hasActiveWork, completedCount } = params
-  if (totalCount === 0) return 'Waiting to start'
-  if (isStreaming && hasActiveWork) return `${completedCount} of ${totalCount} done`
-  if (isStreaming && completedCount >= totalCount) return 'Finalizing response…'
-  return `${completedCount} of ${totalCount} done`
-}
+import { PlanCard } from './PlanCard'
 
 function activityTimestampSortValue(timestamp: string): number {
-  const date = new Date(timestamp)
-  const value = date.getTime()
-  return Number.isNaN(value) ? 0 : value
+  const date = parseIsoTimestamp(timestamp)
+  return date ? date.getTime() : 0
 }
 
 function formatActivityTimestamp(timestamp: string): string {
-  const date = new Date(timestamp)
-  if (Number.isNaN(date.getTime())) return ''
+  const date = parseIsoTimestamp(timestamp)
+  if (!date) return ''
 
   return date.toLocaleString([], {
     month: 'short',
@@ -57,87 +43,6 @@ function formatActivityTimestamp(timestamp: string): string {
     hour: 'numeric',
     minute: '2-digit'
   })
-}
-
-// ─── Progress card ────────────────────────────────────────────────────────────
-
-interface ProgressCardProps {
-  nodes: FabricTaskNode[]
-  completedCount: number
-  totalCount: number
-  progressPercent: number
-  isConnected: boolean
-  isStreaming: boolean
-  defaultCollapsed?: boolean
-}
-
-const ProgressCard: React.FC<ProgressCardProps> = ({
-  nodes,
-  completedCount,
-  totalCount,
-  progressPercent,
-  isConnected,
-  isStreaming,
-  defaultCollapsed = false
-}) => {
-  const hasActiveWork = nodes.some(node => node.status === 'active' || node.status === 'pending')
-  const displayPercent = isStreaming && totalCount > 0 && completedCount >= totalCount ? 96 : progressPercent
-  const progressLabel = rightPanelProgressLabel({
-    totalCount,
-    isStreaming,
-    hasActiveWork,
-    completedCount
-  })
-  const connectionBadge = (
-    <div className="gba:flex gba:items-center gba:gap-1">
-      {isConnected ? (
-        <>
-          <WifiHighIcon className="gba:h-3 gba:w-3 gba:text-green-500" />
-          <span className="gba:text-[11px] gba:text-green-600 gba:font-medium">Live</span>
-        </>
-      ) : (
-        <WifiXIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground/40" />
-      )}
-    </div>
-  )
-
-  return (
-    <PanelCard title="Progress" extra={connectionBadge} defaultOpen={!defaultCollapsed}>
-      <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain">
-        <div className="gba:px-4 gba:pt-3 gba:pb-1">
-          {/* Mini progress bar */}
-          {totalCount > 0 && (
-            <div className="gba:mb-3">
-              <div className="gba:flex gba:items-center gba:justify-between gba:mb-1.5">
-                <span className="gba:text-[11px] gba:text-muted-foreground/60">{progressLabel}</span>
-                <span className="gba:text-[11px] gba:font-semibold gba:text-foreground">{displayPercent}%</span>
-              </div>
-              <div className="gba:h-1 gba:w-full gba:rounded-full gba:bg-border gba:overflow-hidden">
-                <div
-                  className="gba:h-full gba:rounded-full gba:bg-primary gba:transition-all gba:duration-500"
-                  style={{ width: `${displayPercent}%` }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {nodes.length === 0 ? (
-          <div className="gba:px-4 gba:pb-4">
-            <p className="gba:text-xs gba:text-muted-foreground/50 gba:italic">
-              Steps will appear once the agent starts…
-            </p>
-          </div>
-        ) : (
-          <div className="gba:min-h-0 gba:py-1 gba:space-y-0.5">
-            {nodes.map((node, i) => (
-              <FabricProgressTaskRow key={node.id} node={node} index={i} />
-            ))}
-          </div>
-        )}
-      </div>
-    </PanelCard>
-  )
 }
 
 // ─── Artifacts card ───────────────────────────────────────────────────────────
@@ -175,7 +80,7 @@ const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[] }> = ({ docs 
         <a
           key={doc.id}
           href={doc.url}
-          target="_self"
+          target="_blank"
           rel="noopener noreferrer"
           className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:hover:bg-muted/30 gba:transition-colors gba:no-underline"
           data-testid={`fabric-workspace-doc-${doc.id}`}
@@ -394,7 +299,6 @@ const EnterpriseExpertsCard: React.FC<{
 const EVENT_ICON: Record<ActivityEvent['type'], React.ReactNode> = {
   tool_call: <WrenchIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
   tool_result: <ArrowsClockwiseIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
-  plan_update: <ListChecksIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
   reflection: <BrainIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
   subagent_spawn: <ShareNetworkIcon className="gba:h-3.5 gba:w-3.5 gba:text-sky-600" />,
   memory_access: <DatabaseIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
@@ -405,6 +309,22 @@ const isLikelyTaskText = (value?: string) => {
   const compact = (value ?? '').trim()
   if (!compact) return false
   return compact.length > 42 || compact.split(/\s+/).length > 5
+}
+
+const isSkillLoadActivity = (event: ActivityEvent): boolean =>
+  event.type === 'tool_call' && event.toolName === 'skill_load' && !!event.skillId
+
+const activityRowIcon = (event: ActivityEvent): React.ReactNode => {
+  if (isSkillLoadActivity(event)) {
+    return <SparkleIcon className="gba:h-3.5 gba:w-3.5 gba:text-amber-500" weight="duotone" />
+  }
+  return EVENT_ICON[event.type]
+}
+
+const getActivityBorderClass = (isSubagent: boolean, isSkillLoad: boolean): string => {
+  if (isSubagent) return 'gba:border-l-2 gba:border-sky-400/60'
+  if (isSkillLoad) return 'gba:border-l-2 gba:border-amber-400/60'
+  return ''
 }
 
 const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
@@ -418,6 +338,7 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
       <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain gba:py-1">
         {sortedEvents.map(event => {
           const isSubagent = event.type === 'subagent_spawn'
+          const isSkillLoad = isSkillLoadActivity(event)
           const showAgentBadge =
             isSubagent &&
             !!event.agent &&
@@ -427,19 +348,27 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
           return (
             <div
               key={event.id}
-              className={`gba:flex gba:items-start gba:gap-2.5 gba:px-4 gba:py-2 gba:hover:bg-muted/20 gba:transition-colors ${
-                isSubagent ? 'gba:border-l-2 gba:border-sky-400/60' : ''
-              }`}
+              className={`gba:flex gba:items-start gba:gap-2.5 gba:px-4 gba:py-2 gba:hover:bg-muted/20 gba:transition-colors ${getActivityBorderClass(
+                isSubagent,
+                isSkillLoad
+              )}`}
               data-testid={`fabric-activity-${event.id}`}
             >
-              <div className="gba:shrink-0 gba:mt-0.5">{EVENT_ICON[event.type]}</div>
+              <div className="gba:shrink-0 gba:mt-0.5">{activityRowIcon(event)}</div>
               <div className="gba:flex-1 gba:min-w-0">
-                {event.toolName && (
-                  <span
-                    className={`gba:inline-flex gba:items-center gba:px-1.5 gba:py-0.5 gba:rounded gba:text-[11px] gba:font-mono gba:font-semibold gba:mb-0.5 ${toolCategoryColor(event.toolName)}`}
-                  >
-                    {event.toolName}
+                {isSkillLoad ? (
+                  <span className="gba:mb-0.5 gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-amber-500/20 gba:bg-amber-500/10 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-amber-700 dark:gba:text-amber-300">
+                    <SparkleIcon className="gba:h-3 gba:w-3" weight="duotone" />
+                    Skill: {event.skillName ?? event.skillId}
                   </span>
+                ) : (
+                  event.toolName && (
+                    <span
+                      className={`gba:inline-flex gba:items-center gba:px-1.5 gba:py-0.5 gba:rounded gba:text-[11px] gba:font-mono gba:font-semibold gba:mb-0.5 ${toolCategoryColor(event.toolName)}`}
+                    >
+                      {event.toolName}
+                    </span>
+                  )
                 )}
                 {showAgentBadge && (
                   <span className="gba:mb-0.5 gba:inline-flex gba:items-center gba:rounded-full gba:bg-sky-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
@@ -467,10 +396,12 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
 
 interface WorkspaceRightPanelProps {
   taskNodes: FabricTaskNode[]
+  hasPlan: boolean
   completedCount: number
   totalCount: number
   progressPercent: number
   activityEvents: ActivityEvent[]
+  decisions: DecisionItem[]
   artifacts: ArtifactFile[]
   workspaceDocs?: WorkspaceDocument[]
   isConnected: boolean
@@ -479,14 +410,18 @@ interface WorkspaceRightPanelProps {
   latestPreview?: ArtifactPreview | null
   accessToken?: string
   sessionId?: string
+  /** Invoked when the user clicks "Try again" on a preview error card. */
+  onRetryPreview?: (preview: ArtifactPreview) => void
 }
 
 export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   taskNodes,
+  hasPlan,
   completedCount,
   totalCount,
   progressPercent,
   activityEvents,
+  decisions,
   artifacts,
   workspaceDocs,
   isConnected,
@@ -494,7 +429,8 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   onViewArtifact,
   latestPreview,
   accessToken = '',
-  sessionId = ''
+  sessionId = '',
+  onRetryPreview
 }) => {
   const showPreview =
     !!latestPreview &&
@@ -505,24 +441,33 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
 
   return (
     <div
-      className="gba:flex gba:h-full gba:max-h-full gba:min-h-0 gba:flex-col gba:overflow-y-auto gba:rounded-[1.5rem] sm:gba:rounded-[2rem] gba:bg-transparent gba:p-0 sm:gba:p-1 gba:space-y-2 sm:gba:space-y-3"
+      className="gba:flex gba:h-full gba:max-h-full gba:min-h-0 gba:flex-col gba:overflow-y-auto gba:bg-transparent gba:px-0 sm:gba:px-1 gba:py-1 sm:gba:py-1.5 gba:space-y-2 sm:gba:space-y-3"
       data-testid="fabric-right-panel"
     >
       {showPreview && (
         <div>
-          <LivePreviewCard preview={latestPreview} accessToken={accessToken} sessionId={sessionId} />
+          <LivePreviewCard
+            preview={latestPreview}
+            accessToken={accessToken}
+            sessionId={sessionId}
+            onRetry={onRetryPreview ? () => onRetryPreview(latestPreview) : undefined}
+          />
         </div>
       )}
 
-      <ProgressCard
-        nodes={taskNodes}
-        completedCount={completedCount}
-        totalCount={totalCount}
-        progressPercent={progressPercent}
-        isConnected={isConnected}
-        isStreaming={isStreaming}
-        defaultCollapsed={showPreview}
-      />
+      {hasPlan && (
+        <PlanCard
+          nodes={taskNodes}
+          completedCount={completedCount}
+          totalCount={totalCount}
+          progressPercent={progressPercent}
+          isConnected={isConnected}
+          isStreaming={isStreaming}
+          defaultCollapsed={showPreview}
+        />
+      )}
+
+      {decisions.length > 0 && <DecisionsCard decisions={decisions} defaultCollapsed={showPreview} />}
 
       <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} isStreaming={isStreaming} />
 

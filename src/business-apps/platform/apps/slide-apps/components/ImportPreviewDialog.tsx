@@ -4,8 +4,8 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { Button, Checkbox, ScrollArea, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircle, FileSpreadsheet } from 'lucide-react'
 import type { ParsedPowerPointDocument } from '../hooks/usePowerPointParser'
-import type { SlideData } from './slideElements'
-import { gradientToCss } from './slideElements'
+import { DEFAULT_SLIDE_CANVAS_SIZE, type SlideData } from './slideElements'
+import { SlideThumbnail } from './SlideThumbnail'
 import translations from '../_i18n'
 
 export interface ImportPreviewDialogProps {
@@ -22,129 +22,16 @@ function formatFileSize(bytes: number): string {
 }
 
 const THUMB_SCALE = 1 / 8
-const CANVAS_W = 1280
-const CANVAS_H = 720
-
-function ThumbImage({ src, style }: { src: string; style: React.CSSProperties }) {
-  const [failed, setFailed] = React.useState(false)
-  if (failed || !src) {
-    return <div style={{ ...style, backgroundColor: 'var(--nw-muted)' }} />
-  }
-  return <img src={src} alt="" style={{ ...style, objectFit: 'cover' }} onError={() => setFailed(true)} />
-}
-
-function ThumbElement({ el, idx }: { el: SlideData['elements'][number]; idx: number }) {
-  const base: React.CSSProperties = {
-    position: 'absolute',
-    left: el.position.x * THUMB_SCALE,
-    top: el.position.y * THUMB_SCALE,
-    width: el.size.width * THUMB_SCALE,
-    height: el.size.height * THUMB_SCALE,
-    opacity: el.opacity ?? 1,
-    overflow: 'hidden',
-    zIndex: el.zIndex ?? idx,
-    ...(el.rotation ? { transform: `rotate(${el.rotation}deg)` } : {})
-  }
-
-  if (el.type === 'text') {
-    const te = el as SlideData['elements'][number] & {
-      content?: string
-      fontSize?: number
-      color?: string
-      fontWeight?: string
-      fontFamily?: string
-      textAlign?: string
-      backgroundColor?: string
-    }
-    const bgColor = te.backgroundColor && te.backgroundColor !== 'transparent' ? te.backgroundColor : undefined
-    return (
-      <div
-        style={{
-          ...base,
-          fontSize: Math.max(1, (te.fontSize || 16) * THUMB_SCALE),
-          lineHeight: 1.2,
-          color: te.color || '#000',
-          fontWeight: te.fontWeight || 'normal',
-          fontFamily: te.fontFamily || 'Inter',
-          textAlign: (te.textAlign as React.CSSProperties['textAlign']) || 'left',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          backgroundColor: bgColor
-        }}
-      >
-        {(te.content || '').slice(0, 200)}
-      </div>
-    )
-  }
-
-  if (el.type === 'image') {
-    const ie = el as SlideData['elements'][number] & { src?: string }
-    return <ThumbImage src={ie.src || ''} style={base} />
-  }
-
-  if (el.type === 'shape') {
-    const se = el as SlideData['elements'][number] & {
-      fill?: string
-      strokeColor?: string
-      strokeWidth?: number
-      shapeType?: string
-      gradient?: unknown
-    }
-    const fillColor = se.fill || 'transparent'
-    const borderRadius =
-      se.shapeType === 'circle' || se.shapeType === 'ellipse' ? '50%' : se.shapeType === 'rounded-rectangle' ? 4 : 0
-    return (
-      <div
-        style={{
-          ...base,
-          backgroundColor: fillColor === 'transparent' ? 'transparent' : fillColor,
-          borderRadius,
-          border: se.strokeWidth
-            ? `${Math.max(0.5, se.strokeWidth * THUMB_SCALE)}px solid ${se.strokeColor || '#888'}`
-            : undefined
-        }}
-      />
-    )
-  }
-
-  if (el.type === 'table') {
-    return <div style={{ ...base, backgroundColor: 'var(--nw-muted)', border: '0.5px solid var(--nw-border)' }} />
-  }
-
-  if (el.type === 'chart') {
-    return <div style={{ ...base, backgroundColor: 'var(--nw-accent)', border: '0.5px solid var(--nw-ring)' }} />
-  }
-
-  return <div style={base} />
-}
 
 function SlideThumb({ slide, index }: { slide: SlideData; index: number }) {
-  const bgStyle = useMemo(() => {
-    const bg = slide.background
-    if (bg.type === 'solid') return { backgroundColor: bg.color || '#ffffff' }
-    if (bg.type === 'gradient' && bg.gradient) return { background: gradientToCss(bg.gradient) }
-    if (bg.type === 'image' && bg.imageUrl) {
-      return { backgroundImage: `url(${bg.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-    }
-    return { backgroundColor: '#ffffff' }
-  }, [slide.background])
-
-  const sortedElements = useMemo(
-    () => [...slide.elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)),
-    [slide.elements]
-  )
+  const canvasSize = slide.canvasSize ?? DEFAULT_SLIDE_CANVAS_SIZE
 
   return (
     <div
       className="gba:relative gba:rounded gba:border gba:border-border gba:overflow-hidden gba:flex-shrink-0"
-      style={{ ...bgStyle, width: CANVAS_W * THUMB_SCALE, height: CANVAS_H * THUMB_SCALE }}
+      style={{ width: canvasSize.width * THUMB_SCALE, height: canvasSize.height * THUMB_SCALE }}
     >
-      {sortedElements.map((el, idx) => (
-        <ThumbElement key={el.id} el={el} idx={idx} />
-      ))}
-      <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-black/50 gba:text-white gba:text-[9px] gba:text-center gba:py-0.5">
-        {index + 1}
-      </div>
+      <SlideThumbnail slide={slide} index={index} thumbScale={THUMB_SCALE} />
     </div>
   )
 }
@@ -192,21 +79,51 @@ export const ImportPreviewDialog: React.FC<ImportPreviewDialogProps> = ({
   const infos = parsedDocument.messages.filter(m => m.type === 'info')
 
   const summarizedMessages = useMemo(() => {
+    // Messages whose practical meaning is "N assets of kind X on slide Y
+    // could not be converted". We aggregate them per (messageKey, slide)
+    // so users see "16 vector images on slide 6 couldn't be rendered"
+    // instead of the first message verbatim followed by "(+15 more)".
+    // Slide 6 of the Enterprise AI deck hits this via 16 `image18.emf`
+    // bullet checkmarks.
+    const PER_SLIDE_GROUPED_KEYS = new Set<string>([
+      'parser-image-missing',
+      'parser-image-decode-failed',
+      'parser-image-linked-unsupported',
+      'parser-video-missing',
+      'parser-video-linked-unsupported',
+      'parser-shape-picture-fill-unsupported'
+    ])
+
     const summarize = (msgs: typeof warnings) => {
-      const counts = new Map<string, { count: number; translated: string }>()
+      type Bucket = { count: number; translated: string }
+      const perSlide = new Map<string, Bucket>()
+      const generic = new Map<string, Bucket>()
+
       for (const msg of msgs) {
-        const key = msg.message
-        const translated = msg.params ? t(msg.message, msg.params) : t(msg.message)
-        const existing = counts.get(key)
+        const slide = typeof msg.params?.slide === 'string' ? msg.params.slide : undefined
+        const isPerSlide = PER_SLIDE_GROUPED_KEYS.has(msg.message) && !!slide
+        const key = isPerSlide ? `${msg.message}@@${slide}` : msg.message
+        const bucket = isPerSlide ? perSlide : generic
+        const existing = bucket.get(key)
         if (existing) {
           existing.count++
-        } else {
-          counts.set(key, { count: 1, translated })
+          continue
         }
+        const translated = msg.params ? t(msg.message, msg.params) : t(msg.message)
+        bucket.set(key, { count: 1, translated })
       }
-      return Array.from(counts.values()).map(({ count, translated }) =>
-        count > 1 ? `${translated} (+${count - 1} more)` : translated
-      )
+
+      const formatted: string[] = []
+      for (const [, { count, translated }] of perSlide) {
+        // Translator entries already carry the slide number. We prepend "N×" so
+        // the aggregated count is the first thing a user sees.
+        const countLabel = count > 1 ? `${count}× ` : ''
+        formatted.push(`${countLabel}${translated}`)
+      }
+      for (const { count, translated } of generic.values()) {
+        formatted.push(count > 1 ? `${translated} (+${count - 1} more)` : translated)
+      }
+      return formatted
     }
     return { warnings: summarize(warnings), infos: summarize(infos) }
   }, [warnings, infos, t])

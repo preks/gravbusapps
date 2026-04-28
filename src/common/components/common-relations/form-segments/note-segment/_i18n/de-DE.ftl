@@ -9,6 +9,7 @@ note-reminder-label = Erinnerungsdatum
 note-reminder-placeholder = Datum und Uhrzeit auswählen...
 note-entity-label = Zugehörige Entität
 note-upload-label = Dokumente anhängen
+note-attached-documents-label = Angehängte Dokumente
 
 # Common
 please-select = Bitte auswählen...

@@ -14,6 +14,7 @@ task-status-label = Status
 task-assignee-label = Zugewiesen an
 task-entity-label = Zugehörige Entität
 task-upload-label = Dokumente anhängen
+task-attached-documents-label = Angehängte Dokumente
 
 # Common
 please-select = Bitte auswählen...

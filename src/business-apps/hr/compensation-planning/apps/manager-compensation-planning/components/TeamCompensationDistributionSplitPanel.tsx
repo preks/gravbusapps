@@ -42,6 +42,9 @@ export interface TeamCompensationDistributionSplitPanelProps {
   dataDisplay: { searchQuery: string; setSearchQuery: (value: string) => void }
   canShowSaveAction: boolean
   onOpenSubmitProposals: () => void
+  /** After "New proposal", show a way to return to the submitted-proposals table without changing cycle. */
+  showBackToProposalsTable?: boolean
+  onBackToProposalsTable?: () => void
 }
 
 export function TeamCompensationDistributionSplitPanel({
@@ -65,7 +68,9 @@ export function TeamCompensationDistributionSplitPanel({
   grandTotalPositivePerformanceScores,
   dataDisplay,
   canShowSaveAction,
-  onOpenSubmitProposals
+  onOpenSubmitProposals,
+  showBackToProposalsTable = false,
+  onBackToProposalsTable
 }: Readonly<TeamCompensationDistributionSplitPanelProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
@@ -79,6 +84,17 @@ export function TeamCompensationDistributionSplitPanel({
           {tBudget('budget-distribution-split-panel-title')}
         </CardTitle>
         <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+          {showBackToProposalsTable && onBackToProposalsTable != null ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="gba:shrink-0"
+              onClick={onBackToProposalsTable}
+              data-testid="manager-team-back-to-proposals-table"
+            >
+              {t('manager-team-back-to-proposals-list')}
+            </Button>
+          ) : null}
           <Button
             type="button"
             className="gba:shrink-0"

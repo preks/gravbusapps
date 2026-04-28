@@ -19,7 +19,7 @@ import { v4 as uuid } from 'uuid'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import { useStudioExpressionSuggestions } from '../../hooks/useStudioExpressionSuggestions'
 import type { EndNodeConfig, DesignerMode } from '../../types/studioTypes'
-import { SummaryFieldVisibility, type SummaryField } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { SummaryFieldVisibility, type SummaryField } from '@/common/data/flow/types/flowTemplate'
 import { FlowContextExpressionEditor } from '../shared/FlowContextExpressionEditor'
 import type { FlowStudioData } from '../../hooks/useFlowStudioData'
 

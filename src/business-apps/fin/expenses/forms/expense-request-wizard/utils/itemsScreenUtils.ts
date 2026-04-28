@@ -2,6 +2,46 @@ import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from '
 import dayjs from 'dayjs'
 import { SCREEN_NAMES_ENUM } from '../constants/constants'
 
+/**
+ * Returns the list of mandatory field labels that are missing on a raw expense item.
+ * Used to show a warning on the card so the user knows to edit before adding to the request.
+ */
+export const getMissingMandatoryFields = (item: any): string[] => {
+  const missing: string[] = []
+  const positions: any[] = item?.expensePosition || []
+
+  if (positions.length === 0) {
+    missing.push(
+      getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_group', 'Expense group')
+    )
+    missing.push(
+      getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_type', 'Expense type')
+    )
+    missing.push(
+      getTranslationFromI18nKeyAndLabel('lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label', 'Cost center')
+    )
+    return missing
+  }
+
+  const allMissingGroup = positions.every(p => !p.expenseGroup)
+  const allMissingType = positions.every(p => !p.expenseRuleGeneralExpense?.name)
+  const allMissingCostCenter = positions.every(p => !p.costCenter?.name)
+
+  if (allMissingGroup) {
+    missing.push(getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_group', 'Expense group'))
+  }
+  if (allMissingType) {
+    missing.push(getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_type', 'Expense type'))
+  }
+  if (allMissingCostCenter) {
+    missing.push(
+      getTranslationFromI18nKeyAndLabel('lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label', 'Cost center')
+    )
+  }
+
+  return missing
+}
+
 export const noAllowanceItemsFunction = (arrayOfItems: any[]) => {
   return arrayOfItems?.filter(
     element =>
@@ -38,8 +78,8 @@ export const formatArrayOfItems = (arrayItems: any[]) => {
     if (positionArray.length < 2 && positionArray.length !== 0) {
       singularItemValue = {
         expenseGroup: positionArray[0].expenseGroup,
-        expenseType: positionArray[0].expenseRuleGeneralExpense.name,
-        costCenter: positionArray[0].costCenter.name
+        expenseType: positionArray[0].expenseRuleGeneralExpense?.name ?? '',
+        costCenter: positionArray[0].costCenter?.name ?? ''
       }
     } else {
       singularItemValue = {

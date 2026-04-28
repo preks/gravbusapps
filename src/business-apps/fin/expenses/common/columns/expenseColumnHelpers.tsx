@@ -9,6 +9,19 @@ const NOT_AVAILABLE_LABEL = 'N/A'
 
 export const naLabel = () => getTranslationFromI18nKeyAndLabel(NOT_AVAILABLE, NOT_AVAILABLE_LABEL)
 
+/**
+ * Full header label on `title` so truncated fixed-layout column titles show on hover (native tooltip).
+ */
+export function expenseTableColumnHeader(label: string) {
+  return function ExpenseTableColumnHeader() {
+    return (
+      <span className="gba:block gba:w-full gba:min-w-0 gba:truncate" title={label}>
+        {label}
+      </span>
+    )
+  }
+}
+
 export function createFormatDate(
   formatFn?: (value: string | null | undefined) => string
 ): (v: string | null | undefined) => string {
@@ -73,6 +86,13 @@ export interface DateColumnOptions {
    * When false (default), the first header click sorts ascending (same as currency columns).
    */
   sortDescFirst?: boolean
+  /** Set false for server-paginated or read-only tables where list sorting is not available. */
+  enableSorting?: boolean
+  /** Wider columns avoid header label overlapping sort/pin affordances in fixed DataTable layouts. */
+  minSize?: number
+  size?: number
+  maxSize?: number
+  meta?: { className?: string; align?: 'left' | 'right' | 'center' }
 }
 
 export function createDateColumn<T extends object>(
@@ -90,18 +110,22 @@ export function createDateColumn<T extends object>(
   return {
     id,
     accessorFn,
-    header,
-    enableSorting: true,
+    header: expenseTableColumnHeader(header),
+    enableSorting: options?.enableSorting !== false,
     sortDescFirst: options?.sortDescFirst ?? false,
-    size: 110,
-    minSize: 90,
-    maxSize: 150,
+    size: options?.size ?? 110,
+    minSize: options?.minSize ?? 90,
+    maxSize: options?.maxSize ?? 150,
+    meta: options?.meta,
     cell: ({ row }) => {
       const value = hasFn
         ? (accessor as (row: T) => string | null | undefined)(row.original)
         : (row.original as Record<string, string | null | undefined>)[accessor]
       return (
-        <span className="gba:text-sm" data-testid={`${id}-${(row.original as { id?: string }).id ?? row.index}`}>
+        <span
+          className="gba:text-sm gba:font-normal gba:tabular-nums"
+          data-testid={`${id}-${(row.original as { id?: string }).id ?? row.index}`}
+        >
           {formatDate(value ?? null)}
         </span>
       )
@@ -115,6 +139,13 @@ export interface EmployeeColumnOptions {
   notAvailableLabel?: NotAvailableFn
   /** When false (default), the first header click sorts ascending. */
   sortDescFirst?: boolean
+  /** Set false for server-paginated or read-only tables where list sorting is not available. */
+  enableSorting?: boolean
+  /**
+   * When false, shows the employee display name only (no Avatar).
+   * Default true for backoffice and other contexts that show photo/initials.
+   */
+  showEmployeeAvatar?: boolean
 }
 
 export function createEmployeeColumn<T extends object>(
@@ -125,11 +156,12 @@ export function createEmployeeColumn<T extends object>(
 ): ColumnDef<T> {
   const opts: EmployeeColumnOptions = typeof fourth === 'function' ? { notAvailableLabel: fourth } : (fourth ?? {})
   const emptyLabel = opts.notAvailableLabel ?? naLabel
+  const showEmployeeAvatar = opts.showEmployeeAvatar !== false
   return {
     id,
     accessorFn: getEmployee,
-    header,
-    enableSorting: true,
+    header: expenseTableColumnHeader(header),
+    enableSorting: opts.enableSorting !== false,
     sortDescFirst: opts.sortDescFirst ?? false,
     size: 200,
     minSize: 160,
@@ -139,8 +171,11 @@ export function createEmployeeColumn<T extends object>(
       if (!employee) {
         return <span className="gba:text-sm gba:text-muted-foreground">{emptyLabel()}</span>
       }
-      const imageUrl = employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined
       const displayName = employee.displayName ?? employee.fullName ?? emptyLabel()
+      if (!showEmployeeAvatar) {
+        return <span className="gba:font-medium gba:text-sm">{displayName}</span>
+      }
+      const imageUrl = employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined
       const initial = displayName.charAt(0).toUpperCase()
       return (
         <div className="gba:flex gba:items-center gba:gap-2">
@@ -165,6 +200,13 @@ export interface CurrencyColumnOptions<T> {
    * (TanStack otherwise uses desc-first for numeric accessors).
    */
   sortDescFirst?: boolean
+  /** Set false for server-paginated or read-only tables where list sorting is not available. */
+  enableSorting?: boolean
+  /**
+   * When true, the amount column header uses default text alignment (omit `meta.align` in DataTable).
+   * Manager expense reports use this; other tables keep the legacy right-aligned amount header.
+   */
+  alignAmountHeaderWithTextColumns?: boolean
 }
 
 export function createCurrencyColumn<T extends object>(
@@ -175,16 +217,17 @@ export function createCurrencyColumn<T extends object>(
   formatCurrency: (amount: number, currency: string) => string,
   options?: CurrencyColumnOptions<T>
 ): ColumnDef<T> {
+  const alignWithText = options?.alignAmountHeaderWithTextColumns === true
   return {
     id,
     accessorFn: getAmount,
-    header,
-    enableSorting: true,
+    header: expenseTableColumnHeader(header),
+    enableSorting: options?.enableSorting !== false,
     sortDescFirst: options?.sortDescFirst ?? false,
     size: options?.size ?? 130,
     minSize: options?.minSize ?? 100,
     maxSize: options?.maxSize ?? 180,
-    meta: { align: 'right' as const },
+    meta: alignWithText ? { className: 'gba:min-w-0' } : { align: 'right' as const },
     cell: ({ row }) => {
       const testId = options?.getRowTestId?.(row.original)
       return (
@@ -204,6 +247,11 @@ export interface StatusBadgeColumnOptions<T> {
   cellWrapperClassName?: string
   /** When false (default), the first header click sorts ascending. */
   sortDescFirst?: boolean
+  /** Set false for server-paginated or read-only tables where list sorting is not available. */
+  enableSorting?: boolean
+  size?: number
+  minSize?: number
+  maxSize?: number
 }
 
 export function createStatusBadgeColumn<T extends object>(
@@ -215,12 +263,12 @@ export function createStatusBadgeColumn<T extends object>(
   return {
     id,
     accessorFn: (row: T) => getStatusDisplay(row).label,
-    header,
-    enableSorting: true,
+    header: expenseTableColumnHeader(header),
+    enableSorting: options?.enableSorting !== false,
     sortDescFirst: options?.sortDescFirst ?? false,
-    size: 150,
-    minSize: 160,
-    maxSize: 250,
+    size: options?.size ?? 150,
+    minSize: options?.minSize ?? 160,
+    maxSize: options?.maxSize ?? 250,
     cell: ({ row }) => {
       const display = getStatusDisplay(row.original)
       const defaultTestId = `status-pill-${String(display.label).toLowerCase().replace(/\s/g, '-')}`

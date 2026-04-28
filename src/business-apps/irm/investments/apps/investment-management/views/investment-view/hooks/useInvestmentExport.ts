@@ -24,11 +24,14 @@ const INVESTMENT_EXPORT_COLUMNS = [
   { key: 'totalInvestmentAmount', title: 'Total Investment' },
   { key: 'currency', title: 'Currency' },
   { key: 'ownerEmployee', title: 'Owner' },
+  { key: 'account', title: 'Account' },
   { key: 'investmentStatus', title: 'Status' },
+  { key: 'planedExit', title: 'Planned Exit' },
+  { key: 'plannedExitDate', title: 'Planned Exit Date' },
   { key: 'createdAt', title: 'Created Date' }
 ] as const
 
-const INVESTMENT_DATE_COLUMN_KEYS = new Set(['createdAt'])
+const INVESTMENT_DATE_COLUMN_KEYS = new Set(['createdAt', 'plannedExitDate'])
 
 // ─── Formatter ────────────────────────────────────────────────────────────────
 
@@ -38,6 +41,18 @@ const getOwnerName = (inv: Investment): string => {
   return emp.displayName || [emp.firstName, emp.lastName].filter(Boolean).join(' ') || '-'
 }
 
+const formatPlanedExit = (value: boolean | undefined): string => {
+  if (value === undefined || value === null) return '-'
+  return value ? 'Yes' : 'No'
+}
+
+const formatAccount = (inv: Investment): string => {
+  const associations = inv.investmentAccounts || []
+  if (associations.length === 0) return '-'
+  if (associations.length > 1) return 'Multiple'
+  return associations[0]?.investmentAccount?.name || '-'
+}
+
 const formatInvestmentForExport = (inv: Investment): Record<string, string> => ({
   name: inv.name || '-',
   investmentGroup: inv.investmentGroup?.value || '-',
@@ -45,7 +60,10 @@ const formatInvestmentForExport = (inv: Investment): Record<string, string> => (
   totalInvestmentAmount: inv.totalInvestmentAmount == null ? '-' : String(inv.totalInvestmentAmount),
   currency: inv.currency?.value || (inv.currency as any)?.code || '-',
   ownerEmployee: getOwnerName(inv),
+  account: formatAccount(inv),
   investmentStatus: inv.investmentStatus?.value || '-',
+  planedExit: formatPlanedExit(inv.planedExit),
+  plannedExitDate: formatExportDate(inv.plannedExitDate),
   createdAt: formatExportDate(inv.createdAt)
 })
 

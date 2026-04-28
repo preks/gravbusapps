@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { CheckCircleIcon, SpinnerGapIcon, TrashIcon } from '@phosphor-icons/react'
+import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, SpinnerGapIcon, TrashIcon } from '@phosphor-icons/react'
 import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
 import { confirmDraft as confirmDraftApi, confirmDraftFromPreview, extractEntityId } from '../../utils/confirmDraftApi'
 import { PanelCard } from './PanelCard'
@@ -121,24 +121,68 @@ export const DraftSlidesPreview: React.FC<{
   slides: SlideData[]
   accessToken: string
   sessionId: string
-}> = ({ preview, slides, accessToken, sessionId }) => {
-  const [currentSlide] = useState(0)
+  /**
+   * Optional externally-controlled slide index. When the live preview is
+   * lifted up to ``LivePreviewCard`` (so the carousel position survives the
+   * streaming → draft_ready transition) both props are provided. When the
+   * component is used standalone we fall back to internal state starting at
+   * slide 0.
+   */
+  currentSlide?: number
+  setCurrentSlide?: (updater: (i: number) => number) => void
+}> = ({ preview, slides, accessToken, sessionId, currentSlide: externalIndex, setCurrentSlide: externalSetter }) => {
+  const [internalIndex, setInternalIndex] = useState(0)
+  const currentSlide = externalIndex ?? internalIndex
+  const setCurrentSlide =
+    externalSetter ?? ((updater: (i: number) => number) => setInternalIndex(prev => updater(prev)))
+
   const [mainRef, measuredWidth] = useContainerWidth<HTMLDivElement>()
   const containerWidth = measuredWidth ?? SLIDE_FALLBACK_WIDTH
+
+  // Clamp to range so the shared index (which may still reflect the last
+  // streaming position) never points past the end of the deck.
+  const clampedIndex = Math.max(0, Math.min(currentSlide, Math.max(0, slides.length - 1)))
+
+  const prev = useCallback(
+    () => setCurrentSlide(i => Math.max(0, Math.min(i, slides.length - 1) - 1)),
+    [setCurrentSlide, slides.length]
+  )
+  const next = useCallback(
+    () => setCurrentSlide(i => Math.min(slides.length - 1, Math.max(0, i) + 1)),
+    [setCurrentSlide, slides.length]
+  )
 
   return (
     <PanelCard title="Live Preview" defaultOpen>
       <div className="gba:flex gba:flex-col" data-testid="fabric-live-preview-draft-slides">
         <div ref={mainRef} className="gba:flex gba:items-center gba:justify-center gba:p-3">
           <SlideCanvasMiniPreview
-            slide={slides[currentSlide] ?? {}}
+            slide={slides[clampedIndex] ?? {}}
             containerWidth={Math.max(200, containerWidth - 24)}
           />
         </div>
-        <div className="gba:flex gba:items-center gba:justify-center gba:gap-3 gba:py-2 gba:border-t gba:border-border">
+        <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:py-2 gba:border-t gba:border-border">
+          <button
+            onClick={prev}
+            disabled={clampedIndex === 0}
+            className="gba:inline-flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-md gba:border gba:border-border gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/40 gba:disabled:opacity-30 gba:disabled:cursor-not-allowed gba:transition-colors"
+            data-testid="fabric-live-preview-draft-prev"
+            aria-label="Previous slide"
+          >
+            <ArrowLeftIcon className="gba:h-3 gba:w-3" />
+          </button>
           <span className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:tabular-nums">
-            {currentSlide + 1} / {slides.length}
+            {clampedIndex + 1} / {slides.length}
           </span>
+          <button
+            onClick={next}
+            disabled={clampedIndex >= slides.length - 1}
+            className="gba:inline-flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-md gba:border gba:border-border gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/40 gba:disabled:opacity-30 gba:disabled:cursor-not-allowed gba:transition-colors"
+            data-testid="fabric-live-preview-draft-next"
+            aria-label="Next slide"
+          >
+            <ArrowRightIcon className="gba:h-3 gba:w-3" />
+          </button>
         </div>
       </div>
       <DraftActionBar sessionId={sessionId} preview={preview} accessToken={accessToken} />

@@ -14,6 +14,7 @@ task-status-label = Stare
 task-assignee-label = Atribuit către
 task-entity-label = Entitate asociată
 task-upload-label = Atașați documente
+task-attached-documents-label = Documente atașate
 
 # Common
 please-select = Vă rugăm să selectați...

@@ -2,8 +2,8 @@ title = Team compensation
 subtitle = View and compare team pay, bonuses, and benefits.
 loading = Loading team data...
 
-select-company-placeholder = Select company…
-empty-select-company-hint = Select a company to load your team’s compensation data.
+empty-select-company-hint = Your team and budget are scoped to the company linked to your position. We could not determine that company yet. Try refreshing the page, or contact HR if this continues.
+select-compensation-cycle-hint = Select a compensation cycle above to load your team and budget preview.
 error-companies-load = Could not load the company list. {$message}
 error-performance-cycles-query-title = Performance cycle directory unavailable
 error-performance-cycles-query = Could not load the performance cycle list from the directory. {$message}
@@ -13,8 +13,17 @@ error-salary-budget-title = Could not load team salary budget
 error-title = Something went wrong
 table-section-title = Team members
 manager-team-context-card-title = Team compensation
+manager-team-allocated-amount-card-title = Allocated amount
+manager-team-allocated-kpi-from-proposals = Total from saved team proposals on the department budget.
+manager-team-allocated-kpi-from-preview = Current distribution preview (updates as you change the method or amounts; not saved until you submit proposals).
 manager-team-budget-allocation-card-title = Remaining budget
+manager-team-submitted-proposals-title = Team proposals
+manager-team-proposals-col-actions = Actions
+manager-team-proposals-row-menu-aria = Open menu
+manager-team-new-proposal = New proposal
+manager-team-back-to-proposals-list = View proposals
 budget-summary-total-available = Total budget available
+manager-team-kpi-company-undistributed-after-allocation = At company level, {$amount} is still available to allocate to departments (after amounts already assigned to org units).
 budget-summary-placeholder-value = -
 budget-summary-placeholder-footer = Sums salary budgets for your team members’ org units on the latest company budget plan when rows exist (or your position’s unit if members have no OU).
 table-empty = No team members match the current filters.
@@ -64,7 +73,6 @@ hire-unknown = Unknown
 hire-tooltip = Hired: {$date}
 
 compa-no-band = No pay band data
-compa-ratio-label = CR: {$ratio}
 
 filters-toggle-aria = Show or hide filters
 search-toggle-aria = Search team members
@@ -95,6 +103,7 @@ pagination-prev-aria = Previous page
 pagination-next-aria = Next page
 
 manager-team-distribution-method-section = How should the increase pool be split?
+manager-team-distribution-col-compensation-band = Compensation Band
 
 manager-team-save-allocations = Distribute
 # Primary toolbar action — opens submit dialog (replaces former “Distribute”).
@@ -107,6 +116,10 @@ manager-team-save-dialog-none-selected = Select at least one team member.
 manager-team-save-dialog-no-pool = There is no salary increase pool for your team budget, so allocations cannot be saved.
 manager-team-save-dialog-custom-exceeds-pool-selected = The sum of selected custom allocations exceeds the salary increase pool. Adjust amounts or deselect some members.
 manager-team-save-dialog-checkbox-aria = Include { $name } in save
+manager-team-save-dialog-includes-already-submitted = Your selection includes people who already have a proposal in review. Deselect them—only drafts or sent-back proposals can be submitted again from here.
+manager-team-save-dialog-row-blocked-hint = This person already has a submitted proposal in review. They cannot be included in another submit from here.
+manager-team-save-dialog-row-blocked-aria = { $name } — already in review, cannot include in submit
+manager-team-save-dialog-row-blocked-line = Already submitted (in review)
 manager-team-save-dialog-cancel = Cancel
 manager-team-save-dialog-confirm = Submit
 manager-team-save-dialog-saving = Submitting…
@@ -140,7 +153,6 @@ supervisor-review-submitted-count = { $count ->
 supervisor-review-busy = Working…
 supervisor-review-approve-selected = Approve selected
 supervisor-review-none-selected = Select at least one proposal.
-supervisor-review-selection-hint = Approve or send back only submitted rows. Draft rows are visible for context and cannot be selected here.
 supervisor-review-draft-in-table = { $count ->
   [one] 1 allocation is still in draft (read-only in this list).
   *[other] {$count} allocations are still in draft (read-only in this list).
@@ -174,3 +186,35 @@ supervisor-review-send-back-cancel = Cancel
 supervisor-review-send-back-confirm = Send back
 supervisor-review-back-to-team = Go to team compensation
 supervisor-review-back-to-department-submissions = Go to department submissions
+
+# Sent-back proposals (HR / supervisor returned proposals)
+manager-team-sent-back-proposals-toolbar = Rejected proposals
+manager-team-sent-back-proposals-toolbar-with-count = Rejected proposals ({$count})
+sent-back-back-to-team = Back to team compensation
+sent-back-no-active-plan = Select a company budget to load rejected proposals.
+sent-back-table-section-title = Rejected proposals
+sent-back-table-search-placeholder = Search by employee, amounts, notes, or status…
+sent-back-table-empty-filtered = No rows match your search.
+sent-back-table-empty-none = No rejected proposals for your team on this plan.
+sent-back-col-employee = Employee
+sent-back-col-status = Status
+sent-back-col-allocation = Allocation
+sent-back-col-increase-amount = Increase amount
+sent-back-col-increase-pct = Increase %
+sent-back-col-new-salary = Proposed salary
+sent-back-row-menu-aria = Row actions
+sent-back-action-edit = Edit
+sent-back-edit-title = Revise proposal
+sent-back-edit-description = Update amounts and justification for { $name }. Saving resubmits the proposal as submitted for review.
+sent-back-edit-review-notes = Reviewer notes
+sent-back-edit-increase-label = Salary increase amount
+sent-back-edit-preview-pct = Calculated increase %
+sent-back-edit-preview-new-salary = Calculated new salary
+sent-back-edit-justification-label = Justification
+sent-back-edit-missing-member = This employee is not in your current team list; you cannot recalculate salary fields.
+sent-back-edit-invalid-increase = Enter a valid non-negative increase amount.
+sent-back-edit-exceeds-department-budget = With this increase, total proposed salary increase amounts for your department would be { $total }, which exceeds the department salary budget of { $cap } by { $over }. You can still save; consider adjusting if needed.
+sent-back-edit-error-generic = Could not save changes.
+sent-back-edit-cancel = Cancel
+sent-back-edit-saving = Saving…
+sent-back-edit-submit = Save

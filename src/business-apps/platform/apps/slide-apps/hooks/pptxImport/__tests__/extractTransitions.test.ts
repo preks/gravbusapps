@@ -1,5 +1,3 @@
-import { describe, it, expect } from 'vitest'
-import './setup'
 import { extractTransition } from '../extractTransitions'
 import { parseXML } from '../ooxmlUtils'
 import type { ParserMessage } from '../../usePowerPointParser'

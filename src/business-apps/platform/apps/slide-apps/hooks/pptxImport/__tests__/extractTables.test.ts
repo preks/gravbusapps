@@ -1,5 +1,3 @@
-import { describe, it, expect } from 'vitest'
-import './setup'
 import { extractTableElements } from '../extractTables'
 import { parseXML } from '../ooxmlUtils'
 import type { OoxmlTheme } from '../types'

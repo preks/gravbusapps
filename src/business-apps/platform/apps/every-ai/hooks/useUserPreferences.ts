@@ -10,10 +10,20 @@ export interface BehaviorNote {
 
 /**
  * LLM providers a user is allowed to pin via developer settings. The backend
- * keeps a longer list of supported providers, but only these two are exposed
- * in the UI today. `null` (or omitted) means "use the server default".
+ * keeps a longer list of supported providers; these four are exposed in the
+ * UI today. `null` (or omitted) means "use the server default".
  */
-export type UserSelectableLlmProvider = 'azure' | 'stackit'
+export type UserSelectableLlmProvider = 'azure' | 'stackit' | 'groq' | 'anthropic'
+
+/**
+ * String alias for a model id the user can pin. The backend's
+ * `SupportedLlmModels` union is too long to mirror here literally; instead
+ * we keep this a plain `string` and constrain the UI's picker to values
+ * from `MODELS_BY_PROVIDER` (see UserPreferences.tsx). The backend
+ * re-validates the pairing -- invalid values fall back silently to the
+ * provider's canonical default rather than breaking the chat flow.
+ */
+export type UserSelectableLlmModel = string
 
 /**
  * User-controlled feature flags persisted on `UserProfile.settings`
@@ -25,6 +35,12 @@ export interface UserPreferencesSettings {
   chat_cache_enabled?: boolean
   /** Pin chat to a specific LLM provider; `null` defers to the server. */
   llm_provider?: UserSelectableLlmProvider | null
+  /**
+   * Pin chat to a specific model within the chosen provider's family.
+   * Ignored unless `llm_provider` is also set. `null` falls back to the
+   * provider's canonical default model.
+   */
+  llm_model?: UserSelectableLlmModel | null
 }
 
 export interface UserPreferences {

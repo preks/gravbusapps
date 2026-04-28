@@ -1,5 +1,4 @@
 import React, { useMemo, useCallback } from 'react'
-import { CurrencyDollarIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useGetExpenseRequestStatistics } from '../../../../hooks/useGetExpenseRequestStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -194,7 +193,6 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         ' ' +
         currentMonthName,
       value: formatCurrencyDisplay(statistics.currentMonthAmount || 0, effectiveCurrencyCode),
-      prefix: <CurrencyDollarIcon size={16} />,
       color: '#3f8600',
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },
@@ -228,7 +226,6 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       key: 'reimbursable',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.reimbursable', 'Reimbursable'),
       value: formatCurrencyDisplay(statistics.reimbursableAmount, effectiveCurrencyCode),
-      prefix: <CurrencyDollarIcon size={16} />,
       color: '#722ed1',
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },

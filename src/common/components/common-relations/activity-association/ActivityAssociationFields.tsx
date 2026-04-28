@@ -3,13 +3,13 @@ import { useFormContext, useWatch } from 'react-hook-form'
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@newwork/nw-design-system'
 import { ContactSelect } from '@/common/components/common-relations/selects/contact-select'
 import { AccountSelect } from '@/common/components/common-relations/selects/account-select'
+import { InvestmentSelect } from '@/common/components/common-relations/selects/investment-select'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { EntityOption } from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment'
 import { useCrmActivityAssociationOptions } from '@/common/data/customer/hooks/useCrmActivityAssociationOptions'
 import { useIrmActivityAssociationOptions } from '@/common/data/investment/hooks/useIrmActivityAssociationOptions'
 import type { ActivityAssociationVariant, CrmActivityAssociationAnchor } from './types'
 import { primaryIdFieldForEntityType, resolveActivityAssociationAnchor } from './resolveActivityAssociationAnchor'
-import { ActivityAssociationInvestmentSelect } from './ActivityAssociationInvestmentSelect'
 import { selectOnChangeToId } from './activityAssociationSelectUtils'
 import { useActivityAssociationComboLists } from './useActivityAssociationComboLists'
 
@@ -207,7 +207,8 @@ export const ActivityAssociationFields: React.FC<ActivityAssociationFieldsProps>
         <FormItem>
           <FormLabel>{investmentLabel}</FormLabel>
           <FormControl>
-            <ActivityAssociationInvestmentSelect
+            <InvestmentSelect
+              accessToken={accessToken}
               value={field.value || null}
               onChange={field.onChange}
               investments={investmentComboList}

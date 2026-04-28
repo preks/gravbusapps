@@ -1,6 +1,6 @@
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import React, { useMemo, useCallback } from 'react'
-import { CurrencyDollarIcon, CompassIcon } from '@phosphor-icons/react'
+import { CompassIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { formatCurrencyDisplay } from '../../../../utils'
 import { kpiHeaderCurrencyLabel } from '../../../../utils/kpiHeaderCurrencyLabel'
@@ -181,7 +181,6 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
           ' ' +
           currentMonthName,
         value: `${formatCurrencyDisplay(String(totalEstimated ?? '0'), currencyCode)}`,
-        prefix: <CurrencyDollarIcon size={16} />,
         color: '#3f8600',
         span: { xs: 24, sm: 12, md: 6 },
         description: getTranslationFromI18nKeyAndLabel(

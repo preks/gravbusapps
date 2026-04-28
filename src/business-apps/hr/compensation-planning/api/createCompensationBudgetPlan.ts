@@ -81,6 +81,7 @@ export interface CompensationBudgetPlanCompanyRestPayload {
   company: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
+  allocationAmount: number
   bonusBudgetAmount: number
   bonusBudgetPercent: number
   budgetPlanStatus: BudgetPlanStatusApi
@@ -97,6 +98,7 @@ export interface CompensationBudgetPlanCompanyUpdatePayload {
   version: number
   salaryBudgetAmount: number
   salaryBudgetPercent: number
+  allocationAmount: number
   currencyRef: string | null
   currentTotalSalaryCost: number
   compensationBudgetPlan: string

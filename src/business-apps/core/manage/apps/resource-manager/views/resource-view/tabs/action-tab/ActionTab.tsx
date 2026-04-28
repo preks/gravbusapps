@@ -111,7 +111,8 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
     error: actionsError,
     refetch: refetchActions,
     loadMore: loadMoreActions,
-    hasMore: hasMoreActions
+    hasMore: hasMoreActions,
+    removeAction
   } = useActions(context, {
     flowName: actionsSearchValue.trim() || undefined,
     sort: (() => {
@@ -131,7 +132,8 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
     error: contextsError,
     refetch: refetchContexts,
     loadMore: loadMoreContexts,
-    hasMore: hasMoreContexts
+    hasMore: hasMoreContexts,
+    removeContext
   } = useContexts(context, {
     searchItem: contextsSearchValue.trim() || undefined,
     sort: (() => {
@@ -362,10 +364,10 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
 
       const success = await deleteAction(action.action.id)
       if (success) {
-        await refetchActions()
+        removeAction(action.action.id)
       }
     },
-    [deleteAction, refetchActions]
+    [deleteAction, removeAction]
   )
 
   // Handle add action - call the function from ActionTable via ref
@@ -407,10 +409,10 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
 
       const success = await deleteContext(contextToDelete.context.id)
       if (success) {
-        await refetchContexts()
+        removeContext(contextToDelete.context.id)
       }
     },
-    [deleteContext, refetchContexts]
+    [deleteContext, removeContext]
   )
 
   // Handle create context

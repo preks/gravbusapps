@@ -23,6 +23,7 @@ import {
   DialogTitle,
   DialogFooter,
   Label,
+  Textarea,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -62,6 +63,7 @@ import {
   User,
   RefreshCw
 } from 'lucide-react'
+import { SparkleIcon } from '@phosphor-icons/react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getWorkEmailFromCommunication } from '@/common/data/employee/useEmployeeSearch'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employeeQueries'
@@ -94,6 +96,10 @@ import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/compon
 import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
+import { openEveryAI } from '@/common/utils/openEveryAI'
+import { buildSpreadsheetCreatePrompt } from '@/common/utils/buildSpreadsheetCreatePrompt'
 
 // Services
 import { generateAppSchemaFromParsedFile, generateEmptyAppSchema } from './services/SchemaGenerator'
@@ -526,6 +532,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   }, [])
   const [isCreateEmptyDialogOpen, setIsCreateEmptyDialogOpen] = useState(false)
   const [newAppName, setNewAppName] = useState('')
+  const [createWithAiDialogOpen, setCreateWithAiDialogOpen] = useState(false)
+  const [createWithAiTitle, setCreateWithAiTitle] = useState('Untitled Spreadsheet')
+  const [createWithAiAbout, setCreateWithAiAbout] = useState('')
   const [activeSection, setActiveSection] = useState<SidebarSection>('my-files')
   const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set())
   const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
@@ -544,6 +553,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // Get current user ID
   const currentUserId = resolveCurrentUserId(userInfo)
   const flowTaskUserId = userInfo?.id || currentUserId
+  const previewFeature = useFeature<boolean>(Feature.Preview.Enabled.Key)
+  const previewEnabled = previewFeature === true
 
   // Ensure SpreadsheetApiService can authenticate in published screens (token might not be in localStorage)
   useEffect(() => {
@@ -615,10 +626,17 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     setCurrentView,
     activeSection,
     setActiveSection,
+    showSharedSection: previewEnabled,
     onLoadFailed: () => {
       toast.error(t('toast-spreadsheet-not-found'))
     }
   })
+
+  useEffect(() => {
+    if (!previewEnabled && activeSection === 'shared') {
+      setActiveSection('my-files')
+    }
+  }, [activeSection, previewEnabled])
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
   useEffect(() => {
@@ -1299,6 +1317,51 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     }
   }, [newAppName, userInfo, createApp, updateUrl, refreshApps, loadApp])
 
+  const resetCreateWithAiState = useCallback(() => {
+    setCreateWithAiDialogOpen(false)
+    setCreateWithAiTitle('Untitled Spreadsheet')
+    setCreateWithAiAbout('')
+  }, [])
+
+  const handleCreateWithAiDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        resetCreateWithAiState()
+        return
+      }
+
+      setCreateWithAiDialogOpen(true)
+    },
+    [resetCreateWithAiState]
+  )
+
+  const handleCreateWithAi = useCallback(() => {
+    setCreateWithAiDialogOpen(true)
+  }, [])
+
+  const handleSubmitCreateWithAi = useCallback(() => {
+    const instruction = createWithAiAbout.trim()
+    if (!instruction) return
+
+    const prompt = buildSpreadsheetCreatePrompt({
+      title: createWithAiTitle.trim() || undefined,
+      userInstruction: instruction
+    })
+
+    openEveryAI({
+      prompt,
+      skills: ['Spreadsheets']
+    })
+    resetCreateWithAiState()
+
+    globalThis.setTimeout(() => {
+      const everyAiMounted = Boolean(document.querySelector('[data-testid="every-ai-app"]'))
+      if (!everyAiMounted) {
+        navigateTo(Navigation.PLATFORM_AI_CHAT, { fullPage: true })
+      }
+    }, 800)
+  }, [createWithAiAbout, createWithAiTitle, resetCreateWithAiState])
+
   const toggleFavorite = useCallback(
     (id: string, e?: React.MouseEvent) => {
       e?.stopPropagation()
@@ -1374,7 +1437,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         if (!newSheetId) return
 
         const targetSheet = refreshed?.sheets?.find(s => s.id === newSheetId)
-        if (targetSheet && (targetSheet.data?.length ?? 0) > 0) {
+        if (targetSheet) {
           return
         }
 
@@ -1401,7 +1464,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             onShare={isReadonlyTrashView ? undefined : () => handleShareApp(app.id)}
             onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
-            onAppRefreshNeeded={canEdit ? handleAppRefreshNeeded : undefined}
+            onAppRefreshNeeded={isReadonlyTrashView ? undefined : handleAppRefreshNeeded}
             onSheetUpdate={canEdit ? updateSheet : undefined}
             onSheetAdd={canEdit ? addSheet : undefined}
             onSheetDelete={canEdit ? deleteSheet : undefined}
@@ -1549,6 +1612,13 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               <div className="gba:text-xs gba:text-muted-foreground">{t('sidebar-blank-spreadsheet-desc')}</div>
             </div>
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleCreateWithAi} data-testid={`${testId}-generate-ai-menu-item`}>
+            <SparkleIcon className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" weight="fill" />
+            <div>
+              <div className="gba:font-medium">{t('sidebar-generate-ai')}</div>
+              <div className="gba:text-xs gba:text-muted-foreground">{t('sidebar-generate-ai-desc')}</div>
+            </div>
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={handleStartUpload}>
             <Upload className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
             <div>
@@ -1568,6 +1638,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             onSectionChange={s => setActiveSection(s as SidebarSection)}
             tabBadges={heroTabBadges}
             newButton={heroNewButton}
+            showSharedTab={previewEnabled}
             t={t}
             data-testid={`${testId}-hero`}
           />
@@ -1619,6 +1690,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           onSectionChange={s => setActiveSection(s)}
           tabBadges={heroTabBadges}
           newButton={heroNewButton}
+          showSharedTab={previewEnabled}
           t={t}
           data-testid={`${testId}-hero`}
         />
@@ -1953,7 +2025,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                               {t('action-sort-created')}
                               {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                             </div>
-                            <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">{t('table-rows')}</div>
                             <div className="gba:w-10 gba:flex-shrink-0" />
                           </div>
                         </div>
@@ -2109,11 +2180,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                   {formatDate(app.createdAt, t, locale)}
                                 </div>
 
-                                {/* Rows */}
-                                <div className="gba:w-20 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground gba:text-right">
-                                  {app.rowCount.toLocaleString()}
-                                </div>
-
                                 {/* Actions */}
                                 <div
                                   className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end"
@@ -2130,12 +2196,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                         <Play className="gba:w-4 gba:h-4 gba:mr-2" />
                                         {t('action-open')}
                                       </DropdownMenuItem>
-                                      {isOwner && (
-                                        <DropdownMenuItem onClick={() => handleShareApp(app.id)}>
-                                          <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                          {t('action-share')}
-                                        </DropdownMenuItem>
-                                      )}
                                       {isOwner && sharedWith.length > 0 && (
                                         <DropdownMenuItem onClick={() => handleManageShares(app.id)}>
                                           <Users className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -2418,6 +2478,55 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               </Button>
               <Button onClick={handleCreateEmptyApp} disabled={!newAppName.trim()}>
                 {t('dialog-create-submit')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={createWithAiDialogOpen} onOpenChange={handleCreateWithAiDialogOpenChange}>
+          <DialogContent className="gba:max-w-lg" data-testid={`${testId}-generate-ai-dialog`}>
+            <DialogHeader>
+              <DialogTitle>{t('dialog-generate-ai-title')}</DialogTitle>
+            </DialogHeader>
+            <div className="gba:space-y-4 gba:py-4">
+              <p className="gba:text-sm gba:text-muted-foreground">{t('dialog-generate-ai-description')}</p>
+              <div className="gba:space-y-2">
+                <Label htmlFor="generate-ai-title">{t('dialog-generate-ai-name-label')}</Label>
+                <Input
+                  id="generate-ai-title"
+                  value={createWithAiTitle}
+                  onChange={event => setCreateWithAiTitle(event.target.value)}
+                  placeholder={t('dialog-generate-ai-name-placeholder')}
+                  data-testid={`${testId}-generate-ai-title-input`}
+                />
+              </div>
+              <div className="gba:space-y-2">
+                <Label htmlFor="generate-ai-description">{t('dialog-generate-ai-prompt-label')}</Label>
+                <Textarea
+                  id="generate-ai-description"
+                  value={createWithAiAbout}
+                  onChange={event => setCreateWithAiAbout(event.target.value)}
+                  placeholder={t('dialog-generate-ai-prompt-placeholder')}
+                  rows={5}
+                  autoFocus
+                  data-testid={`${testId}-generate-ai-description-input`}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={resetCreateWithAiState}
+                data-testid={`${testId}-generate-ai-cancel-btn`}
+              >
+                {t('dialog-create-cancel')}
+              </Button>
+              <Button
+                onClick={handleSubmitCreateWithAi}
+                disabled={!createWithAiAbout.trim()}
+                data-testid={`${testId}-generate-ai-submit-btn`}
+              >
+                {t('dialog-generate-ai-submit')}
               </Button>
             </DialogFooter>
           </DialogContent>

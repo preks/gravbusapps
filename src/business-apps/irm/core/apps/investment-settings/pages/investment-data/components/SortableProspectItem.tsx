@@ -1,7 +1,7 @@
 import React from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Button, Badge } from '@newwork/nw-design-system'
+import { Badge, Button, Card, CardAction, CardContent, CardHeader } from '@newwork/nw-design-system'
 import { DotsSixVerticalIcon, PencilIcon, TrashIcon } from '@phosphor-icons/react'
 import { ProspectField } from '../types'
 
@@ -32,51 +32,62 @@ export const SortableProspectItem: React.FC<SortableProspectItemProps> = ({
   }
 
   return (
-    <div
+    <Card
       ref={setNodeRef}
+      variant="default"
       style={style}
-      className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-md gba:border gba:border-gray-200 gba:bg-white"
+      className="gba:group gba:gap-2 gba:py-3 gba:shadow-sm gba:transition-shadow gba:duration-300 hover:gba:shadow-md"
       data-testid={prefixDataTestId}
     >
-      {/* Drag Handle */}
-      {!isReadOnly && (
-        <div
-          {...listeners}
-          {...attributes}
-          style={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'var(--nw-color-text-secondary)' }}
-          data-testid={`${prefixDataTestId}-drag-handle`}
-        >
-          <DotsSixVerticalIcon size={20} />
-        </div>
-      )}
+      <CardHeader className="gba:px-3 gba:items-center">
+        {!isReadOnly && (
+          <button
+            type="button"
+            {...listeners}
+            {...attributes}
+            className="gba:cursor-grab gba:flex gba:items-center gba:bg-transparent gba:border-0 gba:p-0 gba:text-muted-foreground gba:rounded gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring"
+            data-testid={`${prefixDataTestId}-drag-handle`}
+            aria-label={`Drag ${field.label}`}
+          >
+            <DotsSixVerticalIcon size={20} />
+          </button>
+        )}
 
-      {/* Field Info */}
-      <div className="gba:flex-1" data-testid={`${prefixDataTestId}-info`}>
-        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-          <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{field.label}</span>
+        {!isReadOnly && (
+          <CardAction className="gba:flex gba:items-center gba:gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onEdit}
+              data-testid={`${prefixDataTestId}-edit`}
+              aria-label={`Edit ${field.label}`}
+            >
+              <PencilIcon />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onDelete}
+              data-testid={`${prefixDataTestId}-delete`}
+              aria-label={`Delete ${field.label}`}
+            >
+              <TrashIcon />
+            </Button>
+          </CardAction>
+        )}
+      </CardHeader>
+
+      <CardContent className="gba:px-3" data-testid={`${prefixDataTestId}-info`}>
+        <div className="gba:mb-2">
+          <span className="gba:font-semibold gba:text-sm gba:block">{field.label}</span>
+        </div>
+        <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1 gba:mb-2">
           <Badge variant="outline">{field.type}</Badge>
           <Badge variant="secondary">{field.section}</Badge>
-          <Badge
-            variant="secondary"
-            style={{ backgroundColor: 'var(--nw-color-blue-100)', color: 'var(--nw-color-blue-800)' }}
-          >
-            Order: {field.displayOrder}
-          </Badge>
+          <Badge variant="info">Order: {field.displayOrder}</Badge>
         </div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--nw-color-text-secondary)' }}>Property: {field.property}</div>
-      </div>
-
-      {/* Actions */}
-      {!isReadOnly && (
-        <div className="gba:flex gba:items-center gba:gap-1">
-          <Button size="icon" variant="ghost" onClick={onEdit} data-testid={`${prefixDataTestId}-edit`}>
-            <PencilIcon />
-          </Button>
-          <Button size="icon" variant="ghost" onClick={onDelete} data-testid={`${prefixDataTestId}-delete`}>
-            <TrashIcon />
-          </Button>
-        </div>
-      )}
-    </div>
+        <div className="gba:text-xs gba:text-muted-foreground gba:break-all">Property: {field.property}</div>
+      </CardContent>
+    </Card>
   )
 }

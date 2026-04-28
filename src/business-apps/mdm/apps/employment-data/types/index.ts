@@ -1,6 +1,12 @@
 // Shared types for employment data will be added here
 // e.g., common interfaces, enums, type utilities
 
+export const CONTRACT_TYPE_CATALOG = 'ContractType'
+export const CONTRACT_TYPE_VERSION = 'v1'
+
+export const EMPLOYMENT_TYPE_CATALOG = 'EmploymentType'
+export const EMPLOYMENT_TYPE_VERSION = 'v1'
+
 // Employee interfaces
 export interface Employee {
   id: string

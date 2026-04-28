@@ -1,10 +1,12 @@
 # File Upload Step Translations (English - US)
 
 # Step Header
-file-upload-step-title = Step 1: Upload CSV File
+file-upload-step-title = Step 1: Upload CSV or Excel File
 
 # Form Labels
-file-select-label = Select CSV File
+file-select-label = Select CSV or Excel File
+file-accepted-formats-hint = Accepted formats: CSV, XLSX, XLS
+file-unsupported-format-error = Unsupported file format. Please upload a CSV, XLSX, or XLS file.
 
 # File Info
 file-loaded-text = File loaded: { $fileName } ({ $fileSize } KB)

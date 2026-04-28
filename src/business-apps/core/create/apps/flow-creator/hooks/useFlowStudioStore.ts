@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { v4 as uuid } from 'uuid'
 import type { FlowGraphDefinition, FlowGraphEdge, FlowNodeType } from '@/common/components/flow/flow-viewer'
 import type { FlowTags } from '@/business-apps/flow/types'
-import { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { FlowStepType } from '@/common/data/flow/types/flowTemplate'
 import type {
   DesignerMode,
   FlowStudioActions,

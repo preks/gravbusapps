@@ -265,7 +265,47 @@ export interface ArtifactPreviewEvent {
   artifact_type: 'slides' | 'document' | 'note' | 'chart'
   title: string
   content?: Record<string, unknown>
+  /**
+   * Human-readable error summary. Kept for backwards compatibility with
+   * older traces; new consumers should prefer ``user_message`` and the
+   * structured fields below to render a friendly state.
+   */
   error?: string
+  /** Machine-readable tag, e.g. ``model_response_invalid``, ``rate_limited``. */
+  error_code?: string
+  /** Whether a retry is likely to succeed on a fresh attempt. */
+  retryable?: boolean
+  /** One-sentence, UI-safe copy. Never includes HTTP codes or raw JSON. */
+  user_message?: string
+  /** Compact dev-facing detail string (status + trimmed body preview). */
+  technical_detail?: string
+}
+
+/**
+ * Category of a discrete agent decision surfaced in the Decisions side panel.
+ * Kept loose (string union) to let the backend introduce new categories
+ * without breaking older clients; the UI falls back to a generic icon.
+ */
+export type DecisionCategory = 'skill' | 'tool_routing' | 'reflection' | 'hitl' | 'plan'
+
+export interface AgentDecisionEvent {
+  type: 'decision'
+  seq: number
+  event_id: string
+  timestamp: string
+  category: DecisionCategory
+  /** Short headline for the decision (e.g. "Loaded skill CRM"). */
+  title: string
+  /** Machine-readable id/label of the chosen option. */
+  chosen: string
+  /** One- to three-sentence explanation shown as secondary text. */
+  rationale: string
+  /** Optional list of other options the agent considered. */
+  alternatives?: string[]
+  /** Optional confidence score in [0, 1]. */
+  confidence?: number
+  /** Category-specific free-form metadata (e.g. `{ form_id }` for hitl). */
+  metadata?: Record<string, unknown>
 }
 
 export type AgentStreamEvent =
@@ -283,6 +323,7 @@ export type AgentStreamEvent =
   | SkillLoadedEvent
   | SkillDetectionSkippedEvent
   | ArtifactPreviewEvent
+  | AgentDecisionEvent
 
 export interface ReflectionResult {
   complete: boolean
@@ -379,13 +420,21 @@ export type ActivityDelegationStatus = 'running' | 'done' | 'failed'
 export interface ActivityEvent {
   id: string
   timestamp: string
-  type: 'tool_call' | 'tool_result' | 'plan_update' | 'reflection' | 'subagent_spawn' | 'memory_access'
+  type: 'tool_call' | 'tool_result' | 'reflection' | 'subagent_spawn' | 'memory_access'
   agent?: string
   toolName?: string
   summary: string
   durationMs?: number
   /** When `type === 'subagent_spawn'`, whether the delegated step has finished (from SSE completions). */
   delegationStatus?: ActivityDelegationStatus
+  /** When `type === 'tool_result'`, whether the tool succeeded or failed. */
+  resultStatus?: 'done' | 'failed'
+  /** When `type === 'tool_result'`, the originating `step_started` id so the card can pair rows. */
+  parentStepId?: string
+  /** Present on `skill_load` tool rows: backend skill id (e.g. `"create-hook"`). */
+  skillId?: string
+  /** Present on `skill_load` tool rows: humanised display name. */
+  skillName?: string
 }
 
 export interface ActionSummary {

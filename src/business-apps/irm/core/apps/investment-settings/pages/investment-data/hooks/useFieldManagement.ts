@@ -66,30 +66,30 @@ export const useFieldManagement = ({
     setSelectedGroupIndex(Math.max(0, Math.min(selectedGroupIndex, updatedGroups.length - 1)))
   }
 
-  const handleAddField = () => {
-    // If inherited, clear inheritance first
+  const computeNextDisplayOrderForCurrentGroup = (): string | null => {
+    const currentGroup = isInherited ? createDefaultGroup() : normalizedFieldGroups[selectedGroupIndex]
+    if (!currentGroup) return null
+    const rows = groupFieldsIntoRows(currentGroup.fields)
+    const lastRow = rows[rows.length - 1]
+    if (lastRow && lastRow.fields.length < 3) {
+      return `${lastRow.row}.${lastRow.fields.length + 1}`
+    }
+    const maxRow = Math.max(0, ...rows.map(r => r.row))
+    return `${maxRow + 1}.1`
+  }
+
+  const handleAppendFieldDefinition = (field: FieldDefinition, options?: { openEditor?: boolean }) => {
     if (isInherited && onClearInheritance) {
       onClearInheritance()
     }
 
     const currentGroup = isInherited ? createDefaultGroup() : normalizedFieldGroups[selectedGroupIndex]
-
     if (!currentGroup) return
 
-    const rows = groupFieldsIntoRows(currentGroup.fields)
-    const lastRow = rows[rows.length - 1]
+    const newDisplayOrder = computeNextDisplayOrderForCurrentGroup()
+    if (!newDisplayOrder) return
 
-    let newDisplayOrder: string
-    if (lastRow && lastRow.fields.length < 3) {
-      // Add to the last row if it has space (less than 3 columns)
-      newDisplayOrder = `${lastRow.row}.${lastRow.fields.length + 1}`
-    } else {
-      // Create a new row
-      const maxRow = Math.max(0, ...rows.map(r => r.row))
-      newDisplayOrder = `${maxRow + 1}.1`
-    }
-
-    const newField = createDefaultField(newDisplayOrder)
+    const newField: FieldDefinition = { ...field, displayOrder: newDisplayOrder }
 
     const updatedGroup = {
       ...currentGroup,
@@ -102,7 +102,17 @@ export const useFieldManagement = ({
     }
 
     onChange(updatedGroups)
-    setEditingField({ groupIndex: isInherited ? 0 : selectedGroupIndex, fieldIndex: updatedGroup.fields.length - 1 })
+
+    const openEditor = options?.openEditor !== false
+    if (openEditor) {
+      setEditingField({ groupIndex: isInherited ? 0 : selectedGroupIndex, fieldIndex: updatedGroup.fields.length - 1 })
+    }
+  }
+
+  const handleAddField = () => {
+    const newDisplayOrder = computeNextDisplayOrderForCurrentGroup()
+    if (!newDisplayOrder) return
+    handleAppendFieldDefinition(createDefaultField(newDisplayOrder), { openEditor: true })
   }
 
   const handleAddNewRow = () => {
@@ -179,6 +189,7 @@ export const useFieldManagement = ({
     handleAddGroup,
     handleDeleteGroup,
     handleAddField,
+    handleAppendFieldDefinition,
     handleAddNewRow,
     handleUpdateField,
     handleDeleteField

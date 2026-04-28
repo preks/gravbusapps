@@ -10,7 +10,8 @@ import {
 import {
   generateEquityReportFilters,
   generateRealEstateReportFilters,
-  generateLiquidFundReportFilters
+  generateLiquidFundReportFilters,
+  generateDefaultReportFilters
 } from '../utils/filterGenerators'
 import { getSortableColumnsForGroup } from '../utils/sortableColumnsHelpers'
 import {
@@ -18,7 +19,8 @@ import {
   LIQUID_FUND_TABLE_CONFIG,
   REAL_ESTATE_TABLE_CONFIG
 } from '../components/shared/tableConfigs'
-import { transformReportsToAnalyticsData } from '../tabs/liquid-fund-report-tab/utils/liquidFundDataTransformer'
+import { transformReportsToAnalyticsData } from '../utils/liquidFundDataTransformer'
+import type { SubSection } from '../utils/subSectionHelpers'
 
 /**
  * Configuration for an investment group's report tab
@@ -37,8 +39,8 @@ export interface ReportGroupConfiguration {
   columnGenerator?: (catalogData: any, currentSection?: string) => ColumnConfig[]
   fallbackColumns?: ColumnConfig[]
 
-  // Filter generation
-  hasFilters: boolean
+  // Filter generation. Presence of `filterGenerator` is the implicit gate: a
+  // group without one renders no filter sheet.
   filterGenerator?: (catalogData: any, currentSection: string, filterGroups: any) => FilterConfiguration
 
   // Data transformation
@@ -50,9 +52,52 @@ export interface ReportGroupConfiguration {
   // Sortable columns
   sortableColumns: Array<{ id: string; label: string }>
 
-  // Special mappings (for Liquid Fund)
-  sectionToTypeMapping?: Record<string, string>
+  /**
+   * Resolve the locked sub-section to use when the report panel is rendered for
+   * a single investment record (e.g. inside the investment record's Reports tab).
+   *
+   * Receives the full investment record and any group-specific data
+   * (e.g. `typeSpecificData` from the record), and returns the section the
+   * panel should lock to. Returning `undefined` falls back to a synthetic
+   * "overview" section using the group code (matches the `'none'` strategy).
+   *
+   * Keeping this on the configuration means the record-level wrapper stays
+   * fully group-agnostic: every group declares "what's my section on a record"
+   * in one place, alongside its other behavior.
+   */
+  getRecordSection?: (investment: any, typeSpecificData?: any) => SubSection | undefined
 }
+
+/**
+ * Build a SubSection for a record from a catalog-entry-style object
+ * ({ code, value }). Returns undefined when no usable code is present.
+ *
+ * Works equally well for `investment.investmentType` (used by the default
+ * resolver) and `typeSpecificData.liquidFundInvestment.investmentLiquidFundType`
+ * (used by Liquid Fund records), since both share the same shape and our
+ * sub-section model treats `code` as the catalog code.
+ */
+const buildSectionFromInvestmentType = (
+  investmentType: { code?: string; value?: string } | null | undefined
+): SubSection | undefined => {
+  const code = investmentType?.code
+  if (!code) return undefined
+  const value = investmentType?.value || code
+  return {
+    id: code.toLowerCase().replaceAll('_', '-'),
+    code,
+    value,
+    label: value
+  }
+}
+
+/**
+ * Default record-section resolver: most groups place the locked section on
+ * `investment.investmentType` (the same field the portfolio view uses for
+ * sub-sections under the `'investmentTypes'` strategy).
+ */
+const defaultGetRecordSection = (investment: any): SubSection | undefined =>
+  buildSectionFromInvestmentType(investment?.investmentType)
 
 /**
  * Group-specific configurations for investment report groups
@@ -75,7 +120,6 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
     catalogKey: 'investmentGroups',
     entityPrefix: 'equity',
     columnGenerator: (catalogData: any) => generateEquityReportColumns(catalogData),
-    hasFilters: true,
     filterGenerator: (catalogData: any, _currentSection: string, filterGroups: any) =>
       generateEquityReportFilters(catalogData, filterGroups),
     tableConfig: EQUITY_TABLE_CONFIG,
@@ -95,7 +139,6 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
     entityPrefix: 'realEstate',
     columnGenerator: (catalogData: any, currentSection?: string) =>
       generateRealEstateReportColumns(catalogData, currentSection || ''),
-    hasFilters: true,
     filterGenerator: (catalogData: any, currentSection: string, filterGroups: any) =>
       generateRealEstateReportFilters(catalogData, currentSection, filterGroups),
     tableConfig: REAL_ESTATE_TABLE_CONFIG,
@@ -104,9 +147,14 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
 
   /**
    * Liquid Fund Investment Reports
-   * - Sub-sections: Hardcoded liquid fund types (Bank Deposits, Fixed-Term Deposits, Multiple Types)
+   * - Sub-sections: Catalog-driven from InvestmentLiquidFundType (Bank Deposits,
+   *   Fixed-Term Deposits, Pension Funds, Money Market Funds, Bonds, Equity, …).
+   *   Each section's `code` IS the catalog code, so generators consume
+   *   `currentSection` directly — no id↔code mapping needed.
    * - Special logic: Uses InvestmentLiquidFundType catalog instead of InvestmentType
-   * - Columns: Dynamic from liquid fund type catalog
+   * - Columns: Dynamic per liquid fund type from the catalog
+   * - Filters: Dynamic per liquid fund type from the catalog (DB-backed fields
+   *   only) + always-on Investment filter
    * - Data Transformation: Reports are transformed to analytics format
    */
   LIQUID_FUND: {
@@ -114,25 +162,22 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
     catalogSource: 'TYPE',
     catalogKey: 'investmentLiquidFundTypes',
     entityPrefix: 'liquidFund',
-    columnGenerator: (catalogData: any, currentSection?: string) => {
-      const sectionMapping: Record<string, string> = {
-        'bank-deposits': 'BANK_DEPOSITE',
-        'fixed-term-deposits': 'FIXED_TERM_DEPOSIT',
-        'multiple-types': 'MONEY_MARKET_FUNDS'
-      }
-      const liquidFundTypeCode = sectionMapping[currentSection || '']
-      return generateLiquidFundReportColumns(catalogData, liquidFundTypeCode)
-    },
-    hasFilters: false, // No catalog filters for Liquid Fund
-    filterGenerator: () => generateLiquidFundReportFilters(),
+    columnGenerator: (catalogData: any, currentSection?: string) =>
+      generateLiquidFundReportColumns(catalogData, currentSection || ''),
+    filterGenerator: (catalogData: any, currentSection: string, filterGroups: any) =>
+      generateLiquidFundReportFilters(catalogData, currentSection, filterGroups),
     dataTransformer: transformReportsToAnalyticsData,
     tableConfig: LIQUID_FUND_TABLE_CONFIG,
     sortableColumns: getSortableColumnsForGroup('LIQUID_FUND'),
-    sectionToTypeMapping: {
-      'bank-deposits': 'BANK_DEPOSITE',
-      'fixed-term-deposits': 'FIXED_TERM_DEPOSIT',
-      'multiple-types': 'MONEY_MARKET_FUNDS'
-    }
+    /**
+     * Liquid Fund records expose the liquid fund type on
+     * `typeSpecificData.liquidFundInvestment.investmentLiquidFundType`. That
+     * object's `code` is the catalog code (matches `currentSection` everywhere
+     * else in this file), so the default `buildSectionFromInvestmentType` shape
+     * applies directly — no id↔code mapping needed.
+     */
+    getRecordSection: (_investment: any, typeSpecificData?: any): SubSection | undefined =>
+      buildSectionFromInvestmentType(typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType)
   }
 
   // Future groups (e.g., PRIVATE_EQUITY, CRYPTOCURRENCY, etc.) will use DEFAULT configuration
@@ -153,18 +198,48 @@ export const DEFAULT_REPORT_GROUP_CONFIGURATION: ReportGroupConfiguration = {
     // This handles groups without investment types (fields defined at group level)
     return generateBaseReportColumns(catalogData, 'GROUP', currentSection || '', 'investmentGroups')
   },
-  hasFilters: false, // No filters by default
+  // Even unknown/future groups get the always-on Investment filter so users
+  // can scope reports by investment without per-group catalog work.
+  filterGenerator: (_catalogData: any, _currentSection: string, filterGroups: any) =>
+    generateDefaultReportFilters(filterGroups),
   tableConfig: EQUITY_TABLE_CONFIG, // Use equity config as generic fallback
   sortableColumns: getSortableColumnsForGroup('UNKNOWN')
 }
 
+// Pre-normalized configurations (computed once at module load) so that
+// `getReportGroupConfiguration` returns a stable object reference per
+// `groupCode`. This is important: callers like `InvestmentReportPanel` use the
+// returned config in `useMemo` dep arrays, and a fresh-per-call object would
+// silently invalidate those caches on every render.
+const NORMALIZED_REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguration> = Object.fromEntries(
+  Object.entries(REPORT_GROUP_CONFIGURATIONS).map(([key, config]) => [
+    key,
+    { ...config, getRecordSection: config.getRecordSection ?? defaultGetRecordSection }
+  ])
+)
+
+const NORMALIZED_DEFAULT_REPORT_GROUP_CONFIGURATION: ReportGroupConfiguration = {
+  ...DEFAULT_REPORT_GROUP_CONFIGURATION,
+  getRecordSection: DEFAULT_REPORT_GROUP_CONFIGURATION.getRecordSection ?? defaultGetRecordSection
+}
+
 /**
- * Get configuration for a specific investment group
- * Returns specialized configuration if defined, otherwise returns default configuration
+ * Get configuration for a specific investment group.
+ *
+ * Returns specialized configuration if defined, otherwise returns default
+ * configuration. In both cases, the returned configuration is normalized so
+ * that {@link ReportGroupConfiguration.getRecordSection} always falls back to
+ * {@link defaultGetRecordSection} — every group that doesn't override it
+ * automatically inherits the standard `investment.investmentType`-based
+ * record-section resolution (no per-group ceremony required).
+ *
+ * The returned object reference is stable per `groupCode` (configs are
+ * normalized once at module load), so it's safe to use in React hook
+ * dependency arrays.
  *
  * @param groupCode - Investment group code (e.g., 'EQUITY', 'REAL_ESTATE', 'PRIVATE_EQUITY')
  * @returns ReportGroupConfiguration for the group
  */
 export const getReportGroupConfiguration = (groupCode: string): ReportGroupConfiguration => {
-  return REPORT_GROUP_CONFIGURATIONS[groupCode] || DEFAULT_REPORT_GROUP_CONFIGURATION
+  return NORMALIZED_REPORT_GROUP_CONFIGURATIONS[groupCode] || NORMALIZED_DEFAULT_REPORT_GROUP_CONFIGURATION
 }

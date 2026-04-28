@@ -86,48 +86,8 @@ function mergeCommunicationChannels(
   return { merged: result, appliedCount }
 }
 
-/**
- * Merge a single suggested address into the form's existing addresses list.
- *
- * Rules:
- * - If there is no existing address, add the suggestion.
- * - If the first existing address has any non-empty user-entered field, leave
- *   it alone.
- * - Otherwise, fill empty subfields of the first address from the suggestion.
- */
-function mergeFirstAddress(
-  existing: AddressRow[] | undefined,
-  suggested: AddressRow
-): { merged: AddressRow[]; appliedCount: number } {
-  if (!existing || existing.length === 0) {
-    return { merged: [suggested], appliedCount: Object.keys(suggested).length }
-  }
-
-  const first: AddressRow = { ...existing[0] }
-  let appliedCount = 0
-
-  const fillScalarIfEmpty = (key: 'locality' | 'postalCode' | 'countryRef' | 'regionRef') => {
-    const current = first[key]
-    const incoming = suggested[key]
-    const isEmpty = current === undefined || current === null || (typeof current === 'string' && current.trim() === '')
-    if (isEmpty && incoming !== undefined && incoming !== null && incoming !== '') {
-      first[key] = incoming as any
-      appliedCount += 1
-    }
-  }
-
-  if (isAddressLineEmpty(first.addressLine) && !isAddressLineEmpty(suggested.addressLine)) {
-    first.addressLine = suggested.addressLine
-    appliedCount += 1
-  }
-
-  fillScalarIfEmpty('locality')
-  fillScalarIfEmpty('postalCode')
-  fillScalarIfEmpty('countryRef')
-  fillScalarIfEmpty('regionRef')
-
-  return { merged: [first, ...existing.slice(1)], appliedCount }
-}
+const ADDRESS_SCALAR_KEYS = ['locality', 'postalCode', 'countryRef', 'regionRef'] as const
+type AddressScalarKey = (typeof ADDRESS_SCALAR_KEYS)[number]
 
 /**
  * AI fill button shown above the Account form. Reads the company name from
@@ -162,15 +122,16 @@ const AccountAiEnrichButton: React.FC<AccountAiEnrichButtonProps> = ({
         appliedCount += 1
       }
 
+      // 1. Country-independent scalar fields.
       setIfNotDirty('name', fields.name)
       setIfNotDirty('website', fields.website)
       setIfNotDirty('description', fields.description)
       setIfNotDirty('foundationDate', fields.foundationDate)
       setIfNotDirty('companySizeRef', fields.companySizeRef)
-      setIfNotDirty('legalFormRef', fields.legalFormRef)
       setIfNotDirty('industryClassRef', fields.industryClassRef)
       setIfNotDirty('accountAnnualRevenueBandRef', fields.accountAnnualRevenueBandRef)
 
+      // 2. Communication channels (independent of country).
       if (Array.isArray(fields.communicationChannels)) {
         const existing = form.getValues('communicationChannels') as CommunicationChannelRow[] | undefined
         const { merged, appliedCount: channelCount } = mergeCommunicationChannels(
@@ -183,14 +144,67 @@ const AccountAiEnrichButton: React.FC<AccountAiEnrichButtonProps> = ({
         }
       }
 
+      // 3. Addresses. Apply each sub-path individually with a nested
+      //    setValue path. Do NOT call form.setValue('addresses', ...) on the
+      //    whole array — CatalogSelectProvider's form.watch() subscription
+      //    tracks each nested key exactly (e.g. 'addresses.0.countryRef')
+      //    and ignores changes whose `info.name` isn't one of the tracked
+      //    keys. Setting the root array path emits info.name='addresses',
+      //    which bypasses the provider and leaves the country / region
+      //    CatalogSelect components showing empty even though RHF state
+      //    holds the value.
+      //
+      //    Addresses MUST also be applied before any country-scoped catalog
+      //    fields (legalFormRef): that select uses
+      //    parentField='addresses.0.countryRef' + requireSourceForEnable,
+      //    so we need the country in place before we set the child.
       if (Array.isArray(fields.addresses) && fields.addresses.length > 0) {
-        const existing = form.getValues('addresses') as AddressRow[] | undefined
-        const { merged, appliedCount: addrCount } = mergeFirstAddress(existing, (fields.addresses as AddressRow[])[0])
-        if (addrCount > 0) {
-          form.setValue('addresses', merged, { shouldDirty: false, shouldValidate: false })
-          appliedCount += addrCount
+        const suggested = (fields.addresses as AddressRow[])[0] || {}
+        const existing = (form.getValues('addresses') as AddressRow[] | undefined) || []
+        // AddressSegment auto-appends an empty row on mount so existing[0]
+        // is normally there; guard anyway for forms that opt out.
+        if (existing.length === 0) {
+          form.setValue(
+            'addresses',
+            [
+              {
+                addressLine: { lines: [''] },
+                postalCode: '',
+                locality: '',
+                countryRef: '',
+                regionRef: ''
+              }
+            ],
+            { shouldDirty: false, shouldValidate: false }
+          )
+        }
+
+        const firstCurrent = (form.getValues('addresses.0') as AddressRow | undefined) || {}
+
+        if (isAddressLineEmpty(firstCurrent.addressLine) && !isAddressLineEmpty(suggested.addressLine)) {
+          form.setValue('addresses.0.addressLine', suggested.addressLine, {
+            shouldDirty: false,
+            shouldValidate: false
+          })
+          appliedCount += 1
+        }
+
+        for (const key of ADDRESS_SCALAR_KEYS) {
+          const current = firstCurrent[key as AddressScalarKey]
+          const incoming = suggested[key as AddressScalarKey]
+          const isCurrentEmpty =
+            current === undefined || current === null || (typeof current === 'string' && current.trim() === '')
+          if (!isCurrentEmpty) continue
+          if (incoming === undefined || incoming === null || incoming === '') continue
+          form.setValue(`addresses.0.${key}`, incoming, { shouldDirty: false, shouldValidate: false })
+          appliedCount += 1
         }
       }
+
+      // 4. Country-scoped catalog refs LAST, so the parent (countryRef) is
+      //    already in place and the catalog dependency engine accepts the
+      //    child value instead of clearing it.
+      setIfNotDirty('legalFormRef', fields.legalFormRef)
 
       return appliedCount
     },

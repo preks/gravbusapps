@@ -14,14 +14,23 @@ export const typeIcons: Record<ComponentType, LucideIcon> = {
   data_model: Database
 }
 
-// Labels for component types
+// Labels for component types — `agent` value resolved via translation when consumer provides `t`.
 export const typeLabels: Record<ComponentType, string> = {
   screen: 'Screen',
-  agent: 'AI Task Expert',
+  agent: 'Agent',
   function: 'Function',
   flow: 'Flow',
   data_model: 'Data Model'
 }
+
+/**
+ * Build labels with translated `agent` (Enterprise Agent rename).
+ * Other labels remain untranslated as pre-existing pattern.
+ */
+export const buildTypeLabels = (t: (key: string) => string): Record<ComponentType, string> => ({
+  ...typeLabels,
+  agent: t('type-label-agent')
+})
 
 /**
  * Get component description (user-friendly if available)

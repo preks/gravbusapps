@@ -54,7 +54,7 @@ empty-archived-description = In den Papierkorb verschobene Notizen erscheinen hi
 notes-empty-trash-title = Keine Notizen im Papierkorb
 notes-empty-trash-description = In den Papierkorb verschobene Notizen erscheinen hier.
 notes-empty-default-title = Noch keine Notizen
-notes-empty-default-description = Erstellen Sie Ihre erste Notiz.
+notes-empty-default-description = Erstellen Sie Ihre erste Notiz, um loszulegen.
 empty-create-note = Notiz erstellen
 loading-message = Wird geladen...
 
@@ -521,7 +521,7 @@ trashed-readonly-deleting = Wird gelöscht...
 
 # Tree sidebar
 tree-label = Notizen
-tree-empty = Keine Notizen im Baum
+tree-empty = Noch keine Notizen
 tree-drag-hint = Ziehen, um Notizen neu anzuordnen oder zu verschachteln
 tree-drop-inside = Hier hinein ablegen
 tree-drop-after = Danach ablegen

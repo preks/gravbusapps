@@ -1,19 +1,32 @@
 'use client'
 
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { DataContainer } from '@/components/layout/dataContainer'
-import { useJobPositionListData, JobPosition } from './hooks/useJobPositionListData'
-import { useJobPositionFilters } from './hooks/useJobPositionFilters'
-import { useMissingJobProfileCount } from './hooks/useMissingJobProfileCount'
-import { JobPositionTable } from './components/JobPositionTable'
-import { JobPositionDetails } from './components/JobPositionDetails'
-import { VacancyStatusToggle, ExtendedVacancyFilter } from './components/VacancyStatusToggle'
-import { BriefcaseIcon } from '@phosphor-icons/react'
+import useJobPositions from '@/business-apps/hr/core/forms/job-position/hooks/useJobPositions.ts'
+import JobPositionForm from '@/business-apps/hr/core/forms/job-position/JobPositionForm.tsx'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { PlusSquareIcon } from '@/components/dataController/DataController'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { PlusSquareIcon } from '@/components/dataController/DataController'
+import { DataContainer } from '@/components/layout/dataContainer'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle
+} from '@newwork/nw-design-system'
+import { BriefcaseIcon } from '@phosphor-icons/react'
+import React, { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { JobPositionDetails } from './components/JobPositionDetails'
+import { JobPositionTable } from './components/JobPositionTable'
+import { ExtendedVacancyFilter, VacancyStatusToggle } from './components/VacancyStatusToggle'
+import { useJobPositionFilters } from './hooks/useJobPositionFilters'
+import { JobPosition, useJobPositionListData } from './hooks/useJobPositionListData'
+import { useMissingJobProfileCount } from './hooks/useMissingJobProfileCount'
+import { mapJobPositionListRowToFormJobPosition } from './utils/mapJobPositionListRowToFormJobPosition'
 
 /**
  * Job Position List page component. Renders the job position list module with a table view.
@@ -22,8 +35,13 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
  */
 export const JobPositionList: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
   const { accessToken } = props
+  const { deleteJobPosition, mutationLoading: deleteJobPositionLoading } = useJobPositions(props)
   const [vacancyFilter, setVacancyFilter] = useState<ExtendedVacancyFilter>('vacant') // Default to vacant positions
   const [selectedJobPosition, setSelectedJobPosition] = useState<JobPosition | null>(null)
+  const [createFormOpen, setCreateFormOpen] = useState(false)
+  const [editFormOpen, setEditFormOpen] = useState(false)
+  const [editListRow, setEditListRow] = useState<JobPosition | null>(null)
+  const [terminateRow, setTerminateRow] = useState<JobPosition | null>(null)
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [pageSize, setPageSize] = useState<number>(20)
   const [sortField, setSortField] = useState<string>('name')
@@ -185,6 +203,49 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
     setSelectedJobPosition(null)
   }, [])
 
+  const refreshList = useCallback(() => {
+    const filters = getFilters()
+    loadPage(currentPage, pageSize, {
+      ...filters,
+      ...getFilterParams(vacancyFilter),
+      sortField,
+      sortOrder
+    })
+  }, [loadPage, currentPage, pageSize, getFilters, vacancyFilter, sortField, sortOrder])
+
+  const setEditModalOpen: Dispatch<SetStateAction<boolean>> = useCallback(updater => {
+    setEditFormOpen(prev => {
+      const next = typeof updater === 'function' ? (updater as (p: boolean) => boolean)(prev) : updater
+      if (!next) {
+        setEditListRow(null)
+      }
+      return next
+    })
+  }, [])
+
+  const handleOpenEditJobPosition = useCallback((row: JobPosition) => {
+    setEditListRow(row)
+    setEditFormOpen(true)
+  }, [])
+
+  const handleRequestTerminate = useCallback((row: JobPosition) => {
+    setTerminateRow(row)
+  }, [])
+
+  const handleConfirmTerminate = useCallback(async () => {
+    if (!terminateRow) return
+    try {
+      await deleteJobPosition(terminateRow.id, terminateRow.version ?? undefined)
+      if (selectedJobPosition?.id === terminateRow.id) {
+        setSelectedJobPosition(null)
+      }
+      setTerminateRow(null)
+      refreshList()
+    } catch {
+      // Errors and success toasts are handled in useJobPositions.deleteJobPosition
+    }
+  }, [terminateRow, deleteJobPosition, selectedJobPosition, refreshList])
+
   // Filter groups without vacancy status (handled separately)
   const allFilterGroups = useMemo(() => filterGroups, [filterGroups])
 
@@ -224,25 +285,19 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
             </div>
           ),
           actions: (
-            <AppActionMenu
-              contextsArray={[FlowContextName.createJobPosition]}
-              accessToken={accessToken}
-              data-testid="add-job-position-menu"
-              emptyStateBehavior="disable"
+            <button
+              className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
+              data-testid="add-job-position-button"
+              type="button"
+              onClick={() => setCreateFormOpen(true)}
             >
-              <button
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-                data-testid="add-job-position-button"
-                type="button"
-              >
-                <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
-                  <PlusSquareIcon />
-                </span>
-                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-foreground gba:flex-none order-1 gba:grow-0">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.employees_section.add', 'Add')}
-                </span>
-              </button>
-            </AppActionMenu>
+              <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
+                <PlusSquareIcon />
+              </span>
+              <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-foreground gba:flex-none order-1 gba:grow-0">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.employees_section.add', 'Add')}
+              </span>
+            </button>
           )
         }}
         dataFilterProps={{
@@ -262,7 +317,6 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
               total={total}
               onSelectJobPosition={handleSelectJobPosition}
               selectedJobPositionId={selectedJobPosition?.id}
-              accessToken={accessToken}
               currentPage={currentPage}
               pageSize={pageSize}
               onPageChange={handlePageChange}
@@ -270,21 +324,111 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
               sortField={sortField}
               sortOrder={sortOrder}
               onSortingChange={handleSortingChange}
+              onEditJobPosition={handleOpenEditJobPosition}
+              onRequestTerminateJobPosition={handleRequestTerminate}
+              terminateMutationLoading={deleteJobPositionLoading}
+              terminatingJobPositionId={deleteJobPositionLoading && terminateRow ? terminateRow.id : null}
             />
           </div>
         }
-        dataDetails={
-          selectedJobPosition
-            ? {
-                title: selectedJobPosition.name,
-                icon: <BriefcaseIcon size={20} />,
-                content: <JobPositionDetails jobPosition={selectedJobPosition} accessToken={accessToken} />,
-                onClose: handleCloseDetails
-              }
-            : undefined
-        }
-        floatingDetails={true}
       />
+      <Sheet open={selectedJobPosition !== null} onOpenChange={open => !open && handleCloseDetails()}>
+        <SheetContent
+          side="right"
+          className="gba:flex gba:flex-col gba:p-0"
+          data-testid="job-position-list-details-sheet"
+        >
+          <SheetHeader className="gba:border-b gba:border-border gba:px-6 gba:py-4 gba:pr-14">
+            <SheetTitle className="gba:text-left">
+              {selectedJobPosition
+                ? selectedJobPosition.name
+                : getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.job_positions_section.position_details',
+                    'Position Details'
+                  )}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:flex-1 gba:min-h-0" data-testid="job-position-list-details-content">
+            {selectedJobPosition && (
+              <JobPositionDetails
+                jobPosition={selectedJobPosition}
+                accessToken={accessToken}
+                onEditJobPosition={handleOpenEditJobPosition}
+                onRequestTerminateJobPosition={handleRequestTerminate}
+                terminateMutationLoading={deleteJobPositionLoading}
+                terminatingJobPositionId={deleteJobPositionLoading && terminateRow ? terminateRow.id : null}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+      {accessToken && createFormOpen ? (
+        <JobPositionForm
+          {...props}
+          open={createFormOpen}
+          setOpen={setCreateFormOpen}
+          onCancel={() => setCreateFormOpen(false)}
+          onMutationSuccess={refreshList}
+          prefixDataTestId="job-position-create"
+        />
+      ) : null}
+
+      {accessToken && editFormOpen && editListRow ? (
+        <JobPositionForm
+          {...props}
+          key={editListRow.id}
+          jobPosition={mapJobPositionListRowToFormJobPosition(editListRow)}
+          open={editFormOpen}
+          setOpen={setEditModalOpen}
+          onCancel={() => {
+            setEditFormOpen(false)
+            setEditListRow(null)
+          }}
+          onMutationSuccess={refreshList}
+          prefixDataTestId="job-position-edit"
+        />
+      ) : null}
+
+      <Dialog open={Boolean(terminateRow)} onOpenChange={open => !open && setTerminateRow(null)}>
+        <DialogContent data-testid="job-position-terminate-confirm-dialog">
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:human_resources_page.job_positions_section.terminate_position',
+                'Terminate job position'
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="gba:text-sm gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:human_resources_page.job_positions_section.terminate_position_confirm',
+              'This will remove the job position. This action cannot be undone.'
+            )}
+          </p>
+          <DialogFooter className="gba:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setTerminateRow(null)}
+              data-testid="job-position-terminate-cancel"
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:common.cancel', 'Cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteJobPositionLoading}
+              onClick={() => void handleConfirmTerminate()}
+              data-testid="job-position-terminate-confirm"
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:human_resources_page.job_positions_section.terminate',
+                'Terminate'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

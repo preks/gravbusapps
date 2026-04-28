@@ -5,7 +5,7 @@ import type JSZip from 'jszip'
 import type { SlideBackground, GradientConfig } from '../../components/slideElements'
 import type { OoxmlTheme, SlideRelationships } from './types'
 import { getChild, parseSolidFill, parseGradientFill, resolveColor, parseXML } from './ooxmlUtils'
-import { resolveLayoutRelationships, resolveMasterRelationships } from './resolveRelationships'
+import { resolveImportedImageUrl, resolveLayoutRelationships, resolveMasterRelationships } from './resolveRelationships'
 
 function resolveBgRefFromTheme(
   themeXml: Document | undefined,
@@ -75,15 +75,16 @@ function extractBgFromXml(
       if (blip) {
         const relId =
           blip.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed') ||
-          blip.getAttribute('r:embed')
+          blip.getAttribute('r:embed') ||
+          blip.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'link') ||
+          blip.getAttribute('r:link')
 
         if (relId) {
           const imagePath = imageRels.get(relId)
           if (imagePath) {
-            const imageName = imagePath.split('/').pop()
-            const imageBase64 = imageName ? imageData.get(imageName) : undefined
-            if (imageBase64) {
-              return { type: 'image', imageUrl: imageBase64 }
+            const imageUrl = resolveImportedImageUrl(imagePath, imageData)
+            if (imageUrl) {
+              return { type: 'image', imageUrl }
             }
           }
         }
@@ -93,7 +94,7 @@ function extractBgFromXml(
 
   const bgRef = getChild(bg, 'p:bgRef')
   if (bgRef) {
-    const idx = parseInt(bgRef.getAttribute('idx') || '0')
+    const idx = Number.parseInt(bgRef.getAttribute('idx') || '0')
     if (themeXml && idx > 0) {
       const themeBg = resolveBgRefFromTheme(themeXml, idx, theme)
       if (themeBg) return themeBg

@@ -4,6 +4,7 @@ export interface TeamMember {
   id: string
   firstName: string
   lastName: string
+  hireDate?: string
   pictureThumbnail?: string
   orgUnit?: string
   workingHours?: WeeklyWorkingHours

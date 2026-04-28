@@ -8,6 +8,7 @@ import { useManagerWorkboardVM } from './hooks/useManagerWorkboardVM'
 import { NotClockedInView } from './views/NotClockedInView'
 import { FilteredTeammatesView } from './views/FilteredTeammatesView'
 import { TeamPerformanceView } from './views/TeamPerformanceView'
+import { TeamPerformanceDashboard } from './views/TeamPerformanceDashboard'
 import { TeamInsightsView } from './views/TeamInsightsView'
 import { OpenPositionsView } from './views/OpenPositionsView'
 import { BirthdaysView } from './views/BirthdaysView'
@@ -91,6 +92,19 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     () => vm.teamMembers.direct.map(report => ({ ...report, status: report.status || 'Available' })),
     [vm.teamMembers.direct]
   )
+  const selectedMember = useMemo(
+    () =>
+      vm.selectedMemberId ? directReportsForWorkboard.find(report => report.id === vm.selectedMemberId) || null : null,
+    [vm.selectedMemberId, directReportsForWorkboard]
+  )
+  const selectedMemberAllocation = useMemo(() => {
+    if (!selectedMember) return 0
+    return allocationByEmployeeId.get(selectedMember.id) ?? 0
+  }, [allocationByEmployeeId, selectedMember])
+  const selectedMemberLastFeedbackDate = useMemo(() => {
+    if (!selectedMember) return null
+    return vm.lastFeedbackByEmployeeId[selectedMember.id] ?? null
+  }, [selectedMember, vm.lastFeedbackByEmployeeId])
 
   useEffect(() => {
     const refreshDashboardData = () => {
@@ -172,56 +186,17 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
           </div>
         </div>
 
-        {/* MAIN LAYOUT: 2-column grid (2fr 1fr) on desktop, stacks on mobile */}
+        {/* MAIN LAYOUT: fixed desktop 2-column shell */}
         <div
-          className="gba:grid gba:grid-cols-1"
+          className="gba:grid"
           style={{
             gap: 'clamp(1.5rem, 1.5vw, 2rem)',
             marginBottom: 'clamp(1.5rem, 1.5vw, 2rem)',
-            gridTemplateColumns: 'minmax(0, 1fr)'
+            gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)'
           }}
-          data-desktop-grid="2fr-1fr-main"
         >
-          <style>{String.raw`
-            @media (min-width: 1024px) {
-              [data-desktop-grid="2fr-1fr-main"] {
-                grid-template-columns: 2fr 1fr !important;
-              }
-            }
-            
-            /* Enhanced scaling for large screens only */
-            @media (min-width: 1920px) {
-              [data-testid="manager-dashboard-content"] {
-                font-size: 110%;
-              }
-            }
-            
-            @media (min-width: 2560px) {
-              [data-testid="manager-dashboard-content"] {
-                font-size: 120%;
-              }
-            }
-            
-            @media (min-width: 3840px) {
-              [data-testid="manager-dashboard-content"] {
-                font-size: 135%;
-              }
-            }
-            
-            /* Responsive card spacing for smaller screens */
-            @media (max-height: 800px) {
-              [data-testid="manager-dashboard-content"] .gba\\:space-y-2 > * + * {
-                margin-top: 0.375rem !important;
-              }
-              [data-testid="manager-dashboard-content"] .gba\\:space-y-3 > * + * {
-                margin-top: 0.5rem !important;
-              }
-            }
-          `}</style>
-
           {/* LEFT COLUMN: Today's Priorities + Your Team */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 1.5vw, 2rem)' }}>
-            {/* Today's Priorities */}
             <TodaysPrioritiesSection
               items={vm.priorities.items}
               loading={vm.priorities.loading}
@@ -236,7 +211,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
               onAssignProject={handleAssignProject}
             />
 
-            {/* Your Team */}
             <TeamAvatarsSection
               directReports={directReportsForWorkboard}
               unallocatedIds={vm.teamMembers.unallocatedIds}
@@ -244,11 +218,30 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
               onNavigateToTeammates={vm.actions.navigateToTeammates}
               onMemberClick={vm.actions.openMemberPanel}
             />
+
+            <div
+              className="gba:grid"
+              style={{
+                gap: 'clamp(1rem, 1.2vw, 1.5rem)',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'
+              }}
+            >
+              <WorkCapacitySection
+                utilizationPercent={vm.workCapacity.utilizationPercent}
+                idleCount={vm.workCapacity.idleCount}
+                loading={vm.workCapacity.loading.allocation}
+                onNavigateToUnallocatedTeammates={vm.actions.navigateToUnallocatedTeammates}
+              />
+              <OpenPositionsSection
+                openPositions={vm.workCapacity.openPositions}
+                loading={vm.workCapacity.loading.positions}
+                onNavigateToOpenPositions={vm.actions.navigateToOpenPositions}
+              />
+            </div>
           </div>
 
-          {/* RIGHT COLUMN: Team Health + 2-column grid for Performance/Work and People/Positions */}
+          {/* RIGHT COLUMN: Team Health + Current Cycle Performance */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 1.5vw, 2rem)' }}>
-            {/* Team Health */}
             <TeamHealthSection
               summary={vm.teamHealth.summary}
               employees={vm.teamHealth.employees}
@@ -258,55 +251,25 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
               onToggleSentimentAnalysis={vm.actions.toggleSentimentAnalysis}
             />
 
-            {/* 2x2 Grid: Performance/Open Positions (left column) and Work/People (right column) */}
-            <div
-              className="gba:grid gba:grid-cols-1"
-              style={{ gap: 'clamp(1.5rem, 1.5vw, 2rem)' }}
-              data-desktop-grid="stacked-cards-grid"
-            >
-              <style>{`
-                @media (min-width: 1024px) {
-                  [data-desktop-grid="stacked-cards-grid"] {
-                    grid-template-columns: 1fr 1fr !important;
-                  }
-                }
-              `}</style>
+            <PerformanceGrowthSection
+              onTrack={vm.performanceGrowth.onTrack}
+              atRisk={vm.performanceGrowth.atRisk}
+              behind={vm.performanceGrowth.behind}
+              completed={vm.performanceGrowth.completed}
+              totalGoals={vm.performanceGrowth.totalGoals}
+              averageProgress={vm.performanceGrowth.averageProgress}
+              loading={vm.performanceGrowth.loading}
+              onNavigateToTeamPerformance={vm.actions.navigateToTeamPerformance}
+              onNavigateToAtRiskGoals={vm.actions.navigateToGoalsAtRisk}
+              onNavigateToTeamPerformanceOverview={vm.actions.navigateToTeamPerformanceOverview}
+            />
 
-              {/* LEFT COLUMN: Performance & Growth + Open Positions */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 1.2vw, 1.75rem)' }}>
-                <PerformanceGrowthSection
-                  onTrack={vm.performanceGrowth.onTrack}
-                  atRisk={vm.performanceGrowth.atRisk}
-                  behind={vm.performanceGrowth.behind}
-                  totalGoals={vm.performanceGrowth.totalGoals}
-                  averageProgress={vm.performanceGrowth.averageProgress}
-                  loading={vm.performanceGrowth.loading}
-                  onNavigateToTeamPerformance={vm.actions.navigateToTeamPerformance}
-                  onNavigateToAtRiskGoals={vm.actions.navigateToGoalsAtRisk}
-                />
-                <OpenPositionsSection
-                  openPositions={vm.workCapacity.openPositions}
-                  loading={vm.workCapacity.loading.positions}
-                  onNavigateToOpenPositions={vm.actions.navigateToOpenPositions}
-                />
-              </div>
-
-              {/* RIGHT COLUMN: Work & Capacity + People & Moments */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 1.2vw, 1.75rem)' }}>
-                <WorkCapacitySection
-                  utilizationPercent={vm.workCapacity.utilizationPercent}
-                  idleCount={vm.workCapacity.idleCount}
-                  loading={vm.workCapacity.loading.allocation}
-                  onNavigateToUnallocatedTeammates={vm.actions.navigateToUnallocatedTeammates}
-                />
-                <PeopleMomentsSection
-                  birthdays={vm.peopleMoments.birthdays}
-                  anniversaries={vm.peopleMoments.anniversaries}
-                  loading={vm.peopleMoments.loading.birthdays}
-                  onNavigateToInsights={vm.actions.navigateToInsights}
-                />
-              </div>
-            </div>
+            <PeopleMomentsSection
+              birthdays={vm.peopleMoments.birthdays}
+              anniversaries={vm.peopleMoments.anniversaries}
+              loading={vm.peopleMoments.loading.birthdays}
+              onNavigateToInsights={vm.actions.navigateToInsights}
+            />
           </div>
         </div>
       </div>
@@ -318,139 +281,187 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     </div>
   )
 
-  if (vm.currentView === 'teammates') {
-    return (
-      <TeammatesView
-        directReports={vm.directReports}
-        matrixTeamMembers={vm.matrixTeamMembers}
-        unallocatedEmployeeIds={vm.unallocatedEmployeeIds}
-        filterAbsentOnly={vm.filterAbsentOnly}
-        filterUnallocatedOnly={vm.filterUnallocatedOnly}
-        setFilterAbsentOnly={vm.setFilterAbsentOnly}
-        setFilterUnallocatedOnly={vm.setFilterUnallocatedOnly}
-        loadingDirectReports={vm.loadingDirectReports}
-        loadingMatrixTeams={vm.loadingMatrixTeams}
-        directReportsError={vm.directReportsError}
-        matrixTeamsError={vm.matrixTeamsError}
-        activeTeamTab={vm.activeTeamTab}
-        setActiveTeamTab={vm.setActiveTeamTab}
-        employeeId={employeeId || ''}
-        accessToken={accessToken || ''}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-        userOrgData={vm.userOrgData || undefined}
-      />
-    )
-  }
+  switch (vm.currentView) {
+    case 'teammates':
+      return (
+        <>
+          <TeammatesView
+            directReports={vm.directReports}
+            matrixTeamMembers={vm.matrixTeamMembers}
+            unallocatedEmployeeIds={vm.unallocatedEmployeeIds}
+            filterAbsentOnly={vm.filterAbsentOnly}
+            filterUnallocatedOnly={vm.filterUnallocatedOnly}
+            setFilterAbsentOnly={vm.setFilterAbsentOnly}
+            setFilterUnallocatedOnly={vm.setFilterUnallocatedOnly}
+            loadingDirectReports={vm.loadingDirectReports}
+            loadingMatrixTeams={vm.loadingMatrixTeams}
+            directReportsError={vm.directReportsError}
+            matrixTeamsError={vm.matrixTeamsError}
+            activeTeamTab={vm.activeTeamTab}
+            setActiveTeamTab={vm.setActiveTeamTab}
+            employeeId={employeeId || ''}
+            accessToken={accessToken || ''}
+            teamPerformance={vm.teamPerformance}
+            employeeAllocations={vm.directReportsWithAllocation}
+            lastFeedbackByEmployeeId={vm.lastFeedbackByEmployeeId}
+            onNavigateBack={vm.handleNavigateBackToDashboard}
+            onOpenMemberPanel={vm.actions.openMemberPanel}
+            userOrgData={vm.userOrgData || undefined}
+          />
+          <MemberQuickPanel
+            isOpen={vm.isMemberPanelOpen}
+            onClose={vm.handleCloseMemberPanel}
+            member={selectedMember}
+            accessToken={accessToken || ''}
+            currentUserEmployeeId={employeeId || vm.userProfile?.id || ''}
+            allocationPercent={selectedMemberAllocation}
+            teamPerformance={vm.teamPerformance}
+            lastFeedbackDate={selectedMemberLastFeedbackDate}
+            onNavigateToEmployee={vm.handleNavigateToEmployee}
+            onAssignProject={handleAssignProject}
+          />
+          {assignProjectDialog}
+        </>
+      )
+    case 'filtered-teammates': {
+      const FilteredTeammatesViewCompat = FilteredTeammatesView as React.ComponentType<any>
 
-  if (vm.currentView === 'filtered-teammates') {
-    const FilteredTeammatesViewCompat = FilteredTeammatesView as React.ComponentType<any>
-
-    return (
-      <>
-        <FilteredTeammatesViewCompat
-          directReports={vm.directReports}
-          unallocatedEmployeeIds={vm.unallocatedEmployeeIds}
-          employeeAllocations={vm.directReportsWithAllocation}
-          filterAbsentOnly={vm.filterAbsentOnly}
-          filterUnallocatedOnly={vm.filterUnallocatedOnly}
-          loadingDirectReports={vm.loadingDirectReports}
-          directReportsError={vm.directReportsError}
+      return (
+        <>
+          <FilteredTeammatesViewCompat
+            directReports={vm.directReports}
+            unallocatedEmployeeIds={vm.unallocatedEmployeeIds}
+            employeeAllocations={vm.directReportsWithAllocation}
+            filterAbsentOnly={vm.filterAbsentOnly}
+            filterUnallocatedOnly={vm.filterUnallocatedOnly}
+            loadingDirectReports={vm.loadingDirectReports}
+            directReportsError={vm.directReportsError}
+            onNavigateBack={vm.handleNavigateBackToDashboard}
+            onNavigateToEmployee={vm.handleNavigateToEmployee}
+            onAssignProject={handleAssignProject}
+          />
+          {assignProjectDialog}
+        </>
+      )
+    }
+    case 'team-performance-overview': {
+      const tpo = vm.teamPerformanceOverview
+      const db = tpo.dashboard
+      return (
+        <TeamPerformanceDashboard
+          teamPerformance={tpo.goals.teamPerformance}
+          averageGoalProgress={tpo.goals.averageProgress}
+          loadingGoals={tpo.goals.loading}
+          skillsMembers={tpo.skills.members}
+          loadingSkills={tpo.skills.loading}
+          feedbackMembers={tpo.feedback.members}
+          loadingFeedback={tpo.feedback.loading}
+          evaluationMembers={tpo.evaluations.members}
+          teamAvgScore={tpo.evaluations.teamAvgScore}
+          teamCompanyValuesAvg={tpo.evaluations.teamCompanyValuesAvg}
+          teamSkillsAvg={tpo.evaluations.teamSkillsAvg}
+          loadingEvaluations={tpo.evaluations.loading}
+          availableCycles={tpo.evaluations.availableCycles}
+          selectedCycleId={db.selectedCycleId}
+          onCycleChange={db.setSelectedCycleId}
+          scoreDistribution={db.scoreDistribution}
+          trendSeries={db.trendSeries}
+          ratingScaleLimit={db.ratingScaleLimit}
+          skillGrowthRate={db.skillGrowthRate}
+          changeOverall={db.changeOverall}
+          changeCompanyValues={db.changeCompanyValues}
+          changeSkills={db.changeSkills}
+          insights={tpo.insights}
+          accessToken={accessToken || ''}
           onNavigateBack={vm.handleNavigateBackToDashboard}
           onNavigateToEmployee={vm.handleNavigateToEmployee}
-          onAssignProject={handleAssignProject}
+          onNavigateToTeamPerformance={vm.handleNavigateToTeamPerformance}
+          onNavigateToTeammates={vm.handleNavigateToTeammates}
         />
-        {assignProjectDialog}
-      </>
-    )
-  }
-
-  if (vm.currentView === 'team-performance') {
-    return (
-      <TeamPerformanceView
-        teamPerformance={vm.teamPerformance}
-        totalPerformanceGoals={vm.totalPerformanceGoals}
-        averageTeamProgress={vm.averageTeamProgress}
-        goalsOnTrack={vm.goalsOnTrack}
-        goalsAtRisk={vm.goalsAtRisk}
-        goalsBehindTarget={vm.goalsBehindTarget}
-        loadingTeamPerformance={vm.loadingTeamPerformance}
-        filterGoalsBehindOnly={vm.filterGoalsBehindOnly}
-        initialStatusFilter={vm.initialPerformanceStatusFilter}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-      />
-    )
-  }
-
-  if (vm.currentView === 'not-clocked-in') {
-    return (
-      <NotClockedInView
-        teamAttendance={vm.teamAttendance}
-        availableEmployeeIds={vm.availableEmployeeIds}
-        notClockedInCount={vm.notClockedInCount}
-        loadingAttendance={vm.loadingAttendance}
-        nudgeLoading={false}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-        onNudgeNotClockedIn={() => {}}
-      />
-    )
-  }
-
-  if (vm.currentView === 'insights') {
-    return (
-      <TeamInsightsView
-        upcomingBirthdays={vm.upcomingBirthdays}
-        upcomingAnniversaries={vm.upcomingAnniversaries}
-        openPositions={vm.openPositions}
-        fullPositions={vm.fullPositions}
-        loadingBirthdays={vm.loadingBirthdays}
-        loadingAnniversaries={vm.loadingAnniversaries}
-        loadingOpenPositions={vm.loadingOpenPositions}
-        activeInsightsTab={vm.activeInsightsTab}
-        setActiveInsightsTab={vm.setActiveInsightsTab}
-        accessToken={accessToken || ''}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-      />
-    )
-  }
-
-  if (vm.currentView === 'birthdays') {
-    return (
-      <BirthdaysView
-        upcomingBirthdays={vm.upcomingBirthdays}
-        loadingBirthdays={vm.loadingBirthdays}
-        accessToken={accessToken || ''}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-      />
-    )
-  }
-
-  if (vm.currentView === 'anniversaries') {
-    return (
-      <AnniversariesView
-        upcomingAnniversaries={vm.upcomingAnniversaries}
-        loadingAnniversaries={vm.loadingAnniversaries}
-        accessToken={accessToken || ''}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-      />
-    )
-  }
-
-  if (vm.currentView === 'open-positions') {
-    return (
-      <OpenPositionsView
-        openPositions={vm.openPositions}
-        fullPositions={vm.fullPositions}
-        loadingOpenPositions={vm.loadingOpenPositions}
-        accessToken={accessToken || ''}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-      />
-    )
+      )
+    }
+    case 'team-performance':
+      return (
+        <TeamPerformanceView
+          teamPerformance={vm.teamPerformance}
+          totalPerformanceGoals={vm.totalPerformanceGoals}
+          averageTeamProgress={vm.averageTeamProgress}
+          goalsOnTrack={vm.goalsOnTrack}
+          goalsAtRisk={vm.goalsAtRisk}
+          goalsBehindTarget={vm.goalsBehindTarget}
+          goalsAchieved={vm.goalsAchieved}
+          loadingTeamPerformance={vm.loadingTeamPerformance}
+          filterGoalsBehindOnly={vm.filterGoalsBehindOnly}
+          initialStatusFilter={vm.initialPerformanceStatusFilter}
+          feedbackSummary={vm.teamFeedbackSummary}
+          skillsSummary={vm.teamSkillsSummary}
+          insights={vm.currentCycleInsights}
+          onNavigateBack={vm.handleNavigateBackToDashboard}
+          onNavigateToEmployee={vm.handleNavigateToEmployee}
+        />
+      )
+    case 'not-clocked-in':
+      return (
+        <NotClockedInView
+          teamAttendance={vm.teamAttendance}
+          availableEmployeeIds={vm.availableEmployeeIds}
+          notClockedInCount={vm.notClockedInCount}
+          loadingAttendance={vm.loadingAttendance}
+          nudgeLoading={false}
+          onNavigateBack={vm.handleNavigateBackToDashboard}
+          onNavigateToEmployee={vm.handleNavigateToEmployee}
+          onNudgeNotClockedIn={() => {}}
+        />
+      )
+    case 'insights':
+      return (
+        <TeamInsightsView
+          upcomingBirthdays={vm.upcomingBirthdays}
+          upcomingAnniversaries={vm.upcomingAnniversaries}
+          openPositions={vm.openPositions}
+          fullPositions={vm.fullPositions}
+          loadingBirthdays={vm.loadingBirthdays}
+          loadingAnniversaries={vm.loadingAnniversaries}
+          loadingOpenPositions={vm.loadingOpenPositions}
+          activeInsightsTab={vm.activeInsightsTab}
+          setActiveInsightsTab={vm.setActiveInsightsTab}
+          accessToken={accessToken || ''}
+          onNavigateBack={vm.handleNavigateBackToDashboard}
+          onNavigateToEmployee={vm.handleNavigateToEmployee}
+        />
+      )
+    case 'birthdays':
+      return (
+        <BirthdaysView
+          upcomingBirthdays={vm.upcomingBirthdays}
+          loadingBirthdays={vm.loadingBirthdays}
+          accessToken={accessToken || ''}
+          onNavigateBack={vm.handleNavigateBackToDashboard}
+          onNavigateToEmployee={vm.handleNavigateToEmployee}
+        />
+      )
+    case 'anniversaries':
+      return (
+        <AnniversariesView
+          upcomingAnniversaries={vm.upcomingAnniversaries}
+          loadingAnniversaries={vm.loadingAnniversaries}
+          accessToken={accessToken || ''}
+          onNavigateBack={vm.handleNavigateBackToDashboard}
+          onNavigateToEmployee={vm.handleNavigateToEmployee}
+        />
+      )
+    case 'open-positions':
+      return (
+        <OpenPositionsView
+          openPositions={vm.openPositions}
+          fullPositions={vm.fullPositions}
+          loadingOpenPositions={vm.loadingOpenPositions}
+          accessToken={accessToken || ''}
+          onNavigateBack={vm.handleNavigateBackToDashboard}
+        />
+      )
+    default:
+      break
   }
 
   return (
@@ -472,16 +483,14 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
       <MemberQuickPanel
         isOpen={vm.isMemberPanelOpen}
         onClose={vm.handleCloseMemberPanel}
-        member={
-          vm.selectedMemberId
-            ? directReportsForWorkboard.find(report => report.id === vm.selectedMemberId) || null
-            : null
-        }
-        allocationPercent={vm.averageAllocationPercentage}
+        member={selectedMember}
+        accessToken={accessToken || ''}
+        currentUserEmployeeId={employeeId || vm.userProfile?.id || ''}
+        allocationPercent={selectedMemberAllocation}
         teamPerformance={vm.teamPerformance}
-        lastFeedbackDate={vm.daysSinceLastFeedback ? `${vm.daysSinceLastFeedback} days ago` : null}
+        lastFeedbackDate={selectedMemberLastFeedbackDate}
         onNavigateToEmployee={vm.handleNavigateToEmployee}
-        onAssignProject={vm.handleNavigateToUnallocatedTeammates}
+        onAssignProject={handleAssignProject}
       />
     </>
   )

@@ -13,15 +13,23 @@ import {
   TableCell,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  Input,
+  Progress,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@newwork/nw-design-system'
-import { Users, GitFork } from 'lucide-react'
+import { GitFork, UsersThree } from '@phosphor-icons/react'
 import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import dayjs from 'dayjs'
 
 interface GroupedMatrixTeam {
   matrixTeamName: string
@@ -124,12 +132,37 @@ const EmployeeAvatar: React.FC<EmployeeAvatarProps> = ({ employee }) => {
   )
 }
 
+const formatLastFeedback = (isoDate?: string | null): string => {
+  if (!isoDate) return 'No feedback yet'
+
+  const feedbackDate = dayjs(isoDate)
+  if (!feedbackDate.isValid()) return 'No feedback yet'
+
+  const days = dayjs().diff(feedbackDate, 'day')
+  if (days <= 0) return 'Today'
+  if (days === 1) return '1 day ago'
+  if (days < 30) return `${days} days ago`
+
+  const months = Math.floor(days / 30)
+  if (months === 1) return '1 month ago'
+  if (months < 12) return `${months} months ago`
+  return feedbackDate.format('MMM D, YYYY')
+}
+
+const formatNextVacation = (nextVacation?: Employee['nextVacation']): string => {
+  if (!nextVacation?.startDate) return 'No vacation planned'
+
+  const start = dayjs(nextVacation.startDate)
+  if (!start.isValid()) return 'No vacation planned'
+  return start.format('MMM D')
+}
+
 interface EmployeeRowProps {
   employee: Employee
   accessToken: string
   dataTestIdPrefix: string
   onSelectEmployee: (employee: Employee) => void
-  showDepartment?: boolean
+  onAvatarClick: (employeeId: string) => void
 }
 
 const EmployeeRow: React.FC<EmployeeRowProps> = ({
@@ -137,23 +170,92 @@ const EmployeeRow: React.FC<EmployeeRowProps> = ({
   accessToken,
   dataTestIdPrefix,
   onSelectEmployee,
-  showDepartment = true
+  onAvatarClick
 }) => {
   const handleRowClick = () => onSelectEmployee(employee)
+  const goalProgress = employee.currentGoalProgress ?? 0
+  const allocation = employee.projectAllocationPercent ?? 0
 
   return (
-    <TableRow className="gba:cursor-pointer hover:gba:bg-gray-50" onClick={handleRowClick}>
+    <TableRow className="gba:cursor-pointer hover:gba:bg-muted/50" onClick={handleRowClick}>
       <TableCell>
-        <EmployeeAvatar employee={employee} />
+        <button
+          type="button"
+          onClick={event => {
+            event.stopPropagation()
+            onAvatarClick(employee.id)
+          }}
+          className="gba:rounded gba:p-0.5 hover:gba:bg-muted/40"
+          data-testid={`${dataTestIdPrefix}-avatar-${employee.id}`}
+        >
+          <EmployeeAvatar employee={employee} />
+        </button>
       </TableCell>
       <TableCell>
-        <div className="gba:text-sm gba:text-neutral-600">{employee.jobTitle || '-'}</div>
+        <div className="gba:text-sm gba:text-muted-foreground">{employee.jobTitle || '-'}</div>
       </TableCell>
-      {showDepartment && (
-        <TableCell>
-          <div className="gba:text-sm gba:text-neutral-600">{employee.organizationalUnit || '-'}</div>
-        </TableCell>
-      )}
+      <TableCell>
+        <div className="gba:min-w-[110px]">
+          <span className="gba:text-xs gba:text-muted-foreground">{Math.round(goalProgress)}%</span>
+          <Progress value={Math.max(0, Math.min(100, Math.round(goalProgress)))} className="gba:mt-1 gba:h-1.5" />
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="gba:text-sm gba:text-muted-foreground">
+          {formatLastFeedback(employee.lastManagerFeedbackDate)}
+        </div>
+      </TableCell>
+      <TableCell>
+        <Badge variant={allocation > 0 ? 'info' : 'secondary'} size="sm">
+          {allocation}%
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <div className="gba:text-sm gba:text-muted-foreground">{formatNextVacation(employee.nextVacation)}</div>
+      </TableCell>
+      <TableCell className="gba:py-4 gba:px-6">
+        <ActionCell employee={employee} accessToken={accessToken} dataTestIdPrefix={dataTestIdPrefix} />
+      </TableCell>
+    </TableRow>
+  )
+}
+
+interface MatrixEmployeeRowProps {
+  employee: Employee
+  accessToken: string
+  dataTestIdPrefix: string
+  onSelectEmployee: (employee: Employee) => void
+  onAvatarClick: (employeeId: string) => void
+}
+
+const MatrixEmployeeRow: React.FC<MatrixEmployeeRowProps> = ({
+  employee,
+  accessToken,
+  dataTestIdPrefix,
+  onSelectEmployee,
+  onAvatarClick
+}) => {
+  return (
+    <TableRow className="gba:cursor-pointer hover:gba:bg-muted/50" onClick={() => onSelectEmployee(employee)}>
+      <TableCell>
+        <button
+          type="button"
+          onClick={event => {
+            event.stopPropagation()
+            onAvatarClick(employee.id)
+          }}
+          className="gba:rounded gba:p-0.5 hover:gba:bg-muted/40"
+          data-testid={`${dataTestIdPrefix}-avatar-${employee.id}`}
+        >
+          <EmployeeAvatar employee={employee} />
+        </button>
+      </TableCell>
+      <TableCell>
+        <div className="gba:text-sm gba:text-muted-foreground">{employee.jobTitle || '-'}</div>
+      </TableCell>
+      <TableCell>
+        <div className="gba:text-sm gba:text-muted-foreground">{employee.organizationalUnit || '-'}</div>
+      </TableCell>
       <TableCell>
         <StatusBadge employee={employee} />
       </TableCell>
@@ -164,20 +266,103 @@ const EmployeeRow: React.FC<EmployeeRowProps> = ({
   )
 }
 
+const FiltersBar: React.FC<{
+  searchTerm: string
+  onSearchChange: (value: string) => void
+  selectedJobTitle: string
+  onJobTitleChange: (value: string) => void
+  selectedEmploymentType: string
+  onEmploymentTypeChange: (value: string) => void
+  jobTitleOptions: string[]
+  employmentTypeOptions: string[]
+}> = ({
+  searchTerm,
+  onSearchChange,
+  selectedJobTitle,
+  onJobTitleChange,
+  selectedEmploymentType,
+  onEmploymentTypeChange,
+  jobTitleOptions,
+  employmentTypeOptions
+}) => (
+  <div className="gba:mb-4 gba:flex gba:flex-wrap gba:items-end gba:gap-3">
+    <div className="gba:min-w-[220px] gba:flex-1">
+      <label
+        htmlFor="manager-dashboard-team-search-input"
+        className="gba:mb-1 gba:block gba:text-xs gba:text-muted-foreground"
+      >
+        Search team members
+      </label>
+      <Input
+        id="manager-dashboard-team-search-input"
+        value={searchTerm}
+        onChange={event => onSearchChange(event.target.value)}
+        placeholder="Search by name"
+        data-testid="manager-dashboard-team-search"
+      />
+    </div>
+    <div className="gba:min-w-[220px]">
+      <label
+        htmlFor="manager-dashboard-job-title-filter-trigger"
+        className="gba:mb-1 gba:block gba:text-xs gba:text-muted-foreground"
+      >
+        Job title
+      </label>
+      <Select value={selectedJobTitle} onValueChange={onJobTitleChange}>
+        <SelectTrigger id="manager-dashboard-job-title-filter-trigger" data-testid="manager-dashboard-job-title-filter">
+          <SelectValue placeholder="All job titles" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All job titles</SelectItem>
+          {jobTitleOptions.map(option => (
+            <SelectItem key={option} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+    <div className="gba:min-w-[220px]">
+      <label
+        htmlFor="manager-dashboard-employment-type-filter-trigger"
+        className="gba:mb-1 gba:block gba:text-xs gba:text-muted-foreground"
+      >
+        Employment type
+      </label>
+      <Select value={selectedEmploymentType} onValueChange={onEmploymentTypeChange}>
+        <SelectTrigger
+          id="manager-dashboard-employment-type-filter-trigger"
+          data-testid="manager-dashboard-employment-type-filter"
+        >
+          <SelectValue placeholder="All employment types" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All employment types</SelectItem>
+          {employmentTypeOptions.map(option => (
+            <SelectItem key={option} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  </div>
+)
+
 const LoadingState: React.FC<{ message: string }> = ({ message }) => (
   <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-6">
     <Spinner size="lg" />
-    <p className="gba:text-sm gba:text-neutral-500 gba:mt-2">{message}</p>
+    <p className="gba:mt-2 gba:text-sm gba:text-muted-foreground">{message}</p>
   </div>
 )
 
 const ErrorState: React.FC<{ title: string; message: string; onRetry: () => void }> = ({ title, message, onRetry }) => (
   <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-6">
-    <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">{title}</div>
-    <div className="gba:text-gray-600 gba:mb-4">{message}</div>
+    <div className="gba:mb-2 gba:text-lg gba:font-medium gba:text-destructive">{title}</div>
+    <div className="gba:mb-4 gba:text-muted-foreground">{message}</div>
     <button
       onClick={onRetry}
-      className="gba:px-4 gba:py-2 gba:bg-primary-600 gba:text-white gba:rounded gba:hover:bg-primary-700"
+      className="gba:rounded gba:bg-primary gba:px-4 gba:py-2 gba:text-primary-foreground gba:hover:gba:bg-primary/90"
     >
       {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.try_again', 'Try again')}
     </button>
@@ -193,8 +378,8 @@ interface EmptyStateProps {
 const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, description }) => (
   <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-6">
     <div className="gba:text-4xl gba:mb-4">{icon}</div>
-    <h3 className="gba:text-lg gba:font-medium gba:text-neutral-900 gba:mb-2">{title}</h3>
-    <p className="gba:text-neutral-500">{description}</p>
+    <h3 className="gba:mb-2 gba:text-lg gba:font-medium gba:text-foreground">{title}</h3>
+    <p className="gba:text-muted-foreground">{description}</p>
   </div>
 )
 
@@ -211,6 +396,7 @@ type MyTeammatesTableProps = {
   directReportsError: Error | null
   matrixTeamsError: Error | null
   onSelectEmployee: (_employee: Employee) => void
+  onAvatarClick: (_employeeId: string) => void
   accessToken: string
   userOrgData?: {
     organizationalUnitId?: string
@@ -230,12 +416,49 @@ export const MyTeammatesTable = ({
   directReportsError,
   matrixTeamsError,
   onSelectEmployee,
+  onAvatarClick,
   accessToken,
   userOrgData
 }: MyTeammatesTableProps) => {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedJobTitle, setSelectedJobTitle] = useState('all')
+  const [selectedEmploymentType, setSelectedEmploymentType] = useState('all')
+
   const handleRetry = () => {
     globalThis.location.reload()
   }
+
+  const jobTitleOptions = useMemo(
+    () =>
+      [
+        ...new Set(directReports.map(employee => employee.jobTitle).filter((title): title is string => Boolean(title)))
+      ].sort((a, b) => a.localeCompare(b)),
+    [directReports]
+  )
+
+  const employmentTypeOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          directReports
+            .map(employee => employee.employmentType)
+            .filter((employmentType): employmentType is string => Boolean(employmentType))
+        )
+      ].sort((a, b) => a.localeCompare(b)),
+    [directReports]
+  )
+
+  const filteredDirectReports = useMemo(() => {
+    return directReports.filter(employee => {
+      const normalizedName = `${employee.firstName} ${employee.lastName}`.toLowerCase()
+      const matchesSearch = searchTerm.trim().length === 0 || normalizedName.includes(searchTerm.trim().toLowerCase())
+      const matchesJobTitle = selectedJobTitle === 'all' || employee.jobTitle === selectedJobTitle
+      const matchesEmploymentType =
+        selectedEmploymentType === 'all' || employee.employmentType === selectedEmploymentType
+
+      return matchesSearch && matchesJobTitle && matchesEmploymentType
+    })
+  }, [directReports, searchTerm, selectedJobTitle, selectedEmploymentType])
 
   const groupedMatrixTeams = useMemo((): GroupedMatrixTeam[] => {
     const grouped: Record<string, Employee[]> = {}
@@ -284,57 +507,76 @@ export const MyTeammatesTable = ({
     if (directReports.length === 0) {
       return (
         <EmptyState
-          icon={<Users size={36} />}
+          icon={<UsersThree size={36} />}
           title={getTranslationFromI18nKeyAndLabel(
             'master-data:hr.manager_dashboard.status.no_direct_reports',
             'No direct reports'
           )}
           description={getTranslationFromI18nKeyAndLabel(
             'master-data:hr.manager_dashboard.status.no_direct_right_now',
-            "You don't have any direct reports at the moment."
+            "You don't have any direct reports at the moment. Check matrix teams or update org assignments."
           )}
         />
       )
     }
 
     return (
-      <div className="gba:border gba:rounded-lg gba:overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name')}
-              </TableHead>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_list.search_employee_list.recent_employees_table.job_title',
-                  'Job Title'
-                )}
-              </TableHead>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel('master-data:forms.department.title', 'Department')}
-              </TableHead>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.status.label', 'Status')}
-              </TableHead>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions')}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {directReports.map(employee => (
-              <EmployeeRow
-                key={employee.id}
-                employee={employee}
-                accessToken={accessToken}
-                dataTestIdPrefix="my-team"
-                onSelectEmployee={onSelectEmployee}
-                showDepartment
-              />
-            ))}
-          </TableBody>
-        </Table>
+      <div>
+        <FiltersBar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          selectedJobTitle={selectedJobTitle}
+          onJobTitleChange={setSelectedJobTitle}
+          selectedEmploymentType={selectedEmploymentType}
+          onEmploymentTypeChange={setSelectedEmploymentType}
+          jobTitleOptions={jobTitleOptions}
+          employmentTypeOptions={employmentTypeOptions}
+        />
+
+        {filteredDirectReports.length === 0 ? (
+          <EmptyState
+            icon={<UsersThree size={36} />}
+            title="No team members match the current filters"
+            description="Try adjusting search or filters."
+          />
+        ) : (
+          <div className="gba:border gba:rounded-lg gba:overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name')}
+                  </TableHead>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_list.search_employee_list.recent_employees_table.job_title',
+                      'Job Title'
+                    )}
+                  </TableHead>
+                  <TableHead>Current goal progress</TableHead>
+                  <TableHead>Manager last feedback</TableHead>
+                  <TableHead>Project allocation</TableHead>
+                  <TableHead>Next vacation</TableHead>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions')}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredDirectReports.map(employee => (
+                  <EmployeeRow
+                    key={employee.id}
+                    employee={employee}
+                    accessToken={accessToken}
+                    dataTestIdPrefix="my-team"
+                    onSelectEmployee={onSelectEmployee}
+                    onAvatarClick={onAvatarClick}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
     )
   }
@@ -374,7 +616,7 @@ export const MyTeammatesTable = ({
           )}
           description={getTranslationFromI18nKeyAndLabel(
             'master-data:hr.manager_dashboard.not_part_of_any_matrix_teams',
-            'You are not part of any matrix teams at the moment.'
+            'You are not part of any matrix teams at the moment. Coordinate with HR to update project assignments.'
           )}
         />
       )
@@ -408,6 +650,9 @@ export const MyTeammatesTable = ({
                     )}
                   </TableHead>
                   <TableHead>
+                    {getTranslationFromI18nKeyAndLabel('master-data:forms.department.title', 'Department')}
+                  </TableHead>
+                  <TableHead>
                     {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.status.label', 'Status')}
                   </TableHead>
                   <TableHead>
@@ -417,13 +662,13 @@ export const MyTeammatesTable = ({
               </TableHeader>
               <TableBody>
                 {group.members.map(employee => (
-                  <EmployeeRow
+                  <MatrixEmployeeRow
                     key={employee.id}
                     employee={employee}
                     accessToken={accessToken}
                     dataTestIdPrefix="my-teams"
                     onSelectEmployee={onSelectEmployee}
-                    showDepartment={false}
+                    onAvatarClick={onAvatarClick}
                   />
                 ))}
               </TableBody>
@@ -444,7 +689,7 @@ export const MyTeammatesTable = ({
         <TabsList className="gba:grid gba:grid-cols-2">
           <TabsTrigger value="my-team" className="gba:flex gba:items-center gba:space-x-2">
             <div className="gba:flex gba:w-full gba:items-center gba:justify-center">
-              <Users size={16} className="gba:mr-0.5" />
+              <UsersThree size={16} className="gba:mr-0.5" />
               <span>
                 {getTranslationFromI18nKeyAndLabel(
                   'master-data:hr.manager_dashboard.my_direct_reports_title',
