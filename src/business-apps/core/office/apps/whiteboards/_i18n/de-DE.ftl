@@ -101,6 +101,26 @@ trashed-readonly-go-home = Zu Whiteboards
 trashed-readonly-restore = Wiederherstellen
 trashed-readonly-restoring = Wird wiederhergestellt...
 
+header-selected-count = { $count } ausgewählt
+trash-bulk-restore = Wiederherstellen
+trash-bulk-restoring = Wird wiederhergestellt...
+trash-bulk-delete-permanently = Endgültig löschen
+trash-bulk-restored = { $count } { $count ->
+    [one] Whiteboard
+   *[other] Whiteboards
+  } wiederhergestellt
+trash-bulk-deleted = { $count } { $count ->
+    [one] Whiteboard
+   *[other] Whiteboards
+  } endgültig gelöscht
+trash-delete-dialog-title-single = Endgültig löschen?
+trash-delete-dialog-title-multiple = { $count } Elemente endgültig löschen?
+trash-delete-dialog-description-single = „{ $name }" wird endgültig gelöscht und kann nicht wiederhergestellt werden. Diese Aktion kann nicht rückgängig gemacht werden.
+trash-delete-dialog-description-multiple = { $count } Elemente werden endgültig gelöscht und können nicht wiederhergestellt werden. Diese Aktion kann nicht rückgängig gemacht werden.
+trash-delete-dialog-cancel = Abbrechen
+trash-delete-dialog-confirm = Endgültig löschen
+trash-delete-dialog-deleting = Wird gelöscht...
+
 toast-moved-to-trash = Whiteboard in den Papierkorb verschoben
 toast-move-to-trash-failed = Whiteboard konnte nicht in den Papierkorb verschoben werden
 toast-restored = Whiteboard wiederhergestellt

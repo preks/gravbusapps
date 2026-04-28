@@ -101,6 +101,26 @@ trashed-readonly-go-home = Go to Whiteboards
 trashed-readonly-restore = Restore
 trashed-readonly-restoring = Restoring...
 
+header-selected-count = { $count } selected
+trash-bulk-restore = Restore
+trash-bulk-restoring = Restoring...
+trash-bulk-delete-permanently = Delete permanently
+trash-bulk-restored = { $count } { $count ->
+    [one] whiteboard
+   *[other] whiteboards
+  } restored
+trash-bulk-deleted = { $count } { $count ->
+    [one] whiteboard
+   *[other] whiteboards
+  } deleted permanently
+trash-delete-dialog-title-single = Delete permanently?
+trash-delete-dialog-title-multiple = Delete { $count } items permanently?
+trash-delete-dialog-description-single = "{ $name }" will be permanently deleted and cannot be restored. This action cannot be undone.
+trash-delete-dialog-description-multiple = { $count } items will be permanently deleted and cannot be restored. This action cannot be undone.
+trash-delete-dialog-cancel = Cancel
+trash-delete-dialog-confirm = Delete permanently
+trash-delete-dialog-deleting = Deleting...
+
 toast-moved-to-trash = Whiteboard moved to trash
 toast-move-to-trash-failed = Failed to move whiteboard to trash
 toast-restored = Whiteboard restored
