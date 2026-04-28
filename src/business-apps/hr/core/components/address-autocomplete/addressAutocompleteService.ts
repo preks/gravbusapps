@@ -1,3 +1,5 @@
+import { env } from '@/common/env/EnvUtils'
+
 /**
  * Provider-agnostic shape returned to the UI layer.
  * Keeping this stable lets us swap Geoapify for LocationIQ / self-hosted later by editing only this file.
@@ -37,12 +39,18 @@ const GEOAPIFY_BASE = 'https://api.geoapify.com/v1/geocode'
 const GEOAPIFY_TILE_URL = 'https://maps.geoapify.com/v1/tile/osm-bright/{z}/{x}/{y}.png?apiKey={apiKey}'
 const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 
-// TEMPORARY: hardcoded for dev-environment testing behind the Dev.Enabled feature flag.
-// TODO: move back to NEXT_PUBLIC_GEOAPIFY_API_KEY (via env()) before shipping to staging/prod.
-// Restrict this key to our dev hostnames in the Geoapify dashboard so it's useless if leaked.
-const GEOAPIFY_API_KEY = 'e2466c3acbfe4f1a9e4ed699bc27480f'
-
-const getApiKey = (): string | undefined => (GEOAPIFY_API_KEY?.startsWith('PASTE_') ? undefined : GEOAPIFY_API_KEY)
+/**
+ * Resolves the Geoapify API key from `NEXT_PUBLIC_GEOAPIFY_API_KEY`. Returns undefined
+ * when the key is missing or still set to a placeholder template, so callers can fall
+ * back gracefully (e.g. tile renderer drops to OpenStreetMap; autocomplete returns no
+ * suggestions). Restrict the key to allowed hostnames in the Geoapify dashboard so it
+ * remains low-impact if leaked from a public bundle.
+ */
+const getApiKey = (): string | undefined => {
+  const key = env('NEXT_PUBLIC_GEOAPIFY_API_KEY')
+  if (!key || key.startsWith('PASTE_')) return undefined
+  return key
+}
 
 /**
  * Returns the map tile URL template for Leaflet. Falls back to OpenStreetMap's
