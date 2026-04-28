@@ -74,7 +74,7 @@ function isFollowedByAnotherBreak(parent: PMNode, indexInParent: number): boolea
 export function collectForcedPageBoundarySummary(doc: PMNode | null | undefined): ForcedPageBoundarySummary {
   const breaks: ForcedPageBreakEntry[] = []
 
-  if (doc && typeof (doc as PMNode).descendants === 'function') {
+  if (doc && typeof doc.descendants === 'function') {
     doc.descendants((node, pos, parent, index) => {
       if (node.type?.name !== PAGE_BREAK_NODE_NAME) {
         return

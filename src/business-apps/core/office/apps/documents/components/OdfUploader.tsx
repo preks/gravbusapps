@@ -189,6 +189,39 @@ export const OdfUploader: React.FC<OdfUploaderProps> = ({
   // Render success state with preview
   if (parsedDocument) {
     const wordCount = parsedDocument.plainText.split(/\s+/).filter(w => w.length > 0).length
+    const continueHintContent = (() => {
+      if (isSavingDraft) {
+        return (
+          <>
+            <Spinner size="sm" className="gba:text-primary" />
+            <p className="gba:text-sm gba:text-foreground">{t('upload-word-saving-draft')}</p>
+          </>
+        )
+      }
+
+      if (hasSavedDraft) {
+        return (
+          <>
+            <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-success/20 gba:flex gba:items-center gba:justify-center">
+              <Check className="gba:w-4 gba:h-4 gba:text-success" />
+            </div>
+            <p className="gba:text-sm gba:text-foreground">{t('upload-word-saved-ready')}</p>
+            <Button size="sm" onClick={onOpenSavedDraft} className="gba:ml-auto" data-testid={`${testId}-open-saved`}>
+              {t('upload-word-open-document')}
+              <ArrowRight className="gba:w-4 gba:h-4 gba:ml-2" />
+            </Button>
+          </>
+        )
+      }
+
+      return (
+        <>
+          <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
+          <p className="gba:text-sm gba:text-foreground">{t('upload-word-parsed-ready')}</p>
+          <ArrowRight className="gba:w-4 gba:h-4 gba:text-primary gba:ml-auto" />
+        </>
+      )
+    })()
 
     return (
       <Card className="gba:overflow-hidden" data-testid={`${testId}-preview`}>
@@ -262,34 +295,7 @@ export const OdfUploader: React.FC<OdfUploaderProps> = ({
             className="gba:flex gba:items-center gba:gap-2 gba:p-4 gba:bg-primary/5 gba:rounded-lg gba:mt-4"
             data-testid={`${testId}-continue-hint`}
           >
-            {isSavingDraft ? (
-              <>
-                <Spinner size="sm" className="gba:text-primary" />
-                <p className="gba:text-sm gba:text-foreground">{t('upload-word-saving-draft')}</p>
-              </>
-            ) : hasSavedDraft ? (
-              <>
-                <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-success/20 gba:flex gba:items-center gba:justify-center">
-                  <Check className="gba:w-4 gba:h-4 gba:text-success" />
-                </div>
-                <p className="gba:text-sm gba:text-foreground">{t('upload-word-saved-ready')}</p>
-                <Button
-                  size="sm"
-                  onClick={onOpenSavedDraft}
-                  className="gba:ml-auto"
-                  data-testid={`${testId}-open-saved`}
-                >
-                  {t('upload-word-open-document')}
-                  <ArrowRight className="gba:w-4 gba:h-4 gba:ml-2" />
-                </Button>
-              </>
-            ) : (
-              <>
-                <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
-                <p className="gba:text-sm gba:text-foreground">{t('upload-word-parsed-ready')}</p>
-                <ArrowRight className="gba:w-4 gba:h-4 gba:text-primary gba:ml-auto" />
-              </>
-            )}
+            {continueHintContent}
           </div>
         </div>
       </Card>

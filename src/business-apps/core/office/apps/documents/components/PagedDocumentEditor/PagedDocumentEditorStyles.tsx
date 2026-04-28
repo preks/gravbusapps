@@ -10,7 +10,7 @@ export function PagedDocumentEditorStyles({
   proseMinHeight
 }: Readonly<PagedDocumentEditorStylesProps>): React.JSX.Element {
   return (
-    <style>{`
+    <style>{String.raw`
       .document-editor-viewport {
         background-color: #f3f4f6;
       }

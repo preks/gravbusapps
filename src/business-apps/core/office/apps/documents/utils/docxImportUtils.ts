@@ -1253,10 +1253,10 @@ function splitRunAroundBreak(
     if (child === rPr) {
       continue
     }
-    if (!passedBreak) {
-      beforeRun.appendChild(child.cloneNode(true))
-    } else {
+    if (passedBreak) {
       afterRun.appendChild(child.cloneNode(true))
+    } else {
+      beforeRun.appendChild(child.cloneNode(true))
     }
   }
 
@@ -1300,10 +1300,10 @@ function splitParagraphAtBreak(paragraph: Element, breakElement: Element): { bef
       if (afterRun) after.appendChild(afterRun)
       continue
     }
-    if (!passedContainingRun) {
-      before.appendChild(child.cloneNode(true))
-    } else {
+    if (passedContainingRun) {
       after.appendChild(child.cloneNode(true))
+    } else {
+      before.appendChild(child.cloneNode(true))
     }
   }
 
@@ -1332,7 +1332,7 @@ function sectPrHasNextPageBreak(sectPr: Element): boolean {
  * are detected.
  */
 export function preprocessDocumentXmlForPageBreaks(xml: string): string {
-  if (!xml || globalThis.DOMParser === undefined || typeof globalThis.XMLSerializer === 'undefined') {
+  if (!xml || globalThis.DOMParser === undefined || globalThis.XMLSerializer === undefined) {
     return xml
   }
 
@@ -1363,8 +1363,8 @@ export function preprocessDocumentXmlForPageBreaks(xml: string): string {
       // (1) pageBreakBefore paragraph property → emit marker BEFORE and strip property.
       if (pageBreakBefore) {
         const marker = createMarkerParagraph(doc, paragraph)
-        body.insertBefore(marker, paragraph)
-        pageBreakBefore.parentNode?.removeChild(pageBreakBefore)
+        paragraph.before(marker)
+        pageBreakBefore.remove()
         mutated = true
       }
 
@@ -1385,8 +1385,8 @@ export function preprocessDocumentXmlForPageBreaks(xml: string): string {
 
         if (isStandaloneBreakParagraph) {
           const marker = createMarkerParagraph(doc, paragraph)
-          body.insertBefore(marker, paragraph)
-          body.removeChild(paragraph)
+          paragraph.before(marker)
+          paragraph.remove()
           mutated = true
         } else {
           // Split paragraph sequentially at each break.
@@ -1402,10 +1402,10 @@ export function preprocessDocumentXmlForPageBreaks(xml: string): string {
             }
             const { before, after } = splitParagraphAtBreak(currentParagraph, breakElement)
             const marker = createMarkerParagraph(doc, currentParagraph)
-            body.insertBefore(before, currentParagraph)
-            body.insertBefore(marker, currentParagraph)
-            body.insertBefore(after, currentParagraph)
-            body.removeChild(currentParagraph)
+            currentParagraph.before(before)
+            currentParagraph.before(marker)
+            currentParagraph.before(after)
+            currentParagraph.remove()
             currentParagraph = after
           }
           mutated = true
@@ -1418,7 +1418,11 @@ export function preprocessDocumentXmlForPageBreaks(xml: string): string {
       if (sectPr && sectPrHasNextPageBreak(sectPr)) {
         const marker = createMarkerParagraph(doc, paragraph)
         const nextSibling = paragraph.nextSibling
-        body.insertBefore(marker, nextSibling)
+        if (nextSibling) {
+          nextSibling.before(marker)
+        } else {
+          body.appendChild(marker)
+        }
         mutated = true
       }
     }
