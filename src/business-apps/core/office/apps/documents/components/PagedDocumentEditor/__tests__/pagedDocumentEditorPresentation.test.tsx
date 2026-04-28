@@ -16,5 +16,8 @@ describe('PagedDocumentEditorStyles', () => {
     expect(styleElement?.textContent).toContain('background-color: #fafafa;')
     expect(styleElement?.textContent).toContain('min-height: 612px;')
     expect(styleElement?.textContent).toContain('.document-editor-viewport[data-layout-window-mode="windowed"]')
+    expect(styleElement?.textContent).toContain(
+      '.paged-document-editor .ProseMirror p:has(> br.ProseMirror-trailingBreak:only-child)'
+    )
   })
 })
