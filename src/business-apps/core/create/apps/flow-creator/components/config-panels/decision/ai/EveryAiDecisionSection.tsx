@@ -7,7 +7,7 @@ import { FlowContextExpressionEditor } from '../../../shared/FlowContextExpressi
 import { DecisionHumanFallbackSection } from './DecisionHumanFallbackSection'
 import { DecisionPolicyPicker } from './DecisionPolicyPicker'
 import { TaskLinksSection } from '../../task/TaskLinksSection'
-import type { Link } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import type { Link } from '@/common/data/flow/types/flowTemplate'
 
 interface EveryAiDecisionSectionProps {
   mode: DesignerMode

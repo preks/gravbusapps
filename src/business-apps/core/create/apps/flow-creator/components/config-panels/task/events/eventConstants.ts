@@ -1,4 +1,4 @@
-import { TaskEventType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { TaskEventType } from '@/common/data/flow/types/flowTemplate'
 
 export const EVENT_TYPE_OPTIONS: Array<{ value: TaskEventType | string; label: string }> = [
   { value: TaskEventType.TASK_CREATED, label: 'Task created' },

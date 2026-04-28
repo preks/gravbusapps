@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import {
   Monitor,
   Workflow,
@@ -89,7 +89,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
       description:
         'Design automated workflows and business processes. Connect steps, define logic, and orchestrate tasks.',
       icon: Workflow,
-      href: buildPlatformUrl('/platform/apps/flow/apps/creator') + '#create',
+      href: `${buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR)}#create`,
       badge: 'Popular',
       badgeVariant: 'success',
       accentColor: 'success'
