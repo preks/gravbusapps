@@ -123,8 +123,13 @@ const buildDynamicFilterCondition = (
     leaf = Object.keys(condition).length > 0 ? condition : null
   }
 
-  if (filterMetadata.filterType === 'text' && typeof value === 'string' && value.trim()) {
-    leaf = { _ilike: `%${value.trim().replaceAll('\\', '\\\\').replaceAll('"', '\\"')}%` }
+  if (filterMetadata.filterType === 'text') {
+    if (Array.isArray(value) && value.length > 0) {
+      // Multi-select text filter (options loaded from backend) — use exact _in match
+      leaf = { _in: value }
+    } else if (typeof value === 'string' && value.trim()) {
+      leaf = { _ilike: `%${value.trim().replaceAll('\\', '\\\\').replaceAll('"', '\\"')}%` }
+    }
   }
 
   if (filterMetadata.filterType === 'boolean') {

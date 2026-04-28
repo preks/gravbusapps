@@ -18,6 +18,7 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/utils/filterHelpers'
 import { INVESTMENT_DESCRIPTORS } from '@/common/data/investment/types/investmentTypes.new'
+import { LIQUID_FUND_INVESTMENT_DESCRIPTORS } from '@/common/data/investment/types/liquidFundInvestmentTypes'
 import {
   readViewPreferences,
   writeViewPreferences,
@@ -50,6 +51,13 @@ import { CurrencyFilter } from '../analytics-view/shared/components/CurrencyFilt
 
 // Stable empty object to prevent infinite loops
 const EMPTY_FILTERS = {}
+
+// Maps LiquidFundInvestment descriptor keys → catalog-driven filter field IDs so
+// we can inject backend-loaded options into those catalog multi-select filters.
+const LIQUID_FUND_FILTER_KEY_MAP: Record<string, string> = {
+  bankName: 'liquidFundInvestment_bankName',
+  proprietorName: 'liquidFundInvestment_proprietorName'
+}
 const MAX_DYNAMIC_GROUP_SLOTS = 10
 const INVESTMENT_OVERVIEW_PREFERENCES_KEY = 'irm:investment-view:overview-preferences:v1'
 const OVERVIEW_DEFAULT_VISIBLE_COLUMNS = [
@@ -58,7 +66,10 @@ const OVERVIEW_DEFAULT_VISIBLE_COLUMNS = [
   'investmentType',
   'totalInvestmentAmount',
   'ownerEmployee',
+  'account',
   'investmentStatus',
+  'planedExit',
+  'plannedExitDate',
   'createdAt',
   'actions'
 ]
@@ -71,14 +82,22 @@ const OVERVIEW_AVAILABLE_COLUMN_IDS = [
   'timeWeightedPerformance',
   'maturityDate',
   'ownerEmployee',
+  'account',
   'investmentStatus',
+  'planedExit',
+  'plannedExitDate',
   'createdAt',
   'actions'
 ]
+// Maps a default (base) filter id to alternate ids the catalog might use for the
+// same field. Listed catalog filters are stripped from the dynamic merge so we
+// don't render duplicates of fields already covered by the defaults.
+// NOTE: catalog-driven date fields like `acquisitionDate` and `exitDate` are
+// intentionally NOT listed — they should only appear on tabs whose catalog
+// defines them.
 const BASE_FILTER_ALIASES: Record<string, string[]> = {
-  acquisitionDateRange: ['acquisitionDate'],
-  plannedExitDateRange: ['plannedExitDate'],
-  exitDateRange: ['exitDate']
+  createdAtRange: ['createdAt'],
+  plannedExitDateRange: ['plannedExitDate']
 }
 
 const mergeFilterConfigurations = (
@@ -595,6 +614,9 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
 
   // Filter configuration
   const filterGroups = useFilterGroups(context, 'Investment', INVESTMENT_DESCRIPTORS)
+  // Separate hook for LiquidFundInvestment scalar fields (bankName, proprietorName) that
+  // cannot be distinctOn-queried through the parent Investment entity.
+  const liquidFundFilterGroups = useFilterGroups(context, 'LiquidFundInvestment', LIQUID_FUND_INVESTMENT_DESCRIPTORS)
 
   const injectAccountFilter = useCallback(
     (filter: any) => {
@@ -654,6 +676,45 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     [injectAccountGroup, injectInvestmentTypeGroup]
   )
 
+  // Inject backend-loaded options into catalog-driven multi-select text filters that
+  // belong to LiquidFundInvestment (bankName, proprietorName).
+  const injectLiquidFundFilterOptions = useCallback(
+    (config: FilterConfiguration): FilterConfiguration => {
+      if (liquidFundFilterGroups.isLoading) return config
+
+      return {
+        ...config,
+        groups: config.groups.map(group => ({
+          ...group,
+          filters: group.filters.map(filter => {
+            const filterId = filter.field ?? filter.id
+            const descriptorKey = Object.entries(LIQUID_FUND_FILTER_KEY_MAP).find(([, fid]) => fid === filterId)?.[0]
+
+            if (!descriptorKey) return filter
+
+            const data = liquidFundFilterGroups.filterData[descriptorKey]
+            if (!data || !filter.config || !('options' in filter.config)) return filter
+
+            return {
+              ...filter,
+              config: {
+                ...filter.config,
+                options: data.options,
+                totalCount: data.totalCount,
+                hasMore: data.totalCount > data.options.length,
+                onSearch: async (query: string) => {
+                  await liquidFundFilterGroups.search({ [descriptorKey]: query })
+                  return liquidFundFilterGroups.getFilterOptions(descriptorKey)
+                }
+              }
+            }
+          })
+        }))
+      }
+    },
+    [liquidFundFilterGroups]
+  )
+
   const currentFilterConfig = useMemo(() => {
     const baseConfig = currentSection === 'overview' ? overviewInvestmentFilterConfig : baseInvestmentFilterConfig
     const sectionFilterConfig =
@@ -665,8 +726,9 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
         ? sectionFilterConfig
         : buildDynamicFilterConfig(sectionFilterConfig, INVESTMENT_DESCRIPTORS, filterGroups)
 
-    return { ...builtConfig, groups: builtConfig.groups.map(injectBaseFilterGroups) }
-  }, [currentSection, filterGroups, injectBaseFilterGroups, dynamicColumnConfigByTab])
+    const withLiquidFundOptions = injectLiquidFundFilterOptions(builtConfig)
+    return { ...withLiquidFundOptions, groups: withLiquidFundOptions.groups.map(injectBaseFilterGroups) }
+  }, [currentSection, filterGroups, injectBaseFilterGroups, dynamicColumnConfigByTab, injectLiquidFundFilterOptions])
 
   // Stable filter change handler — uses refs so it never needs to be recreated.
   // Matches the AccountLayout pattern (empty deps, functional state updates).
@@ -721,7 +783,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
       { id: 'timeWeightedPerformance', label: 'Time-Weighted Performance' },
       { id: 'maturityDate', label: 'Maturity Date' },
       { id: 'ownerEmployee', label: 'Owner' },
+      { id: 'account', label: 'Account' },
       { id: 'investmentStatus', label: 'Status' },
+      { id: 'planedExit', label: 'Planned Exit' },
+      { id: 'plannedExitDate', label: 'Planned Exit Date' },
       { id: 'createdAt', label: 'Created' },
       { id: 'actions', label: 'Actions' }
     ]
@@ -741,6 +806,8 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
       { id: 'maturityDate', label: 'Maturity Date' },
       { id: 'ownerEmployee', label: 'Owner' },
       { id: 'investmentStatus', label: 'Status' },
+      { id: 'planedExit', label: 'Planned Exit' },
+      { id: 'plannedExitDate', label: 'Planned Exit Date' },
       { id: 'createdAt', label: 'Created' }
     ]
   }, [currentSection, dynamicColumnConfigByTab])

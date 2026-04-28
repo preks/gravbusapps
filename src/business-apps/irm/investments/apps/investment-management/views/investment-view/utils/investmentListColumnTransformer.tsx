@@ -10,6 +10,16 @@ import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { formatDate } from '@/common/data/investment/utils/formatters'
 import { getValueByPath } from '@/common/utils/objectUtils'
 import type { InvestmentCatalogEntry, InvestmentGroup, InvestmentListCatalogData } from '../hooks/useInvestmentGroups'
+import {
+  AccountCell,
+  PlanedExitCell,
+  PlannedExitDateCell,
+  TotalInvestmentAmountCell,
+  OwnerEmployeeCell,
+  InvestmentStatusCell,
+  CreatedAtCell,
+  createInvestmentTypeCell
+} from '../data/shared/cellRenderers'
 
 export interface InvestmentColumnOption {
   id: string
@@ -40,6 +50,7 @@ const UNIVERSAL_VISIBLE_COLUMNS = ['name']
 const UNIVERSAL_QUERY_FIELDS = [
   'id',
   'name',
+  'createdAt',
   'currency',
   'currencyRef',
   'investmentGroup',
@@ -47,10 +58,134 @@ const UNIVERSAL_QUERY_FIELDS = [
   'investmentStatus',
   'investmentStatusRef',
   'investmentType',
-  'investmentTypeRef'
+  'investmentTypeRef',
+  'investmentAccounts',
+  'ownerEmployee',
+  'ownerEmployeeId',
+  'planedExit',
+  'plannedExitDate',
+  'totalInvestmentAmount'
 ]
 
-const SKIPPED_CATALOG_PROPERTIES = new Set(['investment.id', 'investment.name', 'id', 'name'])
+interface UniversalColumnSpec {
+  id: string
+  label: string
+  /** GraphQL field key used as accessor. */
+  accessor: string
+  /** Sort key — omit for relation fields that aren't directly sortable. */
+  sortField?: string
+  width: { size: number; min: number; max: number }
+  isDate: boolean
+  align?: 'right' | 'left' | 'center'
+  cell: ColumnDef<Investment>['cell']
+}
+
+/**
+ * Base-entity columns inserted immediately after the Name column and before the
+ * catalog-specific columns so the most important fields are always visible first.
+ */
+const UNIVERSAL_LEADING_COLUMNS: UniversalColumnSpec[] = [
+  {
+    id: 'investmentType',
+    label: 'Type',
+    accessor: 'investmentType',
+    width: { size: 180, min: 150, max: 250 },
+    isDate: false,
+    cell: createInvestmentTypeCell('Unknown')
+  },
+  {
+    id: 'totalInvestmentAmount',
+    label: 'Total Investment',
+    accessor: 'totalInvestmentAmount',
+    sortField: 'totalInvestmentAmount',
+    width: { size: 160, min: 140, max: 200 },
+    isDate: false,
+    align: 'right',
+    cell: TotalInvestmentAmountCell
+  }
+]
+
+/**
+ * Base-entity fields that should appear on every group tab regardless of catalog
+ * configuration. Inserted after the catalog columns so they don't displace the
+ * group's own type-specific fields.
+ */
+const UNIVERSAL_TRAILING_COLUMNS: UniversalColumnSpec[] = [
+  {
+    id: 'ownerEmployee',
+    label: 'Owner',
+    accessor: 'ownerEmployee',
+    width: { size: 200, min: 180, max: 280 },
+    isDate: false,
+    cell: OwnerEmployeeCell
+  },
+  {
+    id: 'account',
+    label: 'Account',
+    accessor: 'investmentAccounts',
+    width: { size: 180, min: 150, max: 240 },
+    isDate: false,
+    cell: AccountCell
+  },
+  {
+    id: 'investmentStatus',
+    label: 'Status',
+    accessor: 'investmentStatus',
+    width: { size: 130, min: 110, max: 160 },
+    isDate: false,
+    cell: InvestmentStatusCell
+  },
+  {
+    id: 'planedExit',
+    label: 'Planned Exit',
+    accessor: 'planedExit',
+    sortField: 'planedExit',
+    width: { size: 140, min: 120, max: 160 },
+    isDate: false,
+    cell: PlanedExitCell
+  },
+  {
+    id: 'plannedExitDate',
+    label: 'Planned Exit Date',
+    accessor: 'plannedExitDate',
+    sortField: 'plannedExitDate',
+    width: { size: 170, min: 150, max: 200 },
+    isDate: true,
+    cell: PlannedExitDateCell
+  },
+  {
+    id: 'createdAt',
+    label: 'Created',
+    accessor: 'createdAt',
+    sortField: 'createdAt',
+    width: { size: 150, min: 130, max: 180 },
+    isDate: true,
+    cell: CreatedAtCell
+  }
+]
+
+const UNIVERSAL_ALL_COLUMN_IDS = new Set([
+  ...UNIVERSAL_LEADING_COLUMNS.map(c => c.id),
+  ...UNIVERSAL_TRAILING_COLUMNS.map(c => c.id)
+])
+
+const SKIPPED_CATALOG_PROPERTIES = new Set([
+  'investment.id',
+  'investment.name',
+  'id',
+  'name',
+  // Fields covered by universal leading/trailing columns — skip if a catalog also defines them
+  'investment.investmentType',
+  'investmentType',
+  'investment.totalInvestmentAmount',
+  'totalInvestmentAmount',
+  'investment.ownerEmployee',
+  'ownerEmployee',
+  'investment.investmentStatus',
+  'investmentStatus',
+  'investment.createdAt',
+  'createdAt'
+])
 const UNSORTABLE_FIELD_TYPES = new Set(['TEXTAREA'])
 const RELATION_SORTING_ENABLED = false
 
@@ -286,11 +421,16 @@ const buildFilterConfigForField = (
     key: filterId,
     path: mapping.descriptorPath
   }
+
+  // Text fields whose descriptor exposes optionSelectPaths are rendered as a
+  // multi-select with backend-loaded options rather than a plain text input.
+  const hasBackendOptions = filterType === 'text' && Boolean(mapping.descriptor.optionSelectPaths?.length)
+
   const filter: Filter = {
     id: filterId,
     field: filterId,
     label: field.label,
-    type: filterType === 'boolean' ? 'multi-select' : filterType,
+    type: hasBackendOptions || filterType === 'boolean' ? 'multi-select' : filterType,
     config: {}
   }
 
@@ -306,8 +446,17 @@ const buildFilterConfigForField = (
     filter.config = { mode: 'range' }
   }
 
-  if (filterType === 'text') {
+  if (filterType === 'text' && !hasBackendOptions) {
     filter.config = { placeholder: `Search ${field.label}...` }
+  }
+
+  if (hasBackendOptions) {
+    filter.config = {
+      options: [],
+      totalCount: 0,
+      hasMore: false,
+      searchPlaceholder: `Search ${field.label}...`
+    }
   }
 
   if (filterType === 'boolean') {
@@ -384,11 +533,19 @@ export const getAggregatedInvestmentListFields = (
 const buildInvestmentListColumnConfigurationFromFields = (
   fields: FormFieldDefinition[]
 ): InvestmentListColumnConfiguration => {
+  // Drop catalog fields whose ids collide with the universal trailing columns to
+  // Drop catalog fields whose ids collide with any universal leading/trailing column to
+  // avoid duplicate column entries when a catalog also exposes investmentType, ownerEmployee, etc.
+  const fieldsWithoutUniversalCollisions = fields.filter(
+    field => !UNIVERSAL_ALL_COLUMN_IDS.has(field.property.replaceAll('.', '_'))
+  )
   const queryFields = new Set<string>(UNIVERSAL_QUERY_FIELDS)
   const sortFieldByColumnId: Record<string, string> = {}
-  const { dynamicFilterConfig, filterConditionByFilterId } = buildDynamicFilterConfiguration(fields)
+  const { dynamicFilterConfig, filterConditionByFilterId } = buildDynamicFilterConfiguration(
+    fieldsWithoutUniversalCollisions
+  )
 
-  const columns: ColumnDef<Investment>[] = fields.map(field => {
+  const columns: ColumnDef<Investment>[] = fieldsWithoutUniversalCollisions.map(field => {
     const id = field.property.replaceAll('.', '_')
     const descriptorMapping = getCatalogDescriptorMapping(field.property)
     const queryField = descriptorMapping?.queryField || getQueryFieldForProperty(field.property)
@@ -429,13 +586,52 @@ const buildInvestmentListColumnConfigurationFromFields = (
     }
   })
 
-  const availableColumns = fields.map(field => ({
+  const catalogAvailableColumns = fieldsWithoutUniversalCollisions.map(field => ({
     id: field.property.replaceAll('.', '_'),
     label: field.label
   }))
 
+  const buildUniversalColumnDef = (spec: UniversalColumnSpec): ColumnDef<Investment> => {
+    if (spec.sortField) {
+      sortFieldByColumnId[spec.id] = spec.sortField
+    }
+    return {
+      id: spec.id,
+      header: spec.label,
+      accessorKey: spec.accessor,
+      size: spec.width.size,
+      minSize: spec.width.min,
+      maxSize: spec.width.max,
+      enableResizing: false,
+      enableSorting: Boolean(spec.sortField),
+      meta: {
+        ...(spec.isDate ? { type: 'date' as const } : {}),
+        ...(spec.align ? { align: spec.align } : {})
+      },
+      cell: spec.cell
+    }
+  }
+
+  const universalLeadingDefs = UNIVERSAL_LEADING_COLUMNS.map(buildUniversalColumnDef)
+  const universalTrailingDefs = UNIVERSAL_TRAILING_COLUMNS.map(buildUniversalColumnDef)
+
+  const universalLeadingAvailableColumns = UNIVERSAL_LEADING_COLUMNS.map(spec => ({
+    id: spec.id,
+    label: spec.label
+  }))
+  const universalTrailingAvailableColumns = UNIVERSAL_TRAILING_COLUMNS.map(spec => ({
+    id: spec.id,
+    label: spec.label
+  }))
+
+  const availableColumns = [
+    ...universalLeadingAvailableColumns,
+    ...catalogAvailableColumns,
+    ...universalTrailingAvailableColumns
+  ]
+
   return {
-    columns,
+    columns: [...universalLeadingDefs, ...columns, ...universalTrailingDefs],
     availableColumns,
     sortableColumns: availableColumns.filter(column => sortFieldByColumnId[column.id]),
     defaultVisibleColumns: [...UNIVERSAL_VISIBLE_COLUMNS, ...availableColumns.map(column => column.id), 'actions'],
