@@ -53,6 +53,12 @@ export interface InvestmentQueryVariables {
   debtFinancingMaxAmount?: number
   forecastedProfitMinAmount?: number
   forecastedProfitMaxAmount?: number
+  securityQuantityMin?: number
+  securityQuantityMax?: number
+  timeWeightedPerformanceMin?: number
+  timeWeightedPerformanceMax?: number
+  maturityDateFrom?: string
+  maturityDateTo?: string
   // Liquid fund specialization filters
   liquidFundBankAccountContains?: string
   liquidFundEarlyTermination?: boolean
@@ -170,6 +176,7 @@ export const buildInvestmentWhereObject = (variables: InvestmentQueryVariables =
     isNonEmptyString
   )
   addRange<string>(where, 'exitDate', variables.exitDateFrom, variables.exitDateTo, isNonEmptyString)
+  addRange<string>(where, 'maturityDate', variables.maturityDateFrom, variables.maturityDateTo, isNonEmptyString)
   addRange<string>(
     where,
     'plannedExitDate',
@@ -214,6 +221,14 @@ export const buildInvestmentWhereObject = (variables: InvestmentQueryVariables =
     variables.forecastedProfitMaxAmount,
     isNumber
   )
+  addRange<number>(where, 'securityQuantity', variables.securityQuantityMin, variables.securityQuantityMax, isNumber)
+  addRange<number>(
+    where,
+    'timeWeightedPerformance',
+    variables.timeWeightedPerformanceMin,
+    variables.timeWeightedPerformanceMax,
+    isNumber
+  )
 
   // Liquid fund nested filters — merged so that supplying both
   // bankAccountContains and earlyTermination produces a single object.
@@ -253,9 +268,12 @@ const ORDER_BY_ALLOWED_ROOT_FIELDS = new Set<string>([
   'acquisitionDate',
   'plannedExitDate',
   'exitDate',
+  'maturityDate',
   'initialInvestmentAmount',
   'totalInvestmentAmount',
   'investmentMarketValue',
+  'securityQuantity',
+  'timeWeightedPerformance',
   'stakePercentage',
   'fundManagerName',
   'loanInterestRate',
@@ -454,6 +472,9 @@ export const SEARCH_INVESTMENTS = (variables: InvestmentQueryVariables): string 
         initialInvestmentAmount
         totalInvestmentAmount
         investmentMarketValue
+        securityQuantity
+        timeWeightedPerformance
+        maturityDate
         acquisitionDate
         exitDate
         stakePercentage

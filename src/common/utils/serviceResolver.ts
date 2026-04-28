@@ -167,10 +167,6 @@ export const FLOW_METRICS_API_URL = resolveServiceUrl('NEXT_PUBLIC_FLOW_METRICS_
   servicePath: '/flow-metrics',
   apiPath: '/api/v1'
 })
-export const FLOWBOT_API_URL = resolveServiceUrl('NEXT_PUBLIC_FLOWBOT_API_URL', {
-  servicePath: '/flowbot',
-  apiPath: ''
-})
 export const FLOW_REGISTRY_API_URL = resolveServiceUrl('NEXT_PUBLIC_FLOW_REGISTRY_API_URL', {
   servicePath: '/flow-registry',
   apiPath: '/api/v1'

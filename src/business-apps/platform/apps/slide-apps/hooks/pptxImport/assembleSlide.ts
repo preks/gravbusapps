@@ -8,6 +8,7 @@ import type { OoxmlTheme, SlideRelationships } from './types'
 import type { ParserMessage } from '../usePowerPointParser'
 import { extractPSpToSingleElement, type OoxmlShapeIdRegistry } from './extractShapes'
 import { extractImageElements } from './extractImages'
+import { extractVideoElements } from './extractVideos'
 import { extractTableElements } from './extractTables'
 import { extractChartElements } from './extractCharts'
 import { extractConnectorElements } from './extractConnectors'
@@ -71,7 +72,9 @@ function extractNonPlaceholderElements(
       if (el) result.push(el)
     } else if (child.tagName === 'p:pic') {
       const doc = wrapInFakeDoc(child)
-      result.push(...extractImageElements(doc, rels, imageData, messages, slideIndex))
+      const videos = extractVideoElements(doc, rels, imageData, messages, slideIndex)
+      if (videos.length > 0) result.push(...videos)
+      else result.push(...extractImageElements(doc, rels, imageData, messages, slideIndex))
     } else if (child.tagName === 'p:grpSp') {
       const groupEls = flattenGroupedShapes(xml, theme, rels, imageData, messages, slideIndex, child)
       result.push(...groupEls)
@@ -221,8 +224,9 @@ export async function assembleSlide(
 
         case 'p:pic': {
           const doc = wrapInFakeDoc(child)
-          const images = extractImageElements(doc, relationships, imageData, messages, slideIndex)
-          slideElements.push(...images)
+          const videos = extractVideoElements(doc, relationships, imageData, messages, slideIndex)
+          if (videos.length > 0) slideElements.push(...videos)
+          else slideElements.push(...extractImageElements(doc, relationships, imageData, messages, slideIndex))
           break
         }
 

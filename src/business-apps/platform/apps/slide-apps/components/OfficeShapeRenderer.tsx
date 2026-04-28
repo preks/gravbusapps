@@ -11,8 +11,9 @@
  */
 
 import React from 'react'
-import type { ShapeElement } from './slideElements'
+import type { GradientConfig, ShapeElement } from './slideElements'
 import { getShapeGeometry } from './slideElements'
+import { renderSvgGradientDefs } from './slideRenderUtils'
 
 type Adj = Record<string, number>
 
@@ -27,6 +28,8 @@ interface PresetRenderContext {
   width: number
   height: number
   fillStyle: string
+  gradient?: GradientConfig
+  gradientId?: string
   strokeColor: string
   strokeWidth: number
   shadow: boolean
@@ -42,6 +45,13 @@ interface PresetRenderContext {
 }
 
 type PresetRenderer = (ctx: PresetRenderContext) => React.ReactNode
+
+let officePresetGradientIdCounter = 0
+
+function nextOfficePresetGradientId(): string {
+  officePresetGradientIdCounter = (officePresetGradientIdCounter + 1) >>> 0
+  return `office-preset-gradient-${officePresetGradientIdCounter.toString(36)}`
+}
 
 /** Convert an OOXML per-mille adjustment (default + override) to fraction. */
 function adjPct(adj: Adj, key: string, defaultPerMille: number): number {
@@ -80,6 +90,28 @@ function svgStrokeAttrs(ctx: PresetRenderContext): {
   return out
 }
 
+function renderPresetGradientDefs(
+  ctx: PresetRenderContext,
+  viewBoxWidth = ctx.width,
+  viewBoxHeight = ctx.height
+): React.ReactNode {
+  if (!ctx.gradient || !ctx.gradientId) return null
+  return renderSvgGradientDefs(ctx.gradient, ctx.gradientId, Math.max(viewBoxWidth, viewBoxHeight))
+}
+
+function injectPresetGradientDefs(node: React.ReactNode, ctx: PresetRenderContext): React.ReactNode {
+  if (!ctx.gradient || !ctx.gradientId || !React.isValidElement(node)) return node
+  if (typeof node.type !== 'string' || node.type !== 'svg') return node
+
+  const svgNode = node as React.ReactElement<{ children?: React.ReactNode }>
+  const children = React.Children.toArray(svgNode.props.children)
+  const alreadyHasDefs = children.some(child => React.isValidElement(child) && child.type === 'defs')
+
+  if (alreadyHasDefs) return node
+
+  return React.cloneElement(svgNode, undefined, renderPresetGradientDefs(ctx), ...children)
+}
+
 function shapeSvg(ctx: PresetRenderContext, path: string): React.ReactNode {
   const { width, height, fillStyle, strokeColor, strokeWidth, shadow, lineCompound } = ctx
   const strokeAttrs = svgStrokeAttrs(ctx)
@@ -107,6 +139,7 @@ function shapeSvg(ctx: PresetRenderContext, path: string): React.ReactNode {
       preserveAspectRatio="none"
       style={{ overflow: 'visible' }}
     >
+      {renderPresetGradientDefs(ctx)}
       <g transform={svgTransform(ctx)}>
         <path
           d={path}
@@ -2683,6 +2716,7 @@ const renderRoundRect: PresetRenderer = ctx => {
       preserveAspectRatio="none"
       style={{ overflow: 'visible' }}
     >
+      {renderPresetGradientDefs(ctx)}
       <g
         transform={svgTransform(ctx)}
         style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : undefined }}
@@ -2978,6 +3012,7 @@ const renderRect: PresetRenderer = ctx => {
       preserveAspectRatio="none"
       style={{ overflow: 'visible' }}
     >
+      {renderPresetGradientDefs(ctx)}
       <g
         transform={svgTransform(ctx)}
         style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : undefined }}
@@ -4629,6 +4664,7 @@ const PRESET_RENDERERS: Record<string, PresetRenderer> = {
 export interface TryRenderOfficePresetInput {
   element: ShapeElement
   fillStyle: string
+  gradient?: GradientConfig
   strokeColor: string
   strokeWidth: number
   shadow: boolean
@@ -4644,6 +4680,7 @@ export interface TryRenderOfficePresetInput {
 export function tryRenderOfficePresetShape(input: TryRenderOfficePresetInput): React.ReactNode | null {
   const meta = getShapeGeometry(input.element)
   if (!meta?.prst) return null
+  const gradientId = input.gradient ? nextOfficePresetGradientId() : undefined
 
   // Try direct match, then graceful approximations for related presets.
   const renderer = PRESET_RENDERERS[meta.prst]
@@ -4660,7 +4697,9 @@ export function tryRenderOfficePresetShape(input: TryRenderOfficePresetInput): R
   const ctx: PresetRenderContext = {
     width: Math.max(1, input.width),
     height: Math.max(1, input.height),
-    fillStyle: input.fillStyle,
+    fillStyle: gradientId ? `url(#${gradientId})` : input.fillStyle,
+    ...(input.gradient ? { gradient: input.gradient } : {}),
+    ...(gradientId ? { gradientId } : {}),
     strokeColor: input.strokeColor,
     strokeWidth: input.strokeWidth,
     shadow: input.shadow,
@@ -4671,19 +4710,22 @@ export function tryRenderOfficePresetShape(input: TryRenderOfficePresetInput): R
     ...(input.element.lineJoin ? { lineJoin: input.element.lineJoin } : {}),
     ...(input.element.lineCompound ? { lineCompound: input.element.lineCompound } : {})
   }
-  return renderer(ctx)
+  return injectPresetGradientDefs(renderer(ctx), ctx)
 }
 
 function renderCustomPath(input: TryRenderOfficePresetInput, normalisedPath: string): React.ReactNode {
-  const { width, height, fillStyle, strokeColor, strokeWidth, shadow } = input
+  const { width, height, fillStyle, gradient, strokeColor, strokeWidth, shadow } = input
+  const gradientId = gradient ? nextOfficePresetGradientId() : undefined
+  const resolvedFill = gradientId ? `url(#${gradientId})` : fillStyle
   // Custom paths are stored in the unit box [0..1, 0..1]; we scale by applying
   // an SVG transform so the path language stays readable.
   return (
     <svg width="100%" height="100%" viewBox={`0 0 1 1`} preserveAspectRatio="none" style={{ overflow: 'visible' }}>
+      {gradient && gradientId ? renderSvgGradientDefs(gradient, gradientId, 1) : null}
       <g style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : undefined }}>
         <path
           d={normalisedPath}
-          fill={fillStyle}
+          fill={resolvedFill}
           stroke={strokeWidth > 0 ? strokeColor : 'none'}
           strokeWidth={strokeWidth / Math.max(width, height)}
         />

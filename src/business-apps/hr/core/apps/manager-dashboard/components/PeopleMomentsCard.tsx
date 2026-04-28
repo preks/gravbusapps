@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system'
-import { Cake, Trophy } from 'lucide-react'
+import { CakeIcon as Cake, TrophyIcon as Trophy } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface Birthday {

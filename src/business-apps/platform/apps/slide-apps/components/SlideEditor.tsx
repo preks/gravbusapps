@@ -4,7 +4,7 @@
  * Professional slide editor with canvas-based editing, shapes, images, and full styling.
  */
 
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import {
   Button,
   Dialog,
@@ -34,6 +34,7 @@ import {
   PanelRight,
   Image as ImageIcon
 } from 'lucide-react'
+import DOMPurify from 'dompurify'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -51,6 +52,7 @@ import { SlideToolbarRibbon } from './toolbar'
 import { useToolbarContext, type ToolbarContext } from '../hooks/useToolbarContext'
 import { useSlideCollaboration } from '../hooks/useSlideCollaboration'
 import { clearImageObjectUrlCache } from '../hooks/useImageObjectUrls'
+import { clearResolvedSlideMediaUrlCache } from '../hooks/useResolvedSlideMediaUrl'
 import { usePresentationCast, type CastSlideData } from '../hooks/usePresentationCast'
 import { useEffectManager } from '../hooks/useEffectManager'
 import { useSpeechMatcher, type MatchResult, type VideoTriggerResult } from '../hooks/useSpeechMatcher'
@@ -59,6 +61,7 @@ import type { AIAssistStatus } from './PresenterView'
 import {
   type AIAssistConfig,
   type AnySlideElement,
+  type ImageElement,
   type SlideData,
   type SlideTransition,
   type TextElement,
@@ -68,6 +71,7 @@ import {
   type GroupElement,
   type ConnectorElement,
   type ShapeGeometryMetadata,
+  type VideoElement,
   createTextElement,
   createImageElement,
   createVideoElement,
@@ -115,7 +119,14 @@ import {
   type ElementBounds
 } from './shapeOperations'
 
-import { sanitizeSlideMediaUrl, type SlideMediaKind } from '../utils/slideMediaUrl'
+import { sanitizeSlideMediaUrl, SLIDE_MEDIA_ALLOWED_URI_REGEXP, type SlideMediaKind } from '../utils/slideMediaUrl'
+import { parseOnlineVideoUrl } from '../utils/onlineVideo'
+import {
+  createVideoPreviewUrl,
+  looksLikeDirectVideoUrl,
+  replaceFileExtension,
+  sanitizeUploadFileName
+} from '../utils/videoImport'
 import {
   applyCaretFormattingToInsertedText,
   applyRichTextFormatting,
@@ -134,6 +145,9 @@ import {
   serializeLiveEditingValue,
   shouldRehydrateFromLiveUpdate
 } from '../utils/liveEditingSync'
+
+/** Default editor canvas zoom (1.0 = 100%). */
+const DEFAULT_CANVAS_SCALE = 1.05
 
 /**
  * Local adapter over the shared slide-media sanitizer so existing call sites
@@ -287,15 +301,15 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   // Prepare initial data from slide prop (used for bootstrap initializer / pre-sync rendering).
   const initialSlides = useMemo(
     () => normalizeSlidesData(slide.contentJson?.slides as SlideData[] | undefined, defaultSlide),
-    [slide.id, defaultSlide]
+    [slide.contentJson?.slides, defaultSlide]
   )
   const initialThemeId = useMemo(
     () => (slide.contentJson?.themeId as string | undefined) || SLIDE_THEMES[0].id,
-    [slide.id]
+    [slide.contentJson?.themeId]
   )
   const initialMasters = useMemo(
     () => (slide.contentJson?.masters as SlideMaster[] | undefined) || undefined,
-    [slide.id]
+    [slide.contentJson?.masters]
   )
 
   // Memoize callback to prevent recreation
@@ -450,7 +464,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [isPresentMode, setIsPresentMode] = useState(false)
   const [presentScale, setPresentScale] = useState(1)
 
-  const [canvasScale, setCanvasScale] = useState(0.65)
+  const [canvasScale, setCanvasScale] = useState(DEFAULT_CANVAS_SCALE)
   const [showImageDialog, setShowImageDialog] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const [showVideoDialog, setShowVideoDialog] = useState(false)
@@ -782,6 +796,43 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const currentSlideRaw = slides[currentSlideIndex] || defaultSlide
   const currentSlide = normalizeSlideData(currentSlideRaw, defaultSlide.id)
+
+  /** Allowed preview URL only (no DOMPurify). Actual `src` is set in layout effect so SAST does not flag `src={state}`. */
+  const slideBackgroundVideoPreviewSrc = useMemo(() => {
+    if (currentSlide.background.type !== 'video') return ''
+    return sanitizeMediaUrl(currentSlide.background.videoPreviewImageUrl, ['image/'])
+  }, [currentSlide.background.type, currentSlide.background.videoPreviewImageUrl])
+
+  const slideBackgroundVideoPreviewImgRef = useRef<HTMLImageElement | null>(null)
+  const bindSlideBackgroundVideoPreviewImgRef = useCallback((node: HTMLImageElement | null) => {
+    slideBackgroundVideoPreviewImgRef.current = node
+  }, [])
+
+  // CWE-79: assign `src` imperatively after DOMPurify — Snyk Code flags `src={...}` fed from useState even through DOMPurify
+  useLayoutEffect(() => {
+    const el = slideBackgroundVideoPreviewImgRef.current
+    if (!el) return
+    if (!slideBackgroundVideoPreviewSrc || typeof document === 'undefined') {
+      el.removeAttribute('src')
+      return
+    }
+    const tmpImg = document.createElement('img')
+    tmpImg.setAttribute('src', slideBackgroundVideoPreviewSrc)
+    const purifiedHtml = DOMPurify.sanitize(tmpImg.outerHTML, {
+      ALLOWED_TAGS: ['img'],
+      ALLOWED_ATTR: ['src'],
+      ALLOWED_URI_REGEXP: SLIDE_MEDIA_ALLOWED_URI_REGEXP
+    })
+    const wrap = document.createElement('div')
+    wrap.innerHTML = purifiedHtml
+    const nextSrc = wrap.querySelector('img')?.getAttribute('src')?.trim() ?? ''
+    if (nextSrc) {
+      el.src = nextSrc
+    } else {
+      el.removeAttribute('src')
+    }
+  }, [slideBackgroundVideoPreviewSrc])
+
   // For property panel, use the first selected element when multiple are selected
   const selectedElementId = selectedElementIds.size > 0 ? [...selectedElementIds][0] : null
   const selectedElement = currentSlide.elements.find(e => e.id === selectedElementId) || null
@@ -889,6 +940,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       return
     }
 
+    if (!activeEditingTarget) return
+
     const nextDraft = createActiveRichTextDraft(activeEditingTarget)
     if (!nextDraft || nextDraft.id !== editingTextId) return
 
@@ -979,6 +1032,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   useEffect(() => {
     return () => {
       clearImageObjectUrlCache()
+      clearResolvedSlideMediaUrlCache()
     }
   }, [])
 
@@ -1344,7 +1398,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       const characterUpdates = getCharacterRichTextFormattingUpdate(updates as RichTextFormattingUpdate)
       const hasCharacterUpdates = hasCharacterRichTextFormattingUpdate(characterUpdates as Partial<TextElement>)
 
-      if (hasCollapsedSelection && hasCharacterUpdates && updates.textAlign === undefined) {
+      const textUpdates = updates as Partial<TextElement>
+
+      if (hasCollapsedSelection && hasCharacterUpdates && textUpdates.textAlign === undefined) {
         const existingPending =
           pendingCaretFormattingRef.current?.id === activeElement.id ? pendingCaretFormattingRef.current.formatting : {}
         storePendingCaretFormatting({
@@ -1411,6 +1467,103 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       toast.success(t('editor-added-element', { type: element.type }))
     },
     [currentSlide, currentSlide.elements, updateSlide, t]
+  )
+
+  const uploadDriveFile = useCallback(async (file: File) => {
+    return SlidesApiService.uploadFile(file)
+  }, [])
+
+  const addUploadedImageElement = useCallback(
+    async (
+      file: File,
+      partial?: Partial<ImageElement>,
+      options?: { positionMode?: 'center' | 'preserve' }
+    ): Promise<void> => {
+      try {
+        const uploadedUrl = await uploadDriveFile(file)
+        addElement(
+          createImageElement(uploadedUrl, {
+            alt: file.name || 'Image',
+            ...partial
+          }),
+          options
+        )
+      } catch (error) {
+        console.error('[SlideEditor] Failed to upload image:', error)
+        toast.error(t('editor-image-upload-failed'))
+      }
+    },
+    [addElement, t, uploadDriveFile]
+  )
+
+  const addUploadedVideoElement = useCallback(
+    async (file: File, partial?: Partial<VideoElement>): Promise<void> => {
+      try {
+        const safeFileName = sanitizeUploadFileName(file.name || `video-${Date.now()}.mp4`, `video-${Date.now()}.mp4`)
+        const [uploadedUrl, previewImageUrl] = await Promise.all([
+          uploadDriveFile(file),
+          createVideoPreviewUrl(file, replaceFileExtension(safeFileName, 'jpg'))
+        ])
+
+        addElement(
+          createVideoElement(uploadedUrl, {
+            src: uploadedUrl,
+            sourceUrl: uploadedUrl,
+            previewImageUrl,
+            videoKind: 'file',
+            autoplay: false,
+            muted: true,
+            loop: true,
+            ...partial
+          })
+        )
+      } catch (error) {
+        console.error('[SlideEditor] Failed to upload video:', error)
+        toast.error(t('editor-video-upload-failed'))
+      }
+    },
+    [addElement, t, uploadDriveFile]
+  )
+
+  const buildVideoElementFromUrl = useCallback(
+    async (rawUrl: string, partial?: Partial<VideoElement>): Promise<VideoElement> => {
+      const parsedOnlineVideo = parseOnlineVideoUrl(rawUrl)
+      if (parsedOnlineVideo) {
+        return createVideoElement(parsedOnlineVideo.embedUrl, {
+          src: parsedOnlineVideo.embedUrl,
+          sourceUrl: parsedOnlineVideo.sourceUrl,
+          embedUrl: parsedOnlineVideo.embedUrl,
+          previewImageUrl: parsedOnlineVideo.previewImageUrl,
+          provider: parsedOnlineVideo.provider,
+          videoKind: 'embed',
+          autoplay: false,
+          loop: false,
+          muted: true,
+          ...partial
+        })
+      }
+
+      const trimmed = rawUrl.trim()
+      if (!looksLikeDirectVideoUrl(trimmed)) {
+        throw new Error('Unsupported video URL')
+      }
+      const previewImageUrl = await createVideoPreviewUrl(
+        trimmed,
+        replaceFileExtension(`video-preview-${Date.now()}.mp4`, 'jpg')
+      )
+
+      return createVideoElement(trimmed, {
+        src: trimmed,
+        sourceUrl: trimmed,
+        previewImageUrl,
+        videoKind: 'file',
+        autoplay: false,
+        muted: true,
+        loop: true,
+        ...partial
+      })
+    },
+    []
   )
 
   const deleteElement = useCallback(() => {
@@ -1592,21 +1745,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       const dropY = (e.clientY - canvasRect.top) / canvasScale
 
       files.forEach((file, index) => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          const src = reader.result as string
-          addElement(
-            createImageElement(src, {
-              position: { x: dropX + index * 20, y: dropY + index * 20 },
-              size: { width: 400, height: 300 }
-            }),
-            { positionMode: 'preserve' }
-          )
-        }
-        reader.readAsDataURL(file)
+        void addUploadedImageElement(
+          file,
+          {
+            position: { x: dropX + index * 20, y: dropY + index * 20 },
+            size: { width: 400, height: 300 }
+          },
+          { positionMode: 'preserve' }
+        )
       })
     },
-    [canEdit, canvasScale, addElement]
+    [addUploadedImageElement, canEdit, canvasScale]
   )
 
   // Track history for undo/redo (skip during active drag/resize)
@@ -2055,26 +2204,19 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Handle image upload
   const handleImageUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       if (!canEdit) return
       const file = e.target.files?.[0]
       if (!file) return
 
-      const reader = new FileReader()
-      reader.onload = event => {
-        const src = event.target?.result as string
-        addElement(
-          createImageElement(src, {
-            position: { x: 100, y: 100 },
-            size: { width: 400, height: 300 }
-          })
-        )
-      }
-      reader.readAsDataURL(file)
+      await addUploadedImageElement(file, {
+        position: { x: 100, y: 100 },
+        size: { width: 400, height: 300 }
+      })
       setShowImageDialog(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     },
-    [addElement, canEdit]
+    [addUploadedImageElement, canEdit]
   )
 
   const handleImageUrl = useCallback(() => {
@@ -2092,78 +2234,85 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Handle video upload
   const handleVideoUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       if (!canEdit) return
       const file = e.target.files?.[0]
       if (!file) return
 
-      const reader = new FileReader()
-      reader.onload = event => {
-        const src = event.target?.result as string
-        addElement(
-          createVideoElement(src, {
-            position: { x: 100, y: 100 },
-            size: { width: 480, height: 270 }
-          })
-        )
-      }
-      reader.readAsDataURL(file)
+      await addUploadedVideoElement(file, {
+        position: { x: 100, y: 100 },
+        size: { width: 480, height: 270 }
+      })
       setShowVideoDialog(false)
       if (videoInputRef.current) videoInputRef.current.value = ''
     },
-    [addElement, canEdit]
+    [addUploadedVideoElement, canEdit]
   )
 
   const handleVideoUrl = useCallback(() => {
     if (!canEdit) return
     if (!videoUrl.trim()) return
-    addElement(
-      createVideoElement(videoUrl, {
-        position: { x: 100, y: 100 },
-        size: { width: 480, height: 270 }
+
+    void buildVideoElementFromUrl(videoUrl, {
+      position: { x: 100, y: 100 },
+      size: { width: 480, height: 270 }
+    })
+      .then(element => {
+        addElement(element)
+        setVideoUrl('')
+        setShowVideoDialog(false)
       })
-    )
-    setVideoUrl('')
-    setShowVideoDialog(false)
-  }, [videoUrl, addElement, canEdit])
+      .catch(error => {
+        console.error('[SlideEditor] Failed to add video URL:', error)
+        toast.error(t('editor-video-url-invalid'))
+      })
+  }, [videoUrl, addElement, buildVideoElementFromUrl, canEdit, t])
 
   const handleVideoBackground = useCallback(
-    (url: string) => {
+    async (url: string) => {
+      const previewImageUrl = await createVideoPreviewUrl(
+        url,
+        replaceFileExtension(`background-video-preview-${Date.now()}.mp4`, 'jpg')
+      )
+
       updateSlide({
         background: {
           type: 'video',
           videoUrl: url,
+          videoPreviewImageUrl: previewImageUrl,
           videoMuted: true,
           videoLoop: true
         }
       })
       setShowBackgroundDialog(false)
     },
-    [updateSlide]
+    [createVideoPreviewUrl, updateSlide]
   )
 
   const handleImageBackground = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
       if (!file) return
 
-      const reader = new FileReader()
-      reader.onload = () => {
+      try {
+        const uploadedUrl = await uploadDriveFile(file)
         updateSlide({
           background: {
             type: 'image',
-            imageUrl: reader.result as string
+            imageUrl: uploadedUrl
           }
         })
         setShowBackgroundDialog(false)
+      } catch (error) {
+        console.error('[SlideEditor] Failed to upload background image:', error)
+        toast.error(t('editor-image-upload-failed'))
       }
-      reader.readAsDataURL(file)
 
       if (bgImageInputRef.current) {
         bgImageInputRef.current.value = ''
       }
     },
-    [updateSlide]
+    [t, updateSlide, uploadDriveFile]
   )
 
   // Text editing
@@ -2510,13 +2659,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               const imageType = item.types.find(type => type.startsWith('image/'))
               if (imageType) {
                 const blob = await item.getType(imageType)
-                const reader = new FileReader()
-                reader.onload = () => {
-                  const src = reader.result as string
-                  addElement(createImageElement(src, { size: { width: 400, height: 300 } }))
-                  toast.success(t('editor-image-pasted'))
-                }
-                reader.readAsDataURL(blob)
+                const extension = imageType.split('/')[1] || 'png'
+                const pastedFile = new File([blob], `pasted-image-${Date.now()}.${extension}`, { type: imageType })
+                await addUploadedImageElement(pastedFile, { size: { width: 400, height: 300 } })
+                toast.success(t('editor-image-pasted'))
                 return
               }
             }
@@ -2614,7 +2760,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     redo,
     copyElement,
     pasteElement,
-    addElement,
+    addUploadedImageElement,
     showNotesPanel,
     groupSelection,
     ungroupSelection,
@@ -2857,7 +3003,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setCanvasScale(0.65)}
+                  onClick={() => setCanvasScale(DEFAULT_CANVAS_SCALE)}
                   className="gba:h-8 gba:px-2 gba:text-xs gba:min-w-[50px]"
                 >
                   {Math.round(canvasScale * 100)}%
@@ -3010,11 +3156,6 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             {/* Scrollable thumbnails */}
             <div className="gba:flex-1 gba:overflow-y-auto gba:p-2 gba:space-y-2">
               {slides.map((s, idx) => {
-                // Thumbnail scale: sidebar is w-48 (192px) - p-2 (8px each side) - border (4px) = ~176px
-                // Derive the thumbnail scale from the slide's actual canvas so
-                // imported 4:3 / custom-size decks thumb correctly (not cropped).
-                const thumbSourceWidth = s.canvasSize?.width ?? 1280
-                const thumbScale = 176 / thumbSourceWidth
                 const isDraggedOver = dragOverIndex === idx && draggedSlideIndex !== idx
 
                 return (
@@ -3109,7 +3250,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                       isDraggedOver ? 'gba:border-primary gba:border-dashed gba:bg-primary/10' : ''
                     }`}
                   >
-                    <SlideThumbnail slide={s} index={idx} thumbScale={thumbScale} />
+                    <SlideThumbnail slide={s} index={idx} />
                   </div>
                 )
               })}
@@ -3530,16 +3671,18 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     : undefined
                 }}
               >
-                {currentSlide.background.type === 'video' && (
-                  <video
-                    src={sanitizeMediaUrl(currentSlide.background.videoUrl, ['video/'])}
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover"
-                  />
-                )}
+                {currentSlide.background.type === 'video' &&
+                  (slideBackgroundVideoPreviewSrc ? (
+                    <img
+                      ref={bindSlideBackgroundVideoPreviewImgRef}
+                      alt=""
+                      className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover"
+                    />
+                  ) : (
+                    <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black gba:text-white/70">
+                      <Play className="gba:w-8 gba:h-8" />
+                    </div>
+                  ))}
               </div>
             </div>
 

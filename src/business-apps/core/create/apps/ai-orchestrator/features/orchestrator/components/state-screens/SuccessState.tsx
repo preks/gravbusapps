@@ -19,7 +19,7 @@ import {
   Database
 } from 'lucide-react'
 import { Card, CardContent, Button, Badge, cn, useTranslation } from '@newwork/nw-design-system'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import type { ComponentSpec, ComponentType } from '../../types'
 import translations from '../../../../_i18n'
 
@@ -55,7 +55,7 @@ const componentTypeInfo: Record<
   flow: {
     icon: Workflow,
     label: 'Flow',
-    route: (id: string) => `/platform/apps/flow/apps/creator?templateId=${id}`
+    route: (id: string) => buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR, { flowId: id })
   },
   data_model: {
     icon: Database,

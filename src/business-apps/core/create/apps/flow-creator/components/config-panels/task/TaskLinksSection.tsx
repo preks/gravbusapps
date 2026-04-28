@@ -10,7 +10,7 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import { Link2, Plus, Trash2 } from 'lucide-react'
-import type { Link } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import type { Link } from '@/common/data/flow/types/flowTemplate'
 import { usePriorFileFieldOptions } from '../../shared/usePriorFileFieldOptions'
 
 type LinkKind = 'DOCUMENT' | 'URL'

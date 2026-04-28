@@ -18,7 +18,9 @@ import { gradientToCss, getImageCropStyles, textTransformToCss, textElementStubF
 import { resolveFontStack } from './fontStack'
 import { RichTextContent } from './RichTextContent'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
+import { renderShape as renderSharedShape } from './slideRenderUtils'
 import { sanitizeSlideImageUrl } from '../utils/slideMediaUrl'
+import { getVideoSourceUrl, isEmbedVideoElement, resolveVideoPreviewUrl } from '../utils/videoElement'
 
 /**
  * Default export dimensions when the deck has no declared canvas size.
@@ -38,7 +40,7 @@ interface SlideExportRendererProps {
  * Renders a single shape element.
  */
 const renderShape = (element: ShapeElement): React.ReactNode => {
-  const { shapeType, fill, gradient, strokeColor, strokeWidth, strokeStyle, cornerRadius, shadow } = element
+  const { fill, gradient, strokeColor, strokeWidth, shadow } = element
   const fillStyle = gradient ? gradientToCss(gradient) : fill
 
   // Preset-aware renderer for PPTX-imported shapes. When the shape does not
@@ -47,6 +49,7 @@ const renderShape = (element: ShapeElement): React.ReactNode => {
   const officePreset = tryRenderOfficePresetShape({
     element,
     fillStyle,
+    ...(gradient ? { gradient } : {}),
     strokeColor,
     strokeWidth,
     shadow,
@@ -57,153 +60,7 @@ const renderShape = (element: ShapeElement): React.ReactNode => {
     return <div style={{ width: '100%', height: '100%' }}>{officePreset}</div>
   }
 
-  const baseStyle: React.CSSProperties = {
-    width: '100%',
-    height: '100%',
-    background: fillStyle,
-    border: strokeWidth > 0 ? `${strokeWidth}px ${strokeStyle} ${strokeColor}` : 'none',
-    boxShadow: shadow ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none'
-  }
-
-  switch (shapeType) {
-    case 'rectangle':
-      return <div style={baseStyle} />
-    case 'rounded-rectangle':
-      return <div style={{ ...baseStyle, borderRadius: cornerRadius }} />
-    case 'circle':
-    case 'ellipse':
-      return <div style={{ ...baseStyle, borderRadius: '50%' }} />
-    case 'triangle':
-      return (
-        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-            <polygon
-              points="50,5 95,95 5,95"
-              fill={fillStyle}
-              stroke={strokeWidth > 0 ? strokeColor : 'none'}
-              strokeWidth={strokeWidth}
-              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-            />
-          </svg>
-        </div>
-      )
-    case 'diamond':
-      return (
-        <div style={{ width: '100%', height: '100%' }}>
-          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-            <polygon
-              points="50,5 95,50 50,95 5,50"
-              fill={fillStyle}
-              stroke={strokeWidth > 0 ? strokeColor : 'none'}
-              strokeWidth={strokeWidth}
-              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-            />
-          </svg>
-        </div>
-      )
-    case 'star':
-      return (
-        <div style={{ width: '100%', height: '100%' }}>
-          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-            <polygon
-              points="50,5 61,35 95,35 68,57 79,91 50,70 21,91 32,57 5,35 39,35"
-              fill={fillStyle}
-              stroke={strokeWidth > 0 ? strokeColor : 'none'}
-              strokeWidth={strokeWidth}
-              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-            />
-          </svg>
-        </div>
-      )
-    case 'hexagon':
-      return (
-        <div style={{ width: '100%', height: '100%' }}>
-          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-            <polygon
-              points="25,5 75,5 100,50 75,95 25,95 0,50"
-              fill={fillStyle}
-              stroke={strokeWidth > 0 ? strokeColor : 'none'}
-              strokeWidth={strokeWidth}
-              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-            />
-          </svg>
-        </div>
-      )
-    case 'arrow-right':
-      return (
-        <div style={{ width: '100%', height: '100%' }}>
-          <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
-            <polygon
-              points="0,20 65,20 65,5 100,30 65,55 65,40 0,40"
-              fill={fillStyle}
-              stroke={strokeWidth > 0 ? strokeColor : 'none'}
-              strokeWidth={strokeWidth}
-            />
-          </svg>
-        </div>
-      )
-    case 'arrow-left':
-      return (
-        <div style={{ width: '100%', height: '100%' }}>
-          <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
-            <polygon
-              points="100,20 35,20 35,5 0,30 35,55 35,40 100,40"
-              fill={fillStyle}
-              stroke={strokeWidth > 0 ? strokeColor : 'none'}
-              strokeWidth={strokeWidth}
-            />
-          </svg>
-        </div>
-      )
-    case 'arrow-up':
-      return (
-        <div style={{ width: '100%', height: '100%' }}>
-          <svg viewBox="0 0 60 100" style={{ width: '100%', height: '100%' }}>
-            <polygon
-              points="30,0 55,35 40,35 40,100 20,100 20,35 5,35"
-              fill={fillStyle}
-              stroke={strokeWidth > 0 ? strokeColor : 'none'}
-              strokeWidth={strokeWidth}
-            />
-          </svg>
-        </div>
-      )
-    case 'arrow-down':
-      return (
-        <div style={{ width: '100%', height: '100%' }}>
-          <svg viewBox="0 0 60 100" style={{ width: '100%', height: '100%' }}>
-            <polygon
-              points="30,100 55,65 40,65 40,0 20,0 20,65 5,65"
-              fill={fillStyle}
-              stroke={strokeWidth > 0 ? strokeColor : 'none'}
-              strokeWidth={strokeWidth}
-            />
-          </svg>
-        </div>
-      )
-    case 'line':
-      return (
-        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}>
-          <div style={{ width: '100%', height: strokeWidth || 4, backgroundColor: fill }} />
-        </div>
-      )
-    case 'callout':
-      return (
-        <div style={{ width: '100%', height: '100%' }}>
-          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-            <path
-              d="M5,5 H95 V70 H40 L25,95 L30,70 H5 Z"
-              fill={fillStyle}
-              stroke={strokeWidth > 0 ? strokeColor : 'none'}
-              strokeWidth={strokeWidth}
-              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
-            />
-          </svg>
-        </div>
-      )
-    default:
-      return <div style={baseStyle} />
-  }
+  return renderSharedShape(element, 'slide-export')
 }
 
 /**
@@ -291,7 +148,7 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
                   justifyContent:
                     te.verticalAlign === 'top' ? 'flex-start' : te.verticalAlign === 'bottom' ? 'flex-end' : 'center',
                   padding: st.padding,
-                  overflow: 'hidden',
+                  overflow: st.allowOverflow === true ? 'visible' : 'hidden',
                   boxSizing: 'border-box',
                   zIndex: 1
                 }}
@@ -401,6 +258,8 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
       {element.type === 'video' &&
         (() => {
           const videoEl: VideoElement = element
+          const previewImageUrl = sanitizeSlideImageUrl(resolveVideoPreviewUrl(videoEl))
+          const label = isEmbedVideoElement(videoEl) ? 'Online video' : 'Video'
           return (
             <div
               style={{
@@ -412,10 +271,35 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'hsl(var(--background))',
-                fontSize: '14px'
+                fontSize: '14px',
+                position: 'relative',
+                overflow: 'hidden'
               }}
             >
-              <span>Video: {videoEl.src}</span>
+              {previewImageUrl ? (
+                <img
+                  src={previewImageUrl}
+                  alt=""
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: videoEl.objectFit,
+                    position: 'absolute',
+                    inset: 0
+                  }}
+                />
+              ) : null}
+              <span
+                style={{
+                  position: 'relative',
+                  zIndex: 1,
+                  padding: '6px 10px',
+                  borderRadius: 999,
+                  background: 'hsl(var(--foreground) / 0.65)'
+                }}
+              >
+                {label}: {getVideoSourceUrl(videoEl)}
+              </span>
             </div>
           )
         })()}
@@ -523,7 +407,14 @@ const getBackgroundStyle = (background: SlideData['background']): React.CSSPrope
           }
         : {}
     case 'video':
-      return { backgroundColor: '#000000' }
+      return background.videoPreviewImageUrl
+        ? {
+            backgroundImage: `url(${sanitizeSlideImageUrl(background.videoPreviewImageUrl)})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundColor: '#000000'
+          }
+        : { backgroundColor: '#000000' }
     default:
       return { backgroundColor: background.color || '#ffffff' }
   }
@@ -556,7 +447,7 @@ const ExportSlide: React.FC<{ slide: SlideData }> = ({ slide }) => {
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundColor: 'hsl(var(--foreground))',
+            backgroundColor: slide.background.videoPreviewImageUrl ? 'transparent' : 'hsl(var(--foreground))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

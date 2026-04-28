@@ -164,18 +164,3 @@ export const CreatedAtCell = ({ row }: CellContext<Investment, unknown>) => {
     </div>
   )
 }
-
-/**
- * Cell renderer: Acquisition Date cell
- */
-export const AcquisitionDateCell = ({ row }: CellContext<Investment, unknown>) => {
-  if (!row.original.acquisitionDate) {
-    return <span className="gba:text-sm gba:text-muted-foreground">No date</span>
-  }
-  return (
-    <div className="gba:flex gba:items-center gba:gap-2 gba:truncate">
-      <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
-      <span className="gba:text-sm gba:truncate">{formatDate(row.original.acquisitionDate)}</span>
-    </div>
-  )
-}

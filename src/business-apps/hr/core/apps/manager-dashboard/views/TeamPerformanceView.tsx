@@ -13,7 +13,14 @@ import {
   AvatarFallback,
   Progress
 } from '@newwork/nw-design-system'
-import { ChevronLeft, MessageSquare, GraduationCap, Sparkles, AlertTriangle, RefreshCw } from 'lucide-react'
+import {
+  CaretLeftIcon as ChevronLeft,
+  ChatCircleDotsIcon as MessageSquare,
+  GraduationCapIcon as GraduationCap,
+  SparkleIcon as Sparkles,
+  WarningIcon as AlertTriangle,
+  ArrowsClockwiseIcon as RefreshCw
+} from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { normalizeProgress } from '@/business-apps/hr/core/apps/employee-record/components/tabs/performance-evaluation/utils/performanceGoalsSummary'
 import { TeamMemberPerformance, PerformanceGoal } from '../hooks/useTeamPerformance'
@@ -270,9 +277,9 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
 
   return (
     <div className="gba:min-h-full gba:px-4 gba:pb-8 gba:pt-5 md:gba:px-5 lg:gba:px-6">
-      <div className="gba:mx-auto gba:max-w-[1400px]">
+      <div className="gba:mx-auto gba:max-w-[1400px] gba:space-y-6">
         {/* Header */}
-        <div className="gba:flex gba:flex-col gba:gap-3 sm:gba:flex-row sm:gba:items-center sm:gba:justify-between gba:mb-5">
+        <div className="gba:flex gba:flex-col gba:gap-3 sm:gba:flex-row sm:gba:items-center sm:gba:justify-between">
           <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
             <Button
               variant="ghost"
@@ -311,13 +318,13 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         </div>
 
         {/* Summary KPIs — single row (5 columns); shrink typography on narrow viewports */}
-        <div className="gba:grid gba:grid-cols-5 gba:gap-2 sm:gba:gap-3 gba:mb-6">
+        <div className="gba:grid gba:grid-cols-5 gba:gap-2 sm:gba:gap-3">
           <button
             type="button"
             onClick={() => setStatusFilter('ALL')}
             className={`gba:min-w-0 gba:text-left gba:rounded-xl gba:transition-all ${kpiCardRing(statusFilter === 'ALL', 'primary')}`}
           >
-            <Card className="gba:border gba:border-border gba:bg-card gba:shadow-sm gba:p-3 sm:gba:p-4 gba:h-full">
+            <Card className="gba:h-full gba:border gba:border-border gba:bg-card gba:p-4 sm:gba:p-5 gba:shadow-none">
               <div className="gba:text-lg sm:gba:text-xl md:gba:text-2xl gba:font-bold gba:tabular-nums gba:text-foreground">
                 {averageTeamProgress}%
               </div>
@@ -331,7 +338,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
             onClick={() => setStatusFilter('ON_TRACK')}
             className={`gba:min-w-0 gba:text-left gba:rounded-xl gba:transition-all ${kpiCardRing(statusFilter === 'ON_TRACK', 'success')}`}
           >
-            <Card className="gba:border gba:border-border gba:bg-card gba:shadow-sm gba:p-3 sm:gba:p-4 gba:h-full">
+            <Card className="gba:h-full gba:border gba:border-border gba:bg-card gba:p-4 sm:gba:p-5 gba:shadow-none">
               <div className="gba:text-lg sm:gba:text-xl md:gba:text-2xl gba:font-bold gba:tabular-nums gba:text-success">
                 {goalsOnTrack}
               </div>
@@ -345,7 +352,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
             onClick={() => setStatusFilter('AT_RISK')}
             className={`gba:min-w-0 gba:text-left gba:rounded-xl gba:transition-all ${kpiCardRing(statusFilter === 'AT_RISK', 'warning')}`}
           >
-            <Card className="gba:border gba:border-border gba:bg-card gba:shadow-sm gba:p-3 sm:gba:p-4 gba:h-full">
+            <Card className="gba:h-full gba:border gba:border-border gba:bg-card gba:p-4 sm:gba:p-5 gba:shadow-none">
               <div className="gba:text-lg sm:gba:text-xl md:gba:text-2xl gba:font-bold gba:tabular-nums gba:text-warning">
                 {goalsAtRisk}
               </div>
@@ -359,7 +366,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
             onClick={() => setStatusFilter('BEHIND_TARGET')}
             className={`gba:min-w-0 gba:text-left gba:rounded-xl gba:transition-all ${kpiCardRing(statusFilter === 'BEHIND_TARGET', 'destructive')}`}
           >
-            <Card className="gba:border gba:border-border gba:bg-card gba:shadow-sm gba:p-3 sm:gba:p-4 gba:h-full">
+            <Card className="gba:h-full gba:border gba:border-border gba:bg-card gba:p-4 sm:gba:p-5 gba:shadow-none">
               <div className="gba:text-lg sm:gba:text-xl md:gba:text-2xl gba:font-bold gba:tabular-nums gba:text-destructive">
                 {goalsBehindTarget}
               </div>
@@ -373,7 +380,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
             onClick={() => setStatusFilter('ACHIEVED')}
             className={`gba:min-w-0 gba:text-left gba:rounded-xl gba:transition-all ${kpiCardRing(statusFilter === 'ACHIEVED', 'muted')}`}
           >
-            <Card className="gba:border gba:border-border gba:bg-card gba:shadow-sm gba:p-3 sm:gba:p-4 gba:h-full">
+            <Card className="gba:h-full gba:border gba:border-border gba:bg-card gba:p-4 sm:gba:p-5 gba:shadow-none">
               <div className="gba:text-lg sm:gba:text-xl md:gba:text-2xl gba:font-bold gba:tabular-nums gba:text-foreground">
                 {goalsAchieved}
               </div>
@@ -386,30 +393,19 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
 
         {/* Feedback & Skills summary row */}
         {(feedbackSummary || skillsSummary) && (
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }} data-layout="perf-summary-row">
-            <style>{`
-              [data-layout="perf-summary-row"] {
-                display: flex !important;
-                flex-direction: row !important;
-                flex-wrap: nowrap !important;
-              }
-              [data-layout="perf-summary-row"] > div {
-                flex: 1 1 0 !important;
-                min-width: 0 !important;
-              }
-            `}</style>
+          <div className="gba:flex gba:gap-4" data-layout="perf-summary-row">
             {/* Feedback Trend */}
             {feedbackSummary && (
-              <div>
-                <Card className="gba:border gba:border-border gba:bg-card gba:shadow-sm gba:h-full">
-                  <CardHeader className="gba:pb-2 gba:p-4">
+              <div className="gba:min-w-0 gba:flex-1">
+                <Card className="gba:h-full gba:border gba:border-border gba:bg-card gba:shadow-none">
+                  <CardHeader className="gba:px-5 gba:pb-3 gba:pt-5">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <MessageSquare size={16} className="gba:text-primary" />
                       <CardTitle className="gba:text-sm gba:font-semibold">Feedback Trend</CardTitle>
                     </div>
                     <p className="gba:text-xs gba:text-muted-foreground">Current cycle</p>
                   </CardHeader>
-                  <CardContent className="gba:px-4 gba:pb-4 gba:pt-0">
+                  <CardContent className="gba:px-5 gba:pb-5 gba:pt-0">
                     {feedbackSummary.loading ? (
                       <div className="gba:animate-pulse gba:space-y-2">
                         <div className="gba:h-5 gba:bg-muted gba:rounded gba:w-2/3" />
@@ -455,16 +451,16 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
 
             {/* Skills Coverage */}
             {skillsSummary && (
-              <div>
-                <Card className="gba:border gba:border-border gba:bg-card gba:shadow-sm gba:h-full">
-                  <CardHeader className="gba:pb-2 gba:p-4">
+              <div className="gba:min-w-0 gba:flex-1">
+                <Card className="gba:h-full gba:border gba:border-border gba:bg-card gba:shadow-none">
+                  <CardHeader className="gba:px-5 gba:pb-3 gba:pt-5">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <GraduationCap size={16} className="gba:text-primary" />
                       <CardTitle className="gba:text-sm gba:font-semibold">Skills Coverage</CardTitle>
                     </div>
                     <p className="gba:text-xs gba:text-muted-foreground">Team skill profile</p>
                   </CardHeader>
-                  <CardContent className="gba:px-4 gba:pb-4 gba:pt-0">
+                  <CardContent className="gba:px-5 gba:pb-5 gba:pt-0">
                     {skillsSummary.loading ? (
                       <div className="gba:animate-pulse gba:space-y-2">
                         <div className="gba:h-5 gba:bg-muted gba:rounded gba:w-2/3" />
@@ -538,16 +534,16 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
 
             {/* AI Insights trigger */}
             {insights && (
-              <div>
-                <Card className="gba:border gba:border-border gba:bg-card gba:shadow-sm gba:h-full">
-                  <CardHeader className="gba:pb-2 gba:p-4">
+              <div className="gba:min-w-0 gba:flex-1">
+                <Card className="gba:h-full gba:border gba:border-border gba:bg-card gba:shadow-none">
+                  <CardHeader className="gba:px-5 gba:pb-3 gba:pt-5">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Sparkles size={16} className="gba:text-primary" />
                       <CardTitle className="gba:text-sm gba:font-semibold">AI Summary</CardTitle>
                     </div>
                     <p className="gba:text-xs gba:text-muted-foreground">Goals, skills & feedback</p>
                   </CardHeader>
-                  <CardContent className="gba:px-4 gba:pb-4 gba:pt-0">
+                  <CardContent className="gba:px-5 gba:pb-5 gba:pt-0">
                     {insights.isAnalyzing ? (
                       <div className="gba:flex gba:items-center gba:gap-2 gba:py-2">
                         <div className="gba:animate-spin">
@@ -638,7 +634,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
               return (
                 <Card
                   key={member.employeeId}
-                  className="gba:min-w-0 gba:overflow-hidden gba:border gba:border-border gba:bg-card gba:shadow-sm"
+                  className="gba:min-w-0 gba:overflow-hidden gba:border gba:border-border gba:bg-card gba:shadow-none"
                 >
                   <div className="gba:border-b gba:border-border gba:bg-card gba:p-4">
                     <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">

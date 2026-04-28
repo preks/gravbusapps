@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Sheet, SheetContent, Switch } from '@newwork/nw-design-system'
-import { AlertTriangle, TrendingUp, Sparkles } from 'lucide-react'
+import { WarningIcon as AlertTriangle, TrendUpIcon as TrendingUp, SparkleIcon as Sparkles } from '@phosphor-icons/react'
 import { FlightRiskDetailPanel } from '../FlightRiskDetailPanel'
 import { EmployeePanelHeader } from '../shared/EmployeePanelHeader'
 

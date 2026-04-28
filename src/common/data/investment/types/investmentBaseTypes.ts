@@ -57,6 +57,9 @@ export interface BaseInvestment extends BaseEntity {
   forecastedRevenueAmount?: number
   forecastedProfitAmount?: number
   stakePercentage?: number
+  securityQuantity?: number
+  timeWeightedPerformance?: number
+  maturityDate?: string // ISO date string
   // Added fields returned by queries
   loanRecipientName?: string
   loanAmount?: number
@@ -110,6 +113,7 @@ export interface BaseInvestmentReport extends BaseEntity {
 
   // Report fields (from investment table)
   plannedExitDate?: string // ISO date string
+  initialInvestmentAmount?: number
   totalInvestmentAmount?: number
   investmentMarketValue?: number
   debtFinancingAmount?: number
@@ -117,6 +121,8 @@ export interface BaseInvestmentReport extends BaseEntity {
   forecastedRevenueAmount?: number
   forecastedProfitAmount?: number
   stakePercentage?: number
+  securityQuantity?: number
+  timeWeightedPerformance?: number
 
   loanRecipientName?: string
   loanAmount?: number

@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react'
 import { DataDisplay, Button } from '@newwork/nw-design-system'
+import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { useInvestmentExport } from './hooks/useInvestmentExport'
@@ -17,14 +18,27 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/utils/filterHelpers'
 import { INVESTMENT_DESCRIPTORS } from '@/common/data/investment/types/investmentTypes.new'
+import {
+  readViewPreferences,
+  writeViewPreferences,
+  type StoredPreferences
+} from '@/common/hooks/useViewPreferencesStorage'
 import { baseInvestmentFilterConfig, overviewInvestmentFilterConfig } from './data/investmentFilterConfig'
 import { useInvestmentSectionState } from './data/investment-data/useInvestmentSectionState'
 import { useGenericInvestmentSectionState } from './hooks/useGenericInvestmentSectionState'
-import { useInvestmentGroups } from './hooks/useInvestmentGroups'
+import {
+  useInvestmentGroups,
+  type InvestmentCatalogEntry,
+  type InvestmentGroup,
+  type InvestmentListCatalogData
+} from './hooks/useInvestmentGroups'
 import { useAllInvestmentCounts } from './hooks/useAllInvestmentCounts'
 import { useInvestmentTabsInitialization } from './hooks/useInvestmentTabsInitialization'
-import { getGroupConfiguration } from './config/groupConfigurations'
 import { aggregateDynamicStates } from './utils/kpiAggregation'
+import {
+  buildAggregatedInvestmentListColumnConfiguration,
+  type InvestmentListColumnConfiguration
+} from './utils/investmentListColumnTransformer'
 import {
   findCurrencyByCode,
   buildFilterWithCurrency,
@@ -37,6 +51,125 @@ import { CurrencyFilter } from '../analytics-view/shared/components/CurrencyFilt
 // Stable empty object to prevent infinite loops
 const EMPTY_FILTERS = {}
 const MAX_DYNAMIC_GROUP_SLOTS = 10
+const INVESTMENT_OVERVIEW_PREFERENCES_KEY = 'irm:investment-view:overview-preferences:v1'
+const OVERVIEW_DEFAULT_VISIBLE_COLUMNS = [
+  'name',
+  'investmentGroup',
+  'investmentType',
+  'totalInvestmentAmount',
+  'ownerEmployee',
+  'investmentStatus',
+  'createdAt',
+  'actions'
+]
+const OVERVIEW_AVAILABLE_COLUMN_IDS = [
+  'name',
+  'investmentGroup',
+  'investmentType',
+  'totalInvestmentAmount',
+  'securityQuantity',
+  'timeWeightedPerformance',
+  'maturityDate',
+  'ownerEmployee',
+  'investmentStatus',
+  'createdAt',
+  'actions'
+]
+const BASE_FILTER_ALIASES: Record<string, string[]> = {
+  acquisitionDateRange: ['acquisitionDate'],
+  plannedExitDateRange: ['plannedExitDate'],
+  exitDateRange: ['exitDate']
+}
+
+const mergeFilterConfigurations = (
+  baseConfig: FilterConfiguration,
+  dynamicConfig?: FilterConfiguration
+): FilterConfiguration => {
+  if (!dynamicConfig?.groups?.length) {
+    return baseConfig
+  }
+
+  const existingFilterIds = new Set(
+    baseConfig.groups.flatMap(group =>
+      group.filters.flatMap(filter => {
+        const filterId = filter.field || filter.id
+        return [filterId, ...(BASE_FILTER_ALIASES[filterId] || [])]
+      })
+    )
+  )
+  const dynamicGroups = dynamicConfig.groups
+    .map(group => ({
+      ...group,
+      filters: group.filters.filter(filter => !existingFilterIds.has(filter.field || filter.id))
+    }))
+    .filter(group => group.filters.length > 0)
+
+  if (dynamicGroups.length === 0) {
+    return baseConfig
+  }
+
+  return {
+    ...baseConfig,
+    groups: [...baseConfig.groups, ...dynamicGroups]
+  }
+}
+
+const belongsToInvestmentGroup = (entry: InvestmentCatalogEntry, group: InvestmentGroup): boolean => {
+  return (
+    entry.parentEntryId === group.id ||
+    entry.parentEntryId === group.code ||
+    entry.parentEntry?.id === group.id ||
+    entry.parentEntry?.code === group.code
+  )
+}
+
+const getInvestmentTypeFilterOptions = (
+  currentSection: string,
+  investmentGroups: InvestmentGroup[],
+  catalogData: InvestmentListCatalogData
+): Array<{ id: string; label: string }> | null => {
+  if (currentSection === 'overview') {
+    return null
+  }
+
+  const group = investmentGroups.find(item => item.tabId === currentSection)
+  if (!group) {
+    return null
+  }
+
+  const options = catalogData.investmentTypes
+    .filter(entry => belongsToInvestmentGroup(entry, group))
+    .map(entry => ({
+      id: entry.id,
+      label: entry.value || entry.code || entry.id
+    }))
+
+  return Array.from(new Map(options.map(option => [option.id, option])).values())
+}
+
+const getInvestmentGroupPreferencesKey = (group: Pick<InvestmentGroup, 'code' | 'id'>): string => {
+  return `irm:investment-view:group:${group.code || group.id}:preferences:v1`
+}
+
+const saveInvestmentViewPreferencePatch = (storageKey: string | undefined, patch: StoredPreferences): void => {
+  if (!storageKey) return
+  writeViewPreferences(storageKey, { ...readViewPreferences(storageKey), ...patch })
+}
+
+const reconcileVisibleColumns = (
+  cachedVisibleColumns: string[] | undefined,
+  availableColumnIds: string[],
+  defaultVisibleColumns: string[]
+): string[] | null => {
+  if (!cachedVisibleColumns) {
+    return null
+  }
+
+  const available = new Set(availableColumnIds)
+  const visibleColumns = cachedVisibleColumns.filter(column => available.has(column))
+
+  return visibleColumns.length > 0 ? visibleColumns : defaultVisibleColumns
+}
 
 const useDynamicGroupSlot = ({
   accessToken,
@@ -44,26 +177,70 @@ const useDynamicGroupSlot = ({
   index,
   filtersByTab,
   filtersReady,
-  currentSection
+  currentSection,
+  columnConfigByTab,
+  preferenceKeysByTab,
+  preferencesByTab
 }: {
   accessToken?: string
-  investmentGroups: Array<{ code: string; tabId: string }>
+  investmentGroups: InvestmentGroup[]
   index: number
   filtersByTab: Record<string, Record<string, any>>
   filtersReady: boolean
   currentSection: string
+  columnConfigByTab: Record<string, InvestmentListColumnConfiguration>
+  preferenceKeysByTab: Record<string, string>
+  preferencesByTab: Record<string, StoredPreferences>
 }) => {
   const group = investmentGroups[index]
   const tabId = group?.tabId
+  const columnConfig = tabId ? columnConfigByTab[tabId] : undefined
+  const preferences = tabId ? preferencesByTab[tabId] : undefined
+  const preferenceKey = tabId ? preferenceKeysByTab[tabId] : undefined
+  const availableColumnIds = useMemo(
+    () => (columnConfig ? ['name', ...columnConfig.availableColumns.map(column => column.id), 'actions'] : []),
+    [columnConfig]
+  )
+  const initialVisibleColumns = useMemo(
+    () =>
+      columnConfig
+        ? reconcileVisibleColumns(preferences?.visibleColumns, availableColumnIds, columnConfig.defaultVisibleColumns)
+        : null,
+    [availableColumnIds, columnConfig, preferences?.visibleColumns]
+  )
 
   // Full filters for the data list (respects all user-applied filters)
   const selectedFilters = useMemo(() => filtersByTab[tabId || ''] || {}, [filtersByTab, tabId])
 
-  const stateResult = useGenericInvestmentSectionState({
+  const handleSortingPreferenceChange = useCallback(
+    (sorting: Array<{ id: string; desc: boolean }>) => {
+      saveInvestmentViewPreferencePatch(preferenceKey, { sorting })
+    },
+    [preferenceKey]
+  )
+
+  const handleVisibleColumnsPreferenceChange = useCallback(
+    (visibleColumns: string[]) => {
+      saveInvestmentViewPreferencePatch(preferenceKey, { visibleColumns })
+    },
+    [preferenceKey]
+  )
+
+  const sectionStateOptions = {
     accessToken: filtersReady && group && currentSection === tabId ? accessToken || '' : '',
     groupCode: group?.code || '',
-    selectedFilters
-  })
+    selectedFilters,
+    defaultVisibleColumns: columnConfig?.defaultVisibleColumns,
+    initialSorting: preferences?.sorting ?? null,
+    onSortingChange: handleSortingPreferenceChange,
+    initialVisibleColumns,
+    onVisibleColumnsChange: handleVisibleColumnsPreferenceChange,
+    queryFields: columnConfig?.queryFields,
+    sortFieldByColumnId: columnConfig?.sortFieldByColumnId,
+    filterConditionByFilterId: columnConfig?.filterConditionByFilterId
+  }
+
+  const stateResult = useGenericInvestmentSectionState(sectionStateOptions)
 
   return {
     tabId,
@@ -80,7 +257,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   const { initialSubTab, onSubTabChange, accessToken } = context
 
   // Fetch investment groups from catalog dynamically
-  const { investmentGroups, isLoading: groupsLoading } = useInvestmentGroups(accessToken || '')
+  const { investmentGroups, catalogData, isLoading: groupsLoading } = useInvestmentGroups(accessToken || '')
 
   // Normalize section - only 'overview' is hardcoded, others come from catalog
   const normalize = useCallback(
@@ -125,6 +302,54 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   // Active tab count is sourced from the list query's totalCount after filters are applied.
   const allCounts = useAllInvestmentCounts(context, investmentGroups, currencyByTab, filtersReady)
 
+  const dynamicColumnConfigByTab = useMemo(
+    () =>
+      investmentGroups.reduce(
+        (acc, group) => {
+          acc[group.tabId] = buildAggregatedInvestmentListColumnConfiguration(group, catalogData)
+          return acc
+        },
+        {} as Record<string, InvestmentListColumnConfiguration>
+      ),
+    [catalogData, investmentGroups]
+  )
+
+  const preferenceKeysByTab = useMemo(
+    () =>
+      investmentGroups.reduce(
+        (acc, group) => {
+          acc[group.tabId] = getInvestmentGroupPreferencesKey(group)
+          return acc
+        },
+        { overview: INVESTMENT_OVERVIEW_PREFERENCES_KEY } as Record<string, string>
+      ),
+    [investmentGroups]
+  )
+
+  const preferencesByTab = useMemo(
+    () =>
+      Object.entries(preferenceKeysByTab).reduce(
+        (acc, [tabId, storageKey]) => {
+          acc[tabId] = readViewPreferences(storageKey)
+          return acc
+        },
+        {} as Record<string, StoredPreferences>
+      ),
+    [preferenceKeysByTab]
+  )
+
+  const initialFiltersByTab = useMemo(
+    () =>
+      Object.entries(preferencesByTab).reduce(
+        (acc, [tabId, preferences]) => {
+          acc[tabId] = preferences.filters ?? {}
+          return acc
+        },
+        {} as Record<string, Record<string, any>>
+      ),
+    [preferencesByTab]
+  )
+
   // Bounded dynamic slots to support scalable groups without fixed group0..group4 wiring
   const groupSlot0 = useDynamicGroupSlot({
     accessToken,
@@ -132,7 +357,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     index: 0,
     filtersByTab,
     filtersReady,
-    currentSection
+    currentSection,
+    columnConfigByTab: dynamicColumnConfigByTab,
+    preferenceKeysByTab,
+    preferencesByTab
   })
   const groupSlot1 = useDynamicGroupSlot({
     accessToken,
@@ -140,7 +368,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     index: 1,
     filtersByTab,
     filtersReady,
-    currentSection
+    currentSection,
+    columnConfigByTab: dynamicColumnConfigByTab,
+    preferenceKeysByTab,
+    preferencesByTab
   })
   const groupSlot2 = useDynamicGroupSlot({
     accessToken,
@@ -148,7 +379,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     index: 2,
     filtersByTab,
     filtersReady,
-    currentSection
+    currentSection,
+    columnConfigByTab: dynamicColumnConfigByTab,
+    preferenceKeysByTab,
+    preferencesByTab
   })
   const groupSlot3 = useDynamicGroupSlot({
     accessToken,
@@ -156,7 +390,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     index: 3,
     filtersByTab,
     filtersReady,
-    currentSection
+    currentSection,
+    columnConfigByTab: dynamicColumnConfigByTab,
+    preferenceKeysByTab,
+    preferencesByTab
   })
   const groupSlot4 = useDynamicGroupSlot({
     accessToken,
@@ -164,7 +401,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     index: 4,
     filtersByTab,
     filtersReady,
-    currentSection
+    currentSection,
+    columnConfigByTab: dynamicColumnConfigByTab,
+    preferenceKeysByTab,
+    preferencesByTab
   })
   const groupSlot5 = useDynamicGroupSlot({
     accessToken,
@@ -172,7 +412,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     index: 5,
     filtersByTab,
     filtersReady,
-    currentSection
+    currentSection,
+    columnConfigByTab: dynamicColumnConfigByTab,
+    preferenceKeysByTab,
+    preferencesByTab
   })
   const groupSlot6 = useDynamicGroupSlot({
     accessToken,
@@ -180,7 +423,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     index: 6,
     filtersByTab,
     filtersReady,
-    currentSection
+    currentSection,
+    columnConfigByTab: dynamicColumnConfigByTab,
+    preferenceKeysByTab,
+    preferencesByTab
   })
   const groupSlot7 = useDynamicGroupSlot({
     accessToken,
@@ -188,7 +434,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     index: 7,
     filtersByTab,
     filtersReady,
-    currentSection
+    currentSection,
+    columnConfigByTab: dynamicColumnConfigByTab,
+    preferenceKeysByTab,
+    preferencesByTab
   })
   const groupSlot8 = useDynamicGroupSlot({
     accessToken,
@@ -196,7 +445,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     index: 8,
     filtersByTab,
     filtersReady,
-    currentSection
+    currentSection,
+    columnConfigByTab: dynamicColumnConfigByTab,
+    preferenceKeysByTab,
+    preferencesByTab
   })
   const groupSlot9 = useDynamicGroupSlot({
     accessToken,
@@ -204,7 +456,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     index: 9,
     filtersByTab,
     filtersReady,
-    currentSection
+    currentSection,
+    columnConfigByTab: dynamicColumnConfigByTab,
+    preferenceKeysByTab,
+    preferencesByTab
   })
 
   const dynamicGroupSlots = useMemo(
@@ -237,12 +492,31 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
 
   // Create stable filter reference for overview
   const stableOverviewFilters = useMemo(() => filtersByTab.overview || {}, [filtersByTab.overview])
+  const overviewInitialVisibleColumns = useMemo(
+    () =>
+      reconcileVisibleColumns(
+        preferencesByTab.overview?.visibleColumns,
+        OVERVIEW_AVAILABLE_COLUMN_IDS,
+        OVERVIEW_DEFAULT_VISIBLE_COLUMNS
+      ),
+    [preferencesByTab.overview?.visibleColumns]
+  )
+  const saveOverviewSorting = useCallback((sorting: Array<{ id: string; desc: boolean }>) => {
+    saveInvestmentViewPreferencePatch(INVESTMENT_OVERVIEW_PREFERENCES_KEY, { sorting })
+  }, [])
+  const saveOverviewVisibleColumns = useCallback((visibleColumns: string[]) => {
+    saveInvestmentViewPreferencePatch(INVESTMENT_OVERVIEW_PREFERENCES_KEY, { visibleColumns })
+  }, [])
 
   // Overview state (hardcoded)
   const shouldFetchOverview = filtersReady && currentSection === 'overview'
   const overviewState = useInvestmentSectionState({
     accessToken: shouldFetchOverview ? accessToken || '' : '',
-    selectedFilters: stableOverviewFilters
+    selectedFilters: stableOverviewFilters,
+    initialSorting: preferencesByTab.overview?.sorting ?? null,
+    onSortingChange: saveOverviewSorting,
+    initialVisibleColumns: overviewInitialVisibleColumns,
+    onVisibleColumnsChange: saveOverviewVisibleColumns
   })
 
   const dynamicStates = useMemo(
@@ -284,7 +558,8 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     investmentGroups,
     setCurrencyByTab,
     setFiltersByTab,
-    setFiltersReady
+    setFiltersReady,
+    initialFiltersByTab
   )
 
   // Section change handler
@@ -311,6 +586,8 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   selectedCurrencyRef.current = selectedCurrency
   const currentStateRef = useRef(currentState)
   currentStateRef.current = currentState
+  const preferenceKeysByTabRef = useRef(preferenceKeysByTab)
+  preferenceKeysByTabRef.current = preferenceKeysByTab
 
   // Fetch all accounts linked to any investment — shared across every tab.
   // No group or currency scoping so the list is fetched exactly once after initialisation.
@@ -321,7 +598,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
 
   const injectAccountFilter = useCallback(
     (filter: any) => {
-      if (filter.id !== 'investmentAccountIds') return filter
+      if (filter.id !== 'investmentAccountIds' || accountOptions.length === 0) return filter
       return {
         ...filter,
         config: {
@@ -343,17 +620,53 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     [injectAccountFilter]
   )
 
+  const investmentTypeOptions = useMemo(
+    () => getInvestmentTypeFilterOptions(currentSection, investmentGroups, catalogData),
+    [catalogData, currentSection, investmentGroups]
+  )
+
+  const injectInvestmentTypeFilter = useCallback(
+    (filter: any) => {
+      if (filter.id !== 'investmentTypeIds' || investmentTypeOptions === null) return filter
+      return {
+        ...filter,
+        config: {
+          ...filter.config,
+          options: investmentTypeOptions,
+          totalCount: investmentTypeOptions.length,
+          hasMore: false
+        }
+      }
+    },
+    [investmentTypeOptions]
+  )
+
+  const injectInvestmentTypeGroup = useCallback(
+    (group: any) => {
+      if (group.id !== 'investment-type-group') return group
+      return { ...group, filters: group.filters.map(injectInvestmentTypeFilter) }
+    },
+    [injectInvestmentTypeFilter]
+  )
+
+  const injectBaseFilterGroups = useCallback(
+    (group: any) => injectInvestmentTypeGroup(injectAccountGroup(group)),
+    [injectAccountGroup, injectInvestmentTypeGroup]
+  )
+
   const currentFilterConfig = useMemo(() => {
     const baseConfig = currentSection === 'overview' ? overviewInvestmentFilterConfig : baseInvestmentFilterConfig
+    const sectionFilterConfig =
+      currentSection === 'overview'
+        ? baseConfig
+        : mergeFilterConfigurations(baseConfig, dynamicColumnConfigByTab[currentSection]?.dynamicFilterConfig)
     const builtConfig =
       filterGroups.isLoading || Object.keys(filterGroups.filterData || {}).length === 0
-        ? baseConfig
-        : buildDynamicFilterConfig(baseConfig, INVESTMENT_DESCRIPTORS, filterGroups)
+        ? sectionFilterConfig
+        : buildDynamicFilterConfig(sectionFilterConfig, INVESTMENT_DESCRIPTORS, filterGroups)
 
-    if (accountOptions.length === 0) return builtConfig
-
-    return { ...builtConfig, groups: builtConfig.groups.map(injectAccountGroup) }
-  }, [currentSection, filterGroups, accountOptions, injectAccountGroup])
+    return { ...builtConfig, groups: builtConfig.groups.map(injectBaseFilterGroups) }
+  }, [currentSection, filterGroups, injectBaseFilterGroups, dynamicColumnConfigByTab])
 
   // Stable filter change handler — uses refs so it never needs to be recreated.
   // Matches the AccountLayout pattern (empty deps, functional state updates).
@@ -369,6 +682,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
       : buildFilterWithCurrency(newFilters, findCurrencyByCode(availableCurrenciesRef.current, selection))
 
     setFiltersByTab(prev => ({ ...prev, [section]: finalFilters }))
+    saveInvestmentViewPreferencePatch(preferenceKeysByTabRef.current[section], { filters: finalFilters })
 
     const state = currentStateRef.current
     state.handlePaginationChange({ pageIndex: 0, pageSize: state.pageSize })
@@ -377,45 +691,59 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   // Currency change handler
   const handleCurrencyChange = useCallback(
     (newCurrency: string) => {
+      const sectionFilters = { ...selectedFilters }
+      if (isAllCurrencySelection(newCurrency)) {
+        delete sectionFilters.currencyIds
+      } else {
+        Object.assign(sectionFilters, buildCurrencyFilter(availableCurrencies, newCurrency))
+      }
+
       setCurrencyByTab(prev => ({ ...prev, [currentSection]: newCurrency }))
-      setFiltersByTab(prev => {
-        const sectionFilters = { ...prev[currentSection] }
-        if (isAllCurrencySelection(newCurrency)) {
-          delete sectionFilters.currencyIds
-        } else {
-          Object.assign(sectionFilters, buildCurrencyFilter(availableCurrencies, newCurrency))
-        }
-        return { ...prev, [currentSection]: sectionFilters }
-      })
+      setFiltersByTab(prev => ({ ...prev, [currentSection]: sectionFilters }))
+      saveInvestmentViewPreferencePatch(preferenceKeysByTab[currentSection], { filters: sectionFilters })
     },
-    [currentSection, availableCurrencies]
+    [availableCurrencies, currentSection, preferenceKeysByTab, selectedFilters]
   )
 
   // Column definitions
-  const availableColumns = useMemo(
-    () => [
+  const availableColumns = useMemo(() => {
+    if (currentSection !== 'overview') {
+      const dynamicColumns = dynamicColumnConfigByTab[currentSection]?.availableColumns || []
+      return [{ id: 'name', label: 'Investment' }, ...dynamicColumns, { id: 'actions', label: 'Actions' }]
+    }
+
+    return [
       { id: 'name', label: 'Investment' },
       { id: 'investmentGroup', label: 'Group' },
       { id: 'investmentType', label: 'Type' },
       { id: 'totalInvestmentAmount', label: 'Total Investment' },
+      { id: 'securityQuantity', label: 'Quantity' },
+      { id: 'timeWeightedPerformance', label: 'Time-Weighted Performance' },
+      { id: 'maturityDate', label: 'Maturity Date' },
       { id: 'ownerEmployee', label: 'Owner' },
       { id: 'investmentStatus', label: 'Status' },
       { id: 'createdAt', label: 'Created' },
       { id: 'actions', label: 'Actions' }
-    ],
-    []
-  )
+    ]
+  }, [currentSection, dynamicColumnConfigByTab])
 
-  const sortableColumns = useMemo(
-    () => [
+  const sortableColumns = useMemo(() => {
+    if (currentSection !== 'overview') {
+      const dynamicColumns = dynamicColumnConfigByTab[currentSection]?.sortableColumns || []
+      return [{ id: 'name', label: 'Investment' }, ...dynamicColumns]
+    }
+
+    return [
       { id: 'name', label: 'Investment' },
       { id: 'totalInvestmentAmount', label: 'Total Investment' },
+      { id: 'securityQuantity', label: 'Quantity' },
+      { id: 'timeWeightedPerformance', label: 'Time-Weighted Performance' },
+      { id: 'maturityDate', label: 'Maturity Date' },
       { id: 'ownerEmployee', label: 'Owner' },
       { id: 'investmentStatus', label: 'Status' },
       { id: 'createdAt', label: 'Created' }
-    ],
-    []
-  )
+    ]
+  }, [currentSection, dynamicColumnConfigByTab])
 
   // Listen for process completion - refetch counts + active section data
   useProcessCompletion({
@@ -566,7 +894,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     const state = dynamicStates[currentSection]
     if (!group || !state) return null
 
-    const config = getGroupConfiguration(group.code)
+    const columnConfig = dynamicColumnConfigByTab[group.tabId]
 
     return (
       <GenericInvestmentsList
@@ -576,9 +904,9 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
           dataTestIdPrefix: `${group.tabId}-investment`,
           defaultTypeLabel: 'Unknown',
           fromSubView: group.tabId,
-          extraColumns: config.extraColumns || [],
           emptyMessage: `No ${group.label.toLowerCase()} investments found`
         }}
+        catalogColumns={columnConfig?.columns}
         data={state.investments}
         loading={state.isInitialLoading}
         error={state.error}

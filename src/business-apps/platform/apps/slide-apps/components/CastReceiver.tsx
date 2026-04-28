@@ -199,6 +199,12 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
 
   // Handle video control commands
   const handleVideoControl = useCallback((elementId: string, action: 'play' | 'pause' | 'restart') => {
+    const embeddedVideo = document.querySelector(`[data-element-id="${elementId}"] iframe`)
+    if (embeddedVideo) {
+      console.info('[CastReceiver] Embedded video controls are not supported yet:', elementId, action)
+      return false
+    }
+
     const video = document.querySelector(`[data-element-id="${elementId}"] video`) as HTMLVideoElement
     if (!video) {
       console.warn('[CastReceiver] Video element not found:', elementId)

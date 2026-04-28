@@ -216,7 +216,7 @@ export function useInvestments(
         })
 
         const orderByArray = buildOrderBy(resolveOrderBy(vars), INVESTMENT_DESCRIPTORS)
-        const includeEquity = config === 'equity'
+        const includeEquity = config === 'equity' || (Array.isArray(config) && config.includes('equityInvestment'))
 
         const query = `
           query GetInvestments(

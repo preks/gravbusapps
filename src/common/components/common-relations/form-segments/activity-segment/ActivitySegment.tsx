@@ -162,13 +162,6 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
     }
   }, [isNewEntity, form])
 
-  // Prime entity search on mount if needed
-  React.useEffect(() => {
-    if (showEntitySelection && onEntitySearch && (!entities || entities.length === 0)) {
-      onEntitySearch('')
-    }
-  }, [showEntitySelection, onEntitySearch, entities])
-
   // Apply initial entity from context when none is set yet
   React.useEffect(() => {
     if (!initialEntityFromContext) return

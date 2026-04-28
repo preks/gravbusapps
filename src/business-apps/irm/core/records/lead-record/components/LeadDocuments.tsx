@@ -109,6 +109,7 @@ const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context }) => {
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}
       deleteActionProps={documentDeleteActionProps}
+      aiOrganizeConfig={{ moduleType: 'IRM', entityType: 'LEAD', domain: 'investment' }}
       toolbarActions={uploadToolbarActions}
       data-testid="lead-document-section"
       {...context}

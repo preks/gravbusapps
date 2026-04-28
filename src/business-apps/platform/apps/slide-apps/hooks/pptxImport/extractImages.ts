@@ -5,7 +5,7 @@ import { createImageElement } from '../../components/slideElements'
 import type { SlideRelationships } from './types'
 import type { ParserMessage } from '../usePowerPointParser'
 import { emuToPixels, rotationToAngle, extractTransform, getChild, isInsideGroup, nextImportUid } from './ooxmlUtils'
-import { METAFILE_PLACEHOLDER_DATA_URL, resolveMediaData } from './resolveRelationships'
+import { resolveImportedImageUrl, resolveMediaData } from './resolveRelationships'
 
 /**
  * Parse <a:srcRect l="..." t="..." r="..." b="..."> into a normalized
@@ -147,21 +147,10 @@ export function extractImageElements(
     const embedRelId = pickEmbedWithResolvableMedia(svgEmbedId, rasterEmbedId, relationships, imageData)
     const linkRelId = blip.getAttributeNS(RELS_NS, 'link') || blip.getAttribute('r:link')
 
-    if (!embedRelId) {
-      // No embedded bytes at all. PPTX lets authors reference external URLs
-      // via `r:link`, but we don't fetch those (CORS + privacy). Surface a
-      // warning so the missing image doesn't look like an unexplained blank.
-      if (linkRelId && messages && slideNumber) {
-        messages.push({
-          type: 'warning',
-          message: 'parser-image-linked-unsupported',
-          params: { slide: slideNumber }
-        })
-      }
-      continue
-    }
+    const imageRelId = embedRelId || linkRelId
+    if (!imageRelId) continue
 
-    const imagePath = relationships.images.get(embedRelId)
+    const imagePath = relationships.images.get(imageRelId)
     if (!imagePath) {
       if (messages && slideNumber) {
         messages.push({
@@ -173,29 +162,16 @@ export function extractImageElements(
       continue
     }
 
-    const imageBase64 = resolveMediaData(imagePath, imageData)
-    if (!imageBase64) {
+    const imageUrl = resolveImportedImageUrl(imagePath, imageData)
+    if (!imageUrl) {
       if (messages && slideNumber) {
         messages.push({
           type: 'warning',
-          message: 'parser-image-missing',
+          message: linkRelId && !embedRelId ? 'parser-image-linked-unsupported' : 'parser-image-missing',
           params: { slide: slideNumber }
         })
       }
       continue
-    }
-
-    // Diagnostic: when we end up using the metafile placeholder the user gets
-    // a blank-looking frame even though import "succeeded". Surface that so
-    // the cause (EMF/WMF without SVG sibling AND without embedded raster) is
-    // visible in the import result panel instead of looking like a render
-    // bug.
-    if (imageBase64 === METAFILE_PLACEHOLDER_DATA_URL && messages && slideNumber) {
-      messages.push({
-        type: 'warning',
-        message: 'parser-image-metafile-placeholder',
-        params: { slide: slideNumber, path: imagePath }
-      })
     }
 
     const x = emuToPixels(transform.x)
@@ -213,11 +189,11 @@ export function extractImageElements(
     //     whose aspect ratio differs from the metafile's natural aspect.
     //   - Everything else (photos, screenshots, generic bitmaps) → 'cover'
     //     to match the existing behaviour PowerPoint uses for pictures.
-    const isVectorSrc = typeof imageBase64 === 'string' && imageBase64.startsWith('data:image/svg+xml')
+    const isVectorSrc = typeof imageUrl === 'string' && imageUrl.startsWith('data:image/svg+xml')
     const objectFit: 'fill' | 'cover' | 'contain' = cropRect ? 'fill' : isVectorSrc ? 'contain' : 'cover'
 
     elements.push(
-      createImageElement(imageBase64, {
+      createImageElement(imageUrl, {
         id: nextImportUid('image-import'),
         position: { x: Math.max(0, x), y: Math.max(0, y) },
         size: { width: Math.max(20, width), height: Math.max(20, height) },

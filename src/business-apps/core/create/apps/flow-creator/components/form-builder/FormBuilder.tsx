@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useMemo } from 'react'
 import { Button, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { FileText, Plus } from 'lucide-react'
-import { InputType, type InputBlock } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { InputType, type InputBlock } from '@/common/data/flow/types/flowTemplate'
 import type { DesignerMode } from '../../types/studioTypes'
 import { FormFieldEditor } from './FormFieldEditor'
 

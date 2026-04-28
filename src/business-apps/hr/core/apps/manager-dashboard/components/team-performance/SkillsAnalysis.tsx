@@ -14,7 +14,12 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { Brain, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import {
+  BrainIcon as Brain,
+  ArrowsDownUpIcon as ArrowUpDown,
+  ArrowUpIcon as ArrowUp,
+  ArrowDownIcon as ArrowDown
+} from '@phosphor-icons/react'
 import type { TeamMemberSkills } from '../../hooks/useTeamSkills'
 import type { TeamMemberEvaluation } from '../../hooks/useTeamEvaluations'
 import {

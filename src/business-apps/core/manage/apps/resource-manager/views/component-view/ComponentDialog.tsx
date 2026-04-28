@@ -64,6 +64,7 @@ interface ComponentDialogProps extends BusinessAppContextProps {
 // Combined type options (merged builder + screen type)
 type CombinedType =
   | 'native-screen'
+  | 'system-component'
   | 'native-form'
   | 'native-popup'
   | 'native-window'
@@ -73,6 +74,7 @@ type CombinedType =
 
 const COMBINED_TYPE_OPTIONS: Array<{ value: CombinedType; label: string }> = [
   { value: 'native-screen', label: 'Native Screen' },
+  { value: 'system-component', label: 'System Component' },
   { value: 'native-form', label: 'Native Form' },
   { value: 'native-popup', label: 'Native Popup' },
   { value: 'native-window', label: 'Native Window' },
@@ -82,18 +84,28 @@ const COMBINED_TYPE_OPTIONS: Array<{ value: CombinedType; label: string }> = [
 ]
 
 // Form validation schema
-const componentFormSchema = z.object({
-  type: z.string().min(1, 'Type is required'),
-  name: z.string().min(1, 'Name is required'),
-  componentPath: z.string().min(1, 'Component path is required'),
-  urlPath: z.string().optional(),
-  domain: z.string().optional(),
-  process: z.string().optional(),
-  keyOverride: z.string().optional(),
-  isLaunchingForm: z.boolean().optional(),
-  userTaskName: z.string().optional(),
-  version: z.string().optional()
-})
+const componentFormSchema = z
+  .object({
+    type: z.string().min(1, 'Type is required'),
+    name: z.string().min(1, 'Name is required'),
+    componentPath: z.string().min(1, 'Component path is required'),
+    urlPath: z.string().optional(),
+    domain: z.string().optional(),
+    process: z.string().optional(),
+    keyOverride: z.string().optional(),
+    isLaunchingForm: z.boolean().optional(),
+    userTaskName: z.string().optional(),
+    version: z.string().optional()
+  })
+  .superRefine((data, ctx) => {
+    if (data.type === 'system-component' && !data.keyOverride?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'System key is required',
+        path: ['keyOverride']
+      })
+    }
+  })
 
 type ComponentFormData = z.infer<typeof componentFormSchema>
 
@@ -105,6 +117,11 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
   initialData,
   'data-testid': dataTestId = 'component-dialog'
 }) => {
+  const toSystemKeySuffix = useCallback((value: string): string => {
+    const normalized = value.toLowerCase().replaceAll(/[^a-z0-9]+/g, '_')
+    return normalized.replace(/^_/, '').replace(/_$/, '')
+  }, [])
+
   // Combined type state (for UI)
   const [combinedType, setCombinedType] = useState<CombinedType>('native-screen')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -167,16 +184,23 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
   useEffect(() => {
     if (open && initialData && mode === 'update') {
       // Reconstruct combined type from builder and screen type
-      const combined = combineBuildAndScreenType(
+      let combined = combineBuildAndScreenType(
         initialData.screenComponents?.builderType || 'NATIVE_SCREEN',
         initialData.type || 'SCREEN'
       )
+      if (initialData.screenKey?.startsWith('sys_')) {
+        combined = 'system-component'
+      }
       setCombinedType(combined as CombinedType)
 
       // Extract URL path from screen key if it's url_ format
       let extractedUrlPath = ''
       if (initialData.screenKey?.startsWith('url_')) {
         extractedUrlPath = screenKeyToUrlPath(initialData.screenKey)
+      }
+      let extractedSystemKeySuffix = ''
+      if (initialData.screenKey?.startsWith('sys_')) {
+        extractedSystemKeySuffix = initialData.screenKey.substring(4)
       }
 
       // Parse form screen key for forms/popups/windows
@@ -204,7 +228,7 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
       form.setValue('urlPath', extractedUrlPath)
       form.setValue('domain', parsedFormData?.domain || '')
       form.setValue('process', parsedFormData?.process || '')
-      form.setValue('keyOverride', keySuffixFromScreenKey)
+      form.setValue('keyOverride', extractedSystemKeySuffix || keySuffixFromScreenKey)
       form.setValue('isLaunchingForm', parsedFormData?.isLaunchingForm ?? true)
       form.setValue('userTaskName', parsedFormData?.userTaskName || '')
       form.setValue('version', initialData.screenComponents?.formDefinition?.version || '')
@@ -270,6 +294,9 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
         let screenKey = ''
         if (combinedType === 'native-screen' && data.urlPath) {
           screenKey = urlPathToScreenKey(data.urlPath)
+        } else if (combinedType === 'system-component') {
+          const suffix = data.keyOverride?.trim() ? toSystemKeySuffix(data.keyOverride.trim()) : ''
+          screenKey = suffix ? `sys_${suffix}` : 'sys_'
         } else if (
           combinedType === 'native-form' ||
           combinedType === 'native-popup' ||
@@ -330,10 +357,11 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
         setIsSubmitting(false)
       }
     },
-    [combinedType, formKeyMode, onSubmit, onOpenChange]
+    [combinedType, formKeyMode, onSubmit, onOpenChange, toSystemKeySuffix]
   )
 
   const isNativeScreen = combinedType === 'native-screen'
+  const isSystemComponent = combinedType === 'system-component'
   const isFormOrPopup =
     combinedType === 'native-form' ||
     combinedType === 'native-popup' ||
@@ -344,6 +372,9 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
   const getDisplayScreenKey = useCallback(() => {
     if (combinedType === 'native-screen' && urlPath) {
       return urlPathToScreenKey(urlPath)
+    } else if (combinedType === 'system-component') {
+      const suffix = keyOverride?.trim() ? toSystemKeySuffix(keyOverride.trim()) : ''
+      return suffix ? `sys_${suffix}` : 'sys_'
     } else if (isFormOrPopup) {
       const prefix = getActionScreenKeyPrefix(combinedType)
       if (formKeyMode === 'key') {
@@ -370,6 +401,7 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
     keyOverride,
     isLaunchingForm,
     userTaskName,
+    toSystemKeySuffix,
     isNativeScreen,
     isFormOrPopup
   ])
@@ -654,6 +686,46 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
                           placeholder="apps/my-app"
                           className="gba:rounded-l-none gba:border-l-0"
                           data-testid={`${dataTestId}-urlPath-input`}
+                          {...field}
+                        />
+                      </FormControl>
+                    </div>
+                    <p
+                      className="gba:text-sm gba:font-mono gba:text-muted-foreground"
+                      data-testid={`${dataTestId}-generated-screenkey`}
+                    >
+                      {getDisplayScreenKey()}
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* System Key Input (System Component only) */}
+            {isSystemComponent && (
+              <FormField
+                control={form.control}
+                name="keyOverride"
+                render={({ field }) => (
+                  <FormItem>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <FormLabel>System Key</FormLabel>
+                        </TooltipTrigger>
+                        <TooltipContent>Define the suffix after "sys_" (e.g. home, chat, my_feature).</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <div className="gba:flex gba:items-center gba:space-x-0">
+                      <div className="gba:flex gba:items-center gba:bg-gray-100 gba:border gba:border-r-0 gba:rounded-l-md gba:px-3 gba:py-2 gba:text-sm gba:text-gray-600">
+                        sys_
+                      </div>
+                      <FormControl>
+                        <Input
+                          placeholder="home"
+                          className="gba:rounded-l-none gba:border-l-0"
+                          data-testid={`${dataTestId}-system-key-input`}
                           {...field}
                         />
                       </FormControl>

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
-import { Users, Cake, Trophy } from 'lucide-react'
+import { UsersThreeIcon as Users, CakeIcon as Cake, TrophyIcon as Trophy } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 type InsightsTab = 'birthdays' | 'anniversaries' | 'open-positions'

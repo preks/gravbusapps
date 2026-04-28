@@ -7,7 +7,7 @@ import { ConfigPanelContainer } from '../config-panels/ConfigPanelContainer'
 import { useFlowValidation } from '../../hooks/useFlowValidation'
 import { useFlowStudioData } from '../../hooks/useFlowStudioData'
 import { FlowCanvasProvider, FlowCanvas } from '@/common/components/flow'
-import type { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import type { FlowStepType } from '@/common/data/flow/types/flowTemplate'
 import type { FunctionVersionMeta } from '@/common/network/functions/FunctionsServiceClient'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 

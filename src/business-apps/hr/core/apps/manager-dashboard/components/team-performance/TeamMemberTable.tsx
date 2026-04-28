@@ -19,7 +19,15 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
-import { Users, ChevronUp, ChevronDown, ArrowUp, ArrowDown, Sparkles, Loader2 } from 'lucide-react'
+import {
+  UsersThreeIcon as Users,
+  CaretUpIcon as ChevronUp,
+  CaretDownIcon as ChevronDown,
+  ArrowUpIcon as ArrowUp,
+  ArrowDownIcon as ArrowDown,
+  SparkleIcon as Sparkles,
+  SpinnerGapIcon as Loader2
+} from '@phosphor-icons/react'
 import type { TeamMemberEvaluation } from '../../hooks/useTeamEvaluations'
 import type { TeamMemberPerformance } from '../../hooks/useTeamPerformance'
 import type { TeamMemberFeedback } from '../../hooks/useTeamFeedbackOverview'
@@ -82,8 +90,8 @@ const toProgressValue = (value: number | null | undefined, limit: number): numbe
 }
 
 const changeTone = (change: number): string => {
-  if (change > 0) return 'gba:text-green-600'
-  if (change < 0) return 'gba:text-red-600'
+  if (change > 0) return 'gba:text-success'
+  if (change < 0) return 'gba:text-destructive'
   return 'gba:text-muted-foreground'
 }
 
@@ -127,7 +135,7 @@ const aiSummaryContent = (aiState: AiSummaryState, summary: string | undefined):
 
   if (aiState.error) {
     return (
-      <Badge variant="destructive" className="gba:text-[10px]">
+      <Badge variant="destructive" className="gba:text-xs">
         Error
       </Badge>
     )
@@ -470,7 +478,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
 
   return (
     <Card className="gba:rounded-xl gba:overflow-hidden">
-      <CardHeader className="gba:pb-2">
+      <CardHeader className="gba:px-5 gba:pb-3 gba:pt-5">
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
             <Users className="gba:h-4 gba:w-4" />
@@ -494,7 +502,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
           )}
         </div>
       </CardHeader>
-      <CardContent className="gba:p-0 gba:px-4 gba:pb-4">
+      <CardContent className="gba:px-5 gba:pb-5 gba:pt-0">
         <div className="gba:overflow-x-auto">
           <Table>
             <TableHeader>

@@ -13,7 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger
 } from '@newwork/nw-design-system'
-import { ChevronRight } from 'lucide-react'
+import { CaretRightIcon as ChevronRight } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DirectReport } from '../hooks/useDirectReports'
 import { TeamMemberAttendance } from '../hooks/useTeamAttendance'
@@ -54,7 +54,7 @@ const getAvatarTitle = (report: DirectReport, isAvailable: boolean): string => {
 }
 
 const getStatusBadgeClass = (report: DirectReport): string => {
-  if (report.status === 'On Leave') return 'gba:ring-2 gba:ring-purple-500'
+  if (report.status === 'On Leave') return 'gba:ring-2 gba:ring-primary'
   return ''
 }
 

@@ -1,4 +1,3 @@
-/* eslint-disable newwork-local/no-hardcoded-colors */
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Spinner } from '@newwork/nw-design-system'
 import {
@@ -15,6 +14,13 @@ import {
 } from 'recharts'
 import type { TooltipProps } from 'recharts'
 import type { TrendDataPoint, ScoreDistributionBand } from '../../utils/dashboardComputations'
+
+const TREND_COLORS = {
+  overall: 'var(--nw-color-primary-500)',
+  companyValues: 'var(--nw-color-decorative-500)',
+  skills: 'var(--nw-color-success-500)',
+  distribution: 'var(--nw-color-info-500)'
+} as const
 
 interface PerformanceTrendsProps {
   trendData: TrendDataPoint[]
@@ -58,20 +64,20 @@ export const PerformanceTrends: React.FC<PerformanceTrendsProps> = ({
       <div className="gba:flex gba:gap-6">
         <div className="gba:flex-1 gba:min-w-0">
           <Card className="gba:rounded-xl">
-            <CardHeader className="gba:pb-2">
+            <CardHeader className="gba:px-5 gba:pb-3 gba:pt-5">
               <CardTitle className="gba:text-base">Performance Trends</CardTitle>
             </CardHeader>
-            <CardContent className="gba:flex gba:items-center gba:justify-center gba:min-h-[280px]">
+            <CardContent className="gba:flex gba:min-h-[280px] gba:items-center gba:justify-center gba:px-5 gba:pb-5 gba:pt-0">
               <Spinner size="lg" />
             </CardContent>
           </Card>
         </div>
         <div className="gba:flex-1 gba:min-w-0">
           <Card className="gba:rounded-xl">
-            <CardHeader className="gba:pb-2">
+            <CardHeader className="gba:px-5 gba:pb-3 gba:pt-5">
               <CardTitle className="gba:text-base">Score Distribution</CardTitle>
             </CardHeader>
-            <CardContent className="gba:flex gba:items-center gba:justify-center gba:min-h-[280px]">
+            <CardContent className="gba:flex gba:min-h-[280px] gba:items-center gba:justify-center gba:px-5 gba:pb-5 gba:pt-0">
               <Spinner size="lg" />
             </CardContent>
           </Card>
@@ -84,10 +90,10 @@ export const PerformanceTrends: React.FC<PerformanceTrendsProps> = ({
     <div className="gba:flex gba:gap-6">
       <div className="gba:flex-1 gba:min-w-0">
         <Card className="gba:rounded-xl">
-          <CardHeader className="gba:pb-2">
+          <CardHeader className="gba:px-5 gba:pb-3 gba:pt-5">
             <CardTitle className="gba:text-base">Performance Trends</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="gba:px-5 gba:pb-5 gba:pt-0">
             {trendData.length === 0 ? (
               <div className="gba:flex gba:items-center gba:justify-center gba:min-h-[280px] gba:text-sm gba:text-muted-foreground">
                 No trend data available
@@ -104,7 +110,7 @@ export const PerformanceTrends: React.FC<PerformanceTrendsProps> = ({
                     type="monotone"
                     dataKey="overall"
                     name="Overall"
-                    stroke="#3b82f6"
+                    stroke={TREND_COLORS.overall}
                     strokeWidth={2}
                     dot={{ r: 3 }}
                     connectNulls
@@ -113,7 +119,7 @@ export const PerformanceTrends: React.FC<PerformanceTrendsProps> = ({
                     type="monotone"
                     dataKey="companyValues"
                     name="Company values"
-                    stroke="#8b5cf6"
+                    stroke={TREND_COLORS.companyValues}
                     strokeWidth={2}
                     dot={{ r: 3 }}
                     connectNulls
@@ -122,7 +128,7 @@ export const PerformanceTrends: React.FC<PerformanceTrendsProps> = ({
                     type="monotone"
                     dataKey="skills"
                     name="Skills"
-                    stroke="#10b981"
+                    stroke={TREND_COLORS.skills}
                     strokeWidth={2}
                     dot={{ r: 3 }}
                     connectNulls
@@ -136,17 +142,17 @@ export const PerformanceTrends: React.FC<PerformanceTrendsProps> = ({
 
       <div className="gba:flex-1 gba:min-w-0">
         <Card className="gba:rounded-xl">
-          <CardHeader className="gba:pb-2">
+          <CardHeader className="gba:px-5 gba:pb-3 gba:pt-5">
             <CardTitle className="gba:text-base">Score Distribution</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="gba:px-5 gba:pb-5 gba:pt-0">
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={distributionData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" className="gba:stroke-muted" />
                 <XAxis dataKey="band" tick={{ fontSize: 12 }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                 <Tooltip content={<DistributionTooltip />} />
-                <Bar dataKey="count" name="Employees" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" name="Employees" fill={TREND_COLORS.distribution} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
