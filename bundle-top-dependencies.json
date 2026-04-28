@@ -67095,9 +67095,9 @@
     ]
   },
   "irm/core/apps/investment-settings": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 732543,
+    "bitbucketBuildNumber": 11479,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11479/",
+    "chunkJsBytes": 744963,
     "top": [
       {
         "kind": "bucket",
@@ -67121,7 +67121,7 @@
         "kind": "bucket",
         "name": "(src)/common/components",
         "rendered": 246931,
-        "gzip": 57511,
+        "gzip": 57512,
         "leaves": [
           {
             "name": "src/common/components/common-relations/setting-pages/pipelines/components/StagesForm.tsx",
@@ -67138,13 +67138,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/irm",
-        "rendered": 148358,
-        "gzip": 40122,
+        "rendered": 168442,
+        "gzip": 44703,
         "leaves": [
           {
             "name": "src/business-apps/irm/core/apps/investment-settings/pages/investment-data/components/FieldEditorDialog.tsx",
-            "rendered": 15435,
-            "gzip": 3286
+            "rendered": 16596,
+            "gzip": 3617
           },
           {
             "name": "src/business-apps/irm/core/apps/investment-settings/InvestmentSettings.tsx",
@@ -87947,20 +87947,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 1834557,
+    "bitbucketBuildNumber": 11479,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11479/",
+    "chunkJsBytes": 1834454,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1530380,
-        "gzip": 92685,
+        "rendered": 1530279,
+        "gzip": 92470,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1530380,
-            "gzip": 92685
+            "rendered": 1530279,
+            "gzip": 92470
           }
         ]
       },
@@ -103745,7 +103745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-28T07:46:15.493Z",
+    "generatedAt": "2026-04-28T08:09:16.806Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
