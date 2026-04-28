@@ -92,6 +92,17 @@ table-rows = Zeilen
 # Empty states
 spreadsheets-empty-trash-title = Keine Tabellen im Papierkorb
 spreadsheets-empty-trash-description = In den Papierkorb verschobene Tabellen werden hier angezeigt.
+header-selected-count = { $count } ausgewählt
+trash-bulk-restore = Wiederherstellen
+trash-bulk-restoring = Wird wiederhergestellt...
+trash-bulk-delete-permanently = Endgültig löschen
+trash-delete-dialog-title-single = Endgültig löschen?
+trash-delete-dialog-title-multiple = { $count } Elemente endgültig löschen?
+trash-delete-dialog-description-single = „{ $name }" wird endgültig gelöscht und kann nicht wiederhergestellt werden. Diese Aktion kann nicht rückgängig gemacht werden.
+trash-delete-dialog-description-multiple = { $count } Elemente werden endgültig gelöscht und können nicht wiederhergestellt werden. Diese Aktion kann nicht rückgängig gemacht werden.
+trash-delete-dialog-cancel = Abbrechen
+trash-delete-dialog-confirm = Endgültig löschen
+trash-delete-dialog-deleting = Wird gelöscht...
 rows-label = Zeilen
 app-preview-sheet-count = { $count } { $count ->
   [one] Blatt

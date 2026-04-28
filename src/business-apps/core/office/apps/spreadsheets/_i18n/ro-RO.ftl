@@ -92,6 +92,17 @@ table-rows = Rânduri
 # Empty states
 spreadsheets-empty-trash-title = Nicio foaie de calcul în coș
 spreadsheets-empty-trash-description = Foile de calcul mutate în coș vor apărea aici.
+header-selected-count = { $count } selectate
+trash-bulk-restore = Restaurează
+trash-bulk-restoring = Se restaurează...
+trash-bulk-delete-permanently = Șterge definitiv
+trash-delete-dialog-title-single = Șterge definitiv?
+trash-delete-dialog-title-multiple = Șterge { $count } elemente definitiv?
+trash-delete-dialog-description-single = „{ $name }" va fi șters definitiv și nu poate fi restaurat. Această acțiune nu poate fi anulată.
+trash-delete-dialog-description-multiple = { $count } elemente vor fi șterse definitiv și nu pot fi restaurate. Această acțiune nu poate fi anulată.
+trash-delete-dialog-cancel = Anulați
+trash-delete-dialog-confirm = Șterge definitiv
+trash-delete-dialog-deleting = Se șterge...
 rows-label = rânduri
 app-preview-sheet-count = { $count } { $count ->
   [one] foaie

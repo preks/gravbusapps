@@ -92,6 +92,17 @@ table-rows = Rows
 # Empty states
 spreadsheets-empty-trash-title = No trashed spreadsheets
 spreadsheets-empty-trash-description = Spreadsheets moved to trash will appear here.
+header-selected-count = { $count } selected
+trash-bulk-restore = Restore
+trash-bulk-restoring = Restoring...
+trash-bulk-delete-permanently = Delete permanently
+trash-delete-dialog-title-single = Delete permanently?
+trash-delete-dialog-title-multiple = Delete { $count } items permanently?
+trash-delete-dialog-description-single = "{ $name }" will be permanently deleted and cannot be restored. This action cannot be undone.
+trash-delete-dialog-description-multiple = { $count } items will be permanently deleted and cannot be restored. This action cannot be undone.
+trash-delete-dialog-cancel = Cancel
+trash-delete-dialog-confirm = Delete permanently
+trash-delete-dialog-deleting = Deleting...
 rows-label = rows
 app-preview-sheet-count = { $count } { $count ->
   [one] sheet

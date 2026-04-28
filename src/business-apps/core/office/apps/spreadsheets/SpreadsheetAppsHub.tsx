@@ -61,7 +61,8 @@ import {
   X,
   LayoutGrid,
   User,
-  RefreshCw
+  RefreshCw,
+  RotateCcw
 } from 'lucide-react'
 import { SparkleIcon } from '@phosphor-icons/react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -80,7 +81,12 @@ import { ManageSharesDialog } from './components/ManageSharesDialog'
 import { SpreadsheetAutomationsSection } from './components/automations/SpreadsheetAutomationsSection'
 import { TrashedSpreadsheetReadonlyDialog } from './components/TrashedSpreadsheetReadonlyDialog'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { OfficeTrashList } from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import {
+  OfficeTrashListTable,
+  OfficeTrashListToolbar,
+  useOfficeTrashList
+} from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import { PermanentDeleteConfirmDialog } from '@/business-apps/platform/apps/shared/components/PermanentDeleteConfirmDialog'
 import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
 import { DriveApiService } from '@/business-apps/core/office/apps/drive/services/DriveApiService'
 
@@ -507,6 +513,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [trashSearchQuery, setTrashSearchQuery] = useState('')
+  const [selectedTrashIds, setSelectedTrashIds] = useState<Set<string>>(new Set())
+  const [bulkDeleteTrashOpen, setBulkDeleteTrashOpen] = useState(false)
+  const [isBulkDeletingTrash, setIsBulkDeletingTrash] = useState(false)
+  const [isBulkRestoringTrash, setIsBulkRestoringTrash] = useState(false)
   const [taskStatusFilter, setTaskStatusFilter] = useState<'pending' | 'completed'>('pending')
   const [pendingTaskAppIds, setPendingTaskAppIds] = useState<Set<string>>(new Set())
   const [completedTaskAppIds, setCompletedTaskAppIds] = useState<Set<string>>(new Set())
@@ -608,6 +618,76 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     addSheet,
     deleteSheet
   } = useSpreadsheetApps(accessToken, currentUserId)
+
+  const trashList = useOfficeTrashList({
+    accessToken: accessToken ?? '',
+    entityType: 'spreadsheet_app',
+    searchQuery: trashSearchQuery,
+    enabled: currentView === 'list' && activeSection === 'trash',
+    defaultSortBy: 'trashedAt',
+    defaultSortOrder: 'desc',
+    onItemsChanged: () => {
+      void refreshApps()
+    }
+  })
+
+  const handleToggleTrashSelect = useCallback((id: string) => {
+    setSelectedTrashIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSelectAllTrash = useCallback(() => {
+    const allIds = trashList.sortedItems.map(i => i.id)
+    setSelectedTrashIds(prev => (prev.size === allIds.length && allIds.length > 0 ? new Set() : new Set(allIds)))
+  }, [trashList.sortedItems])
+
+  const handleBulkRestoreTrash = useCallback(async () => {
+    if (!accessToken || selectedTrashIds.size === 0) return
+    const toRestore = trashList.sortedItems.filter(item => selectedTrashIds.has(item.id))
+    setIsBulkRestoringTrash(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      await DriveApiService.restoreItems(toRestore.map(item => ({ entityType: item.type, entityId: item.id })))
+      toast.success(`${toRestore.length} item${toRestore.length === 1 ? '' : 's'} restored`)
+      setSelectedTrashIds(new Set())
+      await trashList.refresh()
+      void refreshApps()
+    } catch (error) {
+      console.error('[SpreadsheetAppsHub] Failed to bulk restore trash items:', error)
+      toast.error('Failed to restore some items')
+    } finally {
+      setIsBulkRestoringTrash(false)
+    }
+  }, [accessToken, refreshApps, selectedTrashIds, trashList])
+
+  const handleBulkDeleteTrash = useCallback(async () => {
+    if (!accessToken || selectedTrashIds.size === 0) return
+    const toDelete = trashList.sortedItems.filter(item => selectedTrashIds.has(item.id))
+    setIsBulkDeletingTrash(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      for (const item of toDelete) {
+        await DriveApiService.deleteTrashedItem(item.type, item.id)
+      }
+      toast.success(`${toDelete.length} item${toDelete.length === 1 ? '' : 's'} deleted permanently`)
+      setSelectedTrashIds(new Set())
+      await trashList.refresh()
+      void refreshApps()
+    } catch (error) {
+      console.error('[SpreadsheetAppsHub] Failed to bulk delete trash items:', error)
+      toast.error('Failed to delete some items permanently')
+    } finally {
+      setIsBulkDeletingTrash(false)
+      setBulkDeleteTrashOpen(false)
+    }
+  }, [accessToken, refreshApps, selectedTrashIds, trashList])
 
   const { ownerInfoMap, sharedUsersMap } = useSpreadsheetAppsHubUserLookup({
     apps,
@@ -1632,54 +1712,181 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
     if (currentView === 'list' && activeSection === 'trash') {
       return (
-        <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
-          <SpreadsheetHero
-            activeSection={activeSection as SpreadsheetSection}
-            onSectionChange={s => setActiveSection(s as SidebarSection)}
-            tabBadges={heroTabBadges}
-            newButton={heroNewButton}
-            showSharedTab={previewEnabled}
-            t={t}
-            data-testid={`${testId}-hero`}
-          />
-          <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5 gba:pb-4 gba:border-b gba:border-border/50">
-            <div className="gba:relative">
-              <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
-              <Input
-                placeholder={t('spreadsheets-header-search-placeholder')}
-                value={trashSearchQuery}
-                onChange={e => setTrashSearchQuery(e.target.value)}
-                className="gba:h-12 gba:pl-11 gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm"
-                data-testid={`${testId}-trash-search`}
-              />
+        <>
+          <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+            <SpreadsheetHero
+              activeSection={activeSection as SpreadsheetSection}
+              onSectionChange={s => setActiveSection(s as SidebarSection)}
+              tabBadges={heroTabBadges}
+              newButton={heroNewButton}
+              showSharedTab={previewEnabled}
+              t={t}
+              data-testid={`${testId}-hero`}
+            />
+            <div className="gba:flex-1 gba:overflow-auto">
+              <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5">
+                <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
+                  <div className="gba:relative">
+                    <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
+                    <Input
+                      placeholder={t('spreadsheets-header-search-placeholder')}
+                      value={trashSearchQuery}
+                      onChange={e => setTrashSearchQuery(e.target.value)}
+                      className="gba:pl-12 gba:pr-4 gba:h-12 gba:text-base gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm hover:gba:shadow-md hover:gba:bg-muted/70 hover:gba:border-border gba:transition-all gba:duration-200"
+                      data-testid={`${testId}-trash-search`}
+                    />
+                  </div>
+                  {selectedTrashIds.size > 0 ? (
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedTrashIds(new Set())}
+                        data-testid={`${testId}-trash-bulk-clear`}
+                      >
+                        <X className="gba:w-4 gba:h-4 gba:mr-1" />
+                        {t('header-selected-count', { count: selectedTrashIds.size })}
+                      </Button>
+                      <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          void handleBulkRestoreTrash()
+                        }}
+                        disabled={isBulkRestoringTrash || isBulkDeletingTrash}
+                        data-testid={`${testId}-trash-bulk-restore`}
+                      >
+                        <RotateCcw className="gba:w-4 gba:h-4 gba:mr-1" />
+                        {isBulkRestoringTrash ? t('trash-bulk-restoring') : t('trash-bulk-restore')}
+                      </Button>
+                      <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gba:text-destructive"
+                        onClick={() => setBulkDeleteTrashOpen(true)}
+                        disabled={isBulkRestoringTrash || isBulkDeletingTrash}
+                        data-testid={`${testId}-trash-bulk-delete`}
+                      >
+                        <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
+                        {t('trash-bulk-delete-permanently')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <OfficeTrashListToolbar
+                      listControls={{
+                        refreshLabel: t('header-refresh'),
+                        sortNameLabel: t('sort-name'),
+                        sortTrashedOnLabel: t('sort-trashed'),
+                        trashedOnColumnLabel: t('table-trashed'),
+                        defaultSortBy: 'trashedAt',
+                        defaultSortOrder: 'desc',
+                        deleteDialogTitle: t('trash-delete-dialog-title-single'),
+                        deleteDialogDescriptionFn: name => t('trash-delete-dialog-description-single', { name }),
+                        deleteDialogCancel: t('trash-delete-dialog-cancel'),
+                        deleteDialogConfirm: t('trash-delete-dialog-confirm'),
+                        deleteDialogDeleting: t('trash-delete-dialog-deleting')
+                      }}
+                      isLoading={trashList.isLoading}
+                      sortBy={trashList.sortBy}
+                      sortOrder={trashList.sortOrder}
+                      onRefresh={() => {
+                        void trashList.refresh()
+                      }}
+                      onSortChange={trashList.handleSortChange}
+                      onToggleSortOrder={trashList.toggleSortOrder}
+                      data-testid={`${testId}-trash-list`}
+                    />
+                  )}
+                </div>
+                {trashList.isLoading ? (
+                  <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
+                    <Spinner size="lg" />
+                  </div>
+                ) : trashList.sortedItems.length === 0 ? (
+                  <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4">
+                    <div className="gba:w-24 gba:h-24 gba:rounded-3xl gba:bg-gradient-to-br gba:from-emerald-500/20 gba:to-green-500/20 gba:flex gba:items-center gba:justify-center gba:mb-6">
+                      <FileSpreadsheet className="gba:w-12 gba:h-12 gba:text-emerald-500" />
+                    </div>
+                    <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
+                      {t('spreadsheets-empty-trash-title')}
+                    </h3>
+                    <p className="gba:text-muted-foreground gba:text-center gba:max-w-md">
+                      {t('spreadsheets-empty-trash-description')}
+                    </p>
+                  </div>
+                ) : (
+                  <OfficeTrashListTable
+                    items={trashList.sortedItems}
+                    listControls={{
+                      refreshLabel: t('header-refresh'),
+                      sortNameLabel: t('sort-name'),
+                      sortTrashedOnLabel: t('sort-trashed'),
+                      trashedOnColumnLabel: t('table-trashed'),
+                      defaultSortBy: 'trashedAt',
+                      defaultSortOrder: 'desc',
+                      deleteDialogTitle: t('trash-delete-dialog-title-single'),
+                      deleteDialogDescriptionFn: name => t('trash-delete-dialog-description-single', { name }),
+                      deleteDialogCancel: t('trash-delete-dialog-cancel'),
+                      deleteDialogConfirm: t('trash-delete-dialog-confirm'),
+                      deleteDialogDeleting: t('trash-delete-dialog-deleting')
+                    }}
+                    sortBy={trashList.sortBy}
+                    actionKey={trashList.actionKey}
+                    deleteConfirmItem={trashList.deleteConfirmItem}
+                    onOpenItem={item => handleOpenTrashedApp(item.id)}
+                    onSortChange={trashList.handleSortChange}
+                    onRestoreItem={item => {
+                      void trashList.handleRestore(item)
+                    }}
+                    onRequestDelete={trashList.requestDelete}
+                    onDeleteConfirmOpenChange={trashList.handleDeleteConfirmOpenChange}
+                    onConfirmDelete={() => {
+                      void trashList.confirmDelete()
+                    }}
+                    selectedIds={selectedTrashIds}
+                    onToggleSelect={handleToggleTrashSelect}
+                    onSelectAll={handleSelectAllTrash}
+                    renderIcon={() => (
+                      <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:bg-emerald-500/10">
+                        <FileSpreadsheet className="gba:w-5 gba:h-5 gba:text-emerald-600" />
+                      </div>
+                    )}
+                    data-testid={`${testId}-trash-list`}
+                  />
+                )}
+              </div>
             </div>
           </div>
-          <main className="gba:flex-1 gba:overflow-auto gba:p-6">
-            <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
-              <OfficeTrashList
-                accessToken={accessToken}
-                entityType="spreadsheet_app"
-                emptyTitle={t('spreadsheets-empty-trash-title')}
-                emptyDescription={t('spreadsheets-empty-trash-description')}
-                layout="list"
-                searchQuery={trashSearchQuery}
-                listControls={{
-                  refreshLabel: t('header-refresh'),
-                  sortNameLabel: t('sort-name'),
-                  sortTrashedOnLabel: t('sort-trashed'),
-                  trashedOnColumnLabel: t('table-trashed'),
-                  defaultSortBy: 'trashedAt',
-                  defaultSortOrder: 'desc'
-                }}
-                onOpenItem={item => handleOpenTrashedApp(item.id)}
-                onItemsChanged={() => {
-                  void refreshApps()
-                }}
-                data-testid={`${testId}-trash-list`}
-              />
-            </div>
-          </main>
-        </div>
+          <PermanentDeleteConfirmDialog
+            open={bulkDeleteTrashOpen}
+            itemNames={trashList.sortedItems.filter(item => selectedTrashIds.has(item.id)).map(item => item.name)}
+            title={
+              selectedTrashIds.size === 1
+                ? t('trash-delete-dialog-title-single')
+                : t('trash-delete-dialog-title-multiple', { count: selectedTrashIds.size })
+            }
+            description={
+              selectedTrashIds.size === 1
+                ? t('trash-delete-dialog-description-single', {
+                    name: trashList.sortedItems.find(item => selectedTrashIds.has(item.id))?.name ?? ''
+                  })
+                : t('trash-delete-dialog-description-multiple', { count: selectedTrashIds.size })
+            }
+            cancelLabel={t('trash-delete-dialog-cancel')}
+            confirmLabel={t('trash-delete-dialog-confirm')}
+            deletingLabel={t('trash-delete-dialog-deleting')}
+            onOpenChange={open => {
+              if (!isBulkDeletingTrash) setBulkDeleteTrashOpen(open)
+            }}
+            onConfirm={() => {
+              void handleBulkDeleteTrash()
+            }}
+            isDeleting={isBulkDeletingTrash}
+            data-testid={`${testId}-trash-bulk-delete-confirm`}
+          />
+        </>
       )
     }
 
