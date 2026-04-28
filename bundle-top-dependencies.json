@@ -41930,15 +41930,15 @@
     ]
   },
   "hr/core/apps/manager-dashboard": {
-    "bitbucketBuildNumber": 11410,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11410/",
-    "chunkJsBytes": 491797,
+    "bitbucketBuildNumber": 11465,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11465/",
+    "chunkJsBytes": 494836,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 626267,
-        "gzip": 138141,
+        "rendered": 627586,
+        "gzip": 139448,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/manager-dashboard/hooks/useManagerWorkboardVM.ts",
@@ -41947,16 +41947,16 @@
           },
           {
             "name": "src/business-apps/hr/core/apps/manager-dashboard/views/TeamPerformanceView.tsx",
-            "rendered": 33814,
-            "gzip": 5142
+            "rendered": 33508,
+            "gzip": 5019
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 79822,
-        "gzip": 27447,
+        "rendered": 81644,
+        "gzip": 28044,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/select/Select.js",
@@ -87947,20 +87947,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11460,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11460/",
-    "chunkJsBytes": 1834547,
+    "bitbucketBuildNumber": 11465,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11465/",
+    "chunkJsBytes": 1834556,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1530384,
-        "gzip": 92532,
+        "gzip": 92565,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1530384,
-            "gzip": 92532
+            "gzip": 92565
           }
         ]
       },
@@ -103745,7 +103745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-27T21:52:23.917Z",
+    "generatedAt": "2026-04-28T05:23:06.409Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
