@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { PageLayout, Button } from '@newwork/nw-design-system'
-import { TrendDownIcon, CurrencyDollarIcon, ChartBarIcon, GaugeIcon } from '@phosphor-icons/react'
+import {
+  ChartPieSliceIcon,
+  GaugeIcon,
+  SignOutIcon,
+  ChartScatterIcon,
+  FileTextIcon,
+  ChartLineUpIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -24,23 +31,23 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
     },
     {
       key: 'investments',
-      icon: <CurrencyDollarIcon />,
+      icon: <ChartPieSliceIcon />,
       label: getTranslationFromI18nKeyAndLabel('investments', 'Investments')
     },
     {
       key: 'reports',
-      icon: <TrendDownIcon />,
+      icon: <FileTextIcon />,
       label: getTranslationFromI18nKeyAndLabel('reports', 'Reports')
     },
 
     {
       key: 'divestments',
-      icon: <TrendDownIcon />,
+      icon: <SignOutIcon />,
       label: getTranslationFromI18nKeyAndLabel('divestments', 'Divestments')
     },
     {
       key: 'analytics',
-      icon: <ChartBarIcon />,
+      icon: <ChartScatterIcon />,
       label: getTranslationFromI18nKeyAndLabel('analytics', 'Analytics')
     }
   ]
@@ -198,7 +205,7 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
   return (
     <div data-testid="investment-management-app">
       <PageLayout
-        headerIcon={ChartBarIcon}
+        headerIcon={ChartLineUpIcon}
         headerTitle={getTranslationFromI18nKeyAndLabel('investment_management', 'Investment Management')}
         headerDescription={getTranslationFromI18nKeyAndLabel(
           'investment_management_description',
