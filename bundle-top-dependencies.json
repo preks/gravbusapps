@@ -47362,9 +47362,9 @@
     ]
   },
   "hr/core/forms/change-employee-address": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 491421,
+    "bitbucketBuildNumber": 11511,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11511/",
+    "chunkJsBytes": 491650,
     "top": [
       {
         "kind": "bucket",
@@ -47387,18 +47387,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 243604,
-        "gzip": 60311,
+        "rendered": 243843,
+        "gzip": 60375,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/_i18n/ro-RO.ftl?raw",
-            "rendered": 46539,
-            "gzip": 11780
+            "rendered": 46622,
+            "gzip": 11803
           },
           {
             "name": "src/business-apps/hr/core/apps/employee-record/_i18n/de-DE.ftl?raw",
-            "rendered": 45832,
-            "gzip": 11604
+            "rendered": 45914,
+            "gzip": 11626
           }
         ]
       },
@@ -87947,20 +87947,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11506,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11506/",
-    "chunkJsBytes": 1834419,
+    "bitbucketBuildNumber": 11511,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11511/",
+    "chunkJsBytes": 1834404,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1530239,
-        "gzip": 92681,
+        "gzip": 92683,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1530239,
-            "gzip": 92681
+            "gzip": 92683
           }
         ]
       },
@@ -103745,7 +103745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-28T14:12:50.912Z",
+    "generatedAt": "2026-04-28T14:34:47.634Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
