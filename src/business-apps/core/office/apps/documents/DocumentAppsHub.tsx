@@ -201,7 +201,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [templateBeingEdited, setTemplateBeingEdited] = useState<DocumentTemplate | null>(null)
   const [trashSearchQuery, setTrashSearchQuery] = useState('')
   const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
-  const [pendingTrashDocument, setPendingTrashDocument] = useState<{ id: string; name: string } | null>(null)
+  const [pendingTrashDocuments, setPendingTrashDocuments] = useState<Array<{ id: string; name: string }>>([])
   const [isMovingToTrash, setIsMovingToTrash] = useState(false)
   const [isRestoringTrashedDocument, setIsRestoringTrashedDocument] = useState(false)
   /** Context chosen in create modal; used only to pick entities in the editor (not sent to API). */
@@ -436,43 +436,74 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    * Handle delete document
    */
   const handleDeleteDocument = useCallback(
-    (id: string, name?: string) => {
-      setPendingTrashDocument({
-        id,
-        name: name || t('title-untitled-document')
-      })
+    (ids: string | string[], names?: string[]) => {
+      const idList = Array.isArray(ids) ? ids : [ids]
+      const documentNames = new Map(documents.map(doc => [doc.id, doc.title || t('title-untitled-document')]))
+
+      setPendingTrashDocuments(
+        idList.map((id, index) => ({
+          id,
+          name: names?.[index] || documentNames.get(id) || t('title-untitled-document')
+        }))
+      )
       setTrashConfirmOpen(true)
     },
-    [t]
+    [documents, t]
   )
 
+  const handleBulkDeleteDocuments = useCallback(() => {
+    const selectedIds = Array.from(selectedDocuments)
+    if (selectedIds.length === 0) {
+      return
+    }
+
+    const selectedNames = selectedIds.map(
+      id => documents.find(doc => doc.id === id)?.title || t('title-untitled-document')
+    )
+
+    handleDeleteDocument(selectedIds, selectedNames)
+  }, [documents, handleDeleteDocument, selectedDocuments, t])
+
   const confirmMoveToTrash = useCallback(async () => {
-    if (!pendingTrashDocument) return
+    if (pendingTrashDocuments.length === 0) return
 
     setIsMovingToTrash(true)
+    const deletedDocumentIds: string[] = []
     try {
-      const success = await deleteDocument(pendingTrashDocument.id)
-      if (success && selectedDocumentId === pendingTrashDocument.id) {
-        setSelectedDocumentId(null)
-        setCurrentView('list')
-        updateUrl(null)
+      for (const pendingTrashDocument of pendingTrashDocuments) {
+        const success = await deleteDocument(pendingTrashDocument.id)
+
+        if (!success) {
+          continue
+        }
+
+        deletedDocumentIds.push(pendingTrashDocument.id)
+
+        if (selectedDocumentId === pendingTrashDocument.id) {
+          setSelectedDocumentId(null)
+          setCurrentView('list')
+          updateUrl(null)
+        }
       }
-      setSelectedDocuments(prev => {
-        const next = new Set(prev)
-        next.delete(pendingTrashDocument.id)
-        return next
-      })
+
+      if (deletedDocumentIds.length > 0) {
+        setSelectedDocuments(prev => {
+          const next = new Set(prev)
+          deletedDocumentIds.forEach(id => next.delete(id))
+          return next
+        })
+      }
     } finally {
       setIsMovingToTrash(false)
-      setPendingTrashDocument(null)
+      setPendingTrashDocuments([])
     }
-  }, [deleteDocument, pendingTrashDocument, selectedDocumentId, updateUrl])
+  }, [deleteDocument, pendingTrashDocuments, selectedDocumentId, updateUrl])
 
   const handleTrashConfirmOpenChange = useCallback(
     (open: boolean) => {
       setTrashConfirmOpen(open)
       if (!open && !isMovingToTrash) {
-        setPendingTrashDocument(null)
+        setPendingTrashDocuments([])
       }
     },
     [isMovingToTrash]
@@ -1071,62 +1102,89 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
                   {/* Actions row */}
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => refreshDocuments()}
-                      className="gba:gap-1.5 gba:h-7 gba:text-xs"
-                      data-testid={`${testId}-refresh`}
-                    >
-                      <RefreshCw className="gba:w-3.5 gba:h-3.5" />
-                      {t('header-refresh')}
-                    </Button>
+                    {selectedDocuments.size > 0 ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedDocuments(new Set())}
+                          data-testid={`${testId}-bulk-clear`}
+                        >
+                          <X className="gba:w-4 gba:h-4 gba:mr-1" />
+                          {t('header-selected-count', { count: selectedDocuments.size })}
+                        </Button>
+                        <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gba:text-destructive"
+                          onClick={handleBulkDeleteDocuments}
+                          data-testid={`${testId}-bulk-delete`}
+                        >
+                          <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
+                          {t('menu-delete')}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => refreshDocuments()}
+                          className="gba:gap-1.5 gba:h-7 gba:text-xs"
+                          data-testid={`${testId}-refresh`}
+                        >
+                          <RefreshCw className="gba:w-3.5 gba:h-3.5" />
+                          {t('header-refresh')}
+                        </Button>
 
-                    <div className="gba:ml-auto gba:flex gba:items-center gba:gap-1.5">
-                      {/* Sort controls */}
-                      <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:px-1 gba:py-0.5">
-                        <select
-                          value={sortBy}
-                          onChange={e => setSortBy(e.target.value as 'name' | 'modified' | 'created')}
-                          className="gba:text-xs gba:bg-transparent gba:border-0 gba:pr-1 gba:py-0.5 gba:text-muted-foreground gba:cursor-pointer focus:gba:outline-none"
-                          data-testid={`${testId}-sort-select`}
-                        >
-                          <option value="modified">{t('sort-modified')}</option>
-                          <option value="name">{t('sort-name')}</option>
-                          <option value="created">{t('sort-created')}</option>
-                        </select>
-                        <div className="gba:w-px gba:h-4 gba:bg-border/50" />
-                        <button
-                          onClick={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
-                          className="gba:p-1 gba:rounded hover:gba:bg-accent gba:text-muted-foreground gba:transition-colors"
-                          data-testid={`${testId}-sort-order`}
-                        >
-                          {sortOrder === 'asc' ? (
-                            <SortAsc className="gba:w-3.5 gba:h-3.5" />
-                          ) : (
-                            <SortDesc className="gba:w-3.5 gba:h-3.5" />
-                          )}
-                        </button>
-                      </div>
+                        <div className="gba:ml-auto gba:flex gba:items-center gba:gap-1.5">
+                          {/* Sort controls */}
+                          <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:px-1 gba:py-0.5">
+                            <select
+                              value={sortBy}
+                              onChange={e => setSortBy(e.target.value as 'name' | 'modified' | 'created')}
+                              className="gba:text-xs gba:bg-transparent gba:border-0 gba:pr-1 gba:py-0.5 gba:text-muted-foreground gba:cursor-pointer focus:gba:outline-none"
+                              data-testid={`${testId}-sort-select`}
+                            >
+                              <option value="modified">{t('sort-modified')}</option>
+                              <option value="name">{t('sort-name')}</option>
+                              <option value="created">{t('sort-created')}</option>
+                            </select>
+                            <div className="gba:w-px gba:h-4 gba:bg-border/50" />
+                            <button
+                              onClick={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+                              className="gba:p-1 gba:rounded hover:gba:bg-accent gba:text-muted-foreground gba:transition-colors"
+                              data-testid={`${testId}-sort-order`}
+                            >
+                              {sortOrder === 'asc' ? (
+                                <SortAsc className="gba:w-3.5 gba:h-3.5" />
+                              ) : (
+                                <SortDesc className="gba:w-3.5 gba:h-3.5" />
+                              )}
+                            </button>
+                          </div>
 
-                      {/* View mode toggle */}
-                      <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:p-0.5">
-                        <button
-                          onClick={() => setViewLayout('list')}
-                          className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'list' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
-                          data-testid={`${testId}-view-list`}
-                        >
-                          <List className="gba:w-3.5 gba:h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setViewLayout('grid')}
-                          className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'grid' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
-                          data-testid={`${testId}-view-grid`}
-                        >
-                          <LayoutGrid className="gba:w-3.5 gba:h-3.5" />
-                        </button>
-                      </div>
-                    </div>
+                          {/* View mode toggle */}
+                          <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:p-0.5">
+                            <button
+                              onClick={() => setViewLayout('list')}
+                              className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'list' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
+                              data-testid={`${testId}-view-list`}
+                            >
+                              <List className="gba:w-3.5 gba:h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setViewLayout('grid')}
+                              className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'grid' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
+                              data-testid={`${testId}-view-grid`}
+                            >
+                              <LayoutGrid className="gba:w-3.5 gba:h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1599,7 +1657,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       <DeleteConfirmDialog
         open={trashConfirmOpen}
         onOpenChange={handleTrashConfirmOpenChange}
-        itemNames={pendingTrashDocument ? [pendingTrashDocument.name] : []}
+        itemNames={pendingTrashDocuments.map(document => document.name)}
         onConfirm={() => {
           void confirmMoveToTrash()
         }}

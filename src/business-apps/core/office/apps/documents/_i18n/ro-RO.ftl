@@ -47,6 +47,10 @@ menu-new-create-template-description = Creați un șablon nou
 header-sort = Sortare
 documents-header-search-placeholder = Caută documente...
 header-refresh = Reîmprospătează
+header-selected-count = { $count } { $count ->
+  [one] selectat
+ *[other] selectate
+}
 sort-name = Nume
 sort-trashed = Aruncat la coș pe
 sort-modified = Modificat

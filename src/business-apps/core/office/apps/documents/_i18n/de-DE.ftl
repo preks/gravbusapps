@@ -47,6 +47,10 @@ menu-new-create-template-description = Neue Vorlage erstellen
 header-sort = Sortieren
 documents-header-search-placeholder = Dokumente suchen...
 header-refresh = Aktualisieren
+header-selected-count = { $count } { $count ->
+  [one] ausgewählt
+ *[other] ausgewählt
+}
 sort-name = Titel
 sort-trashed = Im Papierkorb seit
 sort-modified = Geändert

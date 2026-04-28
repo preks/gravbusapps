@@ -46,6 +46,10 @@ menu-new-create-template-description = Create a new template
 header-sort = Sort
 documents-header-search-placeholder = Search documents...
 header-refresh = Refresh
+header-selected-count = { $count } { $count ->
+  [one] selected
+ *[other] selected
+}
 sort-name = Name
 sort-trashed = Trashed on
 sort-modified = Modified
