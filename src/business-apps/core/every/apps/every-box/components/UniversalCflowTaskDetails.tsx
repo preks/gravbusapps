@@ -49,6 +49,7 @@ import 'dayjs/locale/it'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import { UnifiedTask } from '../types'
 import { getCflowEndpoint } from '../../every-api/utils/config'
+import { handleDocumentClick } from '@/common/utils/documentClickHandler'
 import { TaskDetailHeader } from './TaskDetailHeader'
 import { TaskDetailFooter } from './TaskDetailFooter'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
@@ -85,6 +86,71 @@ import GlossaryEntryTaskForm from '@/business-apps/core/content/forms/glossary-e
 
 /** Number of participants to show before collapsing the list (expand to see more). */
 const MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD = 10
+
+/**
+ * Parses a document link URL and returns the download path, original file name, and MIME type
+ */
+interface ResolvedDocFile {
+  key: string
+  displayName: string
+  downloadPath: string
+  mimeType?: string
+  fallbackHref: string | undefined
+}
+
+/**
+ * Parse a document link URL into one or more resolved file entries.
+ *
+ * Supports three formats:
+ * 1. Plain HTTP URL — returned as-is, browser handles navigation.
+ * 2. JSON array  — [{downloadPath, fileName, mimeType, fileId, ...}] produced by uploadFilesForTaskCompletion.
+ * 3. JSON object — {path, fileMetadata: {originalFileName, mimeType}} produced by the flow-launcher file service.
+ */
+const parseDocumentLinkFiles = (url: string, linkName: string): ResolvedDocFile[] => {
+  if (!url) return []
+
+  if (url.startsWith('http') || url.startsWith('/')) {
+    return [{ key: url, displayName: linkName, downloadPath: url, mimeType: undefined, fallbackHref: url }]
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(url)
+
+    if (Array.isArray(parsed)) {
+      return parsed
+        .filter(
+          (item): item is { downloadPath: string; fileName?: string; mimeType?: string; fileId?: string } =>
+            typeof (item as Record<string, unknown>)?.downloadPath === 'string'
+        )
+        .map((item, i) => {
+          const displayName = item.fileName || linkName
+          const fallbackHref = `/files${item.downloadPath.startsWith('/') ? item.downloadPath : `/${item.downloadPath}`}`
+          return {
+            key: item.fileId ?? `${url}-${i}`,
+            displayName,
+            downloadPath: item.downloadPath,
+            mimeType: item.mimeType,
+            fallbackHref
+          }
+        })
+    }
+
+    const obj = parsed as { path?: string; fileMetadata?: { originalFileName?: string; mimeType?: string } }
+    if (typeof obj.path === 'string') {
+      const displayName = obj.fileMetadata?.originalFileName || linkName
+      const fallbackHref = `/files${obj.path.startsWith('/') ? obj.path : `/${obj.path}`}`
+      return [{ key: url, displayName, downloadPath: obj.path, mimeType: obj.fileMetadata?.mimeType, fallbackHref }]
+    }
+
+    return []
+  } catch {
+    return []
+  }
+}
+
+/** Match both legacy `document:*` prefix and the newer uppercase `DOCUMENT` type from cFlow. */
+const isDocumentTypeLink = (link: { type?: string }): boolean =>
+  !!link.type && (link.type.startsWith('document:') || link.type.toUpperCase() === 'DOCUMENT')
 
 /**
  * Converts a picture thumbnail to a data URL format
@@ -942,9 +1008,11 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   }
 
   // Separate entity reference link from document links
-  const documentLinks = allLinks.filter(link => link.type?.startsWith('document:'))
+  const documentLinks = allLinks.filter(isDocumentTypeLink)
+  // Expand each document link into individual file entries (supports single-object and multi-file array formats)
+  const resolvedDocFiles = documentLinks.flatMap(link => parseDocumentLinkFiles(link.url, link.name))
   // All other links (internal:*, external:*, or any other type) - generic fallback
-  const otherLinks = allLinks.filter(link => !link.type?.startsWith('entity:') && !link.type?.startsWith('document:'))
+  const otherLinks = allLinks.filter(link => !link.type?.startsWith('entity:') && !isDocumentTypeLink(link))
   // For meeting-invite: section titled "Meeting Links", but show all links (Join Meeting + any others)
   const linksSectionTitle =
     task.tags?.app === 'meeting-invite'
@@ -1396,25 +1464,41 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             {documentReviewPrompt}
 
             {/* Document Attachments (if any) */}
-            {documentLinks.length > 0 && (
+            {resolvedDocFiles.length > 0 && (
               <Card variant="surface" className="gba:border-primary/20 gba:bg-muted/30">
                 <CardContent className="gba:pt-4">
                   <div className="gba:text-xs gba:text-primary gba:mb-3 gba:font-semibold">
-                    {t('task-details-attachments', { count: documentLinks.length })}
+                    {t('task-details-attachments', { count: resolvedDocFiles.length })}
                   </div>
                   <div className="gba:space-y-2">
-                    {documentLinks.map(link => (
+                    {resolvedDocFiles.map(file => (
                       <a
-                        key={link.url || link.name}
-                        href={link.url}
+                        key={file.key}
+                        href={file.fallbackHref}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
-                        data-testid={`task-document-link-${link.name}`}
+                        className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md gba:hover:bg-accent gba:transition-colors gba:no-underline gba:group"
+                        data-testid={`task-document-link-${file.displayName}`}
+                        onClick={async event => {
+                          if (file.downloadPath.startsWith('http')) return
+                          event.preventDefault()
+                          await handleDocumentClick(
+                            {
+                              id: file.key,
+                              name: file.displayName,
+                              mimeType: file.mimeType,
+                              fileInfo: {
+                                path: file.downloadPath,
+                                ...(file.mimeType ? { fileMetadata: { mimeType: file.mimeType } } : {})
+                              }
+                            },
+                            accessToken
+                          )
+                        }}
                       >
                         <FileText className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
                         <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
-                          {link.name}
+                          {file.displayName}
                         </span>
                         <Download className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
                       </a>
@@ -1802,24 +1886,40 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           {documentReviewPrompt}
 
           {/* Document Attachments (if any) - Same for all cFlow tasks */}
-          {documentLinks.length > 0 && (
+          {resolvedDocFiles.length > 0 && (
             <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
               <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
-                {t('task-details-attachments', { count: documentLinks.length })}
+                {t('task-details-attachments', { count: resolvedDocFiles.length })}
               </div>
               <div className="gba:space-y-2">
-                {documentLinks.map(link => (
+                {resolvedDocFiles.map(file => (
                   <a
-                    key={link.url || link.name}
-                    href={link.url}
+                    key={file.key}
+                    href={file.fallbackHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
-                    data-testid={`task-document-link-${link.name}`}
+                    className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md gba:hover:bg-accent gba:transition-colors gba:no-underline gba:group"
+                    data-testid={`task-document-link-${file.displayName}`}
+                    onClick={async event => {
+                      if (file.downloadPath.startsWith('http')) return
+                      event.preventDefault()
+                      await handleDocumentClick(
+                        {
+                          id: file.key,
+                          name: file.displayName,
+                          mimeType: file.mimeType,
+                          fileInfo: {
+                            path: file.downloadPath,
+                            ...(file.mimeType ? { fileMetadata: { mimeType: file.mimeType } } : {})
+                          }
+                        },
+                        accessToken
+                      )
+                    }}
                   >
-                    <FileText className="gba:h-4 gba:w-4 gba:text-blue-500 gba:shrink-0" />
+                    <FileText className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
                     <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
-                      {link.name}
+                      {file.displayName}
                     </span>
                     <Download className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
                   </a>
