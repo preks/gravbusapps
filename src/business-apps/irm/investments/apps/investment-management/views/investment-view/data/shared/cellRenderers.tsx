@@ -164,3 +164,58 @@ export const CreatedAtCell = ({ row }: CellContext<Investment, unknown>) => {
     </div>
   )
 }
+
+/**
+ * Cell renderer: Account(s) cell. Investment has a many-to-many relation with
+ * InvestmentAccount through the `investmentAccounts` junction table. Show the
+ * single account name when there's one association, or "Multiple" otherwise.
+ */
+export const AccountCell = ({ row }: CellContext<Investment, unknown>) => {
+  const associations = row.original.investmentAccounts || []
+  if (associations.length === 0) {
+    return <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  }
+
+  if (associations.length > 1) {
+    return (
+      <span className="gba:text-sm gba:truncate gba:block" title="Multiple accounts">
+        Multiple
+      </span>
+    )
+  }
+
+  const accountName = associations[0]?.investmentAccount?.name || '-'
+  return (
+    <span className="gba:text-sm gba:truncate gba:block" title={accountName}>
+      {accountName}
+    </span>
+  )
+}
+
+/**
+ * Cell renderer: Planned Exit boolean. API field is `planedExit` (typo preserved
+ * for backwards compatibility with the persisted schema).
+ */
+export const PlanedExitCell = ({ row }: CellContext<Investment, unknown>) => {
+  const value = row.original.planedExit
+  if (value === undefined || value === null) {
+    return <span className="gba:text-sm gba:text-muted-foreground">—</span>
+  }
+  return <Badge variant={value ? 'success' : 'default'}>{value ? 'Planned' : 'Not planned'}</Badge>
+}
+
+/**
+ * Cell renderer: Planned Exit Date — base entity field, applies to every investment.
+ */
+export const PlannedExitDateCell = ({ row }: CellContext<Investment, unknown>) => {
+  const dateValue = row.original.plannedExitDate
+  if (!dateValue) {
+    return <span className="gba:text-sm gba:text-muted-foreground">No date</span>
+  }
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2 gba:truncate">
+      <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+      <span className="gba:text-sm gba:truncate">{formatDate(dateValue)}</span>
+    </div>
+  )
+}

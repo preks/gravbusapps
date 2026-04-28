@@ -13,7 +13,10 @@ import {
   TotalInvestmentAmountCell,
   OwnerEmployeeCell,
   InvestmentStatusCell,
-  CreatedAtCell
+  CreatedAtCell,
+  AccountCell,
+  PlanedExitCell,
+  PlannedExitDateCell
 } from './cellRenderers'
 import { InvestmentListAggregatesBar } from './InvestmentListAggregatesBar'
 
@@ -221,10 +224,44 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
         cell: OwnerEmployeeCell
       },
       {
+        id: 'account',
+        header: 'Account',
+        accessorKey: 'investmentAccounts',
+        enableSorting: false,
+        size: 180,
+        minSize: 150,
+        maxSize: 240,
+        enableResizing: false,
+        cell: AccountCell
+      },
+      {
         id: 'investmentStatus',
         header: 'Status',
         accessorKey: 'investmentStatus.value',
         cell: InvestmentStatusCell
+      },
+      {
+        id: 'planedExit',
+        header: 'Planned Exit',
+        accessorKey: 'planedExit',
+        size: 140,
+        minSize: 120,
+        maxSize: 160,
+        enableResizing: false,
+        cell: PlanedExitCell
+      },
+      {
+        id: 'plannedExitDate',
+        header: 'Planned Exit Date',
+        accessorKey: 'plannedExitDate',
+        size: 170,
+        minSize: 150,
+        maxSize: 200,
+        enableResizing: false,
+        meta: {
+          type: 'date' as const
+        },
+        cell: PlannedExitDateCell
       },
       {
         id: 'createdAt',
