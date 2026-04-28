@@ -600,6 +600,16 @@ describe('enhanceImportedHtmlWithPageBreaks', () => {
     expect(out).toContain('<p>Second</p>')
     expect(out).not.toContain('<p></p>')
   })
+
+  it('keeps later break indexes aligned after earlier placeholders are replaced', () => {
+    const html =
+      '<figure data-node-type="custom-image"></figure><p></p><h1>Page 2</h1><figure data-node-type="custom-image"></figure><p></p><h1>Page 3</h1>'
+    const out = enhanceImportedHtmlWithPageBreaks(html, [1, 4])
+
+    expect((out.match(/data-page-break=""/g) ?? []).length).toBe(2)
+    expect(out).not.toContain('<p></p><h1>Page 2</h1>')
+    expect(out).not.toContain('<p></p><h1>Page 3</h1>')
+  })
 })
 
 describe('preprocessDocumentXmlForPageBreaks', () => {

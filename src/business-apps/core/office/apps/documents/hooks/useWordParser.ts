@@ -69,13 +69,6 @@ function hasImportedPageBreakMarkup(html: string): boolean {
   )
 }
 
-function countImportedPageBreakMarkup(html: string): { hrPageBreakCount: number; dataPageBreakCount: number } {
-  return {
-    hrPageBreakCount: html.match(/<hr\b[^>]*class=(["'])[^"']*\bpage-break\b[^"']*\1/gi)?.length ?? 0,
-    dataPageBreakCount: html.match(/<div\b[^>]*data-page-break(?:\s*=|\s|>)/gi)?.length ?? 0
-  }
-}
-
 async function readWordImageAsBase64(image: MammothImage): Promise<string> {
   try {
     return await image.readAsBase64String()
@@ -228,32 +221,6 @@ export function useWordParser(): UseWordParserResult {
           .replace(/<table>/g, '<table class="document-table">')
           .replace(/<ul>/g, '<ul class="document-list">')
           .replace(/<ol>/g, '<ol class="document-list">')
-
-        const importedPageBreakMarkupCounts = countImportedPageBreakMarkup(html)
-        // #region agent log
-        if (typeof globalThis.fetch === 'function') {
-          fetch('http://127.0.0.1:7702/ingest/91afea52-34bb-4fee-ae2c-a538b0bae61d', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a41470' },
-            body: JSON.stringify({
-              sessionId: 'a41470',
-              runId: 'pre-fix',
-              hypothesisId: 'H4',
-              location: 'useWordParser.ts:232',
-              message: 'word import page-break summary',
-              data: {
-                fileName: file.name,
-                didPreprocessPageBreaks,
-                importedPageBreakIndexes: importedPageBreaks.length,
-                hasImportedPageBreakMarkup: hasImportedPageBreakMarkup(html),
-                hrPageBreakCount: importedPageBreakMarkupCounts.hrPageBreakCount,
-                dataPageBreakCount: importedPageBreakMarkupCounts.dataPageBreakCount
-              },
-              timestamp: Date.now()
-            })
-          }).catch(() => {})
-        }
-        // #endregion
 
         const parsedDocument: ParsedWordDocument = {
           fileName: file.name,

@@ -657,37 +657,11 @@ export function createPaginationExtensionPlugins(options: {
         init: () => DecorationSet.empty,
         apply(tr, oldValue) {
           const mountedView = getMountedEditorView(editor)
-          const pageBreakCount = collectPageBreakEntries(tr.doc).length
           const shouldRebuild = shouldRebuildPageBreakSpacerDecorations(tr)
           const oldDecorationCount = oldValue.find().length
           const bootstrapWithPlannedSpacerOffsets = oldDecorationCount === 0
 
           if (tr.getMeta(options.refreshMeta)) {
-            if (pageBreakCount > 0) {
-              // #region agent log
-              if (typeof globalThis.fetch === 'function') {
-                fetch('http://127.0.0.1:7702/ingest/91afea52-34bb-4fee-ae2c-a538b0bae61d', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a41470' },
-                  body: JSON.stringify({
-                    sessionId: 'a41470',
-                    runId: 'post-fix',
-                    hypothesisId: 'H3',
-                    location: 'paginationExtensionPlugins.ts:666',
-                    message: 'page-break spacer plugin refresh rebuild',
-                    data: {
-                      cause: 'refresh-meta',
-                      pageBreakCount,
-                      hasMountedView: Boolean(mountedView),
-                      oldDecorationCount,
-                      bootstrapWithPlannedSpacerOffsets
-                    },
-                    timestamp: Date.now()
-                  })
-                }).catch(() => {})
-              }
-              // #endregion
-            }
             return buildPageBreakSpacerDecorations(tr.doc, {
               view: mountedView,
               bootstrapWithPlannedSpacerOffsets
@@ -695,32 +669,6 @@ export function createPaginationExtensionPlugins(options: {
           }
 
           if (shouldRebuild) {
-            if (pageBreakCount > 0) {
-              // #region agent log
-              if (typeof globalThis.fetch === 'function') {
-                fetch('http://127.0.0.1:7702/ingest/91afea52-34bb-4fee-ae2c-a538b0bae61d', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a41470' },
-                  body: JSON.stringify({
-                    sessionId: 'a41470',
-                    runId: 'post-fix',
-                    hypothesisId: 'H3',
-                    location: 'paginationExtensionPlugins.ts:678',
-                    message: 'page-break spacer plugin structural rebuild',
-                    data: {
-                      cause: 'doc-changed',
-                      pageBreakCount,
-                      hasMountedView: Boolean(mountedView),
-                      oldDecorationCount,
-                      bootstrapWithPlannedSpacerOffsets,
-                      stepCount: tr.steps.length
-                    },
-                    timestamp: Date.now()
-                  })
-                }).catch(() => {})
-              }
-              // #endregion
-            }
             return buildPageBreakSpacerDecorations(tr.doc, {
               view: mountedView,
               bootstrapWithPlannedSpacerOffsets

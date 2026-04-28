@@ -541,9 +541,6 @@ function wrapTopLevelCustomImagesInParagraphs(root: HTMLElement, documentRef: Do
 
 export function sanitizeDocumentHtmlForEditor(html: string): string {
   const normalizedHtml = normalizeDocumentHtmlMarkupForEditor(html)
-  const normalizedHasPageBreakMarkup =
-    /<hr\b[^>]*class=(["'])[^"']*\bpage-break\b[^"']*\1/i.test(normalizedHtml) ||
-    /<div\b[^>]*data-page-break(?:\s*=|\s|>)/i.test(normalizedHtml)
 
   if (!normalizedHtml.trim()) {
     return '<p></p>'
@@ -560,39 +557,6 @@ export function sanitizeDocumentHtmlForEditor(html: string): string {
       ALLOW_DATA_ATTR: true
     })
     const restoredHtml = restoreDataUriImageSources(sanitized).trim() || '<p></p>'
-    const restoredHasPageBreakMarkup =
-      /<hr\b[^>]*class=(["'])[^"']*\bpage-break\b[^"']*\1/i.test(restoredHtml) ||
-      /<div\b[^>]*data-page-break(?:\s*=|\s|>)/i.test(restoredHtml)
-    if (normalizedHasPageBreakMarkup || restoredHasPageBreakMarkup) {
-      // #region agent log
-      if (typeof globalThis.fetch === 'function') {
-        fetch('http://127.0.0.1:7702/ingest/91afea52-34bb-4fee-ae2c-a538b0bae61d', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a41470' },
-          body: JSON.stringify({
-            sessionId: 'a41470',
-            runId: 'pre-fix',
-            hypothesisId: 'H5',
-            location: 'documentContentUtils.ts:568',
-            message: 'sanitize document html page-break summary',
-            data: {
-              normalizedHasPageBreakMarkup,
-              restoredHasPageBreakMarkup,
-              normalizedHrPageBreakCount:
-                normalizedHtml.match(/<hr\\b[^>]*class=(["'])[^"']*\\bpage-break\\b[^"']*\\1/gi)?.length ?? 0,
-              normalizedDataPageBreakCount:
-                normalizedHtml.match(/<div\\b[^>]*data-page-break(?:\\s*=|\\s|>)/gi)?.length ?? 0,
-              restoredHrPageBreakCount:
-                restoredHtml.match(/<hr\\b[^>]*class=(["'])[^"']*\\bpage-break\\b[^"']*\\1/gi)?.length ?? 0,
-              restoredDataPageBreakCount:
-                restoredHtml.match(/<div\\b[^>]*data-page-break(?:\\s*=|\\s|>)/gi)?.length ?? 0
-            },
-            timestamp: Date.now()
-          })
-        }).catch(() => {})
-      }
-      // #endregion
-    }
     return restoredHtml
   } catch {
     return normalizedHtml

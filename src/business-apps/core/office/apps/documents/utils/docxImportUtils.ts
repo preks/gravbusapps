@@ -610,7 +610,7 @@ function resolveAnchorLayout(anchor: Element): DocxImageLayout {
   const align = readHorizontalAlign(anchor)
   const { widthPx, heightPx } = readExtentPx(anchor)
   const behindDoc = anchor.getAttribute('behindDoc') === '1'
-  const baseLayout: DocxImageLayout = {
+  const baseLayout: Omit<DocxImageLayout, 'wrapMode'> = {
     align,
     widthPx,
     heightPx,
@@ -1518,13 +1518,14 @@ export function enhanceImportedHtmlWithPageBreaks(html: string, pageBreakIndexes
   try {
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, 'text/html')
+    const originalFlowBlocks = Array.from(doc.body.children).filter(isImportedFlowBlock)
 
     for (const breakIndex of [...pageBreakIndexes].sort((left, right) => left - right)) {
-      const flowBlocks = Array.from(doc.body.children).filter(isImportedFlowBlock)
-      const target = flowBlocks[breakIndex] ?? null
+      const target = originalFlowBlocks[breakIndex] ?? null
       const pageBreakElement = createImportedPageBreakElement(doc)
+      const targetWasEmptyParagraph = target instanceof HTMLElement && isEmptyParagraphElement(target)
 
-      if (target && isEmptyParagraphElement(target)) {
+      if (targetWasEmptyParagraph) {
         target.replaceWith(pageBreakElement)
         continue
       }

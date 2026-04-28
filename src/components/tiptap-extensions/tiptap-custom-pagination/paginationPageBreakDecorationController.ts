@@ -214,102 +214,10 @@ export function buildPageBreakSpacerDecorations(
   const decorations: Decoration[] = []
   const bootstrapWithPlannedSpacerOffsets = options.bootstrapWithPlannedSpacerOffsets ?? true
   let accumulatedManualBreakSpacerHeight = 0
-  const sampledBreaks: Array<{
-    pos: number
-    nodeBottomInEditor: number | null
-    adjustedNodeBottomInEditor: number | null
-    targetPageNumber: number | null
-    targetBandBottom: number | null
-    height: number
-    nodeSelected: boolean | null
-    nextBlockTag: string | null
-    nextBlockTopInEditor: number | null
-    nextContentTag: string | null
-    nextContentTopInEditor: number | null
-    modelNextSiblingType: string | null
-    modelNextSiblingEmptyParagraph: boolean | null
-    modelPreviousSiblingType: string | null
-    modelNodeIsAtom: boolean
-    modelNodeIsLeaf: boolean
-  }> = []
-  let nullAnchorCount = 0
-  let noTargetBandCount = 0
-  let zeroHeightCount = 0
-
-  const resolveDomContext = (entry: PageBreakEntry) => {
-    if (!view) {
-      return {
-        nodeSelected: null,
-        nextBlockTag: null,
-        nextBlockTopInEditor: null
-      }
-    }
-
-    const nodeDom = view.nodeDOM(entry.pos)
-    if (!(nodeDom instanceof HTMLElement)) {
-      return {
-        nodeSelected: null,
-        nextBlockTag: null,
-        nextBlockTopInEditor: null
-      }
-    }
-
-    const nextBlock = nodeDom.nextElementSibling
-    let nextContentSibling: Element | null = nextBlock
-    while (
-      nextContentSibling instanceof HTMLElement &&
-      (nextContentSibling.classList.contains('ProseMirror-widget') ||
-        nextContentSibling.classList.contains(PAGE_BREAK_SPACER_CLASS))
-    ) {
-      nextContentSibling = nextContentSibling.nextElementSibling
-    }
-    const editorRect = view.dom.getBoundingClientRect()
-    const nextBlockTopInEditor =
-      nextBlock instanceof HTMLElement
-        ? nextBlock.getBoundingClientRect().top - editorRect.top + view.dom.scrollTop
-        : null
-    const nextContentTopInEditor =
-      nextContentSibling instanceof HTMLElement
-        ? nextContentSibling.getBoundingClientRect().top - editorRect.top + view.dom.scrollTop
-        : null
-
-    return {
-      nodeSelected: nodeDom.classList.contains('ProseMirror-selectednode'),
-      nextBlockTag: nextBlock instanceof HTMLElement ? nextBlock.tagName.toLowerCase() : null,
-      nextBlockTopInEditor,
-      nextContentTag: nextContentSibling instanceof HTMLElement ? nextContentSibling.tagName.toLowerCase() : null,
-      nextContentTopInEditor
-    }
-  }
 
   for (const entry of entries) {
-    const domContext = resolveDomContext(entry)
-    const modelNextSibling =
-      entry.parent.childCount > entry.indexInParent + 1 ? entry.parent.child(entry.indexInParent + 1) : null
-    const modelPreviousSibling = entry.indexInParent > 0 ? entry.parent.child(entry.indexInParent - 1) : null
-    const modelContext = {
-      modelNextSiblingType: modelNextSibling?.type?.name ?? null,
-      modelNextSiblingEmptyParagraph:
-        modelNextSibling?.type?.name === 'paragraph' ? modelNextSibling.content.size === 0 : null,
-      modelPreviousSiblingType: modelPreviousSibling?.type?.name ?? null,
-      modelNodeIsAtom: entry.node.isAtom,
-      modelNodeIsLeaf: entry.node.isLeaf
-    }
     const nodeBottomInEditor = resolveNodeBottom(entry)
     if (nodeBottomInEditor === null || !Number.isFinite(nodeBottomInEditor)) {
-      nullAnchorCount += 1
-      if (sampledBreaks.length < 5) {
-        sampledBreaks.push({
-          pos: entry.pos,
-          nodeBottomInEditor: null,
-          adjustedNodeBottomInEditor: null,
-          targetPageNumber: null,
-          targetBandBottom: null,
-          height: 0,
-          ...domContext,
-          ...modelContext
-        })
-      }
       continue
     }
 
@@ -318,51 +226,12 @@ export function buildPageBreakSpacerDecorations(
       : nodeBottomInEditor
     const targetBand = resolveTargetBandForAnchor(bandsByPageNumber, adjustedNodeBottomInEditor, maxPageNumber)
     if (!targetBand) {
-      noTargetBandCount += 1
-      if (sampledBreaks.length < 5) {
-        sampledBreaks.push({
-          pos: entry.pos,
-          nodeBottomInEditor,
-          adjustedNodeBottomInEditor,
-          targetPageNumber: null,
-          targetBandBottom: null,
-          height: 0,
-          ...domContext,
-          ...modelContext
-        })
-      }
       continue
     }
 
     const height = Math.max(0, Math.round(targetBand.bottom - adjustedNodeBottomInEditor))
     if (height <= 0) {
-      zeroHeightCount += 1
-      if (sampledBreaks.length < 5) {
-        sampledBreaks.push({
-          pos: entry.pos,
-          nodeBottomInEditor,
-          adjustedNodeBottomInEditor,
-          targetPageNumber: targetBand.pageNumber,
-          targetBandBottom: targetBand.bottom,
-          height,
-          ...domContext,
-          ...modelContext
-        })
-      }
       continue
-    }
-
-    if (sampledBreaks.length < 5) {
-      sampledBreaks.push({
-        pos: entry.pos,
-        nodeBottomInEditor,
-        adjustedNodeBottomInEditor,
-        targetPageNumber: targetBand.pageNumber,
-        targetBandBottom: targetBand.bottom,
-        height,
-        ...domContext,
-        ...modelContext
-      })
     }
     accumulatedManualBreakSpacerHeight += height
     const widgetPosition = entry.pos + entry.node.nodeSize
@@ -376,35 +245,6 @@ export function buildPageBreakSpacerDecorations(
       })
     )
   }
-
-  // #region agent log
-  if (typeof globalThis.fetch === 'function') {
-    fetch('http://127.0.0.1:7702/ingest/91afea52-34bb-4fee-ae2c-a538b0bae61d', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a41470' },
-      body: JSON.stringify({
-        sessionId: 'a41470',
-        runId: 'post-fix',
-        hypothesisId: 'H2',
-        location: 'paginationPageBreakDecorationController.ts:283',
-        message: 'page-break spacer build summary',
-        data: {
-          entryCount: entries.length,
-          bandCount: bands.length,
-          maxPageNumber,
-          bootstrapWithPlannedSpacerOffsets,
-          nullAnchorCount,
-          noTargetBandCount,
-          zeroHeightCount,
-          decorationCount: decorations.length,
-          accumulatedManualBreakSpacerHeight,
-          sampledBreaks
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-  }
-  // #endregion
 
   if (decorations.length === 0) {
     return DecorationSet.empty
