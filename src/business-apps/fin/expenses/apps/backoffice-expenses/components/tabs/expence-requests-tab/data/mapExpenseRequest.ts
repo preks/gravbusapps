@@ -26,6 +26,20 @@ function formatPayableAmount(
   return `${displayAmount} ${currencyCode}`.trim()
 }
 
+/** Prefer `employee.employeePosition.organizationalUnit.name`; fall back to cost center when OU is unset. */
+function getDepartmentLabelFromEmployee(employee: ExpenseRequest['employee']): string {
+  const position = employee?.employeePosition
+  const ouName = position?.organizationalUnit?.name?.trim()
+  if (ouName) {
+    return ouName
+  }
+  const ccName = position?.costCenter?.name?.trim()
+  if (ccName) {
+    return ccName
+  }
+  return 'N/A'
+}
+
 export function mapExpenseRequest(item: ExpenseRequest): ExpenseData {
   const reimbursableAmount = toOptionalNumber(item.reimbursableAmount)
   const totalAmount = toOptionalNumber(item.totalAmount) ?? 0
@@ -69,7 +83,7 @@ export function mapExpenseRequest(item: ExpenseRequest): ExpenseData {
     employeeDocumentId: item.employeeDocumentId ?? null,
     documentData: (item as { documentData?: unknown }).documentData ?? null,
     employeeDocument: item.employeeDocument,
-    department: item.employee?.employeePosition?.costCenter?.name ?? 'N/A',
+    department: getDepartmentLabelFromEmployee(item.employee),
     nonReimbursableAmount: item.nonReimbursableAmount,
     expensePlan: item.expensePlan
   }
