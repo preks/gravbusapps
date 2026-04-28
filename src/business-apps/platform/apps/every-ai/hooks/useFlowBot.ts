@@ -841,7 +841,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   const currentAgentOutputsRef = useRef<OutputItem[]>([])
 
   const activePageSkills = useMemo(() => getDefaultSkillsForPage(currentPageContext), [currentPageContext])
-  const [pageSkillsEnabled, setPageSkillsEnabled] = useState(true)
+  const [pageSkillsEnabled, setPageSkillsEnabled] = useState(false)
 
   const togglePageSkills = useCallback((enabled: boolean) => {
     setPageSkillsEnabled(enabled)

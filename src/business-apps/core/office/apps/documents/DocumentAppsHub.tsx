@@ -196,7 +196,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
   // Data state
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
-  const [parsedWordDocument, setParsedWordDocument] = useState<ParsedWordDocument | null>(null)
+  const [isSavingImportDraft, setIsSavingImportDraft] = useState(false)
+  const [savedImportDocumentId, setSavedImportDocumentId] = useState<string | null>(null)
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false)
   const [documentForApproval, setDocumentForApproval] = useState<string | null>(null)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -426,11 +427,66 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   })
 
   /**
-   * Handle Word file parsed from uploader
+   * Handle a parsed import (Word/ODF) by auto-creating a draft in the
+   * background while the user stays on the upload screen.
+   *
+   * The user then gets an explicit "Open document" action on the upload
+   * success card that navigates to the persisted editor. This way imports
+   * never require a manual save click, but the user retains control over
+   * when to leave the upload screen.
    */
-  const handleWordFileParsed = useCallback(async (parsed: ParsedWordDocument) => {
-    setParsedWordDocument(parsed)
+  const handleImportFileParsed = useCallback(
+    async (parsed: ParsedWordDocument, mimeType: string) => {
+      if (isSavingImportDraft) return
+      setIsSavingImportDraft(true)
+      setSavedImportDocumentId(null)
+      try {
+        const newDoc = await createDocument({
+          title: parsed.fileName.replace(/\.(docx?|odt|ott|doc)$/i, ''),
+          content: parsed.html,
+          formatting: parsed.formatting,
+          status: 'draft',
+          createdBy: currentUserId,
+          sourceFile: {
+            originalName: parsed.fileName,
+            fileSize: parsed.fileSize,
+            mimeType,
+            uploadedAt: new Date().toISOString()
+          }
+        })
+        if (newDoc) {
+          setSavedImportDocumentId(newDoc.id)
+        }
+      } finally {
+        setIsSavingImportDraft(false)
+      }
+    },
+    [createDocument, currentUserId, isSavingImportDraft]
+  )
+
+  const handleWordFileParsed = useCallback(
+    (parsed: ParsedWordDocument) =>
+      handleImportFileParsed(parsed, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+    [handleImportFileParsed]
+  )
+
+  const handleOdfFileParsed = useCallback(
+    (parsed: ParsedWordDocument) => handleImportFileParsed(parsed, 'application/vnd.oasis.opendocument.text'),
+    [handleImportFileParsed]
+  )
+
+  const handleOpenSavedImport = useCallback(async () => {
+    if (!savedImportDocumentId) return
+    const doc = await loadDocument(savedImportDocumentId)
+    if (!doc) return
+    setSelectedDocumentId(savedImportDocumentId)
     setCurrentView('editor')
+    updateUrl(savedImportDocumentId, 'editor')
+    setSavedImportDocumentId(null)
+  }, [loadDocument, savedImportDocumentId, updateUrl])
+
+  const handleResetImportDraft = useCallback(() => {
+    setSavedImportDocumentId(null)
   }, [])
 
   /**
@@ -666,7 +722,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     clearCurrentDocument()
     resetLoadAttempt()
     setSelectedDocumentId(null)
-    setParsedWordDocument(null)
+    setSavedImportDocumentId(null)
     setCurrentView('list')
     updateUrl(null)
   }, [clearCurrentDocument, resetLoadAttempt, updateUrl])
@@ -675,7 +731,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     clearCurrentDocument()
     resetLoadAttempt()
     setSelectedDocumentId(null)
-    setParsedWordDocument(null)
+    setSavedImportDocumentId(null)
     setCurrentView('list')
     setActiveSection('my-documents')
     updateUrl(null, undefined, 'my-documents')
@@ -726,7 +782,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    * Start upload flow (Word)
    */
   const handleStartUpload = useCallback(() => {
-    setParsedWordDocument(null)
+    setSavedImportDocumentId(null)
     setCurrentView('upload')
   }, [])
 
@@ -741,7 +797,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    * Start ODF upload flow
    */
   const handleStartOdfUpload = useCallback(() => {
-    setParsedWordDocument(null)
+    setSavedImportDocumentId(null)
     setCurrentView('upload-odf')
   }, [])
 
@@ -909,8 +965,6 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           templateBeingEdited={templateBeingEdited}
           setTemplateBeingEdited={setTemplateBeingEdited}
           setSessionEntityContext={setSessionEntityContext}
-          parsedWordDocument={parsedWordDocument}
-          setParsedWordDocument={setParsedWordDocument}
           setSelectedDocumentId={setSelectedDocumentId}
           currentDocument={currentDocument}
           currentDocumentPermission={currentDocumentPermission ?? ''}
@@ -1041,6 +1095,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               <WordUploader
                 onFileParsed={handleWordFileParsed}
                 onError={error => toast.error(error)}
+                isSavingDraft={isSavingImportDraft}
+                hasSavedDraft={!!savedImportDocumentId}
+                onOpenSavedDraft={handleOpenSavedImport}
+                onClearSavedDraft={handleResetImportDraft}
                 data-testid={`${testId}-uploader`}
               />
             </div>
@@ -1095,8 +1153,12 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               </div>
 
               <OdfUploader
-                onFileParsed={handleWordFileParsed}
+                onFileParsed={handleOdfFileParsed}
                 onError={error => toast.error(error)}
+                isSavingDraft={isSavingImportDraft}
+                hasSavedDraft={!!savedImportDocumentId}
+                onOpenSavedDraft={handleOpenSavedImport}
+                onClearSavedDraft={handleResetImportDraft}
                 data-testid={`${testId}-odf-uploader`}
               />
             </div>
