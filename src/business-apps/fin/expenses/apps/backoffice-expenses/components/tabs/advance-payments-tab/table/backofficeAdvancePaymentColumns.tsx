@@ -29,6 +29,19 @@ function getRowCurrencyCode(row: AdvancePaymentItem): string {
   return row.currency?.code || row.expensePlan?.currency?.code || ''
 }
 
+/**
+ * Prefer HR organizational unit name when present; otherwise fall back to position cost center so the column is not all N/A when OU is unset in master data.
+ */
+function getAdvancePaymentOrgUnitLabel(row: AdvancePaymentItem): string | undefined {
+  const position = row.expensePlan?.employee?.employeePosition
+  const ouName = position?.organizationalUnit?.name?.trim()
+  if (ouName) {
+    return ouName
+  }
+  const ccName = position?.costCenter?.name?.trim()
+  return ccName || undefined
+}
+
 /** Data columns for backoffice advance payments (TanStack / DataTable). Row actions are wired via DataTable `actions`. */
 export function createBackofficeAdvancePaymentDataColumns(t: TranslateFn): ColumnDef<AdvancePaymentItem>[] {
   const na = t('common-not-available')
@@ -72,13 +85,13 @@ export function createBackofficeAdvancePaymentDataColumns(t: TranslateFn): Colum
       header: t('header-org-unit'),
       enableSorting: true,
       sortDescFirst: false,
-      size: 200,
-      minSize: 160,
-      maxSize: 280,
+      size: 240,
+      minSize: 200,
+      maxSize: 360,
       cell: ({ row }) => (
         <div data-testid="advance-payment-org-unit-cell">
           {renderTruncatedCell(
-            row.original.expensePlan?.employee?.employeePosition?.organizationalUnit?.name,
+            getAdvancePaymentOrgUnitLabel(row.original),
             `advance-payment-org-unit-${row.original.id}`,
             na
           )}
