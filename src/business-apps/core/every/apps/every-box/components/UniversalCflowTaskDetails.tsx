@@ -1473,12 +1473,11 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                   <div className="gba:space-y-2">
                     {resolvedDocFiles.map(file => (
                       <a
-                        key={file.key}
                         href={file.fallbackHref}
+                        key={file.key}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md gba:hover:bg-accent gba:transition-colors gba:no-underline gba:group"
-                        data-testid={`task-document-link-${file.displayName}`}
                         onClick={async event => {
                           if (file.downloadPath.startsWith('http')) return
                           event.preventDefault()
@@ -1495,6 +1494,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                             accessToken
                           )
                         }}
+                        data-testid={`task-document-link-${file.displayName}`}
                       >
                         <FileText className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
                         <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
@@ -1894,12 +1894,12 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
               <div className="gba:space-y-2">
                 {resolvedDocFiles.map(file => (
                   <a
-                    key={file.key}
+                    data-testid={`task-document-link-${file.displayName}`}
                     href={file.fallbackHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md gba:hover:bg-accent gba:transition-colors gba:no-underline gba:group"
-                    data-testid={`task-document-link-${file.displayName}`}
+                    key={file.key}
                     onClick={async event => {
                       if (file.downloadPath.startsWith('http')) return
                       event.preventDefault()
@@ -1917,7 +1917,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                       )
                     }}
                   >
-                    <FileText className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
+                    <FileText className="gba:w-4 gba:h-4 gba:shrink-0 gba:text-primary" />
                     <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
                       {file.displayName}
                     </span>
