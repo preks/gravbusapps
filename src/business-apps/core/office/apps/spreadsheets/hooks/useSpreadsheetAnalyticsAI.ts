@@ -4,6 +4,7 @@ import { getPromptManagerDocumentId } from '../utils/promptManagerModelId'
 import type { SpreadsheetColumn } from '../types'
 import { summarizeColumn, isNumericColumn } from '../utils/analyticsEngine'
 import { selectPreferredModel } from '../utils/aiModelSelection'
+import { withLanguageDirective } from '../utils/aiResponseLanguage'
 const SAMPLE_LIMIT = 120
 
 export interface SpreadsheetSummaryCard {
@@ -35,6 +36,7 @@ export interface UseSpreadsheetAnalyticsAIParams {
   sheetName: string
   columns: SpreadsheetColumn[]
   sheetData: Array<Record<string, unknown>>
+  locale?: string
 }
 
 const INSIGHTS_SYSTEM_PROMPT = `You are a senior business analyst writing for executives.
@@ -250,7 +252,8 @@ export function useSpreadsheetAnalyticsAI({
   promptClient,
   sheetName,
   columns,
-  sheetData
+  sheetData,
+  locale
 }: UseSpreadsheetAnalyticsAIParams): UseSpreadsheetAnalyticsAIResult {
   const [insights, setInsights] = useState<string[]>([])
   const [summary, setSummary] = useState<SpreadsheetSummaryResult | null>(null)
@@ -287,14 +290,14 @@ export function useSpreadsheetAnalyticsAI({
       }
       const formData = new FormData()
       formData.append('model_id', modelId)
-      formData.append('system_content', systemPrompt)
+      formData.append('system_content', withLanguageDirective(systemPrompt, locale))
       formData.append('user_content', userPrompt)
       formData.append('model_settings', JSON.stringify({}))
 
       const response = await promptClient.executePrompt(formData)
       return response.content
     },
-    [promptClient]
+    [locale, promptClient]
   )
 
   const generateInsights = useCallback(async () => {

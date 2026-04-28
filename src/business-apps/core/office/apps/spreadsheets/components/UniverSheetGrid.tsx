@@ -80,11 +80,121 @@ const NUMFMT_MENU_ITEM_ROW_SELECTOR = 'div.univer-flex.univer-h-7'
  */
 const UNIVER_DE_LOCALE = {
   design: {
+    Confirm: {
+      cancel: 'Abbrechen',
+      confirm: 'OK'
+    },
     CascaderList: {
       empty: 'Keine'
     },
     Select: {
       empty: 'Keine'
+    },
+    ColorPicker: {
+      more: 'Weitere Farben',
+      cancel: 'Abbrechen',
+      confirm: 'OK'
+    }
+  },
+  sheets: {
+    tabs: {
+      sheetCopy: '(Kopie{0})',
+      sheet: 'Tabelle'
+    }
+  },
+  definedName: {
+    managerTitle: 'Benannte Bereiche',
+    managerDescription:
+      'Erstelle einen benannten Bereich, indem du Zellen oder Formeln auswählst und den gewünschten Namen in das Textfeld einträgst.',
+    addButton: 'Benannten Bereich hinzufügen',
+    featureTitle: 'Benannte Bereiche',
+    ratioRange: 'Bereich',
+    ratioFormula: 'Formel',
+    confirm: 'Bestätigen',
+    cancel: 'Abbrechen',
+    scopeWorkbook: 'Arbeitsmappe',
+    inputNamePlaceholder: 'Bitte gib einen Namen ein (keine Leerzeichen erlaubt)',
+    inputCommentPlaceholder: 'Bitte gib einen Kommentar ein',
+    inputRangePlaceholder: 'Bitte gib einen Bereich ein (keine Leerzeichen erlaubt)',
+    inputFormulaPlaceholder: 'Bitte gib eine Formel ein (keine Leerzeichen erlaubt)',
+    nameEmpty: 'Der Name darf nicht leer sein',
+    nameDuplicate: 'Der Name existiert bereits',
+    formulaOrRefStringEmpty: 'Formel oder Bezugszeichenkette darf nicht leer sein',
+    formulaOrRefStringInvalid: 'Ungültige Formel oder Bezugszeichenkette',
+    defaultName: 'BenannterBereich',
+    updateButton: 'Aktualisieren',
+    deleteButton: 'Löschen',
+    deleteConfirmText: 'Möchtest du diesen benannten Bereich wirklich löschen?',
+    nameConflict: 'Der Name steht im Konflikt mit einem Funktionsnamen',
+    nameInvalid: 'Der Name ist ungültig',
+    nameSheetConflict: 'Der Name steht im Konflikt mit einem Tabellennamen'
+  },
+  permission: {
+    toolbarMenu: 'Schutz',
+    panel: {
+      title: 'Zeilen und Spalten schützen',
+      name: 'Name',
+      protectedRange: 'Geschützter Bereich',
+      permissionDirection: 'Berechtigungsbeschreibung',
+      permissionDirectionPlaceholder: 'Berechtigungsbeschreibung eingeben',
+      editPermission: 'Bearbeitungsberechtigungen',
+      onlyICanEdit: 'Nur ich kann bearbeiten',
+      designedUserCanEdit: 'Bestimmte Personen können bearbeiten',
+      viewPermission: 'Anzeigeberechtigungen',
+      othersCanView: 'Andere können ansehen',
+      noOneElseCanView: 'Niemand sonst kann ansehen',
+      designedPerson: 'Bestimmte Personen',
+      addPerson: 'Person hinzufügen',
+      canEdit: 'Kann bearbeiten',
+      canView: 'Kann ansehen',
+      delete: 'Löschen',
+      currentSheet: 'Aktuelle Tabelle',
+      allSheet: 'Alle Tabellen',
+      edit: 'Bearbeiten',
+      Print: 'Drucken',
+      Comment: 'Kommentar',
+      Copy: 'Kopieren',
+      SetCellStyle: 'Zellformat festlegen',
+      SetCellValue: 'Zellwert festlegen',
+      SetHyperLink: 'Hyperlink festlegen',
+      Sort: 'Sortieren',
+      Filter: 'Filtern',
+      PivotTable: 'Pivot-Tabelle',
+      FloatImage: 'Schwebendes Bild',
+      RowHeightColWidth: 'Zeilenhöhe und Spaltenbreite',
+      RowHeightColWidthReadonly: 'Zeilenhöhe und Spaltenbreite (schreibgeschützt)',
+      FilterReadonly: 'Filter (schreibgeschützt)',
+      nameError: 'Der Name darf nicht leer sein',
+      created: 'Erstellt',
+      iCanEdit: 'Ich kann bearbeiten',
+      iCanNotEdit: 'Ich kann nicht bearbeiten',
+      iCanView: 'Ich kann ansehen',
+      iCanNotView: 'Ich kann nicht ansehen',
+      emptyRangeError: 'Der Bereich darf nicht leer sein',
+      rangeOverlapError: 'Bereiche dürfen sich nicht überlappen',
+      rangeOverlapOverPermissionError:
+        'Der Bereich darf sich nicht mit einem Bereich überlappen, der dieselben Berechtigungen hat',
+      InsertHyperlink: 'Hyperlink einfügen',
+      SetRowStyle: 'Zeilenformat festlegen',
+      SetColumnStyle: 'Spaltenformat festlegen',
+      InsertColumn: 'Spalte einfügen',
+      InsertRow: 'Zeile einfügen',
+      DeleteRow: 'Zeile löschen',
+      DeleteColumn: 'Spalte löschen',
+      EditExtraObject: 'Zusätzliches Objekt bearbeiten'
+    },
+    dialog: {
+      allowUserToEdit: 'Nutzer:innen Bearbeitung erlauben',
+      allowedPermissionType: 'Erlaubte Berechtigungstypen',
+      setCellValue: 'Zellwert festlegen',
+      setCellStyle: 'Zellformat festlegen',
+      copy: 'Kopieren',
+      alert: 'Hinweis',
+      search: 'Suchen',
+      alertContent:
+        'Dieser Bereich ist geschützt und es sind derzeit keine Bearbeitungsberechtigungen verfügbar. Wenn du bearbeiten möchtest, wende dich bitte an die Erstellerin/den Ersteller.',
+      userEmpty: 'Keine bestimmten Personen. Teile den Link, um bestimmte Personen einzuladen.',
+      listEmpty: 'Du hast noch keine Bereiche oder Tabellen als geschützt eingerichtet.'
     }
   },
   align: {
