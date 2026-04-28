@@ -14,6 +14,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import {
+  ArrowCounterClockwiseIcon,
   ClockCounterClockwiseIcon,
   CopyIcon,
   DotsThreeVerticalIcon,
@@ -27,7 +28,8 @@ import {
   SquaresFourIcon,
   StarIcon,
   TrashIcon,
-  UsersThreeIcon
+  UsersThreeIcon,
+  XIcon
 } from '@phosphor-icons/react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useWhiteboards } from './hooks/useWhiteboards'
@@ -40,7 +42,12 @@ import { RenameWhiteboardDialog } from './components/RenameWhiteboardDialog'
 import { TrashedWhiteboardReadonlyDialog } from './components/TrashedWhiteboardReadonlyDialog'
 import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
 import { DriveApiService } from '@/business-apps/core/office/apps/drive/services/DriveApiService'
-import { OfficeTrashList } from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import {
+  OfficeTrashListTable,
+  OfficeTrashListToolbar,
+  useOfficeTrashList
+} from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import { PermanentDeleteConfirmDialog } from '@/business-apps/platform/apps/shared/components/PermanentDeleteConfirmDialog'
 import translations from './_i18n'
 import { WhiteboardApiService } from './services/WhiteboardApiService'
 import type { WhiteboardSummary } from './types'
@@ -115,6 +122,10 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
   const [whiteboardForManageShares, setWhiteboardForManageShares] = useState<string | null>(null)
   const [renameDialogOpen, setRenameDialogOpen] = useState(false)
   const [whiteboardToRename, setWhiteboardToRename] = useState<string | null>(null)
+  const [selectedTrashIds, setSelectedTrashIds] = useState<Set<string>>(new Set())
+  const [bulkDeleteTrashOpen, setBulkDeleteTrashOpen] = useState(false)
+  const [isBulkDeletingTrash, setIsBulkDeletingTrash] = useState(false)
+  const [isBulkRestoringTrash, setIsBulkRestoringTrash] = useState(false)
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
@@ -148,6 +159,87 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
     { key: 'recent', icon: ClockCounterClockwiseIcon, label: t('whiteboard-recent') },
     { key: 'trash', icon: TrashIcon, label: t('whiteboard-trash') }
   ] as const
+
+  const trashList = useOfficeTrashList({
+    accessToken,
+    entityType: 'whiteboard',
+    enabled: activeSection === 'trash',
+    searchQuery: trashSearchQuery,
+    defaultSortBy: 'trashedAt',
+    defaultSortOrder: 'desc',
+    onItemsChanged: refresh,
+    listControls: {
+      refreshLabel: '',
+      sortNameLabel: '',
+      sortTrashedOnLabel: '',
+      trashedOnColumnLabel: '',
+      toastRestoredLabel: t('trash-toast-restored'),
+      toastRestoreFailedLabel: t('trash-toast-restore-failed'),
+      toastDeletedLabel: t('trash-toast-deleted'),
+      toastDeleteFailedLabel: t('trash-toast-delete-failed')
+    }
+  })
+
+  const handleToggleTrashSelect = useCallback((id: string) => {
+    setSelectedTrashIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSelectAllTrash = useCallback(() => {
+    setSelectedTrashIds(prev =>
+      prev.size === trashList.sortedItems.length && trashList.sortedItems.length > 0
+        ? new Set()
+        : new Set(trashList.sortedItems.map(i => i.id))
+    )
+  }, [trashList.sortedItems])
+
+  const handleBulkRestoreTrash = useCallback(async () => {
+    if (!accessToken || selectedTrashIds.size === 0) return
+    const toRestore = trashList.sortedItems.filter(item => selectedTrashIds.has(item.id))
+    setIsBulkRestoringTrash(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      await DriveApiService.restoreItems(toRestore.map(item => ({ entityType: 'whiteboard', entityId: item.id })))
+      toast.success(t('trash-bulk-restored', { count: toRestore.length }))
+      setSelectedTrashIds(new Set())
+      await trashList.refresh()
+      refresh()
+    } catch (error) {
+      console.error('[WhiteboardAppsHub] Bulk restore failed:', error)
+      toast.error(t('toast-restore-failed'))
+    } finally {
+      setIsBulkRestoringTrash(false)
+    }
+  }, [accessToken, refresh, selectedTrashIds, t, trashList])
+
+  const handleBulkDeleteTrash = useCallback(async () => {
+    if (!accessToken || selectedTrashIds.size === 0) return
+    const toDelete = trashList.sortedItems.filter(item => selectedTrashIds.has(item.id))
+    setIsBulkDeletingTrash(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      for (const item of toDelete) {
+        await DriveApiService.deleteTrashedItem('whiteboard', item.id)
+      }
+      toast.success(t('trash-bulk-deleted', { count: toDelete.length }))
+      setSelectedTrashIds(new Set())
+      await trashList.refresh()
+      refresh()
+    } catch (error) {
+      console.error('[WhiteboardAppsHub] Bulk delete failed:', error)
+      toast.error(t('toast-restore-failed'))
+    } finally {
+      setIsBulkDeletingTrash(false)
+      setBulkDeleteTrashOpen(false)
+    }
+  }, [accessToken, refresh, selectedTrashIds, t, trashList])
 
   const openWhiteboard = useCallback(
     async ({
@@ -405,72 +497,194 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
   }
 
   if (activeSection === 'trash') {
+    const trashListControls = {
+      refreshLabel: t('trash-refresh'),
+      sortNameLabel: t('sort-name'),
+      sortTrashedOnLabel: t('sort-trashed'),
+      trashedOnColumnLabel: t('table-trashed'),
+      defaultSortBy: 'trashedAt' as const,
+      defaultSortOrder: 'desc' as const,
+      deleteDialogTitle: t('trash-delete-dialog-title-single'),
+      deleteDialogDescriptionFn: (name: string) => t('trash-delete-dialog-description-single', { name }),
+      deleteDialogCancel: t('trash-delete-dialog-cancel'),
+      deleteDialogConfirm: t('trash-delete-dialog-confirm'),
+      deleteDialogDeleting: t('trash-delete-dialog-deleting'),
+      restoreLabel: t('trash-action-restore'),
+      restoringLabel: t('trash-action-restoring'),
+      deleteLabel: t('trash-action-delete'),
+      deletingLabel: t('trash-action-deleting')
+    }
+
     return (
-      <div className="gba:flex gba:h-full gba:w-full gba:bg-background" data-testid={testId}>
-        <div className="gba:w-56 gba:border-r gba:border-border gba:bg-card gba:flex gba:flex-col gba:p-3 gba:gap-1">
-          <Button
-            className="gba:w-full gba:justify-start gba:mb-4"
-            onClick={handleCreate}
-            data-testid={`${testId}-create`}
-          >
-            <PlusIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-            {t('whiteboard-create')}
-          </Button>
-
-          {sidebarItems.map(item => (
+      <>
+        <div className="gba:flex gba:h-full gba:w-full gba:bg-background" data-testid={testId}>
+          <div className="gba:w-56 gba:border-r gba:border-border gba:bg-card gba:flex gba:flex-col gba:p-3 gba:gap-1">
             <Button
-              key={item.key}
-              variant={activeSection === item.key ? 'secondary' : 'ghost'}
-              className="gba:w-full gba:justify-start"
-              onClick={() => setActiveSection(item.key)}
-              data-testid={`${testId}-sidebar-${item.key}`}
+              className="gba:w-full gba:justify-start gba:mb-4"
+              onClick={handleCreate}
+              data-testid={`${testId}-create`}
             >
-              <item.icon className="gba:h-4 gba:w-4 gba:mr-2" />
-              {item.label}
+              <PlusIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+              {t('whiteboard-create')}
             </Button>
-          ))}
-        </div>
 
-        <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden">
-          <div className="gba:px-6 gba:py-4 gba:border-b gba:border-border">
-            <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
-              <div className="gba:relative">
-                <MagnifyingGlassIcon className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
-                <Input
-                  placeholder={t('whiteboard-trash-search-placeholder')}
-                  value={trashSearchQuery}
-                  onChange={event => setTrashSearchQuery(event.target.value)}
-                  className="gba:h-12 gba:pl-11 gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm"
-                  data-testid={`${testId}-trash-search`}
-                />
+            {sidebarItems.map(item => (
+              <Button
+                key={item.key}
+                variant={activeSection === item.key ? 'secondary' : 'ghost'}
+                className="gba:w-full gba:justify-start"
+                onClick={() => setActiveSection(item.key)}
+                data-testid={`${testId}-sidebar-${item.key}`}
+              >
+                <item.icon className="gba:h-4 gba:w-4 gba:mr-2" />
+                {item.label}
+              </Button>
+            ))}
+          </div>
+
+          <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden">
+            <div className="gba:px-6 gba:py-4 gba:border-b gba:border-border">
+              <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+                <div className="gba:relative">
+                  <MagnifyingGlassIcon className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
+                  <Input
+                    placeholder={t('whiteboard-trash-search-placeholder')}
+                    value={trashSearchQuery}
+                    onChange={event => setTrashSearchQuery(event.target.value)}
+                    className="gba:h-12 gba:pl-11 gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm"
+                    data-testid={`${testId}-trash-search`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="gba:flex-1 gba:overflow-y-auto gba:p-6">
+              <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+                <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
+                  {selectedTrashIds.size > 0 ? (
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedTrashIds(new Set())}
+                        data-testid={`${testId}-bulk-clear`}
+                      >
+                        <XIcon className="gba:w-4 gba:h-4 gba:mr-1" />
+                        {t('header-selected-count', { count: selectedTrashIds.size })}
+                      </Button>
+                      <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          void handleBulkRestoreTrash()
+                        }}
+                        disabled={isBulkRestoringTrash || isBulkDeletingTrash}
+                        data-testid={`${testId}-bulk-restore`}
+                      >
+                        <ArrowCounterClockwiseIcon className="gba:w-4 gba:h-4 gba:mr-1" />
+                        {isBulkRestoringTrash ? t('trash-bulk-restoring') : t('trash-bulk-restore')}
+                      </Button>
+                      <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setBulkDeleteTrashOpen(true)}
+                        disabled={isBulkRestoringTrash || isBulkDeletingTrash}
+                        data-testid={`${testId}-bulk-delete`}
+                      >
+                        <TrashIcon className="gba:w-4 gba:h-4 gba:mr-1" />
+                        {t('trash-bulk-delete-permanently')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <OfficeTrashListToolbar
+                      listControls={trashListControls}
+                      isLoading={trashList.isLoading}
+                      sortBy={trashList.sortBy}
+                      sortOrder={trashList.sortOrder}
+                      onRefresh={() => {
+                        void trashList.refresh()
+                      }}
+                      onSortChange={trashList.handleSortChange}
+                      onToggleSortOrder={trashList.toggleSortOrder}
+                      data-testid={`${testId}-trash-toolbar`}
+                    />
+                  )}
+                </div>
+
+                {trashList.isLoading ? (
+                  <div className="gba:flex gba:justify-center gba:py-12">
+                    <Spinner />
+                  </div>
+                ) : trashList.sortedItems.length === 0 ? (
+                  <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:text-center">
+                    <h3 className="gba:text-lg gba:font-semibold">{t('whiteboards-empty-trash-title')}</h3>
+                    <p className="gba:mt-2 gba:text-sm gba:text-muted-foreground">
+                      {t('whiteboards-empty-trash-description')}
+                    </p>
+                  </div>
+                ) : (
+                  <OfficeTrashListTable
+                    items={trashList.sortedItems}
+                    listControls={trashListControls}
+                    sortBy={trashList.sortBy}
+                    actionKey={trashList.actionKey}
+                    deleteConfirmItem={trashList.deleteConfirmItem}
+                    onOpenItem={item => handleOpenTrashedWhiteboard(item.id)}
+                    onSortChange={trashList.handleSortChange}
+                    onRestoreItem={item => {
+                      void trashList.handleRestore(item)
+                    }}
+                    onRequestDelete={trashList.requestDelete}
+                    onDeleteConfirmOpenChange={trashList.handleDeleteConfirmOpenChange}
+                    onConfirmDelete={() => {
+                      void trashList.confirmDelete()
+                    }}
+                    selectedIds={selectedTrashIds}
+                    onToggleSelect={handleToggleTrashSelect}
+                    onSelectAll={handleSelectAllTrash}
+                    renderIcon={() => (
+                      <div className="gba:w-9 gba:h-9 gba:rounded-xl gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:bg-violet-500/10">
+                        <PencilSimpleLineIcon className="gba:w-5 gba:h-5 gba:text-violet-500" />
+                      </div>
+                    )}
+                    data-testid={`${testId}-trash-table`}
+                  />
+                )}
               </div>
             </div>
           </div>
-
-          <div className="gba:flex-1 gba:overflow-y-auto gba:p-6">
-            <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
-              <OfficeTrashList
-                accessToken={accessToken}
-                entityType="whiteboard"
-                emptyTitle={t('whiteboards-empty-trash-title')}
-                emptyDescription={t('whiteboards-empty-trash-description')}
-                layout="list"
-                searchQuery={trashSearchQuery}
-                listControls={{
-                  refreshLabel: t('trash-refresh'),
-                  sortNameLabel: t('sort-name'),
-                  sortTrashedOnLabel: t('sort-trashed'),
-                  trashedOnColumnLabel: t('table-trashed'),
-                  defaultSortBy: 'trashedAt',
-                  defaultSortOrder: 'desc'
-                }}
-                onOpenItem={item => handleOpenTrashedWhiteboard(item.id)}
-                onItemsChanged={refresh}
-              />
-            </div>
-          </div>
         </div>
-      </div>
+
+        <PermanentDeleteConfirmDialog
+          open={bulkDeleteTrashOpen}
+          onOpenChange={open => {
+            if (!isBulkDeletingTrash) setBulkDeleteTrashOpen(open)
+          }}
+          itemNames={trashList.sortedItems.filter(item => selectedTrashIds.has(item.id)).map(item => item.name)}
+          title={
+            selectedTrashIds.size === 1
+              ? t('trash-delete-dialog-title-single')
+              : t('trash-delete-dialog-title-multiple', { count: selectedTrashIds.size })
+          }
+          description={
+            selectedTrashIds.size === 1
+              ? t('trash-delete-dialog-description-single', {
+                  name: trashList.sortedItems.find(item => selectedTrashIds.has(item.id))?.name ?? ''
+                })
+              : t('trash-delete-dialog-description-multiple', { count: selectedTrashIds.size })
+          }
+          cancelLabel={t('trash-delete-dialog-cancel')}
+          confirmLabel={t('trash-delete-dialog-confirm')}
+          deletingLabel={t('trash-delete-dialog-deleting')}
+          onConfirm={() => {
+            void handleBulkDeleteTrash()
+          }}
+          isDeleting={isBulkDeletingTrash}
+          data-testid={`${testId}-bulk-delete-dialog`}
+        />
+      </>
     )
   }
 

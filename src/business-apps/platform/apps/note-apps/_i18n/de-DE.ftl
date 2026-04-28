@@ -509,6 +509,22 @@ trash-list-item-restored = Notiz wiederhergestellt
 trash-list-item-restore-failed = Notiz konnte nicht wiederhergestellt werden
 trash-list-item-deleted = Notiz dauerhaft gelöscht
 trash-list-item-delete-failed = Notiz konnte nicht dauerhaft gelöscht werden
+trash-bulk-selected = { $count } ausgewählt
+trash-bulk-restored = { $count } { $count ->
+    [one] Notiz
+   *[other] Notizen
+  } wiederhergestellt
+trash-bulk-deleted = { $count } { $count ->
+    [one] Notiz
+   *[other] Notizen
+  } endgültig gelöscht
+trash-delete-dialog-title-single = Endgültig löschen?
+trash-delete-dialog-title-multiple = { $count } Elemente endgültig löschen?
+trash-delete-dialog-description-single = „{ $name }" wird endgültig gelöscht und kann nicht wiederhergestellt werden. Diese Aktion kann nicht rückgängig gemacht werden.
+trash-delete-dialog-description-multiple = { $count } Elemente werden endgültig gelöscht und können nicht wiederhergestellt werden. Diese Aktion kann nicht rückgängig gemacht werden.
+trash-delete-dialog-cancel = Abbrechen
+trash-delete-dialog-confirm = Endgültig löschen
+trash-delete-dialog-deleting = Wird gelöscht...
 trashed-readonly-title = Diese Notiz befindet sich im Papierkorb
 trashed-readonly-description = „{ $title }“ befindet sich im Papierkorb und wird bis zur Wiederherstellung nur im Ansichtsmodus geöffnet.
 trashed-readonly-owner-note = Um diese Notiz wieder zu bearbeiten, holen Sie sie aus dem Papierkorb.

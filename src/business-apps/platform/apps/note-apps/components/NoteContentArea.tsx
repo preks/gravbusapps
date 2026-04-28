@@ -317,7 +317,7 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                     >
                       {/* Checkbox */}
                       <div
-                        className={`gba:flex-shrink-0 gba:transition-opacity ${isSelected ? 'gba:opacity-100' : 'gba:opacity-30 group-hover:gba:opacity-100'}`}
+                        className={`gba:flex-shrink-0 gba:transition-opacity ${isSelected ? 'gba:opacity-100' : 'gba:opacity-60 group-hover:gba:opacity-100'}`}
                         onClick={e => e.stopPropagation()}
                       >
                         <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelect(note.id)} />
@@ -411,7 +411,7 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
 
                       {/* Actions */}
                       <div
-                        className="gba:flex-shrink-0 gba:opacity-30 group-hover:gba:opacity-100 gba:transition-opacity"
+                        className="gba:flex-shrink-0 gba:opacity-50 group-hover:gba:opacity-100 gba:transition-opacity"
                         onClick={e => e.stopPropagation()}
                       >
                         <DropdownMenu>

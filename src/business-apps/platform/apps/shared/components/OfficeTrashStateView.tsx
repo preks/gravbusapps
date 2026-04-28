@@ -131,7 +131,7 @@ export function OfficeTrashStateView({
             setDeleteConfirmOpen(open)
           }
         }}
-        itemName={item?.name}
+        itemNames={item?.name ? [item.name] : []}
         onConfirm={() => {
           void handleDelete()
         }}
