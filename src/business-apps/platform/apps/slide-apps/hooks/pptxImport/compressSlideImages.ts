@@ -1,6 +1,10 @@
-// Compresses base64-encoded images in parsed slides using canvas downscaling
-// and JPEG re-encoding to keep the contentJson payload under the
-// document-service 10 MB JSON body limit.
+// Legacy safeguard for unexpected inline image payloads. Strict PPTX media
+// hosting should upload embedded assets or replace them before persistence, so
+// this utility is no longer part of the normal import path.
+//
+// When invoked explicitly, it compresses base64-encoded images in parsed slides
+// using canvas downscaling and JPEG re-encoding to keep the contentJson payload
+// under the document-service 10 MB JSON body limit.
 //
 // Design rule: this step MUST never silently blank an imported image.
 //  - If recompression fails (undecodable format), keep the original src so the
@@ -49,6 +53,7 @@ interface CompressionPass {
   maxWidth: number
   maxHeight: number
   quality: number
+  allowOpaqueRasterJpeg: boolean
 }
 
 const ALPHA_CAPABLE_MIME_TYPES = new Set(['image/png', 'image/webp', 'image/gif'])
@@ -58,9 +63,9 @@ const ALPHA_CAPABLE_MIME_TYPES = new Set(['image/png', 'image/webp', 'image/gif'
 // thin lines. A 1200x900 @ JPEG 0.7 re-encode visibly blurs those. Subsequent
 // passes only run when the JSON payload is still over budget.
 const PASSES: CompressionPass[] = [
-  { maxWidth: 1920, maxHeight: 1440, quality: 0.9 },
-  { maxWidth: 1280, maxHeight: 960, quality: 0.75 },
-  { maxWidth: 800, maxHeight: 600, quality: 0.55 }
+  { maxWidth: 1920, maxHeight: 1440, quality: 0.9, allowOpaqueRasterJpeg: false },
+  { maxWidth: 1280, maxHeight: 960, quality: 0.75, allowOpaqueRasterJpeg: true },
+  { maxWidth: 800, maxHeight: 600, quality: 0.55, allowOpaqueRasterJpeg: true }
 ]
 
 // Images smaller than this are left untouched in the first pass. Most PPTX
@@ -123,7 +128,17 @@ function compressImage(base64: string, pass: CompressionPass): Promise<string | 
           !!sourceMime &&
           ALPHA_CAPABLE_MIME_TYPES.has(sourceMime) &&
           canvasContainsTransparency(ctx, canvas.width, canvas.height)
-        const outputMime = preserveAlpha ? (sourceMime === 'image/webp' ? 'image/webp' : 'image/png') : 'image/jpeg'
+        const outputMime = preserveAlpha
+          ? sourceMime === 'image/webp'
+            ? 'image/webp'
+            : 'image/png'
+          : sourceMime === 'image/jpeg' || sourceMime === 'image/jpg'
+            ? 'image/jpeg'
+            : sourceMime === 'image/webp'
+              ? 'image/webp'
+              : !pass.allowOpaqueRasterJpeg && (sourceMime === 'image/png' || sourceMime === 'image/gif')
+                ? 'image/png'
+                : 'image/jpeg'
         resolve(
           canvas.toDataURL(
             outputMime,
@@ -205,6 +220,8 @@ export async function compressSlideImages(
   onProgress?: (done: number, total: number) => void,
   onWarning?: (warning: CompressionWarning) => void
 ): Promise<SlideData[]> {
+  if (estimatePayloadSize(slides) <= MAX_PAYLOAD_BYTES) return slides
+
   const slots = collectImageSlots(slides)
   if (slots.length === 0) return slides
 

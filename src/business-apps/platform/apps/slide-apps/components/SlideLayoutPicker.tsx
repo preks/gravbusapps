@@ -6,6 +6,7 @@ import { Plus, ChevronDown, CopyPlus, LayoutTemplate } from 'lucide-react'
 import type { SlideTheme } from './slideThemes'
 import type { SlideMaster, SlideLayout } from '../types/slideMaster'
 import type { AnySlideElement } from './slideElements'
+import { gradientToCss } from './slideElements'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import { getEffectiveMasters } from '../data/defaultSlideMaster'
 import translations from '../_i18n'
@@ -134,7 +135,8 @@ function LayoutElementPreview({ element }: { element: AnySlideElement }) {
     // whose exact silhouette matters for the user to recognise the layout).
     const officePreset = tryRenderOfficePresetShape({
       element: el,
-      fillStyle: el.fill || 'transparent',
+      fillStyle: el.gradient ? gradientToCss(el.gradient) : el.fill || 'transparent',
+      ...(el.gradient ? { gradient: el.gradient } : {}),
       strokeColor: el.strokeColor || 'transparent',
       strokeWidth: el.strokeWidth || 0,
       shadow: !!el.shadow,
@@ -172,7 +174,7 @@ function LayoutElementPreview({ element }: { element: AnySlideElement }) {
       <div
         style={{
           ...baseStyle,
-          backgroundColor: el.fill,
+          background: el.gradient ? gradientToCss(el.gradient) : el.fill,
           borderRadius: el.shapeType === 'circle' || el.shapeType === 'ellipse' ? '50%' : el.cornerRadius || 0,
           border: el.strokeWidth ? `${el.strokeWidth}px ${el.strokeStyle || 'solid'} ${el.strokeColor}` : undefined
         }}

@@ -141,6 +141,41 @@ export const SlidesApiService = {
     currentAccessToken = token
   },
 
+  getDriveFileIdFromUrl(url: string | undefined): string | null {
+    if (!url) return null
+
+    try {
+      const origin = typeof window === 'undefined' ? API_URL : window.location.origin
+      const parsed = new URL(url, origin)
+      const match = parsed.pathname.match(/\/drive\/files\/([^/]+)\/download$/)
+      return match?.[1] ?? null
+    } catch {
+      return null
+    }
+  },
+
+  isProtectedDriveMediaUrl(url: string | undefined): boolean {
+    return this.getDriveFileIdFromUrl(url) !== null
+  },
+
+  async fetchProtectedMediaBlob(url: string): Promise<Blob | null> {
+    const fileId = this.getDriveFileIdFromUrl(url)
+    if (!fileId) return null
+
+    const token = currentAccessToken
+    const origin = typeof window === 'undefined' ? API_URL : window.location.origin
+    const normalizedUrl = new URL(url, origin).toString()
+    const response = await fetch(normalizedUrl, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    })
+
+    if (!response.ok) {
+      throw new Error(`Protected media fetch failed: ${response.status}`)
+    }
+
+    return response.blob()
+  },
+
   async listSlides(options?: {
     search?: string
     page?: number
@@ -643,7 +678,7 @@ export const SlidesApiService = {
         contentJson: {
           slides: contentJson.slides as SlideTemplate['contentJson']['slides'],
           themeId: contentJson.themeId as string,
-          _templateMeta: meta as SlideTemplate['contentJson']['_templateMeta']
+          _templateMeta: meta as unknown as SlideTemplate['contentJson']['_templateMeta']
         },
         createdAt: api.createdAt as string,
         updatedAt: api.updatedAt as string,
@@ -803,14 +838,23 @@ export const SlidesApiService = {
   },
 
   async uploadImageFromBase64(base64DataUrl: string, filename: string): Promise<string> {
-    const token = currentAccessToken
-    const mimeMatch = base64DataUrl.match(/^data:([^;]+);/)
-    const mime = mimeMatch?.[1] || 'image/png'
-    const raw = atob(base64DataUrl.split(',')[1])
+    return this.uploadDataUrl(base64DataUrl, filename, 'image/png')
+  },
+
+  async uploadDataUrl(dataUrl: string, filename: string, fallbackMime = 'application/octet-stream'): Promise<string> {
+    const mimeMatch = dataUrl.match(/^data:([^;]+);/)
+    const mime = mimeMatch?.[1] || fallbackMime
+    const raw = atob(dataUrl.split(',')[1])
     const bytes = new Uint8Array(raw.length)
     for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i)
     const blob = new Blob([bytes], { type: mime })
     const file = new File([blob], filename, { type: mime })
+
+    return this.uploadFile(file)
+  },
+
+  async uploadFile(file: File): Promise<string> {
+    const token = currentAccessToken
 
     const formData = new FormData()
     formData.append('file', file)
@@ -820,7 +864,7 @@ export const SlidesApiService = {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: formData
     })
-    if (!response.ok) throw new Error(`Image upload failed: ${response.status}`)
+    if (!response.ok) throw new Error(`File upload failed: ${response.status}`)
     const result: { id: string } = await response.json()
     return `${API_URL}/drive/files/${result.id}/download`
   }

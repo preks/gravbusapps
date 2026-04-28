@@ -102,6 +102,30 @@ describe('extractImageElements', () => {
     expect(images[0].src).toBe('data:image/png;base64,BBB')
   })
 
+  it('preserves linked external image URLs', () => {
+    const xml = slideXml(`
+      <p:pic>
+        <p:blipFill><a:blip r:link="rIdLinked"/></p:blipFill>
+        <p:spPr>
+          <a:xfrm>
+            <a:off x="0" y="0"/>
+            <a:ext cx="914400" cy="914400"/>
+          </a:xfrm>
+        </p:spPr>
+      </p:pic>
+    `)
+
+    const linkedRelationships: SlideRelationships = {
+      images: new Map([['rIdLinked', 'https://example.com/linked-image.png']]),
+      hyperlinks: new Map(),
+      chartPaths: new Map()
+    }
+
+    const images = extractImageElements(xml, linkedRelationships, imageData)
+    expect(images).toHaveLength(1)
+    expect(images[0].src).toBe('https://example.com/linked-image.png')
+  })
+
   it('ignores pictures nested inside groups (flattenGroups handles those)', () => {
     const xml = slideXml(`
       <p:grpSp>
