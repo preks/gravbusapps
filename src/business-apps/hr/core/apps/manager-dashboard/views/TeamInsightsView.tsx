@@ -56,6 +56,130 @@ const TabContentWrapper: React.FC<TabContentWrapperProps> = ({ loading, isEmpty,
   return <>{children}</>
 }
 
+interface CelebrationRow {
+  id: string
+  firstName: string
+  lastName: string
+  fullName: string
+  pictureThumbnail?: string
+  email?: string
+  eventDate?: string | null
+  yearsOfService?: number
+  emailSubject: string
+  emailBody: string
+  unavailableOnDifferentDayMessage: string
+}
+
+interface CelebrationTableProps {
+  rows: CelebrationRow[]
+  nameHeaderLabel: string
+  dateHeaderLabel: string
+  actionHeaderLabel: string
+  actionButtonLabel: string
+  noEmailLabel: string
+  onNavigateToEmployee: (employeeId: string) => void
+  yearsHeaderLabel?: string
+}
+
+const getAvatarImageSrc = (pictureThumbnail?: string): string | undefined =>
+  pictureThumbnail && !pictureThumbnail.startsWith('{') ? `data:image/jpeg;base64,${pictureThumbnail}` : undefined
+
+const getAvatarInitials = (firstName: string, lastName: string): string =>
+  `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase()
+
+const isEventToday = (eventDate: string | null | undefined, today: dayjs.Dayjs): boolean => {
+  const parsedDate = dayjs(eventDate)
+  return parsedDate.isValid() && parsedDate.month() === today.month() && parsedDate.date() === today.date()
+}
+
+const openMailtoMessage = (email: string, subject: string, body: string) => {
+  const encodedSubject = encodeURIComponent(subject)
+  const encodedBody = encodeURIComponent(body)
+  globalThis.location.href = `mailto:${email}?subject=${encodedSubject}&body=${encodedBody}`
+}
+
+const CelebrationTable: React.FC<CelebrationTableProps> = ({
+  rows,
+  nameHeaderLabel,
+  dateHeaderLabel,
+  actionHeaderLabel,
+  actionButtonLabel,
+  noEmailLabel,
+  onNavigateToEmployee,
+  yearsHeaderLabel
+}) => {
+  const today = dayjs()
+  const showYearsColumn = Boolean(yearsHeaderLabel)
+
+  return (
+    <div className="gba:border gba:rounded-lg gba:overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{nameHeaderLabel}</TableHead>
+            <TableHead>{dateHeaderLabel}</TableHead>
+            {showYearsColumn && <TableHead>{yearsHeaderLabel}</TableHead>}
+            <TableHead>{actionHeaderLabel}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map(row => {
+            const actionAvailableToday = isEventToday(row.eventDate, today)
+            const isActionDisabled = !row.email || !actionAvailableToday
+            const disabledReason = !row.email ? noEmailLabel : row.unavailableOnDifferentDayMessage
+
+            return (
+              <TableRow
+                key={row.id}
+                className="gba:cursor-pointer hover:gba:bg-muted/50"
+                onClick={() => onNavigateToEmployee(row.id)}
+              >
+                <TableCell>
+                  <div className="gba:flex gba:items-center gba:space-x-3">
+                    <Avatar size="sm" className="gba:h-8 gba:w-8">
+                      <AvatarImage src={getAvatarImageSrc(row.pictureThumbnail)} alt={row.fullName} />
+                      <AvatarFallback>{getAvatarInitials(row.firstName, row.lastName)}</AvatarFallback>
+                    </Avatar>
+                    <span className="gba:font-medium">{row.fullName}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="gba:text-sm gba:text-muted-foreground">
+                    {row.eventDate ? dayjs(row.eventDate).format('MMMM D') : '-'}
+                  </div>
+                </TableCell>
+                {showYearsColumn && (
+                  <TableCell>
+                    <Badge variant="info" size="sm">
+                      {row.yearsOfService} {row.yearsOfService === 1 ? 'year' : 'years'}
+                    </Badge>
+                  </TableCell>
+                )}
+                <TableCell>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isActionDisabled}
+                    onClick={event => {
+                      event.stopPropagation()
+                      if (isActionDisabled || !row.email) return
+                      openMailtoMessage(row.email, row.emailSubject, row.emailBody)
+                    }}
+                    title={isActionDisabled ? disabledReason : ''}
+                  >
+                    <EnvelopeOpen size={16} className="gba:mr-1" />
+                    {actionButtonLabel}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+
 export interface TeamInsightsViewProps {
   upcomingBirthdays: TeamBirthday[]
   upcomingAnniversaries: TeamAnniversary[]
@@ -87,7 +211,6 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
 }) => {
   const [isPositionSheetOpen, setIsPositionSheetOpen] = useState(false)
   const [selectedPosition, setSelectedPosition] = useState<JobPosition | null>(null)
-  const today = dayjs()
 
   const handleOpenPositionSheet = (positionId: string) => {
     const position = fullPositions.find(p => p.id === positionId)
@@ -168,106 +291,44 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                     'No birthdays this month'
                   )}
                 >
-                  <div className="gba:border gba:rounded-lg gba:overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>
-                            {getTranslationFromI18nKeyAndLabel(
-                              'master-data:forms.capability.fields.name.label',
-                              'Name'
-                            )}
-                          </TableHead>
-                          <TableHead>
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthday', 'Birthday')}
-                          </TableHead>
-                          <TableHead>
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions')}
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {upcomingBirthdays.map(person => {
-                          const birthdayDate = dayjs(person.birthDate)
-                          const isBirthdayToday =
-                            birthdayDate.isValid() &&
-                            birthdayDate.month() === today.month() &&
-                            birthdayDate.date() === today.date()
-                          const isActionDisabled = !person.email || !isBirthdayToday
-                          const disabledReason = !person.email
-                            ? getTranslationFromI18nKeyAndLabel(
-                                'master-data:hr.manager_dashboard.no_email',
-                                'No email available'
-                              )
-                            : 'Available on the birthday date'
-
-                          return (
-                            <TableRow
-                              key={person.id}
-                              className="gba:cursor-pointer hover:gba:bg-muted/50"
-                              onClick={() => onNavigateToEmployee(person.id)}
-                            >
-                              <TableCell>
-                                <div className="gba:flex gba:items-center gba:space-x-3">
-                                  <Avatar size="sm" className="gba:h-8 gba:w-8">
-                                    <AvatarImage
-                                      src={
-                                        person.pictureThumbnail && !person.pictureThumbnail.startsWith('{')
-                                          ? `data:image/jpeg;base64,${person.pictureThumbnail}`
-                                          : undefined
-                                      }
-                                      alt={person.fullName}
-                                    />
-                                    <AvatarFallback>
-                                      {`${person.firstName[0]}${person.lastName[0]}`.toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="gba:font-medium">{person.fullName}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="gba:text-sm gba:text-muted-foreground">
-                                  {person.birthDate ? dayjs(person.birthDate).format('MMMM D') : '-'}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={isActionDisabled}
-                                  onClick={e => {
-                                    e.stopPropagation()
-                                    if (isActionDisabled || !person.email) return
-
-                                    const subject = encodeURIComponent(
-                                      getTranslationFromI18nKeyAndLabel(
-                                        'master-data:hr.manager_dashboard.birthday_email_subject',
-                                        `Happy Birthday, ${person.firstName}!`
-                                      )
-                                    )
-                                    const body = encodeURIComponent(
-                                      getTranslationFromI18nKeyAndLabel(
-                                        'master-data:hr.manager_dashboard.birthday_email_body',
-                                        `Dear ${person.firstName},\n\nWishing you a wonderful birthday!\n\nBest regards`
-                                      )
-                                    )
-                                    globalThis.location.href = `mailto:${person.email}?subject=${subject}&body=${body}`
-                                  }}
-                                  title={isActionDisabled ? disabledReason : ''}
-                                >
-                                  <EnvelopeOpen size={16} className="gba:mr-1" />
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    'master-data:hr.manager_dashboard.send_message',
-                                    'Send Message'
-                                  )}
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <CelebrationTable
+                    rows={upcomingBirthdays.map(person => ({
+                      id: person.id,
+                      firstName: person.firstName,
+                      lastName: person.lastName,
+                      fullName: person.fullName,
+                      pictureThumbnail: person.pictureThumbnail,
+                      email: person.email,
+                      eventDate: person.birthDate,
+                      emailSubject: getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.manager_dashboard.birthday_email_subject',
+                        `Happy Birthday, ${person.firstName}!`
+                      ),
+                      emailBody: getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.manager_dashboard.birthday_email_body',
+                        `Dear ${person.firstName},\n\nWishing you a wonderful birthday!\n\nBest regards`
+                      ),
+                      unavailableOnDifferentDayMessage: 'Available on the birthday date'
+                    }))}
+                    nameHeaderLabel={getTranslationFromI18nKeyAndLabel(
+                      'master-data:forms.capability.fields.name.label',
+                      'Name'
+                    )}
+                    dateHeaderLabel={getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthday', 'Birthday')}
+                    actionHeaderLabel={getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:personal_expenses.actions',
+                      'Actions'
+                    )}
+                    actionButtonLabel={getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.manager_dashboard.send_message',
+                      'Send Message'
+                    )}
+                    noEmailLabel={getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.manager_dashboard.no_email',
+                      'No email available'
+                    )}
+                    onNavigateToEmployee={onNavigateToEmployee}
+                  />
                 </TabContentWrapper>
               </TabsContent>
 
@@ -281,112 +342,52 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                     'No work anniversaries this month'
                   )}
                 >
-                  <div className="gba:border gba:rounded-lg gba:overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>
-                            {getTranslationFromI18nKeyAndLabel(
-                              'master-data:forms.capability.fields.name.label',
-                              'Name'
-                            )}
-                          </TableHead>
-                          <TableHead>
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversary')}
-                          </TableHead>
-                          <TableHead>
-                            {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.years', 'Years')}
-                          </TableHead>
-                          <TableHead>
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions')}
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {upcomingAnniversaries.map(person => {
-                          const hireDate = dayjs(person.hireDate)
-                          const isAnniversaryToday =
-                            hireDate.isValid() && hireDate.month() === today.month() && hireDate.date() === today.date()
-                          const isActionDisabled = !person.email || !isAnniversaryToday
-                          const disabledReason = !person.email
-                            ? getTranslationFromI18nKeyAndLabel(
-                                'master-data:hr.manager_dashboard.no_email',
-                                'No email available'
-                              )
-                            : 'Available on the anniversary date'
-
-                          return (
-                            <TableRow
-                              key={person.id}
-                              className="gba:cursor-pointer hover:gba:bg-muted/50"
-                              onClick={() => onNavigateToEmployee(person.id)}
-                            >
-                              <TableCell>
-                                <div className="gba:flex gba:items-center gba:space-x-3">
-                                  <Avatar size="sm" className="gba:h-8 gba:w-8">
-                                    <AvatarImage
-                                      src={
-                                        person.pictureThumbnail && !person.pictureThumbnail.startsWith('{')
-                                          ? `data:image/jpeg;base64,${person.pictureThumbnail}`
-                                          : undefined
-                                      }
-                                      alt={person.fullName}
-                                    />
-                                    <AvatarFallback>
-                                      {`${person.firstName[0]}${person.lastName[0]}`.toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="gba:font-medium">{person.fullName}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="gba:text-sm gba:text-muted-foreground">
-                                  {person.hireDate ? dayjs(person.hireDate).format('MMMM D') : '-'}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="info" size="sm">
-                                  {person.yearsOfService} {person.yearsOfService === 1 ? 'year' : 'years'}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={isActionDisabled}
-                                  onClick={e => {
-                                    e.stopPropagation()
-                                    if (isActionDisabled || !person.email) return
-
-                                    const subject = encodeURIComponent(
-                                      getTranslationFromI18nKeyAndLabel(
-                                        'master-data:hr.manager_dashboard.anniversary_email_subject',
-                                        `Congratulations on your ${person.yearsOfService}-year anniversary!`
-                                      )
-                                    )
-                                    const body = encodeURIComponent(
-                                      getTranslationFromI18nKeyAndLabel(
-                                        'master-data:hr.manager_dashboard.anniversary_email_body',
-                                        `Dear ${person.firstName},\n\nCongratulations on your ${person.yearsOfService}-year work anniversary! Thank you for your dedication and contributions.\n\nBest regards`
-                                      )
-                                    )
-                                    globalThis.location.href = `mailto:${person.email}?subject=${subject}&body=${body}`
-                                  }}
-                                  title={isActionDisabled ? disabledReason : ''}
-                                >
-                                  <EnvelopeOpen size={16} className="gba:mr-1" />
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    'master-data:hr.manager_dashboard.send_message',
-                                    'Send Message'
-                                  )}
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <CelebrationTable
+                    rows={upcomingAnniversaries.map(person => ({
+                      id: person.id,
+                      firstName: person.firstName,
+                      lastName: person.lastName,
+                      fullName: person.fullName,
+                      pictureThumbnail: person.pictureThumbnail,
+                      email: person.email,
+                      eventDate: person.hireDate,
+                      yearsOfService: person.yearsOfService,
+                      emailSubject: getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.manager_dashboard.anniversary_email_subject',
+                        `Congratulations on your ${person.yearsOfService}-year anniversary!`
+                      ),
+                      emailBody: getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.manager_dashboard.anniversary_email_body',
+                        `Dear ${person.firstName},\n\nCongratulations on your ${person.yearsOfService}-year work anniversary! Thank you for your dedication and contributions.\n\nBest regards`
+                      ),
+                      unavailableOnDifferentDayMessage: 'Available on the anniversary date'
+                    }))}
+                    nameHeaderLabel={getTranslationFromI18nKeyAndLabel(
+                      'master-data:forms.capability.fields.name.label',
+                      'Name'
+                    )}
+                    dateHeaderLabel={getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:hr_insights.anniversary_date',
+                      'Anniversary'
+                    )}
+                    yearsHeaderLabel={getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.manager_dashboard.years',
+                      'Years'
+                    )}
+                    actionHeaderLabel={getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:personal_expenses.actions',
+                      'Actions'
+                    )}
+                    actionButtonLabel={getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.manager_dashboard.send_message',
+                      'Send Message'
+                    )}
+                    noEmailLabel={getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.manager_dashboard.no_email',
+                      'No email available'
+                    )}
+                    onNavigateToEmployee={onNavigateToEmployee}
+                  />
                 </TabContentWrapper>
               </TabsContent>
 
