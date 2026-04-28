@@ -1,7 +1,7 @@
 import React from 'react'
 import { Label } from '@newwork/nw-design-system'
 import type { DesignerMode } from '../../../types/studioTypes'
-import { AssignmentMode } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { AssignmentMode } from '@/common/data/flow/types/flowTemplate'
 import type { TaskAssignment } from '@/common/network/flows/FlowTemplateClient'
 import { AssignmentConfigSection } from '../task/AssignmentConfigSection'
 

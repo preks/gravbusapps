@@ -448,7 +448,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                     className="gba:py-4 gba:px-6"
                     data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `profile-${jobPosition.id}`)}
                   >
-                    {jobPosition.jobProfile?.title || '-'}
+                    {jobPosition.jobProfile?.name || '-'}
                   </TableCell>
 
                   {/* Employee / Vacancy Status */}

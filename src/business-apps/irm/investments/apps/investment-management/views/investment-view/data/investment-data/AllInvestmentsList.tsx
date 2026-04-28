@@ -61,6 +61,26 @@ const renderAmount = (amount: number | undefined, currencyCode?: string) => {
   return <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate">{formattedValue}</div>
 }
 
+const renderNumber = (value: number | undefined) => {
+  if (typeof value !== 'number') {
+    return <div className="gba:text-right gba:text-sm gba:text-muted-foreground">-</div>
+  }
+
+  return (
+    <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate">
+      {new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 }).format(value)}
+    </div>
+  )
+}
+
+const renderPercentage = (value: number | undefined) => {
+  if (typeof value !== 'number') {
+    return <div className="gba:text-right gba:text-sm gba:text-muted-foreground">-</div>
+  }
+
+  return <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate">{value.toFixed(2)}%</div>
+}
+
 // Cell renderer: Name cell
 const NameCell = ({ row }: CellContext<Investment, unknown>) => (
   <div className="gba:flex gba:items-center gba:gap-2">
@@ -92,6 +112,23 @@ const InvestmentTypeCell = ({ row }: CellContext<Investment, unknown>) => {
 // Cell renderer: Total Investment Amount cell
 const TotalInvestmentAmountCell = ({ row }: CellContext<Investment, unknown>) =>
   renderAmount(row.original.totalInvestmentAmount, row.original.currency?.code)
+
+const SecurityQuantityCell = ({ row }: CellContext<Investment, unknown>) => renderNumber(row.original.securityQuantity)
+
+const TimeWeightedPerformanceCell = ({ row }: CellContext<Investment, unknown>) =>
+  renderPercentage(row.original.timeWeightedPerformance)
+
+const MaturityDateCell = ({ row }: CellContext<Investment, unknown>) => {
+  if (!row.original.maturityDate) {
+    return <span className="gba:text-sm gba:text-muted-foreground">No date</span>
+  }
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2 gba:truncate">
+      <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+      <span className="gba:text-sm gba:truncate">{formatDate(row.original.maturityDate)}</span>
+    </div>
+  )
+}
 
 // Cell renderer: Owner Employee cell
 const OwnerEmployeeCell = ({ row }: CellContext<Investment, unknown>) => {
@@ -223,6 +260,37 @@ const createColumns = (): ColumnDef<Investment>[] => [
     meta: {
       align: 'right'
     }
+  },
+  {
+    id: 'securityQuantity',
+    header: 'Quantity',
+    accessorKey: 'securityQuantity',
+    cell: SecurityQuantityCell,
+    meta: {
+      align: 'right'
+    }
+  },
+  {
+    id: 'timeWeightedPerformance',
+    header: 'Time-Weighted Performance',
+    accessorKey: 'timeWeightedPerformance',
+    cell: TimeWeightedPerformanceCell,
+    meta: {
+      align: 'right'
+    }
+  },
+  {
+    id: 'maturityDate',
+    header: 'Maturity Date',
+    accessorKey: 'maturityDate',
+    size: 150,
+    minSize: 130,
+    maxSize: 180,
+    enableResizing: false,
+    meta: {
+      type: 'date' as const
+    },
+    cell: MaturityDateCell
   },
   {
     id: 'ownerEmployee',

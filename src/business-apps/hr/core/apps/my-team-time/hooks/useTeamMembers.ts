@@ -7,9 +7,56 @@ import { TeamMember } from '../types/types'
 interface UseTeamMembersReturn {
   members: TeamMember[]
   memberIds: string[]
+  allMembers: TeamMember[]
+  allMemberIds: string[]
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
+}
+
+const toLocalDateKey = (date: Date): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+
+const toComparableDateKey = (value?: string | null): string | null => {
+  if (!value) {
+    return null
+  }
+
+  const normalized = String(value).trim()
+  const datePrefix = /^(\d{4})-(\d{2})-(\d{2})/.exec(normalized)
+  if (datePrefix) {
+    return `${datePrefix[1]}-${datePrefix[2]}-${datePrefix[3]}`
+  }
+
+  const parsed = new Date(normalized)
+  if (Number.isNaN(parsed.getTime())) {
+    return null
+  }
+
+  return toLocalDateKey(parsed)
+}
+
+const getEarliestHireDate = (
+  workingConditions: Array<{ hireDate?: string | null }> | undefined
+): string | undefined => {
+  if (!workingConditions || workingConditions.length === 0) {
+    return undefined
+  }
+
+  let earliest: string | null = null
+
+  for (const workingCondition of workingConditions) {
+    const hireDateKey = toComparableDateKey(workingCondition.hireDate)
+    if (!hireDateKey) {
+      continue
+    }
+
+    if (!earliest || hireDateKey < earliest) {
+      earliest = hireDateKey
+    }
+  }
+
+  return earliest ?? undefined
 }
 
 export const useTeamMembers = (context: BusinessAppContextProps): UseTeamMembersReturn => {
@@ -42,6 +89,7 @@ export const useTeamMembers = (context: BusinessAppContextProps): UseTeamMembers
         id: emp.id,
         firstName: emp.firstName,
         lastName: emp.lastName,
+        hireDate: getEarliestHireDate(emp.workingCondition),
         orgUnit: emp.employeePosition?.organizationalUnit?.name,
         workingHours: emp.workingHours?.[0]
           ? {
@@ -93,14 +141,35 @@ export const useTeamMembers = (context: BusinessAppContextProps): UseTeamMembers
   }, [graphqlClient, coreMembers.length])
 
   const members = useMemo(() => {
-    if (thumbnailMap.size === 0) return coreMembers
-    return coreMembers.map(m => {
+    const todayKey = toLocalDateKey(new Date())
+    const activeMembers = coreMembers.filter(member => {
+      const hireDateKey = toComparableDateKey(member.hireDate)
+      if (!hireDateKey) {
+        return true
+      }
+      return hireDateKey <= todayKey
+    })
+
+    if (thumbnailMap.size === 0) return activeMembers
+    return activeMembers.map(m => {
       const thumb = thumbnailMap.get(m.id)
       return thumb ? { ...m, pictureThumbnail: thumb } : m
     })
   }, [coreMembers, thumbnailMap])
 
-  const memberIds = useMemo(() => coreMembers.map(m => m.id), [coreMembers])
+  const allMembers = useMemo(() => {
+    if (thumbnailMap.size === 0) {
+      return coreMembers
+    }
 
-  return { members, memberIds, isLoading, error, refetch: fetchMembers }
+    return coreMembers.map(member => {
+      const thumb = thumbnailMap.get(member.id)
+      return thumb ? { ...member, pictureThumbnail: thumb } : member
+    })
+  }, [coreMembers, thumbnailMap])
+
+  const memberIds = useMemo(() => members.map(m => m.id), [members])
+  const allMemberIds = useMemo(() => allMembers.map(m => m.id), [allMembers])
+
+  return { members, memberIds, allMembers, allMemberIds, isLoading, error, refetch: fetchMembers }
 }

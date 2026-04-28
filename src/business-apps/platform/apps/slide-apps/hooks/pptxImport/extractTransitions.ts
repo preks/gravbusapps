@@ -73,7 +73,7 @@ export function extractTransition(
   const advTm = transition.getAttribute('advTm')
   if (advTm) {
     trigger = 'auto'
-    delay = parseInt(advTm)
+    delay = Number.parseInt(advTm)
   }
 
   const advClick = transition.getAttribute('advClick')

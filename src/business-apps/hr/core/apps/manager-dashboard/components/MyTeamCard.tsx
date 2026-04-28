@@ -10,7 +10,7 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { ChevronRight } from 'lucide-react'
+import { CaretRightIcon as ChevronRight } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DirectReport } from '../hooks/useDirectReports'
 import { TeamMemberAttendance } from '../hooks/useTeamAttendance'
@@ -137,7 +137,7 @@ export const MyTeamCard: React.FC<MyTeamCardProps> = ({
                   >
                     <Avatar
                       size="default"
-                      className={`gba:h-10 gba:w-10 ${isAvailable ? '' : 'gba:opacity-50 gba:ring-2 gba:ring-purple-500'}`}
+                      className={`gba:h-10 gba:w-10 ${isAvailable ? '' : 'gba:opacity-50 gba:ring-2 gba:ring-primary'}`}
                     >
                       <AvatarImage
                         src={

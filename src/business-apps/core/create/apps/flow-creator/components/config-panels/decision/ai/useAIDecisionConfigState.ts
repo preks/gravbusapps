@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import type { FlowStudioData } from '../../../../hooks/useFlowStudioData'
 import type { DecisionNodeConfig } from '../../../../types/studioTypes'
-import { AssignmentMode } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { AssignmentMode } from '@/common/data/flow/types/flowTemplate'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import type { AIExecutor } from './DecisionExecutorTabs'
 import { buildDefaultTaskExpertMapping } from './taskExpertMappingUtils'

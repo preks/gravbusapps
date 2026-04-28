@@ -21,6 +21,7 @@ export interface TranslationWidgetProps {
   readonly onTranslationChange: (langCode: string, translationValue: string) => void
   readonly onDefaultLanguageChange: (newLanguage: string) => void
   readonly onRemoveLanguage: (langToRemove: string) => void
+  readonly onClearTranslation: () => void
   readonly onDefaultLanguageChangeProp?: (language: string) => void
 }
 
@@ -31,14 +32,25 @@ export function TranslationWidget({
   onTranslationChange,
   onDefaultLanguageChange,
   onRemoveLanguage,
+  onClearTranslation,
   onDefaultLanguageChangeProp
 }: TranslationWidgetProps) {
   const allLanguageCodes = getAllLanguageCodes(translations)
 
   return (
     <div className="gba:space-y-4">
-      <div className="gba:pb-2">
+      <div className="gba:pb-2 gba:flex gba:items-center gba:justify-between">
         <h4 className="gba:font-medium gba:text-sm gba:text-gray-900">Translations</h4>
+        <Button
+          variant="ghost"
+          size="sm"
+          type="button"
+          onMouseDown={e => e.stopPropagation()}
+          onClick={onClearTranslation}
+          className="gba:h-7"
+        >
+          Clear
+        </Button>
       </div>
 
       {onDefaultLanguageChangeProp && allLanguageCodes.length > 1 && (

@@ -13,7 +13,11 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { ChevronDown, ChevronLeft, ChevronUp } from 'lucide-react'
+import {
+  CaretDownIcon as ChevronDown,
+  CaretLeftIcon as ChevronLeft,
+  CaretUpIcon as ChevronUp
+} from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DirectReport } from '../hooks/useDirectReports'
 import { getAbsenceStatusBadgeVariant } from '@/business-apps/hr/absences/utils/absenceStatusUtils'

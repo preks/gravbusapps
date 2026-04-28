@@ -42,9 +42,15 @@ interface ComponentTableRowProps {
 const TypeBadge: React.FC<{ component: ComponentResource }> = ({ component }) => {
   const builderType = component.screenComponents?.builderType || 'NATIVE_SCREEN'
   const screenType = component.type || 'SCREEN'
-  const combinedType = combineBuildAndScreenType(builderType, screenType)
+  const combinedType = component.screenKey?.startsWith('sys_')
+    ? 'system-component'
+    : combineBuildAndScreenType(builderType, screenType)
   const typeConfig: Record<string, { label: string; color: string }> = {
     'native-screen': { label: 'Native Screen', color: 'gba:bg-blue-100 gba:text-blue-700 gba:border-blue-200' },
+    'system-component': {
+      label: 'System Component',
+      color: 'gba:bg-indigo-100 gba:text-indigo-700 gba:border-indigo-200'
+    },
     'native-form': { label: 'Native Form', color: 'gba:bg-green-100 gba:text-green-700 gba:border-green-200' },
     'native-popup': { label: 'Native Popup', color: 'gba:bg-purple-100 gba:text-purple-700 gba:border-purple-200' },
     'native-window': { label: 'Native Window', color: 'gba:bg-cyan-100 gba:text-cyan-700 gba:border-cyan-200' },

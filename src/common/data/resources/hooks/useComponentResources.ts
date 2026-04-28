@@ -26,6 +26,7 @@ interface UseComponentResourcesResult {
   refetch: (params?: UseComponentResourcesParams, isInitial?: boolean) => Promise<void>
   loadMore: () => Promise<void>
   hasMore: boolean
+  removeComponent: (id: string) => void
 }
 
 /**
@@ -104,8 +105,6 @@ export const useComponentResources = (
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch components'
         setError(errorMessage)
-        setComponents([])
-        setTotalCount(0)
         if (!append) currentOffsetRef.current = 0
       } finally {
         setIsLoading(false)
@@ -115,18 +114,21 @@ export const useComponentResources = (
     [context.accessToken, memoizedParams, resourceClient]
   )
 
-  useEffect(() => {
-    currentOffsetRef.current = 0
-    fetchComponents(false, true)
-  }, [fetchComponents])
-
   const refetch = useCallback(
     async (_fetchParams?: UseComponentResourcesParams, showLoading = false) => {
+      // Wait for any in-flight fetch (e.g. loadMore) to complete so refetch is not silently dropped
+      while (isFetchingRef.current) {
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
       currentOffsetRef.current = 0
       await fetchComponents(false, showLoading)
     },
     [fetchComponents]
   )
+
+  useEffect(() => {
+    refetch(undefined, true).catch(() => {})
+  }, [refetch])
 
   const loadMore = useCallback(() => {
     if (components.length < totalCount) {
@@ -134,6 +136,12 @@ export const useComponentResources = (
     }
     return Promise.resolve()
   }, [fetchComponents, components.length, totalCount])
+
+  const removeComponent = useCallback((id: string) => {
+    setComponents(prev => prev.filter(item => item.id !== id))
+    setTotalCount(count => Math.max(0, count - 1))
+    currentOffsetRef.current = Math.max(0, currentOffsetRef.current - 1)
+  }, [])
 
   const hasMore = components.length < totalCount
 
@@ -144,6 +152,7 @@ export const useComponentResources = (
     error,
     refetch,
     loadMore,
-    hasMore
+    hasMore,
+    removeComponent
   }
 }

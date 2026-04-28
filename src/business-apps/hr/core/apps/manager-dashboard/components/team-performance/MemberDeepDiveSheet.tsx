@@ -14,18 +14,18 @@ import {
   Progress
 } from '@newwork/nw-design-system'
 import {
-  ExternalLink,
-  Target,
-  BookOpen,
-  MessageSquare,
-  Award,
-  Heart,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  ArrowUp,
-  ArrowDown
-} from 'lucide-react'
+  ArrowSquareOutIcon as ExternalLink,
+  TargetIcon as Target,
+  BookOpenIcon as BookOpen,
+  ChatCircleDotsIcon as MessageSquare,
+  TrophyIcon as Award,
+  HeartIcon as Heart,
+  TrendUpIcon as TrendingUp,
+  TrendDownIcon as TrendingDown,
+  MinusIcon as Minus,
+  ArrowUpIcon as ArrowUp,
+  ArrowDownIcon as ArrowDown
+} from '@phosphor-icons/react'
 import {
   PolarAngleAxis,
   PolarGrid,

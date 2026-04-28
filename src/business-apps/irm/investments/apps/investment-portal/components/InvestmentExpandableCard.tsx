@@ -248,6 +248,8 @@ export const InvestmentExpandableCard: React.FC<InvestmentExpandableCardProps> =
               >
                 <InvestmentPortalDocuments
                   investmentId={investment.id}
+                  investmentGroupId={investment.investmentGroup?.id}
+                  investmentGroupCode={investment.investmentGroup?.code}
                   context={{
                     accessToken,
                     userInfo,

@@ -24,6 +24,8 @@ export interface AnalyticsRowData {
   depositName?: string
   isin?: string
   stocksQuantity?: number
+  securityQuantity?: number
+  initialInvestmentAmount?: number
   // Calculated values for the analytics period
   openingBalance: number
   incoming: number
@@ -95,7 +97,7 @@ export function transformReportsToAnalyticsData(reports: InvestmentReport[]): An
         unrealizedGainsLosses:
           (additionalProps.unrealizedGainsLossesCurrency || 0) + (additionalProps.unrealizedGainsLossesSharePrice || 0),
         closingBalance: additionalProps.closingBalance || report.investmentMarketValue || 0,
-        timeWeightedPerformance: additionalProps.timeWeightedPerformance || 0,
+        timeWeightedPerformance: report.timeWeightedPerformance ?? additionalProps.timeWeightedPerformance ?? 0,
         reportCount: 1,
 
         // Optional fields
@@ -103,7 +105,9 @@ export function transformReportsToAnalyticsData(reports: InvestmentReport[]): An
         interestRate: liquidFundReport.interestRate,
         depositName: additionalProps.name || liquidFundReport.liquidFundInvestment?.investment?.name || '',
         isin: liquidFundReport.liquidFundInvestment?.investment?.isin || additionalProps.isin || '',
-        stocksQuantity: additionalProps.quantity,
+        stocksQuantity: report.securityQuantity ?? additionalProps.quantity,
+        securityQuantity: report.securityQuantity ?? additionalProps.quantity,
+        initialInvestmentAmount: report.initialInvestmentAmount,
 
         // Keep full structures for dynamic column access
         liquidFundReport: liquidFundReport,

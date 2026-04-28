@@ -19,24 +19,35 @@ export interface UseFilterGroupsResult {
 }
 
 /**
- * Generic hook to fetch filter groups using descriptors
- * Replaces entity-specific filter hooks (useCustomerAccountFilters, etc.)
+ * Generic hook to fetch filter groups using descriptors.
+ *
+ * Options:
+ * - `limit`: page size for each filter-group query (default 100).
+ * - `baseWhereParts`: extra GraphQL `where` fragments injected into every
+ *   filter-group query, used to scope dropdown options to the active context
+ *   (e.g. current investment group + sub-section).
+ * - `enabled`: when explicitly `false`, the hook skips fetching entirely and
+ *   keeps the previous `filterData` to avoid dropdown flicker when callers
+ *   rapidly toggle the flag. Defaults to `true`.
  */
 export const useFilterGroups = (
   context: BusinessAppContextProps,
   entityName: string,
   descriptors: Descriptor[],
-  options?: { limit?: number; baseWhereParts?: string[] }
+  options?: { limit?: number; baseWhereParts?: string[]; enabled?: boolean }
 ): UseFilterGroupsResult => {
   const graphqlClient = useGraphQLClient(context.accessToken)
   const [filterData, setFilterData] = useState<Record<string, FilterGroupData>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
+  const enabled = options?.enabled ?? true
+
   const fetchFilters = useCallback(
     async (searchByKey?: Record<string, string>) => {
-      if (!context.accessToken) {
+      if (!enabled || !context.accessToken) {
         setIsLoading(false)
+        setError(null)
         return
       }
 
@@ -62,7 +73,7 @@ export const useFilterGroups = (
         setIsLoading(false)
       }
     },
-    [graphqlClient, entityName, descriptors, options?.limit, options?.baseWhereParts, context.accessToken]
+    [graphqlClient, entityName, descriptors, options?.limit, options?.baseWhereParts, enabled, context.accessToken]
   )
 
   useEffect(() => {

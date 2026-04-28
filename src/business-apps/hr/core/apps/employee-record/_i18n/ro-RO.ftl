@@ -913,10 +913,3 @@ change-personal-data-pending-ok = OK
 
 # Change Address - Loading
 change-address-loading-form = Se încarcă formularul de adresă...
-
-# Change Address - Autocomplete map (după dev.enabled)
-address-autocomplete-search-label = Găsește adresa
-address-autocomplete-search-placeholder = Caută adresa
-address-autocomplete-use-my-location = Folosește locația mea
-address-autocomplete-pin-hint = Trage pinul pentru a ajusta locația.
-address-autocomplete-no-results = Nicio sugestie

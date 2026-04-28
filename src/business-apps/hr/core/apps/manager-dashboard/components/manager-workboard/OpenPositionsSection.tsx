@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
-import { Briefcase } from 'lucide-react'
+import { BriefcaseIcon as Briefcase } from '@phosphor-icons/react'
 
 interface JobPosition {
   id: string

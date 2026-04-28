@@ -12,6 +12,7 @@ interface UseActionsResult {
   loadMore: () => Promise<void>
   hasMore: boolean
   reset: () => void
+  removeAction: (id: string) => void
 }
 
 export const useActions = (context: BusinessAppContextProps, params?: GetActionsParams): UseActionsResult => {
@@ -24,23 +25,12 @@ export const useActions = (context: BusinessAppContextProps, params?: GetActions
   const paramsRef = useRef(params)
   const hasLoadedRef = useRef(false)
   const currentOffsetRef = useRef(0)
-  const lastSearchSortRef = useRef<string>('')
   const isFetchingRef = useRef(false)
 
   // Update params ref when params change
   useEffect(() => {
     paramsRef.current = params
   }, [params])
-
-  // Check if search/sort params changed (requires reset)
-  useEffect(() => {
-    const searchSortKey = `${params?.flowName || ''}-${params?.sort || ''}`
-    if (searchSortKey !== lastSearchSortRef.current) {
-      lastSearchSortRef.current = searchSortKey
-      currentOffsetRef.current = 0
-      setActions([])
-    }
-  }, [params?.flowName, params?.sort])
 
   const fetchActions = useCallback(
     async (append = false) => {
@@ -103,11 +93,6 @@ export const useActions = (context: BusinessAppContextProps, params?: GetActions
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch actions'
         setError(errorMessage)
         console.error('Error fetching actions:', err)
-
-        if (!append && hasLoadedRef.current) {
-          setActions([])
-          setTotalCount(0)
-        }
       } finally {
         setIsLoading(false)
         isFetchingRef.current = false
@@ -118,6 +103,10 @@ export const useActions = (context: BusinessAppContextProps, params?: GetActions
 
   const refetch = useCallback(async () => {
     has401Error.current = false
+    // Wait for any in-flight fetch (e.g. loadMore) to complete so refetch is not silently dropped
+    while (isFetchingRef.current) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
     currentOffsetRef.current = 0
     await fetchActions(false)
   }, [fetchActions])
@@ -138,6 +127,12 @@ export const useActions = (context: BusinessAppContextProps, params?: GetActions
     isFetchingRef.current = false
   }, [])
 
+  const removeAction = useCallback((id: string) => {
+    setActions(prev => prev.filter(item => item.action.id !== id))
+    setTotalCount(count => Math.max(0, (count ?? 0) - 1))
+    currentOffsetRef.current = Math.max(0, currentOffsetRef.current - 1)
+  }, [])
+
   const hasMore = actions.length < (totalCount ?? 0)
 
   return {
@@ -148,6 +143,7 @@ export const useActions = (context: BusinessAppContextProps, params?: GetActions
     refetch,
     loadMore,
     hasMore,
-    reset
+    reset,
+    removeAction
   }
 }

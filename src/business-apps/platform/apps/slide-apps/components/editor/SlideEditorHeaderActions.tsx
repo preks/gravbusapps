@@ -12,6 +12,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { FileText, History, Lock, Share2, Save, Unlock } from 'lucide-react'
+import { toast } from 'sonner'
 import type { Version } from '@/business-apps/platform/apps/shared/types/versioning'
 import { useVersioning } from '@/business-apps/platform/apps/shared/hooks/useVersioning'
 import { useFileLock } from '@/business-apps/platform/apps/shared/hooks/useFileLock'
@@ -33,6 +34,7 @@ export interface SlideEditorHeaderActionsProps {
    * The snapshot content is typically `{ slides, themeId }` inside `contentJson`.
    */
   applyContentJsonSnapshot: (contentJson: Record<string, unknown>) => Promise<void> | void
+  flushPendingCollaborationUpdates?: () => Promise<void> | void
   'data-testid'?: string
 }
 
@@ -43,6 +45,7 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
   currentUserId,
   currentUserName,
   applyContentJsonSnapshot,
+  flushPendingCollaborationUpdates,
   'data-testid': testId = 'slide-editor-header-actions'
 }) => {
   const { t, locale } = useTranslation(translations)
@@ -81,6 +84,7 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
       const snapshot = await SlidesApiService.getVersion(slideId, versionNumber)
       const contentJson = (snapshot?.contentJson as Record<string, unknown> | undefined) || null
       if (!contentJson) return
+      await SlidesApiService.resetSlideYjsState(slideId, contentJson)
       await applyContentJsonSnapshot(contentJson)
       setShowVersionHistory(false)
     },
@@ -182,6 +186,7 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
         <VersionHistory
           versions={versioning.versions as Version[]}
           isLoading={versioning.isLoading}
+          error={versioning.error}
           onRestore={handleRestore}
           onClose={() => setShowVersionHistory(false)}
           currentVersion={currentVersionNumber}
@@ -197,7 +202,21 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
         onClose={() => setShowCheckpointDialog(false)}
         isSaving={versioning.isSaving}
         onSave={async description => {
-          await versioning.createCheckpoint(description)
+          try {
+            await flushPendingCollaborationUpdates?.()
+            const checkpoint = await versioning.createCheckpoint(description)
+            if (!checkpoint) {
+              toast.error(t('checkpoint-save-failed'))
+              return false
+            }
+
+            await versioning.loadVersions()
+            return true
+          } catch (error) {
+            console.error('[SlideEditorHeaderActions] Failed to create checkpoint:', error)
+            toast.error(t('checkpoint-save-failed'))
+            return false
+          }
         }}
         messages={checkpointMessages}
         data-testid={`${testId}-checkpoint-dialog`}

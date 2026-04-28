@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
-import { ChevronRight } from 'lucide-react'
+import { CaretRightIcon as ChevronRight } from '@phosphor-icons/react'
 
 interface MemberDimensions {
   goalsProgress: number

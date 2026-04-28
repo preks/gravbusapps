@@ -59,7 +59,7 @@ export function ImageFormattingTools({ element, onUpdateElement, testId }: Image
         <SelectContent>
           {OBJECT_FIT_OPTIONS.map(option => (
             <SelectItem key={option.value} value={option.value}>
-              {t(`props-fit-${option.value}`) || option.label}
+              {t(`props-${option.value}`) || option.label}
             </SelectItem>
           ))}
         </SelectContent>

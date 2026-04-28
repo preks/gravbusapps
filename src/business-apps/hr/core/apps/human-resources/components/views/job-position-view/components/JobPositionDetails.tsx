@@ -224,7 +224,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({
                 )}
               </p>
               <p className="gba:text-sm gba:text-foreground">
-                {jobPosition.jobProfile?.title ||
+                {jobPosition.jobProfile?.name ||
                   getTranslationFromI18nKeyAndLabel(
                     'lowcoder:human_resources_page.job_positions_section.not_specified',
                     'Not specified'

@@ -1,24 +1,24 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system'
 import {
-  Sparkles,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  Award,
-  AlertTriangle,
-  Eye,
-  MessageSquare,
-  Rocket,
-  ChevronRight,
-  Target,
-  Scale,
-  Users,
-  BookOpen,
-  Heart,
-  Star,
-  BarChart3
-} from 'lucide-react'
+  SparkleIcon as Sparkles,
+  TrendUpIcon as TrendingUp,
+  TrendDownIcon as TrendingDown,
+  MinusIcon as Minus,
+  TrophyIcon as Award,
+  WarningIcon as AlertTriangle,
+  EyeIcon as Eye,
+  ChatCircleDotsIcon as MessageSquare,
+  RocketIcon as Rocket,
+  CaretRightIcon as ChevronRight,
+  TargetIcon as Target,
+  ScalesIcon as Scale,
+  UsersThreeIcon as Users,
+  BookOpenIcon as BookOpen,
+  HeartIcon as Heart,
+  StarIcon as Star,
+  ChartBarIcon as BarChart3
+} from '@phosphor-icons/react'
 import type {
   EmployeeSignal,
   EmployeeSignalType,
@@ -38,23 +38,23 @@ const employeeSignalIcon = (type: EmployeeSignalType): React.ReactNode => {
   const size = 'gba:h-4 gba:w-4 gba:shrink-0'
   switch (type) {
     case 'strong-momentum':
-      return <TrendingUp className={`${size} gba:text-green-600`} />
+      return <TrendingUp className={`${size} gba:text-success`} />
     case 'growth-candidate':
-      return <Award className={`${size} gba:text-blue-600`} />
+      return <Award className={`${size} gba:text-info`} />
     case 'development-momentum':
-      return <Rocket className={`${size} gba:text-purple-600`} />
+      return <Rocket className={`${size} gba:text-primary`} />
     case 'plateau-risk':
-      return <Minus className={`${size} gba:text-amber-600`} />
+      return <Minus className={`${size} gba:text-warning`} />
     case 'low-recognition':
-      return <Eye className={`${size} gba:text-amber-600`} />
+      return <Eye className={`${size} gba:text-warning`} />
     case 'low-feedback-participation':
-      return <MessageSquare className={`${size} gba:text-amber-600`} />
+      return <MessageSquare className={`${size} gba:text-warning`} />
     case 'declining-trajectory':
-      return <TrendingDown className={`${size} gba:text-red-600`} />
+      return <TrendingDown className={`${size} gba:text-destructive`} />
     case 'blocked-execution':
-      return <Target className={`${size} gba:text-red-600`} />
+      return <Target className={`${size} gba:text-destructive`} />
     case 'alignment-gap':
-      return <Scale className={`${size} gba:text-red-600`} />
+      return <Scale className={`${size} gba:text-destructive`} />
   }
 }
 
@@ -62,19 +62,19 @@ const teamSignalIcon = (type: TeamSignalType): React.ReactNode => {
   const size = 'gba:h-4 gba:w-4 gba:shrink-0'
   switch (type) {
     case 'growth-concentration-risk':
-      return <BarChart3 className={`${size} gba:text-amber-600`} />
+      return <BarChart3 className={`${size} gba:text-warning`} />
     case 'uneven-feedback-coverage':
-      return <MessageSquare className={`${size} gba:text-amber-600`} />
+      return <MessageSquare className={`${size} gba:text-warning`} />
     case 'team-execution-risk':
-      return <AlertTriangle className={`${size} gba:text-red-600`} />
+      return <AlertTriangle className={`${size} gba:text-destructive`} />
     case 'capability-gap':
-      return <BookOpen className={`${size} gba:text-amber-600`} />
+      return <BookOpen className={`${size} gba:text-warning`} />
     case 'values-alignment-gap':
-      return <Heart className={`${size} gba:text-amber-600`} />
+      return <Heart className={`${size} gba:text-warning`} />
     case 'standout-growth-cluster':
-      return <Star className={`${size} gba:text-green-600`} />
+      return <Star className={`${size} gba:text-success`} />
     case 'recognition-gap':
-      return <Users className={`${size} gba:text-amber-600`} />
+      return <Users className={`${size} gba:text-warning`} />
   }
 }
 

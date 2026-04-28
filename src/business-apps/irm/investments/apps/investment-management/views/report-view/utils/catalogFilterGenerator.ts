@@ -29,6 +29,16 @@ const generateFilterConfig = (field: any, entityPrefix: string): Filter | null =
   // Skip catalog/ref types — handled separately via inIds descriptors
   if (filterType === null) return null
 
+  // Skip JSONB additionalProperties — those have no descriptors and aren't
+  // backed by real DB columns, so any filter we'd render would be a no-op.
+  if (
+    typeof field.property !== 'string' ||
+    field.property.includes('.additionalProperties') ||
+    field.property.startsWith('additionalProperties')
+  ) {
+    return null
+  }
+
   // Parse property path to generate filter ID
   // Examples:
   // - 'investment.loanAmount' -> 'loanAmount'

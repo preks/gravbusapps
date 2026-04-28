@@ -15,6 +15,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ProspectField } from '../types'
 import { SortableProspectItem } from './SortableProspectItem'
 import { ProspectFieldDialog } from './ProspectFieldDialog'
+import { useTranslation } from 'react-i18next'
+import { ConfigurationInfoPopover } from './ConfigurationInfoPopover'
 
 interface ProspectFieldsEditorProps extends BusinessAppContextProps {
   prospectFields: ProspectField[]
@@ -33,6 +35,7 @@ export const ProspectFieldsEditor: React.FC<ProspectFieldsEditorProps> = ({
   inheritedFrom,
   onClearInheritance
 }) => {
+  const { t } = useTranslation()
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
 
   // Ensure prospectFields is always an array
@@ -106,22 +109,47 @@ export const ProspectFieldsEditor: React.FC<ProspectFieldsEditorProps> = ({
     <div className="gba:space-y-6" data-testid={prefixDataTestId}>
       <Card className="gba:p-6" data-testid={`${prefixDataTestId}-container`}>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
-          <h3 className="gba:text-lg gba:font-semibold gba:m-0">Prospect Detail Fields</h3>
+          <h3 className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:m-0">
+            {t('crm.investment_data.prospect_fields.title', 'Prospect Detail Fields')}
+            <ConfigurationInfoPopover
+              title={t('crm.investment_data.info.prospect_fields.title', 'Prospect fields')}
+              description={t(
+                'crm.investment_data.info.prospect_fields.description',
+                'Configure which investment fields are shown when investments appear in related account, contact, and opportunity records.'
+              )}
+              items={[
+                t(
+                  'crm.investment_data.info.prospect_fields.item_accounts',
+                  'Account, contact, and opportunity records use this compact field set for investment context.'
+                ),
+                t(
+                  'crm.investment_data.info.prospect_fields.item_difference',
+                  'This is separate from the full investment form field layout.'
+                )
+              ]}
+              ariaLabel={t('crm.investment_data.info.prospect_fields.aria', 'Learn about prospect fields')}
+              prefixDataTestId={`${prefixDataTestId}-info`}
+            />
+          </h3>
           <Button onClick={handleAddField} data-testid={`${prefixDataTestId}-add-button`}>
             <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-            Add Field
+            {t('crm.investment_data.prospect_fields.add_field', 'Add Field')}
           </Button>
         </div>
 
         {isInherited && inheritedFrom ? (
           <Alert data-testid={`${prefixDataTestId}-inheritance-notice`}>
             <AlertDescription>
-              Inherited from <strong>{inheritedFrom}</strong>. Add your own fields to customize.
+              Currently viewing prospect fields inherited from <strong>{inheritedFrom}</strong>. Add or change fields to
+              create a configuration for this selected level.
             </AlertDescription>
           </Alert>
         ) : (
           <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
-            Configure the fields that appear in the investment prospect detail view header.
+            {t(
+              'crm.investment_data.prospect_fields.description',
+              'Configure the fields that appear in the investment prospect detail view header.'
+            )}
           </p>
         )}
 

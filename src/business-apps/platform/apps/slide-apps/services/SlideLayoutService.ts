@@ -235,9 +235,9 @@ function isSlideDarkBackground(slide: SlideData): boolean {
     }
     // Check for dark colors using hex parsing
     if (color.startsWith('#') && color.length === 7) {
-      const r = parseInt(color.slice(1, 3), 16)
-      const g = parseInt(color.slice(3, 5), 16)
-      const b = parseInt(color.slice(5, 7), 16)
+      const r = Number.parseInt(color.slice(1, 3), 16)
+      const g = Number.parseInt(color.slice(3, 5), 16)
+      const b = Number.parseInt(color.slice(5, 7), 16)
       const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
       return luminance < 0.5
     }
@@ -343,7 +343,10 @@ export function applyBrandingToSlides(slides: SlideData[], branding: BrandIdenti
     } else if (
       slide.elements.length <= 3 &&
       slide.elements.some(
-        el => el.type === 'text' && (el as TextElement).fontSize && parseInt((el as TextElement).fontSize || '0') >= 48
+        el =>
+          el.type === 'text' &&
+          (el as TextElement).fontSize &&
+          Number.parseInt((el as TextElement).fontSize || '0') >= 48
       )
     ) {
       slideType = 'section'

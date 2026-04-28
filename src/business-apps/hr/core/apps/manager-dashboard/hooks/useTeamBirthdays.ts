@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
 import { Employee, WorkCommunication } from '../types/employee.types'
+import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
 
 export interface TeamBirthday {
   id: string
@@ -26,18 +27,13 @@ export interface UseTeamBirthdaysResult {
 interface UseTeamBirthdaysProps {
   accessToken: string
   managerId: string
-  daysAhead?: number // Default 30 days
 }
 
 /**
  * Hook to fetch upcoming birthdays for team members (direct reports)
  * Based on demographic data patterns and direct reports queries
  */
-export const useTeamBirthdays = ({
-  accessToken,
-  managerId,
-  daysAhead = 30
-}: UseTeamBirthdaysProps): UseTeamBirthdaysResult => {
+export const useTeamBirthdays = ({ accessToken, managerId }: UseTeamBirthdaysProps): UseTeamBirthdaysResult => {
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<TeamBirthday[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
@@ -71,6 +67,9 @@ export const useTeamBirthdays = ({
             lastName
             birthDate
             pictureThumbnail
+            workingCondition {
+              hireDate
+            }
             employeePosition {
               jobPosition {
                 name
@@ -101,47 +100,47 @@ export const useTeamBirthdays = ({
       })
 
       if (response?.Employee) {
+        const employees = filterEmployeesByStartedEmployment(response.Employee)
         const today = dayjs()
 
-        const birthdaysWithCalculations: TeamBirthday[] = response.Employee.map((employee: Employee) => {
-          const birthDate = dayjs(employee.birthDate)
-          const currentYear = today.year()
+        const birthdaysWithCalculations: TeamBirthday[] = employees
+          .map((employee: Employee) => {
+            const birthDate = dayjs(employee.birthDate)
+            if (!birthDate.isValid()) return null
 
-          // Get this year's birthday
-          let thisYearBirthday = birthDate.year(currentYear)
+            const currentYear = today.year()
+            const currentMonth = today.month()
 
-          // If birthday already passed this year, check next year
-          if (thisYearBirthday.isBefore(today)) {
-            thisYearBirthday = birthDate.year(currentYear + 1)
-          }
+            // Get this year's birthday
+            const thisYearBirthday = birthDate.year(currentYear)
+            if (thisYearBirthday.month() !== currentMonth) {
+              return null
+            }
 
-          const daysUntilBirthday = thisYearBirthday.diff(today, 'day')
+            const daysUntilBirthday = thisYearBirthday.diff(today, 'day')
 
-          // Extract email from work communications
-          const emailComm = employee.workCommunications?.find(
-            (c: WorkCommunication) =>
-              c.channel?.value?.toLowerCase().includes('email') || c.channel?.value?.toLowerCase() === 'e-mail'
-          )
+            // Extract email from work communications
+            const emailComm = employee.workCommunications?.find(
+              (c: WorkCommunication) =>
+                c.channel?.value?.toLowerCase().includes('email') || c.channel?.value?.toLowerCase() === 'e-mail'
+            )
 
-          return {
-            id: employee.id,
-            userId: employee.userId,
-            firstName: employee.firstName,
-            lastName: employee.lastName,
-            fullName: `${employee.firstName} ${employee.lastName}`,
-            birthDate: employee.birthDate,
-            pictureThumbnail: employee.pictureThumbnail,
-            daysUntilBirthday,
-            jobPositionName: employee.employeePosition?.[0]?.jobPosition?.name,
-            email: emailComm?.value
-          }
-        })
-          // Filter to only include birthdays within the specified range
-          .filter(
-            (birthday: TeamBirthday) => birthday.daysUntilBirthday >= 0 && birthday.daysUntilBirthday <= daysAhead
-          )
-          // Sort by days until birthday
-          .sort((a: TeamBirthday, b: TeamBirthday) => a.daysUntilBirthday - b.daysUntilBirthday)
+            return {
+              id: employee.id,
+              userId: employee.userId,
+              firstName: employee.firstName,
+              lastName: employee.lastName,
+              fullName: `${employee.firstName} ${employee.lastName}`,
+              birthDate: employee.birthDate,
+              pictureThumbnail: employee.pictureThumbnail,
+              daysUntilBirthday,
+              jobPositionName: employee.employeePosition?.[0]?.jobPosition?.name,
+              email: emailComm?.value
+            }
+          })
+          .filter((birthday): birthday is TeamBirthday => birthday !== null)
+          // Sort by day in current month
+          .sort((a: TeamBirthday, b: TeamBirthday) => dayjs(a.birthDate).date() - dayjs(b.birthDate).date())
 
         setUpcomingBirthdays(birthdaysWithCalculations)
       } else {
@@ -157,7 +156,7 @@ export const useTeamBirthdays = ({
 
   useEffect(() => {
     fetchTeamBirthdays()
-  }, [managerId, accessToken, daysAhead])
+  }, [managerId, accessToken])
 
   return {
     upcomingBirthdays,

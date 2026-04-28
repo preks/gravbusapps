@@ -1,18 +1,23 @@
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
-import { COMMUNICATION_CHANNEL_EMAIL_REF } from '@/common/data/employee/constants/employeeConstants'
 import type { SetupAddEmployeesOuType } from '../setup-add-employees/setupAddEmployeesHasura'
+import {
+  buildOuEnrichmentMap,
+  fetchPeopleOrgchartStructure,
+  type PeopleOrgchartOuEnrichment
+} from './peopleDepartmentOrgchart'
 
+/** Row for People employees tab (sourced from `hrActiveEmployees` dataset). */
 export type PeopleEmployeeRow = {
   id: string
-  /** Keycloak / directory user id when synced; required for in-app password reset. */
+  /** Keycloak / directory user id when synced; required for password reset and deactivate. */
   userId?: string | null
   firstName?: string | null
   lastName?: string | null
   displayName?: string | null
-  communication?: Array<{ value?: string; channelRef?: string }> | null
-  employeePosition?: {
-    jobPosition?: { name?: string | null } | null
-  } | null
+  /** Work e-mail from dataset (`work_email`); preferred over legacy communication for this list. */
+  workEmail?: string | null
+  /** Job title from dataset (`job_title`). */
+  jobTitle?: string | null
 }
 
 export type PeoplePagedResult<T> = { rows: T[]; totalCount: number }
@@ -24,6 +29,15 @@ export type PeopleOrganizationalUnitRow = {
   type?: string | null
   /** Display string for employee(s) with Manager role on this OU; null if none. */
   managerDisplayName: string | null
+  /** Orgchart graph node id for create/update APIs; absent if structure could not be merged. */
+  nodeId?: string | null
+  description?: string | null
+  companyId?: string | null
+  costCenterId?: string | null
+  costCenterName?: string | null
+  /** `organizationalUnitData.type` from orgchart (e.g. DEPARTMENT, TEAM, MANAGEMENT). */
+  orgchartUnitType?: string | null
+  rank?: number | null
 }
 
 type PeopleOuManagerLinkGql = {
@@ -73,105 +87,6 @@ function escapeIlike(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
 }
 
-function buildEmployeeWhere(structureId: string, search: string): Record<string, unknown> {
-  const base: Record<string, unknown> = {
-    isDeleted: { _eq: false },
-    employeePosition: { structureId: { _eq: structureId } }
-  }
-  const q = search.trim()
-  if (!q) return base
-  const pattern = `%${escapeIlike(q)}%`
-  return {
-    _and: [
-      base,
-      {
-        _or: [
-          { displayName: { _ilike: pattern } },
-          { firstName: { _ilike: pattern } },
-          { lastName: { _ilike: pattern } },
-          { employeePosition: { jobPosition: { name: { _ilike: pattern } } } },
-          {
-            communication: {
-              value: { _ilike: pattern },
-              channelRef: { _eq: COMMUNICATION_CHANNEL_EMAIL_REF },
-              isDeleted: { _eq: false }
-            }
-          }
-        ]
-      }
-    ]
-  }
-}
-
-function buildEmployeeOrderBy(sortColumnId: string | null, sortDesc: boolean): Array<Record<string, unknown>> {
-  const dir = sortDesc ? 'DESC' : 'ASC'
-  switch (sortColumnId) {
-    case 'jobTitle':
-      return [{ employeePosition: { jobPosition: { name: dir } } }]
-    case 'email':
-      return [{ displayName: dir }, { firstName: dir }, { lastName: dir }]
-    case 'name':
-    default:
-      return [{ firstName: dir }, { lastName: dir }]
-  }
-}
-
-const PEOPLE_EMPLOYEES_PAGE = `
-  query PeopleEmployeesPage($where: EmployeeBoolExp!, $limit: Int!, $offset: Int!, $orderBy: [EmployeeOrderBy!]!) {
-    Employee(where: $where, limit: $limit, offset: $offset, orderBy: $orderBy) {
-      id
-      userId
-      firstName
-      lastName
-      displayName
-      communication(where: { isDeleted: { _eq: false } }) {
-        value
-        channelRef
-      }
-      employeePosition {
-        jobPosition {
-          name
-        }
-      }
-    }
-    EmployeeAggregate(where: $where) {
-      aggregate {
-        count
-      }
-    }
-  }
-`
-
-export async function fetchEmployeesPage(
-  accessToken: string,
-  params: {
-    structureId: string
-    limit: number
-    offset: number
-    search: string
-    sortColumnId: string | null
-    sortDesc: boolean
-  }
-): Promise<PeoplePagedResult<PeopleEmployeeRow>> {
-  const { structureId, limit, offset, search, sortColumnId, sortDesc } = params
-  graphQLClient.setAccessToken(accessToken)
-  const where = buildEmployeeWhere(structureId, search)
-  const orderBy = buildEmployeeOrderBy(sortColumnId, sortDesc)
-  const data = await graphQLClient.request<{
-    Employee: PeopleEmployeeRow[]
-    EmployeeAggregate: { aggregate: { count: number } | null } | null
-  }>(PEOPLE_EMPLOYEES_PAGE, {
-    where,
-    limit,
-    offset,
-    orderBy
-  })
-  return {
-    rows: data.Employee ?? [],
-    totalCount: data.EmployeeAggregate?.aggregate?.count ?? 0
-  }
-}
-
 function buildOrganizationalUnitWhere(
   structureId: string,
   type: SetupAddEmployeesOuType | undefined,
@@ -218,23 +133,34 @@ const PEOPLE_ORG_UNITS_PAGE = `
   }
 `
 
-/** Managers for a set of OUs (no nested field on OrganizationalUnit in this Hasura schema). */
+/**
+ * Managers per OU via the relationship on `OrganizationalUnit` (not root `EmployeeOrganizationalUnit`).
+ * Some tenants omit custom GraphQL root names for `nw_orgchart.organizational_unit_employee`, so the
+ * root field is missing while `OrganizationalUnit.organizationalUnitEmployee` still works.
+ */
 const PEOPLE_ORG_UNIT_MANAGERS = `
   query PeopleOrgUnitManagers($structureId: uuid!, $ouIds: [uuid!]!) {
-    EmployeeOrganizationalUnit(
+    OrganizationalUnit(
       where: {
         structureId: { _eq: $structureId }
-        organizationalUnitId: { _in: $ouIds }
-        role: { _eq: "Manager" }
-        employee: { isDeleted: { _eq: false } }
+        id: { _in: $ouIds }
+        isDeleted: { _eq: false }
       }
-      limit: 200
     ) {
-      organizationalUnitId
-      employee {
-        displayName
-        firstName
-        lastName
+      id
+      organizationalUnitEmployee(
+        where: {
+          structureId: { _eq: $structureId }
+          role: { _eq: "Manager" }
+          employee: { isDeleted: { _eq: false } }
+        }
+        limit: 50
+      ) {
+        employee {
+          displayName
+          firstName
+          lastName
+        }
       }
     }
   }
@@ -276,24 +202,51 @@ export async function fetchOrganizationalUnitsPage(
   let managersByOuId = new Map<string, PeopleOuManagerLinkGql[]>()
   if (ouIds.length > 0) {
     const mgrData = await graphQLClient.request<{
-      EmployeeOrganizationalUnit: Array<{
-        organizationalUnitId?: string | null
-        employee?: PeopleOuManagerLinkGql['employee']
+      OrganizationalUnit: Array<{
+        id: string
+        organizationalUnitEmployee?: Array<{
+          employee?: PeopleOuManagerLinkGql['employee']
+        } | null> | null
       } | null>
     }>(PEOPLE_ORG_UNIT_MANAGERS, {
       structureId,
       ouIds
     })
-    managersByOuId = groupManagersByOrganizationalUnitId(mgrData.EmployeeOrganizationalUnit ?? [])
+    const flat: Array<{ organizationalUnitId: string; employee?: PeopleOuManagerLinkGql['employee'] }> = []
+    for (const ou of mgrData.OrganizationalUnit ?? []) {
+      if (!ou?.id) continue
+      for (const link of ou.organizationalUnitEmployee ?? []) {
+        flat.push({ organizationalUnitId: ou.id, employee: link?.employee })
+      }
+    }
+    managersByOuId = groupManagersByOrganizationalUnitId(flat)
+  }
+
+  let enrichmentByOuId = new Map<string, PeopleOrgchartOuEnrichment>()
+  try {
+    const { nodes } = await fetchPeopleOrgchartStructure(accessToken, structureId)
+    enrichmentByOuId = buildOuEnrichmentMap(nodes)
+  } catch {
+    enrichmentByOuId = new Map()
   }
 
   return {
-    rows: raw.map(ou => ({
-      id: ou.id,
-      name: ou.name,
-      type: ou.type,
-      managerDisplayName: formatManagerDisplayName(managersByOuId.get(ou.id) ?? null)
-    })),
+    rows: raw.map(ou => {
+      const e = enrichmentByOuId.get(ou.id)
+      return {
+        id: ou.id,
+        name: ou.name,
+        type: ou.type,
+        managerDisplayName: formatManagerDisplayName(managersByOuId.get(ou.id) ?? null),
+        nodeId: e?.nodeId ?? null,
+        description: e ? e.description : null,
+        companyId: e?.companyId ?? null,
+        costCenterId: e?.costCenterId ?? null,
+        costCenterName: e?.costCenterName ?? null,
+        orgchartUnitType: e?.orgchartUnitType ?? null,
+        rank: e?.rank ?? null
+      }
+    }),
     totalCount: data.OrganizationalUnitAggregate?.aggregate?.count ?? 0
   }
 }

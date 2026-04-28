@@ -1,7 +1,7 @@
 import React from 'react'
 import { Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import type { FlowStudioData } from '../../../../hooks/useFlowStudioData'
-import { EventHandlerType, type TaskExpertHandlerConfig } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { EventHandlerType, type TaskExpertHandlerConfig } from '@/common/data/flow/types/flowTemplate'
 
 interface AgentHandlerSectionProps {
   handler: TaskExpertHandlerConfig

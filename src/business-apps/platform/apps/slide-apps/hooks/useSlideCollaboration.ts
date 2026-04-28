@@ -14,7 +14,7 @@ import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 import { useCollaboration } from '../../shared/hooks/useCollaboration'
 import { SocketIoYjsProvider } from '../../shared/services/SocketIoYjsProvider'
-import type { SlideParticipant } from '../../shared/services/CollaborationClient'
+import type { DocumentParticipant } from '../../shared/services/CollaborationClient'
 import type { SlideData, AnySlideElement } from '../components/slideElements'
 import type { SlideMaster } from '../types/slideMaster'
 
@@ -36,7 +36,7 @@ export interface UseSlideCollaborationReturn {
   slides: SlideData[]
   themeId: string
   masters: SlideMaster[] | undefined
-  participants: SlideParticipant[]
+  participants: DocumentParticipant[]
   isSynced: boolean
   isInitialized: boolean
   awareness: Awareness
@@ -47,6 +47,14 @@ export interface UseSlideCollaborationReturn {
   updateElement: (slideIndex: number, elementId: string, updates: Partial<AnySlideElement>) => void
   addSlide: (slide: SlideData, position?: number) => void
   removeSlide: (index: number) => void
+  updateSlideById: (slideId: string, updates: Partial<SlideData>) => void
+  updateElementBySlideId: (slideId: string, elementId: string, updates: Partial<AnySlideElement>) => void
+  addSlideAfterId: (afterSlideId: string | null, slide: SlideData) => void
+  removeSlideById: (slideId: string) => void
+  moveSlideById: (slideId: string, toIndex: number) => void
+  duplicateSlideById: (slideId: string, duplicateSlide: SlideData) => void
+  removeElementById: (slideId: string, elementId: string) => void
+  flushPendingUpdates: () => void
   applyContentJsonSnapshot: (contentJson: Record<string, unknown>) => void
 }
 
@@ -57,44 +65,195 @@ function slidesToYjs(slides: SlideData[], ySlides: Y.Array<Y.Map<any>>) {
   ySlides.delete(0, ySlides.length)
 
   slides.forEach(slide => {
-    const ySlide = new Y.Map()
-    ySlide.set('id', slide.id)
-    ySlide.set('notes', slide.notes || '')
+    ySlides.push([createYSlide(slide)])
+  })
+}
 
-    // Convert background
-    const yBackground = new Y.Map()
-    yBackground.set('type', slide.background.type)
-    if (slide.background.color) yBackground.set('color', slide.background.color)
-    if (slide.background.gradient) yBackground.set('gradient', slide.background.gradient)
-    if (slide.background.imageUrl) yBackground.set('imageUrl', slide.background.imageUrl)
-    if (slide.background.videoUrl) yBackground.set('videoUrl', slide.background.videoUrl)
-    if (slide.background.videoMuted !== undefined) yBackground.set('videoMuted', slide.background.videoMuted)
-    if (slide.background.videoLoop !== undefined) yBackground.set('videoLoop', slide.background.videoLoop)
-    ySlide.set('background', yBackground)
+function createYSlide(slide: SlideData): Y.Map<any> {
+  const ySlide = new Y.Map()
+  ySlide.set('id', slide.id)
+  ySlide.set('notes', slide.notes || '')
+  ySlide.set('background', createYBackground(slide.background))
+  ySlide.set('elements', createYElements(slide.elements))
 
-    // Convert elements
-    const yElements = new Y.Array()
-    slide.elements.forEach(element => {
-      const yElement = new Y.Map()
-      // Store entire element as JSON (simpler for complex nested structures)
-      Object.entries(element).forEach(([key, value]) => {
-        yElement.set(key, value)
-      })
-      yElements.push([yElement])
-    })
-    ySlide.set('elements', yElements)
+  if (slide.transition) {
+    ySlide.set('transition', createYTransition(slide.transition))
+  }
 
-    // Convert transition
-    if (slide.transition) {
-      const yTransition = new Y.Map()
-      yTransition.set('type', slide.transition.type)
-      yTransition.set('duration', slide.transition.duration)
-      yTransition.set('trigger', slide.transition.trigger)
-      yTransition.set('delay', slide.transition.delay)
-      ySlide.set('transition', yTransition)
+  return ySlide
+}
+
+function createYBackground(background: SlideData['background']): Y.Map<any> {
+  const yBackground = new Y.Map()
+  yBackground.set('type', background.type)
+  if (background.color) yBackground.set('color', background.color)
+  if (background.gradient) yBackground.set('gradient', background.gradient)
+  if (background.imageUrl) yBackground.set('imageUrl', background.imageUrl)
+  if (background.videoUrl) yBackground.set('videoUrl', background.videoUrl)
+  if (background.videoPreviewImageUrl) yBackground.set('videoPreviewImageUrl', background.videoPreviewImageUrl)
+  if (background.videoMuted !== undefined) yBackground.set('videoMuted', background.videoMuted)
+  if (background.videoLoop !== undefined) yBackground.set('videoLoop', background.videoLoop)
+  return yBackground
+}
+
+function createYElements(elements: AnySlideElement[]): Y.Array<Y.Map<any>> {
+  const yElements = new Y.Array<Y.Map<any>>()
+  elements.forEach(element => {
+    yElements.push([createYElement(element)])
+  })
+  return yElements
+}
+
+function createYElement(element: AnySlideElement): Y.Map<any> {
+  const yElement = new Y.Map()
+  Object.entries(element).forEach(([key, value]) => {
+    yElement.set(key, value)
+  })
+  return yElement
+}
+
+function createYTransition(transition: NonNullable<SlideData['transition']>): Y.Map<any> {
+  const yTransition = new Y.Map()
+  yTransition.set('type', transition.type)
+  yTransition.set('duration', transition.duration)
+  yTransition.set('trigger', transition.trigger)
+  yTransition.set('delay', transition.delay)
+  return yTransition
+}
+
+function deepEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true
+
+  if (Array.isArray(left) && Array.isArray(right)) {
+    if (left.length !== right.length) return false
+    return left.every((item, index) => deepEqual(item, right[index]))
+  }
+
+  if (
+    left &&
+    right &&
+    typeof left === 'object' &&
+    typeof right === 'object' &&
+    !Array.isArray(left) &&
+    !Array.isArray(right)
+  ) {
+    const leftRecord = left as Record<string, unknown>
+    const rightRecord = right as Record<string, unknown>
+    const leftKeys = Object.keys(leftRecord)
+    const rightKeys = Object.keys(rightRecord)
+    if (leftKeys.length !== rightKeys.length) return false
+    return leftKeys.every(key => deepEqual(leftRecord[key], rightRecord[key]))
+  }
+
+  return false
+}
+
+function setYMapJson(yMap: Y.Map<any>, nextValues: Record<string, unknown>) {
+  const nextKeys = new Set(Object.keys(nextValues))
+
+  yMap.forEach((_value, key) => {
+    if (!nextKeys.has(key)) {
+      yMap.delete(key)
     }
+  })
 
-    ySlides.push([ySlide])
+  Object.entries(nextValues).forEach(([key, value]) => {
+    if (value === undefined) {
+      yMap.delete(key)
+      return
+    }
+    if (!deepEqual(yMap.get(key), value)) {
+      yMap.set(key, value)
+    }
+  })
+}
+
+function backgroundToJson(background: SlideData['background']): Record<string, unknown> {
+  return {
+    type: background.type,
+    color: background.color,
+    gradient: background.gradient,
+    imageUrl: background.imageUrl,
+    videoUrl: background.videoUrl,
+    videoPreviewImageUrl: background.videoPreviewImageUrl,
+    videoMuted: background.videoMuted,
+    videoLoop: background.videoLoop
+  }
+}
+
+function transitionToJson(transition: NonNullable<SlideData['transition']>): Record<string, unknown> {
+  return {
+    type: transition.type,
+    duration: transition.duration,
+    trigger: transition.trigger,
+    delay: transition.delay
+  }
+}
+
+function hasSameSlideOrder(slides: SlideData[], ySlides: Y.Array<Y.Map<any>>): boolean {
+  if (slides.length !== ySlides.length) return false
+
+  for (let index = 0; index < slides.length; index++) {
+    if (ySlides.get(index).get('id') !== slides[index].id) {
+      return false
+    }
+  }
+
+  return true
+}
+
+function hasSameElementOrder(elements: AnySlideElement[], yElements: Y.Array<Y.Map<any>>): boolean {
+  if (elements.length !== yElements.length) return false
+
+  for (let index = 0; index < elements.length; index++) {
+    if (yElements.get(index).get('id') !== elements[index].id) {
+      return false
+    }
+  }
+
+  return true
+}
+
+function updateYSlideInPlace(ySlide: Y.Map<any>, slide: SlideData) {
+  if (ySlide.get('id') !== slide.id) ySlide.set('id', slide.id)
+  if (ySlide.get('notes') !== (slide.notes || '')) ySlide.set('notes', slide.notes || '')
+
+  const yBackground = ySlide.get('background')
+  if (yBackground instanceof Y.Map) {
+    setYMapJson(yBackground, backgroundToJson(slide.background))
+  } else {
+    ySlide.set('background', createYBackground(slide.background))
+  }
+
+  const yElements = ySlide.get('elements')
+  if (yElements instanceof Y.Array && hasSameElementOrder(slide.elements, yElements)) {
+    slide.elements.forEach((element, index) => {
+      setYMapJson(yElements.get(index), element as unknown as Record<string, unknown>)
+    })
+  } else {
+    ySlide.set('elements', createYElements(slide.elements))
+  }
+
+  const yTransition = ySlide.get('transition')
+  if (slide.transition) {
+    if (yTransition instanceof Y.Map) {
+      setYMapJson(yTransition, transitionToJson(slide.transition))
+    } else {
+      ySlide.set('transition', createYTransition(slide.transition))
+    }
+  } else if (yTransition !== undefined) {
+    ySlide.delete('transition')
+  }
+}
+
+function reconcileSlidesToYjs(slides: SlideData[], ySlides: Y.Array<Y.Map<any>>) {
+  if (!hasSameSlideOrder(slides, ySlides)) {
+    slidesToYjs(slides, ySlides)
+    return
+  }
+
+  slides.forEach((slide, index) => {
+    updateYSlideInPlace(ySlides.get(index), slide)
   })
 }
 
@@ -121,6 +280,7 @@ function yjsToSlides(ySlides: Y.Array<Y.Map<any>>): SlideData[] {
         gradient: yBackground.get('gradient'),
         imageUrl: yBackground.get('imageUrl'),
         videoUrl: yBackground.get('videoUrl'),
+        videoPreviewImageUrl: yBackground.get('videoPreviewImageUrl'),
         videoMuted: yBackground.get('videoMuted'),
         videoLoop: yBackground.get('videoLoop')
       }
@@ -162,6 +322,13 @@ function yjsToSlides(ySlides: Y.Array<Y.Map<any>>): SlideData[] {
   })
 
   return slides
+}
+
+function findSlideIndexById(ySlides: Y.Array<Y.Map<any>>, slideId: string): number {
+  for (let i = 0; i < ySlides.length; i++) {
+    if (ySlides.get(i).get('id') === slideId) return i
+  }
+  return -1
 }
 
 /**
@@ -212,6 +379,7 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
   const [isInitialized, setIsInitialized] = useState(false)
   const providerRef = useRef<SocketIoYjsProvider | null>(null)
   const isBootstrappingRef = useRef(false)
+  const didSeedEmptySlidesRef = useRef(false)
   const didDedupeRef = useRef(false)
 
   // Store initial data in refs to avoid recreating provider
@@ -231,6 +399,10 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
     initialThemeIdRef.current = initialThemeId
   }, [initialThemeId])
 
+  useEffect(() => {
+    didSeedEmptySlidesRef.current = false
+  }, [slideId])
+
   // Get Yjs arrays
   const ySlides = useMemo(() => ydoc.getArray<Y.Map<any>>('slides'), [ydoc])
   const yMeta = useMemo(() => ydoc.getMap('meta'), [ydoc])
@@ -239,6 +411,29 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
   // Do NOT pre-seed the Yjs document from REST content before the first sync.
   // If the server already has a Yjs state, pre-seeding causes divergent docs and duplicates on merge
   // (e.g. two slides with id `slide-1`), which breaks real-time syncing between clients.
+
+  const seedInitialSlidesState = useCallback(
+    async (options?: { waitForProviderReady?: boolean }) => {
+      const slideData = initialSlidesRef.current || []
+      const theme = initialThemeIdRef.current || 'corporate'
+
+      if (options?.waitForProviderReady) {
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
+
+      if (ySlides.length === 0 && slideData.length > 0) {
+        Y.transact(ydoc, () => {
+          slidesToYjs(slideData, ySlides)
+          yMeta.set('themeId', theme)
+        })
+      }
+
+      setSlides(slideData)
+      setThemeId(theme)
+      setIsInitialized(true)
+    },
+    [ydoc, yMeta, ySlides]
+  )
 
   // Collaboration hook
   const { participants, socket: collaborationSocket } = useCollaboration({
@@ -270,25 +465,7 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
         isBootstrappingRef.current = true
 
         try {
-          // Seed from REST-loaded slide content (best effort).
-          const slideData = initialSlidesRef.current || []
-          const theme = initialThemeIdRef.current || 'corporate'
-
-          // Wait briefly for Yjs to be ready
-          await new Promise(resolve => setTimeout(resolve, 50))
-
-          // Initialize Yjs structures (only if empty to avoid duplicating existing server state)
-          if (ySlides.length === 0) {
-            Y.transact(ydoc, () => {
-              slidesToYjs(slideData, ySlides)
-              yMeta.set('themeId', theme)
-            })
-          }
-
-          // Update local state
-          setSlides(slideData)
-          setThemeId(theme)
-          setIsInitialized(true)
+          await seedInitialSlidesState({ waitForProviderReady: true })
         } catch (err) {
           console.error('[useSlideCollaboration] Bootstrap error:', err)
         } finally {
@@ -309,7 +486,27 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
       providerRef.current = null
       setIsSynced(false)
     }
-  }, [enabled, slideId, collaborationSocket, ydoc, awareness, ySlides, yMeta, onSynced])
+  }, [enabled, slideId, collaborationSocket, ydoc, awareness, ySlides, yMeta, onSynced, seedInitialSlidesState])
+
+  useEffect(() => {
+    if (!enabled || !slideId || !isSynced) return
+    if (didSeedEmptySlidesRef.current) return
+
+    if (ySlides.length > 0) {
+      didSeedEmptySlidesRef.current = true
+      return
+    }
+
+    if ((initialSlidesRef.current || []).length === 0) {
+      return
+    }
+
+    didSeedEmptySlidesRef.current = true
+    void seedInitialSlidesState().catch(err => {
+      didSeedEmptySlidesRef.current = false
+      console.error('[useSlideCollaboration] Failed to seed empty slide deck after sync:', err)
+    })
+  }, [enabled, initialSlides, isSynced, seedInitialSlidesState, slideId, ySlides])
 
   // One-time de-duplication safeguard after sync.
   // If earlier builds created duplicate slide IDs (e.g. `slide-1` twice), remove extras
@@ -372,9 +569,15 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
       // Overwriting with [] would lose the REST-loaded initial slides.
       if (newSlides.length === 0) return
       setSlides(prevSlides => {
-        const prevJson = JSON.stringify(prevSlides)
-        const newJson = JSON.stringify(newSlides)
-        return prevJson !== newJson ? newSlides : prevSlides
+        if (prevSlides.length !== newSlides.length) {
+          console.info('[useSlideCollaboration] Slide count changed from Yjs:', {
+            slideId,
+            previousCount: prevSlides.length,
+            nextCount: newSlides.length,
+            nextSlideIds: newSlides.map(slide => slide.id)
+          })
+        }
+        return deepEqual(prevSlides, newSlides) ? prevSlides : newSlides
       })
     }
 
@@ -409,9 +612,11 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
   // Update functions
   const updateSlides = useCallback(
     (newSlides: SlideData[]) => {
-      slidesToYjs(newSlides, ySlides)
+      Y.transact(ydoc, () => {
+        reconcileSlidesToYjs(newSlides, ySlides)
+      })
     },
-    [ySlides]
+    [ydoc, ySlides]
   )
 
   const updateTheme = useCallback(
@@ -534,6 +739,81 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
     [ySlides]
   )
 
+  const updateSlideById = useCallback(
+    (slideId: string, updates: Partial<SlideData>) => {
+      const index = findSlideIndexById(ySlides, slideId)
+      if (index < 0) return
+      updateSlide(index, updates)
+    },
+    [updateSlide, ySlides]
+  )
+
+  const updateElementBySlideId = useCallback(
+    (slideId: string, elementId: string, updates: Partial<AnySlideElement>) => {
+      const index = findSlideIndexById(ySlides, slideId)
+      if (index < 0) return
+      updateElement(index, elementId, updates)
+    },
+    [updateElement, ySlides]
+  )
+
+  const addSlideAfterId = useCallback(
+    (afterSlideId: string | null, slide: SlideData) => {
+      const index = afterSlideId ? findSlideIndexById(ySlides, afterSlideId) : -1
+      addSlide(slide, index >= 0 ? index + 1 : ySlides.length)
+    },
+    [addSlide, ySlides]
+  )
+
+  const removeSlideById = useCallback(
+    (slideId: string) => {
+      const index = findSlideIndexById(ySlides, slideId)
+      if (index < 0) return
+      ySlides.delete(index, 1)
+    },
+    [ySlides]
+  )
+
+  const moveSlideById = useCallback(
+    (slideId: string, toIndex: number) => {
+      const fromIndex = findSlideIndexById(ySlides, slideId)
+      if (fromIndex < 0 || toIndex < 0 || toIndex >= ySlides.length || fromIndex === toIndex) return
+
+      const slide = yjsToSlides(ySlides)[fromIndex]
+      if (!slide) return
+
+      ySlides.delete(fromIndex, 1)
+      addSlide(slide, toIndex)
+    },
+    [addSlide, ySlides]
+  )
+
+  const duplicateSlideById = useCallback(
+    (slideId: string, duplicateSlide: SlideData) => {
+      const index = findSlideIndexById(ySlides, slideId)
+      addSlide(duplicateSlide, index >= 0 ? index + 1 : ySlides.length)
+    },
+    [addSlide, ySlides]
+  )
+
+  const removeElementById = useCallback(
+    (slideId: string, elementId: string) => {
+      const slideIndex = findSlideIndexById(ySlides, slideId)
+      if (slideIndex < 0) return
+      const ySlide = ySlides.get(slideIndex)
+      const yElements = ySlide.get('elements') as Y.Array<Y.Map<any>> | undefined
+      if (!yElements) return
+
+      for (let i = 0; i < yElements.length; i++) {
+        if (yElements.get(i).get('id') === elementId) {
+          yElements.delete(i, 1)
+          return
+        }
+      }
+    },
+    [ySlides]
+  )
+
   const applyContentJsonSnapshot = useCallback(
     (contentJson: Record<string, unknown>) => {
       const snapshotSlides = (contentJson.slides as SlideData[] | undefined) || []
@@ -551,6 +831,27 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
     [ydoc, ySlides, yMeta]
   )
 
+  useEffect(() => {
+    if (!collaborationSocket) return
+    const handleSlideContentReset = (event: {
+      documentId: string
+      entityType?: 'slide'
+      contentJson?: Record<string, unknown>
+    }) => {
+      if (event.documentId !== slideId || event.entityType !== 'slide' || !event.contentJson) return
+      applyContentJsonSnapshot(event.contentJson)
+    }
+
+    collaborationSocket.on('slide_content_reset', handleSlideContentReset)
+    return () => {
+      collaborationSocket.off('slide_content_reset', handleSlideContentReset)
+    }
+  }, [applyContentJsonSnapshot, collaborationSocket, slideId])
+
+  const flushPendingUpdates = useCallback(() => {
+    providerRef.current?.flushPendingLocalUpdates()
+  }, [])
+
   return {
     slides,
     themeId,
@@ -566,6 +867,14 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
     updateElement,
     addSlide,
     removeSlide,
+    updateSlideById,
+    updateElementBySlideId,
+    addSlideAfterId,
+    removeSlideById,
+    moveSlideById,
+    duplicateSlideById,
+    removeElementById,
+    flushPendingUpdates,
     applyContentJsonSnapshot
   }
 }

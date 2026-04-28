@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -24,7 +24,6 @@ import {
   ArrowUpIcon,
   ArrowDownIcon
 } from '@phosphor-icons/react'
-import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
 import { useTeamOperationalStatus } from '../../hooks/useTeamOperationalStatus'
@@ -42,6 +41,7 @@ import {
 import { toAvatarSrc, goToProfile } from '../../utils/employeeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { GET_TEAM_ABSENCE_NET_FOR_RANGE } from '../../queries/queries'
+import { DetailsSheet } from '../DetailsSheet'
 import {
   buildApprovedNonWorkTimeOffByEmployeeDate,
   expandDetailedAbsencesToCalendarDays,
@@ -118,6 +118,39 @@ const formatAbsencePeriod = (absence: Pick<TeamAbsenceToday, 'startDate' | 'endD
 const splitEmployeeName = (employeeName?: string): { firstName?: string; lastName?: string } => {
   const [firstName, ...rest] = String(employeeName || '').split(' ')
   return { firstName, lastName: rest.join(' ') }
+}
+
+const HIRE_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})/
+
+const toComparableHireDateKey = (value?: string): string | null => {
+  if (!value) {
+    return null
+  }
+
+  const normalized = String(value).trim()
+  const prefix = HIRE_DATE_PATTERN.exec(normalized)
+  if (prefix) {
+    return `${prefix[1]}-${prefix[2]}-${prefix[3]}`
+  }
+
+  const parsed = new Date(normalized)
+  if (Number.isNaN(parsed.getTime())) {
+    return null
+  }
+
+  return toLocalDateKey(parsed)
+}
+
+const filterMembersByHireDateOnOrBefore = (list: TeamMember[], referenceDate: Date): TeamMember[] => {
+  const referenceKey = toLocalDateKey(referenceDate)
+  return list.filter(member => {
+    const hireDateKey = toComparableHireDateKey(member.hireDate)
+    if (!hireDateKey) {
+      return true
+    }
+
+    return hireDateKey <= referenceKey
+  })
 }
 
 interface AbsenceMemberListProps {
@@ -272,12 +305,6 @@ const SortHeader: React.FC<{
   </th>
 )
 
-const getBalanceClass = (minutes: number): string => {
-  if (minutes < 0) return 'gba:text-destructive gba:font-semibold'
-  if (minutes > 0) return 'gba:text-success'
-  return ''
-}
-
 const getHeatmapColor = (pct: number): string => {
   if (pct >= 90) return 'gba:bg-success/25 gba:text-success'
   if (pct >= 80) return 'gba:bg-success/15 gba:text-success'
@@ -291,8 +318,18 @@ const getProgressColor = (pct: number): string => {
   return 'var(--nw-destructive)'
 }
 
+const getBalanceClass = (minutes: number): string => {
+  if (minutes > 0) {
+    return 'gba:text-success gba:font-semibold'
+  }
+  if (minutes < 0) {
+    return 'gba:text-destructive gba:font-semibold'
+  }
+  return 'gba:text-muted-foreground'
+}
+
 export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
-  const { members, memberIds, isLoading: membersLoading } = useTeamMembers(props)
+  const { members, memberIds, allMembers, isLoading: membersLoading } = useTeamMembers(props)
   const {
     status,
     todayAttendance,
@@ -309,7 +346,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
     nextMonth,
     isLoading: capacityLoading,
     error: capacityError
-  } = useTeamCapacity(props.accessToken, members, memberIds, monthAttendance)
+  } = useTeamCapacity(props.accessToken, members, memberIds, monthAttendance, allMembers)
 
   const [sortKey, setSortKey] = useState<SortKey>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -331,6 +368,15 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
     const d = new Date()
     return new Date(d.getFullYear(), d.getMonth(), 1)
   })
+  const forecastMonthEnd = useMemo(
+    () => new Date(forecastMonth.getFullYear(), forecastMonth.getMonth() + 1, 0),
+    [forecastMonth]
+  )
+  const forecastMembers = useMemo(
+    () => filterMembersByHireDateOnOrBefore(allMembers, forecastMonthEnd),
+    [allMembers, forecastMonthEnd]
+  )
+  const forecastMemberIds = useMemo(() => forecastMembers.map(member => member.id), [forecastMembers])
 
   const forecastMonthLabel = forecastMonth.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })
   const prevForecastMonth = useCallback(() => {
@@ -341,7 +387,13 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   }, [])
 
   const fetchForecast = useCallback(async () => {
-    if (!graphqlClient || memberIds.length === 0) return
+    if (!graphqlClient || forecastMemberIds.length === 0) {
+      setForecastAbsences([])
+      setForecastHolidayDatesByEmployeeId(new Map())
+      setForecastHolidayNamesByEmployeeId(new Map())
+      setForecastTimeOffByEmployeeDate(new Map())
+      return
+    }
     setForecastLoading(true)
     try {
       const monthStart = new Date(forecastMonth.getFullYear(), forecastMonth.getMonth(), 1)
@@ -358,10 +410,10 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
       const locale = getActiveLocale()
 
       const [detailedAbsences, holidayData, absenceNetResult] = await Promise.all([
-        fetchTeamDetailedAbsences(graphqlClient, memberIds, from, to, locale),
-        fetchTeamHolidayData(graphqlClient, memberIds, from, to, locale),
+        fetchTeamDetailedAbsences(graphqlClient, forecastMemberIds, from, to, locale),
+        fetchTeamHolidayData(graphqlClient, forecastMemberIds, from, to, locale),
         graphqlClient.request<any>(GET_TEAM_ABSENCE_NET_FOR_RANGE, {
-          employeeIds: memberIds,
+          employeeIds: forecastMemberIds,
           from,
           to
         })
@@ -380,11 +432,11 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
     } finally {
       setForecastLoading(false)
     }
-  }, [graphqlClient, memberIds.join(','), forecastMonth])
+  }, [graphqlClient, forecastMemberIds.join(','), forecastMonth])
 
   useEffect(() => {
-    if (props.accessToken && memberIds.length > 0) fetchForecast()
-  }, [props.accessToken, memberIds.join(','), fetchForecast])
+    if (props.accessToken) fetchForecast()
+  }, [props.accessToken, forecastMemberIds.join(','), fetchForecast])
 
   const isLoading = membersLoading || statusLoading
 
@@ -397,7 +449,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   }
 
   const getForecastCell = (date: string): { available: number; total: number; pct: number } => {
-    const workingMembers = members.filter(member => {
+    const workingMembers = forecastMembers.filter(member => {
       if (!isWorkingDay(date, member.workingHours)) {
         return false
       }
@@ -519,7 +571,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
       })
     : ''
   const forecastAvailableMembers = selectedForecastDay
-    ? members.filter(member => {
+    ? forecastMembers.filter(member => {
         if (!isWorkingDay(selectedForecastDay, member.workingHours)) {
           return false
         }
@@ -532,7 +584,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
       })
     : []
   const forecastUnavailableMembers = selectedForecastDay
-    ? members.flatMap(member => {
+    ? forecastMembers.flatMap(member => {
         if (!isWorkingDay(selectedForecastDay, member.workingHours)) {
           return []
         }
@@ -994,7 +1046,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
                 {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.sick_days', 'Sick Days')}
               </th>
               <SortHeader
-                label={t('overall_balance', 'Overall Balance')}
+                label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.overall_balance', 'Overall Balance')}
                 sortKeyValue="balance"
                 sortKey={sortKey}
                 sortDir={sortDir}
@@ -1296,18 +1348,16 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
         <CardContent className="gba:p-0">{capacityContent}</CardContent>
       </Card>
 
-      <DataDetailsDrawer
+      <DetailsSheet
         title={activePanelMeta?.title || ''}
         icon={activePanelMeta?.icon}
         open={activePanel !== null}
         onClose={() => setActivePanel(null)}
-        width={440}
-        placement="right"
         dataTestId="dashboard-details-drawer"
       >
         <div className="gba:mb-2 gba:text-sm gba:text-muted-foreground">{activePanelMeta?.description || ''}</div>
         {renderPanelContent()}
-      </DataDetailsDrawer>
+      </DetailsSheet>
     </div>
   )
 }

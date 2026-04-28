@@ -16,7 +16,8 @@ import {
   PencilSimple,
   Check,
   User,
-  Robot
+  Robot,
+  FilePdf
 } from '@phosphor-icons/react'
 import { useUserPreferencesContext } from '../context/UserPreferencesContext'
 import type { BehaviorNote, UserSelectableLlmModel, UserSelectableLlmProvider } from '../hooks/useUserPreferences'
@@ -92,8 +93,8 @@ const MODEL_KINDS_BY_PROVIDER: Record<UserSelectableLlmProvider, Record<ModelKin
   anthropic: {
     default: 'claude-sonnet-4-20250514',
     smart: 'claude-opus-4-1-20250805',
-    fast: 'claude-3-7-sonnet-20250219',
-    cheap: 'claude-3-5-haiku-20241022'
+    fast: 'claude-sonnet-4-5-20250929',
+    cheap: 'claude-haiku-4-5-20251001'
   }
 }
 
@@ -139,9 +140,9 @@ const PROVIDER_MODEL_IDS: Record<UserSelectableLlmProvider, ReadonlyArray<UserSe
   anthropic: [
     'claude-sonnet-4-20250514',
     'claude-opus-4-1-20250805',
-    'claude-3-7-sonnet-20250219',
+    'claude-sonnet-4-5-20250929',
     'claude-3-7-sonnet-latest',
-    'claude-3-5-haiku-20241022'
+    'claude-haiku-4-5-20251001'
   ]
 }
 
@@ -173,9 +174,17 @@ const DEFAULT_MODEL_BY_PROVIDER: Record<UserSelectableLlmProvider, UserSelectabl
 
 interface UserPreferencesProps {
   darkMode?: boolean
+  /**
+   * Developer-only callback to export the current chat session as a PDF.
+   * When provided and developer settings are visible, an extra row is
+   * surfaced inside the developer settings card.
+   */
+  onPrintSession?: () => void
+  /** Disable the print-session button (e.g. when the conversation is empty). */
+  canPrintSession?: boolean
 }
 
-export function UserPreferences({ darkMode = false }: UserPreferencesProps) {
+export function UserPreferences({ darkMode = false, onPrintSession, canPrintSession = true }: UserPreferencesProps) {
   const {
     preferences,
     isLoading,
@@ -728,10 +737,13 @@ export function UserPreferences({ darkMode = false }: UserPreferencesProps) {
             </div>
           )}
 
-          {/* Developer settings — dev tenants only. Always available once
-              data is loaded, even when the user has no notes or tool
-              affinities yet. */}
-          {showDeveloperSettings && !error && !(isLoading && !preferences) && (
+          {/* Developer settings — dev tenants only. Always rendered once
+              the initial spinner is gone, even when preferences failed to
+              load: the toggles auto-disable themselves via
+              `settingsDisabled` and the print-session button is purely
+              client-side, so it must remain available when the backend
+              is unreachable. */}
+          {showDeveloperSettings && !(isLoading && !preferences) && (
             <div className="gba:mt-6">
               <DeveloperSettings darkMode={darkMode}>
                 <SettingRow
@@ -779,6 +791,26 @@ export function UserPreferences({ darkMode = false }: UserPreferencesProps) {
                         ariaLabel="Select LLM model"
                         onChange={handleSelectLlmModel}
                       />
+                    }
+                  />
+                )}
+                {onPrintSession && (
+                  <SettingRow
+                    darkMode={darkMode}
+                    label="Print session"
+                    description="Open the current conversation in a print-ready view to save it as a PDF."
+                    control={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onPrintSession}
+                        disabled={!canPrintSession}
+                        aria-label="Print session as PDF"
+                        className="gba:inline-flex gba:items-center gba:gap-2"
+                      >
+                        <FilePdf className="gba:h-4 gba:w-4" />
+                        Save PDF
+                      </Button>
                     }
                   />
                 )}

@@ -67,7 +67,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = props => {
         <AbsenceTrendsSection {...props} />
       </div>
       <div data-testid="statistics-tab-year-comparison">
-        <YearComparisonSection data={statistics} />
+        <YearComparisonSection {...props} />
       </div>
     </div>
   )

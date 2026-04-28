@@ -31,7 +31,10 @@ const escapeGraphQLString = (input: string): string => {
 const ORDERABLE_FIELDS = new Set([
   // Root scalar fields
   'date',
+  'initialInvestmentAmount',
   'investmentMarketValue',
+  'securityQuantity',
+  'timeWeightedPerformance',
   'loanAmount',
   'createdAt',
   'updatedAt',

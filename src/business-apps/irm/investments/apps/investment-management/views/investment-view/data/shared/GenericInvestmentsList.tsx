@@ -73,6 +73,8 @@ export interface GenericInvestmentsListProps extends BusinessAppContextProps {
   visibleColumns?: string[]
   /** Server-side totals for current filters (all pages). Omit to hide the bar. */
   listAggregates?: InvestmentListAggregates
+  /** Catalog-derived columns for dynamic investment group tabs. */
+  catalogColumns?: ColumnDef<Investment>[]
   showAggregatesBar?: boolean
   /** Equity tab: extra EBITDA and portfolio performance from aggregates. */
   showEquityMetrics?: boolean
@@ -123,6 +125,7 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
   onPaginationChange,
   visibleColumns,
   listAggregates = DEFAULT_LIST_AGGREGATES,
+  catalogColumns,
   showAggregatesBar = false,
   showEquityMetrics = false,
   displayCurrencyCode = 'EUR'
@@ -156,17 +159,23 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
 
   // Build column definitions
   const columns = useMemo(() => {
+    const nameColumn: ColumnDef<Investment> = {
+      id: 'name',
+      header: 'Investment',
+      accessorKey: 'name',
+      size: 250,
+      minSize: 200,
+      maxSize: 400,
+      enableResizing: false,
+      cell: NameCell
+    }
+
+    if (catalogColumns) {
+      return [nameColumn, ...catalogColumns]
+    }
+
     const baseColumns: ColumnDef<Investment>[] = [
-      {
-        id: 'name',
-        header: 'Investment',
-        accessorKey: 'name',
-        size: 250,
-        minSize: 200,
-        maxSize: 400,
-        enableResizing: false,
-        cell: NameCell
-      },
+      nameColumn,
       {
         id: 'investmentType',
         header: 'Investment Type',
@@ -233,7 +242,7 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
     ]
 
     return [...columnsWithExtras, ...remainingColumns]
-  }, [config.defaultTypeLabel, config.extraColumns, config.insertExtraColumnsAfter])
+  }, [catalogColumns, config.defaultTypeLabel, config.extraColumns, config.insertExtraColumnsAfter])
 
   // Filter columns based on visibleColumns
   const filteredColumns = useMemo(() => {

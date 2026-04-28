@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { InputType, type InputBlock } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { InputType, type InputBlock } from '@/common/data/flow/types/flowTemplate'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import { buildStepIndexByNodeId } from '../../utils/studioStepOrder'
 
