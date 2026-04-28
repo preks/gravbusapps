@@ -9,6 +9,19 @@ const NOT_AVAILABLE_LABEL = 'N/A'
 
 export const naLabel = () => getTranslationFromI18nKeyAndLabel(NOT_AVAILABLE, NOT_AVAILABLE_LABEL)
 
+/**
+ * Full header label on `title` so truncated fixed-layout column titles show on hover (native tooltip).
+ */
+export function expenseTableColumnHeader(label: string) {
+  return function ExpenseTableColumnHeader() {
+    return (
+      <span className="gba:block gba:w-full gba:min-w-0 gba:truncate" title={label}>
+        {label}
+      </span>
+    )
+  }
+}
+
 export function createFormatDate(
   formatFn?: (value: string | null | undefined) => string
 ): (v: string | null | undefined) => string {
@@ -97,7 +110,7 @@ export function createDateColumn<T extends object>(
   return {
     id,
     accessorFn,
-    header,
+    header: expenseTableColumnHeader(header),
     enableSorting: options?.enableSorting !== false,
     sortDescFirst: options?.sortDescFirst ?? false,
     size: options?.size ?? 110,
@@ -147,7 +160,7 @@ export function createEmployeeColumn<T extends object>(
   return {
     id,
     accessorFn: getEmployee,
-    header,
+    header: expenseTableColumnHeader(header),
     enableSorting: opts.enableSorting !== false,
     sortDescFirst: opts.sortDescFirst ?? false,
     size: 200,
@@ -208,7 +221,7 @@ export function createCurrencyColumn<T extends object>(
   return {
     id,
     accessorFn: getAmount,
-    header,
+    header: expenseTableColumnHeader(header),
     enableSorting: options?.enableSorting !== false,
     sortDescFirst: options?.sortDescFirst ?? false,
     size: options?.size ?? 130,
@@ -236,6 +249,9 @@ export interface StatusBadgeColumnOptions<T> {
   sortDescFirst?: boolean
   /** Set false for server-paginated or read-only tables where list sorting is not available. */
   enableSorting?: boolean
+  size?: number
+  minSize?: number
+  maxSize?: number
 }
 
 export function createStatusBadgeColumn<T extends object>(
@@ -247,12 +263,12 @@ export function createStatusBadgeColumn<T extends object>(
   return {
     id,
     accessorFn: (row: T) => getStatusDisplay(row).label,
-    header,
+    header: expenseTableColumnHeader(header),
     enableSorting: options?.enableSorting !== false,
     sortDescFirst: options?.sortDescFirst ?? false,
-    size: 150,
-    minSize: 160,
-    maxSize: 250,
+    size: options?.size ?? 150,
+    minSize: options?.minSize ?? 160,
+    maxSize: options?.maxSize ?? 250,
     cell: ({ row }) => {
       const display = getStatusDisplay(row.original)
       const defaultTestId = `status-pill-${String(display.label).toLowerCase().replace(/\s/g, '-')}`

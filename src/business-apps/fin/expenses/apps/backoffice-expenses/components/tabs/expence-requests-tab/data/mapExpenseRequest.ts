@@ -1,7 +1,9 @@
 import type { ExpenseData, ExpenseRequest } from '../../../../types'
-import type { TranslateFn } from '../../../../utils/utils'
-import { formatDateLocalized } from '../../../../utils/dateUtils'
 import { buildEmployeeDisplayName } from '../../../../hooks/backofficeReportUtils'
+
+function rawRequestDate(value: string | null | undefined): string {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : ''
+}
 
 function toOptionalNumber(value: unknown): number | undefined {
   if (value == null || value === '') {
@@ -24,7 +26,7 @@ function formatPayableAmount(
   return `${displayAmount} ${currencyCode}`.trim()
 }
 
-export function mapExpenseRequest(item: ExpenseRequest, t: TranslateFn): ExpenseData {
+export function mapExpenseRequest(item: ExpenseRequest): ExpenseData {
   const reimbursableAmount = toOptionalNumber(item.reimbursableAmount)
   const totalAmount = toOptionalNumber(item.totalAmount) ?? 0
   const payableAmount = toOptionalNumber((item as { payableAmount?: unknown }).payableAmount)
@@ -42,10 +44,10 @@ export function mapExpenseRequest(item: ExpenseRequest, t: TranslateFn): Expense
     sapNumber: item.employee?.hrReferenceCode ?? '-',
     employee: employeeDisplayName,
     title: item.title ?? '-',
-    creationDate: formatDateLocalized(item.createdAt, t),
-    startDate: formatDateLocalized(item.startDate, t),
-    endDate: formatDateLocalized(item.endDate, t),
-    requestDate: formatDateLocalized(item.requestDate ?? item.createdAt, t),
+    creationDate: rawRequestDate(item.createdAt),
+    startDate: rawRequestDate(item.startDate),
+    endDate: rawRequestDate(item.endDate),
+    requestDate: rawRequestDate(item.requestDate ?? item.createdAt),
     reporter: employeeDisplayName,
     type: item.requestType?.value ?? '-',
     amount: reimbursableAmount === undefined ? String(totalAmount) : `${reimbursableAmount} ${currencyCode}`.trim(),
