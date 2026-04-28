@@ -557,7 +557,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // Data state
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null)
   const [appToPromote, setAppToPromote] = useState<SpreadsheetApp | null>(null)
-  const [isRestoringTrashedApp, setIsRestoringTrashedApp] = useState(false)
   const [isDeletingTrashedApp, setIsDeletingTrashedApp] = useState(false)
 
   // Get current user ID
@@ -628,6 +627,16 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     defaultSortOrder: 'desc',
     onItemsChanged: () => {
       void refreshApps()
+    },
+    listControls: {
+      refreshLabel: '',
+      sortNameLabel: '',
+      sortTrashedOnLabel: '',
+      trashedOnColumnLabel: '',
+      toastRestoredLabel: t('trash-toast-restored'),
+      toastRestoreFailedLabel: t('trash-toast-restore-failed'),
+      toastDeletedLabel: t('trash-toast-deleted'),
+      toastDeleteFailedLabel: t('trash-toast-delete-failed')
     }
   })
 
@@ -1276,34 +1285,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const isTrashedApp = Boolean(currentApp?.trashedAt)
   const canManageTrashedApp = Boolean(isTrashedApp && currentAppPermission === 'owner')
 
-  const handleRestoreTrashedApp = useCallback(async () => {
-    if (!currentApp?.id || !canManageTrashedApp) {
-      return
-    }
-
-    setIsRestoringTrashedApp(true)
-    try {
-      DriveApiService.setAccessToken(accessToken)
-      await DriveApiService.restoreItems([{ entityType: 'spreadsheet_app', entityId: currentApp.id }])
-      const restoredApp = await loadApp(currentApp.id)
-      if (!restoredApp) {
-        return
-      }
-
-      setSelectedAppId(currentApp.id)
-      setActiveSection('my-files')
-      setCurrentView('viewer')
-      updateUrl(currentApp.id, 'viewer', restoredApp.filePath, 'my-files')
-      toast.success(t('toast-restored'))
-      await refreshApps()
-    } catch (error) {
-      console.error('[SpreadsheetAppsHub] Failed to restore trashed spreadsheet:', error)
-      toast.error(t('toast-restore-failed'))
-    } finally {
-      setIsRestoringTrashedApp(false)
-    }
-  }, [accessToken, canManageTrashedApp, currentApp?.id, loadApp, refreshApps, t, updateUrl])
-
   const handleDeleteTrashedAppPermanently = useCallback(async () => {
     if (!currentApp?.id || !canManageTrashedApp) {
       return
@@ -1563,12 +1544,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             <TrashedSpreadsheetReadonlyDialog
               spreadsheetTitle={app.name}
               canManage={canManageTrashedApp}
-              isRestoring={isRestoringTrashedApp}
               isDeleting={isDeletingTrashedApp}
               onBackToTrash={handleBack}
-              onRestore={() => {
-                void handleRestoreTrashedApp()
-              }}
               onDeletePermanently={() => {
                 void handleDeleteTrashedAppPermanently()
               }}
@@ -1609,13 +1586,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       handleDeleteTrashedAppPermanently,
       handleOpenViewerEditor,
       handleRefreshShares,
-      handleRestoreTrashedApp,
       handleShare,
       handleShareApp,
       handleSpreadsheetHubHome,
       handleUnshare,
       isDeletingTrashedApp,
-      isRestoringTrashedApp,
       canManageTrashedApp,
       selectedAppForShare,
       setShareDialogOpen,
@@ -1786,7 +1761,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         deleteDialogDescriptionFn: name => t('trash-delete-dialog-description-single', { name }),
                         deleteDialogCancel: t('trash-delete-dialog-cancel'),
                         deleteDialogConfirm: t('trash-delete-dialog-confirm'),
-                        deleteDialogDeleting: t('trash-delete-dialog-deleting')
+                        deleteDialogDeleting: t('trash-delete-dialog-deleting'),
+                        restoreLabel: t('trash-action-restore'),
+                        restoringLabel: t('trash-action-restoring'),
+                        deleteLabel: t('trash-action-delete'),
+                        deletingLabel: t('trash-action-deleting')
                       }}
                       isLoading={trashList.isLoading}
                       sortBy={trashList.sortBy}
@@ -1830,7 +1809,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                       deleteDialogDescriptionFn: name => t('trash-delete-dialog-description-single', { name }),
                       deleteDialogCancel: t('trash-delete-dialog-cancel'),
                       deleteDialogConfirm: t('trash-delete-dialog-confirm'),
-                      deleteDialogDeleting: t('trash-delete-dialog-deleting')
+                      deleteDialogDeleting: t('trash-delete-dialog-deleting'),
+                      restoreLabel: t('trash-action-restore'),
+                      restoringLabel: t('trash-action-restoring'),
+                      deleteLabel: t('trash-action-delete'),
+                      deletingLabel: t('trash-action-deleting')
                     }}
                     sortBy={trashList.sortBy}
                     actionKey={trashList.actionKey}

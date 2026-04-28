@@ -300,7 +300,17 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     enabled: currentView === 'list' && activeSection === 'trash',
     defaultSortBy: 'trashedAt',
     defaultSortOrder: 'desc',
-    onItemsChanged: handleTrashItemsChanged
+    onItemsChanged: handleTrashItemsChanged,
+    listControls: {
+      refreshLabel: '',
+      sortNameLabel: '',
+      sortTrashedOnLabel: '',
+      trashedOnColumnLabel: '',
+      toastRestoredLabel: t('trash-toast-restored'),
+      toastRestoreFailedLabel: t('trash-toast-restore-failed'),
+      toastDeletedLabel: t('trash-toast-deleted'),
+      toastDeleteFailedLabel: t('trash-toast-delete-failed')
+    }
   })
 
   const handleToggleTrashSelect = useCallback((id: string) => {
@@ -1246,7 +1256,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                         deleteDialogDescriptionFn: name => t('trash-delete-dialog-description-single', { name }),
                         deleteDialogCancel: t('trash-delete-dialog-cancel'),
                         deleteDialogConfirm: t('trash-delete-dialog-confirm'),
-                        deleteDialogDeleting: t('trash-delete-dialog-deleting')
+                        deleteDialogDeleting: t('trash-delete-dialog-deleting'),
+                        restoreLabel: t('trash-action-restore'),
+                        restoringLabel: t('trash-action-restoring'),
+                        deleteLabel: t('trash-action-delete'),
+                        deletingLabel: t('trash-action-deleting')
                       }}
                       isLoading={trashList.isLoading}
                       sortBy={trashList.sortBy}
@@ -1292,7 +1306,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                       deleteDialogDescriptionFn: name => t('trash-delete-dialog-description-single', { name }),
                       deleteDialogCancel: t('trash-delete-dialog-cancel'),
                       deleteDialogConfirm: t('trash-delete-dialog-confirm'),
-                      deleteDialogDeleting: t('trash-delete-dialog-deleting')
+                      deleteDialogDeleting: t('trash-delete-dialog-deleting'),
+                      restoreLabel: t('trash-action-restore'),
+                      restoringLabel: t('trash-action-restoring'),
+                      deleteLabel: t('trash-action-delete'),
+                      deletingLabel: t('trash-action-deleting')
                     }}
                     sortBy={trashList.sortBy}
                     actionKey={trashList.actionKey}

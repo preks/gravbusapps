@@ -167,7 +167,17 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
     searchQuery: trashSearchQuery,
     defaultSortBy: 'trashedAt',
     defaultSortOrder: 'desc',
-    onItemsChanged: refresh
+    onItemsChanged: refresh,
+    listControls: {
+      refreshLabel: '',
+      sortNameLabel: '',
+      sortTrashedOnLabel: '',
+      trashedOnColumnLabel: '',
+      toastRestoredLabel: t('trash-toast-restored'),
+      toastRestoreFailedLabel: t('trash-toast-restore-failed'),
+      toastDeletedLabel: t('trash-toast-deleted'),
+      toastDeleteFailedLabel: t('trash-toast-delete-failed')
+    }
   })
 
   const handleToggleTrashSelect = useCallback((id: string) => {
@@ -498,7 +508,11 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
       deleteDialogDescriptionFn: (name: string) => t('trash-delete-dialog-description-single', { name }),
       deleteDialogCancel: t('trash-delete-dialog-cancel'),
       deleteDialogConfirm: t('trash-delete-dialog-confirm'),
-      deleteDialogDeleting: t('trash-delete-dialog-deleting')
+      deleteDialogDeleting: t('trash-delete-dialog-deleting'),
+      restoreLabel: t('trash-action-restore'),
+      restoringLabel: t('trash-action-restoring'),
+      deleteLabel: t('trash-action-delete'),
+      deletingLabel: t('trash-action-deleting')
     }
 
     return (

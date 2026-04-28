@@ -241,6 +241,16 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     defaultSortOrder: 'desc',
     onItemsChanged: () => {
       void refreshSlides()
+    },
+    listControls: {
+      refreshLabel: '',
+      sortNameLabel: '',
+      sortTrashedOnLabel: '',
+      trashedOnColumnLabel: '',
+      toastRestoredLabel: t('trash-toast-restored'),
+      toastRestoreFailedLabel: t('trash-toast-restore-failed'),
+      toastDeletedLabel: t('trash-toast-deleted'),
+      toastDeleteFailedLabel: t('trash-toast-delete-failed')
     }
   })
 
@@ -944,7 +954,11 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                       deleteDialogDescriptionFn: name => t('trash-delete-dialog-description-single', { name }),
                       deleteDialogCancel: t('trash-delete-dialog-cancel'),
                       deleteDialogConfirm: t('trash-delete-dialog-confirm'),
-                      deleteDialogDeleting: t('trash-delete-dialog-deleting')
+                      deleteDialogDeleting: t('trash-delete-dialog-deleting'),
+                      restoreLabel: t('trash-action-restore'),
+                      restoringLabel: t('trash-action-restoring'),
+                      deleteLabel: t('trash-action-delete'),
+                      deletingLabel: t('trash-action-deleting')
                     }}
                     isLoading={trashList.isLoading}
                     sortBy={trashList.sortBy}
@@ -988,7 +1002,11 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                     deleteDialogDescriptionFn: name => t('trash-delete-dialog-description-single', { name }),
                     deleteDialogCancel: t('trash-delete-dialog-cancel'),
                     deleteDialogConfirm: t('trash-delete-dialog-confirm'),
-                    deleteDialogDeleting: t('trash-delete-dialog-deleting')
+                    deleteDialogDeleting: t('trash-delete-dialog-deleting'),
+                    restoreLabel: t('trash-action-restore'),
+                    restoringLabel: t('trash-action-restoring'),
+                    deleteLabel: t('trash-action-delete'),
+                    deletingLabel: t('trash-action-deleting')
                   }}
                   sortBy={trashList.sortBy}
                   actionKey={trashList.actionKey}

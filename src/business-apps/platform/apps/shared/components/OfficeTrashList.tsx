@@ -42,6 +42,17 @@ export interface OfficeTrashListControls {
   deleteDialogCancel?: string
   deleteDialogConfirm?: string
   deleteDialogDeleting?: string
+  // Single-item action labels
+  restoreLabel?: string
+  restoringLabel?: string
+  deleteLabel?: string
+  deletingLabel?: string
+  openLabel?: string
+  // Toast messages
+  toastRestoredLabel?: string
+  toastRestoreFailedLabel?: string
+  toastDeletedLabel?: string
+  toastDeleteFailedLabel?: string
 }
 
 interface OfficeTrashListProps {
@@ -66,6 +77,7 @@ interface UseOfficeTrashListOptions {
   defaultSortBy?: OfficeTrashSortBy
   defaultSortOrder?: OfficeTrashSortOrder
   enabled?: boolean
+  listControls?: OfficeTrashListControls
 }
 
 interface OfficeTrashListState {
@@ -126,7 +138,8 @@ export function useOfficeTrashList({
   onItemsChanged,
   defaultSortBy = 'trashedAt',
   defaultSortOrder = 'desc',
-  enabled = true
+  enabled = true,
+  listControls
 }: UseOfficeTrashListOptions): OfficeTrashListState {
   const [items, setItems] = useState<DriveItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -205,12 +218,12 @@ export function useOfficeTrashList({
       try {
         DriveApiService.setAccessToken(accessToken)
         await DriveApiService.restoreItems([{ entityType: item.type, entityId: item.id }])
-        toast.success('Item restored')
+        toast.success(listControls?.toastRestoredLabel ?? 'Item restored')
         await refresh()
         onItemsChanged?.()
       } catch (error) {
         console.error('[OfficeTrashList] Failed to restore item:', error)
-        toast.error('Failed to restore item')
+        toast.error(listControls?.toastRestoreFailedLabel ?? 'Failed to restore item')
       } finally {
         setActionKey(null)
       }
@@ -224,13 +237,13 @@ export function useOfficeTrashList({
       try {
         DriveApiService.setAccessToken(accessToken)
         await DriveApiService.deleteTrashedItem(item.type, item.id)
-        toast.success('Item deleted permanently')
+        toast.success(listControls?.toastDeletedLabel ?? 'Item deleted permanently')
         await refresh()
         onItemsChanged?.()
         setDeleteConfirmItem(null)
       } catch (error) {
         console.error('[OfficeTrashList] Failed to delete trashed item:', error)
-        toast.error('Failed to delete item permanently')
+        toast.error(listControls?.toastDeleteFailedLabel ?? 'Failed to delete item permanently')
       } finally {
         setActionKey(null)
       }
@@ -444,7 +457,9 @@ export function OfficeTrashListTable({
                     <DropdownMenuContent align="end" className="gba:w-56">
                       <DropdownMenuItem onClick={() => onRestoreItem(item)} disabled={isRestoring || isDeleting}>
                         <ArrowCounterClockwiseIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-                        {isRestoring ? 'Restoring...' : 'Restore'}
+                        {isRestoring
+                          ? (listControls?.restoringLabel ?? 'Restoring...')
+                          : (listControls?.restoreLabel ?? 'Restore')}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -453,7 +468,9 @@ export function OfficeTrashListTable({
                         disabled={isRestoring || isDeleting}
                       >
                         <TrashIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-                        {isDeleting ? 'Deleting...' : 'Delete permanently'}
+                        {isDeleting
+                          ? (listControls?.deletingLabel ?? 'Deleting...')
+                          : (listControls?.deleteLabel ?? 'Delete permanently')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -608,7 +625,7 @@ export function OfficeTrashList({
               <div className="gba:flex gba:flex-wrap gba:gap-2">
                 {onOpenItem ? (
                   <Button variant="secondary" onClick={() => onOpenItem(item)} disabled={isRestoring || isDeleting}>
-                    Open
+                    {listControls?.openLabel ?? 'Open'}
                   </Button>
                 ) : null}
                 <Button
@@ -616,14 +633,18 @@ export function OfficeTrashList({
                   onClick={() => void trashList.handleRestore(item)}
                   disabled={isRestoring || isDeleting}
                 >
-                  {isRestoring ? 'Restoring...' : 'Restore'}
+                  {isRestoring
+                    ? (listControls?.restoringLabel ?? 'Restoring...')
+                    : (listControls?.restoreLabel ?? 'Restore')}
                 </Button>
                 <Button
                   variant="destructive"
                   onClick={() => trashList.requestDelete(item)}
                   disabled={isRestoring || isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete permanently'}
+                  {isDeleting
+                    ? (listControls?.deletingLabel ?? 'Deleting...')
+                    : (listControls?.deleteLabel ?? 'Delete permanently')}
                 </Button>
               </div>
             </Card>
@@ -633,7 +654,7 @@ export function OfficeTrashList({
       <PermanentDeleteConfirmDialog
         open={Boolean(trashList.deleteConfirmItem)}
         onOpenChange={trashList.handleDeleteConfirmOpenChange}
-        itemName={trashList.deleteConfirmItem?.name}
+        itemNames={trashList.deleteConfirmItem ? [trashList.deleteConfirmItem.name ?? ''] : []}
         onConfirm={() => {
           void trashList.confirmDelete()
         }}
