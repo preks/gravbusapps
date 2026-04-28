@@ -1988,17 +1988,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                             size="sm"
                             className="gba:h-7 gba:text-xs"
                             onClick={() => {
-                              selectedApps.forEach(id => handleShareApp(id))
-                            }}
-                          >
-                            <Share2 className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
-                            {t('action-share')}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="gba:h-7 gba:text-xs"
-                            onClick={() => {
                               selectedApps.forEach(id => handleExportApp(id))
                             }}
                           >
