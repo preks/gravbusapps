@@ -15215,25 +15215,25 @@
     ]
   },
   "crm/core/forms/activity-form": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 417453,
+    "bitbucketBuildNumber": 11484,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11484/",
+    "chunkJsBytes": 418070,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 238783,
-        "gzip": 58176,
+        "rendered": 239663,
+        "gzip": 58262,
         "leaves": [
           {
             "name": "src/common/data/investment/types/investmentTypes.new.ts",
-            "rendered": 14358,
-            "gzip": 2238
+            "rendered": 14850,
+            "gzip": 2292
           },
           {
             "name": "src/common/data/investment/queries/investmentQueries.new.ts",
-            "rendered": 13844,
-            "gzip": 2326
+            "rendered": 13888,
+            "gzip": 2330
           }
         ]
       },
@@ -67729,25 +67729,25 @@
     ]
   },
   "irm/core/forms/activity-form": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 416775,
+    "bitbucketBuildNumber": 11484,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11484/",
+    "chunkJsBytes": 417392,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 241151,
-        "gzip": 58492,
+        "rendered": 242031,
+        "gzip": 58578,
         "leaves": [
           {
             "name": "src/common/data/investment/types/investmentTypes.new.ts",
-            "rendered": 14358,
-            "gzip": 2238
+            "rendered": 14850,
+            "gzip": 2292
           },
           {
             "name": "src/common/data/investment/queries/investmentQueries.new.ts",
-            "rendered": 13844,
-            "gzip": 2326
+            "rendered": 13888,
+            "gzip": 2330
           }
         ]
       },
@@ -76168,15 +76168,15 @@
     ]
   },
   "irm/investments/apps/investment-management": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 1303920,
+    "bitbucketBuildNumber": 11484,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11484/",
+    "chunkJsBytes": 1309604,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/irm",
-        "rendered": 780968,
-        "gzip": 186106,
+        "rendered": 790401,
+        "gzip": 187916,
         "leaves": [
           {
             "name": "src/business-apps/irm/investments/apps/investment-management/views/analytics-view/overview/components/PortfolioDistributionCharts.tsx",
@@ -76185,8 +76185,8 @@
           },
           {
             "name": "src/business-apps/irm/investments/apps/investment-management/views/investment-view/InvestmentView.tsx",
-            "rendered": 28860,
-            "gzip": 5788
+            "rendered": 30831,
+            "gzip": 6165
           }
         ]
       },
@@ -76211,8 +76211,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 214996,
-        "gzip": 48330,
+        "rendered": 215876,
+        "gzip": 48415,
         "leaves": [
           {
             "name": "src/common/data/investment/types/investmentReportTypes.ts",
@@ -76221,8 +76221,8 @@
           },
           {
             "name": "src/common/data/investment/types/investmentTypes.new.ts",
-            "rendered": 14389,
-            "gzip": 2255
+            "rendered": 14881,
+            "gzip": 2309
           }
         ]
       },
@@ -77103,25 +77103,25 @@
     ]
   },
   "irm/investments/forms/investment-form": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 393355,
+    "bitbucketBuildNumber": 11484,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11484/",
+    "chunkJsBytes": 393972,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 206678,
-        "gzip": 46613,
+        "rendered": 207558,
+        "gzip": 46698,
         "leaves": [
           {
             "name": "src/common/data/investment/types/investmentTypes.new.ts",
-            "rendered": 18159,
-            "gzip": 2781
+            "rendered": 18651,
+            "gzip": 2834
           },
           {
             "name": "src/common/data/investment/queries/investmentQueries.new.ts",
-            "rendered": 13844,
-            "gzip": 2326
+            "rendered": 13888,
+            "gzip": 2330
           }
         ]
       },
@@ -77688,15 +77688,15 @@
     ]
   },
   "irm/investments/forms/investment-report-form": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 403888,
+    "bitbucketBuildNumber": 11484,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11484/",
+    "chunkJsBytes": 404505,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 227197,
-        "gzip": 49141,
+        "rendered": 228077,
+        "gzip": 49227,
         "leaves": [
           {
             "name": "src/common/data/investment/types/investmentReportTypes.ts",
@@ -77705,8 +77705,8 @@
           },
           {
             "name": "src/common/data/investment/types/investmentTypes.new.ts",
-            "rendered": 14358,
-            "gzip": 2238
+            "rendered": 14850,
+            "gzip": 2292
           }
         ]
       },
@@ -79348,9 +79348,9 @@
     ]
   },
   "irm/investments/records/investment-record": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 1120960,
+    "bitbucketBuildNumber": 11484,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11484/",
+    "chunkJsBytes": 1121543,
     "top": [
       {
         "kind": "bucket",
@@ -79409,8 +79409,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 220554,
-        "gzip": 51149,
+        "rendered": 221390,
+        "gzip": 51231,
         "leaves": [
           {
             "name": "src/common/data/investment/types/investmentReportTypes.ts",
@@ -79419,8 +79419,8 @@
           },
           {
             "name": "src/common/data/investment/types/investmentTypes.new.ts",
-            "rendered": 14358,
-            "gzip": 2238
+            "rendered": 14850,
+            "gzip": 2292
           }
         ]
       },
@@ -87947,20 +87947,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11481,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11481/",
-    "chunkJsBytes": 1834419,
+    "bitbucketBuildNumber": 11484,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11484/",
+    "chunkJsBytes": 1834413,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1530239,
-        "gzip": 92475,
+        "gzip": 92482,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1530239,
-            "gzip": 92475
+            "gzip": 92482
           }
         ]
       },
@@ -103745,7 +103745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-28T08:54:16.953Z",
+    "generatedAt": "2026-04-28T11:20:10.981Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
