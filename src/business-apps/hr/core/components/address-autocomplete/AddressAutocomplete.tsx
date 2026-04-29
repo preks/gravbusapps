@@ -275,10 +275,13 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           signal: controller.signal
         })
         setSuggestions(results)
-        setIsOpen(results.length > 0)
+        // Always open the dropdown so the user gets feedback. When `results` is empty
+        // the dropdown renders the localized "no results" message instead of suggestions.
+        setIsOpen(true)
       } catch (err) {
         if ((err as any)?.name !== 'AbortError') {
           setSuggestions([])
+          setIsOpen(true)
         }
       } finally {
         setIsSearching(false)
