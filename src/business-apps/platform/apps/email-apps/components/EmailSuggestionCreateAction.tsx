@@ -273,7 +273,7 @@ export const EmailSuggestionCreateAction: React.FC<EmailSuggestionCreateActionPr
             />
           ) : null}
 
-          {kind !== 'quickTask' ? (
+          {kind === 'crm' ? (
             <EmailCrmEntityPicker
               message={message}
               accessToken={accessToken}

@@ -5,29 +5,12 @@
  */
 
 import React, { useCallback, useRef, useState } from 'react'
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Badge,
-  Button,
-  Input,
-  Spinner,
-  useTranslation
-} from '@newwork/nw-design-system'
-import {
-  BriefcaseIcon,
-  BuildingsIcon,
-  CheckIcon,
-  DotsThreeIcon,
-  MagnifyingGlassIcon,
-  TargetIcon,
-  UserIcon,
-  XCircleIcon
-} from '@phosphor-icons/react'
+import { Avatar, AvatarFallback, AvatarImage, Badge, Button, useTranslation } from '@newwork/nw-design-system'
+import { BriefcaseIcon, BuildingsIcon, CheckIcon, TargetIcon, UserIcon, XCircleIcon } from '@phosphor-icons/react'
 import translations from '../_i18n'
 import { useEmailCrmSuggestions, type CrmEntityMatch } from '../hooks/useEmailCrmSuggestions'
 import type { EmailAccount, EmailMessage } from '../types'
+import { EmailCrmSuggestionPanel } from './EmailCrmSuggestionSections'
 
 interface EmailCrmEntityPickerProps {
   message: EmailMessage
@@ -133,13 +116,6 @@ const PickerRow: React.FC<PickerRowProps> = ({
   )
 }
 
-const LoadingRow: React.FC<{ label: string }> = ({ label }) => (
-  <div className="gba:flex gba:items-center gba:gap-2 gba:py-2">
-    <Spinner size="sm" />
-    <span className="gba:text-xs gba:text-muted-foreground">{label}</span>
-  </div>
-)
-
 export const EmailCrmEntityPicker: React.FC<EmailCrmEntityPickerProps> = ({
   message,
   accessToken,
@@ -231,89 +207,37 @@ export const EmailCrmEntityPicker: React.FC<EmailCrmEntityPickerProps> = ({
         ) : null}
       </div>
 
-      {counterpartyEmails.length > 0 ? (
-        <div>
-          <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1.5">
-            {t('crm-matches-for')}
-            <span className="gba:font-normal gba:ml-1">{counterpartyEmails.join(', ')}</span>
-          </p>
-          {emailLoading ? (
-            <LoadingRow label={t('crm-searching')} />
-          ) : emailMatches.length > 0 ? (
-            <div className="gba:space-y-1">{emailMatches.map(entity => renderRow(entity, `${testId}-email`))}</div>
-          ) : (
-            <p className="gba:text-xs gba:text-muted-foreground gba:italic">
-              {t('email-suggestion-create-link-record-no-matches')}
-            </p>
-          )}
-        </div>
-      ) : (
-        <p className="gba:text-xs gba:text-muted-foreground gba:italic">{t('crm-no-counterparty')}</p>
-      )}
-
-      <div>
-        <button
-          type="button"
-          className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
-          onClick={handleToggleMore}
-          data-testid={`${testId}-more-toggle`}
-        >
-          <DotsThreeIcon className="gba:w-4 gba:h-4" weight="bold" />
-          {showMoreOptions ? t('crm-hide-options') : t('email-suggestion-create-link-record-show-more')}
-          {!showMoreOptions && filteredOwned.length > 0 ? (
-            <span className="gba:text-muted-foreground gba:font-normal gba:ml-0.5">
-              {t('crm-owned-count', { count: filteredOwned.length })}
-            </span>
-          ) : null}
-        </button>
-
-        {showMoreOptions ? (
-          <div className="gba:mt-2 gba:space-y-3">
-            {(ownedLoading || filteredOwned.length > 0) && (
-              <div>
-                <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1.5">
-                  {t('crm-your-records')}
-                </p>
-                {ownedLoading ? (
-                  <LoadingRow label={t('crm-loading-records')} />
-                ) : (
-                  <div className="gba:space-y-1">
-                    {filteredOwned.map(entity => renderRow(entity, `${testId}-owned`))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div>
-              <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1.5">
-                {t('email-suggestion-create-link-record-search-placeholder')}
-              </p>
-              <div className="gba:relative">
-                <MagnifyingGlassIcon className="gba:absolute gba:left-2.5 gba:top-1/2 gba:-translate-y-1/2 gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:pointer-events-none" />
-                <Input
-                  ref={searchInputRef}
-                  placeholder={t('crm-search-placeholder')}
-                  className="gba:pl-8 gba:h-8 gba:text-sm"
-                  value={searchTerm}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSearch(e.target.value)}
-                  data-testid={`${testId}-search-input`}
-                />
-              </div>
-              {searchLoading ? <LoadingRow label={t('crm-search-loading')} /> : null}
-              {!searchLoading && filteredSearchResults.length > 0 ? (
-                <div className="gba:space-y-1 gba:mt-1.5">
-                  {filteredSearchResults.map(entity => renderRow(entity, `${testId}-search`))}
-                </div>
-              ) : null}
-              {!searchLoading && searchTerm.trim() && filteredSearchResults.length === 0 ? (
-                <p className="gba:text-xs gba:text-muted-foreground gba:italic gba:mt-1">
-                  {t('crm-no-results', { query: searchTerm })}
-                </p>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-      </div>
+      <EmailCrmSuggestionPanel
+        counterpartyEmails={counterpartyEmails}
+        emailLoading={emailLoading}
+        emailMatches={emailMatches}
+        showMoreOptions={showMoreOptions}
+        ownedLoading={ownedLoading}
+        filteredOwned={filteredOwned}
+        searchLoading={searchLoading}
+        searchTerm={searchTerm}
+        filteredSearchResults={filteredSearchResults}
+        searchInputRef={searchInputRef}
+        onToggleMore={handleToggleMore}
+        handleSearch={handleSearch}
+        labels={{
+          matchesFor: t('crm-matches-for'),
+          searching: t('crm-searching'),
+          empty: t('email-suggestion-create-link-record-no-matches'),
+          noCounterparty: t('crm-no-counterparty'),
+          hideOptions: t('crm-hide-options'),
+          showOptions: t('email-suggestion-create-link-record-show-more'),
+          ownedCount: filteredOwned.length > 0 ? t('crm-owned-count', { count: filteredOwned.length }) : null,
+          yourRecords: t('crm-your-records'),
+          loadingRecords: t('crm-loading-records'),
+          searchTitle: t('email-suggestion-create-link-record-search-placeholder'),
+          searchPlaceholder: t('crm-search-placeholder'),
+          searchLoading: t('crm-search-loading'),
+          noResults: query => t('crm-no-results', { query })
+        }}
+        renderRow={renderRow}
+        testId={testId}
+      />
     </div>
   )
 }
