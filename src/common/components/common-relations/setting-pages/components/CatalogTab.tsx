@@ -25,15 +25,24 @@ import {
   AlertDescription,
   EmptyState
 } from '@newwork/nw-design-system'
-import { Plus, Edit, Trash2 } from 'lucide-react'
+import { PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { useForm } from 'react-hook-form'
-import type { CatalogItem, CatalogUpsertData, CatalogTabState, CatalogTabHandlers } from '../types/catalogTypes'
+import type {
+  CatalogItem,
+  CatalogUpsertData,
+  CatalogTabState,
+  CatalogTabHandlers,
+  DeleteAvailability,
+  DeleteAvailabilityResolver
+} from '../types/catalogTypes'
 import { pluralize } from '@/common/utils/pluralize'
+import { DeleteConfirmationDialog } from './DeleteConfirmationDialog'
 
 interface CatalogTabProps extends CatalogTabState, CatalogTabHandlers {
   entityName: string
   dataTestId: string
+  getDeleteAvailability: DeleteAvailabilityResolver<CatalogItem>
   onSearchChange?: (value: string) => void
 }
 
@@ -46,11 +55,16 @@ export const CatalogTab: React.FC<CatalogTabProps> = ({
   onCreate,
   onUpdate,
   onDelete,
+  getDeleteAvailability,
   onRetry
 }) => {
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<CatalogItem | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CatalogItem | null>(null)
+  const [deleteAvailability, setDeleteAvailability] = useState<DeleteAvailability | undefined>()
+  const [isCheckingDeleteAvailability, setIsCheckingDeleteAvailability] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const form = useForm<CatalogUpsertData>({
     defaultValues: {
@@ -105,6 +119,46 @@ export const CatalogTab: React.FC<CatalogTabProps> = ({
     }
   }
 
+  const handleDeleteRequest = async (item: CatalogItem) => {
+    setDeleteTarget(item)
+    setDeleteAvailability(undefined)
+    setIsCheckingDeleteAvailability(true)
+
+    try {
+      const availability = await getDeleteAvailability(item)
+      setDeleteAvailability(availability)
+    } catch (err) {
+      console.error('Error checking delete availability:', err)
+      setDeleteAvailability({
+        status: 'blocked',
+        reason: `Unable to verify whether this ${entityName.toLowerCase()} can be deleted.`
+      })
+    } finally {
+      setIsCheckingDeleteAvailability(false)
+    }
+  }
+
+  const handleCancelDelete = () => {
+    if (isDeleting) return
+    setDeleteTarget(null)
+    setDeleteAvailability(undefined)
+    setIsCheckingDeleteAvailability(false)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget || deleteAvailability?.status === 'blocked') return
+
+    try {
+      setIsDeleting(true)
+      await onDelete(deleteTarget.id)
+      handleCancelDelete()
+    } catch (err) {
+      console.error('Error deleting item:', err)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const renderOrderBadge = (item: CatalogItem) => {
     if (item.displayOrder != null) {
       return <Badge variant="secondary">{item.displayOrder}</Badge>
@@ -121,7 +175,7 @@ export const CatalogTab: React.FC<CatalogTabProps> = ({
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
             <Button onClick={handleAdd} data-testid={`${dataTestId}-Add-Button`}>
-              <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+              <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
               Add {entityName}
             </Button>
           </DialogTrigger>
@@ -278,15 +332,15 @@ export const CatalogTab: React.FC<CatalogTabProps> = ({
                           onClick={() => handleEdit(item)}
                           data-testid={`${dataTestId}-Edit-Button-${item.id}`}
                         >
-                          <Edit className="gba:w-4 gba:h-4" />
+                          <PencilSimpleIcon className="gba:w-4 gba:h-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => onDelete(item.id)}
+                          onClick={() => handleDeleteRequest(item)}
                           data-testid={`${dataTestId}-Delete-Button-${item.id}`}
                         >
-                          <Trash2 className="gba:w-4 gba:h-4" />
+                          <TrashIcon className="gba:w-4 gba:h-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -310,6 +364,18 @@ export const CatalogTab: React.FC<CatalogTabProps> = ({
           </AlertDescription>
         </Alert>
       )}
+
+      <DeleteConfirmationDialog
+        open={!!deleteTarget}
+        itemName={deleteTarget?.value || ''}
+        itemType={entityName}
+        availability={deleteAvailability}
+        isChecking={isCheckingDeleteAvailability}
+        isDeleting={isDeleting}
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        dataTestId={`${dataTestId}-Delete-Dialog`}
+      />
     </div>
   )
 }
