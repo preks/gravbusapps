@@ -39,6 +39,7 @@ export interface AgentRegistryEntry {
   created_at: string | null
   workspace_id?: string | null
   workspaceId?: string | null
+  source?: string
   // Detail-only fields (returned by GET /registry/{id}, not by list)
   tools?: string[]
   knowledge_sources?: KnowledgeSourceEntry[]

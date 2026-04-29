@@ -1030,12 +1030,25 @@ export class PromptManagerClient extends RestClient {
     workspaceId?: string
     agentType?: string
     division?: string
+    search?: string
+    limit?: number
+    offset?: number
   }): Promise<AgentRegistryEntry[]> {
-    return this.get<AgentRegistryEntry[]>('/agents/registry', { params: params as Record<string, string> })
+    const raw = await this.get<{ data: AgentRegistryEntry[]; paging: Paging } | AgentRegistryEntry[]>(
+      '/agents/registry',
+      { params: params as Record<string, string> }
+    )
+    return Array.isArray(raw) ? raw : raw.data
   }
 
   async getAgentDetail(agentId: string): Promise<AgentRegistryEntry> {
     return this.get<AgentRegistryEntry>(`/agents/registry/${encodeURIComponent(agentId)}`)
+  }
+
+  async getBuiltinSubagents(): Promise<
+    Array<{ id: string; name: string; description: string; categories: string[]; source: string }>
+  > {
+    return this.get('/agents/builtins')
   }
 
   async updateAgentCard(
