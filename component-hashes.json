@@ -146,7 +146,7 @@
   "flow/apps/template-manager": "f4751029543ea223020212d344220dcb",
   "hr/absence/apps/AbsenceSetup": "4881f054919f954d87a3109b3c321a96",
   "hr/absence/apps/absence-setup": "17ddf332097bf56af05b6bedc1407b26",
-  "hr/absences/apps/backoffice-absences": "617ae593cc00d7c89da83f0726faa4c2",
+  "hr/absences/apps/time-absence-hub": "617ae593cc00d7c89da83f0726faa4c2",
   "hr/absences/apps/manager-absences": "a245bfb63b4f5ddbaaae641b883a03c6",
   "hr/absences/apps/personal-absences": "da545983a2f3b39b8d2567f05037e3df",
   "hr/absences/forms/_i18n": "7955a77f4493a14a821313ce6e05c8fe",

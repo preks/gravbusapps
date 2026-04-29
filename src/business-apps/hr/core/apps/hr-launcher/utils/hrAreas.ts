@@ -40,7 +40,7 @@ export const hrAreas: HrArea[] = [
     links: [
       { label: 'Absence Policies', path: '/platform/hr/absence/apps/AbsenceSetup' },
       { label: 'Time Tracking', path: '/platform/mdm/time-attendance' },
-      { label: 'Absence Analytics', path: '/platform/hr/absences/backoffice-absences' },
+      { label: 'Time & Absence Hub', path: '/platform/hr/absences/time-absence-hub' },
       { label: 'Time Analytics', path: '/platform/hr/core/apps/my-team-time' }
     ]
   },

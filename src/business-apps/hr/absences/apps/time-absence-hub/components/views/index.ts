@@ -1,0 +1,8 @@
+export { DashboardView } from './DashboardView'
+export { AbsencesView } from './AbsencesView'
+export { AttendanceView } from './AttendanceView'
+export { EntitlementsView } from './EntitlementsView'
+export { ComplianceView } from './ComplianceView'
+export { InsightsView } from './InsightsView'
+export { ReportsView } from './ReportsView'
+export { HubViewPlaceholder } from './HubViewPlaceholder'

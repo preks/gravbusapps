@@ -1109,6 +1109,9 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
         '@/common': resolve(__dirname, 'src/common')
       }
     },
+    server: {
+      allowedHosts: ['6c88-2a02-2f0f-b302-7400-3ded-edbf-6ee4-75e.ngrok-free.app']
+    },
     build: {
       outDir: resolve(projectRootDir, 'dist'),
       // emptyOutDir behavior:
