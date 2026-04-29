@@ -308,7 +308,9 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     const [multiDragStart, setMultiDragStart] = useState<Map<string, Position>>(new Map())
 
     // Single-click-to-edit: track mousedown origin to detect click vs drag
-    const mouseDownElementRef = useRef<{ id: string; x: number; y: number; type: string } | null>(null)
+    const mouseDownElementRef = useRef<{ id: string; x: number; y: number; type: string; wasSelected: boolean } | null>(
+      null
+    )
     const CLICK_MOVE_THRESHOLD = 4
 
     // Tracks which element's textarea has been initialized (cursor placed at end)
@@ -459,11 +461,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       const target = e.target as HTMLElement
       const isClickOnElement = target.closest('[data-slide-element]')
 
-      // Single-click-to-edit: if mouseDown ref survived (mouse didn't drag), enter text editing
+      // A plain click selects first; a second plain click on the already
+      // selected text/code element enters editing. Double-click still edits
+      // immediately via the element-level handler below.
       const mdRef = mouseDownElementRef.current
       mouseDownElementRef.current = null
 
-      if (mdRef && (mdRef.type === 'text' || mdRef.type === 'code')) {
+      if (mdRef && mdRef.wasSelected && (mdRef.type === 'text' || mdRef.type === 'code')) {
         if (inlineEditing?.editingTextId && inlineEditing.editingTextId !== mdRef.id) {
           textareaInitializedRef.current = null
           inlineEditing.onFinishEditing()
@@ -601,9 +605,17 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       })
       setMultiDragStart(positions)
 
-      // Track mousedown for single-click-to-edit detection (plain click on single element only)
+      // Track mousedown so a follow-up plain click on an already selected text
+      // or code element can enter editing without conflating first-click
+      // selection with edit mode.
       if (!isShiftKey && !isCtrlKey && effectiveSelection.size === 1) {
-        mouseDownElementRef.current = { id: element.id, x: e.clientX, y: e.clientY, type: element.type }
+        mouseDownElementRef.current = {
+          id: element.id,
+          x: e.clientX,
+          y: e.clientY,
+          type: element.type,
+          wasSelected: isSelected
+        }
       } else {
         mouseDownElementRef.current = null
       }

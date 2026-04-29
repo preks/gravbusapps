@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Check, ChevronDown } from 'lucide-react'
+import { CaretDownIcon, CheckIcon } from '@phosphor-icons/react'
 import translations from '../../_i18n'
 import { HomeTabContent } from './HomeTabContent'
 import { InsertTabContent } from './InsertTabContent'
@@ -157,7 +157,7 @@ export function SlideToolbarRibbon({
                 data-testid={testId ? `${testId}-tab-trigger` : undefined}
               >
                 {activeTabLabel}
-                <ChevronDown className="gba:h-3 gba:w-3" />
+                <CaretDownIcon className="gba:h-3 gba:w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:w-64">
@@ -169,7 +169,7 @@ export function SlideToolbarRibbon({
                   className="gba:flex gba:items-start gba:gap-2 gba:py-2"
                 >
                   {activeTab === tab.id ? (
-                    <Check className="gba:mt-0.5 gba:h-4 gba:w-4 gba:shrink-0" />
+                    <CheckIcon className="gba:mt-0.5 gba:h-4 gba:w-4 gba:shrink-0" />
                   ) : (
                     <span className="gba:mt-0.5 gba:w-4 gba:shrink-0" />
                   )}

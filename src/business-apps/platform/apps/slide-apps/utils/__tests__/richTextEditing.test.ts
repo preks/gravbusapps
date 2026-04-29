@@ -75,6 +75,28 @@ describe('richTextEditing', () => {
     expect(updated.paragraphs?.[1].alignment).toBe('center')
   })
 
+  it('applies list formatting to the whole textbox when no inline selection is active', () => {
+    const element = makeTextElement({
+      content: 'one\ntwo',
+      paragraphs: [{ runs: [{ text: 'one' }] }, { runs: [{ text: 'two' }] }]
+    })
+
+    const updated = applyRichTextFormatting(element, { bulletType: 'bullet', bulletChar: '◆' })
+
+    expect(updated.paragraphs?.[0]).toEqual(
+      expect.objectContaining({
+        bulletType: 'bullet',
+        bulletChar: '◆'
+      })
+    )
+    expect(updated.paragraphs?.[1]).toEqual(
+      expect.objectContaining({
+        bulletType: 'bullet',
+        bulletChar: '◆'
+      })
+    )
+  })
+
   it('applies list formatting to the active paragraph for collapsed selections', () => {
     const element = makeTextElement({
       content: 'one\ntwo',

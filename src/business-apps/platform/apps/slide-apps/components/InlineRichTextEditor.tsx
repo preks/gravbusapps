@@ -444,10 +444,13 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
     buildEditorMarkup(editor, latestElementRef.current)
     editor.focus()
     const contentLength = liveContentLength(editor)
+    const hadStoredRange = lastSelectionRef.current !== null
     const range = lastSelectionRef.current ?? { start: contentLength, end: contentLength }
     lastSelectionRef.current = range
     restoreSelection(range)
-    onSelectionChange(range)
+    if (hadStoredRange) {
+      onSelectionChange(range)
+    }
   }, [element.id, onSelectionChange, rehydrateToken, restoreSelection])
 
   return (

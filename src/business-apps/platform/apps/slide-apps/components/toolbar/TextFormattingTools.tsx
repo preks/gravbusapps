@@ -46,7 +46,14 @@ import {
 } from '@phosphor-icons/react'
 import translations from '../../_i18n'
 import type { TextElement } from '../slideElements'
-import { COLOR_PRESETS, getFontFamilyOptions, getFontSizeOptions } from '../slideElements'
+import {
+  COLOR_PRESETS,
+  fontSizePixelsToPoints,
+  fontSizePointsToPixels,
+  getFontFamilyOptions,
+  getFontSizeOptions
+} from '../slideElements'
+import { SlideFontSizeControl } from '../SlideFontSizeControl'
 import type {
   ResolvedTextFormattingState,
   RichTextFormattingUpdate,
@@ -148,7 +155,7 @@ export function TextFormattingTools({
   const firstParagraph = getFirstParagraph(element)
   const fontFamilyValue = formatting?.isFontFamilyMixed ? '' : (formatting?.fontFamily ?? element.fontFamily)
   const resolvedFontSize = formatting?.isFontSizeMixed ? undefined : (formatting?.fontSize ?? element.fontSize)
-  const fontSizeValue = resolvedFontSize === undefined ? '' : String(resolvedFontSize)
+  const resolvedFontSizePoints = fontSizePixelsToPoints(resolvedFontSize)
   const fontFamilyOptions = getFontFamilyOptions(fontFamilyValue)
   const fontSizeOptions = getFontSizeOptions(resolvedFontSize)
   const resolvedTextAlign = formatting?.isTextAlignMixed ? undefined : (formatting?.textAlign ?? element.textAlign)
@@ -184,18 +191,20 @@ export function TextFormattingTools({
       </Select>
 
       {/* Font Size */}
-      <Select value={fontSizeValue} onValueChange={value => value && handleUpdate({ fontSize: Number(value) })}>
-        <SelectTrigger className="gba:w-[70px] gba:h-8">
-          <SelectValue placeholder={formatting?.isFontSizeMixed ? '' : t('editor-font-size')} />
-        </SelectTrigger>
-        <SelectContent>
-          {fontSizeOptions.map(size => (
-            <SelectItem key={String(size)} value={String(size)}>
-              {size}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <SlideFontSizeControl
+        value={resolvedFontSizePoints}
+        options={fontSizeOptions}
+        placeholder={formatting?.isFontSizeMixed ? '' : t('editor-font-size') || 'Font size'}
+        ariaLabel={t('editor-font-size') || 'Font size'}
+        testId={testId ? `${testId}-font-size-input` : undefined}
+        className="gba:w-20"
+        onCommit={nextFontSizePoints => {
+          const nextFontSize = fontSizePointsToPixels(nextFontSizePoints)
+          if (nextFontSize !== undefined) {
+            handleUpdate({ fontSize: nextFontSize })
+          }
+        }}
+      />
 
       <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
 

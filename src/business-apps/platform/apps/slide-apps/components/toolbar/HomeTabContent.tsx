@@ -20,7 +20,16 @@ import {
   TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Undo2, Redo2, Copy, ClipboardPaste, Palette, Grid3X3, SpellCheck, ChevronDown } from 'lucide-react'
+import {
+  ArrowClockwiseIcon,
+  ArrowCounterClockwiseIcon,
+  CaretDownIcon,
+  ClipboardIcon,
+  CopyIcon,
+  GridFourIcon,
+  PaletteIcon,
+  TextAaIcon
+} from '@phosphor-icons/react'
 import translations from '../../_i18n'
 import type { ToolbarContext } from '../../hooks/useToolbarContext'
 import type { AnySlideElement, SlideTheme } from '../slideElements'
@@ -102,7 +111,7 @@ export function HomeTabContent({
                   disabled={!canUndo}
                   data-testid={testId ? `${testId}-undo` : undefined}
                 >
-                  <Undo2 className="gba:w-4 gba:h-4" />
+                  <ArrowCounterClockwiseIcon className="gba:w-4 gba:h-4" />
                 </Button>
               </span>
             </TooltipTrigger>
@@ -123,7 +132,7 @@ export function HomeTabContent({
                   disabled={!canRedo}
                   data-testid={testId ? `${testId}-redo` : undefined}
                 >
-                  <Redo2 className="gba:w-4 gba:h-4" />
+                  <ArrowClockwiseIcon className="gba:w-4 gba:h-4" />
                 </Button>
               </span>
             </TooltipTrigger>
@@ -146,7 +155,7 @@ export function HomeTabContent({
                   onClick={onCopy}
                   data-testid={testId ? `${testId}-copy` : undefined}
                 >
-                  <Copy className="gba:w-4 gba:h-4" />
+                  <CopyIcon className="gba:w-4 gba:h-4" />
                 </Button>
               </span>
             </TooltipTrigger>
@@ -167,7 +176,7 @@ export function HomeTabContent({
                   disabled={!hasClipboardContent}
                   data-testid={testId ? `${testId}-paste` : undefined}
                 >
-                  <ClipboardPaste className="gba:w-4 gba:h-4" />
+                  <ClipboardIcon className="gba:w-4 gba:h-4" />
                 </Button>
               </span>
             </TooltipTrigger>
@@ -237,16 +246,16 @@ export function HomeTabContent({
           onClick={onShowBackgroundDialog}
           data-testid={testId ? `${testId}-background` : undefined}
         >
-          <Palette className="gba:w-4 gba:h-4 gba:mr-1" />
+          <PaletteIcon className="gba:w-4 gba:h-4 gba:mr-1" />
           {t('editor-background')}
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" data-testid={testId ? `${testId}-theme` : undefined}>
-              <Grid3X3 className="gba:w-4 gba:h-4 gba:mr-1" />
+              <GridFourIcon className="gba:w-4 gba:h-4 gba:mr-1" />
               {t('editor-theme')}
-              <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
+              <CaretDownIcon className="gba:w-3 gba:h-3 gba:ml-1" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="gba:w-56">
@@ -280,7 +289,7 @@ export function HomeTabContent({
           disabled={spellCheckIsChecking}
           data-testid={testId ? `${testId}-spell-check` : undefined}
         >
-          <SpellCheck className="gba:w-4 gba:h-4 gba:mr-1" />
+          <TextAaIcon className="gba:w-4 gba:h-4 gba:mr-1" />
           {t('spell-check-button')}
           {spellCheckIssueCount > 0 && (
             <Badge variant="destructive" className="gba:ml-1 gba:text-xs gba:px-1.5 gba:min-w-[18px]">

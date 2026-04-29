@@ -260,6 +260,24 @@ describe('InlineRichTextEditor', () => {
     expect(readEditorValue(editor)).toBe('Formatted value')
   })
 
+  it('does not emit a synthetic end-of-text selection on initial mount', () => {
+    const onSelectionChange = jest.fn()
+
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement({
+          content: 'Alpha\nBeta',
+          paragraphs: [{ runs: [{ text: 'Alpha' }] }, { runs: [{ text: 'Beta' }] }]
+        })}
+        onTextChange={() => {}}
+        onSelectionChange={onSelectionChange}
+        onFinishEditing={() => {}}
+      />
+    )
+
+    expect(onSelectionChange).not.toHaveBeenCalled()
+  })
+
   it('emits correct selection offsets for text on the second paragraph', () => {
     const onSelectionChange = jest.fn()
     const firstLine = 'The sds'
