@@ -20,6 +20,11 @@ import { useFabricSkills, type ActiveFabricSkill } from '../hooks/useFabricSkill
 import { useSessionUrlState } from '../hooks/useSessionUrlState'
 import { deriveActivityFromEvents } from '../utils/messageUtils'
 
+export interface PendingPrefill {
+  text: string
+  config?: Partial<SessionConfig>
+}
+
 // ─── Context shape ─────────────────────────────────────────────────────────────
 
 interface FabricContextValue {
@@ -101,6 +106,11 @@ interface FabricContextValue {
   stopSession: () => Promise<void>
   setActiveArtifactId: (id: string | null) => void
   refreshArtifacts: () => Promise<void>
+
+  pendingPrefill: PendingPrefill | null
+  setPendingPrefill: (prefill: PendingPrefill | null) => void
+  attachedSkillIds: string[]
+  setAttachedSkillIds: (ids: string[]) => void
 }
 
 // ─── Context ───────────────────────────────────────────────────────────────────
@@ -353,6 +363,10 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     setActiveSessionId(null)
   }, [activeSessionId, removeSession, urlSessionId])
 
+  // Skills-page cross-screen state
+  const [pendingPrefill, setPendingPrefill] = useState<PendingPrefill | null>(null)
+  const [attachedSkillIds, setAttachedSkillIds] = useState<string[]>([])
+
   // ── Value ─────────────────────────────────────────────────────────────────────
 
   const value = useMemo(
@@ -400,7 +414,11 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       reply,
       stopSession,
       setActiveArtifactId,
-      refreshArtifacts
+      refreshArtifacts,
+      pendingPrefill,
+      setPendingPrefill,
+      attachedSkillIds,
+      setAttachedSkillIds
     }),
     [
       accessToken,
@@ -446,7 +464,9 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       reply,
       stopSession,
       setActiveArtifactId,
-      refreshArtifacts
+      refreshArtifacts,
+      pendingPrefill,
+      attachedSkillIds
     ]
   )
 

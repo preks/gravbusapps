@@ -228,6 +228,74 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
+  // ── Admin Skills API ───────────────────────────────────────────────────────
+
+  const enc = encodeURIComponent
+
+  const getSkillsManifest = useCallback(async () => {
+    const skills =
+      await client.get<{ skill_id: string; name: string; description: string; status: string; file_count: number }[]>(
+        '/admin/skills/'
+      )
+    return { skills }
+  }, [client])
+
+  const createSkillFromForm = useCallback(
+    (payload: { name: string; description: string; body: string }) =>
+      client.post<{ skill_id: string }>('/admin/skills/', payload),
+    [client]
+  )
+
+  const uploadSkillFile = useCallback(
+    async (file: File): Promise<{ skill_id: string }> => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return client.post<{ skill_id: string }>('/admin/skills/upload', formData)
+    },
+    [client]
+  )
+
+  const saveSkillRaw = useCallback(
+    (skillId: string, body: string) => client.put<{ ok: boolean }>(`/admin/skills/${enc(skillId)}`, { body }),
+    [client]
+  )
+
+  const getSkill = useCallback(
+    (skillId: string) =>
+      client.get<{ skill_id: string; name: string; description: string; body: string; status: string }>(
+        `/admin/skills/${enc(skillId)}`
+      ),
+    [client]
+  )
+
+  const deleteSkill = useCallback((skillId: string) => client.delete(`/admin/skills/${enc(skillId)}`), [client])
+
+  const uploadSkillFiles = useCallback(
+    async (skillId: string, files: File[]): Promise<void> => {
+      for (const f of files) {
+        const fd = new FormData()
+        fd.append('file', f)
+        await client.post(`/admin/skills/${enc(skillId)}/files/upload`, fd)
+      }
+    },
+    [client]
+  )
+
+  const listSkillFiles = useCallback(
+    (skillId: string) => client.get<{ filename: string; size: number }[]>(`/admin/skills/${enc(skillId)}/files`),
+    [client]
+  )
+
+  const deleteSkillFile = useCallback(
+    (skillId: string, filename: string) => client.delete(`/admin/skills/${enc(skillId)}/files/${enc(filename)}`),
+    [client]
+  )
+
+  const exportSkillBundle = useCallback(
+    (skillId: string) => client.get<Blob>(`/admin/skills/${enc(skillId)}/export`, { responseType: ResponseType.BLOB }),
+    [client]
+  )
+
   return useMemo(
     () => ({
       startSession,
@@ -246,7 +314,17 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       installSkill,
       listArtifacts,
       getArtifactUrl,
-      getArtifactContent
+      getArtifactContent,
+      getSkillsManifest,
+      createSkillFromForm,
+      uploadSkillFile,
+      saveSkillRaw,
+      getSkill,
+      deleteSkill,
+      uploadSkillFiles,
+      listSkillFiles,
+      deleteSkillFile,
+      exportSkillBundle
     }),
     [
       startSession,
@@ -265,7 +343,17 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       installSkill,
       listArtifacts,
       getArtifactUrl,
-      getArtifactContent
+      getArtifactContent,
+      getSkillsManifest,
+      createSkillFromForm,
+      uploadSkillFile,
+      saveSkillRaw,
+      getSkill,
+      deleteSkill,
+      uploadSkillFiles,
+      listSkillFiles,
+      deleteSkillFile,
+      exportSkillBundle
     ]
   )
 }

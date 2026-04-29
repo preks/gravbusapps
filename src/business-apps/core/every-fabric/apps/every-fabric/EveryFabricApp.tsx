@@ -6,9 +6,11 @@ import { EveryFabricErrorBoundary } from './components/EveryFabricErrorBoundary'
 import { LandingScreen } from './components/landing/LandingScreen'
 import { ScheduledDispatchesScreen } from './components/scheduled/ScheduledDispatchesScreen'
 import { SettingsScreen } from './components/settings/SettingsScreen'
+import { SkillsScreen } from './components/skills/SkillsScreen'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { useSidebarCollapsedState } from './components/sidebar/useSidebarCollapsedState'
 import { WorkspaceLayout } from './components/workspace/WorkspaceLayout'
+import { Navigation, navigateTo } from '@/common/utils/navigationUtils'
 import { FabricProvider, useFabric } from './context/FabricContext'
 import { useActiveSessions } from './hooks/useActiveSessions'
 import { useSessionUrlState } from './hooks/useSessionUrlState'
@@ -70,6 +72,8 @@ const EveryFabricInner: React.FC = () => {
   const handleCloseSettings = () => updateUrl({ view: null })
   const handleOpenScheduled = () => updateUrl({ view: 'scheduled' })
   const handleCloseScheduled = () => updateUrl({ view: null })
+  const handleOpenSkills = () => navigateTo(Navigation.EVERY_FABRIC_SKILLS)
+  const handleCloseSkills = () => navigateTo(Navigation.EVERY_FABRIC)
 
   const handleSelectSession = (id: string) => {
     updateUrl({ view: null })
@@ -89,6 +93,8 @@ const EveryFabricInner: React.FC = () => {
   const showSettings = urlView === 'settings'
   const isScheduledView = displayView === 'scheduled'
   const showScheduled = urlView === 'scheduled'
+  const isSkillsView = displayView === 'skills'
+  const showSkills = urlView === 'skills'
 
   const renderMain = () => {
     if (isLoadingSession && sessionLoadError) {
@@ -143,7 +149,15 @@ const EveryFabricInner: React.FC = () => {
 
         <div
           className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
-            !showSettings && !showScheduled ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+            showSkills ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+          }`}
+        >
+          {isSkillsView && <SkillsScreen accessToken={accessToken} onBack={handleCloseSkills} />}
+        </div>
+
+        <div
+          className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
+            !showSettings && !showScheduled && !showSkills ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
           }`}
         >
           {session ? <WorkspaceLayout /> : <LandingScreen accessToken={accessToken} onStartSession={startSession} />}
@@ -169,6 +183,7 @@ const EveryFabricInner: React.FC = () => {
         onStopSession={handleStopSession}
         onOpenSettings={handleOpenSettings}
         onOpenScheduled={handleOpenScheduled}
+        onOpenSkills={handleOpenSkills}
       />
       <main className="gba:relative gba:flex-1 gba:min-w-0 gba:h-full">{renderMain()}</main>
     </div>

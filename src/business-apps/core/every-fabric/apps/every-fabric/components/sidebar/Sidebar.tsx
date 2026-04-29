@@ -39,6 +39,7 @@ export interface SidebarProps {
   onStopSession: (id: string) => void
   onOpenSettings: () => void
   onOpenScheduled: () => void
+  onOpenSkills: () => void
 }
 
 /**
@@ -66,7 +67,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDeleteSession,
   onStopSession,
   onOpenSettings,
-  onOpenScheduled
+  onOpenScheduled,
+  onOpenSkills
 }) => {
   const [query, setQuery] = useState('')
 
@@ -121,6 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           userInfo={userInfo}
           onOpenSettings={onOpenSettings}
           onOpenScheduled={onOpenScheduled}
+          onOpenSkills={onOpenSkills}
         />
       </div>
     </aside>
