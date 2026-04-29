@@ -24,8 +24,8 @@ import type {
   Position,
   Size
 } from './slideElements'
-import { gradientToCss, getImageCropStyles, textTransformToCss, textElementStubForShapeInText } from './slideElements'
-import { ensureImportedWebFonts, resolveFontStack } from './fontStack'
+import { gradientToCss, getImageCropStyles, textElementStubForShapeInText } from './slideElements'
+import { ensureImportedWebFonts } from './fontStack'
 
 // Webfonts commonly referenced by imported decks (Roboto, Funnel Display,
 // Source Sans Pro, …) are not part of the default browser font set. Loading
@@ -38,6 +38,7 @@ import { SlideChartRenderer } from './SlideChartRenderer'
 import { TextWithLinks } from './TextWithLinks'
 import { RichTextContent } from './RichTextContent'
 import { InlineRichTextEditor } from './InlineRichTextEditor'
+import { getRichTextBoxStyle } from './richTextStyles'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import { ShapePointEditor } from './ShapePointEditor'
 import { SlideStaticElementContent } from './SlideStaticElementContent'
@@ -1478,23 +1479,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                       </div>
                     </>
                   ) : (
-                    <div
-                      style={{
-                        width: '100%',
-                        fontFamily: resolveFontStack(textEl.fontFamily),
-                        fontSize: textEl.fontSize,
-                        fontWeight: textEl.fontWeight,
-                        fontStyle: textEl.fontStyle,
-                        textDecoration: textEl.textDecoration,
-                        textAlign: textEl.textAlign,
-                        color: textEl.color,
-                        lineHeight: textEl.lineHeight,
-                        letterSpacing: textEl.letterSpacing,
-                        ...textTransformToCss(textEl.textTransform),
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word'
-                      }}
-                    >
+                    <div style={getRichTextBoxStyle(textEl)}>
                       {textEl.paragraphs && textEl.paragraphs.length > 0 ? (
                         <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
                       ) : (
@@ -1684,23 +1669,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                     ) : st.paragraphs && st.paragraphs.length > 0 ? (
                       <RichTextContent element={te} paragraphs={st.paragraphs} />
                     ) : (
-                      <div
-                        style={{
-                          width: '100%',
-                          fontFamily: resolveFontStack(te.fontFamily),
-                          fontSize: te.fontSize,
-                          fontWeight: te.fontWeight,
-                          fontStyle: te.fontStyle,
-                          textDecoration: te.textDecoration,
-                          textAlign: te.textAlign,
-                          color: te.color,
-                          lineHeight: te.lineHeight,
-                          letterSpacing: te.letterSpacing,
-                          ...textTransformToCss(te.textTransform),
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word'
-                        }}
-                      >
+                      <div style={getRichTextBoxStyle(te)}>
                         <TextWithLinks
                           content={st.content}
                           links={st.links ?? []}

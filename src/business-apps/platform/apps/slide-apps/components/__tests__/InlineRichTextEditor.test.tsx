@@ -71,6 +71,71 @@ describe('InlineRichTextEditor', () => {
     expect(onFinishEditing).toHaveBeenCalled()
   })
 
+  it('renders bullet markers without serializing them back into the text value', () => {
+    const onTextChange = jest.fn()
+
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement({
+          content: 'Inventing Enterprise Agents',
+          paragraphs: [
+            {
+              bulletType: 'bullet',
+              bulletChar: '→',
+              indentLevel: 1,
+              runs: [{ text: 'Inventing Enterprise Agents' }]
+            }
+          ]
+        })}
+        onTextChange={onTextChange}
+        onSelectionChange={() => {}}
+        onFinishEditing={() => {}}
+      />
+    )
+
+    const editor = screen.getByTestId('inline-rich-text-editor') as HTMLDivElement
+    const bullet = editor.querySelector<HTMLElement>('[data-editor-bullet="true"]')
+    const paragraph = editor.querySelector<HTMLElement>('[data-paragraph-start]')
+
+    expect(bullet).toHaveTextContent('→')
+    expect(paragraph).toHaveStyle({ paddingLeft: '16px', display: 'flex' })
+
+    fireEvent.input(editor)
+
+    expect(onTextChange).toHaveBeenLastCalledWith('Inventing Enterprise Agents')
+  })
+
+  it('applies box-level letter spacing while editing', () => {
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement({ letterSpacing: 1.5 })}
+        onTextChange={() => {}}
+        onSelectionChange={() => {}}
+        onFinishEditing={() => {}}
+      />
+    )
+
+    expect(screen.getByTestId('inline-rich-text-editor')).toHaveStyle({ letterSpacing: '1.5px' })
+  })
+
+  it('does not render bullet markers for empty list paragraphs', () => {
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement({
+          content: '',
+          paragraphs: [{ bulletType: 'bullet', bulletChar: '•', runs: [{ text: '' }] }]
+        })}
+        onTextChange={() => {}}
+        onSelectionChange={() => {}}
+        onFinishEditing={() => {}}
+      />
+    )
+
+    const editor = screen.getByTestId('inline-rich-text-editor') as HTMLDivElement
+    expect(editor.querySelector('[data-editor-bullet="true"]')).toBeNull()
+    expect(editor.querySelector('[data-paragraph-start]')).toHaveStyle({ display: 'block' })
+  })
+
   it('keeps deleting a leading empty paragraph stable while parent state updates live', () => {
     function Harness() {
       const handleSelectionChange = useCallback(() => {}, [])

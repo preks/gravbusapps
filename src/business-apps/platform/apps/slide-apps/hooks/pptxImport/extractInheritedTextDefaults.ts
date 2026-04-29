@@ -12,7 +12,7 @@
 // which is exactly what imported decks looked like before this module existed.
 
 import { getChild, resolveTextFillColor } from './ooxmlUtils'
-import type { OoxmlTextRun, OoxmlTheme, OoxmlCap } from './types'
+import type { OoxmlTextRun, OoxmlTheme, OoxmlCap, OoxmlParagraph } from './types'
 
 // Copy of extractText.resolveTypeface — inlined here to avoid an import cycle
 // between extractText.ts and this module. The behavior must stay in sync;
@@ -28,7 +28,10 @@ function resolveTypeface(raw: string | null | undefined, theme: OoxmlTheme | und
 }
 
 /** A resolved per-level default that `extractText` can drop-in as run fallback. */
-export type InheritedLevelDefaults = Omit<OoxmlTextRun, 'text'>
+export interface InheritedLevelDefaults extends Omit<OoxmlTextRun, 'text'> {
+  bulletType?: OoxmlParagraph['bulletType']
+  bulletChar?: string
+}
 
 /**
  * Per-level defaults keyed by `a:lvl{N}pPr` level index (0-based).
@@ -108,6 +111,26 @@ function parseDefRPr(defRPr: Element | undefined, theme: OoxmlTheme | undefined)
   return out
 }
 
+function parseBulletInfo(pPr: Element | undefined): Pick<InheritedLevelDefaults, 'bulletType' | 'bulletChar'> {
+  if (!pPr) return {}
+
+  const buNone = getChild(pPr, 'a:buNone')
+  if (buNone) return { bulletType: 'none' }
+
+  const buChar = getChild(pPr, 'a:buChar')
+  if (buChar) {
+    return {
+      bulletType: 'bullet',
+      bulletChar: buChar.getAttribute('char') || '•'
+    }
+  }
+
+  const buAutoNum = getChild(pPr, 'a:buAutoNum')
+  if (buAutoNum) return { bulletType: 'number' }
+
+  return {}
+}
+
 /** Merge `low` under `high`: fields already set on `high` win. */
 function mergeDefaults(high: InheritedLevelDefaults, low: InheritedLevelDefaults): InheritedLevelDefaults {
   return {
@@ -118,7 +141,9 @@ function mergeDefaults(high: InheritedLevelDefaults, low: InheritedLevelDefaults
     italic: high.italic ?? low.italic,
     underline: high.underline ?? low.underline,
     strikethrough: high.strikethrough ?? low.strikethrough,
-    cap: high.cap ?? low.cap
+    cap: high.cap ?? low.cap,
+    bulletType: high.bulletType ?? low.bulletType,
+    bulletChar: high.bulletChar ?? low.bulletChar
   }
 }
 
@@ -141,7 +166,10 @@ function parseStyleElement(styleEl: Element | undefined, theme: OoxmlTheme | und
     if (!match) continue
     const level = Number.parseInt(match[1]) - 1
     const defRPr = getChild(child, 'a:defRPr')
-    const defaults = parseDefRPr(defRPr, theme)
+    const defaults = {
+      ...parseDefRPr(defRPr, theme),
+      ...parseBulletInfo(child)
+    }
     if (Object.keys(defaults).length > 0) {
       const existing = result.get(level)
       result.set(level, existing ? mergeDefaults(defaults, existing) : defaults)

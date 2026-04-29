@@ -331,29 +331,34 @@ function parseParagraphs(txBody: Element, theme?: OoxmlTheme, inheritedLevels?: 
       if (!match) continue
       const level = Number.parseInt(match[1]) - 1
       const defRPr = getChild(child, 'a:defRPr')
-      if (!defRPr) continue
       const defaults: InheritedLevelDefaults = {}
-      const sz = defRPr.getAttribute('sz')
-      if (sz) {
-        const parsed = Number.parseInt(sz)
-        if (Number.isFinite(parsed)) defaults.fontSize = parsed
-      }
-      if (defRPr.getAttribute('b') === '1') defaults.bold = true
-      if (defRPr.getAttribute('i') === '1') defaults.italic = true
-      const capAttr = defRPr.getAttribute('cap')
-      if (capAttr) {
-        const lower = capAttr.toLowerCase()
-        if (lower === 'all' || lower === 'small' || lower === 'none') {
-          defaults.cap = lower as OoxmlCap
+      if (defRPr) {
+        const sz = defRPr.getAttribute('sz')
+        if (sz) {
+          const parsed = Number.parseInt(sz)
+          if (Number.isFinite(parsed)) defaults.fontSize = parsed
         }
+        if (defRPr.getAttribute('b') === '1') defaults.bold = true
+        if (defRPr.getAttribute('i') === '1') defaults.italic = true
+        const capAttr = defRPr.getAttribute('cap')
+        if (capAttr) {
+          const lower = capAttr.toLowerCase()
+          if (lower === 'all' || lower === 'small' || lower === 'none') {
+            defaults.cap = lower as OoxmlCap
+          }
+        }
+        const latin = getChild(defRPr, 'a:latin')
+        if (latin) {
+          const typeface = resolveTypeface(latin.getAttribute('typeface'), theme)
+          if (typeface) defaults.fontFamily = typeface
+        }
+        const lstStyleFill = resolveTextFillColor(defRPr, theme)
+        if (lstStyleFill) defaults.color = lstStyleFill
       }
-      const latin = getChild(defRPr, 'a:latin')
-      if (latin) {
-        const typeface = resolveTypeface(latin.getAttribute('typeface'), theme)
-        if (typeface) defaults.fontFamily = typeface
-      }
-      const lstStyleFill = resolveTextFillColor(defRPr, theme)
-      if (lstStyleFill) defaults.color = lstStyleFill
+      const { bulletType, bulletChar } = parseBulletInfo(child)
+      if (bulletType) defaults.bulletType = bulletType
+      if (bulletChar) defaults.bulletChar = bulletChar
+      if (Object.keys(defaults).length === 0) continue
       bodyLevelDefaults.set(level, defaults)
     }
   }
@@ -370,7 +375,9 @@ function parseParagraphs(txBody: Element, theme?: OoxmlTheme, inheritedLevels?: 
       color: d.color ?? existing.color,
       bold: d.bold ?? existing.bold,
       italic: d.italic ?? existing.italic,
-      cap: d.cap ?? existing.cap
+      cap: d.cap ?? existing.cap,
+      bulletType: d.bulletType ?? existing.bulletType,
+      bulletChar: d.bulletChar ?? existing.bulletChar
     })
   }
 
@@ -406,7 +413,9 @@ function parseParagraphs(txBody: Element, theme?: OoxmlTheme, inheritedLevels?: 
     const paraBold = levelDefaults.bold
     const paraItalic = levelDefaults.italic
 
-    const { bulletType, bulletChar } = parseBulletInfo(pPr)
+    const explicitBullet = parseBulletInfo(pPr)
+    const bulletType = explicitBullet.bulletType ?? levelDefaults.bulletType
+    const bulletChar = bulletType === 'bullet' ? (explicitBullet.bulletChar ?? levelDefaults.bulletChar) : undefined
 
     const lnSpcEl = pPr ? getChild(pPr, 'a:lnSpc') : undefined
     const spcBefEl = pPr ? getChild(pPr, 'a:spcBef') : undefined

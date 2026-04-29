@@ -95,6 +95,98 @@ describe('richTextEditing', () => {
     expect(updated.paragraphs?.[0].runs[1]).toEqual(expect.objectContaining({ text: 'bc', fontStyle: 'italic' }))
   })
 
+  it('preserves paragraph bullet metadata when text content changes', () => {
+    const element = makeTextElement({
+      content: 'Item one\nItem two',
+      paragraphs: [
+        {
+          alignment: 'left',
+          bulletType: 'bullet',
+          bulletChar: '→',
+          indentLevel: 1,
+          lineHeight: 1.6,
+          spaceBefore: 8,
+          spaceAfter: 4,
+          runs: [{ text: 'Item one' }]
+        },
+        {
+          alignment: 'center',
+          bulletType: 'none',
+          lineHeight: 1.2,
+          runs: [{ text: 'Item two' }]
+        }
+      ]
+    })
+
+    const updated = replaceRichTextContent(element, 'Item one updated\nItem two')
+
+    expect(updated.paragraphs?.[0]).toEqual(
+      expect.objectContaining({
+        bulletType: 'bullet',
+        bulletChar: '→',
+        indentLevel: 1,
+        lineHeight: 1.6,
+        spaceBefore: 8,
+        spaceAfter: 4
+      })
+    )
+    expect(updated.paragraphs?.[1]).toEqual(expect.objectContaining({ alignment: 'center', bulletType: 'none' }))
+  })
+
+  it('carries paragraph bullet metadata forward when splitting a list item', () => {
+    const element = makeTextElement({
+      content: 'Alpha Beta',
+      paragraphs: [
+        {
+          alignment: 'left',
+          bulletType: 'bullet',
+          bulletChar: '•',
+          indentLevel: 2,
+          lineHeight: 1.5,
+          runs: [{ text: 'Alpha Beta' }]
+        }
+      ]
+    })
+
+    const updated = replaceRichTextContent(element, 'Alpha\nBeta')
+
+    expect(updated.paragraphs).toHaveLength(2)
+    expect(updated.paragraphs?.[0]).toEqual(expect.objectContaining({ bulletType: 'bullet', indentLevel: 2 }))
+    expect(updated.paragraphs?.[1]).toEqual(expect.objectContaining({ bulletType: 'bullet', indentLevel: 2 }))
+  })
+
+  it('keeps the leading paragraph metadata when merging paragraphs', () => {
+    const element = makeTextElement({
+      content: 'Alpha\nBeta',
+      paragraphs: [
+        {
+          alignment: 'left',
+          bulletType: 'bullet',
+          bulletChar: '•',
+          indentLevel: 1,
+          runs: [{ text: 'Alpha' }]
+        },
+        {
+          alignment: 'right',
+          bulletType: 'none',
+          runs: [{ text: 'Beta' }]
+        }
+      ]
+    })
+
+    const updated = replaceRichTextContent(element, 'AlphaBeta')
+
+    expect(updated.paragraphs).toHaveLength(1)
+    expect(updated.paragraphs?.[0]).toEqual(
+      expect.objectContaining({
+        alignment: 'left',
+        bulletType: 'bullet',
+        bulletChar: '•',
+        indentLevel: 1
+      })
+    )
+  })
+
   it('detects inserted text ranges for caret formatting', () => {
     expect(getTextEditDelta('Hello world', 'Hello brave world')).toEqual({
       start: 6,

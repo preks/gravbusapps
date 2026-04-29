@@ -240,6 +240,35 @@ function styleAtOffset(paragraphs: RichTextParagraph[], source: RichTextEditable
   return fallbackRunStyle(source)
 }
 
+function paragraphStyleAtOffset(
+  paragraphs: RichTextParagraph[],
+  source: RichTextEditable,
+  offset: number
+): Omit<RichTextParagraph, 'runs'> {
+  let cursor = 0
+  for (const paragraph of paragraphs) {
+    const paragraphLength = paragraph.runs.reduce((sum, run) => sum + run.text.length, 0)
+    const paragraphEnd = cursor + paragraphLength
+    if (offset <= paragraphEnd) {
+      return {
+        alignment: paragraph.alignment ?? alignmentFromTextAlign(source.textAlign),
+        indentLevel: paragraph.indentLevel,
+        bulletType: paragraph.bulletType,
+        bulletChar: paragraph.bulletChar,
+        lineHeight: paragraph.lineHeight ?? source.lineHeight,
+        spaceBefore: paragraph.spaceBefore,
+        spaceAfter: paragraph.spaceAfter
+      }
+    }
+    cursor = paragraphEnd + 1
+  }
+
+  return {
+    alignment: alignmentFromTextAlign(source.textAlign),
+    lineHeight: source.lineHeight
+  }
+}
+
 function uniformValue<T>(values: T[]): { value: T | undefined; mixed: boolean } {
   if (values.length === 0) return { value: undefined, mixed: false }
   const first = values[0]
@@ -260,6 +289,7 @@ export function replaceRichTextContent<T extends RichTextEditable>(source: T, ne
   let globalOffset = 0
 
   const paragraphs = nextContent.split('\n').map(line => {
+    const paragraphStyle = paragraphStyleAtOffset(previousParagraphs, source, Math.min(globalOffset, previousLength))
     const runs: RichTextRun[] = []
     for (const char of line) {
       const style = compactRunStyle(styleAtOffset(previousParagraphs, source, Math.min(globalOffset, previousLength)))
@@ -273,9 +303,10 @@ export function replaceRichTextContent<T extends RichTextEditable>(source: T, ne
     }
     globalOffset += 1
     return {
+      ...paragraphStyle,
       runs: runs.length > 0 ? runs : [{ text: '', ...compactRunStyle(fallbackRunStyle(source)) }],
-      alignment: alignmentFromTextAlign(source.textAlign),
-      lineHeight: source.lineHeight
+      alignment: paragraphStyle.alignment ?? alignmentFromTextAlign(source.textAlign),
+      lineHeight: paragraphStyle.lineHeight ?? source.lineHeight
     }
   })
 

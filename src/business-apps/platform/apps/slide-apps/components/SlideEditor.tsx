@@ -1225,6 +1225,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
       const oldValue = currentEditingContentRef.current
       const editDelta = getTextEditDelta(oldValue, newValue)
+      const shouldRehydrateForParagraphStructure = oldValue.split('\n').length !== newValue.split('\n').length
       currentEditingContentRef.current = newValue
 
       if (currentElement.type === 'code') {
@@ -1252,7 +1253,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         if (pendingFormatting && editDelta.insertedLength > 0) {
           preservePendingCaretFormattingRef.current = true
         }
-        if (rehydrate) {
+        if (rehydrate || shouldRehydrateForParagraphStructure) {
           bumpRichTextEditorRehydrateToken()
         }
         return
@@ -1292,7 +1293,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         preservePendingCaretFormattingRef.current = true
       }
 
-      if (rehydrate) {
+      if (rehydrate || shouldRehydrateForParagraphStructure) {
         bumpRichTextEditorRehydrateToken()
       }
     },

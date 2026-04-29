@@ -34,13 +34,11 @@ describe('RichTextContent', () => {
     const paragraphs: RichTextParagraph[] = [
       {
         alignment: 'left',
-        level: 0,
         bulletType: 'none',
         runs: [{ text: 'Hello ', fontWeight: 'bold' }, { text: 'world' }]
       },
       {
         alignment: 'center',
-        level: 0,
         bulletType: 'none',
         runs: [{ text: 'second paragraph' }]
       }
@@ -58,7 +56,6 @@ describe('RichTextContent', () => {
     const paragraphs: RichTextParagraph[] = [
       {
         alignment: 'left',
-        level: 0,
         bulletType: 'none',
         runs: [{ text: 'go', hyperlink: 'https://example.com' }]
       }
@@ -72,11 +69,10 @@ describe('RichTextContent', () => {
 
   it('numbers paragraphs per indent level', () => {
     const paragraphs: RichTextParagraph[] = [
-      { alignment: 'left', level: 0, bulletType: 'number', runs: [{ text: 'first' }] },
-      { alignment: 'left', level: 0, bulletType: 'number', runs: [{ text: 'second' }] },
+      { alignment: 'left', bulletType: 'number', runs: [{ text: 'first' }] },
+      { alignment: 'left', bulletType: 'number', runs: [{ text: 'second' }] },
       {
         alignment: 'left',
-        level: 0,
         bulletType: 'number',
         indentLevel: 1,
         runs: [{ text: 'second.a' }]
@@ -90,10 +86,28 @@ describe('RichTextContent', () => {
   })
 
   it('falls back to default bullet glyph when no custom character is provided', () => {
-    const paragraphs: RichTextParagraph[] = [
-      { alignment: 'left', level: 0, bulletType: 'bullet', runs: [{ text: 'item' }] }
-    ]
+    const paragraphs: RichTextParagraph[] = [{ alignment: 'left', bulletType: 'bullet', runs: [{ text: 'item' }] }]
     const { container } = render(<RichTextContent element={makeFallback()} paragraphs={paragraphs} />)
     expect(container.textContent).toContain('•')
+  })
+
+  it('applies indentation for nested list paragraphs', () => {
+    const paragraphs: RichTextParagraph[] = [
+      { alignment: 'left', bulletType: 'bullet', indentLevel: 2, runs: [{ text: 'nested item' }] }
+    ]
+
+    render(<RichTextContent element={makeFallback()} paragraphs={paragraphs} />)
+
+    expect(screen.getByTestId('rich-text-content-paragraph-0')).toHaveStyle({ paddingLeft: '32px', display: 'flex' })
+  })
+
+  it('does not render bullet glyphs for empty list paragraphs', () => {
+    const paragraphs: RichTextParagraph[] = [{ alignment: 'left', bulletType: 'bullet', runs: [{ text: '' }] }]
+
+    render(<RichTextContent element={makeFallback()} paragraphs={paragraphs} />)
+
+    const paragraph = screen.getByTestId('rich-text-content-paragraph-0')
+    expect(paragraph).toHaveStyle({ display: 'block' })
+    expect(paragraph.textContent).toBe('')
   })
 })

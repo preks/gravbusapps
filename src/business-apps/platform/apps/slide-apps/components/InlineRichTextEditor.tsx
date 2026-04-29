@@ -1,8 +1,12 @@
 import React, { useCallback, useLayoutEffect, useRef } from 'react'
-import type { RichTextParagraph, RichTextRun, TextElement } from './slideElements'
-import { textTransformToCss } from './slideElements'
-import { resolveFontStack } from './fontStack'
+import type { TextElement } from './slideElements'
 import { normalizeRichTextParagraphs, type RichTextSelectionRange } from '../utils/richTextEditing'
+import {
+  getRichTextBoxStyle,
+  getRichTextParagraphMarker,
+  getRichTextParagraphStyle,
+  getRichTextRunStyle
+} from './richTextStyles'
 
 export interface InlineRichTextEditorProps {
   element: TextElement
@@ -13,27 +17,38 @@ export interface InlineRichTextEditorProps {
   'data-testid'?: string
 }
 
-function runStyle(run: RichTextRun, element: TextElement): React.CSSProperties {
-  return {
-    fontFamily: resolveFontStack(run.fontFamily || element.fontFamily),
-    fontSize: run.fontSize || element.fontSize,
-    fontWeight: run.fontWeight || element.fontWeight,
-    fontStyle: run.fontStyle || element.fontStyle,
-    textDecoration: run.textDecoration || element.textDecoration,
-    color: run.color || element.color,
-    backgroundColor: run.backgroundColor,
-    ...textTransformToCss(run.textTransform ?? element.textTransform)
-  }
-}
-
-function alignmentToTextAlign(alignment: RichTextParagraph['alignment'], fallback: TextElement['textAlign']) {
-  if (alignment === 'justify') return 'justify'
-  return alignment ?? fallback
-}
-
 function normalizeEditorText(text: string | null | undefined): string {
   if (!text) return ''
   return text.replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n')
+}
+
+function serializeEditorNode(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return normalizeEditorText(node.textContent)
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) return ''
+
+  const element = node as HTMLElement
+  if (element.dataset.editorBullet === 'true') return ''
+  if (element.tagName === 'BR') return '\n'
+
+  return Array.from(element.childNodes)
+    .map(child => serializeEditorNode(child))
+    .join('')
+}
+
+function serializeEditorText(container: HTMLElement): string {
+  const topLevelNodes = Array.from(container.childNodes).filter(node => {
+    if (node.nodeType !== Node.TEXT_NODE) return true
+    return normalizeEditorText(node.textContent).length > 0
+  })
+
+  if (topLevelNodes.length === 0) {
+    return normalizeEditorText(container.innerText ?? container.textContent)
+  }
+
+  return topLevelNodes.map(node => normalizeEditorText(serializeEditorNode(node))).join('\n')
 }
 
 function runBoundsFromElement(element: HTMLElement): { start: number; end: number } | null {
@@ -189,6 +204,7 @@ function styleObjectToCssText(style: React.CSSProperties): string {
 function buildEditorMarkup(editor: HTMLDivElement, element: TextElement) {
   const paragraphs = normalizeRichTextParagraphs(element)
   const fragment = document.createDocumentFragment()
+  const numberedCounters = new Map<number, number>()
   let cursor = 0
 
   paragraphs.forEach(paragraph => {
@@ -200,16 +216,35 @@ function buildEditorMarkup(editor: HTMLDivElement, element: TextElement) {
     const paragraphElement = document.createElement('div')
     paragraphElement.dataset.paragraphStart = String(paragraphStart)
     paragraphElement.dataset.paragraphEnd = String(paragraphStart + paragraphLength)
-    paragraphElement.setAttribute(
-      'style',
-      styleObjectToCssText({
-        minHeight: element.fontSize * element.lineHeight,
-        textAlign: alignmentToTextAlign(paragraph.alignment, element.textAlign),
-        lineHeight: paragraph.lineHeight ?? element.lineHeight,
-        marginTop: paragraph.spaceBefore,
-        marginBottom: paragraph.spaceAfter
-      })
-    )
+    const marker = getRichTextParagraphMarker(paragraph, numberedCounters)
+    paragraphElement.setAttribute('style', styleObjectToCssText(getRichTextParagraphStyle(paragraph, element, marker)))
+
+    let runParent: HTMLElement = paragraphElement
+    if (marker) {
+      const bulletElement = document.createElement('span')
+      bulletElement.dataset.editorBullet = 'true'
+      bulletElement.setAttribute('contenteditable', 'false')
+      bulletElement.setAttribute(
+        'style',
+        styleObjectToCssText({
+          color: element.color,
+          flexShrink: 0,
+          userSelect: 'none'
+        })
+      )
+      bulletElement.textContent = marker.label
+      paragraphElement.append(bulletElement)
+
+      const contentElement = document.createElement('span')
+      contentElement.setAttribute(
+        'style',
+        styleObjectToCssText({
+          flex: 1
+        })
+      )
+      paragraphElement.append(contentElement)
+      runParent = contentElement
+    }
 
     paragraph.runs.forEach(run => {
       const start = runCursor
@@ -219,9 +254,9 @@ function buildEditorMarkup(editor: HTMLDivElement, element: TextElement) {
       const runElement = document.createElement('span')
       runElement.dataset.runStart = String(start)
       runElement.dataset.runEnd = String(end)
-      runElement.setAttribute('style', styleObjectToCssText(runStyle(run, element)))
+      runElement.setAttribute('style', styleObjectToCssText(getRichTextRunStyle(run, element)))
       runElement.textContent = run.text
-      paragraphElement.append(runElement)
+      runParent.append(runElement)
     })
 
     fragment.append(paragraphElement)
@@ -299,7 +334,7 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
       data-testid={testId}
       onInput={event => {
         const target = event.currentTarget as HTMLElement
-        const value = normalizeEditorText(target.innerText ?? target.textContent)
+        const value = serializeEditorText(target)
         const range = readSelection()
         lastSelectionRef.current = range
         onTextChange(value)
@@ -321,11 +356,10 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
       }}
       onMouseDown={event => event.stopPropagation()}
       style={{
+        ...getRichTextBoxStyle(element),
         width: '100%',
         height: '100%',
         outline: 'none',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
         overflow: 'auto',
         cursor: 'text'
       }}
