@@ -381,6 +381,48 @@ describe('extractTextElements caps + autofit', () => {
     expect(Math.round(elements[0].paragraphs![0].runs[0].fontSize!)).toBe(29)
   })
 
+  it('adds descender breathing room for zero-inset spAutoFit labels like Enterprise AI slide 13', () => {
+    const xml = slideXml(`
+      <p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="25" name="Text 35"/>
+          <p:cNvSpPr txBox="1"/>
+          <p:nvPr/>
+        </p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="7951724" y="2811949"/><a:ext cx="1169290" cy="109728"/></a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0" anchor="ctr">
+            <a:spAutoFit/>
+          </a:bodyPr>
+          <a:p>
+            <a:pPr marL="0" indent="0" algn="ctr" fontAlgn="base">
+              <a:buNone/>
+            </a:pPr>
+            <a:r>
+              <a:rPr lang="en-US" sz="1200" b="1">
+                <a:solidFill><a:srgbClr val="E66329"/></a:solidFill>
+                <a:latin typeface="Roboto"/>
+              </a:rPr>
+              <a:t>Agents</a:t>
+            </a:r>
+            <a:endParaRPr lang="en-US" sz="1200"/>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+
+    const elements = extractTextElements(xml, theme, emptyRels)
+
+    expect(elements).toHaveLength(1)
+    expect(elements[0].fontSize).toBe(16)
+    expect(elements[0].fontWeight).toBe('bold')
+    expect(elements[0].verticalAlign).toBe('middle')
+    expect(elements[0].padding).toBe(0)
+    expect(elements[0].size.height).toBe(24)
+  })
+
   it('parseBodyAutofit reads fontScale/lineSpaceReduction as ratios', () => {
     const xml = new DOMParser().parseFromString(
       `<a:bodyPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">

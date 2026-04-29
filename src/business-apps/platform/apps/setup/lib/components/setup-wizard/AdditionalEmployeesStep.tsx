@@ -1,5 +1,13 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Button,
   Checkbox,
   Label,
@@ -7,7 +15,8 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  Spinner
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { v4 as uuidv4 } from 'uuid'
@@ -17,10 +26,12 @@ import { formatDataTestId } from '../../shims/formatDataTestId'
 import { useSetupTranslation } from '../../useSetupTranslation'
 import { Capability, Department, SetupEmployee } from './types'
 import { getSetupProgressItems, setupProgressStepIndex } from './progress-steps'
+import { findUserManagementUserMatchingEmployeeEmail } from '../../../../setup-add-employees/employeeOnboardingApi'
 
 type DraftEmployee = Omit<SetupEmployee, 'id'>
 
 export interface AdditionalEmployeesStepProps {
+  readonly accessToken?: string
   readonly onNext: () => void
   readonly onBack: () => void
 }
@@ -39,13 +50,17 @@ const EMPTY_DRAFT: DraftEmployee = {
   isManager: false
 }
 
-export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEmployeesStepProps) {
+export default function AdditionalEmployeesStep({ accessToken, onNext, onBack }: AdditionalEmployeesStepProps) {
   const { t } = useSetupTranslation()
   const { watch, setValue, getValues } = useFormContext()
   const [draftEmployee, setDraftEmployee] = useState<DraftEmployee>(EMPTY_DRAFT)
   const [draftErrors, setDraftErrors] = useState<Partial<Record<keyof DraftEmployee, string>>>({})
   /** Remount department Select after add so Radix controlled value cannot stay out of sync with cleared `departmentId`. */
   const [departmentSelectNonce, setDepartmentSelectNonce] = useState(0)
+  const [checkingExistingUser, setCheckingExistingUser] = useState(false)
+  const [umLookupError, setUmLookupError] = useState<string | null>(null)
+  const [duplicateConfirmOpen, setDuplicateConfirmOpen] = useState(false)
+  const [pendingEmployee, setPendingEmployee] = useState<SetupEmployee | null>(null)
 
   const additionalEmployees = watch('additionalEmployees') || []
   const departments = watch('departments') || []
@@ -107,7 +122,19 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
     }))
   }, [])
 
-  const handleAddEmployee = useCallback(() => {
+  const commitEmployeeRow = useCallback(
+    (row: SetupEmployee) => {
+      const current = (getValues('additionalEmployees') as SetupEmployee[] | undefined) ?? []
+      setValue('additionalEmployees', [...current, row], { shouldDirty: true, shouldTouch: true })
+      setDraftEmployee(EMPTY_DRAFT)
+      setDraftErrors({})
+      setDepartmentSelectNonce(n => n + 1)
+      setUmLookupError(null)
+    },
+    [getValues, setValue]
+  )
+
+  const buildValidatedRowFromDraft = useCallback((): SetupEmployee | null => {
     const nextErrors: Partial<Record<keyof DraftEmployee, string>> = {}
 
     if (!draftEmployee.firstName.trim()) {
@@ -142,32 +169,63 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
 
     if (Object.keys(nextErrors).length > 0) {
       setDraftErrors(nextErrors)
+      return null
+    }
+
+    return {
+      id: uuidv4(),
+      firstName: draftEmployee.firstName.trim(),
+      lastName: draftEmployee.lastName.trim(),
+      email: draftEmployee.email.trim(),
+      jobPosition: draftEmployee.jobPosition.trim(),
+      departmentId: departmentIdTrimmed,
+      capabilityIds: draftEmployee.capabilityIds,
+      isManager: Boolean(draftEmployee.isManager),
+      initialPassword: draftEmployee.initialPassword?.trim() ? draftEmployee.initialPassword.trim() : null
+    }
+  }, [draftEmployee, getValues, t])
+
+  const handleAddEmployee = useCallback(async () => {
+    setUmLookupError(null)
+    const row = buildValidatedRowFromDraft()
+    if (!row) return
+
+    const token = accessToken?.trim()
+    if (!token) {
+      commitEmployeeRow(row)
       return
     }
 
-    const current = (getValues('additionalEmployees') as SetupEmployee[] | undefined) ?? []
-    setValue(
-      'additionalEmployees',
-      [
-        ...current,
-        {
-          id: uuidv4(),
-          firstName: draftEmployee.firstName.trim(),
-          lastName: draftEmployee.lastName.trim(),
-          email: draftEmployee.email.trim(),
-          jobPosition: draftEmployee.jobPosition.trim(),
-          departmentId: departmentIdTrimmed,
-          capabilityIds: draftEmployee.capabilityIds,
-          isManager: Boolean(draftEmployee.isManager),
-          initialPassword: draftEmployee.initialPassword?.trim() ? draftEmployee.initialPassword.trim() : null
-        }
-      ],
-      { shouldDirty: true, shouldTouch: true }
-    )
-    setDraftEmployee(EMPTY_DRAFT)
-    setDraftErrors({})
-    setDepartmentSelectNonce(n => n + 1)
-  }, [draftEmployee, getValues, setValue, t])
+    setCheckingExistingUser(true)
+    try {
+      const existing = await findUserManagementUserMatchingEmployeeEmail(token, row.email)
+      if (existing) {
+        setPendingEmployee(row)
+        setDuplicateConfirmOpen(true)
+        return
+      }
+      commitEmployeeRow(row)
+    } catch {
+      setUmLookupError(t('additional-employees-um-lookup-error'))
+    } finally {
+      setCheckingExistingUser(false)
+    }
+  }, [accessToken, buildValidatedRowFromDraft, commitEmployeeRow, t])
+
+  const handleConfirmDuplicateAdd = useCallback(() => {
+    if (pendingEmployee) {
+      commitEmployeeRow(pendingEmployee)
+    }
+    setPendingEmployee(null)
+    setDuplicateConfirmOpen(false)
+  }, [commitEmployeeRow, pendingEmployee])
+
+  const handleDuplicateDialogOpenChange = useCallback((open: boolean) => {
+    setDuplicateConfirmOpen(open)
+    if (!open) {
+      setPendingEmployee(null)
+    }
+  }, [])
 
   const handleRemoveEmployee = useCallback(
     (employeeId: string) => {
@@ -193,6 +251,11 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
       disableNext={hasDuplicateManagersInList}
     >
       <div className="gba:space-y-6">
+        {umLookupError ? (
+          <p className="gba:text-sm gba:text-[#B42318]" role="alert">
+            {umLookupError}
+          </p>
+        ) : null}
         <div className="gba:rounded-xl gba:border gba:border-gray-200 gba:bg-white gba:p-6 gba:shadow-sm">
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
             <div>
@@ -332,13 +395,41 @@ export default function AdditionalEmployeesStep({ onNext, onBack }: AdditionalEm
             <Button
               type="button"
               variant="default"
-              onClick={handleAddEmployee}
+              onClick={() => void handleAddEmployee()}
+              disabled={checkingExistingUser || duplicateConfirmOpen}
               data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'add-employee-button')}
             >
-              {t('additional-employees-add-employee')}
+              {checkingExistingUser ? (
+                <span className="gba:inline-flex gba:items-center gba:gap-2">
+                  <Spinner size="sm" />
+                  {t('additional-employees-checking-user')}
+                </span>
+              ) : (
+                t('additional-employees-add-employee')
+              )}
             </Button>
           </div>
         </div>
+
+        <AlertDialog open={duplicateConfirmOpen} onOpenChange={handleDuplicateDialogOpenChange}>
+          <AlertDialogContent data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'duplicate-user-dialog')}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('additional-employees-existing-user-confirm-title')}</AlertDialogTitle>
+              <AlertDialogDescription className="gba:space-y-2">
+                <span>{t('additional-employees-existing-user-confirm-body')}</span>
+                {pendingEmployee ? (
+                  <span className="gba:block gba:font-medium gba:text-foreground">{pendingEmployee.email}</span>
+                ) : null}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel type="button">{t('additional-employees-existing-user-cancel')}</AlertDialogCancel>
+              <AlertDialogAction type="button" onClick={handleConfirmDuplicateAdd}>
+                {t('additional-employees-existing-user-confirm')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <div className="gba:rounded-xl gba:border gba:border-gray-200 gba:bg-white gba:p-6 gba:shadow-sm">
           <div className="gba:mb-4 gba:flex gba:items-center gba:justify-between">

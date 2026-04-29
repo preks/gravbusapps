@@ -19,7 +19,11 @@ import {
   AvatarFallback,
   Skeleton
 } from '@newwork/nw-design-system'
-import { AlertTriangle, ChevronRight, ShieldCheck } from 'lucide-react'
+import {
+  WarningIcon as AlertTriangle,
+  CaretRightIcon as ChevronRight,
+  ShieldCheckIcon as ShieldCheck
+} from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlightRiskSummary, FlightRiskEmployee, RiskLevel } from '../types/flightRisk.types'
 import { FlightRiskDetailPanel } from './FlightRiskDetailPanel'

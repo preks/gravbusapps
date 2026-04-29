@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { Button, Label, useTranslation } from '@newwork/nw-design-system'
 import { Bot, Brain, CheckCircle2, ClipboardList, Code2, Info, Plug, UserCheck } from 'lucide-react'
-import { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { FlowStepType } from '@/common/data/flow/types/flowTemplate'
 import translations from '../../../_i18n'
 
 const META: Record<

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Label, Switch } from '@newwork/nw-design-system'
-import type { InputBlock } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import type { InputBlock } from '@/common/data/flow/types/flowTemplate'
 import type { DesignerMode } from '../../types/studioTypes'
 import { useStudioExpressionSuggestions } from '../../hooks/useStudioExpressionSuggestions'
 import { NEUTRAL_SWITCH_CLASSNAME } from '../../utils/neutralSwitchClassName'

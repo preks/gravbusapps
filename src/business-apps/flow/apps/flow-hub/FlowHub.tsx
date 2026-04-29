@@ -15,7 +15,7 @@ import { quickActions } from './utils/flowAreas'
 import { FlowArea, FlowQuickAction } from './types'
 import { useFlowDashboardStats } from './hooks/useFlowDashboardStats'
 import { useFlowPermissions } from './hooks/useFlowPermissions'
-import { navigateTo } from '@/common/utils/navigationUtils'
+import { buildPlatformUrl, Navigation, navigateTo } from '@/common/utils/navigationUtils'
 import {
   UserIcon,
   GearIcon,
@@ -31,6 +31,9 @@ import {
 } from '@phosphor-icons/react'
 
 type FlowHubProps = BusinessAppContextProps
+
+const FLOW_STUDIO_CREATE_URL = `${buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR)}#create`
+const FLOW_STUDIO_FLOWS_URL = `${buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR)}#flows`
 
 const FlowHub: React.FC<FlowHubProps> = context => {
   const { stats, isLoading, error, refetch } = useFlowDashboardStats(context)
@@ -558,7 +561,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
           console.log('Navigating to analytics')
           break
         case 'navigate-flow-creator':
-          navigateTo('/platform/apps/flow/apps/creator#create')
+          navigateTo(FLOW_STUDIO_CREATE_URL)
           break
         case 'navigate-flow-launcher':
           navigateTo('/platform/apps/flow/apps/launcher')
@@ -577,7 +580,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
       const areaToUrlMap: Record<string, string> = {
         'active-tasks': '/platform/task-manager?view=inbox',
         'my-flows': '/platform/task-manager?view=inbox',
-        'flow-creator': '/platform/apps/flow/apps/creator#create',
+        'flow-creator': FLOW_STUDIO_CREATE_URL,
         'flow-launcher': '/platform/apps/flow/apps/launcher',
         completed: '/platform/apps/flow/apps/success',
         'flow-success': '/platform/apps/flow/apps/success',
@@ -615,10 +618,10 @@ const FlowHub: React.FC<FlowHubProps> = context => {
 
       // Flow Templates / Creator
       case 'templates-create':
-        navigateTo('/platform/apps/flow/apps/creator#create')
+        navigateTo(FLOW_STUDIO_CREATE_URL)
         return
       case 'templates-manage':
-        navigateTo('/platform/apps/flow/apps/creator#manage')
+        navigateTo(FLOW_STUDIO_FLOWS_URL)
         return
       case 'templates-launch':
         navigateTo('/platform/apps/flow/apps/launcher')
@@ -667,7 +670,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         navigateTo('/platform/apps/flow/apps/launcher')
         break
       case 'create-template':
-        navigateTo('/platform/apps/flow/apps/creator#create')
+        navigateTo(FLOW_STUDIO_CREATE_URL)
         break
       case 'view-inbox':
         navigateTo('/platform/apps/flow/apps/inbox?tab=open')

@@ -94,6 +94,7 @@ export interface VersionHistoryMessages {
 export interface VersionHistoryProps {
   versions: Version[]
   isLoading: boolean
+  error?: string | null
   onRestore: (versionNumber: number) => Promise<void>
   onCompare?: (versionA: number, versionB: number) => void
   onClose: () => void
@@ -193,6 +194,7 @@ function matchesApprovalFilter(
 export function VersionHistory({
   versions,
   isLoading,
+  error,
   onRestore,
   onCompare,
   onClose,
@@ -327,6 +329,14 @@ export function VersionHistory({
           {isLoading ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
               <p className="gba:text-muted-foreground">{m.loading ?? 'Loading versions...'}</p>
+            </div>
+          ) : error && displayVersions.length === 0 ? (
+            <div
+              className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center"
+              data-testid={`${testId}-error`}
+            >
+              <AlertCircle className="gba:mb-2 gba:h-12 gba:w-12 gba:text-destructive" />
+              <p className="gba:text-muted-foreground">{error}</p>
             </div>
           ) : displayVersions.length === 0 ? (
             <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">

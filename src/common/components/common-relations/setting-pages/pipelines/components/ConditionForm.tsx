@@ -62,6 +62,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
   editingCondition,
   selectedStage,
   catalogConfig,
+  prefixDataTestId = 'condition-form',
   accessToken
 }) => {
   const [operationLoading, setOperationLoading] = useState(false)
@@ -209,7 +210,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="gba:flex gba:flex-col gba:max-h-[85vh] gba:overflow-hidden">
+      <DialogContent className="gba:flex gba:flex-col gba:max-h-screen gba:overflow-hidden">
         <DialogHeader className="gba:flex-shrink-0">
           <DialogTitle>{editingCondition ? 'Edit Condition' : 'Create New Condition'}</DialogTitle>
           <DialogDescription>
@@ -224,6 +225,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
             <form
               onSubmit={form.handleSubmit(handleSubmit)}
               className="gba:flex gba:h-full gba:min-h-0 gba:flex-1 gba:flex-col gba:overflow-hidden"
+              data-testid={`${prefixDataTestId}-form`}
             >
               <div className="gba:min-h-0 gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:pr-1">
                 {/* Basic Information Section */}
@@ -240,7 +242,11 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                       <FormItem>
                         <FormLabel>Condition Name</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Please Enter..." />
+                          <Input
+                            {...field}
+                            placeholder="Please Enter..."
+                            data-testid={`${prefixDataTestId}-name-input`}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -254,7 +260,11 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                       <FormItem>
                         <FormLabel>Description</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Please Enter..." />
+                          <Input
+                            {...field}
+                            placeholder="Please Enter..."
+                            data-testid={`${prefixDataTestId}-description-input`}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -276,7 +286,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                         <FormLabel>Checked By</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger data-testid={`${prefixDataTestId}-checked-type-select`}>
                               <SelectValue placeholder="Select who checks this condition" />
                             </SelectTrigger>
                           </FormControl>
@@ -299,7 +309,11 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                     render={({ field }) => (
                       <FormItem className="gba:flex gba:flex-row gba:items-start gba:space-x-3 gba:space-y-0">
                         <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid={`${prefixDataTestId}-generate-task-checkbox`}
+                          />
                         </FormControl>
                         <div className="gba:space-y-1 gba:leading-none">
                           <FormLabel>Generate Task</FormLabel>
@@ -317,7 +331,11 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                     render={({ field }) => (
                       <FormItem className="gba:flex gba:flex-row gba:items-start gba:space-x-3 gba:space-y-0">
                         <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid={`${prefixDataTestId}-deadline-enabled-checkbox`}
+                          />
                         </FormControl>
                         <div className="gba:space-y-1 gba:leading-none">
                           <FormLabel>Enable Deadline</FormLabel>
@@ -341,6 +359,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                               type="number"
                               min="1"
                               onChange={e => field.onChange(Number.parseInt(e.target.value) || 1)}
+                              data-testid={`${prefixDataTestId}-deadline-duration-input`}
                             />
                           </FormControl>
                           <FormMessage />
@@ -352,10 +371,16 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
               </div>
 
               <DialogFooter className="gba:flex-shrink-0 gba:pt-4">
-                <Button type="button" variant="outline" onClick={onClose} disabled={operationLoading}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  disabled={operationLoading}
+                  data-testid={`${prefixDataTestId}-cancel-button`}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={operationLoading}>
+                <Button type="submit" disabled={operationLoading} data-testid={`${prefixDataTestId}-submit-button`}>
                   {getSubmitButtonText()}
                 </Button>
               </DialogFooter>

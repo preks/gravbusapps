@@ -650,6 +650,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
 
       try {
         const currentApp = state.currentApp?.id === appId ? state.currentApp : null
+        const requestedSheetId = sheet?.id
         const existingNames = new Set((currentApp?.sheets ?? []).map(s => s.name))
         let autoName = sheet?.name
         if (!autoName) {
@@ -678,7 +679,9 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
             // inserted the worksheet on its side), just replace that entry with
             // the server-confirmed one; otherwise append.
             const nextSheet = { ...created, data: created.data ?? [] }
-            const existingIdx = prev.currentApp.sheets.findIndex(s => s.id === created.id)
+            const existingIdx = prev.currentApp.sheets.findIndex(
+              s => s.id === created.id || (requestedSheetId != null && s.id === requestedSheetId)
+            )
             const nextSheets =
               existingIdx >= 0
                 ? prev.currentApp.sheets.map((s, i) => (i === existingIdx ? nextSheet : s))

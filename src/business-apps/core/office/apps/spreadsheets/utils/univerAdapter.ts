@@ -128,6 +128,11 @@ function getRowIdentityCandidates(row: Record<string, unknown>): string[] {
   )
 }
 
+function getVisualRowIndex(row: Record<string, unknown>, fallbackIndex: number): number {
+  const raw = Number(row._gridRowIndex)
+  return Number.isFinite(raw) && raw >= 0 ? Math.trunc(raw) : fallbackIndex
+}
+
 function isAvatarColumn(column: SpreadsheetColumn): boolean {
   const normalizedName = normalizeColumnToken(String(column.name || ''))
   const normalizedId = normalizeColumnToken(String(column.id || ''))
@@ -338,7 +343,9 @@ function buildCellData(data: Record<string, unknown>[], visibleColumns: Spreadsh
   const cellData: UniverSheetCellData = {}
   for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
     const rowCells = buildRowCells(data[rowIndex], visibleColumns)
-    if (Object.keys(rowCells).length > 0) cellData[rowIndex] = rowCells
+    if (Object.keys(rowCells).length === 0) continue
+    const targetRowIndex = getVisualRowIndex(data[rowIndex], rowIndex)
+    cellData[targetRowIndex] = rowCells
   }
   return cellData
 }
@@ -360,9 +367,14 @@ function buildRowHeights(data: Record<string, unknown>[]): Record<number, { h?: 
   const rowData: Record<number, { h?: number }> = {}
   for (let idx = 0; idx < data.length; idx++) {
     const h = data[idx]._height
-    if (typeof h === 'number' && h > 0) rowData[idx] = { h }
+    if (typeof h === 'number' && h > 0) rowData[getVisualRowIndex(data[idx], idx)] = { h }
   }
   return rowData
+}
+
+function getWorkbookRowCount(data: Record<string, unknown>[]): number {
+  const maxVisualRowIndex = data.reduce((max, row, index) => Math.max(max, getVisualRowIndex(row, index)), -1)
+  return Math.max(maxVisualRowIndex + 1, data.length, DEFAULT_MIN_ROWS)
 }
 
 /**
@@ -385,7 +397,7 @@ export function buildWorkbookSnapshot(
     name: sheet.name,
     cellData,
     mergeData,
-    rowCount: Math.max(data.length, DEFAULT_MIN_ROWS),
+    rowCount: getWorkbookRowCount(data),
     columnCount: Math.max(visibleColumns.length, 1),
     defaultColumnWidth: UNIVER_DEFAULT_COL_WIDTH,
     defaultRowHeight: UNIVER_DEFAULT_ROW_HEIGHT,
@@ -422,12 +434,9 @@ function getWorksheetFromWorkbookSnapshot(
   const sheets = workbookSnapshot.sheets as Record<string, Record<string, unknown>> | undefined
   if (!sheets || typeof sheets !== 'object') return undefined
   if (sheets[sheetId] != null) return sheets[sheetId] as Record<string, unknown>
-  const order = workbookSnapshot.sheetOrder as string[] | undefined
-  if (Array.isArray(order) && order[0] && sheets[order[0]] != null) {
-    return sheets[order[0]] as Record<string, unknown>
-  }
-  const first = Object.values(sheets)[0]
-  return first as Record<string, unknown> | undefined
+  return Object.values(sheets).find(worksheet => String(worksheet?.id ?? '') === sheetId) as
+    | Record<string, unknown>
+    | undefined
 }
 
 /** Heuristic: how much formatting exists (workbook `styles` + per-cell `s` refs) for bootstrap fallback. */
@@ -517,6 +526,21 @@ const comparableUniverCellPayload = (cell: UniverCellData | undefined): string =
   return ''
 }
 
+const countComparableCellValues = (cellData: UniverSheetCellData | undefined): number => {
+  if (!cellData || typeof cellData !== 'object') return 0
+  let count = 0
+  for (const rowCells of Object.values(cellData)) {
+    if (!rowCells || typeof rowCells !== 'object') continue
+    for (const cell of Object.values(rowCells)) {
+      if (comparableUniverCellPayload(cell).length > 0) count += 1
+    }
+  }
+  return count
+}
+
+const countViewerRowCellValues = (rows: Record<string, unknown>[], visibleColumns: SpreadsheetColumn[]): number =>
+  countComparableCellValues(buildCellData(rows, visibleColumns))
+
 /**
  * Returns true when persisted Univer cellData disagrees with row-authoritative values
  * derived from viewer rows (same rules as {@link buildWorkbookSnapshot}).
@@ -557,6 +581,17 @@ export function workbookSnapshotMismatchesViewerRows(
 
 function shouldClearSnapshotCellValue(cell: UniverCellData | undefined): boolean {
   return comparableUniverCellPayload(cell) !== ''
+}
+
+function clearSnapshotCellValuePreservingFormatting(cell: UniverCellData): UniverCellData | undefined {
+  if (!cell || typeof cell !== 'object' || Array.isArray(cell)) return undefined
+  const next = { ...cell }
+  delete next.v
+  delete next.f
+  delete next.m
+  delete next.p
+  delete next.ct
+  return Object.keys(next).length > 0 ? next : undefined
 }
 
 /**
@@ -614,7 +649,12 @@ export function mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
 
       const priorCell = mergedRow[colIndex]
       if (shouldClearSnapshotCellValue(priorCell)) {
-        delete mergedRow[colIndex]
+        const styleOnlyCell = clearSnapshotCellValuePreservingFormatting(priorCell)
+        if (styleOnlyCell) {
+          mergedRow[colIndex] = styleOnlyCell
+        } else {
+          delete mergedRow[colIndex]
+        }
       }
     }
 
@@ -698,6 +738,84 @@ function cloneUniverSnapshotSlice<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
+function worksheetHasCellData(worksheet: UniverWorksheetData | null | undefined): boolean {
+  if (!worksheet || typeof worksheet !== 'object') return false
+  const cellData = worksheet.cellData
+  if (!cellData || typeof cellData !== 'object') return false
+  return Object.keys(cellData).some(rowKey => {
+    const row = cellData[Number(rowKey)] ?? cellData[rowKey as unknown as number]
+    return Boolean(row && typeof row === 'object' && Object.keys(row).length > 0)
+  })
+}
+
+export function normalizeWorkbookSnapshotToAppSheets(
+  snapshot: Record<string, unknown>,
+  appSheets: SpreadsheetSheet[]
+): Record<string, unknown> {
+  const cloned = cloneWorkbookSnapshotJson(snapshot)
+  const sourceSheets =
+    (cloned.sheets as Record<string, UniverWorksheetData | Record<string, unknown>> | undefined) ?? {}
+  if (Object.keys(sourceSheets).length === 0 || appSheets.length === 0) {
+    return cloned
+  }
+
+  const usedSourceKeys = new Set<string>()
+  const nextSheets: Record<string, Record<string, unknown>> = {}
+  const sourceEntries = Object.entries(sourceSheets)
+
+  const takeSourceEntry = (
+    targetSheet: SpreadsheetSheet
+  ): [string, UniverWorksheetData | Record<string, unknown>] | null => {
+    const keyed = sourceSheets[targetSheet.id]
+    if (keyed && !usedSourceKeys.has(targetSheet.id)) {
+      return [targetSheet.id, keyed]
+    }
+
+    const byWorksheetId = sourceEntries.find(([sourceKey, worksheet]) => {
+      if (usedSourceKeys.has(sourceKey) || !worksheet || typeof worksheet !== 'object') return false
+      return String((worksheet as { id?: unknown }).id ?? '') === targetSheet.id
+    })
+    if (byWorksheetId) return byWorksheetId
+
+    const targetName = String(targetSheet.name ?? '')
+      .trim()
+      .toLowerCase()
+    if (targetName) {
+      const byName = sourceEntries.find(([sourceKey, worksheet]) => {
+        if (usedSourceKeys.has(sourceKey) || !worksheet || typeof worksheet !== 'object') return false
+        return (
+          String((worksheet as { name?: unknown }).name ?? '')
+            .trim()
+            .toLowerCase() === targetName
+        )
+      })
+      if (byName) return byName
+    }
+
+    return null
+  }
+
+  for (const targetSheet of appSheets) {
+    const matched = takeSourceEntry(targetSheet)
+    if (!matched) continue
+    const [sourceKey, worksheet] = matched
+    usedSourceKeys.add(sourceKey)
+    nextSheets[targetSheet.id] = {
+      ...(cloneUniverSnapshotSlice(worksheet) as Record<string, unknown>),
+      id: targetSheet.id,
+      name: targetSheet.name
+    }
+  }
+
+  if (Object.keys(nextSheets).length === 0) {
+    return cloned
+  }
+
+  cloned.sheets = nextSheets
+  cloned.sheetOrder = appSheets.filter(sheet => nextSheets[sheet.id] != null).map(sheet => sheet.id)
+  return cloned
+}
+
 function pickWorksheetFromSingleSheetBootstrap(
   snapshot: Record<string, unknown>,
   preferSheetId: string
@@ -756,6 +874,10 @@ export function buildMultiSheetWorkbookFromAppSheets(options: {
   const { appSheets, activeSheetId, getRowsForSheet, singleWorksheetBootstrap, appId } = options
   const workbookId = appId ? `workbook-${appId}` : `workbook-${activeSheetId}`
   const activeSheet = appSheets.find(sheet => sheet.id === activeSheetId) ?? appSheets[0]
+  const normalizedBootstrap =
+    singleWorksheetBootstrap && typeof singleWorksheetBootstrap === 'object'
+      ? normalizeWorkbookSnapshotToAppSheets(singleWorksheetBootstrap, appSheets)
+      : singleWorksheetBootstrap
   const sheets: Record<string, UniverWorksheetData> = {}
   const sheetOrder: string[] = []
 
@@ -766,8 +888,8 @@ export function buildMultiSheetWorkbookFromAppSheets(options: {
     // Univer snapshots are per-workbook, so even a "single sheet" bootstrap
     // typically carries every worksheet), pull out the matching worksheet for
     // THIS sheet so its cell styles / merges / number formats survive.
-    const bootstrapWorksheet = singleWorksheetBootstrap
-      ? pickWorksheetFromSingleSheetBootstrap(singleWorksheetBootstrap, sheet.id)
+    const bootstrapWorksheet = normalizedBootstrap
+      ? pickWorksheetFromSingleSheetBootstrap(normalizedBootstrap, sheet.id)
       : null
 
     const worksheet = bootstrapWorksheet ?? buildWorkbookSnapshot(sheet, sheetRows, sheet.columns).sheets[sheet.id]
@@ -776,20 +898,28 @@ export function buildMultiSheetWorkbookFromAppSheets(options: {
     nextWorksheet.id = sheet.id
     nextWorksheet.name = sheet.name
     if (bootstrapWorksheet) {
-      const mergedWorkbook = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
-        {
-          id: workbookId,
-          name: activeSheet?.name || sheet.name,
-          sheetOrder: [sheet.id],
-          sheets: { [sheet.id]: nextWorksheet }
-        },
-        sheet.id,
-        sheetRows,
-        sheet.columns
-      )
-      nextWorksheet = cloneUniverSnapshotSlice(
-        (mergedWorkbook as { sheets: Record<string, UniverWorksheetData> }).sheets[sheet.id]
-      )
+      // When canonical rows are still empty but the workbook snapshot has cellData,
+      // prefer the snapshot as a recovery fallback. This happens in the multi-sheet
+      // race where a non-active sheet's edits were checkpointed into the workbook
+      // blob before the per-sheet row model finished persisting.
+      const snapshotValueCount = countComparableCellValues(nextWorksheet.cellData)
+      const rowValueCount = countViewerRowCellValues(sheetRows, visibleColumns)
+      if (rowValueCount >= snapshotValueCount && !(sheetRows.length === 0 && worksheetHasCellData(nextWorksheet))) {
+        const mergedWorkbook = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
+          {
+            id: workbookId,
+            name: activeSheet?.name || sheet.name,
+            sheetOrder: [sheet.id],
+            sheets: { [sheet.id]: nextWorksheet }
+          },
+          sheet.id,
+          sheetRows,
+          sheet.columns
+        )
+        nextWorksheet = cloneUniverSnapshotSlice(
+          (mergedWorkbook as { sheets: Record<string, UniverWorksheetData> }).sheets[sheet.id]
+        )
+      }
     }
     transformAvatarFormulasInSnapshot(
       {
@@ -811,8 +941,8 @@ export function buildMultiSheetWorkbookFromAppSheets(options: {
   // renders unstyled and subsequent `getWorkbookSnapshot()` saves only capture
   // newly-added styles, permanently losing pre-existing formatting on reload.
   const preservedStyles: Record<string, unknown> = {}
-  if (singleWorksheetBootstrap && typeof singleWorksheetBootstrap === 'object') {
-    const srcStyles = (singleWorksheetBootstrap as Record<string, unknown>).styles
+  if (normalizedBootstrap && typeof normalizedBootstrap === 'object') {
+    const srcStyles = (normalizedBootstrap as Record<string, unknown>).styles
     if (srcStyles && typeof srcStyles === 'object') {
       Object.assign(preservedStyles, srcStyles as Record<string, unknown>)
     }
@@ -916,13 +1046,14 @@ export function createUniverConversionContext(
     indexToExcelCol.set(index, excelCol)
   })
   data.forEach((row, index) => {
+    const rowIndex = getVisualRowIndex(row, index)
     const candidateRowIds = getRowIdentityCandidates(row)
     const canonicalRowId = candidateRowIds[0] || `row_${index}`
     candidateRowIds.forEach(rowId => {
-      rowIdToIndex.set(rowId, index)
+      rowIdToIndex.set(rowId, rowIndex)
     })
-    rowIdToIndex.set(canonicalRowId, index)
-    rowIndexToId.set(index, canonicalRowId)
+    rowIdToIndex.set(canonicalRowId, rowIndex)
+    rowIndexToId.set(rowIndex, canonicalRowId)
   })
   return {
     columnIdToIndex,

@@ -1,6 +1,24 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 
 /**
+ * Investment filter sidebar is composed of two layers:
+ *
+ * 1. DEFAULT filters (defined here) — always rendered on every tab because they
+ *    apply to every investment regardless of its type or group. Keep this list
+ *    restricted to fields that exist on the base Investment entity (e.g. owner,
+ *    status, account, createdAt). These never depend on the catalog.
+ *
+ * 2. CATALOG-DRIVEN filters — appended dynamically per group/type by
+ *    `buildDynamicFilterConfiguration` in `investmentListColumnTransformer.tsx`,
+ *    derived from the group's `formFieldsDefinition`. They surface fields that
+ *    only make sense for specific groups (e.g. Acquisition Date, Maturity Date,
+ *    Interest Rate, …) and only appear on tabs whose catalog defines them.
+ *
+ * Rule of thumb: if a field is NOT guaranteed to exist on every investment,
+ * leave it to the catalog layer instead of hard-coding it here.
+ */
+
+/**
  * Base Investment Filter Configuration
  * Used for all tabs (Overview, LiquidFund, RealEstate, Equity)
  * Investment Group filter is added separately for Overview tab only
@@ -90,44 +108,33 @@ export const baseInvestmentFilterConfig: FilterConfiguration = {
       ]
     },
     {
-      id: 'opportunity-group',
-      label: 'Opportunity',
+      id: 'planned-exit-group',
+      label: 'Planned Exit',
       collapsible: true,
       defaultExpanded: false,
       filters: [
         {
-          id: 'opportunityIds',
-          field: 'opportunityIds',
-          label: 'Opportunity',
+          id: 'planedExit',
+          field: 'planedExit',
+          label: 'Planned Exit',
           type: 'multi-select',
           config: {
-            options: [],
-            searchPlaceholder: 'Search opportunities...',
-            totalCount: 0,
+            options: [
+              { id: 'true', label: 'Yes' },
+              { id: 'false', label: 'No' }
+            ],
+            totalCount: 2,
             hasMore: false
           }
         }
       ]
     },
     {
-      id: 'date-group',
-      label: 'Date Ranges',
+      id: 'planned-exit-date-group',
+      label: 'Planned Exit Date',
       collapsible: true,
       defaultExpanded: false,
       filters: [
-        {
-          id: 'acquisitionDateRange',
-          field: 'acquisitionDateRange',
-          label: 'Acquisition Date',
-          type: 'date',
-          config: {
-            dateType: 'date',
-            mode: 'range',
-            placeholder: 'Start Date',
-            placeholderEnd: 'End Date',
-            showClearButton: true
-          }
-        },
         {
           id: 'plannedExitDateRange',
           field: 'plannedExitDateRange',
@@ -140,11 +147,19 @@ export const baseInvestmentFilterConfig: FilterConfiguration = {
             placeholderEnd: 'End Date',
             showClearButton: true
           }
-        },
+        }
+      ]
+    },
+    {
+      id: 'created-group',
+      label: 'Created',
+      collapsible: true,
+      defaultExpanded: false,
+      filters: [
         {
-          id: 'exitDateRange',
-          field: 'exitDateRange',
-          label: 'Exit Date',
+          id: 'createdAtRange',
+          field: 'createdAtRange',
+          label: 'Created',
           type: 'date',
           config: {
             dateType: 'date',

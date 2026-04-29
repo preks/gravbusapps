@@ -84,6 +84,7 @@ export function useSpreadsheetViewerState({
   initialViewId,
   forceSyncToken = 0
 }: UseSpreadsheetViewerStateProps): SpreadsheetViewerState {
+  const fallbackSheetRef = useRef<SpreadsheetSheet | null>(null)
   // Active sheet state
   const [activeSheetId, setActiveSheetId] = useState(initialSheetId || app.sheets[0]?.id || '')
 
@@ -112,21 +113,23 @@ export function useSpreadsheetViewerState({
   const prevSheetIdsRef = useRef<string[]>(app.sheets.map(s => s.id))
   const prevForceSyncTokenRef = useRef(forceSyncToken)
 
-  // Sync from app.sheets when:
-  // 1. User switches sheets (activeSheetId changes)
-  // 2. A new sheet was added to the app (e.g. AI Summary after loadApp)
-  // Avoid syncing on every app.sheets change so we don't overwrite in-flight automation
-  // row updates (e.g. completed task writing to report sheet) before they're persisted.
+  // Sync from app.sheets when the active sheet changes, the active sheet first
+  // appears in app.sheets, or a caller explicitly forces a resync. Do not reload
+  // the current active sheet just because another sheet was added: in multi-sheet
+  // mode app.sheets[*].data can lag behind Univer's live workbook and would
+  // overwrite the active tab with stale rows.
   useEffect(() => {
     const currentSheetIds = app.sheets.map(s => s.id)
     const sheet = app.sheets.find(s => s.id === activeSheetId)
+    if (sheet) {
+      fallbackSheetRef.current = sheet
+    }
     const activeSheetChanged = prevSheetIdRef.current !== activeSheetId
-    const newSheetAdded =
-      currentSheetIds.length > prevSheetIdsRef.current.length ||
-      currentSheetIds.some(id => !prevSheetIdsRef.current.includes(id))
+    const activeSheetFirstAppeared =
+      !prevSheetIdsRef.current.includes(activeSheetId) && currentSheetIds.includes(activeSheetId)
     const forceSyncRequested = prevForceSyncTokenRef.current !== forceSyncToken
 
-    if (activeSheetChanged || newSheetAdded || forceSyncRequested) {
+    if (activeSheetChanged || activeSheetFirstAppeared || forceSyncRequested) {
       setLocalSheetData(sortByRowOrder(sheet?.data || [], sheet))
       prevSheetIdRef.current = activeSheetId
     }
@@ -135,10 +138,22 @@ export function useSpreadsheetViewerState({
   }, [activeSheetId, app.sheets, forceSyncToken])
 
   // Get active sheet
-  const activeSheet = useMemo(
-    () => app.sheets.find(s => s.id === activeSheetId) || app.sheets[0],
-    [app.sheets, activeSheetId]
-  )
+  const activeSheet = useMemo(() => {
+    const matchedSheet = app.sheets.find(s => s.id === activeSheetId)
+    if (matchedSheet) {
+      fallbackSheetRef.current = matchedSheet
+      return matchedSheet
+    }
+
+    if (fallbackSheetRef.current) {
+      return {
+        ...fallbackSheetRef.current,
+        id: activeSheetId || fallbackSheetRef.current.id
+      }
+    }
+
+    return app.sheets[0]
+  }, [app.sheets, activeSheetId])
 
   // Get active view
   const activeView = useMemo(() => {

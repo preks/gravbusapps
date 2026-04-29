@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { Users, GitFork } from 'lucide-react'
+import { GitFork, UsersThree } from '@phosphor-icons/react'
 import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { AppAction } from '@/components/app-action'
@@ -177,7 +177,7 @@ const EmployeeRow: React.FC<EmployeeRowProps> = ({
   const allocation = employee.projectAllocationPercent ?? 0
 
   return (
-    <TableRow className="gba:cursor-pointer hover:gba:bg-gray-50" onClick={handleRowClick}>
+    <TableRow className="gba:cursor-pointer hover:gba:bg-muted/50" onClick={handleRowClick}>
       <TableCell>
         <button
           type="button"
@@ -192,7 +192,7 @@ const EmployeeRow: React.FC<EmployeeRowProps> = ({
         </button>
       </TableCell>
       <TableCell>
-        <div className="gba:text-sm gba:text-neutral-600">{employee.jobTitle || '-'}</div>
+        <div className="gba:text-sm gba:text-muted-foreground">{employee.jobTitle || '-'}</div>
       </TableCell>
       <TableCell>
         <div className="gba:min-w-[110px]">
@@ -201,7 +201,9 @@ const EmployeeRow: React.FC<EmployeeRowProps> = ({
         </div>
       </TableCell>
       <TableCell>
-        <div className="gba:text-sm gba:text-neutral-600">{formatLastFeedback(employee.lastManagerFeedbackDate)}</div>
+        <div className="gba:text-sm gba:text-muted-foreground">
+          {formatLastFeedback(employee.lastManagerFeedbackDate)}
+        </div>
       </TableCell>
       <TableCell>
         <Badge variant={allocation > 0 ? 'info' : 'secondary'} size="sm">
@@ -209,7 +211,7 @@ const EmployeeRow: React.FC<EmployeeRowProps> = ({
         </Badge>
       </TableCell>
       <TableCell>
-        <div className="gba:text-sm gba:text-neutral-600">{formatNextVacation(employee.nextVacation)}</div>
+        <div className="gba:text-sm gba:text-muted-foreground">{formatNextVacation(employee.nextVacation)}</div>
       </TableCell>
       <TableCell className="gba:py-4 gba:px-6">
         <ActionCell employee={employee} accessToken={accessToken} dataTestIdPrefix={dataTestIdPrefix} />
@@ -234,7 +236,7 @@ const MatrixEmployeeRow: React.FC<MatrixEmployeeRowProps> = ({
   onAvatarClick
 }) => {
   return (
-    <TableRow className="gba:cursor-pointer hover:gba:bg-gray-50" onClick={() => onSelectEmployee(employee)}>
+    <TableRow className="gba:cursor-pointer hover:gba:bg-muted/50" onClick={() => onSelectEmployee(employee)}>
       <TableCell>
         <button
           type="button"
@@ -249,10 +251,10 @@ const MatrixEmployeeRow: React.FC<MatrixEmployeeRowProps> = ({
         </button>
       </TableCell>
       <TableCell>
-        <div className="gba:text-sm gba:text-neutral-600">{employee.jobTitle || '-'}</div>
+        <div className="gba:text-sm gba:text-muted-foreground">{employee.jobTitle || '-'}</div>
       </TableCell>
       <TableCell>
-        <div className="gba:text-sm gba:text-neutral-600">{employee.organizationalUnit || '-'}</div>
+        <div className="gba:text-sm gba:text-muted-foreground">{employee.organizationalUnit || '-'}</div>
       </TableCell>
       <TableCell>
         <StatusBadge employee={employee} />
@@ -304,7 +306,7 @@ const FiltersBar: React.FC<{
         htmlFor="manager-dashboard-job-title-filter-trigger"
         className="gba:mb-1 gba:block gba:text-xs gba:text-muted-foreground"
       >
-        Role: Job title
+        Job title
       </label>
       <Select value={selectedJobTitle} onValueChange={onJobTitleChange}>
         <SelectTrigger id="manager-dashboard-job-title-filter-trigger" data-testid="manager-dashboard-job-title-filter">
@@ -325,7 +327,7 @@ const FiltersBar: React.FC<{
         htmlFor="manager-dashboard-employment-type-filter-trigger"
         className="gba:mb-1 gba:block gba:text-xs gba:text-muted-foreground"
       >
-        Role: Employment type
+        Employment type
       </label>
       <Select value={selectedEmploymentType} onValueChange={onEmploymentTypeChange}>
         <SelectTrigger
@@ -350,17 +352,17 @@ const FiltersBar: React.FC<{
 const LoadingState: React.FC<{ message: string }> = ({ message }) => (
   <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-6">
     <Spinner size="lg" />
-    <p className="gba:text-sm gba:text-neutral-500 gba:mt-2">{message}</p>
+    <p className="gba:mt-2 gba:text-sm gba:text-muted-foreground">{message}</p>
   </div>
 )
 
 const ErrorState: React.FC<{ title: string; message: string; onRetry: () => void }> = ({ title, message, onRetry }) => (
   <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-6">
-    <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">{title}</div>
-    <div className="gba:text-gray-600 gba:mb-4">{message}</div>
+    <div className="gba:mb-2 gba:text-lg gba:font-medium gba:text-destructive">{title}</div>
+    <div className="gba:mb-4 gba:text-muted-foreground">{message}</div>
     <button
       onClick={onRetry}
-      className="gba:px-4 gba:py-2 gba:bg-primary-600 gba:text-white gba:rounded gba:hover:bg-primary-700"
+      className="gba:rounded gba:bg-primary gba:px-4 gba:py-2 gba:text-primary-foreground gba:hover:gba:bg-primary/90"
     >
       {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.try_again', 'Try again')}
     </button>
@@ -376,8 +378,8 @@ interface EmptyStateProps {
 const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, description }) => (
   <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-6">
     <div className="gba:text-4xl gba:mb-4">{icon}</div>
-    <h3 className="gba:text-lg gba:font-medium gba:text-neutral-900 gba:mb-2">{title}</h3>
-    <p className="gba:text-neutral-500">{description}</p>
+    <h3 className="gba:mb-2 gba:text-lg gba:font-medium gba:text-foreground">{title}</h3>
+    <p className="gba:text-muted-foreground">{description}</p>
   </div>
 )
 
@@ -505,7 +507,7 @@ export const MyTeammatesTable = ({
     if (directReports.length === 0) {
       return (
         <EmptyState
-          icon={<Users size={36} />}
+          icon={<UsersThree size={36} />}
           title={getTranslationFromI18nKeyAndLabel(
             'master-data:hr.manager_dashboard.status.no_direct_reports',
             'No direct reports'
@@ -533,9 +535,9 @@ export const MyTeammatesTable = ({
 
         {filteredDirectReports.length === 0 ? (
           <EmptyState
-            icon={<Users size={36} />}
+            icon={<UsersThree size={36} />}
             title="No team members match the current filters"
-            description="Try adjusting search or role filters."
+            description="Try adjusting search or filters."
           />
         ) : (
           <div className="gba:border gba:rounded-lg gba:overflow-hidden">
@@ -687,7 +689,7 @@ export const MyTeammatesTable = ({
         <TabsList className="gba:grid gba:grid-cols-2">
           <TabsTrigger value="my-team" className="gba:flex gba:items-center gba:space-x-2">
             <div className="gba:flex gba:w-full gba:items-center gba:justify-center">
-              <Users size={16} className="gba:mr-0.5" />
+              <UsersThree size={16} className="gba:mr-0.5" />
               <span>
                 {getTranslationFromI18nKeyAndLabel(
                   'master-data:hr.manager_dashboard.my_direct_reports_title',

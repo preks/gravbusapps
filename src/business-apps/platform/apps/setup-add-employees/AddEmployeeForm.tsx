@@ -4,6 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   AlertDescription,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Button,
   Card,
   CardContent,
@@ -18,7 +26,12 @@ import {
 } from '@newwork/nw-design-system'
 import addEmployeesTranslations from './_i18n'
 import { EmployeePasswordFields } from './EmployeePasswordFields'
-import { createBasicEmployeeFlow, resolveUserIdByEmail, setInitialPassword } from './employeeOnboardingApi'
+import {
+  createBasicEmployeeFlow,
+  findUserManagementUserMatchingEmployeeEmail,
+  resolveUserIdByEmail,
+  setInitialPassword
+} from './employeeOnboardingApi'
 import {
   countManagersForOrganizationalUnit,
   fetchOrganizationalUnitsForStructurePage,
@@ -63,6 +76,8 @@ export function AddEmployeeForm({ accessToken, structureId, onSuccess, embedded 
   const [isManager, setIsManager] = useState(false)
 
   const [busy, setBusy] = useState(false)
+  const [checkingExistingUser, setCheckingExistingUser] = useState(false)
+  const [duplicateUserDialogOpen, setDuplicateUserDialogOpen] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -168,6 +183,53 @@ export function AddEmployeeForm({ accessToken, structureId, onSuccess, embedded 
     }
   }, [accessToken, structureId, resetAndFetchDepartments])
 
+  const performCreate = useCallback(async () => {
+    if (!accessToken || !structureId || !organizationalUnitId) return
+    const pwd = password.trim()
+    setBusy(true)
+    try {
+      const { employeeId } = await createBasicEmployeeFlow(accessToken, {
+        structureId,
+        organizationalUnitId,
+        jobPositionName: jobPosition.trim() || 'Employee',
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        assignManagerRole: isManager
+      })
+
+      let pwdInfo = ''
+      if (pwd) {
+        const userId = await resolveUserIdByEmail(accessToken, email.trim())
+        if (userId) {
+          await setInitialPassword(accessToken, userId, pwd)
+          pwdInfo = ` ${t('msg-password-set')}`
+        } else {
+          pwdInfo = ` ${t('msg-password-user-pending')}`
+        }
+      }
+
+      setMessage(`${t('msg-employee-created')} (${employeeId}).${pwdInfo}`)
+      onSuccess?.({ employeeId })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('error-create-failed'))
+    } finally {
+      setBusy(false)
+    }
+  }, [
+    accessToken,
+    email,
+    firstName,
+    isManager,
+    jobPosition,
+    lastName,
+    onSuccess,
+    organizationalUnitId,
+    password,
+    structureId,
+    t
+  ])
+
   const onSubmit = useCallback(async () => {
     setError(null)
     setMessage(null)
@@ -214,50 +276,40 @@ export function AddEmployeeForm({ accessToken, structureId, onSuccess, embedded 
       }
     }
 
-    setBusy(true)
+    setCheckingExistingUser(true)
     try {
-      const { employeeId } = await createBasicEmployeeFlow(accessToken, {
-        structureId,
-        organizationalUnitId,
-        jobPositionName: jobPosition.trim() || 'Employee',
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        email: email.trim(),
-        assignManagerRole: isManager
-      })
-
-      let pwdInfo = ''
-      if (pwd) {
-        const userId = await resolveUserIdByEmail(accessToken, email.trim())
-        if (userId) {
-          await setInitialPassword(accessToken, userId, pwd)
-          pwdInfo = ` ${t('msg-password-set')}`
-        } else {
-          pwdInfo = ` ${t('msg-password-user-pending')}`
-        }
+      const existing = await findUserManagementUserMatchingEmployeeEmail(accessToken, email.trim())
+      if (existing) {
+        setDuplicateUserDialogOpen(true)
+        return
       }
-
-      setMessage(`${t('msg-employee-created')} (${employeeId}).${pwdInfo}`)
-      onSuccess?.({ employeeId })
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('error-create-failed'))
+    } catch {
+      setError(t('error-um-lookup'))
+      return
     } finally {
-      setBusy(false)
+      setCheckingExistingUser(false)
     }
+
+    await performCreate()
   }, [
     accessToken,
+    confirmPassword,
     email,
     firstName,
     isManager,
     jobPosition,
     lastName,
-    onSuccess,
-    confirmPassword,
     organizationalUnitId,
     password,
+    performCreate,
     structureId,
     t
   ])
+
+  const onConfirmDuplicateCreate = useCallback(() => {
+    setDuplicateUserDialogOpen(false)
+    void performCreate()
+  }, [performCreate])
 
   const comboboxOptions = useMemo(() => orgUnits.map(u => ({ value: u.id, label: u.name })), [orgUnits])
 
@@ -411,9 +463,32 @@ export function AddEmployeeForm({ accessToken, structureId, onSuccess, embedded 
             </Alert>
           ) : null}
 
-          <Button type="button" variant="default" onClick={() => void onSubmit()} disabled={busy}>
-            {busy ? t('action-creating') : t('action-create')}
+          <Button
+            type="button"
+            variant="default"
+            onClick={() => void onSubmit()}
+            disabled={busy || checkingExistingUser || duplicateUserDialogOpen}
+          >
+            {busy ? t('action-creating') : checkingExistingUser ? t('action-checking-account') : t('action-create')}
           </Button>
+
+          <AlertDialog open={duplicateUserDialogOpen} onOpenChange={setDuplicateUserDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('dialog-existing-user-title')}</AlertDialogTitle>
+                <AlertDialogDescription className="gba:space-y-2">
+                  <span>{t('dialog-existing-user-body')}</span>
+                  <span className="gba:block gba:font-medium gba:text-foreground">{email.trim()}</span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel type="button">{t('dialog-existing-user-cancel')}</AlertDialogCancel>
+                <AlertDialogAction type="button" onClick={onConfirmDuplicateCreate}>
+                  {t('dialog-existing-user-confirm')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       ) : null}
     </>

@@ -11,15 +11,15 @@ import {
   CollapsibleTrigger
 } from '@newwork/nw-design-system'
 import {
-  Sparkles,
-  RefreshCw,
-  ChevronDown,
-  AlertTriangle,
-  CheckCircle2,
-  Lightbulb,
-  Shield,
-  TrendingUp
-} from 'lucide-react'
+  SparkleIcon as Sparkles,
+  ArrowsClockwiseIcon as RefreshCw,
+  CaretDownIcon as ChevronDown,
+  WarningIcon as AlertTriangle,
+  CheckCircleIcon as CheckCircle2,
+  LightbulbIcon as Lightbulb,
+  ShieldIcon as Shield,
+  TrendUpIcon as TrendingUp
+} from '@phosphor-icons/react'
 import { TeamPerformanceInsightsData } from '../../hooks/useTeamPerformanceInsights'
 
 interface TeamInsightsPanelProps {

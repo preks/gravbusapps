@@ -13,7 +13,8 @@ export enum EntityType {
   LEAD = 'LEAD',
   CONTACT = 'CONTACT',
   ACCOUNT = 'ACCOUNT',
-  OPPORTUNITY = 'OPPORTUNITY'
+  OPPORTUNITY = 'OPPORTUNITY',
+  INVESTMENT = 'INVESTMENT'
 }
 
 // Module types
@@ -35,7 +36,8 @@ export enum IrmFolderCatalogCode {
   LEAD = 'INVESTMENT_LEAD_INIT_FOLDERS',
   CONTACT = 'INVESTMENT_CONTACT_INIT_FOLDERS',
   ACCOUNT = 'INVESTMENT_ACCOUNT_INIT_FOLDERS',
-  OPPORTUNITY = 'INVESTMENT_OPPORTUNITY_INIT_FOLDERS'
+  OPPORTUNITY = 'INVESTMENT_OPPORTUNITY_INIT_FOLDERS',
+  INVESTMENT = 'INVESTMENT_INIT_FOLDERS'
 }
 
 // Catalog identifiers mapping by module and entity
@@ -50,7 +52,8 @@ export const FOLDER_CATALOG_IDENTIFIERS = {
     [EntityType.LEAD]: IrmFolderCatalogCode.LEAD,
     [EntityType.CONTACT]: IrmFolderCatalogCode.CONTACT,
     [EntityType.ACCOUNT]: IrmFolderCatalogCode.ACCOUNT,
-    [EntityType.OPPORTUNITY]: IrmFolderCatalogCode.OPPORTUNITY
+    [EntityType.OPPORTUNITY]: IrmFolderCatalogCode.OPPORTUNITY,
+    [EntityType.INVESTMENT]: IrmFolderCatalogCode.INVESTMENT
   }
 } as const
 

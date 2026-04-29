@@ -81,32 +81,71 @@ export const fetchInvestmentTypeSubSections = async (groupCode: string, accessTo
 }
 
 /**
- * Get hardcoded liquid fund sub-sections
- * Liquid Fund uses special sub-sections based on liquid fund types, not investment types
+ * Fetch liquid fund sub-sections from the `InvestmentLiquidFundType` catalog.
  *
- * @returns SubSection[] Array of liquid fund sub-sections
+ * Each catalog entry becomes its own sub-section (Bank Deposits, Fixed-Term
+ * Deposits, Pension Funds, Money Market Funds, Bonds, Equity, …). This lets
+ * column/filter generation read each section's own `formFields` directly,
+ * keeping the model symmetric with how Real Estate's investment-type
+ * sub-sections work. Adding a new liquid fund type to the catalog
+ * automatically surfaces it here without code changes.
+ *
+ * @param accessToken - User access token
+ * @returns Promise<SubSection[]> Array of liquid fund types as sub-sections
  */
-export const getLiquidFundSubSections = (): SubSection[] => {
-  return [
-    {
-      id: 'bank-deposits',
-      code: 'BANK_DEPOSITE', // Note: catalog has this typo
-      value: 'Bank Deposits',
-      label: 'Bank Deposits'
-    },
-    {
-      id: 'fixed-term-deposits',
-      code: 'FIXED_TERM_DEPOSIT',
-      value: 'Fixed-Term Deposits',
-      label: 'Fixed-Term Deposits'
-    },
-    {
-      id: 'multiple-types',
-      code: 'MONEY_MARKET_FUNDS',
-      value: 'Multiple Types',
-      label: 'Multiple Types'
+export const fetchLiquidFundTypeSubSections = async (accessToken: string): Promise<SubSection[]> => {
+  if (!accessToken) return []
+
+  graphQLClient.setAccessToken(accessToken)
+
+  const query = `
+    query GetLiquidFundTypes {
+      CatalogEntry(
+        where: {
+          catalog: { identifier: { _eq: "InvestmentLiquidFundType" } }
+          isDeleted: { _eq: false }
+        }
+        orderBy: { value: ASC }
+        limit: 50
+      ) {
+        id
+        code
+        value
+        additionalValue1
+      }
     }
-  ]
+  `
+
+  try {
+    const result = await graphQLClient.request(query)
+
+    if (!result?.CatalogEntry) {
+      return []
+    }
+
+    const types: SubSection[] = result.CatalogEntry.map((entry: any) => ({
+      id: entry.code.toLowerCase().replaceAll('_', '-'),
+      code: entry.code,
+      value: entry.value,
+      label: entry.value
+    })).sort((a: any, b: any) => {
+      const orderA = Number.parseInt(
+        result.CatalogEntry.find((e: any) => e.code === a.code)?.additionalValue1 || '0',
+        10
+      )
+      const orderB = Number.parseInt(
+        result.CatalogEntry.find((e: any) => e.code === b.code)?.additionalValue1 || '0',
+        10
+      )
+      if (orderA !== orderB) return orderA - orderB
+      return a.label.localeCompare(b.label)
+    })
+
+    return types
+  } catch (err) {
+    console.error('Error fetching liquid fund type sub-sections:', err)
+    return []
+  }
 }
 
 /**
@@ -128,7 +167,7 @@ export const getSubSectionsForStrategy = async (
       return fetchInvestmentTypeSubSections(groupCode, accessToken)
 
     case 'liquidFundTypes':
-      return getLiquidFundSubSections()
+      return fetchLiquidFundTypeSubSections(accessToken)
 
     case 'none':
       return [

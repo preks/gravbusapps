@@ -248,8 +248,7 @@ export const PPTX_PARITY_MATRIX: ParityCapability[] = [
     category: 'image',
     support: 'approximated',
     notes:
-      'Browsers cannot render metafiles natively. Resolution order: (1) prefer the <asvg:svgBlip> SVG sibling that PowerPoint 2016+ authors alongside the raster fallback, (2) extract an embedded PNG/JPEG/BMP/DIB bitmap from the metafile if present, (3) render the GDI records to SVG via WMFJS/EMFJS (rtf.js, lazy-loaded) for older WMFs and third-party vector content, (4) fall back to a neutral placeholder that preserves the bounding box. Rendered SVGs are displayed but not yet editable as vectors.',
-    parserMessageKey: 'parser-image-metafile-placeholder'
+      'Browsers cannot render metafiles natively. Resolution order: (1) prefer the <asvg:svgBlip> SVG sibling that PowerPoint 2016+ authors alongside the raster fallback, (2) extract an embedded PNG/JPEG/BMP/DIB bitmap from the metafile if present, (3) render the GDI records to SVG via WMFJS/EMFJS (rtf.js, lazy-loaded) for older WMFs and third-party vector content, (4) fall back to a neutral placeholder that preserves the bounding box. Rendered SVGs are displayed but not yet editable as vectors. The import flow does not emit a user-visible warning for the placeholder case.'
   },
   {
     id: 'group-flatten',

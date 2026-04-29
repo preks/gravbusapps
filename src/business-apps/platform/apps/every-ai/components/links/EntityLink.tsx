@@ -15,6 +15,7 @@ import EmployeeLinkChip from './EmployeeLinkChip'
 import SandboxFileLinkChip from './SandboxFileLinkChip'
 import { BaseEntityLinkChip } from './BaseEntityLinkChip'
 import IrmDocumentLinkChip from './IrmDocumentLinkChip'
+import { Navigation, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { SUPPORTED_PROTOCOLS, ENTITY_CONFIG, PROTOCOL_REDIRECTS } from './constants'
 import { parseEntityUrl, decodeUrlFragment } from './utils'
 
@@ -96,7 +97,7 @@ export function resolveEntityLink(link: string): ResolvedEntityLink | null {
     const flowId = embeddedParams.get('flowId') || embeddedParams.get('templateId') || effectiveId
     if (flowId) {
       return {
-        url: `/platform/create/flow-studio?flowId=${encodeURIComponent(flowId)}#flows`,
+        url: `${buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR, { flowId })}#flows`,
         protocol: effectiveProtocol,
         id: flowId,
         alternateId: metadata?.alternateId,

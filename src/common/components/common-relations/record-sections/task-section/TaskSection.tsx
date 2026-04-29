@@ -365,7 +365,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         taskPriorityRef: z.string().min(1, 'Priority is required'),
         taskTiming: z.enum(['DEADLINE', 'SCHEDULED']),
         assignedEmployeeIds: z.array(z.string()).min(1, 'At least one assignee is required'),
-        deadline: z.string().optional(),
+        deadline: z.string().min(1, 'Deadline is required'),
         _pendingFiles: z.array(z.any()).optional()
       }),
     [isApprovalTaskSection]

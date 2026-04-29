@@ -15,9 +15,16 @@ const FOLDER_UPLOAD_CONTEXTS = [FlowContextName.investmentFolderUpload]
 interface InvestmentDocumentsProps {
   investmentId: string
   context: BusinessAppContextProps
+  investmentGroupId?: string
+  investmentGroupCode?: string
 }
 
-const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId, context }) => {
+const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({
+  investmentId,
+  context,
+  investmentGroupId,
+  investmentGroupCode
+}) => {
   // Fetch documents using the generic IRM hook
   const { fetchDocuments } = useGetIrmDocuments('investment', context)
 
@@ -114,6 +121,16 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}
       deleteActionProps={documentDeleteActionProps}
+      aiOrganizeConfig={{
+        moduleType: 'IRM',
+        entityType: 'INVESTMENT',
+        domain: 'investment',
+        investmentTemplate: {
+          catalogType: 'GROUP',
+          entryId: investmentGroupId,
+          entryCode: investmentGroupCode
+        }
+      }}
       toolbarActions={uploadToolbarActions}
       data-testid="investment-document-section"
       accessToken={context.accessToken}

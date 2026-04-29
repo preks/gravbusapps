@@ -2,6 +2,7 @@ export type { Slide, SlideSummary, SlidePermission, SlideStatus } from './slide'
 export type { SlideMaster, SlideLayout, PresentationContentJson } from './slideMaster'
 export type {
   TemplateCategory,
+  BrandIdentity,
   SlideTemplateSummary,
   SlideTemplate,
   CreateTemplateRequest,
@@ -11,6 +12,7 @@ export type {
   SlidePosition,
   SlideCapabilities,
   SlideTemplateMeta,
+  TemplateMeta,
   TemplateHints
 } from './template'
 export type {

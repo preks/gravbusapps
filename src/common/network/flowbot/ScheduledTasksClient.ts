@@ -46,7 +46,7 @@ export interface ScheduledTaskListResponse {
 
 export class ScheduledTasksClient extends RestClient {
   constructor() {
-    // Use environment-aware base URL (localhost → dev → env NEXT_PUBLIC_FLOWBOT_ENDPOINT / NEXT_PUBLIC_BASE_URL)
+    // Driven by NEXT_PUBLIC_FLOWBOT_ENDPOINT (or NEXT_PUBLIC_BASE_URL fallback). See resolveFlowbotBaseUrl.
     const baseUrl = resolveFlowbotBaseUrl()
     super(baseUrl, {})
   }

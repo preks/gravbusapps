@@ -256,7 +256,7 @@ export function useBackofficeExpenseRequestsOverviewData(params: BackofficeExpen
         const responseData = response as ExpenseRequestQueryData
 
         if (responseData?.ExpenseRequest) {
-          setExpenses(responseData.ExpenseRequest.map(item => mapExpenseRequest(item, t)))
+          setExpenses(responseData.ExpenseRequest.map(item => mapExpenseRequest(item)))
         } else {
           setExpenses([])
         }

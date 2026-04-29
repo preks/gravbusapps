@@ -14,7 +14,12 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { Heart, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import {
+  HeartIcon as Heart,
+  ArrowsDownUpIcon as ArrowUpDown,
+  ArrowUpIcon as ArrowUp,
+  ArrowDownIcon as ArrowDown
+} from '@phosphor-icons/react'
 import type { TeamMemberEvaluation } from '../../hooks/useTeamEvaluations'
 import {
   employeeLabel,

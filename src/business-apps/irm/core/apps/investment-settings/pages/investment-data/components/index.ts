@@ -1,3 +1,5 @@
 export { GroupTypeSelector } from './GroupTypeSelector'
 export { ConfigurationNav } from './ConfigurationNav'
 export { ConfigurationContent } from './ConfigurationContent'
+export { ConfigurationScopeSummary } from './ConfigurationScopeSummary'
+export { ConfigurationInfoPopover } from './ConfigurationInfoPopover'

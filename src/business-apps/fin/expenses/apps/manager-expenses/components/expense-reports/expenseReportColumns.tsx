@@ -73,9 +73,10 @@ function createReportEmployeeNameColumn<T extends { id: string; employeeName?: s
     accessorFn: (row: T) => row.employeeName ?? null,
     header,
     ...sortOff,
-    minSize: 120,
-    size: 200,
-    maxSize: 280,
+    /** Kept moderate; `ExpenseDataTable` uses `tableLayout="auto"` on reports so width follows content. */
+    minSize: 100,
+    size: 120,
+    maxSize: 200,
     meta: { className: 'gba:min-w-0' },
     cell: ({ row }) => {
       const name = row.original.employeeName?.trim()
@@ -156,6 +157,14 @@ function createManagerReportStatusColumn<Row extends { id: string; status?: stri
 
 const DEFAULT_CODE_SIZES: CodeColumnSize = { minSize: 100, size: 120, maxSize: 180 }
 
+/** "Submission Date" and similar: extra width so the header does not run under sort/pin controls. */
+const MANAGER_REPORT_SUBMISSION_DATE_SIZES = {
+  minSize: 156,
+  size: 176,
+  maxSize: 260,
+  meta: { className: 'gba:min-w-0' }
+} as const
+
 export function createExpenseReportTableColumns(reportType: ReportType): ColumnDef<ReportItem>[] {
   const formatDate = createReportFormatDate()
   const formatCurrency = createFormatCurrency(null)
@@ -186,14 +195,22 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           size: DEFAULT_CODE_SIZES
         }),
         createReportEmployeeNameColumn<ExpenseItemReport>('employeeName', employeeHeader),
-        createDateColumn<ExpenseItemReport>('date', submissionHeader, 'date', { formatDate, ...sortOff }),
+        createDateColumn<ExpenseItemReport>('date', submissionHeader, 'date', {
+          formatDate,
+          ...sortOff,
+          ...MANAGER_REPORT_SUBMISSION_DATE_SIZES
+        }),
         createCurrencyColumn<ExpenseItemReport>(
           'amount',
           getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
           row => (typeof row.amount === 'number' ? row.amount : 0),
           row => row.currency ?? 'EUR',
           formatCurrency,
-          { ...sortOff, getRowTestId: r => `expense-reports-cell-amount-${r.id}` }
+          {
+            ...sortOff,
+            getRowTestId: r => `expense-reports-cell-amount-${r.id}`,
+            alignAmountHeaderWithTextColumns: true
+          }
         ),
         {
           id: 'category',
@@ -240,8 +257,24 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           getTestId: id => `expense-reports-plan-request-code-${id}`,
           size: { minSize: 100, size: 120 }
         }),
+        createCurrencyColumn<ExpensePlanReport>(
+          'totalAmount',
+          getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_table.total_amount', 'Total amount'),
+          row => (typeof row.totalAmount === 'number' ? row.totalAmount : 0),
+          row => row.currency ?? 'EUR',
+          formatCurrency,
+          {
+            ...sortOff,
+            getRowTestId: r => `expense-reports-plan-total-amount-${r.id}`,
+            alignAmountHeaderWithTextColumns: true
+          }
+        ),
         createReportEmployeeNameColumn<ExpensePlanReport>('employeeName', employeeHeader),
-        createDateColumn<ExpensePlanReport>('createdAt', submissionHeader, 'createdAt', { formatDate, ...sortOff }),
+        createDateColumn<ExpensePlanReport>('createdAt', submissionHeader, 'createdAt', {
+          formatDate,
+          ...sortOff,
+          ...MANAGER_REPORT_SUBMISSION_DATE_SIZES
+        }),
         createManagerReportStatusColumn<ExpensePlanReport>(statusHeader),
         createDateColumn<ExpensePlanReport>(
           'startDate',
@@ -282,7 +315,11 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           size: { minSize: 100, size: 120 }
         }),
         createReportEmployeeNameColumn<ExpenseRequestReport>('employeeName', employeeHeader),
-        createDateColumn<ExpenseRequestReport>('createdAt', submissionHeader, 'createdAt', { formatDate, ...sortOff }),
+        createDateColumn<ExpenseRequestReport>('createdAt', submissionHeader, 'createdAt', {
+          formatDate,
+          ...sortOff,
+          ...MANAGER_REPORT_SUBMISSION_DATE_SIZES
+        }),
         createManagerReportStatusColumn<ExpenseRequestReport>(statusHeader),
         createCurrencyColumn<ExpenseRequestReport>(
           'totalAmount',
@@ -290,7 +327,11 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           row => (typeof row.totalAmount === 'number' ? row.totalAmount : 0),
           row => row.currency ?? 'EUR',
           formatCurrency,
-          { ...sortOff, getRowTestId: r => `expense-reports-cell-totalAmount-${r.id}` }
+          {
+            ...sortOff,
+            getRowTestId: r => `expense-reports-cell-totalAmount-${r.id}`,
+            alignAmountHeaderWithTextColumns: true
+          }
         )
       ])
     case ReportType.ADVANCE_PAYMENT:
@@ -310,7 +351,8 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
         createReportEmployeeNameColumn<AdvancePaymentReport>('employeeName', employeeHeader),
         createDateColumn<AdvancePaymentReport>('requestDate', submissionHeader, 'requestDate', {
           formatDate,
-          ...sortOff
+          ...sortOff,
+          ...MANAGER_REPORT_SUBMISSION_DATE_SIZES
         }),
         createManagerReportStatusColumn<AdvancePaymentReport>(statusHeader),
         createCurrencyColumn<AdvancePaymentReport>(
@@ -319,7 +361,11 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           row => (typeof row.amount === 'number' ? row.amount : 0),
           row => row.currency ?? 'EUR',
           formatCurrency,
-          { ...sortOff, getRowTestId: r => `expense-reports-cell-amount-${r.id}` }
+          {
+            ...sortOff,
+            getRowTestId: r => `expense-reports-cell-amount-${r.id}`,
+            alignAmountHeaderWithTextColumns: true
+          }
         ),
         {
           id: 'paymentMethod',
@@ -397,20 +443,23 @@ export function getExportFieldsForReportType(reportType: ReportType | null): Exp
       ]
       return insertCurrencyAfter(base, 'amount')
     }
-    case ReportType.EXPENSE_PLAN:
-      return [
+    case ReportType.EXPENSE_PLAN: {
+      const base: ExportField[] = [
         { key: 'title', title: t('lowcoder:expense_request_list.expense_plan_table.title', 'Title') },
         { key: 'code', title: t('lowcoder:expense_calculation_rule.expense_table.code', 'Plan Code') },
         {
           key: 'expenseRequestCode',
           title: t('lowcoder:expense_request_list.expense_request_filter.request_number_input', 'Request Code')
         },
+        { key: 'totalAmount', title: t('lowcoder:expense_plan_table.total_amount', 'Total amount') },
         { key: 'employeeName', title: t('lowcoder:hr_absences.create_absence.employee', 'Employee') },
         { key: 'createdAt', title: t('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date') },
         { key: 'status', title: t('lowcoder:expense_request_list.expense_plan_table.status', 'Status') },
         { key: 'startDate', title: t('lowcoder:hr_absences.create_absence.start_date', 'Start Date') },
         { key: 'endDate', title: t('lowcoder:hr_absences.create_absence.end_date', 'End Date') }
       ]
+      return insertCurrencyAfter(base, 'totalAmount')
+    }
     case ReportType.EXPENSE_REQUEST: {
       const base: ExportField[] = [
         { key: 'title', title: t('lowcoder:expense_request_list.expense_plan_table.title', 'Title') },

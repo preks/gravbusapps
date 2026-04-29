@@ -33,7 +33,7 @@ import {
   getExpenseReportSegmentedTabsListClassName
 } from '../../../../common/utils/segmentedExpenseReportTabsClassNames'
 import { useReportFilters, type UseReportFiltersParams } from './useReportFilters'
-import { renderReportTableCell } from './reportTableCells'
+import { isAmountColumnKey, renderReportTableCell } from './reportTableCells'
 import { useSlaKpiValues } from './useSlaKpiValues'
 import translations from '../../_i18n'
 
@@ -220,6 +220,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
           enableSorting: backendSortableColumnKeys.has(col.key),
           header: headerLabel,
           accessorFn: (row: any) => row?.[col.key],
+          ...(isAmountColumnKey(col.key) ? { meta: { className: 'gba:min-w-0' as const } } : {}),
           cell: ({ row }: any) => renderReportTableCell(col.key, row?.original, t)
         }
       }),

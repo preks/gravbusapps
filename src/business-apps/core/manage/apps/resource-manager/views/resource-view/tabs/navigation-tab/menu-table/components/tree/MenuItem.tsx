@@ -1,12 +1,11 @@
 import React, { useState } from 'react'
-import { Button, Input, Badge, Combobox } from '@newwork/nw-design-system'
+import { Button, Combobox } from '@newwork/nw-design-system'
 import { CaretDownIcon, CaretRightIcon, PlusIcon, DotsSixVerticalIcon } from '@phosphor-icons/react'
 import { Trash, RotateCcw } from 'lucide-react'
 import type { MenuItemDTO } from '@/common/data/resources/types/menuItem.types'
 import { TranslatableField } from '@/components/translatable-field/TranslatableField'
 import { IconSelect } from '@/components/icon-select/IconSelect'
 import { formatIconForDB, getIconDBTitle } from '../../../../../../../utils/iconUtils'
-import { getTypeBadgeColor } from '../../utils/menuItemUtils'
 import { DragHandleContext } from './TreeItem'
 import { MenuItemDescriptionDialog } from '../dialogs/MenuItemDescriptionDialog'
 
@@ -16,7 +15,6 @@ export interface MenuItemRowProps {
   isExpanded: boolean
   hasChildren: boolean
   isHub: boolean
-  entityType: 'SPACE' | 'HUB' | 'MENUITEM'
   hasEdits: boolean
   isSaving: boolean
   isDraft: boolean
@@ -25,7 +23,6 @@ export interface MenuItemRowProps {
   displayName: string
   displayIconDB: string
   displayDescription: string
-  displayCode: string
   nameTranslated: Record<string, string>
   descriptionTranslated: Record<string, string>
   displayIconName: string
@@ -36,19 +33,19 @@ export interface MenuItemRowProps {
   handleDiscardEntry: (id: string) => void
   handleDelete: (id: string) => void
   handleDiscard: (id: string) => void
-  editableState: any
+  onFieldEdit: (entryId: string, field: any, value: any) => void
+  comboboxResourceUrlId: string
   resourceUrlOptions: Array<{ value: string; label: string }>
   onResourceUrlSearch: (search: string) => void
   navigationsLoading: boolean
 }
 
-export const MenuItemRow: React.FC<MenuItemRowProps> = ({
+function MenuItemRowInner({
   item,
   depth,
   isExpanded,
   hasChildren,
   isHub,
-  entityType,
   hasEdits,
   isDraft,
   isPendingDelete,
@@ -56,7 +53,6 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
   displayName,
   displayIconDB,
   displayDescription,
-  displayCode,
   nameTranslated,
   descriptionTranslated,
   displayIconName,
@@ -65,18 +61,15 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
   handleQuickAdd,
   handleDelete,
   handleDiscard,
-  editableState,
+  onFieldEdit,
+  comboboxResourceUrlId,
   resourceUrlOptions,
   onResourceUrlSearch,
   navigationsLoading
-}) => {
+}: MenuItemRowProps) {
   const dragListeners = React.useContext(DragHandleContext)
   const itemId = item.id
   const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false)
-
-  const edits = editableState.state.editedEntries.get(itemId)
-  const displayResourceUrlId =
-    (edits?.resourceUrlId as string) ?? item.resourceUrlId ?? (item as any).resourceUrl?.id ?? ''
 
   const currentResourceUrl = (item as any).resourceUrl
   const currentResourceUrlOption = currentResourceUrl
@@ -84,17 +77,17 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
     : null
 
   const mergedResourceUrlOptions = React.useMemo(() => {
-    if (!currentResourceUrlOption || !displayResourceUrlId) return resourceUrlOptions
+    if (!currentResourceUrlOption || !comboboxResourceUrlId) return resourceUrlOptions
 
-    const existsInOptions = resourceUrlOptions.some(opt => opt.value === displayResourceUrlId)
+    const existsInOptions = resourceUrlOptions.some(opt => opt.value === comboboxResourceUrlId)
     if (existsInOptions) return resourceUrlOptions
 
     return [currentResourceUrlOption, ...resourceUrlOptions]
-  }, [currentResourceUrlOption, displayResourceUrlId, resourceUrlOptions])
+  }, [currentResourceUrlOption, comboboxResourceUrlId, resourceUrlOptions])
 
   const handleDescriptionSave = (description: string, translations: Record<string, string>) => {
-    editableState.onFieldEdit(itemId, 'description', description)
-    editableState.onFieldEdit(itemId, 'descriptionTranslated', translations)
+    onFieldEdit(itemId, 'description', description)
+    onFieldEdit(itemId, 'descriptionTranslated', translations)
   }
 
   return (
@@ -134,50 +127,37 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
         <div className="gba:w-6 gba:flex-shrink-0" />
       )}
 
-      <Badge variant={getTypeBadgeColor(entityType)} className="gba:text-xs gba:flex-shrink-0">
-        {(() => {
-          if (entityType === 'SPACE') return 'S'
-          if (entityType === 'HUB') return 'H'
-          return 'M'
-        })()}
-      </Badge>
-
-      <div className="gba:flex-shrink-0" title={getIconDBTitle(displayIconDB)}>
-        <IconSelect
-          value={displayIconName}
-          onValueChange={value => {
-            const dbValue = formatIconForDB(value)
-            editableState.onFieldEdit(itemId, 'icon', dbValue)
-          }}
-          className="gba:h-8 gba:w-8"
-        />
-      </div>
-
-      <Input
-        value={displayCode}
-        onChange={e => editableState.onFieldEdit(itemId, 'code', e.target.value)}
-        placeholder="code"
-        className="gba:w-32 gba:h-8"
-        disabled={isPendingDelete}
-      />
+      {!isHub ? (
+        <div className="gba:flex-shrink-0" title={getIconDBTitle(displayIconDB)}>
+          <IconSelect
+            value={displayIconName}
+            onValueChange={value => {
+              const dbValue = formatIconForDB(value)
+              onFieldEdit(itemId, 'icon', dbValue)
+            }}
+            className="gba:h-8 gba:w-8"
+          />
+        </div>
+      ) : (
+        <div className="gba:w-8 gba:flex-shrink-0" />
+      )}
 
       <div className="gba:flex-[0.6] gba:min-w-[150px]">
         <TranslatableField
           label=""
           value={displayName}
           translations={nameTranslated}
-          onChange={value => editableState.onFieldEdit(itemId, 'name', value)}
-          onTranslationsChange={translations => editableState.onFieldEdit(itemId, 'nameTranslated', translations)}
+          onChange={value => onFieldEdit(itemId, 'name', value)}
+          onTranslationsChange={translations => onFieldEdit(itemId, 'nameTranslated', translations)}
           placeholder="Menu item name"
           className="gba:h-8"
-          disabled={isPendingDelete}
         />
       </div>
 
       <div className="gba:flex-[1.4] gba:min-w-[250px]">
         <Combobox
-          value={displayResourceUrlId || undefined}
-          onValueChange={value => editableState.onFieldEdit(itemId, 'resourceUrlId', value || '')}
+          value={comboboxResourceUrlId || undefined}
+          onValueChange={value => onFieldEdit(itemId, 'resourceUrlId', value ?? '')}
           options={mergedResourceUrlOptions}
           onSearch={onResourceUrlSearch}
           loading={navigationsLoading}
@@ -185,6 +165,7 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
           searchPlaceholder="Search navigations..."
           emptyText="No navigations found"
           className="gba:h-8 gba:w-full gba:truncate"
+          showClearButton
           disabled={isPendingDelete}
         />
       </div>
@@ -265,3 +246,6 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
     </div>
   )
 }
+
+MenuItemRowInner.displayName = 'MenuItemRow'
+export const MenuItemRow = React.memo(MenuItemRowInner)

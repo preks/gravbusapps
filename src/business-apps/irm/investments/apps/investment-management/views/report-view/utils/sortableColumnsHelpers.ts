@@ -10,8 +10,11 @@
 export const BASE_SORTABLE_COLUMNS = [
   { id: 'investment', label: 'Investment' },
   { id: 'date', label: 'Date' },
+  { id: 'investment_initialInvestmentAmount', label: 'Initial Investment Amount' },
   { id: 'totalInvestmentAmount', label: 'Total Investment Amount' },
   { id: 'investmentMarketValue', label: 'Market Value' },
+  { id: 'investment_securityQuantity', label: 'Quantity' },
+  { id: 'investment_timeWeightedPerformance', label: 'Time-Weighted Performance' },
   { id: 'debtFinancingAmount', label: 'Debt Financing' },
   { id: 'requiredCapitalAmount', label: 'Required Capital' },
   { id: 'forecastedRevenueAmount', label: 'Forecasted Revenue' },
@@ -70,7 +73,10 @@ export const REAL_ESTATE_SORTABLE_COLUMNS = [
 export const LIQUID_FUND_SORTABLE_COLUMNS = [
   { id: 'investment', label: 'Investment' },
   { id: 'date', label: 'Date' },
-  { id: 'investment_totalInvestmentAmount', label: 'Total Investment Amount' }
+  { id: 'investment_initialInvestmentAmount', label: 'Initial Investment Amount' },
+  { id: 'investment_totalInvestmentAmount', label: 'Total Investment Amount' },
+  { id: 'investment_securityQuantity', label: 'Quantity' },
+  { id: 'investment_timeWeightedPerformance', label: 'Time-Weighted Performance' }
   // Note: Most liquid fund fields (name, proprietor, bank, currency, etc.) are stored in additionalProperties
   // and cannot be sorted due to JSONB database limitations
 ]

@@ -2,7 +2,6 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Button } from '@newwork/nw-design-system'
 import { SpinnerGapIcon } from '@phosphor-icons/react'
 import { useCallback, useEffect, useState } from 'react'
-import { AgentsScreen } from './components/agents/AgentsScreen'
 import { EveryFabricErrorBoundary } from './components/EveryFabricErrorBoundary'
 import { LandingScreen } from './components/landing/LandingScreen'
 import { ScheduledDispatchesScreen } from './components/scheduled/ScheduledDispatchesScreen'
@@ -71,9 +70,6 @@ const EveryFabricInner: React.FC = () => {
   const handleCloseSettings = () => updateUrl({ view: null })
   const handleOpenScheduled = () => updateUrl({ view: 'scheduled' })
   const handleCloseScheduled = () => updateUrl({ view: null })
-  const handleOpenAgents = () => updateUrl({ view: 'agents' })
-  const handleCloseAgents = () => updateUrl({ view: null })
-
   const handleSelectSession = (id: string) => {
     updateUrl({ view: null })
     selectSession(id)
@@ -92,9 +88,6 @@ const EveryFabricInner: React.FC = () => {
   const showSettings = urlView === 'settings'
   const isScheduledView = displayView === 'scheduled'
   const showScheduled = urlView === 'scheduled'
-  const isAgentsView = displayView === 'agents'
-  const showAgents = urlView === 'agents'
-
   const renderMain = () => {
     if (isLoadingSession && sessionLoadError) {
       return (
@@ -135,28 +128,12 @@ const EveryFabricInner: React.FC = () => {
             showSettings ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
           }`}
         >
-          {isSettingsView && <SettingsScreen accessToken={accessToken} onBack={handleCloseSettings} />}
-        </div>
-
-        <div
-          className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
-            showScheduled ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
-          }`}
-        >
-          {isScheduledView && <ScheduledDispatchesScreen accessToken={accessToken} onBack={handleCloseScheduled} />}
-        </div>
-
-        <div
-          className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
-            showAgents ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
-          }`}
-        >
-          {isAgentsView && (
-            <AgentsScreen
+          {isSettingsView && (
+            <SettingsScreen
               accessToken={accessToken}
-              onBack={handleCloseAgents}
+              onBack={handleCloseSettings}
               onRunTask={agent => {
-                handleCloseAgents()
+                handleCloseSettings()
                 void startSession(`Run task with ${agent.name}: `, {
                   mode: 'deep',
                   enable_memory: true,
@@ -177,7 +154,15 @@ const EveryFabricInner: React.FC = () => {
 
         <div
           className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
-            !showSettings && !showScheduled && !showAgents ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+            showScheduled ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+          }`}
+        >
+          {isScheduledView && <ScheduledDispatchesScreen accessToken={accessToken} onBack={handleCloseScheduled} />}
+        </div>
+
+        <div
+          className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
+            !showSettings && !showScheduled ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
           }`}
         >
           {session ? <WorkspaceLayout /> : <LandingScreen accessToken={accessToken} onStartSession={startSession} />}
@@ -203,7 +188,6 @@ const EveryFabricInner: React.FC = () => {
         onStopSession={handleStopSession}
         onOpenSettings={handleOpenSettings}
         onOpenScheduled={handleOpenScheduled}
-        onOpenAgents={handleOpenAgents}
       />
       <main className="gba:relative gba:flex-1 gba:min-w-0 gba:h-full">{renderMain()}</main>
     </div>

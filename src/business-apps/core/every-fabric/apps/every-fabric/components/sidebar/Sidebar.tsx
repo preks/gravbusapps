@@ -1,4 +1,3 @@
-import { UsersThreeIcon } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import type { ActiveSessionSnapshot } from '../../types/activeSession'
@@ -9,7 +8,6 @@ import { SidebarHeader } from './SidebarHeader'
 import { SidebarNewChatButton } from './SidebarNewChatButton'
 import { SidebarRecentsSection } from './SidebarRecentsSection'
 import { SidebarSearchBar } from './SidebarSearchBar'
-import { SidebarTooltip } from './SidebarTooltip'
 import {
   SIDEBAR_COLLAPSED_WIDTH_CLASS,
   SIDEBAR_EXPANDED_WIDTH_CLASS,
@@ -41,7 +39,6 @@ export interface SidebarProps {
   onStopSession: (id: string) => void
   onOpenSettings: () => void
   onOpenScheduled: () => void
-  onOpenAgents: () => void
 }
 
 /**
@@ -69,8 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDeleteSession,
   onStopSession,
   onOpenSettings,
-  onOpenScheduled,
-  onOpenAgents
+  onOpenScheduled
 }) => {
   const [query, setQuery] = useState('')
 
@@ -115,36 +111,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               emptyHint={query ? 'No sessions match your search.' : undefined}
               forceExpanded={query.trim().length > 0}
             />
-
-            {/* Agents nav item */}
-            <button
-              type="button"
-              onClick={onOpenAgents}
-              className="gba:mx-2 gba:mt-1 gba:flex gba:items-center gba:gap-2.5 gba:rounded-lg gba:px-2.5 gba:py-2 gba:text-[13px] gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-              data-testid="sidebar-agents-nav"
-            >
-              <UsersThreeIcon className="gba:h-4 gba:w-4 gba:shrink-0" />
-              Agents
-            </button>
           </div>
         )}
 
-        {isCollapsed && (
-          <>
-            <div className="gba:flex-1 gba:min-h-0" />
-            <SidebarTooltip disabled={false} label="Agents">
-              <button
-                type="button"
-                onClick={onOpenAgents}
-                className="gba:mx-auto gba:mb-1 gba:inline-flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-                data-testid="sidebar-agents-nav"
-                aria-label="Agents"
-              >
-                <UsersThreeIcon className="gba:h-4 gba:w-4" />
-              </button>
-            </SidebarTooltip>
-          </>
-        )}
+        {isCollapsed && <div className="gba:flex-1 gba:min-h-0" />}
 
         <SidebarFooter
           isCollapsed={isCollapsed}
@@ -152,6 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onOpenSettings={onOpenSettings}
           onOpenScheduled={onOpenScheduled}
         />
+
       </div>
     </aside>
   )

@@ -18,6 +18,7 @@ import { ChatsCircle } from '@phosphor-icons/react'
 import { Button, Spinner } from '@newwork/nw-design-system'
 import { UserPreferencesProvider, useUserPreferencesContext } from './context/UserPreferencesContext'
 import { UserPreferences } from './components/UserPreferences'
+import { printSessionAsPdf } from './utils/printSession'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
@@ -535,6 +536,20 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     window.dispatchEvent(new CustomEvent('chat-history-refresh'))
   }, [clearConversation])
 
+  const handlePrintSession = useCallback(() => {
+    // Close the preferences modal first so its fixed overlay isn't part
+    // of the printed layout, then defer to the next frame so React has
+    // unmounted it before window.print() takes a snapshot.
+    userPreferences.closeModal()
+    requestAnimationFrame(() => {
+      printSessionAsPdf({
+        element: scrollRef.current,
+        sessionId,
+        userDisplayName: userInfo?.employeeDetails?.displayName
+      })
+    })
+  }, [sessionId, userInfo, userPreferences])
+
   const handleSend = (
     text: string,
     files: File[],
@@ -812,7 +827,11 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         />
       )}
       {/* User Preferences Modal */}
-      <UserPreferences darkMode={isEmptyState} />
+      <UserPreferences
+        darkMode={isEmptyState}
+        onPrintSession={handlePrintSession}
+        canPrintSession={conversation.length > 0}
+      />
     </div>
   )
 }

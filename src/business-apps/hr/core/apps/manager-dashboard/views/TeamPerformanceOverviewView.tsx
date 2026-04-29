@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { Button, Badge, Spinner } from '@newwork/nw-design-system'
-import { ChevronLeft } from 'lucide-react'
+import { CaretLeftIcon as ChevronLeft } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TeamScorecard } from '../components/team-performance/TeamScorecard'
 import { TeamInsightsPanel } from '../components/team-performance/TeamInsightsPanel'

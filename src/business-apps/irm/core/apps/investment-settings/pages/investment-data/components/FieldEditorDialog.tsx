@@ -27,6 +27,8 @@ import {
   getAdditionalPropertiesParentPrefixForRequiredSubtype,
   sanitizeCustomAdditionalPropertyKey
 } from '../utils/investmentFormFieldRegistry'
+import { useTranslation } from 'react-i18next'
+import { ConfigurationInfoPopover } from './ConfigurationInfoPopover'
 
 interface FieldEditorDialogProps {
   field: FieldDefinition
@@ -69,6 +71,7 @@ export const FieldEditorDialog: React.FC<FieldEditorDialogProps> = ({
   requiredSubtypeKey,
   isNewField = false
 }) => {
+  const { t } = useTranslation()
   const [formData, setFormData] = useState<FieldDefinition>(field)
   const [additionalKey, setAdditionalKey] = useState(() => parseAdditionalPropertyKey(field.property))
   const [errors, setErrors] = useState<{ label?: string; property?: string; displayOrder?: string }>({})
@@ -350,7 +353,28 @@ export const FieldEditorDialog: React.FC<FieldEditorDialogProps> = ({
               onCheckedChange={v => handleChange('report', v === true ? undefined : false)}
               data-testid={`${prefixDataTestId}-report-checkbox`}
             />
-            <Label htmlFor="report">Include in report layout</Label>
+            <Label htmlFor="report">
+              {t('crm.investment_data.field_dialog.include_in_report_layout', 'Include in report layout')}
+            </Label>
+            <ConfigurationInfoPopover
+              title={t('crm.investment_data.info.report_layout.title', 'Report layout visibility')}
+              description={t(
+                'crm.investment_data.info.report_layout.description',
+                'When enabled, this field is available in investment report forms and report views.'
+              )}
+              items={[
+                t(
+                  'crm.investment_data.info.report_layout.item_disable',
+                  'Disable it when the field should stay in the main investment form but not appear in reports.'
+                ),
+                t(
+                  'crm.investment_data.info.report_layout.item_scope',
+                  'This setting does not control related account, contact, or opportunity records.'
+                )
+              ]}
+              ariaLabel={t('crm.investment_data.info.report_layout.aria', 'Learn about report layout visibility')}
+              prefixDataTestId={`${prefixDataTestId}-report-info`}
+            />
           </div>
 
           <div className="gba:space-y-2">
