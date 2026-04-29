@@ -5,20 +5,11 @@ import { AddToolsModal } from './AddToolsModal'
 import {
   addToolToSkillDraft,
   getToolsFromSkillDraft,
+  hasYamlFrontmatter,
   removeAllToolsFromSkillDraft,
   removeToolFromSkillDraft
 } from '../renderers/skillDraftUtils'
-
-// Matches the opening `---` and the closing `\n---` of a YAML frontmatter
-// block anchored at the start of the document. Mirrors the detection that
-// `skillDraftUtils._getFrontmatterBlock` performs so we can disable the
-// "Add Tool to Skill" affordance for SKILL.md files that would otherwise
-// silently no-op.
-const hasYamlFrontmatter = (draft: string): boolean => {
-  const text = draft.trimStart()
-  if (!text.startsWith('---')) return false
-  return text.indexOf('\n---', 3) !== -1
-}
+import { inferTargetDir, formatFileSize } from './skillFileUtils'
 
 export interface SkillEditorPanelProps {
   accessToken: string
@@ -29,13 +20,6 @@ export interface SkillEditorPanelProps {
   /** Fired when the user wants to leave the editor (used on mobile for a back affordance). */
   onClose?: () => void
   showToast?: (message: string, variant: 'success' | 'error') => void
-}
-
-function inferTargetDir(filename: string): 'scripts' | 'references' | 'assets' {
-  const ext = filename.split('.').pop()?.toLowerCase() ?? ''
-  if (['py', 'sh', 'bash', 'js', 'ts', 'mjs', 'cjs', 'rb', 'pl'].includes(ext)) return 'scripts'
-  if (['md', 'txt', 'pdf', 'doc', 'docx', 'rst', 'csv'].includes(ext)) return 'references'
-  return 'assets'
 }
 
 /**
@@ -293,24 +277,37 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
 
             <div className="gba:shrink-0">
               <label className="gba:block gba:text-xs gba:font-medium gba:mb-1.5">
-                Attached Files
+                Attach files to Skill (optional)
                 {files.length > 0 && (
                   <span className="gba:ml-1.5 gba:text-muted-foreground gba:font-normal">({files.length})</span>
                 )}
               </label>
-              {files.length === 0 ? (
-                <p className="gba:text-[11px] gba:text-muted-foreground">No auxiliary files.</p>
-              ) : (
-                <div className="gba:space-y-1 gba:mb-2 gba:max-h-32 gba:overflow-y-auto">
+              <input
+                ref={addFilesRef}
+                type="file"
+                multiple
+                className="gba:hidden"
+                onChange={e => void handleAddFiles(e)}
+              />
+              <button
+                type="button"
+                onClick={() => addFilesRef.current?.click()}
+                className="gba:w-full gba:rounded-lg gba:border gba:border-dashed gba:border-border gba:bg-muted/20 gba:px-3 gba:py-3 gba:text-xs gba:text-muted-foreground gba:hover:bg-muted/40 gba:transition-colors gba:flex gba:items-center gba:justify-center gba:gap-2"
+              >
+                <Plus className="gba:h-3.5 gba:w-3.5" />
+                Add files (scripts, references, assets)
+              </button>
+              {files.length > 0 && (
+                <div className="gba:mt-2 gba:space-y-1 gba:max-h-32 gba:overflow-y-auto">
                   {files.map(f => (
                     <div
                       key={f.path}
-                      className="gba:flex gba:items-center gba:gap-2 gba:text-[11px] gba:rounded-md gba:border gba:border-border gba:px-2.5 gba:py-1.5"
+                      className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:rounded-md gba:border gba:border-border gba:px-2.5 gba:py-1.5"
                     >
-                      <FileIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
+                      <FileIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:shrink-0" />
                       <span className="gba:flex-1 gba:truncate gba:text-foreground gba:font-mono">{f.path}</span>
-                      <span className="gba:text-muted-foreground gba:shrink-0">
-                        {f.size < 1024 ? `${f.size} B` : `${(f.size / 1024).toFixed(1)} KB`}
+                      <span className="gba:text-muted-foreground gba:shrink-0 gba:text-[11px]">
+                        {formatFileSize(f.size)}
                       </span>
                       <button
                         type="button"
@@ -329,21 +326,6 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
                   ))}
                 </div>
               )}
-              <input
-                ref={addFilesRef}
-                type="file"
-                multiple
-                className="gba:hidden"
-                onChange={e => void handleAddFiles(e)}
-              />
-              <button
-                type="button"
-                className="gba:inline-flex gba:items-center gba:gap-1 gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
-                onClick={() => addFilesRef.current?.click()}
-              >
-                <Plus className="gba:h-3 gba:w-3" />
-                Add files
-              </button>
             </div>
           </>
         )}

@@ -256,13 +256,17 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   )
 
   const saveSkillRaw = useCallback(
-    (skillId: string, body: string) => client.put<{ ok: boolean }>(`/admin/skills/${enc(skillId)}`, { body }),
+    (skillId: string, content: string) =>
+      client.patch<{ skill_id: string; name: string; description: string; content: string }>(
+        `/admin/skills/${enc(skillId)}`,
+        { content }
+      ),
     [client]
   )
 
   const getSkill = useCallback(
     (skillId: string) =>
-      client.get<{ skill_id: string; name: string; description: string; body: string; status: string }>(
+      client.get<{ skill_id: string; name: string; description: string; content: string; status: string }>(
         `/admin/skills/${enc(skillId)}`
       ),
     [client]
@@ -271,18 +275,26 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   const deleteSkill = useCallback((skillId: string) => client.delete(`/admin/skills/${enc(skillId)}`), [client])
 
   const uploadSkillFiles = useCallback(
-    async (skillId: string, files: File[]): Promise<void> => {
+    async (skillId: string, files: File[]) => {
+      const results: { path: string; mime_type: string; size: number }[] = []
       for (const f of files) {
         const fd = new FormData()
         fd.append('file', f)
-        await client.post(`/admin/skills/${enc(skillId)}/files/upload`, fd)
+        const res = await client.post<{ path: string; size: number }>(
+          `/admin/skills/${enc(skillId)}/files/upload`,
+          fd,
+          { params: { path: f.name } }
+        )
+        results.push({ path: res.path, mime_type: f.type || 'application/octet-stream', size: res.size })
       }
+      return results
     },
     [client]
   )
 
   const listSkillFiles = useCallback(
-    (skillId: string) => client.get<{ filename: string; size: number }[]>(`/admin/skills/${enc(skillId)}/files`),
+    (skillId: string) =>
+      client.get<{ path: string; mime_type: string; size: number }[]>(`/admin/skills/${enc(skillId)}/files`),
     [client]
   )
 

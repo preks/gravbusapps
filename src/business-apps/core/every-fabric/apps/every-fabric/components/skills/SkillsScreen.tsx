@@ -1,9 +1,11 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { ArrowLeftIcon, XIcon } from '@phosphor-icons/react'
-import { useFabric } from '../../context/FabricContext'
-import { BrowseSkillsView, type BrowseSkillManifestEntry } from './BrowseSkillsView'
+import { BrowseSkillsView } from './BrowseSkillsView'
+import { CreateSkillPanel } from './CreateSkillPanel'
 import { SkillEditorPanel } from './SkillEditorPanel'
+import { SkillToast } from './SkillToast'
+import { useSkillToast } from './useSkillToast'
 
 interface SkillsScreenProps {
   accessToken: string
@@ -16,40 +18,29 @@ interface SkillsScreenProps {
  * affordance.
  *
  * Layout is a master-detail split: a narrow single-column list on the left and a persistent
- * SKILL.md editor panel on the right. Clicking a row selects it for editing; clicking the
- * row's "Use skill" button attaches the skill to the composer (existing behavior).
- *
- * Picking "Use skill" attaches the skill to the landing composer (as a removable chip, same
- * look/behavior as the built-in skill-creator chip) and returns to the base
- * `/platform/every-fabric` URL. No verbose opener text is injected — the chip is the signal;
- * the user types their real prompt themselves.
+ * SKILL.md editor panel on the right. Clicking a row selects it for editing.
  */
 export const SkillsScreen: React.FC<SkillsScreenProps> = ({ accessToken, onBack }) => {
-  const { setPendingPrefill, newSession, attachedSkillIds } = useFabric()
-
-  const attachedSet = useMemo(() => new Set(attachedSkillIds), [attachedSkillIds])
+  const { toast, showToast, dismissToast } = useSkillToast()
 
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
+  const [creatingNew, setCreatingNew] = useState(false)
   /** Bumped after a successful save so BrowseSkillsView re-fetches its manifest in the background. */
   const [manifestVersion, setManifestVersion] = useState(0)
 
-  const handleSelectSkill = useCallback(
-    (skill: BrowseSkillManifestEntry) => {
-      // Empty opener keeps the composer clean; the "Skill added: <Humanized>" chip inside
-      // FabricInput (driven by `preload_skill_ids`) is the visual confirmation. Mirrors the
-      // skill-creator flow where SKILL_CREATOR_AGENT_OPENER === ''.
-      setPendingPrefill({
-        text: '',
-        config: { preload_skill_ids: [skill.skill_id] }
-      })
-      // Ensure we land on the LandingScreen composer (no active session) when returning.
-      newSession()
-      onBack()
-    },
-    [setPendingPrefill, newSession, onBack]
-  )
+  const handleCreateSkill = useCallback(() => {
+    setSelectedSkillId(null)
+    setCreatingNew(true)
+  }, [])
+
+  const handleSkillCreated = useCallback((skillId: string) => {
+    setCreatingNew(false)
+    setSelectedSkillId(skillId)
+    setManifestVersion(v => v + 1)
+  }, [])
 
   const handleEditSkill = useCallback((skillId: string) => {
+    setCreatingNew(false)
     setSelectedSkillId(prev => (prev === skillId ? prev : skillId))
   }, [])
 
@@ -110,8 +101,8 @@ export const SkillsScreen: React.FC<SkillsScreenProps> = ({ accessToken, onBack 
             <div className="gba:px-4 sm:gba:px-6 gba:py-5 sm:gba:py-6">
               <BrowseSkillsView
                 accessToken={accessToken}
-                onSelectSkill={handleSelectSkill}
-                attachedSkillIds={attachedSet}
+                showToast={showToast}
+                onCreateSkill={handleCreateSkill}
                 selectedSkillId={selectedSkillId}
                 onEditSkill={handleEditSkill}
                 manifestVersion={manifestVersion}
@@ -120,15 +111,27 @@ export const SkillsScreen: React.FC<SkillsScreenProps> = ({ accessToken, onBack 
           </aside>
 
           <section className="gba:flex-1 gba:min-w-0 gba:overflow-y-auto" data-testid="skills-editor-column">
-            <SkillEditorPanel
-              accessToken={accessToken}
-              skillId={selectedSkillId}
-              onSaved={handleSaved}
-              onClose={handleCloseEditor}
-            />
+            {creatingNew ? (
+              <CreateSkillPanel
+                accessToken={accessToken}
+                onClose={() => setCreatingNew(false)}
+                onCreated={handleSkillCreated}
+                showToast={showToast}
+              />
+            ) : (
+              <SkillEditorPanel
+                accessToken={accessToken}
+                skillId={selectedSkillId}
+                onSaved={handleSaved}
+                onClose={handleCloseEditor}
+                showToast={showToast}
+              />
+            )}
           </section>
         </div>
       </div>
+
+      {toast && <SkillToast toast={toast} onDismiss={dismissToast} />}
     </div>
   )
 }

@@ -618,6 +618,13 @@ export function buildEvalFeedbackReply(
 // YAML frontmatter tools: list utilities
 // ---------------------------------------------------------------------------
 
+/** Returns true when the draft contains a valid YAML frontmatter block (opening and closing ---). */
+export function hasYamlFrontmatter(draft: string): boolean {
+  const text = draft.trimStart()
+  if (!text.startsWith('---')) return false
+  return text.indexOf('\n---', 3) !== -1
+}
+
 /** Extracts the YAML frontmatter block (content between the first pair of ---). Returns null if not found. */
 function _getFrontmatterBlock(draft: string): { before: string; fm: string; after: string } | null {
   const text = draft.trimStart()

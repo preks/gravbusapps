@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Check,
   File as FileIcon,
   Folder,
   MagnifyingGlass,
+  NotePencil,
   Plus,
   Trash,
   UploadSimple,
   Wrench
 } from '@phosphor-icons/react'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
+import { inferTargetDir, formatFileSize } from './skillFileUtils'
 
 export type BrowseSkillManifestEntry = {
   skill_id: string
@@ -22,21 +23,14 @@ export type BrowseSkillManifestEntry = {
 
 export interface BrowseSkillsViewProps {
   accessToken: string
-  /** When provided, each row shows a "Use skill" action (used by the landing flow). */
-  onSelectSkill?: (skill: BrowseSkillManifestEntry) => void
   showToast?: (message: string, variant: 'success' | 'error') => void
   /**
-   * Skill ids already attached to the landing composer. When a row's id is in this set,
-   * the "Use skill" action renders as a disabled "Added" chip instead — prevents the user
-   * from stacking the same skill twice and gives clear visual confirmation.
-   */
-  attachedSkillIds?: Set<string>
-  /**
    * When provided, clicking the row body fires `onEditSkill(skill_id)` so a parent can open
-   * a SKILL.md editor panel beside the list. Independent from `onSelectSkill` — clicking
-   * "Use skill" still only attaches; clicking elsewhere on the row selects for editing.
+   * a SKILL.md editor panel beside the list.
    */
   onEditSkill?: (skillId: string) => void
+  /** Fires when the user clicks "Create Skill" so the parent can show the creation panel. */
+  onCreateSkill?: () => void
   /** Currently selected/edited skill id — renders a visual highlight on the matching row. */
   selectedSkillId?: string | null
   /**
@@ -47,26 +41,18 @@ export interface BrowseSkillsViewProps {
   manifestVersion?: number
 }
 
-function inferTargetDir(filename: string): 'scripts' | 'references' | 'assets' {
-  const ext = filename.split('.').pop()?.toLowerCase() ?? ''
-  if (['py', 'sh', 'bash', 'js', 'ts', 'mjs', 'cjs', 'rb', 'pl'].includes(ext)) return 'scripts'
-  if (['md', 'txt', 'pdf', 'doc', 'docx', 'rst', 'csv'].includes(ext)) return 'references'
-  return 'assets'
-}
-
 /**
  * Stand-alone, page-friendly narrow list of the skills manifest.
  *
  * Renders a single-column list of skill rows. Each row shows name, id, description, and
- * tool chips; a footer holds the Files/Export/Delete affordances plus an optional
- * "Use skill" button. When `onEditSkill` is provided the row body becomes a clickable
- * region that selects the skill for editing in a parent-rendered editor panel.
+ * tool chips; a footer holds the Files/Export/Delete affordances. When `onEditSkill`
+ * is provided the row body becomes a clickable region that selects the skill for
+ * editing in a parent-rendered editor panel.
  */
 export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
   accessToken,
-  onSelectSkill,
   showToast,
-  attachedSkillIds,
+  onCreateSkill,
   onEditSkill,
   selectedSkillId,
   manifestVersion
@@ -82,6 +68,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
   const [skillFilesLoading, setSkillFilesLoading] = useState(false)
   const [deletingFilePath, setDeletingFilePath] = useState<string | null>(null)
   const browseAddFilesRef = useRef<HTMLInputElement>(null)
+  const uploadSkillRef = useRef<HTMLInputElement>(null)
 
   /** After first successful manifest fetch, subsequent mounts use stale-while-revalidate (no blocking spinner). */
   const hasFetchedManifestRef = useRef(false)
@@ -253,8 +240,57 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
     [client, showToast]
   )
 
+  const handleUploadSkill = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      e.target.value = ''
+      if (!file) return
+      if (!file.name.endsWith('.md') && !file.name.endsWith('.markdown')) {
+        showToast?.('Only .md / .markdown files are supported.', 'error')
+        return
+      }
+      try {
+        await client.uploadSkillFile(file)
+        showToast?.(`Skill uploaded from "${file.name}".`, 'success')
+        void loadManifest({ background: true })
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err)
+        showToast?.(`Upload failed: ${msg}`, 'error')
+      }
+    },
+    [client, showToast, loadManifest]
+  )
+
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="browse-skills-view">
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <button
+          type="button"
+          onClick={() => uploadSkillRef.current?.click()}
+          className="gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:font-medium gba:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+          data-testid="upload-skill-button"
+        >
+          <UploadSimple className="gba:h-4 gba:w-4" />
+          Upload Skill
+        </button>
+        <button
+          type="button"
+          onClick={() => onCreateSkill?.()}
+          className="gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:font-medium gba:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+          data-testid="create-skill-button"
+        >
+          <NotePencil className="gba:h-4 gba:w-4" />
+          Create Skill
+        </button>
+        <input
+          ref={uploadSkillRef}
+          type="file"
+          accept=".md,.markdown"
+          className="gba:hidden"
+          onChange={handleUploadSkill}
+        />
+      </div>
+
       <div className="gba:relative">
         <MagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
         <input
@@ -419,28 +455,6 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                       </>
                     )}
                   </div>
-                  {onSelectSkill &&
-                    (attachedSkillIds?.has(s.skill_id) ? (
-                      <button
-                        type="button"
-                        disabled
-                        className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2.5 gba:py-1 gba:rounded-md gba:bg-muted gba:text-muted-foreground gba:text-xs gba:font-medium gba:cursor-not-allowed"
-                        data-testid={`browse-skills-added-${s.skill_id}`}
-                        aria-label={`${s.name || s.skill_id} already added`}
-                      >
-                        <Check className="gba:h-3 gba:w-3" />
-                        Added
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2.5 gba:py-1 gba:rounded-md gba:bg-primary gba:text-primary-foreground gba:text-xs gba:font-medium gba:hover:bg-primary/90 gba:transition-colors"
-                        data-testid={`browse-skills-use-${s.skill_id}`}
-                        onClick={() => onSelectSkill(s)}
-                      >
-                        Use skill
-                      </button>
-                    ))}
                 </div>
 
                 {expandedSkillId === s.skill_id && (
@@ -455,9 +469,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                           <div key={f.path} className="gba:flex gba:items-center gba:gap-2 gba:text-[11px]">
                             <FileIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
                             <span className="gba:flex-1 gba:truncate gba:text-foreground gba:font-mono">{f.path}</span>
-                            <span className="gba:text-muted-foreground gba:shrink-0">
-                              {f.size < 1024 ? `${f.size} B` : `${(f.size / 1024).toFixed(1)} KB`}
-                            </span>
+                            <span className="gba:text-muted-foreground gba:shrink-0">{formatFileSize(f.size)}</span>
                             <button
                               type="button"
                               className="gba:p-0.5 gba:rounded gba:text-muted-foreground gba:hover:text-destructive gba:shrink-0"
