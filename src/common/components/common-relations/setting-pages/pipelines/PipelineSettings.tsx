@@ -1,20 +1,6 @@
 import React, { useState } from 'react'
-import {
-  PageLayout,
-  Spinner,
-  Alert,
-  Button,
-  Card,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  Badge
-} from '@newwork/nw-design-system'
-import { Plus, Edit, Eye, Trash2 } from 'lucide-react'
-import { FlowArrowIcon } from '@phosphor-icons/react'
+import { PageLayout, Spinner, Alert, Button, Card, Badge } from '@newwork/nw-design-system'
+import { EyeIcon, FlowArrowIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePipelineSettings } from './hooks/usePipelineSettings'
 import { PipelineStagesModal } from './components'
@@ -22,6 +8,8 @@ import PipelineForm from './components/PipelineForm'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { usePipelineUsageCheck } from './hooks/usePipelineUsageCheck'
 import { getPipelineUsageCheckSource } from './utils/catalogConfig'
+import { DeleteConfirmationDialog } from '../components/DeleteConfirmationDialog'
+import type { DeleteAvailability } from '../types/catalogTypes'
 
 export interface EnhancedPipeline {
   id: string
@@ -79,11 +67,10 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
   const [isStagesModalOpen, setIsStagesModalOpen] = useState(false)
   const [editingPipeline, setEditingPipeline] = useState<EnhancedPipeline | null>(null)
   const [selectedPipeline, setSelectedPipeline] = useState<EnhancedPipeline | null>(null)
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [pipelineToDelete, setPipelineToDelete] = useState<EnhancedPipeline | null>(null)
   const [operationLoading, setOperationLoading] = useState(false)
-  const [isCannotDeleteDialogOpen, setIsCannotDeleteDialogOpen] = useState(false)
-  const [pipelineCannotDelete, setPipelineCannotDelete] = useState<EnhancedPipeline | null>(null)
+  const [deleteAvailability, setDeleteAvailability] = useState<DeleteAvailability | undefined>()
+  const [isCheckingDeleteAvailability, setIsCheckingDeleteAvailability] = useState(false)
 
   const { pipelines, refetch } = usePipelineSettings({ accessToken }, catalogConfig)
   const catalogClient = useCatalogManagerClient(accessToken)
@@ -112,26 +99,31 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
   }
 
   const handleDeletePipeline = async (pipeline: EnhancedPipeline) => {
-    // Check usage before proceeding
+    setPipelineToDelete(pipeline)
+    setDeleteAvailability(undefined)
+    setIsCheckingDeleteAvailability(true)
+
     const usage = await checkPipelineUsage(pipeline.id)
 
     if (usage.isInUse) {
-      // Pipeline is in use - show "cannot delete" dialog
-      setPipelineCannotDelete({
-        ...pipeline,
-        isInUse: true,
-        totalOpportunityCount: usage.totalCount
+      setDeleteAvailability({
+        status: 'blocked',
+        reason: usage.verificationFailed
+          ? 'Unable to verify whether this pipeline can be deleted.'
+          : 'Pipeline is currently in use.',
+        usages: usage.verificationFailed
+          ? undefined
+          : [{ label: 'opportunities are using this pipeline', count: usage.totalCount }]
       })
-      setIsCannotDeleteDialogOpen(true)
     } else {
-      // Pipeline is NOT in use - show delete confirmation
-      setPipelineToDelete(pipeline)
-      setIsDeleteConfirmOpen(true)
+      setDeleteAvailability({ status: 'allowed' })
     }
+
+    setIsCheckingDeleteAvailability(false)
   }
 
   const confirmDeletePipeline = async () => {
-    if (!pipelineToDelete) return
+    if (!pipelineToDelete || deleteAvailability?.status === 'blocked') return
 
     try {
       setOperationLoading(true)
@@ -201,9 +193,8 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
         pipelineToDelete.id
       )
 
-      setIsDeleteConfirmOpen(false)
-      setPipelineToDelete(null)
       await refetch()
+      handleCancelDeletePipeline()
     } catch (err) {
       console.error('Error deleting pipeline:', err)
     } finally {
@@ -211,30 +202,37 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
     }
   }
 
+  const handleCancelDeletePipeline = () => {
+    if (operationLoading) return
+    setPipelineToDelete(null)
+    setDeleteAvailability(undefined)
+    setIsCheckingDeleteAvailability(false)
+  }
+
   const renderPipelineCard = (pipeline: EnhancedPipeline) => (
     <Card
       key={pipeline.id}
-      className="gba:relative gba:group gba:border-2 gba:border-border gba:hover:border-primary gba:transition-all gba:duration-200"
+      className="gba:relative gba:group gba:border gba:border-border gba:transition-all gba:duration-200 gba:hover:border-primary/40 gba:hover:shadow-sm"
       data-testid={`${prefixDataTestId}-pipeline-card-${pipeline.id}`}
     >
       {/* Action buttons in top right */}
-      <div className="gba:absolute gba:top-2 gba:right-2 gba:flex gba:gap-1 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
+      <div className="gba:absolute gba:top-2 gba:right-2 gba:flex gba:gap-1 gba:z-10">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => handleEditPipeline(pipeline)}
           data-testid={`${prefixDataTestId}-edit-pipeline-${pipeline.id}`}
         >
-          <Edit />
+          <PencilSimpleIcon />
         </Button>
         <Button
           variant="ghost"
           size="icon"
           onClick={() => handleDeletePipeline(pipeline)}
-          className="gba:text-destructive gba:hover:text-destructive"
+          className="gba:text-destructive hover:gba:text-destructive"
           data-testid={`${prefixDataTestId}-delete-pipeline-${pipeline.id}`}
         >
-          <Trash2 />
+          <TrashIcon />
         </Button>
       </div>
 
@@ -256,12 +254,9 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
         {/* Statistics */}
         <div className="gba:space-y-2 gba:mb-4">
           <div className="gba:flex gba:items-center gba:justify-between gba:bg-muted gba:rounded-lg gba:p-2">
-            <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-2 gba:h-2 gba:bg-primary gba:rounded-full"></div>
-              <span className="gba:text-xs gba:text-muted-foreground">Stages</span>
-            </div>
+            <span className="gba:text-xs gba:text-muted-foreground">Stages</span>
             <span
-              className="gba:text-sm gba:font-semibold gba:text-primary"
+              className="gba:text-sm gba:font-semibold gba:text-foreground"
               data-testid={`${prefixDataTestId}-pipeline-stage-count-${pipeline.id}`}
             >
               {pipeline.stageCount}
@@ -269,12 +264,9 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
           </div>
 
           <div className="gba:flex gba:items-center gba:justify-between gba:bg-muted gba:rounded-lg gba:p-2">
-            <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-2 gba:h-2 gba:bg-warning gba:rounded-full"></div>
-              <span className="gba:text-xs gba:text-muted-foreground">Conditions</span>
-            </div>
+            <span className="gba:text-xs gba:text-muted-foreground">Conditions</span>
             <span
-              className="gba:text-sm gba:font-semibold gba:text-warning"
+              className="gba:text-sm gba:font-semibold gba:text-foreground"
               data-testid={`${prefixDataTestId}-pipeline-condition-count-${pipeline.id}`}
             >
               {pipeline.conditionCount}
@@ -290,7 +282,7 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
             className="gba:w-full"
             data-testid={`${prefixDataTestId}-view-stages-${pipeline.id}`}
           >
-            <Eye className="gba:w-4 gba:h-4 gba:mr-2" />
+            <EyeIcon className="gba:w-4 gba:h-4 gba:mr-2" />
             View Stages
           </Button>
         </div>
@@ -358,7 +350,7 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
         {/* Add Pipeline Button */}
         <div className="gba:flex gba:justify-end">
           <Button onClick={handleCreatePipeline} data-testid={`${prefixDataTestId}-add-pipeline-button`}>
-            <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+            <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
             Add Pipeline
           </Button>
         </div>
@@ -372,7 +364,7 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
                 Create your first pipeline to get started
               </p>
               <Button onClick={handleCreatePipeline} data-testid={`${prefixDataTestId}-create-first-pipeline-button`}>
-                <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+                <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                 Create First Pipeline
               </Button>
             </div>
@@ -417,96 +409,31 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
         />
       )}
 
-      {/* Delete Confirmation Dialog - Only shown when NOT in use */}
-      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Pipeline</DialogTitle>
-            <DialogDescription>Are you sure you want to delete "{pipelineToDelete?.value}"?</DialogDescription>
-          </DialogHeader>
-          <div className="gba:space-y-4">
-            <div className="gba:p-3 gba:bg-success-secondary gba:rounded-lg gba:border gba:border-success">
-              <span className="gba:block gba:text-success-secondary-foreground gba:font-semibold">
-                ✓ Pipeline is not currently in use
-              </span>
-              <span className="gba:block gba:mt-1 gba:text-success-secondary-foreground gba:text-sm">
-                This pipeline can be safely deleted.
-              </span>
-            </div>
-            <div>
-              <span className="gba:block gba:text-warning gba:font-semibold gba:mb-2">
-                This will permanently delete:
-              </span>
-              <ul className="gba:list-disc gba:list-inside gba:space-y-1 gba:text-sm">
-                <li>The pipeline itself</li>
-                <li>All {pipelineToDelete?.stageCount || 0} stages</li>
-                <li>All {pipelineToDelete?.conditionCount || 0} stage conditions</li>
-              </ul>
-              <span className="gba:block gba:mt-2 gba:text-destructive gba:font-semibold">
-                This action cannot be undone.
-              </span>
-            </div>
+      <DeleteConfirmationDialog
+        open={!!pipelineToDelete}
+        itemName={pipelineToDelete?.value || ''}
+        itemType="Pipeline"
+        availability={deleteAvailability}
+        isChecking={isCheckingDeleteAvailability}
+        isDeleting={operationLoading}
+        blockedDescription={`The pipeline "${pipelineToDelete?.value || ''}" cannot be deleted because it is currently in use.`}
+        confirmDetails={
+          <div>
+            <span className="gba:block gba:text-foreground gba:font-medium gba:mb-2">This will delete:</span>
+            <ul className="gba:list-disc gba:list-inside gba:space-y-1 gba:text-sm">
+              <li>The pipeline itself</li>
+              <li>All {pipelineToDelete?.stageCount || 0} stages</li>
+              <li>All {pipelineToDelete?.conditionCount || 0} stage conditions</li>
+            </ul>
+            <span className="gba:block gba:mt-2 gba:text-destructive gba:font-semibold">
+              This action cannot be undone.
+            </span>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsDeleteConfirmOpen(false)
-                setPipelineToDelete(null)
-              }}
-              disabled={operationLoading}
-              data-testid={`${prefixDataTestId}-delete-cancel-button`}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDeletePipeline}
-              disabled={operationLoading}
-              data-testid={`${prefixDataTestId}-delete-confirm-button`}
-            >
-              {operationLoading ? 'Deleting...' : 'Delete Pipeline'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Cannot Delete Dialog - Shown when pipeline is in use */}
-      <Dialog open={isCannotDeleteDialogOpen} onOpenChange={setIsCannotDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cannot Delete Pipeline</DialogTitle>
-            <DialogDescription>
-              The pipeline "{pipelineCannotDelete?.value}" cannot be deleted because it is currently in use.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="gba:space-y-4">
-            <div className="gba:p-3 gba:bg-destructive-secondary gba:rounded-lg gba:border gba:border-destructive">
-              <span className="gba:block gba:text-destructive-secondary-foreground gba:font-semibold gba:mb-2">
-                ⚠️ Pipeline is Currently in Use
-              </span>
-              <ul className="gba:list-disc gba:list-inside gba:space-y-1 gba:text-sm gba:text-destructive-secondary-foreground">
-                <li>{pipelineCannotDelete?.totalOpportunityCount || 0} opportunities are using this pipeline</li>
-              </ul>
-              <span className="gba:block gba:mt-2 gba:text-destructive-secondary-foreground gba:text-sm">
-                To delete this pipeline, you must first move or delete all opportunities that reference it.
-              </span>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="default"
-              onClick={() => {
-                setIsCannotDeleteDialogOpen(false)
-                setPipelineCannotDelete(null)
-              }}
-              data-testid={`${prefixDataTestId}-cannot-delete-confirm-button`}
-            >
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        }
+        onCancel={handleCancelDeletePipeline}
+        onConfirm={confirmDeletePipeline}
+        dataTestId={`${prefixDataTestId}-delete-dialog`}
+      />
     </>
   )
 

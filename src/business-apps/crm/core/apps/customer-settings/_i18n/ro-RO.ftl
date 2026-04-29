@@ -30,9 +30,7 @@ icp-dialog-new-profile-title = Profil nou
 icp-dialog-new-profile-description = Creează un nou profil pentru criterii ICP și scorizarea leadurilor.
 icp-cancel = Anulare
 icp-create-profile = Creează
-icp-delete-confirm-title = Ștergeți profilul?
 icp-delete-confirm-message = „{ $name }” va fi eliminat definitiv.
-icp-delete-action = Șterge
 
 # Criteria form
 icp-criteria-heading = Criterii

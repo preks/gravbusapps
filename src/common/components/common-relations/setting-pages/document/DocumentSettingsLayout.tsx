@@ -20,12 +20,13 @@ import {
   Card,
   Label
 } from '@newwork/nw-design-system'
-import { FileTextIcon, FolderIcon } from '@phosphor-icons/react'
-import { Plus, Edit, Trash2 } from 'lucide-react'
+import { FileTextIcon, FolderIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { useCatalogSettings } from '../hooks/useCatalogSettings'
-import type { CatalogItem } from '../types/catalogTypes'
+import { getCatalogUsageCheckSpecs, useCatalogDeleteAvailability } from '../hooks/useCatalogDeleteAvailability'
+import { type CatalogItem, type DeleteAvailability } from '../types/catalogTypes'
+import { DeleteConfirmationDialog } from '../components/DeleteConfirmationDialog'
 
 export interface DocumentSettingsConfig {
   groupCatalog: string
@@ -70,12 +71,32 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
     ? groups.items.filter(g => g.parentEntryId === parentFilterId)
     : groups.items
 
+  const getDeleteItemType = (mode: 'group' | 'type') =>
+    mode === 'group'
+      ? config.groupLabel?.replace(/s$/, '') || 'Document Group'
+      : config.typeLabel?.replace(/s$/, '') || 'Document Type'
+
+  const getGroupDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    getDeleteItemType('group'),
+    getCatalogUsageCheckSpecs(config.groupCatalog)
+  )
+  const getTypeDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    getDeleteItemType('type'),
+    getCatalogUsageCheckSpecs(config.typeCatalog)
+  )
+
   const [selectedGroup, setSelectedGroup] = useState<CatalogItem | null>(null)
   const [groupSearchTerm, setGroupSearchTerm] = useState('')
   const [typeSearchTerm, setTypeSearchTerm] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<CatalogItem | null>(null)
   const [dialogMode, setDialogMode] = useState<'group' | 'type'>('group')
+  const [deleteTarget, setDeleteTarget] = useState<{ mode: 'group' | 'type'; item: CatalogItem } | null>(null)
+  const [deleteAvailability, setDeleteAvailability] = useState<DeleteAvailability | undefined>()
+  const [isCheckingDeleteAvailability, setIsCheckingDeleteAvailability] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [formData, setFormData] = useState<{
     code: string
     value: string
@@ -158,12 +179,43 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
     }
   }
 
-  const handleDelete = async (mode: 'group' | 'type', id: string) => {
-    const handlers = mode === 'group' ? groups : types
+  const handleDeleteRequest = async (mode: 'group' | 'type', item: CatalogItem) => {
+    setDeleteTarget({ mode, item })
+    setDeleteAvailability(undefined)
+    setIsCheckingDeleteAvailability(true)
+
     try {
-      await handlers.onDelete(id)
+      const getDeleteAvailability = mode === 'group' ? getGroupDeleteAvailability : getTypeDeleteAvailability
+      setDeleteAvailability(await getDeleteAvailability(item))
+    } catch (error) {
+      console.error('Failed to check delete availability:', error)
+      setDeleteAvailability({
+        status: 'blocked',
+        reason: `Unable to verify whether this ${getDeleteItemType(mode).toLowerCase()} can be deleted.`
+      })
+    } finally {
+      setIsCheckingDeleteAvailability(false)
+    }
+  }
+
+  const handleCancelDelete = () => {
+    if (isDeleting) return
+    setDeleteTarget(null)
+    setDeleteAvailability(undefined)
+    setIsCheckingDeleteAvailability(false)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget || deleteAvailability?.status === 'blocked') return
+    const handlers = deleteTarget.mode === 'group' ? groups : types
+    try {
+      setIsDeleting(true)
+      await handlers.onDelete(deleteTarget.item.id)
+      handleCancelDelete()
     } catch (error) {
       console.error('Failed to delete:', error)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -244,15 +296,15 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
                         onClick={() => handleOpenDialog('type', item)}
                         data-testid={`${config.dataTestIdPrefix}-${DATA_TEST_ID}-type-edit-${item.code}`}
                       >
-                        <Edit className="gba:w-4 gba:h-4" />
+                        <PencilSimpleIcon className="gba:w-4 gba:h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete('type', item.id)}
+                        onClick={() => handleDeleteRequest('type', item)}
                         data-testid={`${config.dataTestIdPrefix}-${DATA_TEST_ID}-type-delete-${item.code}`}
                       >
-                        <Trash2 className="gba:w-4 gba:h-4" />
+                        <TrashIcon className="gba:w-4 gba:h-4" />
                       </Button>
                     </div>
                   </TableCell>
@@ -315,7 +367,7 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
                 onClick={() => handleOpenDialog('group')}
                 data-testid={`${config.dataTestIdPrefix}-${DATA_TEST_ID}-add-group-button`}
               >
-                <Plus className="gba:w-4 gba:h-4" />
+                <PlusIcon className="gba:w-4 gba:h-4" />
               </Button>
             </div>
             <div className="gba:p-4 gba:border-b">
@@ -375,7 +427,7 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
                         }}
                         data-testid={`${config.dataTestIdPrefix}-${DATA_TEST_ID}-group-edit-${group.code}`}
                       >
-                        <Edit className="gba:w-3 gba:h-3" />
+                        <PencilSimpleIcon className="gba:w-3 gba:h-3" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -383,11 +435,11 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
                         className="gba:h-6 gba:w-6"
                         onClick={e => {
                           e.stopPropagation()
-                          handleDelete('group', group.id)
+                          handleDeleteRequest('group', group)
                         }}
                         data-testid={`${config.dataTestIdPrefix}-${DATA_TEST_ID}-group-delete-${group.code}`}
                       >
-                        <Trash2 className="gba:w-3 gba:h-3" />
+                        <TrashIcon className="gba:w-3 gba:h-3" />
                       </Button>
                     </div>
                   </div>
@@ -412,7 +464,7 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
                   onClick={() => handleOpenDialog('type')}
                   data-testid={`${config.dataTestIdPrefix}-${DATA_TEST_ID}-add-type-button`}
                 >
-                  <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+                  <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                   Add {config.typeLabel || 'Type'}
                 </Button>
               </div>
@@ -503,6 +555,18 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmationDialog
+        open={!!deleteTarget}
+        itemName={deleteTarget?.item.value || ''}
+        itemType={deleteTarget ? getDeleteItemType(deleteTarget.mode) : 'Item'}
+        availability={deleteAvailability}
+        isChecking={isCheckingDeleteAvailability}
+        isDeleting={isDeleting}
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        dataTestId={`${config.dataTestIdPrefix}-${DATA_TEST_ID}-delete-dialog`}
+      />
     </PageLayout>
   )
 }
