@@ -89,7 +89,7 @@ import type { SlideMaster } from '../types/slideMaster'
 import {
   getEffectiveMasters,
   cloneLayoutToSlide,
-  findLayoutById,
+  resolveLayoutForNewSlide,
   ensureTextFits,
   recolorSlidesForTheme
 } from '../data/defaultSlideMaster'
@@ -2063,8 +2063,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   // Slide management - use collaborative methods
   const addSlideWithLayout = useCallback(
     (layoutId: string) => {
-      const effectiveMasters = getEffectiveMasters(masters, currentTheme, t)
-      const found = findLayoutById(effectiveMasters, layoutId)
+      const found = resolveLayoutForNewSlide(masters, currentTheme, layoutId, t)
 
       let newSlide: SlideData
       if (found) {
@@ -2108,8 +2107,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const handleChangeLayout = useCallback(
     (layoutId: string) => {
-      const effectiveMasters = getEffectiveMasters(masters, currentTheme, t)
-      const found = findLayoutById(effectiveMasters, layoutId)
+      const found = resolveLayoutForNewSlide(masters, currentTheme, layoutId, t)
       if (!found) return
 
       const slide = slides[currentSlideIndex]
