@@ -73,6 +73,78 @@ function paragraphBoundsFromElement(element: HTMLElement): { start: number; end:
   return { start, end }
 }
 
+function textLengthWithinEditorNode(node: Node): number {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return normalizeEditorText(node.textContent).length
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) return 0
+
+  const element = node as HTMLElement
+  if (element.dataset.editorBullet === 'true') return 0
+  if (element.dataset.editorPlaceholder === 'true') return 0
+  if (element.tagName === 'BR') return 0
+
+  return Array.from(element.childNodes).reduce((total, child) => total + textLengthWithinEditorNode(child), 0)
+}
+
+function textOffsetWithinParagraph(
+  paragraphElement: HTMLElement,
+  targetNode: Node,
+  targetOffset: number
+): { found: boolean; offset: number } {
+  if (paragraphElement === targetNode) {
+    return {
+      found: true,
+      offset: Array.from(paragraphElement.childNodes)
+        .slice(0, Math.min(targetOffset, paragraphElement.childNodes.length))
+        .reduce((total, child) => total + textLengthWithinEditorNode(child), 0)
+    }
+  }
+
+  let accumulatedOffset = 0
+
+  for (const child of Array.from(paragraphElement.childNodes)) {
+    if (child === targetNode) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        return {
+          found: true,
+          offset: accumulatedOffset + Math.min(targetOffset, normalizeEditorText(child.textContent).length)
+        }
+      }
+
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const element = child as HTMLElement
+        if (element.dataset.editorBullet === 'true') {
+          return { found: true, offset: accumulatedOffset }
+        }
+        if (element.dataset.editorPlaceholder === 'true' || element.tagName === 'BR') {
+          return { found: true, offset: accumulatedOffset }
+        }
+        return {
+          found: true,
+          offset:
+            accumulatedOffset +
+            Array.from(element.childNodes)
+              .slice(0, Math.min(targetOffset, element.childNodes.length))
+              .reduce((total, nestedChild) => total + textLengthWithinEditorNode(nestedChild), 0)
+        }
+      }
+    }
+
+    if (child.nodeType === Node.ELEMENT_NODE) {
+      const nestedResult = textOffsetWithinParagraph(child as HTMLElement, targetNode, targetOffset)
+      if (nestedResult.found) {
+        return { found: true, offset: accumulatedOffset + nestedResult.offset }
+      }
+    }
+
+    accumulatedOffset += textLengthWithinEditorNode(child)
+  }
+
+  return { found: false, offset: accumulatedOffset }
+}
+
 function nodeStartOffset(node: Node | null): number | null {
   if (!node) return null
   if (node.nodeType === Node.TEXT_NODE) {
@@ -118,9 +190,23 @@ function nodeEndOffset(node: Node | null): number | null {
 
 function textOffsetFromBoundary(container: HTMLElement, node: Node, offset: number): number {
   if (node.nodeType === Node.TEXT_NODE) {
+    const paragraphElement = node.parentElement?.closest<HTMLElement>('[data-paragraph-start]')
+    const paragraphBounds = paragraphElement ? paragraphBoundsFromElement(paragraphElement) : null
+    if (paragraphElement && paragraphBounds) {
+      const localOffset = textOffsetWithinParagraph(paragraphElement, node, offset)
+      if (localOffset.found) {
+        return paragraphBounds.start + localOffset.offset
+      }
+    }
+
     const runElement = node.parentElement?.closest<HTMLElement>('[data-run-start]')
     const bounds = runElement ? runBoundsFromElement(runElement) : null
-    return bounds ? bounds.start + Math.min(offset, bounds.end - bounds.start) : 0
+    if (bounds) {
+      const liveTextLength = normalizeEditorText(node.textContent).length
+      return bounds.start + Math.min(offset, Math.max(bounds.end - bounds.start, liveTextLength))
+    }
+
+    return 0
   }
 
   if (node.nodeType !== Node.ELEMENT_NODE) return 0
@@ -132,12 +218,21 @@ function textOffsetFromBoundary(container: HTMLElement, node: Node, offset: numb
 
   const paragraphBounds = paragraphBoundsFromElement(element)
   if (paragraphBounds) {
-    if (offset <= 0) return paragraphBounds.start
-    if (offset >= element.childNodes.length) return paragraphBounds.end
-    const child = element.childNodes[Math.min(offset, element.childNodes.length - 1)]
-    const childStart = nodeStartOffset(child)
-    if (childStart !== null) return childStart
-    return paragraphBounds.end
+    const localOffset = textOffsetWithinParagraph(element, element, offset)
+    if (localOffset.found) {
+      return paragraphBounds.start + localOffset.offset
+    }
+
+    return offset <= 0 ? paragraphBounds.start : paragraphBounds.end
+  }
+
+  const parentParagraph = element.closest<HTMLElement>('[data-paragraph-start]')
+  const parentParagraphBounds = parentParagraph ? paragraphBoundsFromElement(parentParagraph) : null
+  if (parentParagraph && parentParagraphBounds) {
+    const localOffset = textOffsetWithinParagraph(parentParagraph, element, offset)
+    if (localOffset.found) {
+      return parentParagraphBounds.start + localOffset.offset
+    }
   }
 
   if (element === container) {
