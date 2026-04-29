@@ -1,5 +1,7 @@
 // Intermediate OOXML types decoupling raw XML extraction from SlideData model.
 
+import type { RichParagraphNumberingStyle } from '../../components/slideElements'
+
 export type OoxmlCap = 'all' | 'small' | 'none'
 
 export interface OoxmlTextRun {
@@ -25,6 +27,10 @@ export interface OoxmlParagraph {
   level?: number
   bulletType?: 'none' | 'bullet' | 'number'
   bulletChar?: string
+  numberingStyle?: RichParagraphNumberingStyle
+  numberStartAt?: number
+  listLeftMargin?: number
+  listIndent?: number
   lineHeight?: number
   spaceBefore?: number
   spaceAfter?: number

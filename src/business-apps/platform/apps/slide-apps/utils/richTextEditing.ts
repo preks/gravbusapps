@@ -1,5 +1,7 @@
 import type {
   FontStyle,
+  RichParagraphBulletType,
+  RichParagraphNumberingStyle,
   FontWeight,
   RichTextParagraph,
   RichTextRun,
@@ -8,6 +10,7 @@ import type {
   TextDecoration,
   TextElement
 } from '../components/slideElements'
+import { getListGeometryForLevel } from './richTextLists'
 
 export interface RichTextSelectionRange {
   start: number
@@ -37,12 +40,28 @@ export type RichTextEditable = Pick<
   | 'textTransform'
 >
 
-export type RichTextFormattingUpdate = Partial<
-  Pick<
-    TextElement,
-    'fontFamily' | 'fontSize' | 'fontWeight' | 'fontStyle' | 'textDecoration' | 'textAlign' | 'color' | 'textTransform'
-  >
->
+export interface RichTextFormattingUpdate
+  extends Partial<
+    Pick<
+      TextElement,
+      | 'fontFamily'
+      | 'fontSize'
+      | 'fontWeight'
+      | 'fontStyle'
+      | 'textDecoration'
+      | 'textAlign'
+      | 'color'
+      | 'textTransform'
+    >
+  > {
+  bulletType?: RichParagraphBulletType
+  bulletChar?: string
+  numberingStyle?: RichParagraphNumberingStyle
+  numberStartAt?: number
+  indentLevel?: number
+  listLeftMargin?: number
+  listIndent?: number
+}
 
 export interface ResolvedTextFormattingState extends RichTextFormattingUpdate {
   isFontFamilyMixed?: boolean
@@ -50,6 +69,8 @@ export interface ResolvedTextFormattingState extends RichTextFormattingUpdate {
   isColorMixed?: boolean
   isTextAlignMixed?: boolean
   isTextTransformMixed?: boolean
+  isBulletTypeMixed?: boolean
+  isNumberingStyleMixed?: boolean
   fontWeightState?: TextFormattingToggleState
   fontStyleState?: TextFormattingToggleState
   underlineState?: TextFormattingToggleState
@@ -78,8 +99,22 @@ const CHARACTER_STYLE_KEYS = [
   'textTransform'
 ] as const
 
+const PARAGRAPH_STYLE_KEYS = [
+  'textAlign',
+  'bulletType',
+  'bulletChar',
+  'numberingStyle',
+  'numberStartAt',
+  'indentLevel',
+  'listLeftMargin',
+  'listIndent'
+] as const
+
 export function isRichTextFormattingUpdate(updates: Partial<TextElement>): updates is RichTextFormattingUpdate {
-  return CHARACTER_STYLE_KEYS.some(key => updates[key] !== undefined) || updates.textAlign !== undefined
+  return (
+    CHARACTER_STYLE_KEYS.some(key => updates[key] !== undefined) ||
+    PARAGRAPH_STYLE_KEYS.some(key => (updates as RichTextFormattingUpdate)[key] !== undefined)
+  )
 }
 
 export function hasCharacterRichTextFormattingUpdate(
@@ -95,6 +130,19 @@ export function getCharacterRichTextFormattingUpdate(updates: RichTextFormatting
     }
     return acc
   }, {})
+}
+
+function getParagraphRichTextFormattingUpdate(updates: RichTextFormattingUpdate): RichTextFormattingUpdate {
+  return PARAGRAPH_STYLE_KEYS.reduce<RichTextFormattingUpdate>((acc, key) => {
+    if (updates[key] !== undefined) {
+      acc[key] = updates[key]
+    }
+    return acc
+  }, {})
+}
+
+function hasParagraphRichTextFormattingUpdate(updates: RichTextFormattingUpdate): boolean {
+  return PARAGRAPH_STYLE_KEYS.some(key => updates[key] !== undefined)
 }
 
 function cloneParagraphs(paragraphs: RichTextParagraph[]): RichTextParagraph[] {
@@ -190,14 +238,18 @@ export function getTextEditDelta(previousContent: string, nextContent: string): 
 }
 
 export function normalizeRichTextParagraphs(source: RichTextEditable): RichTextParagraph[] {
-  if (source.paragraphs && source.paragraphs.length > 0) return cloneParagraphs(source.paragraphs)
+  if (source.paragraphs && source.paragraphs.length > 0) {
+    return cloneParagraphs(source.paragraphs).map(normalizeParagraphListStyle)
+  }
 
   const style = compactRunStyle(fallbackRunStyle(source))
-  return (source.content || '').split('\n').map(line => ({
-    runs: [{ text: line, ...style }],
-    alignment: alignmentFromTextAlign(source.textAlign),
-    lineHeight: source.lineHeight
-  }))
+  return (source.content || '').split('\n').map(line =>
+    normalizeParagraphListStyle({
+      runs: [{ text: line, ...style }],
+      alignment: alignmentFromTextAlign(source.textAlign),
+      lineHeight: source.lineHeight
+    })
+  )
 }
 
 export function mergeAdjacentRichTextRuns(paragraphs: RichTextParagraph[]): RichTextParagraph[] {
@@ -211,7 +263,7 @@ export function mergeAdjacentRichTextRuns(paragraphs: RichTextParagraph[]): Rich
       }
       return merged
     }, [])
-    return { ...paragraph, runs: runs.length > 0 ? runs : [{ text: '' }] }
+    return normalizeParagraphListStyle({ ...paragraph, runs: runs.length > 0 ? runs : [{ text: '' }] })
   })
 }
 
@@ -255,6 +307,10 @@ function paragraphStyleAtOffset(
         indentLevel: paragraph.indentLevel,
         bulletType: paragraph.bulletType,
         bulletChar: paragraph.bulletChar,
+        numberingStyle: paragraph.numberingStyle,
+        numberStartAt: paragraph.numberStartAt,
+        listLeftMargin: paragraph.listLeftMargin,
+        listIndent: paragraph.listIndent,
         lineHeight: paragraph.lineHeight ?? source.lineHeight,
         spaceBefore: paragraph.spaceBefore,
         spaceAfter: paragraph.spaceAfter
@@ -267,6 +323,119 @@ function paragraphStyleAtOffset(
     alignment: alignmentFromTextAlign(source.textAlign),
     lineHeight: source.lineHeight
   }
+}
+
+function normalizeParagraphListStyle(paragraph: RichTextParagraph): RichTextParagraph {
+  const bulletType = paragraph.bulletType ?? 'none'
+
+  if (bulletType === 'bullet') {
+    const indentLevel = paragraph.indentLevel ?? 0
+    const geometry =
+      paragraph.listLeftMargin !== undefined || paragraph.listIndent !== undefined
+        ? {}
+        : getListGeometryForLevel(indentLevel)
+
+    return {
+      ...paragraph,
+      bulletType,
+      bulletChar: paragraph.bulletChar ?? '•',
+      numberingStyle: undefined,
+      numberStartAt: undefined,
+      ...geometry
+    }
+  }
+
+  if (bulletType === 'number') {
+    const indentLevel = paragraph.indentLevel ?? 0
+    const geometry =
+      paragraph.listLeftMargin !== undefined || paragraph.listIndent !== undefined
+        ? {}
+        : getListGeometryForLevel(indentLevel)
+
+    return {
+      ...paragraph,
+      bulletType,
+      bulletChar: undefined,
+      numberingStyle: paragraph.numberingStyle ?? 'arabicPeriod',
+      ...geometry
+    }
+  }
+
+  return {
+    ...paragraph,
+    bulletType: 'none',
+    bulletChar: undefined,
+    numberingStyle: undefined,
+    numberStartAt: undefined,
+    listLeftMargin: undefined,
+    listIndent: undefined
+  }
+}
+
+function applyParagraphFormattingUpdate(
+  paragraph: RichTextParagraph,
+  updates: RichTextFormattingUpdate
+): RichTextParagraph {
+  let nextParagraph: RichTextParagraph = { ...paragraph }
+
+  if (updates.textAlign !== undefined) {
+    nextParagraph.alignment = updates.textAlign
+  }
+
+  if (updates.indentLevel !== undefined) {
+    nextParagraph.indentLevel = Math.max(0, updates.indentLevel)
+  }
+
+  if (updates.listLeftMargin !== undefined) {
+    nextParagraph.listLeftMargin = Math.max(0, updates.listLeftMargin)
+  }
+
+  if (updates.listIndent !== undefined) {
+    nextParagraph.listIndent = updates.listIndent
+  }
+
+  const nextBulletType =
+    updates.bulletType ??
+    (updates.bulletChar !== undefined
+      ? 'bullet'
+      : updates.numberingStyle !== undefined || updates.numberStartAt !== undefined
+        ? 'number'
+        : nextParagraph.bulletType)
+
+  if (nextBulletType !== undefined) {
+    nextParagraph.bulletType = nextBulletType
+  }
+
+  if (updates.bulletChar !== undefined) {
+    nextParagraph.bulletChar = updates.bulletChar
+  }
+
+  if (updates.numberingStyle !== undefined) {
+    nextParagraph.numberingStyle = updates.numberingStyle
+  }
+
+  if (updates.numberStartAt !== undefined) {
+    nextParagraph.numberStartAt = updates.numberStartAt
+  }
+
+  if (
+    updates.indentLevel !== undefined &&
+    updates.listLeftMargin === undefined &&
+    updates.listIndent === undefined &&
+    (nextParagraph.bulletType ?? 'none') !== 'none'
+  ) {
+    const geometry = getListGeometryForLevel(nextParagraph.indentLevel ?? 0)
+    nextParagraph = {
+      ...nextParagraph,
+      ...geometry
+    }
+  }
+
+  return normalizeParagraphListStyle(nextParagraph)
+}
+
+function isListRepresentationUpdate(updates: RichTextFormattingUpdate): boolean {
+  return updates.bulletType !== undefined || updates.bulletChar !== undefined || updates.numberingStyle !== undefined
 }
 
 function uniformValue<T>(values: T[]): { value: T | undefined; mixed: boolean } {
@@ -319,32 +488,90 @@ export function applyRichTextFormatting<T extends RichTextEditable>(
   selection?: RichTextSelectionRange | null
 ): T {
   const paragraphs = normalizeRichTextParagraphs(source)
+  const paragraphRanges: Array<{ start: number; end: number; paragraphLength: number }> = paragraphs.map(paragraph => {
+    const paragraphLength = paragraph.runs.reduce((sum, run) => sum + run.text.length, 0)
+    return { start: 0, end: 0, paragraphLength }
+  })
+  let paragraphCursor = 0
+  paragraphRanges.forEach(rangeInfo => {
+    rangeInfo.start = paragraphCursor
+    rangeInfo.end = paragraphCursor + rangeInfo.paragraphLength
+    paragraphCursor = rangeInfo.end + 1
+  })
   const contentLength = contentLengthFromParagraphs(paragraphs)
   const range = selection ? sortedRange(selection) : null
   const hasRange = !!range && range.end > range.start
+  const hasCollapsedSelection = !!range && range.end === range.start
   const characterUpdates = CHARACTER_STYLE_KEYS.reduce<Partial<RichTextRun>>((acc, key) => {
     if (updates[key] !== undefined) {
       acc[key] = updates[key] as never
     }
     return acc
   }, {})
+  const paragraphUpdates = getParagraphRichTextFormattingUpdate(updates)
+  const hasParagraphUpdates = hasParagraphRichTextFormattingUpdate(paragraphUpdates)
+  const activeParagraphIndex = hasCollapsedSelection
+    ? paragraphRanges.findIndex(
+        paragraphRange => range.start >= paragraphRange.start && range.start <= paragraphRange.end
+      )
+    : -1
+  const paragraphIndicesToUpdate = new Set<number>()
 
-  const nextSource = hasRange ? { ...source } : ({ ...source, ...updates } as T)
+  if (hasParagraphUpdates) {
+    if (!selection) {
+      paragraphs.forEach((_, index) => paragraphIndicesToUpdate.add(index))
+    } else if (hasRange) {
+      paragraphRanges.forEach((paragraphRange, index) => {
+        if (range.start <= paragraphRange.end && range.end >= paragraphRange.start) {
+          paragraphIndicesToUpdate.add(index)
+        }
+      })
+    } else if (hasCollapsedSelection && activeParagraphIndex >= 0) {
+      const activeParagraph = paragraphs[activeParagraphIndex]
+      if (isListRepresentationUpdate(paragraphUpdates) && (activeParagraph.bulletType ?? 'none') !== 'none') {
+        let startIndex = activeParagraphIndex
+        let endIndex = activeParagraphIndex
+
+        while (startIndex > 0 && (paragraphs[startIndex - 1].bulletType ?? 'none') !== 'none') {
+          startIndex -= 1
+        }
+        while (endIndex < paragraphs.length - 1 && (paragraphs[endIndex + 1].bulletType ?? 'none') !== 'none') {
+          endIndex += 1
+        }
+
+        for (let index = startIndex; index <= endIndex; index += 1) {
+          paragraphIndicesToUpdate.add(index)
+        }
+      } else {
+        paragraphIndicesToUpdate.add(activeParagraphIndex)
+      }
+    }
+  }
+  const sourceLevelUpdates = {
+    ...getCharacterRichTextFormattingUpdate(updates),
+    ...(selection ? {} : updates.textAlign !== undefined ? { textAlign: updates.textAlign } : {})
+  }
+
+  const nextSource = selection ? { ...source } : ({ ...source, ...sourceLevelUpdates } as T)
   let paragraphStart = 0
-  const nextParagraphs = paragraphs.map(paragraph => {
+  const nextParagraphs = paragraphs.map((paragraph, paragraphIndex) => {
     const paragraphLength = paragraph.runs.reduce((sum, run) => sum + run.text.length, 0)
     const paragraphEnd = paragraphStart + paragraphLength
-    const nextParagraph: RichTextParagraph = { ...paragraph, runs: [] }
+    let nextParagraph: RichTextParagraph = { ...paragraph, runs: [] }
+    const shouldApplyParagraphUpdates = hasParagraphUpdates && paragraphIndicesToUpdate.has(paragraphIndex)
 
-    if (updates.textAlign && (!hasRange || (range.start <= paragraphEnd && range.end >= paragraphStart))) {
-      nextParagraph.alignment = updates.textAlign
+    if (shouldApplyParagraphUpdates) {
+      nextParagraph = {
+        ...applyParagraphFormattingUpdate(paragraph, paragraphUpdates),
+        runs: []
+      }
     }
 
     let runStart = paragraphStart
     for (const run of paragraph.runs) {
       const runEnd = runStart + run.text.length
-      const applyStart = hasRange ? Math.max(range.start, runStart) : runStart
-      const applyEnd = hasRange ? Math.min(range.end, runEnd) : runEnd
+      const applyStart = hasRange ? Math.max(range.start, runStart) : selection ? runEnd : runStart
+      const applyEnd = hasRange ? Math.min(range.end, runEnd) : selection ? runEnd : runEnd
 
       if (Object.keys(characterUpdates).length === 0 || applyStart >= applyEnd) {
         nextParagraph.runs.push({ ...run })
@@ -406,6 +633,7 @@ export function getRichTextStyleAtRange<T extends RichTextEditable>(
   const offset = range ? Math.max(0, Math.min(range.start, contentLength - 1)) : 0
   let paragraphStart = 0
   let textAlign: TextAlign | undefined = source.textAlign
+  let activeParagraph: RichTextParagraph | null = null
 
   if (!range || range.end <= range.start) {
     const runStyle = styleAtOffset(paragraphs, source, offset)
@@ -418,6 +646,7 @@ export function getRichTextStyleAtRange<T extends RichTextEditable>(
           paragraph.alignment === 'justify' || !paragraph.alignment
             ? source.textAlign
             : (paragraph.alignment as TextAlign)
+        activeParagraph = paragraph
         break
       }
       paragraphStart = paragraphEnd + 1
@@ -432,6 +661,13 @@ export function getRichTextStyleAtRange<T extends RichTextEditable>(
       textAlign,
       color: runStyle.color,
       textTransform: runStyle.textTransform,
+      bulletType: activeParagraph?.bulletType ?? 'none',
+      bulletChar: activeParagraph?.bulletChar,
+      numberingStyle: activeParagraph?.numberingStyle,
+      numberStartAt: activeParagraph?.numberStartAt,
+      indentLevel: activeParagraph?.indentLevel,
+      listLeftMargin: activeParagraph?.listLeftMargin,
+      listIndent: activeParagraph?.listIndent,
       fontWeightState: runStyle.fontWeight === 'bold' ? 'on' : 'off',
       fontStyleState: runStyle.fontStyle === 'italic' ? 'on' : 'off',
       underlineState: runStyle.textDecoration === 'underline' ? 'on' : 'off',
@@ -441,6 +677,8 @@ export function getRichTextStyleAtRange<T extends RichTextEditable>(
 
   const touchedRunStyles: RichTextRunStyle[] = []
   const touchedParagraphAlignments: TextAlign[] = []
+  const touchedBulletTypes: Array<RichParagraphBulletType | undefined> = []
+  const touchedNumberingStyles: Array<RichParagraphNumberingStyle | undefined> = []
 
   for (const paragraph of paragraphs) {
     const paragraphLength = paragraph.runs.reduce((sum, run) => sum + run.text.length, 0)
@@ -452,6 +690,8 @@ export function getRichTextStyleAtRange<T extends RichTextEditable>(
           ? source.textAlign
           : (paragraph.alignment as TextAlign)
       )
+      touchedBulletTypes.push(paragraph.bulletType ?? 'none')
+      touchedNumberingStyles.push(paragraph.numberingStyle)
     }
 
     let runStart = paragraphStart
@@ -477,6 +717,8 @@ export function getRichTextStyleAtRange<T extends RichTextEditable>(
   const colors = uniformValue(touchedRunStyles.map(style => style.color))
   const textTransforms = uniformValue(touchedRunStyles.map(style => style.textTransform))
   const alignments = uniformValue(touchedParagraphAlignments)
+  const bulletTypes = uniformValue(touchedBulletTypes)
+  const numberingStyles = uniformValue(touchedNumberingStyles)
 
   return {
     fontFamily: fontFamilies.value,
@@ -484,11 +726,15 @@ export function getRichTextStyleAtRange<T extends RichTextEditable>(
     color: colors.value,
     textTransform: textTransforms.value,
     textAlign: alignments.value,
+    bulletType: bulletTypes.value,
+    numberingStyle: numberingStyles.value,
     isFontFamilyMixed: fontFamilies.mixed,
     isFontSizeMixed: fontSizes.mixed,
     isColorMixed: colors.mixed,
     isTextTransformMixed: textTransforms.mixed,
     isTextAlignMixed: alignments.mixed,
+    isBulletTypeMixed: bulletTypes.mixed,
+    isNumberingStyleMixed: numberingStyles.mixed,
     fontWeightState: resolveToggleState(touchedRunStyles.map(style => style.fontWeight === 'bold')),
     fontStyleState: resolveToggleState(touchedRunStyles.map(style => style.fontStyle === 'italic')),
     underlineState: resolveToggleState(touchedRunStyles.map(style => style.textDecoration === 'underline')),

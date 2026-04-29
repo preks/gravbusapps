@@ -75,6 +75,47 @@ describe('richTextEditing', () => {
     expect(updated.paragraphs?.[1].alignment).toBe('center')
   })
 
+  it('applies list formatting to the active paragraph for collapsed selections', () => {
+    const element = makeTextElement({
+      content: 'one\ntwo',
+      paragraphs: [{ runs: [{ text: 'one' }] }, { runs: [{ text: 'two' }] }]
+    })
+
+    const updated = applyRichTextFormatting(
+      element,
+      { bulletType: 'number', numberingStyle: 'alphaUcPeriod', numberStartAt: 5 },
+      { start: 1, end: 1 }
+    )
+
+    expect(updated.paragraphs?.[0]).toEqual(
+      expect.objectContaining({
+        bulletType: 'number',
+        numberingStyle: 'alphaUcPeriod',
+        numberStartAt: 5,
+        listLeftMargin: 18,
+        listIndent: -18
+      })
+    )
+    expect(updated.paragraphs?.[1]).toEqual(expect.objectContaining({ bulletType: 'none' }))
+  })
+
+  it('applies bullet representation changes to the whole contiguous list block', () => {
+    const element = makeTextElement({
+      content: 'one\ntwo\nthree',
+      paragraphs: [
+        { bulletType: 'bullet', bulletChar: '•', runs: [{ text: 'one' }] },
+        { bulletType: 'bullet', bulletChar: '•', runs: [{ text: 'two' }] },
+        { bulletType: 'none', runs: [{ text: 'three' }] }
+      ]
+    })
+
+    const updated = applyRichTextFormatting(element, { bulletType: 'bullet', bulletChar: '◆' }, { start: 5, end: 5 })
+
+    expect(updated.paragraphs?.[0]).toEqual(expect.objectContaining({ bulletType: 'bullet', bulletChar: '◆' }))
+    expect(updated.paragraphs?.[1]).toEqual(expect.objectContaining({ bulletType: 'bullet', bulletChar: '◆' }))
+    expect(updated.paragraphs?.[2]).toEqual(expect.objectContaining({ bulletType: 'none' }))
+  })
+
   it('preserves existing run styles when text content changes', () => {
     const element = makeTextElement({
       content: 'ab',
@@ -243,6 +284,38 @@ describe('richTextEditing', () => {
     expect(resolved.fontFamily).toBeUndefined()
     expect(resolved.isFontSizeMixed).toBe(true)
     expect(resolved.fontSize).toBeUndefined()
+  })
+
+  it('resolves paragraph list state at the caret and across mixed selections', () => {
+    const element = makeTextElement({
+      content: 'one\ntwo',
+      paragraphs: [
+        {
+          bulletType: 'bullet',
+          bulletChar: '◆',
+          runs: [{ text: 'one' }]
+        },
+        {
+          bulletType: 'number',
+          numberingStyle: 'romanLcPeriod',
+          runs: [{ text: 'two' }]
+        }
+      ]
+    })
+
+    expect(getRichTextStyleAtRange(element, { start: 0, end: 0 })).toEqual(
+      expect.objectContaining({
+        bulletType: 'bullet',
+        bulletChar: '◆'
+      })
+    )
+
+    expect(getRichTextStyleAtRange(element, { start: 0, end: 7 })).toEqual(
+      expect.objectContaining({
+        isBulletTypeMixed: true,
+        isNumberingStyleMixed: true
+      })
+    )
   })
 
   it('resolves tri-state toggles for mixed bold and italic selections', () => {

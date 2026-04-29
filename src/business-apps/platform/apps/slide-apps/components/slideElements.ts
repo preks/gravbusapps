@@ -217,6 +217,23 @@ export interface RichTextRun {
 }
 
 export type RichParagraphBulletType = 'none' | 'bullet' | 'number'
+export type RichParagraphNumberingStyle =
+  | 'alphaLcParenBoth'
+  | 'alphaLcParenR'
+  | 'alphaLcPeriod'
+  | 'alphaUcParenBoth'
+  | 'alphaUcParenR'
+  | 'alphaUcPeriod'
+  | 'arabicParenBoth'
+  | 'arabicParenR'
+  | 'arabicPeriod'
+  | 'arabicPlain'
+  | 'romanLcParenBoth'
+  | 'romanLcParenR'
+  | 'romanLcPeriod'
+  | 'romanUcParenBoth'
+  | 'romanUcParenR'
+  | 'romanUcPeriod'
 
 export interface RichTextParagraph {
   runs: RichTextRun[]
@@ -224,6 +241,10 @@ export interface RichTextParagraph {
   indentLevel?: number
   bulletType?: RichParagraphBulletType
   bulletChar?: string
+  numberingStyle?: RichParagraphNumberingStyle
+  numberStartAt?: number
+  listLeftMargin?: number
+  listIndent?: number
   lineHeight?: number
   spaceBefore?: number
   spaceAfter?: number

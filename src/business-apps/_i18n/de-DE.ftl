@@ -31,6 +31,11 @@ search = Suchen
 # Common messages
 no_results = Keine Ergebnisse gefunden
 no_data = Keine Daten verfügbar
+editor-list-bullets = Aufzaehlungszeichen
+editor-list-numbering = Nummerierung
+editor-list-none = Keine
+editor-list-outdent = Ausruecken verringern
+editor-list-indent = Einruecken
 
 ## 1. EINFACHER TEXT
 welcome-title = Lokalisierungsbeispiel

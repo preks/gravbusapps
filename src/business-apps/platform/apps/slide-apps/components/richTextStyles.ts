@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import type { RichTextParagraph, RichTextRun, ShapeInText, TextElement } from './slideElements'
 import { textTransformToCss } from './slideElements'
 import { resolveFontStack } from './fontStack'
+import { DEFAULT_BULLET_GLYPH, formatNumberingLabel, resolveRichTextListGeometry } from '../utils/richTextLists'
 
 export type RichTextRenderable = Pick<
   TextElement | ShapeInText,
@@ -20,12 +21,15 @@ export type RichTextRenderable = Pick<
 export interface RichTextParagraphMarker {
   bulletType: NonNullable<RichTextParagraph['bulletType']>
   label: string
+  width: number
 }
-
-const DEFAULT_BULLET_GLYPH = '•'
 
 function paragraphHasVisibleText(paragraph: RichTextParagraph): boolean {
   return paragraph.runs.some(run => run.text.trim().length > 0)
+}
+
+function paragraphHasAnyText(paragraph: RichTextParagraph): boolean {
+  return paragraph.runs.some(run => run.text.length > 0)
 }
 
 function alignmentToStyle(
@@ -76,6 +80,7 @@ export function getRichTextParagraphMarker(
   const level = paragraph.indentLevel ?? 0
   const bulletType = paragraph.bulletType ?? 'none'
   const hasVisibleText = paragraphHasVisibleText(paragraph)
+  const geometry = resolveRichTextListGeometry(paragraph)
 
   if (!hasVisibleText) {
     if (bulletType !== 'number') {
@@ -87,12 +92,14 @@ export function getRichTextParagraphMarker(
   if (bulletType === 'bullet') {
     return {
       bulletType,
-      label: paragraph.bulletChar || DEFAULT_BULLET_GLYPH
+      label: paragraph.bulletChar || DEFAULT_BULLET_GLYPH,
+      width: geometry.markerWidth
     }
   }
 
   if (bulletType === 'number') {
-    const next = (numberedCounters?.get(level) ?? 0) + 1
+    const startAt = paragraph.numberStartAt ?? 1
+    const next = paragraph.numberStartAt !== undefined ? startAt : (numberedCounters?.get(level) ?? startAt - 1) + 1
     numberedCounters?.set(level, next)
     if (numberedCounters) {
       for (const key of Array.from(numberedCounters.keys())) {
@@ -101,7 +108,8 @@ export function getRichTextParagraphMarker(
     }
     return {
       bulletType,
-      label: `${next}.`
+      label: formatNumberingLabel(next, paragraph.numberingStyle ?? 'arabicPeriod'),
+      width: geometry.markerWidth
     }
   }
 
@@ -114,18 +122,21 @@ export function getRichTextParagraphStyle(
   fallback: RichTextRenderable,
   marker?: RichTextParagraphMarker | null
 ): CSSProperties {
-  const level = paragraph.indentLevel ?? 0
+  const geometry = resolveRichTextListGeometry(paragraph)
+  const isListParagraph = (paragraph.bulletType ?? 'none') !== 'none'
+  const effectiveLineHeight = paragraph.lineHeight ?? fallback.lineHeight
+  const minHeight = paragraphHasAnyText(paragraph) ? undefined : fallback.fontSize * effectiveLineHeight
 
   return {
     textAlign: alignmentToStyle(paragraph.alignment, fallback.textAlign),
     lineHeight: paragraph.lineHeight ?? fallback.lineHeight,
     marginTop: paragraph.spaceBefore,
     marginBottom: paragraph.spaceAfter,
-    paddingLeft: level > 0 ? level * 16 : undefined,
+    minHeight,
+    paddingLeft: isListParagraph ? (marker ? geometry.markerOffset : geometry.textOffset) : undefined,
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
     display: marker ? 'flex' : 'block',
-    gap: marker ? 6 : undefined,
     alignItems: marker ? 'baseline' : undefined
   }
 }

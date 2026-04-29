@@ -66,6 +66,7 @@ import {
   type SlideTransition,
   type TextElement,
   type TextLink,
+  type RichTextParagraph,
   type ShapeElement,
   type ShapeInText,
   type GroupElement,
@@ -132,6 +133,7 @@ import {
   applyRichTextFormatting,
   createDefaultShapeText,
   getCharacterRichTextFormattingUpdate,
+  normalizeRichTextParagraphs,
   getTextEditDelta,
   getRichTextStyleAtRange,
   hasCharacterRichTextFormattingUpdate,
@@ -173,6 +175,78 @@ type ActiveRichTextDraft =
 type PendingCaretFormatting = {
   id: string
   formatting: RichTextFormattingUpdate
+}
+
+function paragraphHasVisibleText(paragraph: RichTextParagraph): boolean {
+  return paragraph.runs.some(run => run.text.trim().length > 0)
+}
+
+function shouldRehydrateForListMarkerState(
+  previous: Pick<
+    TextElement | ShapeInText,
+    | 'content'
+    | 'paragraphs'
+    | 'fontFamily'
+    | 'fontSize'
+    | 'fontWeight'
+    | 'fontStyle'
+    | 'textDecoration'
+    | 'textAlign'
+    | 'color'
+    | 'lineHeight'
+    | 'textTransform'
+  >,
+  next: Pick<
+    TextElement | ShapeInText,
+    | 'content'
+    | 'paragraphs'
+    | 'fontFamily'
+    | 'fontSize'
+    | 'fontWeight'
+    | 'fontStyle'
+    | 'textDecoration'
+    | 'textAlign'
+    | 'color'
+    | 'lineHeight'
+    | 'textTransform'
+  >
+): boolean {
+  const previousParagraphs = normalizeRichTextParagraphs(previous)
+  const nextParagraphs = normalizeRichTextParagraphs(next)
+
+  if (previousParagraphs.length !== nextParagraphs.length) {
+    return true
+  }
+
+  return previousParagraphs.some((paragraph, index) => {
+    const nextParagraph = nextParagraphs[index]
+    const previousBulletType = paragraph.bulletType ?? 'none'
+    const nextBulletType = nextParagraph.bulletType ?? 'none'
+
+    if (previousBulletType !== nextBulletType) {
+      return true
+    }
+
+    const previousMarkerVisible = previousBulletType !== 'none' && paragraphHasVisibleText(paragraph)
+    const nextMarkerVisible = nextBulletType !== 'none' && paragraphHasVisibleText(nextParagraph)
+
+    if (previousMarkerVisible !== nextMarkerVisible) {
+      return true
+    }
+
+    if (!nextMarkerVisible) {
+      return false
+    }
+
+    return (
+      paragraph.bulletChar !== nextParagraph.bulletChar ||
+      paragraph.numberingStyle !== nextParagraph.numberingStyle ||
+      paragraph.numberStartAt !== nextParagraph.numberStartAt ||
+      paragraph.indentLevel !== nextParagraph.indentLevel ||
+      paragraph.listLeftMargin !== nextParagraph.listLeftMargin ||
+      paragraph.listIndent !== nextParagraph.listIndent
+    )
+  })
 }
 
 function createActiveRichTextDraft(element: AnySlideElement): ActiveRichTextDraft | null {
@@ -1248,12 +1322,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           pendingFormatting,
           editDelta
         )
+        const shouldRehydrateForListMarkers = shouldRehydrateForListMarkerState(shapeDraft, nextShapeText)
         storeActiveRichTextDraft({ id, kind: 'shape', element: nextShapeText })
         updateElement(id, { shapeText: nextShapeText } as Partial<ShapeElement>)
         if (pendingFormatting && editDelta.insertedLength > 0) {
           preservePendingCaretFormattingRef.current = true
         }
-        if (rehydrate || shouldRehydrateForParagraphStructure) {
+        if (rehydrate || shouldRehydrateForParagraphStructure || shouldRehydrateForListMarkers) {
           bumpRichTextEditorRehydrateToken()
         }
         return
@@ -1286,6 +1361,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         ),
         ...(updatedLinks !== undefined && { links: updatedLinks })
       }
+      const shouldRehydrateForListMarkers = shouldRehydrateForListMarkerState(textDraft, nextTextDraft)
 
       storeActiveRichTextDraft({ id, kind: 'text', element: nextTextDraft })
       updateElement(id, nextTextDraft)
@@ -1293,7 +1369,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         preservePendingCaretFormattingRef.current = true
       }
 
-      if (rehydrate || shouldRehydrateForParagraphStructure) {
+      if (rehydrate || shouldRehydrateForParagraphStructure || shouldRehydrateForListMarkers) {
         bumpRichTextEditorRehydrateToken()
       }
     },
@@ -1337,10 +1413,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const applyTextFormattingUpdates = useCallback(
     (
       element: AnySlideElement,
-      updates: Partial<AnySlideElement>,
+      updates: Partial<AnySlideElement> | RichTextFormattingUpdate,
       selection?: RichTextSelectionRange | null
     ): Partial<AnySlideElement> => {
-      if (element.type !== 'text' || !isRichTextFormattingUpdate(updates as Partial<TextElement>)) return updates
+      if (element.type !== 'text' || !isRichTextFormattingUpdate(updates as Partial<TextElement>)) {
+        return updates as Partial<AnySlideElement>
+      }
 
       return applyRichTextFormatting(
         element,
@@ -1353,7 +1431,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Applies updates to all selected elements (for toolbar and property panel multi-select)
   const updateSelectedElements = useCallback(
-    (triggerId: string, updates: Partial<AnySlideElement>) => {
+    (triggerId: string, updates: Partial<AnySlideElement> | RichTextFormattingUpdate) => {
       if (!canEdit) return
       if (selectedElementIds.size > 1) {
         if (unlockedSelectedElements.length === 0) return
@@ -1380,7 +1458,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const handleToolbarUpdateElement = useCallback(
-    (id: string, updates: Partial<AnySlideElement>) => {
+    (id: string, updates: Partial<AnySlideElement> | RichTextFormattingUpdate) => {
       const activeElement = currentSlide.elements.find(element => element.id === editingTextId)
       const isActiveTextUpdate =
         !!activeElement &&
@@ -1393,8 +1471,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         return
       }
 
-      const selection =
-        activeTextSelection && activeTextSelection.end > activeTextSelection.start ? activeTextSelection : null
+      const selection = activeTextSelection ?? null
       const hasCollapsedSelection = !!activeTextSelection && activeTextSelection.start === activeTextSelection.end
       const characterUpdates = getCharacterRichTextFormattingUpdate(updates as RichTextFormattingUpdate)
       const hasCharacterUpdates = hasCharacterRichTextFormattingUpdate(characterUpdates as Partial<TextElement>)

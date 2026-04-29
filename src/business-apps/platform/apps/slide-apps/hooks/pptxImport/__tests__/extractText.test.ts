@@ -359,6 +359,38 @@ describe('extractTextElements', () => {
 
     expect(elements[0].paragraphs?.[0]).toEqual(expect.objectContaining({ bulletType: 'bullet', bulletChar: '→' }))
   })
+
+  it('imports numbering style, start value, and paragraph geometry', () => {
+    const xml = slideXml(`
+      <p:sp>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="1828800" cy="457200"/></a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:p>
+            <a:pPr lvl="1" marL="342900" indent="-171450">
+              <a:buAutoNum type="alphaLcParenR" startAt="3"/>
+            </a:pPr>
+            <a:r><a:t>Imported numbering</a:t></a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+
+    const elements = extractTextElements(xml, theme, emptyRels)
+    const paragraph = elements[0].paragraphs?.[0]
+
+    expect(paragraph).toEqual(
+      expect.objectContaining({
+        bulletType: 'number',
+        numberingStyle: 'alphaLcParenR',
+        numberStartAt: 3,
+        indentLevel: 1
+      })
+    )
+    expect(paragraph?.listLeftMargin).toBeCloseTo(36, 0)
+    expect(paragraph?.listIndent).toBeCloseTo(-18, 0)
+  })
 })
 
 describe('resolveTypeface', () => {

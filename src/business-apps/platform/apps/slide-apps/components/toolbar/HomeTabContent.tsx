@@ -21,6 +21,7 @@ import translations from '../../_i18n'
 import type { ToolbarContext } from '../../hooks/useToolbarContext'
 import type { AnySlideElement, SlideTheme } from '../slideElements'
 import type { SlideMaster } from '../../types/slideMaster'
+import type { RichTextFormattingUpdate } from '../../utils/richTextEditing'
 import { SLIDE_THEMES } from '../slideThemes'
 import { SlideLayoutPicker } from '../SlideLayoutPicker'
 import { TextFormattingTools } from './TextFormattingTools'
@@ -42,7 +43,7 @@ export interface HomeTabContentProps {
   onRedo: () => void
   onCopy: () => void
   onPaste: () => void
-  onUpdateElement: (id: string, updates: Partial<AnySlideElement>) => void
+  onUpdateElement: (id: string, updates: Partial<AnySlideElement> | RichTextFormattingUpdate) => void
   onShowBackgroundDialog: () => void
   onShowLinkDialog: () => void
   onUpdateTheme: (themeId: string) => void

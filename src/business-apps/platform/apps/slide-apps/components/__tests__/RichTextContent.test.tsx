@@ -67,22 +67,29 @@ describe('RichTextContent', () => {
     expect(link).toHaveAttribute('target', '_blank')
   })
 
-  it('numbers paragraphs per indent level', () => {
+  it('renders numbering styles and explicit start values', () => {
     const paragraphs: RichTextParagraph[] = [
-      { alignment: 'left', bulletType: 'number', runs: [{ text: 'first' }] },
-      { alignment: 'left', bulletType: 'number', runs: [{ text: 'second' }] },
       {
         alignment: 'left',
         bulletType: 'number',
+        numberingStyle: 'alphaLcParenR',
+        numberStartAt: 3,
+        runs: [{ text: 'first' }]
+      },
+      { alignment: 'left', bulletType: 'number', numberingStyle: 'alphaLcParenR', runs: [{ text: 'second' }] },
+      {
+        alignment: 'left',
+        bulletType: 'number',
+        numberingStyle: 'romanUcPeriod',
         indentLevel: 1,
         runs: [{ text: 'second.a' }]
       }
     ]
     const { container } = render(<RichTextContent element={makeFallback()} paragraphs={paragraphs} />)
-    expect(container.textContent).toContain('1.')
-    expect(container.textContent).toContain('2.')
+    expect(container.textContent).toContain('c)')
+    expect(container.textContent).toContain('d)')
     // Nested counter resets on the new level
-    expect(container.textContent).toContain('1.second.a')
+    expect(container.textContent).toContain('I.second.a')
   })
 
   it('falls back to default bullet glyph when no custom character is provided', () => {
@@ -98,7 +105,7 @@ describe('RichTextContent', () => {
 
     render(<RichTextContent element={makeFallback()} paragraphs={paragraphs} />)
 
-    expect(screen.getByTestId('rich-text-content-paragraph-0')).toHaveStyle({ paddingLeft: '32px', display: 'flex' })
+    expect(screen.getByTestId('rich-text-content-paragraph-0')).toHaveStyle({ paddingLeft: '36px', display: 'flex' })
   })
 
   it('does not render bullet glyphs for empty list paragraphs', () => {
@@ -109,5 +116,22 @@ describe('RichTextContent', () => {
     const paragraph = screen.getByTestId('rich-text-content-paragraph-0')
     expect(paragraph).toHaveStyle({ display: 'block' })
     expect(paragraph.textContent).toBe('')
+  })
+
+  it('uses imported list geometry for hanging indent layout', () => {
+    const paragraphs: RichTextParagraph[] = [
+      {
+        alignment: 'left',
+        bulletType: 'bullet',
+        bulletChar: '◆',
+        listLeftMargin: 48,
+        listIndent: -18,
+        runs: [{ text: 'custom geometry' }]
+      }
+    ]
+
+    render(<RichTextContent element={makeFallback()} paragraphs={paragraphs} />)
+
+    expect(screen.getByTestId('rich-text-content-paragraph-0')).toHaveStyle({ paddingLeft: '30px', display: 'flex' })
   })
 })

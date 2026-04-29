@@ -31,6 +31,7 @@ export const RichTextContent: React.FC<RichTextContentProps> = ({
     <div data-testid={testId} style={{ width: '100%' }}>
       {paragraphs.map((paragraph, pIdx) => {
         const marker = getRichTextParagraphMarker(paragraph, numberedCounters)
+        const hasTextContent = paragraph.runs.some(run => run.text.length > 0)
 
         return (
           <div
@@ -39,33 +40,46 @@ export const RichTextContent: React.FC<RichTextContentProps> = ({
             data-testid={`${testId}-paragraph-${pIdx}`}
           >
             {marker && (
-              <span style={{ color: element.color, flexShrink: 0 }} aria-hidden="true">
+              <span
+                style={{
+                  color: element.color,
+                  flexShrink: 0,
+                  width: marker.width,
+                  display: 'inline-flex',
+                  justifyContent: 'flex-end'
+                }}
+                aria-hidden="true"
+              >
                 {marker.label}
               </span>
             )}
             <span style={{ flex: marker ? 1 : undefined }}>
-              {paragraph.runs.map((run, rIdx) => {
-                const style = getRichTextRunStyle(run, element)
-                if (run.hyperlink) {
+              {hasTextContent ? (
+                paragraph.runs.map((run, rIdx) => {
+                  const style = getRichTextRunStyle(run, element)
+                  if (run.hyperlink) {
+                    return (
+                      <a
+                        key={rIdx}
+                        href={run.hyperlink}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        style={style}
+                        data-testid={`${testId}-run-link-${pIdx}-${rIdx}`}
+                      >
+                        {run.text}
+                      </a>
+                    )
+                  }
                   return (
-                    <a
-                      key={rIdx}
-                      href={run.hyperlink}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      style={style}
-                      data-testid={`${testId}-run-link-${pIdx}-${rIdx}`}
-                    >
+                    <span key={rIdx} style={style} data-testid={`${testId}-run-${pIdx}-${rIdx}`}>
                       {run.text}
-                    </a>
+                    </span>
                   )
-                }
-                return (
-                  <span key={rIdx} style={style} data-testid={`${testId}-run-${pIdx}-${rIdx}`}>
-                    {run.text}
-                  </span>
-                )
-              })}
+                })
+              ) : (
+                <br aria-hidden="true" />
+              )}
             </span>
           </div>
         )

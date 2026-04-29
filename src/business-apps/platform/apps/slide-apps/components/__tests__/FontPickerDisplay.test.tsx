@@ -131,6 +131,32 @@ jest.mock('@newwork/nw-design-system', () => {
     Popover: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     PopoverContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     PopoverTrigger: ({ children }: { children?: React.ReactNode; asChild?: boolean }) => <>{children}</>,
+    DropdownMenu: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+    DropdownMenuContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+    DropdownMenuItem: ({
+      children,
+      onClick,
+      onSelect,
+      ...props
+    }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+      onSelect?: () => void
+    }) => (
+      <button
+        type="button"
+        onClick={event => {
+          onClick?.(event)
+          onSelect?.()
+        }}
+        {...props}
+      >
+        {children}
+      </button>
+    ),
+    DropdownMenuTrigger: ({ children }: { children?: React.ReactNode; asChild?: boolean }) => <>{children}</>,
+    TooltipProvider: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    Tooltip: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    TooltipTrigger: ({ children }: { children?: React.ReactNode; asChild?: boolean }) => <>{children}</>,
+    TooltipContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     useTranslation: () => ({
       t: (key: string) => (key === 'editor-mixed' ? 'Mixed' : key)
     })
@@ -203,13 +229,18 @@ function makeShapeElement(overrides: Partial<ShapeElement> = {}): ShapeElement {
   })
 }
 
-function renderToolbar(formatting?: ResolvedTextFormattingState) {
+function renderToolbar(
+  formatting?: ResolvedTextFormattingState,
+  props: Partial<React.ComponentProps<typeof TextFormattingTools>> = {}
+) {
   render(
     <TextFormattingTools
       element={makeTextElement()}
       formatting={formatting}
       onUpdateElement={() => {}}
       onShowLinkDialog={() => {}}
+      testId="toolbar"
+      {...props}
     />
   )
 }
@@ -373,5 +404,37 @@ describe('font picker display', () => {
 
     expect(onUpdate).toHaveBeenCalledWith({ fill: 'transparent', gradient: undefined })
     expect(screen.getByText('props-stroke-color')).toBeInTheDocument()
+  })
+
+  it('sends bullet and numbering commands from the toolbar list controls', () => {
+    const onUpdateElement = jest.fn()
+
+    renderToolbar(undefined, {
+      onUpdateElement
+    })
+
+    fireEvent.click(screen.getByTestId('toolbar-list-bullet-25c6'))
+    expect(onUpdateElement).toHaveBeenCalledWith('text-1', { bulletType: 'bullet', bulletChar: '◆' })
+
+    fireEvent.click(screen.getByTestId('toolbar-list-numbering-romanUcPeriod'))
+    expect(onUpdateElement).toHaveBeenCalledWith('text-1', { bulletType: 'number', numberingStyle: 'romanUcPeriod' })
+  })
+
+  it('sends indent and outdent commands from the toolbar list controls', () => {
+    const onUpdateElement = jest.fn()
+
+    renderToolbar(
+      {
+        bulletType: 'bullet',
+        indentLevel: 1
+      },
+      { onUpdateElement }
+    )
+
+    fireEvent.click(screen.getByTestId('toolbar-list-indent'))
+    expect(onUpdateElement).toHaveBeenCalledWith('text-1', { indentLevel: 2 })
+
+    fireEvent.click(screen.getByTestId('toolbar-list-outdent'))
+    expect(onUpdateElement).toHaveBeenCalledWith('text-1', { indentLevel: 0 })
   })
 })

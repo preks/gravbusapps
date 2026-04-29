@@ -20,6 +20,7 @@ import { SlideshowTabContent } from './SlideshowTabContent'
 import type { ToolbarContext } from '../../hooks/useToolbarContext'
 import type { AnySlideElement, SlideData } from '../slideElements'
 import type { SlideTheme } from '../slideThemes'
+import type { RichTextFormattingUpdate } from '../../utils/richTextEditing'
 
 export interface SlideToolbarRibbonProps {
   context: ToolbarContext
@@ -42,7 +43,7 @@ export interface SlideToolbarRibbonProps {
   onCopy: () => void
   onPaste: () => void
   onAddElement: (element: AnySlideElement, options?: { positionMode?: 'center' | 'preserve' }) => void
-  onUpdateElement: (id: string, updates: Partial<AnySlideElement>) => void
+  onUpdateElement: (id: string, updates: Partial<AnySlideElement> | RichTextFormattingUpdate) => void
   onShowBackgroundDialog: () => void
   onShowImageDialog: () => void
   onShowVideoDialog: () => void
