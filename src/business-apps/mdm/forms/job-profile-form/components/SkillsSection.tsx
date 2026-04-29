@@ -11,6 +11,7 @@ import {
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
+import { SparkleIcon } from '@phosphor-icons/react'
 import { SkillLevelRow } from '@/business-apps/hr/core/forms/add-skill/components/SkillLevelRow'
 import { DebouncedInput } from '@/components/debounced-input'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -18,6 +19,8 @@ import { SEARCH_SKILLS_QUERY, GET_SKILLS_BY_NAMES } from '@/business-apps/hr/cor
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { hybridSearchSkills } from '@/common/network/flowbot/hybridSearchSkills'
 import { env } from '@/common/env/EnvUtils'
+import { useSuggestedSkills } from '../hooks/useSuggestedSkills'
+import { SuggestedSkillsTable } from './SuggestedSkillsTable'
 import translations from '../_i18n'
 
 interface SkillsSectionProps {
@@ -65,7 +68,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
   const form = useFormContext()
   const graphqlClient = useGraphQLClient(accessToken)
   const restClient = useRestClient(env('NEXT_PUBLIC_BASE_URL'))
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: 'skills'
   })
@@ -228,7 +231,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
       // Save new skill to backend
       await restClient.post(
         '/processes/employee/saveSkill',
-        { skill: { name: name } },
+        { skill: { name: name }, changeMode: 'INSERT' },
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -260,6 +263,31 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
   const handleRemoveSkill = (index: number) => {
     remove(index)
   }
+
+  const jobDescriptionFile = form.watch('jobDescriptionFile')
+  const jobTitle = form.watch('name') as string
+
+  const {
+    suggestedSkills,
+    selectedSuggestionKeys,
+    creatingSkillKeys,
+    handleToggleSelect,
+    handleToggleSelectAll,
+    handleRemoveSuggestion,
+    handleCreateSkill,
+    handleAddToProfile,
+    handleAnalyze,
+    isAnalyzing,
+    analyzeError,
+    hasFile
+  } = useSuggestedSkills({
+    accessToken: accessToken ?? '',
+    replace,
+    append,
+    selectedSkillIds,
+    jobDescriptionFile,
+    jobTitle
+  })
 
   const showNoResults = !isSearching && filteredResults.length === 0 && searchTerm.trim().length > 0
 
@@ -487,7 +515,52 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
             )}
           />
         )}
+
+        {hasFile && (
+          <div className="gba:space-y-2 gba:pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isAnalyzing}
+              onClick={handleAnalyze}
+              data-testid={`${dataTestId}-analyze-skills-button`}
+            >
+              {isAnalyzing ? (
+                <>
+                  <Spinner size="sm" className="gba:mr-2" />
+                  {t('suggest-skills-analyzing')}
+                </>
+              ) : (
+                <>
+                  <SparkleIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                  {t('suggest-skills-button')}
+                </>
+              )}
+            </Button>
+
+            {analyzeError && (
+              <p className="gba:text-sm gba:text-destructive" data-testid={`${dataTestId}-analyze-error`}>
+                {analyzeError}
+              </p>
+            )}
+          </div>
+        )}
       </div>
+
+      {suggestedSkills.length > 0 && (
+        <SuggestedSkillsTable
+          skills={suggestedSkills}
+          selectedKeys={selectedSuggestionKeys}
+          creatingKeys={creatingSkillKeys}
+          onToggleSelect={handleToggleSelect}
+          onToggleSelectAll={handleToggleSelectAll}
+          onRemove={handleRemoveSuggestion}
+          onCreate={handleCreateSkill}
+          onAddToProfile={handleAddToProfile}
+          dataTestId={dataTestId}
+        />
+      )}
     </div>
   )
 }

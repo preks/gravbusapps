@@ -1,0 +1,151 @@
+import { useState, useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
+
+const JOB_DESCRIPTION_SKILLS_AGENT_ID = '69d610957299ecfb57020515'
+
+export interface AgentSkillItem {
+  extracted_name: string
+  company_skill_name: string | null
+  company_skill_id: string | null
+  matched: boolean
+  category: string
+  confidence: number
+  recommended_level: number
+  context?: string
+}
+
+export interface UseSkillsFromFileOptions {
+  accessToken: string
+  onSkillsSuggested: (skills: AgentSkillItem[]) => void
+}
+
+/** The value stored in the `jobDescriptionFile` form field. Two shapes are possible:
+ *  - Raw browser file (just picked, not yet uploaded): has `file` / `originFileObj`
+ *  - Server-hosted file (loaded in edit mode): has `fileId` / `url` / `path`
+ */
+export type JobDescriptionFileValue =
+  | { file?: File; originFileObj?: File; name?: string; [key: string]: unknown }
+  | { fileId?: string; url?: string; path?: string; name?: string; mimeType?: string; [key: string]: unknown }
+  | null
+
+interface ParsedAgentResponse {
+  skills: AgentSkillItem[]
+  summary: string | null
+  error: string | null
+}
+
+function parseAgentResponse(content: unknown): ParsedAgentResponse {
+  const raw = typeof content === 'string' ? content : JSON.stringify(content)
+  const trimmed = raw.trim()
+
+  const tryParse = (json: string): ParsedAgentResponse | null => {
+    try {
+      const parsed = JSON.parse(json)
+      if (Array.isArray(parsed)) return { skills: parsed, summary: null, error: null }
+      if (typeof parsed?.error === 'string') {
+        return { skills: [], summary: null, error: parsed.error }
+      }
+      if (parsed?.skills && Array.isArray(parsed.skills)) {
+        return { skills: parsed.skills, summary: parsed.summary ?? null, error: null }
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  const direct = tryParse(trimmed)
+  if (direct) return direct
+
+  const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (match) {
+    const fromBlock = tryParse(match[1].trim())
+    if (fromBlock) return fromBlock
+  }
+
+  return { skills: [], summary: null, error: null }
+}
+
+export const useSkillsFromFile = ({ accessToken, onSkillsSuggested }: UseSkillsFromFileOptions) => {
+  const { t } = useTranslation(translations)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const client = usePromptManagerClient(accessToken)
+
+  const analyze = useCallback(
+    async (jobDescriptionFile: JobDescriptionFileValue, jobTitle: string) => {
+      if (!jobDescriptionFile) {
+        setError(t('suggest-skills-error-no-file'))
+        return
+      }
+
+      setIsAnalyzing(true)
+      setError(null)
+
+      try {
+        const locale = getCurrentActiveUserLocale()
+        const language = new Intl.DisplayNames([locale], { type: 'language' }).of(locale.split('-')[0]) ?? locale
+
+        const formData = new FormData()
+        formData.append('system_params', JSON.stringify({ language }))
+        formData.append('user_params', JSON.stringify({ job_title: jobTitle }))
+
+        const rawFile =
+          (jobDescriptionFile as any).file instanceof File
+            ? (jobDescriptionFile as any).file
+            : (jobDescriptionFile as any).originFileObj instanceof File
+              ? (jobDescriptionFile as any).originFileObj
+              : null
+
+        if (rawFile) {
+          formData.append('files', rawFile)
+        } else {
+          const url = (jobDescriptionFile as any).url || (jobDescriptionFile as any).path || ''
+          if (!url) {
+            setError(t('suggest-skills-error-no-url'))
+            return
+          }
+          formData.append(
+            'attachments',
+            JSON.stringify([
+              {
+                id: (jobDescriptionFile as any).fileId || 'job-description',
+                name: (jobDescriptionFile as any).name || 'job-description',
+                url,
+                mimeType: (jobDescriptionFile as any).mimeType || ''
+              }
+            ])
+          )
+        }
+
+        const response = await client.executePromptById(JOB_DESCRIPTION_SKILLS_AGENT_ID, formData)
+        const { skills: agentSkills, summary, error: agentError } = parseAgentResponse(response.content)
+
+        if (agentError) {
+          setError(agentError)
+          return
+        }
+
+        if (agentSkills.length === 0) {
+          setError(summary ?? t('suggest-skills-error-no-results'))
+          return
+        }
+
+        onSkillsSuggested(agentSkills)
+      } catch (err) {
+        console.error('[useSkillsFromFile] Analysis failed:', err)
+        setError(err instanceof Error ? err.message : t('suggest-skills-error-generic'))
+      } finally {
+        setIsAnalyzing(false)
+      }
+    },
+    [client, onSkillsSuggested, t]
+  )
+
+  const clearError = useCallback(() => setError(null), [])
+
+  return { analyze, isAnalyzing, error, clearError }
+}
