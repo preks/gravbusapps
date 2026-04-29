@@ -1,10 +1,15 @@
 import type { TextElement } from '../../components/slideElements'
 import {
   applyCaretFormattingToInsertedText,
+  applyRichTextHyperlink,
   applyRichTextFormatting,
+  clearRichTextHyperlink,
+  getRichTextHyperlinkAtSelection,
   getRichTextStyleAtRange,
+  getRichTextTextInRange,
   getTextEditDelta,
-  replaceRichTextContent
+  replaceRichTextContent,
+  resolveRichTextSelectionForLinkAction
 } from '../richTextEditing'
 
 function makeTextElement(overrides: Partial<TextElement> = {}): TextElement {
@@ -44,6 +49,50 @@ describe('richTextEditing', () => {
       expect.objectContaining({ text: 'Hello ', fontWeight: 'normal' }),
       expect.objectContaining({ text: 'world', fontWeight: 'bold' })
     ])
+  })
+
+  it('applies hyperlinks only to the selected text range', () => {
+    const updated = applyRichTextHyperlink(makeTextElement(), { start: 6, end: 11 }, 'https://example.com')
+
+    expect(updated.content).toBe('Hello world')
+    expect(updated.paragraphs?.[0].runs).toEqual([
+      expect.objectContaining({ text: 'Hello ', hyperlink: undefined }),
+      expect.objectContaining({ text: 'world', hyperlink: 'https://example.com' })
+    ])
+  })
+
+  it('expands a collapsed caret to the current hyperlink range', () => {
+    const element = makeTextElement({
+      paragraphs: [
+        {
+          runs: [{ text: 'Hello ' }, { text: 'world', hyperlink: 'https://example.com' }, { text: '!' }]
+        }
+      ]
+    })
+
+    const selection = resolveRichTextSelectionForLinkAction(element, { start: 8, end: 8 })
+
+    expect(selection).toEqual({ start: 6, end: 11 })
+    expect(getRichTextHyperlinkAtSelection(element, { start: 8, end: 8 })).toBe('https://example.com')
+    expect(getRichTextTextInRange(element, selection)).toBe('world')
+  })
+
+  it('removes hyperlinks only from the resolved link range', () => {
+    const element = makeTextElement({
+      paragraphs: [
+        {
+          runs: [{ text: 'Hello ' }, { text: 'world', hyperlink: 'https://example.com' }, { text: '!' }]
+        }
+      ]
+    })
+
+    const updated = clearRichTextHyperlink(
+      element,
+      resolveRichTextSelectionForLinkAction(element, { start: 8, end: 8 })
+    )
+
+    expect(updated.paragraphs?.[0].runs).toEqual([expect.objectContaining({ text: 'Hello world!' })])
+    expect(updated.paragraphs?.[0].runs[0].hyperlink).toBeUndefined()
   })
 
   it('applies formatting to every run when no text range is active', () => {
@@ -156,6 +205,20 @@ describe('richTextEditing', () => {
     expect(updated.content).toBe('abc')
     expect(updated.paragraphs?.[0].runs[0]).toEqual(expect.objectContaining({ text: 'a', fontWeight: 'bold' }))
     expect(updated.paragraphs?.[0].runs[1]).toEqual(expect.objectContaining({ text: 'bc', fontStyle: 'italic' }))
+  })
+
+  it('preserves hyperlinks when text content changes', () => {
+    const element = makeTextElement({
+      content: 'go',
+      paragraphs: [{ runs: [{ text: 'go', hyperlink: 'https://example.com' }] }]
+    })
+
+    const updated = replaceRichTextContent(element, 'goal')
+
+    expect(updated.content).toBe('goal')
+    expect(updated.paragraphs?.[0].runs).toEqual([
+      expect.objectContaining({ text: 'goal', hyperlink: 'https://example.com' })
+    ])
   })
 
   it('preserves paragraph bullet metadata when text content changes', () => {

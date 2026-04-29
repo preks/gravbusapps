@@ -1046,6 +1046,7 @@ link-url-required = URL ist erforderlich
 link-url-invalid = Ungültige URL
 link-click-to-open = Klicken zum Öffnen
 link-selected-text = Ausgewählter Text
+link-select-text-first = Text auswählen, bevor ein Link hinzugefügt wird
 link-cancel = Abbrechen
 link-update = Aktualisieren
 link-add-btn = Link hinzufügen

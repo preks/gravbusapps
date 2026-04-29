@@ -1002,6 +1002,7 @@ link-url-required = URL este obligatoriu
 link-url-invalid = URL invalid
 link-click-to-open = Click pentru a deschide
 link-selected-text = Text selectat
+link-select-text-first = Selectează text înainte de a adăuga un link
 link-cancel = Anulează
 link-update = Actualizează
 link-add-btn = Adaugă link

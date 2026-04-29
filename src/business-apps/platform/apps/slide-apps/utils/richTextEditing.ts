@@ -86,6 +86,7 @@ type RichTextRunStyle = Pick<
   | 'textDecoration'
   | 'color'
   | 'backgroundColor'
+  | 'hyperlink'
   | 'textTransform'
 >
 
@@ -178,6 +179,7 @@ function styleFromRun(run: RichTextRun, source: RichTextEditable): RichTextRunSt
     textDecoration: run.textDecoration ?? source.textDecoration,
     color: run.color ?? source.color,
     backgroundColor: run.backgroundColor,
+    hyperlink: run.hyperlink,
     textTransform: run.textTransform ?? source.textTransform
   }
 }
@@ -191,6 +193,7 @@ function compactRunStyle(style: RichTextRunStyle): Omit<RichTextRun, 'text'> {
     textDecoration: style.textDecoration,
     color: style.color,
     backgroundColor: style.backgroundColor,
+    hyperlink: style.hyperlink,
     textTransform: style.textTransform
   }
 }
@@ -276,6 +279,232 @@ function sortedRange(range: RichTextSelectionRange): RichTextSelectionRange {
 
 function contentLengthFromParagraphs(paragraphs: RichTextParagraph[]): number {
   return getRichTextContent(paragraphs).length
+}
+
+interface RichTextRunSpan {
+  start: number
+  end: number
+  run: RichTextRun
+}
+
+function getRichTextRunSpans(paragraphs: RichTextParagraph[]): RichTextRunSpan[] {
+  const spans: RichTextRunSpan[] = []
+  let cursor = 0
+
+  for (const paragraph of paragraphs) {
+    for (const run of paragraph.runs) {
+      const start = cursor
+      const end = start + run.text.length
+      spans.push({ start, end, run })
+      cursor = end
+    }
+    cursor += 1
+  }
+
+  return spans
+}
+
+function findRichTextHyperlinkSpanAtOffset(
+  spans: RichTextRunSpan[],
+  offset: number
+): { start: number; end: number; url: string } | null {
+  const exactSpanIndex = spans.findIndex(
+    span => !!span.run.hyperlink && span.run.text.length > 0 && offset > span.start && offset < span.end
+  )
+  const boundarySpanIndex =
+    exactSpanIndex >= 0
+      ? exactSpanIndex
+      : spans.findIndex(
+          span => !!span.run.hyperlink && span.run.text.length > 0 && (offset === span.start || offset === span.end)
+        )
+
+  if (boundarySpanIndex < 0) {
+    return null
+  }
+
+  const url = spans[boundarySpanIndex].run.hyperlink
+  if (!url) {
+    return null
+  }
+
+  let start = spans[boundarySpanIndex].start
+  let end = spans[boundarySpanIndex].end
+
+  for (let index = boundarySpanIndex - 1; index >= 0; index -= 1) {
+    const span = spans[index]
+    if (span.run.hyperlink !== url || span.end !== start) {
+      break
+    }
+    start = span.start
+  }
+
+  for (let index = boundarySpanIndex + 1; index < spans.length; index += 1) {
+    const span = spans[index]
+    if (span.run.hyperlink !== url || span.start !== end) {
+      break
+    }
+    end = span.end
+  }
+
+  return { start, end, url }
+}
+
+function mutateRichTextRunsInSelection<T extends RichTextEditable>(
+  source: T,
+  selection: RichTextSelectionRange | null | undefined,
+  mutateRun: (run: RichTextRun) => RichTextRun
+): T {
+  const range = selection ? sortedRange(selection) : null
+  if (!range || range.end <= range.start) {
+    return source
+  }
+
+  const paragraphs = normalizeRichTextParagraphs(source)
+  const contentLength = contentLengthFromParagraphs(paragraphs)
+  let paragraphStart = 0
+  let touchedSelection = false
+
+  const nextParagraphs = paragraphs.map(paragraph => {
+    const paragraphLength = paragraph.runs.reduce((sum, run) => sum + run.text.length, 0)
+    const paragraphEnd = paragraphStart + paragraphLength
+    const nextParagraph: RichTextParagraph = { ...paragraph, runs: [] }
+    let runStart = paragraphStart
+
+    for (const run of paragraph.runs) {
+      const runEnd = runStart + run.text.length
+      const applyStart = Math.max(range.start, runStart)
+      const applyEnd = Math.min(range.end, runEnd)
+
+      if (applyStart >= applyEnd) {
+        nextParagraph.runs.push({ ...run })
+      } else {
+        touchedSelection = true
+        const beforeLength = applyStart - runStart
+        const selectedLength = applyEnd - applyStart
+
+        if (beforeLength > 0) {
+          nextParagraph.runs.push({ ...run, text: run.text.slice(0, beforeLength) })
+        }
+
+        nextParagraph.runs.push(
+          mutateRun({
+            ...run,
+            text: run.text.slice(beforeLength, beforeLength + selectedLength)
+          })
+        )
+
+        if (applyEnd < runEnd) {
+          nextParagraph.runs.push({ ...run, text: run.text.slice(beforeLength + selectedLength) })
+        }
+      }
+
+      runStart = runEnd
+    }
+
+    paragraphStart = paragraphEnd + 1
+    return nextParagraph
+  })
+
+  if (!touchedSelection) {
+    return source
+  }
+
+  return {
+    ...source,
+    content: getRichTextContent(nextParagraphs).slice(0, contentLength),
+    paragraphs: mergeAdjacentRichTextRuns(nextParagraphs)
+  }
+}
+
+export function resolveRichTextSelectionForLinkAction<T extends RichTextEditable>(
+  source: T,
+  selection: RichTextSelectionRange | null | undefined
+): RichTextSelectionRange | null {
+  const range = selection ? sortedRange(selection) : null
+  if (!range) {
+    return null
+  }
+
+  if (range.end > range.start) {
+    return range
+  }
+
+  const paragraphs = normalizeRichTextParagraphs(source)
+  const hyperlinkSpan = findRichTextHyperlinkSpanAtOffset(getRichTextRunSpans(paragraphs), range.start)
+
+  return hyperlinkSpan ? { start: hyperlinkSpan.start, end: hyperlinkSpan.end } : null
+}
+
+export function getRichTextHyperlinkAtSelection<T extends RichTextEditable>(
+  source: T,
+  selection: RichTextSelectionRange | null | undefined
+): string | undefined {
+  const effectiveSelection = resolveRichTextSelectionForLinkAction(source, selection)
+  if (!effectiveSelection) {
+    return undefined
+  }
+
+  const paragraphs = normalizeRichTextParagraphs(source)
+  const spans = getRichTextRunSpans(paragraphs)
+  let url: string | undefined
+  let touchedText = false
+
+  for (const span of spans) {
+    const applyStart = Math.max(effectiveSelection.start, span.start)
+    const applyEnd = Math.min(effectiveSelection.end, span.end)
+
+    if (applyStart >= applyEnd || span.run.text.length === 0) {
+      continue
+    }
+
+    touchedText = true
+    if (!span.run.hyperlink) {
+      return undefined
+    }
+    if (!url) {
+      url = span.run.hyperlink
+      continue
+    }
+    if (url !== span.run.hyperlink) {
+      return undefined
+    }
+  }
+
+  return touchedText ? url : undefined
+}
+
+export function getRichTextTextInRange<T extends RichTextEditable>(
+  source: T,
+  selection: RichTextSelectionRange | null | undefined
+): string {
+  const range = selection ? sortedRange(selection) : null
+  if (!range || range.end <= range.start) {
+    return ''
+  }
+
+  return getRichTextContent(normalizeRichTextParagraphs(source)).slice(range.start, range.end)
+}
+
+export function applyRichTextHyperlink<T extends RichTextEditable>(
+  source: T,
+  selection: RichTextSelectionRange | null | undefined,
+  hyperlink: string
+): T {
+  return mutateRichTextRunsInSelection(source, selection, run => ({
+    ...run,
+    hyperlink
+  }))
+}
+
+export function clearRichTextHyperlink<T extends RichTextEditable>(
+  source: T,
+  selection: RichTextSelectionRange | null | undefined
+): T {
+  return mutateRichTextRunsInSelection(source, selection, run => {
+    const nextRun = { ...run }
+    delete nextRun.hyperlink
+    return nextRun
+  })
 }
 
 function styleAtOffset(paragraphs: RichTextParagraph[], source: RichTextEditable, offset: number): RichTextRunStyle {
