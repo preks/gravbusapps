@@ -99,7 +99,7 @@ interface LatLng {
 const DEFAULT_CENTER: LatLng = { lat: 50.1109, lng: 8.6821 } // Frankfurt — neutral EU default
 const DEFAULT_ZOOM = 13
 const FOCUSED_ZOOM = 16
-const DEBOUNCE_MS = 300
+const DEBOUNCE_MS = 1200
 
 const FlyToMarker: React.FC<{ center: LatLng | null; zoom: number }> = ({ center, zoom }) => {
   const map = useMap()
