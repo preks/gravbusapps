@@ -1,10 +1,17 @@
 import React, { useMemo } from 'react'
-import { Card, CardHeader, CardContent, CardTitle } from '@newwork/nw-design-system'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardTitle,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
-// import { formatCurrency } from '../utils/formatters';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../utils'
+import personalTranslations from '../../../../_i18n'
 
 interface ComparisonCardProps {
   title: string
@@ -23,7 +30,8 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
   previousLabel,
   currencyCode = 'EUR'
 }) => {
-  // Transform data for chart
+  const { t } = useTranslation(personalTranslations)
+
   const chartData = useMemo(
     () => [
       {
@@ -40,7 +48,6 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
     [currentValue, previousValue, currentLabel, previousLabel]
   )
 
-  // Create chart configuration
   const chartConfig = useMemo(
     () => ({
       current: {
@@ -55,14 +62,15 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
     [currentLabel, previousLabel]
   )
 
+  const amountLabel = t('dashboard-comparison-amount-label')
+
   return (
     <Card data-testid={`comparison-card-${title.toLowerCase().replace(' ', '-')}`}>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div style={{ height: 300 }} data-testid="comparison-card-content">
-          {/* Statistics Display */}
+        <div className="gba:h-[300px]" data-testid="comparison-card-content">
           <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mb-6 gba:items-start">
             <div className="gba:text-center">
               <div
@@ -84,7 +92,6 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
             </div>
           </div>
 
-          {/* Chart Visualization */}
           <ChartContainer config={chartConfig} className="gba:h-[180px]" data-testid="comparison-chart">
             <BarChart data={chartData} margin={{ top: 20, right: 30, left: 40, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -106,12 +113,9 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    formatter={(value: any) => [
+                    formatter={(value: number | string) => [
                       formatCurrencyDisplay(Number(value), currencyCode),
-                      getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_request_list.expense_plan_table.amount',
-                        'Amount'
-                      )
+                      amountLabel
                     ]}
                   />
                 }

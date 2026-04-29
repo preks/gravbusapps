@@ -17,18 +17,86 @@ filter-expense-items-description = Aplică filtre pentru a restrânge lista pozi
 # Expense Requests Tab
 personal-expenses-update-request-action = Actualizare Solicitare
 
-# Expense dashboard — quick action card buttons
-dashboard-quick-action-plan-button = Planifică o nouă delegație
-dashboard-quick-action-expense-item-button = Element nou de cheltuială
-dashboard-quick-action-request-button = Cerere de decont
+# Expense dashboard tab (legacy lowcoder / transl.txt)
 
-# Expense dashboard — first widget trend (vs previous period)
-dashboard-stat-trend-increase-vs-last-year = creștere față de anul trecut
-dashboard-stat-trend-decrease-vs-last-year = scădere față de anul trecut
-dashboard-stat-trend-increase-vs-last-quarter = creștere față de trimestrul trecut
-dashboard-stat-trend-decrease-vs-last-quarter = scădere față de trimestrul trecut
+dashboard-quick-action-plan-button = Planifică o nouă călătorie de afaceri
+dashboard-quick-action-expense-item-button = Cheltuială nouă
+dashboard-quick-action-request-button = Cerere nouă
+
+dashboard-quick-action-plan-title = Trimite planul
+dashboard-quick-action-plan-description = Planifică o nouă călătorie de afaceri
+dashboard-quick-action-plan-feature-approval = Solicită aprobarea planului
+dashboard-quick-action-plan-feature-advance = Solicitǎ Plata în Avans
+dashboard-quick-action-plan-feature-track = Urmărește starea solicitării
+
+dashboard-quick-action-record-title = Înregistrează cheltuială
+dashboard-quick-action-record-description = Adaugă rapid o cheltuială în evidență. Monitorizează eficient cheltuielile.
+dashboard-quick-action-record-feature-items = Un element sau mai multe
+dashboard-quick-action-record-feature-receipts = Atașează chitanțe ușor
+dashboard-quick-action-record-feature-categories = Categorizare clară
+
+dashboard-quick-action-submit-title = Trimite cerere
+dashboard-quick-action-submit-description = Trimite rapoartele tale de cheltuieli pentru rambursare și gestionează solicitările de călătorie eficient.
+dashboard-quick-action-submit-feature-report = Creează raport de cheltuieli
+dashboard-quick-action-submit-feature-trip = Solicită aprobare călătorie
+dashboard-quick-action-submit-feature-track = Urmărește starea solicitării
+
+dashboard-stat-trend-increase-vs-last-year = creștere din anul trecut
+dashboard-stat-trend-decrease-vs-last-year = scădere din anul trecut
+dashboard-stat-trend-increase-vs-last-quarter = creștere din trimestrul trecut
+dashboard-stat-trend-decrease-vs-last-quarter = scădere din trimestrul trecut
 dashboard-stat-trend-increase-vs-last-month = creștere față de luna trecută
 dashboard-stat-trend-decrease-vs-last-month = scădere față de luna trecută
+
+dashboard-stat-current-month-expenses = Cheltuieli din luna curentă
+dashboard-stat-current-quarter-expenses = Cheltuieli trimestru curent
+dashboard-stat-current-year-expenses = Cheltuieli an curent
+dashboard-stat-expense-requests-suffix = cereri de cheltuieli
+dashboard-stat-pending-payouts = Plăți în așteptare
+dashboard-stat-awaiting-payment = În așteptarea plății
+dashboard-stat-upcoming-trips = Călătorii viitoare
+dashboard-stat-planned-business-trips = Călătorii de afaceri planificate
+dashboard-stat-unallocated-expenses = Cheltuieli nealocate
+dashboard-stat-unlinked-items = Elemente de cheltuieli care nu sunt asociate unei cereri
+dashboard-stat-empty = Nu există statistici disponibile.
+
+dashboard-filter-loading = Se încarcă…
+dashboard-filter-currency-placeholder = Monedă
+dashboard-filter-period-placeholder = Perioadă
+dashboard-filter-period-monthly = Lunar
+dashboard-filter-period-quarterly = Trimestrial
+dashboard-filter-period-yearly = Anuală
+
+dashboard-spending-overview-title = Prezentare generală cheltuieli
+dashboard-spending-no-data = Nu există date de cheltuieli disponibile
+dashboard-spending-error = Eroare la încărcarea prezentării generale
+dashboard-comparison-monthly = Comparație lunară
+dashboard-comparison-quarterly = Comparație trimestrială
+dashboard-comparison-yearly = Comparație anuală
+dashboard-comparison-this-month = Luna aceasta
+dashboard-comparison-last-month = Luna trecută
+dashboard-comparison-this-quarter = Trimestrul acesta
+dashboard-comparison-last-quarter = Trimestrul trecut
+dashboard-comparison-this-year = Anul acesta
+dashboard-comparison-last-year = Anul trecut
+dashboard-comparison-amount-label = Sumă
+
+dashboard-expense-distribution-title = Distribuția cheltuielilor
+dashboard-expense-distribution-empty = Nu există date despre cheltuieli
+
+dashboard-action-feed-title = Flux de acțiuni
+dashboard-action-feed-no-data = Nu există date de activitate disponibile.
+dashboard-action-feed-error = Eroare la încărcarea fluxului de acțiuni
+dashboard-action-feed-view-less = Vezi mai puțin
+dashboard-action-feed-view-all = Vezi tot
+dashboard-action-feed-col-description = Descriere
+dashboard-action-feed-col-status = Status
+dashboard-action-feed-no-recent = Nu există activitate recentă
+
+dashboard-activity-request-approved = Decont aprobat
+dashboard-activity-request-returned = Decont returnat
+dashboard-activity-plan-approved = Plan aprobat
+dashboard-activity-plan-returned = Plan returnat
 
 # Expense Items Tab
 expense-items-date-label = Data

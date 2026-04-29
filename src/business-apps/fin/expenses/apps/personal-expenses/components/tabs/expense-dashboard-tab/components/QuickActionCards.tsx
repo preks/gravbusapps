@@ -1,9 +1,8 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { Card, Button, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { PlusCircleIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { startProcess } from '@/common/utils/start-process'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import personalTranslations from '../../../../_i18n'
 
 const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
@@ -14,7 +13,6 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
     const employeeId = userInfo?.employeeDetails?.employeeId
     if (!employeeId) {
       console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.')
-      // TODO: Replace with nw-design-system toast when available
       console.warn('User information not loaded yet. Please wait a moment and try again.')
       return
     }
@@ -33,7 +31,6 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
     const employeeId = userInfo?.employeeDetails?.employeeId
     if (!employeeId) {
       console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.')
-      // TODO: Replace with nw-design-system toast when available
       console.warn('User information not loaded yet. Please wait a moment and try again.')
       return
     }
@@ -52,7 +49,6 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
     const employeeId = userInfo?.employeeDetails?.employeeId
     if (!employeeId) {
       console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.')
-      // TODO: Replace with nw-design-system toast when available
       console.warn('User information not loaded yet. Please wait a moment and try again.')
       return
     }
@@ -67,74 +63,53 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
     })
   }, [userInfo?.employeeDetails?.employeeId])
 
-  const actionCards = [
-    {
-      id: 'plan-trip',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.submit_plan', 'Submit a Plan'),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.record_expense_description',
-        'Plan a new Business Trip.'
-      ),
-      icon: <PlusCircleIcon className="gba:text-2xl gba:text-blue-500" />,
-      features: [
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_plan_approval', 'Request plan approval'),
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label',
-          'Request Advance Payment'
-        ),
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.track_submission_status',
-          'Track Submission Status'
-        )
-      ],
-      buttonText: t('dashboard-quick-action-plan-button'),
-      buttonIcon: <PlusCircleIcon size={16} />,
-      buttonAction: handlePlanTrip
-    },
-    {
-      id: 'record-expense',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.record_expense', 'Add an Expense'),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.record_expense_description',
-        'Quickly add a new expense to your records. Keep track of your spending efficiently.'
-      ),
-      icon: <PlusCircleIcon className="gba:text-2xl gba:text-blue-500" />,
-      features: [
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.single_or_multiple_items',
-          'Single or multiple items'
-        ),
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.attach_receipts_easily',
-          'Attach receipts easily'
-        ),
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.categorize_for_clarity', 'Categorize for clarity')
-      ],
-      buttonText: t('dashboard-quick-action-expense-item-button'),
-      buttonIcon: <PlusCircleIcon size={16} />,
-      buttonAction: handleRecordExpense
-    },
-    {
-      id: 'submit-request',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.submit_request', 'Submit Request'),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.submit_request_description',
-        'Submit your expense reports for reimbursement and manage your trip requests efficiently.'
-      ),
-      icon: <PaperPlaneTiltIcon className="gba:text-2xl gba:text-green-500" />,
-      features: [
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.create_expense_report', 'Create expense report'),
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_trip_approval', 'Request trip approval'),
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.track_submission_status',
-          'Track submission status'
-        )
-      ],
-      buttonText: t('dashboard-quick-action-request-button'),
-      buttonIcon: <PaperPlaneTiltIcon size={16} />,
-      buttonAction: handleSubmitRequest
-    }
-  ]
+  const actionCards = useMemo(
+    () => [
+      {
+        id: 'plan-trip',
+        title: t('dashboard-quick-action-plan-title'),
+        description: t('dashboard-quick-action-plan-description'),
+        icon: <PlusCircleIcon className="gba:text-2xl gba:text-blue-500" />,
+        features: [
+          t('dashboard-quick-action-plan-feature-approval'),
+          t('dashboard-quick-action-plan-feature-advance'),
+          t('dashboard-quick-action-plan-feature-track')
+        ],
+        buttonText: t('dashboard-quick-action-plan-button'),
+        buttonIcon: <PlusCircleIcon size={16} />,
+        buttonAction: handlePlanTrip
+      },
+      {
+        id: 'record-expense',
+        title: t('dashboard-quick-action-record-title'),
+        description: t('dashboard-quick-action-record-description'),
+        icon: <PlusCircleIcon className="gba:text-2xl gba:text-blue-500" />,
+        features: [
+          t('dashboard-quick-action-record-feature-items'),
+          t('dashboard-quick-action-record-feature-receipts'),
+          t('dashboard-quick-action-record-feature-categories')
+        ],
+        buttonText: t('dashboard-quick-action-expense-item-button'),
+        buttonIcon: <PlusCircleIcon size={16} />,
+        buttonAction: handleRecordExpense
+      },
+      {
+        id: 'submit-request',
+        title: t('dashboard-quick-action-submit-title'),
+        description: t('dashboard-quick-action-submit-description'),
+        icon: <PaperPlaneTiltIcon className="gba:text-2xl gba:text-green-500" />,
+        features: [
+          t('dashboard-quick-action-submit-feature-report'),
+          t('dashboard-quick-action-submit-feature-trip'),
+          t('dashboard-quick-action-submit-feature-track')
+        ],
+        buttonText: t('dashboard-quick-action-request-button'),
+        buttonIcon: <PaperPlaneTiltIcon size={16} />,
+        buttonAction: handleSubmitRequest
+      }
+    ],
+    [t, handlePlanTrip, handleRecordExpense, handleSubmitRequest]
+  )
 
   return (
     <div className="gba:grid gba:grid-cols-3 gba:gap-4">
@@ -161,8 +136,8 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
               </p>
 
               <div className="gba:space-y-1" data-testid={`card-features-${card.id}`}>
-                {card.features.map((feature, index) => (
-                  <div key={index} className="gba:text-sm gba:flex gba:items-center">
+                {card.features.map(feature => (
+                  <div key={feature} className="gba:text-sm gba:flex gba:items-center">
                     <span className="gba:mr-2">-</span>
                     <span>{feature}</span>
                   </div>

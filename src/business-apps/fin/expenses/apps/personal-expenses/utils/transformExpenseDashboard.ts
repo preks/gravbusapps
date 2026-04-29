@@ -1,6 +1,5 @@
 import { getCatalogValue } from '@/common/utils/windowUtils'
-import { DashboardStats } from '../../personal-expenses/components/tabs/expense-dashboard-tab/types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { DashboardStats, RecentActivityKind } from '../components/tabs/expense-dashboard-tab/types'
 
 type ApiAggregate = {
   aggregate?: {
@@ -76,13 +75,15 @@ export const transformDashboardResponse = (
     flaggedItems: (data?.flaggedItems as ApiAggregate)?.aggregate?.count ?? 0,
     upcomingTrips: (data?.upcomingTrips as ApiAggregate)?.aggregate?.count ?? 0,
     recentActivity: (() => {
+      const requestKind = (commentType: string): RecentActivityKind =>
+        commentType === 'APPROVE_COMMENT' ? 'request-approved' : 'request-returned'
+      const planKind = (commentType: string): RecentActivityKind =>
+        commentType === 'APPROVE_COMMENT' ? 'plan-approved' : 'plan-returned'
+
       const req = (data?.requestActivity || []).map((r: any) => ({
         id: r.id,
-        title:
-          (r.commentType === 'APPROVE_COMMENT'
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_approved', 'Request approved')
-            : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_returned', 'Request returned')) +
-          (r.expenseRequest?.title ? `: ${r.expenseRequest.title}` : ''),
+        activityKind: requestKind(r.commentType),
+        relatedTitle: r.expenseRequest?.title,
         status: r.expenseRequest?.status,
         updatedAt: r.commentDate,
         totalAmount: 0,
@@ -90,11 +91,8 @@ export const transformDashboardResponse = (
       }))
       const plan = (data?.planActivity || []).map((p: any) => ({
         id: p.id,
-        title:
-          (p.commentType === 'APPROVE_COMMENT'
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_approved', 'Plan approved')
-            : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_returned', 'Plan returned')) +
-          (p.expensePlan?.title ? `: ${p.expensePlan.title}` : ''),
+        activityKind: planKind(p.commentType),
+        relatedTitle: p.expensePlan?.title,
         status: p.expensePlan?.status,
         updatedAt: p.commentDate,
         totalAmount: 0,
