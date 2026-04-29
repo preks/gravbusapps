@@ -133,6 +133,10 @@ view-timeline = Cronologie
 missing-sap-wizard-title = Lipsește codul SAP
 missing-sap-wizard-description = Codul SAP lipsește din profilul dumneavoastră. Vă rugăm să contactați Departamentul Contabilitate pentru a furniza datele lipsă înainte de a începe o cerere de decont.
 
+# Centru de cost din organigramă (asistenți cerere & plan — rezumat/trimitere)
+
+missing-orgchart-cost-center-wizard-message = Contactați HR Backoffice pentru a vi se atribui un centru de cost în organigramă.
+
 # Trip — plecare vs. prima destinație (asistenți cerere & plan)
 
 trip-start-equals-first-destination = Destinația pare identică cu locul de plecare. Vă rugăm să verificați.
