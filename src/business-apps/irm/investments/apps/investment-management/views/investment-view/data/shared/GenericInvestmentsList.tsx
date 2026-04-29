@@ -79,8 +79,6 @@ export interface GenericInvestmentsListProps extends BusinessAppContextProps {
   /** Catalog-derived columns for dynamic investment group tabs. */
   catalogColumns?: ColumnDef<Investment>[]
   showAggregatesBar?: boolean
-  /** Equity tab: extra EBITDA and portfolio performance from aggregates. */
-  showEquityMetrics?: boolean
   /** ISO currency code for aggregate amounts (matches tab currency filter). */
   displayCurrencyCode?: string
 }
@@ -130,7 +128,6 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
   listAggregates = DEFAULT_LIST_AGGREGATES,
   catalogColumns,
   showAggregatesBar = false,
-  showEquityMetrics = false,
   displayCurrencyCode = 'EUR'
 }) => {
   // Create row actions with group-specific data-testid using extracted component
@@ -320,7 +317,6 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
       {showAggregatesBar && (
         <InvestmentListAggregatesBar
           listAggregates={listAggregates}
-          showEquityMetrics={showEquityMetrics}
           dataTestIdPrefix={config.dataTestIdPrefix}
           displayCurrencyCode={displayCurrencyCode}
         />
