@@ -2,7 +2,7 @@ import React from 'react'
 import type { CellContext, ColumnDef } from '@tanstack/react-table'
 import { Checkbox, Badge } from '@newwork/nw-design-system'
 import { FileTextIcon, ImageIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { formatDate } from '@/common/utils/windowUtils'
 import type { ExpenseItem } from '../../../../hooks/useGetExpenseItems'
 import { formatCurrencyDisplay, getExpenseItemStatusDisplay } from '../../../../utils'
 
@@ -124,6 +124,7 @@ export interface CreateExpenseItemColumnsParams {
   onSelectAll: (checked: boolean) => void
   onRowSelectionChange: (id: string, checked: boolean) => void
   expenseDateLabel: string
+  t: (key: string) => string
 }
 
 export function createExpenseItemColumns({
@@ -131,7 +132,8 @@ export function createExpenseItemColumns({
   selectedRowKeys,
   onSelectAll,
   onRowSelectionChange,
-  expenseDateLabel
+  expenseDateLabel,
+  t
 }: CreateExpenseItemColumnsParams): ColumnDef<ExpenseItem>[] {
   return [
     {
@@ -151,10 +153,7 @@ export function createExpenseItemColumns({
     {
       id: 'title',
       accessorKey: 'title',
-      header: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.expense_request_container.current_title_label',
-        'Title'
-      ),
+      header: t('expense-items-column-title'),
       size: 200,
       cell: renderItemTitleCell
     },
@@ -168,14 +167,14 @@ export function createExpenseItemColumns({
     {
       id: 'status',
       accessorKey: 'status',
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+      header: t('expense-items-column-status'),
       size: 100,
       cell: renderItemStatusCell
     },
     {
       id: 'attachment',
       accessorFn: (row: ExpenseItem) => row.expenseItemFile?.length ?? 0,
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.attachment', 'Attachment'),
+      header: t('expense-items-column-attachment'),
       enableSorting: false,
       size: 80,
       cell: renderItemAttachmentCell
@@ -184,7 +183,7 @@ export function createExpenseItemColumns({
       id: 'reimbursableAmount',
       accessorKey: 'reimbursableAmount',
       sortDescFirst: false,
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount'),
+      header: t('expense-items-column-reimbursable'),
       size: 140,
       meta: { align: 'right' as const },
       cell: renderItemReimbursableAmountCell

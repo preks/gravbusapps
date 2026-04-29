@@ -109,7 +109,85 @@ dashboard-activity-plan-returned = Plan returned
 
 # Expense Items Tab
 expense-items-date-label = Date
-delete-selection-discard-error-draft = You can only discard items with status "Draft" or "Assigned".
+
+# expense_statuses (legacy lowcoder — filter chips & composites)
+expense-status-prepared = Prepared
+expense-status-draft = Draft
+expense-status-assigned = Assigned
+expense-status-in-approval = In Approval
+expense-status-approval-required = Approval Required
+expense-status-action-required = Action Required
+expense-status-in-transit = In Transit
+expense-status-approved = Approved
+expense-status-verification-required = Verification Required
+expense-status-booking-required = Booking Required
+expense-status-transfer-required = Transfer Required
+expense-status-payment-required = Payment Required
+expense-status-paid = Paid
+expense-status-revision-required = Revision Required
+expense-status-in-revision = In Revision
+expense-status-closed = Closed
+expense-status-verified = Verified
+expense-status-booked = Booked
+expense-status-transferred = Transferred
+expense-status-rejected = Rejected
+expense-status-created = Created
+expense-status-discarded = Discarded
+expense-status-returned = Returned
+expense-status-pending = Pending
+
+# Items list, filters, table (personal_expenses, expense_item_list, expense_request_list, employee_list, create_expense_request, approve_expense_request, expense_plan_list, travel_region_rule, create_expense_item)
+expense-items-no-rows = No expense items found. Create your first expense item to get started.
+expense-items-from-date = From
+expense-items-to-date = To
+expense-items-expense-date-label = Expense Date:
+expense-items-amount-range-label = Amount Range:
+expense-items-filter-status = Status
+expense-items-filter-expense-date-range = Expense Date
+expense-items-placeholder-start-date = Start Date
+expense-items-placeholder-end-date = End Date
+expense-items-filter-amount-range = Amount Range
+expense-items-placeholder-min-amount = Min amount
+expense-items-placeholder-max-amount = Max amount
+expense-items-column-selection = Selection
+expense-items-column-title = Title
+expense-items-column-status = Status
+expense-items-column-attachment = Attachment
+expense-items-column-reimbursable = Reimbursable Amount
+expense-items-btn-add = Add
+expense-items-create-expense-request = Create Expense Request
+expense-items-delete-selection = Delete Selection
+expense-items-breadcrumb = Expense Items
+expense-items-search-placeholder = Search...
+expense-items-sheet-title = Expense Item Details
+expense-items-error-loading-title = Error Loading Expense Items
+expense-items-retry = Retry
+expense-items-user-not-loaded = User information not loaded yet. Please wait a moment and try again.
+expense-items-bulk-error-create-request-title = Cannot Create Expense Request
+expense-items-bulk-error-create-request-description = An Expense Request can be started only with items in status DRAFT.
+expense-items-bulk-error-multi-currency = The selected expense items must have the same currency to proceed.
+expense-items-bulk-error-delete-title = Cannot Delete Selection
+expense-items-stat-from-last-month = from last month
+expense-items-stat-total-expenses-for-month-prefix = Total Expenses for
+expense-items-stat-current-month-expenses = Current Month Expenses
+expense-items-stat-pending-reimbursement = Pending Reimbursement
+expense-items-stat-awaiting-processing = Awaiting processing
+expense-items-stat-empty = No expense item statistics available.
+expense-items-details-field-code = Code
+expense-items-details-field-status = Status
+expense-items-details-field-expense-date = Expense Date
+expense-items-details-field-invoice-date = Invoice Date
+expense-items-details-field-description = Description
+expense-items-details-field-expense-class = Expense Class
+expense-items-details-field-cost-center = Cost Center
+expense-items-details-field-amount = Amount
+expense-items-media-image-preview = Image Preview
+expense-items-media-pdf-preview = PDF Preview
+expense-items-attachment-open = Open
+expense-items-attachment-loading-receipt = Processing the receipt...
+expense-items-attachment-no-receipt = No receipt attached
+
+delete-selection-discard-error-draft = You can only discard items with status "Created" or "Assigned".
 
 # Table lists (no rows)
 table-empty-filtered = No data available

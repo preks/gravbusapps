@@ -100,7 +100,84 @@ dashboard-activity-plan-returned = Plan zurückgegeben
 
 # Expense Items Tab
 expense-items-date-label = Datum
-delete-selection-discard-error-draft = Sie können nur Elemente mit dem Status "Entwurf" oder "Zugewiesen" verwerfen.
+
+# expense_statuses (legacy lowcoder)
+expense-status-prepared = Vorbereitet
+expense-status-draft = Entwurf
+expense-status-assigned = Zugeordnet
+expense-status-in-approval = In Genehmigung
+expense-status-approval-required = Genehmigung ausstehend
+expense-status-action-required = Aktion erforderlich
+expense-status-in-transit = Im Zulauf
+expense-status-approved = Genehmigt
+expense-status-verification-required = Verifizierung ausstehend
+expense-status-booking-required = Buchung ausstehend
+expense-status-transfer-required = Transfer ausstehend
+expense-status-payment-required = Zahlung ausstehend
+expense-status-paid = Ausgezahlt
+expense-status-revision-required = Überarbeitung erforderlich
+expense-status-in-revision = In Überarbeitung
+expense-status-closed = Abgeschlossen
+expense-status-verified = Verifiziert
+expense-status-booked = Verbucht
+expense-status-transferred = Überweisung
+expense-status-rejected = Abgelehnt
+expense-status-created = Erstellt
+expense-status-discarded = Verworfen
+expense-status-returned = Zurückgegeben
+expense-status-pending = Ausstehend
+
+expense-items-no-rows = Keine Ausgabeposten gefunden. Erstellen Sie Ihren ersten Ausgabeposten, um zu beginnen.
+expense-items-from-date = Von
+expense-items-to-date = Bis
+expense-items-expense-date-label = Ausgabedatum:
+expense-items-amount-range-label = Betragsbereich:
+expense-items-filter-status = Status
+expense-items-filter-expense-date-range = Ausgabedatum
+expense-items-placeholder-start-date = Startdatum
+expense-items-placeholder-end-date = Enddatum
+expense-items-filter-amount-range = Betragsbereich
+expense-items-placeholder-min-amount = Mindestbetrag
+expense-items-placeholder-max-amount = Höchstbetrag
+expense-items-column-selection = Auswahl
+expense-items-column-title = Titel
+expense-items-column-status = Status
+expense-items-column-attachment = Anhang
+expense-items-column-reimbursable = Erstattungsfähiger Betrag
+expense-items-btn-add = Hinzufügen
+expense-items-create-expense-request = Spesenabrechnung erstellen
+expense-items-delete-selection = Auswahl löschen
+expense-items-breadcrumb = Spesenposten
+expense-items-search-placeholder = Suche...
+expense-items-sheet-title = Postendetails
+expense-items-error-loading-title = Fehler beim Laden der Ausgabeposten
+expense-items-retry = Erneut versuchen
+expense-items-user-not-loaded = Benutzerinformationen nicht geladen. Bitte warten Sie einen Moment und versuchen Sie es erneut.
+expense-items-bulk-error-create-request-title = Ausgabeanfrage kann nicht erstellt werden
+expense-items-bulk-error-create-request-description = Eine Ausgabeanfrage kann nur mit Posten im Status ENTWURF gestartet werden.
+expense-items-bulk-error-multi-currency = Der gewählte Spesenposten muss die gleiche Währung haben, um fortfahren zu können.
+expense-items-bulk-error-delete-title = Auswahl kann nicht gelöscht werden
+expense-items-stat-from-last-month = im Vergleich zum Vormonat
+expense-items-stat-total-expenses-for-month-prefix = Gesamtausgaben für
+expense-items-stat-current-month-expenses = Aktuelle monatliche Ausgaben
+expense-items-stat-pending-reimbursement = Rückerstattung ausstehend
+expense-items-stat-awaiting-processing = Verarbeitung ausstehend
+expense-items-stat-empty = Keine Statistiken für Ausgabeposten verfügbar.
+expense-items-details-field-code = Code
+expense-items-details-field-status = Status
+expense-items-details-field-expense-date = Ausgabedatum
+expense-items-details-field-invoice-date = Rechnungsdatum
+expense-items-details-field-description = Beschreibung
+expense-items-details-field-expense-class = Spesenklasse
+expense-items-details-field-cost-center = Kostenstelle
+expense-items-details-field-amount = Betrag
+expense-items-media-image-preview = Image Preview
+expense-items-media-pdf-preview = PDF Preview
+expense-items-attachment-open = Öffnen Sie
+expense-items-attachment-loading-receipt = Bearbeite den Beleg...
+expense-items-attachment-no-receipt = Keine Quittung angehängt
+
+delete-selection-discard-error-draft = Sie können nur Posten mit dem Status "Erstellt" oder "Zugewiesen" verwerfen.
 
 # Table lists (no rows)
 table-empty-filtered = Keine Daten verfügbar

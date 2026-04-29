@@ -1,7 +1,6 @@
 import { notification } from 'antd'
 import { useTranslation } from '@newwork/nw-design-system'
 import { useCallback } from 'react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { ExpenseItem } from '../../../../hooks/useGetExpenseItems'
@@ -23,14 +22,8 @@ export function useExpenseItemsBulkActions({ selectedRowKeys, items, userInfo }:
     const allCreated = selectedItems.every(item => (item?.status ?? '').toString().toUpperCase() === 'CREATED')
     if (!allCreated) {
       notification.error({
-        message: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.error_message_create_request',
-          'Cannot Create Expense Request'
-        ),
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.error_message_item',
-          'An Expense Request can be started only with items in status DRAFT.'
-        ),
+        message: tPersonal('expense-items-bulk-error-create-request-title'),
+        description: tPersonal('expense-items-bulk-error-create-request-description'),
         placement: 'bottomRight',
         duration: 5,
         className: 'gba:error-toast'
@@ -42,14 +35,8 @@ export function useExpenseItemsBulkActions({ selectedRowKeys, items, userInfo }:
     const uniqueCurrencies = [...new Set(currencies)]
     if (uniqueCurrencies.length > 1) {
       notification.error({
-        message: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.error_message_create_request',
-          'Cannot Create Expense Request'
-        ),
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_item_list.multiple_currencies_error_text',
-          'The selected expense items must have the same currency to proceed.'
-        ),
+        message: tPersonal('expense-items-bulk-error-create-request-title'),
+        description: tPersonal('expense-items-bulk-error-multi-currency'),
         placement: 'bottomRight',
         duration: 5,
         className: 'gba:error-toast'
@@ -71,7 +58,7 @@ export function useExpenseItemsBulkActions({ selectedRowKeys, items, userInfo }:
       payload,
       builderType: 'NATIVE_SCREEN'
     })
-  }, [selectedRowKeys, items, userInfo])
+  }, [selectedRowKeys, items, userInfo, tPersonal])
 
   const handleDeleteSelection = useCallback(
     (ids?: string[]) => {
@@ -82,14 +69,8 @@ export function useExpenseItemsBulkActions({ selectedRowKeys, items, userInfo }:
       const allAllowed = selectedItems.every(item => item.status === 'CREATED' || item.status === 'ASSIGNED')
       if (!allAllowed) {
         notification.error({
-          message: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:personal_expenses.delete_selection_error',
-            'Cannot Delete Selection'
-          ),
-          description: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:personal_expenses.error_message_delete_selectiondiscard_error_draft',
-            tPersonal('delete-selection-discard-error-draft')
-          ),
+          message: tPersonal('expense-items-bulk-error-delete-title'),
+          description: tPersonal('delete-selection-discard-error-draft'),
           placement: 'bottomRight',
           duration: 5,
           className: 'gba:error-toast'

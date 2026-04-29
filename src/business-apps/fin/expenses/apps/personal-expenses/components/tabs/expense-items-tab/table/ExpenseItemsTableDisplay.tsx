@@ -1,11 +1,11 @@
 import React from 'react'
-import { DataDisplay } from '@newwork/nw-design-system'
+import { DataDisplay, useTranslation } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { ExpenseItem } from '../../../../hooks/useGetExpenseItems'
 import ExpenseDataTable from '../../../../../../common/components/table/ExpenseDataTable'
 import type { ColumnConfig } from '../../../../../../common/types/columnTypes'
 import { EXPENSE_ITEMS_TABLE_DATA_TEST_ID_PREFIX } from './expenseItemColumns'
+import personalTranslations from '../../../../_i18n'
 
 interface ExpenseItemsTableDisplayProps {
   totalCount: number
@@ -62,23 +62,20 @@ export function ExpenseItemsTableDisplay({
   actions,
   onRowClick
 }: Readonly<ExpenseItemsTableDisplayProps>) {
+  const { t } = useTranslation(personalTranslations)
+
   return (
     <DataDisplay
       titleSections={[
         {
           id: 'list',
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_list.flows_button.expense_items',
-            'Expense Items'
-          ),
+          label: t('expense-items-breadcrumb'),
           metadata: { count: totalCount, isLoading }
         }
       ]}
       currentSection="list"
       searchValue={search}
-      searchPlaceholder={
-        getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') + '...'
-      }
+      searchPlaceholder={t('expense-items-search-placeholder')}
       onSearchChange={onSearchChange}
       filters={filters}
       filterConfiguration={filterConfiguration}

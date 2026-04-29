@@ -1,8 +1,9 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
 import { formatCurrencyDisplay } from '../../../../utils'
 import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
 import React, { useMemo, useCallback } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import personalTranslations from '../../../../_i18n'
 
 interface ExpenseItemStatisticsProps {
   items: any[]
@@ -33,21 +34,17 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   fetchItemStatistics = () => Promise.resolve(),
   currencyCode: currencyCodeOverride
 }) => {
+  const { t } = useTranslation(personalTranslations)
   const currentMonthName = getTranslatedMonthName(new Date())
-  // Resolve a currency code override or fallback to first item or EUR
   const currencyCode = useMemo(() => {
     if (currencyCodeOverride) return currencyCodeOverride
     const code = items?.find(it => it?.currency?.code)?.currency?.code as string | undefined
     return code || 'EUR'
   }, [items, currencyCodeOverride])
 
-  // Use backend aggregate for pending reimbursement total
   const pendingReimbursement = pendingReimbursementTotal ?? 0
-
-  // Pending item count from API
   const pendingItemCount = pendingItemCountFromApi ?? 0
 
-  // Calculate percentage changes for trend data
   const totalExpensesPercentageChange = useMemo(() => {
     const current = totalExpenses ?? 0
     const previous = previousMonthTotalExpenses ?? 0
@@ -58,34 +55,33 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     return ((current - previous) / previous) * 100
   }, [totalExpenses, previousMonthTotalExpenses])
 
-  // Generate trend data for total expenses
   const totalExpensesTrend = useMemo(() => {
     const current = totalExpenses ?? 0
     const previous = previousMonthTotalExpenses ?? 0
+    const fromLastMonth = t('expense-items-stat-from-last-month')
 
     if (previous === 0 && current > 0) {
       return {
         value: '+100%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: fromLastMonth
       }
     }
     if (totalExpensesPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: fromLastMonth
       }
     }
     const sign = totalExpensesPercentageChange > 0 ? '+' : ''
     return {
       value: `${sign}${totalExpensesPercentageChange.toFixed(0)}%`,
       positive: totalExpensesPercentageChange >= 0,
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+      description: fromLastMonth
     }
-  }, [totalExpensesPercentageChange, totalExpenses, previousMonthTotalExpenses])
+  }, [totalExpensesPercentageChange, totalExpenses, previousMonthTotalExpenses, t])
 
-  // Calculate percentage change for pending reimbursement
   const pendingReimbursementPercentageChange = useMemo(() => {
     const current = pendingReimbursementTotal ?? 0
     const previous = previousMonthPendingReimbursementTotal ?? 0
@@ -98,27 +94,23 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     return percentageChange
   }, [pendingReimbursementTotal, previousMonthPendingReimbursementTotal])
 
-  // Generate trend data for pending reimbursement
   const pendingReimbursementTrend = useMemo(() => {
     const current = pendingReimbursementTotal ?? 0
     const previous = previousMonthPendingReimbursementTotal ?? 0
+    const fromLastMonth = t('expense-items-stat-from-last-month')
 
-    // Handle the case where previous month had no pending reimbursement
     if (previous === 0) {
       if (current > 0) {
         return {
           value: '+100%',
           positive: true,
-          description: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:personal_expenses.from_last_month',
-            'from last month'
-          )
+          description: fromLastMonth
         }
       }
       return {
         value: '0%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: fromLastMonth
       }
     }
 
@@ -126,22 +118,19 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
       return {
         value: '0%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: fromLastMonth
       }
     }
-    // Always show the percentage, regardless of how large it is
     const sign = pendingReimbursementPercentageChange > 0 ? '+' : ''
     return {
       value: `${sign}${pendingReimbursementPercentageChange.toFixed(0)}%`,
       positive: pendingReimbursementPercentageChange >= 0,
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+      description: fromLastMonth
     }
-  }, [pendingReimbursementPercentageChange, pendingReimbursementTotal, previousMonthPendingReimbursementTotal])
+  }, [pendingReimbursementPercentageChange, pendingReimbursementTotal, previousMonthPendingReimbursementTotal, t])
 
-  // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback(
     (widgetKey: string) => {
-      // Provide immediate visual feedback - let parent component handle all filtering
       if (onWidgetClick) {
         onWidgetClick(widgetKey)
       }
@@ -149,44 +138,28 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     [onWidgetClick]
   )
 
-  // Transform the stats data into widgets format
   const widgets: WidgetItem[] = useMemo(
     () => [
       {
         key: 'total-expenses',
-        title:
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:personal_expenses.total_expenses_for_month',
-            'Total Expenses for'
-          ) +
-          ' ' +
-          currentMonthName,
+        title: `${t('expense-items-stat-total-expenses-for-month-prefix')} ${currentMonthName}`,
         value: formatCurrencyDisplay(totalExpenses ?? 0, currencyCode),
         valueIsString: true,
         color: '#3f8600',
         span: { xs: 24, sm: 12, md: 8, lg: 8 },
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.current_month_expenses',
-          'Current month expenses'
-        ),
+        description: t('expense-items-stat-current-month-expenses'),
         trend: totalExpensesTrend,
         active: activeWidgetKey === 'total-expenses',
         onClick: () => handleWidgetClick('total-expenses')
       },
       {
         key: 'pending-reimbursement',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.pending_reimbursement',
-          'Pending Reimbursement'
-        ),
+        title: t('expense-items-stat-pending-reimbursement'),
         value: formatCurrencyDisplay(pendingReimbursement, currencyCode),
         valueIsString: true,
         color: '#1677ff',
         span: { xs: 24, sm: 12, md: 8, lg: 8 },
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.awaiting_processing',
-          'Awaiting processing'
-        ),
+        description: t('expense-items-stat-awaiting-processing'),
         trend: pendingReimbursementTrend,
         active: activeWidgetKey === 'pending-reimbursement',
         onClick: () => handleWidgetClick('pending-reimbursement')
@@ -202,7 +175,9 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
       totalExpensesTrend,
       pendingReimbursementTrend,
       handleWidgetClick,
-      previousMonthPendingReimbursementTotal
+      previousMonthPendingReimbursementTotal,
+      t,
+      currencyCode
     ]
   )
 
@@ -216,10 +191,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
         onWidgetClick={handleWidgetClick}
         skeletonCount={4}
         useWidgetStructureForLoading={true}
-        emptyText={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.no_expense_item_statistics_available',
-          'No expense item statistics available.'
-        )}
+        emptyText={t('expense-items-stat-empty')}
         data-testid="expense-item-statistics"
       />
     </div>

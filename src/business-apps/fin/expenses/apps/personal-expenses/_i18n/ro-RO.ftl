@@ -100,7 +100,84 @@ dashboard-activity-plan-returned = Plan returnat
 
 # Expense Items Tab
 expense-items-date-label = Data
-delete-selection-discard-error-draft = Puteți elimina doar pozițiile cu status "Ciornă" sau "Atribuit".
+
+# expense_statuses (legacy lowcoder)
+expense-status-prepared = Pregătit
+expense-status-draft = Ciornă
+expense-status-assigned = Alocat
+expense-status-in-approval = În Aprobare
+expense-status-approval-required = Aprobare Necesară
+expense-status-action-required = Acțiune Necesară
+expense-status-in-transit = În Tranzit
+expense-status-approved = Aprobat
+expense-status-verification-required = Verificare Necesară
+expense-status-booking-required = Înregistrare Necesară
+expense-status-transfer-required = Transfer Necesar
+expense-status-payment-required = Plată Necesară
+expense-status-paid = Plătit
+expense-status-revision-required = Revizuire Necesară
+expense-status-in-revision = În Revizuire
+expense-status-closed = Închis
+expense-status-verified = Verificat
+expense-status-booked = Înregistrat
+expense-status-transferred = Transferat
+expense-status-rejected = Respins
+expense-status-created = Creat
+expense-status-discarded = Renunțat
+expense-status-returned = Returnat
+expense-status-pending = În așteptare
+
+expense-items-no-rows = Nu s-au găsit elemente de cheltuieli. Creează primul element pentru a începe.
+expense-items-from-date = De la
+expense-items-to-date = Până la
+expense-items-expense-date-label = Dată cheltuială:
+expense-items-amount-range-label = Interval sumă:
+expense-items-filter-status = Status
+expense-items-filter-expense-date-range = Dată cheltuială
+expense-items-placeholder-start-date = Data de Început
+expense-items-placeholder-end-date = Data de Sfârşit
+expense-items-filter-amount-range = Interval sumă
+expense-items-placeholder-min-amount = Sumă minimă
+expense-items-placeholder-max-amount = Sumă maximă
+expense-items-column-selection = Selecție
+expense-items-column-title = Scop
+expense-items-column-status = Status
+expense-items-column-attachment = Atașament
+expense-items-column-reimbursable = Sumă rambursabilă
+expense-items-btn-add = Adăugați
+expense-items-create-expense-request = Creați Cerere de Decont
+expense-items-delete-selection = Ștergeți selecția
+expense-items-breadcrumb = Elemente Cheltuială
+expense-items-search-placeholder = Căutați...
+expense-items-sheet-title = Detalii element cheltuială
+expense-items-error-loading-title = Eroare la încărcarea elementelor de cheltuieli
+expense-items-retry = Reîncearcă
+expense-items-user-not-loaded = Informațiile utilizatorului nu sunt încă încărcate. Vă rugăm să așteptați și să încercați din nou.
+expense-items-bulk-error-create-request-title = Nu se poate crea cererea de cheltuieli
+expense-items-bulk-error-create-request-description = O cerere de cheltuieli poate fi inițiată doar cu elemente în statusul DRAFT.
+expense-items-bulk-error-multi-currency = Articolele de cheltuieli selectate trebuie să aibă aceeași monedă pentru a continua.
+expense-items-bulk-error-delete-title = Nu se poate șterge selecția
+expense-items-stat-from-last-month = față de luna trecută
+expense-items-stat-total-expenses-for-month-prefix = Cheltuieli totale pentru
+expense-items-stat-current-month-expenses = Cheltuieli din luna curentă
+expense-items-stat-pending-reimbursement = Rambursare în așteptare
+expense-items-stat-awaiting-processing = În așteptarea procesării
+expense-items-stat-empty = Nu există statistici pentru elementele de cheltuieli.
+expense-items-details-field-code = Cod
+expense-items-details-field-status = Status
+expense-items-details-field-expense-date = Dată cheltuială
+expense-items-details-field-invoice-date = Dată Facturare
+expense-items-details-field-description = Descriere
+expense-items-details-field-expense-class = Clasa de Cheltuieli
+expense-items-details-field-cost-center = Centru de Cost
+expense-items-details-field-amount = Sumă
+expense-items-media-image-preview = Image Preview
+expense-items-media-pdf-preview = PDF Preview
+expense-items-attachment-open = Deschideți
+expense-items-attachment-loading-receipt = Se procesează chitanța...
+expense-items-attachment-no-receipt = Nu este atașată nicio chitanță
+
+delete-selection-discard-error-draft = Puteți renunța doar la elemente cu statusul "Creat" sau "Atribuit".
 
 # Table lists (no rows)
 table-empty-filtered = Nu sunt date disponibile

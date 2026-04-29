@@ -10,7 +10,8 @@ import ExpenseItemsTable from './table/ExpenseItemsTable'
 import { useExpenseItemsFilters } from '../../../hooks/useExpenseItemsFilters'
 import { startProcess } from '@/common/utils/start-process'
 // import { env } from '@/common/env/EnvUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import personalTranslations from '../../../_i18n'
 import { PROCESS_COMPLETION_EVENT_NAMES } from '@/business-apps/fin/expenses/common/constants/processCompletionEventNames'
 // import { useExpenseItemStatistics } from '../../../hooks/useExpenseItemStatistics';
 import { getSelectedCurrencyRef, pickMostUsedCurrencyRef } from '../../../utils/currencyUtils'
@@ -23,6 +24,8 @@ export interface ExpenseItemsTabProps extends BusinessAppContextProps {
 }
 
 const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
+  const { t } = useTranslation(personalTranslations)
+
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(
     () => ({
@@ -377,12 +380,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
     const employeeId = contextProps.userInfo?.employeeDetails?.employeeId
     if (!employeeId) {
       console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.')
-      console.warn(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.user_information_not_loaded',
-          'User information not loaded yet. Please wait a moment and try again.'
-        )
-      )
+      console.warn(t('expense-items-user-not-loaded'))
       return
     }
 
@@ -394,7 +392,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
       },
       builderType: 'NATIVE_SCREEN'
     })
-  }, [contextProps.userInfo?.employeeDetails?.employeeId])
+  }, [contextProps.userInfo?.employeeDetails?.employeeId, t])
 
   const handleClearAllFilters = useCallback(() => {
     preserveCurrencyAndReset(selectedFilters, clearFilters, addFilter, mostUsedCurrencyRef)

@@ -1,19 +1,18 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { ColumnConfig } from '../../../../../../common/types/columnTypes'
 
 /** All columns shown in the column visibility picker (includes non-sortable columns). */
-export function createExpenseItemAvailableColumns(expenseDateLabel: string): ColumnConfig[] {
+export function createExpenseItemAvailableColumns(
+  expenseDateLabel: string,
+  t: (key: string) => string
+): ColumnConfig[] {
   return [
     {
       id: 'selection',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.column_selection', 'Selection')
+      label: t('expense-items-column-selection')
     },
     {
       id: 'title',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.expense_request_container.current_title_label',
-        'Title'
-      )
+      label: t('expense-items-column-title')
     },
     {
       id: 'expenseDate',
@@ -21,15 +20,15 @@ export function createExpenseItemAvailableColumns(expenseDateLabel: string): Col
     },
     {
       id: 'status',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
+      label: t('expense-items-column-status')
     },
     {
       id: 'attachment',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.attachment', 'Attachment')
+      label: t('expense-items-column-attachment')
     },
     {
       id: 'reimbursableAmount',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
+      label: t('expense-items-column-reimbursable')
     }
   ]
 }
