@@ -69,9 +69,37 @@ export const GET_HUB_MANAGERS = `
   }
 `
 
+export const GET_HUB_EMPLOYEES = `
+  query GetHubEmployees($structureId: uuid!) {
+    EmployeePosition(
+      where: {
+        structureId: { _eq: $structureId }
+        employee: { isDeleted: { _eq: false } }
+      }
+      distinctOn: [employeeId]
+      orderBy: [{ employeeId: ASC }]
+      limit: 1000
+    ) {
+      employee {
+        id
+        firstName
+        lastName
+        displayName
+      }
+    }
+  }
+`
+
 export interface HubFilterOption {
   id: string
   name: string
+}
+
+export interface HubEmployeeOption {
+  id: string
+  firstName?: string | null
+  lastName?: string | null
+  displayName?: string | null
 }
 
 export interface HubManagerOption {
@@ -82,4 +110,8 @@ export interface HubManagerOption {
 
 export interface HubManagerPositionOption {
   supervisorEmployee?: HubManagerOption | null
+}
+
+export interface HubEmployeePositionOption {
+  employee?: HubEmployeeOption | null
 }

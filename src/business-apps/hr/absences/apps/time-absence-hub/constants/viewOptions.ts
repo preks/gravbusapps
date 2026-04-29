@@ -4,7 +4,6 @@ import {
   ListBulletsIcon,
   ClockIcon,
   CalendarBlankIcon,
-  ShieldCheckIcon,
   LightbulbIcon,
   FileTextIcon
 } from '@phosphor-icons/react'
@@ -37,11 +36,6 @@ export const HUB_VIEW_OPTIONS: ViewOption[] = [
     key: 'entitlements' satisfies HubView,
     label: getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.tab_entitlements', 'Entitlements'),
     icon: React.createElement(CalendarBlankIcon, { className: 'gba:h-5 gba:w-5' })
-  },
-  {
-    key: 'compliance' satisfies HubView,
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.tab_compliance', 'Compliance'),
-    icon: React.createElement(ShieldCheckIcon, { className: 'gba:h-5 gba:w-5' })
   },
   {
     key: 'insights' satisfies HubView,

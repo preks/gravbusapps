@@ -8,7 +8,7 @@ import OrgWorkPatternsPanel from './OrgWorkPatternsPanel'
 import { OrgYearComparisonCard } from './OrgYearComparisonCard'
 import { StatisticsDataProvider, useStatisticsData } from './StatisticsDataProvider'
 import dayjs from 'dayjs'
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
+import { Card, CardHeader, CardTitle, CardContent, Progress } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useAbsenceTypeCatalog } from '../../../../personal-absences/hooks/useAbsenceTypeCatalog'
 
@@ -154,16 +154,7 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
                         <div key={key} className="gba:flex gba:items-center">
                           <div className="gba:w-28 gba:text-sm gba:text-foreground">{translatedType}</div>
                           <div className="gba:flex-1 gba:px-3">
-                            <div className="gba:bg-muted gba:rounded">
-                              <div
-                                style={{
-                                  width: `${pct}%`,
-                                  height: 10,
-                                  background: 'var(--nw-chart-4)',
-                                  borderRadius: 6
-                                }}
-                              />
-                            </div>
+                            <Progress value={pct} className="gba:h-2.5" />
                           </div>
                           <div className="gba:w-20 gba:text-right gba:text-sm gba:text-foreground">{count}</div>
                         </div>

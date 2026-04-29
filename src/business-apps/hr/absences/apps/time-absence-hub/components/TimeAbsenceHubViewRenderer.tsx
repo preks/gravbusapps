@@ -1,6 +1,6 @@
-import React from 'react'
-import { PageLayout } from '@newwork/nw-design-system'
-import { CalendarBlankIcon } from '@phosphor-icons/react'
+import React, { useState } from 'react'
+import { Button, PageLayout } from '@newwork/nw-design-system'
+import { CalendarBlankIcon, FunnelIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { MODULE_COLORS } from '@/common/constants/ui'
@@ -10,15 +10,7 @@ import { UseTimeAbsenceHubNavigationReturn } from '../hooks/useTimeAbsenceHubNav
 import { UseHubGlobalFiltersReturn } from '../hooks/useHubGlobalFilters'
 import { HubFilterOptionsState } from '../hooks/useHubFilterOptions'
 import HubGlobalFilters from './HubGlobalFilters'
-import {
-  AbsencesView,
-  AttendanceView,
-  ComplianceView,
-  DashboardView,
-  EntitlementsView,
-  InsightsView,
-  ReportsView
-} from './views'
+import { AbsencesView, AttendanceView, DashboardView, EntitlementsView, InsightsView, ReportsView } from './views'
 import { AbsenceDetails, EntitlementsDetails } from './pages'
 
 interface TimeAbsenceHubViewRendererProps extends BusinessAppContextProps {
@@ -35,7 +27,8 @@ const renderHubView = (
   context: BusinessAppContextProps,
   navigation: UseTimeAbsenceHubNavigationReturn,
   globalFilters: UseHubGlobalFiltersReturn,
-  dashboardData: any
+  dashboardData: any,
+  filterAction: React.ReactNode
 ): React.ReactNode => {
   const baseProps = { ...context }
   switch (view) {
@@ -45,10 +38,13 @@ const renderHubView = (
           {...baseProps}
           dashboardData={dashboardData}
           timeFilter={globalFilters.legacyTimeFilter}
+          timeScope={globalFilters.filters.timeScope}
+          derivedDateRange={globalFilters.derivedDateRange}
           onTimeFilterChange={filter => globalFilters.setTimeScope(filter)}
           onMonthClick={navigation.handleNavigateToAbsenceDetails}
           onNavigateToDetails={navigation.handleNavigateToAbsenceDetailsWithFilters}
           onNavigateToEntitlements={navigation.handleNavigateToEntitlementsDetails}
+          filterAction={filterAction}
         />
       )
     case 'absences':
@@ -58,6 +54,7 @@ const renderHubView = (
           activeSubTab={navigation.activeTab}
           onSubTabChange={navigation.setActiveTab}
           dashboardData={dashboardData}
+          filterAction={filterAction}
         />
       )
     case 'attendance':
@@ -68,6 +65,7 @@ const renderHubView = (
           onSubTabChange={navigation.setActiveTab}
           globalFilters={globalFilters.filters}
           derivedDateRange={globalFilters.derivedDateRange}
+          filterAction={filterAction}
         />
       )
     case 'entitlements':
@@ -76,10 +74,9 @@ const renderHubView = (
           {...baseProps}
           globalFilters={globalFilters.filters}
           onNavigateToEntitlementsDetails={navigation.handleNavigateToEntitlementsDetails}
+          filterAction={filterAction}
         />
       )
-    case 'compliance':
-      return <ComplianceView {...baseProps} />
     case 'insights':
       return (
         <InsightsView
@@ -87,6 +84,7 @@ const renderHubView = (
           dashboardData={dashboardData}
           globalFilters={globalFilters.filters}
           derivedDateRange={globalFilters.derivedDateRange}
+          filterAction={filterAction}
         />
       )
     case 'reports':
@@ -96,6 +94,7 @@ const renderHubView = (
           dashboardData={dashboardData}
           globalFilters={globalFilters.filters}
           derivedDateRange={globalFilters.derivedDateRange}
+          filterAction={filterAction}
         />
       )
     default:
@@ -112,6 +111,20 @@ export const TimeAbsenceHubViewRenderer: React.FC<TimeAbsenceHubViewRendererProp
   dashboardData
 }) => {
   const context: BusinessAppContextProps = { accessToken, userInfo }
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
+
+  const filterAction = (
+    <Button
+      variant="outline"
+      size="sm"
+      className="gba:h-8 gba:w-8 gba:p-0"
+      aria-label={getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.filters.open', 'Open filters')}
+      onClick={() => setFilterDrawerOpen(true)}
+      data-testid="time-absence-hub-open-filters"
+    >
+      <FunnelIcon size={16} />
+    </Button>
+  )
 
   if (navigation.currentView === 'absence-details') {
     const filters = navigation.absenceDetailsFilter
@@ -174,6 +187,8 @@ export const TimeAbsenceHubViewRenderer: React.FC<TimeAbsenceHubViewRendererProp
       >
         <div className="gba:flex gba:flex-col gba:gap-4 gba:p-6">
           <HubGlobalFilters
+            open={filterDrawerOpen}
+            onOpenChange={setFilterDrawerOpen}
             filters={globalFilters.filters}
             options={filterOptions}
             onTimeScopeChange={globalFilters.setTimeScope}
@@ -185,7 +200,7 @@ export const TimeAbsenceHubViewRenderer: React.FC<TimeAbsenceHubViewRendererProp
             onEmployeeQueryChange={globalFilters.setEmployeeQuery}
             onReset={globalFilters.resetFilters}
           />
-          {renderHubView(navigation.currentView, context, navigation, globalFilters, dashboardData)}
+          {renderHubView(navigation.currentView, context, navigation, globalFilters, dashboardData, filterAction)}
         </div>
       </PageLayout>
     </div>

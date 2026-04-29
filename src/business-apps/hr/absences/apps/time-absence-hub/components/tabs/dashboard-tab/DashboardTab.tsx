@@ -3,13 +3,17 @@ import { TabComponentProps, TimeFilter, AbsenceDetailsFilter } from '../../../ty
 import { OptimizedKPISection } from './KPISection/OptimizedKPISection'
 import OptimizedAbsenceTrends from './AbsenceTrends/OptimizedAbsenceTrends'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { TimeScope } from '../../../constants/routes'
 
 interface DashboardTabProps extends TabComponentProps {
   onMonthClick?: (month: string, year?: number) => void
   timeFilter?: TimeFilter
+  timeScope?: TimeScope
+  derivedDateRange?: { dateFrom: string; dateTo: string } | null
   onTimeFilterChange?: (filter: TimeFilter) => void
   onNavigateToDetails?: (filters: AbsenceDetailsFilter) => void
   onNavigateToEntitlements?: () => void
+  filterAction?: React.ReactNode
 }
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
@@ -18,8 +22,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   dashboardData,
   onMonthClick,
   timeFilter = 'current-year',
+  timeScope,
+  derivedDateRange,
   onNavigateToDetails,
-  onNavigateToEntitlements
+  onNavigateToEntitlements,
+  filterAction
 }) => {
   if (!dashboardData) {
     return (
@@ -47,6 +54,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               : `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.showing_absences', 'Showing')} ${dashboardData?.totalAbsences || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absences', 'absences')}`}
           </p>
         </div>
+        {filterAction}
       </div>
 
       {/* Dashboard Components - All optimized */}
@@ -55,6 +63,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         userInfo={userInfo}
         dashboardData={dashboardData}
         timeFilter={timeFilter}
+        timeScope={timeScope}
+        derivedDateRange={derivedDateRange}
         onNavigateToDetails={onNavigateToDetails}
         onNavigateToEntitlements={onNavigateToEntitlements}
       />

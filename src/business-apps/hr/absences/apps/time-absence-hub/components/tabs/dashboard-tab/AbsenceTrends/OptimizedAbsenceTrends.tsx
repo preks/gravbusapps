@@ -54,7 +54,7 @@ const getMonthTranslation = (monthName: string): string => {
   return monthName
 }
 
-const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTypes, getTypeColor, monthAggMap }) => {
+const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTypes, monthAggMap }) => {
   if (!(active && payload && payload.length > 0)) return null
   const monthData = payload[0].payload
   const serverAgg = monthAggMap?.[String(label)] || null
@@ -79,10 +79,7 @@ const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTyp
         if (count > 0) {
           return (
             <p key={type} className="gba:text-sm gba:flex gba:items-center gba:gap-2">
-              <span
-                className="gba:w-3 gba:h-3 gba:rounded gba:inline-block"
-                style={{ backgroundColor: getTypeColor(type) }}
-              />
+              <span className="gba:w-3 gba:h-3 gba:rounded gba:inline-block gba:bg-muted-foreground" />
               {type}: {count}
             </p>
           )
@@ -342,7 +339,7 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboa
       </CardHeader>
 
       <CardContent>
-        <div style={{ width: '100%', height: 400, cursor: 'pointer' }}>
+        <div className="gba:h-96 gba:w-full gba:cursor-pointer">
           <ResponsiveContainer>
             <ComposedChart
               data={chartData}
@@ -399,18 +396,12 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboa
                     <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-4 gba:mt-4">
                       {absenceTypes.map(type => (
                         <div key={type} className="gba:flex gba:items-center gba:gap-2">
-                          <span
-                            className="gba:w-3 gba:h-3 gba:rounded"
-                            style={{ backgroundColor: getTypeColor(type) }}
-                          />
+                          <span className="gba:w-3 gba:h-3 gba:rounded gba:bg-muted-foreground" />
                           <span className="gba:text-sm">{type}</span>
                         </div>
                       ))}
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <span
-                          className="gba:w-3 gba:h-3 gba:rounded"
-                          style={{ backgroundColor: colorPalette.totalLine }}
-                        />
+                        <span className="gba:w-3 gba:h-3 gba:rounded gba:bg-info" />
                         <span className="gba:text-sm">
                           {getTranslationFromI18nKeyAndLabel(
                             'lowcoder:absence_management_hub_backoffice.trend_line_avg_requests',
@@ -443,7 +434,6 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboa
         <div className="gba:mt-6 gba:space-y-3">
           <div className="gba:flex gba:flex-wrap gba:gap-4 gba:text-sm">
             <div>
-              🎯{' '}
               {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.peak_month', 'Peak month')}
               :{' '}
               {chartData.reduce((max, month) => (month.total > max.total ? month : max), chartData[0] || {}).month ||

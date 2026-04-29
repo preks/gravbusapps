@@ -84,10 +84,15 @@ const writeStringParam = (params: URLSearchParams, key: string, value?: string):
 const readFiltersFromUrl = (): HubGlobalFilters => {
   const params = readSearchParams()
   const tsRaw = params.get(URL_PARAMS.timeScope)
+  const dateFrom = params.get(URL_PARAMS.dateFrom) ?? undefined
+  const dateTo = params.get(URL_PARAMS.dateTo) ?? undefined
+  const timeScope = isTimeScope(tsRaw) ? tsRaw : DEFAULT_TIME_SCOPE
+  const hasValidCustomRange = timeScope !== 'custom' || Boolean(dateFrom && dateTo)
+
   return {
-    timeScope: isTimeScope(tsRaw) ? tsRaw : DEFAULT_TIME_SCOPE,
-    dateFrom: params.get(URL_PARAMS.dateFrom) ?? undefined,
-    dateTo: params.get(URL_PARAMS.dateTo) ?? undefined,
+    timeScope: hasValidCustomRange ? timeScope : DEFAULT_TIME_SCOPE,
+    dateFrom: hasValidCustomRange ? dateFrom : undefined,
+    dateTo: hasValidCustomRange ? dateTo : undefined,
     departmentIds: parseListParam(params.get(URL_PARAMS.departmentIds)),
     locationIds: parseListParam(params.get(URL_PARAMS.locationIds)),
     legalEntityIds: parseListParam(params.get(URL_PARAMS.legalEntityIds)),

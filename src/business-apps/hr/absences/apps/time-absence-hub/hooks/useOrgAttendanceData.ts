@@ -48,7 +48,9 @@ const buildEmployeeWhere = (structureId: string, filters: HubGlobalFilters): Rec
   }
   if (filters.employeeQuery) {
     const like = `%${filters.employeeQuery}%`
-    conditions.push({ _or: [{ firstName: { _ilike: like } }, { lastName: { _ilike: like } }] })
+    conditions.push({
+      _or: [{ firstName: { _ilike: like } }, { lastName: { _ilike: like } }, { displayName: { _ilike: like } }]
+    })
   }
 
   return { _and: conditions }

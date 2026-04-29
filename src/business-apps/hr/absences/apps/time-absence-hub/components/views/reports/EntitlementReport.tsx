@@ -75,7 +75,9 @@ const buildWhereForExport = (filters: HubGlobalFilters): Record<string, any> => 
   if (filters.employeeQuery) {
     const like = `%${filters.employeeQuery}%`
     conditions.push({
-      employee: { _or: [{ firstName: { _ilike: like } }, { lastName: { _ilike: like } }] }
+      employee: {
+        _or: [{ firstName: { _ilike: like } }, { lastName: { _ilike: like } }, { displayName: { _ilike: like } }]
+      }
     })
   }
   return conditions.length > 0 ? { _and: conditions } : {}

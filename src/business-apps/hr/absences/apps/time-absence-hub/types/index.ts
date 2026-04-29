@@ -22,7 +22,6 @@ export type ActiveTab =
   | 'absences'
   | 'attendance'
   | 'entitlements'
-  | 'compliance'
   | 'insights'
   | 'reports'
   | 'absence-list'

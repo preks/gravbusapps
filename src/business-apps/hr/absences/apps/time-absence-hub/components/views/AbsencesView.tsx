@@ -12,6 +12,7 @@ interface AbsencesViewProps extends BusinessAppContextProps {
   activeSubTab?: string
   onSubTabChange?: (subTab: string) => void
   dashboardData?: any
+  filterAction?: React.ReactNode
 }
 
 const tt = (key: string, fallback: string) =>
@@ -34,7 +35,8 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
   userInfo,
   activeSubTab,
   onSubTabChange,
-  dashboardData
+  dashboardData,
+  filterAction
 }) => {
   const currentSubTab: AbsencesSubTab = isAbsencesSubTab(activeSubTab) ? activeSubTab : 'list'
 
@@ -44,19 +46,22 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="time-absence-hub-absences-view">
-      <div className="gba:flex gba:items-center gba:gap-2" role="tablist">
-        {ABSENCES_SUB_TABS.map(subTab => (
-          <Button
-            key={subTab}
-            variant={currentSubTab === subTab ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleSubTabChange(subTab)}
-            data-testid={`time-absence-hub-absences-subtab-${subTab}`}
-          >
-            {SUB_TAB_ICONS[subTab]}
-            {buildSubTabLabel(subTab)}
-          </Button>
-        ))}
+      <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+        <div className="gba:flex gba:items-center gba:gap-2" role="tablist">
+          {ABSENCES_SUB_TABS.map(subTab => (
+            <Button
+              key={subTab}
+              variant={currentSubTab === subTab ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleSubTabChange(subTab)}
+              data-testid={`time-absence-hub-absences-subtab-${subTab}`}
+            >
+              {SUB_TAB_ICONS[subTab]}
+              {buildSubTabLabel(subTab)}
+            </Button>
+          ))}
+        </div>
+        {filterAction}
       </div>
 
       {currentSubTab === 'list' && (

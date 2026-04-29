@@ -2,8 +2,18 @@ import React, { useCallback, useEffect, useState, useMemo } from 'react'
 import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
 import { useGraphQLClient } from '../../../../../../../../common/network/graphql/useGraphQLClient'
-import { CalendarTimeline } from '@newwork/gravity-ui-catalog'
-import { Select } from 'antd'
+import {
+  Badge,
+  Card,
+  CardContent,
+  Spinner,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@newwork/nw-design-system'
 import {
   getTranslationFromI18nKeyAndLabel,
   getCurrentActiveUserLocale
@@ -14,15 +24,12 @@ import {
   getAbsenceStatusType
 } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import {
-  getGetAllEmployeesFromPositionsQuery,
   getGetAllEmployeesWithAbsencesQuery,
   getGetEmployeesWithAbsencesByDepartmentsQuery,
-  type CalendarEmployeePositionResponse,
   type CalendarEmployeesWithAbsencesResponse
 } from '../../../queries/absenceQueries'
 import { useBackofficeTeamCalendarDays } from '../../../hooks/useBackofficeTeamCalendarDays'
 import { useAbsenceTypeCatalog } from '../../../../personal-absences/hooks/useAbsenceTypeCatalog'
-const { Option } = Select
 
 interface EmployeeAbsence {
   id: string
@@ -55,11 +62,6 @@ interface EmployeeAbsence {
   status: string
 }
 
-interface OrganizationalUnit {
-  id: string
-  name: string
-}
-
 interface Employee {
   id: string
   firstName: string
@@ -72,19 +74,12 @@ interface Employee {
   }
 }
 
-type EmployeePositionResponse = CalendarEmployeePositionResponse
-
-const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
+const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const graphQLClient = useGraphQLClient(accessToken)
   const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
   const [employeeAbsences, setEmployeeAbsences] = useState<EmployeeAbsence[]>([])
   const [allEmployees, setAllEmployees] = useState<Employee[]>([])
-  const [organizationalUnits, setOrganizationalUnits] = useState<OrganizationalUnit[]>([])
-  const [selectedOrgUnits, setSelectedOrgUnits] = useState<string[]>(
-    userInfo?.employeeDetails?.organizationalUnit?.name
-      ? [userInfo.employeeDetails.organizationalUnit.name]
-      : ['All Departments']
-  )
+  const [selectedOrgUnits] = useState<string[]>(['All Departments'])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
@@ -192,38 +187,6 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
     }
   }, [accessToken, selectedOrgUnits, fetchData])
 
-  useEffect(() => {
-    const fetchAllOrgUnits = async () => {
-      if (!accessToken) return
-
-      try {
-        const currentDate = new Date().toISOString()
-        const getAllEmployeesQuery = getGetAllEmployeesFromPositionsQuery(currentDate)
-        const result = await graphQLClient.request<EmployeePositionResponse>(getAllEmployeesQuery)
-        const allEmployeePositions = result?.EmployeePosition || []
-
-        const orgUnitsMap = new Map<string, OrganizationalUnit>()
-
-        allEmployeePositions.forEach((position: any) => {
-          if (position.organizationalUnit?.name) {
-            const orgUnitName = position.organizationalUnit.name
-            orgUnitsMap.set(orgUnitName, {
-              id: orgUnitName,
-              name: orgUnitName
-            })
-          }
-        })
-
-        const uniqueOrgUnits = Array.from(orgUnitsMap.values()).sort((a, b) => a.name.localeCompare(b.name))
-        setOrganizationalUnits(uniqueOrgUnits)
-      } catch (error) {
-        console.error('Error fetching organizational units:', error)
-      }
-    }
-
-    fetchAllOrgUnits()
-  }, [accessToken, graphQLClient])
-
   const timelineItems = useMemo(() => {
     const items = allEmployees.map(employee => {
       const empId = employee.id
@@ -239,7 +202,7 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
     })
 
     return items
-  }, [allEmployees, selectedOrgUnits])
+  }, [allEmployees])
 
   const getStatusColor = (status: string): string => {
     return getAbsenceStatusColor(status)
@@ -281,38 +244,10 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
     return events
   }, [employeeAbsences, selectedOrgUnits])
 
-  const legendItems = [
-    {
-      label: getAbsenceStatusLabel('APPROVED'),
-      color: getAbsenceStatusColor('APPROVED')
-    },
-    {
-      label: getAbsenceStatusLabel('PENDING'),
-      color: getAbsenceStatusColor('PENDING')
-    },
-    {
-      label: getAbsenceStatusLabel('REJECTED'),
-      color: getAbsenceStatusColor('REJECTED')
-    },
-    {
-      label: getAbsenceStatusLabel('CANCELLED'),
-      color: getAbsenceStatusColor('CANCELLED')
-    }
-  ]
-
-  const getInitials = (name: string): string => {
-    if (!name) return ''
-    return name
-      .split(' ')
-      .map((n: string) => n[0])
-      .join('')
-      .toUpperCase()
-  }
-
   if (isLoading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
-        <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-t-2 gba:border-b-2 gba:border-info"></div>
+        <Spinner />
       </div>
     )
   }
@@ -329,113 +264,73 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
     )
   }
 
+  const events = Array.isArray(viewEvents) && viewEvents.length > 0 ? viewEvents : timelineEvents
+  const eventsByEmployee = new Map<string, typeof events>()
+  events.forEach(event => {
+    const existing = eventsByEmployee.get(event.itemId) ?? []
+    eventsByEmployee.set(event.itemId, [...existing, event])
+  })
+
   return (
-    <div className="gba:relative" data-testid="calendar-content">
-      <div className="gba:absolute gba:top-2 gba:right-2 gba:z-20 gba:w-64">
-        <Select
-          value={selectedOrgUnits}
-          mode="multiple"
-          onChange={(values: string[]) => {
-            if (!values || values.length === 0) {
-              setSelectedOrgUnits(['All Departments'])
-              return
-            }
-
-            const validValues = values.filter(
-              value => value && typeof value === 'string' && value !== 'department' && value.trim() !== ''
-            )
-
-            if (validValues.length === 0) {
-              setSelectedOrgUnits(['All Departments'])
-              return
-            }
-
-            const currentState = selectedOrgUnits
-            const newSelection = validValues
-
-            const currentHasAllDepartments = currentState.includes('All Departments')
-            const newHasAllDepartments = newSelection.includes('All Departments')
-            const specificDepartmentsInNew = newSelection.filter(val => val !== 'All Departments')
-
-            if (currentHasAllDepartments && newHasAllDepartments && specificDepartmentsInNew.length > 0) {
-              setSelectedOrgUnits(specificDepartmentsInNew)
-            } else if (newHasAllDepartments && !currentHasAllDepartments) {
-              setSelectedOrgUnits(['All Departments'])
-            } else if (newHasAllDepartments && specificDepartmentsInNew.length === 0) {
-              setSelectedOrgUnits(['All Departments'])
-            } else {
-              setSelectedOrgUnits(validValues)
-            }
-          }}
-          onClear={() => {
-            setSelectedOrgUnits(['All Departments'])
-          }}
-          disabled={isLoading}
-          allowClear
-          style={{ width: '100%' }}
-          data-testid="calendar-department-filter"
-        >
-          <Option key="all" value="All Departments">
+    <Card data-testid="calendar-content">
+      <CardContent className="gba:p-0">
+        <div className="gba:border-b gba:p-4">
+          <h3 className="gba:text-base gba:font-semibold gba:text-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.title', 'Team Absence Calendar')}
+          </h3>
+          <p className="gba:text-sm gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_management_hub_backoffice.calendar.all_departments',
-              'All Departments'
+              'lowcoder:time_absence_hub.calendar.description',
+              'Upcoming and current absence events for employees in the selected global filter scope.'
             )}
-          </Option>
-          {organizationalUnits
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map(org => (
-              <Option key={org.id} value={org.name}>
-                {org.name}
-              </Option>
-            ))}
-        </Select>
-      </div>
-
-      <CalendarTimeline
-        key={selectedOrgUnits.join(',') || 'all'}
-        items={timelineItems}
-        events={Array.isArray(viewEvents) && viewEvents.length > 0 ? viewEvents : timelineEvents}
-        title={getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.title', 'Team Absence Calendar')}
-        legendItems={legendItems}
-        itemLabel={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
-        itemDetailLabel={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:employee_list.search_employee_list.recent_employees_table.department',
-          'Department'
-        )}
-        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_table.employee_search_filter',
-          'Search Employee...'
-        )}
-        initialDate={new Date()}
-        initialViewRange={31}
-        renderItemContent={item => (
-          <div className="gba:flex gba:items-center gba:gap-2 gba:p-1 gba:w-full gba:hover:bg-muted gba:rounded">
-            <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-muted gba:flex-shrink-0 gba:overflow-hidden">
-              {item.picture ? (
-                <img
-                  src={`data:image/gif;base64,${item.picture}`}
-                  alt={getInitials(item.name)}
-                  className="gba:w-full gba:h-full gba:object-cover"
-                  onError={e => {
-                    e.currentTarget.style.display = 'none'
-                    e.currentTarget.nextElementSibling?.classList.remove('gba:hidden')
-                  }}
-                />
-              ) : null}
-              <div
-                className={`gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-info-secondary gba:text-info gba:text-xs gba:font-medium ${item.picture ? 'gba:hidden' : ''}`}
-              >
-                {getInitials(item.name)}
-              </div>
-            </div>
-            <div className="gba:flex-grow gba:min-w-0">
-              <div className="gba:truncate gba:font-medium">{item.name}</div>
-              <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{item.department}</div>
-            </div>
-          </div>
-        )}
-      />
-    </div>
+          </p>
+        </div>
+        <div className="gba:overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+                </TableHead>
+                <TableHead>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:employee_list.search_employee_list.recent_employees_table.department',
+                    'Department'
+                  )}
+                </TableHead>
+                <TableHead>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absences', 'Absences')}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {timelineItems.map(item => {
+                const employeeEvents = eventsByEmployee.get(item.id) ?? []
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell className="gba:font-medium">{item.name}</TableCell>
+                    <TableCell className="gba:text-muted-foreground">{item.department}</TableCell>
+                    <TableCell>
+                      {employeeEvents.length === 0 ? (
+                        <span className="gba:text-sm gba:text-muted-foreground">-</span>
+                      ) : (
+                        <div className="gba:flex gba:flex-wrap gba:gap-2">
+                          {employeeEvents.map(event => (
+                            <Badge key={event.id} variant="outline">
+                              {event.title}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

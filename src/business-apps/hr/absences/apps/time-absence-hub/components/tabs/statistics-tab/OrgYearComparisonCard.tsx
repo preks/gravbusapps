@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
+import { Card, CardHeader, CardTitle, CardContent, Progress } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 
 interface OrgYearComparisonCardProps {
@@ -80,11 +80,7 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = ({ ab
                   <div key={row.year} className="gba:flex gba:items-center">
                     <div className="gba:w-20 gba:text-sm gba:text-foreground">{row.year}</div>
                     <div className="gba:flex-1 gba:px-3">
-                      <div className="gba:bg-muted gba:rounded">
-                        <div
-                          style={{ width: `${pct}%`, height: 10, background: 'var(--nw-chart-4)', borderRadius: 6 }}
-                        />
-                      </div>
+                      <Progress value={pct} className="gba:h-2.5" />
                     </div>
                     <div className="gba:w-20 gba:text-right gba:text-sm gba:text-foreground">{row.total}</div>
                     <div className="gba:w-32 gba:text-right gba:text-xs gba:font-medium gba:whitespace-nowrap">

@@ -36,7 +36,7 @@ export const StatusPieChart: React.FC<StatusPieChartProps> = ({
           </p>
         </div>
       </div>
-      <div className="gba:h-[200px]">
+      <div className="gba:h-52">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -65,10 +65,7 @@ export const StatusPieChart: React.FC<StatusPieChartProps> = ({
                   const percent = totalAbsenceCount > 0 ? Math.round((entry.value / totalAbsenceCount) * 100) : 0
 
                   return (
-                    <div
-                      className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow"
-                      style={{ pointerEvents: 'none' }}
-                    >
+                    <div className="gba:pointer-events-none gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow">
                       <p className="gba:font-medium">{entry.name}</p>
                       <p>
                         {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.count', 'Count')}
@@ -111,10 +108,7 @@ export const StatusPieChart: React.FC<StatusPieChartProps> = ({
           const percent = totalAbsenceCount > 0 ? Math.round((Number(entry.value) / totalAbsenceCount) * 100) : 0
           return (
             <span key={entry.name} className="gba:flex gba:items-center gba:gap-2">
-              <span
-                className="gba:w-3 gba:h-3 gba:rounded gba:inline-block"
-                style={{ backgroundColor: statusColors[entry.status] || 'var(--nw-muted-foreground)' }}
-              />
+              <span className="gba:w-3 gba:h-3 gba:rounded gba:inline-block gba:bg-muted-foreground" />
               <span className="gba:text-xs">
                 {entry.name}: {percent}%
               </span>

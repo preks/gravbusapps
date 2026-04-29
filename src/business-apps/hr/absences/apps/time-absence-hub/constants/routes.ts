@@ -3,7 +3,6 @@ export const HUB_VIEWS = [
   'absences',
   'attendance',
   'entitlements',
-  'compliance',
   'insights',
   'reports',
   'absence-details',

@@ -27,11 +27,11 @@ const ChartTooltip: React.FC<{ active?: boolean; payload?: any[]; label?: string
     return null
   }
   return (
-    <div className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-[160px]">
+    <div className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-40">
       <p className="gba:font-medium gba:mb-2 gba:text-sm">{label}</p>
       <div className="gba:space-y-1 gba:text-xs">
         {payload.map(entry => (
-          <p key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2" style={{ color: entry.color }}>
+          <p key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
             <span className="gba:font-medium">{entry.name}:</span>
             <span>{typeof entry.value === 'number' ? Math.round(entry.value * 10) / 10 : entry.value}</span>
           </p>
@@ -52,12 +52,12 @@ const BreakdownChart: React.FC<BreakdownChartProps> = ({ title, data, metric, em
   const slice = data.slice(0, 10)
   const isEmpty = slice.length === 0
   return (
-    <Card className="gba:p-4 gba:flex-1 gba:min-w-[320px]">
+    <Card className="gba:p-4 gba:flex-1 gba:min-w-80">
       <h5 className="gba:text-sm gba:font-medium gba:m-0">{title}</h5>
       {isEmpty ? (
         <p className="gba:text-xs gba:text-muted-foreground gba:py-12 gba:text-center">{emptyText}</p>
       ) : (
-        <div className="gba:mt-3 gba:h-[280px]">
+        <div className="gba:mt-3 gba:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={slice} margin={{ top: 10, right: 24, left: 0, bottom: 32 }}>
               <CartesianGrid strokeDasharray="3 3" />

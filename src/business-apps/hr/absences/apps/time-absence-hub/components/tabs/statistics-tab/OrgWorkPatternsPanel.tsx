@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import dayjs from 'dayjs'
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
+import { Card, CardHeader, CardTitle, CardContent, Progress } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface OrgWorkPatternsPanelProps {
@@ -87,11 +87,7 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
 
   const renderBar = (value: number, percent: number) => (
     <div className="gba:flex gba:items-center gba:gap-3 gba:w-full">
-      <div className="gba:flex-1 gba:bg-muted gba:rounded">
-        <div
-          style={{ width: `${Math.min(100, percent)}%`, background: 'var(--nw-chart-4)', height: 10, borderRadius: 6 }}
-        />
-      </div>
+      <Progress value={Math.min(100, percent)} className="gba:h-2.5 gba:flex-1" />
       <div className="gba:w-10 gba:text-right gba:text-sm">{value}</div>
       <div className="gba:w-10 gba:text-right gba:text-sm">{percent}%</div>
     </div>

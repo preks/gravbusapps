@@ -38,25 +38,6 @@ interface AbsenceListTableProps {
   onOpenEmployeeRecord?: (employeeId: string) => void
 }
 
-const getColorForAbsence = (absence: EnhancedAbsence) => {
-  if (absence.color) {
-    return absence.color
-  }
-
-  const groupColors: Record<string, string> = {
-    Vacation: 'var(--nw-success)',
-    'Sick Leave': 'var(--nw-destructive)',
-    'Personal Leave': 'var(--nw-info)',
-    'Maternity Leave': 'var(--nw-warning)',
-    'Paternity Leave': 'var(--nw-info)',
-    Bereavement: 'var(--nw-muted-foreground)',
-    'Jury Duty': 'var(--nw-success)',
-    'Military Leave': 'var(--nw-warning)'
-  }
-
-  return groupColors[absence.groupName] || 'var(--nw-muted-foreground)'
-}
-
 const getEmployeeName = (absence: EnhancedAbsence) => {
   if (absence.employee && (absence.employee.firstName || absence.employee.lastName)) {
     return `${absence.employee.firstName || ''} ${absence.employee.lastName || ''}`.trim()
@@ -134,7 +115,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-muted">
                 <TableHead
-                  className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-1/5 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('employeeName')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -143,7 +124,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-1/6 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('groupName')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -152,7 +133,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-1/12 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('startDate')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -161,7 +142,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-1/12 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('endDate')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -170,7 +151,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[10%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-1/12 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('status')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -182,7 +163,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[6%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-16 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('effectiveDays')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -191,7 +172,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-1/6 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('createdAt')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -245,16 +226,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-group-cell-${record.id}`}
                   >
-                    <Badge
-                      variant="outline"
-                      style={{
-                        backgroundColor: getColorForAbsence(record),
-                        borderColor: getColorForAbsence(record)
-                      }}
-                      className="gba:text-white"
-                    >
-                      {record.groupName}
-                    </Badge>
+                    <Badge variant="outline">{record.groupName}</Badge>
                   </TableCell>
                   <TableCell
                     className="gba:py-4 gba:px-6"
@@ -333,7 +305,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                 <select
                   value={pageSize}
                   onChange={e => onPaginationChange(1, Number(e.target.value))}
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                  className="gba:h-8 gba:w-20 gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                   data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
                 >
                   <option value={10}>10</option>
@@ -343,7 +315,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                 </select>
               </div>
               <div
-                className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
+                className="gba:flex gba:w-24 gba:items-center gba:justify-center gba:text-sm gba:font-medium"
                 data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
               >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
@@ -432,7 +404,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
               <select
                 value={pageSize}
                 onChange={e => onPaginationChange(1, Number(e.target.value))}
-                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                className="gba:h-8 gba:w-20 gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                 data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
               >
                 <option value={10}>10</option>

@@ -71,7 +71,7 @@ const transformMenuItemsToReports = (menuItems: MenuItem[], currentLocale: strin
               item.description || 'No description available',
               currentLocale
             ),
-            icon: <ChartBarIcon size={20} className="h-5 w-5" />,
+            icon: <ChartBarIcon size={20} className="gba:h-5 gba:w-5" />,
             category: getTranslatedValue(item.resourceUrl.name_i18n, item.resourceUrl.name || 'Report', currentLocale),
             favorite: false,
             url: `${env('NEXT_PUBLIC_BASE_URL') || ''}${item.resourceUrl.url}`

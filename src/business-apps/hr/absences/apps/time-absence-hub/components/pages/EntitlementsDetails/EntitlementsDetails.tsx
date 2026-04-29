@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
+  Card,
+  CardContent,
   Button,
   Table,
   TableBody,
@@ -7,7 +9,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Spinner
+  Spinner,
+  Alert,
+  AlertDescription,
+  AlertTitle
 } from '@newwork/nw-design-system'
 import {
   ArrowLeftIcon,
@@ -16,16 +21,18 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
   CalendarIcon,
-  UserIcon
+  UserIcon,
+  CalendarCheckIcon
 } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
-import { Spin, Alert } from 'antd'
-import { DataContainer } from '../../../../../../../../components/layout/dataContainer'
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
 import { useGraphQLClient } from '../../../../../../../../common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '../../../../../../../../common/network/catalogs/useCatalogManagerClient'
-import { TimeFilter, DataFilterGroup } from '../../../types'
+import { TimeFilter } from '../../../types'
 import { getTranslationFromI18nKeyAndLabel, getDateFormat } from '@/common/utils/windowUtils'
+import { BackofficeDataDisplay } from '@/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeDataDisplay'
+import { BackofficeFilterSheet } from '@/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeFilterSheet'
+import type { FilterConfiguration } from '@newwork/nw-design-system'
 
 interface EntitlementsDetailsProps extends BusinessAppContextProps {
   timeFilter?: TimeFilter
@@ -44,10 +51,33 @@ const formatDateForDisplay = (dateStr: string) => {
   return dayjs(dateStr).format(getDateFormat('date.short'))
 }
 
+interface SummaryMetricCardProps {
+  title: string
+  value: string | number
+  description: string
+  icon: React.ReactNode
+}
+
+const SummaryMetricCard: React.FC<SummaryMetricCardProps> = ({ title, value, description, icon }) => (
+  <Card className="gba:border-0 gba:bg-muted/40 gba:shadow-none">
+    <CardContent className="gba:p-4">
+      <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+        <div className="gba:min-w-0">
+          <p className="gba:text-sm gba:text-muted-foreground">{title}</p>
+          <p className="gba:mt-3 gba:text-2xl gba:font-bold gba:leading-none gba:text-foreground">{value}</p>
+          <p className="gba:mt-2 gba:text-xs gba:text-muted-foreground">{description}</p>
+        </div>
+        <div className="gba:text-muted-foreground">{icon}</div>
+      </div>
+    </CardContent>
+  </Card>
+)
+
 interface DetailedEntitlement {
   id: string // Add unique ID for table keys
   employeeId: string
   employeeName: string
+  organizationalUnitId: string
   organizationalUnit: string | null
   absenceType: string
   absenceTypeId: string
@@ -81,11 +111,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
   const [entitlements, setEntitlements] = useState<DetailedEntitlement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [employees, setEmployees] = useState<any[]>([])
-  const [organizationalUnits, setOrganizationalUnits] = useState<any[]>([])
   const [absenceTypesMap, setAbsenceTypesMap] = useState<Record<string, string>>({})
-  const [employeesLoading, setEmployeesLoading] = useState(false)
-  const [orgUnitsLoading, setOrgUnitsLoading] = useState(false)
 
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('employeeName')
@@ -227,6 +253,17 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           pending
           validFrom
           validTo
+          employee {
+            id
+            firstName
+            lastName
+            employeePosition {
+              organizationalUnit {
+                id
+                name
+              }
+            }
+          }
           type {
             id
             value
@@ -241,94 +278,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
       }
     `
   }
-
-  // Separate employee fetching like AbsenceList does
-  const fetchEmployees = useCallback(async () => {
-    if (!accessToken) return
-
-    setEmployeesLoading(true)
-    try {
-      // EXACT same query as AbsenceList for employees
-      const employeesQuery = `
-        query GetEmployees {
-          Employee(
-            limit: 500
-            orderBy: [{ firstName: ASC }, { lastName: ASC }]
-            where: { isDeleted: { _eq: false } }
-          ) {
-            id
-            firstName
-            lastName
-            employeePosition {
-              organizationalUnit {
-                name
-              }
-            }
-          }
-        }
-      `
-
-      const result = await graphQLClient.request(employeesQuery)
-      setEmployees(result?.Employee || [])
-    } catch (error) {
-      console.error('Error fetching employees:', error)
-      setEmployees([])
-    } finally {
-      setEmployeesLoading(false)
-    }
-  }, [graphQLClient, accessToken])
-
-  // Separate org units fetching like AbsenceList does
-  const fetchOrganizationalUnits = useCallback(async () => {
-    if (!accessToken) return
-
-    setOrgUnitsLoading(true)
-    try {
-      const orgUnitsQuery = `
-        query GetOrganizationalUnitsFromEmployees {
-          Employee(
-            where: {
-              isDeleted: { _eq: false },
-              employeePosition: {
-                organizationalUnit: { id: { _isNull: false } }
-              }
-            }
-          ) {
-            employeePosition {
-              organizationalUnit {
-                id
-                name
-              }
-            }
-          }
-        }
-      `
-
-      const result = await graphQLClient.request(orgUnitsQuery)
-      const orgUnits =
-        result?.Employee?.map((emp: any) => emp.employeePosition?.organizationalUnit)
-          ?.filter((org: any) => org && org.name)
-          ?.reduce((unique: any[], org: any) => {
-            if (!unique.find((u: any) => u.id === org.id)) {
-              unique.push(org)
-            }
-            return unique
-          }, []) || []
-
-      setOrganizationalUnits(orgUnits)
-    } catch (error) {
-      console.error('Error fetching org units:', error)
-      setOrganizationalUnits([])
-    } finally {
-      setOrgUnitsLoading(false)
-    }
-  }, [graphQLClient, accessToken])
-
-  // Load employees and org units on mount like AbsenceList
-  useEffect(() => {
-    fetchEmployees()
-    fetchOrganizationalUnits()
-  }, [fetchEmployees, fetchOrganizationalUnits])
 
   // Fetch catalog data once on mount (like AbsenceList does)
   useEffect(() => {
@@ -368,13 +317,13 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
     fetchCatalogData()
   }, [accessToken])
 
-  // Initial load effect - wait for both accessToken and employees to be loaded
+  // Initial load effect
   useEffect(() => {
-    if (!initialLoadDone.current && accessToken && employees.length > 0) {
+    if (!initialLoadDone.current && accessToken) {
       initialLoadDone.current = true
       fetchEntitlements()
     }
-  }, [accessToken, employees.length])
+  }, [accessToken])
 
   // Pagination effect - fetch new page when currentPage changes
   useEffect(() => {
@@ -386,8 +335,12 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
   // Search and filter effects - reset to page 1 and fetch
   useEffect(() => {
     if (initialLoadDone.current) {
-      setCurrentPage(1) // Reset pagination like AbsenceList
-      // fetchEntitlements will be called by the currentPage useEffect above
+      if (currentPage === 1) {
+        fetchEntitlements()
+        return
+      }
+
+      setCurrentPage(1)
     }
   }, [search, JSON.stringify(selectedFilters), pageSize])
 
@@ -401,12 +354,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
         setLoading(true)
       }
       setError(null)
-
-      // Create employee lookup map from state (employees fetched separately)
-      const employeesMap: Record<string, any> = {}
-      employees.forEach((emp: any) => {
-        employeesMap[emp.id] = emp
-      })
 
       // Fetch entitlements data with GraphQL variables like AbsenceList
       const whereConditions = buildWhereConditions()
@@ -446,7 +393,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
 
       // Transform data using EXACT same pattern as AbsenceList for type mapping
       const transformedData: DetailedEntitlement[] = result.EmployeeAbsenceEntitlement.map((ent: any) => {
-        const employee = employeesMap[ent.employeeId]
+        const employee = ent.employee
 
         // Use EXACT same pattern as AbsenceList for type mapping
         const typeName = absenceTypesMap[ent.type?.id] || ent.type?.value || 'Unknown Type'
@@ -463,6 +410,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           id: ent.id, // Use entitlement ID for unique keys
           employeeId: ent.employeeId || '',
           employeeName: employee ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim() : 'Unknown Employee',
+          organizationalUnitId: employee?.employeePosition?.organizationalUnit?.id || '',
           organizationalUnit: employee?.employeePosition?.organizationalUnit?.name || 'No Department',
           absenceType: typeName, // Use dashboard pattern
           absenceTypeId: ent.type?.id || '',
@@ -485,121 +433,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
     }
   }
 
-  // Filtering and sorting logic
-  const getEmployeeFilters = useCallback(
-    (searchTerm: string) => {
-      // FIXED: Show selected employees when no search term (like AbsenceList shows selected departments)
-      if (!searchTerm || searchTerm.trim().length < 3) {
-        // Get currently selected employees
-        const selectedEmployeeIds = selectedFilters.filter(f => !f.startsWith('department-') && !f.startsWith('type-'))
-        const selectedEmployees = employees.filter(employee => selectedEmployeeIds.includes(employee.id))
-
-        return {
-          filters: selectedEmployees.map(employee => ({
-            id: employee.id,
-            label: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee',
-            selected: true // These are all selected employees
-          })),
-          loading: employeesLoading,
-          error: null
-        }
-      }
-
-      // FIXED: Only search employee names, not org units
-      const filteredEmployees = employees.filter(employee => {
-        const firstName = employee.firstName || ''
-        const lastName = employee.lastName || ''
-        const fullName = `${firstName} ${lastName}`.toLowerCase()
-        return fullName.includes(searchTerm.toLowerCase())
-      })
-
-      const filterResults = filteredEmployees.map(employee => ({
-        id: employee.id,
-        label: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee',
-        selected: selectedFilters.includes(employee.id)
-      }))
-
-      return {
-        filters: filterResults,
-        loading: employeesLoading, // Use real loading state
-        error: null
-      }
-    },
-    [employees, selectedFilters, employeesLoading]
-  )
-
-  const getDepartmentFilters = useCallback(
-    (searchTerm: string) => {
-      const selectedDepartmentIds = selectedFilters
-        .filter(f => f.startsWith('department-'))
-        .map(f => f.replace('department-', ''))
-
-      const selectedDepartments = organizationalUnits.filter(department =>
-        selectedDepartmentIds.includes(department.id)
-      )
-
-      if (!searchTerm || searchTerm.trim().length < 3) {
-        return {
-          filters: selectedDepartments.map(department => ({
-            id: `department-${department.id}`,
-            label: department.name || 'Unknown Department',
-            selected: true
-          })),
-          loading: orgUnitsLoading, // Use real loading state
-          error: null
-        }
-      }
-
-      const filteredDepartments = organizationalUnits.filter(department => {
-        const name = department.name || ''
-        return name.toLowerCase().includes(searchTerm.toLowerCase())
-      })
-
-      return {
-        filters: filteredDepartments.map(department => ({
-          id: `department-${department.id}`,
-          label: department.name || 'Unknown Department',
-          selected: selectedFilters.includes(`department-${department.id}`)
-        })),
-        loading: orgUnitsLoading, // Use real loading state
-        error: null
-      }
-    },
-    [organizationalUnits, selectedFilters, orgUnitsLoading]
-  )
-
-  // Get absence types for filtering (from catalog)
-  const absenceTypeFilters = useMemo(() => {
-    const uniqueTypes = Array.from(new Set(entitlements.map(e => e.absenceTypeId)))
-      .filter(Boolean)
-      .map(typeId => ({
-        id: `type-${typeId}`,
-        label: absenceTypesMap[typeId] || 'Unknown Type',
-        selected: selectedFilters.includes(`type-${typeId}`)
-      }))
-
-    return uniqueTypes
-  }, [entitlements, absenceTypesMap, selectedFilters])
-
-  // Filter configuration
-  const filterGroups: DataFilterGroup[] = [
-    {
-      id: 'employee',
-      title: 'Employee',
-      backendSearch: getEmployeeFilters
-    },
-    {
-      id: 'department',
-      title: 'Org Unit',
-      backendSearch: getDepartmentFilters
-    },
-    {
-      id: 'absenceType',
-      title: 'Absence Type',
-      filters: absenceTypeFilters
-    }
-  ]
-
   // Handlers
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -610,21 +443,141 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
     }
   }
 
-  const handleFilterChange = (filterId: string, selected: boolean) => {
-    setSelectedFilters(prev => {
-      const newFilters = selected ? [...prev, filterId] : prev.filter(f => f !== filterId)
-
-      // Filter selection should now work smoothly without page refresh
-
-      return newFilters
-    })
-    setCurrentPage(1) // Reset to first page when filters change
-  }
-
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value)
     setCurrentPage(1) // Reset to first page when search changes
   }, []) // Remove search dependency to prevent dropdown closing
+
+  const entitlementFilterOptions = useMemo(() => {
+    const employees = new Map<string, string>()
+    const departments = new Map<string, string>()
+    const absenceTypes = new Map<string, string>()
+
+    entitlements.forEach(entitlement => {
+      if (entitlement.employeeId && entitlement.employeeName) {
+        employees.set(entitlement.employeeId, entitlement.employeeName)
+      }
+
+      if (entitlement.organizationalUnitId && entitlement.organizationalUnit) {
+        departments.set(entitlement.organizationalUnitId, entitlement.organizationalUnit)
+      }
+
+      if (entitlement.absenceTypeId && entitlement.absenceType) {
+        absenceTypes.set(entitlement.absenceTypeId, entitlement.absenceType)
+      }
+    })
+
+    const toOptions = (entries: Map<string, string>) =>
+      Array.from(entries.entries())
+        .map(([id, label]) => ({ id, label }))
+        .sort((a, b) => a.label.localeCompare(b.label))
+
+    return {
+      employees: toOptions(employees),
+      departments: toOptions(departments),
+      absenceTypes: toOptions(absenceTypes)
+    }
+  }, [entitlements])
+
+  const filtersObject = useMemo<Record<string, unknown>>(() => {
+    const employeeIds = selectedFilters.filter(
+      filter => !filter.startsWith('department-') && !filter.startsWith('type-')
+    )
+    const departmentIds = selectedFilters
+      .filter(filter => filter.startsWith('department-'))
+      .map(filter => filter.replace('department-', ''))
+    const absenceTypeIds = selectedFilters
+      .filter(filter => filter.startsWith('type-'))
+      .map(filter => filter.replace('type-', ''))
+    const filters: Record<string, unknown> = {}
+
+    if (employeeIds.length > 0) {
+      filters.employeeIds = employeeIds
+    }
+
+    if (departmentIds.length > 0) {
+      filters.departmentIds = departmentIds
+    }
+
+    if (absenceTypeIds.length > 0) {
+      filters.absenceTypeIds = absenceTypeIds
+    }
+
+    return filters
+  }, [selectedFilters])
+
+  const filterConfiguration = useMemo<FilterConfiguration>(
+    () => ({
+      id: 'entitlements-details-filters',
+      name: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.summary_statistics.employee_entitlements',
+        'Employee Entitlements'
+      ),
+      groups: [
+        {
+          id: 'employee-group',
+          label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'Employee'),
+          collapsible: true,
+          defaultExpanded: true,
+          filters: [
+            {
+              id: 'employeeIds',
+              field: 'employeeIds',
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'Employee'),
+              type: 'multi-select',
+              config: { options: entitlementFilterOptions.employees, showSearch: true, showSelectAll: false }
+            }
+          ]
+        },
+        {
+          id: 'department-group',
+          label: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:absence_management_hub_backoffice.absence_list.department',
+            'Department'
+          ),
+          collapsible: true,
+          defaultExpanded: false,
+          filters: [
+            {
+              id: 'departmentIds',
+              field: 'departmentIds',
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_management_hub_backoffice.absence_list.department',
+                'Department'
+              ),
+              type: 'multi-select',
+              config: { options: entitlementFilterOptions.departments, showSearch: true, showSelectAll: false }
+            }
+          ]
+        },
+        {
+          id: 'absence-type-group',
+          label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absence_type', 'Absence Type'),
+          collapsible: true,
+          defaultExpanded: false,
+          filters: [
+            {
+              id: 'absenceTypeIds',
+              field: 'absenceTypeIds',
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absence_type', 'Absence Type'),
+              type: 'multi-select',
+              config: { options: entitlementFilterOptions.absenceTypes, showSearch: true, showSelectAll: false }
+            }
+          ]
+        }
+      ]
+    }),
+    [entitlementFilterOptions]
+  )
+
+  const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
+    const employeeIds = (filters.employeeIds as string[] | undefined) ?? []
+    const departmentIds = ((filters.departmentIds as string[] | undefined) ?? []).map(id => `department-${id}`)
+    const absenceTypeIds = ((filters.absenceTypeIds as string[] | undefined) ?? []).map(id => `type-${id}`)
+
+    setSelectedFilters([...employeeIds, ...departmentIds, ...absenceTypeIds])
+    setCurrentPage(1)
+  }, [])
 
   const handlePaginationChange = (page: number, newPageSize?: number) => {
     setCurrentPage(page)
@@ -633,26 +586,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
       setCurrentPage(1)
     }
   }
-
-  // Filter label map for display
-  const filterLabelMap = useMemo(() => {
-    const map: Record<string, string> = {}
-
-    employees.forEach(emp => {
-      map[emp.id] = `${emp.firstName || ''} ${emp.lastName || ''}`.trim()
-    })
-
-    organizationalUnits.forEach(org => {
-      map[`department-${org.id}`] = org.name || 'Unknown Department'
-    })
-
-    // Use absence type IDs and names from catalog
-    Object.entries(absenceTypesMap).forEach(([id, name]) => {
-      map[`type-${id}`] = name
-    })
-
-    return map
-  }, [employees, organizationalUnits, absenceTypesMap])
 
   // Summary statistics based on filtered data
   const summaryStats = useMemo(() => {
@@ -672,22 +605,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
     }
   }, [entitlements, total])
 
-  if (loading) {
-    return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]">
-        <Spin size="large" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="gba:p-6">
-        <Alert message="Error Loading Entitlements" description={error} type="error" showIcon />
-      </div>
-    )
-  }
-
   // Table component
   const EntitlementsTable: React.FC = () => {
     const totalPages = Math.ceil(total / pageSize)
@@ -702,16 +619,16 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
 
     if (error) {
       return (
-        <div className="gba:flex gba:items-center gba:justify-center gba:py-8" data-testid="entitlements-table-error">
-          <div className="gba:text-center">
-            <p className="gba:text-destructive gba:mb-2">{error}</p>
-            <Button onClick={() => window.location.reload()}>
+        <div className="gba:p-4" data-testid="entitlements-table-error">
+          <Alert variant="destructive">
+            <AlertTitle>
               {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_management_hub_backoffice.absence_list.retry',
-                'Retry'
+                'lowcoder:time_absence_hub.entitlements.error_title',
+                'Error Loading Entitlements'
               )}
-            </Button>
-          </div>
+            </AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         </div>
       )
     }
@@ -723,7 +640,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-muted">
                 <TableHead
-                  className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-1/5 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('employeeName')}
                   data-testid="entitlements-employee-header"
                 >
@@ -736,7 +653,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-1/6 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('organizationalUnit')}
                   data-testid="entitlements-org-unit-header"
                 >
@@ -749,7 +666,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-1/6 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('absenceType')}
                   data-testid="entitlements-absence-type-header"
                 >
@@ -762,7 +679,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-1/12 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('entitlement')}
                   data-testid="entitlements-entitlement-header"
                 >
@@ -775,7 +692,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-1/12 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('validFrom')}
                   data-testid="entitlements-valid-from-header"
                 >
@@ -788,7 +705,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-1/12 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('validTo')}
                   data-testid="entitlements-valid-to-header"
                 >
@@ -801,7 +718,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  className="gba:w-1/12 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('used')}
                   data-testid="entitlements-used-header"
                 >
@@ -892,7 +809,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                 <select
                   value={pageSize}
                   onChange={e => handlePaginationChange(1, Number(e.target.value))}
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                  className="gba:h-8 gba:w-20 gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                   data-testid="entitlements-page-size-select"
                 >
                   <option value={10}>10</option>
@@ -902,7 +819,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                 </select>
               </div>
               <div
-                className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
+                className="gba:flex gba:w-24 gba:items-center gba:justify-center gba:text-sm gba:font-medium"
                 data-testid="entitlements-page-info"
               >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
@@ -991,7 +908,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
               <select
                 value={pageSize}
                 onChange={e => handlePaginationChange(1, Number(e.target.value))}
-                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                className="gba:h-8 gba:w-20 gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                 data-testid="entitlements-page-size-select-single"
               >
                 <option value={10}>10</option>
@@ -1007,140 +924,151 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
   }
 
   return (
-    <div data-testid="entitlements-details-page" className="gba:space-y-6">
-      {/* Back Navigation */}
-      <div className="gba:mb-4">
+    <div data-testid="entitlements-details-page" className="gba:p-4 gba:space-y-6">
+      <div className="gba:flex gba:items-start gba:gap-3">
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={onNavigateBack}
-          className="gba:flex gba:items-center gba:gap-2"
-          data-testid="back-to-dashboard-button"
-        >
-          <ArrowLeftIcon size={16} />
-          {getTranslationFromI18nKeyAndLabel(
+          className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:p-0"
+          aria-label={getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
             'Back to Dashboard'
           )}
+          data-testid="back-to-dashboard-button"
+        >
+          <ArrowLeftIcon size={16} />
         </Button>
-      </div>
-
-      {/* Page Header */}
-      <div className="gba:bg-white gba:p-6 gba:rounded-lg gba:border gba:shadow-sm">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <UsersIcon size={24} className="gba:text-info" />
-            <div>
-              <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:absence_management_hub_backoffice.summary_statistics.title_vacation',
-                  'Vacation Entitlements Details'
-                )}
-              </h1>
-              <p className="gba:text-muted-foreground gba:mt-1">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:absence_management_hub_backoffice.summary_statistics.description',
-                  'Complete breakdown of all employee vacation entitlements and usage'
-                )}
-              </p>
-            </div>
+        <div className="gba:flex gba:min-w-0 gba:items-start gba:gap-3">
+          <div className="gba:flex gba:h-10 gba:w-10 gba:flex-shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:bg-info-secondary gba:text-info">
+            <UsersIcon size={22} />
+          </div>
+          <div className="gba:min-w-0">
+            <h1 className="gba:text-2xl gba:font-bold gba:leading-tight gba:text-foreground">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_management_hub_backoffice.summary_statistics.title_vacation',
+                'Vacation Entitlements Details'
+              )}
+            </h1>
+            <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_management_hub_backoffice.summary_statistics.description',
+                'Complete breakdown of all employee vacation entitlements and usage'
+              )}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Summary Statistics */}
       {summaryStats && (
-        <div className="gba:bg-white gba:p-6 gba:rounded-lg gba:border gba:shadow-sm">
-          <h3 className="gba:text-lg gba:font-medium gba:mb-4 gba:flex gba:items-center gba:gap-2">
-            <CalendarBlankIcon size={20} className="gba:text-info" />
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_management_hub_backoffice.summary_statistics.title',
-              'Summary Statistics (Filtered Results)'
+        <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:sm:grid-cols-2 gba:lg:grid-cols-5">
+          <SummaryMetricCard
+            title={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_management_hub_backoffice.summary_statistics.total_employees',
+              'Total Employees'
             )}
-          </h3>
-          <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-5 gba:gap-4">
-            <div className="gba:text-center gba:p-3 gba:bg-info-secondary gba:rounded">
-              <div className="gba:text-lg gba:font-bold gba:text-info">{summaryStats.totalEmployees}</div>
-              <div className="gba:text-xs gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:absence_management_hub_backoffice.summary_statistics.total_employees',
-                  'Total Employees'
-                )}
-              </div>
-            </div>
-            <div className="gba:text-center gba:p-3 gba:bg-success-secondary gba:rounded">
-              <div className="gba:text-lg gba:font-bold gba:text-success">{summaryStats.totalEntitlements}</div>
-              <div className="gba:text-xs gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:absence_management_hub_backoffice.summary_statistics.total_entitlement_days',
-                  'Total Entitlement Days'
-                )}
-              </div>
-            </div>
-            <div className="gba:text-center gba:p-3 gba:bg-warning-secondary gba:rounded">
-              <div className="gba:text-lg gba:font-bold gba:text-warning">{summaryStats.totalUsed}</div>
-              <div className="gba:text-xs gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:absence_management_hub_backoffice.summary_statistics.days_used',
-                  'Days Used'
-                )}
-              </div>
-            </div>
-            <div className="gba:text-center gba:p-3 gba:bg-info-secondary gba:rounded">
-              <div className="gba:text-lg gba:font-bold gba:text-info">{summaryStats.totalAvailable}</div>
-              <div className="gba:text-xs gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:absence_management_hub_backoffice.summary_statistics.days_available',
-                  'Days Available'
-                )}
-              </div>
-            </div>
-            <div className="gba:text-center gba:p-3 gba:bg-muted gba:rounded">
-              <div className="gba:text-lg gba:font-bold gba:text-muted-foreground">{summaryStats.utilizationRate}%</div>
-              <div className="gba:text-xs gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:absence_management_hub_backoffice.summary_statistics.utilization_rate',
-                  'Utilization Rate'
-                )}
-              </div>
-            </div>
-          </div>
+            value={summaryStats.totalEmployees}
+            description={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_absence_hub.entitlements.filtered_employees',
+              'Employees in current results'
+            )}
+            icon={<UsersIcon size={20} />}
+          />
+          <SummaryMetricCard
+            title={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_management_hub_backoffice.summary_statistics.total_entitlement_days',
+              'Total Entitlement Days'
+            )}
+            value={summaryStats.totalEntitlements}
+            description={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_absence_hub.entitlements.entitlement_days_description',
+              'Granted across all employees'
+            )}
+            icon={<CalendarBlankIcon size={20} />}
+          />
+          <SummaryMetricCard
+            title={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_management_hub_backoffice.summary_statistics.days_used',
+              'Days Used'
+            )}
+            value={summaryStats.totalUsed}
+            description={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_absence_hub.entitlements.days_used_description',
+              'Already consumed'
+            )}
+            icon={<CalendarCheckIcon size={20} />}
+          />
+          <SummaryMetricCard
+            title={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_management_hub_backoffice.summary_statistics.days_available',
+              'Days Available'
+            )}
+            value={summaryStats.totalAvailable}
+            description={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_absence_hub.entitlements.days_available_description',
+              'Still available'
+            )}
+            icon={<CalendarBlankIcon size={20} />}
+          />
+          <SummaryMetricCard
+            title={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_management_hub_backoffice.summary_statistics.utilization_rate',
+              'Utilization Rate'
+            )}
+            value={`${summaryStats.utilizationRate}%`}
+            description={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_absence_hub.entitlements.utilization_description',
+              'Used from total allowance'
+            )}
+            icon={<ArrowUpIcon size={20} />}
+          />
         </div>
       )}
 
-      {/* DataContainer with filtering and table */}
-      <DataContainer
-        dataControllerProps={{
-          search,
-          setSearch: handleSearchChange,
-          debounceDelay: 500,
-          filter: selectedFilters,
-          setFilter: setSelectedFilters,
-          filterLabelMap,
-          listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:absence_management_hub_backoffice.summary_statistics.employee_entitlements',
-                    'Employee Entitlements'
-                  )}
-                </span>
-                <span className="gba:text-muted-foreground">({total})</span>
-              </div>
-            </div>
-          )
-        }}
-        dataFilterProps={{
-          filterGroups,
-          onFilterChange: handleFilterChange
-        }}
-        dataBody={
-          <div data-testid="entitlements-table-container">
-            <EntitlementsTable />
-          </div>
-        }
-      />
+      <BackofficeDataDisplay
+        titleSections={[
+          {
+            id: 'entitlements',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_management_hub_backoffice.summary_statistics.employee_entitlements',
+              'Employee Entitlements'
+            ),
+            metadata: { count: total, isLoading: loading }
+          }
+        ]}
+        currentSection="entitlements"
+        searchValue={search}
+        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_absence_hub.entitlements.search_placeholder',
+          'Search entitlements...'
+        )}
+        onSearchChange={handleSearchChange}
+        filters={filtersObject}
+        filterConfiguration={filterConfiguration}
+        onFilterChange={handleFilterChangeFromDisplay}
+        data-testid="entitlements-details-data-display"
+        renderFilterSheet={(open, onOpenChange) => (
+          <BackofficeFilterSheet
+            open={open}
+            onOpenChange={onOpenChange}
+            configuration={filterConfiguration}
+            values={filtersObject}
+            onApply={handleFilterChangeFromDisplay}
+            title={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_absence_hub.entitlements.filter_title',
+              'Filter Entitlements'
+            )}
+            description={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_absence_hub.entitlements.filter_description',
+              'Narrow entitlement results by employee, department, and absence type.'
+            )}
+          />
+        )}
+      >
+        <div data-testid="entitlements-table-container">
+          <EntitlementsTable />
+        </div>
+      </BackofficeDataDisplay>
     </div>
   )
 }

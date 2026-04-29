@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import {
+  GET_HUB_EMPLOYEES,
   GET_HUB_LEGAL_ENTITIES,
   GET_HUB_MANAGERS,
   GET_HUB_ORGANIZATIONAL_UNITS,
   GET_HUB_SITE_LOCATIONS,
+  HubEmployeeOption,
+  HubEmployeePositionOption,
   HubFilterOption,
   HubManagerOption,
   HubManagerPositionOption
@@ -16,6 +19,7 @@ export interface HubFilterOptionsState {
   locations: HubFilterOption[]
   legalEntities: HubFilterOption[]
   managers: HubManagerOption[]
+  employees: HubEmployeeOption[]
   isLoading: boolean
   error: string | null
 }
@@ -25,6 +29,7 @@ const EMPTY_STATE: HubFilterOptionsState = {
   locations: [],
   legalEntities: [],
   managers: [],
+  employees: [],
   isLoading: false,
   error: null
 }
@@ -47,6 +52,20 @@ const mapManagers = (positions: HubManagerPositionOption[] = []): HubManagerOpti
   })
 }
 
+const getEmployeeLabel = (employee: HubEmployeeOption): string =>
+  employee.displayName || `${employee.firstName ?? ''} ${employee.lastName ?? ''}`.trim() || employee.id
+
+const mapEmployees = (positions: HubEmployeePositionOption[] = []): HubEmployeeOption[] => {
+  const unique = new Map<string, HubEmployeeOption>()
+  positions.forEach(position => {
+    const employee = position.employee
+    if (employee?.id) {
+      unique.set(employee.id, employee)
+    }
+  })
+  return Array.from(unique.values()).sort((a, b) => getEmployeeLabel(a).localeCompare(getEmployeeLabel(b)))
+}
+
 export const useHubFilterOptions = (accessToken: string): HubFilterOptionsState => {
   const [state, setState] = useState<HubFilterOptionsState>({ ...EMPTY_STATE, isLoading: true })
   const graphqlClient = useGraphQLClient(accessToken)
@@ -63,13 +82,14 @@ export const useHubFilterOptions = (accessToken: string): HubFilterOptionsState 
 
     const fetchAll = async () => {
       try {
-        const [orgUnits, locations, legalEntities, managers] = await Promise.allSettled([
+        const [orgUnits, locations, legalEntities, managers, employees] = await Promise.allSettled([
           graphqlClient.request<{ OrganizationalUnit: HubFilterOption[] }>(GET_HUB_ORGANIZATIONAL_UNITS, {
             structureId
           }),
           graphqlClient.request<{ SiteLocation: HubFilterOption[] }>(GET_HUB_SITE_LOCATIONS, { structureId }),
           graphqlClient.request<{ Company: HubFilterOption[] }>(GET_HUB_LEGAL_ENTITIES, { structureId }),
-          graphqlClient.request<{ EmployeePosition: HubManagerPositionOption[] }>(GET_HUB_MANAGERS, { structureId })
+          graphqlClient.request<{ EmployeePosition: HubManagerPositionOption[] }>(GET_HUB_MANAGERS, { structureId }),
+          graphqlClient.request<{ EmployeePosition: HubEmployeePositionOption[] }>(GET_HUB_EMPLOYEES, { structureId })
         ])
 
         if (cancelled) {
@@ -80,13 +100,17 @@ export const useHubFilterOptions = (accessToken: string): HubFilterOptionsState 
         const locationData = readFulfilled(locations)
         const legalEntityData = readFulfilled(legalEntities)
         const managerData = readFulfilled(managers)
-        const allFailed = [orgUnits, locations, legalEntities, managers].every(result => result.status === 'rejected')
+        const employeeData = readFulfilled(employees)
+        const allFailed = [orgUnits, locations, legalEntities, managers, employees].every(
+          result => result.status === 'rejected'
+        )
 
         setState({
           departments: orgUnitData?.OrganizationalUnit ?? [],
           locations: locationData?.SiteLocation ?? [],
           legalEntities: legalEntityData?.Company ?? [],
           managers: mapManagers(managerData?.EmployeePosition),
+          employees: mapEmployees(employeeData?.EmployeePosition),
           isLoading: false,
           error: allFailed ? 'Filter options failed to load' : null
         })

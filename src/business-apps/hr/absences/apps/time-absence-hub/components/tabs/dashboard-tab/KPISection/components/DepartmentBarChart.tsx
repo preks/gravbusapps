@@ -29,9 +29,9 @@ export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, on
           </p>
         </div>
       </div>
-      <div className="gba:h-[200px]">
+      <div className="gba:h-52">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }} style={{ cursor: 'pointer' }}>
+          <BarChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }} className="gba:cursor-pointer">
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="department" angle={-45} textAnchor="end" height={80} fontSize={12} />
             <YAxis fontSize={12} />
@@ -41,7 +41,7 @@ export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, on
                   const data = payload[0].payload
                   return (
                     <div
-                      className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-[200px] gba:cursor-pointer gba:hover:shadow-lg gba:transition-shadow gba:select-none"
+                      className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-48 gba:cursor-pointer gba:hover:shadow-lg gba:transition-shadow gba:select-none"
                       onClick={() => onBarClick(data)}
                       onMouseDown={() => onBarClick(data)}
                       title={getTranslationFromI18nKeyAndLabel(
@@ -52,28 +52,28 @@ export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, on
                       <p className="gba:font-medium gba:mb-2">{data.fullName}</p>
                       <div className="gba:space-y-1 gba:text-sm">
                         <p className="gba:text-info">
-                          📊 {data.absences}{' '}
+                          {data.absences}{' '}
                           {getTranslationFromI18nKeyAndLabel(
                             'lowcoder:absence_management_hub_backoffice.total_absence_days',
                             'total absence days'
                           )}
                         </p>
                         <p className="gba:text-info">
-                          👥 {data.uniqueEmployees}{' '}
+                          {data.uniqueEmployees}{' '}
                           {getTranslationFromI18nKeyAndLabel(
                             'lowcoder:absence_management_hub_backoffice.employees',
                             'employees'
                           )}
                         </p>
                         <p className="gba:text-success">
-                          📈 {data.avgDaysPerEmployee}{' '}
+                          {data.avgDaysPerEmployee}{' '}
                           {getTranslationFromI18nKeyAndLabel(
                             'lowcoder:absence_management_hub_backoffice.avg_days_per_employee',
                             'avg days/employee'
                           )}
                         </p>
                         <p className="gba:text-warning">
-                          📋 {data.avgRequestsPerEmployee}{' '}
+                          {data.avgRequestsPerEmployee}{' '}
                           {getTranslationFromI18nKeyAndLabel(
                             'lowcoder:absence_management_hub_backoffice.avg_requests_per_employee',
                             'avg requests/employee'
@@ -92,7 +92,6 @@ export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, on
                         </p>
                       </div>
                       <div className="gba:text-xs gba:text-info gba:mt-3 gba:pt-2 gba:border-t gba:text-center">
-                        💡{' '}
                         {getTranslationFromI18nKeyAndLabel(
                           'lowcoder:absence_management_hub_backoffice.click_to_view_department_details',
                           'Click to view department details'
@@ -110,7 +109,6 @@ export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, on
               fill="transparent"
               onClick={data => onBarClick(data)}
               onMouseDown={data => onBarClick(data)}
-              style={{ cursor: 'pointer' }}
               barSize={40}
             />
 
@@ -119,7 +117,6 @@ export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, on
               fill="var(--nw-chart-3)"
               onClick={data => onBarClick(data)}
               onMouseDown={data => onBarClick(data)}
-              style={{ cursor: 'pointer' }}
               radius={[2, 2, 0, 0]}
               barSize={24}
             />

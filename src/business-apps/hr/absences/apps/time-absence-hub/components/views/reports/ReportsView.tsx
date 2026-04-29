@@ -12,6 +12,7 @@ interface ReportsViewProps extends BusinessAppContextProps {
   dashboardData?: any
   globalFilters: HubGlobalFilters
   derivedDateRange: { dateFrom: string; dateTo: string } | null
+  filterAction?: React.ReactNode
 }
 
 const tt = (key: string, fallback: string) =>
@@ -22,18 +23,22 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   userInfo,
   dashboardData,
   globalFilters,
-  derivedDateRange
+  derivedDateRange,
+  filterAction
 }) => (
   <div className="gba:flex gba:flex-col gba:gap-4" data-testid="time-absence-hub-reports-view">
     <Card>
-      <CardContent className="gba:flex gba:items-center gba:gap-2 gba:p-4">
-        <FileTextIcon size={18} className="gba:text-muted-foreground" />
-        <span className="gba:text-sm gba:text-muted-foreground">
-          {tt(
-            'page_intro',
-            'Existing absence reports stay below. Time-tracking and entitlement exports use the current global filter selection.'
-          )}
-        </span>
+      <CardContent className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:p-4">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <FileTextIcon size={18} className="gba:text-muted-foreground" />
+          <span className="gba:text-sm gba:text-muted-foreground">
+            {tt(
+              'page_intro',
+              'Existing absence reports stay below. Time-tracking and entitlement exports use the current global filter selection.'
+            )}
+          </span>
+        </div>
+        {filterAction}
       </CardContent>
     </Card>
 

@@ -34,7 +34,7 @@ interface MetricCardProps {
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({ title, value, description }) => (
-  <Card className="gba:flex-1 gba:min-w-[200px]">
+  <Card className="gba:flex-1 gba:min-w-48">
     <CardContent className="gba:flex gba:flex-col gba:gap-1 gba:py-4">
       <span className="gba:text-xs gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
         {title}
@@ -50,11 +50,11 @@ const ChartTooltip: React.FC<{ active?: boolean; payload?: any[]; label?: string
     return null
   }
   return (
-    <div className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-[160px]">
+    <div className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-40">
       <p className="gba:font-medium gba:mb-2 gba:text-sm">{label}</p>
       <div className="gba:space-y-1 gba:text-xs">
         {payload.map(entry => (
-          <p key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2" style={{ color: entry.color }}>
+          <p key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
             <span className="gba:font-medium">{entry.name}:</span>
             <span>{typeof entry.value === 'number' ? Math.round(entry.value * 10) / 10 : entry.value}</span>
           </p>
@@ -213,7 +213,7 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, empty, emptyText, children
     {empty ? (
       <p className="gba:text-xs gba:text-muted-foreground gba:py-12 gba:text-center">{emptyText}</p>
     ) : (
-      <div className="gba:h-[260px]">
+      <div className="gba:h-64">
         <ResponsiveContainer width="100%" height="100%">
           {children}
         </ResponsiveContainer>

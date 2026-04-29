@@ -62,7 +62,7 @@ const buildWhere = (
     const like = `%${filters.employeeQuery}%`
     conditions.push({
       employee: {
-        _or: [{ firstName: { _ilike: like } }, { lastName: { _ilike: like } }]
+        _or: [{ firstName: { _ilike: like } }, { lastName: { _ilike: like } }, { displayName: { _ilike: like } }]
       }
     })
   }

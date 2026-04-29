@@ -3,13 +3,17 @@ import { BusinessAppContextProps } from '../../../../../../../../../common/Busin
 import { DashboardData, TimeFilter, AbsenceDetailsFilter } from '../../../../types'
 import { WidgetGroup, WidgetItem } from '../../../../../../../../../components/widget-group'
 import { UsersIcon, ClockIcon, CalendarIcon, PercentIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getAbsenceStatusLabel, getAbsenceStatusColor } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { DepartmentBarChart, StatusPieChart, VacationEntitlementsCard, VacationLiabilityCard } from './components'
+import dayjs from 'dayjs'
+import { TimeScope } from '../../../../constants/routes'
 
 interface OptimizedKPISectionProps extends BusinessAppContextProps {
   dashboardData: DashboardData
   timeFilter?: TimeFilter
+  timeScope?: TimeScope
+  derivedDateRange?: { dateFrom: string; dateTo: string } | null
   onNavigateToDetails?: (filters: AbsenceDetailsFilter) => void
   onNavigateToEntitlements?: () => void
 }
@@ -17,6 +21,8 @@ interface OptimizedKPISectionProps extends BusinessAppContextProps {
 export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
   dashboardData,
   timeFilter = 'current-year',
+  timeScope,
+  derivedDateRange,
   onNavigateToDetails,
   onNavigateToEntitlements
 }) => {
@@ -59,6 +65,57 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
     percentage: status.percentage
   }))
 
+  const buildTotalAbsencesDescription = (): string => {
+    if (timeScope === 'custom' && derivedDateRange) {
+      const dateFrom = dayjs(derivedDateRange.dateFrom).format(getDateFormat('date.short'))
+      const dateTo = dayjs(derivedDateRange.dateTo).format(getDateFormat('date.short'))
+
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:time_absence_hub.dashboard.absences_in_date_range',
+        `Absences from ${dateFrom} to ${dateTo}`,
+        {
+          dateFrom,
+          dateTo
+        }
+      )
+    }
+
+    const resolvedTimeScope = timeScope ?? timeFilter
+
+    if (resolvedTimeScope === 'custom') {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:time_absence_hub.dashboard.absences_custom_range',
+        'All absences in custom range'
+      )
+    }
+
+    if (resolvedTimeScope === 'month') {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:time_absence_hub.dashboard.absences_current_month',
+        'All absences this month'
+      )
+    }
+
+    if (resolvedTimeScope === 'quarter') {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:time_absence_hub.dashboard.absences_current_quarter',
+        'All absences this quarter'
+      )
+    }
+
+    if (resolvedTimeScope === 'everything') {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:time_absence_hub.dashboard.absences_all_time',
+        'All absences across all time'
+      )
+    }
+
+    return getTranslationFromI18nKeyAndLabel(
+      'lowcoder:absence_management_hub_backoffice.all_absences_this_year',
+      'All absences this year'
+    )
+  }
+
   const widgets: WidgetItem[] = [
     {
       key: 'total-absences',
@@ -69,10 +126,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       value: totalAbsences,
       prefix: <UsersIcon />,
       color: 'var(--nw-info)',
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:absence_management_hub_backoffice.all_absences_this_year',
-        'All absences this year'
-      ),
+      description: buildTotalAbsencesDescription(),
       span: { xs: 24, sm: 12, lg: 6 }
     },
     {

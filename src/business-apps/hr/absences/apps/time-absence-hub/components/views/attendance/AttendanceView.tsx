@@ -15,13 +15,29 @@ interface AttendanceViewProps extends BusinessAppContextProps {
   onSubTabChange?: (subTab: string) => void
   globalFilters: HubGlobalFilters
   derivedDateRange: { dateFrom: string; dateTo: string } | null
+  filterAction?: React.ReactNode
 }
 
-export const AttendanceView: React.FC<AttendanceViewProps> = ({ accessToken, globalFilters, derivedDateRange }) => {
+export const AttendanceView: React.FC<AttendanceViewProps> = ({
+  accessToken,
+  globalFilters,
+  derivedDateRange,
+  filterAction
+}) => {
   const data = useOrgAttendanceData({ accessToken, filters: globalFilters, derivedDateRange })
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="time-absence-hub-attendance-view">
+      <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+        <div>
+          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{tt('title', 'Attendance')}</h2>
+          <p className="gba:text-sm gba:text-muted-foreground">
+            {tt('description', 'Organization-wide attendance overview for the selected filter scope.')}
+          </p>
+        </div>
+        {filterAction}
+      </div>
+
       <AttendanceGrid
         employees={data.employees}
         attendance={data.attendance}

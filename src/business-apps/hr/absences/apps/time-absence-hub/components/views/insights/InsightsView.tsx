@@ -14,6 +14,7 @@ interface InsightsViewProps extends BusinessAppContextProps {
   dashboardData?: any
   globalFilters: HubGlobalFilters
   derivedDateRange: { dateFrom: string; dateTo: string } | null
+  filterAction?: React.ReactNode
 }
 
 const tt = (key: string, fallback: string) =>
@@ -24,7 +25,8 @@ export const InsightsView: React.FC<InsightsViewProps> = ({
   userInfo,
   dashboardData,
   globalFilters,
-  derivedDateRange
+  derivedDateRange,
+  filterAction
 }) => {
   const attendanceData = useOrgAttendanceData({
     accessToken,
@@ -35,14 +37,17 @@ export const InsightsView: React.FC<InsightsViewProps> = ({
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="time-absence-hub-insights-view">
       <Card>
-        <CardContent className="gba:flex gba:items-center gba:gap-2 gba:p-4">
-          <LightbulbIcon size={18} className="gba:text-muted-foreground" />
-          <span className="gba:text-sm gba:text-muted-foreground">
-            {tt(
-              'page_intro',
-              'Absence statistics, time-tracking trends and combined health metrics. Time-tracking sections use the org-wide attendance batch loader.'
-            )}
-          </span>
+        <CardContent className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:p-4">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <LightbulbIcon size={18} className="gba:text-muted-foreground" />
+            <span className="gba:text-sm gba:text-muted-foreground">
+              {tt(
+                'page_intro',
+                'Absence statistics, time-tracking trends and combined health metrics. Time-tracking sections use the org-wide attendance batch loader.'
+              )}
+            </span>
+          </div>
+          {filterAction}
         </CardContent>
       </Card>
 

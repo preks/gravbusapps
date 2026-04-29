@@ -61,7 +61,9 @@ const buildEmployeeFilterClauses = (filters?: HubGlobalFilters): string[] => {
   }
   if (filters.employeeQuery) {
     const like = quote(`%${filters.employeeQuery}%`)
-    clauses.push(`{ _or: [{ firstName: { _ilike: ${like} } }, { lastName: { _ilike: ${like} } }] }`)
+    clauses.push(
+      `{ _or: [{ firstName: { _ilike: ${like} } }, { lastName: { _ilike: ${like} } }, { displayName: { _ilike: ${like} } }] }`
+    )
   }
   return clauses
 }

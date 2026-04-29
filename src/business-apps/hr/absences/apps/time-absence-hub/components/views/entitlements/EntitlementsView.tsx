@@ -11,6 +11,7 @@ import { EntitlementsTable } from './EntitlementsTable'
 interface EntitlementsViewProps extends BusinessAppContextProps {
   globalFilters: HubGlobalFilters
   onNavigateToEntitlementsDetails?: () => void
+  filterAction?: React.ReactNode
 }
 
 const tt = (key: string, fallback: string) =>
@@ -18,7 +19,12 @@ const tt = (key: string, fallback: string) =>
 
 const PAGE_SIZE = 50
 
-export const EntitlementsView: React.FC<EntitlementsViewProps> = ({ accessToken, userInfo, globalFilters }) => {
+export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
+  accessToken,
+  userInfo,
+  globalFilters,
+  filterAction
+}) => {
   const [page, setPage] = useState(1)
   const [updateEmployeeId, setUpdateEmployeeId] = useState<string | null>(null)
   const healthFilter: EntitlementHealthFilter = 'all'
@@ -40,6 +46,16 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({ accessToken,
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="time-absence-hub-entitlements-view">
+      <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+        <div>
+          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{tt('title', 'Entitlements')}</h2>
+          <p className="gba:text-sm gba:text-muted-foreground">
+            {tt('description', 'Vacation entitlement balances for the selected filter scope.')}
+          </p>
+        </div>
+        {filterAction}
+      </div>
+
       <EntitlementsTable
         rows={overview.rows}
         isLoading={overview.isLoading}

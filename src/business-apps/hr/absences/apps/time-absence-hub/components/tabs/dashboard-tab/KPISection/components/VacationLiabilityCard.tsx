@@ -1,5 +1,6 @@
 import React from 'react'
 import { Card } from '@newwork/nw-design-system'
+import { ChartBarIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DashboardData } from '../../../../../types'
 
@@ -11,7 +12,7 @@ export const VacationLiabilityCard: React.FC<VacationLiabilityCardProps> = ({ en
   return (
     <Card className="gba:hover:shadow-md gba:transition-shadow gba:p-4" data-testid="vacation-liability-card">
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-        <div className="gba:text-warning gba:text-lg">📊</div>
+        <ChartBarIcon size={20} className="gba:text-warning" />
         <div>
           <h5 className="gba:text-sm gba:font-medium gba:m-0">
             {getTranslationFromI18nKeyAndLabel(
@@ -101,12 +102,14 @@ export const VacationLiabilityCard: React.FC<VacationLiabilityCardProps> = ({ en
 
         {/* Calculation note */}
         <div className="gba:bg-warning-secondary/40 gba:border gba:rounded gba:p-3">
-          <div className="gba:text-xs gba:text-warning-foreground">
-            💰{' '}
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_management_hub_backoffice.financial_calculations_coming_soon',
-              'Financial calculations coming soon - will include average salary costs and vacation liability estimates'
-            )}
+          <div className="gba:flex gba:items-start gba:gap-2 gba:text-xs gba:text-warning-foreground">
+            <CurrencyCircleDollarIcon size={14} className="gba:mt-0.5 gba:flex-shrink-0" />
+            <span>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_management_hub_backoffice.financial_calculations_coming_soon',
+                'Financial calculations coming soon - will include average salary costs and vacation liability estimates'
+              )}
+            </span>
           </div>
         </div>
       </div>
