@@ -13,21 +13,21 @@ export const avatarSrc = (pictureThumbnail?: string): string | undefined =>
   pictureThumbnail && !pictureThumbnail.startsWith('{') ? `data:image/jpeg;base64,${pictureThumbnail}` : undefined
 
 export const heatmapScoreCellClass = (score: number | null | undefined, limit: number): string => {
-  if (score == null || limit <= 0) return 'gba:bg-gray-100 gba:dark:bg-gray-800 gba:text-muted-foreground'
+  if (score == null || limit <= 0) return 'gba:bg-muted gba:text-muted-foreground'
   const pct = (score / limit) * 100
-  if (!Number.isFinite(pct) || pct === 0) return 'gba:bg-gray-100 gba:dark:bg-gray-800 gba:text-muted-foreground'
-  if (pct < 40) return 'gba:bg-red-100 gba:dark:bg-red-900/30 gba:text-red-900 gba:dark:text-red-100'
-  if (pct < 60) return 'gba:bg-yellow-100 gba:dark:bg-yellow-900/30 gba:text-yellow-900 gba:dark:text-yellow-100'
-  if (pct < 80) return 'gba:bg-green-100 gba:dark:bg-green-900/30 gba:text-green-900 gba:dark:text-green-100'
-  return 'gba:bg-green-200 gba:dark:bg-green-800/30 gba:text-green-900 gba:dark:text-green-100'
+  if (!Number.isFinite(pct) || pct === 0) return 'gba:bg-muted gba:text-muted-foreground'
+  if (pct < 40) return 'gba:bg-destructive/10 gba:text-destructive'
+  if (pct < 60) return 'gba:bg-warning/10 gba:text-warning'
+  if (pct < 80) return 'gba:bg-success/10 gba:text-success'
+  return 'gba:bg-success/20 gba:text-success'
 }
 
 export const heatmapLevelCellClass = (level: number | null | undefined): string => {
-  if (level == null || level === 0) return 'gba:bg-gray-100 gba:dark:bg-gray-800 gba:text-muted-foreground'
-  if (level <= 2) return 'gba:bg-red-100 gba:dark:bg-red-900/30 gba:text-red-900 gba:dark:text-red-100'
-  if (level === 3) return 'gba:bg-yellow-100 gba:dark:bg-yellow-900/30 gba:text-yellow-900 gba:dark:text-yellow-100'
-  if (level === 4) return 'gba:bg-green-100 gba:dark:bg-green-900/30 gba:text-green-900 gba:dark:text-green-100'
-  return 'gba:bg-green-200 gba:dark:bg-green-800/30 gba:text-green-900 gba:dark:text-green-100'
+  if (level == null || level === 0) return 'gba:bg-muted gba:text-muted-foreground'
+  if (level <= 2) return 'gba:bg-destructive/10 gba:text-destructive'
+  if (level === 3) return 'gba:bg-warning/10 gba:text-warning'
+  if (level === 4) return 'gba:bg-success/10 gba:text-success'
+  return 'gba:bg-success/20 gba:text-success'
 }
 
 /**

@@ -5,28 +5,31 @@ function isOrgUnitNode(n: RawOuNode): boolean {
   return n.type === 'organization_unit' && Boolean(n.data?.organizationalUnitData?.organizationUnitId)
 }
 
+/** Nested aggregates on `OrganizationalUnit` so tenants without root `EmployeeOrganizationalUnit*` still work. */
 const PEOPLE_OU_DELETE_FEASIBILITY = `
   query PeopleOuDeleteFeasibility($structureId: uuid!, $ouId: uuid!) {
-    withEmployee: EmployeeOrganizationalUnitAggregate(
+    OrganizationalUnit(
       where: {
+        id: { _eq: $ouId }
         structureId: { _eq: $structureId }
-        organizationalUnitId: { _eq: $ouId }
-        employeeId: { _isNull: false }
+        isDeleted: { _eq: false }
       }
+      limit: 1
     ) {
-      aggregate {
-        count
+      id
+      withEmployee: organizationalUnitEmployeeAggregate(
+        where: { employeeId: { _isNull: false } }
+      ) {
+        aggregate {
+          count
+        }
       }
-    }
-    withJobPosition: EmployeeOrganizationalUnitAggregate(
-      where: {
-        structureId: { _eq: $structureId }
-        organizationalUnitId: { _eq: $ouId }
-        jobPositionId: { _isNull: false }
-      }
-    ) {
-      aggregate {
-        count
+      withJobPosition: organizationalUnitEmployeeAggregate(
+        where: { jobPositionId: { _isNull: false } }
+      ) {
+        aggregate {
+          count
+        }
       }
     }
   }
@@ -60,8 +63,11 @@ export async function fetchPeopleOuDeleteFeasibility(
 
   const [gqlResult, structureResult] = await Promise.allSettled([
     graphQLClient.request<{
-      withEmployee: { aggregate: { count: number } | null } | null
-      withJobPosition: { aggregate: { count: number } | null } | null
+      OrganizationalUnit: Array<{
+        id: string
+        withEmployee?: { aggregate: { count: number } | null } | null
+        withJobPosition?: { aggregate: { count: number } | null } | null
+      } | null>
     }>(PEOPLE_OU_DELETE_FEASIBILITY, { structureId, ouId: organizationalUnitId }),
     fetchPeopleOrgchartStructure(accessToken, structureId)
   ])
@@ -69,8 +75,9 @@ export async function fetchPeopleOuDeleteFeasibility(
   let rowsWithEmployee = 0
   let rowsWithJobPosition = 0
   if (gqlResult.status === 'fulfilled') {
-    rowsWithEmployee = gqlResult.value.withEmployee?.aggregate?.count ?? 0
-    rowsWithJobPosition = gqlResult.value.withJobPosition?.aggregate?.count ?? 0
+    const ouRow = gqlResult.value.OrganizationalUnit?.[0]
+    rowsWithEmployee = ouRow?.withEmployee?.aggregate?.count ?? 0
+    rowsWithJobPosition = ouRow?.withJobPosition?.aggregate?.count ?? 0
   } else {
     throw gqlResult.reason instanceof Error ? gqlResult.reason : new Error('Feasibility query failed')
   }

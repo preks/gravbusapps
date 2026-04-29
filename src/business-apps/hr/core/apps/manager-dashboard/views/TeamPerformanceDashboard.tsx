@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { ChevronLeft, LayoutDashboard, Sparkles } from 'lucide-react'
+import {
+  CaretLeftIcon as ChevronLeft,
+  SquaresFourIcon as LayoutDashboard,
+  SparkleIcon as Sparkles
+} from '@phosphor-icons/react'
 import { TeamMemberPerformance } from '../hooks/useTeamPerformance'
 import { TeamMemberSkills } from '../hooks/useTeamSkills'
 import { TeamMemberFeedback } from '../hooks/useTeamFeedbackOverview'
@@ -117,120 +121,122 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
   }
 
   return (
-    <div className="gba:space-y-6 gba:px-6">
-      {/* Header */}
-      <div className="gba:flex gba:items-center gba:justify-between">
-        <div className="gba:flex gba:items-center gba:gap-3">
-          <Button variant="ghost" size="icon" onClick={onNavigateBack}>
-            <ChevronLeft className="gba:h-5 gba:w-5" />
-          </Button>
-          <LayoutDashboard className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
-          <h2 className="gba:text-xl gba:font-semibold">Performance Trends</h2>
+    <div className="gba:min-h-full gba:px-4 gba:pb-8 gba:pt-5 md:gba:px-5 lg:gba:px-6">
+      <div className="gba:mx-auto gba:max-w-screen-2xl gba:space-y-6">
+        {/* Header */}
+        <div className="gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:gap-3">
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <Button variant="ghost" size="icon" onClick={onNavigateBack}>
+              <ChevronLeft className="gba:h-5 gba:w-5" />
+            </Button>
+            <LayoutDashboard className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
+            <h2 className="gba:text-xl gba:font-semibold">Performance Trends</h2>
+          </div>
+          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-3">
+            <Button
+              variant={showInsights ? 'default' : 'outline'}
+              size="sm"
+              className="gba:gap-1.5"
+              onClick={() => {
+                setShowInsights(prev => !prev)
+                if (!showInsights && !insights.data && !insights.isAnalyzing) {
+                  void insights.analyze()
+                }
+              }}
+            >
+              <Sparkles className="gba:h-4 gba:w-4" />
+              Team Performance Summary
+            </Button>
+            <DashboardFilters
+              availableCycles={availableCycles}
+              selectedCycleId={selectedCycleId}
+              onCycleChange={onCycleChange}
+            />
+          </div>
         </div>
-        <div className="gba:flex gba:items-center gba:gap-3">
-          <Button
-            variant={showInsights ? 'default' : 'outline'}
-            size="sm"
-            className="gba:gap-1.5"
-            onClick={() => {
-              setShowInsights(prev => !prev)
-              if (!showInsights && !insights.data && !insights.isAnalyzing) {
-                void insights.analyze()
-              }
-            }}
-          >
-            <Sparkles className="gba:h-4 gba:w-4" />
-            Team Performance Summary
-          </Button>
-          <DashboardFilters
-            availableCycles={availableCycles}
-            selectedCycleId={selectedCycleId}
-            onCycleChange={onCycleChange}
-          />
-        </div>
-      </div>
 
-      {showInsights && (
-        <TeamInsightsPanel
-          data={insights.data}
-          isAnalyzing={insights.isAnalyzing}
-          error={insights.error}
-          onAnalyze={insights.analyze}
-          onClear={insights.clear}
-          onActionClick={handleInsightAction}
+        {showInsights && (
+          <TeamInsightsPanel
+            data={insights.data}
+            isAnalyzing={insights.isAnalyzing}
+            error={insights.error}
+            onAnalyze={insights.analyze}
+            onClear={insights.clear}
+            onActionClick={handleInsightAction}
+          />
+        )}
+
+        {/* Executive Summary — 5 cards */}
+        <ExecutiveSummary
+          teamOverallScore={teamAvgScore}
+          teamCompanyValuesAvg={teamCompanyValuesAvg}
+          teamSkillsAvg={teamSkillsAvg}
+          goalsCompletionRate={averageGoalProgress}
+          skillGrowthRate={skillGrowthRate}
+          changeOverall={changeOverall}
+          changeCompanyValues={changeCompanyValues}
+          changeSkills={changeSkills}
+          ratingScaleLimit={ratingScaleLimit}
+          loading={isLoading}
         />
-      )}
 
-      {/* Executive Summary — 5 cards */}
-      <ExecutiveSummary
-        teamOverallScore={teamAvgScore}
-        teamCompanyValuesAvg={teamCompanyValuesAvg}
-        teamSkillsAvg={teamSkillsAvg}
-        goalsCompletionRate={averageGoalProgress}
-        skillGrowthRate={skillGrowthRate}
-        changeOverall={changeOverall}
-        changeCompanyValues={changeCompanyValues}
-        changeSkills={changeSkills}
-        ratingScaleLimit={ratingScaleLimit}
-        loading={isLoading}
-      />
+        {/* Performance Trends + Score Distribution — side by side (handled inside component) */}
+        <PerformanceTrends
+          trendData={trendSeries}
+          distributionData={scoreDistribution}
+          ratingScaleLimit={ratingScaleLimit}
+          loading={loadingEvaluations}
+        />
 
-      {/* Performance Trends + Score Distribution — side by side (handled inside component) */}
-      <PerformanceTrends
-        trendData={trendSeries}
-        distributionData={scoreDistribution}
-        ratingScaleLimit={ratingScaleLimit}
-        loading={loadingEvaluations}
-      />
+        {/* Team Member Table — full width */}
+        <TeamMemberTable
+          evaluations={evaluationMembers}
+          goals={teamPerformance}
+          feedback={feedbackMembers}
+          skills={skillsMembers}
+          onEmployeeClick={handleEmployeeClick}
+          loading={isLoading}
+          accessToken={accessToken}
+        />
 
-      {/* Team Member Table — full width */}
-      <TeamMemberTable
-        evaluations={evaluationMembers}
-        goals={teamPerformance}
-        feedback={feedbackMembers}
-        skills={skillsMembers}
-        onEmployeeClick={handleEmployeeClick}
-        loading={isLoading}
-        accessToken={accessToken}
-      />
-
-      {/* Company Values + Skills & Development — side by side */}
-      <div className="gba:flex gba:gap-6">
-        <div className="gba:flex-1 gba:min-w-0">
-          <CompanyValuesAnalysis
-            members={evaluationMembers}
-            ratingScaleLimit={ratingScaleLimit}
-            loading={loadingEvaluations}
-          />
+        {/* Company Values + Skills & Development — side by side */}
+        <div className="gba:flex gba:gap-6">
+          <div className="gba:flex-1 gba:min-w-0">
+            <CompanyValuesAnalysis
+              members={evaluationMembers}
+              ratingScaleLimit={ratingScaleLimit}
+              loading={loadingEvaluations}
+            />
+          </div>
+          <div className="gba:flex-1 gba:min-w-0">
+            <SkillsAnalysis
+              skillsMembers={skillsMembers}
+              evaluationMembers={evaluationMembers}
+              loading={loadingSkills || loadingEvaluations}
+            />
+          </div>
         </div>
-        <div className="gba:flex-1 gba:min-w-0">
-          <SkillsAnalysis
-            skillsMembers={skillsMembers}
-            evaluationMembers={evaluationMembers}
-            loading={loadingSkills || loadingEvaluations}
-          />
-        </div>
+
+        {/* Alignment Comparison — full width */}
+        <AlignmentComparison
+          members={evaluationMembers}
+          ratingScaleLimit={ratingScaleLimit}
+          loading={loadingEvaluations}
+          onEmployeeClick={handleEmployeeClick}
+        />
+
+        {/* Deep Dive Sheet */}
+        <MemberDeepDiveSheet
+          isOpen={deepDiveEmployeeId !== null}
+          onClose={() => setDeepDiveEmployeeId(null)}
+          employeeId={deepDiveEmployeeId || ''}
+          goalsData={teamPerformance}
+          skillsData={skillsMembers}
+          feedbackData={feedbackMembers}
+          evaluationsData={evaluationMembers}
+          onNavigateToEmployee={onNavigateToEmployee}
+        />
       </div>
-
-      {/* Alignment Comparison — full width */}
-      <AlignmentComparison
-        members={evaluationMembers}
-        ratingScaleLimit={ratingScaleLimit}
-        loading={loadingEvaluations}
-        onEmployeeClick={handleEmployeeClick}
-      />
-
-      {/* Deep Dive Sheet */}
-      <MemberDeepDiveSheet
-        isOpen={deepDiveEmployeeId !== null}
-        onClose={() => setDeepDiveEmployeeId(null)}
-        employeeId={deepDiveEmployeeId || ''}
-        goalsData={teamPerformance}
-        skillsData={skillsMembers}
-        feedbackData={feedbackMembers}
-        evaluationsData={evaluationMembers}
-        onNavigateToEmployee={onNavigateToEmployee}
-      />
     </div>
   )
 }

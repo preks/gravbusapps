@@ -95,6 +95,7 @@ export interface ExpenseRequest {
     employeePosition?: {
       firstName?: string
       lastName?: string
+      organizationalUnit?: { id?: string; name?: string | null } | null
       costCenter?: {
         id: string
         name: string

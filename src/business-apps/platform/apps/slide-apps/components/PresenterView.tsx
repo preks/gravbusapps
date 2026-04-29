@@ -25,6 +25,7 @@ import {
 import type { SlideData } from './slideElements'
 import type { SlideTheme } from './slideThemes'
 import { SlideCanvas } from './SlideCanvas'
+import { SlideStaticSurface } from './SlideStaticSurface'
 import { SlideTransitionPlayer } from './SlideTransitionPlayer'
 import type { ConnectionState } from '../hooks/usePresentationCast'
 import { useSlideTransition } from '../hooks/useSlideTransition'
@@ -542,17 +543,12 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
                       height: previewCanvasHeight * previewScale
                     }}
                   >
-                    <SlideCanvas
+                    <SlideStaticSurface
                       elements={nextSlide.elements}
-                      selectedIds={new Set()}
                       background={nextSlide.background}
-                      onSelectElements={() => {}}
-                      onUpdateElement={() => {}}
-                      onUpdateMultipleElements={() => {}}
-                      onEditText={() => {}}
-                      scale={previewScale}
-                      isPresenting={true}
                       canvasSize={nextSlide.canvasSize}
+                      renderVideoBackground={false}
+                      renderVideoElements={false}
                     />
                   </div>
                 ) : (

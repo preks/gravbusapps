@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { Combobox, Label } from '@newwork/nw-design-system'
-import type { DataSource, InputBlock } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import type { DataSource, InputBlock } from '@/common/data/flow/types/flowTemplate'
 
 const pickFirst = (fields: string[], candidates: string[], fallback: string): string => {
   const set = new Set(fields.map(f => String(f || '').trim()).filter(Boolean))

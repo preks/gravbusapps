@@ -25,15 +25,9 @@ import {
 import { Plus, Trash2, Tags } from 'lucide-react'
 import type { FlowTags } from '@/business-apps/flow/types'
 import translations from '../../_i18n'
-import { useCatalogLoader } from '@/business-apps/flow/apps/creator/components/steps/hooks/useCatalogLoader'
-import {
-  formatCatalogEntry,
-  createCatalogValue
-} from '@/business-apps/flow/apps/creator/components/steps/utils/catalogFormatters'
-import {
-  handleAppChange,
-  handleCategoryChange
-} from '@/business-apps/flow/apps/creator/components/steps/utils/tagHandlers'
+import { useCatalogLoader } from '@/common/data/flow/hooks/useCatalogLoader'
+import { formatCatalogEntry, createCatalogValue } from '@/common/data/flow/utils/catalogFormatters'
+import { handleAppChange, handleCategoryChange } from '@/common/data/flow/utils/tagHandlers'
 
 type CustomLabelRow = { id: string; key: string; value: string }
 

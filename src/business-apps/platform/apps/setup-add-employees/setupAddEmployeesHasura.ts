@@ -38,18 +38,28 @@ const ORG_UNITS_FOR_STRUCTURE_PAGE = `
   }
 `
 
+/** Nested aggregate on `OrganizationalUnit` (root `OrganizationalUnitEmployeeAggregate` / legacy `EmployeeOrganizationalUnit*` may be absent on some tenants). */
 const MANAGER_COUNT_FOR_OU = `
   query SetupAddEmployeesManagerCount($structureId: uuid!, $organizationalUnitId: uuid!) {
-    EmployeeOrganizationalUnitAggregate(
+    OrganizationalUnit(
       where: {
+        id: { _eq: $organizationalUnitId }
         structureId: { _eq: $structureId }
-        organizationalUnitId: { _eq: $organizationalUnitId }
-        role: { _eq: "Manager" }
-        employee: { isDeleted: { _eq: false } }
+        isDeleted: { _eq: false }
       }
+      limit: 1
     ) {
-      aggregate {
-        count
+      id
+      managerCount: organizationalUnitEmployeeAggregate(
+        where: {
+          structureId: { _eq: $structureId }
+          role: { _eq: "Manager" }
+          employee: { isDeleted: { _eq: false } }
+        }
+      ) {
+        aggregate {
+          count
+        }
       }
     }
   }
@@ -58,17 +68,26 @@ const MANAGER_COUNT_FOR_OU = `
 /** Managers in an OU excluding one employee (for edit flow: allow keeping own manager role). */
 const MANAGER_COUNT_FOR_OU_EXCLUDING_EMPLOYEE = `
   query SetupAddEmployeesManagerCountExcluding($structureId: uuid!, $organizationalUnitId: uuid!, $excludeEmployeeId: uuid!) {
-    EmployeeOrganizationalUnitAggregate(
+    OrganizationalUnit(
       where: {
+        id: { _eq: $organizationalUnitId }
         structureId: { _eq: $structureId }
-        organizationalUnitId: { _eq: $organizationalUnitId }
-        role: { _eq: "Manager" }
-        employeeId: { _neq: $excludeEmployeeId }
-        employee: { isDeleted: { _eq: false } }
+        isDeleted: { _eq: false }
       }
+      limit: 1
     ) {
-      aggregate {
-        count
+      id
+      managerCount: organizationalUnitEmployeeAggregate(
+        where: {
+          structureId: { _eq: $structureId }
+          role: { _eq: "Manager" }
+          employeeId: { _neq: $excludeEmployeeId }
+          employee: { isDeleted: { _eq: false } }
+        }
+      ) {
+        aggregate {
+          count
+        }
       }
     }
   }
@@ -125,9 +144,12 @@ export async function countManagersForOrganizationalUnit(
 ): Promise<number> {
   graphQLClient.setAccessToken(accessToken)
   const data = await graphQLClient.request<{
-    EmployeeOrganizationalUnitAggregate: { aggregate: { count: number } | null } | null
+    OrganizationalUnit: Array<{
+      id: string
+      managerCount?: { aggregate: { count: number } | null } | null
+    } | null>
   }>(MANAGER_COUNT_FOR_OU, { structureId, organizationalUnitId })
-  return data.EmployeeOrganizationalUnitAggregate?.aggregate?.count ?? 0
+  return data.OrganizationalUnit?.[0]?.managerCount?.aggregate?.count ?? 0
 }
 
 export async function countManagersForOrganizationalUnitExcludingEmployee(
@@ -138,11 +160,14 @@ export async function countManagersForOrganizationalUnitExcludingEmployee(
 ): Promise<number> {
   graphQLClient.setAccessToken(accessToken)
   const data = await graphQLClient.request<{
-    EmployeeOrganizationalUnitAggregate: { aggregate: { count: number } | null } | null
+    OrganizationalUnit: Array<{
+      id: string
+      managerCount?: { aggregate: { count: number } | null } | null
+    } | null>
   }>(MANAGER_COUNT_FOR_OU_EXCLUDING_EMPLOYEE, {
     structureId,
     organizationalUnitId,
     excludeEmployeeId
   })
-  return data.EmployeeOrganizationalUnitAggregate?.aggregate?.count ?? 0
+  return data.OrganizationalUnit?.[0]?.managerCount?.aggregate?.count ?? 0
 }

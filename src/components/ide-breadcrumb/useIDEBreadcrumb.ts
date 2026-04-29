@@ -111,13 +111,7 @@ function getSelectedAppFromLocation(
     queryParams.get('popup') ||
     queryParams.get('window')
   const appPathFromPathname = getAppPathForPlatformUrl(locationSnapshot.pathname)
-  const inferredAppFromPath =
-    !appPathFromPathname &&
-    !appFromQuery &&
-    (locationSnapshot.pathname.startsWith('/flow-creator') || locationSnapshot.pathname.startsWith('/flow/draft'))
-      ? 'flow/apps/creator'
-      : null
-  const effectiveAppPath = appPathFromPathname ?? appFromQuery ?? inferredAppFromPath
+  const effectiveAppPath = appPathFromPathname ?? appFromQuery
 
   if (!effectiveAppPath) {
     return null
@@ -274,19 +268,21 @@ function resolveNavigationTarget(href: string): string {
 }
 
 function mapOverrideChildToConfig(child: BreadcrumbOverrideChildItem): BreadcrumbItemConfig {
+  const targetHref = child.href
   return {
     id: child.id,
     label: child.label,
-    onClick: child.href ? () => navigateTo(resolveNavigationTarget(child.href)) : undefined
+    onClick: targetHref ? () => navigateTo(resolveNavigationTarget(targetHref)) : undefined
   }
 }
 
 function mapOverrideItemToConfig(item: BreadcrumbOverrideItem): BreadcrumbItemConfig {
   const visibleChildren = (item.children ?? []).filter(child => child.visible !== false)
+  const targetHref = item.href
   const base: BreadcrumbItemConfig = {
     id: item.id,
     label: item.label,
-    onClick: item.href ? () => navigateTo(resolveNavigationTarget(item.href)) : undefined
+    onClick: targetHref ? () => navigateTo(resolveNavigationTarget(targetHref)) : undefined
   }
 
   if (visibleChildren.length === 0) {

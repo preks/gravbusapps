@@ -36,6 +36,12 @@ msg-employee-created = Angajat creat.
 msg-password-set = Parola inițială a fost setată.
 msg-password-user-pending = Angajatul a fost creat dar ID-ul de utilizator nu a putut fi rezolvat încă pentru parolă; setează parola în Keycloak sau încearcă din nou.
 error-create-failed = Nu s-a putut crea angajatul
+action-checking-account = Se verifică…
+error-um-lookup = Nu s-a putut verifica dacă există deja un cont de utilizator. Încearcă din nou peste câteva momente.
+dialog-existing-user-title = Există deja un cont de utilizator
+dialog-existing-user-body = Există deja un utilizator în director care se potrivește cu acest e-mail (e-mail de autentificare sau nume de utilizator preferat). Crearea angajatului va reutiliza acel cont de autentificare. Continui?
+dialog-existing-user-confirm = Creează angajatul
+dialog-existing-user-cancel = Renunță
 
 edit-title = Editează angajat
 edit-subtitle = Actualizează departamentul, titlul postului și rolul de manager. Modificările se salvează prin alocarea din organigramă (fără sarcini de aprobare). Pentru o parolă nouă de autentificare folosește „Resetează parola” din listă.

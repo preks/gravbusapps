@@ -22,8 +22,8 @@ export const generateExpenseRequestActions = (
 
   const actions: any[] = []
 
-  // Update action - available for CREATED or REJECTED status (same logic as table)
-  if (request.status === 'CREATED' || request.status === 'REJECTED') {
+  // Update action - CREATED, REJECTED, or PENDING (same logic as ExpenseRequestRowActions)
+  if (request.status === 'CREATED' || request.status === 'REJECTED' || request.status === 'PENDING') {
     actions.push({
       category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
       key: 'update-expense-request',

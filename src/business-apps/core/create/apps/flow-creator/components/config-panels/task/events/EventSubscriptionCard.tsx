@@ -21,7 +21,7 @@ import {
   EventHandlerType,
   type EventHandlerConfig,
   type EventSubscription
-} from '@/business-apps/flow/apps/creator/types/flowTemplate'
+} from '@/common/data/flow/types/flowTemplate'
 import { EVENT_TYPE_OPTIONS } from './eventConstants'
 import { AgentHandlerSection } from './AgentHandlerSection'
 import { FunctionHandlerSection } from './FunctionHandlerSection'

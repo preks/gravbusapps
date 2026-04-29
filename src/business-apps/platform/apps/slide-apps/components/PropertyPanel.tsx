@@ -20,6 +20,7 @@ import {
   CollapsibleTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
+import { toast } from 'sonner'
 import {
   Bold,
   Italic,
@@ -74,8 +75,10 @@ import {
 import { GradientBuilder } from './GradientBuilder'
 import { TransitionPreview } from './TransitionPreview'
 import { sanitizeImageSourceUrl } from '@/common/utils/safeUrlUtils'
+import { SlidesApiService } from '../services'
 import translations from '../_i18n'
 import type { ResolvedTextFormattingState, TextFormattingToggleState } from '../utils/richTextEditing'
+import { getVideoSourceUrl, isEmbedVideoElement } from '../utils/videoElement'
 
 const TRANSITION_TYPES: { value: SlideTransitionType; label: string }[] = [
   { value: 'none', label: 'transition-none' },
@@ -100,14 +103,20 @@ function PanelColorPicker({
   onChange,
   label,
   isMixed = false,
-  mixedLabel = 'Mixed'
+  mixedLabel = 'Mixed',
+  allowTransparent = false,
+  transparentLabel
 }: {
   value: string
   onChange: (color: string) => void
   label: string
   isMixed?: boolean
   mixedLabel?: string
+  allowTransparent?: boolean
+  transparentLabel?: string
 }) {
+  const colorInputValue = /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#ffffff'
+
   return (
     <div className="gba:space-y-2">
       <Label className="gba:text-xs">
@@ -117,7 +126,7 @@ function PanelColorPicker({
       <div className="gba:flex gba:gap-2 gba:items-center">
         <input
           type="color"
-          value={value}
+          value={colorInputValue}
           onChange={e => onChange(e.target.value)}
           className="gba:w-8 gba:h-8 gba:rounded gba:border gba:cursor-pointer"
         />
@@ -138,6 +147,19 @@ function PanelColorPicker({
           />
         ))}
       </div>
+      {allowTransparent && transparentLabel ? (
+        <Button
+          type="button"
+          variant={value === 'transparent' ? 'default' : 'outline'}
+          size="sm"
+          className="gba:h-8"
+          data-testid="property-panel-shape-no-fill"
+          aria-pressed={value === 'transparent'}
+          onClick={() => onChange('transparent')}
+        >
+          {transparentLabel}
+        </Button>
+      ) : null}
     </div>
   )
 }
@@ -816,9 +838,9 @@ const ShapeTextControls: React.FC<ShapeSubsectionProps> = ({ element, onUpdate, 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="top">{t('props-align-top')}</SelectItem>
-                  <SelectItem value="middle">{t('props-align-middle')}</SelectItem>
-                  <SelectItem value="bottom">{t('props-align-bottom')}</SelectItem>
+                  <SelectItem value="top">{t('props-shape-text-valign-top')}</SelectItem>
+                  <SelectItem value="middle">{t('props-shape-text-valign-middle')}</SelectItem>
+                  <SelectItem value="bottom">{t('props-shape-text-valign-bottom')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -900,15 +922,17 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
     }
   }
 
-  const handleReplaceImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleReplaceImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      onUpdate({ src: reader.result as string })
+    try {
+      const uploadedUrl = await SlidesApiService.uploadFile(file)
+      onUpdate({ src: uploadedUrl })
+    } catch (error) {
+      console.error('[PropertyPanel] Failed to replace image:', error)
+      toast.error(t('editor-image-upload-failed'))
     }
-    reader.readAsDataURL(file)
 
     if (replaceImageInputRef.current) {
       replaceImageInputRef.current.value = ''
@@ -1177,6 +1201,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('left')}
                   title={t('props-align-left')}
+                  aria-label={t('props-align-left')}
                   disabled={hasOnlyLockedSelection}
                 >
                   ⇤
@@ -1186,6 +1211,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('center-h')}
                   title={t('props-align-center-horizontal')}
+                  aria-label={t('props-align-center-horizontal')}
                   disabled={hasOnlyLockedSelection}
                 >
                   ⇔
@@ -1195,6 +1221,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('right')}
                   title={t('props-align-right')}
+                  aria-label={t('props-align-right')}
                   disabled={hasOnlyLockedSelection}
                 >
                   ⇥
@@ -1204,6 +1231,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('top')}
                   title={t('props-align-top')}
+                  aria-label={t('props-align-top')}
                   disabled={hasOnlyLockedSelection}
                 >
                   ⤒
@@ -1213,6 +1241,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('center-v')}
                   title={t('props-align-center-vertical')}
+                  aria-label={t('props-align-center-vertical')}
                   disabled={hasOnlyLockedSelection}
                 >
                   ⇕
@@ -1222,6 +1251,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   size="sm"
                   onClick={() => onAlign('bottom')}
                   title={t('props-align-bottom')}
+                  aria-label={t('props-align-bottom')}
                   disabled={hasOnlyLockedSelection}
                 >
                   ⤓
@@ -1229,10 +1259,11 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               </div>
             )}
             {onDistribute && (
-              <div className="gba:grid gba:grid-cols-2 gba:gap-1">
+              <div className="gba:flex gba:flex-col gba:gap-1">
                 <Button
                   variant="outline"
                   size="sm"
+                  className="gba:w-full gba:shrink-0 gba:whitespace-normal"
                   onClick={() => onDistribute('horizontal')}
                   disabled={selectionCount < 3 || hasOnlyLockedSelection}
                 >
@@ -1241,6 +1272,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 <Button
                   variant="outline"
                   size="sm"
+                  className="gba:w-full gba:shrink-0 gba:whitespace-normal"
                   onClick={() => onDistribute('vertical')}
                   disabled={selectionCount < 3 || hasOnlyLockedSelection}
                 >
@@ -1500,6 +1532,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             value={shapeElement.fill}
             onChange={fill => onUpdate({ fill, gradient: undefined })}
             label={t('props-fill-color')}
+            allowTransparent
+            transparentLabel={t('props-no-fill')}
           />
 
           {/* Gradient */}
@@ -2069,40 +2103,66 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
         <div className="gba:space-y-4">
           <Label className="gba:text-xs gba:font-semibold">{t('props-video-styling')}</Label>
 
-          {/* Object Fit */}
-          <div>
-            <Label className="gba:text-xs">{t('props-object-fit')}</Label>
-            <Select
-              value={videoElement.objectFit}
-              onValueChange={(value: 'cover' | 'contain' | 'fill') => onUpdate({ objectFit: value })}
-            >
-              <SelectTrigger className="gba:text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cover">{t('props-cover')}</SelectItem>
-                <SelectItem value="contain">{t('props-contain')}</SelectItem>
-                <SelectItem value="fill">{t('props-fill')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Playback Options */}
           <div className="gba:space-y-2">
             <Label className="gba:text-xs gba:font-semibold">{t('props-playback')}</Label>
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <Label className="gba:text-xs">{t('props-autoplay')}</Label>
-              <Switch checked={videoElement.autoplay} onCheckedChange={autoplay => onUpdate({ autoplay })} />
-            </div>
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <Label className="gba:text-xs">{t('props-loop')}</Label>
-              <Switch checked={videoElement.loop} onCheckedChange={loop => onUpdate({ loop })} />
-            </div>
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <Label className="gba:text-xs">{t('props-muted')}</Label>
-              <Switch checked={videoElement.muted} onCheckedChange={muted => onUpdate({ muted })} />
-            </div>
+            <p className="gba:text-[11px] gba:text-muted-foreground">{t('props-video-manual-playback')}</p>
           </div>
+
+          {isEmbedVideoElement(videoElement) && (
+            <div className="gba:space-y-3">
+              <div>
+                <Label className="gba:text-xs">{t('props-video-provider')}</Label>
+                <Input
+                  value={videoElement.provider === 'youtube' ? 'YouTube' : t('props-video-type-online')}
+                  readOnly
+                  className="gba:text-xs"
+                  data-testid="slide-props-video-provider-input"
+                />
+              </div>
+              <div>
+                <Label className="gba:text-xs">{t('props-video-source')}</Label>
+                <Input
+                  value={getVideoSourceUrl(videoElement)}
+                  readOnly
+                  className="gba:text-xs"
+                  data-testid="slide-props-video-source-input"
+                />
+              </div>
+            </div>
+          )}
+
+          {!isEmbedVideoElement(videoElement) && (
+            <>
+              {/* Object Fit */}
+              <div>
+                <Label className="gba:text-xs">{t('props-object-fit')}</Label>
+                <Select
+                  value={videoElement.objectFit}
+                  onValueChange={(value: 'cover' | 'contain' | 'fill') => onUpdate({ objectFit: value })}
+                >
+                  <SelectTrigger className="gba:text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cover">{t('props-cover')}</SelectItem>
+                    <SelectItem value="contain">{t('props-contain')}</SelectItem>
+                    <SelectItem value="fill">{t('props-fill')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="gba:space-y-2">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <Label className="gba:text-xs">{t('props-loop')}</Label>
+                  <Switch checked={videoElement.loop} onCheckedChange={loop => onUpdate({ loop })} />
+                </div>
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <Label className="gba:text-xs">{t('props-muted')}</Label>
+                  <Switch checked={videoElement.muted} onCheckedChange={muted => onUpdate({ muted })} />
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Border Radius */}
           <div>

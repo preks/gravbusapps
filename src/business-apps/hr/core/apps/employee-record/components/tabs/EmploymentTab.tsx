@@ -107,14 +107,6 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
         value: workingCondition?.remote?.value || ''
       },
       {
-        label: t('employment-label-exit-date'),
-        value: workingCondition?.exitDate ? dayjs(workingCondition.exitDate).format('MMM D, YYYY') : ''
-      },
-      {
-        label: 'Exit Reason',
-        value: workingCondition?.additionalProperties?.fixedTermReason || ''
-      },
-      {
         label: t('employment-label-region'),
         value: regionDisplay || '-'
       },

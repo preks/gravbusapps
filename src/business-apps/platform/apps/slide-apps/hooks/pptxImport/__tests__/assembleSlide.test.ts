@@ -178,6 +178,7 @@ describe('assembleSlide', () => {
     expect(slide.elements[0].type).toBe('shape')
     expect((slide.elements[0] as ShapeElement).shapeType).toBe('rounded-rectangle')
     expect((slide.elements[0] as ShapeElement).shapeText?.content).toBe('Styled text box')
+    expect((slide.elements[0] as ShapeElement).shapeText?.allowOverflow).toBe(true)
     expect((slide.elements[0] as ShapeElement).strokeWidth).toBeGreaterThan(0)
     expect((slide.elements[0] as ShapeElement).effects?.outerShadow).toBeDefined()
   })

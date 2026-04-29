@@ -62,6 +62,7 @@ export interface OoxmlTheme {
 
 export interface SlideRelationships {
   images: Map<string, string>
+  videos?: Map<string, string>
   hyperlinks: Map<string, string>
   notesSlidePath?: string
   chartPaths: Map<string, string>

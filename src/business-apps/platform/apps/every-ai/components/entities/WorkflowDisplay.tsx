@@ -2,7 +2,7 @@ import React from 'react'
 import { Bell, Workflow, Zap } from 'lucide-react'
 import { EntityCard } from './EntityCard'
 import { getOperationBadge } from './utils/displayUtils'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { getEntityUrl } from '../links/EntityLink'
 
 interface WorkflowDisplayProps {
@@ -96,7 +96,7 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
       }
     }
 
-    const workflowUrl = buildPlatformUrl('/platform/create/flow-studio', {
+    const workflowUrl = buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR, {
       flowId: workflowId
     })
     navigateTo(`${workflowUrl}#flows`, { forceReload: true })

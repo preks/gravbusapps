@@ -1,6 +1,12 @@
 import React from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
-import { Target, BookOpen, MessageSquare, Award, Activity } from 'lucide-react'
+import {
+  TargetIcon as Target,
+  BookOpenIcon as BookOpen,
+  ChatCircleDotsIcon as MessageSquare,
+  TrophyIcon as Award,
+  ActivityIcon as Activity
+} from '@phosphor-icons/react'
 
 interface TeamScorecardProps {
   goalsProgress: number

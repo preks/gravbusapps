@@ -14,13 +14,17 @@ jest.mock('../../services/SpreadsheetApiService', () => ({
   SpreadsheetApiService: {
     listApps: jest.fn(),
     getApp: jest.fn(),
-    getTrashedPreview: jest.fn()
+    getTrashedPreview: jest.fn(),
+    createSheet: jest.fn(),
+    getAllRows: jest.fn()
   }
 }))
 
 const mockedListApps = jest.mocked(SpreadsheetApiService.listApps)
 const mockedGetApp = jest.mocked(SpreadsheetApiService.getApp)
 const mockedGetTrashedPreview = jest.mocked(SpreadsheetApiService.getTrashedPreview)
+const mockedCreateSheet = jest.mocked(SpreadsheetApiService.createSheet)
+const mockedGetAllRows = jest.mocked(SpreadsheetApiService.getAllRows)
 
 function createAppSummary(index: number): SpreadsheetAppSummary {
   const timestamp = new Date(`2026-03-${String((index % 28) + 1).padStart(2, '0')}T09:00:00.000Z`).toISOString()
@@ -44,6 +48,8 @@ describe('useSpreadsheetApps pagination', () => {
     mockedListApps.mockReset()
     mockedGetApp.mockReset()
     mockedGetTrashedPreview.mockReset()
+    mockedCreateSheet.mockReset()
+    mockedGetAllRows.mockReset()
   })
 
   it('stops paginating when the backend repeats the same full page', async () => {
@@ -105,5 +111,70 @@ describe('useSpreadsheetApps pagination', () => {
     expect(mockedGetApp).not.toHaveBeenCalled()
     expect(loadedApp?.trashedAt).toBe('2026-04-10T10:00:00.000Z')
     expect(result.current.currentAppPermission).toBe('owner')
+  })
+
+  it('replaces a pre-seeded temporary sheet with the backend-created sheet', async () => {
+    mockedListApps.mockResolvedValue([])
+    mockedGetApp.mockResolvedValue({
+      id: 'app-1',
+      name: 'Budget',
+      description: '',
+      icon: 'FileSpreadsheet',
+      status: 'draft',
+      createdAt: '2026-04-01T10:00:00.000Z',
+      updatedAt: '2026-04-01T10:00:00.000Z',
+      createdBy: 'user-1',
+      permission: 'owner',
+      sheets: [
+        {
+          id: 'sheet-1',
+          name: 'Sheet 1',
+          columns: [],
+          views: [],
+          data: [],
+          settings: {}
+        },
+        {
+          id: 'temp-sheet',
+          name: 'Sheet 2',
+          columns: [],
+          views: [],
+          data: [],
+          settings: {}
+        }
+      ]
+    } as any)
+    mockedCreateSheet.mockResolvedValue({
+      id: 'real-sheet',
+      name: 'Sheet 2',
+      columns: [],
+      views: [],
+      data: [],
+      settings: {}
+    } as any)
+    mockedGetAllRows.mockResolvedValue([])
+
+    const { result } = renderHook(() => useSpreadsheetApps('token', 'user-1'))
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    await act(async () => {
+      await result.current.loadApp('app-1')
+    })
+
+    await act(async () => {
+      await result.current.addSheet('app-1', {
+        id: 'temp-sheet',
+        name: 'Sheet 2',
+        columns: []
+      })
+    })
+
+    await waitFor(() => {
+      expect(result.current.currentApp?.sheets.map(sheet => sheet.id)).toEqual(['sheet-1', 'real-sheet'])
+    })
+    expect(result.current.currentApp?.sheets.some(sheet => sheet.id === 'temp-sheet')).toBe(false)
   })
 })

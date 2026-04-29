@@ -1,32 +1,67 @@
 import GaugeComponent from 'react-gauge-component'
 import { Typography } from 'antd'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, Icon, useTranslation } from '@newwork/nw-design-system'
+import { ShieldWarningIcon } from '@phosphor-icons/react'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Text } = Typography
 
+// Determine status and color based on score
+function getStatusInfo(score: number) {
+  if (score >= 80) {
+    return { label: 'STABLE', color: '#10b981', bgColor: '#dcfce7' } // Green
+  } else if (score >= 60) {
+    return { label: 'WATCH', color: '#f59e0b', bgColor: '#fef3c7' } // Yellow/Orange
+  } else {
+    return { label: 'CRITICAL', color: '#dc2626', bgColor: '#fee2e2' } // Red
+  }
+}
+
+const cardShellClassName =
+  'gba:w-full gba:h-full gba:min-h-52 gba:bg-card gba:rounded-lg gba:p-4 gba:shadow-sm gba:border gba:border-border gba:flex gba:flex-col'
+
 interface EquityHealthGaugeProps {
-  score: number
+  score: number | undefined
   loading?: boolean
   error?: string | null
 }
 
-export default function EquityHealthGauge({ score, loading = false, error = null }: Readonly<EquityHealthGaugeProps>) {
-  // Determine status and color based on score
-  const getStatusInfo = (score: number) => {
-    if (score >= 80) {
-      return { label: 'STABLE', color: '#10b981', bgColor: '#dcfce7' } // Green
-    } else if (score >= 60) {
-      return { label: 'WATCH', color: '#f59e0b', bgColor: '#fef3c7' } // Yellow/Orange
-    } else {
-      return { label: 'CRITICAL', color: '#dc2626', bgColor: '#fee2e2' } // Red
-    }
-  }
+interface EquityHealthKpiPlaceholderProps {
+  title: string
+  value: string
+  footer: string
+  dataTestId: string
+}
 
-  const statusInfo = getStatusInfo(score)
+function EquityHealthKpiPlaceholder({ title, value, footer, dataTestId }: Readonly<EquityHealthKpiPlaceholderProps>) {
+  return (
+    <div className={cardShellClassName} data-testid={dataTestId}>
+      <div className="gba:flex gba:flex-row gba:justify-between gba:items-start">
+        <span className="gba:text-sm gba:text-muted-foreground gba:font-normal">{title}</span>
+        <Icon icon={ShieldWarningIcon} size="sm" className="gba:text-muted-foreground" decorative />
+      </div>
+      <div className="gba:flex-1 gba:flex gba:flex-col gba:justify-center gba:py-2">
+        <span className="gba:text-3xl gba:font-bold gba:text-foreground">{value}</span>
+      </div>
+      <p className="gba:text-sm gba:text-muted-foreground gba:m-0">{footer}</p>
+    </div>
+  )
+}
+
+export default function EquityHealthGauge({ score, loading = false, error = null }: Readonly<EquityHealthGaugeProps>) {
+  const { t } = useTranslation(hrTranslations)
+
+  const title = (
+    <div className="gba:mb-3">
+      <Text className="gba:text-sm gba:text-muted-foreground gba:font-normal">
+        {t('hr-analytics-equity-health-score-title')}
+      </Text>
+    </div>
+  )
 
   if (loading) {
     return (
-      <div className="gba:w-full gba:h-full gba:bg-card gba:rounded-lg gba:p-4 gba:shadow-sm gba:border gba:border-border gba:animate-pulse">
+      <div className={`${cardShellClassName} gba:animate-pulse`} data-testid="equity-health-score-gauge-loading">
         <div className="gba:h-4 gba:bg-muted gba:rounded gba:w-3/4 gba:mb-3"></div>
         <div className="gba:h-32 gba:bg-muted gba:rounded gba:mx-auto"></div>
       </div>
@@ -35,26 +70,33 @@ export default function EquityHealthGauge({ score, loading = false, error = null
 
   if (error) {
     return (
-      <div className="gba:w-full gba:h-full gba:bg-card gba:rounded-lg gba:p-4 gba:shadow-sm gba:border gba:border-border">
-        <div className="gba:flex gba:items-center gba:justify-center gba:h-32">
-          <Text type="danger">Error loading equity health score</Text>
-        </div>
-      </div>
+      <EquityHealthKpiPlaceholder
+        title={t('hr-analytics-equity-health-score-title')}
+        value={t('hr-analytics-error-loading')}
+        footer={t('hr-analytics-equity-health-score-error-footer')}
+        dataTestId="equity-health-score-gauge-error"
+      />
     )
   }
 
-  return (
-    <div
-      className="gba:w-full gba:h-full gba:bg-card gba:rounded-lg gba:p-4 gba:shadow-sm gba:border gba:border-border"
-      data-testid="equity-health-score-gauge"
-    >
-      {/* Title matching KPI card style */}
-      <div className="gba:mb-3">
-        <Text className="gba:text-sm gba:text-muted-foreground gba:font-normal">Equity Health Score</Text>
-      </div>
+  if (score === undefined) {
+    return (
+      <EquityHealthKpiPlaceholder
+        title={t('hr-analytics-equity-health-score-title')}
+        value={t('hr-analytics-not-available')}
+        footer={t('hr-analytics-equity-health-score-no-data-footer')}
+        dataTestId="equity-health-score-gauge-na"
+      />
+    )
+  }
 
+  const statusInfo = getStatusInfo(score)
+
+  return (
+    <div className={`${cardShellClassName}`} data-testid="equity-health-score-gauge">
+      {title}
       {/* Gauge visualization */}
-      <div className="gba:flex gba:flex-col gba:items-center">
+      <div className="gba:flex gba:flex-col gba:items-center gba:flex-1 gba:justify-center">
         <div className="gba:w-full gba:max-w-45">
           <GaugeComponent
             value={score}

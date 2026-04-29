@@ -92,8 +92,8 @@ describe('compressSlideImages', () => {
     mockImageWithOutcome('success')
     // The first pass only re-encodes images above ~256KB so we don't blur
     // crisp UI screenshots unnecessarily. Use a payload that crosses that
-    // threshold to exercise the compression path.
-    const largeOriginal = 'data:image/png;base64,' + 'A'.repeat(400_000)
+    // threshold and the overall import budget to exercise the compression path.
+    const largeOriginal = 'data:image/png;base64,' + 'A'.repeat(8_500_000)
     const shorterCompressed = 'data:image/jpeg;base64,' + 'B'.repeat(500)
     mockCanvas(shorterCompressed)
 
@@ -122,7 +122,7 @@ describe('compressSlideImages', () => {
 
   it('preserves alpha images as PNG so transparent PPTX assets do not gain black backgrounds', async () => {
     mockImageWithOutcome('success')
-    const transparentOriginal = 'data:image/png;base64,' + 'A'.repeat(400_000)
+    const transparentOriginal = 'data:image/png;base64,' + 'A'.repeat(8_500_000)
     const shorterTransparentPng = 'data:image/png;base64,' + 'B'.repeat(500)
     mockCanvas(
       {
@@ -154,35 +154,69 @@ describe('compressSlideImages', () => {
     expect(resultSrc).toBe(smallOriginal)
   })
 
+  it('skips compression entirely when the overall payload is already within budget', async () => {
+    const mediumOriginal = 'data:image/png;base64,' + 'A'.repeat(400_000)
+    const image = jest.fn()
+    ;(globalThis as unknown as { Image: unknown }).Image = image as unknown
+    const canvasSpy = jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL')
+
+    const slides = [makeSlide(mediumOriginal)]
+    const { compressSlideImages } = await import('../compressSlideImages')
+    const result = await compressSlideImages(slides)
+
+    const resultSrc = (result[0].elements[0] as { src: string }).src
+    expect(result).toBe(slides)
+    expect(resultSrc).toBe(mediumOriginal)
+    expect(image).not.toHaveBeenCalled()
+    expect(canvasSpy).not.toHaveBeenCalled()
+  })
+
   it('keeps the original src when the browser cannot decode the image and reports a warning', async () => {
     // Regression: compression used to blank src to '' on decode failure, which
     // was the main cause of "imported deck shows blank images even when the
     // preview looked fine". The importer now preserves the original bytes and
     // lets the canvas renderer try to decode (and fall back to its own visible
     // placeholder on final failure).
-    mockImageWithOutcome('error')
-    // Must be large enough to cross the first-pass compression threshold
-    // (small images are skipped so sharp icons stay sharp), otherwise we
-    // never attempt to decode and therefore never surface the warning.
-    const original = 'data:image/png;base64,' + 'Z'.repeat(400_000)
-    const slides = [makeSlide(original)]
+    let decodeAttempt = 0
+    ;(globalThis as unknown as { Image: unknown }).Image = class {
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+      naturalWidth = 800
+      naturalHeight = 600
+      set src(_value: string) {
+        const outcome = decodeAttempt === 0 ? 'error' : 'success'
+        decodeAttempt++
+        setTimeout(() => {
+          if (outcome === 'success' && this.onload) this.onload()
+          if (outcome === 'error' && this.onerror) this.onerror()
+        }, 0)
+      }
+    } as unknown as ImageCtor
+
+    mockCanvas('data:image/jpeg;base64,' + 'Y'.repeat(500))
+
+    const original = 'data:image/png;base64,' + 'Z'.repeat(4_500_000)
+    const compressible = 'data:image/png;base64,' + 'A'.repeat(4_500_000)
+    const slides = [makeSlide(original), makeSlide(compressible)]
 
     const warnings: CompressionWarning[] = []
     const { compressSlideImages } = await import('../compressSlideImages')
     const result = await compressSlideImages(slides, undefined, w => warnings.push(w))
 
     const resultSrc = (result[0].elements[0] as { src: string }).src
+    const compressedSrc = (result[1].elements[0] as { src: string }).src
     expect(resultSrc).toBe(original)
+    expect(compressedSrc).toBe('data:image/jpeg;base64,' + 'Y'.repeat(500))
     expect(warnings).toEqual([{ type: 'decode-failed', slideIndex: 0, elementIndex: 0 }])
   })
 
-  it('reports progress to the onProgress callback', async () => {
+  it('reports progress to the onProgress callback when compression runs', async () => {
     mockImageWithOutcome('success')
     mockCanvas('data:image/jpeg;base64,SHORT')
 
     const slides = [
-      makeSlide('data:image/png;base64,' + 'A'.repeat(2000)),
-      makeSlide('data:image/png;base64,' + 'A'.repeat(2000))
+      makeSlide('data:image/png;base64,' + 'A'.repeat(4_500_000)),
+      makeSlide('data:image/png;base64,' + 'A'.repeat(4_500_000))
     ]
 
     const progressCalls: Array<{ done: number; total: number }> = []
@@ -225,5 +259,38 @@ describe('compressSlideImages', () => {
     expect(resultSrc).toBe(svgOriginal)
     expect(image).not.toHaveBeenCalled()
     expect(canvasSpy).not.toHaveBeenCalled()
+  })
+
+  it('keeps opaque PNGs as PNG in the first pass and only allows JPEG conversion in later emergency passes', async () => {
+    mockImageWithOutcome('success')
+    const original = 'data:image/png;base64,' + 'A'.repeat(8_500_000)
+    const firstPassPng = 'data:image/png;base64,' + 'B'.repeat(8_450_000)
+    const secondPassJpeg = 'data:image/jpeg;base64,' + 'C'.repeat(500)
+
+    jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: () => undefined,
+      getImageData: () => ({
+        data: new Uint8ClampedArray([0, 0, 0, 255])
+      })
+    } as unknown as CanvasRenderingContext2D)
+
+    const toDataUrl = jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL')
+    toDataUrl
+      .mockImplementationOnce((mime?: string) => {
+        expect(mime).toBe('image/png')
+        return firstPassPng
+      })
+      .mockImplementationOnce((mime?: string) => {
+        expect(mime).toBe('image/jpeg')
+        return secondPassJpeg
+      })
+
+    const slides = [makeSlide(original)]
+    const { compressSlideImages } = await import('../compressSlideImages')
+    const result = await compressSlideImages(slides)
+
+    const resultSrc = (result[0].elements[0] as { src: string }).src
+    expect(resultSrc).toBe(secondPassJpeg)
+    expect(toDataUrl).toHaveBeenCalledTimes(2)
   })
 })

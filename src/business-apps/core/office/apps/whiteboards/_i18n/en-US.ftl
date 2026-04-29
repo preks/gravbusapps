@@ -101,6 +101,26 @@ trashed-readonly-go-home = Go to Whiteboards
 trashed-readonly-restore = Restore
 trashed-readonly-restoring = Restoring...
 
+header-selected-count = { $count } selected
+trash-bulk-restore = Restore
+trash-bulk-restoring = Restoring...
+trash-bulk-delete-permanently = Delete permanently
+trash-bulk-restored = { $count } { $count ->
+    [one] whiteboard
+   *[other] whiteboards
+  } restored
+trash-bulk-deleted = { $count } { $count ->
+    [one] whiteboard
+   *[other] whiteboards
+  } deleted permanently
+trash-delete-dialog-title-single = Delete permanently?
+trash-delete-dialog-title-multiple = Delete { $count } items permanently?
+trash-delete-dialog-description-single = "{ $name }" will be permanently deleted and cannot be restored. This action cannot be undone.
+trash-delete-dialog-description-multiple = { $count } items will be permanently deleted and cannot be restored. This action cannot be undone.
+trash-delete-dialog-cancel = Cancel
+trash-delete-dialog-confirm = Delete permanently
+trash-delete-dialog-deleting = Deleting...
+
 toast-moved-to-trash = Whiteboard moved to trash
 toast-move-to-trash-failed = Failed to move whiteboard to trash
 toast-restored = Whiteboard restored
@@ -138,3 +158,11 @@ whiteboard-ai-placeholder = Describe what to draw...
 whiteboard-ai-attach-image = Attach image
 whiteboard-ai-remove-image = Remove image
 whiteboard-ai-image-too-large = Image is too large. Maximum size is 4 MB.
+trash-action-restore = Restore
+trash-action-restoring = Restoring...
+trash-action-delete = Delete permanently
+trash-action-deleting = Deleting...
+trash-toast-restored = Whiteboard restored
+trash-toast-restore-failed = Failed to restore whiteboard
+trash-toast-deleted = Whiteboard deleted permanently
+trash-toast-delete-failed = Failed to delete whiteboard permanently

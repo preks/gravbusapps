@@ -10,7 +10,7 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { Users } from 'lucide-react'
+import { UsersThreeIcon as Users } from '@phosphor-icons/react'
 
 interface DirectReport {
   id: string

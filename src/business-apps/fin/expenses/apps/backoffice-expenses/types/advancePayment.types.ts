@@ -32,6 +32,9 @@ export interface AdvancePaymentItem {
         organizationalUnit?: {
           name: string
         }
+        costCenter?: {
+          name: string
+        }
       }
     }
     currency?: {

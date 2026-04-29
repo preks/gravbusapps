@@ -1,7 +1,13 @@
 /**
  * DocumentAppsHubEditorView
  *
- * Renders the appropriate editor view (template, parsed Word, document, or new).
+ * Renders the appropriate editor view (template, persisted document, or a
+ * fallback "new document" surface that persists on first Save).
+ *
+ * Word and ODF imports are persisted immediately in `DocumentAppsHub`
+ * before this view is entered, so they flow through the regular persisted
+ * document branch below instead of needing a dedicated preview branch.
+ *
  * Extracted from DocumentAppsHub to reduce cognitive complexity.
  */
 
@@ -17,15 +23,13 @@ import { ExternalDocumentSourceBadge } from './external-import/ExternalDocumentS
 import { TrashedDocumentReadonlyDialog } from './TrashedDocumentReadonlyDialog'
 import { DocumentApprovalReviewView } from './DocumentApprovalReviewView'
 import type { PagedDocumentEditorRef } from './PagedDocumentEditor'
-import type { Document, DocumentTemplate, DocumentFormatting, ParsedWordDocument } from '../types'
+import type { Document, DocumentTemplate, DocumentFormatting } from '../types'
 
 export interface DocumentAppsHubEditorViewProps {
   currentView: string
   templateBeingEdited: DocumentTemplate | null
   setTemplateBeingEdited: (t: DocumentTemplate | null) => void
   setSessionEntityContext: (c: string | null) => void
-  parsedWordDocument: ParsedWordDocument | null
-  setParsedWordDocument: (p: ParsedWordDocument | null) => void
   currentDocument: Document | null
   currentDocumentPermission: string
   createDocument: (opts: unknown) => Promise<Document | null>
@@ -64,8 +68,6 @@ export function DocumentAppsHubEditorView({
   templateBeingEdited,
   setTemplateBeingEdited,
   setSessionEntityContext,
-  parsedWordDocument,
-  setParsedWordDocument,
   setSelectedDocumentId,
   currentDocument,
   currentDocumentPermission,
@@ -131,44 +133,6 @@ export function DocumentAppsHubEditorView({
         accessToken={accessToken}
         userInfo={userInfo}
         data-testid={`${testId}-template-editor`}
-      />
-    )
-  }
-
-  if (parsedWordDocument && !currentDocument) {
-    return (
-      <PagedDocumentEditor
-        initialContent={parsedWordDocument.html}
-        initialTitle={parsedWordDocument.fileName.replace(/\.(docx?|doc)$/i, '')}
-        initialFormatting={parsedWordDocument.formatting}
-        onSave={async (title, content, formatting) => {
-          const newDoc = await createDocument({
-            title,
-            content,
-            formatting,
-            status: 'draft',
-            createdBy: currentUserId,
-            sourceFile: {
-              originalName: parsedWordDocument.fileName,
-              fileSize: parsedWordDocument.fileSize,
-              mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-              uploadedAt: new Date().toISOString()
-            }
-          })
-          if (newDoc) {
-            setParsedWordDocument(null)
-            setSelectedDocumentId(newDoc.id)
-            await loadDocument(newDoc.id)
-            updateUrl(newDoc.id, 'editor')
-          }
-        }}
-        onBack={handleBack}
-        onSendForApproval={() => {
-          toast.info(t('editor-toast-save-first'))
-        }}
-        accessToken={accessToken}
-        userInfo={userInfo}
-        data-testid={`${testId}-editor`}
       />
     )
   }

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { Sparkles, UserCheck, Zap } from 'lucide-react'
-import { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { FlowStepType } from '@/common/data/flow/types/flowTemplate'
 import type { DesignerMode } from '../../../types/studioTypes'
 
 export type TaskCategoryId = 'user-task' | 'ai-task' | 'function-task'

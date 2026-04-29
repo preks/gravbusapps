@@ -103,4 +103,24 @@ describe('extractBackground', () => {
     const bg = extractBackground(xml, theme, rels, new Map([['ppt/media/Brand Hero.png', 'data:image/png;base64,BBB']]))
     expect(bg).toEqual({ type: 'image', imageUrl: 'data:image/png;base64,BBB' })
   })
+
+  it('preserves linked external image backgrounds', () => {
+    const xml = slideXml(`
+      <p:bg>
+        <p:bgPr>
+          <a:blipFill>
+            <a:blip r:link="rIdBg"/>
+          </a:blipFill>
+        </p:bgPr>
+      </p:bg>
+    `)
+    const rels: SlideRelationships = {
+      images: new Map([['rIdBg', 'https://example.com/background.png']]),
+      hyperlinks: new Map(),
+      chartPaths: new Map()
+    }
+
+    const bg = extractBackground(xml, theme, rels, new Map())
+    expect(bg).toEqual({ type: 'image', imageUrl: 'https://example.com/background.png' })
+  })
 })

@@ -19,6 +19,7 @@ import type {
   ConnectorElement,
   RichTextParagraph
 } from '../components/slideElements'
+import { getVideoSourceUrl, isEmbedVideoElement } from './videoElement'
 import {
   paragraphsFromPlainText,
   textElementStubForShapeInText,
@@ -362,6 +363,8 @@ function addCodeElement(pptxSlide: any, element: CodeElement) {
  * Convert video element to placeholder image (videos can't be embedded in PPTX via pptxgenjs)
  */
 function addVideoPlaceholder(pptxSlide: any, element: VideoElement) {
+  const sourceLabel = isEmbedVideoElement(element) ? 'Online Video' : 'Video'
+  const sourceUrl = getVideoSourceUrl(element)
   const options: any = {
     x: pxToInches(element.position.x),
     y: pxToInches(element.position.y),
@@ -374,7 +377,7 @@ function addVideoPlaceholder(pptxSlide: any, element: VideoElement) {
   // Add a dark rectangle with text indicating video
   pptxSlide.addShape('rect', options)
 
-  pptxSlide.addText('🎥 Video', {
+  pptxSlide.addText(`🎥 ${sourceLabel}`, {
     x: pxToInches(element.position.x),
     y: pxToInches(element.position.y + element.size.height / 2 - 20),
     w: pxToInches(element.size.width),
@@ -386,7 +389,7 @@ function addVideoPlaceholder(pptxSlide: any, element: VideoElement) {
   })
 
   // Add URL as text below
-  pptxSlide.addText(element.src, {
+  pptxSlide.addText(sourceUrl, {
     x: pxToInches(element.position.x),
     y: pxToInches(element.position.y + element.size.height / 2 + 20),
     w: pxToInches(element.size.width),

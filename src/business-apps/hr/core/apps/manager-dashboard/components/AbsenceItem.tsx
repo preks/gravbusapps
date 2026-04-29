@@ -114,22 +114,22 @@ export const AbsenceItem = ({ task, userId, accessToken, refetchAbsences }: Abse
   return (
     <div
       key={task.id}
-      className="gba:p-3 gba:border gba:border-neutral-200 gba:rounded-lg gba:hover:border-primary-300 gba:transition-colors gba:cursor-pointer"
+      className="gba:cursor-pointer gba:rounded-lg gba:border gba:border-border gba:p-3 gba:transition-colors gba:hover:gba:border-primary"
       data-testid={`manager-dashboard-request-${task.id}`}
     >
       <div className="gba:flex gba:items-start gba:justify-between gba:mb-2">
         <div className="gba:flex-1">
-          <div className="gba:font-medium gba:text-neutral-900 gba:text-sm gba:mb-1">{task.title}</div>
-          <div className="gba:text-xs gba:text-neutral-500 gba:flex gba:items-center gba:mb-1">
+          <div className="gba:mb-1 gba:text-sm gba:font-medium gba:text-foreground">{task.title}</div>
+          <div className="gba:mb-1 gba:flex gba:items-center gba:text-xs gba:text-muted-foreground">
             <UserIcon className="gba:mr-1" size={12} />
             {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_date', 'From')}:{' '}
             {task.employee.fullName}
           </div>
-          <div className="gba:text-xs gba:text-neutral-500 gba:flex gba:items-center gba:mb-1">
+          <div className="gba:mb-1 gba:flex gba:items-center gba:text-xs gba:text-muted-foreground">
             <ClockIcon className="gba:mr-1" size={12} />
             {getTimeAgo(task.createdAt)}
           </div>
-          <div className="gba:text-xs gba:text-neutral-500 gba:mb-1">
+          <div className="gba:mb-1 gba:text-xs gba:text-muted-foreground">
             {task.startDate && task.endDate
               ? `${getTranslationFromI18nKeyAndLabel(
                   'lowcoder:personal_expenses.from_date',
@@ -141,7 +141,7 @@ export const AbsenceItem = ({ task, userId, accessToken, refetchAbsences }: Abse
                 )}
           </div>
           {task.leaveType && (
-            <div className="gba:text-xs gba:font-medium gba:text-neutral-500 gba:flex gba:items-center gba:gap-1">
+            <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:font-medium gba:text-muted-foreground">
               <ClipboardIcon size={16} />
               {task.leaveType === 'ABSENCE'
                 ? getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.absence', 'Absence')

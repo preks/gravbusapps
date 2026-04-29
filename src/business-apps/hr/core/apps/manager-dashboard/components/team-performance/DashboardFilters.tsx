@@ -14,7 +14,7 @@ export const DashboardFilters = ({ availableCycles, selectedCycleId, onCycleChan
     <div className="gba:flex gba:items-center gba:gap-3">
       <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Cycle</span>
       <Select value={selectedCycleId ?? undefined} onValueChange={onCycleChange} disabled={!hasCycles}>
-        <SelectTrigger className="gba:w-[280px]">
+        <SelectTrigger className="gba:w-72">
           <SelectValue placeholder={hasCycles ? 'Select cycle' : 'No cycles available'} />
         </SelectTrigger>
         <SelectContent>
@@ -23,7 +23,7 @@ export const DashboardFilters = ({ availableCycles, selectedCycleId, onCycleChan
               <span className="gba:flex gba:items-center gba:gap-2">
                 {cycle.name}
                 {isActiveCycle(cycle.apiStatus) && (
-                  <Badge variant="outline" className="gba:text-xs gba:px-1.5 gba:py-0">
+                  <Badge variant="outline" className="gba:text-xs">
                     Active
                   </Badge>
                 )}

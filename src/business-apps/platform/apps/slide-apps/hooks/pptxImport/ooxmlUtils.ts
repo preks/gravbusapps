@@ -774,7 +774,10 @@ export function parseGradientFill(
   if (stops.length === 0) return undefined
 
   const lin = getChild(gradFillNode, 'a:lin')
-  const angle = lin ? Number.parseInt(lin.getAttribute('ang') || '0') / 60000 : 0
+  // OOXML stores linear gradient angles with 0deg pointing to the right,
+  // while our shared renderer/CSS model uses 90deg for left-to-right.
+  // Normalize at import time so imported gradients render like native ones.
+  const angle = lin ? (Number.parseInt(lin.getAttribute('ang') || '0') / 60000 + 90) % 360 : 0
   const isLinear = !!lin
 
   return { type: isLinear ? 'linear' : 'radial', angle, stops }

@@ -8,6 +8,7 @@ export interface CatalogItem {
   value: string
   type?: string
   alternativeCode?: string
+  parentEntryId?: string
   displayOrder?: number
   additionalValue1?: string
   additionalValue2?: string
@@ -35,3 +36,13 @@ export interface CatalogTabHandlers {
   onDelete: (id: string) => Promise<void> | void
   onRetry?: () => void
 }
+
+export type DeleteAvailability =
+  | { status: 'allowed' }
+  | {
+      status: 'blocked'
+      reason: string
+      usages?: Array<{ label: string; count: number }>
+    }
+
+export type DeleteAvailabilityResolver<TItem> = (item: TItem) => DeleteAvailability | Promise<DeleteAvailability>

@@ -1,5 +1,21 @@
 import { useEffect } from 'react'
 
+const getInitialCurrencySelection = (
+  availableCurrencies: Array<{ id: string; code: string; value: string } | string> | undefined,
+  filters?: Record<string, any>
+): string => {
+  const currencyId = Array.isArray(filters?.currencyIds) ? filters.currencyIds[0] : undefined
+  if (!currencyId || !availableCurrencies) {
+    return 'all'
+  }
+
+  const currency = availableCurrencies.find(
+    (item): item is { id: string; code: string; value: string } => typeof item !== 'string' && item.id === currencyId
+  )
+
+  return currency?.code || 'all'
+}
+
 /**
  * Custom hook to handle initialization of currencies and filters for all investment tabs
  * Reduces cognitive complexity in InvestmentView component
@@ -10,7 +26,8 @@ export const useInvestmentTabsInitialization = (
   investmentGroups: Array<{ tabId: string }>,
   setCurrencyByTab: React.Dispatch<React.SetStateAction<Record<string, string>>>,
   setFiltersByTab: React.Dispatch<React.SetStateAction<Record<string, Record<string, any>>>>,
-  setFiltersReady: React.Dispatch<React.SetStateAction<boolean>>
+  setFiltersReady: React.Dispatch<React.SetStateAction<boolean>>,
+  initialFiltersByTab: Record<string, Record<string, any>> = {}
 ) => {
   useEffect(() => {
     // Wait for both currencies AND groups before initialising so all tab currencies are
@@ -20,23 +37,35 @@ export const useInvestmentTabsInitialization = (
     }
 
     // Default: all currencies (no currencyIds) so the list shows every investment.
+    // Cached tab filters may include a currencyIds entry; reflect that in the currency control.
     setCurrencyByTab(prev => {
-      const next = { ...prev, overview: 'all' }
+      const next = {
+        ...prev,
+        overview: getInitialCurrencySelection(availableCurrencies, initialFiltersByTab.overview)
+      }
       investmentGroups.forEach(group => {
-        next[group.tabId] = 'all'
+        next[group.tabId] = getInitialCurrencySelection(availableCurrencies, initialFiltersByTab[group.tabId])
       })
       return next
     })
     setFiltersByTab(prev => {
-      const next = { ...prev, overview: {} }
+      const next = { ...prev, overview: initialFiltersByTab.overview ?? {} }
       investmentGroups.forEach(group => {
-        next[group.tabId] = {}
+        next[group.tabId] = initialFiltersByTab[group.tabId] ?? {}
       })
       return next
     })
 
     setFiltersReady(true)
-  }, [availableCurrencies, filtersReady, investmentGroups, setCurrencyByTab, setFiltersByTab, setFiltersReady])
+  }, [
+    availableCurrencies,
+    filtersReady,
+    initialFiltersByTab,
+    investmentGroups,
+    setCurrencyByTab,
+    setFiltersByTab,
+    setFiltersReady
+  ])
 
   // When catalog groups arrive after the first init, default missing tabs to "all currencies".
   useEffect(() => {
@@ -48,7 +77,7 @@ export const useInvestmentTabsInitialization = (
       const next = { ...prev }
       investmentGroups.forEach(group => {
         if (next[group.tabId] === undefined) {
-          next[group.tabId] = 'all'
+          next[group.tabId] = getInitialCurrencySelection(availableCurrencies, initialFiltersByTab[group.tabId])
           changed = true
         }
       })
@@ -59,11 +88,11 @@ export const useInvestmentTabsInitialization = (
       const next = { ...prev }
       investmentGroups.forEach(group => {
         if (next[group.tabId] === undefined) {
-          next[group.tabId] = {}
+          next[group.tabId] = initialFiltersByTab[group.tabId] ?? {}
           changed = true
         }
       })
       return changed ? next : prev
     })
-  }, [filtersReady, investmentGroups, setCurrencyByTab, setFiltersByTab])
+  }, [availableCurrencies, filtersReady, initialFiltersByTab, investmentGroups, setCurrencyByTab, setFiltersByTab])
 }

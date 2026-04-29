@@ -27,8 +27,11 @@ export const INVESTMENT_REPORT_QUERY_CONFIGS: Record<string, string[]> = {
     'scope',
     'investment',
     'investmentId',
+    'initialInvestmentAmount',
     'investmentMarketValue',
     'totalInvestmentAmount',
+    'securityQuantity',
+    'timeWeightedPerformance',
     'investmentStatus',
     'investmentStatusRef',
     'investmentPhase',
@@ -60,6 +63,7 @@ export const INVESTMENT_REPORT_QUERY_CONFIGS: Record<string, string[]> = {
     'currency',
     'currencyRef',
     'plannedExitDate',
+    'initialInvestmentAmount',
     'totalInvestmentAmount',
     'investmentMarketValue',
     'debtFinancingAmount',
@@ -67,6 +71,8 @@ export const INVESTMENT_REPORT_QUERY_CONFIGS: Record<string, string[]> = {
     'forecastedRevenueAmount',
     'forecastedProfitAmount',
     'stakePercentage',
+    'securityQuantity',
+    'timeWeightedPerformance',
     'loanRecipientName',
     'loanAmount',
     'loanOpenCommitmentAmount',
@@ -155,6 +161,9 @@ const buildInvestmentFieldFragment = (fieldSet: Set<string>): string => {
       initialInvestmentAmount
       totalInvestmentAmount
       investmentMarketValue
+      securityQuantity
+      timeWeightedPerformance
+      maturityDate
       acquisitionDate
       exitDate
       plannedExitDate
@@ -248,6 +257,7 @@ const buildCoreFields = (fieldSet: Set<string>): string[] => {
  */
 const buildAmountFields = (fieldSet: Set<string>): string[] => {
   const fields: string[] = []
+  addFieldIfPresent(fieldSet, 'initialInvestmentAmount', InvestmentReportFields.initialInvestmentAmount, fields)
   addFieldIfPresent(fieldSet, 'totalInvestmentAmount', InvestmentReportFields.totalInvestmentAmount, fields)
   addFieldIfPresent(fieldSet, 'investmentMarketValue', InvestmentReportFields.investmentMarketValue, fields)
   addFieldIfPresent(fieldSet, 'debtFinancingAmount', InvestmentReportFields.debtFinancingAmount, fields)
@@ -255,6 +265,8 @@ const buildAmountFields = (fieldSet: Set<string>): string[] => {
   addFieldIfPresent(fieldSet, 'forecastedRevenueAmount', InvestmentReportFields.forecastedRevenueAmount, fields)
   addFieldIfPresent(fieldSet, 'forecastedProfitAmount', InvestmentReportFields.forecastedProfitAmount, fields)
   addFieldIfPresent(fieldSet, 'stakePercentage', InvestmentReportFields.stakePercentage, fields)
+  addFieldIfPresent(fieldSet, 'securityQuantity', InvestmentReportFields.securityQuantity, fields)
+  addFieldIfPresent(fieldSet, 'timeWeightedPerformance', InvestmentReportFields.timeWeightedPerformance, fields)
   addFieldIfPresent(fieldSet, 'totalCommitmentAmount', InvestmentReportFields.totalCommitmentAmount, fields)
   addFieldIfPresent(fieldSet, 'totalDistributionAmount', InvestmentReportFields.totalDistributionAmount, fields)
   return fields

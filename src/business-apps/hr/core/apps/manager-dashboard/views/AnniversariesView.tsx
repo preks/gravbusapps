@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow
 } from '@newwork/nw-design-system'
-import { ChevronLeft, MessageSquare } from 'lucide-react'
+import { CaretLeft, ChatCircleDots } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TeamAnniversary } from '../hooks/useTeamAnniversaries'
 import { useChatClient } from '@/common/network/chat/useChatClient'
@@ -55,6 +55,7 @@ export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
 }) => {
   const [sendingToUserId, setSendingToUserId] = useState<string | null>(null)
   const [messageDraft, setMessageDraft] = useState<{ person: TeamAnniversary; message: string } | null>(null)
+  const today = dayjs()
 
   const chatClient = useChatClient(accessToken)
 
@@ -99,7 +100,7 @@ export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
             className="gba:mr-4"
             data-testid="manager-dashboard-anniversaries-back-button"
           >
-            <ChevronLeft size={16} className="gba:mr-1" />
+            <CaretLeft size={16} className="gba:mr-1" />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
               'Back to Dashboard'
@@ -125,7 +126,7 @@ export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
           <p>
             {getTranslationFromI18nKeyAndLabel(
               'master-data:hr.manager_dashboard.no_upcoming_anniversaries',
-              'No upcoming work anniversaries in the next 30 days'
+              'No work anniversaries this month'
             )}
           </p>
           <p className="gba:mt-2 gba:text-sm">Consider checking career development plans during this period.</p>
@@ -155,6 +156,9 @@ export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
               {upcomingAnniversaries.map(person => {
                 const userKey = person.userId || person.id
                 const isSending = sendingToUserId === userKey
+                const hireDate = dayjs(person.hireDate)
+                const isAnniversaryToday =
+                  hireDate.isValid() && hireDate.month() === today.month() && hireDate.date() === today.date()
 
                 return (
                   <TableRow
@@ -190,6 +194,7 @@ export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
                         size="sm"
                         onClick={event => {
                           event.stopPropagation()
+                          if (!isAnniversaryToday) return
                           setMessageDraft({
                             person,
                             message: buildAnniversaryMessage(
@@ -199,10 +204,11 @@ export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
                             )
                           })
                         }}
-                        disabled={isSending}
+                        disabled={isSending || !isAnniversaryToday}
+                        title={isAnniversaryToday ? '' : 'Available on the anniversary date'}
                         data-testid={`manager-dashboard-anniversary-chat-${person.id}`}
                       >
-                        <MessageSquare size={16} className="gba:mr-1" />
+                        <ChatCircleDots size={16} className="gba:mr-1" />
                         {isSending
                           ? getTranslationFromI18nKeyAndLabel('master-data:sending', 'Sending...')
                           : getTranslationFromI18nKeyAndLabel(

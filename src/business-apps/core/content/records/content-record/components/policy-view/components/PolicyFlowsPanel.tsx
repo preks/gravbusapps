@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Badge, Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { Sparkles } from 'lucide-react'
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { FlowTemplateClient, type FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
 import { flowAIClient } from '@/common/network/flows/FlowAIClient'
 import { toFlowSteps, buildPolicyFlowPrompt } from '@/business-apps/core/content/utils/flowAIMappers'
@@ -54,8 +54,7 @@ export const PolicyFlowsPanel: React.FC<PolicyFlowsPanelProps> = ({
   }, [load])
 
   const openFlowCreator = (templateId?: string | null) => {
-    const base = buildPlatformUrl('/platform/apps/flow/apps/creator', templateId ? { templateId } : undefined)
-    // Default to manage tab when opening an existing template
+    const base = buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR, templateId ? { flowId: templateId } : undefined)
     navigateTo(templateId ? base : `${base}#create`)
   }
 

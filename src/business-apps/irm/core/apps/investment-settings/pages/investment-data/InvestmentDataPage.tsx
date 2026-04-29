@@ -206,7 +206,7 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
       )}
 
       <div
-        className="gba:sticky gba:top-0 gba:z-10 gba:bg-background gba:py-2 -gba:mx-1 gba:px-1 gba:border-b gba:border-border"
+        className="gba:sticky gba:top-0 gba:z-50 gba:isolate gba:bg-background gba:py-2 -gba:mx-1 gba:px-1 gba:border-b gba:border-border gba:shadow-sm"
         data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-selector-sticky`}
       >
         <GroupTypeSelector
@@ -225,15 +225,18 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
       </div>
 
       {selectedEntry ? (
-        <div className="gba:flex gba:gap-6" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-config-section`}>
+        <div className="gba:mt-6 gba:flex gba:gap-6" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-config-section`}>
           <ConfigurationNav
             accessToken={accessToken}
             userInfo={userInfo}
             additionalData={additionalData}
             configSection={configSection}
-            formFieldsCount={isInherited.formFields ? 0 : configuration.formFields?.length || 0}
-            prospectFieldsCount={isInherited.prospectFields ? 0 : configuration.prospectFields?.length || 0}
-            tileFieldsCount={isInherited.tileFields ? 0 : configuration.tileFields?.length || 0}
+            formFieldsCount={configuration.formFields?.length || 0}
+            prospectFieldsCount={configuration.prospectFields?.length || 0}
+            tileFieldsCount={configuration.tileFields?.length || 0}
+            isFormInherited={isInherited.formFields}
+            isProspectInherited={isInherited.prospectFields}
+            isTileInherited={isInherited.tileFields}
             onSectionChange={setConfigSection}
             prefixDataTestId={`${prefixDataTestId}-${DATA_TEST_ID}`}
           />
@@ -251,6 +254,10 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
               setConfiguration({ ...configuration, prospectFields })
             }
             onTileFieldsChange={(tileFields: TileField[]) => setConfiguration({ ...configuration, tileFields })}
+            targetLevel={targetLevel}
+            selectedGroup={selectedGroup}
+            selectedType={selectedType}
+            selectedLiquidFundType={selectedLiquidFundType}
             isFormInherited={isInherited.formFields}
             isProspectInherited={isInherited.prospectFields}
             isTileInherited={isInherited.tileFields}

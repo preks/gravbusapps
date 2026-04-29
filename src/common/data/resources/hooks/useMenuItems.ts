@@ -36,7 +36,6 @@ export const useMenuItems = (
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch menu items'
       setError(errorMessage)
       console.error('Error fetching menu items:', err)
-      setMenuItems([])
     } finally {
       setIsLoading(false)
     }
