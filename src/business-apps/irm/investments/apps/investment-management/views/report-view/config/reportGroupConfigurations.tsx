@@ -119,7 +119,8 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
     catalogSource: 'GROUP',
     catalogKey: 'investmentGroups',
     entityPrefix: 'equity',
-    columnGenerator: (catalogData: any) => generateEquityReportColumns(catalogData),
+    columnGenerator: (catalogData: any, currentSection?: string) =>
+      generateEquityReportColumns(catalogData, currentSection),
     filterGenerator: (catalogData: any, _currentSection: string, filterGroups: any) =>
       generateEquityReportFilters(catalogData, filterGroups),
     tableConfig: EQUITY_TABLE_CONFIG,

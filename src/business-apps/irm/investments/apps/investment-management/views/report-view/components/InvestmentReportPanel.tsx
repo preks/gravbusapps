@@ -96,6 +96,20 @@ export interface InvestmentReportPanelProps extends BusinessAppContextProps {
    * GraphQL conditions.
    */
   extraWhereFilters?: Record<string, any>
+  /**
+   * Last search the user had on this section — restored when switching back to it.
+   */
+  initialSearch?: string
+  onSearchChange?: (search: string) => void
+  /** Cached sorting for this section — restored from localStorage. */
+  initialSorting?: Array<{ id: string; desc: boolean }> | null
+  onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
+  /** Cached filters for this section — restored from localStorage. */
+  initialFilters?: Record<string, any>
+  onFiltersChange?: (filters: Record<string, any>) => void
+  /** Cached visible column IDs for this section — restored from localStorage. */
+  initialVisibleColumns?: string[] | null
+  onVisibleColumnsChange?: (columns: string[]) => void
   /** Catalog data shared across tabs / records. */
   catalogData: any
   /** Whether this panel is currently active and should fetch data. */
@@ -131,6 +145,14 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   currentSection,
   onSectionChange,
   showSectionBar = true,
+  initialSearch,
+  onSearchChange,
+  initialSorting,
+  onSortingChange: onSortingChangeProp,
+  initialFilters,
+  onFiltersChange,
+  initialVisibleColumns: cachedVisibleColumns,
+  onVisibleColumnsChange: onVisibleColumnsChangeProp,
   reportFilters,
   extraWhereFilters,
   catalogData,
@@ -146,26 +168,35 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   const config = getReportGroupConfiguration(investmentGroup)
 
   // Search state (toolbar text search)
-  const [search, setSearch] = useState<string>('')
+  const [search, setSearch] = useState<string>(initialSearch ?? '')
 
   // Filter state (for catalog-based filters)
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters ?? {})
 
   // Sorting state
-  const [sortField, setSortField] = useState('')
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
+  const [sortField, setSortField] = useState(() => initialSorting?.[0]?.id ?? '')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>(() =>
+    initialSorting?.[0]?.desc === false ? 'ASC' : 'DESC'
+  )
 
-  // Reset per-section UI state when the active section changes so values from
-  // one sub-section never leak into another (e.g. an investment that exists in
-  // FIXED_TERM_DEPOSIT but not in BONDS, a Liquid Fund-specific column sort
-  // that has no analogue elsewhere, or a stale text search). The locked record
-  // view never changes `currentSection` past mount, so this is a no-op there.
-  useEffect(() => {
-    setSelectedFilters({})
-    setSearch('')
-    setSortField('')
-    setSortOrder('DESC')
-  }, [currentSection])
+  // Synchronously reset per-section UI state when the active section changes
+  // (React "adjusting state during render" pattern) so no stale query fires.
+  const [prevSection, setPrevSection] = useState(currentSection)
+  if (currentSection !== prevSection) {
+    setPrevSection(currentSection)
+    setSearch(initialSearch ?? '')
+    setSelectedFilters(initialFilters ?? {})
+    setSortField(initialSorting?.[0]?.id ?? '')
+    setSortOrder(initialSorting?.[0]?.desc === false ? 'ASC' : 'DESC')
+  }
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearch(value)
+      onSearchChange?.(value)
+    },
+    [onSearchChange]
+  )
 
   const hasFilterSheet = !!config.filterGenerator
 
@@ -228,10 +259,20 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
     ]
   }, [investmentGroup, config, catalogData, currentSection, liquidFundCatalogData, getDynamicColumnsForType])
 
+  // Apply cached column visibility so localStorage-saved preferences are
+  // honoured on the first render for each section.
+  const initialColumnsWithCache = useMemo(() => {
+    if (!cachedVisibleColumns) return initialColumns
+    return initialColumns.map(col => ({
+      ...col,
+      visible: col.disabled ? true : cachedVisibleColumns.includes(col.id)
+    }))
+  }, [initialColumns, cachedVisibleColumns])
+
   // Local report filters: only used here for column visibility management.
   // Date range / currency / column visibility shared state lives on `reportFilters`,
   // but visible-column tracking is a panel-local concern (one column set per section).
-  const localReportFilters = useReportFilters(initialColumns)
+  const localReportFilters = useReportFilters(initialColumnsWithCache)
 
   // Generate filter configuration. A group without a `filterGenerator` opts
   // out of the filter sheet entirely (its presence is the implicit gate).
@@ -258,15 +299,19 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   }, [reportFilters, currentSection, search, selectedFilters, hasFilterSheet, extraWhereFilters])
 
   // Sorting handlers
-  const handleSortingChange = useCallback((newSorting: Array<{ id: string; desc: boolean }>) => {
-    if (newSorting.length === 0) {
-      setSortField('')
-      setSortOrder('DESC')
-    } else {
-      setSortField(newSorting[0].id)
-      setSortOrder(newSorting[0].desc ? 'DESC' : 'ASC')
-    }
-  }, [])
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      if (newSorting.length === 0) {
+        setSortField('')
+        setSortOrder('DESC')
+      } else {
+        setSortField(newSorting[0].id)
+        setSortOrder(newSorting[0].desc ? 'DESC' : 'ASC')
+      }
+      onSortingChangeProp?.(newSorting)
+    },
+    [onSortingChangeProp]
+  )
 
   const sorting = useMemo(() => {
     if (!sortField) return []
@@ -295,8 +340,9 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
           handleColumnVisibilityChange(col.id, visible)
         }
       })
+      onVisibleColumnsChangeProp?.(newVisibleColumns)
     },
-    [columnConfig, handleColumnVisibilityChange]
+    [columnConfig, handleColumnVisibilityChange, onVisibleColumnsChangeProp]
   )
 
   // Liquid Fund: raw dynamic columns (used by both the table and the export hook).
@@ -357,9 +403,13 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   })
 
   // Filter change handler
-  const handleFilterChange = useCallback((newFilters: Record<string, any>) => {
-    setSelectedFilters(newFilters)
-  }, [])
+  const handleFilterChange = useCallback(
+    (newFilters: Record<string, any>) => {
+      setSelectedFilters(newFilters)
+      onFiltersChange?.(newFilters)
+    },
+    [onFiltersChange]
+  )
 
   // Compose the toolbar's primary action slot: built-in export buttons first,
   // then any consumer-supplied actions (e.g. "Add Report").
@@ -420,12 +470,13 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   return (
     <div data-testid={dataTestId}>
       <DataDisplay
+        key={currentSection}
         titleSections={titleSections}
         currentSection={showSectionBar ? currentSection : undefined}
         onSectionChange={showSectionBar ? onSectionChange : undefined}
         searchValue={search}
         searchPlaceholder="Search investments..."
-        onSearchChange={setSearch}
+        onSearchChange={handleSearchChange}
         filters={hasFilterSheet ? selectedFilters : undefined}
         filterConfiguration={hasFilterSheet ? filterConfiguration : undefined}
         onFilterChange={hasFilterSheet ? handleFilterChange : undefined}
