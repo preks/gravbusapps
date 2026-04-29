@@ -11,6 +11,7 @@ import { formatDate } from '@/common/data/investment/utils/formatters'
 import { getInvestmentStatusBadgeVariant } from '../utils/statusBadgeHelpers'
 import type { InvestmentListAggregates } from '@/common/data/investment/hooks/useInvestments.new'
 import { InvestmentListAggregatesBar } from '../shared/InvestmentListAggregatesBar'
+import { AccountCell, PlanedExitCell, PlannedExitDateCell } from '../shared/cellRenderers'
 
 // Helper function to format group names for display
 const formatGroupName = (groupName: string): string => {
@@ -303,10 +304,44 @@ const createColumns = (): ColumnDef<Investment>[] => [
     cell: OwnerEmployeeCell
   },
   {
+    id: 'account',
+    header: 'Account',
+    accessorKey: 'investmentAccounts',
+    enableSorting: false,
+    size: 180,
+    minSize: 150,
+    maxSize: 240,
+    enableResizing: false,
+    cell: AccountCell
+  },
+  {
     id: 'investmentStatus',
     header: 'Status',
     accessorKey: 'investmentStatus.value',
     cell: InvestmentStatusCell
+  },
+  {
+    id: 'planedExit',
+    header: 'Planned Exit',
+    accessorKey: 'planedExit',
+    size: 140,
+    minSize: 120,
+    maxSize: 160,
+    enableResizing: false,
+    cell: PlanedExitCell
+  },
+  {
+    id: 'plannedExitDate',
+    header: 'Planned Exit Date',
+    accessorKey: 'plannedExitDate',
+    size: 170,
+    minSize: 150,
+    maxSize: 200,
+    enableResizing: false,
+    meta: {
+      type: 'date' as const
+    },
+    cell: PlannedExitDateCell
   },
   {
     id: 'createdAt',
@@ -339,7 +374,10 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = ({
     'investmentType',
     'totalInvestmentAmount',
     'ownerEmployee',
+    'account',
     'investmentStatus',
+    'planedExit',
+    'plannedExitDate',
     'createdAt'
   ],
   listAggregates,
@@ -397,7 +435,6 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = ({
       {showAggregatesBar && (
         <InvestmentListAggregatesBar
           listAggregates={listAggregates}
-          showEquityMetrics={false}
           dataTestIdPrefix="all-investments"
           displayCurrencyCode={displayCurrencyCode}
         />

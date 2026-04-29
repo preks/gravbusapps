@@ -13,7 +13,10 @@ import {
   TotalInvestmentAmountCell,
   OwnerEmployeeCell,
   InvestmentStatusCell,
-  CreatedAtCell
+  CreatedAtCell,
+  AccountCell,
+  PlanedExitCell,
+  PlannedExitDateCell
 } from './cellRenderers'
 import { InvestmentListAggregatesBar } from './InvestmentListAggregatesBar'
 
@@ -76,8 +79,6 @@ export interface GenericInvestmentsListProps extends BusinessAppContextProps {
   /** Catalog-derived columns for dynamic investment group tabs. */
   catalogColumns?: ColumnDef<Investment>[]
   showAggregatesBar?: boolean
-  /** Equity tab: extra EBITDA and portfolio performance from aggregates. */
-  showEquityMetrics?: boolean
   /** ISO currency code for aggregate amounts (matches tab currency filter). */
   displayCurrencyCode?: string
 }
@@ -127,7 +128,6 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
   listAggregates = DEFAULT_LIST_AGGREGATES,
   catalogColumns,
   showAggregatesBar = false,
-  showEquityMetrics = false,
   displayCurrencyCode = 'EUR'
 }) => {
   // Create row actions with group-specific data-testid using extracted component
@@ -221,10 +221,44 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
         cell: OwnerEmployeeCell
       },
       {
+        id: 'account',
+        header: 'Account',
+        accessorKey: 'investmentAccounts',
+        enableSorting: false,
+        size: 180,
+        minSize: 150,
+        maxSize: 240,
+        enableResizing: false,
+        cell: AccountCell
+      },
+      {
         id: 'investmentStatus',
         header: 'Status',
         accessorKey: 'investmentStatus.value',
         cell: InvestmentStatusCell
+      },
+      {
+        id: 'planedExit',
+        header: 'Planned Exit',
+        accessorKey: 'planedExit',
+        size: 140,
+        minSize: 120,
+        maxSize: 160,
+        enableResizing: false,
+        cell: PlanedExitCell
+      },
+      {
+        id: 'plannedExitDate',
+        header: 'Planned Exit Date',
+        accessorKey: 'plannedExitDate',
+        size: 170,
+        minSize: 150,
+        maxSize: 200,
+        enableResizing: false,
+        meta: {
+          type: 'date' as const
+        },
+        cell: PlannedExitDateCell
       },
       {
         id: 'createdAt',
@@ -283,7 +317,6 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
       {showAggregatesBar && (
         <InvestmentListAggregatesBar
           listAggregates={listAggregates}
-          showEquityMetrics={showEquityMetrics}
           dataTestIdPrefix={config.dataTestIdPrefix}
           displayCurrencyCode={displayCurrencyCode}
         />

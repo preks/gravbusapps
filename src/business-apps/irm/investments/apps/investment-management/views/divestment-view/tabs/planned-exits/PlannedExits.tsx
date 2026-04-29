@@ -352,7 +352,6 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo, enab
           visibleColumns={sectionState.visibleColumns}
           listAggregates={sectionState.listAggregates}
           showAggregatesBar={!sectionState.isInitialLoading && !sectionState.error}
-          showEquityMetrics={false}
           displayCurrencyCode={selectedCurrency === 'all' ? 'EUR' : selectedCurrency}
         />
       </DataDisplay>

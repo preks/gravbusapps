@@ -305,7 +305,15 @@ export const createInvestmentDescriptors = (
   // Investment Core Fields
   { key: 'code', searchPaths: [fields.code], sortPath: fields.code, type: 'text' },
   { key: 'name', searchPaths: [fields.name], sortPath: fields.name, type: 'text' },
-  { key: 'isin', searchPaths: [fields.isin], sortPath: fields.isin, type: 'text' },
+  {
+    key: 'isin',
+    searchPaths: [fields.isin],
+    sortPath: fields.isin,
+    type: 'text',
+    optionSelectPaths: [fields.isin, fields.isin],
+    optionSearchPaths: [fields.isin],
+    optionDistinctOn: [fields.isin]
+  },
   { key: 'acquisitionDate', searchPaths: [fields.acquisitionDate], sortPath: fields.acquisitionDate, type: 'date' },
   { key: 'planedExit', searchPaths: [fields.planedExit], sortPath: fields.planedExit, type: 'boolean' },
   { key: 'plannedExitDate', searchPaths: [fields.plannedExitDate], sortPath: fields.plannedExitDate, type: 'date' },
@@ -379,7 +387,10 @@ export const createInvestmentDescriptors = (
     key: 'loanRecipientName',
     searchPaths: [fields.loanRecipientName],
     sortPath: fields.loanRecipientName,
-    type: 'text'
+    type: 'text',
+    optionSelectPaths: [fields.loanRecipientName, fields.loanRecipientName],
+    optionSearchPaths: [fields.loanRecipientName],
+    optionDistinctOn: [fields.loanRecipientName]
   },
   { key: 'loanAmount', searchPaths: [fields.loanAmount], sortPath: fields.loanAmount, type: 'number' },
   {
@@ -420,7 +431,10 @@ export const createInvestmentDescriptors = (
     key: 'fundManagerName',
     searchPaths: [fields.fundManagerName],
     sortPath: fields.fundManagerName,
-    type: 'text'
+    type: 'text',
+    optionSelectPaths: [fields.fundManagerName, fields.fundManagerName],
+    optionSearchPaths: [fields.fundManagerName],
+    optionDistinctOn: [fields.fundManagerName]
   },
   { key: 'irr', searchPaths: [fields.irr], sortPath: fields.irr, type: 'number' },
   { key: 'moic', searchPaths: [fields.moic], sortPath: fields.moic, type: 'number' },

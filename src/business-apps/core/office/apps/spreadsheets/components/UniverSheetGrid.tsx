@@ -80,11 +80,121 @@ const NUMFMT_MENU_ITEM_ROW_SELECTOR = 'div.univer-flex.univer-h-7'
  */
 const UNIVER_DE_LOCALE = {
   design: {
+    Confirm: {
+      cancel: 'Abbrechen',
+      confirm: 'OK'
+    },
     CascaderList: {
       empty: 'Keine'
     },
     Select: {
       empty: 'Keine'
+    },
+    ColorPicker: {
+      more: 'Weitere Farben',
+      cancel: 'Abbrechen',
+      confirm: 'OK'
+    }
+  },
+  sheets: {
+    tabs: {
+      sheetCopy: '(Kopie{0})',
+      sheet: 'Tabelle'
+    }
+  },
+  definedName: {
+    managerTitle: 'Benannte Bereiche',
+    managerDescription:
+      'Erstelle einen benannten Bereich, indem du Zellen oder Formeln auswählst und den gewünschten Namen in das Textfeld einträgst.',
+    addButton: 'Benannten Bereich hinzufügen',
+    featureTitle: 'Benannte Bereiche',
+    ratioRange: 'Bereich',
+    ratioFormula: 'Formel',
+    confirm: 'Bestätigen',
+    cancel: 'Abbrechen',
+    scopeWorkbook: 'Arbeitsmappe',
+    inputNamePlaceholder: 'Bitte gib einen Namen ein (keine Leerzeichen erlaubt)',
+    inputCommentPlaceholder: 'Bitte gib einen Kommentar ein',
+    inputRangePlaceholder: 'Bitte gib einen Bereich ein (keine Leerzeichen erlaubt)',
+    inputFormulaPlaceholder: 'Bitte gib eine Formel ein (keine Leerzeichen erlaubt)',
+    nameEmpty: 'Der Name darf nicht leer sein',
+    nameDuplicate: 'Der Name existiert bereits',
+    formulaOrRefStringEmpty: 'Formel oder Bezugszeichenkette darf nicht leer sein',
+    formulaOrRefStringInvalid: 'Ungültige Formel oder Bezugszeichenkette',
+    defaultName: 'BenannterBereich',
+    updateButton: 'Aktualisieren',
+    deleteButton: 'Löschen',
+    deleteConfirmText: 'Möchtest du diesen benannten Bereich wirklich löschen?',
+    nameConflict: 'Der Name steht im Konflikt mit einem Funktionsnamen',
+    nameInvalid: 'Der Name ist ungültig',
+    nameSheetConflict: 'Der Name steht im Konflikt mit einem Tabellennamen'
+  },
+  permission: {
+    toolbarMenu: 'Schutz',
+    panel: {
+      title: 'Zeilen und Spalten schützen',
+      name: 'Name',
+      protectedRange: 'Geschützter Bereich',
+      permissionDirection: 'Berechtigungsbeschreibung',
+      permissionDirectionPlaceholder: 'Berechtigungsbeschreibung eingeben',
+      editPermission: 'Bearbeitungsberechtigungen',
+      onlyICanEdit: 'Nur ich kann bearbeiten',
+      designedUserCanEdit: 'Bestimmte Personen können bearbeiten',
+      viewPermission: 'Anzeigeberechtigungen',
+      othersCanView: 'Andere können ansehen',
+      noOneElseCanView: 'Niemand sonst kann ansehen',
+      designedPerson: 'Bestimmte Personen',
+      addPerson: 'Person hinzufügen',
+      canEdit: 'Kann bearbeiten',
+      canView: 'Kann ansehen',
+      delete: 'Löschen',
+      currentSheet: 'Aktuelle Tabelle',
+      allSheet: 'Alle Tabellen',
+      edit: 'Bearbeiten',
+      Print: 'Drucken',
+      Comment: 'Kommentar',
+      Copy: 'Kopieren',
+      SetCellStyle: 'Zellformat festlegen',
+      SetCellValue: 'Zellwert festlegen',
+      SetHyperLink: 'Hyperlink festlegen',
+      Sort: 'Sortieren',
+      Filter: 'Filtern',
+      PivotTable: 'Pivot-Tabelle',
+      FloatImage: 'Schwebendes Bild',
+      RowHeightColWidth: 'Zeilenhöhe und Spaltenbreite',
+      RowHeightColWidthReadonly: 'Zeilenhöhe und Spaltenbreite (schreibgeschützt)',
+      FilterReadonly: 'Filter (schreibgeschützt)',
+      nameError: 'Der Name darf nicht leer sein',
+      created: 'Erstellt',
+      iCanEdit: 'Ich kann bearbeiten',
+      iCanNotEdit: 'Ich kann nicht bearbeiten',
+      iCanView: 'Ich kann ansehen',
+      iCanNotView: 'Ich kann nicht ansehen',
+      emptyRangeError: 'Der Bereich darf nicht leer sein',
+      rangeOverlapError: 'Bereiche dürfen sich nicht überlappen',
+      rangeOverlapOverPermissionError:
+        'Der Bereich darf sich nicht mit einem Bereich überlappen, der dieselben Berechtigungen hat',
+      InsertHyperlink: 'Hyperlink einfügen',
+      SetRowStyle: 'Zeilenformat festlegen',
+      SetColumnStyle: 'Spaltenformat festlegen',
+      InsertColumn: 'Spalte einfügen',
+      InsertRow: 'Zeile einfügen',
+      DeleteRow: 'Zeile löschen',
+      DeleteColumn: 'Spalte löschen',
+      EditExtraObject: 'Zusätzliches Objekt bearbeiten'
+    },
+    dialog: {
+      allowUserToEdit: 'Nutzer:innen Bearbeitung erlauben',
+      allowedPermissionType: 'Erlaubte Berechtigungstypen',
+      setCellValue: 'Zellwert festlegen',
+      setCellStyle: 'Zellformat festlegen',
+      copy: 'Kopieren',
+      alert: 'Hinweis',
+      search: 'Suchen',
+      alertContent:
+        'Dieser Bereich ist geschützt und es sind derzeit keine Bearbeitungsberechtigungen verfügbar. Wenn du bearbeiten möchtest, wende dich bitte an die Erstellerin/den Ersteller.',
+      userEmpty: 'Keine bestimmten Personen. Teile den Link, um bestimmte Personen einzuladen.',
+      listEmpty: 'Du hast noch keine Bereiche oder Tabellen als geschützt eingerichtet.'
     }
   },
   align: {
@@ -598,11 +708,21 @@ function buildChangedCellSignature(cells: Array<{ rowId: string; columnName: str
 export function isClearLikeMutationCommand(commandId: string): boolean {
   const normalized = commandId.trim().toLowerCase()
   if (!normalized) return false
+  if (normalized.includes('move-selection') || normalized.includes('navigation')) return false
 
   return (
     normalized.includes('clear-range') ||
+    normalized.includes('clear-selection') ||
+    normalized.includes('clear-content') ||
+    normalized.includes('clear-value') ||
     normalized.includes('delete-selection') ||
-    normalized.includes('deleteselectioncommand')
+    normalized.includes('deleteselectioncommand') ||
+    normalized.includes('move-range') ||
+    normalized.includes('move-cell') ||
+    normalized.includes('move-row') ||
+    normalized.includes('move-column') ||
+    normalized.includes('cut-paste') ||
+    normalized.includes('cutpaste')
   )
 }
 
@@ -736,15 +856,10 @@ export function deriveCellMatrixFromRanges(
   const addCellValue = (row: number, col: number) => {
     visited += 1
     if (limitReached()) return
-    if (preserveUndefinedAsNull) {
-      if (!derived[row]) derived[row] = {}
-      derived[row][col] = null
-      return
-    }
     const value = readWorksheetCellValue(worksheet, row, col)
-    if (value === undefined) return
+    if (value === undefined && !preserveUndefinedAsNull) return
     if (!derived[row]) derived[row] = {}
-    derived[row][col] = value
+    derived[row][col] = value === undefined ? null : value
   }
 
   for (const range of ranges) {
@@ -1760,9 +1875,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const snapshotRequestInFlightRef = useRef<Promise<void> | null>(null)
     const snapshotRequestQueuedRef = useRef(false)
     const snapshotCheckpointTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const styleSnapshotForceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const snapshotCheckpointScheduledAtRef = useRef<number | null>(null)
     const snapshotFirstDirtyAtRef = useRef<number | null>(null)
     const snapshotLastRequestedAtRef = useRef<number>(0)
+    const snapshotDirtyVersionRef = useRef(0)
     const requestSnapshotCheckpointRef = useRef<((force?: boolean) => void) | null>(null)
     const scheduleSnapshotCheckpointRef = useRef<((delayMs?: number) => void) | null>(null)
     const lastSyncedGridCellSignaturesRef = useRef<Map<string, string>>(new Map())
@@ -3286,6 +3403,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         try {
           callbacksRef.current.onWorkbookSnapshotLifecycle?.({ phase: 'checkpoint_scheduled' })
           snapshotLastRequestedAtRef.current = Date.now()
+          const requestDirtyVersion = snapshotDirtyVersionRef.current
           const result = onSnapshotRequestedCb()
           const promise = Promise.resolve(result) as Promise<void>
           snapshotRequestInFlightRef.current = promise
@@ -3297,9 +3415,13 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }, SNAPSHOT_TIMEOUT_MS)
           void promise
             .then(() => {
-              isDirtyRef.current = false
-              hasEditedRef.current = false
-              snapshotFirstDirtyAtRef.current = null
+              if (snapshotDirtyVersionRef.current === requestDirtyVersion && !snapshotRequestQueuedRef.current) {
+                isDirtyRef.current = false
+                hasEditedRef.current = false
+                snapshotFirstDirtyAtRef.current = null
+              } else {
+                scheduleSnapshotCheckpoint(AUTO_SNAPSHOT_THROTTLE_MS)
+              }
               callbacksRef.current.onWorkbookSnapshotLifecycle?.({ phase: 'checkpoint_settled', ok: true })
             })
             .catch(() => {
@@ -3318,6 +3440,18 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           scheduleSnapshotCheckpoint(AUTO_SNAPSHOT_THROTTLE_MS)
           flushQueuedSnapshotRequest()
         }
+      }
+      const requestStyleSnapshotCheckpoint = () => {
+        // A single toolbar gesture can emit multiple style commands/mutations.
+        // Coalesce that burst before forcing a save so the snapshot contains the
+        // final style state without queueing a back-to-back duplicate POST.
+        if (styleSnapshotForceTimerRef.current) {
+          clearTimeout(styleSnapshotForceTimerRef.current)
+        }
+        styleSnapshotForceTimerRef.current = setTimeout(() => {
+          styleSnapshotForceTimerRef.current = null
+          requestSnapshotCheckpoint(true)
+        }, 100)
       }
       // Pace frontend snapshot saves, but guarantee they are emitted within a bounded
       // window while the workbook stays dirty.
@@ -3358,6 +3492,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       requestSnapshotCheckpointRef.current = requestSnapshotCheckpoint
       scheduleSnapshotCheckpointRef.current = scheduleSnapshotCheckpoint
       const markDirtyAndScheduleSnapshot = () => {
+        snapshotDirtyVersionRef.current += 1
         isDirtyRef.current = true
         hasEditedRef.current = true
         scheduleSnapshotCheckpoint()
@@ -3365,19 +3500,28 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const handleDetectedCellMutation = ({
         source,
         payloadCellValue,
-        ranges
+        ranges,
+        worksheetId,
+        preserveUndefinedAsNull = false
       }: {
         source: 'sheet-value-changed' | 'command-executed' | 'selection-reconcile' | 'sheet-edit-ended'
         payloadCellValue: SheetCellMatrix | undefined
         ranges: SheetRangeShape[]
+        worksheetId?: string | null
+        preserveUndefinedAsNull?: boolean
       }): boolean => {
         const workbook = univerAPIRef.current?.getActiveWorkbook()
-        const worksheet = workbook?.getActiveSheet()
+        const activeWorksheet = workbook?.getActiveSheet()
+        const explicitWorksheetId = typeof worksheetId === 'string' && worksheetId.length > 0 ? worksheetId : null
+        const worksheet =
+          explicitWorksheetId && typeof workbook?.getSheetBySheetId === 'function'
+            ? (workbook.getSheetBySheetId(explicitWorksheetId) ?? activeWorksheet)
+            : activeWorksheet
         // Prefer reading the post-mutation value directly from the worksheet. Some
         // mutation payloads can still carry the previous cell value, which causes live
         // collaboration to briefly show stale data until the later authoritative
         // persistence broadcast arrives.
-        const worksheetCellValue = deriveCellMatrixFromRanges(worksheet, ranges)
+        const worksheetCellValue = deriveCellMatrixFromRanges(worksheet, ranges, 10000, preserveUndefinedAsNull)
         const baseCellValue = buildAbsoluteCellMatrixForRanges(ranges, worksheetCellValue, payloadCellValue)
         if (!baseCellValue) {
           return false
@@ -3492,7 +3636,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         // on-the-fly so rowIndex→rowId and colIndex→columnName mapping targets
         // the correct sheet. Falls back to the single-sheet contextRef when no
         // resolver is provided or the active sheet matches props.
-        const univerActiveSheetId = worksheet?.getSheetId?.() ?? null
+        const univerActiveSheetId = explicitWorksheetId ?? worksheet?.getSheetId?.() ?? null
         const propSheetId = propsRef.current.sheet.id
         const targetSheetId =
           propsRef.current.multiSheetWorkbookMode && univerActiveSheetId ? univerActiveSheetId : propSheetId
@@ -3661,7 +3805,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const reconcileSingleCell = (
         row: number | undefined,
         col: number | undefined,
-        source: 'selection-reconcile' | 'sheet-edit-ended'
+        source: 'selection-reconcile' | 'sheet-edit-ended',
+        worksheetId?: string | null
       ): void => {
         if (typeof row !== 'number' || typeof col !== 'number') return
         handleDetectedCellMutation({
@@ -3674,7 +3819,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               startColumn: col,
               endColumn: col
             }
-          ]
+          ],
+          worksheetId: worksheetId ?? getActiveWorksheetIdFromUniver()
         })
       }
       const handleSheetScroll = (scrollLeft: number, scrollTop: number) => {
@@ -3904,6 +4050,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           | {
               cellValue?: unknown
               range?: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+              sheetId?: string
+              subUnitId?: string
             }
           | undefined
         if (commandId.includes('copy') && !commandId.includes('paste')) {
@@ -3963,7 +4111,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           handleDetectedCellMutation({
             source: 'command-executed',
             payloadCellValue: commandPayloadCellValue,
-            ranges: commandRanges
+            ranges: commandRanges,
+            worksheetId: params?.subUnitId ?? params?.sheetId ?? null,
+            preserveUndefinedAsNull: isClearLikeMutationCommand(commandId)
           })
         }
 
@@ -3987,7 +4137,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (shouldCheckpointSnapshot) {
           markDirtyAndScheduleSnapshot()
           if (isStyleOnlySheetMutationCommand(commandId)) {
-            queueMicrotask(() => requestSnapshotCheckpoint(true))
+            queueMicrotask(requestStyleSnapshotCheckpoint)
           }
         }
       })
@@ -4012,14 +4162,25 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             params?: {
               cellValue?: Record<number, Record<number, { v?: unknown }>>
               range?: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+              sheetId?: string
+              subUnitId?: string
             }
           }
+          sheetId?: string
+          subUnitId?: string
         }
         const payload = params?.payload
+        const payloadParams = payload?.params
+        const worksheetId =
+          payloadParams?.subUnitId ?? payloadParams?.sheetId ?? params?.subUnitId ?? params?.sheetId ?? null
         const preserveUndefinedAsNull = isClearLikeMutationCommand(String(payload?.id ?? ''))
         let cellValue = normalizeCellMatrix(payload?.params?.cellValue)
         const workbook = univerAPIRef.current?.getActiveWorkbook()
-        const worksheet = workbook?.getActiveSheet()
+        const activeWorksheet = workbook?.getActiveSheet()
+        const worksheet =
+          worksheetId && typeof workbook?.getSheetBySheetId === 'function'
+            ? (workbook.getSheetBySheetId(worksheetId) ?? activeWorksheet)
+            : activeWorksheet
         const ranges = (payload?.params?.range ??
           params.effectedRanges?.map(r => r.getRange?.()).filter(Boolean) ??
           []) as Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
@@ -4037,7 +4198,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         handleDetectedCellMutation({
           source: 'sheet-value-changed',
           payloadCellValue: cellValue,
-          ranges
+          ranges,
+          worksheetId,
+          preserveUndefinedAsNull
         })
       })
       const sheetEditEndedEventKey =
@@ -4054,6 +4217,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               startColumn?: number
               cell?: { row?: number; col?: number; actualRow?: number; actualColumn?: number }
               range?: { startRow?: number; startColumn?: number }
+              sheetId?: string
+              subUnitId?: string
             }
           | undefined
         const cell = params?.cell
@@ -4063,7 +4228,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         // the just-typed value into a neighbor. Selection-based reconciliation runs separately.
         const row = cell?.actualRow ?? cell?.row ?? params?.row ?? params?.startRow ?? range?.startRow
         const col = cell?.actualColumn ?? cell?.col ?? params?.col ?? params?.startColumn ?? range?.startColumn
-        reconcileSingleCell(row, col, 'sheet-edit-ended')
+        reconcileSingleCell(row, col, 'sheet-edit-ended', params?.subUnitId ?? params?.sheetId ?? null)
       })
       const selectionEventKey =
         (univerAPI as { Event?: { SelectionMoveEnd?: string } }).Event?.SelectionMoveEnd ?? 'SelectionMoveEnd'
@@ -4100,7 +4265,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (typeof row === 'number' && typeof col === 'number') {
           const previous = activeSelectionRef.current
           if (previous && previous.sheetId === worksheetId && (previous.row !== row || previous.col !== col)) {
-            reconcileSingleCell(previous.row, previous.col, 'selection-reconcile')
+            reconcileSingleCell(previous.row, previous.col, 'selection-reconcile', previous.sheetId)
           }
           emitCursorByRowCol(worksheetId, row, col)
           return
@@ -4113,7 +4278,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             previous.sheetId === worksheetId &&
             (previous.row !== fromRange.row || previous.col !== fromRange.col)
           ) {
-            reconcileSingleCell(previous.row, previous.col, 'selection-reconcile')
+            reconcileSingleCell(previous.row, previous.col, 'selection-reconcile', previous.sheetId)
           }
           emitCursorByRowCol(worksheetId, fromRange.row, fromRange.col)
         }
@@ -4161,6 +4326,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         requestSnapshotCheckpointRef.current = null
         scheduleSnapshotCheckpointRef.current = null
         snapshotRequestQueuedRef.current = false
+        if (styleSnapshotForceTimerRef.current) {
+          clearTimeout(styleSnapshotForceTimerRef.current)
+          styleSnapshotForceTimerRef.current = null
+        }
         clearTimeout(canvasHealthTimeout)
         clearTimeout(bootstrapSettleTimer)
         univerBootstrapCompleteRef.current = false
@@ -4171,6 +4340,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
         snapshotCheckpointScheduledAtRef.current = null
         snapshotFirstDirtyAtRef.current = null
+        snapshotDirtyVersionRef.current = 0
         try {
           valueChangeDisposable?.dispose()
         } catch {}

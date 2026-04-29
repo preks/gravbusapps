@@ -252,6 +252,9 @@ hr-analytics-avg-salary = Salariu mediu
 hr-analytics-average-salary = Salariu mediu
 hr-analytics-merit-increases = Creșteri bazate pe performanță
 hr-analytics-average-increase = Creștere medie
+hr-analytics-equity-health-score-title = Scor sănătate echitate
+hr-analytics-equity-health-score-no-data-footer = Nu s-a găsit nicio analiză de echitate finalizată
+hr-analytics-equity-health-score-error-footer = Scorul de sănătate echitate nu a putut fi încărcat
 
 # Analytics - Health Insurance
 hr-analytics-health-insurer-distribution = Distribuția asiguratorilor de sănătate

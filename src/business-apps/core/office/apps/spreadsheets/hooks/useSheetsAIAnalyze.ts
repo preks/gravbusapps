@@ -9,12 +9,14 @@ import {
   parseSheetsAIAnalyzeResponse
 } from '../prompts/sheets-ai-analyze'
 import { selectPreferredModel } from '../utils/aiModelSelection'
+import { withLanguageDirective } from '../utils/aiResponseLanguage'
 
 interface UseSheetsAIAnalyzeParams {
   promptClient: PromptManagerClient
   sheetName: string
   columns: SpreadsheetColumn[]
   sheetData: Array<Record<string, unknown>>
+  locale?: string
 }
 
 interface UseSheetsAIAnalyzeResult {
@@ -76,7 +78,8 @@ export const useSheetsAIAnalyze = ({
   promptClient,
   sheetName,
   columns,
-  sheetData
+  sheetData,
+  locale
 }: UseSheetsAIAnalyzeParams): UseSheetsAIAnalyzeResult => {
   const [result, setResult] = useState<SheetsAIAnalyzeResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -95,7 +98,7 @@ export const useSheetsAIAnalyze = ({
 
       const formData = new FormData()
       formData.append('model_id', modelId)
-      formData.append('system_content', SHEETS_AI_ANALYZE_SYSTEM_PROMPT)
+      formData.append('system_content', withLanguageDirective(SHEETS_AI_ANALYZE_SYSTEM_PROMPT, locale))
       formData.append('user_content', buildSheetsAIAnalyzeUserPrompt(sheetName, columns, sheetData))
       formData.append('model_settings', JSON.stringify({}))
 
@@ -111,7 +114,7 @@ export const useSheetsAIAnalyze = ({
     } finally {
       setIsLoading(false)
     }
-  }, [columns, fallback, promptClient, sheetData, sheetName])
+  }, [columns, fallback, locale, promptClient, sheetData, sheetName])
 
   return {
     result,

@@ -1,15 +1,15 @@
-import React from 'react'
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import {
-  BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS,
-  MANAGER_TEAM_DISTRIBUTION_PERFORMANCE_ROW_GRID_CLASS
+  MANAGER_TEAM_DISTRIBUTION_PERFORMANCE_ROW_GRID_CLASS,
+  MANAGER_TEAM_DISTRIBUTION_STANDARD_ROW_GRID_CLASS
 } from '../../compensation-planning/components/views/budgetDistributionDepartmentGrid'
 import { BudgetDistributionCustomOrgUnitInputs } from '../../compensation-planning/components/views/BudgetDistributionCustomOrgUnitInputs'
 import type {
   CustomBudgetInputMode,
   OrgUnitCustomBudgetInput
 } from '../../compensation-planning/components/views/budgetDistributionCustomTypes'
+import { CompaRatioBar } from './CompaRatioBar'
 import { formatPercentOfPool, formatPerformanceScoreValue, formatShareOfTotal } from './managerTeamDistributionFormat'
 
 type TranslateBudget = (id: string, args?: Record<string, string | number>) => string
@@ -21,7 +21,7 @@ function managerTeamMemberRowGridClass(isCustom: boolean, showPerformanceScoreCo
   if (showPerformanceScoreColumn) {
     return `${MANAGER_TEAM_DISTRIBUTION_PERFORMANCE_ROW_GRID_CLASS} gba:px-4 gba:py-3`
   }
-  return `${BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS} gba:px-4 gba:py-3`
+  return `${MANAGER_TEAM_DISTRIBUTION_STANDARD_ROW_GRID_CLASS} gba:px-4 gba:py-3`
 }
 
 function managerTeamOverallScorePrimary(
@@ -118,6 +118,15 @@ export function TeamCompensationEmployeeDistributionMemberRow({
           </div>
         ) : null}
       </div>
+      {!isCustom ? (
+        <div className="gba:min-w-0" data-testid={`manager-team-distribution-compensation-band-${member.employeeId}`}>
+          <CompaRatioBar
+            band={member.compensationBand}
+            currentSalary={member.currentAnnualSalary}
+            currencyCode={currencyCode}
+          />
+        </div>
+      ) : null}
       {showPerformanceScoreColumn ? (
         <div
           className="gba:pt-0.5 gba:text-right"

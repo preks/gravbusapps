@@ -1,8 +1,9 @@
-import { formatDateLocalized } from '../../utils/dateUtils'
+import { formatExpenseRequestDateShort } from '../../utils/dateUtils'
 import type { TranslateFn } from '../../utils/utils'
 
 export {
   naLabel,
+  expenseTableColumnHeader,
   createFormatCurrency,
   renderTitleCodeCell,
   renderCodeCell,
@@ -22,5 +23,5 @@ export type {
 } from '../../../../common/columns/expenseColumnHelpers'
 
 export function createFormatDate(t: TranslateFn) {
-  return (v: string | null | undefined) => formatDateLocalized(v, t, 'L')
+  return (v: string | null | undefined) => formatExpenseRequestDateShort(v, t('common-not-available'))
 }

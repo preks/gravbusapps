@@ -509,6 +509,22 @@ trash-list-item-restored = Notă restaurată
 trash-list-item-restore-failed = Restaurarea notei a eșuat
 trash-list-item-deleted = Notă ștearsă definitiv
 trash-list-item-delete-failed = Ștergerea definitivă a notei a eșuat
+trash-bulk-selected = { $count } selectate
+trash-bulk-restored = { $count } { $count ->
+    [one] notă
+   *[other] note
+  } restaurate
+trash-bulk-deleted = { $count } { $count ->
+    [one] notă
+   *[other] note
+  } șterse definitiv
+trash-delete-dialog-title-single = Șterge definitiv?
+trash-delete-dialog-title-multiple = Șterge { $count } elemente definitiv?
+trash-delete-dialog-description-single = „{ $name }" va fi ștearsă definitiv și nu poate fi restaurată. Această acțiune nu poate fi anulată.
+trash-delete-dialog-description-multiple = { $count } elemente vor fi șterse definitiv și nu pot fi restaurate. Această acțiune nu poate fi anulată.
+trash-delete-dialog-cancel = Anulați
+trash-delete-dialog-confirm = Șterge definitiv
+trash-delete-dialog-deleting = Se șterge...
 trashed-readonly-title = Această notă este în coșul de gunoi
 trashed-readonly-description = „{ $title }” este în coșul de gunoi și se deschide în modul doar-citire până când este restaurată.
 trashed-readonly-owner-note = Pentru a edita din nou această notă, scoateți-o din coșul de gunoi.

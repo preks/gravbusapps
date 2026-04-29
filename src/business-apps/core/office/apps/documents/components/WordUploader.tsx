@@ -17,6 +17,27 @@ export interface WordUploaderProps {
   onFileParsed: (parsedDocument: ParsedWordDocument) => void
   onError?: (error: string) => void
   maxFileSize?: number // in MB, default 25MB
+  /**
+   * When true, the uploader shows a "saving draft" indication on the success
+   * card while the parent creates the document.
+   */
+  isSavingDraft?: boolean
+  /**
+   * True once the parent has successfully persisted the imported document as
+   * a draft. Unlocks the "Open document" action.
+   */
+  hasSavedDraft?: boolean
+  /**
+   * Called when the user clicks the "Open document" action on the success
+   * card after the draft has been saved.
+   */
+  onOpenSavedDraft?: () => void
+  /**
+   * Called when the user clears the success card (e.g. to upload another
+   * file). The parent should drop any saved-draft state so the user can
+   * restart the flow.
+   */
+  onClearSavedDraft?: () => void
   'data-testid'?: string
 }
 
@@ -36,6 +57,10 @@ export const WordUploader: React.FC<WordUploaderProps> = ({
   onFileParsed,
   onError,
   maxFileSize = 25,
+  isSavingDraft = false,
+  hasSavedDraft = false,
+  onOpenSavedDraft,
+  onClearSavedDraft,
   'data-testid': testId = 'word-uploader'
 }) => {
   const { t } = useTranslation(translations)
@@ -125,10 +150,11 @@ export const WordUploader: React.FC<WordUploaderProps> = ({
   const handleClear = useCallback(() => {
     setSelectedFile(null)
     reset()
+    onClearSavedDraft?.()
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
-  }, [reset])
+  }, [onClearSavedDraft, reset])
 
   // Render loading state
   if (isLoading) {
@@ -163,6 +189,39 @@ export const WordUploader: React.FC<WordUploaderProps> = ({
   // Render success state with preview
   if (parsedDocument) {
     const wordCount = parsedDocument.plainText.split(/\s+/).filter(w => w.length > 0).length
+    const continueHintContent = (() => {
+      if (isSavingDraft) {
+        return (
+          <>
+            <Spinner size="sm" className="gba:text-primary" />
+            <p className="gba:text-sm gba:text-foreground">{t('upload-word-saving-draft')}</p>
+          </>
+        )
+      }
+
+      if (hasSavedDraft) {
+        return (
+          <>
+            <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-success/20 gba:flex gba:items-center gba:justify-center">
+              <Check className="gba:w-4 gba:h-4 gba:text-success" />
+            </div>
+            <p className="gba:text-sm gba:text-foreground">{t('upload-word-saved-ready')}</p>
+            <Button size="sm" onClick={onOpenSavedDraft} className="gba:ml-auto" data-testid={`${testId}-open-saved`}>
+              {t('upload-word-open-document')}
+              <ArrowRight className="gba:w-4 gba:h-4 gba:ml-2" />
+            </Button>
+          </>
+        )
+      }
+
+      return (
+        <>
+          <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
+          <p className="gba:text-sm gba:text-foreground">{t('upload-word-parsed-ready')}</p>
+          <ArrowRight className="gba:w-4 gba:h-4 gba:text-primary gba:ml-auto" />
+        </>
+      )
+    })()
 
     return (
       <Card className="gba:overflow-hidden" data-testid={`${testId}-preview`}>
@@ -232,10 +291,11 @@ export const WordUploader: React.FC<WordUploaderProps> = ({
           )}
 
           {/* Continue hint */}
-          <div className="gba:flex gba:items-center gba:gap-2 gba:p-4 gba:bg-primary/5 gba:rounded-lg gba:mt-4">
-            <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
-            <p className="gba:text-sm gba:text-foreground">{t('upload-word-parsed-ready')}</p>
-            <ArrowRight className="gba:w-4 gba:h-4 gba:text-primary gba:ml-auto" />
+          <div
+            className="gba:flex gba:items-center gba:gap-2 gba:p-4 gba:bg-primary/5 gba:rounded-lg gba:mt-4"
+            data-testid={`${testId}-continue-hint`}
+          >
+            {continueHintContent}
           </div>
         </div>
       </Card>

@@ -1,11 +1,15 @@
 import React from 'react'
 import { Button, Badge, Separator, Sheet, SheetContent } from '@newwork/nw-design-system'
+import { formatDate } from '@/common/utils/windowUtils'
 import type { TranslateFn } from '../../../../utils/utils'
 import { formatCurrency } from '../../../../utils/currencyUtils'
 import { getExpenseRequestStatusDisplay } from '../../../../utils/utils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import TravelOrderAttachmentPreview from '../../../../../../common/components/document-preview/TravelOrderAttachmentPreview'
-import { ExpenseDetailsPanelContent } from '../../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
+import {
+  ExpenseDetailsPanelContent,
+  type ExpenseDetailsPanelRecord
+} from '../../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
 import ExpenseDetailsShell from '../../../../../../common/components/details-panel/ExpenseDetailsShell'
 import type {
   HasEmployeeDocument,
@@ -32,7 +36,16 @@ function BackofficeExpenseRequestDetailsSheet(props: Readonly<BackofficeExpenseR
           {selectedExpense ? (
             <ExpenseDetailsPanelContent
               dataTestIdPrefix="backoffice-expense-request-details"
-              record={selectedExpense as any}
+              record={
+                {
+                  ...selectedExpense,
+                  startDate: selectedExpense.startDate ? formatDate(selectedExpense.startDate, 'date.short') : 'N/A',
+                  endDate: selectedExpense.endDate ? formatDate(selectedExpense.endDate, 'date.short') : 'N/A',
+                  creationDate: selectedExpense.creationDate
+                    ? formatDate(selectedExpense.creationDate, 'date.short')
+                    : 'N/A'
+                } as ExpenseDetailsPanelRecord
+              }
               formatAmount={(amount, currencyCode) => formatCurrency(amount, currencyCode)}
               showHeader={false}
               t={t}

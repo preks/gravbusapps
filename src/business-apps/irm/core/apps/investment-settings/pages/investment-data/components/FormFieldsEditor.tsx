@@ -104,22 +104,22 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
       {isInherited && inheritedFrom && (
         <Alert data-testid={`${prefixDataTestId}-inheritance-notice`}>
           <AlertDescription>
-            Inherited from <strong>{inheritedFrom}</strong>. Add your own fields to customize.
+            Currently viewing form fields inherited from <strong>{inheritedFrom}</strong>. Add or change fields to
+            create a configuration for this selected level.
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Group Tabs and Add Group Button */}
+      {/* Section tabs and add section button */}
       <Card variant="default" data-testid={`${prefixDataTestId}-groups-card`}>
         <CardContent
           className="gba:flex gba:items-center gba:justify-between gba:gap-4 gba:flex-wrap"
           data-testid={`${prefixDataTestId}-group-header`}
         >
-          {/* Group Tabs */}
           <div
             className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap"
             role="tablist"
-            aria-label="Field groups"
+            aria-label="Field sections"
             data-testid={`${prefixDataTestId}-group-tabs`}
           >
             {normalizedFieldGroups.map((group, index) => {
@@ -142,7 +142,7 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
                       size="icon"
                       variant="ghost"
                       onClick={() => handleDeleteGroup(index)}
-                      aria-label={`Delete group ${group.groupLabel}`}
+                      aria-label={`Delete section ${group.groupLabel}`}
                       data-testid={`${prefixDataTestId}-delete-group-${index}`}
                     >
                       <TrashIcon />
@@ -153,13 +153,12 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
             })}
           </div>
 
-          {/* Add Group Button */}
           {isAddingGroup ? (
             <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${prefixDataTestId}-add-group-form`}>
               <Input
                 value={newGroupLabel}
                 onChange={e => setNewGroupLabel(e.target.value)}
-                placeholder="Group name"
+                placeholder="Section name"
                 data-testid={`${prefixDataTestId}-new-group-input`}
                 className="gba:w-48"
               />
@@ -178,7 +177,7 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
           ) : (
             <Button onClick={() => setIsAddingGroup(true)} data-testid={`${prefixDataTestId}-add-group-button`}>
               <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-              Add Group
+              Add Section
             </Button>
           )}
         </CardContent>
@@ -255,8 +254,8 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
       ) : (
         <div data-testid={`${prefixDataTestId}-no-group`}>
           <EmptyState
-            title="No field group selected"
-            description='Click "Add Group" to create your first field group'
+            title="No field section selected"
+            description='Click "Add Section" to create your first field section'
           />
         </div>
       )}

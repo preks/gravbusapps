@@ -841,7 +841,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   const currentAgentOutputsRef = useRef<OutputItem[]>([])
 
   const activePageSkills = useMemo(() => getDefaultSkillsForPage(currentPageContext), [currentPageContext])
-  const [pageSkillsEnabled, setPageSkillsEnabled] = useState(true)
+  const [pageSkillsEnabled, setPageSkillsEnabled] = useState(false)
 
   const togglePageSkills = useCallback((enabled: boolean) => {
     setPageSkillsEnabled(enabled)
@@ -916,6 +916,14 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
 
   const updateSessionId = useCallback(
     (newSessionId: string) => {
+      const oldSessionId = sessionIdRef.current
+      console.log(
+        '[FlowBot][updateSessionId] Updating session ID:',
+        'from:',
+        oldSessionId || '(none)',
+        'to:',
+        newSessionId
+      )
       sessionIdRef.current = newSessionId
       setState(prev => ({ ...prev, sessionId: newSessionId }))
       resetAnalytics(newSessionId)
@@ -1224,13 +1232,20 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         outputs.pop()
       }
 
-      const tailIdx = outputs.length - 1
-      const tail = tailIdx >= 0 ? outputs[tailIdx] : null
-      const tailIsStreaming =
-        tail?.type === 'answer' && (tail as AnswerOutput & { __streaming?: boolean }).__streaming === true
+      // Search backwards through all outputs for any streaming answer bubble.
+      // This handles the case where reasoning steps arrive between text_delta
+      // and the final answer, pushing the streaming bubble away from the tail.
+      let streamingIdx = -1
+      for (let i = outputs.length - 1; i >= 0; i--) {
+        const out = outputs[i]
+        if (out?.type === 'answer' && (out as AnswerOutput & { __streaming?: boolean }).__streaming === true) {
+          streamingIdx = i
+          break
+        }
+      }
 
-      if (tailIsStreaming) {
-        outputs[tailIdx] = answer
+      if (streamingIdx >= 0) {
+        outputs[streamingIdx] = answer
       } else {
         outputs.push(answer)
       }
@@ -1297,6 +1312,12 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     ) => {
       if (!userInputText.trim() && files.length === 0) return
       if (inFlightRef.current) return
+
+      // Capture the session ID at the START of this request
+      // This ensures we can validate that stream events belong to this session
+      // Using 'let' because backend may assign a new session ID for new chats
+      let requestSessionId = sessionIdRef.current ?? state.sessionId ?? ''
+      console.log('[FlowBot][sendMessage] Starting request for session:', requestSessionId || '(new session)')
 
       try {
         inFlightRef.current = true
@@ -1416,6 +1437,21 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
             else if (line.startsWith('data:')) data += line.slice(5).trimStart()
           }
 
+          // CRITICAL: Check if we're still on the same session before processing any events
+          const currentSessionId = sessionIdRef.current ?? state.sessionId ?? ''
+          if (currentSessionId !== requestSessionId) {
+            console.warn(
+              '[FlowBot][sendMessage] Session changed during stream - ignoring event.',
+              'Request session:',
+              requestSessionId || '(new)',
+              'Current session:',
+              currentSessionId || '(none)',
+              'Event type:',
+              event
+            )
+            return
+          }
+
           if (event === 'output-item') {
             try {
               const newOutput = JSON.parse(data) as OutputItem
@@ -1469,13 +1505,22 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
               const cleaned = data.trim()
               const newSessionId = JSON.parse(cleaned) as string
               if (isValidSessionId(newSessionId)) {
-                console.log('[FlowBot] Received new session ID from server:', newSessionId)
+                console.log(
+                  '[FlowBot][sendMessage] Received new session ID from server:',
+                  newSessionId,
+                  '(request session was:',
+                  requestSessionId || '(new)',
+                  ')'
+                )
+                // CRITICAL: Update requestSessionId so subsequent events aren't incorrectly flagged
+                // as belonging to a different session (when backend assigns ID for new chats)
+                requestSessionId = newSessionId
                 updateSessionId(newSessionId)
               } else {
-                console.warn('[FlowBot] Received invalid session ID from server:', newSessionId)
+                console.warn('[FlowBot][sendMessage] Received invalid session ID from server:', newSessionId)
               }
             } catch (error) {
-              console.error('Failed to parse session-id event:', error)
+              console.error('[FlowBot][sendMessage] Failed to parse session-id event:', error)
             }
           } else {
             console.warn('Received unknown event type:', event)
@@ -1500,32 +1545,68 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         pruneEphemeralOutputsFromLastAgentTurn()
 
         // After streaming is complete, save both user and agent messages for persistence
-        const currentSessionId = sessionIdRef.current
-        if (currentSessionId) {
+        // CRITICAL: Use the session ID from when the request started, not the current one
+        // This prevents messages from being saved to the wrong session if user switched during stream
+        const persistSessionId = requestSessionId
+        if (persistSessionId) {
           try {
+            console.log('[FlowBot][sendMessage] Persisting messages to session:', persistSessionId)
             // Save user message
-            await saveUserMessage(currentSessionId, userInputText, files, undefined, accessToken)
+            await saveUserMessage(persistSessionId, userInputText, files, undefined, accessToken)
 
             // Save agent message using tracked outputs
             const agentOutputs = currentAgentOutputsRef.current
             if (agentOutputs.length > 0) {
-              await saveAgentMessage(currentSessionId, agentOutputs, accessToken)
+              await saveAgentMessage(persistSessionId, agentOutputs, accessToken)
             }
+            console.log('[FlowBot][sendMessage] Successfully persisted messages')
           } catch (persistenceError) {
-            console.error('Error during message persistence:', persistenceError)
+            console.error('[FlowBot][sendMessage] Error during message persistence:', persistenceError)
             // Don't throw - persistence failure shouldn't break the chat experience
           }
+        } else {
+          console.warn('[FlowBot][sendMessage] No session ID available for persistence')
         }
       } catch (error) {
-        // Don't show error if request was aborted (user cancelled)
+        // Don't show error if request was aborted (user cancelled or session switched)
         if (error instanceof Error && error.name === 'AbortError') {
-          console.log('Request was cancelled by user')
+          console.log(
+            '[FlowBot][sendMessage] Request was aborted for session:',
+            requestSessionId || '(new)',
+            '- Current session:',
+            sessionIdRef.current ?? state.sessionId ?? '(none)'
+          )
+
+          // CRITICAL: Even when aborted, persist messages to the ORIGINAL session
+          // This ensures messages aren't lost when user switches sessions mid-stream
+          if (requestSessionId) {
+            try {
+              console.log(
+                '[FlowBot][sendMessage] Persisting aborted stream messages to original session:',
+                requestSessionId
+              )
+              await saveUserMessage(requestSessionId, userInputText, files, undefined, accessToken)
+
+              const agentOutputs = currentAgentOutputsRef.current
+              if (agentOutputs.length > 0) {
+                await saveAgentMessage(requestSessionId, agentOutputs, accessToken)
+                console.log(
+                  '[FlowBot][sendMessage] Successfully persisted',
+                  agentOutputs.length,
+                  'agent outputs from aborted stream'
+                )
+              }
+            } catch (persistenceError) {
+              console.error('[FlowBot][sendMessage] Error persisting aborted stream:', persistenceError)
+            }
+          }
           return
         }
-        console.error('Error sending message:', error)
+        console.error('[FlowBot][sendMessage] Error sending message for session:', requestSessionId, error)
 
         appendOutputItemToLastAgentTurn({ type: 'error' })
       } finally {
+        console.log('[FlowBot][sendMessage] Request completed for session:', requestSessionId || '(new)')
         pruneEphemeralOutputsFromLastAgentTurn()
         inFlightRef.current = false
         setIsLoading(false)
@@ -1808,7 +1889,20 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   }, [accessToken, currentPageContext, prechatContextKey, state.conversation.length, waitForIdle])
 
   const clearConversation = useCallback(() => {
+    console.log('[FlowBot][clearConversation] Clearing conversation and starting new session')
+
+    // CRITICAL: Abort any ongoing stream request when clearing conversation
+    // This prevents old session's responses from appearing in the new empty chat
+    if (abortControllerRef.current) {
+      console.log('[FlowBot][clearConversation] Aborting ongoing request')
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+      inFlightRef.current = false
+      setIsGenerating(false)
+    }
+
     setState({ conversation: [], sessionId: null, oldestMessageId: null, hasMoreHistory: false })
+    sessionIdRef.current = null
     resetAnalytics()
     if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY)
     setPrechatSuggestions([])
@@ -1900,6 +1994,18 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   /** Load a chat session by id: persist sessionId and fetch conversation from flowbot */
   const loadSession = useCallback(
     async (sessionId: string) => {
+      console.log('[FlowBot][loadSession] Loading session:', sessionId)
+
+      // CRITICAL: Abort any ongoing stream request before switching sessions
+      // This prevents old session's responses from appearing in the new session
+      if (abortControllerRef.current) {
+        console.log('[FlowBot][loadSession] Aborting ongoing request before switching sessions')
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+        inFlightRef.current = false
+        setIsGenerating(false)
+      }
+
       saveState({ conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false })
       sessionIdRef.current = sessionId
       lastFetchedSessionIdRef.current = sessionId
@@ -1908,8 +2014,9 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         const history = await loadHistory(accessToken, sessionId)
         setState(history)
         lastFetchedSessionIdRef.current = history.sessionId ?? null
+        console.log('[FlowBot][loadSession] Successfully loaded session with', history.conversation.length, 'turns')
       } catch (error) {
-        console.error('[FlowBot] Failed to load session:', error)
+        console.error('[FlowBot][loadSession] Failed to load session:', error)
         setState({ conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false })
       } finally {
         setIsLoading(false)

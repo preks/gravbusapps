@@ -11,6 +11,7 @@ import {
   resolvePageCountFromLastPageGap
 } from '../utils'
 import { NodeSelection } from '@tiptap/pm/state'
+import { Schema } from '@tiptap/pm/model'
 
 describe('resolvePageCountFromLastPageGap', () => {
   it('keeps the existing page count within the add-page hysteresis band', () => {
@@ -1563,6 +1564,124 @@ describe('calculatePageCount', () => {
         0
       )
     ).toBe(4)
+  })
+
+  describe('forced page-break boundary floor', () => {
+    const schema = new Schema({
+      nodes: {
+        doc: { content: 'block+' },
+        paragraph: {
+          group: 'block',
+          content: 'inline*',
+          toDOM: () => ['p', 0]
+        },
+        pageBreak: {
+          group: 'block',
+          atom: true,
+          selectable: false,
+          toDOM: () => ['div', { 'data-page-break': '' }]
+        },
+        text: { group: 'inline' }
+      },
+      marks: {}
+    })
+
+    function makeDocWithBreaks(breakCount: number) {
+      const children = [schema.node('paragraph', null, [schema.text('intro')])]
+      for (let index = 0; index < breakCount; index += 1) {
+        children.push(schema.node('pageBreak'))
+        children.push(schema.node('paragraph', null, [schema.text(`page-${index + 2}`)]))
+      }
+      return schema.node('doc', null, children)
+    }
+
+    function buildMeasuredView(doc: ReturnType<typeof makeDocWithBreaks>) {
+      const editorDom = document.createElement('div')
+      const paragraph = document.createElement('p')
+      paragraph.appendChild(document.createTextNode('intro'))
+      editorDom.append(paragraph)
+      document.body.appendChild(editorDom)
+
+      setRect(editorDom, { top: 0, bottom: 220 })
+      setRect(paragraph, { top: 10, bottom: 40 })
+      Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+      Object.defineProperty(paragraph, 'offsetHeight', { configurable: true, value: 30 })
+      Object.defineProperty(paragraph, 'clientHeight', { configurable: true, value: 30 })
+      Object.defineProperty(paragraph, 'scrollHeight', { configurable: true, value: 30 })
+
+      return {
+        dom: editorDom,
+        state: {
+          doc,
+          selection: { from: 1, to: 1 }
+        },
+        coordsAtPos: () => ({ top: 30, bottom: 40, left: 10, right: 10 }),
+        domAtPos: () => ({ node: paragraph, offset: 0 })
+      } as never
+    }
+
+    const testPageFormat = {
+      name: 'test',
+      width: 100,
+      height: 400,
+      margins: { top: 0, right: 0, bottom: 0, left: 0 }
+    }
+
+    it('raises the measured page count to the minimum implied by forced breaks', () => {
+      const doc = makeDocWithBreaks(2)
+      const view = buildMeasuredView(doc)
+
+      expect(calculatePageCount(view, testPageFormat, 0)).toBe(3)
+    })
+
+    it('does not shrink a measured page count that already exceeds the forced floor', () => {
+      const doc = makeDocWithBreaks(1)
+      const view = buildMeasuredView(doc)
+      const debugInfos: Array<{ forcedBoundaryMinimumPageCount: number; forcedBoundaryFloorApplied: boolean }> = []
+
+      const result = calculatePageCount(
+        view,
+        {
+          name: 'test',
+          width: 100,
+          height: 20,
+          margins: { top: 0, right: 0, bottom: 0, left: 0 }
+        },
+        0,
+        {
+          onDebug: info =>
+            debugInfos.push({
+              forcedBoundaryMinimumPageCount: info.forcedBoundaryMinimumPageCount,
+              forcedBoundaryFloorApplied: info.forcedBoundaryFloorApplied
+            })
+        }
+      )
+
+      expect(result).toBeGreaterThanOrEqual(2)
+      expect(debugInfos[debugInfos.length - 1]).toEqual({
+        forcedBoundaryMinimumPageCount: 2,
+        forcedBoundaryFloorApplied: false
+      })
+    })
+
+    it('reports the forced floor in debug info when it raises the result', () => {
+      const doc = makeDocWithBreaks(4)
+      const view = buildMeasuredView(doc)
+      const debugInfos: Array<{ forcedBoundaryMinimumPageCount: number; forcedBoundaryFloorApplied: boolean }> = []
+
+      calculatePageCount(view, testPageFormat, 0, {
+        onDebug: info =>
+          debugInfos.push({
+            forcedBoundaryMinimumPageCount: info.forcedBoundaryMinimumPageCount,
+            forcedBoundaryFloorApplied: info.forcedBoundaryFloorApplied
+          })
+      })
+
+      expect(debugInfos[debugInfos.length - 1]).toEqual({
+        forcedBoundaryMinimumPageCount: 5,
+        forcedBoundaryFloorApplied: true
+      })
+    })
   })
 })
 

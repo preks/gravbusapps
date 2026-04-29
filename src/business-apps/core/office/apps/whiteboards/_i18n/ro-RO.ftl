@@ -101,6 +101,26 @@ trashed-readonly-go-home = Mergeți la Whiteboard-uri
 trashed-readonly-restore = Restaurare
 trashed-readonly-restoring = Se restaurează...
 
+header-selected-count = { $count } selectate
+trash-bulk-restore = Restaurează
+trash-bulk-restoring = Se restaurează...
+trash-bulk-delete-permanently = Șterge permanent
+trash-bulk-restored = { $count } { $count ->
+    [one] whiteboard
+   *[other] whiteboard-uri
+  } restaurate
+trash-bulk-deleted = { $count } { $count ->
+    [one] whiteboard
+   *[other] whiteboard-uri
+  } șterse permanent
+trash-delete-dialog-title-single = Ștergi permanent?
+trash-delete-dialog-title-multiple = Ștergi permanent { $count } elemente?
+trash-delete-dialog-description-single = „{ $name }" va fi șters permanent și nu poate fi restaurat. Această acțiune nu poate fi anulată.
+trash-delete-dialog-description-multiple = { $count } elemente vor fi șterse permanent și nu pot fi restaurate. Această acțiune nu poate fi anulată.
+trash-delete-dialog-cancel = Anulează
+trash-delete-dialog-confirm = Șterge permanent
+trash-delete-dialog-deleting = Se șterge...
+
 toast-moved-to-trash = Whiteboard mutat în coș
 toast-move-to-trash-failed = Mutarea whiteboard-ului în coș a eșuat
 toast-restored = Whiteboard restaurat
@@ -138,3 +158,11 @@ whiteboard-ai-placeholder = Descrie ce să desenez...
 whiteboard-ai-attach-image = Atașează imagine
 whiteboard-ai-remove-image = Elimină imaginea
 whiteboard-ai-image-too-large = Imaginea este prea mare. Dimensiunea maximă este 4 MB.
+trash-action-restore = Restaurează
+trash-action-restoring = Se restaurează...
+trash-action-delete = Șterge permanent
+trash-action-deleting = Se șterge...
+trash-toast-restored = Whiteboard restaurat
+trash-toast-restore-failed = Restaurarea whiteboard-ului a eșuat
+trash-toast-deleted = Whiteboard șters permanent
+trash-toast-delete-failed = Ștergerea permanentă a whiteboard-ului a eșuat

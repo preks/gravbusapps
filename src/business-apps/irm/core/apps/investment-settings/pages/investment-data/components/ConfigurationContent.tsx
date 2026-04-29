@@ -3,7 +3,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormFieldsEditor } from './FormFieldsEditor'
 import { TileFieldsEditor } from './TileFieldsEditor'
 import { ProspectFieldsEditor } from './ProspectFieldsEditor'
-import { FieldGroup, ProspectField, RequiredSubtypeKey, TileField } from '../types'
+import { ConfigurationScopeSummary } from './ConfigurationScopeSummary'
+import { CatalogEntryWithConfig, FieldGroup, ProspectField, RequiredSubtypeKey, TargetLevel, TileField } from '../types'
 
 interface ConfigurationContentProps extends BusinessAppContextProps {
   configSection: 'form' | 'prospect' | 'tile'
@@ -13,6 +14,10 @@ interface ConfigurationContentProps extends BusinessAppContextProps {
   onFormFieldsChange: (fields: FieldGroup[]) => void
   onProspectFieldsChange: (fields: ProspectField[]) => void
   onTileFieldsChange: (fields: TileField[]) => void
+  targetLevel: TargetLevel
+  selectedGroup: CatalogEntryWithConfig | null
+  selectedType: CatalogEntryWithConfig | null
+  selectedLiquidFundType: CatalogEntryWithConfig | null
   isFormInherited: boolean
   isProspectInherited: boolean
   isTileInherited: boolean
@@ -38,6 +43,10 @@ export const ConfigurationContent: React.FC<ConfigurationContentProps> = ({
   onFormFieldsChange,
   onProspectFieldsChange,
   onTileFieldsChange,
+  targetLevel,
+  selectedGroup,
+  selectedType,
+  selectedLiquidFundType,
   isFormInherited,
   isProspectInherited,
   isTileInherited,
@@ -49,8 +58,24 @@ export const ConfigurationContent: React.FC<ConfigurationContentProps> = ({
   requiredSubtypeKey,
   onRequiredSubtypeKeyChange
 }) => {
+  const inheritedSections = [
+    isFormInherited ? 'form fields' : null,
+    isProspectInherited ? 'prospect fields' : null,
+    isTileInherited ? 'tile fields' : null
+  ].filter(Boolean) as string[]
+
   return (
-    <div className="gba:flex-1" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}`}>
+    <div className="gba:flex-1 gba:space-y-6" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}`}>
+      <ConfigurationScopeSummary
+        targetLevel={targetLevel}
+        selectedGroup={selectedGroup}
+        selectedType={selectedType}
+        selectedLiquidFundType={selectedLiquidFundType}
+        inheritedSections={inheritedSections}
+        inheritedFrom={inheritedFrom}
+        prefixDataTestId={prefixDataTestId}
+      />
+
       {configSection === 'form' && (
         <FormFieldsEditor
           accessToken={accessToken}

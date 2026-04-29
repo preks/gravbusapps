@@ -46,8 +46,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const [region, setRegion] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [probationEndDate, setProbationEndDate] = useState<string>('')
-  const [endDate, setEndDate] = useState<string>('')
-  const [fixedTermReason, setFixedTermReason] = useState<string>('')
   useEffect(() => {
     if (!current) {
       return
@@ -61,8 +59,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
 
     setStartDate(toDateInput(current.startDate))
     setProbationEndDate(toDateInput(current.probationEndDate))
-    setEndDate(toDateInput(current.endDate))
-    setFixedTermReason(current.additionalProperties?.fixedTermReason || '')
   }, [current])
 
   useEffect(() => {
@@ -75,6 +71,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const selectedContractType = contractType || current?.contractTypeRef || ''
   const selectedRemote = remote || current?.remoteRef || ''
   const selectedRegion = region || current?.regionRef || ''
+  const currentStartDate = current?.startDate ? current.startDate.split('T')[0] : ''
+  const currentContractTypeRef = current?.contractTypeRef || ''
 
   useEffect(() => {
     if (employmentType) {
@@ -201,15 +199,26 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   )
 
   useEffect(() => {
-    if (startDate && selectedContractType) {
-      const calculatedEndDate = calculateProbationEndDate(startDate, selectedContractType)
-      if (calculatedEndDate) {
-        setProbationEndDate(calculatedEndDate)
-      } else {
-        setProbationEndDate('')
-      }
+    if (!startDate || !selectedContractType) {
+      return
     }
-  }, [startDate, selectedContractType, calculateProbationEndDate])
+
+    // Avoid marking the form as changed on initial load.
+    // Recalculate probation date only for new records or when drivers were edited.
+    const isNewRecord = !current
+    const hasDriverChanges = startDate !== currentStartDate || selectedContractType !== currentContractTypeRef
+    if (!isNewRecord && !hasDriverChanges) {
+      return
+    }
+
+    const calculatedEndDate = calculateProbationEndDate(startDate, selectedContractType)
+    if (calculatedEndDate) {
+      setProbationEndDate(calculatedEndDate)
+      return
+    }
+
+    setProbationEndDate('')
+  }, [startDate, selectedContractType, calculateProbationEndDate, current, currentStartDate, currentContractTypeRef])
 
   const isProbationException = useMemo(() => {
     if (!startDate || !selectedContractType || !probationEndDate) return false
@@ -248,17 +257,13 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     if (!current) return true
     const curStart = current.startDate ? current.startDate.split('T')[0] : ''
     const curProb = current.probationEndDate ? current.probationEndDate.split('T')[0] : ''
-    const curEnd = current.endDate ? current.endDate.split('T')[0] : ''
-    const curFixedTermReason = current.additionalProperties?.fixedTermReason || ''
     return (
       selectedEmploymentType !== (current.employmentTypeRef || '') ||
       selectedContractType !== (current.contractTypeRef || '') ||
       selectedRemote !== (current.remoteRef || '') ||
       selectedRegion !== (current.regionRef || '') ||
       (startDate || '') !== curStart ||
-      (probationEndDate || '') !== curProb ||
-      (endDate || '') !== curEnd ||
-      fixedTermReason !== curFixedTermReason
+      (probationEndDate || '') !== curProb
     )
   }, [
     current,
@@ -267,9 +272,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     selectedRemote,
     selectedRegion,
     startDate,
-    probationEndDate,
-    endDate,
-    fixedTermReason
+    probationEndDate
   ])
 
   const validateForm = () => {
@@ -304,10 +307,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
         regionRef: selectedRegion,
         hireDate: startDate || undefined,
         probationEnd: probationEndDate || undefined,
-        exitDate: endDate || undefined,
         employeeId,
-        contractStatus: 'ACTIVE',
-        additionalProperties: fixedTermReason ? { fixedTermReason } : undefined
+        contractStatus: 'ACTIVE'
       }
     }
   }
@@ -534,43 +535,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                     {t('working-conditions-probation-exception-warning')}
                   </div>
                 )}
-              </div>
-              <div className="gba:space-y-2 gba:overflow-hidden">
-                <div className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.end_date', 'End Date')}
-                </div>
-                <DateInput
-                  type="date"
-                  value={getDateInputValue(endDate)}
-                  onChange={(value: string | [string | null, string | null] | null) => {
-                    const stringValue = typeof value === 'string' ? value : ''
-                    setEndDate(stringValue)
-                  }}
-                  disabled={!startDate || loading}
-                  min={startDate || undefined}
-                  outputFormat="iso"
-                  data-testid="flw_updateWorkingConditions_endDatePicker"
-                />
-              </div>
-
-              <div className="gba:space-y-2">
-                <div className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:working_conditions_form.fixed_term_reason',
-                    'Exit Reason'
-                  )}
-                </div>
-                <Input
-                  type="text"
-                  value={fixedTermReason}
-                  onChange={(e: any) => setFixedTermReason(e.target.value)}
-                  disabled={!endDate || loading}
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:working_conditions_form.fixed_term_reason_placeholder',
-                    'Enter reason'
-                  )}
-                  data-testid="flw_updateWorkingConditions_fixedTermReason"
-                />
               </div>
             </div>
           </div>
