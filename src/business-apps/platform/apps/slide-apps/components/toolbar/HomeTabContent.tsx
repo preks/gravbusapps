@@ -14,6 +14,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
 import { Undo2, Redo2, Copy, ClipboardPaste, Palette, Grid3X3, SpellCheck, ChevronDown } from 'lucide-react'
@@ -86,48 +90,92 @@ export function HomeTabContent({
     <div className="gba:flex gba:flex-wrap gba:items-center gba:-mt-1.5 gba:overflow-hidden">
       {/* Clipboard Group */}
       <div className={groupClass}>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onUndo}
-          disabled={!canUndo}
-          title={`${t('editor-undo') || 'Undo'} (Ctrl+Z)`}
-          data-testid={testId ? `${testId}-undo` : undefined}
-        >
-          <Undo2 className="gba:w-4 gba:h-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRedo}
-          disabled={!canRedo}
-          title={`${t('editor-redo') || 'Redo'} (Ctrl+Y)`}
-          data-testid={testId ? `${testId}-redo` : undefined}
-        >
-          <Redo2 className="gba:w-4 gba:h-4" />
-        </Button>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="gba:inline-flex">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gba:h-8 gba:min-w-8 gba:px-1"
+                  onClick={onUndo}
+                  disabled={!canUndo}
+                  data-testid={testId ? `${testId}-undo` : undefined}
+                >
+                  <Undo2 className="gba:w-4 gba:h-4" />
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>{`${t('editor-undo') || 'Undo'} (Ctrl+Z)`}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="gba:inline-flex">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gba:h-8 gba:min-w-8 gba:px-1"
+                  onClick={onRedo}
+                  disabled={!canRedo}
+                  data-testid={testId ? `${testId}-redo` : undefined}
+                >
+                  <Redo2 className="gba:w-4 gba:h-4" />
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>{`${t('editor-redo') || 'Redo'} (Ctrl+Y)`}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <div className="gba:w-px gba:h-5 gba:bg-border/60 gba:mx-1" />
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onCopy}
-          title={`${t('editor-copy') || 'Copy'} (Ctrl+C)`}
-          data-testid={testId ? `${testId}-copy` : undefined}
-        >
-          <Copy className="gba:w-4 gba:h-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onPaste}
-          disabled={!hasClipboardContent}
-          title={`${t('editor-paste') || 'Paste'} (Ctrl+V)`}
-          data-testid={testId ? `${testId}-paste` : undefined}
-        >
-          <ClipboardPaste className="gba:w-4 gba:h-4" />
-        </Button>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="gba:inline-flex">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gba:h-8 gba:min-w-8 gba:px-1"
+                  onClick={onCopy}
+                  data-testid={testId ? `${testId}-copy` : undefined}
+                >
+                  <Copy className="gba:w-4 gba:h-4" />
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>{`${t('editor-copy') || 'Copy'} (Ctrl+C)`}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="gba:inline-flex">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gba:h-8 gba:min-w-8 gba:px-1"
+                  onClick={onPaste}
+                  disabled={!hasClipboardContent}
+                  data-testid={testId ? `${testId}-paste` : undefined}
+                >
+                  <ClipboardPaste className="gba:w-4 gba:h-4" />
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>{`${t('editor-paste') || 'Paste'} (Ctrl+V)`}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Contextual Format Tools */}

@@ -5,6 +5,7 @@
  * Shows font family, size, style, alignment, and link controls.
  */
 
+import React from 'react'
 import {
   Button,
   Separator,
@@ -107,6 +108,29 @@ function NumberingStylePreview({ preview }: { preview: string }) {
   )
 }
 
+function IconTooltipButton({
+  tooltip,
+  children,
+  ...buttonProps
+}: React.ComponentProps<typeof Button> & {
+  tooltip: string
+}) {
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="gba:inline-flex">
+            <Button {...buttonProps}>{children}</Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p>{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
 export function TextFormattingTools({
   element,
   formatting,
@@ -144,7 +168,7 @@ export function TextFormattingTools({
     formatting?.strikethroughState ?? (element.textDecoration === 'line-through' ? 'on' : 'off')
 
   return (
-    <>
+    <React.Fragment>
       {/* Font Family */}
       <Select value={fontFamilyValue} onValueChange={value => value && handleUpdate({ fontFamily: value })}>
         <SelectTrigger className="gba:w-[140px] gba:h-8">
@@ -176,85 +200,89 @@ export function TextFormattingTools({
       <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
 
       {/* Bold */}
-      <Button
+      <IconTooltipButton
         variant={toggleVariantForState(boldState)}
         size="sm"
         className={toggleClassNameForState(boldState)}
         onClick={() => handleUpdate({ fontWeight: boldState === 'on' ? 'normal' : 'bold' })}
-        title={boldState === 'mixed' ? `${t('editor-bold')} (${mixedLabel})` : t('editor-bold')}
+        tooltip={boldState === 'mixed' ? `${t('editor-bold')} (${mixedLabel})` : t('editor-bold') || 'Bold'}
         data-testid={testId ? `${testId}-bold` : undefined}
       >
         <TextBIcon className="gba:w-4 gba:h-4" />
-      </Button>
+      </IconTooltipButton>
 
       {/* Italic */}
-      <Button
+      <IconTooltipButton
         variant={toggleVariantForState(italicState)}
         size="sm"
         className={toggleClassNameForState(italicState)}
         onClick={() => handleUpdate({ fontStyle: italicState === 'on' ? 'normal' : 'italic' })}
-        title={italicState === 'mixed' ? `${t('editor-italic')} (${mixedLabel})` : t('editor-italic')}
+        tooltip={italicState === 'mixed' ? `${t('editor-italic')} (${mixedLabel})` : t('editor-italic') || 'Italic'}
         data-testid={testId ? `${testId}-italic` : undefined}
       >
         <TextItalicIcon className="gba:w-4 gba:h-4" />
-      </Button>
+      </IconTooltipButton>
 
       {/* Underline */}
-      <Button
+      <IconTooltipButton
         variant={toggleVariantForState(underlineState)}
         size="sm"
         className={toggleClassNameForState(underlineState)}
         onClick={() => handleUpdate({ textDecoration: underlineState === 'on' ? 'none' : 'underline' })}
-        title={underlineState === 'mixed' ? `${t('editor-underline')} (${mixedLabel})` : t('editor-underline')}
+        tooltip={
+          underlineState === 'mixed' ? `${t('editor-underline')} (${mixedLabel})` : t('editor-underline') || 'Underline'
+        }
         data-testid={testId ? `${testId}-underline` : undefined}
       >
         <TextUnderlineIcon className="gba:w-4 gba:h-4" />
-      </Button>
+      </IconTooltipButton>
 
       {/* Strikethrough */}
-      <Button
+      <IconTooltipButton
         variant={toggleVariantForState(strikethroughState)}
         size="sm"
         className={toggleClassNameForState(strikethroughState)}
         onClick={() => handleUpdate({ textDecoration: strikethroughState === 'on' ? 'none' : 'line-through' })}
-        title={
-          strikethroughState === 'mixed' ? `${t('editor-strikethrough')} (${mixedLabel})` : t('editor-strikethrough')
+        tooltip={
+          strikethroughState === 'mixed'
+            ? `${t('editor-strikethrough')} (${mixedLabel})`
+            : t('editor-strikethrough') || 'Strikethrough'
         }
         data-testid={testId ? `${testId}-strikethrough` : undefined}
       >
         <TextStrikethroughIcon className="gba:w-4 gba:h-4" />
-      </Button>
+      </IconTooltipButton>
 
       <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
 
       {/* Alignment */}
-      <Button
+      <IconTooltipButton
         variant={resolvedTextAlign === 'left' ? 'secondary' : 'ghost'}
         size="sm"
         onClick={() => handleUpdate({ textAlign: 'left' })}
-        title={t('editor-align-left')}
+        tooltip={t('editor-align-left') || 'Align left'}
         data-testid={testId ? `${testId}-align-left` : undefined}
       >
         <TextAlignLeftIcon className="gba:w-4 gba:h-4" />
-      </Button>
-      <Button
+      </IconTooltipButton>
+      <IconTooltipButton
         variant={resolvedTextAlign === 'center' ? 'secondary' : 'ghost'}
         size="sm"
         onClick={() => handleUpdate({ textAlign: 'center' })}
-        title={t('editor-align-center')}
+        tooltip={t('editor-align-center') || 'Align center'}
         data-testid={testId ? `${testId}-align-center` : undefined}
       >
         <TextAlignCenterIcon className="gba:w-4 gba:h-4" />
-      </Button>
-      <Button
+      </IconTooltipButton>
+      <IconTooltipButton
         variant={resolvedTextAlign === 'right' ? 'secondary' : 'ghost'}
         size="sm"
         onClick={() => handleUpdate({ textAlign: 'right' })}
-        title={t('editor-align-right')}
+        tooltip={t('editor-align-right') || 'Align right'}
         data-testid={testId ? `${testId}-align-right` : undefined}
       >
         <TextAlignRightIcon className="gba:w-4 gba:h-4" />
-      </Button>
+      </IconTooltipButton>
 
       <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
 
@@ -268,7 +296,6 @@ export function TextFormattingTools({
                     variant={resolvedBulletType === 'bullet' ? 'secondary' : 'ghost'}
                     size="sm"
                     className="gba:h-8 gba:min-w-8 gba:px-1"
-                    title={t('editor-list-bullets') || 'Bullets'}
                     data-testid={testId ? `${testId}-list-bullets` : undefined}
                   >
                     <ListBulletsIcon className="gba:w-4 gba:h-4" />
@@ -316,7 +343,6 @@ export function TextFormattingTools({
                     variant={resolvedBulletType === 'number' ? 'secondary' : 'ghost'}
                     size="sm"
                     className="gba:h-8 gba:min-w-8 gba:px-1"
-                    title={t('editor-list-numbering') || 'Numbering'}
                     data-testid={testId ? `${testId}-list-numbering` : undefined}
                   >
                     <ListNumbersIcon className="gba:w-4 gba:h-4" />
@@ -364,7 +390,6 @@ export function TextFormattingTools({
                 className="gba:h-8 gba:min-w-8 gba:px-1"
                 disabled={!canAdjustIndent || resolvedIndentLevel <= 0}
                 onClick={() => handleUpdate({ indentLevel: Math.max(0, resolvedIndentLevel - 1) })}
-                title={t('editor-list-outdent') || 'Outdent'}
                 data-testid={testId ? `${testId}-list-outdent` : undefined}
               >
                 <TextOutdentIcon className="gba:w-4 gba:h-4" />
@@ -387,7 +412,6 @@ export function TextFormattingTools({
                 className="gba:h-8 gba:min-w-8 gba:px-1"
                 disabled={!canAdjustIndent}
                 onClick={() => handleUpdate({ indentLevel: resolvedIndentLevel + 1 })}
-                title={t('editor-list-indent') || 'Indent'}
                 data-testid={testId ? `${testId}-list-indent` : undefined}
               >
                 <TextIndentIcon className="gba:w-4 gba:h-4" />
@@ -404,26 +428,32 @@ export function TextFormattingTools({
 
       {/* Text Color */}
       <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            title={t('editor-text-color')}
-            data-testid={testId ? `${testId}-text-color` : undefined}
-          >
-            <PaletteIcon className="gba:w-4 gba:h-4" />
-            <div
-              className={`gba:w-3 gba:h-3 gba:ml-1 gba:rounded-sm gba:border ${
-                formatting?.isColorMixed
-                  ? 'gba:border-dashed gba:flex gba:items-center gba:justify-center gba:text-[9px] gba:text-muted-foreground'
-                  : ''
-              }`}
-              style={resolvedColor ? { backgroundColor: resolvedColor } : undefined}
-            >
-              {formatting?.isColorMixed ? 'M' : null}
-            </div>
-          </Button>
-        </PopoverTrigger>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="gba:inline-flex">
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" data-testid={testId ? `${testId}-text-color` : undefined}>
+                    <PaletteIcon className="gba:w-4 gba:h-4" />
+                    <div
+                      className={`gba:w-3 gba:h-3 gba:ml-1 gba:rounded-sm gba:border ${
+                        formatting?.isColorMixed
+                          ? 'gba:border-dashed gba:flex gba:items-center gba:justify-center gba:text-[9px] gba:text-muted-foreground'
+                          : ''
+                      }`}
+                      style={resolvedColor ? { backgroundColor: resolvedColor } : undefined}
+                    >
+                      {formatting?.isColorMixed ? 'M' : null}
+                    </div>
+                  </Button>
+                </PopoverTrigger>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>{t('editor-text-color') || 'Text color'}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <PopoverContent className="gba:w-48">
           <div className="gba:grid gba:grid-cols-6 gba:gap-1">
             {COLOR_PRESETS.map(color => (
@@ -440,15 +470,15 @@ export function TextFormattingTools({
       </Popover>
 
       {/* Link */}
-      <Button
+      <IconTooltipButton
         variant="ghost"
         size="sm"
         onClick={onShowLinkDialog}
-        title={t('editor-link')}
+        tooltip={t('editor-link') || 'Link'}
         data-testid={testId ? `${testId}-link` : undefined}
       >
         <LinkIcon className="gba:w-4 gba:h-4" />
-      </Button>
-    </>
+      </IconTooltipButton>
+    </React.Fragment>
   )
 }
