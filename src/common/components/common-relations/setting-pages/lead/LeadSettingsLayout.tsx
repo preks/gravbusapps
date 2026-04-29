@@ -3,6 +3,7 @@ import { PageLayout, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/n
 import { StarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogSettings } from '../hooks/useCatalogSettings'
+import { getCatalogUsageCheckSpecs, useCatalogDeleteAvailability } from '../hooks/useCatalogDeleteAvailability'
 import { CatalogTab } from '../components/CatalogTab'
 
 export interface LeadSettingsConfig {
@@ -34,6 +35,21 @@ export const LeadSettingsLayout: React.FC<LeadSettingsLayoutProps> = ({
   const ratings = useCatalogSettings(context, config.ratingCatalog)
   const statuses = useCatalogSettings(context, config.statusCatalog)
   const sources = useCatalogSettings(context, config.sourceCatalog)
+  const getRatingDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Rating',
+    getCatalogUsageCheckSpecs(config.ratingCatalog)
+  )
+  const getStatusDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Status',
+    getCatalogUsageCheckSpecs(config.statusCatalog)
+  )
+  const getSourceDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Source',
+    getCatalogUsageCheckSpecs(config.sourceCatalog)
+  )
 
   return (
     <PageLayout
@@ -52,15 +68,30 @@ export const LeadSettingsLayout: React.FC<LeadSettingsLayoutProps> = ({
         </TabsList>
 
         <TabsContent value="ratings">
-          <CatalogTab entityName="Rating" dataTestId={`${config.dataTestIdPrefix}-Ratings`} {...ratings} />
+          <CatalogTab
+            entityName="Rating"
+            dataTestId={`${config.dataTestIdPrefix}-Ratings`}
+            getDeleteAvailability={getRatingDeleteAvailability}
+            {...ratings}
+          />
         </TabsContent>
 
         <TabsContent value="statuses">
-          <CatalogTab entityName="Status" dataTestId={`${config.dataTestIdPrefix}-Statuses`} {...statuses} />
+          <CatalogTab
+            entityName="Status"
+            dataTestId={`${config.dataTestIdPrefix}-Statuses`}
+            getDeleteAvailability={getStatusDeleteAvailability}
+            {...statuses}
+          />
         </TabsContent>
 
         <TabsContent value="sources">
-          <CatalogTab entityName="Source" dataTestId={`${config.dataTestIdPrefix}-Sources`} {...sources} />
+          <CatalogTab
+            entityName="Source"
+            dataTestId={`${config.dataTestIdPrefix}-Sources`}
+            getDeleteAvailability={getSourceDeleteAvailability}
+            {...sources}
+          />
         </TabsContent>
       </Tabs>
     </PageLayout>

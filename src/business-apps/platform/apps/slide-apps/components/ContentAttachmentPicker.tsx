@@ -19,6 +19,7 @@ import {
 import { FileText, Table2, StickyNote, Presentation, Search, Loader2, X, Plus, ExternalLink } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { getSpreadsheetApiBasePath } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import type { ContentReference, ContentType } from '../services/SlideGenerationService'
 import translations from '../_i18n'
 
@@ -40,6 +41,7 @@ interface ContentItem {
 type TabKey = 'documents' | 'notes' | 'spreadsheets' | 'slides'
 
 const API_URL = getDocumentServiceApiUrl()
+const SPREADSHEET_API_BASE_PATH = getSpreadsheetApiBasePath()
 
 export const ContentAttachmentPicker: React.FC<ContentAttachmentPickerProps> = ({
   selectedItems,
@@ -85,7 +87,7 @@ export const ContentAttachmentPicker: React.FC<ContentAttachmentPickerProps> = (
           fetch(`${API_URL}/notes${searchParams}`, {
             headers: { Authorization: `Bearer ${accessToken}` }
           }),
-          fetch(`${API_URL}/spreadsheets${searchParams}`, {
+          fetch(`${API_URL}${SPREADSHEET_API_BASE_PATH}${searchParams}`, {
             headers: { Authorization: `Bearer ${accessToken}` }
           }),
           fetch(`${API_URL}/slides${searchParams}`, {

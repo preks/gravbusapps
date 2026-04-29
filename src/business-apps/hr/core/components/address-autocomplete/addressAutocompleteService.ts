@@ -108,10 +108,35 @@ const extractFeatures = (data: { results?: GeoapifyProperties[]; features?: Geoa
   return []
 }
 
+/**
+ * Build the first address line from Geoapify properties.
+ *
+ * Geoapify's `address_line1` is the provider's preferred display first line. For typical
+ * residential addresses it already looks like "12 Main Street". For named buildings/POIs
+ * (e.g. "Bloc C5") it contains only the building name and the actual street goes into
+ * a separate `street` field. We detect that case and combine them so Address Line 1
+ * carries enough info to identify the location ("Bloc C5, Bulevardul Mihail Kogălniceanu 12").
+ */
+const buildLine1 = (props: GeoapifyProperties): string | undefined => {
+  const street = props.street?.trim()
+  const houseNumber = props.housenumber?.trim()
+  const addressLine1 = props.address_line1?.trim()
+  const streetWithNumber = [street, houseNumber].filter(Boolean).join(' ')
+
+  if (addressLine1 && street) {
+    const alreadyHasStreet = addressLine1.toLowerCase().includes(street.toLowerCase())
+    if (!alreadyHasStreet && streetWithNumber) {
+      return `${addressLine1}, ${streetWithNumber}`
+    }
+  }
+
+  return addressLine1 || streetWithNumber || undefined
+}
+
 const featureToComponents = (props: GeoapifyProperties): AddressComponents => ({
   houseNumber: props.housenumber,
   street: props.street,
-  line1: props.address_line1 || [props.street, props.housenumber].filter(Boolean).join(' ') || undefined,
+  line1: buildLine1(props),
   postalCode: props.postcode,
   city: props.city,
   region: props.state,

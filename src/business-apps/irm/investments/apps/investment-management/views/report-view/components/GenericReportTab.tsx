@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { type UseReportFiltersReturn } from '../hooks'
+import { useReportViewPreferences } from '../hooks/useReportViewPreferences'
 import { getReportGroupConfiguration } from '../config/reportGroupConfigurations'
 import { getSubSectionsForStrategy, type SubSection } from '../utils/subSectionHelpers'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -133,6 +134,37 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
     [updateUrl]
   )
 
+  const [searchBySection, setSearchBySection] = useState<Record<string, string>>({})
+  const handleSearchChange = useCallback(
+    (search: string) => {
+      setSearchBySection(prev => ({ ...prev, [currentSection]: search }))
+    },
+    [currentSection]
+  )
+
+  const { preferencesBySection, savePreferencePatch } = useReportViewPreferences(investmentGroup, subSections)
+
+  const handleSortingChange = useCallback(
+    (sorting: Array<{ id: string; desc: boolean }>) => {
+      savePreferencePatch(currentSection, { sorting })
+    },
+    [currentSection, savePreferencePatch]
+  )
+
+  const handleFiltersChange = useCallback(
+    (filters: Record<string, any>) => {
+      savePreferencePatch(currentSection, { filters })
+    },
+    [currentSection, savePreferencePatch]
+  )
+
+  const handleVisibleColumnsChange = useCallback(
+    (visibleColumns: string[]) => {
+      savePreferencePatch(currentSection, { visibleColumns })
+    },
+    [currentSection, savePreferencePatch]
+  )
+
   // Browser back/forward navigation support
   useEffect(() => {
     const handlePopState = () => {
@@ -166,12 +198,21 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
 
   return (
     <InvestmentReportPanel
+      key={currentSection}
       investmentGroup={investmentGroup}
       groupLabel={groupLabel}
       sections={subSections}
       currentSection={currentSection}
       onSectionChange={handleSectionChange}
       showSectionBar
+      initialSearch={searchBySection[currentSection]}
+      onSearchChange={handleSearchChange}
+      initialSorting={preferencesBySection[currentSection]?.sorting ?? null}
+      onSortingChange={handleSortingChange}
+      initialFilters={preferencesBySection[currentSection]?.filters ?? {}}
+      onFiltersChange={handleFiltersChange}
+      initialVisibleColumns={preferencesBySection[currentSection]?.visibleColumns ?? null}
+      onVisibleColumnsChange={handleVisibleColumnsChange}
       reportFilters={reportFilters}
       catalogData={catalogData}
       enabled={enabled}

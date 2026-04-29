@@ -5,7 +5,7 @@ import {
   Card,
   CardContent,
   Button,
-  Input,
+  DurationInput,
   TableCell,
   TableHead,
   TableRow,
@@ -40,6 +40,32 @@ import SubmitConfirmationDialog, { HoursDiscrepancy, DiscrepancyType } from './S
 import { cn } from '@/common/utils/cn'
 
 const DATA_TEST_ID_PREFIX = 'SmartBooking'
+
+/**
+ * Cell values are durations (an amount of time worked), not clock times — so
+ * hours are not bounded by 24. We still keep both segments to two digits to
+ * match the visible "HH:MM" format and avoid nonsense input like "1245:0101".
+ * The design system's DurationInput already clamps minutes to 59 but leaves
+ * the leading hours segment unbounded; this helper caps it at 99.
+ */
+const MAX_HOURS = 99
+const MAX_MINUTES = 59
+
+/**
+ * Clamp a "HH:MM" duration string so hours stay in 00-99 and minutes in 00-59.
+ * Inputs that don't match the expected shape are returned unchanged so the
+ * caller can decide how to handle malformed values.
+ */
+const clampDurationHHMM = (value: string): string => {
+  if (!value || !value.includes(':')) return value
+  const [hPart = '0', mPart = '0'] = value.split(':')
+  const hours = Number.parseInt(hPart, 10)
+  const minutes = Number.parseInt(mPart, 10)
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return value
+  const clampedHours = Math.min(MAX_HOURS, Math.max(0, hours))
+  const clampedMinutes = Math.min(MAX_MINUTES, Math.max(0, minutes))
+  return `${clampedHours.toString().padStart(2, '0')}:${clampedMinutes.toString().padStart(2, '0')}`
+}
 
 /**
  * Convert decimal hours to HH:MM time string
@@ -823,16 +849,16 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
                         }
 
                         if (isNotCurrentMonth) {
-                          // Not current month: show disabled input with HH:MM value
                           return (
                             <div className="gba:flex gba:justify-center">
-                              <Input type="time" disabled className="gba:w-24 gba:text-center" value="00:00" />
+                              <div className="gba:w-24">
+                                <DurationInput value="00:00" onChange={() => {}} disabled />
+                              </div>
                             </div>
                           )
                         }
 
                         if (editing) {
-                          // Editable: show form field with time input
                           return (
                             <FormField
                               control={form.control}
@@ -841,15 +867,14 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
                                 <FormItem>
                                   <FormControl>
                                     <div className="gba:flex gba:justify-center">
-                                      <Input
-                                        type="time"
-                                        className="gba:w-24 gba:text-center"
-                                        data-testid={`${dataTestId}-hours-${booking.teamId}-${dayIndex}`}
-                                        value={field.value || '00:00'}
-                                        onChange={e => {
-                                          field.onChange(e.target.value)
-                                        }}
-                                      />
+                                      <div className="gba:w-24">
+                                        <DurationInput
+                                          value={field.value || '00:00'}
+                                          onChange={next => field.onChange(clampDurationHHMM(next))}
+                                          onBlur={field.onBlur}
+                                          dataTestId={`${dataTestId}-hours-${booking.teamId}-${dayIndex}`}
+                                        />
+                                      </div>
                                     </div>
                                   </FormControl>
                                   <FormMessage />

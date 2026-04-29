@@ -291,7 +291,8 @@ describe('UniverSheetGrid read-only behavior', () => {
         columnName: 'name',
         value: 'Allowed',
         univerRow: 0,
-        univerCol: 0
+        univerCol: 0,
+        sheetId: 'sheet-1'
       }
     ])
   })
@@ -374,7 +375,8 @@ describe('UniverSheetGrid read-only behavior', () => {
         columnName: 'name',
         value: 'Current',
         univerRow: 0,
-        univerCol: 0
+        univerCol: 0,
+        sheetId: 'sheet-1'
       }
     ])
   })

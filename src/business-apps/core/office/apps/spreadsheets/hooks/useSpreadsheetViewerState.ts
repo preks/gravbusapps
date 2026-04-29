@@ -113,11 +113,11 @@ export function useSpreadsheetViewerState({
   const prevSheetIdsRef = useRef<string[]>(app.sheets.map(s => s.id))
   const prevForceSyncTokenRef = useRef(forceSyncToken)
 
-  // Sync from app.sheets when:
-  // 1. User switches sheets (activeSheetId changes)
-  // 2. A new sheet was added to the app (e.g. AI Summary after loadApp)
-  // Avoid syncing on every app.sheets change so we don't overwrite in-flight automation
-  // row updates (e.g. completed task writing to report sheet) before they're persisted.
+  // Sync from app.sheets when the active sheet changes, the active sheet first
+  // appears in app.sheets, or a caller explicitly forces a resync. Do not reload
+  // the current active sheet just because another sheet was added: in multi-sheet
+  // mode app.sheets[*].data can lag behind Univer's live workbook and would
+  // overwrite the active tab with stale rows.
   useEffect(() => {
     const currentSheetIds = app.sheets.map(s => s.id)
     const sheet = app.sheets.find(s => s.id === activeSheetId)
@@ -125,12 +125,11 @@ export function useSpreadsheetViewerState({
       fallbackSheetRef.current = sheet
     }
     const activeSheetChanged = prevSheetIdRef.current !== activeSheetId
-    const newSheetAdded =
-      currentSheetIds.length > prevSheetIdsRef.current.length ||
-      currentSheetIds.some(id => !prevSheetIdsRef.current.includes(id))
+    const activeSheetFirstAppeared =
+      !prevSheetIdsRef.current.includes(activeSheetId) && currentSheetIds.includes(activeSheetId)
     const forceSyncRequested = prevForceSyncTokenRef.current !== forceSyncToken
 
-    if (activeSheetChanged || newSheetAdded || forceSyncRequested) {
+    if (activeSheetChanged || activeSheetFirstAppeared || forceSyncRequested) {
       setLocalSheetData(sortByRowOrder(sheet?.data || [], sheet))
       prevSheetIdRef.current = activeSheetId
     }
