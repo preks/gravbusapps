@@ -1,4 +1,9 @@
 import { extractTextElements, parseBodyAutofit, resolveTypeface } from '../extractText'
+import {
+  buildInheritedTextDefaultsResolver,
+  extractMasterTextStylesAdvanced,
+  extractPlaceholderStyles
+} from '../extractInheritedTextDefaults'
 import { getChild } from '../ooxmlUtils'
 import { parseXML } from '../ooxmlUtils'
 import type { OoxmlTheme, SlideRelationships } from '../types'
@@ -263,6 +268,128 @@ describe('extractTextElements', () => {
     expect(elements).toHaveLength(1)
     expect(elements[0].color).toBe('#000000')
     expect(elements[0].paragraphs?.[0].runs[0].color).toBe('#000000')
+  })
+
+  it('inherits bullet defaults from txBody lstStyle when a paragraph omits bullet markup', () => {
+    const xml = slideXml(`
+      <p:sp>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="1828800" cy="457200"/></a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:lstStyle>
+            <a:lvl1pPr>
+              <a:buChar char="◆"/>
+              <a:defRPr sz="2400"/>
+            </a:lvl1pPr>
+          </a:lstStyle>
+          <a:p>
+            <a:pPr lvl="0"/>
+            <a:r><a:t>Inherited bullet</a:t></a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+
+    const elements = extractTextElements(xml, theme, emptyRels)
+
+    expect(elements[0].paragraphs?.[0]).toEqual(expect.objectContaining({ bulletType: 'bullet', bulletChar: '◆' }))
+  })
+
+  it('inherits placeholder bullet defaults from the layout resolver', () => {
+    const slide = slideXml(`
+      <p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="2" name="Body Placeholder"/>
+          <p:cNvSpPr/>
+          <p:nvPr><p:ph type="body" idx="11"/></p:nvPr>
+        </p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="1828800" cy="457200"/></a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr/>
+          <a:p>
+            <a:pPr lvl="0"/>
+            <a:r><a:t>Resolver bullet</a:t></a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+
+    const layout = parseXML(`
+      <p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+                   xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+        <p:cSld>
+          <p:spTree>
+            <p:sp>
+              <p:nvSpPr>
+                <p:cNvPr id="14" name="Body Placeholder"/>
+                <p:cNvSpPr/>
+                <p:nvPr><p:ph type="body" idx="11"/></p:nvPr>
+              </p:nvSpPr>
+              <p:spPr/>
+              <p:txBody>
+                <a:bodyPr/>
+                <a:lstStyle>
+                  <a:lvl1pPr>
+                    <a:buChar char="→"/>
+                    <a:defRPr sz="2400"/>
+                  </a:lvl1pPr>
+                </a:lstStyle>
+              </p:txBody>
+            </p:sp>
+          </p:spTree>
+        </p:cSld>
+      </p:sldLayout>
+    `)
+
+    const resolver = buildInheritedTextDefaultsResolver(
+      extractPlaceholderStyles(layout, theme),
+      undefined,
+      extractMasterTextStylesAdvanced(
+        parseXML(
+          '<p:sldMaster xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree/></p:cSld></p:sldMaster>'
+        ),
+        theme
+      )
+    )
+
+    const elements = extractTextElements(slide, theme, emptyRels, resolver)
+
+    expect(elements[0].paragraphs?.[0]).toEqual(expect.objectContaining({ bulletType: 'bullet', bulletChar: '→' }))
+  })
+
+  it('imports numbering style, start value, and paragraph geometry', () => {
+    const xml = slideXml(`
+      <p:sp>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="1828800" cy="457200"/></a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:p>
+            <a:pPr lvl="1" marL="342900" indent="-171450">
+              <a:buAutoNum type="alphaLcParenR" startAt="3"/>
+            </a:pPr>
+            <a:r><a:t>Imported numbering</a:t></a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    `)
+
+    const elements = extractTextElements(xml, theme, emptyRels)
+    const paragraph = elements[0].paragraphs?.[0]
+
+    expect(paragraph).toEqual(
+      expect.objectContaining({
+        bulletType: 'number',
+        numberingStyle: 'alphaLcParenR',
+        numberStartAt: 3,
+        indentLevel: 1
+      })
+    )
+    expect(paragraph?.listLeftMargin).toBeCloseTo(36, 0)
+    expect(paragraph?.listIndent).toBeCloseTo(-18, 0)
   })
 })
 

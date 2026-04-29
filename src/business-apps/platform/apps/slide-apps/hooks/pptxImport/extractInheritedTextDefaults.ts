@@ -11,8 +11,9 @@
 // Without inheriting these defaults we clamp to the renderer's 32px default,
 // which is exactly what imported decks looked like before this module existed.
 
-import { getChild, resolveTextFillColor } from './ooxmlUtils'
-import type { OoxmlTextRun, OoxmlTheme, OoxmlCap } from './types'
+import { emuToPixels, getChild, resolveTextFillColor } from './ooxmlUtils'
+import type { OoxmlTextRun, OoxmlTheme, OoxmlCap, OoxmlParagraph } from './types'
+import { normalizeNumberingStyle } from '../../utils/richTextLists'
 
 // Copy of extractText.resolveTypeface — inlined here to avoid an import cycle
 // between extractText.ts and this module. The behavior must stay in sync;
@@ -28,7 +29,14 @@ function resolveTypeface(raw: string | null | undefined, theme: OoxmlTheme | und
 }
 
 /** A resolved per-level default that `extractText` can drop-in as run fallback. */
-export type InheritedLevelDefaults = Omit<OoxmlTextRun, 'text'>
+export interface InheritedLevelDefaults extends Omit<OoxmlTextRun, 'text'> {
+  bulletType?: OoxmlParagraph['bulletType']
+  bulletChar?: string
+  numberingStyle?: OoxmlParagraph['numberingStyle']
+  numberStartAt?: number
+  listLeftMargin?: number
+  listIndent?: number
+}
 
 /**
  * Per-level defaults keyed by `a:lvl{N}pPr` level index (0-based).
@@ -108,6 +116,50 @@ function parseDefRPr(defRPr: Element | undefined, theme: OoxmlTheme | undefined)
   return out
 }
 
+function parseListInfo(
+  pPr: Element | undefined
+): Pick<
+  InheritedLevelDefaults,
+  'bulletType' | 'bulletChar' | 'numberingStyle' | 'numberStartAt' | 'listLeftMargin' | 'listIndent'
+> {
+  if (!pPr) return {}
+
+  const listLeftMarginRaw = pPr.getAttribute('marL')
+  const listIndentRaw = pPr.getAttribute('indent')
+  const listLeftMargin = listLeftMarginRaw ? Number.parseInt(listLeftMarginRaw) : Number.NaN
+  const listIndent = listIndentRaw ? Number.parseInt(listIndentRaw) : Number.NaN
+  const geometry = {
+    listLeftMargin: Number.isFinite(listLeftMargin) ? emuToPixels(listLeftMargin) : undefined,
+    listIndent: Number.isFinite(listIndent) ? emuToPixels(listIndent) : undefined
+  }
+
+  const buNone = getChild(pPr, 'a:buNone')
+  if (buNone) return { bulletType: 'none', ...geometry }
+
+  const buChar = getChild(pPr, 'a:buChar')
+  if (buChar) {
+    return {
+      bulletType: 'bullet',
+      bulletChar: buChar.getAttribute('char') || '•',
+      ...geometry
+    }
+  }
+
+  const buAutoNum = getChild(pPr, 'a:buAutoNum')
+  if (buAutoNum) {
+    const startAtRaw = buAutoNum.getAttribute('startAt')
+    const startAt = startAtRaw ? Number.parseInt(startAtRaw) : Number.NaN
+    return {
+      bulletType: 'number',
+      numberingStyle: normalizeNumberingStyle(buAutoNum.getAttribute('type')) ?? 'arabicPeriod',
+      numberStartAt: Number.isFinite(startAt) ? startAt : undefined,
+      ...geometry
+    }
+  }
+
+  return geometry
+}
+
 /** Merge `low` under `high`: fields already set on `high` win. */
 function mergeDefaults(high: InheritedLevelDefaults, low: InheritedLevelDefaults): InheritedLevelDefaults {
   return {
@@ -118,7 +170,13 @@ function mergeDefaults(high: InheritedLevelDefaults, low: InheritedLevelDefaults
     italic: high.italic ?? low.italic,
     underline: high.underline ?? low.underline,
     strikethrough: high.strikethrough ?? low.strikethrough,
-    cap: high.cap ?? low.cap
+    cap: high.cap ?? low.cap,
+    bulletType: high.bulletType ?? low.bulletType,
+    bulletChar: high.bulletChar ?? low.bulletChar,
+    numberingStyle: high.numberingStyle ?? low.numberingStyle,
+    numberStartAt: high.numberStartAt ?? low.numberStartAt,
+    listLeftMargin: high.listLeftMargin ?? low.listLeftMargin,
+    listIndent: high.listIndent ?? low.listIndent
   }
 }
 
@@ -141,7 +199,10 @@ function parseStyleElement(styleEl: Element | undefined, theme: OoxmlTheme | und
     if (!match) continue
     const level = Number.parseInt(match[1]) - 1
     const defRPr = getChild(child, 'a:defRPr')
-    const defaults = parseDefRPr(defRPr, theme)
+    const defaults = {
+      ...parseDefRPr(defRPr, theme),
+      ...parseListInfo(child)
+    }
     if (Object.keys(defaults).length > 0) {
       const existing = result.get(level)
       result.set(level, existing ? mergeDefaults(defaults, existing) : defaults)

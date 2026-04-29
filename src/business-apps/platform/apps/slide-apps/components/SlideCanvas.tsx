@@ -24,8 +24,8 @@ import type {
   Position,
   Size
 } from './slideElements'
-import { gradientToCss, getImageCropStyles, textTransformToCss, textElementStubForShapeInText } from './slideElements'
-import { ensureImportedWebFonts, resolveFontStack } from './fontStack'
+import { gradientToCss, getImageCropStyles, textElementStubForShapeInText } from './slideElements'
+import { ensureImportedWebFonts } from './fontStack'
 
 // Webfonts commonly referenced by imported decks (Roboto, Funnel Display,
 // Source Sans Pro, …) are not part of the default browser font set. Loading
@@ -38,6 +38,7 @@ import { SlideChartRenderer } from './SlideChartRenderer'
 import { TextWithLinks } from './TextWithLinks'
 import { RichTextContent } from './RichTextContent'
 import { InlineRichTextEditor } from './InlineRichTextEditor'
+import { getRichTextBoxStyle } from './richTextStyles'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import { ShapePointEditor } from './ShapePointEditor'
 import { SlideStaticElementContent } from './SlideStaticElementContent'
@@ -307,7 +308,9 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     const [multiDragStart, setMultiDragStart] = useState<Map<string, Position>>(new Map())
 
     // Single-click-to-edit: track mousedown origin to detect click vs drag
-    const mouseDownElementRef = useRef<{ id: string; x: number; y: number; type: string } | null>(null)
+    const mouseDownElementRef = useRef<{ id: string; x: number; y: number; type: string; wasSelected: boolean } | null>(
+      null
+    )
     const CLICK_MOVE_THRESHOLD = 4
 
     // Tracks which element's textarea has been initialized (cursor placed at end)
@@ -458,11 +461,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       const target = e.target as HTMLElement
       const isClickOnElement = target.closest('[data-slide-element]')
 
-      // Single-click-to-edit: if mouseDown ref survived (mouse didn't drag), enter text editing
+      // A plain click selects first; a second plain click on the already
+      // selected text/code element enters editing. Double-click still edits
+      // immediately via the element-level handler below.
       const mdRef = mouseDownElementRef.current
       mouseDownElementRef.current = null
 
-      if (mdRef && (mdRef.type === 'text' || mdRef.type === 'code')) {
+      if (mdRef && mdRef.wasSelected && (mdRef.type === 'text' || mdRef.type === 'code')) {
         if (inlineEditing?.editingTextId && inlineEditing.editingTextId !== mdRef.id) {
           textareaInitializedRef.current = null
           inlineEditing.onFinishEditing()
@@ -600,9 +605,17 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       })
       setMultiDragStart(positions)
 
-      // Track mousedown for single-click-to-edit detection (plain click on single element only)
+      // Track mousedown so a follow-up plain click on an already selected text
+      // or code element can enter editing without conflating first-click
+      // selection with edit mode.
       if (!isShiftKey && !isCtrlKey && effectiveSelection.size === 1) {
-        mouseDownElementRef.current = { id: element.id, x: e.clientX, y: e.clientY, type: element.type }
+        mouseDownElementRef.current = {
+          id: element.id,
+          x: e.clientX,
+          y: e.clientY,
+          type: element.type,
+          wasSelected: isSelected
+        }
       } else {
         mouseDownElementRef.current = null
       }
@@ -1478,23 +1491,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                       </div>
                     </>
                   ) : (
-                    <div
-                      style={{
-                        width: '100%',
-                        fontFamily: resolveFontStack(textEl.fontFamily),
-                        fontSize: textEl.fontSize,
-                        fontWeight: textEl.fontWeight,
-                        fontStyle: textEl.fontStyle,
-                        textDecoration: textEl.textDecoration,
-                        textAlign: textEl.textAlign,
-                        color: textEl.color,
-                        lineHeight: textEl.lineHeight,
-                        letterSpacing: textEl.letterSpacing,
-                        ...textTransformToCss(textEl.textTransform),
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word'
-                      }}
-                    >
+                    <div style={getRichTextBoxStyle(textEl)}>
                       {textEl.paragraphs && textEl.paragraphs.length > 0 ? (
                         <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
                       ) : (
@@ -1684,23 +1681,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                     ) : st.paragraphs && st.paragraphs.length > 0 ? (
                       <RichTextContent element={te} paragraphs={st.paragraphs} />
                     ) : (
-                      <div
-                        style={{
-                          width: '100%',
-                          fontFamily: resolveFontStack(te.fontFamily),
-                          fontSize: te.fontSize,
-                          fontWeight: te.fontWeight,
-                          fontStyle: te.fontStyle,
-                          textDecoration: te.textDecoration,
-                          textAlign: te.textAlign,
-                          color: te.color,
-                          lineHeight: te.lineHeight,
-                          letterSpacing: te.letterSpacing,
-                          ...textTransformToCss(te.textTransform),
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word'
-                        }}
-                      >
+                      <div style={getRichTextBoxStyle(te)}>
                         <TextWithLinks
                           content={st.content}
                           links={st.links ?? []}
