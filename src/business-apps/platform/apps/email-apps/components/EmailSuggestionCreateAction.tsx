@@ -3,7 +3,7 @@
  * Does not auto-run integrations; server output is treated as untrusted proposal.
  */
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Dialog,
@@ -26,8 +26,12 @@ import type { QuickTaskFormData } from '@/common/components/flow/flow-quick-task
 import type { EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { getCflowEndpoint } from '@/business-apps/core/every/apps/every-api/utils/config'
 import translations from '../_i18n'
-import type { EmailSummarizeSuggestion, EmailMessage } from '../types'
-import { buildSuggestionActivityContextData, isSuggestionConfidentEnough } from '../utils/suggestionActivityContext'
+import type { EmailAccount, EmailMessage, EmailSummarizeSuggestion } from '../types'
+import {
+  buildSuggestionActivityContextData,
+  buildSuggestionDescription,
+  isSuggestionConfidentEnough
+} from '../utils/suggestionActivityContext'
 import {
   parseAssigneeUserIdsFromMetadata,
   resolveSuggestionIntegrationKind,
@@ -41,6 +45,9 @@ import {
 } from '../utils/emailSuggestionQuickTaskHelpers'
 import { stableEmailSuggestionKey } from '../utils/emailSummarizeSuggestionUtils'
 import { EmailSuggestionQuickTaskAssigneePicker } from './EmailSuggestionQuickTaskAssigneePicker'
+import { EmailCrmEntityPicker } from './EmailCrmEntityPicker'
+import { buildActivityPayload } from './CrmEntityRow'
+import type { CrmEntityMatch } from '../hooks/useEmailCrmSuggestions'
 
 export interface EmailSuggestionCreateActionProps {
   suggestion: EmailSummarizeSuggestion
@@ -50,6 +57,10 @@ export interface EmailSuggestionCreateActionProps {
   threadId?: string
   /** Platform user id for execute-dynamic `initiatorId` (e.g. `BusinessAppContextProps.userInfo.id`) */
   initiatorUserId?: string
+  /** Active email account, used by the optional CRM entity picker for counterparty matching */
+  activeAccount?: EmailAccount | null
+  /** Current user employee id, used to populate `ownerEmployee` on entity-bound activities */
+  employeeId?: string
   variant: 'thread' | 'crm' | 'reader'
   'data-testid'?: string
 }
@@ -61,6 +72,8 @@ export const EmailSuggestionCreateAction: React.FC<EmailSuggestionCreateActionPr
   noSubjectLabel,
   threadId,
   initiatorUserId,
+  activeAccount,
+  employeeId,
   variant,
   'data-testid': testId = 'email-suggestion-create'
 }) => {
@@ -68,11 +81,30 @@ export const EmailSuggestionCreateAction: React.FC<EmailSuggestionCreateActionPr
   const [dialogOpen, setDialogOpen] = useState(false)
   const [submittingQuickTask, setSubmittingQuickTask] = useState(false)
   const [selectedEmployees, setSelectedEmployees] = useState<EmployeeLiteOption[]>([])
+  const [selectedEntity, setSelectedEntity] = useState<CrmEntityMatch | null>(null)
 
   const kind: EmailSuggestionIntegrationKind = resolveSuggestionIntegrationKind(suggestion.integrationTarget)
   const confident = isSuggestionConfidentEnough(suggestion)
-  const contextData = buildSuggestionActivityContextData(suggestion, message, noSubjectLabel, threadId)
   const suggestionKey = stableEmailSuggestionKey(suggestion)
+
+  const contextData = useMemo<Record<string, any>>(() => {
+    if (kind !== 'quickTask' && selectedEntity) {
+      return buildActivityPayload(
+        selectedEntity,
+        message,
+        buildSuggestionDescription(suggestion, message),
+        employeeId,
+        threadId,
+        noSubjectLabel
+      )
+    }
+    return buildSuggestionActivityContextData(suggestion, message, noSubjectLabel, threadId) as Record<string, any>
+  }, [kind, selectedEntity, suggestion, message, employeeId, threadId, noSubjectLabel])
+
+  useEffect(() => {
+    if (!dialogOpen) return
+    setSelectedEntity(null)
+  }, [dialogOpen, suggestionKey])
 
   const buttonVariant = variant === 'thread' ? 'outline' : 'secondary'
   const buttonClass =
@@ -241,6 +273,18 @@ export const EmailSuggestionCreateAction: React.FC<EmailSuggestionCreateActionPr
             />
           ) : null}
 
+          {kind !== 'quickTask' ? (
+            <EmailCrmEntityPicker
+              message={message}
+              accessToken={accessToken}
+              activeAccount={activeAccount}
+              employeeId={employeeId}
+              selectedEntity={selectedEntity}
+              onSelectEntity={setSelectedEntity}
+              data-testid={`${testId}-entity-picker`}
+            />
+          ) : null}
+
           <DialogFooter className="gba:gap-2">
             <Button
               type="button"
@@ -266,7 +310,7 @@ export const EmailSuggestionCreateAction: React.FC<EmailSuggestionCreateActionPr
                 contexts={[
                   {
                     context: FlowContextName.customerActivityCreate,
-                    contextData: contextData as Record<string, any>
+                    contextData
                   }
                 ]}
                 accessToken={accessToken}

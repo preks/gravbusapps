@@ -298,6 +298,8 @@ export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItem
             noSubjectLabel={createActionContext.noSubjectLabel}
             threadId={createActionContext.threadId}
             initiatorUserId={createActionContext.initiatorUserId}
+            activeAccount={createActionContext.activeAccount}
+            employeeId={createActionContext.employeeId}
             variant={variant}
             data-testid={`${testId}-create`}
           />
