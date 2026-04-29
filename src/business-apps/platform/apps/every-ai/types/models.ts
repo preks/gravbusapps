@@ -493,6 +493,13 @@ export type ReasoningStepOutput = {
   error?: string | null
   started_at?: number | null
   ended_at?: number | null
+  /**
+   * Free-form assistant commentary captured for this step (the model
+   * "thinking out loud" before deciding to call this tool). Populated
+   * either inline by the backend or by `applyNarrationAttach` when a
+   * streaming text bubble is reclassified as narration of this step.
+   */
+  narration?: string | null
 }
 
 /**
@@ -507,6 +514,7 @@ export type ReasoningStepUpdateOutput = {
   result?: unknown
   error?: string | null
   ended_at?: number | null
+  narration?: string | null
 }
 
 /**
@@ -519,6 +527,22 @@ export type TextDeltaOutput = {
   type: 'text_delta'
   delta: string
   run_id?: string | null
+}
+
+/**
+ * Sent by the backend when a streaming `answer` bubble is actually narration
+ * of a reasoning step rather than the final answer. The hook locates the
+ * streaming bubble whose `__runId` matches `text_item_id`, moves its text
+ * into the matching step's `narration` field, and removes the bubble.
+ *
+ * This is what keeps the chat tidy when the agent "thinks out loud" between
+ * tool calls — only the LAST surviving streaming bubble (the one with no
+ * subsequent tool call) ends up displayed as the answer.
+ */
+export type NarrationAttachOutput = {
+  type: 'narration_attach'
+  text_item_id: string
+  step_id: string
 }
 
 export type OutputItem =
@@ -534,6 +558,7 @@ export type OutputItem =
   | ReasoningStepOutput
   | ReasoningStepUpdateOutput
   | TextDeltaOutput
+  | NarrationAttachOutput
 
 export type ChatOutput = {
   items: OutputItem[]
