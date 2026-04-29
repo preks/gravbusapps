@@ -12217,25 +12217,25 @@
     ]
   },
   "core/office/apps/spreadsheets": {
-    "bitbucketBuildNumber": 11544,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11544/",
-    "chunkJsBytes": 1347141,
+    "bitbucketBuildNumber": 11547,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11547/",
+    "chunkJsBytes": 1350599,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1764944,
-        "gzip": 375149,
+        "rendered": 1774080,
+        "gzip": 376723,
         "leaves": [
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppViewer.tsx",
-            "rendered": 207826,
-            "gzip": 39187
+            "rendered": 213898,
+            "gzip": 40314
           },
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/components/UniverSheetGrid.tsx",
-            "rendered": 148743,
-            "gzip": 31948
+            "rendered": 151270,
+            "gzip": 32316
           }
         ]
       },
@@ -87947,8 +87947,8 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11546,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11546/",
+    "bitbucketBuildNumber": 11547,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11547/",
     "chunkJsBytes": 1834466,
     "top": [
       {
@@ -100403,25 +100403,25 @@
     ]
   },
   "platform/apps/spreadsheet-apps": {
-    "bitbucketBuildNumber": 11530,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11530/",
-    "chunkJsBytes": 1347135,
+    "bitbucketBuildNumber": 11547,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11547/",
+    "chunkJsBytes": 1350530,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1764944,
-        "gzip": 375149,
+        "rendered": 1774080,
+        "gzip": 376723,
         "leaves": [
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppViewer.tsx",
-            "rendered": 207826,
-            "gzip": 39187
+            "rendered": 213898,
+            "gzip": 40314
           },
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/components/UniverSheetGrid.tsx",
-            "rendered": 148743,
-            "gzip": 31948
+            "rendered": 151270,
+            "gzip": 32316
           }
         ]
       },
@@ -103745,7 +103745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-29T10:09:28.926Z",
+    "generatedAt": "2026-04-29T10:12:53.698Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
