@@ -12217,8 +12217,8 @@
     ]
   },
   "core/office/apps/spreadsheets": {
-    "bitbucketBuildNumber": 11547,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11547/",
+    "bitbucketBuildNumber": 11548,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11548/",
     "chunkJsBytes": 1350599,
     "top": [
       {
@@ -42799,20 +42799,20 @@
     ]
   },
   "hr/core/apps/my-time": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 622160,
+    "bitbucketBuildNumber": 11548,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11548/",
+    "chunkJsBytes": 624138,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 447370,
-        "gzip": 221061,
+        "rendered": 449736,
+        "gzip": 222195,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/fallback/decorative-dark.jpg.js",
-            "rendered": 232900,
-            "gzip": 125445
+            "rendered": 232902,
+            "gzip": 125448
           },
           {
             "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/decorative-dark.webp.js",
@@ -42824,31 +42824,31 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 259062,
-        "gzip": 65192,
+        "rendered": 259671,
+        "gzip": 65370,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/components/AbsenceCalendar.tsx",
-            "rendered": 30949,
-            "gzip": 5891
+            "rendered": 30953,
+            "gzip": 5893
           },
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/components/SmartBooking.tsx",
-            "rendered": 29336,
-            "gzip": 5607
+            "rendered": 29936,
+            "gzip": 5773
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
-        "rendered": 41539,
-        "gzip": 10133,
+        "rendered": 41541,
+        "gzip": 10135,
         "leaves": [
           {
             "name": "src/common/dev-report/DevReportDot.tsx",
-            "rendered": 27345,
-            "gzip": 5052
+            "rendered": 27347,
+            "gzip": 5054
           },
           {
             "name": "src/common/dev-report/screenshot.ts",
@@ -42896,12 +42896,12 @@
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
-        "rendered": 15767,
+        "rendered": 15769,
         "gzip": 3736,
         "leaves": [
           {
             "name": "src/components/share-entity/ShareEntityDialog.tsx",
-            "rendered": 15767,
+            "rendered": 15769,
             "gzip": 3736
           }
         ]
@@ -47362,9 +47362,9 @@
     ]
   },
   "hr/core/forms/change-employee-address": {
-    "bitbucketBuildNumber": 11511,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11511/",
-    "chunkJsBytes": 491650,
+    "bitbucketBuildNumber": 11548,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11548/",
+    "chunkJsBytes": 491897,
     "top": [
       {
         "kind": "bucket",
@@ -47387,8 +47387,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 243843,
-        "gzip": 60375,
+        "rendered": 244353,
+        "gzip": 60500,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/_i18n/ro-RO.ftl?raw",
@@ -87947,8 +87947,8 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11547,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11547/",
+    "bitbucketBuildNumber": 11548,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11548/",
     "chunkJsBytes": 1834466,
     "top": [
       {
@@ -100403,8 +100403,8 @@
     ]
   },
   "platform/apps/spreadsheet-apps": {
-    "bitbucketBuildNumber": 11547,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11547/",
+    "bitbucketBuildNumber": 11548,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11548/",
     "chunkJsBytes": 1350530,
     "top": [
       {
@@ -103745,7 +103745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-29T10:12:53.698Z",
+    "generatedAt": "2026-04-29T10:14:32.467Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
