@@ -18,6 +18,8 @@ describe('UniverSheetGrid fallback cell derivation', () => {
   it('treats clear-like commands as nulling mutations', () => {
     expect(isClearLikeMutationCommand('sheet.clear-range')).toBe(true)
     expect(isClearLikeMutationCommand('DeleteSelectionCommand')).toBe(true)
+    expect(isClearLikeMutationCommand('sheet.mutation.move-range')).toBe(true)
+    expect(isClearLikeMutationCommand('sheet.command.move-selection')).toBe(false)
     expect(isClearLikeMutationCommand('SetRangeValuesMutation')).toBe(false)
   })
 
@@ -39,6 +41,23 @@ describe('UniverSheetGrid fallback cell derivation', () => {
       39: { 0: null, 1: null },
       40: { 0: null, 1: null }
     })
+  })
+
+  it('keeps live values while marking only missing cells as null for clear fallback mutations', () => {
+    const worksheet = makeWorksheet({
+      '9:0': { v: 'moved' },
+      '9:1': { v: 10 }
+    })
+
+    const derived = deriveCellMatrixFromRanges(
+      worksheet,
+      [{ startRow: 0, endRow: 9, startColumn: 0, endColumn: 1 }],
+      10000,
+      true
+    )
+
+    expect(derived?.[0]).toEqual({ 0: null, 1: null })
+    expect(derived?.[9]).toEqual({ 0: 'moved', 1: 10 })
   })
 
   it('still skips undefined cells for non-clear fallback mutations', () => {

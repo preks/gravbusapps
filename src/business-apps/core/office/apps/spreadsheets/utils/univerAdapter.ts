@@ -434,12 +434,9 @@ function getWorksheetFromWorkbookSnapshot(
   const sheets = workbookSnapshot.sheets as Record<string, Record<string, unknown>> | undefined
   if (!sheets || typeof sheets !== 'object') return undefined
   if (sheets[sheetId] != null) return sheets[sheetId] as Record<string, unknown>
-  const order = workbookSnapshot.sheetOrder as string[] | undefined
-  if (Array.isArray(order) && order[0] && sheets[order[0]] != null) {
-    return sheets[order[0]] as Record<string, unknown>
-  }
-  const first = Object.values(sheets)[0]
-  return first as Record<string, unknown> | undefined
+  return Object.values(sheets).find(worksheet => String(worksheet?.id ?? '') === sheetId) as
+    | Record<string, unknown>
+    | undefined
 }
 
 /** Heuristic: how much formatting exists (workbook `styles` + per-cell `s` refs) for bootstrap fallback. */
@@ -529,6 +526,21 @@ const comparableUniverCellPayload = (cell: UniverCellData | undefined): string =
   return ''
 }
 
+const countComparableCellValues = (cellData: UniverSheetCellData | undefined): number => {
+  if (!cellData || typeof cellData !== 'object') return 0
+  let count = 0
+  for (const rowCells of Object.values(cellData)) {
+    if (!rowCells || typeof rowCells !== 'object') continue
+    for (const cell of Object.values(rowCells)) {
+      if (comparableUniverCellPayload(cell).length > 0) count += 1
+    }
+  }
+  return count
+}
+
+const countViewerRowCellValues = (rows: Record<string, unknown>[], visibleColumns: SpreadsheetColumn[]): number =>
+  countComparableCellValues(buildCellData(rows, visibleColumns))
+
 /**
  * Returns true when persisted Univer cellData disagrees with row-authoritative values
  * derived from viewer rows (same rules as {@link buildWorkbookSnapshot}).
@@ -569,6 +581,17 @@ export function workbookSnapshotMismatchesViewerRows(
 
 function shouldClearSnapshotCellValue(cell: UniverCellData | undefined): boolean {
   return comparableUniverCellPayload(cell) !== ''
+}
+
+function clearSnapshotCellValuePreservingFormatting(cell: UniverCellData): UniverCellData | undefined {
+  if (!cell || typeof cell !== 'object' || Array.isArray(cell)) return undefined
+  const next = { ...cell }
+  delete next.v
+  delete next.f
+  delete next.m
+  delete next.p
+  delete next.ct
+  return Object.keys(next).length > 0 ? next : undefined
 }
 
 /**
@@ -626,7 +649,12 @@ export function mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
 
       const priorCell = mergedRow[colIndex]
       if (shouldClearSnapshotCellValue(priorCell)) {
-        delete mergedRow[colIndex]
+        const styleOnlyCell = clearSnapshotCellValuePreservingFormatting(priorCell)
+        if (styleOnlyCell) {
+          mergedRow[colIndex] = styleOnlyCell
+        } else {
+          delete mergedRow[colIndex]
+        }
       }
     }
 
@@ -734,10 +762,6 @@ export function normalizeWorkbookSnapshotToAppSheets(
   const usedSourceKeys = new Set<string>()
   const nextSheets: Record<string, Record<string, unknown>> = {}
   const sourceEntries = Object.entries(sourceSheets)
-  const sourceSheetOrder = Array.isArray(cloned.sheetOrder) ? cloned.sheetOrder.map(id => String(id)) : []
-  const sourceOrderEntries = sourceSheetOrder
-    .map(sheetId => [sheetId, sourceSheets[sheetId]])
-    .filter((entry): entry is [string, UniverWorksheetData | Record<string, unknown>] => Boolean(entry[1]))
 
   const takeSourceEntry = (
     targetSheet: SpreadsheetSheet
@@ -766,14 +790,6 @@ export function normalizeWorkbookSnapshotToAppSheets(
         )
       })
       if (byName) return byName
-    }
-
-    const targetIndex = appSheets.findIndex(sheet => sheet.id === targetSheet.id)
-    if (targetIndex >= 0 && targetIndex < sourceOrderEntries.length) {
-      const ordered = sourceOrderEntries[targetIndex]
-      if (ordered && !usedSourceKeys.has(ordered[0])) {
-        return ordered
-      }
     }
 
     return null
@@ -886,7 +902,9 @@ export function buildMultiSheetWorkbookFromAppSheets(options: {
       // prefer the snapshot as a recovery fallback. This happens in the multi-sheet
       // race where a non-active sheet's edits were checkpointed into the workbook
       // blob before the per-sheet row model finished persisting.
-      if (!(sheetRows.length === 0 && worksheetHasCellData(nextWorksheet))) {
+      const snapshotValueCount = countComparableCellValues(nextWorksheet.cellData)
+      const rowValueCount = countViewerRowCellValues(sheetRows, visibleColumns)
+      if (rowValueCount >= snapshotValueCount && !(sheetRows.length === 0 && worksheetHasCellData(nextWorksheet))) {
         const mergedWorkbook = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
           {
             id: workbookId,

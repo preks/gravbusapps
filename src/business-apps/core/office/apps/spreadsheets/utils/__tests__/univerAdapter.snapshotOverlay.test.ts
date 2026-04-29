@@ -238,6 +238,39 @@ describe('univerAdapter snapshot row overlay', () => {
     expect(ws?.cellData?.[13]?.[0]).toBeUndefined()
     expect(workbookSnapshotMismatchesViewerRows(merged, sheetId, viewerRows, columns)).toBe(false)
   })
+
+  it('clears stale values without dropping formatting-only cell data', () => {
+    const viewerRows: Record<string, unknown>[] = [{ alpha: 'a' }]
+    const snapshot: Record<string, unknown> = {
+      id: 'wb',
+      name: 'W',
+      sheetOrder: [sheetId],
+      sheets: {
+        [sheetId]: {
+          id: sheetId,
+          name: 'S',
+          cellData: {
+            0: {
+              0: { v: 'a' },
+              1: { v: 'stale', s: 'border-style', bd: { t: { s: 1 } } }
+            }
+          }
+        }
+      }
+    }
+
+    const merged = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(snapshot, sheetId, viewerRows, columns)
+    const ws = (
+      merged.sheets as Record<
+        string,
+        { cellData?: Record<number, Record<number, { v?: unknown; s?: string; bd?: unknown }>> }
+      >
+    )[sheetId]
+
+    expect(ws?.cellData?.[0]?.[1]?.v).toBeUndefined()
+    expect(ws?.cellData?.[0]?.[1]?.s).toBe('border-style')
+    expect(ws?.cellData?.[0]?.[1]?.bd).toEqual({ t: { s: 1 } })
+  })
 })
 
 describe('buildMultiSheetWorkbookFromAppSheets', () => {
@@ -272,6 +305,45 @@ describe('buildMultiSheetWorkbookFromAppSheets', () => {
     })
 
     expect(workbook.sheets['sheet-1']?.cellData?.[0]?.[0]?.v).toBe('row-value')
+  })
+
+  it('keeps richer bootstrap worksheet data when canonical rows lag behind', () => {
+    const sheet1Columns = [textCol('s1c0', 'alpha', 0), textCol('s1c1', 'beta', 1)]
+    const appSheets = [makeSheet('sheet-1', 'Sheet1', sheet1Columns, [{ alpha: 'row-value' }])]
+
+    const richerBootstrap: Record<string, unknown> = {
+      id: 'wb-sheet-1',
+      name: 'Sheet1',
+      sheetOrder: ['sheet-1'],
+      sheets: {
+        'sheet-1': {
+          id: 'sheet-1',
+          name: 'Sheet1',
+          cellData: {
+            0: {
+              0: { v: 'row-value' },
+              1: { v: 'snapshot-only', s: 'border-style' }
+            },
+            4: {
+              0: { v: 'drag-filled' }
+            }
+          },
+          columnCount: 2
+        }
+      }
+    }
+
+    const workbook = buildMultiSheetWorkbookFromAppSheets({
+      appSheets,
+      activeSheetId: 'sheet-1',
+      getRowsForSheet: sheetId => appSheets.find(sheet => sheet.id === sheetId)?.data ?? [],
+      singleWorksheetBootstrap: richerBootstrap,
+      appId: 'app-1'
+    })
+
+    expect(workbook.sheets['sheet-1']?.cellData?.[0]?.[1]?.v).toBe('snapshot-only')
+    expect(workbook.sheets['sheet-1']?.cellData?.[0]?.[1]?.s).toBe('border-style')
+    expect(workbook.sheets['sheet-1']?.cellData?.[4]?.[0]?.v).toBe('drag-filled')
   })
 
   it('does not reuse another sheet bootstrap when the active sheet changes', () => {
@@ -424,6 +496,36 @@ describe('normalizeWorkbookSnapshotToAppSheets', () => {
     expect(normalizedSheets['sheet-2']?.id).toBe('sheet-2')
     expect(normalizedSheets['sheet-2']?.name).toBe('Sheet2')
     expect(normalizedSheets['sheet-2']?.cellData?.[0]?.[0]?.v).toBe('preserved')
+  })
+
+  it('does not map an unmatched single worksheet onto the first app sheet by index', () => {
+    const appSheets = [
+      makeSheet('sheet-1', 'Sheet1', [textCol('s1c0', 'alpha', 0)], []),
+      makeSheet('sheet-2', 'Sheet2', [textCol('s2c0', 'beta', 0)], [])
+    ]
+
+    const snapshot: Record<string, unknown> = {
+      id: 'wb',
+      name: 'Workbook',
+      sheetOrder: ['sheet-2'],
+      sheets: {
+        'sheet-2': {
+          id: 'sheet-2',
+          name: 'Sheet2',
+          cellData: { 0: { 0: { v: 'sheet-2-only' } } }
+        }
+      }
+    }
+
+    const normalized = normalizeWorkbookSnapshotToAppSheets(snapshot, appSheets)
+    const normalizedSheets = normalized.sheets as Record<
+      string,
+      { id?: string; name?: string; cellData?: Record<number, Record<number, { v?: string }>> }
+    >
+
+    expect(normalized.sheetOrder).toEqual(['sheet-2'])
+    expect(normalizedSheets['sheet-1']).toBeUndefined()
+    expect(normalizedSheets['sheet-2']?.cellData?.[0]?.[0]?.v).toBe('sheet-2-only')
   })
 
   it('preserves workbook styles while remapping a temporary worksheet id', () => {
