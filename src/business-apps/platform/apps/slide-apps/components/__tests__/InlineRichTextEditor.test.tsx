@@ -71,6 +71,103 @@ describe('InlineRichTextEditor', () => {
     expect(onFinishEditing).toHaveBeenCalled()
   })
 
+  it('renders bullet markers without serializing them back into the text value', () => {
+    const onTextChange = jest.fn()
+
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement({
+          content: 'Inventing Enterprise Agents',
+          paragraphs: [
+            {
+              bulletType: 'bullet',
+              bulletChar: '→',
+              indentLevel: 1,
+              runs: [{ text: 'Inventing Enterprise Agents' }]
+            }
+          ]
+        })}
+        onTextChange={onTextChange}
+        onSelectionChange={() => {}}
+        onFinishEditing={() => {}}
+      />
+    )
+
+    const editor = screen.getByTestId('inline-rich-text-editor') as HTMLDivElement
+    const bullet = editor.querySelector<HTMLElement>('[data-editor-bullet="true"]')
+    const paragraph = editor.querySelector<HTMLElement>('[data-paragraph-start]')
+
+    expect(bullet).toHaveTextContent('→')
+    expect(paragraph).toHaveStyle({ paddingLeft: '18px', display: 'flex' })
+
+    fireEvent.input(editor)
+
+    expect(onTextChange).toHaveBeenLastCalledWith('Inventing Enterprise Agents')
+  })
+
+  it('renders formatted numbering markers from paragraph metadata', () => {
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement({
+          content: 'First\nSecond',
+          paragraphs: [
+            {
+              bulletType: 'number',
+              numberingStyle: 'romanUcPeriod',
+              numberStartAt: 4,
+              runs: [{ text: 'First' }]
+            },
+            {
+              bulletType: 'number',
+              numberingStyle: 'romanUcPeriod',
+              runs: [{ text: 'Second' }]
+            }
+          ]
+        })}
+        onTextChange={() => {}}
+        onSelectionChange={() => {}}
+        onFinishEditing={() => {}}
+      />
+    )
+
+    const bullets = Array.from(
+      screen.getByTestId('inline-rich-text-editor').querySelectorAll<HTMLElement>('[data-editor-bullet="true"]')
+    ).map(node => node.textContent)
+
+    expect(bullets).toEqual(['IV.', 'V.'])
+  })
+
+  it('applies box-level letter spacing while editing', () => {
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement({ letterSpacing: 1.5 })}
+        onTextChange={() => {}}
+        onSelectionChange={() => {}}
+        onFinishEditing={() => {}}
+      />
+    )
+
+    expect(screen.getByTestId('inline-rich-text-editor')).toHaveStyle({ letterSpacing: '1.5px' })
+  })
+
+  it('does not render bullet markers for empty list paragraphs', () => {
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement({
+          content: '',
+          paragraphs: [{ bulletType: 'bullet', bulletChar: '•', runs: [{ text: '' }] }]
+        })}
+        onTextChange={() => {}}
+        onSelectionChange={() => {}}
+        onFinishEditing={() => {}}
+      />
+    )
+
+    const editor = screen.getByTestId('inline-rich-text-editor') as HTMLDivElement
+    expect(editor.querySelector('[data-editor-bullet="true"]')).toBeNull()
+    expect(editor.querySelector('[data-paragraph-start]')).toHaveStyle({ display: 'block' })
+  })
+
   it('keeps deleting a leading empty paragraph stable while parent state updates live', () => {
     function Harness() {
       const handleSelectionChange = useCallback(() => {}, [])
@@ -163,6 +260,24 @@ describe('InlineRichTextEditor', () => {
     expect(readEditorValue(editor)).toBe('Formatted value')
   })
 
+  it('does not emit a synthetic end-of-text selection on initial mount', () => {
+    const onSelectionChange = jest.fn()
+
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement({
+          content: 'Alpha\nBeta',
+          paragraphs: [{ runs: [{ text: 'Alpha' }] }, { runs: [{ text: 'Beta' }] }]
+        })}
+        onTextChange={() => {}}
+        onSelectionChange={onSelectionChange}
+        onFinishEditing={() => {}}
+      />
+    )
+
+    expect(onSelectionChange).not.toHaveBeenCalled()
+  })
+
   it('emits correct selection offsets for text on the second paragraph', () => {
     const onSelectionChange = jest.fn()
     const firstLine = 'The sds'
@@ -201,5 +316,133 @@ describe('InlineRichTextEditor', () => {
       start: firstLine.length + 1,
       end: firstLine.length + 1 + secondLine.length
     })
+  })
+
+  it('emits correct selection offsets when typing into an empty paragraph placeholder', () => {
+    const onSelectionChange = jest.fn()
+
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement({
+          content: 'Alpha\n\nBeta',
+          paragraphs: [{ runs: [{ text: 'Alpha' }] }, { runs: [{ text: '' }] }, { runs: [{ text: 'Beta' }] }]
+        })}
+        onTextChange={() => {}}
+        onSelectionChange={onSelectionChange}
+        onFinishEditing={() => {}}
+      />
+    )
+
+    const editor = screen.getByTestId('inline-rich-text-editor') as HTMLDivElement
+    const paragraphs = editor.querySelectorAll<HTMLElement>('[data-paragraph-start]')
+    const emptyParagraph = paragraphs[1]
+
+    expect(emptyParagraph).toBeDefined()
+
+    onSelectionChange.mockClear()
+
+    const placeholder = emptyParagraph.querySelector('[data-editor-placeholder="true"]')
+    placeholder?.remove()
+
+    const typedNode = document.createTextNode('s')
+    emptyParagraph.appendChild(typedNode)
+
+    const selection = window.getSelection()
+    const range = document.createRange()
+    range.setStart(typedNode, 1)
+    range.setEnd(typedNode, 1)
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+
+    fireEvent.input(editor)
+
+    expect(onSelectionChange).toHaveBeenLastCalledWith({ start: 7, end: 7 })
+  })
+
+  it('uses the live text-node length when a run span metadata is stale after further typing', () => {
+    const onSelectionChange = jest.fn()
+
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement({
+          content: 'Alpha\ns\nBeta',
+          paragraphs: [
+            { bulletType: 'bullet', bulletChar: '•', runs: [{ text: 'Alpha' }] },
+            { bulletType: 'bullet', bulletChar: '•', runs: [{ text: 's' }] },
+            { bulletType: 'bullet', bulletChar: '•', runs: [{ text: 'Beta' }] }
+          ]
+        })}
+        onTextChange={() => {}}
+        onSelectionChange={onSelectionChange}
+        onFinishEditing={() => {}}
+      />
+    )
+
+    const editor = screen.getByTestId('inline-rich-text-editor') as HTMLDivElement
+    const secondParagraph = editor.querySelectorAll<HTMLElement>('[data-paragraph-start]')[1]
+    const typedRun = secondParagraph.querySelector<HTMLElement>('[data-run-start]')
+
+    expect(typedRun).toBeDefined()
+
+    onSelectionChange.mockClear()
+
+    const typedNode = typedRun.firstChild as Text
+    typedNode.textContent = 'sdddd'
+
+    const selection = window.getSelection()
+    const range = document.createRange()
+    range.setStart(typedNode, 5)
+    range.setEnd(typedNode, 5)
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+
+    fireEvent.input(editor)
+
+    expect(onSelectionChange).toHaveBeenLastCalledWith({ start: 11, end: 11 })
+  })
+
+  it('keeps the caret on the new paragraph when Enter is pressed at end of line 1', () => {
+    const onSelectionChange = jest.fn()
+
+    function Harness() {
+      const [element, setElement] = useState(
+        makeTextElement({
+          content: 'Alpha',
+          paragraphs: [{ runs: [{ text: 'Alpha' }] }]
+        })
+      )
+
+      return (
+        <>
+          <InlineRichTextEditor
+            element={element}
+            onTextChange={value => {
+              setElement(previous => replaceRichTextContent(previous, value))
+            }}
+            onSelectionChange={onSelectionChange}
+            onFinishEditing={() => {}}
+          />
+          <div data-testid="editor-content">{element.content}</div>
+        </>
+      )
+    }
+
+    render(<Harness />)
+
+    const editor = screen.getByTestId('inline-rich-text-editor') as HTMLDivElement
+    const firstRun = editor.querySelector<HTMLElement>('[data-run-start]')
+    const firstTextNode = firstRun?.firstChild as Text
+    const selection = window.getSelection()
+    const range = document.createRange()
+
+    range.setStart(firstTextNode, 5)
+    range.setEnd(firstTextNode, 5)
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(screen.getByTestId('editor-content').textContent).toBe('Alpha\n')
+    expect(onSelectionChange).toHaveBeenLastCalledWith({ start: 6, end: 6 })
   })
 })

@@ -104,10 +104,24 @@ jest.mock('@/common/network/graphql/useGraphQLClient', () => ({
 }))
 
 jest.mock('../SlideCanvas', () => ({
-  SlideCanvas: ({ onSelectElements }: { onSelectElements: (ids: Set<string>) => void }) => (
+  SlideCanvas: ({
+    onSelectElements,
+    onEditText,
+    inlineEditing
+  }: {
+    onSelectElements: (ids: Set<string>) => void
+    onEditText: (id: string) => void
+    inlineEditing?: { onSelectionChange: (range: { start: number; end: number } | null) => void }
+  }) => (
     <div data-testid="mock-slide-canvas">
       <button data-testid="mock-select-text" onClick={() => onSelectElements(new Set(['text-1']))}>
         Select text
+      </button>
+      <button data-testid="mock-edit-text" onClick={() => onEditText('text-1')}>
+        Edit text
+      </button>
+      <button data-testid="mock-select-range" onClick={() => inlineEditing?.onSelectionChange({ start: 0, end: 8 })}>
+        Select range
       </button>
     </div>
   )
@@ -144,7 +158,11 @@ jest.mock('../editor/SlideEditorHeaderActions', () => ({
 }))
 
 jest.mock('../toolbar', () => ({
-  SlideToolbarRibbon: () => <div>toolbar</div>
+  SlideToolbarRibbon: ({ onShowLinkDialog }: { onShowLinkDialog: () => void }) => (
+    <button data-testid="mock-show-link-dialog" onClick={onShowLinkDialog}>
+      toolbar
+    </button>
+  )
 }))
 
 jest.mock('../SlideLayoutPicker', () => ({
@@ -160,7 +178,10 @@ jest.mock('../GradientBuilder', () => ({
 }))
 
 jest.mock('../LinkDialog', () => ({
-  LinkDialog: () => null
+  LinkDialog: ({ open, selectedText, initialUrl }: { open: boolean; selectedText: string; initialUrl?: string }) =>
+    open ? (
+      <div data-testid="mock-link-dialog" data-selected-text={selectedText} data-initial-url={initialUrl ?? ''} />
+    ) : null
 }))
 
 jest.mock('../PdfExportDialog', () => ({
@@ -305,5 +326,26 @@ describe('SlideEditor workspace deselection', () => {
     fireEvent.mouseDown(screen.getByTestId('slide-editor-canvas-workspace'))
     expect(screen.queryByTestId('slide-editor-floating-text-actions')).not.toBeInTheDocument()
     expect(awarenessMock.setLocalStateField).toHaveBeenLastCalledWith('selection', null)
+  })
+
+  it('opens the link dialog with the active text selection while editing', () => {
+    render(<SlideEditor slideId="deck-1" slide={makeSlide()} onBack={() => {}} accessToken="" />)
+
+    fireEvent.click(screen.getByTestId('mock-edit-text'))
+    fireEvent.click(screen.getByTestId('mock-select-range'))
+    fireEvent.click(screen.getByTestId('mock-show-link-dialog'))
+
+    expect(screen.getByTestId('mock-link-dialog')).toHaveAttribute('data-selected-text', 'Editable')
+    expect(screen.getByTestId('mock-link-dialog')).toHaveAttribute('data-initial-url', '')
+  })
+
+  it('opens the link dialog for the full text content when the text box is selected as an object', () => {
+    render(<SlideEditor slideId="deck-1" slide={makeSlide()} onBack={() => {}} accessToken="" />)
+
+    fireEvent.click(screen.getByTestId('mock-select-text'))
+    fireEvent.click(screen.getByTestId('mock-show-link-dialog'))
+
+    expect(screen.getByTestId('mock-link-dialog')).toHaveAttribute('data-selected-text', 'Editable text')
+    expect(screen.getByTestId('mock-link-dialog')).toHaveAttribute('data-initial-url', '')
   })
 })

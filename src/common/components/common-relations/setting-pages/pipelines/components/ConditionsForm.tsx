@@ -11,7 +11,14 @@ import {
   DialogDescription,
   DialogFooter
 } from '@newwork/nw-design-system'
-import { Plus, Edit, Trash2, GripVertical, CheckSquare, Clock } from 'lucide-react'
+import {
+  CheckSquareIcon,
+  ClockIcon,
+  DotsSixVerticalIcon,
+  PencilSimpleIcon,
+  PlusIcon,
+  TrashIcon
+} from '@phosphor-icons/react'
 import {
   DndContext,
   closestCorners,
@@ -27,6 +34,9 @@ import { CSS } from '@dnd-kit/utilities'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import ConditionForm from './ConditionForm'
+import { DeleteConfirmationDialog } from '../../components/DeleteConfirmationDialog'
+import { getCatalogUsageCheckSpecs, useCatalogDeleteAvailability } from '../../hooks/useCatalogDeleteAvailability'
+import { type DeleteAvailability } from '../../types/catalogTypes'
 
 interface ConditionsFormProps extends BusinessAppContextProps {
   isOpen: boolean
@@ -68,10 +78,10 @@ const DraggableConditionItem: React.FC<{
       data-testid={`${prefixDataTestId}-draggable-condition-${condition.id}`}
       className={`${isDragging ? 'gba:opacity-50' : ''}`}
     >
-      <Card className="gba:border-border hover:gba:border-primary gba:transition-all gba:cursor-pointer gba:relative">
+      <Card className="gba:border-border gba:hover:border-primary/40 gba:hover:shadow-sm gba:transition-all gba:cursor-pointer gba:relative">
         <div className="gba:p-2 gba:flex gba:items-center gba:gap-2">
           {/* Order Number */}
-          <div className="gba:flex-shrink-0 gba:w-6 gba:h-6 gba:bg-primary/10 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium gba:text-primary">
+          <div className="gba:flex-shrink-0 gba:w-6 gba:h-6 gba:bg-muted gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium gba:text-muted-foreground">
             {index}
           </div>
 
@@ -79,10 +89,9 @@ const DraggableConditionItem: React.FC<{
           <div
             {...attributes}
             {...listeners}
-            className="gba:cursor-grab gba:text-muted-foreground hover:gba:text-foreground gba:p-1 gba:flex-shrink-0 gba:select-none"
-            style={{ touchAction: 'none' }}
+            className="gba:cursor-grab gba:text-muted-foreground hover:gba:text-foreground gba:p-1 gba:flex-shrink-0 gba:select-none gba:touch-none"
           >
-            <GripVertical className="gba:w-4 gba:h-4" />
+            <DotsSixVerticalIcon className="gba:w-4 gba:h-4" />
           </div>
 
           {/* Condition Content */}
@@ -102,7 +111,7 @@ const DraggableConditionItem: React.FC<{
                     variant="secondary"
                     className="gba:text-xs gba:px-1.5 gba:py-0.5 gba:flex gba:items-center gba:gap-1"
                   >
-                    <CheckSquare className="gba:w-3 gba:h-3" />
+                    <CheckSquareIcon className="gba:w-3 gba:h-3" />
                     Task
                   </Badge>
                 )}
@@ -111,7 +120,7 @@ const DraggableConditionItem: React.FC<{
                     variant="outline"
                     className="gba:text-xs gba:px-1.5 gba:py-0.5 gba:flex gba:items-center gba:gap-1"
                   >
-                    <Clock className="gba:w-3 gba:h-3" />
+                    <ClockIcon className="gba:w-3 gba:h-3" />
                     {condition.objectValue.deadline_duration} days
                   </Badge>
                 )}
@@ -120,20 +129,12 @@ const DraggableConditionItem: React.FC<{
 
             {/* Description and checked by info */}
             <div className="gba:flex gba:items-start gba:justify-between gba:gap-1">
-              <p
-                className="gba:text-muted-foreground gba:text-xs gba:leading-tight gba:flex-1"
-                style={{
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden'
-                }}
-              >
+              <p className="gba:text-muted-foreground gba:text-xs gba:leading-tight gba:flex-1 gba:truncate">
                 {condition.objectValue?.description || condition.additionalValue1 || 'No description'}
               </p>
               <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
                 <span className="gba:text-xs gba:text-muted-foreground">Checked by:</span>
-                <Badge variant="default" className="gba:text-xs gba:px-1.5 gba:py-0.5">
+                <Badge variant="secondary" className="gba:text-xs gba:px-1.5 gba:py-0.5">
                   {condition.objectValue?.check_type || 'User'}
                 </Badge>
               </div>
@@ -149,10 +150,10 @@ const DraggableConditionItem: React.FC<{
                 e.stopPropagation()
                 onEdit(condition)
               }}
-              className="gba:text-muted-foreground hover:gba:text-primary gba:p-1 gba:h-7 gba:w-7"
+              className="gba:text-muted-foreground hover:gba:text-foreground gba:p-1 gba:h-7 gba:w-7"
               data-testid={`${prefixDataTestId}-edit-condition-${condition.id}`}
             >
-              <Edit className="gba:w-3.5 gba:h-3.5" />
+              <PencilSimpleIcon className="gba:w-3.5 gba:h-3.5" />
             </Button>
             <Button
               variant="ghost"
@@ -164,7 +165,7 @@ const DraggableConditionItem: React.FC<{
               className="gba:text-muted-foreground hover:gba:text-destructive gba:p-1 gba:h-7 gba:w-7"
               data-testid={`${prefixDataTestId}-delete-condition-${condition.id}`}
             >
-              <Trash2 className="gba:w-3.5 gba:h-3.5" />
+              <TrashIcon className="gba:w-3.5 gba:h-3.5" />
             </Button>
           </div>
         </div>
@@ -189,8 +190,15 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingCondition, setEditingCondition] = useState<any>(null)
+  const [conditionToDelete, setConditionToDelete] = useState<any>(null)
+  const [deleteAvailability, setDeleteAvailability] = useState<DeleteAvailability | undefined>()
 
   const catalogClient = useCatalogManagerClient(accessToken)
+  const getConditionDeleteAvailability = useCatalogDeleteAvailability(
+    accessToken,
+    'Condition',
+    getCatalogUsageCheckSpecs(catalogConfig.conditionCatalog)
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -316,13 +324,45 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
 
   // Condition management handlers
   const handleDeleteCondition = async (conditionId: string) => {
-    if (!selectedStage) return
+    const condition = conditions.find(item => item.id === conditionId)
+    if (!condition) return
+
+    setConditionToDelete(condition)
+    setDeleteAvailability(undefined)
+    setOperationLoading(true)
+
+    try {
+      setDeleteAvailability(await getConditionDeleteAvailability(condition))
+    } catch (error) {
+      console.error('Failed to check condition delete availability:', error)
+      setDeleteAvailability({
+        status: 'blocked',
+        reason: 'Unable to verify whether this condition can be deleted.'
+      })
+    } finally {
+      setOperationLoading(false)
+    }
+  }
+
+  const handleCancelDeleteCondition = () => {
+    if (operationLoading) return
+    setConditionToDelete(null)
+    setDeleteAvailability(undefined)
+  }
+
+  const confirmDeleteCondition = async () => {
+    if (!selectedStage || !conditionToDelete || deleteAvailability?.status === 'blocked') return
 
     try {
       setOperationLoading(true)
-      await catalogClient.deleteCatalogEntry(catalogConfig.conditionCatalog, catalogConfig.version || 'v1', conditionId)
+      await catalogClient.deleteCatalogEntry(
+        catalogConfig.conditionCatalog,
+        catalogConfig.version || 'v1',
+        conditionToDelete.id
+      )
       await fetchConditions(selectedStage.id)
       onConditionsUpdated?.()
+      handleCancelDeleteCondition()
     } catch (err) {
       console.error('Error deleting condition:', err)
     } finally {
@@ -333,7 +373,7 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
   const renderConditionsContent = () => {
     if (isLoading) {
       return (
-        <div className="gba:flex gba:justify-center gba:py-8">
+        <div className="gba:flex gba:justify-center gba:py-8" data-testid={`${prefixDataTestId}-loading`}>
           <Spinner size="lg" />
         </div>
       )
@@ -377,14 +417,7 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
 
           <DragOverlay dropAnimation={null}>
             {activeConditionData ? (
-              <div
-                style={{
-                  opacity: 0.8,
-                  transform: 'rotate(1deg)',
-                  cursor: 'grabbing',
-                  pointerEvents: 'none'
-                }}
-              >
+              <div className="gba:opacity-80 gba:rotate-1 gba:cursor-grabbing gba:pointer-events-none">
                 <DraggableConditionItem
                   condition={activeConditionData}
                   index={activeConditionIndex}
@@ -423,7 +456,10 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="gba:flex gba:flex-col gba:max-h-[85vh] gba:overflow-hidden">
+        <DialogContent
+          className="gba:flex gba:flex-col gba:max-h-screen gba:overflow-hidden"
+          data-testid={`${prefixDataTestId}-dialog`}
+        >
           <DialogHeader className="gba:flex-shrink-0">
             <DialogTitle>Conditions for: {selectedStage?.value}</DialogTitle>
             <DialogDescription>Manage conditions for this stage.</DialogDescription>
@@ -436,7 +472,7 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
               disabled={operationLoading}
               data-testid={`${prefixDataTestId}-add-condition-button`}
             >
-              <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+              <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
               Add Condition
             </Button>
           </div>
@@ -449,7 +485,7 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
           </div>
 
           <DialogFooter className="gba:flex-shrink-0">
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" onClick={onClose} data-testid={`${prefixDataTestId}-close-button`}>
               Close
             </Button>
           </DialogFooter>
@@ -480,6 +516,18 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
         catalogConfig={catalogConfig}
         prefixDataTestId={prefixDataTestId}
         accessToken={accessToken}
+      />
+
+      <DeleteConfirmationDialog
+        open={!!conditionToDelete}
+        itemName={conditionToDelete?.value || ''}
+        itemType="Condition"
+        availability={deleteAvailability}
+        isChecking={operationLoading && !deleteAvailability}
+        isDeleting={operationLoading}
+        onCancel={handleCancelDeleteCondition}
+        onConfirm={confirmDeleteCondition}
+        dataTestId={`${prefixDataTestId}-delete-dialog`}
       />
     </>
   )

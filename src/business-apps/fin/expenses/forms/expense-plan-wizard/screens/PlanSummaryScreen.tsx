@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Row, Col, Pagination } from 'antd'
+import { Row, Col, Pagination, Alert } from 'antd'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   getTranslationFromI18nKeyAndLabel,
   formatDate,
   getCatalogValue,
   formatNumberFunction
 } from '@/common/utils/windowUtils'
+import { hasEmployeeOrgchartCostCenter } from '@/business-apps/fin/expenses/common/utils/employeeOrgchartCostCenter'
+import expenseFormsTranslations from '../../_i18n'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { useExpensePlanWizardContext } from '../context/ExpensePlanWizardContext'
 import ExpenseItemRow from '../../expense-request-wizard/components/ExpenseItemRow'
@@ -41,10 +44,13 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
   const { additionalData, accessToken } = props
   const { expensePlanData, employeeRuleId, currentTitle } = useExpensePlanWizardContext()
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
+  const { t: tForms } = useTranslation(expenseFormsTranslations)
   const graphqlClient = useGraphqlClient(accessToken)
   const planData = expensePlanData?.ExpensePlanByPk
   const planItemData = expensePlanData?.ExpensePlanItem
   const expenseItems = noAllowanceItemsFunction(planItemData)
+  const missingOrgchartCostCenter =
+    Boolean(expensePlanData) && !hasEmployeeOrgchartCostCenter(expensePlanData?.EmployeePosition)
   const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes(PLAN_TYPES.TRIP)
 
   // State to store createAbsenceFromPlan from catalog
@@ -100,18 +106,22 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
     if (additionalData?.psi_taskPayload.stepKey && additionalData?.psi_taskPayload.stepKey.includes(EVENTS.SKIP)) {
       skipStep = true
     }
-    if (expensePlanData?.ExpensePlanByPk) {
-      const logObject = createSummaryScreenLogObject(
-        expensePlanData.ExpensePlanByPk,
-        employeeRuleId,
-        currentTitle,
-        expensePlanData,
-        EVENTS.SUBMIT,
-        skipStep,
-        createBusinessTrip
-      )
-      dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, logObject)
+    if (!expensePlanData?.ExpensePlanByPk) {
+      return
     }
+    if (!hasEmployeeOrgchartCostCenter(expensePlanData.EmployeePosition)) {
+      return
+    }
+    const logObject = createSummaryScreenLogObject(
+      expensePlanData.ExpensePlanByPk,
+      employeeRuleId,
+      currentTitle,
+      expensePlanData,
+      EVENTS.SUBMIT,
+      skipStep,
+      createBusinessTrip
+    )
+    dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, logObject)
   }, [expensePlanData, employeeRuleId, currentTitle, createBusinessTrip])
 
   useEffect(() => {
@@ -357,6 +367,16 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
           </div>
         </div>
         <ExpenseSummary planData={planData} />
+        {missingOrgchartCostCenter && (
+          <div className="gba:mt-4 gba:mb-4" data-testid="expense-plan-missing-orgchart-cost-center-container">
+            <Alert
+              message={tForms('missing-orgchart-cost-center-wizard-message')}
+              type="error"
+              showIcon
+              data-testid="expense-plan-missing-orgchart-cost-center-warning"
+            />
+          </div>
+        )}
       </div>
     </div>
   )

@@ -60,7 +60,10 @@ const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="gba:[&&]:max-w-[95vw] gba:w-[95vw] gba:max-h-[90vh] gba:overflow-y-auto">
+        <DialogContent
+          className="gba:max-w-6xl gba:w-full gba:max-h-screen gba:overflow-y-auto"
+          data-testid={`${prefixDataTestId}-dialog`}
+        >
           <DialogHeader>
             <DialogTitle>Pipeline Stages: {pipeline?.value}</DialogTitle>
             <DialogDescription>Manage stages for this pipeline. Drag and drop to reorder.</DialogDescription>

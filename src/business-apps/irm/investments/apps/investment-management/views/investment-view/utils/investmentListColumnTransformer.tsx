@@ -9,7 +9,12 @@ import { LIQUID_FUND_INVESTMENT_DESCRIPTORS } from '@/common/data/investment/typ
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { formatDate } from '@/common/data/investment/utils/formatters'
 import { getValueByPath } from '@/common/utils/objectUtils'
-import type { InvestmentCatalogEntry, InvestmentGroup, InvestmentListCatalogData } from '../hooks/useInvestmentGroups'
+import type {
+  InvestmentCatalogEntry,
+  InvestmentGroup,
+  InvestmentGroupObjectValue,
+  InvestmentListCatalogData
+} from '../hooks/useInvestmentGroups'
 import {
   AccountCell,
   PlanedExitCell,
@@ -32,9 +37,11 @@ export interface InvestmentListColumnConfiguration {
   sortableColumns: InvestmentColumnOption[]
   defaultVisibleColumns: string[]
   queryFields: string[]
+  sortDescriptors: Descriptor[]
   sortFieldByColumnId: Record<string, string>
   dynamicFilterConfig: FilterConfiguration
   filterConditionByFilterId: Record<string, InvestmentDynamicFilterCondition>
+  relationFilterOptionSources: InvestmentRelationFilterOptionSource[]
 }
 
 type FilterGroup = NonNullable<FilterConfiguration['groups']>[number]
@@ -44,6 +51,12 @@ export interface InvestmentDynamicFilterCondition {
   relationField?: 'equityInvestment' | 'realEstateInvestment' | 'liquidFundInvestment'
   descriptor: Descriptor
   filterType: 'number' | 'date' | 'text' | 'boolean'
+}
+
+export interface InvestmentRelationFilterOptionSource {
+  filterId: string
+  entityName: 'LiquidFundInvestment'
+  descriptorKey: string
 }
 
 const UNIVERSAL_VISIBLE_COLUMNS = ['name']
@@ -188,6 +201,16 @@ const SKIPPED_CATALOG_PROPERTIES = new Set([
 ])
 const UNSORTABLE_FIELD_TYPES = new Set(['TEXTAREA'])
 const RELATION_SORTING_ENABLED = false
+const LIQUID_FUND_REQUIRED_SUBTYPE_KEY = 'liquidFundInvestment'
+const LIQUID_FUND_TYPE_PROPERTY = 'liquidFundInvestment.investmentLiquidFundType'
+const LIQUID_FUND_TYPE_FILTER_DESCRIPTOR_KEY = 'investmentLiquidFundTypeIds'
+const LIQUID_FUND_TYPE_FIELD: FormFieldDefinition = {
+  type: 'TEXT',
+  label: 'Liquid Fund Type',
+  property: LIQUID_FUND_TYPE_PROPERTY,
+  required: false,
+  displayOrder: '0.1'
+}
 
 const DESCRIPTORS_BY_ENTITY = {
   investment: INVESTMENT_DESCRIPTORS,
@@ -205,6 +228,11 @@ const RELATION_FIELD_BY_ENTITY: Partial<
   realEstateInvestment: 'realEstateInvestment',
   liquidFundInvestment: 'liquidFundInvestment'
 }
+
+const OPTION_ENTITY_NAME_BY_ENTITY: Partial<Record<CatalogEntity, InvestmentRelationFilterOptionSource['entityName']>> =
+  {
+    liquidFundInvestment: 'LiquidFundInvestment'
+  }
 
 const DESCRIPTOR_INDEX_BY_ENTITY = Object.fromEntries(
   Object.entries(DESCRIPTORS_BY_ENTITY).map(([entity, descriptors]) => [
@@ -265,6 +293,8 @@ const formatFieldValue = (value: unknown, fieldType: string, currencyCode: strin
 
 const getPathRoot = (propertyPath: string): string => propertyPath.split('.')[0] || ''
 
+const propertyToColumnId = (property: string): string => property.replace(/\./g, '_')
+
 const isAdditionalPropertiesPath = (propertyPath: string): boolean => {
   return propertyPath === 'additionalProperties' || propertyPath.startsWith('additionalProperties.')
 }
@@ -272,6 +302,12 @@ const isAdditionalPropertiesPath = (propertyPath: string): boolean => {
 const getDescriptorPath = (descriptor: Descriptor): string | undefined => {
   return descriptor.path || descriptor.sortPath || descriptor.searchPaths?.[0]
 }
+
+const getRequiredSubtypeKey = (objectValue?: InvestmentGroupObjectValue | null): string => {
+  return objectValue?.requiredSubtypeKey ?? ''
+}
+
+const isLiquidFundTypeProperty = (property: string): boolean => property === LIQUID_FUND_TYPE_PROPERTY
 
 const normalizeCatalogProperty = (
   property: string
@@ -310,6 +346,7 @@ const getCatalogDescriptorMapping = (property: string) => {
   const relationField = RELATION_FIELD_BY_ENTITY[normalized.entity]
   const descriptorPath = getDescriptorPath(descriptor)
   const isAdditionalProperties = isAdditionalPropertiesPath(normalized.fieldPath)
+  const allowRelationSort = isLiquidFundTypeProperty(property)
 
   return {
     ...normalized,
@@ -321,7 +358,7 @@ const getCatalogDescriptorMapping = (property: string) => {
       !isAdditionalProperties &&
       descriptor.enableSort !== false &&
       Boolean(descriptor.sortPath || descriptor.sortPaths?.length) &&
-      (!relationField || RELATION_SORTING_ENABLED),
+      (!relationField || RELATION_SORTING_ENABLED || allowRelationSort),
     canFilter: !isAdditionalProperties && Boolean(descriptorPath)
   }
 }
@@ -355,6 +392,31 @@ const getSortFieldForProperty = (property: string): string | null => {
   return mapping?.canSort ? mapping.descriptor.key : null
 }
 
+const buildRelationSortDescriptor = (
+  columnId: string,
+  mapping: ReturnType<typeof getCatalogDescriptorMapping>
+): Descriptor | null => {
+  if (!mapping?.canSort || !mapping.relationField) {
+    return null
+  }
+
+  const relationSortPath = mapping.descriptor.sortPath
+    ? `${mapping.relationField}.${mapping.descriptor.sortPath}`
+    : undefined
+  const relationSortPaths = mapping.descriptor.sortPaths?.map(path => `${mapping.relationField}.${path}`)
+
+  if (!relationSortPath && !relationSortPaths?.length) {
+    return null
+  }
+
+  return {
+    ...mapping.descriptor,
+    key: columnId,
+    sortPath: relationSortPath,
+    sortPaths: relationSortPaths
+  }
+}
+
 const isSupportedCatalogField = (field: FormFieldDefinition): boolean => {
   return Boolean(getCatalogDescriptorMapping(field.property))
 }
@@ -382,7 +444,7 @@ const dedupeFieldsByColumnId = (fieldGroups: FormFieldDefinition[][]): FormField
   const dedupedFields: FormFieldDefinition[] = []
 
   fieldGroups.flat().forEach(field => {
-    const columnId = field.property.replaceAll('.', '_')
+    const columnId = propertyToColumnId(field.property)
     if (seenColumnIds.has(columnId)) {
       return
     }
@@ -405,8 +467,24 @@ const getFilterTypeFromCatalogType = (catalogType: string): InvestmentDynamicFil
 const buildFilterConfigForField = (
   field: FormFieldDefinition,
   mapping: ReturnType<typeof getCatalogDescriptorMapping>
-): { filter: Filter; condition: InvestmentDynamicFilterCondition } | null => {
+): {
+  filter: Filter
+  condition: InvestmentDynamicFilterCondition
+  optionSource?: InvestmentRelationFilterOptionSource
+} | null => {
   if (!mapping?.canFilter || !mapping.descriptorPath) {
+    return null
+  }
+
+  const liquidFundTypeFilterDescriptor = isLiquidFundTypeProperty(field.property)
+    ? DESCRIPTOR_INDEX_BY_ENTITY.liquidFundInvestment.get(LIQUID_FUND_TYPE_FILTER_DESCRIPTOR_KEY)
+    : undefined
+  const effectiveDescriptor = liquidFundTypeFilterDescriptor || mapping.descriptor
+  const effectiveDescriptorPath = liquidFundTypeFilterDescriptor
+    ? getDescriptorPath(liquidFundTypeFilterDescriptor)
+    : mapping.descriptorPath
+
+  if (!effectiveDescriptorPath) {
     return null
   }
 
@@ -415,16 +493,16 @@ const buildFilterConfigForField = (
     return null
   }
 
-  const filterId = mapping.relationField ? field.property.replaceAll('.', '_') : mapping.descriptor.key
+  const filterId = mapping.relationField ? propertyToColumnId(field.property) : mapping.descriptor.key
   const descriptor: Descriptor = {
-    ...mapping.descriptor,
+    ...effectiveDescriptor,
     key: filterId,
-    path: mapping.descriptorPath
+    path: effectiveDescriptorPath
   }
 
   // Text fields whose descriptor exposes optionSelectPaths are rendered as a
   // multi-select with backend-loaded options rather than a plain text input.
-  const hasBackendOptions = filterType === 'text' && Boolean(mapping.descriptor.optionSelectPaths?.length)
+  const hasBackendOptions = filterType === 'text' && Boolean(effectiveDescriptor.optionSelectPaths?.length)
 
   const filter: Filter = {
     id: filterId,
@@ -470,20 +548,35 @@ const buildFilterConfigForField = (
     }
   }
 
+  const optionEntityName = OPTION_ENTITY_NAME_BY_ENTITY[mapping.entity]
+  const optionSource =
+    hasBackendOptions && mapping.relationField && optionEntityName
+      ? {
+          filterId,
+          entityName: optionEntityName,
+          descriptorKey: effectiveDescriptor.key
+        }
+      : undefined
+
   return {
     filter,
     condition: {
       relationField: mapping.relationField,
       descriptor,
       filterType
-    }
+    },
+    ...(optionSource ? { optionSource } : {})
   }
 }
 
 const buildDynamicFilterConfiguration = (
   fields: FormFieldDefinition[]
-): Pick<InvestmentListColumnConfiguration, 'dynamicFilterConfig' | 'filterConditionByFilterId'> => {
+): Pick<
+  InvestmentListColumnConfiguration,
+  'dynamicFilterConfig' | 'filterConditionByFilterId' | 'relationFilterOptionSources'
+> => {
   const filterConditionByFilterId: Record<string, InvestmentDynamicFilterCondition> = {}
+  const relationFilterOptionSources: InvestmentRelationFilterOptionSource[] = []
   const seenFilterIds = new Set<string>()
   const groups: FilterGroup[] = []
 
@@ -495,6 +588,9 @@ const buildDynamicFilterConfiguration = (
 
     seenFilterIds.add(filterConfig.filter.id)
     filterConditionByFilterId[filterConfig.filter.id] = filterConfig.condition
+    if (filterConfig.optionSource) {
+      relationFilterOptionSources.push(filterConfig.optionSource)
+    }
     groups.push({
       id: `${filterConfig.filter.id}-catalog-group`,
       label: filterConfig.filter.label,
@@ -510,7 +606,8 @@ const buildDynamicFilterConfiguration = (
       name: 'Catalog Filters',
       groups
     },
-    filterConditionByFilterId
+    filterConditionByFilterId,
+    relationFilterOptionSources
   }
 }
 
@@ -519,42 +616,55 @@ export const getAggregatedInvestmentListFields = (
   catalogData: InvestmentListCatalogData
 ): FormFieldDefinition[] => {
   const groupEntry = catalogData.investmentGroups.find(entry => entry.id === group.id || entry.code === group.code)
-  const groupFields = getDisplayFields(groupEntry?.objectValue || group.objectValue)
+  const groupObjectValue = groupEntry?.objectValue || group.objectValue
+  const groupFields = getDisplayFields(groupObjectValue)
 
   const investmentTypeEntries = catalogData.investmentTypes.filter(entry => belongsToParent(entry, group))
   const investmentTypeFields = investmentTypeEntries.flatMap(entry => getDisplayFields(entry.objectValue))
 
-  const liquidFundTypeEntries = group.code === 'LIQUID_FUND' ? catalogData.investmentLiquidFundTypes : []
+  const isLiquidFundSubtype = getRequiredSubtypeKey(groupObjectValue) === LIQUID_FUND_REQUIRED_SUBTYPE_KEY
+  const liquidFundTypeEntries = isLiquidFundSubtype ? catalogData.investmentLiquidFundTypes : []
   const liquidFundTypeFields = liquidFundTypeEntries.flatMap(entry => getDisplayFields(entry.objectValue))
+  const conditionalLiquidFundFields = isLiquidFundSubtype ? [LIQUID_FUND_TYPE_FIELD] : []
 
-  return dedupeFieldsByColumnId([groupFields, investmentTypeFields, liquidFundTypeFields])
+  return dedupeFieldsByColumnId([groupFields, investmentTypeFields, conditionalLiquidFundFields, liquidFundTypeFields])
 }
 
 const buildInvestmentListColumnConfigurationFromFields = (
   fields: FormFieldDefinition[]
 ): InvestmentListColumnConfiguration => {
-  // Drop catalog fields whose ids collide with the universal trailing columns to
   // Drop catalog fields whose ids collide with any universal leading/trailing column to
   // avoid duplicate column entries when a catalog also exposes investmentType, ownerEmployee, etc.
   const fieldsWithoutUniversalCollisions = fields.filter(
-    field => !UNIVERSAL_ALL_COLUMN_IDS.has(field.property.replaceAll('.', '_'))
+    field => !UNIVERSAL_ALL_COLUMN_IDS.has(propertyToColumnId(field.property))
   )
   const queryFields = new Set<string>(UNIVERSAL_QUERY_FIELDS)
+  const sortDescriptors: Descriptor[] = [...INVESTMENT_DESCRIPTORS]
   const sortFieldByColumnId: Record<string, string> = {}
-  const { dynamicFilterConfig, filterConditionByFilterId } = buildDynamicFilterConfiguration(
-    fieldsWithoutUniversalCollisions
-  )
+  const { dynamicFilterConfig, filterConditionByFilterId, relationFilterOptionSources } =
+    buildDynamicFilterConfiguration(fieldsWithoutUniversalCollisions)
 
   const columns: ColumnDef<Investment>[] = fieldsWithoutUniversalCollisions.map(field => {
-    const id = field.property.replaceAll('.', '_')
+    const id = propertyToColumnId(field.property)
     const descriptorMapping = getCatalogDescriptorMapping(field.property)
+    const relationSortDescriptor = buildRelationSortDescriptor(id, descriptorMapping)
     const queryField = descriptorMapping?.queryField || getQueryFieldForProperty(field.property)
-    const sortField = descriptorMapping?.canSort
-      ? descriptorMapping.descriptor.key
-      : getSortFieldForProperty(field.property)
+    let sortField = getSortFieldForProperty(field.property)
+
+    if (descriptorMapping?.canSort) {
+      sortField = descriptorMapping.descriptor.key
+    }
+
+    if (relationSortDescriptor) {
+      sortField = relationSortDescriptor.key
+    }
 
     if (queryField) {
       queryFields.add(queryField)
+    }
+
+    if (relationSortDescriptor) {
+      sortDescriptors.push(relationSortDescriptor)
     }
 
     if (sortField && !UNSORTABLE_FIELD_TYPES.has(field.type)) {
@@ -587,7 +697,7 @@ const buildInvestmentListColumnConfigurationFromFields = (
   })
 
   const catalogAvailableColumns = fieldsWithoutUniversalCollisions.map(field => ({
-    id: field.property.replaceAll('.', '_'),
+    id: propertyToColumnId(field.property),
     label: field.label
   }))
 
@@ -636,9 +746,11 @@ const buildInvestmentListColumnConfigurationFromFields = (
     sortableColumns: availableColumns.filter(column => sortFieldByColumnId[column.id]),
     defaultVisibleColumns: [...UNIVERSAL_VISIBLE_COLUMNS, ...availableColumns.map(column => column.id), 'actions'],
     queryFields: Array.from(queryFields),
+    sortDescriptors,
     sortFieldByColumnId,
     dynamicFilterConfig,
-    filterConditionByFilterId
+    filterConditionByFilterId,
+    relationFilterOptionSources
   }
 }
 

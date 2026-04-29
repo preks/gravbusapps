@@ -3,6 +3,7 @@ import { PageLayout, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/n
 import { TargetIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogSettings } from '../hooks/useCatalogSettings'
+import { getCatalogUsageCheckSpecs, useCatalogDeleteAvailability } from '../hooks/useCatalogDeleteAvailability'
 import { CatalogTab } from '../components/CatalogTab'
 import PipelineSettings from '../pipelines/PipelineSettings'
 
@@ -50,6 +51,21 @@ export const OpportunitySettingsLayout: React.FC<OpportunitySettingsLayoutProps>
   const statuses = useCatalogSettings(context, config.statusCatalog)
   const forecasts = useCatalogSettings(context, config.forecastCatalog)
   const stageTypes = useCatalogSettings(context, config.stageTypeCatalog)
+  const getStatusDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Status',
+    getCatalogUsageCheckSpecs(config.statusCatalog)
+  )
+  const getForecastDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Forecast',
+    getCatalogUsageCheckSpecs(config.forecastCatalog)
+  )
+  const getStageTypeDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Stage Type',
+    getCatalogUsageCheckSpecs(config.stageTypeCatalog)
+  )
 
   const catalogConfig = useMemo(
     () => ({
@@ -101,15 +117,30 @@ export const OpportunitySettingsLayout: React.FC<OpportunitySettingsLayoutProps>
         </TabsContent>
 
         <TabsContent value="statuses">
-          <CatalogTab entityName="Status" dataTestId={`${config.dataTestIdPrefix}-Statuses`} {...statuses} />
+          <CatalogTab
+            entityName="Status"
+            dataTestId={`${config.dataTestIdPrefix}-Statuses`}
+            getDeleteAvailability={getStatusDeleteAvailability}
+            {...statuses}
+          />
         </TabsContent>
 
         <TabsContent value="forecasts">
-          <CatalogTab entityName="Forecast" dataTestId={`${config.dataTestIdPrefix}-Forecasts`} {...forecasts} />
+          <CatalogTab
+            entityName="Forecast"
+            dataTestId={`${config.dataTestIdPrefix}-Forecasts`}
+            getDeleteAvailability={getForecastDeleteAvailability}
+            {...forecasts}
+          />
         </TabsContent>
 
         <TabsContent value="stage-types">
-          <CatalogTab entityName="Stage Type" dataTestId={`${config.dataTestIdPrefix}-StageTypes`} {...stageTypes} />
+          <CatalogTab
+            entityName="Stage Type"
+            dataTestId={`${config.dataTestIdPrefix}-StageTypes`}
+            getDeleteAvailability={getStageTypeDeleteAvailability}
+            {...stageTypes}
+          />
         </TabsContent>
       </Tabs>
     </PageLayout>

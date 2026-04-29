@@ -19,13 +19,15 @@ import { transformOpportunity } from './utils/transformOpportunity'
 import { sanitizeInvestment } from './utils/sanitizeInvestment'
 import { buildInvestmentPayload } from '@/common/data/investment/types/investmentTypes.new'
 import GroupSelectSegment from './segments/InvestmentGroupSegment'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, useTranslation } from '@newwork/nw-design-system'
 import { SwapIcon } from '@phosphor-icons/react'
+import translations from './_i18n'
 
 type InvestmentFormProps = BusinessAppContextProps
 
 const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, additionalData }) => {
   const businessAppContext = { accessToken, userInfo, additionalData }
+  const { t } = useTranslation(translations)
   // Extract investmentId from additionalData (like AccountForm/LeadForm)
   const investmentId =
     additionalData?.investmentId || additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId
@@ -150,7 +152,7 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
   const enhancedInitialValues = useMemo(() => {
     // If we have fetched investment data, map it to form values
     if (fetchedInvestment && !investmentLoading) {
-      const baseSchema = createDynamicInvestmentSchema()
+      const baseSchema = createDynamicInvestmentSchema(undefined, t)
 
       // Map investment data to form values
       // Wrap fetchedInvestment in { investment: ... } structure to match schema
@@ -237,7 +239,8 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
     opportunityId,
     contextCompanyId,
     extractedDynamicFields,
-    getPathByType
+    getPathByType,
+    t
   ])
 
   // Reset once for plain create mode to avoid clobbering user-selected group/type.
@@ -365,8 +368,8 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
 
   // Create dynamic schema based on formFieldsDefinition
   const dynamicSchema = useMemo(() => {
-    return createDynamicInvestmentSchema(formFieldsDefinition || undefined)
-  }, [formFieldsDefinition])
+    return createDynamicInvestmentSchema(formFieldsDefinition || undefined, t)
+  }, [formFieldsDefinition, t])
 
   // Create resolver dynamically based on schema
   const formResolver = useMemo(() => {
