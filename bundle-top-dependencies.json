@@ -5161,20 +5161,20 @@
     ]
   },
   "core/create/apps/ai-orchestrator": {
-    "bitbucketBuildNumber": 11591,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11591/",
-    "chunkJsBytes": 571593,
+    "bitbucketBuildNumber": 11614,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11614/",
+    "chunkJsBytes": 571643,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 418167,
-        "gzip": 102649,
+        "rendered": 418312,
+        "gzip": 102769,
         "leaves": [
           {
             "name": "src/business-apps/core/create/apps/ai-orchestrator/features/orchestrator/views/OrchestratorViewConversational.tsx",
-            "rendered": 45815,
-            "gzip": 9326
+            "rendered": 45831,
+            "gzip": 9334
           },
           {
             "name": "src/business-apps/core/create/apps/ai-orchestrator/features/orchestrator/components/chat/CreateAgentChatMessage.tsx",
@@ -5186,8 +5186,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 233098,
-        "gzip": 59602,
+        "rendered": 233181,
+        "gzip": 59622,
         "leaves": [
           {
             "name": "src/common/components/ai-builder/agent-preview/AgentPreview.tsx",
@@ -87960,20 +87960,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11612,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11612/",
-    "chunkJsBytes": 1834636,
+    "bitbucketBuildNumber": 11614,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11614/",
+    "chunkJsBytes": 1834641,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1530478,
-        "gzip": 93130,
+        "gzip": 93164,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1530478,
-            "gzip": 93130
+            "gzip": 93164
           }
         ]
       },
@@ -101080,20 +101080,20 @@
     ]
   },
   "core/create/apps/screen-builder": {
-    "bitbucketBuildNumber": 11474,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11474/",
-    "chunkJsBytes": 329504,
+    "bitbucketBuildNumber": 11614,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11614/",
+    "chunkJsBytes": 329675,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 302291,
-        "gzip": 66315,
+        "rendered": 302548,
+        "gzip": 66335,
         "leaves": [
           {
             "name": "src/business-apps/core/create/apps/screen-builder/pages/session-detail-page/SessionDetailPage.tsx",
-            "rendered": 84867,
-            "gzip": 16516
+            "rendered": 85129,
+            "gzip": 16544
           },
           {
             "name": "src/business-apps/core/create/apps/screen-builder/pages/session-overview-page/components/AdminSettings.tsx",
@@ -101172,13 +101172,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 26226,
-        "gzip": 6961,
+        "rendered": 26309,
+        "gzip": 6982,
         "leaves": [
           {
             "name": "src/common/components/ai-builder/sandbox/PreviewSandbox.tsx",
-            "rendered": 13686,
-            "gzip": 3286
+            "rendered": 13769,
+            "gzip": 3307
           },
           {
             "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
@@ -103758,7 +103758,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-30T14:59:58.075Z",
+    "generatedAt": "2026-04-30T17:33:39.521Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
