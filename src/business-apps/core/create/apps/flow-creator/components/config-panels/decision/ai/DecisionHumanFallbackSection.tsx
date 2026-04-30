@@ -12,7 +12,7 @@ import {
 import translations from '../../../../_i18n'
 import type { DesignerMode } from '../../../../types/studioTypes'
 import type { TaskAssignment } from '@/common/network/flows/FlowTemplateClient'
-import { AssignmentMode } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { AssignmentMode } from '@/common/data/flow/types/flowTemplate'
 import type { ExpressionSuggestionItem } from '@/common/components/flow/expression-editor'
 import { FlowContextExpressionEditor } from '../../../shared/FlowContextExpressionEditor'
 import { AssignmentConfigSection } from '../../task/AssignmentConfigSection'

@@ -1,11 +1,15 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useInvestments, type InvestmentListAggregates } from '@/common/data/investment/hooks/useInvestments.new'
-import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries.new'
 import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
+import { buildInvestmentSectionQueryModel } from '../../utils/buildInvestmentSectionQueryModel'
 
 export interface UseInvestmentSectionStateParams {
   accessToken: string
   selectedFilters: Record<string, any>
+  initialSorting?: Array<{ id: string; desc: boolean }> | null
+  onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
+  initialVisibleColumns?: string[] | null
+  onVisibleColumnsChange?: (columns: string[]) => void
 }
 
 export interface UseInvestmentSectionStateReturn {
@@ -34,54 +38,47 @@ export interface UseInvestmentSectionStateReturn {
   handlePaginationChange: (pagination: { pageIndex: number; pageSize: number }) => void
 }
 
+const DEFAULT_VISIBLE_COLUMNS = [
+  'name',
+  'investmentGroup',
+  'investmentType',
+  'totalInvestmentAmount',
+  'ownerEmployee',
+  'investmentStatus',
+  'createdAt',
+  'actions'
+]
+
 export const useInvestmentSectionState = ({
   accessToken,
-  selectedFilters
+  selectedFilters,
+  initialSorting,
+  onSortingChange,
+  initialVisibleColumns,
+  onVisibleColumnsChange
 }: UseInvestmentSectionStateParams): UseInvestmentSectionStateReturn => {
+  const initialSort = initialSorting?.[0]
   // State
   const [search, setSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
-  const [sortField, setSortField] = useState('')
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'name',
-    'investmentGroup',
-    'investmentType',
-    'totalInvestmentAmount',
-    'ownerEmployee',
-    'investmentStatus',
-    'createdAt',
-    'actions'
-  ])
+  const [sortField, setSortField] = useState(initialSort?.id ?? '')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>(initialSort?.desc === false ? 'ASC' : 'DESC')
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(initialVisibleColumns ?? DEFAULT_VISIBLE_COLUMNS)
   const initialLoadDone = useRef(false)
 
-  // Convert currencyIds → currency.code customCondition (relation path works; scalar path does not).
-  const currencyConditions = useMemo(() => {
-    const ids: string[] = selectedFilters.currencyIds ?? []
-    const codes = ids.map((id: string) => id.split(':').pop()).filter(Boolean)
-    if (codes.length === 0) return []
-    return [{ currency: { code: { _in: codes } } }]
-  }, [selectedFilters.currencyIds])
-
-  // Query variables — strip currencyIds from direct filter path (handled via currencyConditions).
-  const queryVariables: InvestmentQueryVariables = useMemo(() => {
-    const existingConditions: Record<string, any>[] = selectedFilters.customConditions ?? []
-    const listFilters = Object.fromEntries(
-      Object.entries(selectedFilters).filter(([key]) => key !== 'currencyIds' && key !== 'customConditions')
-    )
-    const mergedConditions = [...existingConditions, ...currencyConditions]
-    return {
-      limit: pageSize,
-      offset: (currentPage - 1) * pageSize,
-      search: search.trim() || undefined,
-      orderBy: sortField
-        ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
-        : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-      ...listFilters,
-      ...(mergedConditions.length > 0 ? { customConditions: mergedConditions } : {})
-    }
-  }, [currentPage, pageSize, search, sortField, sortOrder, selectedFilters, currencyConditions])
+  const queryModel = useMemo(
+    () =>
+      buildInvestmentSectionQueryModel({
+        selectedFilters,
+        search,
+        sortField,
+        sortOrder,
+        currentPage,
+        pageSize
+      }),
+    [currentPage, pageSize, search, selectedFilters, sortField, sortOrder]
+  )
 
   // Fetch data
   const {
@@ -91,7 +88,7 @@ export const useInvestmentSectionState = ({
     loading,
     error,
     refetch
-  } = useInvestments(accessToken, queryVariables, 'list')
+  } = useInvestments(accessToken, queryModel.queryVariables, queryModel.queryFields, queryModel.sortDescriptors)
 
   // Track initial load
   useEffect(() => {
@@ -117,22 +114,40 @@ export const useInvestmentSectionState = ({
   )
 
   // Handlers
-  const handleSortingChange = useCallback((newSorting: Array<{ id: string; desc: boolean }>) => {
-    if (newSorting.length === 0) {
-      setSortField('')
-      setSortOrder('DESC')
-      setCurrentPage(1)
-    } else {
-      const firstSort = newSorting[0]
-      setSortField(firstSort.id)
-      setSortOrder(firstSort.desc ? 'DESC' : 'ASC')
-      setCurrentPage(1)
-    }
-  }, [])
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      onSortingChange?.(newSorting)
+
+      if (newSorting.length === 0) {
+        setSortField('')
+        setSortOrder('DESC')
+        setCurrentPage(1)
+      } else {
+        const firstSort = newSorting[0]
+        setSortField(firstSort.id)
+        setSortOrder(firstSort.desc ? 'DESC' : 'ASC')
+        setCurrentPage(1)
+      }
+    },
+    [onSortingChange]
+  )
+
+  const handleVisibleColumnsChange = useCallback(
+    (columns: string[]) => {
+      setVisibleColumns(columns)
+      onVisibleColumnsChange?.(columns)
+    },
+    [onVisibleColumnsChange]
+  )
 
   const handlePaginationChange = useCallback((newPagination: { pageIndex: number; pageSize: number }) => {
     setCurrentPage(newPagination.pageIndex + 1)
     setPageSize(newPagination.pageSize)
+  }, [])
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value)
+    setCurrentPage(1)
   }, [])
 
   return {
@@ -143,13 +158,13 @@ export const useInvestmentSectionState = ({
     error,
     refetch,
     search,
-    setSearch,
+    setSearch: handleSearchChange,
     currentPage,
     pageSize,
     sortField,
     sortOrder,
     visibleColumns,
-    setVisibleColumns,
+    setVisibleColumns: handleVisibleColumnsChange,
     sorting,
     pagination,
     isInitialLoading,

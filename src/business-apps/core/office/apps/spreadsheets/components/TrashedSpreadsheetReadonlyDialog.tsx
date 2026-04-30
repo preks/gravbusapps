@@ -15,10 +15,8 @@ import { PermanentDeleteConfirmDialog } from '@/business-apps/platform/apps/shar
 interface TrashedSpreadsheetReadonlyDialogProps {
   spreadsheetTitle?: string
   canManage: boolean
-  isRestoring: boolean
   isDeleting: boolean
   onBackToTrash: () => void
-  onRestore: () => void
   onDeletePermanently: () => void
   'data-testid'?: string
 }
@@ -26,10 +24,8 @@ interface TrashedSpreadsheetReadonlyDialogProps {
 export function TrashedSpreadsheetReadonlyDialog({
   spreadsheetTitle,
   canManage,
-  isRestoring,
   isDeleting,
   onBackToTrash,
-  onRestore,
   onDeletePermanently,
   'data-testid': testId = 'trashed-spreadsheet-readonly-dialog'
 }: TrashedSpreadsheetReadonlyDialogProps) {
@@ -56,23 +52,14 @@ export function TrashedSpreadsheetReadonlyDialog({
               {t('trashed-readonly-back')}
             </Button>
             {canManage ? (
-              <>
-                <Button
-                  onClick={onRestore}
-                  disabled={isRestoring || isDeleting}
-                  data-testid={`${testId}-restore-button`}
-                >
-                  {isRestoring ? t('trashed-readonly-restoring') : t('trashed-readonly-restore')}
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => setDeleteConfirmOpen(true)}
-                  disabled={isRestoring || isDeleting}
-                  data-testid={`${testId}-delete-button`}
-                >
-                  {isDeleting ? t('trashed-readonly-deleting') : t('trashed-readonly-delete')}
-                </Button>
-              </>
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteConfirmOpen(true)}
+                disabled={isDeleting}
+                data-testid={`${testId}-delete-button`}
+              >
+                {isDeleting ? t('trashed-readonly-deleting') : t('trashed-readonly-delete')}
+              </Button>
             ) : null}
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -85,7 +72,7 @@ export function TrashedSpreadsheetReadonlyDialog({
             setDeleteConfirmOpen(open)
           }
         }}
-        itemName={spreadsheetTitle || t('title-untitled')}
+        itemNames={[spreadsheetTitle || t('title-untitled')]}
         onConfirm={onDeletePermanently}
         isDeleting={isDeleting}
         data-testid={`${testId}-delete-confirm`}

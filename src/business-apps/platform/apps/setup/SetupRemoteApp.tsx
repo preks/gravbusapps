@@ -348,7 +348,9 @@ function SetupRemoteAppInner({ accessToken, userInfo }: SetupRemoteAppViewProps)
                     data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'capabilities-selection-step')}
                   />
                 )}
-                {step === 6 && <AdditionalEmployeesStep onNext={() => setStep(7)} onBack={handleBack} />}
+                {step === 6 && (
+                  <AdditionalEmployeesStep accessToken={accessToken} onNext={() => setStep(7)} onBack={handleBack} />
+                )}
                 {step === 7 && (
                   <>
                     {finalizeFailed ? (

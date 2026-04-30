@@ -24,7 +24,7 @@ import {
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import type { TaskNodeConfig, DesignerMode } from '../../types/studioTypes'
-import { AssignmentMode, FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { AssignmentMode, FlowStepType } from '@/common/data/flow/types/flowTemplate'
 import type { FlowStudioData } from '../../hooks/useFlowStudioData'
 import { TaskGeneralTab } from './task/TaskGeneralTab'
 import { TaskFormTab } from './task/TaskFormTab'

@@ -4,7 +4,7 @@ import { Plus, Zap } from 'lucide-react'
 import { v4 as uuid } from 'uuid'
 import type { TaskNodeConfig } from '../../../types/studioTypes'
 import type { FlowStudioData } from '../../../hooks/useFlowStudioData'
-import { EventHandlerType, type EventSubscription } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { EventHandlerType, type EventSubscription } from '@/common/data/flow/types/flowTemplate'
 import { EventSubscriptionCard } from './events/EventSubscriptionCard'
 
 interface TaskEventsTabProps {

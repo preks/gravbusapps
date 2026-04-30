@@ -5,6 +5,10 @@ import { createShapeFromPreset } from '../slideElements'
 import type { CodeElement, ShapeElement, TextElement, VideoElement } from '../slideElements'
 import { createDefaultShapeText } from '../../utils/richTextEditing'
 
+jest.mock('../../hooks/useResolvedSlideMediaUrl', () => ({
+  useResolvedSlideMediaUrl: (url: string | undefined) => url
+}))
+
 void React
 
 function makeTextElement(overrides: Partial<TextElement> = {}): TextElement {
@@ -176,6 +180,58 @@ function dragFrom(source: Element, start: { x: number; y: number }, end: { x: nu
 }
 
 describe('SlideCanvas inline editing drag behavior', () => {
+  it('selects a text element on first click without entering edit mode', () => {
+    const onSelectElements = jest.fn()
+    const onEditText = jest.fn()
+
+    render(
+      <SlideCanvas
+        elements={[makeTextElement()]}
+        selectedIds={new Set()}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={onSelectElements}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={onEditText}
+      />
+    )
+
+    const textElement = document.querySelector('[data-element-id="text-1"]')
+
+    expect(textElement).not.toBeNull()
+
+    fireEvent.mouseDown(textElement as HTMLElement, { clientX: 150, clientY: 150 })
+    fireEvent.click(textElement as HTMLElement, { clientX: 150, clientY: 150 })
+
+    expect(onSelectElements).toHaveBeenCalledWith(new Set(['text-1']))
+    expect(onEditText).not.toHaveBeenCalled()
+  })
+
+  it('enters text editing on click when the text element is already selected', () => {
+    const onEditText = jest.fn()
+
+    render(
+      <SlideCanvas
+        elements={[makeTextElement()]}
+        selectedIds={new Set(['text-1'])}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={onEditText}
+      />
+    )
+
+    const textElement = document.querySelector('[data-element-id="text-1"]')
+
+    expect(textElement).not.toBeNull()
+
+    fireEvent.mouseDown(textElement as HTMLElement, { clientX: 150, clientY: 150 })
+    fireEvent.click(textElement as HTMLElement, { clientX: 150, clientY: 150 })
+
+    expect(onEditText).toHaveBeenCalledWith('text-1')
+  })
+
   it('keeps text editor body interactions inside the inline editor', () => {
     const { editor, onDragStart, onDragEnd, onUpdateElement } = renderInlineEditingCanvas(makeTextElement())
 

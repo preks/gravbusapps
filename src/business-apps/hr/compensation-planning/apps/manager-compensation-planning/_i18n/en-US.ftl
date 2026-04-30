@@ -73,7 +73,6 @@ hire-unknown = Unknown
 hire-tooltip = Hired: {$date}
 
 compa-no-band = No pay band data
-compa-ratio-label = CR: {$ratio}
 
 filters-toggle-aria = Show or hide filters
 search-toggle-aria = Search team members
@@ -104,6 +103,7 @@ pagination-prev-aria = Previous page
 pagination-next-aria = Next page
 
 manager-team-distribution-method-section = How should the increase pool be split?
+manager-team-distribution-col-compensation-band = Compensation Band
 
 manager-team-save-allocations = Distribute
 # Primary toolbar action — opens submit dialog (replaces former “Distribute”).

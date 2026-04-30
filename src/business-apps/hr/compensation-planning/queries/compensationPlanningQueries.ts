@@ -1,10 +1,5 @@
 import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments'
 
-/**
- * Team positions only — **no** `compensationBandPolicies` here: nesting that under a large
- * `EmployeePosition` filter can trigger Postgres/Hasura "database query error" on some deployments.
- * Compensation bands are loaded in {@link GET_JOB_LEVELS_FOR_COMPENSATION_BANDS} (batched by id).
- */
 export const GET_COMPENSATION_TEAM_MEMBERS = `
   query GetCompensationTeamMembers($where: EmployeePositionBoolExp!) {
     EmployeePosition(where: $where) {
@@ -13,29 +8,34 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
       firstName
       lastName
       hireDate
-      companyId
-      company {
-        id
-        name
-      }
       organizationalUnitId
       organizationalUnit {
         id
         name
       }
+      siteLocationId
       supervisorEmployeeId
       jobPosition {
-        id
         name
+        jobFunction {
+          jobFamily {
+            id
+          }
+        }
+        jobProfile {
+          jobFunction {
+            jobFamily {
+              id
+            }
+          }
+        }
         jobLevel {
           id
         }
       }
       employee {
-        id
         code
         displayName
-        fullName
         pictureThumbnail
         workingCondition {
           hireDate
@@ -49,24 +49,25 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
   }
 `
 
-/** Batched by unique `JobLevel` ids from {@link GET_COMPENSATION_TEAM_MEMBERS} `jobPosition.jobLevelId`. */
-export const GET_JOB_LEVELS_FOR_COMPENSATION_BANDS = `
-  query GetJobLevelsForCompensationBands($jobLevelIds: [uuid!]!) {
-    JobLevel(where: { id: { _in: $jobLevelIds } }) {
-      id
-      compensationBandPolicies {
-        compensationBand {
-          id
-          name
-          payGrade
-          minSalary
-          maxSalary
-          currencyRef
-          currency {
-            id
-            code
-            value
-          }
+export const GET_COMPENSATION_BAND_POLICIES_FOR_TEAM = `
+  query GetCompensationBandPoliciesForTeam($jobFamilyIds: [uuid!]!, $jobLevelIds: [uuid!]!, $geoZoneIds: [uuid!]!) {
+    CompensationBandPolicy(
+      where: {
+        jobFamilyId: { _in: $jobFamilyIds }
+        jobLevelId: { _in: $jobLevelIds }
+        geoZoneId: { _in: $geoZoneIds }
+      }
+      orderBy: [{ priority: ASC }]
+    ) {
+      jobFamilyId
+      jobLevelId
+      geoZoneId
+      compensationBand {
+        payGrade
+        minSalary
+        maxSalary
+        currency {
+          value
         }
       }
     }

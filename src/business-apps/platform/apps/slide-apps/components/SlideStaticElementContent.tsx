@@ -19,6 +19,7 @@ import { gradientToCss, getImageCropStyles, textElementStubForShapeInText, textT
 import { resolveFontStack } from './fontStack'
 import { SlideChartRenderer } from './SlideChartRenderer'
 import { RichTextContent } from './RichTextContent'
+import { getRichTextBoxStyle } from './richTextStyles'
 import { TextWithLinks } from './TextWithLinks'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import { renderShape as renderSharedShape } from './slideRenderUtils'
@@ -475,23 +476,7 @@ export function SlideStaticElementContent({
           overflow: 'hidden'
         }}
       >
-        <div
-          style={{
-            width: '100%',
-            fontFamily: resolveFontStack(textEl.fontFamily),
-            fontSize: textEl.fontSize,
-            fontWeight: textEl.fontWeight,
-            fontStyle: textEl.fontStyle,
-            textDecoration: textEl.textDecoration,
-            textAlign: textEl.textAlign,
-            color: textEl.color,
-            lineHeight: textEl.lineHeight,
-            letterSpacing: textEl.letterSpacing,
-            ...textTransformToCss(textEl.textTransform),
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word'
-          }}
-        >
+        <div style={getRichTextBoxStyle(textEl)}>
           {textEl.paragraphs && textEl.paragraphs.length > 0 ? (
             <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
           ) : (

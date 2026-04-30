@@ -19,7 +19,7 @@ import {
   addEdge
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { FlowStep } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { FlowStep } from '@/common/data/flow/types/flowTemplate'
 
 export interface FlowRendererProps {
   steps: FlowStep[]

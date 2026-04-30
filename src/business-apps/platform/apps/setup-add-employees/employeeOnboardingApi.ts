@@ -1,6 +1,7 @@
 import { env } from '@/common/env/EnvUtils'
 import { ORGCHART_API_URL } from '@/common/utils/serviceResolver'
 import { UserManagementClient } from '@/common/network/users/UserManagementClient'
+import type { GetUsersResponse, User } from '@/common/network/users/types'
 
 function orgchartApiRoot(): string {
   return ORGCHART_API_URL.replace(/\/$/, '')
@@ -328,6 +329,42 @@ function matchesEmailQuery(
   return u.email?.toLowerCase() === normalizedEmail || u.preferredUsername?.toLowerCase() === normalizedEmail
 }
 
+/** Upper bound per `getUsers` call (see {@link RestClient} — no default fetch timeout). */
+const USER_MANAGEMENT_EMAIL_LOOKUP_TIMEOUT_MS = 15_000
+
+async function getUsersForEmailLookupWithTimeout(
+  client: UserManagementClient,
+  searchParam: string
+): Promise<GetUsersResponse> {
+  const controller = new AbortController()
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), USER_MANAGEMENT_EMAIL_LOOKUP_TIMEOUT_MS)
+  try {
+    return await client.getUsers({ searchParam, limit: 20, offset: 0 }, { signal: controller.signal })
+  } finally {
+    globalThis.clearTimeout(timeoutId)
+  }
+}
+
+/**
+ * Single User Management search (no polling). Matches the same email / preferred-username rules as
+ * {@link resolveUserIdByEmail} and employee flows that align Keycloak preferred username with employee email.
+ */
+export async function findUserManagementUserMatchingEmployeeEmail(
+  accessToken: string,
+  email: string
+): Promise<User | null> {
+  const normalized = email.trim().toLowerCase()
+  const searchParam = email.trim()
+  if (!normalized) return null
+
+  const client = new UserManagementClient()
+  client.setAccessToken(accessToken)
+
+  const resp = await getUsersForEmailLookupWithTimeout(client, searchParam)
+  const match = resp.data?.find(u => matchesEmailQuery(u, normalized))
+  return match ?? null
+}
+
 /**
  * Resolves User Management `userId` for an email. After `createUser` from employee flows, Keycloak often has the
  * account before this service’s search index returns the user — poll with backoff instead of failing on first empty result.
@@ -344,10 +381,14 @@ export async function resolveUserIdByEmail(accessToken: string, email: string): 
   const delayBetweenMs = 1000
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const resp = await client.getUsers({ searchParam, limit: 20, offset: 0 })
-    const match = resp.data?.find(u => matchesEmailQuery(u, normalized))
-    if (match?.id) {
-      return match.id
+    try {
+      const resp = await getUsersForEmailLookupWithTimeout(client, searchParam)
+      const match = resp.data?.find(u => matchesEmailQuery(u, normalized))
+      if (match?.id) {
+        return match.id
+      }
+    } catch {
+      // Timeout or transient error — same backoff as waiting for the search index.
     }
     if (attempt < maxAttempts - 1) {
       await delay(delayBetweenMs)

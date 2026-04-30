@@ -16,7 +16,7 @@ import {
   Textarea,
   PageLayout
 } from '@newwork/nw-design-system'
-import { InputRenderer } from '@/business-apps/flow/apps/creator/components/shared/InputRenderer'
+import { InputRenderer } from '@/common/components/flow/flow-execution/InputRenderer'
 import { InputType } from '@/common/network/flows/FlowTemplateClient'
 
 const generateDocumentNumber = () => {

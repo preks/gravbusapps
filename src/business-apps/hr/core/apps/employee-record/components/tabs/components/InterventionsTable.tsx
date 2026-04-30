@@ -136,7 +136,7 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({
     <Card className="" data-testid="time-interventions-card">
       <CardContent className="gba:p-4">
         <div className="gba:mb-3" data-testid="time-interventions-header" ref={headerRef}>
-          <div className="gba:flex gba:items-start gba:gap-2">
+          <div className="gba:flex gba:items-center gba:gap-2">
             <div
               className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:text-muted-foreground"
               data-testid="time-interventions-assistant-icon"

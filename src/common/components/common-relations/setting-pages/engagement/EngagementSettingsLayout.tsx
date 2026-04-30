@@ -3,6 +3,7 @@ import { PageLayout, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/n
 import { HandshakeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogSettings } from '../hooks/useCatalogSettings'
+import { getCatalogUsageCheckSpecs, useCatalogDeleteAvailability } from '../hooks/useCatalogDeleteAvailability'
 import { CatalogTab } from '../components/CatalogTab'
 import TaskTypeConfigurationPage from '../task-type-configuration/TaskTypeConfigurationPage'
 
@@ -38,6 +39,21 @@ export const EngagementSettingsLayout: React.FC<EngagementSettingsLayoutProps> =
   const activityTypes = useCatalogSettings(context, config.activityTypeCatalog)
   const taskTypes = useCatalogSettings(context, config.taskTypeCatalog)
   const taskPriorities = useCatalogSettings(context, config.taskPriorityCatalog)
+  const getActivityTypeDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Activity Type',
+    getCatalogUsageCheckSpecs(config.activityTypeCatalog)
+  )
+  const getTaskTypeDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Task Type',
+    getCatalogUsageCheckSpecs(config.taskTypeCatalog)
+  )
+  const getTaskPriorityDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Task Priority',
+    getCatalogUsageCheckSpecs(config.taskPriorityCatalog)
+  )
 
   return (
     <PageLayout
@@ -60,18 +76,25 @@ export const EngagementSettingsLayout: React.FC<EngagementSettingsLayoutProps> =
           <CatalogTab
             entityName="Activity Type"
             dataTestId={`${config.dataTestIdPrefix}-ActivityTypes`}
+            getDeleteAvailability={getActivityTypeDeleteAvailability}
             {...activityTypes}
           />
         </TabsContent>
 
         <TabsContent value="task-types">
-          <CatalogTab entityName="Task Type" dataTestId={`${config.dataTestIdPrefix}-TaskTypes`} {...taskTypes} />
+          <CatalogTab
+            entityName="Task Type"
+            dataTestId={`${config.dataTestIdPrefix}-TaskTypes`}
+            getDeleteAvailability={getTaskTypeDeleteAvailability}
+            {...taskTypes}
+          />
         </TabsContent>
 
         <TabsContent value="task-priorities">
           <CatalogTab
             entityName="Task Priority"
             dataTestId={`${config.dataTestIdPrefix}-TaskPriorities`}
+            getDeleteAvailability={getTaskPriorityDeleteAvailability}
             {...taskPriorities}
           />
         </TabsContent>
