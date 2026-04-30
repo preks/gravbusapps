@@ -41,6 +41,7 @@ import { SessionSwitchOverlay } from '../components/widgets/SessionSwitchOverlay
 import { ImportFolderNewAppDialog } from '@/common/components/ai-builder/import-new-app/ImportFolderNewAppDialog'
 import type { BuildPlan } from '../types/build'
 import type { OrchestratorFixComposerScope } from '../types/chat'
+import { isCompletedBuildStatus } from '../types'
 
 export interface OrchestratorViewConversationalProps {
   accessToken: string
@@ -253,7 +254,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
             return { assistantMessage }
           }
           const nextViewState =
-            refreshedPlan.status === 'completed' && refreshedPlan.currentPhase !== 'awaiting_change_decision'
+            isCompletedBuildStatus(refreshedPlan.status) && refreshedPlan.currentPhase !== 'awaiting_change_decision'
               ? 'complete'
               : 'review'
           if (rememberCompletedPlanSnapshot(refreshedPlan)) {
@@ -733,7 +734,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   const deriveViewStateFromPlan = useCallback((planLike: typeof currentPlan): 'review' | 'complete' => {
     if (!planLike) return 'review'
     if (planLike.currentPhase === 'awaiting_change_decision') return 'review'
-    const isComplete = planLike.status === 'completed' && planLike.currentPhase !== 'awaiting_change_decision'
+    const isComplete = isCompletedBuildStatus(planLike.status) && planLike.currentPhase !== 'awaiting_change_decision'
     return isComplete ? 'complete' : 'review'
   }, [])
 

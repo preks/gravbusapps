@@ -5,7 +5,7 @@
 
 import { useCallback, type MutableRefObject } from 'react'
 import type { OrchestratorState } from './useOrchestratorState'
-import type { BuildPlan, OrchestratorViewState } from '../types'
+import { isCompletedBuildStatus, type BuildPlan, type OrchestratorViewState } from '../types'
 import type { ChatMessage as BuilderChatMessage } from '@/common/network/ai/builder/BuilderClient'
 import type { CreateChatMessage } from '../types/chat'
 import { canShowExistingBuild, isValidOrchestratorViewState } from '../utils/orchestratorSessionUtils'
@@ -45,7 +45,7 @@ export function useOrchestratorRestore(options: UseOrchestratorRestoreOptions) {
     if (plan.currentPhase === 'awaiting_change_decision') {
       return 'review'
     }
-    return plan.status === 'completed' ? 'complete' : 'review'
+    return isCompletedBuildStatus(plan.status) ? 'complete' : 'review'
   }, [])
 
   const resolveViewStateFromCheckpoint = useCallback(

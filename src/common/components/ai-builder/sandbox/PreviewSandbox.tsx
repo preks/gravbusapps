@@ -44,13 +44,14 @@ interface PreviewNamespaceContext {
   namespace: string
 }
 
-function derivePreviewNamespaceContext(sessionNamespaceOrId: string): PreviewNamespaceContext {
-  const seed = (sessionNamespaceOrId || '').trim()
-  const normalized = seed.replace(/[^a-zA-Z0-9_]/g, '_')
-  const draftNamespace = `draft_${normalized}`
+export function derivePreviewNamespaceContext(sessionNamespaceOrId: string): PreviewNamespaceContext {
+  const rawSessionValue = (sessionNamespaceOrId || '').trim()
+  const canonicalDraftNamespace = rawSessionValue.startsWith('draft_')
+    ? rawSessionValue
+    : `draft_${rawSessionValue.replace(/[^a-zA-Z0-9_]/g, '_')}`
   return {
-    sessionNamespace: seed,
-    namespace: draftNamespace
+    sessionNamespace: canonicalDraftNamespace,
+    namespace: canonicalDraftNamespace
   }
 }
 
