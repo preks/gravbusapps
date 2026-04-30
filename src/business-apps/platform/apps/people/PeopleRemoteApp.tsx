@@ -39,6 +39,13 @@ import {
 } from './peopleStructureData'
 import { fetchHrActiveEmployeesPage } from './peopleHrActiveEmployeesApi'
 import { startTerminateEmployeeProcess } from './peopleTerminateEmployeeApi'
+import { OrgchartClient } from '@/common/network/orgchart/OrgchartClient'
+import { PeopleAddDepartmentForm, PeopleEditDepartmentForm } from './PeopleDepartmentForms'
+import {
+  fetchPeopleOuDeleteFeasibility,
+  mapOrgchartOrganizationalUnitDeleteError,
+  type PeopleOuDeleteFeasibility
+} from './peopleDepartmentDeleteFeasibility'
 
 export type PeopleRemoteAppViewProps = {
   accessToken?: string
@@ -143,7 +150,15 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
 
   const [listLoading, setListLoading] = useState(false)
   const [dataError, setDataError] = useState<string | null>(null)
-  const [addOpen, setAddOpen] = useState(false)
+  const [addEmployeeOpen, setAddEmployeeOpen] = useState(false)
+  const [addDepartmentOpen, setAddDepartmentOpen] = useState(false)
+  const [editDepartmentRow, setEditDepartmentRow] = useState<PeopleOrganizationalUnitRow | null>(null)
+  const [removeDepartmentRow, setRemoveDepartmentRow] = useState<PeopleOrganizationalUnitRow | null>(null)
+  const [removeFeasibility, setRemoveFeasibility] = useState<PeopleOuDeleteFeasibility | null>(null)
+  const [removeFeasibilityLoading, setRemoveFeasibilityLoading] = useState(false)
+  const [removeFeasibilityError, setRemoveFeasibilityError] = useState<string | null>(null)
+  const [removeConfirmBusy, setRemoveConfirmBusy] = useState(false)
+  const [removeActionError, setRemoveActionError] = useState<string | null>(null)
   const [editEmployeeId, setEditEmployeeId] = useState<string | null>(null)
   const [resetPasswordEmployeeId, setResetPasswordEmployeeId] = useState<string | null>(null)
   const [terminateTarget, setTerminateTarget] = useState<{
@@ -274,6 +289,33 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
   ])
 
   useEffect(() => {
+    if (!removeDepartmentRow || !accessToken?.trim() || !structureId) {
+      setRemoveFeasibility(null)
+      setRemoveFeasibilityError(null)
+      setRemoveFeasibilityLoading(false)
+      return
+    }
+    let cancelled = false
+    setRemoveFeasibilityLoading(true)
+    setRemoveFeasibilityError(null)
+    setRemoveFeasibility(null)
+    setRemoveActionError(null)
+    void fetchPeopleOuDeleteFeasibility(accessToken, structureId, removeDepartmentRow.id)
+      .then(f => {
+        if (!cancelled) setRemoveFeasibility(f)
+      })
+      .catch(e => {
+        if (!cancelled) setRemoveFeasibilityError(e instanceof Error ? e.message : t('error-load'))
+      })
+      .finally(() => {
+        if (!cancelled) setRemoveFeasibilityLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [removeDepartmentRow, accessToken, structureId, t])
+
+  useEffect(() => {
     const maxPageIndex = currentTotal === 0 ? 0 : Math.max(0, Math.ceil(currentTotal / pagination.pageSize) - 1)
     if (pagination.pageIndex > maxPageIndex) {
       setPagination(p => {
@@ -365,6 +407,31 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
         accessorFn: row => row.managerDisplayName?.trim() || '—',
         header: t('col-manager'),
         enableSorting: false
+      },
+      {
+        id: 'departmentRowActions',
+        header: '',
+        enableSorting: false,
+        cell: ({ row }) => {
+          return (
+            <div className="gba:flex gba:flex-row gba:flex-nowrap gba:items-center gba:justify-end gba:gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditDepartmentRow(row.original)}>
+                {t('action-edit')}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  setRemoveActionError(null)
+                  setRemoveDepartmentRow(row.original)
+                }}
+              >
+                {t('action-remove-department')}
+              </Button>
+            </div>
+          )
+        }
       }
     ],
     [t]
@@ -409,9 +476,15 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
             <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">{t('people-subtitle')}</p>
           </div>
           {structureId && accessToken?.trim() ? (
-            <Button type="button" variant="default" onClick={() => setAddOpen(true)}>
-              {t('action-add-employee')}
-            </Button>
+            activeTab === 'employees' ? (
+              <Button type="button" variant="default" onClick={() => setAddEmployeeOpen(true)}>
+                {t('action-add-employee')}
+              </Button>
+            ) : (
+              <Button type="button" variant="default" onClick={() => setAddDepartmentOpen(true)}>
+                {t('action-add-department')}
+              </Button>
+            )
           ) : null}
         </CardHeader>
         <CardContent className="gba:flex gba:flex-col gba:gap-4">
@@ -477,7 +550,7 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
         </CardContent>
       </Card>
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      <Dialog open={addEmployeeOpen} onOpenChange={setAddEmployeeOpen}>
         <DialogContent className="gba:max-h-[90vh] gba:overflow-y-auto gba:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t('dialog-add-employee-title')}</DialogTitle>
@@ -488,7 +561,187 @@ export function PeopleRemoteApp({ accessToken }: PeopleRemoteAppViewProps) {
               accessToken={accessToken}
               structureId={structureId}
               onSuccess={() => {
-                setAddOpen(false)
+                setAddEmployeeOpen(false)
+                setRefreshKey(k => k + 1)
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addDepartmentOpen} onOpenChange={setAddDepartmentOpen}>
+        <DialogContent className="gba:max-h-[90vh] gba:overflow-y-auto gba:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('dialog-add-department-title')}</DialogTitle>
+            <DialogDescription>{t('dialog-add-department-description')}</DialogDescription>
+          </DialogHeader>
+          {accessToken?.trim() && structureId ? (
+            <PeopleAddDepartmentForm
+              embedded
+              accessToken={accessToken}
+              structureId={structureId}
+              onSuccess={() => {
+                setAddDepartmentOpen(false)
+                setRefreshKey(k => k + 1)
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(removeDepartmentRow)}
+        onOpenChange={open => {
+          if (!open) {
+            setRemoveDepartmentRow(null)
+            setRemoveFeasibility(null)
+            setRemoveFeasibilityError(null)
+            setRemoveFeasibilityLoading(false)
+            setRemoveConfirmBusy(false)
+            setRemoveActionError(null)
+          }
+        }}
+      >
+        <DialogContent className="gba:max-w-lg" data-testid="people-remove-department-dialog">
+          <DialogHeader>
+            <DialogTitle>
+              {removeDepartmentRow
+                ? t('dialog-remove-department-title', { name: removeDepartmentRow.name })
+                : t('dialog-remove-department-title-fallback')}
+            </DialogTitle>
+            <DialogDescription>{t('dialog-remove-department-intro')}</DialogDescription>
+          </DialogHeader>
+          <div className="gba:flex gba:flex-col gba:gap-3 gba:text-sm gba:text-muted-foreground">
+            <p>{t('dialog-remove-department-what-happens')}</p>
+            {removeFeasibilityLoading ? (
+              <div className="gba:flex gba:items-center gba:gap-2 gba:py-2">
+                <Spinner size="sm" />
+                <span>{t('dialog-remove-department-checking')}</span>
+              </div>
+            ) : null}
+            {removeFeasibilityError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{removeFeasibilityError}</AlertDescription>
+              </Alert>
+            ) : null}
+            {removeActionError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{removeActionError}</AlertDescription>
+              </Alert>
+            ) : null}
+            {!removeFeasibilityLoading && removeFeasibility && !removeFeasibilityError ? (
+              <>
+                {removeFeasibility.childOrgUnitNodeCount > 0 ? (
+                  <p>{t('dialog-remove-department-children', { count: removeFeasibility.childOrgUnitNodeCount })}</p>
+                ) : (
+                  <p>{t('dialog-remove-department-no-children')}</p>
+                )}
+                {!removeFeasibility.hasNoBlockingAssignments ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      {t('dialog-remove-department-blocker-assignments', {
+                        employees: removeFeasibility.rowsWithEmployee,
+                        jobPositions: removeFeasibility.rowsWithJobPosition
+                      })}
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+                {removeFeasibility.structureLoadFailed ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>{t('dialog-remove-department-blocker-structure')}</AlertDescription>
+                  </Alert>
+                ) : null}
+                {!removeFeasibility.structureLoadFailed && removeFeasibility.hasNoBlockingAssignments ? (
+                  <>
+                    {!removeFeasibility.hasOrgchartNode ? (
+                      <Alert variant="destructive">
+                        <AlertDescription>{t('dialog-remove-department-blocker-no-node')}</AlertDescription>
+                      </Alert>
+                    ) : null}
+                    {removeFeasibility.hasOrgchartNode && !removeFeasibility.hasGraphParent ? (
+                      <Alert variant="destructive">
+                        <AlertDescription>{t('dialog-remove-department-blocker-no-parent')}</AlertDescription>
+                      </Alert>
+                    ) : null}
+                  </>
+                ) : null}
+                {removeFeasibility.canDeleteByPreview ? (
+                  <Alert>
+                    <AlertDescription>{t('dialog-remove-department-ready')}</AlertDescription>
+                  </Alert>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+          <DialogFooter className="gba:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={removeConfirmBusy}
+              onClick={() => {
+                setRemoveDepartmentRow(null)
+                setRemoveFeasibility(null)
+                setRemoveFeasibilityError(null)
+                setRemoveActionError(null)
+              }}
+            >
+              {t('dialog-remove-department-cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={
+                removeConfirmBusy ||
+                removeFeasibilityLoading ||
+                Boolean(removeFeasibilityError) ||
+                !removeFeasibility?.canDeleteByPreview ||
+                !accessToken?.trim() ||
+                !removeDepartmentRow
+              }
+              onClick={() => {
+                if (!accessToken?.trim() || !removeDepartmentRow) return
+                setRemoveConfirmBusy(true)
+                setRemoveActionError(null)
+                const client = new OrgchartClient()
+                client.setAccessToken(accessToken)
+                void client
+                  .deleteOrganizationalUnit(removeDepartmentRow.id, {
+                    headers: { Authorization: `Bearer ${accessToken}` }
+                  })
+                  .then(() => {
+                    setRemoveDepartmentRow(null)
+                    setRemoveFeasibility(null)
+                    setRefreshKey(k => k + 1)
+                  })
+                  .catch(err => {
+                    setRemoveActionError(mapOrgchartOrganizationalUnitDeleteError(err, t))
+                  })
+                  .finally(() => {
+                    setRemoveConfirmBusy(false)
+                  })
+              }}
+              data-testid="people-remove-department-confirm"
+            >
+              {removeConfirmBusy ? t('dialog-remove-department-busy') : t('dialog-remove-department-confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(editDepartmentRow)} onOpenChange={open => !open && setEditDepartmentRow(null)}>
+        <DialogContent className="gba:max-h-[90vh] gba:overflow-y-auto gba:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('dialog-edit-department-title')}</DialogTitle>
+            <DialogDescription>{t('dialog-edit-department-description')}</DialogDescription>
+          </DialogHeader>
+          {accessToken?.trim() && structureId && editDepartmentRow ? (
+            <PeopleEditDepartmentForm
+              embedded
+              accessToken={accessToken}
+              structureId={structureId}
+              row={editDepartmentRow}
+              onSuccess={() => {
+                setEditDepartmentRow(null)
                 setRefreshKey(k => k + 1)
               }}
             />

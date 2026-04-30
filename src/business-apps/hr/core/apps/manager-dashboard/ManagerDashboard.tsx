@@ -97,6 +97,14 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
       vm.selectedMemberId ? directReportsForWorkboard.find(report => report.id === vm.selectedMemberId) || null : null,
     [vm.selectedMemberId, directReportsForWorkboard]
   )
+  const selectedMemberAllocation = useMemo(() => {
+    if (!selectedMember) return 0
+    return allocationByEmployeeId.get(selectedMember.id) ?? 0
+  }, [allocationByEmployeeId, selectedMember])
+  const selectedMemberLastFeedbackDate = useMemo(() => {
+    if (!selectedMember) return null
+    return vm.lastFeedbackByEmployeeId[selectedMember.id] ?? null
+  }, [selectedMember, vm.lastFeedbackByEmployeeId])
 
   useEffect(() => {
     const refreshDashboardData = () => {
@@ -178,34 +186,16 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
           </div>
         </div>
 
-        {/* Responsive scaling for large screens */}
-        <style>{String.raw`
-          @media (min-width: 1024px) {
-            [data-desktop-grid="2fr-1fr-main"] {
-              grid-template-columns: 2fr 1fr !important;
-            }
-          }
-          @media (min-width: 1920px) {
-            [data-testid="manager-dashboard-content"] { font-size: 110%; }
-          }
-          @media (min-width: 2560px) {
-            [data-testid="manager-dashboard-content"] { font-size: 120%; }
-          }
-          @media (min-width: 3840px) {
-            [data-testid="manager-dashboard-content"] { font-size: 135%; }
-          }
-        `}</style>
-
-        {/* MAIN LAYOUT: 2-column grid (2fr 1fr) — same as original */}
+        {/* MAIN LAYOUT: fixed desktop 2-column shell */}
         <div
-          className="gba:grid gba:grid-cols-1"
+          className="gba:grid"
           style={{
             gap: 'clamp(1.5rem, 1.5vw, 2rem)',
             marginBottom: 'clamp(1.5rem, 1.5vw, 2rem)',
-            gridTemplateColumns: 'minmax(0, 1fr)'
+            gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)'
           }}
-          data-desktop-grid="2fr-1fr-main"
         >
+          {/* LEFT COLUMN: Today's Priorities + Your Team */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 1.5vw, 2rem)' }}>
             <TodaysPrioritiesSection
               items={vm.priorities.items}
@@ -250,6 +240,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
             </div>
           </div>
 
+          {/* RIGHT COLUMN: Team Health + Current Cycle Performance */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 1.5vw, 2rem)' }}>
             <TeamHealthSection
               summary={vm.teamHealth.summary}
@@ -314,7 +305,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
             employeeAllocations={vm.directReportsWithAllocation}
             lastFeedbackByEmployeeId={vm.lastFeedbackByEmployeeId}
             onNavigateBack={vm.handleNavigateBackToDashboard}
-            onNavigateToEmployee={vm.handleNavigateToEmployee}
             onOpenMemberPanel={vm.actions.openMemberPanel}
             userOrgData={vm.userOrgData || undefined}
           />
@@ -322,9 +312,11 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
             isOpen={vm.isMemberPanelOpen}
             onClose={vm.handleCloseMemberPanel}
             member={selectedMember}
-            allocationPercent={vm.averageAllocationPercentage}
+            accessToken={accessToken || ''}
+            currentUserEmployeeId={employeeId || vm.userProfile?.id || ''}
+            allocationPercent={selectedMemberAllocation}
             teamPerformance={vm.teamPerformance}
-            lastFeedbackDate={vm.daysSinceLastFeedback ? `${vm.daysSinceLastFeedback} days ago` : null}
+            lastFeedbackDate={selectedMemberLastFeedbackDate}
             onNavigateToEmployee={vm.handleNavigateToEmployee}
             onAssignProject={handleAssignProject}
           />
@@ -492,9 +484,11 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         isOpen={vm.isMemberPanelOpen}
         onClose={vm.handleCloseMemberPanel}
         member={selectedMember}
-        allocationPercent={vm.averageAllocationPercentage}
+        accessToken={accessToken || ''}
+        currentUserEmployeeId={employeeId || vm.userProfile?.id || ''}
+        allocationPercent={selectedMemberAllocation}
         teamPerformance={vm.teamPerformance}
-        lastFeedbackDate={vm.daysSinceLastFeedback ? `${vm.daysSinceLastFeedback} days ago` : null}
+        lastFeedbackDate={selectedMemberLastFeedbackDate}
         onNavigateToEmployee={vm.handleNavigateToEmployee}
         onAssignProject={handleAssignProject}
       />

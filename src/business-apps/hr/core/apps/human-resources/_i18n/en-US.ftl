@@ -165,6 +165,9 @@ hr-analytics-avg-salary = Average Salary
 hr-analytics-average-salary = Average Salary
 hr-analytics-merit-increases = Merit Increases
 hr-analytics-average-increase = Average increase
+hr-analytics-equity-health-score-title = Equity Health Score
+hr-analytics-equity-health-score-no-data-footer = No completed equity health analysis found
+hr-analytics-equity-health-score-error-footer = Unable to load equity health score
 
 # Analytics - Health Insurance
 hr-analytics-health-insurer-distribution = Health Insurer Distribution

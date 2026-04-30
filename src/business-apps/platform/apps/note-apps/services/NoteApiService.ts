@@ -113,7 +113,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
     // Handle empty responses
     const text = await response.text()
-    return text ? JSON.parse(text) : null
+    return (text ? JSON.parse(text) : null) as T
   } catch (fetchError) {
     // Provide more helpful error for CORS/network issues
     debugLog('Fetch failed', fetchError)
@@ -132,6 +132,9 @@ function mapApiNoteToNote(apiNote: Record<string, unknown>): Note {
     permission = 'owner'
   }
 
+  const settings = apiNote.settings as Record<string, unknown> | undefined
+  const publishMetadata = settings?.publishMetadata as PublishMetadata | undefined
+
   return {
     id: apiNote.id as string,
     title: apiNote.title as string | undefined,
@@ -147,7 +150,7 @@ function mapApiNoteToNote(apiNote: Record<string, unknown>): Note {
     isArchived: (apiNote.isArchived as boolean) || false,
     parentId: apiNote.parentId as string | undefined,
     position: (apiNote.position as number) || 0,
-    settings: apiNote.settings as Note['settings'],
+    settings: settings as Note['settings'],
     ownerId: apiNote.ownerId as string,
     spaceId: (apiNote.spaceId as string | null | undefined) ?? null,
     currentVersion: (apiNote.currentVersion as number) || 1,
@@ -157,7 +160,8 @@ function mapApiNoteToNote(apiNote: Record<string, unknown>): Note {
     children: apiNote.children ? (apiNote.children as Record<string, unknown>[]).map(mapApiNoteToNote) : undefined,
     permission,
     isShared: apiNote.isShared as boolean | undefined,
-    sharedBy: apiNote.sharedBy as string | undefined
+    sharedBy: apiNote.sharedBy as string | undefined,
+    publishMetadata
   }
 }
 
@@ -371,6 +375,22 @@ export const NoteApiService = {
     const updated = await apiRequest<Record<string, unknown>>(`/notes/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload)
+    })
+
+    return mapApiNoteToNote(updated)
+  },
+
+  async updateContentMetadata(
+    id: string,
+    input: {
+      summary: string | null
+      translations: unknown[]
+      actionItemFlows: unknown[]
+    }
+  ): Promise<Note> {
+    const updated = await apiRequest<Record<string, unknown>>(`/notes/${id}/content-metadata`, {
+      method: 'PATCH',
+      body: JSON.stringify(input)
     })
 
     return mapApiNoteToNote(updated)
@@ -690,30 +710,11 @@ export const NoteApiService = {
     try {
       debugLog('createVersion', noteId, options)
 
-      // Get the current note if content not provided
-      let contentSnapshot: Record<string, unknown>
-      if (options.content) {
-        contentSnapshot = { content: options.content }
-      } else {
-        const note = await this.getNote(noteId)
-        if (!note) throw new Error('Note not found')
-        contentSnapshot = {
-          title: note.title,
-          content: note.content,
-          tags: note.tags,
-          color: note.color,
-          icon: note.icon
-        }
-      }
-
-      const versionData = await apiRequest<Record<string, unknown>>('/versions', {
+      const versionData = await apiRequest<Record<string, unknown>>(`/notes/${noteId}/versions`, {
         method: 'POST',
         body: JSON.stringify({
-          entityType: 'note',
-          entityId: noteId,
-          contentSnapshot,
-          changeSummary: options.changeDescription,
-          isAutoSave: !options.isCheckpoint
+          changeDescription: options.changeDescription,
+          isCheckpoint: options.isCheckpoint
         })
       })
 
@@ -740,10 +741,10 @@ export const NoteApiService = {
   async listVersions(noteId: string, page = 1, limit = 20): Promise<Version[]> {
     try {
       debugLog('listVersions', noteId)
-      const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(
+      const response = await apiRequest<{ items: Record<string, unknown>[] }>(
         `/versions/note/${noteId}?page=${page}&limit=${limit}`
       )
-      return response.items.map(v => ({
+      return response.items.map((v: Record<string, unknown>) => ({
         id: v.id as string,
         version: v.versionNumber as number,
         content: JSON.stringify(v.contentSnapshot || {}),
@@ -769,7 +770,17 @@ export const NoteApiService = {
       const versionData = await apiRequest<Record<string, unknown>>(`/versions/note/${noteId}/${versionNumber}`)
       const snapshot = versionData.contentSnapshot as Record<string, unknown>
       if (snapshot) {
-        return mapApiNoteToNote(snapshot)
+        return mapApiNoteToNote({
+          id: noteId,
+          ownerId: '',
+          isPinned: false,
+          isArchived: false,
+          position: 0,
+          currentVersion: versionNumber,
+          createdAt: '',
+          updatedAt: '',
+          ...snapshot
+        })
       }
       return null
     } catch (error) {
@@ -792,15 +803,7 @@ export const NoteApiService = {
 
       if (!snapshot) return false
 
-      // Update the note with the old content and clear Yjs state
-      await this.updateNote(noteId, {
-        title: snapshot.title as string | undefined,
-        content: snapshot.content as string | undefined,
-        tags: snapshot.tags as string[] | undefined,
-        color: snapshot.color as string | undefined,
-        icon: snapshot.icon as string | undefined,
-        contentJson: {} as any // Clear Yjs state
-      })
+      await this.resetYjsState(noteId, snapshot)
       console.log('[NoteApiService] Note updated with old content')
 
       // Create a new version marking it as a restore
@@ -815,6 +818,15 @@ export const NoteApiService = {
       console.error('[NoteApiService] Failed to restore version:', error)
       return false
     }
+  },
+
+  async resetYjsState(noteId: string, snapshot: Record<string, unknown>): Promise<Note> {
+    const updated = await apiRequest<Record<string, unknown>>(`/notes/${noteId}/yjs-reset`, {
+      method: 'POST',
+      body: JSON.stringify({ snapshot })
+    })
+
+    return mapApiNoteToNote(updated)
   },
 
   /**
@@ -900,6 +912,13 @@ export const NoteApiService = {
         createdByName: response.createdByName as string | undefined,
         createdByAvatar: response.createdByAvatar as string | undefined,
         createdAt: response.createdAt as string,
+        updatedAt: response.updatedAt as string | undefined,
+        resolvedAt: response.resolvedAt as string | undefined,
+        resolvedBy: response.resolvedBy as string | undefined,
+        selectionStart: response.selectionStart as number | undefined,
+        selectionEnd: response.selectionEnd as number | undefined,
+        selectedText: response.selectedText as string | undefined,
+        anchorPath: response.anchorPath as string | undefined,
         parentId: response.parentId as string | undefined
       }
     } catch (error) {
@@ -931,7 +950,13 @@ export const NoteApiService = {
         createdByName: c.createdByName as string | undefined,
         createdByAvatar: c.createdByAvatar as string | undefined,
         createdAt: c.createdAt as string,
+        updatedAt: c.updatedAt as string | undefined,
         resolvedAt: c.resolvedAt as string | undefined,
+        resolvedBy: c.resolvedBy as string | undefined,
+        selectionStart: c.selectionStart as number | undefined,
+        selectionEnd: c.selectionEnd as number | undefined,
+        selectedText: c.selectedText as string | undefined,
+        anchorPath: c.anchorPath as string | undefined,
         parentId: c.parentId as string | undefined,
         replies: (c.replies as Record<string, unknown>[] | undefined)?.map(r => ({
           id: r.id as string,
@@ -943,6 +968,13 @@ export const NoteApiService = {
           createdByName: r.createdByName as string | undefined,
           createdByAvatar: r.createdByAvatar as string | undefined,
           createdAt: r.createdAt as string,
+          updatedAt: r.updatedAt as string | undefined,
+          resolvedAt: r.resolvedAt as string | undefined,
+          resolvedBy: r.resolvedBy as string | undefined,
+          selectionStart: r.selectionStart as number | undefined,
+          selectionEnd: r.selectionEnd as number | undefined,
+          selectedText: r.selectedText as string | undefined,
+          anchorPath: r.anchorPath as string | undefined,
           parentId: c.id as string
         }))
       }))
@@ -954,11 +986,30 @@ export const NoteApiService = {
 
   async updateComment(commentId: string, updates: Partial<Comment>): Promise<Comment | null> {
     try {
-      await apiRequest<Record<string, unknown>>(`/comments/${commentId}`, {
+      const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}`, {
         method: 'PATCH',
         body: JSON.stringify({ content: updates.content })
       })
-      return null
+
+      return {
+        id: response.id as string,
+        entityId: response.entityId as string,
+        entityType: 'note',
+        type: response.type as Comment['type'],
+        content: response.content as string,
+        createdBy: response.createdBy as string,
+        createdByName: response.createdByName as string | undefined,
+        createdByAvatar: response.createdByAvatar as string | undefined,
+        createdAt: response.createdAt as string,
+        updatedAt: response.updatedAt as string | undefined,
+        resolvedAt: response.resolvedAt as string | undefined,
+        resolvedBy: response.resolvedBy as string | undefined,
+        selectionStart: response.selectionStart as number | undefined,
+        selectionEnd: response.selectionEnd as number | undefined,
+        selectedText: response.selectedText as string | undefined,
+        anchorPath: response.anchorPath as string | undefined,
+        parentId: response.parentId as string | undefined
+      }
     } catch (error) {
       console.error('Failed to update comment:', error)
       return null
@@ -987,11 +1038,30 @@ export const NoteApiService = {
 
   async replyToComment(commentId: string, reply: string): Promise<Comment | null> {
     try {
-      await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
+      const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
         method: 'POST',
         body: JSON.stringify({ content: reply })
       })
-      return null
+
+      return {
+        id: response.id as string,
+        entityId: response.entityId as string,
+        entityType: 'note',
+        type: response.type as Comment['type'],
+        content: response.content as string,
+        createdBy: response.createdBy as string,
+        createdByName: response.createdByName as string | undefined,
+        createdByAvatar: response.createdByAvatar as string | undefined,
+        createdAt: response.createdAt as string,
+        updatedAt: response.updatedAt as string | undefined,
+        resolvedAt: response.resolvedAt as string | undefined,
+        resolvedBy: response.resolvedBy as string | undefined,
+        selectionStart: response.selectionStart as number | undefined,
+        selectionEnd: response.selectionEnd as number | undefined,
+        selectedText: response.selectedText as string | undefined,
+        anchorPath: response.anchorPath as string | undefined,
+        parentId: response.parentId as string | undefined
+      }
     } catch (error) {
       console.error('Failed to reply to comment:', error)
       return null
@@ -1039,7 +1109,7 @@ export const NoteApiService = {
         return null
       }
 
-      return response as FileLock
+      return response as unknown as FileLock
     } catch (error) {
       console.error('Failed to get lock status:', error)
       return null

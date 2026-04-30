@@ -20,7 +20,9 @@ import type {
   DocumentStreamChunkOutput,
   DocumentStreamCompleteOutput,
   DocumentStreamErrorOutput,
-  DocumentStreamStartOutput
+  DocumentStreamStartOutput,
+  ReasoningStepOutput,
+  ReasoningStepKind
 } from '../types/models'
 import DynamicFormDisplay from './DynamicFormDisplay'
 // Standardized entity card
@@ -48,6 +50,13 @@ import {
   TreemapDisplay
 } from './displays/visual-elements'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  REASONING_KIND_LABEL,
+  REASONING_STATUS_STYLE,
+  extractCodeHint,
+  formatReasoningDuration,
+  prettifyJson
+} from './reasoningStepUtils'
 
 interface FlowProposalBoundaryProps {
   data: FlowProposalOutput
@@ -1142,6 +1151,214 @@ export const AnswerOutputRenderer: React.FC<{
   )
 }
 
+// ---------------------------------------------------------------------------
+// Cursor-style expandable reasoning step
+// ---------------------------------------------------------------------------
+
+/**
+ * Short, human-friendly label for each step kind. Used alongside the title so
+ * a glance at the collapsed row already tells the user WHAT kind of action
+ * ran (tool call vs. RAG lookup vs. inner GraphQL generation).
+ */
+const ReasoningSection: React.FC<{ title: string; payload: unknown; kind: ReasoningStepKind }> = ({
+  title,
+  payload,
+  kind
+}) => {
+  if (payload === undefined || payload === null || payload === '') return null
+  const codeHint = extractCodeHint(kind, payload)
+  const [showFull, setShowFull] = useState(false)
+
+  const json = prettifyJson(payload)
+  const TRUNCATE_CHARS = 2000
+  const isLarge = json.length > TRUNCATE_CHARS
+  const displayed = showFull || !isLarge ? json : json.slice(0, TRUNCATE_CHARS) + '…'
+
+  return (
+    <div className="gba:flex gba:flex-col gba:gap-1">
+      <div className="gba:text-[10px] gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:font-semibold">
+        {title}
+      </div>
+      {codeHint ? (
+        <pre className="gba:text-xs gba:font-mono gba:whitespace-pre-wrap gba:break-words gba:bg-muted/60 gba:border gba:border-border gba:rounded gba:p-2 gba:overflow-x-auto">
+          <code data-language={codeHint.language}>{codeHint.code}</code>
+        </pre>
+      ) : (
+        <pre className="gba:text-xs gba:font-mono gba:whitespace-pre-wrap gba:break-words gba:bg-muted/60 gba:border gba:border-border gba:rounded gba:p-2 gba:overflow-x-auto">
+          <code>{displayed}</code>
+        </pre>
+      )}
+      {isLarge && !codeHint && (
+        <button
+          type="button"
+          onClick={() => setShowFull(prev => !prev)}
+          className="gba:self-start gba:text-[11px] gba:text-primary gba:underline-offset-2 hover:gba:underline"
+        >
+          {showFull ? 'Collapse' : 'Show full'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Cursor-style collapsible row for a single reasoning step. Collapsed by
+ * default; expand state is kept per mounted row so reloading the page
+ * returns to the default collapsed state (users treat them as debug-ish
+ * artifacts, not first-class content).
+ *
+ * Rendering does NOT recurse into nested children here — the parent
+ * ``ReasoningStepTree`` component handles the indentation because children
+ * may arrive before or after their parent in the output list.
+ */
+export const ReasoningStepDisplay: React.FC<{
+  step: ReasoningStepOutput
+  children?: React.ReactNode
+  depth?: number
+}> = ({ step, children, depth = 0 }) => {
+  const [expanded, setExpanded] = useState(false)
+  const kindLabel = REASONING_KIND_LABEL[step.kind] ?? 'Step'
+  const statusClass = REASONING_STATUS_STYLE[step.status] ?? 'gba:text-muted-foreground'
+  const duration = formatReasoningDuration(step.started_at, step.ended_at)
+  const statusIcon =
+    step.status === 'running' ? (
+      <span
+        className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-primary gba:animate-pulse"
+        aria-hidden
+      />
+    ) : step.status === 'done' ? (
+      <CheckCircleIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
+    ) : (
+      <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-destructive" aria-hidden />
+    )
+
+  return (
+    <div
+      className="gba:flex gba:flex-col gba:gap-1 gba:text-xs"
+      style={depth > 0 ? { marginLeft: `${depth * 14}px` } : undefined}
+      data-testid={`reasoning-step-${step.kind}`}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded(prev => !prev)}
+        className="gba:flex gba:items-center gba:gap-2 gba:rounded gba:px-1.5 gba:py-1 gba:text-left hover:gba:bg-muted/60 gba:transition-colors"
+        aria-expanded={expanded}
+      >
+        <span className={`gba:flex gba:items-center ${statusClass}`}>{statusIcon}</span>
+        <span className="gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:text-[10px] gba:font-semibold">
+          {kindLabel}
+        </span>
+        <span className="gba:text-foreground gba:font-medium gba:truncate">{step.title}</span>
+        {duration && <span className="gba:text-muted-foreground gba:text-[11px] gba:ml-auto">{duration}</span>}
+        <span
+          className="gba:text-muted-foreground gba:transition-transform"
+          style={{ transform: expanded ? 'rotate(90deg)' : undefined }}
+          aria-hidden
+        >
+          ›
+        </span>
+      </button>
+      {expanded && (
+        <div
+          className="gba:flex gba:flex-col gba:gap-2 gba:pl-6 gba:pr-2 gba:py-2 gba:border-l gba:border-border/60"
+          data-testid="reasoning-step-body"
+        >
+          <ReasoningSection title="Input" payload={step.args} kind={step.kind} />
+          <ReasoningSection title="Output" payload={step.result} kind={step.kind} />
+          {step.error && (
+            <div className="gba:text-xs gba:text-destructive gba:font-mono gba:whitespace-pre-wrap gba:break-words">
+              {step.error}
+            </div>
+          )}
+        </div>
+      )}
+      {children && expanded && <div className="gba:mt-1 gba:flex gba:flex-col gba:gap-1">{children}</div>}
+    </div>
+  )
+}
+
+/**
+ * Render a reasoning step inside the output list. This single-step renderer
+ * is plugged into ``OutputItemRenderer``'s switch; nested children are
+ * handled via ``parent_id`` lookups at the conversation layer (future work)
+ * — for now each step renders flat and nests via its own ``parent_id`` only
+ * if the parent is provided via ``children``.
+ */
+const ReasoningStepRenderer: React.FC<{ item: ReasoningStepOutput }> = ({ item }) => {
+  return <ReasoningStepDisplay step={item} />
+}
+
+/**
+ * Collapsed-by-default container that hides a turn's reasoning trail behind
+ * one button once the agent has finished talking. While the answer is still
+ * streaming each step renders inline (handled by ``UnifiedAIMessageRenderer``);
+ * after the canonical answer arrives we want the chat to be visually tidy
+ * but the reasoning to still be one click away — exactly like Cursor.
+ */
+export const ReasoningStepsGroup: React.FC<{
+  steps: ReasoningStepOutput[]
+  defaultExpanded?: boolean
+}> = ({ steps, defaultExpanded = false }) => {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  if (steps.length === 0) return null
+
+  const hasError = steps.some(s => s.status === 'error')
+  const stillRunning = steps.some(s => s.status === 'running')
+  const totalDuration = computeGroupDuration(steps)
+
+  const summaryIcon = hasError ? (
+    <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-destructive" aria-hidden />
+  ) : stillRunning ? (
+    <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-primary gba:animate-pulse" aria-hidden />
+  ) : (
+    <CheckCircleIcon className="gba:h-3.5 gba:w-3.5 gba:text-emerald-600 dark:gba:text-emerald-400" weight="fill" />
+  )
+
+  return (
+    <div className="gba:flex gba:flex-col gba:gap-1 gba:text-xs" data-testid="reasoning-steps-group">
+      <button
+        type="button"
+        onClick={() => setExpanded(prev => !prev)}
+        className="gba:self-start gba:flex gba:items-center gba:gap-2 gba:rounded gba:px-1.5 gba:py-1 gba:text-left hover:gba:bg-muted/60 gba:transition-colors gba:text-muted-foreground"
+        aria-expanded={expanded}
+        data-testid="reasoning-steps-group-toggle"
+      >
+        <span className="gba:flex gba:items-center">{summaryIcon}</span>
+        <span className="gba:text-[11px] gba:font-medium">
+          {expanded ? 'Hide reasoning' : `Show reasoning · ${steps.length} step${steps.length === 1 ? '' : 's'}`}
+        </span>
+        {totalDuration && !expanded && (
+          <span className="gba:text-[11px] gba:text-muted-foreground/80">· {totalDuration}</span>
+        )}
+        <span
+          className="gba:transition-transform"
+          style={{ transform: expanded ? 'rotate(90deg)' : undefined }}
+          aria-hidden
+        >
+          ›
+        </span>
+      </button>
+      {expanded && (
+        <div
+          className="gba:flex gba:flex-col gba:gap-1 gba:pl-2 gba:border-l gba:border-border/60 gba:ml-1"
+          data-testid="reasoning-steps-group-body"
+        >
+          {steps.map(step => (
+            <ReasoningStepDisplay key={step.id} step={step} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function computeGroupDuration(steps: ReasoningStepOutput[]): string | null {
+  const starts = steps.map(s => s.started_at).filter((t): t is number => typeof t === 'number')
+  const ends = steps.map(s => s.ended_at).filter((t): t is number => typeof t === 'number')
+  if (!starts.length || !ends.length) return null
+  return formatReasoningDuration(Math.min(...starts), Math.max(...ends))
+}
+
 // Output Item Renderer
 export const OutputItemRenderer: React.FC<{
   item: OutputItem
@@ -1169,6 +1386,16 @@ export const OutputItemRenderer: React.FC<{
       return <AnswerOutputRenderer data={item} accessToken={accessToken} sessionId={sessionId} />
     case 'tool':
       return <ToolOutput name={item.name} reason={item.reason} />
+    case 'reasoning_step':
+      return <ReasoningStepRenderer item={item} />
+    case 'reasoning_step_update':
+      // Updates are merged into their originating step by the hook before
+      // this renderer ever sees them. If one slips through (replay of a
+      // malformed saved message, e.g.), render nothing rather than noise.
+      return null
+    case 'text_delta':
+      // Deltas are folded into a streaming `answer` bubble by the hook.
+      return null
     case 'document_stream_start':
       return <DocumentStreamStartDisplay data={item} />
     case 'document_stream_chunk':

@@ -8,24 +8,26 @@ import {
   shouldFailOnMissingBuildOutput
 } from '../utils/hashPipelineUtils.js'
 
+const FLOW_STUDIO_SCREEN_KEY = 'core/create/apps/flow-creator'
+
 test('pickHashBaseline prefers local baseline over remote baseline', () => {
   const result = pickHashBaseline({
-    localHashes: { 'flow/apps/creator': 'local-hash' },
-    remoteHashes: { 'flow/apps/creator': 'remote-hash' }
+    localHashes: { [FLOW_STUDIO_SCREEN_KEY]: 'local-hash' },
+    remoteHashes: { [FLOW_STUDIO_SCREEN_KEY]: 'remote-hash' }
   })
 
   assert.equal(result.source, 'local')
-  assert.deepEqual(result.hashes, { 'flow/apps/creator': 'local-hash' })
+  assert.deepEqual(result.hashes, { [FLOW_STUDIO_SCREEN_KEY]: 'local-hash' })
 })
 
 test('pickHashBaseline falls back to remote when local is unavailable', () => {
   const result = pickHashBaseline({
     localHashes: null,
-    remoteHashes: { 'flow/apps/creator': 'remote-hash' }
+    remoteHashes: { [FLOW_STUDIO_SCREEN_KEY]: 'remote-hash' }
   })
 
   assert.equal(result.source, 'remote')
-  assert.deepEqual(result.hashes, { 'flow/apps/creator': 'remote-hash' })
+  assert.deepEqual(result.hashes, { [FLOW_STUDIO_SCREEN_KEY]: 'remote-hash' })
 })
 
 test('isScreenChanged detects hash mismatch for shared util impact', () => {
@@ -36,7 +38,7 @@ test('isScreenChanged detects hash mismatch for shared util impact', () => {
 
 test('mergeTouchedHashes preserves unrelated remote hashes', () => {
   const remoteHashes = {
-    'flow/apps/creator': 'remote-new',
+    [FLOW_STUDIO_SCREEN_KEY]: 'remote-new',
     'platform/apps/chat': 'chat-unchanged'
   }
   const touchedHashes = {
@@ -45,7 +47,7 @@ test('mergeTouchedHashes preserves unrelated remote hashes', () => {
 
   const merged = mergeTouchedHashes(remoteHashes, touchedHashes)
 
-  assert.equal(merged['flow/apps/creator'], 'remote-new')
+  assert.equal(merged[FLOW_STUDIO_SCREEN_KEY], 'remote-new')
   assert.equal(merged['platform/apps/chat'], 'chat-unchanged')
   assert.equal(merged['hr/core/apps/human-resources'], 'hr-new')
 })

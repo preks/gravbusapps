@@ -10,7 +10,8 @@ import {
 import {
   generateEquityReportFilters,
   generateRealEstateReportFilters,
-  generateLiquidFundReportFilters
+  generateLiquidFundReportFilters,
+  generateDefaultReportFilters
 } from '../utils/filterGenerators'
 import { getSortableColumnsForGroup } from '../utils/sortableColumnsHelpers'
 import {
@@ -19,7 +20,7 @@ import {
   REAL_ESTATE_TABLE_CONFIG
 } from '../components/shared/tableConfigs'
 import { transformReportsToAnalyticsData } from '../utils/liquidFundDataTransformer'
-import { getLiquidFundSubSections, type SubSection } from '../utils/subSectionHelpers'
+import type { SubSection } from '../utils/subSectionHelpers'
 
 /**
  * Configuration for an investment group's report tab
@@ -38,8 +39,8 @@ export interface ReportGroupConfiguration {
   columnGenerator?: (catalogData: any, currentSection?: string) => ColumnConfig[]
   fallbackColumns?: ColumnConfig[]
 
-  // Filter generation
-  hasFilters: boolean
+  // Filter generation. Presence of `filterGenerator` is the implicit gate: a
+  // group without one renders no filter sheet.
   filterGenerator?: (catalogData: any, currentSection: string, filterGroups: any) => FilterConfiguration
 
   // Data transformation
@@ -50,9 +51,6 @@ export interface ReportGroupConfiguration {
 
   // Sortable columns
   sortableColumns: Array<{ id: string; label: string }>
-
-  // Special mappings (for Liquid Fund)
-  sectionToTypeMapping?: Record<string, string>
 
   /**
    * Resolve the locked sub-section to use when the report panel is rendered for
@@ -71,8 +69,13 @@ export interface ReportGroupConfiguration {
 }
 
 /**
- * Build a SubSection for a record from an investmentType-style object
+ * Build a SubSection for a record from a catalog-entry-style object
  * ({ code, value }). Returns undefined when no usable code is present.
+ *
+ * Works equally well for `investment.investmentType` (used by the default
+ * resolver) and `typeSpecificData.liquidFundInvestment.investmentLiquidFundType`
+ * (used by Liquid Fund records), since both share the same shape and our
+ * sub-section model treats `code` as the catalog code.
  */
 const buildSectionFromInvestmentType = (
   investmentType: { code?: string; value?: string } | null | undefined
@@ -116,8 +119,8 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
     catalogSource: 'GROUP',
     catalogKey: 'investmentGroups',
     entityPrefix: 'equity',
-    columnGenerator: (catalogData: any) => generateEquityReportColumns(catalogData),
-    hasFilters: true,
+    columnGenerator: (catalogData: any, currentSection?: string) =>
+      generateEquityReportColumns(catalogData, currentSection),
     filterGenerator: (catalogData: any, _currentSection: string, filterGroups: any) =>
       generateEquityReportFilters(catalogData, filterGroups),
     tableConfig: EQUITY_TABLE_CONFIG,
@@ -137,7 +140,6 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
     entityPrefix: 'realEstate',
     columnGenerator: (catalogData: any, currentSection?: string) =>
       generateRealEstateReportColumns(catalogData, currentSection || ''),
-    hasFilters: true,
     filterGenerator: (catalogData: any, currentSection: string, filterGroups: any) =>
       generateRealEstateReportFilters(catalogData, currentSection, filterGroups),
     tableConfig: REAL_ESTATE_TABLE_CONFIG,
@@ -146,9 +148,14 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
 
   /**
    * Liquid Fund Investment Reports
-   * - Sub-sections: Hardcoded liquid fund types (Bank Deposits, Fixed-Term Deposits, Multiple Types)
+   * - Sub-sections: Catalog-driven from InvestmentLiquidFundType (Bank Deposits,
+   *   Fixed-Term Deposits, Pension Funds, Money Market Funds, Bonds, Equity, …).
+   *   Each section's `code` IS the catalog code, so generators consume
+   *   `currentSection` directly — no id↔code mapping needed.
    * - Special logic: Uses InvestmentLiquidFundType catalog instead of InvestmentType
-   * - Columns: Dynamic from liquid fund type catalog
+   * - Columns: Dynamic per liquid fund type from the catalog
+   * - Filters: Dynamic per liquid fund type from the catalog (DB-backed fields
+   *   only) + always-on Investment filter
    * - Data Transformation: Reports are transformed to analytics format
    */
   LIQUID_FUND: {
@@ -156,45 +163,22 @@ export const REPORT_GROUP_CONFIGURATIONS: Record<string, ReportGroupConfiguratio
     catalogSource: 'TYPE',
     catalogKey: 'investmentLiquidFundTypes',
     entityPrefix: 'liquidFund',
-    columnGenerator: (catalogData: any, currentSection?: string) => {
-      const sectionMapping: Record<string, string> = {
-        'bank-deposits': 'BANK_DEPOSITE',
-        'fixed-term-deposits': 'FIXED_TERM_DEPOSIT',
-        'multiple-types': 'MONEY_MARKET_FUNDS'
-      }
-      const liquidFundTypeCode = sectionMapping[currentSection || '']
-      return generateLiquidFundReportColumns(catalogData, liquidFundTypeCode)
-    },
-    hasFilters: false, // No catalog filters for Liquid Fund
-    filterGenerator: () => generateLiquidFundReportFilters(),
+    columnGenerator: (catalogData: any, currentSection?: string) =>
+      generateLiquidFundReportColumns(catalogData, currentSection || ''),
+    filterGenerator: (catalogData: any, currentSection: string, filterGroups: any) =>
+      generateLiquidFundReportFilters(catalogData, currentSection, filterGroups),
     dataTransformer: transformReportsToAnalyticsData,
     tableConfig: LIQUID_FUND_TABLE_CONFIG,
     sortableColumns: getSortableColumnsForGroup('LIQUID_FUND'),
-    sectionToTypeMapping: {
-      'bank-deposits': 'BANK_DEPOSITE',
-      'fixed-term-deposits': 'FIXED_TERM_DEPOSIT',
-      'multiple-types': 'MONEY_MARKET_FUNDS'
-    },
     /**
      * Liquid Fund records expose the liquid fund type on
-     * `typeSpecificData.liquidFundInvestment.investmentLiquidFundType.code`.
-     * Map that code back to the section using the inverse of `sectionToTypeMapping`.
-     * Anything unmapped (e.g. money-market funds) falls into the "multiple-types" bucket,
-     * matching how the portfolio view groups them.
+     * `typeSpecificData.liquidFundInvestment.investmentLiquidFundType`. That
+     * object's `code` is the catalog code (matches `currentSection` everywhere
+     * else in this file), so the default `buildSectionFromInvestmentType` shape
+     * applies directly — no id↔code mapping needed.
      */
-    getRecordSection: (_investment: any, typeSpecificData?: any): SubSection | undefined => {
-      const liquidFundTypeCode: string | undefined =
-        typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType?.code
-
-      const sections = getLiquidFundSubSections()
-      if (!liquidFundTypeCode) return sections[0]
-
-      const matched = sections.find(s => s.code === liquidFundTypeCode)
-      if (matched) return matched
-
-      // Any other liquid fund type (money-market variants, etc.) groups under "multiple-types"
-      return sections.find(s => s.id === 'multiple-types') ?? sections[0]
-    }
+    getRecordSection: (_investment: any, typeSpecificData?: any): SubSection | undefined =>
+      buildSectionFromInvestmentType(typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType)
   }
 
   // Future groups (e.g., PRIVATE_EQUITY, CRYPTOCURRENCY, etc.) will use DEFAULT configuration
@@ -215,7 +199,10 @@ export const DEFAULT_REPORT_GROUP_CONFIGURATION: ReportGroupConfiguration = {
     // This handles groups without investment types (fields defined at group level)
     return generateBaseReportColumns(catalogData, 'GROUP', currentSection || '', 'investmentGroups')
   },
-  hasFilters: false, // No filters by default
+  // Even unknown/future groups get the always-on Investment filter so users
+  // can scope reports by investment without per-group catalog work.
+  filterGenerator: (_catalogData: any, _currentSection: string, filterGroups: any) =>
+    generateDefaultReportFilters(filterGroups),
   tableConfig: EQUITY_TABLE_CONFIG, // Use equity config as generic fallback
   sortableColumns: getSortableColumnsForGroup('UNKNOWN')
 }

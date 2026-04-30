@@ -319,11 +319,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   // /platform is home (no app); only paths under /platform/... with a mapping resolve to an app
   const appPathFromPathname =
     pathname && pathname !== NAVIGATION_BASE_PATH ? getAppPathForPlatformUrl(pathname) : undefined
-  const inferredAppFromPath =
-    !appPathFromPathname && !appFromUrl && (pathname.startsWith('/flow-creator') || pathname.startsWith('/flow/draft'))
-      ? 'flow/apps/creator'
-      : null
-  const effectiveAppFromUrl = appPathFromPathname ?? appFromUrl ?? inferredAppFromPath
+  const effectiveAppFromUrl = appPathFromPathname ?? appFromUrl
 
   const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(
     // First try to find by full path (new format), then fallback to name (legacy format)

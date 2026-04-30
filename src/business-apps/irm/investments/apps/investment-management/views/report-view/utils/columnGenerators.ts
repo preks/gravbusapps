@@ -29,8 +29,8 @@ const LIQUID_FUND_FALLBACK_COLUMNS: ColumnConfig[] = [
   { id: 'gainsLosses', label: 'Gains/Losses', visible: true },
   { id: 'closingBalance', label: 'Closing Balance', visible: true },
   { id: 'timeWeightedReturn', label: 'Time-Weighted Return', visible: true },
-  { id: 'interestRate', label: 'Interest Rate', visible: false },
-  { id: 'maturityDate', label: 'Maturity Date', visible: false }
+  { id: 'interestRate', label: 'Interest Rate', visible: true },
+  { id: 'maturityDate', label: 'Maturity Date', visible: true }
 ]
 
 /**
@@ -108,10 +108,25 @@ const EQUITY_FALLBACK_COLUMNS: ColumnConfig[] = [
   { id: 'returnPercent', label: 'Return %', visible: true }
 ]
 
-export const generateEquityReportColumns = (catalogData: any): ColumnConfig[] => {
-  const columns = generateBaseReportColumns(catalogData, 'GROUP', 'EQUITY', 'investmentGroups')
+/**
+ * Generate columns for Equity reports.
+ * Tries TYPE-level catalog for the active investment type first so each
+ * sub-section (Venture Capital, Growth Equity, …) can have its own column set.
+ * Falls back to GROUP-level catalog (EQUITY group) when no type-specific
+ * fields are defined, and finally to the static fallback list.
+ *
+ * @param catalogData - The catalog data
+ * @param investmentTypeCode - The specific investment type code (current sub-section)
+ * @returns Array of column configurations
+ */
+export const generateEquityReportColumns = (catalogData: any, investmentTypeCode?: string): ColumnConfig[] => {
+  if (investmentTypeCode) {
+    const typeColumns = generateBaseReportColumns(catalogData, 'TYPE', investmentTypeCode, 'investmentTypes')
+    if (typeColumns.length > 2) return typeColumns
+  }
 
-  return columns.length === 2 ? EQUITY_FALLBACK_COLUMNS : columns
+  const groupColumns = generateBaseReportColumns(catalogData, 'GROUP', 'EQUITY', 'investmentGroups')
+  return groupColumns.length === 2 ? EQUITY_FALLBACK_COLUMNS : groupColumns
 }
 
 /**

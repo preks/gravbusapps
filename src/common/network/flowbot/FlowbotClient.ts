@@ -114,13 +114,77 @@ export interface ExtractFromFileResponse {
   csvQuality?: CsvQuality
 }
 
-function toFlowbotImportDomain(domain?: string): 'crm' | 'irm' | undefined {
+export function toFlowbotDomain(domain?: string): 'crm' | 'irm' | undefined {
   if (domain === 'customer' || domain === 'crm') return 'crm'
   if (domain === 'investment' || domain === 'irm') return 'irm'
   return undefined
 }
 
 const FLOWBOT_IMPORT_MODEL_KIND_DEFAULT = 'default'
+
+export interface TemplateTreeNode {
+  name: string
+  path: string
+  children: TemplateTreeNode[]
+}
+
+export interface OrganizeDocumentsPayload {
+  domain: 'crm' | 'irm'
+  entityType: string
+  entityId: string
+  templateTree: TemplateTreeNode[]
+  documents: Array<{
+    id: string
+    name: string
+    mimeType?: string | null
+    source?: 'uploaded_now' | 'existing_entity_doc'
+  }>
+  fallbackFolder?: string
+  dryRun?: boolean
+}
+
+export interface OrganizationDecision {
+  document_id: string
+  target_folder_path: string
+  confidence: number
+  reason: string
+}
+
+export interface ResponseWarning {
+  document_id?: string | null
+  code: string
+  message: string
+}
+
+export interface DocumentOrganizeResponse {
+  decisions: OrganizationDecision[]
+  summary: { total: number; organized: number; unsorted: number }
+  warnings: ResponseWarning[]
+  dry_run: boolean
+}
+
+export interface SuggestStructurePayload {
+  domain: 'crm' | 'irm'
+  entityType: string
+  entityId: string
+  documents: Array<{
+    id: string
+    name: string
+    mimeType?: string | null
+    source?: 'uploaded_now' | 'existing_entity_doc'
+  }>
+  preferences?: string
+  currentTemplate?: TemplateTreeNode[] | null
+  maxDepth?: number
+  language?: string
+}
+
+export interface SuggestStructureResponse {
+  proposed_template: TemplateTreeNode[]
+  rationale: string[]
+  document_assignments: OrganizationDecision[]
+  warnings: ResponseWarning[]
+}
 
 export interface DocumentAutocompleteRequest {
   document_id?: string
@@ -140,7 +204,7 @@ export interface DocumentAutocompleteResponse {
 
 export class FlowbotClient extends RestClient {
   constructor() {
-    // Use environment-aware base URL (localhost → dev → env NEXT_PUBLIC_FLOWBOT_ENDPOINT / NEXT_PUBLIC_BASE_URL)
+    // Driven by NEXT_PUBLIC_FLOWBOT_ENDPOINT (or NEXT_PUBLIC_BASE_URL fallback). See resolveFlowbotBaseUrl.
     const baseUrl = resolveFlowbotBaseUrl()
     super(baseUrl, {})
   }
@@ -213,7 +277,7 @@ export class FlowbotClient extends RestClient {
   ): Promise<MapFromFileResponse> {
     const formData = new FormData()
     formData.append('entity_type', entityType)
-    const flowbotDomain = toFlowbotImportDomain(domain)
+    const flowbotDomain = toFlowbotDomain(domain)
     if (flowbotDomain) {
       formData.append('domain', flowbotDomain)
     }
@@ -242,7 +306,7 @@ export class FlowbotClient extends RestClient {
   ): Promise<ExtractFromFileResponse> {
     const formData = new FormData()
     formData.append('entity_type', entityType)
-    const flowbotDomain = toFlowbotImportDomain(domain)
+    const flowbotDomain = toFlowbotDomain(domain)
     if (flowbotDomain) {
       formData.append('domain', flowbotDomain)
     }
@@ -260,6 +324,32 @@ export class FlowbotClient extends RestClient {
     formData.append('repair_csv', repairCsv)
 
     return this.post<ExtractFromFileResponse>('/flowbot/extraction/data/entities/extract-from-file', formData, options)
+  }
+
+  public async organizeDocuments(
+    payload: OrganizeDocumentsPayload,
+    files?: File[],
+    modelKind?: string,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<DocumentOrganizeResponse> {
+    const formData = new FormData()
+    formData.append('payload', JSON.stringify(payload))
+    if (modelKind) formData.append('model_kind', modelKind)
+    files?.forEach(f => formData.append('files', f))
+    return this.post<DocumentOrganizeResponse>('/flowbot/document-organization/organize', formData, options)
+  }
+
+  public async suggestDocumentStructure(
+    payload: SuggestStructurePayload,
+    files?: File[],
+    modelKind?: string,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<SuggestStructureResponse> {
+    const formData = new FormData()
+    formData.append('payload', JSON.stringify(payload))
+    if (modelKind) formData.append('model_kind', modelKind)
+    files?.forEach(f => formData.append('files', f))
+    return this.post<SuggestStructureResponse>('/flowbot/document-organization/suggest-structure', formData, options)
   }
 
   public async getDocumentAutocomplete(

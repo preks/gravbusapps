@@ -110,6 +110,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({ opportunityId, context }) =
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}
       deleteActionProps={documentDeleteActionProps}
+      aiOrganizeConfig={{ moduleType: 'IRM', entityType: 'OPPORTUNITY', domain: 'investment' }}
       toolbarActions={uploadToolbarActions}
       data-testid="opportunity-document-section"
       {...context}

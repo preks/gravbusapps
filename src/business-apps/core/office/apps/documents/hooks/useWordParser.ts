@@ -17,7 +17,9 @@ import {
   parseDocxPageBreaks,
   parseDocxImageLayouts,
   parseDocxPageFormatting,
-  parseDocxTableLayouts
+  parseDocxTableLayouts,
+  preprocessDocxBufferForPageBreaks,
+  RM_PAGE_BREAK_STYLE_ID
 } from '../utils/docxImportUtils'
 import { enhanceImportedHtmlWithTableOfContents, parseDocxTableOfContents } from '../utils/docxTocImportUtils'
 
@@ -53,8 +55,19 @@ const STYLE_MAP = [
   "p[style-name='Intense Quote'] => blockquote.intense:fresh",
   "r[style-name='Strong'] => strong",
   "r[style-name='Emphasis'] => em",
-  "p[style-name='List Paragraph'] => li:fresh"
+  "p[style-name='List Paragraph'] => li:fresh",
+  // OOXML preprocessor-injected page break markers. Mammoth emits these as
+  // top-level <hr class="page-break"> elements, which the PageBreak Tiptap
+  // extension recognises via parseHTML.
+  `p[style-id='${RM_PAGE_BREAK_STYLE_ID}'] => hr.page-break:fresh`
 ].join('\n')
+
+function hasImportedPageBreakMarkup(html: string): boolean {
+  return (
+    /<hr\b[^>]*class=(["'])[^"']*\bpage-break\b[^"']*\1/i.test(html) ||
+    /<div\b[^>]*data-page-break(?:\s*=|\s|>)/i.test(html)
+  )
+}
 
 async function readWordImageAsBase64(image: MammothImage): Promise<string> {
   try {
@@ -136,11 +149,18 @@ export function useWordParser(): UseWordParserResult {
         // Collect embedded images
         const collectedImages: WordImage[] = []
 
+        // Rewrite OOXML so every manual page break (inline <w:br type=page>,
+        // pageBreakBefore property, sectPr nextPage) becomes its own marker
+        // paragraph. Mammoth then emits them as top-level <hr class="page-break">
+        // entries regardless of list / blockquote collapsing.
+        const mammothArrayBuffer = await preprocessDocxBufferForPageBreaks(arrayBuffer)
+        const didPreprocessPageBreaks = mammothArrayBuffer !== arrayBuffer
+
         // Convert to HTML with mammoth; in parallel read OOXML image wrap metadata from the same file
         const [result, imageLayouts, importedToc, importedFormatting, importedPageBreaks, importedTableLayouts] =
           await Promise.all([
             mammoth.convertToHtml(
-              { arrayBuffer },
+              { arrayBuffer: mammothArrayBuffer },
               {
                 ignoreEmptyParagraphs: false,
                 styleMap: STYLE_MAP,
@@ -188,7 +208,14 @@ export function useWordParser(): UseWordParserResult {
         let html = enhanceImportedHtmlWithImageLayouts(result.value, imageLayouts)
         html = enhanceImportedHtmlWithTableOfContents(html, importedToc)
         html = enhanceImportedHtmlWithTableLayouts(html, importedTableLayouts)
-        html = enhanceImportedHtmlWithPageBreaks(html, importedPageBreaks)
+        // When the OOXML preprocessor works end-to-end, Mammoth emits
+        // <hr class="page-break"> markers directly. Some real DOCX files still
+        // fail to surface those markers even after a rewritten buffer, so fall
+        // back to the legacy flow-index enhancer whenever the upgraded html
+        // does not actually contain page-break markup.
+        if (!didPreprocessPageBreaks || !hasImportedPageBreakMarkup(html)) {
+          html = enhanceImportedHtmlWithPageBreaks(html, importedPageBreaks)
+        }
         // Add basic styling classes for better rendering
         html = html
           .replace(/<table>/g, '<table class="document-table">')

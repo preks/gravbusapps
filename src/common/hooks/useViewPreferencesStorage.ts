@@ -5,18 +5,26 @@ export interface SortingEntry {
   desc: boolean
 }
 
-interface StoredPreferences {
+export interface StoredPreferences {
   filters?: Record<string, any>
   sorting?: SortingEntry[]
   visibleColumns?: string[]
 }
 
-const readPreferences = (key: string): StoredPreferences => {
+export const readViewPreferences = (key: string): StoredPreferences => {
   try {
     const saved = localStorage.getItem(key)
     return saved ? (JSON.parse(saved) as StoredPreferences) : {}
   } catch {
     return {}
+  }
+}
+
+export const writeViewPreferences = (key: string, preferences: StoredPreferences): void => {
+  try {
+    localStorage.setItem(key, JSON.stringify(preferences))
+  } catch {
+    // Ignore storage quota / security errors
   }
 }
 
@@ -30,17 +38,13 @@ export interface ViewPreferencesStorage {
 }
 
 export const useViewPreferencesStorage = (storageKey: string): ViewPreferencesStorage => {
-  const [prefs] = useState<StoredPreferences>(() => readPreferences(storageKey))
+  const [prefs] = useState<StoredPreferences>(() => readViewPreferences(storageKey))
   const prefsRef = useRef<StoredPreferences>(prefs)
 
   const persist = useCallback(
     (updated: StoredPreferences) => {
       prefsRef.current = updated
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(updated))
-      } catch {
-        // Ignore storage quota / security errors
-      }
+      writeViewPreferences(storageKey, updated)
     },
     [storageKey]
   )

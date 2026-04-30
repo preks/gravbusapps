@@ -49,9 +49,11 @@ import type {
 } from './components/UniverSheetGrid'
 import {
   buildMultiSheetWorkbookFromAppSheets,
+  countWorksheetsInUniverSnapshot,
   isolateWorkbookSnapshotToSingleSheet,
   mergeAuthoritativeViewerRowsIntoWorkbookSnapshot,
   mergeWorkbookFormattingFromDonor,
+  normalizeWorkbookSnapshotToAppSheets,
   snapshotTrackingHeaderMatchesColumnLabels,
   workbookFormattingRichnessScore,
   workbookSnapshotMismatchesViewerRows
@@ -63,7 +65,9 @@ import {
   clearUniverSnapshotCache
 } from './utils/univerSnapshotCache'
 import { scheduleCoalescedTimeout } from './utils/collaborationRepairScheduler'
+import { applySheetCellChanges } from './utils/applySheetCellChanges'
 import { exportSnapshotAsXlsx } from './utils/exportToExcel'
+import { reconcileTemporarySheetIdReferences, resolveReconciledSheetId } from './utils/reconcileTemporarySheetId'
 import { resolveRenderedSpreadsheetViewType } from './utils/resolveRenderedSpreadsheetViewType'
 import { AutomationsPanel } from './components/AutomationsPanel'
 import { AnalyticsPanel } from './components/AnalyticsPanel'
@@ -99,6 +103,51 @@ const isSpreadsheetAppsDebugEnabled = (): boolean => {
 const debugLog = (message: string, meta?: Record<string, unknown>): void => {
   if (!isSpreadsheetAppsDebugEnabled()) return
   console.debug(`[SpreadsheetAppViewer] ${message}`, meta ?? {})
+}
+
+const multiSheetDebugLog = (event: string, meta?: Record<string, unknown> | (() => Record<string, unknown>)): void => {
+  if (!isSpreadsheetAppsDebugEnabled()) return
+  console.info(`[SpreadsheetMultiSheetDebug] ${event}`, typeof meta === 'function' ? meta() : (meta ?? {}))
+}
+
+const summarizeRowsForDebug = (rows: Record<string, unknown>[] | undefined): Record<string, unknown> => {
+  if (!rows || rows.length === 0) return { rowCount: 0 }
+  const visualIndices = rows
+    .map((row, fallbackIndex) => {
+      const raw = Number(row._gridRowIndex)
+      return Number.isFinite(raw) && raw >= 0 ? Math.trunc(raw) : fallbackIndex
+    })
+    .sort((a, b) => a - b)
+  return {
+    rowCount: rows.length,
+    firstVisualRow: visualIndices[0],
+    lastVisualRow: visualIndices[visualIndices.length - 1],
+    nonEmptyRows: rows.filter(row => getKnownCellValueCount(row) > 0).length,
+    sample: rows.slice(0, 3).map((row, index) => ({
+      index,
+      gridRowIndex: row._gridRowIndex ?? null,
+      id: row._id ?? row.id ?? null,
+      valueCount: getKnownCellValueCount(row)
+    }))
+  }
+}
+
+const summarizeWorkbookSnapshotForDebug = (
+  snapshot: Record<string, unknown> | null | undefined,
+  focusSheetId?: string
+): Record<string, unknown> => {
+  if (!snapshot || typeof snapshot !== 'object') {
+    return { hasSnapshot: false }
+  }
+  const styles = snapshot.styles
+  return {
+    hasSnapshot: true,
+    worksheetCount: countWorksheetsInUniverSnapshot(snapshot),
+    sheetOrder: Array.isArray(snapshot.sheetOrder) ? snapshot.sheetOrder.map(id => String(id)) : [],
+    styleCount: styles && typeof styles === 'object' ? Object.keys(styles as Record<string, unknown>).length : 0,
+    focusSheetId: focusSheetId ?? null,
+    focusSheetFormattingRichness: focusSheetId ? workbookFormattingRichnessScore(snapshot, focusSheetId) : null
+  }
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => value != null && typeof value === 'object'
@@ -142,7 +191,13 @@ const isUuidString = (value: string): boolean => UUID_RE.test(value)
 
 const getSpreadsheetBatchConflictServerVersion = (details: unknown): number | undefined => {
   if (!details || typeof details !== 'object') return undefined
-  const raw = (details as Record<string, unknown>).currentVersion
+  const detailsObject = details as Record<string, unknown>
+  const raw =
+    detailsObject.currentVersion ??
+    detailsObject.serverVersion ??
+    detailsObject.latestVersion ??
+    detailsObject.version ??
+    detailsObject.newVersion
   if (typeof raw === 'number' && Number.isFinite(raw)) return Math.trunc(raw)
   if (typeof raw === 'string' && /^\d+$/.test(raw)) return Number(raw)
   return undefined
@@ -175,6 +230,7 @@ const resolveBackendRowIdForViewerRow = (row: ViewerRow, isUuid: (value: string)
 }
 
 const SNAPSHOT_FETCH_TIMEOUT_MS = 15000
+const REMOTE_SHEET_CATCHUP_DEBOUNCE_MS = 150
 
 /**
  * Optional: periodically remount Univer (`requestGridRefresh`). **Off by default** — full remount flickers badly.
@@ -194,31 +250,49 @@ const rowMatchesRemoteId = (row: ViewerRow, remoteRowId: string): boolean => {
 const getViewerRowIdentityCandidates = (row: ViewerRow): string[] =>
   Array.from(new Set([row._id, row.id, row._rowUuid].map(value => String(value ?? '')).filter(Boolean)))
 
-const collectViewerRowUpdates = (
-  row: ViewerRow,
-  updatesByRowId: Map<string, Record<string, unknown>>
-): Record<string, unknown> | null => {
-  const mergedUpdates: Record<string, unknown> = {}
-  for (const candidateId of getViewerRowIdentityCandidates(row)) {
-    Object.assign(mergedUpdates, updatesByRowId.get(candidateId) ?? {})
-  }
-  return Object.keys(mergedUpdates).length > 0 ? mergedUpdates : null
+const getClientRowIdentity = (row: Record<string, unknown>): string => {
+  const explicit = row._clientRowId
+  if (typeof explicit === 'string' && explicit) return explicit
+  const id = row._id
+  if (typeof id === 'string' && id.startsWith('client_')) return id
+  return ''
 }
 
-const applyColumnUpdatesToViewerRow = (
-  row: ViewerRow,
-  updates: Record<string, unknown>,
-  columns?: SpreadsheetColumn[]
-): ViewerRow => {
-  let nextRow: ViewerRow = { ...row }
-  for (const [columnName, value] of Object.entries(updates)) {
-    const cleared = stripEquivalentColumnKeysFromRow(nextRow, columnName, columns)
-    nextRow = cleared.nextRow
-    if (value !== undefined) {
-      nextRow[cleared.targetColumnName] = value
+const getKnownCellValueCount = (row: Record<string, unknown>): number =>
+  Object.entries(row).filter(([key, value]) => {
+    if (key.startsWith('_') || key === 'id') return false
+    if (value == null) return false
+    if (typeof value === 'string') return value.length > 0
+    return true
+  }).length
+
+const mergeDuplicateClientRows = <T extends Record<string, unknown>>(rows: T[]): T[] => {
+  const mergedByClientId = new Map<string, T>()
+  const output: T[] = []
+
+  for (const row of rows) {
+    const clientRowId = getClientRowIdentity(row)
+    if (!clientRowId) {
+      output.push(row)
+      continue
     }
+
+    const existing = mergedByClientId.get(clientRowId)
+    if (!existing) {
+      mergedByClientId.set(clientRowId, row)
+      output.push(row)
+      continue
+    }
+
+    const existingCount = getKnownCellValueCount(existing)
+    const nextCount = getKnownCellValueCount(row)
+    const merged = (nextCount >= existingCount ? { ...existing, ...row } : { ...row, ...existing }) as T
+    const existingIndex = output.indexOf(existing)
+    if (existingIndex >= 0) output[existingIndex] = merged
+    mergedByClientId.set(clientRowId, merged)
   }
-  return nextRow
+
+  return output
 }
 
 const toComparableCellSignature = (value: unknown): string => {
@@ -289,6 +363,32 @@ const compareSnapshotCandidatesByRecency = (
     return Number(c.version ?? 0)
   }
   return toTime(a) - toTime(b)
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>
+): Promise<Array<PromiseSettledResult<R>>> {
+  const results: Array<PromiseSettledResult<R>> = new Array(items.length)
+  let nextIndex = 0
+  const workerCount = Math.min(Math.max(1, concurrency), items.length)
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextIndex < items.length) {
+        const currentIndex = nextIndex
+        nextIndex += 1
+        try {
+          results[currentIndex] = { status: 'fulfilled', value: await mapper(items[currentIndex]) }
+        } catch (reason) {
+          results[currentIndex] = { status: 'rejected', reason }
+        }
+      }
+    })
+  )
+
+  return results
 }
 
 const buildAnalyticsInsertPayloads = (
@@ -538,22 +638,24 @@ function sheetDeltaRequiresFullSnapshot(
 }
 
 const mapSnapshotRowsToViewerRows = (snapshotRows: unknown[]): ViewerRow[] =>
-  snapshotRows.map(row => {
-    const rowRecord = row as Record<string, unknown>
-    const raw = (rowRecord.data as Record<string, unknown>) || {}
-    const clientRowId = raw._clientRowId
-    if (clientRowId) {
+  mergeDuplicateClientRows(
+    snapshotRows.map(row => {
+      const rowRecord = row as Record<string, unknown>
+      const raw = (rowRecord.data as Record<string, unknown>) || {}
+      const clientRowId = raw._clientRowId
+      if (clientRowId) {
+        return {
+          ...raw,
+          _id: clientRowId,
+          _rowUuid: rowRecord.id as string
+        }
+      }
       return {
         ...raw,
-        _id: clientRowId,
-        _rowUuid: rowRecord.id as string
+        _id: rowRecord.id as string
       }
-    }
-    return {
-      ...raw,
-      _id: rowRecord.id as string
-    }
-  })
+    })
+  )
 
 const buildUiToBackendRowIdMap = (rows: ViewerRow[], isUuid: (value: string) => boolean): Map<string, string> => {
   const map = new Map<string, string>()
@@ -631,10 +733,12 @@ const buildAddRowPayloadsFromUniverRows = (
   rows: Array<Record<string, unknown>>,
   columns: SpreadsheetColumn[]
 ): Array<Record<string, unknown>> =>
-  rows.map(row => {
+  mergeDuplicateClientRows(rows).map(row => {
     const payload: Record<string, unknown> = {}
     const clientRowId = String(row._id || '')
     if (clientRowId) payload._clientRowId = clientRowId
+    const gridRowIndex = Number(row._gridRowIndex)
+    if (Number.isFinite(gridRowIndex) && gridRowIndex >= 0) payload._gridRowIndex = Math.trunc(gridRowIndex)
     columns.forEach(col => {
       const value = row[col.name]
       if (value !== undefined) payload[col.name] = value
@@ -826,7 +930,7 @@ const replaceClientRowsWithCreatedRows = (
     nextRows.push(row)
   })
 
-  return nextRows
+  return mergeDuplicateClientRows(nextRows)
 }
 
 const persistReconcileCells = async (
@@ -866,6 +970,9 @@ const overlaySnapshotIfRowsMismatch = (
   columns: SpreadsheetColumn[]
 ): Record<string, unknown> | null => {
   if (!snapshot) return null
+  const rowValueCount = viewerRows.reduce((total, row) => total + getKnownCellValueCount(row), 0)
+  const snapshotValueCount = countLiveWorksheetSnapshotValues(snapshot, sheetId)
+  if (rowValueCount < snapshotValueCount) return snapshot
   if (!workbookSnapshotMismatchesViewerRows(snapshot, sheetId, viewerRows, columns)) return snapshot
   return mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(snapshot, sheetId, viewerRows, columns)
 }
@@ -951,13 +1058,73 @@ const getWorksheetFromSnapshot = (snapshot: unknown, activeSheetId: string): Rec
   const sheets = workbook.sheets as Record<string, unknown> | undefined
   if (!sheets) return undefined
   if (sheets[activeSheetId] != null) return sheets[activeSheetId] as Record<string, unknown>
-  if (Array.isArray(workbook.sheetOrder)) {
-    const orderedKey = workbook.sheetOrder[0] as string | undefined
-    if (orderedKey && sheets[orderedKey] != null) return sheets[orderedKey] as Record<string, unknown>
-  }
-  const firstSheet = Object.values(sheets)[0]
-  return firstSheet as Record<string, unknown> | undefined
+  return Object.values(sheets).find(
+    sheet => sheet && typeof sheet === 'object' && String((sheet as { id?: unknown }).id ?? '') === activeSheetId
+  ) as Record<string, unknown> | undefined
 }
+
+const summarizeLiveWorksheetSnapshotForDebug = (
+  snapshot: Record<string, unknown> | null | undefined,
+  sheetId: string
+): Record<string, unknown> => {
+  if (!snapshot) return { hasSnapshot: false }
+  const worksheet = getWorksheetFromSnapshot(snapshot, sheetId)
+  const cellData = worksheet?.cellData as Record<string, Record<string, unknown>> | undefined
+  if (!cellData || typeof cellData !== 'object') {
+    return {
+      hasSnapshot: true,
+      hasWorksheet: Boolean(worksheet),
+      rowKeyCount: 0
+    }
+  }
+  const rowKeys = Object.keys(cellData)
+    .map(key => Number(key))
+    .filter(value => Number.isFinite(value))
+    .sort((a, b) => a - b)
+  return {
+    hasSnapshot: true,
+    hasWorksheet: Boolean(worksheet),
+    rowKeyCount: rowKeys.length,
+    firstRowKey: rowKeys[0] ?? null,
+    lastRowKey: rowKeys[rowKeys.length - 1] ?? null,
+    firstRows: rowKeys.slice(0, 5).map(rowIndex => ({
+      rowIndex,
+      columnCount: Object.keys(cellData[String(rowIndex)] ?? cellData[rowIndex] ?? {}).length
+    }))
+  }
+}
+
+const countLiveWorksheetSnapshotValues = (
+  snapshot: Record<string, unknown> | null | undefined,
+  sheetId: string
+): number => {
+  const worksheet = getWorksheetFromSnapshot(snapshot, sheetId)
+  const cellData = worksheet?.cellData as Record<string, Record<string, unknown>> | undefined
+  if (!cellData || typeof cellData !== 'object') return 0
+
+  let valueCount = 0
+  for (const rowKey of Object.keys(cellData)) {
+    const rowCells = cellData[rowKey]
+    if (!rowCells || typeof rowCells !== 'object') continue
+    for (const colKey of Object.keys(rowCells)) {
+      if (!isBlankSnapshotCellValue(readSnapshotCellValue(rowCells[colKey]))) {
+        valueCount += 1
+      }
+    }
+  }
+  return valueCount
+}
+
+const scoreSpreadsheetRowsByValueRichness = (rows: Record<string, unknown>[]): number =>
+  rows.length * 1_000_000 + rows.reduce((total, row) => total + getKnownCellValueCount(row), 0)
+
+const pickValueRichestSpreadsheetRows = (
+  primaryRows: Record<string, unknown>[],
+  fallbackRows: Record<string, unknown>[]
+): Record<string, unknown>[] =>
+  scoreSpreadsheetRowsByValueRichness(fallbackRows) > scoreSpreadsheetRowsByValueRichness(primaryRows)
+    ? fallbackRows
+    : primaryRows
 
 const cloneSnapshot = <T,>(value: T): T => {
   if (value == null) return value
@@ -969,6 +1136,75 @@ const cloneSnapshot = <T,>(value: T): T => {
     // Fall through to JSON clone.
   }
   return JSON.parse(JSON.stringify(value)) as T
+}
+
+const isBlankSnapshotCellValue = (value: unknown): boolean =>
+  value == null || (typeof value === 'string' && value.length === 0)
+
+const readSnapshotCellValue = (cell: unknown): unknown => {
+  if (cell == null) return undefined
+  if (typeof cell !== 'object' || Array.isArray(cell)) return cell
+  const record = cell as Record<string, unknown>
+  if (typeof record.f === 'string' && record.f.trim()) {
+    const formula = record.f.trim()
+    return formula.startsWith('=') ? formula : `=${formula}`
+  }
+  if (Object.prototype.hasOwnProperty.call(record, 'v')) return record.v
+  if (Object.prototype.hasOwnProperty.call(record, 'm')) return record.m
+  if (Object.prototype.hasOwnProperty.call(record, 'p')) return record.p
+  return undefined
+}
+
+const getViewerRowVisualIndex = (row: Record<string, unknown>, fallbackIndex: number): number => {
+  const raw = Number(row._gridRowIndex)
+  return Number.isFinite(raw) && raw >= 0 ? Math.trunc(raw) : fallbackIndex
+}
+
+const buildRowsFromLiveWorksheetSnapshot = (
+  snapshot: Record<string, unknown> | null | undefined,
+  sheetId: string,
+  columns: SpreadsheetColumn[],
+  existingRows: Record<string, unknown>[]
+): Record<string, unknown>[] => {
+  const worksheet = getWorksheetFromSnapshot(snapshot, sheetId)
+  const cellData = worksheet?.cellData as Record<string, Record<string, unknown>> | undefined
+  if (!cellData || typeof cellData !== 'object') return []
+
+  const existingRowsByVisualIndex = new Map<number, Record<string, unknown>>()
+  existingRows.forEach((row, index) => {
+    existingRowsByVisualIndex.set(getViewerRowVisualIndex(row, index), row)
+  })
+
+  const visibleColumns = columns.filter(column => column.isVisible !== false)
+  const rows: Record<string, unknown>[] = []
+  for (const rowKey of Object.keys(cellData)) {
+    const rowIndex = Number(rowKey)
+    if (!Number.isFinite(rowIndex) || rowIndex < 0) continue
+    const rowCells = cellData[rowKey] ?? cellData[String(rowIndex)]
+    if (!rowCells || typeof rowCells !== 'object') continue
+
+    const existingRow = existingRowsByVisualIndex.get(rowIndex)
+    const row: Record<string, unknown> = {
+      ...(existingRow ?? {}),
+      _id: existingRow?._id ?? `client_${sheetId}_${rowIndex}`,
+      _gridRowIndex: rowIndex
+    }
+    let hasCellValue = false
+
+    visibleColumns.forEach((column, colIndex) => {
+      const cell = rowCells[String(colIndex)] ?? rowCells[colIndex]
+      const value = readSnapshotCellValue(cell)
+      if (value === undefined) return
+      row[column.name] = value
+      if (!isBlankSnapshotCellValue(value)) hasCellValue = true
+    })
+
+    if (hasCellValue || getKnownCellValueCount(row) > 0) {
+      rows.push(row)
+    }
+  }
+
+  return rows.sort((a, b) => getViewerRowVisualIndex(a, 0) - getViewerRowVisualIndex(b, 0))
 }
 
 const normalizeCellValueForBatchPersistence = (value: unknown): unknown => {
@@ -1027,6 +1263,11 @@ const mergeBootstrapSnapshotWithCanonicalRows = (
   sheet: SpreadsheetSheet,
   rows: Record<string, unknown>[]
 ): Record<string, unknown> => {
+  const rowValueCount = rows.reduce((total, row) => total + getKnownCellValueCount(row), 0)
+  const snapshotValueCount = countLiveWorksheetSnapshotValues(snapshot, sheet.id)
+  if (rowValueCount < snapshotValueCount) {
+    return snapshot
+  }
   // IMPORTANT: Do not replace worksheet.cellData with buildWorkbookSnapshot(rows) — that drops
   // Univer style refs (`s`) and snapshot-only state while leaving workbook.styles orphaned.
   // Overlay row-authoritative values cell-by-cell instead (preserves formatting on reopen).
@@ -1221,6 +1462,11 @@ const saveSnapshotWithRetry = async ({
       lastError = error
       if (error instanceof SpreadsheetApiRequestError && error.status === 409 && attempt < maxSnapshotRetries - 1) {
         snapshotSaveMetricsRef.current.conflicts += 1
+        const serverVersion = getSpreadsheetBatchConflictServerVersion(error.details)
+        if (serverVersion != null) {
+          sheetVersionRef.current = Math.max(sheetVersionRef.current, serverVersion)
+          continue
+        }
         const recovered = await recoverFromVersionConflict()
         if (!recovered) {
           snapshotSaveMetricsRef.current.failures += 1
@@ -1370,6 +1616,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const workbookSnapshotThrottlePendingRef = useRef(false)
   const lastSuccessfulSnapshotCheckpointAtRef = useRef<number>(0)
   const latestUniverDataRef = useRef<{ data: Record<string, unknown>[]; sheetId: string } | null>(null)
+  const pendingUniverRowsBySheetRef = useRef<
+    Map<string, { data: Record<string, unknown>[]; persistedRows: Record<string, unknown>[] }>
+  >(new Map())
+  const createdSheetIdAliasesRef = useRef<Map<string, string>>(new Map())
+  const pendingCreatedSheetSelectionRef = useRef<{ temporarySheetId: string; persistedSheetId: string | null } | null>(
+    null
+  )
+  const pendingCreatedSheetReconciliationRef = useRef<{ temporarySheetId: string; persistedSheetId: string } | null>(
+    null
+  )
   const univerDataChangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastProcessedLengthRef = useRef<number>(0)
   const lastPersistedSheetDataRef = useRef<Record<string, unknown>[]>([])
@@ -1505,25 +1761,81 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         return
       }
       if (activeSheetId === nextId) return
-      peerSheetDataCacheRef.current.set(activeSheetId, [...localSheetDataRef.current])
+      const previousSheet = appSheetsRef.current.find(sheet => sheet.id === activeSheetId)
+      const existingCachedRows = peerSheetDataCacheRef.current.get(activeSheetId) ?? []
+      const liveSnapshot = spreadsheetGridRef.current?.getWorkbookSnapshot?.()
+      const liveSnapshotRows =
+        liveSnapshot && typeof liveSnapshot === 'object'
+          ? buildRowsFromLiveWorksheetSnapshot(
+              liveSnapshot as Record<string, unknown>,
+              activeSheetId,
+              previousSheet?.columns ?? [],
+              [...localSheetDataRef.current, ...existingCachedRows, ...(previousSheet?.data ?? [])]
+            )
+          : []
+      const rowsToCache = pickValueRichestSpreadsheetRows(
+        pickValueRichestSpreadsheetRows(localSheetDataRef.current, existingCachedRows),
+        liveSnapshotRows
+      )
+      peerSheetDataCacheRef.current.set(activeSheetId, [...rowsToCache])
       setActiveSheetId(nextId)
     },
     [activeSheetId, preferUniverNativeSheetTabs, setActiveSheetId, localSheetDataRef]
   )
 
   useEffect(() => {
-    // Seed the peer cache with every sheet's server-provided rows on app load so
-    // switching tabs in multi-sheet mode can swap `localSheetData` instantly
-    // (no network round-trip, no brief empty state). Active-sheet mutations
-    // will overwrite this entry via the existing persistence flow.
-    peerSheetDataCacheRef.current.clear()
-    for (const s of app.sheets) {
-      peerSheetDataCacheRef.current.set(
-        s.id,
-        sortSpreadsheetRowsBySheetSettings(s.data ?? [], s) as Record<string, unknown>[]
-      )
+    // Keep the peer cache stable across `app.sheets` mutations (sheet add/rename,
+    // backend metadata refresh, temp->persisted id reconciliation). Clearing and
+    // reseeding from `sheet.data` on every app update can wipe the live in-memory
+    // rows for previously visited sheets because `sheet.data` is often empty/stale
+    // in multi-sheet mode until a full reload. Only seed missing sheets and prune
+    // removed ones; preserve richer live rows already held in memory.
+    const nextSheetIds = new Set(app.sheets.map(sheet => sheet.id))
+    for (const cachedSheetId of Array.from(peerSheetDataCacheRef.current.keys())) {
+      if (!nextSheetIds.has(cachedSheetId)) {
+        peerSheetDataCacheRef.current.delete(cachedSheetId)
+      }
     }
-  }, [app.id, app.sheets])
+
+    for (const sheet of app.sheets) {
+      const serverRows = sortSpreadsheetRowsBySheetSettings(sheet.data ?? [], sheet) as Record<string, unknown>[]
+      const pendingUniverRows = pendingUniverRowsBySheetRef.current.get(sheet.id)
+
+      if (sheet.id === activeSheetIdRef.current) {
+        const existingCachedRows = peerSheetDataCacheRef.current.get(sheet.id) ?? []
+        const liveSnapshot = spreadsheetGridRef.current?.getWorkbookSnapshot?.()
+        const liveSnapshotRows =
+          liveSnapshot && typeof liveSnapshot === 'object'
+            ? buildRowsFromLiveWorksheetSnapshot(liveSnapshot as Record<string, unknown>, sheet.id, sheet.columns, [
+                ...localSheetDataRef.current,
+                ...existingCachedRows,
+                ...serverRows
+              ])
+            : []
+        const rowsToCache = pickValueRichestSpreadsheetRows(
+          pickValueRichestSpreadsheetRows(localSheetDataRef.current, existingCachedRows),
+          liveSnapshotRows
+        )
+        peerSheetDataCacheRef.current.set(sheet.id, [...rowsToCache])
+        continue
+      }
+
+      if (pendingUniverRows && pendingUniverRows.data.length > pendingUniverRows.persistedRows.length) {
+        peerSheetDataCacheRef.current.set(sheet.id, [...pendingUniverRows.data])
+        continue
+      }
+
+      const existingRows = peerSheetDataCacheRef.current.get(sheet.id)
+      if (!existingRows) {
+        peerSheetDataCacheRef.current.set(sheet.id, serverRows)
+        continue
+      }
+
+      if (existingRows.length === 0 && serverRows.length > 0) {
+        peerSheetDataCacheRef.current.set(sheet.id, serverRows)
+      }
+    }
+  }, [app.sheets])
 
   // Tracks whether the initial bootstrap snapshot fetch has completed for the
   // current app in multi-sheet mode. The bootstrap effect reruns on every
@@ -1538,6 +1850,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   })
   useEffect(() => {
     hasBootstrappedForAppIdRef.current = { appId: app.id, done: false }
+    createdSheetIdAliasesRef.current.clear()
+    pendingCreatedSheetSelectionRef.current = null
+    pendingCreatedSheetReconciliationRef.current = null
+    pendingUniverRowsBySheetRef.current.clear()
   }, [app.id])
   const prevActiveSheetIdForPeerRestoreRef = useRef(activeSheetId)
   useEffect(() => {
@@ -1550,10 +1866,53 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     // yet (first visit). We always call `setLocalSheetData` so the persistence
     // layer tracks the correct sheet's rows after a switch.
     const cached = peerSheetDataCacheRef.current.get(activeSheetId)
-    const sourceRows = cached ?? activeSheet.data ?? []
+    const cachedOrServerRows = cached ?? activeSheet.data ?? []
+    const liveSnapshot = spreadsheetGridRef.current?.getWorkbookSnapshot?.()
+    const liveSnapshotRows =
+      liveSnapshot && typeof liveSnapshot === 'object'
+        ? buildRowsFromLiveWorksheetSnapshot(
+            liveSnapshot as Record<string, unknown>,
+            activeSheetId,
+            activeSheet.columns,
+            [...cachedOrServerRows, ...(activeSheet.data ?? [])]
+          )
+        : []
+    const sourceRows = pickValueRichestSpreadsheetRows(cachedOrServerRows, liveSnapshotRows)
+    if (sourceRows === liveSnapshotRows && liveSnapshotRows.length > 0) {
+      peerSheetDataCacheRef.current.set(activeSheetId, [...liveSnapshotRows])
+    }
+    multiSheetDebugLog('active_sheet_peer_restore', () => ({
+      previousSheetId: prev,
+      activeSheetId,
+      usedCache: Boolean(cached),
+      cachedRows: summarizeRowsForDebug(cached),
+      activeSheetData: summarizeRowsForDebug(activeSheet.data ?? []),
+      liveSnapshotRows: summarizeRowsForDebug(liveSnapshotRows),
+      sourceRows: summarizeRowsForDebug(sourceRows)
+    }))
     setLocalSheetData(sortSpreadsheetRowsBySheetSettings(sourceRows, activeSheet))
+    const sourceValueCount = sourceRows.reduce((total, row) => total + getKnownCellValueCount(row), 0)
+    const liveSnapshotValueCount =
+      liveSnapshot && typeof liveSnapshot === 'object'
+        ? countLiveWorksheetSnapshotValues(liveSnapshot as Record<string, unknown>, activeSheetId)
+        : 0
+    const needsReapplyBecauseWorkbookSheetIsStale = sourceValueCount > 0 && liveSnapshotValueCount < sourceValueCount
+    if (needsReapplyBecauseWorkbookSheetIsStale && sourceRows.length > 0) {
+      multiSheetDebugLog('active_sheet_skip_force_reapply_after_restore', () => ({
+        activeSheetId,
+        needsReapplyBecauseWorkbookSheetIsStale,
+        sourceValueCount,
+        liveSnapshotValueCount,
+        liveSnapshot: summarizeLiveWorksheetSnapshotForDebug(
+          liveSnapshot as Record<string, unknown> | null,
+          activeSheetId
+        )
+      }))
+    }
   }, [activeSheetId, preferUniverNativeSheetTabs, activeSheet, setLocalSheetData])
   const prevActiveSheetIdForRemoteCatchupRef = useRef(activeSheetId)
+  const remoteSheetCatchupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const remoteSheetCatchupSequenceRef = useRef(0)
   const hasPendingPersistenceForSheet = useCallback((targetSheetId: string): boolean => {
     if (pendingCellBatchesRef.current.some(batch => batch.targetSheetId === targetSheetId)) {
       return true
@@ -1564,9 +1923,84 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     if (pendingSnapshotCheckpointBySheetRef.current.has(targetSheetId)) {
       return true
     }
+    const pendingUniverRows = pendingUniverRowsBySheetRef.current.get(targetSheetId)
+    if (pendingUniverRows && pendingUniverRows.data.length > pendingUniverRows.persistedRows.length) {
+      return true
+    }
     const latest = latestUniverDataRef.current
     return Boolean(latest?.sheetId === targetSheetId && latest.data.length > lastProcessedLengthRef.current)
   }, [])
+
+  const getKnownRowsForSheet = useCallback(
+    (sheetId: string): Record<string, unknown>[] => {
+      if (sheetId === activeSheetIdRef.current) return localSheetDataRef.current
+      const cached = peerSheetDataCacheRef.current.get(sheetId)
+      if (cached) return cached
+      const targetSheet = app.sheets.find(sheet => sheet.id === sheetId)
+      return sortSpreadsheetRowsBySheetSettings(targetSheet?.data ?? [], targetSheet) as Record<string, unknown>[]
+    },
+    [app.sheets, localSheetDataRef]
+  )
+
+  const getRichestKnownRowsForSheet = useCallback(
+    (sheetId: string): Record<string, unknown>[] => {
+      const targetSheet = app.sheets.find(sheet => sheet.id === sheetId)
+      const debugEnabled = isSpreadsheetAppsDebugEnabled()
+      const candidateSummaries: Array<{ source: string; summary: Record<string, unknown> }> = []
+      const candidates: Record<string, unknown>[][] = []
+
+      const addCandidate = (source: string, rows: Record<string, unknown>[] | undefined): void => {
+        if (!rows) return
+        candidates.push(rows)
+        if (debugEnabled) candidateSummaries.push({ source, summary: summarizeRowsForDebug(rows) })
+      }
+
+      if (sheetId === activeSheetIdRef.current) addCandidate('localSheetDataRef', localSheetDataRef.current)
+      const cached = peerSheetDataCacheRef.current.get(sheetId)
+      addCandidate('peerSheetDataCache', cached)
+      const pendingUniverRows = pendingUniverRowsBySheetRef.current.get(sheetId)
+      addCandidate('pendingUniverRows', pendingUniverRows?.data)
+      const latestUniverRows = latestUniverDataRef.current
+      if (latestUniverRows?.sheetId === sheetId) addCandidate('latestUniverData', latestUniverRows.data)
+      const liveSnapshot = spreadsheetGridRef.current?.getWorkbookSnapshot?.()
+      if (liveSnapshot && typeof liveSnapshot === 'object') {
+        const liveSnapshotRows = buildRowsFromLiveWorksheetSnapshot(
+          liveSnapshot as Record<string, unknown>,
+          sheetId,
+          targetSheet?.columns ?? [],
+          candidates.flat()
+        )
+        addCandidate('liveWorkbookSnapshotRows', liveSnapshotRows)
+        if (debugEnabled) {
+          candidateSummaries.push({
+            source: 'liveWorkbookSnapshotCellData',
+            summary: summarizeLiveWorksheetSnapshotForDebug(liveSnapshot as Record<string, unknown>, sheetId)
+          })
+        }
+      }
+
+      addCandidate(
+        'serverSheetData',
+        sortSpreadsheetRowsBySheetSettings(targetSheet?.data ?? [], targetSheet) as Record<string, unknown>[]
+      )
+
+      const richest = candidates.reduce<Record<string, unknown>[]>(
+        (best, rows) => pickValueRichestSpreadsheetRows(best, rows),
+        []
+      )
+
+      multiSheetDebugLog('richest_rows_selected_before_sheet_create', () => ({
+        sheetId,
+        activeSheetId: activeSheetIdRef.current,
+        targetSheetFound: Boolean(targetSheet),
+        candidates: candidateSummaries,
+        selected: summarizeRowsForDebug(richest)
+      }))
+
+      return sortSpreadsheetRowsBySheetSettings(richest, targetSheet) as Record<string, unknown>[]
+    },
+    [app.sheets, localSheetDataRef]
+  )
 
   useEffect(() => {
     if (!entityEnabled || !activeSheet.entityDataSource) return
@@ -1652,10 +2086,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         // most recent `updatedAt` (falls back to version). This adds one extra GET per
         // sibling sheet, but happens only once per app bootstrap and is cheap vs. the
         // write-side alternative of mirroring every primary checkpoint to N sheets
-        // (which fans out per-edit and trips the backend rate limiter). Capped at 20
-        // siblings to avoid pathological fan-out on huge workbooks.
+        // (which fans out per-edit and hits the backend on every edit). On read
+        // we must not cap, otherwise styles saved under sheets beyond the cap
+        // can be ignored on reload. Limit concurrency instead of dropping sheets.
         let result = activeResult
-        const siblingProbeCap = 20
+        const siblingProbeConcurrency = 4
         // Always probe siblings in multi-sheet mode, even when the active
         // sheet's blob was served from `readUniverSnapshotCacheForBootstrap`.
         // The local cache is keyed per-sheet — when the user styles cells on
@@ -1670,18 +2105,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         // rate limits). Remote freshness always wins over cached staleness
         // via `compareSnapshotCandidatesByRecency`.
         const siblingSheetIdsToProbe = preferUniverNativeSheetTabs
-          ? app.sheets
-              .map(s => s.id)
-              .filter(id => id && id !== activeSheetId)
-              .slice(0, siblingProbeCap)
+          ? app.sheets.map(s => s.id).filter(id => id && id !== activeSheetId)
           : []
         if (siblingSheetIdsToProbe.length > 0) {
-          const siblingResults = await Promise.allSettled(
-            siblingSheetIdsToProbe.map(async siblingSheetId => {
+          const siblingResults = await mapWithConcurrency(
+            siblingSheetIdsToProbe,
+            siblingProbeConcurrency,
+            async siblingSheetId => {
               const siblingMinVersion = Number(app.sheets.find(s => s.id === siblingSheetId)?.version ?? 0)
               const siblingResult = await loadBootstrapSnapshotData(app.id, siblingSheetId, siblingMinVersion)
               return { siblingSheetId, siblingResult }
-            })
+            }
           )
           if (cancelled) return
           let freshestResult = activeResult
@@ -1844,34 +2278,72 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     // captures unsynced local edits made on that sheet) falls back to the
     // server-provided `sheet.data`, falls back to an empty array for a newly
     // inserted sheet.
+    const pendingUniverRows = pendingUniverRowsBySheetRef.current.get(activeSheetId)
     const cachedRowsForNewSheet = peerSheetDataCacheRef.current.get(activeSheetId)
     const newActiveSheet = app.sheets.find(s => s.id === activeSheetId)
-    const rowsForNewSheet = cachedRowsForNewSheet ?? newActiveSheet?.data ?? []
-    lastProcessedLengthRef.current = rowsForNewSheet.length
-    lastPersistedSheetDataRef.current = rowsForNewSheet as Record<string, unknown>[]
+    const persistedRowsForNewSheet =
+      pendingUniverRows?.persistedRows ?? cachedRowsForNewSheet ?? newActiveSheet?.data ?? []
+    lastProcessedLengthRef.current = persistedRowsForNewSheet.length
+    lastPersistedSheetDataRef.current = persistedRowsForNewSheet as Record<string, unknown>[]
     workbookSnapshotThrottlePendingRef.current = false
-    latestUniverDataRef.current = null
+    latestUniverDataRef.current =
+      pendingUniverRows != null ? { data: pendingUniverRows.data, sheetId: activeSheetId } : null
     if (univerDataChangeTimeoutRef.current) {
       clearTimeout(univerDataChangeTimeoutRef.current)
       univerDataChangeTimeoutRef.current = null
     }
+    if (pendingUniverRows && pendingUniverRows.data.length > persistedRowsForNewSheet.length) {
+      scheduleCoalescedTimeout(univerDataChangeTimeoutRef, 0, () => {
+        univerDataChangeTimeoutRef.current = null
+        void chainOnOperationQueue(operationQueueRef, () => processUniverDataChangeRef.current())
+      })
+    }
   }, [activeSheetId, app.sheets])
+
+  const tableWorkbookStructureSignature = useMemo(
+    () =>
+      app.sheets
+        .map(sheet => {
+          const columnsSignature = sheet.columns
+            .map(column =>
+              [
+                column.id,
+                column.name,
+                column.label ?? '',
+                column.type,
+                column.order,
+                column.isVisible === false ? 'hidden' : 'visible'
+              ].join('\u0000')
+            )
+            .join('\u0001')
+          return [sheet.id, sheet.name, sheet.viewType ?? '', columnsSignature].join('\u0002')
+        })
+        .join('\u0003'),
+    [app.sheets]
+  )
 
   const tableUniverSnapshot = useMemo((): Record<string, unknown> | null => {
     if (!preferUniverNativeSheetTabs) return null
+    const appSheetsForBootstrap = appSheetsRef.current
+    const activeSheetIdForBootstrap = activeSheetIdRef.current
+    // This snapshot is only consumed when Univer bootstraps/remounts. Native
+    // tabs keep the workbook alive afterwards, so do not rebuild the full
+    // workbook on every active-sheet or row mirror change.
     return buildMultiSheetWorkbookFromAppSheets({
-      appSheets: app.sheets,
-      activeSheetId,
+      appSheets: appSheetsForBootstrap,
+      activeSheetId: activeSheetIdForBootstrap,
       getRowsForSheet: (sheetId: string) => {
-        if (sheetId === activeSheetId) return localSheetData
         const cached = peerSheetDataCacheRef.current.get(sheetId)
-        const sheet = app.sheets.find(entry => entry.id === sheetId)
+        if (sheetId === activeSheetIdForBootstrap) {
+          return localSheetDataRef.current.length > 0 ? localSheetDataRef.current : (cached ?? [])
+        }
+        const sheet = appSheetsForBootstrap.find(entry => entry.id === sheetId)
         return cached ?? sortSpreadsheetRowsBySheetSettings(sheet?.data ?? [], sheet)
       },
       singleWorksheetBootstrap: bootstrapSnapshot,
       appId: app.id
     }) as unknown as Record<string, unknown>
-  }, [preferUniverNativeSheetTabs, bootstrapSnapshot, app.sheets, activeSheetId, localSheetData, app.id])
+  }, [preferUniverNativeSheetTabs, bootstrapSnapshot, bootstrapSnapshotSeed, tableWorkbookStructureSignature, app.id])
 
   const tableSnapshotSeed = useMemo(() => {
     if (!preferUniverNativeSheetTabs) return bootstrapSnapshotSeed
@@ -2032,12 +2504,48 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [authoritativeDataSyncToken, setAuthoritativeDataSyncToken] = useState(0)
   const spreadsheetGridRef = useRef<UniverSheetGridHandle | null>(null)
 
-  // Bump snapshot seed so Univer reinitializes with fresh data when automation adds/updates rows.
-  // Clear bootstrap snapshot so the grid builds from current localSheetData (which has the new rows).
-  const requestGridRefresh = useCallback(() => {
-    setBootstrapSnapshot(null)
+  // Bump snapshot seed so Univer reinitializes with fresh data.
+  // Most callers want a rows-only rebuild (`snapshot = null`), but sheet-id
+  // reconciliation must preserve the live multi-sheet workbook snapshot so
+  // styles / merges / formulas from other sheets survive the remount.
+  const requestGridRefresh = useCallback((snapshot?: Record<string, unknown> | null) => {
+    debugLog('requesting grid refresh', {
+      snapshotMode: snapshot ? 'provided-snapshot' : 'rows-only',
+      snapshotSummary: summarizeWorkbookSnapshotForDebug(snapshot ?? null, activeSheetIdRef.current)
+    })
+    setBootstrapSnapshot(snapshot ?? null)
     setBootstrapSnapshotSeed(prev => `${prev}-refresh-${Date.now()}`)
   }, [])
+
+  useEffect(() => {
+    const pending = pendingCreatedSheetReconciliationRef.current
+    if (!pending) return
+    if (!app.sheets.some(sheet => sheet.id === pending.persistedSheetId)) return
+    pendingCreatedSheetReconciliationRef.current = null
+    debugLog('reconciling created sheet ids after app update', {
+      temporarySheetId: pending.temporarySheetId,
+      persistedSheetId: pending.persistedSheetId,
+      activeSheetId: activeSheetIdRef.current,
+      appSheetIds: app.sheets.map(sheet => sheet.id)
+    })
+    const pendingCreatedSheetSelection = pendingCreatedSheetSelectionRef.current
+    const shouldKeepCreatedSheetActive =
+      pendingCreatedSheetSelection?.temporarySheetId === pending.temporarySheetId ||
+      pendingCreatedSheetSelection?.persistedSheetId === pending.persistedSheetId ||
+      activeSheetIdRef.current === pending.temporarySheetId
+    if (shouldKeepCreatedSheetActive) {
+      pendingCreatedSheetSelectionRef.current = {
+        temporarySheetId: pending.temporarySheetId,
+        persistedSheetId: pending.persistedSheetId
+      }
+      setActiveSheetId(pending.persistedSheetId)
+    }
+    debugLog('created sheet id reconciled without grid refresh', {
+      temporarySheetId: pending.temporarySheetId,
+      persistedSheetId: pending.persistedSheetId,
+      activeSheetId: activeSheetIdRef.current
+    })
+  }, [app.sheets, setActiveSheetId])
 
   useEffect(() => {
     if (SPREADSHEET_GRID_AUTO_REFRESH_MS <= 0) return
@@ -2050,6 +2558,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const commitLocalSheetData = useCallback(
     (next: Record<string, unknown>[], options?: { persisted?: boolean; syncGrid?: boolean }) => {
       localSheetDataRef.current = next
+      peerSheetDataCacheRef.current.set(activeSheetId, [...next])
       setLocalSheetData(next)
       if (options?.persisted) {
         lastPersistedSheetDataRef.current = next
@@ -2434,22 +2943,38 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     setShowComments(true)
   }, [])
 
-  const scheduleSheetVersionRefreshFromApi = useCallback(() => {
-    scheduleCoalescedTimeout(remoteVersionRefreshTimeoutRef, 250, () => {
-      remoteVersionRefreshTimeoutRef.current = null
-      void (async () => {
-        try {
-          const sheet = await SpreadsheetApiService.getSheet(app.id, activeSheetId)
-          if (sheet?.version != null) {
-            sheetVersionRef.current = Math.max(sheetVersionRef.current, Number(sheet.version))
-            rememberKnownSheetVersion(activeSheetId, Number(sheet.version))
+  const scheduleSheetVersionRefreshFromApi = useCallback(
+    (requestedSheetId?: string) => {
+      scheduleCoalescedTimeout(remoteVersionRefreshTimeoutRef, 250, () => {
+        remoteVersionRefreshTimeoutRef.current = null
+        void (async () => {
+          const pendingCreatedSheetSelection = pendingCreatedSheetSelectionRef.current
+          const rawTargetSheetId = requestedSheetId ?? activeSheetIdRef.current
+          if (
+            pendingCreatedSheetSelection?.temporarySheetId === rawTargetSheetId &&
+            !pendingCreatedSheetSelection.persistedSheetId
+          ) {
+            return
           }
-        } catch {
-          /* ignore */
-        }
-      })()
-    })
-  }, [activeSheetId, app.id, rememberKnownSheetVersion])
+          const targetSheetId =
+            pendingCreatedSheetSelection?.temporarySheetId === rawTargetSheetId &&
+            pendingCreatedSheetSelection.persistedSheetId
+              ? pendingCreatedSheetSelection.persistedSheetId
+              : resolveReconciledSheetId(rawTargetSheetId, createdSheetIdAliasesRef.current)
+          try {
+            const sheet = await SpreadsheetApiService.getSheet(app.id, targetSheetId)
+            if (sheet?.version != null) {
+              sheetVersionRef.current = Math.max(sheetVersionRef.current, Number(sheet.version))
+              rememberKnownSheetVersion(targetSheetId, Number(sheet.version))
+            }
+          } catch {
+            /* ignore */
+          }
+        })()
+      })
+    },
+    [app.id, rememberKnownSheetVersion]
+  )
 
   const reloadSheetFromCanonicalSnapshot = useCallback(
     async (seedPrefix: string): Promise<boolean> => {
@@ -2498,9 +3023,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             columns: sheetMeta.columns as SpreadsheetColumn[]
           })
         }
-        setBootstrapSnapshot(restoredUniverSnapshot)
-        setBootstrapSnapshotSeed(`${seedPrefix}-${Date.now()}`)
-        requestGridRefresh()
+        requestGridRefresh(restoredUniverSnapshot)
         return true
       } catch (error) {
         console.error('[SpreadsheetAppViewer] Failed to reload sheet snapshot:', error)
@@ -2720,51 +3243,111 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     if (prev === activeSheetId) return
     if (!collaboration.isCollaborationConnected && app.isShared !== true) return
 
-    const targetSheetId = activeSheetId
-    void (async () => {
-      try {
-        const snapshot = await SpreadsheetApiService.getSheetSnapshot(app.id, targetSheetId)
-        const refreshedSheetMeta =
-          (snapshot.sheet as unknown as SpreadsheetSheet | undefined) ??
-          app.sheets.find(sheet => sheet.id === targetSheetId) ??
-          activeSheet
-        const refreshedRows = sortSpreadsheetRowsBySheetSettings(
-          mapSnapshotRowsToViewerRows(snapshot.rows || []),
-          refreshedSheetMeta
-        )
-        const refreshedVersion = Number(snapshot.version ?? 0)
-        if (Number.isFinite(refreshedVersion) && refreshedVersion >= 0) {
-          rememberKnownSheetVersion(targetSheetId, refreshedVersion)
-          if (onSheetUpdate) {
-            void onSheetUpdate(app.id, targetSheetId, { version: refreshedVersion })
+    remoteSheetCatchupSequenceRef.current += 1
+    const catchupSequence = remoteSheetCatchupSequenceRef.current
+    if (remoteSheetCatchupTimeoutRef.current) {
+      globalThis.clearTimeout(remoteSheetCatchupTimeoutRef.current)
+      remoteSheetCatchupTimeoutRef.current = null
+    }
+
+    remoteSheetCatchupTimeoutRef.current = globalThis.setTimeout(() => {
+      remoteSheetCatchupTimeoutRef.current = null
+      const requestedActiveSheetId = activeSheetIdRef.current
+      const pendingCreatedSheetSelection = pendingCreatedSheetSelectionRef.current
+      if (
+        pendingCreatedSheetSelection?.temporarySheetId === requestedActiveSheetId &&
+        !pendingCreatedSheetSelection.persistedSheetId
+      ) {
+        return
+      }
+      const targetSheetId =
+        pendingCreatedSheetSelection?.temporarySheetId === requestedActiveSheetId &&
+        pendingCreatedSheetSelection.persistedSheetId
+          ? pendingCreatedSheetSelection.persistedSheetId
+          : resolveReconciledSheetId(requestedActiveSheetId, createdSheetIdAliasesRef.current)
+
+      void (async () => {
+        try {
+          const snapshot = await SpreadsheetApiService.getSheetSnapshot(app.id, targetSheetId)
+          if (remoteSheetCatchupSequenceRef.current !== catchupSequence) return
+          const canonicalActiveSheetId = resolveReconciledSheetId(
+            activeSheetIdRef.current,
+            createdSheetIdAliasesRef.current
+          )
+          if (targetSheetId !== canonicalActiveSheetId) return
+
+          const currentSheets = appSheetsRef.current
+          const refreshedSheetMeta =
+            (snapshot.sheet as unknown as SpreadsheetSheet | undefined) ??
+            currentSheets.find(sheet => sheet.id === targetSheetId) ??
+            currentSheets.find(sheet => sheet.id === canonicalActiveSheetId)
+          const refreshedRows = sortSpreadsheetRowsBySheetSettings(
+            mapSnapshotRowsToViewerRows(snapshot.rows || []),
+            refreshedSheetMeta
+          )
+          const refreshedVersion = Number(snapshot.version ?? 0)
+          if (Number.isFinite(refreshedVersion) && refreshedVersion >= 0) {
+            rememberKnownSheetVersion(targetSheetId, refreshedVersion)
+            if (onSheetUpdate) {
+              void onSheetUpdate(app.id, targetSheetId, { version: refreshedVersion })
+            }
+          }
+          if (hasPendingPersistenceForSheet(targetSheetId)) {
+            return
+          }
+          const liveSnapshot = spreadsheetGridRef.current?.getWorkbookSnapshot?.()
+          const liveSnapshotRows =
+            liveSnapshot && typeof liveSnapshot === 'object'
+              ? buildRowsFromLiveWorksheetSnapshot(
+                  liveSnapshot as Record<string, unknown>,
+                  targetSheetId,
+                  refreshedSheetMeta?.columns ?? [],
+                  [...refreshedRows, ...getKnownRowsForSheet(targetSheetId)]
+                )
+              : []
+          const rowsToCommit = pickValueRichestSpreadsheetRows(refreshedRows, liveSnapshotRows)
+          peerSheetDataCacheRef.current.set(targetSheetId, rowsToCommit)
+          if (Number.isFinite(refreshedVersion) && refreshedVersion >= 0) {
+            sheetVersionRef.current = Math.max(sheetVersionRef.current, refreshedVersion)
+          }
+          // In multi-sheet Univer mode the workbook already holds the active
+          // sheet's live cell styles. Replaying fetched rows back through the
+          // grid on sheet switch (`syncGrid: true`) can overwrite style-only
+          // formatting like font color via the authoritative re-apply path.
+          // Keep React's row mirror fresh, but let the existing workbook state
+          // continue rendering unless we're in single-sheet mode.
+          commitLocalSheetData(rowsToCommit, {
+            persisted: rowsToCommit === refreshedRows,
+            syncGrid: !preferUniverNativeSheetTabs
+          })
+        } catch {
+          if (remoteSheetCatchupSequenceRef.current !== catchupSequence) return
+          const canonicalActiveSheetId = resolveReconciledSheetId(
+            activeSheetIdRef.current,
+            createdSheetIdAliasesRef.current
+          )
+          if (targetSheetId === canonicalActiveSheetId) {
+            scheduleSheetVersionRefreshFromApi(targetSheetId)
           }
         }
-        if (hasPendingPersistenceForSheet(targetSheetId)) {
-          return
-        }
-        peerSheetDataCacheRef.current.set(targetSheetId, refreshedRows)
-        if (targetSheetId !== activeSheetIdRef.current) {
-          return
-        }
-        if (Number.isFinite(refreshedVersion) && refreshedVersion >= 0) {
-          sheetVersionRef.current = Math.max(sheetVersionRef.current, refreshedVersion)
-        }
-        commitLocalSheetData(refreshedRows, { persisted: true, syncGrid: true })
-      } catch {
-        if (targetSheetId === activeSheetIdRef.current) {
-          scheduleSheetVersionRefreshFromApi()
-        }
+      })()
+    }, REMOTE_SHEET_CATCHUP_DEBOUNCE_MS)
+
+    return () => {
+      remoteSheetCatchupSequenceRef.current += 1
+      if (remoteSheetCatchupTimeoutRef.current) {
+        globalThis.clearTimeout(remoteSheetCatchupTimeoutRef.current)
+        remoteSheetCatchupTimeoutRef.current = null
       }
-    })()
+    }
   }, [
-    activeSheet,
     activeSheetId,
     app.id,
     app.isShared,
-    app.sheets,
     collaboration.isCollaborationConnected,
     commitLocalSheetData,
     entityEnabled,
+    getKnownRowsForSheet,
     hasPendingPersistenceForSheet,
     onSheetUpdate,
     preferUniverNativeSheetTabs,
@@ -3574,20 +4157,38 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
         const rowsForAuthoritativeSnapshot =
           updatesByRowIndex.size > 0 ? mergeRowsWithIndexUpdates(currentRows, updatesByRowIndex) : currentRows
+        const rowsForAuthoritativeSnapshotValueCount = rowsForAuthoritativeSnapshot.reduce(
+          (total, row) => total + getKnownCellValueCount(row),
+          0
+        )
+        const liveSnapshotValueCount = countLiveWorksheetSnapshotValues(
+          snapshot as Record<string, unknown>,
+          targetSheetId
+        )
         const pendingSnapshotClearCells = getPendingSnapshotClearCoordinates(
           pendingSnapshotClearCellsRef.current,
           targetSheetId
         )
-        const snapshotToPersistBase = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
-          snapshot as Record<string, unknown>,
-          targetSheetId,
-          rowsForAuthoritativeSnapshot,
-          targetSheetMeta.columns
-        )
-        const snapshotToPersist = clearSnapshotCellsByCoordinate(
-          snapshotToPersistBase,
-          targetSheetId,
-          pendingSnapshotClearCells
+        const shouldOverlayViewerRowsIntoSnapshot = rowsForAuthoritativeSnapshotValueCount > liveSnapshotValueCount
+        if (!shouldOverlayViewerRowsIntoSnapshot && rowsForAuthoritativeSnapshotValueCount < liveSnapshotValueCount) {
+          debugLog('snapshot checkpoint: preserving richer live workbook snapshot', {
+            appId: app.id,
+            sheetId: targetSheetId,
+            rowsForAuthoritativeSnapshotValueCount,
+            liveSnapshotValueCount
+          })
+        }
+        const snapshotToPersistBase = shouldOverlayViewerRowsIntoSnapshot
+          ? mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
+              snapshot as Record<string, unknown>,
+              targetSheetId,
+              rowsForAuthoritativeSnapshot,
+              targetSheetMeta.columns
+            )
+          : (snapshot as Record<string, unknown>)
+        const snapshotToPersist = normalizeWorkbookSnapshotToAppSheets(
+          clearSnapshotCellsByCoordinate(snapshotToPersistBase, targetSheetId, pendingSnapshotClearCells),
+          app.sheets
         )
         sizeBytesForSave = getSnapshotSizeBytes(snapshotToPersist)
         if (sizeBytesForSave == null || sizeBytesForSave > 8_500_000) {
@@ -3605,16 +4206,25 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         }
 
         versionRefForSave = isTargetActiveSheet ? sheetVersionRef : targetSheetVersionRef
+        const bestEffortCache = writeUniverSnapshotCache(
+          app.id,
+          targetSheetId,
+          Number(versionRefForSave.current || 0),
+          snapshotToPersist
+        )
 
         const saved = await saveSnapshotWithRetry({
           appId: app.id,
           activeSheetId: targetSheetId,
           baseSnapshot: snapshotToPersist,
           prepareSnapshotForSave: currentSnapshot =>
-            clearSnapshotCellsByCoordinate(
-              currentSnapshot as Record<string, unknown>,
-              targetSheetId,
-              getPendingSnapshotClearCoordinates(pendingSnapshotClearCellsRef.current, targetSheetId)
+            normalizeWorkbookSnapshotToAppSheets(
+              clearSnapshotCellsByCoordinate(
+                currentSnapshot as Record<string, unknown>,
+                targetSheetId,
+                getPendingSnapshotClearCoordinates(pendingSnapshotClearCellsRef.current, targetSheetId)
+              ),
+              app.sheets
             ),
           sheetVersionRef: versionRefForSave,
           snapshotSaveMetricsRef,
@@ -3625,7 +4235,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           lastEmittedDimensionSignatureRef,
           useKeepaliveHttp: unloadKeepAlivePersistRef.current
         })
-        cacheResult = saved.cacheResult
+        cacheResult = saved.cacheResult.stored
+          ? saved.cacheResult
+          : { stored: bestEffortCache.stored, reason: bestEffortCache.reason ?? null }
         debugLog('snapshot checkpoint saved', {
           appId: app.id,
           sheetId: targetSheetId,
@@ -3673,6 +4285,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           failCount: prev.failCount + 1
         }))
         sheetPersist.recordError(sheetT('persist-snapshot-failed'))
+        throw error
       }
     },
     [
@@ -3881,7 +4494,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       if (!canEditWithLock) return
       if (entityEnabled) return
       if (cells.length === 0) return
-      const targetSheetId = cells[0]?.sheetId || activeSheetId
+      const canonicalActiveSheetId = resolveReconciledSheetId(activeSheetId, createdSheetIdAliasesRef.current)
+      const targetSheetId = resolveReconciledSheetId(
+        cells[0]?.sheetId || activeSheetId,
+        createdSheetIdAliasesRef.current
+      )
 
       const snapshotClearCells = collectSnapshotClearCoordinates(cells)
       if (snapshotClearCells.length > 0) {
@@ -3894,7 +4511,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         ...cells.map(cell => ({
           ...cell,
           value: normalizeCellValueForBatchPersistence(cell.value),
-          sheetId: cell.sheetId || targetSheetId
+          sheetId: resolveReconciledSheetId(cell.sheetId || targetSheetId, createdSheetIdAliasesRef.current)
         }))
       )
       persistPendingCellJournal()
@@ -3903,7 +4520,19 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         queuedCells: pendingCellChangesRef.current.length
       })
 
-      if (targetSheetId !== activeSheetId) {
+      if (targetSheetId !== canonicalActiveSheetId) {
+        const peerUpdate = applySheetCellChanges(
+          getKnownRowsForSheet(targetSheetId) as ViewerRow[],
+          cells.map(cell => ({
+            rowId: String(cell.rowId),
+            columnName: cell.columnName,
+            value: normalizeCellValueForBatchPersistence(cell.value)
+          })),
+          app.sheets.find(sheet => sheet.id === targetSheetId)?.columns
+        )
+        if (peerUpdate.mutatedAnyRow) {
+          peerSheetDataCacheRef.current.set(targetSheetId, peerUpdate.nextRows)
+        }
         schedulePendingCellPersist(
           collaboration.isCollaborationConnected && collaboration.headerParticipants.length > 1
             ? CELL_PERSIST_COLLAB_DEBOUNCE_MS
@@ -3912,25 +4541,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         return
       }
 
-      const current = localSheetDataRef.current
-      const updatesByUiRowId = new Map<string, Record<string, unknown>>()
-      for (const cell of cells) {
-        const uiRowId = String(cell.rowId)
-        const uiUpdates = updatesByUiRowId.get(uiRowId) ?? {}
-        uiUpdates[cell.columnName] = normalizeCellValueForBatchPersistence(cell.value)
-        updatesByUiRowId.set(uiRowId, uiUpdates)
-      }
-
-      let mutatedAnyRow = false
-      const next = current.map(row => {
-        const updates = collectViewerRowUpdates(row, updatesByUiRowId)
-        if (!updates) return row
-        mutatedAnyRow = true
-        return {
-          ...applyColumnUpdatesToViewerRow(row, updates, activeSheet.columns),
-          _updatedAt: new Date().toISOString()
-        }
-      })
+      const { nextRows: next, mutatedAnyRow } = applySheetCellChanges(
+        localSheetDataRef.current as ViewerRow[],
+        cells.map(cell => ({
+          rowId: String(cell.rowId),
+          columnName: cell.columnName,
+          value: normalizeCellValueForBatchPersistence(cell.value)
+        })),
+        activeSheet.columns
+      )
       // Only publish a new localSheetData when an existing row actually
       // changed. When every incoming cell targets a brand-new row
       // (clientRowId that doesn't exist in `current` yet — typical for the
@@ -3971,6 +4590,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       collaboration.isCollaborationConnected,
       collaboration.headerParticipants.length,
       entityEnabled,
+      getKnownRowsForSheet,
       localSheetDataRef,
       onDataChange,
       CELL_PERSIST_DEBOUNCE_MS,
@@ -4114,7 +4734,21 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     const newData = latest.data
 
     const lastProcessed = lastProcessedLengthRef.current
-    if (newData.length <= lastProcessed) return
+    multiSheetDebugLog('process_univer_data_change_start', () => ({
+      sheetId: latest.sheetId,
+      newData: summarizeRowsForDebug(newData),
+      localSheetData: summarizeRowsForDebug(localSheetDataRef.current),
+      lastProcessedLength: lastProcessed,
+      activeSheetId: activeSheetIdRef.current
+    }))
+    if (newData.length <= lastProcessed) {
+      multiSheetDebugLog('process_univer_data_change_skip_no_new_rows', () => ({
+        sheetId: latest.sheetId,
+        newDataLength: newData.length,
+        lastProcessedLength: lastProcessed
+      }))
+      return
+    }
 
     sheetPersist.markDirty()
     versioning.markAsChanged()
@@ -4130,6 +4764,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     const updateLocalRowsAfterCreate = (createdRows: Array<Record<string, unknown>>) => {
       const next = replaceClientRowsWithCreatedRows(prev, createdRows)
       lastProcessedLengthRef.current = newData.length
+      pendingUniverRowsBySheetRef.current.delete(activeSheetId)
+      multiSheetDebugLog('process_univer_data_change_rows_created', () => ({
+        sheetId: activeSheetId,
+        previousLocalRows: summarizeRowsForDebug(prev),
+        createdRows: summarizeRowsForDebug(createdRows),
+        nextRows: summarizeRowsForDebug(next),
+        newData: summarizeRowsForDebug(newData)
+      }))
       // LOCAL-origin commit: the rows were just typed/dragged/pasted in by
       // the user, so Univer already renders the correct values. The only
       // thing changing here is the React-side row identity (clientRowId →
@@ -4197,11 +4839,37 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const handleUniverDataChange = useCallback(
     (newData: Record<string, unknown>[], sourceSheetId?: string) => {
-      const effectiveSheetId = sourceSheetId || activeSheetIdRef.current
-      latestUniverDataRef.current = { data: newData, sheetId: effectiveSheetId }
-      if (effectiveSheetId !== activeSheetIdRef.current) {
+      const canonicalActiveSheetId = resolveReconciledSheetId(
+        activeSheetIdRef.current,
+        createdSheetIdAliasesRef.current
+      )
+      const effectiveSheetId = resolveReconciledSheetId(
+        sourceSheetId || activeSheetIdRef.current,
+        createdSheetIdAliasesRef.current
+      )
+      multiSheetDebugLog('univer_data_change', () => ({
+        sourceSheetId: sourceSheetId ?? null,
+        effectiveSheetId,
+        canonicalActiveSheetId,
+        newData: summarizeRowsForDebug(newData),
+        localSheetData: summarizeRowsForDebug(localSheetDataRef.current),
+        lastProcessedLength: lastProcessedLengthRef.current
+      }))
+      if (effectiveSheetId !== canonicalActiveSheetId) {
+        const persistedRows = getKnownRowsForSheet(effectiveSheetId)
+        peerSheetDataCacheRef.current.set(effectiveSheetId, [...newData])
+        if (newData.length > persistedRows.length) {
+          pendingUniverRowsBySheetRef.current.set(effectiveSheetId, {
+            data: [...newData],
+            persistedRows: [...persistedRows]
+          })
+        } else {
+          pendingUniverRowsBySheetRef.current.delete(effectiveSheetId)
+        }
         return
       }
+      latestUniverDataRef.current = { data: newData, sheetId: effectiveSheetId }
+      pendingUniverRowsBySheetRef.current.delete(effectiveSheetId)
       const hasAddedRows = newData.length > lastProcessedLengthRef.current
       if (hasAddedRows && univerDataChangeTimeoutRef.current) {
         clearTimeout(univerDataChangeTimeoutRef.current)
@@ -4212,7 +4880,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         void chainOnOperationQueue(operationQueueRef, () => processUniverDataChangeRef.current())
       })
     },
-    [UNIVER_DATA_CHANGE_DEBOUNCE_MS]
+    [UNIVER_DATA_CHANGE_DEBOUNCE_MS, getKnownRowsForSheet]
   )
 
   const prevCanEditWithLockRef = useRef<boolean | null>(null)
@@ -4987,9 +5655,41 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const handleUniverActiveWorksheetChange = useCallback(
     (worksheetId: string, worksheetName: string) => {
+      const canonicalWorksheetId = resolveReconciledSheetId(worksheetId, createdSheetIdAliasesRef.current)
+      const canonicalActiveSheetId = resolveReconciledSheetId(
+        activeSheetIdRef.current,
+        createdSheetIdAliasesRef.current
+      )
+      const pendingCreatedSheetSelection = pendingCreatedSheetSelectionRef.current
+      if (pendingCreatedSheetSelection) {
+        const expectedSheetIds = new Set(
+          [pendingCreatedSheetSelection.temporarySheetId, pendingCreatedSheetSelection.persistedSheetId]
+            .filter((sheetId): sheetId is string => Boolean(sheetId))
+            .map(sheetId => resolveReconciledSheetId(sheetId, createdSheetIdAliasesRef.current))
+        )
+        if (expectedSheetIds.has(canonicalWorksheetId)) {
+          if (
+            pendingCreatedSheetSelection.persistedSheetId &&
+            canonicalWorksheetId ===
+              resolveReconciledSheetId(pendingCreatedSheetSelection.persistedSheetId, createdSheetIdAliasesRef.current)
+          ) {
+            pendingCreatedSheetSelectionRef.current = null
+          }
+        } else if (expectedSheetIds.has(canonicalActiveSheetId)) {
+          debugLog('ignoring worksheet change during pending sheet creation', {
+            worksheetId,
+            canonicalWorksheetId,
+            canonicalActiveSheetId,
+            pendingTemporarySheetId: pendingCreatedSheetSelection.temporarySheetId,
+            pendingPersistedSheetId: pendingCreatedSheetSelection.persistedSheetId
+          })
+          return
+        }
+      }
       const targetSheet =
-        app.sheets.find(sheet => sheet.id === worksheetId) ?? app.sheets.find(sheet => sheet.name === worksheetName)
-      if (!targetSheet || targetSheet.id === activeSheetIdRef.current) return
+        app.sheets.find(sheet => sheet.id === canonicalWorksheetId) ??
+        app.sheets.find(sheet => sheet.name === worksheetName)
+      if (!targetSheet || targetSheet.id === canonicalActiveSheetId) return
       setActiveSheetIdWithPeerCache(targetSheet.id)
     },
     [app.sheets, setActiveSheetIdWithPeerCache]
@@ -5003,12 +5703,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // React `localSheetDataRef`.
   const resolveSheetContextForGrid = useCallback(
     (sheetId: string): { columns: SpreadsheetColumn[]; data: Record<string, unknown>[] } | null => {
-      const targetSheet = app.sheets.find(s => s.id === sheetId)
+      const canonicalSheetId = resolveReconciledSheetId(sheetId, createdSheetIdAliasesRef.current)
+      const canonicalActiveSheetId = resolveReconciledSheetId(
+        activeSheetIdRef.current,
+        createdSheetIdAliasesRef.current
+      )
+      const targetSheet = app.sheets.find(s => s.id === canonicalSheetId)
       if (!targetSheet) return null
       const rows =
-        sheetId === activeSheetIdRef.current
+        canonicalSheetId === canonicalActiveSheetId
           ? localSheetDataRef.current
-          : (peerSheetDataCacheRef.current.get(sheetId) ??
+          : (peerSheetDataCacheRef.current.get(canonicalSheetId) ??
             (sortSpreadsheetRowsBySheetSettings(targetSheet.data ?? [], targetSheet) as Record<string, unknown>[]))
       return {
         columns: targetSheet.columns,
@@ -5036,7 +5741,29 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const already = app.sheets.some(s => s.id === payload.sheetId)
       if (already) return
 
+      const liveSnapshotBeforeCreate = spreadsheetGridRef.current?.getWorkbookSnapshot?.()
+      multiSheetDebugLog('sheet_insert_start', () => ({
+        requestedSheetId: payload.sheetId,
+        requestedSheetName: payload.sheetName,
+        activeSheetId,
+        localSheetData: summarizeRowsForDebug(localSheetDataRef.current),
+        peerCacheActiveRows: summarizeRowsForDebug(peerSheetDataCacheRef.current.get(activeSheetId)),
+        pendingUniverRows: summarizeRowsForDebug(pendingUniverRowsBySheetRef.current.get(activeSheetId)?.data),
+        latestUniverRows:
+          latestUniverDataRef.current?.sheetId === activeSheetId
+            ? summarizeRowsForDebug(latestUniverDataRef.current.data)
+            : { rowCount: 0, reason: 'latest data belongs to another sheet or is empty' },
+        liveSnapshot: summarizeLiveWorksheetSnapshotForDebug(
+          (liveSnapshotBeforeCreate as Record<string, unknown> | null | undefined) ?? null,
+          activeSheetId
+        )
+      }))
+
       const templateColumns = activeSheet.columns.map(col => ({ ...col }))
+      pendingCreatedSheetSelectionRef.current = {
+        temporarySheetId: payload.sheetId,
+        persistedSheetId: null
+      }
       if (onAppUpdate) {
         const placeholderSheet: SpreadsheetSheet = {
           id: payload.sheetId,
@@ -5049,15 +5776,91 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         }
         onAppUpdate({ ...app, sheets: [...app.sheets, placeholderSheet] })
       }
+      // Preserve the previous active sheet's live rows before switching, and
+      // explicitly seed the newly inserted sheet as empty. Otherwise the render
+      // between `activeSheetId` flip and the peer-restore effect can treat the
+      // previous sheet's `localSheetData` as if it belonged to the new sheet,
+      // which surfaces as "Sheet N copied old content, source sheet went empty"
+      // until a full reload restores the persisted workbook snapshot.
+      const rowsToPreserve = getRichestKnownRowsForSheet(activeSheetId)
+      multiSheetDebugLog('sheet_insert_preserve_rows', () => ({
+        requestedSheetId: payload.sheetId,
+        previousActiveSheetId: activeSheetId,
+        rowsToPreserve: summarizeRowsForDebug(rowsToPreserve),
+        localSheetDataBeforeClear: summarizeRowsForDebug(localSheetDataRef.current)
+      }))
+      peerSheetDataCacheRef.current.set(activeSheetId, [...rowsToPreserve])
+      if (rowsToPreserve.length > localSheetDataRef.current.length) {
+        pendingUniverRowsBySheetRef.current.set(activeSheetId, {
+          data: [...rowsToPreserve],
+          persistedRows: [...localSheetDataRef.current]
+        })
+      }
+      peerSheetDataCacheRef.current.set(payload.sheetId, [])
+      localSheetDataRef.current = []
+      setLocalSheetData([])
       setActiveSheetId(payload.sheetId)
 
-      void onSheetAdd(app.id, {
-        id: payload.sheetId,
-        name: payload.sheetName,
-        columns: templateColumns
-      })
+      void (async () => {
+        const created = await onSheetAdd(app.id, {
+          id: payload.sheetId,
+          name: payload.sheetName,
+          columns: templateColumns
+        })
+        debugLog('sheet add returned from backend', {
+          requestedSheetId: payload.sheetId,
+          persistedSheetId: created?.id ?? null,
+          requestedSheetName: payload.sheetName,
+          activeSheetId: activeSheetIdRef.current
+        })
+        if (!created) {
+          pendingCreatedSheetSelectionRef.current = null
+          return
+        }
+        pendingCreatedSheetSelectionRef.current = {
+          temporarySheetId: payload.sheetId,
+          persistedSheetId: created.id
+        }
+        if (created.id === payload.sheetId) return
+        createdSheetIdAliasesRef.current.set(payload.sheetId, created.id)
+        pendingCreatedSheetReconciliationRef.current = {
+          temporarySheetId: payload.sheetId,
+          persistedSheetId: created.id
+        }
+        latestUniverDataRef.current = reconcileTemporarySheetIdReferences({
+          temporarySheetId: payload.sheetId,
+          persistedSheetId: created.id,
+          peerSheetDataCache: peerSheetDataCacheRef.current,
+          pendingUniverRowsBySheet: pendingUniverRowsBySheetRef.current,
+          pendingSnapshotClearCells: pendingSnapshotClearCellsRef.current,
+          pendingSnapshotCheckpoints: pendingSnapshotCheckpointBySheetRef.current,
+          knownSheetVersions: knownSheetVersionsRef.current,
+          pendingCellChanges: pendingCellChangesRef.current,
+          pendingCellBatches: pendingCellBatchesRef.current,
+          latestUniverData: latestUniverDataRef.current
+        })
+        debugLog('sheet id aliases updated after backend reconciliation', {
+          requestedSheetId: payload.sheetId,
+          persistedSheetId: created.id,
+          aliasEntries: Array.from(createdSheetIdAliasesRef.current.entries()),
+          pendingCellChanges: pendingCellChangesRef.current.length,
+          pendingCellBatches: pendingCellBatchesRef.current.length,
+          peerCacheSheetIds: Array.from(peerSheetDataCacheRef.current.keys())
+        })
+      })()
     },
-    [onSheetAdd, onAppUpdate, app, activeSheet.columns, activeSheet.viewType, activeSheet.settings, setActiveSheetId]
+    [
+      activeSheet.columns,
+      activeSheet.settings,
+      activeSheet.viewType,
+      activeSheetId,
+      app,
+      onAppUpdate,
+      onSheetAdd,
+      getRichestKnownRowsForSheet,
+      setActiveSheetId,
+      setLocalSheetData
+    ]
   )
 
   const handleUniverSheetRemoved = useCallback(
@@ -5065,7 +5868,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       if (!onSheetDelete) return
       // Keep at least one sheet locally; Univer guards this too but be defensive.
       if (app.sheets.length <= 1) return
-      void onSheetDelete(app.id, payload.sheetId)
+      const canonicalSheetId = resolveReconciledSheetId(payload.sheetId, createdSheetIdAliasesRef.current)
+      void onSheetDelete(app.id, canonicalSheetId)
     },
     [onSheetDelete, app.id, app.sheets.length]
   )
@@ -5073,9 +5877,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const handleUniverSheetRenamed = useCallback(
     (payload: { sheetId: string; sheetName: string }) => {
       if (!onSheetUpdate) return
-      const current = app.sheets.find(s => s.id === payload.sheetId)
+      const canonicalSheetId = resolveReconciledSheetId(payload.sheetId, createdSheetIdAliasesRef.current)
+      const current = app.sheets.find(s => s.id === canonicalSheetId)
       if (!current || current.name === payload.sheetName) return
-      void onSheetUpdate(app.id, payload.sheetId, { name: payload.sheetName })
+      void onSheetUpdate(app.id, canonicalSheetId, { name: payload.sheetName })
     },
     [onSheetUpdate, app.id, app.sheets]
   )

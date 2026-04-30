@@ -161,7 +161,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
   return (
     <div
-      className="gba:rounded-xl gba:border gba:border-border/50 gba:bg-card/50 gba:p-4 gba:transition-all hover:gba:border-border hover:gba:shadow-sm"
+      className="gba:min-w-0 gba:overflow-hidden gba:rounded-xl gba:border gba:border-border/50 gba:bg-card/50 gba:p-4 gba:transition-all hover:gba:border-border hover:gba:shadow-sm"
       data-testid={`${testId}-${comment.id}`}
     >
       {/* Comment header */}
@@ -206,11 +206,11 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           {isInlineComment && comment.selectedText && (
             <button
               onClick={() => onScrollToHighlight?.(comment.id)}
-              className="gba:mb-2 gba:p-2 gba:rounded-md gba:bg-warning/10 gba:border gba:border-warning/20 gba:w-full gba:text-left hover:gba:bg-warning/20 gba:transition-colors gba:cursor-pointer"
+              className="gba:mb-2 gba:w-full gba:min-w-0 gba:rounded-md gba:border gba:border-warning/20 gba:bg-warning/10 gba:p-2 gba:text-left gba:transition-colors hover:gba:bg-warning/20 gba:cursor-pointer"
             >
-              <div className="gba:flex gba:items-start gba:gap-2">
+              <div className="gba:flex gba:min-w-0 gba:items-start gba:gap-2">
                 <Quote className="gba:h-3.5 gba:w-3.5 gba:text-warning gba:mt-0.5 gba:flex-shrink-0" />
-                <p className="gba:text-xs gba:text-foreground/70 gba:italic gba:line-clamp-2">
+                <p className="gba:min-w-0 gba:text-xs gba:text-foreground/70 gba:italic gba:line-clamp-2">
                   "{comment.selectedText}"
                 </p>
               </div>
@@ -283,7 +283,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
       {/* Reply input */}
       {showReplyInput && !isResolved && (
-        <div className="gba:ml-12 gba:mt-3 gba:pl-4 gba:border-l-2 gba:border-primary/20">
+        <div className="gba:ml-12 gba:mt-3 gba:min-w-0 gba:border-l-2 gba:border-primary/20 gba:pl-4">
           <CommentEditor
             onSubmit={handleReply}
             onCancel={() => setShowReplyInput(false)}

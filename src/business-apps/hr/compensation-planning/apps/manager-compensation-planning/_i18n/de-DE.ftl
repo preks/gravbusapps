@@ -73,7 +73,6 @@ hire-unknown = Unbekannt
 hire-tooltip = Eingestellt: {$date}
 
 compa-no-band = Keine Gehaltsbanddaten
-compa-ratio-label = CR: {$ratio}
 
 filters-toggle-aria = Filter ein- oder ausblenden
 search-toggle-aria = Team durchsuchen
@@ -104,6 +103,7 @@ pagination-prev-aria = Vorherige Seite
 pagination-next-aria = Nächste Seite
 
 manager-team-distribution-method-section = Wie soll der Erhöhungspool aufgeteilt werden?
+manager-team-distribution-col-compensation-band = Gehaltsband
 
 manager-team-save-allocations = Verteilen
 manager-team-submit-proposals-toolbar = Vorschläge einreichen

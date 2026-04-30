@@ -1,7 +1,7 @@
 import React from 'react'
 import { FlowRenderer } from '@/business-apps/flow/common/components/flow-renderer'
 import { FlowTemplate } from '../types'
-import { FlowStepType, AssignmentMode } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { FlowStepType, AssignmentMode } from '@/common/data/flow/types/flowTemplate'
 
 interface FlowVisualizationProps {
   template: FlowTemplate

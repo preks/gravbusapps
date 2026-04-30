@@ -6,6 +6,13 @@ import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormat
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { getValueByPath } from '@/common/utils/objectUtils'
 
+const INVESTMENT_REPORT_ROOT_FIELD_MAP: Record<string, string> = {
+  'investment.totalInvestmentAmount': 'totalInvestmentAmount',
+  'investment.initialInvestmentAmount': 'initialInvestmentAmount',
+  'investment.securityQuantity': 'securityQuantity',
+  'investment.timeWeightedPerformance': 'timeWeightedPerformance'
+}
+
 /**
  * Formats a field value for table display based on its type
  * Same logic as investmentHeaderConfig but optimized for table cells
@@ -114,9 +121,9 @@ export const transformFormFieldsToTableColumns = (
         )
         const prop = field.property
 
-        if (prop === 'investment.totalInvestmentAmount') {
-          // Use row.totalInvestmentAmount directly = InvestmentReport.totalInvestmentAmount
-          const value = row.totalInvestmentAmount
+        const reportSnapshotField = INVESTMENT_REPORT_ROOT_FIELD_MAP[prop]
+        if (reportSnapshotField) {
+          const value = getValueByPath(row, reportSnapshotField)
           return formatFieldValueForTable(value, effectiveFieldType, rowCurrencyCode)
         }
 

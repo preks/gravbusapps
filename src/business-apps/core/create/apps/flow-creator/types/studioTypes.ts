@@ -12,7 +12,7 @@ import type {
   EventSubscription,
   TaskPriority,
   Link
-} from '@/business-apps/flow/apps/creator/types/flowTemplate'
+} from '@/common/data/flow/types/flowTemplate'
 import type { FlowTags } from '@/business-apps/flow/types'
 
 export type DesignerMode = 'simple' | 'advanced'

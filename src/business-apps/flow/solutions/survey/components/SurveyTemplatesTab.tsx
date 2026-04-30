@@ -32,6 +32,7 @@ import { toast } from 'sonner'
 import { AssignmentSelector } from '@/components/assignment-selector'
 import { AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
 import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
+import { Navigation, buildPlatformUrl, openInNewTab } from '@/common/utils/navigationUtils'
 
 interface SurveyTemplate {
   id: string
@@ -248,8 +249,7 @@ export const SurveyTemplatesTab: React.FC<SurveyTemplatesTabProps> = ({ accessTo
   }
 
   const handleViewTemplate = (templateId: string) => {
-    // Navigate to template details/editor
-    window.open(`/platform/apps/flow/apps/creator?templateId=${templateId}`, '_blank')
+    openInNewTab(buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR, { flowId: templateId }))
   }
 
   const handleConfirmLaunch = async () => {
@@ -459,7 +459,7 @@ export const SurveyTemplatesTab: React.FC<SurveyTemplatesTabProps> = ({ accessTo
         </div>
         <div className="gba:flex gba:gap-2">
           <Button
-            onClick={() => window.open('/platform/apps/flow/apps/creator#create', '_blank')}
+            onClick={() => openInNewTab(`${buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR)}#create`)}
             variant="default"
             size="sm"
             data-testid="create-template-button"

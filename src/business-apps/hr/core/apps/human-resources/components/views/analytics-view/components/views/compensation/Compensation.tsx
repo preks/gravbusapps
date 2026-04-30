@@ -373,7 +373,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
           <Col span={6}>
             {/* Equity Health Gauge - Overall Score */}
             <EquityHealthGauge
-              score={healthScore.data?.score ?? 0}
+              score={healthScore.data?.score}
               loading={healthScore.loading}
               error={healthScore.error}
             />

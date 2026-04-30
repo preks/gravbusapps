@@ -70,8 +70,24 @@ export const createLiquidFundInvestmentDescriptors = (
   fields: Record<keyof typeof LiquidFundInvestmentFields, string> = LiquidFundInvestmentFields
 ): Descriptor[] => [
   ...BASE_ENTITY_DESCRIPTORS,
-  { key: 'proprietorName', searchPaths: [fields.proprietorName], sortPath: fields.proprietorName, type: 'text' },
-  { key: 'bankName', searchPaths: [fields.bankName], sortPath: fields.bankName, type: 'text' },
+  {
+    key: 'proprietorName',
+    searchPaths: [fields.proprietorName],
+    sortPath: fields.proprietorName,
+    type: 'text',
+    optionSelectPaths: [fields.proprietorName, fields.proprietorName],
+    optionSearchPaths: [fields.proprietorName],
+    optionDistinctOn: [fields.proprietorName]
+  },
+  {
+    key: 'bankName',
+    searchPaths: [fields.bankName],
+    sortPath: fields.bankName,
+    type: 'text',
+    optionSelectPaths: [fields.bankName, fields.bankName],
+    optionSearchPaths: [fields.bankName],
+    optionDistinctOn: [fields.bankName]
+  },
   {
     key: 'bankAccountNumber',
     searchPaths: [fields.bankAccountNumber],

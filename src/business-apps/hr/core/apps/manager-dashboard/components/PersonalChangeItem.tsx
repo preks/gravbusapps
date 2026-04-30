@@ -139,7 +139,7 @@ export const PersonalChangeItem = ({
   return (
     <div
       key={change.id}
-      className="gba:p-3 gba:border gba:border-neutral-200 gba:rounded-lg gba:hover:border-primary-300 gba:transition-colors gba:cursor-pointer"
+      className="gba:cursor-pointer gba:rounded-lg gba:border gba:border-border gba:p-3 gba:transition-colors gba:hover:border-primary"
       data-testid={`manager-dashboard-change-${change.id}`}
     >
       <div className="gba:flex gba:items-start gba:justify-between gba:mb-2">
@@ -165,14 +165,14 @@ export const PersonalChangeItem = ({
             </Avatar>
           </div>
           <div className="gba:flex gba:flex-col">
-            <div className="gba:font-medium gba:text-neutral-900 gba:text-sm gba:mb-1">
+            <div className="gba:mb-1 gba:text-sm gba:font-medium gba:text-foreground">
               {change.employee?.fullName || 'Unknown Employee'}
             </div>
-            <div className="gba:text-xs gba:text-neutral-500 gba:flex gba:items-center gba:mb-1">
+            <div className="gba:mb-1 gba:flex gba:items-center gba:text-xs gba:text-muted-foreground">
               <ClockIcon className="gba:mr-1" size={12} />
               {getTimeAgo(change.createdAt)}
             </div>
-            <div className="gba:text-xs gba:font-medium gba:text-neutral-500 gba:flex gba:items-center gba:gap-1">
+            <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:font-medium gba:text-muted-foreground">
               <NotePencilIcon size={16} /> {change.title}
             </div>
           </div>

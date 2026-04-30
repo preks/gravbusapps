@@ -1,6 +1,10 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Progress } from '@newwork/nw-design-system'
-import { CheckCircle2, AlertTriangle, ChevronRight } from 'lucide-react'
+import {
+  CheckCircleIcon as CheckCircle2,
+  WarningIcon as AlertTriangle,
+  CaretRightIcon as ChevronRight
+} from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlightRiskSummary } from '../types/flightRisk.types'
 

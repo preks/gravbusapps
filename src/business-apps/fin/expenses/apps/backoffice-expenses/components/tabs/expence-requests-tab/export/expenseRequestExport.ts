@@ -5,6 +5,7 @@ import type { ExpenseRequestQueryData, ExpenseData } from '../../../../types'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { getErrorMessage } from '../../../../utils/errorUtils'
 import { mapExpenseRequest } from '../data/mapExpenseRequest'
+import { formatExpenseRequestDateShort } from '../../../../utils/dateUtils'
 import { getExpenseRequestStatusDisplay, type ExpenseStatus, type TranslateFn } from '../../../../utils/utils'
 import { downloadCsv, downloadExcel, buildFilename } from '../../../../utils/exportUtils'
 import { toast, useTranslation } from '@newwork/nw-design-system'
@@ -33,14 +34,14 @@ const formatExpenseForExport = (expense: ExpenseData, t: TranslateFn) => ({
   sapNumber: expense.sapNumber || '-',
   title: expense.title || '-',
   department: expense.department || '-',
-  startDate: expense.startDate,
-  endDate: expense.endDate,
-  requestDate: expense.requestDate,
+  startDate: formatExpenseRequestDateShort(expense.startDate, '-'),
+  endDate: formatExpenseRequestDateShort(expense.endDate, '-'),
+  requestDate: formatExpenseRequestDateShort(expense.requestDate, '-'),
   totalRemainingAmount: expense.totalRemainingAmount ? formatNumberFunction(String(expense.totalRemainingAmount)) : '0',
   totalAmount: formatNumberFunction(String(expense.totalAmount ?? 0)),
   currency: expense.currency?.code || '-',
   status: getExpenseRequestStatusDisplay(expense.status as ExpenseStatus, t).label,
-  creationDate: expense.creationDate
+  creationDate: formatExpenseRequestDateShort(expense.creationDate, '-')
 })
 
 interface UseExpenseRequestExportOptions {
@@ -76,7 +77,7 @@ export function useExpenseRequestExport({
 
       if (!responseData?.ExpenseRequest || responseData.ExpenseRequest.length === 0) break
 
-      allExpenses.push(...responseData.ExpenseRequest.map(item => mapExpenseRequest(item, t)))
+      allExpenses.push(...responseData.ExpenseRequest.map(item => mapExpenseRequest(item)))
 
       if (responseData.ExpenseRequest.length < batchLimit) break
       offset += batchLimit

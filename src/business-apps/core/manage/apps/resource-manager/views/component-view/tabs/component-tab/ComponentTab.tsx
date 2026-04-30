@@ -69,11 +69,12 @@ export const ComponentTab: React.FC<ComponentTabProps> = ({
   const azureConfigured = useMemo(() => isAzureConfigured(), [])
   const { devComponentPathVersions, prodComponentPathVersions, isLoadingAzure } = useAzureData()
 
-  const { components, totalCount, isLoading, refetch, loadMore, hasMore } = useComponentResources(context, {
-    limit: PAGE_SIZE,
-    searchParameter: searchValue,
-    sort: sorting.length > 0 ? { field: sorting[0].id, order: sorting[0].desc ? 'DESC' : 'ASC' } : undefined
-  })
+  const { components, totalCount, isLoading, error, refetch, loadMore, hasMore, removeComponent } =
+    useComponentResources(context, {
+      limit: PAGE_SIZE,
+      searchParameter: searchValue,
+      sort: sorting.length > 0 ? { field: sorting[0].id, order: sorting[0].desc ? 'DESC' : 'ASC' } : undefined
+    })
 
   const loadMoreRef = useRef<HTMLTableRowElement>(null)
   const isLoadingRef = useRef(isLoading)
@@ -195,14 +196,14 @@ export const ComponentTab: React.FC<ComponentTabProps> = ({
       setIsDeleting(true)
       try {
         await deleteComponent(component.id)
-        await refetch()
+        removeComponent(component.id)
       } catch (error) {
         console.error('Failed to delete component:', error)
       } finally {
         setIsDeleting(false)
       }
     },
-    [deleteComponent, refetch]
+    [deleteComponent, removeComponent]
   )
 
   const handleSubmit = useCallback(
@@ -322,8 +323,21 @@ export const ComponentTab: React.FC<ComponentTabProps> = ({
     return <TableSkeleton rowCount={10} columnCount={6} />
   }
 
+  if (error && componentsWithAzureData.length === 0) {
+    return (
+      <div className="gba:p-6">
+        <p className="gba:text-destructive">{error}</p>
+      </div>
+    )
+  }
+
   return (
     <>
+      {error && (
+        <div className="gba:mb-3 gba:p-3 gba:border gba:border-destructive gba:bg-destructive/10 gba:rounded-lg gba:text-destructive gba:text-sm">
+          {error}
+        </div>
+      )}
       <div className="gba:flex gba:flex-col gba:h-full gba:overflow-auto gba:border gba:rounded-lg">
         <Table className="gba:table-fixed gba:w-full" data-testid={`${dataTestId}-table`}>
           <TableHeader>

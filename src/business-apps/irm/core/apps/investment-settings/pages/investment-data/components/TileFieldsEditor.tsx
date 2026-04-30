@@ -9,11 +9,13 @@ import {
   DragEndEvent
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, verticalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
-import { Button, Card, Alert, AlertDescription, EmptyState } from '@newwork/nw-design-system'
+import { Button, Card, Alert, AlertDescription, EmptyState, cn } from '@newwork/nw-design-system'
 import { PlusIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TileField } from '../types'
 import { SortableTileItem } from './SortableTileItem'
+import { useTranslation } from 'react-i18next'
+import { ConfigurationInfoPopover } from './ConfigurationInfoPopover'
 
 interface TileFieldsEditorProps extends BusinessAppContextProps {
   tileFields: TileField[]
@@ -33,6 +35,7 @@ export const TileFieldsEditor: React.FC<TileFieldsEditorProps> = ({
   onClearInheritance,
   accessToken
 }) => {
+  const { t } = useTranslation()
   // Ensure tileFields is always an array
   const normalizedTileFields = tileFields || []
 
@@ -99,23 +102,47 @@ export const TileFieldsEditor: React.FC<TileFieldsEditorProps> = ({
     <div className="gba:space-y-6" data-testid={prefixDataTestId}>
       <Card className="gba:p-6" data-testid={`${prefixDataTestId}-container`}>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
-          <h3 className="gba:text-lg gba:font-semibold gba:m-0">Tile Fields Configuration</h3>
+          <h3 className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:m-0">
+            {t('crm.investment_data.tile_fields.title', 'Tile Fields Configuration')}
+            <ConfigurationInfoPopover
+              title={t('crm.investment_data.info.tile_fields.title', 'Tile fields')}
+              description={t(
+                'crm.investment_data.info.tile_fields.description',
+                'Configure the tiles shown on investment records. Tiles are best for short values or KPIs that should be visible at a glance.'
+              )}
+              items={[
+                t(
+                  'crm.investment_data.info.tile_fields.item_visuals',
+                  'Labels and icons control how each tile appears on the record.'
+                ),
+                t(
+                  'crm.investment_data.info.tile_fields.item_storage',
+                  'Tile values are stored under investment additional properties.'
+                )
+              ]}
+              ariaLabel={t('crm.investment_data.info.tile_fields.aria', 'Learn about tile fields')}
+              prefixDataTestId={`${prefixDataTestId}-info`}
+            />
+          </h3>
           <Button onClick={handleAddTile} data-testid={`${prefixDataTestId}-add-button`}>
             <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-            Add Tile
+            {t('crm.investment_data.tile_fields.add_tile', 'Add Tile')}
           </Button>
         </div>
 
         {isInherited && inheritedFrom ? (
           <Alert data-testid={`${prefixDataTestId}-inheritance-notice`}>
             <AlertDescription>
-              Inherited from <strong>{inheritedFrom}</strong>. Add your own fields to customize.
+              Currently viewing tile fields inherited from <strong>{inheritedFrom}</strong>. Add or change fields to
+              create a configuration for this selected level.
             </AlertDescription>
           </Alert>
         ) : (
           <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
-            Configure the tile fields that appear on investment records. These are stored in
-            investment.additionalProperties.tiles.
+            {t(
+              'crm.investment_data.tile_fields.description',
+              'Configure the tile fields that appear on investment records. These are stored in investment.additionalProperties.tiles.'
+            )}
           </p>
         )}
 
@@ -137,7 +164,7 @@ export const TileFieldsEditor: React.FC<TileFieldsEditorProps> = ({
             onDragEnd={isInherited ? undefined : handleDragEnd}
           >
             <SortableContext items={normalizedTileFields.map(f => f.key)} strategy={verticalListSortingStrategy}>
-              <div className="gba:space-y-2" style={{ opacity: isInherited ? 0.6 : 1 }}>
+              <div className={cn('gba:space-y-2', isInherited ? 'gba:opacity-60' : 'gba:opacity-100')}>
                 {normalizedTileFields.map((tile, index) => (
                   <SortableTileItem
                     key={tile.key}

@@ -71,6 +71,7 @@ export interface SocketIoYjsProviderOptions {
   entityType?: YjsEntityType
   ydoc: Y.Doc
   awareness: Awareness
+  getDocumentSnapshot?: () => string | undefined
   onSyncedChange?: (isSynced: boolean) => void
   onBootstrapRequired?: (html: string) => Promise<void> | void
   onReadyStateApplied?: (info: {
@@ -119,6 +120,7 @@ export class SocketIoYjsProvider {
   private onLocalDocumentChange?: () => void
   private onRemoteDocumentChange?: () => void
   private onRemoteAwarenessChange?: () => void
+  private readonly getDocumentSnapshot?: () => string | undefined
   private readonly onBeforeFirstSync?: () => Promise<void>
   private hasWaitedForReady = false
 
@@ -140,6 +142,7 @@ export class SocketIoYjsProvider {
     this.entityType = options.entityType || 'document'
     this.ydoc = options.ydoc
     this.awareness = options.awareness
+    this.getDocumentSnapshot = options.getDocumentSnapshot
     this.onSyncedChange = options.onSyncedChange
     this.onBootstrapRequired = options.onBootstrapRequired
     this.onReadyStateApplied = options.onReadyStateApplied
@@ -221,6 +224,11 @@ export class SocketIoYjsProvider {
     this.flushLocalDocUpdates()
   }
 
+  requestResync() {
+    this.setSynced(false)
+    this.triggerSync()
+  }
+
   private setSynced(next: boolean) {
     if (this.synced === next) return
     this.synced = next
@@ -245,7 +253,8 @@ export class SocketIoYjsProvider {
         this.socket.emit('yjs_update', {
           documentId: this.documentId,
           entityType: this.entityType,
-          update: uint8ArrayToBase64(update)
+          update: uint8ArrayToBase64(update),
+          ...(this.entityType === 'note' ? { htmlSnapshot: this.getDocumentSnapshot?.() } : {})
         })
       })
     }
@@ -455,7 +464,14 @@ export class SocketIoYjsProvider {
       return true
     }
 
-    this.setSynced(true)
+    // The server emits a full `yjs_sync_response` after accepting bootstrap.
+    // Wait for that snapshot so the initializer and waiting peers converge on
+    // the same authoritative Y.Doc state before we mark the provider synced.
+    window.setTimeout(() => {
+      if (!this.destroyed && !this.synced) {
+        this.triggerSync()
+      }
+    }, 1500)
     return true
   }
 
@@ -593,31 +609,34 @@ export class SocketIoYjsProvider {
         updateBase64Length: updateBase64.length
       })
     }
-    this.socket
-      .timeout(15000)
-      .emit(
-        'yjs_update',
-        { documentId: this.documentId, entityType: this.entityType, update: updateBase64 },
-        (error: Error | null, response?: YjsUpdateAck) => {
-          if (error) {
-            console.error('[SocketIoYjsProvider] yjs_update ack timeout/error:', {
-              documentId: this.documentId,
-              updateNumber,
-              message: error.message
-            })
-            this.setSynced(false)
-            return
-          }
-          if (!response?.success) {
-            console.error('[SocketIoYjsProvider] yjs_update rejected:', {
-              documentId: this.documentId,
-              updateNumber,
-              error: response?.error || 'unknown'
-            })
-            this.setSynced(false)
-          }
+    this.socket.timeout(15000).emit(
+      'yjs_update',
+      {
+        documentId: this.documentId,
+        entityType: this.entityType,
+        update: updateBase64,
+        ...(this.entityType === 'note' ? { htmlSnapshot: this.getDocumentSnapshot?.() } : {})
+      },
+      (error: Error | null, response?: YjsUpdateAck) => {
+        if (error) {
+          console.error('[SocketIoYjsProvider] yjs_update ack timeout/error:', {
+            documentId: this.documentId,
+            updateNumber,
+            message: error.message
+          })
+          this.setSynced(false)
+          return
         }
-      )
+        if (!response?.success) {
+          console.error('[SocketIoYjsProvider] yjs_update rejected:', {
+            documentId: this.documentId,
+            updateNumber,
+            error: response?.error || 'unknown'
+          })
+          this.setSynced(false)
+        }
+      }
+    )
   }
 
   private readonly handleRemoteYjsUpdate = (event: {

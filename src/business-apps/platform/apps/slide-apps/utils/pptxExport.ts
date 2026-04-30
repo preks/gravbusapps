@@ -19,6 +19,7 @@ import type {
   ConnectorElement,
   RichTextParagraph
 } from '../components/slideElements'
+import { getVideoSourceUrl, isEmbedVideoElement } from './videoElement'
 import {
   paragraphsFromPlainText,
   textElementStubForShapeInText,
@@ -26,6 +27,7 @@ import {
   SHAPE_TYPE_TO_OOXML_PRESET
 } from '../components/slideElements'
 import type { SlideTheme } from '../components/slideThemes'
+import { DEFAULT_BULLET_GLYPH, resolveRichTextListGeometry } from './richTextLists'
 import {
   applyCustGeomPostProcessing,
   createCustGeomCollector,
@@ -66,15 +68,31 @@ function pxToPt(px: number): number {
   return px * 0.75
 }
 
-function richParagraphsToPptxRuns(paragraphs: RichTextParagraph[], fallback: TextElement): any[] {
+function bulletCharacterCode(char: string | undefined): string {
+  const glyph = char || DEFAULT_BULLET_GLYPH
+  const codePoint = glyph.codePointAt(0)
+  return codePoint ? codePoint.toString(16).toUpperCase() : '25CF'
+}
+
+export function richParagraphsToPptxRuns(paragraphs: RichTextParagraph[], fallback: TextElement): any[] {
   const runs: any[] = []
   for (let pi = 0; pi < paragraphs.length; pi++) {
     const paragraph = paragraphs[pi]
+    const geometry = resolveRichTextListGeometry(paragraph)
     const bulletOption =
       paragraph.bulletType === 'bullet'
-        ? { code: paragraph.bulletChar || '25CF' }
+        ? {
+            type: 'bullet',
+            characterCode: bulletCharacterCode(paragraph.bulletChar),
+            indent: pxToPt(geometry.markerWidth)
+          }
         : paragraph.bulletType === 'number'
-          ? { type: 'number' }
+          ? {
+              type: 'number',
+              numberType: paragraph.numberingStyle ?? 'arabicPeriod',
+              numberStartAt: paragraph.numberStartAt,
+              indent: pxToPt(geometry.markerWidth)
+            }
           : undefined
     const paragraphAlign = paragraph.alignment === 'justify' ? 'justify' : paragraph.alignment || fallback.textAlign
 
@@ -362,6 +380,8 @@ function addCodeElement(pptxSlide: any, element: CodeElement) {
  * Convert video element to placeholder image (videos can't be embedded in PPTX via pptxgenjs)
  */
 function addVideoPlaceholder(pptxSlide: any, element: VideoElement) {
+  const sourceLabel = isEmbedVideoElement(element) ? 'Online Video' : 'Video'
+  const sourceUrl = getVideoSourceUrl(element)
   const options: any = {
     x: pxToInches(element.position.x),
     y: pxToInches(element.position.y),
@@ -374,7 +394,7 @@ function addVideoPlaceholder(pptxSlide: any, element: VideoElement) {
   // Add a dark rectangle with text indicating video
   pptxSlide.addShape('rect', options)
 
-  pptxSlide.addText('🎥 Video', {
+  pptxSlide.addText(`🎥 ${sourceLabel}`, {
     x: pxToInches(element.position.x),
     y: pxToInches(element.position.y + element.size.height / 2 - 20),
     w: pxToInches(element.size.width),
@@ -386,7 +406,7 @@ function addVideoPlaceholder(pptxSlide: any, element: VideoElement) {
   })
 
   // Add URL as text below
-  pptxSlide.addText(element.src, {
+  pptxSlide.addText(sourceUrl, {
     x: pxToInches(element.position.x),
     y: pxToInches(element.position.y + element.size.height / 2 + 20),
     w: pxToInches(element.size.width),
