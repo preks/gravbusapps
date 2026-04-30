@@ -311,6 +311,12 @@ describe('SlideEditor workspace deselection', () => {
     awarenessMock.setLocalStateField.mockClear()
   })
 
+  it('renders existing slide content without crashing during placeholder normalization', () => {
+    render(<SlideEditor slideId="deck-1" slide={makeSlide()} onBack={() => {}} accessToken="" />)
+
+    expect(screen.getByTestId('mock-slide-canvas')).toBeInTheDocument()
+  })
+
   it('clears selection only when clicking the empty workspace around the slide', () => {
     render(<SlideEditor slideId="deck-1" slide={makeSlide()} onBack={() => {}} accessToken="" />)
 

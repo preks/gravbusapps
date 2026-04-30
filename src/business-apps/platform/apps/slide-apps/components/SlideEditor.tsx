@@ -312,7 +312,8 @@ function createDefaultSlide(t: (k: string) => string): SlideData {
     elements: [
       createTextElement({
         id: 'title-1',
-        content: t('editor-placeholder-title'),
+        content: '',
+        placeholderText: t('editor-placeholder-title'),
         position: { x: 80, y: 80 },
         size: { width: 1120, height: 100 },
         fontSize: 64,
@@ -322,7 +323,8 @@ function createDefaultSlide(t: (k: string) => string): SlideData {
       }),
       createTextElement({
         id: 'subtitle-1',
-        content: t('editor-placeholder-subtitle'),
+        content: '',
+        placeholderText: t('editor-placeholder-subtitle'),
         position: { x: 80, y: 200 },
         size: { width: 1120, height: 60 },
         fontSize: 32,
@@ -334,22 +336,46 @@ function createDefaultSlide(t: (k: string) => string): SlideData {
   }
 }
 
-function normalizeSlideData(slide: Partial<SlideData> | undefined, fallbackId: string): SlideData {
+function normalizePlaceholderSeed(element: AnySlideElement, placeholderTexts: Set<string>): AnySlideElement {
+  if (element.type !== 'text') return element
+  if (element.placeholderText || !placeholderTexts.has(element.content)) return element
+
+  return {
+    ...element,
+    content: '',
+    paragraphs: undefined,
+    placeholderText: element.content
+  }
+}
+
+function normalizeSlideData(
+  slide: Partial<SlideData> | undefined,
+  fallbackId: string,
+  placeholderTexts: Set<string>
+): SlideData {
   return {
     id: slide?.id || fallbackId,
     notes: slide?.notes || '',
-    elements: Array.isArray(slide?.elements) ? slide.elements : [],
+    elements: Array.isArray(slide?.elements)
+      ? slide.elements.map(element => normalizePlaceholderSeed(element, placeholderTexts))
+      : [],
     background: slide?.background || { type: 'solid', color: '#ffffff' },
     ...(slide?.transition ? { transition: slide.transition } : {})
   }
 }
 
-function normalizeSlidesData(slides: Partial<SlideData>[] | undefined, fallbackSlide: SlideData): SlideData[] {
+function normalizeSlidesData(
+  slides: Partial<SlideData>[] | undefined,
+  fallbackSlide: SlideData,
+  placeholderTexts: Set<string>
+): SlideData[] {
   if (!Array.isArray(slides) || slides.length === 0) {
     return [fallbackSlide]
   }
 
-  return slides.map((slide, index) => normalizeSlideData(slide, slide?.id || `${fallbackSlide.id}-${index}`))
+  return slides.map((slide, index) =>
+    normalizeSlideData(slide, slide?.id || `${fallbackSlide.id}-${index}`, placeholderTexts)
+  )
 }
 
 export const SlideEditor: React.FC<SlideEditorProps> = ({
@@ -367,6 +393,29 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const defaultSlide = useMemo(() => createDefaultSlide(t), [t])
+  const seededPlaceholderTexts = useMemo(
+    () =>
+      new Set(
+        [
+          'editor-placeholder-title',
+          'editor-placeholder-subtitle',
+          'layout-presentation-title',
+          'layout-section-title',
+          'layout-section-description',
+          'layout-key-points',
+          'layout-left-column-points',
+          'layout-right-column-points',
+          'layout-strengths',
+          'layout-main-content-points',
+          'layout-caption-text',
+          'layout-image-caption',
+          'layout-image-description',
+          'layout-option-a',
+          'layout-option-b'
+        ].map(key => t(key).replace(/\\n/g, '\n'))
+      ),
+    [t]
+  )
 
   // Get user info (BusinessAppContext userInfo does NOT provide displayName/pictureThumbnail)
   const currentUserId = userInfo?.id || ''
@@ -383,8 +432,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Prepare initial data from slide prop (used for bootstrap initializer / pre-sync rendering).
   const initialSlides = useMemo(
-    () => normalizeSlidesData(slide.contentJson?.slides as SlideData[] | undefined, defaultSlide),
-    [slide.contentJson?.slides, defaultSlide]
+    () =>
+      normalizeSlidesData(slide.contentJson?.slides as SlideData[] | undefined, defaultSlide, seededPlaceholderTexts),
+    [slide.contentJson?.slides, defaultSlide, seededPlaceholderTexts]
   )
   const initialThemeId = useMemo(
     () => (slide.contentJson?.themeId as string | undefined) || SLIDE_THEMES[0].id,
@@ -704,8 +754,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Always render from collaboration state (it is seeded immediately from initial content).
   const slides = useMemo(() => {
-    return normalizeSlidesData(collaborativeSlides, defaultSlide)
-  }, [collaborativeSlides, defaultSlide])
+    return normalizeSlidesData(collaborativeSlides, defaultSlide, seededPlaceholderTexts)
+  }, [collaborativeSlides, defaultSlide, seededPlaceholderTexts])
 
   const currentSlideIndex = useMemo(() => {
     const index = slides.findIndex(s => s.id === currentSlideId)
@@ -878,7 +928,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const currentSlideRaw = slides[currentSlideIndex] || defaultSlide
-  const currentSlide = normalizeSlideData(currentSlideRaw, defaultSlide.id)
+  const currentSlide = normalizeSlideData(currentSlideRaw, defaultSlide.id, seededPlaceholderTexts)
 
   /** Allowed preview URL only (no DOMPurify). Actual `src` is set in layout effect so SAST does not flag `src={state}`. */
   const slideBackgroundVideoPreviewSrc = useMemo(() => {
@@ -2081,7 +2131,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           elements: [
             createTextElement({
               id: `title-${Date.now()}`,
-              content: t('editor-new-slide'),
+              content: '',
+              placeholderText: t('editor-placeholder-title'),
               position: { x: 80, y: 280 },
               size: { width: 1120, height: 100 },
               fontSize: 64,
