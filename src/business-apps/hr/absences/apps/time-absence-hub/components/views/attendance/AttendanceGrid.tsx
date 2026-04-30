@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react'
 import {
   Badge,
-  Button,
   Card,
   CardContent,
   Spinner,
@@ -12,8 +11,10 @@ import {
   TableHeader,
   TableRow
 } from '@newwork/nw-design-system'
-import { ArrowSquareOutIcon, CalendarBlankIcon, ClockIcon, WarningCircleIcon } from '@phosphor-icons/react'
+import { CalendarBlankIcon, ClockIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import {
   AbsenceCalendarDay,
   AttendanceRow,
@@ -24,6 +25,10 @@ import {
 const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.attendance.${key}`, fallback)
 
+const HEADER_CELL_CLASS = 'gba:px-3 gba:py-3 gba:text-xs'
+const TEXT_CELL_CLASS = 'gba:px-3 gba:py-3 gba:text-sm gba:text-muted-foreground'
+const TIME_CELL_CLASS = 'gba:px-2 gba:py-3 gba:text-right gba:text-sm'
+
 interface AttendanceGridProps {
   employees: FilteredEmployee[]
   attendance: AttendanceRow[]
@@ -31,7 +36,7 @@ interface AttendanceGridProps {
   holidays: PublicHolidayDay[]
   isLoading: boolean
   error: string | null
-  onOpenEmployee: (employeeId: string) => void
+  accessToken?: string
 }
 
 interface GridRow {
@@ -47,7 +52,7 @@ interface GridRow {
 }
 
 const formatMinutes = (minutes?: number | null): string => {
-  if (!minutes && minutes !== 0) {
+  if ((!minutes && minutes !== 0) || !Number.isFinite(minutes)) {
     return '-'
   }
   const sign = minutes < 0 ? '-' : ''
@@ -55,6 +60,10 @@ const formatMinutes = (minutes?: number | null): string => {
   const hours = Math.floor(abs / 60)
   const mins = abs % 60
   return `${sign}${hours}h ${String(mins).padStart(2, '0')}m`
+}
+
+const toMinutes = (value?: number | null): number => {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 
 const formatTime = (value?: string | null): string => {
@@ -77,9 +86,9 @@ const buildRows = (
     const attendanceByDate = new Map(employeeAttendance.map(a => [a.attendanceDate, a]))
     const absenceByDate = new Map(employeeAbsences.map(a => [a.dayDate, a]))
     const holidayByDate = new Map(employeeHolidays.map(h => [h.date, h]))
-    const totalEffectiveMinutes = employeeAttendance.reduce((acc, a) => acc + (a.effectiveTime ?? 0), 0)
-    const totalPlannedMinutes = employeeAttendance.reduce((acc, a) => acc + (a.plannedTime ?? 0), 0)
-    const totalDifferenceMinutes = employeeAttendance.reduce((acc, a) => acc + (a.differenceTime ?? 0), 0)
+    const totalEffectiveMinutes = employeeAttendance.reduce((acc, a) => acc + toMinutes(a.effectiveTime), 0)
+    const totalPlannedMinutes = employeeAttendance.reduce((acc, a) => acc + toMinutes(a.plannedTime), 0)
+    const totalDifferenceMinutes = employeeAttendance.reduce((acc, a) => acc + toMinutes(a.differenceTime), 0)
     const manualOverrideCount = employeeAttendance.filter(a => Boolean(a.manualOverride)).length
     const missingLogCount = employeeAttendance.filter(
       a => (a.plannedTime ?? 0) > 0 && !a.startTime && !a.endTime
@@ -115,7 +124,7 @@ export const AttendanceGrid: React.FC<AttendanceGridProps> = ({
   holidays,
   isLoading,
   error,
-  onOpenEmployee
+  accessToken
 }) => {
   const rows = useMemo(
     () => buildRows(employees, attendance, absences, holidays),
@@ -151,24 +160,34 @@ export const AttendanceGrid: React.FC<AttendanceGridProps> = ({
   return (
     <Card>
       <CardContent className="gba:p-0">
-        <div className="gba:overflow-x-auto">
-          <Table>
+        <div className="gba:w-full gba:overflow-hidden">
+          <Table className="gba:w-full gba:table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>{tt('column_employee', 'Employee')}</TableHead>
-                <TableHead>{tt('column_department', 'Department')}</TableHead>
-                <TableHead>{tt('column_location', 'Location')}</TableHead>
-                <TableHead>{tt('column_manager', 'Manager')}</TableHead>
-                <TableHead className="gba:text-right">{tt('column_effective', 'Effective')}</TableHead>
-                <TableHead className="gba:text-right">{tt('column_planned', 'Planned')}</TableHead>
-                <TableHead className="gba:text-right">{tt('column_difference', 'Difference')}</TableHead>
-                <TableHead>{tt('column_markers', 'Markers')}</TableHead>
-                <TableHead className="gba:text-right">{tt('column_actions', 'Actions')}</TableHead>
+                <TableHead className={`${HEADER_CELL_CLASS} gba:w-36`}>{tt('column_employee', 'Employee')}</TableHead>
+                <TableHead className={`${HEADER_CELL_CLASS} gba:w-40`}>
+                  {tt('column_department', 'Department')}
+                </TableHead>
+                <TableHead className={`${HEADER_CELL_CLASS} gba:w-28`}>{tt('column_location', 'Location')}</TableHead>
+                <TableHead className={`${HEADER_CELL_CLASS} gba:w-32`}>{tt('column_manager', 'Manager')}</TableHead>
+                <TableHead className={`${HEADER_CELL_CLASS} gba:w-20 gba:text-right`}>
+                  {tt('column_effective', 'Effective')}
+                </TableHead>
+                <TableHead className={`${HEADER_CELL_CLASS} gba:w-20 gba:text-right`}>
+                  {tt('column_planned', 'Planned')}
+                </TableHead>
+                <TableHead className={`${HEADER_CELL_CLASS} gba:w-20 gba:text-right`}>
+                  {tt('column_difference', 'Difference')}
+                </TableHead>
+                <TableHead className={`${HEADER_CELL_CLASS} gba:w-28`}>{tt('column_markers', 'Markers')}</TableHead>
+                <TableHead className={`${HEADER_CELL_CLASS} gba:w-12 gba:text-right`}>
+                  {tt('column_actions', 'Actions')}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map(row => (
-                <AttendanceGridRow key={row.employee.id} row={row} onOpenEmployee={onOpenEmployee} />
+                <AttendanceGridRow key={row.employee.id} row={row} accessToken={accessToken} />
               ))}
             </TableBody>
           </Table>
@@ -180,10 +199,10 @@ export const AttendanceGrid: React.FC<AttendanceGridProps> = ({
 
 interface AttendanceGridRowProps {
   row: GridRow
-  onOpenEmployee: (employeeId: string) => void
+  accessToken?: string
 }
 
-const AttendanceGridRow: React.FC<AttendanceGridRowProps> = ({ row, onOpenEmployee }) => {
+const AttendanceGridRow: React.FC<AttendanceGridRowProps> = ({ row, accessToken }) => {
   const { employee } = row
   const departmentName = employee.employeePosition?.organizationalUnit?.name ?? '-'
   const locationName = employee.employeePosition?.siteLocation?.name ?? '-'
@@ -216,21 +235,36 @@ const AttendanceGridRow: React.FC<AttendanceGridRowProps> = ({ row, onOpenEmploy
 
   return (
     <TableRow data-testid={`attendance-grid-row-${employee.id}`}>
-      <TableCell>
-        <span className="gba:font-medium gba:text-sm">
+      <TableCell className="gba:px-3 gba:py-3">
+        <span
+          className="gba:block gba:truncate gba:text-sm gba:font-medium"
+          title={`${employee.firstName} ${employee.lastName}`}
+        >
           {employee.firstName} {employee.lastName}
         </span>
       </TableCell>
-      <TableCell className="gba:text-sm gba:text-muted-foreground">{departmentName}</TableCell>
-      <TableCell className="gba:text-sm gba:text-muted-foreground">{locationName}</TableCell>
-      <TableCell className="gba:text-sm gba:text-muted-foreground">{managerName}</TableCell>
-      <TableCell className="gba:text-right gba:text-sm">{formatMinutes(row.totalEffectiveMinutes)}</TableCell>
-      <TableCell className="gba:text-right gba:text-sm">{formatMinutes(row.totalPlannedMinutes)}</TableCell>
-      <TableCell className="gba:text-right gba:text-sm">
+      <TableCell className={TEXT_CELL_CLASS}>
+        <span className="gba:block gba:truncate" title={departmentName}>
+          {departmentName}
+        </span>
+      </TableCell>
+      <TableCell className={TEXT_CELL_CLASS}>
+        <span className="gba:block gba:truncate" title={locationName}>
+          {locationName}
+        </span>
+      </TableCell>
+      <TableCell className={TEXT_CELL_CLASS}>
+        <span className="gba:block gba:truncate" title={managerName}>
+          {managerName}
+        </span>
+      </TableCell>
+      <TableCell className={TIME_CELL_CLASS}>{formatMinutes(row.totalEffectiveMinutes)}</TableCell>
+      <TableCell className={TIME_CELL_CLASS}>{formatMinutes(row.totalPlannedMinutes)}</TableCell>
+      <TableCell className={TIME_CELL_CLASS}>
         <span className={diffColorClass(row.totalDifferenceMinutes)}>{formatMinutes(row.totalDifferenceMinutes)}</span>
       </TableCell>
-      <TableCell>
-        <div className="gba:flex gba:flex-wrap gba:gap-1">
+      <TableCell className="gba:px-3 gba:py-3">
+        <div className="gba:flex gba:flex-wrap gba:gap-1 gba:text-xs">
           {absenceCount > 0 && <Badge variant="secondary">{absenceDaysLabel}</Badge>}
           {holidayCount > 0 && <Badge variant="outline">{holidaysLabel}</Badge>}
           {row.manualOverrideCount > 0 && (
@@ -251,19 +285,33 @@ const AttendanceGridRow: React.FC<AttendanceGridRowProps> = ({ row, onOpenEmploy
           )}
         </div>
       </TableCell>
-      <TableCell className="gba:text-right">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onOpenEmployee(employee.id)}
-          data-testid={`attendance-grid-open-${employee.id}`}
-          aria-label={tt('open_employee_record_aria', 'Open employee record')}
-        >
-          <ArrowSquareOutIcon size={14} />
-        </Button>
+      <TableCell className="gba:px-1 gba:py-3 gba:text-right">
+        {accessToken && (
+          <AppActionButton
+            size="icon"
+            data-testid={`attendance-grid-actions-${employee.id}`}
+            contextsArray={[FlowContextName.employeeEntity]}
+            externalContextData={{
+              employeeId: employee.id,
+              keycloakUserId: getKeycloakUserId(employee.additionalProperties),
+              managerId: employee.employeePosition?.supervisor?.id,
+              organizationalUnitId: employee.employeePosition?.organizationalUnitId
+            }}
+            prefixDataTestId={`attendance-grid-action-${employee.id}`}
+            accessToken={accessToken}
+            emptyStateBehavior="enable"
+            deferMainContextRequestsUntilClick
+          />
+        )}
       </TableCell>
     </TableRow>
   )
+}
+
+const getKeycloakUserId = (additionalProperties?: Record<string, unknown> | null): string | undefined => {
+  const userId = additionalProperties?.userId
+
+  return typeof userId === 'string' ? userId : undefined
 }
 
 const diffColorClass = (minutes: number): string => {

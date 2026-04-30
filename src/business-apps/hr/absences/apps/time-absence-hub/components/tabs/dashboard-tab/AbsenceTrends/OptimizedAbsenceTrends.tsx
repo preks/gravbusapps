@@ -15,6 +15,12 @@ const colorPalette = {
   totalLine: 'var(--nw-foreground)'
 }
 
+const LegendMarker: React.FC<{ color: string }> = ({ color }) => (
+  <svg width="12" height="12" viewBox="0 0 12 12" className="gba:flex-shrink-0" aria-hidden="true">
+    <circle cx="6" cy="6" r="6" fill={color} />
+  </svg>
+)
+
 const getMonthTranslation = (monthName: string): string => {
   const monthKeys = [
     'lowcoder:absence_report.employee_table.january',
@@ -54,7 +60,7 @@ const getMonthTranslation = (monthName: string): string => {
   return monthName
 }
 
-const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTypes, monthAggMap }) => {
+const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTypes, getTypeColor, monthAggMap }) => {
   if (!(active && payload && payload.length > 0)) return null
   const monthData = payload[0].payload
   const serverAgg = monthAggMap?.[String(label)] || null
@@ -79,7 +85,7 @@ const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTyp
         if (count > 0) {
           return (
             <p key={type} className="gba:text-sm gba:flex gba:items-center gba:gap-2">
-              <span className="gba:w-3 gba:h-3 gba:rounded gba:inline-block gba:bg-muted-foreground" />
+              <LegendMarker color={getTypeColor(type)} />
               {type}: {count}
             </p>
           )
@@ -396,12 +402,12 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboa
                     <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-4 gba:mt-4">
                       {absenceTypes.map(type => (
                         <div key={type} className="gba:flex gba:items-center gba:gap-2">
-                          <span className="gba:w-3 gba:h-3 gba:rounded gba:bg-muted-foreground" />
+                          <LegendMarker color={getTypeColor(type)} />
                           <span className="gba:text-sm">{type}</span>
                         </div>
                       ))}
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <span className="gba:w-3 gba:h-3 gba:rounded gba:bg-info" />
+                        <LegendMarker color={colorPalette.totalLine} />
                         <span className="gba:text-sm">
                           {getTranslationFromI18nKeyAndLabel(
                             'lowcoder:absence_management_hub_backoffice.trend_line_avg_requests',

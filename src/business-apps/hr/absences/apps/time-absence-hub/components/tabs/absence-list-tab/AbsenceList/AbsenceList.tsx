@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../../common/utils/windowUtils'
 import { AbsenceListTable } from './AbsenceListTable'
@@ -14,6 +14,7 @@ interface AbsenceListProps extends BusinessAppContextProps {
     departmentId?: string
   }
   preFilteredData?: EnhancedAbsence[]
+  headerAction?: React.ReactNode
   onDataChange?: (data: {
     absences: EnhancedAbsence[]
     total: number
@@ -29,7 +30,7 @@ interface AbsenceListProps extends BusinessAppContextProps {
 }
 
 export const AbsenceList: React.FC<AbsenceListProps> = props => {
-  const { accessToken, initialFilters, onDataChange, onOpenEmployeeRecord } = props
+  const { accessToken, initialFilters, headerAction, onDataChange, onOpenEmployeeRecord } = props
 
   const filters = useAbsenceFilters({ accessToken, initialFilters })
   const data = useAbsenceData({
@@ -37,12 +38,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = props => {
     filters,
     onDataChange
   })
-
-  const [selectedAbsence, setSelectedAbsence] = useState<EnhancedAbsence | null>(null)
-
-  const handleRowClick = useCallback((record: EnhancedAbsence) => {
-    setSelectedAbsence(record)
-  }, [])
 
   const absencesWithUpdatedGroups = useMemo(() => {
     return data.absences.map(absence => ({
@@ -59,11 +54,14 @@ export const AbsenceList: React.FC<AbsenceListProps> = props => {
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="backoffice-absence-list-modern-content">
-      <div className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:pt-2">
-        <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absences', 'Absences')}
-        </h2>
-        <span className="gba:text-lg gba:font-semibold gba:text-muted-foreground">({data.total})</span>
+      <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:px-2 gba:pt-2">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absences', 'Absences')}
+          </h2>
+          <span className="gba:text-lg gba:font-semibold gba:text-muted-foreground">({data.total})</span>
+        </div>
+        {headerAction}
       </div>
       <AbsenceListTable
         absences={absencesWithUpdatedGroups}
@@ -74,8 +72,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = props => {
         pageSize={data.pageSize}
         sortField={data.sortField}
         sortOrder={data.sortOrder}
-        selectedAbsence={selectedAbsence}
-        onRowClick={handleRowClick}
         onSort={data.handleSort}
         onPaginationChange={data.handlePaginationChange}
         onOpenEmployeeRecord={onOpenEmployeeRecord}

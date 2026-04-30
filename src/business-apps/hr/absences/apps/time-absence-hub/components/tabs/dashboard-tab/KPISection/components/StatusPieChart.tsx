@@ -11,6 +11,12 @@ interface StatusPieChartProps {
   onPieClick: (data: any) => void
 }
 
+const LegendMarker: React.FC<{ color: string }> = ({ color }) => (
+  <svg width="12" height="12" viewBox="0 0 12 12" className="gba:flex-shrink-0" aria-hidden="true">
+    <circle cx="6" cy="6" r="6" fill={color} />
+  </svg>
+)
+
 export const StatusPieChart: React.FC<StatusPieChartProps> = ({
   data,
   totalAbsenceCount,
@@ -55,7 +61,10 @@ export const StatusPieChart: React.FC<StatusPieChartProps> = ({
               onClick={onPieClick}
             >
               {data.map((entry, index) => (
-                <Cell key={index} fill={statusColors[entry.status] || 'var(--nw-muted-foreground)'} />
+                <Cell
+                  key={entry.status ?? entry.name ?? index}
+                  fill={statusColors[entry.status] || 'var(--nw-muted-foreground)'}
+                />
               ))}
             </Pie>
             <RechartsTooltip
@@ -106,9 +115,11 @@ export const StatusPieChart: React.FC<StatusPieChartProps> = ({
       <div className="gba:flex gba:flex-wrap gba:gap-3 gba:mt-2 gba:justify-center">
         {data.map(entry => {
           const percent = totalAbsenceCount > 0 ? Math.round((Number(entry.value) / totalAbsenceCount) * 100) : 0
+          const color = statusColors[entry.status] || 'var(--nw-muted-foreground)'
+
           return (
             <span key={entry.name} className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:w-3 gba:h-3 gba:rounded gba:inline-block gba:bg-muted-foreground" />
+              <LegendMarker color={color} />
               <span className="gba:text-xs">
                 {entry.name}: {percent}%
               </span>

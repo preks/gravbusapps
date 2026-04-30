@@ -106,14 +106,6 @@ export const VacationEntitlementsCard: React.FC<VacationEntitlementsCardProps> =
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}
           </span>
         </div>
-
-        {/* Real data indicator */}
-        <div className="gba:text-xs gba:text-center gba:text-muted-foreground gba:border-t gba:pt-2">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_management_hub_backoffice.real_vacation_data_indicator',
-            'Real vacation data from active employees (current year only)'
-          )}
-        </div>
       </div>
     </Card>
   )

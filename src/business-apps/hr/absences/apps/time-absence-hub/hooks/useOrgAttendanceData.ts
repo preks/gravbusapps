@@ -71,6 +71,25 @@ const mapHolidayData = (holidayData: Awaited<ReturnType<typeof fetchTeamHolidayD
   return rows
 }
 
+const filterEmployeesWithPeriodActivity = (
+  employees: FilteredEmployee[],
+  attendance: AttendanceRow[],
+  absences: AbsenceCalendarDay[],
+  holidays: PublicHolidayDay[]
+): FilteredEmployee[] => {
+  const activeEmployeeIds = new Set<string>()
+
+  attendance.forEach(row => activeEmployeeIds.add(row.employeeId))
+  absences.forEach(row => activeEmployeeIds.add(row.employeeId))
+  holidays.forEach(row => activeEmployeeIds.add(row.employeeId))
+
+  if (activeEmployeeIds.size === 0) {
+    return []
+  }
+
+  return employees.filter(employee => activeEmployeeIds.has(employee.id))
+}
+
 export interface UseOrgAttendanceDataParams {
   accessToken: string
   filters: HubGlobalFilters
@@ -190,9 +209,10 @@ export const useOrgAttendanceData = ({
         const attendance = attendanceBatches.flatMap(batch => batch.EmployeeAttendance ?? [])
         const absences = absenceBatches.flatMap(batch => batch.EmployeeAbsenceCalendarView ?? [])
         const holidays = holidayData ? mapHolidayData(holidayData) : []
+        const visibleEmployees = filterEmployeesWithPeriodActivity(employees, attendance, absences, holidays)
 
         setState({
-          employees,
+          employees: visibleEmployees,
           attendance,
           absences,
           holidays,

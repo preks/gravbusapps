@@ -54,6 +54,7 @@ const renderHubView = (
           activeSubTab={navigation.activeTab}
           onSubTabChange={navigation.setActiveTab}
           dashboardData={dashboardData}
+          derivedDateRange={globalFilters.derivedDateRange}
           filterAction={filterAction}
         />
       )
@@ -73,6 +74,7 @@ const renderHubView = (
         <EntitlementsView
           {...baseProps}
           globalFilters={globalFilters.filters}
+          derivedDateRange={globalFilters.derivedDateRange}
           onNavigateToEntitlementsDetails={navigation.handleNavigateToEntitlementsDetails}
           filterAction={filterAction}
         />

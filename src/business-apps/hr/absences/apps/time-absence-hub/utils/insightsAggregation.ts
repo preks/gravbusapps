@@ -39,7 +39,10 @@ export interface DailyPresenceBucket {
   presenceRate: number
 }
 
-const minutesToHours = (minutes: number): number => Math.round((minutes / 60) * 10) / 10
+const toFiniteMinutes = (minutes?: number | null): number =>
+  typeof minutes === 'number' && Number.isFinite(minutes) ? minutes : 0
+
+const minutesToHours = (minutes?: number | null): number => Math.round((toFiniteMinutes(minutes) / 60) * 10) / 10
 
 const isoDate = (raw: string): Date => new Date(`${raw}T00:00:00Z`)
 
@@ -84,9 +87,9 @@ export const aggregateAttendanceByWeek = (rows: AttendanceRow[]): WeeklyAttendan
         missingLogs: 0,
         manualCorrections: 0
       } satisfies WeeklyAttendanceBucket)
-    existing.workedHours += minutesToHours(row.effectiveTime ?? 0)
-    existing.plannedHours += minutesToHours(row.plannedTime ?? 0)
-    const diffMinutes = row.differenceTime ?? 0
+    existing.workedHours += minutesToHours(row.effectiveTime)
+    existing.plannedHours += minutesToHours(row.plannedTime)
+    const diffMinutes = toFiniteMinutes(row.differenceTime)
     if (diffMinutes > 0) {
       existing.overtimeHours += minutesToHours(diffMinutes)
     } else if (diffMinutes < 0) {
@@ -157,9 +160,9 @@ export const aggregateByDimension = (
         achievementPct: 0
       } satisfies DimensionBreakdown)
 
-    existing.workedHours += minutesToHours(row.effectiveTime ?? 0)
-    existing.plannedHours += minutesToHours(row.plannedTime ?? 0)
-    const diffMinutes = row.differenceTime ?? 0
+    existing.workedHours += minutesToHours(row.effectiveTime)
+    existing.plannedHours += minutesToHours(row.plannedTime)
+    const diffMinutes = toFiniteMinutes(row.differenceTime)
     if (diffMinutes > 0) {
       existing.overtimeHours += minutesToHours(diffMinutes)
     } else if (diffMinutes < 0) {

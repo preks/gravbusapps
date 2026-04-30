@@ -6,7 +6,6 @@ import PersonalKeyInsightsSection from '../../../../personal-absences/components
 import type { AbsenceListCardAbsence } from '../../../../personal-absences/types/absenceTypes'
 import OrgWorkPatternsPanel from './OrgWorkPatternsPanel'
 import { OrgYearComparisonCard } from './OrgYearComparisonCard'
-import { StatisticsDataProvider, useStatisticsData } from './StatisticsDataProvider'
 import dayjs from 'dayjs'
 import { Card, CardHeader, CardTitle, CardContent, Progress } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
@@ -16,7 +15,6 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
   dashboardData,
   accessToken
 }) => {
-  const { data, error } = useStatisticsData()
   const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
   const currentYear = dayjs().year()
   const { mapType } = useAbsenceTypeCatalog(accessToken)
@@ -87,35 +85,10 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
     return entries
   }, [dashboardData?.rawAbsences, currentYear, mapType, userLocale])
 
-  // Do not block rendering while loading; we still show local calculations
-  if (error) {
-    return <div>Error loading statistics: {error}</div>
-  }
-
-  if (!data) {
-    // We can still render local panels (work patterns, YOY, distribution) without provider
-    // so do not early-return here; proceed to render with defaults
-  }
-
   return (
     <div className="gba:statisticsRoot" data-testid="backoffice-statistics-tab">
       <div className="gba:pb-6" data-testid="backoffice-statistics-key-insights">
-        {data?.keyStats ? (
-          <PersonalKeyInsightsSection
-            absences={absences}
-            overrides={{
-              plannedPct: data.keyStats.plannedPct,
-              unplannedPct: data.keyStats.unplannedPct,
-              avgDaysPerRequest: data.keyStats.avgDaysPerRequest,
-              approvalRatePct: data.keyStats.approvalRatePct,
-              vacationCount: data.keyStats.vacationCount,
-              sickCount: data.keyStats.sickCount
-            }}
-            disableLocalCalc
-          />
-        ) : (
-          <PersonalKeyInsightsSection absences={absences} />
-        )}
+        <PersonalKeyInsightsSection absences={absences} />
       </div>
       {/* Work Patterns and Monthly Patterns side by side (custom panel) */}
       <div className="gba:statisticsSection" data-testid="backoffice-statistics-workpatterns-grid">
@@ -123,7 +96,7 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
       </div>
       {/* Year comparison + Leave Type Distribution side by side */}
       <div
-        className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4"
+        className="gba:mt-4 gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2"
         data-testid="backoffice-statistics-yoy-and-leave-grid"
       >
         <div className="gba:statisticsSection" data-testid="backoffice-statistics-year-comparison">
@@ -184,26 +157,5 @@ export const StatisticsTab: React.FC<TabComponentProps & { dashboardData: Dashbo
   dashboardData,
   accessToken
 }) => {
-  // Fixed AbsenceGroup IDs provided by admin (parentEntryId values)
-  const FIXED_VACATION_GROUP_ID = 'AbsenceGroup:v1:RECR'
-  const FIXED_SICK_GROUP_ID = 'AbsenceGroup:v1:HEALTH'
-
-  const typeNames = useMemo(() => {
-    const set = new Set<string>()
-    ;(dashboardData?.rawAbsences || []).forEach((a: any) => {
-      if (a.typeName) set.add(a.typeName)
-    })
-    return Array.from(set)
-  }, [dashboardData?.rawAbsences])
-
-  return (
-    <StatisticsDataProvider
-      accessToken={accessToken}
-      typeNames={typeNames}
-      vacationGroupIds={[FIXED_VACATION_GROUP_ID]}
-      sickGroupIds={[FIXED_SICK_GROUP_ID]}
-    >
-      <StatisticsContent dashboardData={dashboardData} accessToken={accessToken} />
-    </StatisticsDataProvider>
-  )
+  return <StatisticsContent dashboardData={dashboardData} accessToken={accessToken} />
 }

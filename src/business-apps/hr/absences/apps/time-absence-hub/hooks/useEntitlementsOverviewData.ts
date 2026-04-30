@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_ORG_ENTITLEMENTS_OVERVIEW, OrgEntitlementRow } from '../queries/OrgEntitlementQueries'
+import {
+  GET_ENTITLEMENT_EMPLOYEES_BY_IDS,
+  GET_ORG_ENTITLEMENTS_OVERVIEW,
+  OrgEntitlementRow
+} from '../queries/OrgEntitlementQueries'
 import { HubGlobalFilters } from './useHubGlobalFilters'
 
 export type EntitlementHealthFilter = 'all' | 'negative' | 'expiring' | 'expired'
@@ -8,6 +12,7 @@ export type EntitlementHealthFilter = 'all' | 'negative' | 'expiring' | 'expired
 export interface UseEntitlementsOverviewDataParams {
   accessToken: string
   filters: HubGlobalFilters
+  derivedDateRange: { dateFrom: string; dateTo: string } | null
   healthFilter: EntitlementHealthFilter
   page: number
   pageSize: number
@@ -20,12 +25,48 @@ export interface UseEntitlementsOverviewDataReturn {
   error: string | null
 }
 
+type EntitlementEmployee = NonNullable<OrgEntitlementRow['employee']>
+
+const hydrateMissingEmployees = async (
+  rows: OrgEntitlementRow[],
+  graphqlClient: ReturnType<typeof useGraphQLClient>
+): Promise<OrgEntitlementRow[]> => {
+  const missingEmployeeIds = Array.from(
+    new Set(rows.filter(row => row.employeeId && !row.employee).map(row => row.employeeId as string))
+  )
+
+  if (missingEmployeeIds.length === 0) {
+    return rows
+  }
+
+  const response = await graphqlClient.request<{ Employee: EntitlementEmployee[] }>(GET_ENTITLEMENT_EMPLOYEES_BY_IDS, {
+    employeeIds: missingEmployeeIds
+  })
+  const employeesById = new Map((response.Employee ?? []).map(employee => [employee.id, employee]))
+
+  return rows.map(row => {
+    if (row.employee || !row.employeeId) {
+      return row
+    }
+
+    return {
+      ...row,
+      employee: employeesById.get(row.employeeId) ?? null
+    }
+  })
+}
+
 const buildWhere = (
   filters: HubGlobalFilters,
+  derivedDateRange: { dateFrom: string; dateTo: string } | null,
   healthFilter: EntitlementHealthFilter,
   todayIso: string
 ): Record<string, any> => {
-  const conditions: Record<string, any>[] = []
+  const conditions: Record<string, any>[] = [
+    { isDeleted: { _eq: false } },
+    { employeeId: { _isNull: false } },
+    { employee: { isDeleted: { _eq: false } } }
+  ]
 
   if (filters.departmentIds.length > 0) {
     conditions.push({
@@ -58,6 +99,17 @@ const buildWhere = (
   if (filters.absenceTypeIds.length > 0) {
     conditions.push({ typeRef: { _in: filters.absenceTypeIds } })
   }
+  if (derivedDateRange) {
+    conditions.push({
+      _or: [
+        { validFrom: { _gte: derivedDateRange.dateFrom, _lte: derivedDateRange.dateTo } },
+        { validTo: { _gte: derivedDateRange.dateFrom, _lte: derivedDateRange.dateTo } },
+        {
+          _and: [{ validFrom: { _lte: derivedDateRange.dateFrom } }, { validTo: { _gte: derivedDateRange.dateTo } }]
+        }
+      ]
+    })
+  }
   if (filters.employeeQuery) {
     const like = `%${filters.employeeQuery}%`
     conditions.push({
@@ -84,6 +136,7 @@ const buildWhere = (
 export const useEntitlementsOverviewData = ({
   accessToken,
   filters,
+  derivedDateRange,
   healthFilter,
   page,
   pageSize
@@ -107,11 +160,13 @@ export const useEntitlementsOverviewData = ({
         m: filters.managerIds,
         t: filters.absenceTypeIds,
         q: filters.employeeQuery,
+        from: derivedDateRange?.dateFrom,
+        to: derivedDateRange?.dateTo,
         h: healthFilter,
         page,
         pageSize
       }),
-    [filters, healthFilter, page, pageSize]
+    [filters, derivedDateRange, healthFilter, page, pageSize]
   )
 
   useEffect(() => {
@@ -125,7 +180,7 @@ export const useEntitlementsOverviewData = ({
 
     const fetchOverview = async () => {
       try {
-        const where = buildWhere(filters, healthFilter, todayIso)
+        const where = buildWhere(filters, derivedDateRange, healthFilter, todayIso)
         const response = await graphqlClient.request<{
           EmployeeAbsenceEntitlement: OrgEntitlementRow[]
           EmployeeAbsenceEntitlementAggregate: { aggregate: { count: number } }
@@ -140,8 +195,14 @@ export const useEntitlementsOverviewData = ({
           return
         }
 
+        const rows = await hydrateMissingEmployees(response.EmployeeAbsenceEntitlement ?? [], graphqlClient)
+
+        if (cancelled) {
+          return
+        }
+
         setState({
-          rows: response.EmployeeAbsenceEntitlement ?? [],
+          rows,
           total: response.EmployeeAbsenceEntitlementAggregate?.aggregate?.count ?? 0,
           isLoading: false,
           error: null

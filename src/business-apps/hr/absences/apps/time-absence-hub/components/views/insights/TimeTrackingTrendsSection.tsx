@@ -25,7 +25,11 @@ const I18N_PREFIX = 'lowcoder:time_absence_hub.insights.time_tracking'
 
 const tt = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(`${I18N_PREFIX}.${key}`, fallback)
 
-const formatHours = (hours: number): string => `${Math.round(hours * 10) / 10} h`
+const formatHours = (hours: number): string => {
+  const finiteHours = Number.isFinite(hours) ? hours : 0
+
+  return `${Math.round(finiteHours * 10) / 10} h`
+}
 
 interface MetricCardProps {
   title: string

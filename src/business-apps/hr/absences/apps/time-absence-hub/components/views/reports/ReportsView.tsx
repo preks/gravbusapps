@@ -45,7 +45,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     <ReportsTab accessToken={accessToken} userInfo={userInfo} dashboardData={dashboardData} />
 
     <TimeTrackingReport accessToken={accessToken} globalFilters={globalFilters} derivedDateRange={derivedDateRange} />
-    <EntitlementReport accessToken={accessToken} globalFilters={globalFilters} />
+    <EntitlementReport accessToken={accessToken} globalFilters={globalFilters} derivedDateRange={derivedDateRange} />
   </div>
 )
 

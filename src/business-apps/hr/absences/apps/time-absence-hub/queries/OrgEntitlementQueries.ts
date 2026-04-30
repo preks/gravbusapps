@@ -36,6 +36,7 @@ export const GET_ORG_ENTITLEMENTS_OVERVIEW = `
         id
         firstName
         lastName
+        displayName
         pictureThumbnail
         employeePosition {
           organizationalUnit {
@@ -61,6 +62,32 @@ export const GET_ORG_ENTITLEMENTS_OVERVIEW = `
   }
 `
 
+export const GET_ENTITLEMENT_EMPLOYEES_BY_IDS = `
+  query GetEntitlementEmployeesByIds($employeeIds: [uuid!]!) {
+    Employee(where: { _and: [{ id: { _in: $employeeIds } }, { isDeleted: { _eq: false } }] }) {
+      id
+      firstName
+      lastName
+      displayName
+      pictureThumbnail
+      employeePosition {
+        organizationalUnit {
+          id
+          name
+        }
+        company {
+          id
+          name
+        }
+        siteLocation {
+          id
+          name
+        }
+      }
+    }
+  }
+`
+
 export interface OrgEntitlementRow {
   id: string
   employeeId?: string | null
@@ -75,6 +102,7 @@ export interface OrgEntitlementRow {
     id: string
     firstName: string
     lastName: string
+    displayName?: string | null
     pictureThumbnail?: string | null
     employeePosition?: {
       organizationalUnit?: { id: string; name: string } | null

@@ -17,6 +17,7 @@ import { HubGlobalFilters } from '../../../hooks/useHubGlobalFilters'
 interface EntitlementReportProps {
   accessToken: string
   globalFilters: HubGlobalFilters
+  derivedDateRange: { dateFrom: string; dateTo: string } | null
 }
 
 const I18N_PREFIX = 'lowcoder:time_absence_hub.reports.entitlement'
@@ -47,8 +48,15 @@ const buildColumns = (): ExportColumn[] => [
   { key: 'health', title: tt('column_health', 'Health flags') }
 ]
 
-const buildWhereForExport = (filters: HubGlobalFilters): Record<string, any> => {
-  const conditions: Record<string, any>[] = []
+const buildWhereForExport = (
+  filters: HubGlobalFilters,
+  derivedDateRange: { dateFrom: string; dateTo: string } | null
+): Record<string, any> => {
+  const conditions: Record<string, any>[] = [
+    { isDeleted: { _eq: false } },
+    { employeeId: { _isNull: false } },
+    { employee: { isDeleted: { _eq: false } } }
+  ]
   if (filters.departmentIds.length > 0) {
     conditions.push({
       employee: { employeePosition: { organizationalUnitId: { _in: filters.departmentIds } } }
@@ -71,6 +79,17 @@ const buildWhereForExport = (filters: HubGlobalFilters): Record<string, any> => 
   }
   if (filters.absenceTypeIds.length > 0) {
     conditions.push({ typeRef: { _in: filters.absenceTypeIds } })
+  }
+  if (derivedDateRange) {
+    conditions.push({
+      _or: [
+        { validFrom: { _gte: derivedDateRange.dateFrom, _lte: derivedDateRange.dateTo } },
+        { validTo: { _gte: derivedDateRange.dateFrom, _lte: derivedDateRange.dateTo } },
+        {
+          _and: [{ validFrom: { _lte: derivedDateRange.dateFrom } }, { validTo: { _gte: derivedDateRange.dateTo } }]
+        }
+      ]
+    })
   }
   if (filters.employeeQuery) {
     const like = `%${filters.employeeQuery}%`
@@ -151,14 +170,18 @@ const downloadXlsx = async (rows: ExportRow[], columns: ExportColumn[]): Promise
   await downloadExcelWorkbook(workbook, buildFilename(FILE_PREFIX, 'xlsx'))
 }
 
-export const EntitlementReport: React.FC<EntitlementReportProps> = ({ accessToken, globalFilters }) => {
+export const EntitlementReport: React.FC<EntitlementReportProps> = ({
+  accessToken,
+  globalFilters,
+  derivedDateRange
+}) => {
   const graphqlClient = useGraphQLClient(accessToken)
   const [isExporting, setIsExporting] = useState<'csv' | 'xlsx' | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const columns = useMemo(buildColumns, [])
 
   const fetchAllRows = useCallback(async (): Promise<OrgEntitlementRow[]> => {
-    const where = buildWhereForExport(globalFilters)
+    const where = buildWhereForExport(globalFilters, derivedDateRange)
     const collected: OrgEntitlementRow[] = []
     let offset = 0
     while (offset < MAX_EXPORT_ROWS) {
@@ -178,7 +201,7 @@ export const EntitlementReport: React.FC<EntitlementReportProps> = ({ accessToke
       offset += EXPORT_PAGE_SIZE
     }
     return collected
-  }, [globalFilters, graphqlClient])
+  }, [globalFilters, derivedDateRange, graphqlClient])
 
   const runExport = useCallback(
     async (format: 'csv' | 'xlsx') => {

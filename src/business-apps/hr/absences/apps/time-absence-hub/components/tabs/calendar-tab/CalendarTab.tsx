@@ -2,18 +2,8 @@ import React, { useCallback, useEffect, useState, useMemo } from 'react'
 import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
 import { useGraphQLClient } from '../../../../../../../../common/network/graphql/useGraphQLClient'
-import {
-  Badge,
-  Card,
-  CardContent,
-  Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@newwork/nw-design-system'
+import { Spinner } from '@newwork/nw-design-system'
+import { CalendarTimeline } from '@newwork/gravity-ui-catalog'
 import {
   getTranslationFromI18nKeyAndLabel,
   getCurrentActiveUserLocale
@@ -211,6 +201,7 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const getStatusType = (status: string): string => {
     return getAbsenceStatusType(status)
   }
+
   const timelineEvents = useMemo(() => {
     const events: any[] = []
     const eventIdSet = new Set()
@@ -244,6 +235,37 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
     return events
   }, [employeeAbsences, selectedOrgUnits])
 
+  const legendItems = [
+    {
+      label: getAbsenceStatusLabel('APPROVED'),
+      color: getAbsenceStatusColor('APPROVED')
+    },
+    {
+      label: getAbsenceStatusLabel('PENDING'),
+      color: getAbsenceStatusColor('PENDING')
+    },
+    {
+      label: getAbsenceStatusLabel('REJECTED'),
+      color: getAbsenceStatusColor('REJECTED')
+    },
+    {
+      label: getAbsenceStatusLabel('CANCELLED'),
+      color: getAbsenceStatusColor('CANCELLED')
+    }
+  ]
+
+  const getInitials = (name: string): string => {
+    if (!name) {
+      return ''
+    }
+
+    return name
+      .split(' ')
+      .map((namePart: string) => namePart[0])
+      .join('')
+      .toUpperCase()
+  }
+
   if (isLoading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
@@ -265,72 +287,54 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   }
 
   const events = Array.isArray(viewEvents) && viewEvents.length > 0 ? viewEvents : timelineEvents
-  const eventsByEmployee = new Map<string, typeof events>()
-  events.forEach(event => {
-    const existing = eventsByEmployee.get(event.itemId) ?? []
-    eventsByEmployee.set(event.itemId, [...existing, event])
-  })
 
   return (
-    <Card data-testid="calendar-content">
-      <CardContent className="gba:p-0">
-        <div className="gba:border-b gba:p-4">
-          <h3 className="gba:text-base gba:font-semibold gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.title', 'Team Absence Calendar')}
-          </h3>
-          <p className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:time_absence_hub.calendar.description',
-              'Upcoming and current absence events for employees in the selected global filter scope.'
-            )}
-          </p>
-        </div>
-        <div className="gba:overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
-                </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_list.search_employee_list.recent_employees_table.department',
-                    'Department'
-                  )}
-                </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absences', 'Absences')}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {timelineItems.map(item => {
-                const employeeEvents = eventsByEmployee.get(item.id) ?? []
-                return (
-                  <TableRow key={item.id}>
-                    <TableCell className="gba:font-medium">{item.name}</TableCell>
-                    <TableCell className="gba:text-muted-foreground">{item.department}</TableCell>
-                    <TableCell>
-                      {employeeEvents.length === 0 ? (
-                        <span className="gba:text-sm gba:text-muted-foreground">-</span>
-                      ) : (
-                        <div className="gba:flex gba:flex-wrap gba:gap-2">
-                          {employeeEvents.map(event => (
-                            <Badge key={event.id} variant="outline">
-                              {event.title}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="gba:relative" data-testid="calendar-content">
+      <CalendarTimeline
+        key={selectedOrgUnits.join(',') || 'all'}
+        items={timelineItems}
+        events={events}
+        title={getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.title', 'Team Absence Calendar')}
+        legendItems={legendItems}
+        itemLabel={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+        itemDetailLabel={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_list.search_employee_list.recent_employees_table.department',
+          'Department'
+        )}
+        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_table.employee_search_filter',
+          'Search Employee...'
+        )}
+        initialDate={new Date()}
+        initialViewRange={31}
+        renderItemContent={item => (
+          <div className="gba:flex gba:w-full gba:items-center gba:gap-2 gba:rounded gba:p-1 gba:hover:bg-muted">
+            <div className="gba:h-6 gba:w-6 gba:flex-shrink-0 gba:overflow-hidden gba:rounded-full gba:bg-muted">
+              {item.picture ? (
+                <img
+                  src={`data:image/gif;base64,${item.picture}`}
+                  alt={getInitials(item.name)}
+                  className="gba:h-full gba:w-full gba:object-cover"
+                  onError={event => {
+                    event.currentTarget.style.display = 'none'
+                    event.currentTarget.nextElementSibling?.classList.remove('gba:hidden')
+                  }}
+                />
+              ) : null}
+              <div
+                className={`gba:flex gba:h-full gba:w-full gba:items-center gba:justify-center gba:bg-info-secondary gba:text-xs gba:font-medium gba:text-info ${item.picture ? 'gba:hidden' : ''}`}
+              >
+                {getInitials(item.name)}
+              </div>
+            </div>
+            <div className="gba:min-w-0 gba:flex-grow">
+              <div className="gba:truncate gba:font-medium">{item.name}</div>
+              <div className="gba:truncate gba:text-xs gba:text-muted-foreground">{item.department}</div>
+            </div>
+          </div>
+        )}
+      />
+    </div>
   )
 }
 

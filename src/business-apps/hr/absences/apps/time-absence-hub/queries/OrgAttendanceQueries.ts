@@ -22,7 +22,9 @@ export const GET_FILTERED_EMPLOYEE_IDS = `
       firstName
       lastName
       pictureThumbnail
+      additionalProperties
       employeePosition {
+        organizationalUnitId
         organizationalUnit {
           id
           name
@@ -50,7 +52,9 @@ export interface FilteredEmployee {
   firstName: string
   lastName: string
   pictureThumbnail?: string | null
+  additionalProperties?: Record<string, unknown> | null
   employeePosition?: {
+    organizationalUnitId?: string | null
     organizationalUnit?: { id: string; name: string } | null
     company?: { id: string; name: string } | null
     supervisor?: { id: string; firstName: string; lastName: string } | null

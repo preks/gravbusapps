@@ -12,12 +12,10 @@ import {
   Button,
   Badge
 } from '@newwork/nw-design-system'
-import { CalendarIcon, UserIcon, ArrowUpIcon, ArrowDownIcon, ArrowSquareOutIcon } from '@phosphor-icons/react'
+import { CalendarIcon, UserIcon, ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '../../../../../../../../../common/utils/windowUtils'
-import {
-  getAbsenceStatusLabel,
-  getAbsenceStatusBadgeVariant
-} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { statusVariant } from '@/business-apps/hr/absences/apps/personal-absences/utils/statusUtils'
 import { EnhancedAbsence } from '../../../../types'
 
 const DATA_TEST_ID_PREFIX = 'BackofficeAbsenceList'
@@ -31,8 +29,6 @@ interface AbsenceListTableProps {
   pageSize: number
   sortField: string
   sortOrder: 'ASC' | 'DESC' | ''
-  selectedAbsence: EnhancedAbsence | null
-  onRowClick: (record: EnhancedAbsence) => void
   onSort: (field: string) => void
   onPaginationChange: (page: number, newPageSize?: number) => void
   onOpenEmployeeRecord?: (employeeId: string) => void
@@ -50,7 +46,11 @@ const getTranslatedStatus = (status: string) => {
 }
 
 const getStatusBadgeVariant = (status: string) => {
-  return getAbsenceStatusBadgeVariant(status)
+  return statusVariant(status)
+}
+
+const getColorForAbsence = (absence: EnhancedAbsence) => {
+  return absence.color || 'var(--nw-muted-foreground)'
 }
 
 const renderSortIcon = (field: string, sortField: string, sortOrder: 'ASC' | 'DESC' | '') => {
@@ -73,8 +73,6 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
   pageSize,
   sortField,
   sortOrder,
-  selectedAbsence,
-  onRowClick,
   onSort,
   onPaginationChange,
   onOpenEmployeeRecord
@@ -189,7 +187,12 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
               {absences.map(record => (
                 <TableRow
                   key={record.id}
-                  className={`gba:border-b gba:hover:bg-muted gba:transition-colors ${selectedAbsence?.id === record.id ? 'gba:bg-info-secondary' : ''}`}
+                  className="gba:cursor-pointer gba:border-b gba:transition-colors gba:hover:bg-muted"
+                  onClick={() => {
+                    if (record.employee?.id) {
+                      onOpenEmployeeRecord?.(record.employee.id)
+                    }
+                  }}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
                   <TableCell
@@ -197,36 +200,23 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-employee-cell-${record.id}`}
                   >
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <div
-                        className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-muted gba:p-2 gba:rounded gba:transition-colors"
-                        onClick={() => onRowClick(record)}
-                      >
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <UserIcon size={16} className="gba:text-muted-foreground" />
-                          <span className="gba:font-medium gba:text-sm">{getEmployeeName(record)}</span>
-                        </div>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <UserIcon size={16} className="gba:text-muted-foreground" />
+                        <span className="gba:font-medium gba:text-sm">{getEmployeeName(record)}</span>
                       </div>
-                      {onOpenEmployeeRecord && record.employee?.id && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onOpenEmployeeRecord(record.employee.id)}
-                          data-testid={`${DATA_TEST_ID_PREFIX}-open-employee-${record.id}`}
-                          aria-label={getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:time_absence_hub.open_employee_record',
-                            'Open employee record'
-                          )}
-                        >
-                          <ArrowSquareOutIcon size={14} />
-                        </Button>
-                      )}
                     </div>
                   </TableCell>
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-group-cell-${record.id}`}
                   >
-                    <Badge variant="outline">{record.groupName}</Badge>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <span
+                        className="gba:h-2 gba:w-2 gba:shrink-0 gba:rounded-full"
+                        style={{ backgroundColor: getColorForAbsence(record) }}
+                      />
+                      <span className="gba:text-sm">{record.groupName}</span>
+                    </div>
                   </TableCell>
                   <TableCell
                     className="gba:py-4 gba:px-6"

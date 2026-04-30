@@ -79,10 +79,12 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
   onReset
 }) => {
   const [draftFilters, setDraftFilters] = useState(filters)
+  const [managerQuery, setManagerQuery] = useState('')
 
   useEffect(() => {
     if (open) {
       setDraftFilters(filters)
+      setManagerQuery('')
     }
   }, [filters, open])
 
@@ -108,6 +110,14 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
       })),
     [options.managers]
   )
+  const filteredManagerOptions = useMemo<ComboboxOption[]>(() => {
+    const query = managerQuery.trim().toLowerCase()
+    if (!query) {
+      return managerOptions
+    }
+
+    return managerOptions.filter(option => String(option.label).toLowerCase().includes(query))
+  }, [managerOptions, managerQuery])
   const employeeOptions = useMemo<ComboboxOption[]>(
     () =>
       options.employees.map(employee => {
@@ -249,9 +259,10 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
           <DrawerField label={tt('filters.manager_label', 'Manager')}>
             <Combobox
               mode="multiple"
-              options={managerOptions}
+              options={filteredManagerOptions}
               value={draftFilters.managerIds}
               onValueChange={managerIds => updateDraft({ managerIds })}
+              onSearch={setManagerQuery}
               placeholder={tt('filters.manager_placeholder', 'All managers')}
               searchPlaceholder={tt('filters.manager_search', 'Search managers...')}
               emptyText={tt('filters.no_options', 'No options')}
