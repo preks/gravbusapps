@@ -66,6 +66,7 @@ import {
   type SlideTransition,
   type TextElement,
   type TextLink,
+  type RichTextParagraph,
   type ShapeElement,
   type ShapeInText,
   type GroupElement,
@@ -88,7 +89,7 @@ import type { SlideMaster } from '../types/slideMaster'
 import {
   getEffectiveMasters,
   cloneLayoutToSlide,
-  findLayoutById,
+  resolveLayoutForNewSlide,
   ensureTextFits,
   recolorSlidesForTheme
 } from '../data/defaultSlideMaster'
@@ -105,7 +106,7 @@ import { useSlideSpellCheck } from '../hooks/useSlideSpellCheck'
 import { useSlideTransition } from '../hooks/useSlideTransition'
 import type { SlideAnnotation } from '../types/slideSpellCheck'
 import { exportToPptx } from '../utils/exportUtils'
-import { adjustLinksAfterEdit, detectUrls, mergeLinks, createLink } from '../utils/linkUtils'
+import { adjustLinksAfterEdit, detectUrls, mergeLinks } from '../utils/linkUtils'
 import translations from '../_i18n'
 import {
   alignElements,
@@ -129,14 +130,20 @@ import {
 } from '../utils/videoImport'
 import {
   applyCaretFormattingToInsertedText,
+  applyRichTextHyperlink,
   applyRichTextFormatting,
+  clearRichTextHyperlink,
   createDefaultShapeText,
   getCharacterRichTextFormattingUpdate,
+  getRichTextHyperlinkAtSelection,
+  normalizeRichTextParagraphs,
+  getRichTextTextInRange,
   getTextEditDelta,
   getRichTextStyleAtRange,
   hasCharacterRichTextFormattingUpdate,
   isRichTextFormattingUpdate,
   replaceRichTextContent,
+  resolveRichTextSelectionForLinkAction,
   type RichTextFormattingUpdate,
   type RichTextSelectionRange
 } from '../utils/richTextEditing'
@@ -173,6 +180,82 @@ type ActiveRichTextDraft =
 type PendingCaretFormatting = {
   id: string
   formatting: RichTextFormattingUpdate
+}
+
+type ActiveLinkTarget =
+  | { id: string; kind: 'text'; mode: 'inline' | 'object'; value: TextElement }
+  | { id: string; kind: 'shape'; mode: 'inline'; value: ShapeInText }
+
+function paragraphHasVisibleText(paragraph: RichTextParagraph): boolean {
+  return paragraph.runs.some(run => run.text.trim().length > 0)
+}
+
+function shouldRehydrateForListMarkerState(
+  previous: Pick<
+    TextElement | ShapeInText,
+    | 'content'
+    | 'paragraphs'
+    | 'fontFamily'
+    | 'fontSize'
+    | 'fontWeight'
+    | 'fontStyle'
+    | 'textDecoration'
+    | 'textAlign'
+    | 'color'
+    | 'lineHeight'
+    | 'textTransform'
+  >,
+  next: Pick<
+    TextElement | ShapeInText,
+    | 'content'
+    | 'paragraphs'
+    | 'fontFamily'
+    | 'fontSize'
+    | 'fontWeight'
+    | 'fontStyle'
+    | 'textDecoration'
+    | 'textAlign'
+    | 'color'
+    | 'lineHeight'
+    | 'textTransform'
+  >
+): boolean {
+  const previousParagraphs = normalizeRichTextParagraphs(previous)
+  const nextParagraphs = normalizeRichTextParagraphs(next)
+
+  if (previousParagraphs.length !== nextParagraphs.length) {
+    return true
+  }
+
+  return previousParagraphs.some((paragraph, index) => {
+    const nextParagraph = nextParagraphs[index]
+    const previousBulletType = paragraph.bulletType ?? 'none'
+    const nextBulletType = nextParagraph.bulletType ?? 'none'
+
+    if (previousBulletType !== nextBulletType) {
+      return true
+    }
+
+    const previousMarkerVisible = previousBulletType !== 'none' && paragraphHasVisibleText(paragraph)
+    const nextMarkerVisible = nextBulletType !== 'none' && paragraphHasVisibleText(nextParagraph)
+
+    if (previousMarkerVisible !== nextMarkerVisible) {
+      return true
+    }
+
+    if (!nextMarkerVisible) {
+      return false
+    }
+
+    return (
+      paragraph.bulletChar !== nextParagraph.bulletChar ||
+      paragraph.numberingStyle !== nextParagraph.numberingStyle ||
+      paragraph.numberStartAt !== nextParagraph.numberStartAt ||
+      paragraph.indentLevel !== nextParagraph.indentLevel ||
+      paragraph.listLeftMargin !== nextParagraph.listLeftMargin ||
+      paragraph.listIndent !== nextParagraph.listIndent
+    )
+  })
 }
 
 function createActiveRichTextDraft(element: AnySlideElement): ActiveRichTextDraft | null {
@@ -907,6 +990,57 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     [activeRichTextDraft, activeEditingTarget, editingTextId]
   )
 
+  const selectedTextObjectLinkTarget = useMemo(
+    () => (!editingTextId && selectedElement?.type === 'text' ? selectedElement : null),
+    [editingTextId, selectedElement]
+  )
+
+  const activeLinkTarget = useMemo<ActiveLinkTarget | null>(() => {
+    if (!activeEditingTarget) {
+      return selectedTextObjectLinkTarget
+        ? {
+            id: selectedTextObjectLinkTarget.id,
+            kind: 'text',
+            mode: 'object',
+            value: selectedTextObjectLinkTarget
+          }
+        : null
+    }
+
+    if (activeEditingTarget.type === 'text') {
+      return {
+        id: activeEditingTarget.id,
+        kind: 'text',
+        mode: 'inline',
+        value:
+          activeRichTextDraft?.id === activeEditingTarget.id && activeRichTextDraft?.kind === 'text'
+            ? activeRichTextDraft.element
+            : activeEditingTarget
+      }
+    }
+
+    if (activeEditingTarget.type === 'shape') {
+      return {
+        id: activeEditingTarget.id,
+        kind: 'shape',
+        mode: 'inline',
+        value:
+          activeRichTextDraft?.id === activeEditingTarget.id && activeRichTextDraft?.kind === 'shape'
+            ? activeRichTextDraft.element
+            : (activeEditingTarget.shapeText ?? createDefaultShapeText())
+      }
+    }
+
+    return selectedTextObjectLinkTarget
+      ? {
+          id: selectedTextObjectLinkTarget.id,
+          kind: 'text',
+          mode: 'object',
+          value: selectedTextObjectLinkTarget
+        }
+      : null
+  }, [activeEditingTarget, activeRichTextDraft, selectedTextObjectLinkTarget])
+
   const activeEditingDraftSnapshot = useMemo(
     () => serializeEditingDraftValue(activeRichTextDraft?.id === editingTextId ? activeRichTextDraft : null),
     [activeRichTextDraft, editingTextId]
@@ -1225,6 +1359,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
       const oldValue = currentEditingContentRef.current
       const editDelta = getTextEditDelta(oldValue, newValue)
+      const shouldRehydrateForParagraphStructure = oldValue.split('\n').length !== newValue.split('\n').length
       currentEditingContentRef.current = newValue
 
       if (currentElement.type === 'code') {
@@ -1247,12 +1382,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           pendingFormatting,
           editDelta
         )
+        const shouldRehydrateForListMarkers = shouldRehydrateForListMarkerState(shapeDraft, nextShapeText)
         storeActiveRichTextDraft({ id, kind: 'shape', element: nextShapeText })
         updateElement(id, { shapeText: nextShapeText } as Partial<ShapeElement>)
         if (pendingFormatting && editDelta.insertedLength > 0) {
           preservePendingCaretFormattingRef.current = true
         }
-        if (rehydrate) {
+        if (rehydrate || shouldRehydrateForParagraphStructure || shouldRehydrateForListMarkers) {
           bumpRichTextEditorRehydrateToken()
         }
         return
@@ -1285,6 +1421,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         ),
         ...(updatedLinks !== undefined && { links: updatedLinks })
       }
+      const shouldRehydrateForListMarkers = shouldRehydrateForListMarkerState(textDraft, nextTextDraft)
 
       storeActiveRichTextDraft({ id, kind: 'text', element: nextTextDraft })
       updateElement(id, nextTextDraft)
@@ -1292,7 +1429,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         preservePendingCaretFormattingRef.current = true
       }
 
-      if (rehydrate) {
+      if (rehydrate || shouldRehydrateForParagraphStructure || shouldRehydrateForListMarkers) {
         bumpRichTextEditorRehydrateToken()
       }
     },
@@ -1336,10 +1473,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const applyTextFormattingUpdates = useCallback(
     (
       element: AnySlideElement,
-      updates: Partial<AnySlideElement>,
+      updates: Partial<AnySlideElement> | RichTextFormattingUpdate,
       selection?: RichTextSelectionRange | null
     ): Partial<AnySlideElement> => {
-      if (element.type !== 'text' || !isRichTextFormattingUpdate(updates as Partial<TextElement>)) return updates
+      if (element.type !== 'text' || !isRichTextFormattingUpdate(updates as Partial<TextElement>)) {
+        return updates as Partial<AnySlideElement>
+      }
 
       return applyRichTextFormatting(
         element,
@@ -1352,7 +1491,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Applies updates to all selected elements (for toolbar and property panel multi-select)
   const updateSelectedElements = useCallback(
-    (triggerId: string, updates: Partial<AnySlideElement>) => {
+    (triggerId: string, updates: Partial<AnySlideElement> | RichTextFormattingUpdate) => {
       if (!canEdit) return
       if (selectedElementIds.size > 1) {
         if (unlockedSelectedElements.length === 0) return
@@ -1379,7 +1518,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const handleToolbarUpdateElement = useCallback(
-    (id: string, updates: Partial<AnySlideElement>) => {
+    (id: string, updates: Partial<AnySlideElement> | RichTextFormattingUpdate) => {
       const activeElement = currentSlide.elements.find(element => element.id === editingTextId)
       const isActiveTextUpdate =
         !!activeElement &&
@@ -1392,8 +1531,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         return
       }
 
-      const selection =
-        activeTextSelection && activeTextSelection.end > activeTextSelection.start ? activeTextSelection : null
+      const selection = activeTextSelection ?? null
       const hasCollapsedSelection = !!activeTextSelection && activeTextSelection.start === activeTextSelection.end
       const characterUpdates = getCharacterRichTextFormattingUpdate(updates as RichTextFormattingUpdate)
       const hasCharacterUpdates = hasCharacterRichTextFormattingUpdate(characterUpdates as Partial<TextElement>)
@@ -1925,8 +2063,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   // Slide management - use collaborative methods
   const addSlideWithLayout = useCallback(
     (layoutId: string) => {
-      const effectiveMasters = getEffectiveMasters(masters, currentTheme, t)
-      const found = findLayoutById(effectiveMasters, layoutId)
+      const found = resolveLayoutForNewSlide(masters, currentTheme, layoutId, t)
 
       let newSlide: SlideData
       if (found) {
@@ -1970,8 +2107,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const handleChangeLayout = useCallback(
     (layoutId: string) => {
-      const effectiveMasters = getEffectiveMasters(masters, currentTheme, t)
-      const found = findLayoutById(effectiveMasters, layoutId)
+      const found = resolveLayoutForNewSlide(masters, currentTheme, layoutId, t)
       if (!found) return
 
       const slide = slides[currentSlideIndex]
@@ -2449,33 +2585,83 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     setShowRenameDialog(true)
   }, [isReadOnly, presentationTitle])
 
-  const getExistingLinkUrl = useCallback((): string | undefined => {
-    if (!selectedElement || selectedElement.type !== 'text') return undefined
-    const textElement: TextElement = selectedElement
-    const links = textElement.links || []
-    if (links.length > 0) {
-      return links[0].url
+  const activeLinkSelection = useMemo(() => {
+    if (!activeLinkTarget) {
+      return null
     }
-    return undefined
-  }, [selectedElement])
+
+    if (activeLinkTarget.mode === 'object') {
+      return activeLinkTarget.value.content.length > 0 ? { start: 0, end: activeLinkTarget.value.content.length } : null
+    }
+
+    return resolveRichTextSelectionForLinkAction(activeLinkTarget.value, activeTextSelection)
+  }, [activeLinkTarget, activeTextSelection])
+
+  const activeLinkUrl = useMemo(
+    () => (activeLinkTarget ? getRichTextHyperlinkAtSelection(activeLinkTarget.value, activeTextSelection) : undefined),
+    [activeLinkTarget, activeTextSelection]
+  )
+
+  const activeLinkSelectedText = useMemo(
+    () => (activeLinkTarget ? getRichTextTextInRange(activeLinkTarget.value, activeLinkSelection) : ''),
+    [activeLinkSelection, activeLinkTarget]
+  )
+
+  const handleShowLinkDialog = useCallback(() => {
+    if (!activeLinkTarget || !activeLinkSelection) {
+      toast.error(t('link-select-text-first') || 'Select text before adding a link')
+      return
+    }
+
+    setShowLinkDialog(true)
+  }, [activeLinkSelection, activeLinkTarget, t])
 
   const handleSaveLink = useCallback(
     (url: string) => {
-      if (!selectedElement || selectedElement.type !== 'text') return
+      if (!activeLinkTarget || !activeLinkSelection) {
+        return
+      }
 
-      const textElement: TextElement = selectedElement
-      const content = textElement.content
+      if (activeLinkTarget.kind === 'text') {
+        const nextTextDraft = applyRichTextHyperlink(activeLinkTarget.value, activeLinkSelection, url)
+        if (activeLinkTarget.mode === 'inline') {
+          storeActiveRichTextDraft({ id: activeLinkTarget.id, kind: 'text', element: nextTextDraft })
+        }
+        updateElement(activeLinkTarget.id, nextTextDraft as Partial<AnySlideElement>)
+      } else {
+        const nextShapeText = applyRichTextHyperlink(activeLinkTarget.value, activeLinkSelection, url)
+        storeActiveRichTextDraft({ id: activeLinkTarget.id, kind: 'shape', element: nextShapeText })
+        updateElement(activeLinkTarget.id, { shapeText: nextShapeText } as Partial<ShapeElement>)
+      }
 
-      const newLink = createLink(0, content.length, url)
-      updateElement(selectedElement.id, { links: [newLink] })
+      if (activeLinkTarget.mode === 'inline') {
+        bumpRichTextEditorRehydrateToken()
+      }
     },
-    [selectedElement, updateElement]
+    [activeLinkSelection, activeLinkTarget, bumpRichTextEditorRehydrateToken, storeActiveRichTextDraft, updateElement]
   )
 
   const handleRemoveLink = useCallback(() => {
-    if (!selectedElement || selectedElement.type !== 'text') return
-    updateElement(selectedElement.id, { links: [] })
-  }, [selectedElement, updateElement])
+    if (!activeLinkTarget || !activeLinkSelection) {
+      return
+    }
+
+    if (activeLinkTarget.kind === 'text') {
+      const nextTextDraft = clearRichTextHyperlink(activeLinkTarget.value, activeLinkSelection)
+      if (activeLinkTarget.mode === 'inline') {
+        storeActiveRichTextDraft({ id: activeLinkTarget.id, kind: 'text', element: nextTextDraft })
+      }
+      updateElement(activeLinkTarget.id, nextTextDraft as Partial<AnySlideElement>)
+    } else {
+      const nextShapeText = clearRichTextHyperlink(activeLinkTarget.value, activeLinkSelection)
+      storeActiveRichTextDraft({ id: activeLinkTarget.id, kind: 'shape', element: nextShapeText })
+      updateElement(activeLinkTarget.id, { shapeText: nextShapeText } as Partial<ShapeElement>)
+    }
+
+    if (activeLinkTarget.mode === 'inline') {
+      bumpRichTextEditorRehydrateToken()
+    }
+  }, [activeLinkSelection, activeLinkTarget, bumpRichTextEditorRehydrateToken, storeActiveRichTextDraft, updateElement])
 
   // Export to PowerPoint
   const handleExportToPptx = useCallback(async () => {
@@ -3084,7 +3270,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           onShowBackgroundDialog={() => setShowBackgroundDialog(true)}
           onShowImageDialog={() => setShowImageDialog(true)}
           onShowVideoDialog={() => setShowVideoDialog(true)}
-          onShowLinkDialog={() => setShowLinkDialog(true)}
+          onShowLinkDialog={handleShowLinkDialog}
           onUpdateTheme={handleUpdateTheme}
           onToggleSpellCheck={() => {
             if (!showSpellCheckPanel) {
@@ -3855,10 +4041,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       <LinkDialog
         open={showLinkDialog}
         onOpenChange={setShowLinkDialog}
-        selectedText={selectedElement?.type === 'text' ? selectedElement.content : ''}
-        initialUrl={getExistingLinkUrl()}
+        selectedText={activeLinkSelectedText}
+        initialUrl={activeLinkUrl}
         onSave={handleSaveLink}
-        onRemove={getExistingLinkUrl() ? handleRemoveLink : undefined}
+        onRemove={activeLinkUrl ? handleRemoveLink : undefined}
       />
     </div>
   )

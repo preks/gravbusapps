@@ -31,6 +31,11 @@ search = Search
 # Common messages
 no_results = No results found
 no_data = No data available
+editor-list-bullets = Bullets
+editor-list-numbering = Numbering
+editor-list-none = None
+editor-list-outdent = Outdent
+editor-list-indent = Indent
 
 ## 1. SIMPLE TEXT
 welcome-title = Localization Example

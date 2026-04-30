@@ -85,7 +85,7 @@ export const CommentEditor: React.FC<CommentEditorProps> = ({
         e.preventDefault()
         void handleSubmit(e)
       }}
-      className="gba:flex gba:flex-col gba:gap-2"
+      className="gba:flex gba:w-full gba:min-w-0 gba:flex-col gba:gap-2"
       data-testid={testId}
     >
       <Textarea
@@ -95,12 +95,12 @@ export const CommentEditor: React.FC<CommentEditorProps> = ({
         placeholder={effectivePlaceholder}
         rows={2}
         disabled={isSubmitting}
-        className="gba:resize-none gba:text-sm gba:border-border/50 focus-visible:gba:ring-primary/20 gba:min-h-[56px] gba:max-h-28 gba:overflow-y-auto"
+        className="gba:min-w-0 gba:w-full gba:resize-none gba:text-sm gba:border-border/50 focus-visible:gba:ring-primary/20 gba:min-h-[56px] gba:max-h-28 gba:overflow-y-auto"
         data-testid={`${testId}-textarea`}
       />
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:w-full">
-        <span className="gba:text-xs gba:text-muted-foreground gba:shrink-0">{m.sendHint}</span>
-        <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
+      <div className="gba:flex gba:w-full gba:min-w-0 gba:flex-wrap gba:items-center gba:justify-between gba:gap-2">
+        <span className="gba:min-w-0 gba:flex-1 gba:text-xs gba:text-muted-foreground">{m.sendHint}</span>
+        <div className="gba:ml-auto gba:flex gba:max-w-full gba:flex-wrap gba:items-center gba:justify-end gba:gap-2">
           {onCancel && (
             <Button
               type="button"

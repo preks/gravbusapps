@@ -27,6 +27,10 @@ no-upcoming-absences = Keine geplanten Abwesenheiten
 company-holiday = Feiertag
 pending-requests = Offene Anträge
 no-pending-requests = Keine offenen Anträge
+action = Aktion
+cancel-request = Antrag stornieren
+cancel-request-success = Abwesenheitsantrag storniert
+cancel-request-error = Abwesenheitsantrag konnte nicht storniert werden
 
 # My Absence History
 my-absence-history = Meine Abwesenheitshistorie
