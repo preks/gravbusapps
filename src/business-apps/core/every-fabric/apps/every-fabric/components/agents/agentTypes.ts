@@ -13,6 +13,8 @@ export interface FabricAgent {
   tags: string[]
   tools_count: number
   knowledge_sources_count: number
+  skill_ids?: string[]
+  skills_count?: number
   source: string
   categories?: string[]
   created_at: string | null

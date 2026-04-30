@@ -34,6 +34,8 @@ export interface AgentRegistryEntry {
   agent_card: AgentCard | null
   tools_count: number
   knowledge_sources_count: number
+  skill_ids?: string[]
+  skills_count?: number
   outgoing_connections: ConnectionRef[]
   incoming_connections: ConnectionRef[]
   created_at: string | null

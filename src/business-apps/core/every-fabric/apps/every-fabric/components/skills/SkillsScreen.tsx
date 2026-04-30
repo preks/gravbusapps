@@ -10,6 +10,8 @@ import { useSkillToast } from './useSkillToast'
 interface SkillsScreenProps {
   accessToken: string
   onBack: () => void
+  /** When true, the header bar is hidden (used when embedded inside SettingsScreen tabs). */
+  embedded?: boolean
 }
 
 /**
@@ -20,7 +22,7 @@ interface SkillsScreenProps {
  * Layout is a master-detail split: a narrow single-column list on the left and a persistent
  * SKILL.md editor panel on the right. Clicking a row selects it for editing.
  */
-export const SkillsScreen: React.FC<SkillsScreenProps> = ({ accessToken, onBack }) => {
+export const SkillsScreen: React.FC<SkillsScreenProps> = ({ accessToken, onBack, embedded = false }) => {
   const { toast, showToast, dismissToast } = useSkillToast()
 
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
@@ -54,32 +56,34 @@ export const SkillsScreen: React.FC<SkillsScreenProps> = ({ accessToken, onBack 
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="fabric-skills-screen">
-      <div className="gba:shrink-0 gba:px-4 sm:gba:px-6 lg:gba:px-8 gba:py-4 sm:gba:py-5 gba:border-b gba:border-border/50">
-        <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
-          <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-4">
+      {!embedded && (
+        <div className="gba:shrink-0 gba:px-4 sm:gba:px-6 lg:gba:px-8 gba:py-4 sm:gba:py-5 gba:border-b gba:border-border/50">
+          <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
+            <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="gba:h-10 gba:w-10 gba:rounded-full"
+                onClick={onBack}
+                data-testid="skills-back-button"
+              >
+                <ArrowLeftIcon className="gba:h-5 gba:w-5" />
+              </Button>
+              <h1 className="gba:text-xl sm:gba:text-2xl gba:font-semibold gba:text-foreground">Enterprise Agent</h1>
+            </div>
+
             <Button
               variant="ghost"
               size="icon"
-              className="gba:h-10 gba:w-10 gba:rounded-full"
+              className="gba:h-10 gba:w-10 gba:rounded-full gba:shrink-0"
               onClick={onBack}
-              data-testid="skills-back-button"
+              data-testid="skills-close-button"
             >
-              <ArrowLeftIcon className="gba:h-5 gba:w-5" />
+              <XIcon className="gba:h-5 gba:w-5" />
             </Button>
-            <h1 className="gba:text-xl sm:gba:text-2xl gba:font-semibold gba:text-foreground">Enterprise Agent</h1>
           </div>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="gba:h-10 gba:w-10 gba:rounded-full gba:shrink-0"
-            onClick={onBack}
-            data-testid="skills-close-button"
-          >
-            <XIcon className="gba:h-5 gba:w-5" />
-          </Button>
         </div>
-      </div>
+      )}
 
       {/*
         Static two-column layout: the list sits in a fixed 360px left column and the SKILL.md

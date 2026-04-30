@@ -1,13 +1,14 @@
 // Agent card for the Every Fabric agents screen.
 
 import { Button } from '@newwork/nw-design-system'
-import { PlayIcon, WrenchIcon } from '@phosphor-icons/react'
+import { PlayIcon, WrenchIcon, LightbulbIcon } from '@phosphor-icons/react'
 import { getSourceDisplay } from './agentSourceUtils'
 import type { FabricAgent } from './agentTypes'
 
 interface AgentCardProps {
   agent: FabricAgent
   onRunTask: (agent: FabricAgent) => void
+  onConfigure?: (agent: FabricAgent) => void
 }
 
 function resolveInitial(name: string): string {
@@ -20,7 +21,7 @@ function formatAgentName(name: string): string {
   return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-export const AgentCard: React.FC<AgentCardProps> = ({ agent, onRunTask }) => {
+export const AgentCard: React.FC<AgentCardProps> = ({ agent, onRunTask, onConfigure }) => {
   const displayName = formatAgentName(agent.name)
   const bgColor = agent.color ?? '#6366f1'
   const sourceDisplay = getSourceDisplay(agent.source)
@@ -78,7 +79,31 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onRunTask }) => {
             Tools
           </p>
         </div>
+        <div>
+          <p className="gba:text-lg gba:font-bold gba:text-foreground gba:leading-none">{agent.skills_count ?? 0}</p>
+          <p className="gba:mt-0.5 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wider gba:text-muted-foreground">
+            Skills
+          </p>
+        </div>
       </div>
+
+      {/* Skill chips */}
+      {agent.skill_ids && agent.skill_ids.length > 0 && (
+        <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:px-4 gba:pb-2">
+          {agent.skill_ids.slice(0, 3).map(sid => (
+            <span
+              key={sid}
+              className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:bg-amber-50 gba:px-2.5 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-amber-700"
+            >
+              <LightbulbIcon className="gba:h-3 gba:w-3" />
+              {sid}
+            </span>
+          ))}
+          {agent.skill_ids.length > 3 && (
+            <span className="gba:text-[11px] gba:text-muted-foreground">+{agent.skill_ids.length - 3} more</span>
+          )}
+        </div>
+      )}
 
       {/* Tags */}
       <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:px-4 gba:pb-3">
@@ -99,7 +124,13 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onRunTask }) => {
 
       {/* Action buttons */}
       <div className="gba:mt-auto gba:flex gba:items-center gba:gap-2 gba:border-t gba:border-border/50 gba:px-4 gba:py-3">
-        <Button variant="outline" size="sm" className="gba:flex-1" disabled data-testid={`agent-configure-${agent.id}`}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gba:flex-1"
+          onClick={() => onConfigure?.(agent)}
+          data-testid={`agent-configure-${agent.id}`}
+        >
           Configure
         </Button>
         <Button size="sm" className="gba:flex-1" onClick={() => onRunTask(agent)} data-testid={`agent-run-${agent.id}`}>

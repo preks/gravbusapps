@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { AgentCard } from './AgentCard'
+import { SkillAssignmentPicker } from './SkillAssignmentPicker'
 import { getAllSourceTypes, getSourceDisplay } from './agentSourceUtils'
 import type { BuiltinSubagent, FabricAgent } from './agentTypes'
 
@@ -20,9 +21,11 @@ interface AgentsScreenProps {
   accessToken: string
   onBack: () => void
   onRunTask: (agent: FabricAgent) => void
+  /** When true, the header bar is hidden (used when embedded inside SettingsScreen tabs). */
+  embedded?: boolean
 }
 
-export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack, onRunTask }) => {
+export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack, onRunTask, embedded = false }) => {
   const client = usePromptManagerClient(accessToken)
   const [agents, setAgents] = useState<FabricAgent[]>([])
   const [builtins, setBuiltins] = useState<BuiltinSubagent[]>([])
@@ -31,6 +34,7 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
   const [search, setSearch] = useState('')
   const [builtinsExpanded, setBuiltinsExpanded] = useState(false)
   const [showLegend, setShowLegend] = useState(false)
+  const [configuringAgent, setConfiguringAgent] = useState<FabricAgent | null>(null)
 
   const loadAgents = useCallback(async () => {
     setIsLoading(true)
@@ -53,6 +57,8 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
         tags: e.tags ?? [],
         tools_count: e.tools_count ?? 0,
         knowledge_sources_count: e.knowledge_sources_count ?? 0,
+        skill_ids: e.skill_ids ?? [],
+        skills_count: e.skills_count ?? 0,
         source: e.source ?? 'prompt_odm',
         created_at: e.created_at
       }))
@@ -68,6 +74,13 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
   useEffect(() => {
     void loadAgents()
   }, [loadAgents])
+
+  const handleSkillsSaved = useCallback((agentId: string, updatedSkillIds: string[]) => {
+    setAgents(prev =>
+      prev.map(a => (a.id === agentId ? { ...a, skill_ids: updatedSkillIds, skills_count: updatedSkillIds.length } : a))
+    )
+    setConfiguringAgent(null)
+  }, [])
 
   const filtered = useMemo(() => {
     if (!search.trim()) return agents
@@ -95,62 +108,64 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="agents-screen">
-      <div className="gba:shrink-0 gba:px-6 gba:lg:px-10 gba:pt-8 gba:pb-4">
-        <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <button
-              type="button"
-              onClick={onBack}
-              className="gba:inline-flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-              data-testid="agents-back-button"
-            >
-              <ArrowLeftIcon className="gba:h-5 gba:w-5" />
-            </button>
-            <div>
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">Agents</h1>
-                <div className="gba:relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowLegend(prev => !prev)}
-                    className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-                    data-testid="agents-info-button"
-                    aria-label="Agent source types"
-                  >
-                    <InfoIcon className="gba:h-4 gba:w-4" />
-                  </button>
-                  {showLegend && (
-                    <div className="gba:absolute gba:left-0 gba:top-full gba:mt-2 gba:z-50 gba:w-80 gba:rounded-lg gba:border gba:border-border gba:bg-popover gba:p-4 gba:shadow-lg">
-                      <h4 className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wider gba:text-muted-foreground gba:mb-3">
-                        Agent sources
-                      </h4>
-                      <div className="gba:space-y-2.5">
-                        {getAllSourceTypes().map(st => (
-                          <div key={st.key} className="gba:flex gba:items-start gba:gap-2">
-                            <span
-                              className={`gba:mt-0.5 gba:shrink-0 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${st.badgeClass}`}
-                            >
-                              {st.label}
-                            </span>
-                            <p className="gba:text-xs gba:text-muted-foreground">{st.description}</p>
-                          </div>
-                        ))}
+      <div className={`gba:shrink-0 gba:px-6 gba:lg:px-10 ${embedded ? 'gba:pt-4' : 'gba:pt-8'} gba:pb-4`}>
+        {!embedded && (
+          <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <button
+                type="button"
+                onClick={onBack}
+                className="gba:inline-flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+                data-testid="agents-back-button"
+              >
+                <ArrowLeftIcon className="gba:h-5 gba:w-5" />
+              </button>
+              <div>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">Agents</h1>
+                  <div className="gba:relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowLegend(prev => !prev)}
+                      className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+                      data-testid="agents-info-button"
+                      aria-label="Agent source types"
+                    >
+                      <InfoIcon className="gba:h-4 gba:w-4" />
+                    </button>
+                    {showLegend && (
+                      <div className="gba:absolute gba:left-0 gba:top-full gba:mt-2 gba:z-50 gba:w-80 gba:rounded-lg gba:border gba:border-border gba:bg-popover gba:p-4 gba:shadow-lg">
+                        <h4 className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wider gba:text-muted-foreground gba:mb-3">
+                          Agent sources
+                        </h4>
+                        <div className="gba:space-y-2.5">
+                          {getAllSourceTypes().map(st => (
+                            <div key={st.key} className="gba:flex gba:items-start gba:gap-2">
+                              <span
+                                className={`gba:mt-0.5 gba:shrink-0 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${st.badgeClass}`}
+                              >
+                                {st.label}
+                              </span>
+                              <p className="gba:text-xs gba:text-muted-foreground">{st.description}</p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
+                <p className="gba:text-sm gba:text-muted-foreground">
+                  Specialists on your team. Click to inspect tools, policies, and memory.
+                </p>
               </div>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                Specialists on your team. Click to inspect tools, policies, and memory.
-              </p>
             </div>
+            <Button size="sm" disabled data-testid="agents-hire-button">
+              + Hire agent
+            </Button>
           </div>
-          <Button size="sm" disabled data-testid="agents-hire-button">
-            + Hire agent
-          </Button>
-        </div>
+        )}
 
-        <div className="gba:mt-5 gba:relative gba:max-w-sm">
+        <div className={`${embedded ? '' : 'gba:mt-5'} gba:relative gba:max-w-sm`}>
           <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
           <input
             type="text"
@@ -184,7 +199,7 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
 
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-3 gba:gap-4">
             {filtered.map(agent => (
-              <AgentCard key={agent.id} agent={agent} onRunTask={onRunTask} />
+              <AgentCard key={agent.id} agent={agent} onRunTask={onRunTask} onConfigure={setConfiguringAgent} />
             ))}
           </div>
 
@@ -255,6 +270,15 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
           )}
         </div>
       </div>
+
+      {configuringAgent && (
+        <SkillAssignmentPicker
+          agent={configuringAgent}
+          accessToken={accessToken}
+          onClose={() => setConfiguringAgent(null)}
+          onSaved={ids => handleSkillsSaved(configuringAgent.id, ids)}
+        />
+      )}
     </div>
   )
 }

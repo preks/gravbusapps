@@ -1051,6 +1051,21 @@ export class PromptManagerClient extends RestClient {
     return this.get('/agents/builtins')
   }
 
+  async getAgentSkills(agentId: string): Promise<{
+    agent_id: string
+    source: string
+    skills: Array<{ skill_id: string; name: string; description: string; status: string }>
+  }> {
+    return this.get(`/agents/registry/${encodeURIComponent(agentId)}/skills`)
+  }
+
+  async setAgentSkills(
+    agentId: string,
+    skillIds: string[]
+  ): Promise<{ agent_id: string; skill_ids: string[]; count: number }> {
+    return this.put(`/agents/registry/${encodeURIComponent(agentId)}/skills`, { skill_ids: skillIds })
+  }
+
   async updateAgentCard(
     agentId: string,
     body: { division?: string; data_domains?: string[]; capabilities?: string[]; access_policy?: string }

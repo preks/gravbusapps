@@ -1,5 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
-import { CalendarCheckIcon, GearIcon, WrenchIcon } from '@phosphor-icons/react'
+import { CalendarCheckIcon, GearIcon } from '@phosphor-icons/react'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import { resolveUserFirstName, resolveUserFullName } from '../../utils/userUtils'
 import { SidebarTooltip } from './SidebarTooltip'
@@ -9,7 +9,6 @@ interface SidebarFooterProps {
   userInfo?: UserInfoProps
   onOpenSettings: () => void
   onOpenScheduled: () => void
-  onOpenSkills: () => void
 }
 
 function resolveInitials(userInfo: UserInfoProps | undefined): string {
@@ -25,8 +24,7 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
   isCollapsed,
   userInfo,
   onOpenSettings,
-  onOpenScheduled,
-  onOpenSkills
+  onOpenScheduled
 }) => {
   const fullName = resolveUserFullName(userInfo) ?? 'Signed in'
   const initials = resolveInitials(userInfo)
@@ -60,18 +58,6 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
             </div>
           )}
         </div>
-      </SidebarTooltip>
-
-      <SidebarTooltip disabled={!isCollapsed} label="Skills">
-        <button
-          type="button"
-          onClick={onOpenSkills}
-          aria-label="Skills"
-          className="gba:inline-flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-          data-testid="sidebar-skills-button"
-        >
-          <WrenchIcon className="gba:h-4 gba:w-4" />
-        </button>
       </SidebarTooltip>
 
       <SidebarTooltip disabled={!isCollapsed} label="Scheduled Tasks">

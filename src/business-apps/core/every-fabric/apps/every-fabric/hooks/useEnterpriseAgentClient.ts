@@ -233,10 +233,16 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   const enc = encodeURIComponent
 
   const getSkillsManifest = useCallback(async () => {
-    const skills =
-      await client.get<{ skill_id: string; name: string; description: string; status: string; file_count: number }[]>(
-        '/admin/skills/'
-      )
+    const skills = await client.get<
+      {
+        skill_id: string
+        name: string
+        description: string
+        status: string
+        is_active: boolean
+        file_count: number
+      }[]
+    >('/admin/skills/')
     return { skills }
   }, [client])
 
@@ -308,6 +314,21 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
+  const submitSkillForReview = useCallback(
+    (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/submit`, {}),
+    [client]
+  )
+
+  const approveSkill = useCallback(
+    (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/approve`, {}),
+    [client]
+  )
+
+  const archiveSkill = useCallback(
+    (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/archive`, {}),
+    [client]
+  )
+
   return useMemo(
     () => ({
       startSession,
@@ -336,7 +357,10 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       uploadSkillFiles,
       listSkillFiles,
       deleteSkillFile,
-      exportSkillBundle
+      exportSkillBundle,
+      submitSkillForReview,
+      approveSkill,
+      archiveSkill
     }),
     [
       startSession,
@@ -365,7 +389,10 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       uploadSkillFiles,
       listSkillFiles,
       deleteSkillFile,
-      exportSkillBundle
+      exportSkillBundle,
+      submitSkillForReview,
+      approveSkill,
+      archiveSkill
     ]
   )
 }
