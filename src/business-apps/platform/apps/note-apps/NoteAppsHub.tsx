@@ -87,6 +87,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
   const [pendingTrashNoteIds, setPendingTrashNoteIds] = useState<string[]>([])
   const [isMovingToTrash, setIsMovingToTrash] = useState(false)
+  const [trashCount, setTrashCount] = useState(0)
 
   // Share dialog
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -202,6 +203,41 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     }
   }, [notes, graphqlClient, ownerInfoMap])
 
+  const loadTrashCount = useCallback(async () => {
+    if (!accessToken || !currentUserId) {
+      setTrashCount(0)
+      return
+    }
+
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      const PAGE_SIZE = 200
+      let page = 1
+      let count = 0
+      let hasMore = true
+
+      while (hasMore) {
+        const result = await DriveApiService.listItems({
+          section: 'trash',
+          type: 'note',
+          limit: PAGE_SIZE,
+          page
+        })
+        count += result.items.filter(item => item.ownerId === currentUserId && !item.spaceId).length
+        hasMore = result.items.length === PAGE_SIZE
+        page += 1
+      }
+
+      setTrashCount(count)
+    } catch (error) {
+      console.error('[NoteAppsHub] Failed to load trash count:', error)
+    }
+  }, [accessToken, currentUserId])
+
+  useEffect(() => {
+    void loadTrashCount()
+  }, [loadTrashCount])
+
   // Categorise notes
   const { myNotes, sharedNotes, pinnedNotes, recentNotes } = useMemo(() => {
     const my: NoteSummary[] = []
@@ -233,9 +269,9 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       pinned: pinnedNotes.filter(n => !isFolder(n)).length,
       shared: sharedNotes.filter(n => !isFolder(n)).length,
       recent: recentNotes.filter(n => !isFolder(n)).length,
-      trash: 0
+      trash: trashCount
     }),
-    [myNotes, sharedNotes, pinnedNotes, recentNotes, favorites, notes]
+    [myNotes, sharedNotes, pinnedNotes, recentNotes, favorites, notes, trashCount]
   )
 
   // Filter + sort notes
@@ -531,11 +567,12 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         pendingTrashNoteIds.forEach(noteId => next.delete(noteId))
         return next
       })
+      await loadTrashCount()
     } finally {
       setIsMovingToTrash(false)
       setPendingTrashNoteIds([])
     }
-  }, [deleteNote, noteTree, pendingTrashNoteIds, selectedNoteId, updateUrl])
+  }, [deleteNote, loadTrashCount, noteTree, pendingTrashNoteIds, selectedNoteId, updateUrl])
 
   const handleTrashConfirmOpenChange = useCallback(
     (open: boolean) => {
@@ -619,6 +656,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       updateUrl(currentNote.id, 'editor', 'my-notes')
       toast.success(t('toast-note-restored'))
       await refreshNotes()
+      await loadTrashCount()
       noteTree.loadTree()
     } catch (error) {
       console.error('[NoteAppsHub] Failed to restore trashed note:', error)
@@ -633,6 +671,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     currentUserId,
     currentNotePermission,
     loadNote,
+    loadTrashCount,
     noteTree,
     refreshNotes,
     t,
@@ -858,6 +897,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             onOpenItem={item => handleOpenTrashedNote(item.id)}
             onItemsChanged={() => {
               void refreshNotes()
+              void loadTrashCount()
               noteTree.loadTree()
             }}
           />
