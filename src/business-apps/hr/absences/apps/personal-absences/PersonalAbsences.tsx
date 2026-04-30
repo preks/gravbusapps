@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation, Dialog, DialogContent } from '@newwork/nw-design-system'
+import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
@@ -22,6 +23,10 @@ import { useWellnessInsight } from './hooks/useWellnessInsight'
 import { PersonalAbsencesCalendarView } from './components/PersonalAbsencesCalendarView'
 import { PersonalAbsencesDashboardView } from './components/PersonalAbsencesDashboardView'
 import UpdateEmployeeEntitlements from '@/business-apps/hr/core/forms/update-employee-entitlements'
+import {
+  cancelEmployeeAbsence,
+  type CancelEmployeeAbsenceSnapshot
+} from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
 
 type PersonalAbsencesProps = BusinessAppContextProps & {
   employeeIdOverride?: string
@@ -38,6 +43,7 @@ export const PersonalAbsences = (props: PersonalAbsencesProps) => {
   const [isEntitlementsModalOpen, setIsEntitlementsModalOpen] = useState(false)
   const [hasHrBackoffice, setHasHrBackoffice] = useState(false)
   const [isFetchingGroups, setIsFetchingGroups] = useState(true)
+  const [cancellingAbsenceId, setCancellingAbsenceId] = useState<string | null>(null)
 
   const { accessToken, userInfo } = props
   const employeeId = props.employeeIdOverride ?? userInfo?.employeeDetails?.employeeId
@@ -68,7 +74,9 @@ export const PersonalAbsences = (props: PersonalAbsencesProps) => {
     filteredAbsences,
     paginatedAbsences,
     totalPages,
-    refetchEntitlements
+    refetchEntitlements,
+    refetchAbsences,
+    markAbsenceCancelled
   } = data
   const { effectiveDates, allowWeekendPaintingInFallback } = useAbsenceEffectiveDates(
     client,
@@ -109,6 +117,22 @@ export const PersonalAbsences = (props: PersonalAbsencesProps) => {
       .then(dates => setHolidayDates(dates))
       .catch(() => {})
   }, [employee?.id, accessToken, calendarDate, client])
+
+  const handleCancelAbsence = async (employeeAbsence: CancelEmployeeAbsenceSnapshot) => {
+    setCancellingAbsenceId(employeeAbsence.id)
+
+    try {
+      await cancelEmployeeAbsence(accessToken, employeeAbsence)
+      markAbsenceCancelled(employeeAbsence.id)
+      toast.success(t('cancel-request-success'))
+      globalThis.setTimeout(refetchAbsences, 3000)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('cancel-request-error')
+      toast.error(message)
+    } finally {
+      setCancellingAbsenceId(null)
+    }
+  }
 
   if (showCalendar && employee && absenceEntitlements) {
     return (
@@ -189,6 +213,9 @@ export const PersonalAbsences = (props: PersonalAbsencesProps) => {
         embedded={props.embedded}
         canAddEntitlements={canAddEntitlements}
         onAddEntitlement={() => setIsEntitlementsModalOpen(true)}
+        onCancelAbsence={handleCancelAbsence}
+        cancellingAbsenceId={cancellingAbsenceId}
+        accessToken={accessToken}
       />
       <Dialog open={isEntitlementsModalOpen} onOpenChange={open => setIsEntitlementsModalOpen(open)}>
         <DialogContent

@@ -1,3 +1,5 @@
+import type { CancelEmployeeAbsenceSnapshot } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
+
 /**
  * Row shape for the personal absences list (from GET_EMPLOYEE_ABSENCES).
  */
@@ -15,4 +17,5 @@ export interface AbsenceRow {
   workingDays: number
   description: string
   createdAt: string
+  employeeAbsence: CancelEmployeeAbsenceSnapshot
 }
