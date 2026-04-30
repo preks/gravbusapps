@@ -1,7 +1,10 @@
+import type { ActionOption } from '@newwork/nw-design-system'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton } from '@newwork/nw-design-system'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { formatDate } from '@/common/utils/windowUtils'
 import type { AbsenceRow } from '../types/personalAbsences'
+import type { CancelEmployeeAbsenceSnapshot } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
 
 type TFunction = (key: string) => string
 
@@ -9,14 +12,35 @@ interface PendingRequestsCardProps {
   isLoading: boolean
   pendingRequests: AbsenceRow[]
   t: TFunction
+  onCancelAbsence: (employeeAbsence: CancelEmployeeAbsenceSnapshot) => Promise<void>
+  cancellingAbsenceId: string | null
+  accessToken?: string
 }
 
-export function PendingRequestsCard({ isLoading, pendingRequests, t }: Readonly<PendingRequestsCardProps>) {
+export function PendingRequestsCard({
+  isLoading,
+  pendingRequests,
+  t,
+  onCancelAbsence,
+  cancellingAbsenceId,
+  accessToken
+}: Readonly<PendingRequestsCardProps>) {
   const totalPendingDays = pendingRequests.reduce((sum, a) => sum + (a.workingDays ?? 0), 0)
   const title =
     totalPendingDays > 0
       ? `${t('pending-requests')} (${totalPendingDays} ${totalPendingDays === 1 ? t('day') : t('days')})`
       : t('pending-requests')
+
+  const buildActions = (absence: AbsenceRow): ActionOption[] => [
+    {
+      category: t('action'),
+      key: `cancel-absence-${absence.id}`,
+      label: t('cancel-request'),
+      onClick: () => {
+        void onCancelAbsence(absence.employeeAbsence)
+      }
+    }
+  ]
 
   return (
     <Card>
@@ -55,7 +79,19 @@ export function PendingRequestsCard({ isLoading, pendingRequests, t }: Readonly<
                       )}
                     </p>
                   </div>
-                  <Badge variant="pending">{getAbsenceStatusLabel('PENDING')}</Badge>
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
+                    <Badge variant="pending">{getAbsenceStatusLabel('PENDING')}</Badge>
+                    <AppActionButton
+                      data-testid={`personal-absence-pending-actions-${a.id}`}
+                      size="icon"
+                      staticFlowData={buildActions(a)}
+                      prefixDataTestId={`personal-absence-pending-action-${a.id}`}
+                      accessToken={accessToken}
+                      emptyStateBehavior="enable"
+                      deferMainContextRequestsUntilClick
+                      disabled={cancellingAbsenceId === a.id}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
