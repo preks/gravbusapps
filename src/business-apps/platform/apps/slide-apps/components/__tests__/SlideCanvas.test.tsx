@@ -180,6 +180,39 @@ function dragFrom(source: Element, start: { x: number; y: number }, end: { x: nu
 }
 
 describe('SlideCanvas inline editing drag behavior', () => {
+  it('renders placeholder text for empty text elements outside present mode', () => {
+    render(
+      <SlideCanvas
+        elements={[makeTextElement({ content: '', placeholderText: 'Click to add title' })]}
+        selectedIds={new Set()}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={() => {}}
+      />
+    )
+
+    expect(screen.getByText('Click to add title')).toBeTruthy()
+  })
+
+  it('hides placeholder text while presenting', () => {
+    render(
+      <SlideCanvas
+        elements={[makeTextElement({ content: '', placeholderText: 'Click to add title' })]}
+        selectedIds={new Set()}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={() => {}}
+        isPresenting
+      />
+    )
+
+    expect(screen.queryByText('Click to add title')).toBeNull()
+  })
+
   it('selects a text element on first click without entering edit mode', () => {
     const onSelectElements = jest.fn()
     const onEditText = jest.fn()

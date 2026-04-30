@@ -120,7 +120,8 @@ function buildBulletParagraphs(element: Pick<TextElement, 'textAlign'>, lines: s
 function titleElement(theme: SlideTheme, t: TranslateFn, overrides?: Record<string, unknown>): AnySlideElement {
   return createTextElement({
     id: uid('title'),
-    content: t('editor-placeholder-title'),
+    content: '',
+    placeholderText: t('editor-placeholder-title'),
     position: { x: MARGIN, y: MARGIN },
     size: { width: CANVAS_W - MARGIN * 2, height: TITLE_HEIGHT },
     fontSize: getLayoutTitleFontSize(theme),
@@ -136,7 +137,8 @@ function titleElement(theme: SlideTheme, t: TranslateFn, overrides?: Record<stri
 function subtitleElement(theme: SlideTheme, t: TranslateFn, overrides?: Record<string, unknown>): AnySlideElement {
   return createTextElement({
     id: uid('subtitle'),
-    content: t('editor-placeholder-subtitle'),
+    content: '',
+    placeholderText: t('editor-placeholder-subtitle'),
     fontSize: getSubtitlePlaceholderFontSize(theme),
     fontWeight: 'normal',
     fontFamily: getThemeTextFontFamily(theme),
@@ -166,6 +168,14 @@ function bodyTextElement(theme: SlideTheme, content: string, overrides?: Record<
 function listTextElement(theme: SlideTheme, content: string, overrides?: Record<string, unknown>): AnySlideElement {
   const baseElement = bodyTextElement(theme, content, overrides) as TextElement
   const lines = splitSeedLines(content)
+
+  if (lines.length === 0) {
+    return {
+      ...baseElement,
+      content: '',
+      paragraphs: undefined
+    }
+  }
 
   return {
     ...baseElement,
@@ -208,7 +218,8 @@ function titleSlideLayout(masterId: string, theme: SlideTheme, t: TranslateFn): 
     elements: [
       createTextElement({
         id: uid('title'),
-        content: t('layout-presentation-title'),
+        content: '',
+        placeholderText: t('layout-presentation-title'),
         position: { x: MARGIN + 40, y: 200 },
         size: { width: CANVAS_W - (MARGIN + 40) * 2, height: 100 },
         fontSize: 52,
@@ -245,7 +256,8 @@ function titleContentLayout(masterId: string, theme: SlideTheme, t: TranslateFn)
         strokeColor: 'transparent',
         zIndex: 0
       }),
-      listTextElement(theme, t('layout-key-points'), {
+      listTextElement(theme, '', {
+        placeholderText: t('layout-key-points'),
         position: { x: MARGIN, y: CONTENT_TOP },
         size: { width: CANVAS_W - MARGIN * 2, height: CANVAS_H - CONTENT_TOP - MARGIN }
       }),
@@ -263,7 +275,8 @@ function sectionHeaderLayout(masterId: string, theme: SlideTheme, t: TranslateFn
     elements: [
       createTextElement({
         id: uid('section-title'),
-        content: t('layout-section-title'),
+        content: '',
+        placeholderText: t('layout-section-title'),
         position: { x: MARGIN + 40, y: 210 },
         size: { width: CANVAS_W - (MARGIN + 40) * 2, height: 90 },
         fontSize: 48,
@@ -285,7 +298,8 @@ function sectionHeaderLayout(masterId: string, theme: SlideTheme, t: TranslateFn
       subtitleElement(theme, t, {
         position: { x: MARGIN + 40, y: 330 },
         size: { width: CANVAS_W - (MARGIN + 40) * 2, height: 60 },
-        content: t('layout-section-description')
+        content: '',
+        placeholderText: t('layout-section-description')
       })
     ]
   }
@@ -309,11 +323,13 @@ function twoContentLayout(masterId: string, theme: SlideTheme, t: TranslateFn): 
         strokeColor: 'transparent',
         zIndex: 0
       }),
-      listTextElement(theme, t('layout-left-column-points'), {
+      listTextElement(theme, '', {
+        placeholderText: t('layout-left-column-points'),
         position: { x: MARGIN, y: CONTENT_TOP },
         size: { width: colWidth, height: CANVAS_H - CONTENT_TOP - MARGIN }
       }),
-      listTextElement(theme, t('layout-right-column-points'), {
+      listTextElement(theme, '', {
+        placeholderText: t('layout-right-column-points'),
         position: { x: MARGIN + colWidth + 40, y: CONTENT_TOP },
         size: { width: colWidth, height: CANVAS_H - CONTENT_TOP - MARGIN }
       }),
@@ -343,7 +359,8 @@ function comparisonLayout(masterId: string, theme: SlideTheme, t: TranslateFn): 
       }),
       createTextElement({
         id: uid('col-header-l'),
-        content: t('layout-option-a'),
+        content: '',
+        placeholderText: t('layout-option-a'),
         position: { x: MARGIN, y: CONTENT_TOP },
         size: { width: colWidth, height: headerH },
         fontSize: getComparisonHeaderFontSize(theme),
@@ -355,7 +372,8 @@ function comparisonLayout(masterId: string, theme: SlideTheme, t: TranslateFn): 
       }),
       createTextElement({
         id: uid('col-header-r'),
-        content: t('layout-option-b'),
+        content: '',
+        placeholderText: t('layout-option-b'),
         position: { x: MARGIN + colWidth + 40, y: CONTENT_TOP },
         size: { width: colWidth, height: headerH },
         fontSize: getComparisonHeaderFontSize(theme),
@@ -365,11 +383,13 @@ function comparisonLayout(masterId: string, theme: SlideTheme, t: TranslateFn): 
         textAlign: 'left',
         verticalAlign: 'middle'
       }),
-      listTextElement(theme, t('layout-strengths'), {
+      listTextElement(theme, '', {
+        placeholderText: t('layout-strengths'),
         position: { x: MARGIN, y: CONTENT_TOP + headerH + 10 },
         size: { width: colWidth, height: CANVAS_H - CONTENT_TOP - headerH - 10 - MARGIN }
       }),
-      listTextElement(theme, t('layout-strengths'), {
+      listTextElement(theme, '', {
+        placeholderText: t('layout-strengths'),
         position: { x: MARGIN + colWidth + 40, y: CONTENT_TOP + headerH + 10 },
         size: { width: colWidth, height: CANVAS_H - CONTENT_TOP - headerH - 10 - MARGIN }
       }),
@@ -430,7 +450,8 @@ function contentCaptionLayout(masterId: string, theme: SlideTheme, t: TranslateF
         strokeColor: 'transparent',
         zIndex: 0
       }),
-      listTextElement(theme, t('layout-main-content-points'), {
+      listTextElement(theme, '', {
+        placeholderText: t('layout-main-content-points'),
         position: { x: MARGIN, y: CONTENT_TOP },
         size: { width: contentW, height: CANVAS_H - CONTENT_TOP - MARGIN }
       }),
@@ -444,7 +465,8 @@ function contentCaptionLayout(masterId: string, theme: SlideTheme, t: TranslateF
         cornerRadius: 8,
         zIndex: 0
       }),
-      bodyTextElement(theme, t('layout-caption-text'), {
+      bodyTextElement(theme, '', {
+        placeholderText: t('layout-caption-text'),
         position: { x: MARGIN + contentW + 56, y: CONTENT_TOP + 16 },
         size: { width: captionW - 32, height: CANVAS_H - CONTENT_TOP - MARGIN - 32 },
         fontSize: getCaptionPlaceholderFontSize(theme),
@@ -481,7 +503,8 @@ function pictureCaptionLayout(masterId: string, theme: SlideTheme, t: TranslateF
       }),
       createTextElement({
         id: uid('caption-title'),
-        content: t('layout-image-caption'),
+        content: '',
+        placeholderText: t('layout-image-caption'),
         position: { x: MARGIN + imgW + 40, y: CONTENT_TOP },
         size: { width: captionW, height: 50 },
         fontSize: getComparisonHeaderFontSize(theme),
@@ -491,7 +514,8 @@ function pictureCaptionLayout(masterId: string, theme: SlideTheme, t: TranslateF
         textAlign: 'left',
         verticalAlign: 'top'
       }),
-      bodyTextElement(theme, t('layout-image-description'), {
+      bodyTextElement(theme, '', {
+        placeholderText: t('layout-image-description'),
         position: { x: MARGIN + imgW + 40, y: CONTENT_TOP + 60 },
         size: { width: captionW, height: CANVAS_H - CONTENT_TOP - 60 - MARGIN },
         fontSize: getCaptionPlaceholderFontSize(theme),

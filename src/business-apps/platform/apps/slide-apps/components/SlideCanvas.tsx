@@ -24,7 +24,12 @@ import type {
   Position,
   Size
 } from './slideElements'
-import { gradientToCss, getImageCropStyles, textElementStubForShapeInText } from './slideElements'
+import {
+  gradientToCss,
+  getImageCropStyles,
+  textElementHasVisibleContent,
+  textElementStubForShapeInText
+} from './slideElements'
 import { ensureImportedWebFonts } from './fontStack'
 
 // Webfonts commonly referenced by imported decks (Roboto, Funnel Display,
@@ -55,6 +60,26 @@ const hexToRgba = (hex: string, alpha: number): string => {
   const g = Number.parseInt(cleanHex.substring(2, 4), 16)
   const b = Number.parseInt(cleanHex.substring(4, 6), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function renderTextPlaceholder(element: TextElement, isPresenting: boolean) {
+  if (!element.placeholderText || isPresenting) return null
+
+  return (
+    <div
+      style={{
+        ...getRichTextBoxStyle(element),
+        color: hexToRgba(element.color, 0.55),
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        userSelect: 'none',
+        pointerEvents: 'none'
+      }}
+      aria-hidden="true"
+    >
+      {element.placeholderText}
+    </div>
+  )
 }
 
 /**
@@ -1492,15 +1517,19 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                     </>
                   ) : (
                     <div style={getRichTextBoxStyle(textEl)}>
-                      {textEl.paragraphs && textEl.paragraphs.length > 0 ? (
-                        <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
+                      {textElementHasVisibleContent(textEl) ? (
+                        textEl.paragraphs && textEl.paragraphs.length > 0 ? (
+                          <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
+                        ) : (
+                          <TextWithLinks
+                            content={textEl.content}
+                            links={textEl.links ?? []}
+                            isPresenting={isPresenting}
+                            onLinkClick={onLinkClick}
+                          />
+                        )
                       ) : (
-                        <TextWithLinks
-                          content={textEl.content}
-                          links={textEl.links ?? []}
-                          isPresenting={isPresenting}
-                          onLinkClick={onLinkClick}
-                        />
+                        renderTextPlaceholder(textEl, isPresenting)
                       )}
                     </div>
                   )}
