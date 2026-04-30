@@ -467,7 +467,7 @@ translation-language-ko = Korean
 translation-language-ar = Arabic
 
 # Quick Access
-qa-all-notes = All Notes
+qa-all-notes = My Notes
 qa-favorites = Favorites
 qa-pinned = Pinned
 qa-shared = Shared with Me

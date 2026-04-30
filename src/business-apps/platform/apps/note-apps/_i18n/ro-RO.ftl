@@ -487,7 +487,7 @@ translation-language-ko = Coreeană
 translation-language-ar = Arabă
 
 # Quick Access
-qa-all-notes = Toate notițele
+qa-all-notes = Notițele mele
 qa-favorites = Favorite
 qa-pinned = Fixate
 qa-shared = Partajate cu mine

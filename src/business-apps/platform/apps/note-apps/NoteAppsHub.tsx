@@ -228,7 +228,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const isFolder = (n: NoteSummary) => n.icon === '📁'
   const quickAccessCounts = useMemo(
     () => ({
-      'all-notes': myNotes.filter(n => !isFolder(n)).length + sharedNotes.filter(n => !isFolder(n)).length,
+      'all-notes': myNotes.filter(n => !isFolder(n)).length,
       favorites: Array.from(favorites).filter(id => notes.some(n => n.id === id && !isFolder(n))).length,
       pinned: pinnedNotes.filter(n => !isFolder(n)).length,
       shared: sharedNotes.filter(n => !isFolder(n)).length,
@@ -812,6 +812,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       width={sidebar.width}
       isResizing={sidebar.isResizing}
       tree={noteTree.tree}
+      recentNotes={recentNotes}
       expandedIds={noteTree.expandedIds}
       selectedId={noteTree.selectedId}
       isLoadingTree={noteTree.isLoading}
