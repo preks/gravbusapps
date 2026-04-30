@@ -1,13 +1,13 @@
-import React, { useCallback, useRef, useState } from 'react'
+import React from 'react'
 import { Button, useTranslation } from '@newwork/nw-design-system'
 import { PlusIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import translations from '../_i18n'
-import { useEmailCrmSuggestions, type CrmEntityMatch } from '../hooks/useEmailCrmSuggestions'
+import type { CrmEntityMatch } from '../hooks/useEmailCrmSuggestions'
 import { CrmEntityRow } from './CrmEntityRow'
 import type { EmailAccount, EmailMessage } from '../types'
-import { EmailCrmSuggestionPanel } from './EmailCrmSuggestionSections'
+import { EmailCrmSuggestionContainer, buildEmailCrmSuggestionLabels } from './EmailCrmSuggestionSections'
 
 interface EmailCrmRecordingSectionProps {
   message: EmailMessage
@@ -46,36 +46,6 @@ export const EmailCrmRecordingSection: React.FC<EmailCrmRecordingSectionProps> =
   'data-testid': testId = 'email-crm-recording'
 }) => {
   const { t } = useTranslation(translations)
-  const searchInputRef = useRef<HTMLInputElement>(null)
-  const [showMoreOptions, setShowMoreOptions] = useState(false)
-
-  const {
-    ownedEntities,
-    emailMatches,
-    searchResults,
-    counterpartyEmails,
-    ownedLoading,
-    emailLoading,
-    searchLoading,
-    searchTerm,
-    handleSearch
-  } = useEmailCrmSuggestions({
-    message,
-    accessToken,
-    activeAccount,
-    employeeId,
-    isExpanded: true,
-    t
-  })
-
-  const handleToggleMore = useCallback(() => {
-    setShowMoreOptions(prev => !prev)
-  }, [])
-
-  const emailMatchIds = new Set(emailMatches.map(e => e.id))
-  const filteredOwned = ownedEntities.filter(e => !emailMatchIds.has(e.id))
-  const allShownIds = new Set([...emailMatchIds, ...filteredOwned.map(e => e.id)])
-  const filteredSearchResults = searchResults.filter(e => !allShownIds.has(e.id))
 
   const renderRow = (entity: CrmEntityMatch, rowTestIdPrefix: string) => (
     <CrmEntityRow
@@ -119,36 +89,15 @@ export const EmailCrmRecordingSection: React.FC<EmailCrmRecordingSectionProps> =
         {t('crm-record-activity')}
       </p>
 
-      <EmailCrmSuggestionPanel
-        counterpartyEmails={counterpartyEmails}
-        emailLoading={emailLoading}
-        emailMatches={emailMatches}
-        showMoreOptions={showMoreOptions}
-        ownedLoading={ownedLoading}
-        filteredOwned={filteredOwned}
-        searchLoading={searchLoading}
-        searchTerm={searchTerm}
-        filteredSearchResults={filteredSearchResults}
-        searchInputRef={searchInputRef}
-        onToggleMore={handleToggleMore}
-        handleSearch={handleSearch}
-        labels={{
-          matchesFor: t('crm-matches-for'),
-          searching: t('crm-searching'),
-          empty: t('crm-no-records'),
-          noCounterparty: t('crm-no-counterparty'),
-          hideOptions: t('crm-hide-options'),
-          showOptions: t('crm-choose-record'),
-          ownedCount: filteredOwned.length > 0 ? t('crm-owned-count', { count: filteredOwned.length }) : null,
-          yourRecords: t('crm-your-records'),
-          loadingRecords: t('crm-loading-records'),
-          searchTitle: t('crm-search-any'),
-          searchPlaceholder: t('crm-search-placeholder'),
-          searchLoading: t('crm-search-loading'),
-          noResults: query => t('crm-no-results', { query })
-        }}
+      <EmailCrmSuggestionContainer
+        message={message}
+        accessToken={accessToken}
+        activeAccount={activeAccount}
+        employeeId={employeeId}
+        labels={buildEmailCrmSuggestionLabels(t, 'recording')}
         renderRow={renderRow}
         manualRecordAction={manualRecordAction}
+        t={t}
         testId={testId}
       />
     </div>
