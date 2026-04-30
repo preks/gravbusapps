@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { workingConditionQuery } from '../queries/workingCondition'
 import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext'
@@ -14,9 +14,9 @@ export interface WorkingConditionKpi {
   employmentType?: { value: string } | null
   contractType?: { value: string } | null
   region?: { value: string } | null
-  remote?: any
+  remote?: { value: boolean | string } | null
   probationEnd?: string | null
-  currency?: { value: string } | null
+  currency?: { code?: string; value?: string } | null
 }
 
 export interface WorkingConditionKpiResult {
@@ -33,28 +33,49 @@ export const useWorkingConditionForecast = (props: BusinessAppContextProps): Wor
   const [error, setError] = useState<any>(null)
 
   const client = useGraphqlClient(props.accessToken)
-
-  useEffect(() => {
-    setLoading(true)
-    // Calculate current year range
+  const { yearStart, yearEnd } = useMemo(() => {
     const now = new Date()
     const year = now.getFullYear()
-    const yearStart = `${year}-01-01`
-    const yearEnd = `${year}-12-31`
+
+    return {
+      yearStart: `${year}-01-01`,
+      yearEnd: `${year}-12-31`
+    }
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    setLoading(true)
     client
       .request(workingConditionQuery, {
         yearStart,
         yearEnd
       })
       .then((res: any) => {
+        if (!isMounted) {
+          return
+        }
+
         setData(res.EmployeeWorkingCondition || [])
         setCount(res.EmployeeWorkingConditionAggregate?.aggregate?.count || 0)
         setError(null)
       })
-      .catch(setError)
-      .finally(() => setLoading(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.accessToken])
+      .catch((error) => {
+        if (isMounted) {
+          setError(error)
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [client, yearEnd, yearStart])
 
   return { data, count, loading, error }
 }
