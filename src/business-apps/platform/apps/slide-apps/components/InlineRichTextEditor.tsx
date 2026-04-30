@@ -1,6 +1,6 @@
 import React, { useCallback, useLayoutEffect, useRef } from 'react'
 import type { TextElement } from './slideElements'
-import { normalizeRichTextParagraphs, type RichTextSelectionRange } from '../utils/richTextEditing'
+import { getTextEditDelta, normalizeRichTextParagraphs, type RichTextSelectionRange } from '../utils/richTextEditing'
 import {
   getRichTextBoxStyle,
   getRichTextParagraphMarker,
@@ -27,6 +27,13 @@ function sortSelectionRange(range: RichTextSelectionRange): RichTextSelectionRan
     start: Math.min(range.start, range.end),
     end: Math.max(range.start, range.end)
   }
+}
+
+function getSelectionRangeAfterInput(previousContent: string, nextContent: string): RichTextSelectionRange {
+  const editDelta = getTextEditDelta(previousContent, nextContent)
+  const caretOffset = editDelta.start + editDelta.insertedLength
+
+  return { start: caretOffset, end: caretOffset }
 }
 
 function serializeEditorNode(node: Node): string {
@@ -463,8 +470,9 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
       data-testid={testId}
       onInput={event => {
         const target = event.currentTarget as HTMLElement
+        const previousValue = latestElementRef.current.content
         const value = serializeEditorText(target)
-        const range = readSelection()
+        const range = value === previousValue ? readSelection() : getSelectionRangeAfterInput(previousValue, value)
         lastSelectionRef.current = range
         onTextChange(value)
         onSelectionChange(range)

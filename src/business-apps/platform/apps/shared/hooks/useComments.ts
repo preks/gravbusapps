@@ -51,6 +51,23 @@ export interface UseCommentsActions {
 
 export interface UseCommentsReturn extends UseCommentsState, UseCommentsActions {}
 
+function flattenCommentThreads(comments: Comment[]): Comment[] {
+  const commentsById = new Map<string, Comment>()
+
+  comments.forEach(comment => {
+    commentsById.set(comment.id, comment)
+
+    comment.replies?.forEach(reply => {
+      commentsById.set(reply.id, {
+        ...reply,
+        parentId: reply.parentId ?? comment.id
+      })
+    })
+  })
+
+  return Array.from(commentsById.values())
+}
+
 /**
  * Hook for managing comments
  *
@@ -89,7 +106,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
 
       try {
-        const comments = await apiService.listComments(entityId, queryOptions)
+        const comments = flattenCommentThreads(await apiService.listComments(entityId, queryOptions))
         const unresolvedCount = comments.filter(c => !c.resolvedAt && !c.parentId).length
 
         setState(prev => ({

@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { useComments } from './useComments'
 import type { Comment } from '../types/versioning'
 
@@ -22,6 +22,59 @@ class FakeSocket {
 }
 
 describe('useComments', () => {
+  it('flattens loaded reply threads so panels can render replies after refresh', async () => {
+    const parentComment: Comment = {
+      id: 'comment-1',
+      entityId: 'note-1',
+      entityType: 'note',
+      type: 'document',
+      content: 'Parent comment',
+      createdBy: 'user-1',
+      createdAt: '2026-04-29T16:00:00.000Z',
+      replies: [
+        {
+          id: 'reply-1',
+          entityId: 'note-1',
+          entityType: 'note',
+          type: 'document',
+          content: 'Reply comment',
+          createdBy: 'user-2',
+          createdAt: '2026-04-29T16:01:00.000Z',
+          parentId: 'comment-1'
+        }
+      ]
+    }
+
+    const apiService = {
+      createComment: jest.fn(),
+      listComments: jest.fn<Promise<Comment[]>, [string, unknown?]>().mockResolvedValue([parentComment]),
+      updateComment: jest.fn(),
+      resolveComment: jest.fn(),
+      deleteComment: jest.fn(),
+      replyToComment: jest.fn()
+    }
+
+    const { result } = renderHook(() =>
+      useComments({
+        entityId: 'note-1',
+        entityType: 'note',
+        apiService
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.comments).toEqual([
+        parentComment,
+        expect.objectContaining({
+          id: 'reply-1',
+          parentId: 'comment-1',
+          content: 'Reply comment'
+        })
+      ])
+      expect(result.current.unresolvedCount).toBe(1)
+    })
+  })
+
   it('reloads comments when a live comment event arrives', async () => {
     const socket = new FakeSocket()
     const createdComment: Comment = {
@@ -40,19 +93,21 @@ describe('useComments', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([createdComment])
 
+    const apiService = {
+      createComment: jest.fn(),
+      listComments,
+      updateComment: jest.fn(),
+      resolveComment: jest.fn(),
+      deleteComment: jest.fn(),
+      replyToComment: jest.fn()
+    }
+
     const { result } = renderHook(() =>
       useComments({
         entityId: 'note-1',
         entityType: 'note',
         socket: socket as never,
-        apiService: {
-          createComment: jest.fn(),
-          listComments,
-          updateComment: jest.fn(),
-          resolveComment: jest.fn(),
-          deleteComment: jest.fn(),
-          replyToComment: jest.fn()
-        }
+        apiService
       })
     )
 
@@ -61,11 +116,13 @@ describe('useComments', () => {
       expect(result.current.comments).toEqual([])
     })
 
-    socket.fire('comment:created', {
-      comment: {
-        id: createdComment.id
-      },
-      timestamp: Date.now()
+    act(() => {
+      socket.fire('comment:created', {
+        comment: {
+          id: createdComment.id
+        },
+        timestamp: Date.now()
+      })
     })
 
     await waitFor(() => {
