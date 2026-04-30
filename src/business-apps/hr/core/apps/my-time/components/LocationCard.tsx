@@ -30,8 +30,9 @@ interface LocationCardProps {
   readonly homeNeedsReview?: boolean
   /**
    * True when the office siteLocation has no stored coordinates. Same tooltip
-   * behaviour as `homeNeedsReview`. Currently always true until the SiteLocation
-   * backend ships the latitude/longitude columns.
+   * behaviour as `homeNeedsReview` — most commonly fires for legacy SiteLocation
+   * records that were never resaved through the change-site-location form and so
+   * still lack the lat/lng columns.
    */
   readonly officeNeedsReview?: boolean
 }
@@ -105,7 +106,17 @@ export const LocationCard: React.FC<LocationCardProps> = ({
               <span className="gba:text-base gba:font-semibold" data-testid="timeclock-location-value">
                 {t('location_not_clocked_in')}
               </span>
-              <span className="gba:text-sm gba:text-muted-foreground" data-testid="timeclock-location-placeholder">
+              {/*
+                Match the active-state link button's vertical rhythm so the card
+                doesn't shrink while the location is still loading. The link
+                button (variant="link" size="sm") contributes ~6px of vertical
+                padding around its text; mirror that here on the placeholder
+                span via my-1.5 so both states render at the same height.
+              */}
+              <span
+                className="gba:my-1.5 gba:text-sm gba:text-muted-foreground"
+                data-testid="timeclock-location-placeholder"
+              >
                 {t('location_placeholder')}
               </span>
             </>

@@ -1,11 +1,11 @@
 /**
  * Query to fetch employee site/office location from Employee -> employeePosition -> siteLocation.
  *
- * NOTE: SiteLocation does not yet carry latitude / longitude columns — that work is in
- * progress on the backend. Once those columns and the corresponding GraphQL fields ship,
- * add `latitude` and `longitude` to the `siteLocation` selection here. Until then, the
- * clock-in geo service treats office coords as missing and shows the
- * "address needs review" warning in the location card (this is by design).
+ * `latitude` / `longitude` are populated by the change-site-location form via the
+ * Geoapify autocomplete component. Legacy rows that pre-date that work (or that
+ * were never re-saved) will return null for both, in which case the clock-in geo
+ * service skips the "is near office" comparison and the location card surfaces an
+ * "address needs review" warning so an admin / employee fixes the record.
  */
 export const GET_EMPLOYEE_SITE_LOCATION = /*sql*/ `
   query GetEmployeeSiteLocation($employeeId: uuid!) {
@@ -20,6 +20,8 @@ export const GET_EMPLOYEE_SITE_LOCATION = /*sql*/ `
           postalCode
           regionRef
           structureId
+          latitude
+          longitude
         }
       }
     }
