@@ -4,7 +4,7 @@ import { Separator, Spinner, Alert, AlertDescription, Badge, useTranslation } fr
 import { DotsThreeVerticalIcon } from '@phosphor-icons/react'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { ExpenseItem, useGetExpenseItem } from '../../../../hooks/useGetExpenseItems'
-import { getExpenseItemStatusDisplay } from '../../../../utils'
+import { getExpenseItemStatusDisplayT } from '../../../../utils'
 import { AppAction } from '@/components/app-action'
 import { generateExpenseItemActions } from '../../../../utils/expenseItemActions'
 import { DetailsPanelContent } from '@/business-apps/fin/expenses/common/components/details-panel/DetailsPanelContent'
@@ -83,7 +83,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
   const displayItem = detailedItem || selectedItem
   if (!displayItem) return null
 
-  const statusConfig = getExpenseItemStatusDisplay(displayItem.status)
+  const statusConfig = getExpenseItemStatusDisplayT(t, displayItem.status)
   const statusBadge = (
     <Badge variant={statusConfig.badgeVariant ?? 'outline'} data-testid="expense-item-status-badge">
       {statusConfig.label}
@@ -99,7 +99,8 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
       accessToken: contextProps.accessToken || '',
       onClose: onClose
     },
-    { includeDetails: false, includeAssignToRequest: true }
+    { includeDetails: false, includeAssignToRequest: true },
+    t
   )
 
   return (

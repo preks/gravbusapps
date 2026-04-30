@@ -1,7 +1,9 @@
+import { useTranslation } from '@newwork/nw-design-system'
 import { AppAction } from '@/components/app-action'
 import React, { useCallback } from 'react'
 import type { ExpenseItem } from '../../../../hooks/useGetExpenseItems'
 import { generateExpenseItemActions } from '../../../../utils/expenseItemActions'
+import personalTranslations from '../../../../_i18n'
 import { RowActionsWrapper, RowActionsIcon } from '../../../shared/TableSharedComponents'
 import { EXPENSE_ITEMS_TABLE_DATA_TEST_ID_PREFIX } from './expenseItemColumns'
 
@@ -16,6 +18,8 @@ export function useExpenseItemRowActions({
   accessToken,
   onSelectItem
 }: Readonly<UseExpenseItemRowActionsParams>) {
+  const { t } = useTranslation(personalTranslations)
+
   return useCallback(
     (row: { original: ExpenseItem }) => {
       const record = row.original
@@ -26,7 +30,8 @@ export function useExpenseItemRowActions({
             customActions={generateExpenseItemActions(
               record,
               { employeeId, accessToken },
-              { includeDetails: true, includeAssignToRequest: true }
+              { includeDetails: true, includeAssignToRequest: true },
+              t
             ).map(action => {
               if (action.key === 'view-expense-item-details') {
                 return {
@@ -48,6 +53,6 @@ export function useExpenseItemRowActions({
         </RowActionsWrapper>
       )
     },
-    [employeeId, accessToken, onSelectItem]
+    [employeeId, accessToken, onSelectItem, t]
   )
 }

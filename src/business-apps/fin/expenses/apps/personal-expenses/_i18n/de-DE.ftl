@@ -126,6 +126,7 @@ expense-status-created = Erstellt
 expense-status-discarded = Verworfen
 expense-status-returned = Zurückgegeben
 expense-status-pending = Ausstehend
+expense-status-flow-open = Offen
 
 expense-items-no-rows = Keine Ausgabeposten gefunden. Erstellen Sie Ihren ersten Ausgabeposten, um zu beginnen.
 expense-items-from-date = Von
@@ -145,10 +146,19 @@ expense-items-column-status = Status
 expense-items-column-attachment = Anhang
 expense-items-column-reimbursable = Erstattungsfähiger Betrag
 expense-items-btn-add = Hinzufügen
+
+expense-items-row-category-actions = Aktionen
+expense-items-row-category-navigations = Navigationen
+expense-items-row-update-item = Spesenposten aktualisieren
+expense-items-row-delete-item = Spesenposten löschen
+expense-items-row-view-details = Spesenpostendetails anzeigen
+
 expense-items-create-expense-request = Spesenabrechnung erstellen
 expense-items-delete-selection = Auswahl löschen
 expense-items-breadcrumb = Spesenposten
 expense-items-search-placeholder = Suche...
+expense-items-currency-label = Währung
+expense-items-currency-all = Alle Währungen
 expense-items-sheet-title = Postendetails
 expense-items-error-loading-title = Fehler beim Laden der Ausgabeposten
 expense-items-retry = Erneut versuchen

@@ -135,6 +135,7 @@ expense-status-created = Created
 expense-status-discarded = Discarded
 expense-status-returned = Returned
 expense-status-pending = Pending
+expense-status-flow-open = Open
 
 # Items list, filters, table (personal_expenses, expense_item_list, expense_request_list, employee_list, create_expense_request, approve_expense_request, expense_plan_list, travel_region_rule, create_expense_item)
 expense-items-no-rows = No expense items found. Create your first expense item to get started.
@@ -155,10 +156,21 @@ expense-items-column-status = Status
 expense-items-column-attachment = Attachment
 expense-items-column-reimbursable = Reimbursable Amount
 expense-items-btn-add = Add
+
+# Row actions (employee_list.flows_button + create_expense_item + discard_expense_items + expense_item_request_card)
+expense-items-row-category-actions = Actions
+expense-items-row-category-navigations = Navigations
+expense-items-row-update-item = Update Expense Item
+expense-items-row-delete-item = Delete Expense Item
+expense-items-row-view-details = View Item Details
+
 expense-items-create-expense-request = Create Expense Request
 expense-items-delete-selection = Delete Selection
 expense-items-breadcrumb = Expense Items
 expense-items-search-placeholder = Search...
+# create_expense_item.change_expense_item_container.current_currency_label + manager_expense_landing_page.all_currencies (dropdown)
+expense-items-currency-label = Currency
+expense-items-currency-all = All Currencies
 expense-items-sheet-title = Expense Item Details
 expense-items-error-loading-title = Error Loading Expense Items
 expense-items-retry = Retry

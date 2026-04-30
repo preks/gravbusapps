@@ -3,6 +3,7 @@ export {
   type StatusDisplayConfig,
   type StatusBadgeVariant,
   getExpenseItemStatusDisplay,
+  getExpenseItemStatusDisplayT,
   getExpensePlanStatusDisplay,
   getExpenseRequestStatusDisplay,
   getAdvancePaymentStatusDisplay

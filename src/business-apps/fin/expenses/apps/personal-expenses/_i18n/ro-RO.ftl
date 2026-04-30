@@ -126,6 +126,7 @@ expense-status-created = Creat
 expense-status-discarded = Renunțat
 expense-status-returned = Returnat
 expense-status-pending = În așteptare
+expense-status-flow-open = Deschis
 
 expense-items-no-rows = Nu s-au găsit elemente de cheltuieli. Creează primul element pentru a începe.
 expense-items-from-date = De la
@@ -145,10 +146,19 @@ expense-items-column-status = Status
 expense-items-column-attachment = Atașament
 expense-items-column-reimbursable = Sumă rambursabilă
 expense-items-btn-add = Adăugați
+
+expense-items-row-category-actions = Acțiuni
+expense-items-row-category-navigations = Navigare
+expense-items-row-update-item = Actualizați Elemente de Cheltuială
+expense-items-row-delete-item = Ștergeți Elementul de Cheltuială
+expense-items-row-view-details = Vezi detaliile elementului de cheltuială
+
 expense-items-create-expense-request = Creați Cerere de Decont
 expense-items-delete-selection = Ștergeți selecția
 expense-items-breadcrumb = Elemente Cheltuială
 expense-items-search-placeholder = Căutați...
+expense-items-currency-label = Moneda
+expense-items-currency-all = Toate monedele
 expense-items-sheet-title = Detalii element cheltuială
 expense-items-error-loading-title = Eroare la încărcarea elementelor de cheltuieli
 expense-items-retry = Reîncearcă

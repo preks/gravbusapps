@@ -4,7 +4,7 @@ import { Checkbox, Badge } from '@newwork/nw-design-system'
 import { FileTextIcon, ImageIcon } from '@phosphor-icons/react'
 import { formatDate } from '@/common/utils/windowUtils'
 import type { ExpenseItem } from '../../../../hooks/useGetExpenseItems'
-import { formatCurrencyDisplay, getExpenseItemStatusDisplay } from '../../../../utils'
+import { formatCurrencyDisplay, getExpenseItemStatusDisplayT } from '../../../../utils'
 
 export const EXPENSE_ITEMS_TABLE_DATA_TEST_ID_PREFIX = 'ExpenseItemsTable'
 
@@ -72,8 +72,8 @@ function ExpenseItemExpenseDateCell({ record }: Readonly<{ record: ExpenseItem }
   )
 }
 
-function ExpenseItemStatusCell({ record }: Readonly<{ record: ExpenseItem }>) {
-  const statusConf = getExpenseItemStatusDisplay(record.status)
+function ExpenseItemStatusCell({ record, t }: Readonly<{ record: ExpenseItem; t: (key: string) => string }>) {
+  const statusConf = getExpenseItemStatusDisplayT(t, record.status)
   return (
     <Badge variant={statusConf.badgeVariant || 'outline'} data-testid="expense-status-cell">
       {statusConf.label}
@@ -108,9 +108,6 @@ function renderItemTitleCell(info: CellContext<ExpenseItem, unknown>) {
 function renderItemExpenseDateCell(info: CellContext<ExpenseItem, unknown>) {
   return <ExpenseItemExpenseDateCell record={info.row.original} />
 }
-function renderItemStatusCell(info: CellContext<ExpenseItem, unknown>) {
-  return <ExpenseItemStatusCell record={info.row.original} />
-}
 function renderItemAttachmentCell(info: CellContext<ExpenseItem, unknown>) {
   return <ExpenseItemAttachmentCell record={info.row.original} />
 }
@@ -135,6 +132,10 @@ export function createExpenseItemColumns({
   expenseDateLabel,
   t
 }: CreateExpenseItemColumnsParams): ColumnDef<ExpenseItem>[] {
+  const renderItemStatusCell = (info: CellContext<ExpenseItem, unknown>) => (
+    <ExpenseItemStatusCell record={info.row.original} t={t} />
+  )
+
   return [
     {
       id: 'selection',

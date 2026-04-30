@@ -41,6 +41,8 @@ export function ExpenseItemsSecondaryActions({
           selectedCurrency={selectedCurrencyCode === 'ALL' ? null : selectedCurrencyCode}
           onCurrencyChange={onCurrencyChange}
           testIdPrefix="expense-items"
+          currencyLabelText={t('expense-items-currency-label')}
+          allCurrenciesOptionText={t('expense-items-currency-all')}
         />
       )}
       {selectedCount > 0 && (
