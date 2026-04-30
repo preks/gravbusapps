@@ -5,7 +5,6 @@ import translations from '../_i18n'
 import { Mail, Loader2 } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import { EmailThreadView } from './EmailThreadView'
-import { EmailCrmBooking } from './EmailCrmBooking'
 import { useSenderAvatar } from '../hooks/useSenderAvatar'
 import { useAttachmentDownload } from '../hooks/useAttachmentDownload'
 import { useEmailThreadMessages } from '../hooks/useEmailThreadMessages'
@@ -237,6 +236,8 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
             messages={threadMessages}
             accessToken={accessToken}
             primaryMessage={message ?? undefined}
+            activeAccount={activeAccount}
+            employeeId={employeeId}
             initiatorUserId={initiatorUserId}
             data-testid={`${testId}-thread`}
           />
@@ -247,25 +248,14 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
             downloadingAttId={downloadingAttId}
             onDownloadAttachment={handleDownloadAttachment}
             accessToken={accessToken}
+            activeAccount={activeAccount}
+            employeeId={employeeId}
             initiatorUserId={initiatorUserId}
             t={t}
             testId={testId}
           />
         )}
       </div>
-
-      {/* CRM Booking Panel */}
-      {accessToken && (
-        <EmailCrmBooking
-          message={message}
-          threadMessages={showThread ? threadMessages : undefined}
-          accessToken={accessToken}
-          activeAccount={activeAccount}
-          employeeId={employeeId}
-          initiatorUserId={initiatorUserId}
-          data-testid={`${testId}-crm-booking`}
-        />
-      )}
     </div>
   )
 }
