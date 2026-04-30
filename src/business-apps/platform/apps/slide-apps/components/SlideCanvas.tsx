@@ -778,6 +778,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         // Only handle element drag/resize here (marquee is handled inline in handleCanvasMouseDown)
         if (selectedIds.size === 0 || !elementStart) return
 
+        const mouseDownElement = mouseDownElementRef.current
+        if (isDragging && mouseDownElement) {
+          const dx = Math.abs(e.clientX - mouseDownElement.x)
+          const dy = Math.abs(e.clientY - mouseDownElement.y)
+          if (dx < CLICK_MOVE_THRESHOLD && dy < CLICK_MOVE_THRESHOLD) return
+        }
+
         const currentX = e.clientX / scale
         const currentY = e.clientY / scale
 
@@ -1168,31 +1175,33 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     const renderMoveEdges = (
       elementId: string,
       testIdPrefix: string,
-      onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void
+      onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void,
+      placement: 'centered' | 'outside' = 'centered'
     ) => {
       const edgeThickness = 12 / scale
+      const edgeOffset = placement === 'outside' ? edgeThickness : edgeThickness / 2
       const edgeStyles: Record<'top' | 'right' | 'bottom' | 'left', React.CSSProperties> = {
         top: {
-          top: -edgeThickness / 2,
+          top: -edgeOffset,
           left: 0,
           right: 0,
           height: edgeThickness
         },
         right: {
           top: 0,
-          right: -edgeThickness / 2,
+          right: -edgeOffset,
           bottom: 0,
           width: edgeThickness
         },
         bottom: {
-          bottom: -edgeThickness / 2,
+          bottom: -edgeOffset,
           left: 0,
           right: 0,
           height: edgeThickness
         },
         left: {
           top: 0,
-          left: -edgeThickness / 2,
+          left: -edgeOffset,
           bottom: 0,
           width: edgeThickness
         }
@@ -1217,7 +1226,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     }
 
     const renderInlineEditingMoveEdges = (elementId: string) => {
-      return renderMoveEdges(elementId, 'slide-inline-editor-move-edge')
+      return renderMoveEdges(elementId, 'slide-inline-editor-move-edge', undefined, 'outside')
     }
 
     const renderElement = (element: AnySlideElement) => {

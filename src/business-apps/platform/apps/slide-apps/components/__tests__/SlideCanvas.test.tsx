@@ -265,6 +265,35 @@ describe('SlideCanvas inline editing drag behavior', () => {
     expect(onEditText).toHaveBeenCalledWith('text-1')
   })
 
+  it('treats tiny pointer movement on a selected text element as a click to edit', () => {
+    const onEditText = jest.fn()
+    const onUpdateElement = jest.fn()
+
+    render(
+      <SlideCanvas
+        elements={[makeTextElement()]}
+        selectedIds={new Set(['text-1'])}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={onUpdateElement}
+        onUpdateMultipleElements={() => {}}
+        onEditText={onEditText}
+      />
+    )
+
+    const textElement = document.querySelector('[data-element-id="text-1"]')
+
+    expect(textElement).not.toBeNull()
+
+    fireEvent.mouseDown(textElement as HTMLElement, { clientX: 150, clientY: 150 })
+    fireEvent.mouseMove(window, { clientX: 152, clientY: 153 })
+    fireEvent.mouseUp(window, { clientX: 152, clientY: 153 })
+    fireEvent.click(textElement as HTMLElement, { clientX: 152, clientY: 153 })
+
+    expect(onUpdateElement).not.toHaveBeenCalled()
+    expect(onEditText).toHaveBeenCalledWith('text-1')
+  })
+
   it('keeps text editor body interactions inside the inline editor', () => {
     const { editor, onDragStart, onDragEnd, onUpdateElement } = renderInlineEditingCanvas(makeTextElement())
 
@@ -273,6 +302,15 @@ describe('SlideCanvas inline editing drag behavior', () => {
     expect(onDragStart).not.toHaveBeenCalled()
     expect(onUpdateElement).not.toHaveBeenCalled()
     expect(onDragEnd).not.toHaveBeenCalled()
+  })
+
+  it('keeps inline editor move edges outside the editable text surface', () => {
+    const { dragEdge } = renderInlineEditingCanvas(makeTextElement())
+
+    expect(dragEdge).toHaveStyle({
+      top: '-12px',
+      height: '12px'
+    })
   })
 
   it('allows dragging a text element from its inline edit edge', () => {
