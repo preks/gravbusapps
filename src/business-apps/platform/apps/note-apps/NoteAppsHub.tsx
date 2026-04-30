@@ -926,10 +926,19 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
               }}
               onBack={handleBack}
               onConvertToText={async text => {
-                await updateNote(currentNote.id, {
+                await NoteApiService.resetYjsState(currentNote.id, {
                   title: currentNote.title,
                   content: `<p>${text.replace(/\n/g, '</p><p>')}</p>`,
-                  contentJson: { _noteType: 'text' }
+                  contentJson: {
+                    _noteType: 'text',
+                    ...(contentJson?._summary ? { _summary: contentJson._summary } : {}),
+                    ...(Array.isArray(contentJson?._translation) && contentJson._translation.length > 0
+                      ? { _translation: contentJson._translation }
+                      : {}),
+                    ...(Array.isArray(contentJson?.actionItemFlows) && contentJson.actionItemFlows.length > 0
+                      ? { actionItemFlows: contentJson.actionItemFlows }
+                      : {})
+                  }
                 })
                 loadNote(currentNote.id)
               }}
@@ -972,8 +981,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
           <NoteEditor
             key={currentNote.id}
             note={currentNote}
-            onSave={async (title, content, contentJson) => {
-              await updateNote(currentNote.id, { title, content, contentJson })
+            onSave={async (title, _content, contentJson) => {
+              await updateNote(currentNote.id, { title, contentJson })
             }}
             onBack={handleBack}
             onTogglePin={() => handleTogglePin(currentNote.id)}
