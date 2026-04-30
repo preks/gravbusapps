@@ -102,6 +102,7 @@ export const Navigation = {
 
   // Core Apps
   EVERY_FABRIC: `${NAVIGATION_BASE_PATH}/every-fabric`,
+  EVERY_FABRIC_SKILLS: `${NAVIGATION_BASE_PATH}/every-fabric/skills`,
 
   // Create
   CREATE: `${NAVIGATION_BASE_PATH}/create`,
@@ -217,6 +218,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // EveryFabric
   [Navigation.EVERY_FABRIC]: 'core/every-fabric/apps/every-fabric',
+  [Navigation.EVERY_FABRIC_SKILLS]: 'core/every-fabric/apps/every-fabric',
 
   // Create
   [Navigation.CREATE]: 'core/create/apps/create-workspace',
