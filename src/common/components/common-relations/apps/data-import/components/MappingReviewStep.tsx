@@ -27,6 +27,23 @@ import {
 } from '@/common/components/common-relations/apps/data-import/types'
 import translations from './MappingReviewStep/_i18n'
 
+function humanizeFieldPath(fieldPath: string): string {
+  const parts = fieldPath.split('.')
+  const lastPart = parts[parts.length - 1]
+  const label = lastPart
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, c => c.toUpperCase())
+    .trim()
+  if (parts.length > 1) {
+    const parent = parts[0]
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, c => c.toUpperCase())
+      .trim()
+    return `${label} (${parent})`
+  }
+  return label
+}
+
 export interface MappingReviewStepProps {
   agentResponse: ImportAnalyzerResponse
   mappings: FieldMapping[]
@@ -99,10 +116,20 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
               <h3 className="gba:text-sm gba:font-semibold gba:mb-2">{t('mapped-fields-title')}</h3>
               <div className="gba:space-y-3">
                 {mappings.map((mapping, index) => {
-                  // Available target fields = all config fields NOT already used by other rows,
-                  // plus the current row's own selection so it stays visible.
                   const usedByOtherRows = new Set(mappings.filter((_, i) => i !== index).map(m => m.targetField))
-                  const availableTargetFields = targetFieldsConfig
+                  const configFieldValues = new Set(targetFieldsConfig.map(tf => tf.value))
+
+                  const backendOnlyFields: TargetFieldDefinition[] = mappings
+                    .filter(m => m.targetField && !configFieldValues.has(m.targetField))
+                    .map(m => ({
+                      value: m.targetField,
+                      label: humanizeFieldPath(m.targetField),
+                      type: 'direct' as const
+                    }))
+                    .filter((tf, i, arr) => arr.findIndex(x => x.value === tf.value) === i)
+
+                  const allTargetFields = [...targetFieldsConfig, ...backendOnlyFields]
+                  const availableTargetFields = allTargetFields
                     .filter(tf => !usedByOtherRows.has(tf.value) || tf.value === mapping.targetField)
                     .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
 

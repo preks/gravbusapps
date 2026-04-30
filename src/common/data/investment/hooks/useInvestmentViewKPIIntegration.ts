@@ -8,14 +8,14 @@ import { getUtcCalendarBoundaries } from '@/common/data/investment/utils/investm
 import { useKPIIntegration } from '@/business-apps/irm/investments/apps/investment-management/views/analytics-view/shared/hooks/useKPIIntegration'
 import { isAllCurrencySelection } from '@/common/data/investment/utils/investmentCurrencySelection'
 
-export type InvestmentViewKPIScope = 'overview' | { groupCode: string }
+export type InvestmentViewKPIScope = 'overview' | { groupId: string }
 
 const ACTIVE_STATUS = { investmentStatus: { value: { _eq: 'Active' } } }
 
 function buildScopeCustomConditions(scope: InvestmentViewKPIScope, selectedCurrency: string): Record<string, any>[] {
   const conditions: Record<string, any>[] = []
   if (scope !== 'overview') {
-    conditions.push({ investmentGroup: { id: { _eq: `InvestmentGroup:v1:${scope.groupCode}` } } })
+    conditions.push({ investmentGroup: { id: { _eq: scope.groupId } } })
   }
   const code = selectedCurrency?.trim() || ''
   if (!isAllCurrencySelection(code)) {
@@ -57,7 +57,7 @@ export function useInvestmentViewKPIIntegration(
 ) {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const scopeKey = scope === 'overview' ? 'overview' : scope.groupCode
+  const scopeKey = scope === 'overview' ? 'overview' : scope.groupId
   const filtersKey = useMemo(() => JSON.stringify(filters ?? {}), [filters])
 
   const fetcher = useCallback(
@@ -66,7 +66,7 @@ export function useInvestmentViewKPIIntegration(
         return { current: EMPTY_KPI, previous: EMPTY_KPI }
       }
 
-      const scopeResolved: InvestmentViewKPIScope = scopeKey === 'overview' ? 'overview' : { groupCode: scopeKey }
+      const scopeResolved: InvestmentViewKPIScope = scopeKey === 'overview' ? 'overview' : { groupId: scopeKey }
 
       const filts = JSON.parse(filtersKey) as Record<string, any>
 

@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { buildWhere, buildOrderBy, type SortInput } from '@/common/network/graphql/queryHelpers'
+import { buildWhere, buildOrderBy, type Descriptor, type SortInput } from '@/common/network/graphql/queryHelpers'
 import { INVESTMENT_DESCRIPTORS, type Investment } from '../types/investmentTypes.new'
 import {
   buildInvestmentFragment,
@@ -165,7 +165,8 @@ export interface UseInvestmentsResult {
 export function useInvestments(
   accessToken: string,
   variables: InvestmentQueryVariables = {},
-  config: string | string[] = 'list'
+  config: string | string[] = 'list',
+  sortDescriptors: Descriptor[] = INVESTMENT_DESCRIPTORS
 ): UseInvestmentsResult {
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -215,8 +216,8 @@ export function useInvestments(
           customConditions
         })
 
-        const orderByArray = buildOrderBy(resolveOrderBy(vars), INVESTMENT_DESCRIPTORS)
-        const includeEquity = config === 'equity'
+        const orderByArray = buildOrderBy(resolveOrderBy(vars), sortDescriptors)
+        const includeEquity = config === 'equity' || (Array.isArray(config) && config.includes('equityInvestment'))
 
         const query = `
           query GetInvestments(
@@ -267,7 +268,7 @@ export function useInvestments(
         })
       }
     },
-    [accessToken, graphqlClient, config, stableVariables] // Use stableVariables, not variables!
+    [accessToken, graphqlClient, config, stableVariables, sortDescriptors] // Use stableVariables, not variables!
   )
 
   // Auto-fetch on mount and when dependencies change

@@ -14,13 +14,15 @@ import { useSenderAvatar } from '../hooks/useSenderAvatar'
 import { getInitials, formatCompactDate } from '../utils/emailDisplayUtils'
 import { EmailMessageBody } from './message/EmailMessageBody'
 import { EmailAttachmentsSection } from './message/EmailAttachmentsSection'
-import type { EmailMessage } from '../types'
+import type { EmailAccount, EmailMessage } from '../types'
 
 interface EmailThreadViewProps {
   messages: EmailMessage[]
   accessToken?: string
   /** Reader’s selected message — used for AI suggestion “create” flows */
   primaryMessage?: EmailMessage | null
+  activeAccount?: EmailAccount | null
+  employeeId?: string
   initiatorUserId?: string
   'data-testid'?: string
 }
@@ -126,6 +128,8 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
   messages,
   accessToken,
   primaryMessage,
+  activeAccount,
+  employeeId,
   initiatorUserId,
   'data-testid': testId = 'email-thread'
 }) => {
@@ -164,6 +168,8 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
           messageCount={sorted.length}
           accessToken={accessToken}
           primaryMessage={primaryMessage ?? undefined}
+          activeAccount={activeAccount}
+          employeeId={employeeId}
           initiatorUserId={initiatorUserId}
           onJumpToMessageIndex={jumpToMessageIndex}
           data-testid={`${testId}-ai-summary`}

@@ -14,6 +14,9 @@ export const INVESTMENT_REPORT = `
   debtFinancingAmount
   requiredCapitalAmount
   stakePercentage
+  initialInvestmentAmount
+  securityQuantity
+  timeWeightedPerformance
   fundManagerName
   identification
   totalInvestmentAmount
@@ -63,6 +66,9 @@ export const INVESTMENT_REPORT = `
     initialInvestmentAmount
     totalInvestmentAmount
     investmentMarketValue
+    securityQuantity
+    timeWeightedPerformance
+    maturityDate
     acquisitionDate
     plannedExitDate
     exitDate

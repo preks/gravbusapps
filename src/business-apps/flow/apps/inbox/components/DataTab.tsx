@@ -1,7 +1,7 @@
 import React from 'react'
 import { Typography } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { PreviousStepData } from '../../creator/components/shared/PreviousStepData'
+import { PreviousStepData } from '@/common/components/flow/flow-execution/PreviousStepData'
 
 const { Text, Title } = Typography
 

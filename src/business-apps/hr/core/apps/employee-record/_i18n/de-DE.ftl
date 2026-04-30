@@ -24,10 +24,12 @@ no-salary-record = Keine Gehaltsaufzeichnung
 
 # Compensation Band
 band-title = Vergütungsstufe
+band-short-label = Stufe
 band-name = Stufenname
 band-salary-range = Gehaltsspanne
 band-pay-grade = Gehaltsstufe
 band-level = Stufe
+band-position-label = Position in der Vergütungsstufe
 band-loading = Vergütungsstufe wird geladen...
 band-no-band-assigned = Keine Vergütungsstufe zugewiesen. Vergütungsstufen sind über Jobstufen verknüpft.
 

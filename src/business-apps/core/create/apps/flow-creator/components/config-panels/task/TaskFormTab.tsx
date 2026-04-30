@@ -1,6 +1,6 @@
 import React from 'react'
 import { FormBuilder } from '../../form-builder'
-import type { InputBlock } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import type { InputBlock } from '@/common/data/flow/types/flowTemplate'
 import type { DesignerMode, TaskNodeConfig } from '../../../types/studioTypes'
 import type { FlowStudioData } from '../../../hooks/useFlowStudioData'
 

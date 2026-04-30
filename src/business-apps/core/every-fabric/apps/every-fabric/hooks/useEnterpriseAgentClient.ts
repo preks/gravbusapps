@@ -228,6 +228,107 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
+  // ── Admin Skills API ───────────────────────────────────────────────────────
+
+  const enc = encodeURIComponent
+
+  const getSkillsManifest = useCallback(async () => {
+    const skills = await client.get<
+      {
+        skill_id: string
+        name: string
+        description: string
+        status: string
+        is_active: boolean
+        file_count: number
+      }[]
+    >('/admin/skills/')
+    return { skills }
+  }, [client])
+
+  const createSkillFromForm = useCallback(
+    (payload: { name: string; description: string; body: string }) =>
+      client.post<{ skill_id: string }>('/admin/skills/', payload),
+    [client]
+  )
+
+  const uploadSkillFile = useCallback(
+    async (file: File): Promise<{ skill_id: string }> => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return client.post<{ skill_id: string }>('/admin/skills/upload', formData)
+    },
+    [client]
+  )
+
+  const saveSkillRaw = useCallback(
+    (skillId: string, content: string) =>
+      client.patch<{ skill_id: string; name: string; description: string; content: string }>(
+        `/admin/skills/${enc(skillId)}`,
+        { content }
+      ),
+    [client]
+  )
+
+  const getSkill = useCallback(
+    (skillId: string) =>
+      client.get<{ skill_id: string; name: string; description: string; content: string; status: string }>(
+        `/admin/skills/${enc(skillId)}`
+      ),
+    [client]
+  )
+
+  const deleteSkill = useCallback((skillId: string) => client.delete(`/admin/skills/${enc(skillId)}`), [client])
+
+  const uploadSkillFiles = useCallback(
+    async (skillId: string, files: File[]) => {
+      const results: { path: string; mime_type: string; size: number }[] = []
+      for (const f of files) {
+        const fd = new FormData()
+        fd.append('file', f)
+        const res = await client.post<{ path: string; size: number }>(
+          `/admin/skills/${enc(skillId)}/files/upload`,
+          fd,
+          { params: { path: f.name } }
+        )
+        results.push({ path: res.path, mime_type: f.type || 'application/octet-stream', size: res.size })
+      }
+      return results
+    },
+    [client]
+  )
+
+  const listSkillFiles = useCallback(
+    (skillId: string) =>
+      client.get<{ path: string; mime_type: string; size: number }[]>(`/admin/skills/${enc(skillId)}/files`),
+    [client]
+  )
+
+  const deleteSkillFile = useCallback(
+    (skillId: string, filename: string) => client.delete(`/admin/skills/${enc(skillId)}/files/${enc(filename)}`),
+    [client]
+  )
+
+  const exportSkillBundle = useCallback(
+    (skillId: string) => client.get<Blob>(`/admin/skills/${enc(skillId)}/export`, { responseType: ResponseType.BLOB }),
+    [client]
+  )
+
+  const submitSkillForReview = useCallback(
+    (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/submit`, {}),
+    [client]
+  )
+
+  const approveSkill = useCallback(
+    (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/approve`, {}),
+    [client]
+  )
+
+  const archiveSkill = useCallback(
+    (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/archive`, {}),
+    [client]
+  )
+
   return useMemo(
     () => ({
       startSession,
@@ -246,7 +347,20 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       installSkill,
       listArtifacts,
       getArtifactUrl,
-      getArtifactContent
+      getArtifactContent,
+      getSkillsManifest,
+      createSkillFromForm,
+      uploadSkillFile,
+      saveSkillRaw,
+      getSkill,
+      deleteSkill,
+      uploadSkillFiles,
+      listSkillFiles,
+      deleteSkillFile,
+      exportSkillBundle,
+      submitSkillForReview,
+      approveSkill,
+      archiveSkill
     }),
     [
       startSession,
@@ -265,7 +379,20 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       installSkill,
       listArtifacts,
       getArtifactUrl,
-      getArtifactContent
+      getArtifactContent,
+      getSkillsManifest,
+      createSkillFromForm,
+      uploadSkillFile,
+      saveSkillRaw,
+      getSkill,
+      deleteSkill,
+      uploadSkillFiles,
+      listSkillFiles,
+      deleteSkillFile,
+      exportSkillBundle,
+      submitSkillForReview,
+      approveSkill,
+      archiveSkill
     ]
   )
 }

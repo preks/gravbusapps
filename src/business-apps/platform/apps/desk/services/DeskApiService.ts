@@ -1,6 +1,8 @@
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { getSpreadsheetApiBasePath } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 
 const API_URL = getDocumentServiceApiUrl()
+const SPREADSHEET_API_BASE_PATH = getSpreadsheetApiBasePath()
 
 export type DeskOverviewItemType = 'document' | 'spreadsheet' | 'note' | 'slide' | 'whiteboard'
 
@@ -69,7 +71,7 @@ async function getOverviewFallback(accessToken: string, limit: number): Promise<
       accessToken
     ),
     fetchJson<PaginatedResponse<BasicListItem>>(
-      `${API_URL}/spreadsheets?includeShared=true&limit=${safeLimit}&page=1`,
+      `${API_URL}${SPREADSHEET_API_BASE_PATH}?includeShared=true&limit=${safeLimit}&page=1`,
       accessToken
     ),
     fetchJson<PaginatedResponse<BasicListItem>>(

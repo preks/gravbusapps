@@ -489,6 +489,22 @@ trash-list-item-restored = Note restored
 trash-list-item-restore-failed = Failed to restore note
 trash-list-item-deleted = Note deleted permanently
 trash-list-item-delete-failed = Failed to delete note permanently
+trash-bulk-selected = { $count } selected
+trash-bulk-restored = { $count } { $count ->
+    [one] note
+   *[other] notes
+  } restored
+trash-bulk-deleted = { $count } { $count ->
+    [one] note
+   *[other] notes
+  } deleted permanently
+trash-delete-dialog-title-single = Delete permanently?
+trash-delete-dialog-title-multiple = Delete { $count } items permanently?
+trash-delete-dialog-description-single = "{ $name }" will be permanently deleted and cannot be restored. This action cannot be undone.
+trash-delete-dialog-description-multiple = { $count } items will be permanently deleted and cannot be restored. This action cannot be undone.
+trash-delete-dialog-cancel = Cancel
+trash-delete-dialog-confirm = Delete permanently
+trash-delete-dialog-deleting = Deleting...
 trashed-readonly-title = This note is in trash
 trashed-readonly-description = "{ $title }" is in trash and opens in view-only mode until it is restored.
 trashed-readonly-owner-note = To edit this note again, take it out of trash.

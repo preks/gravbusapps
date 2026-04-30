@@ -73,7 +73,6 @@ hire-unknown = Necunoscut
 hire-tooltip = Angajat: {$date}
 
 compa-no-band = Fără date bandă salarială
-compa-ratio-label = CR: {$ratio}
 
 filters-toggle-aria = Afișează sau ascunde filtrele
 search-toggle-aria = Caută în echipă
@@ -104,6 +103,7 @@ pagination-prev-aria = Pagina anterioară
 pagination-next-aria = Pagina următoare
 
 manager-team-distribution-method-section = Cum ar trebui împărțit fondul de creștere?
+manager-team-distribution-col-compensation-band = Bandă de compensație
 
 manager-team-save-allocations = Distribuie
 manager-team-submit-proposals-toolbar = Trimite propunerile

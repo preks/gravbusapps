@@ -36,6 +36,12 @@ msg-employee-created = Employee created.
 msg-password-set = Initial password was set.
 msg-password-user-pending = Employee was created but user id could not be resolved yet for password; set password in Keycloak or retry.
 error-create-failed = Failed to create employee
+action-checking-account = Checking…
+error-um-lookup = Could not verify whether a user account already exists. Try again in a moment.
+dialog-existing-user-title = User account already exists
+dialog-existing-user-body = A directory user already matches this email (sign-in email or preferred username). Creating this employee will reuse that existing sign-in account. Do you want to continue?
+dialog-existing-user-confirm = Create employee
+dialog-existing-user-cancel = Cancel
 
 # Edit employee (People + reuse)
 edit-title = Edit employee

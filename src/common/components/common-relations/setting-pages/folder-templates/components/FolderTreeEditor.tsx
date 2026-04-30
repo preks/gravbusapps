@@ -14,8 +14,17 @@ import {
   Spinner,
   toast
 } from '@newwork/nw-design-system'
-import { Folder, Plus, Pencil, Trash, ChevronRight, ChevronDown, GripVertical } from 'lucide-react'
+import {
+  CaretDownIcon,
+  CaretRightIcon,
+  DotsSixVerticalIcon,
+  FolderIcon,
+  PencilSimpleIcon,
+  PlusIcon,
+  TrashIcon
+} from '@phosphor-icons/react'
 import { type FolderNode } from '../types'
+import { DeleteConfirmationDialog } from '../../components/DeleteConfirmationDialog'
 
 export interface FolderTreeEditorProps {
   folders: FolderNode[]
@@ -37,9 +46,9 @@ const getExpandIcon = (hasChildren: boolean, isExpanded: boolean): React.ReactNo
     return <div className="gba:w-4 gba:h-4" />
   }
   if (isExpanded) {
-    return <ChevronDown className="gba:h-4 gba:w-4" />
+    return <CaretDownIcon className="gba:h-4 gba:w-4" />
   }
-  return <ChevronRight className="gba:h-4 gba:w-4" />
+  return <CaretRightIcon className="gba:h-4 gba:w-4" />
 }
 
 export const FolderTreeEditor: React.FC<FolderTreeEditorProps> = ({
@@ -58,6 +67,19 @@ export const FolderTreeEditor: React.FC<FolderTreeEditorProps> = ({
     name: string
     isNew: boolean
   }>({ open: false, path: [], name: '', isNew: false })
+  const [deleteTarget, setDeleteTarget] = useState<
+    | {
+        type: 'folder'
+        path: number[]
+        name: string
+        hasChildren: boolean
+      }
+    | {
+        type: 'clear-all'
+      }
+    | null
+  >(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Drag and drop state
   const [draggedPath, setDraggedPath] = useState<number[] | null>(null)
@@ -355,15 +377,34 @@ export const FolderTreeEditor: React.FC<FolderTreeEditorProps> = ({
 
   const handleDeleteClick = (path: number[], folderName: string) => {
     const folder = getFolderAtPath(localFolders, path)
-    const hasChildren = folder && folder.folders.length > 0
+    setDeleteTarget({
+      type: 'folder',
+      path,
+      name: folderName,
+      hasChildren: !!folder && folder.folders.length > 0
+    })
+  }
 
-    if (hasChildren) {
-      if (confirm(`Delete "${folderName}" and all its subfolders?`)) {
-        deleteFolderAtPath(path)
-      }
+  const handleClearAllClick = () => {
+    setDeleteTarget({ type: 'clear-all' })
+  }
+
+  const handleCancelDelete = () => {
+    if (isDeleting) return
+    setDeleteTarget(null)
+  }
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return
+
+    setIsDeleting(true)
+    if (deleteTarget.type === 'folder') {
+      deleteFolderAtPath(deleteTarget.path)
     } else {
-      deleteFolderAtPath(path)
+      setLocalFolders([])
     }
+    setIsDeleting(false)
+    handleCancelDelete()
   }
 
   const renderFolder = (folder: FolderNode, path: number[], depth: number = 0) => {
@@ -401,7 +442,7 @@ export const FolderTreeEditor: React.FC<FolderTreeEditorProps> = ({
           onDrop={e => handleDrop(e, path)}
           onClick={() => toggleFolder(pathKey)}
         >
-          <GripVertical className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:cursor-grab" />
+          <DotsSixVerticalIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:cursor-grab" />
 
           <span
             className="gba:p-0.5 gba:rounded hover:gba:bg-accent"
@@ -410,7 +451,7 @@ export const FolderTreeEditor: React.FC<FolderTreeEditorProps> = ({
             {getExpandIcon(hasChildren, isExpanded)}
           </span>
 
-          <Folder className="gba:h-4 gba:w-4 gba:text-warning" />
+          <FolderIcon className="gba:h-4 gba:w-4 gba:text-warning" />
           <span className="gba:flex-1 gba:text-sm gba:font-medium">{folder.name}</span>
 
           <span className="gba:flex gba:gap-1" onClick={e => e.stopPropagation()}>
@@ -425,7 +466,7 @@ export const FolderTreeEditor: React.FC<FolderTreeEditorProps> = ({
               data-testid={`${prefixDataTestId}-add-subfolder-${pathKey}`}
               title="Add subfolder"
             >
-              <Plus className="gba:h-3.5 gba:w-3.5" />
+              <PlusIcon className="gba:h-3.5 gba:w-3.5" />
             </Button>
             <Button
               variant="ghost"
@@ -438,7 +479,7 @@ export const FolderTreeEditor: React.FC<FolderTreeEditorProps> = ({
               data-testid={`${prefixDataTestId}-rename-${pathKey}`}
               title="Rename"
             >
-              <Pencil className="gba:h-3.5 gba:w-3.5" />
+              <PencilSimpleIcon className="gba:h-3.5 gba:w-3.5" />
             </Button>
             <Button
               variant="ghost"
@@ -451,7 +492,7 @@ export const FolderTreeEditor: React.FC<FolderTreeEditorProps> = ({
               data-testid={`${prefixDataTestId}-delete-${pathKey}`}
               title="Delete"
             >
-              <Trash className="gba:h-3.5 gba:w-3.5" />
+              <TrashIcon className="gba:h-3.5 gba:w-3.5" />
             </Button>
           </span>
         </button>
@@ -484,15 +525,11 @@ export const FolderTreeEditor: React.FC<FolderTreeEditorProps> = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    if (confirm('Clear all folders? This cannot be undone until you save.')) {
-                      setLocalFolders([])
-                    }
-                  }}
+                  onClick={handleClearAllClick}
                   data-testid={`${prefixDataTestId}-clear-all`}
                   className="gba:text-destructive hover:gba:bg-destructive/10"
                 >
-                  <Trash className="gba:h-4 gba:w-4 gba:mr-2" />
+                  <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                   Clear All
                 </Button>
               )}
@@ -502,7 +539,7 @@ export const FolderTreeEditor: React.FC<FolderTreeEditorProps> = ({
                 onClick={() => setEditDialog({ open: true, path: [], name: '', isNew: true })}
                 data-testid={`${prefixDataTestId}-add-root-folder`}
               >
-                <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+                <PlusIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                 Add Folder
               </Button>
             </div>
@@ -511,7 +548,7 @@ export const FolderTreeEditor: React.FC<FolderTreeEditorProps> = ({
         <CardContent>
           {localFolders.length === 0 ? (
             <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-              <Folder className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-3 gba:opacity-50" />
+              <FolderIcon className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-3 gba:opacity-50" />
               <p className="gba:text-sm">No folders configured</p>
               <p className="gba:text-xs gba:mt-1">Click &quot;Add Folder&quot; to create a folder structure</p>
             </div>
@@ -580,6 +617,32 @@ export const FolderTreeEditor: React.FC<FolderTreeEditorProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmationDialog
+        open={!!deleteTarget}
+        itemName={deleteTarget?.type === 'folder' ? deleteTarget.name : 'all folders'}
+        itemType={deleteTarget?.type === 'clear-all' ? 'Folder Structure' : 'Folder'}
+        confirmDescription={
+          deleteTarget?.type === 'folder'
+            ? `Are you sure you want to delete "${deleteTarget.name}"?`
+            : 'Are you sure you want to clear all folders?'
+        }
+        confirmDetails={
+          deleteTarget?.type === 'folder' && deleteTarget.hasChildren ? (
+            <span className="gba:block gba:text-sm gba:text-muted-foreground">
+              This folder and all of its subfolders will be removed from the local configuration.
+            </span>
+          ) : (
+            <span className="gba:block gba:text-sm gba:text-muted-foreground">
+              This change is local until you save the folder configuration.
+            </span>
+          )
+        }
+        isDeleting={isDeleting}
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        dataTestId={`${prefixDataTestId}-delete-dialog`}
+      />
     </div>
   )
 }

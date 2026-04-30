@@ -102,6 +102,7 @@ export const Navigation = {
 
   // Core Apps
   EVERY_FABRIC: `${NAVIGATION_BASE_PATH}/every-fabric`,
+  EVERY_FABRIC_SKILLS: `${NAVIGATION_BASE_PATH}/every-fabric/skills`,
 
   // Create
   CREATE: `${NAVIGATION_BASE_PATH}/create`,
@@ -118,7 +119,7 @@ export const Navigation = {
   CREATE_DEBUG_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/generated-resource-urls`,
   CREATE_DEBUG_APPS_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/apps/generated-resource-urls`,
   CREATE_PROMPT_MESH: `${NAVIGATION_BASE_PATH}/apps/agent-mesh`,
-  CREATE_FLOW_CREATOR: `${NAVIGATION_BASE_PATH}/create/flow-creator`
+  CREATE_FLOW_CREATOR: `${NAVIGATION_BASE_PATH}/create/flow-studio`
 } as const
 
 // Mapping of platform URLs to app paths (exported for BusinessAppIDE path resolution)
@@ -217,6 +218,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // EveryFabric
   [Navigation.EVERY_FABRIC]: 'core/every-fabric/apps/every-fabric',
+  [Navigation.EVERY_FABRIC_SKILLS]: 'core/every-fabric/apps/every-fabric',
 
   // Create
   [Navigation.CREATE]: 'core/create/apps/create-workspace',

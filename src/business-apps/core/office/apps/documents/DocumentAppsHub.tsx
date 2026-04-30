@@ -53,7 +53,8 @@ import {
   Send,
   Sparkles,
   FileType,
-  ExternalLink
+  ExternalLink,
+  RotateCcw
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -81,7 +82,12 @@ import { useDocumentAppsHubUserLookup } from './hooks/useDocumentAppsHubUserLook
 import { useDocumentAppsHubFavorites } from './hooks/useDocumentAppsHubFavorites'
 import { useDocumentAppsHubUrlState } from './hooks/useDocumentAppsHubUrlState'
 import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/components/HubPaginationFooter'
-import { OfficeTrashList } from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import {
+  OfficeTrashListTable,
+  OfficeTrashListToolbar,
+  useOfficeTrashList
+} from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import { PermanentDeleteConfirmDialog } from '@/business-apps/platform/apps/shared/components/PermanentDeleteConfirmDialog'
 import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
 import { DriveApiService } from '@/business-apps/core/office/apps/drive/services/DriveApiService'
 
@@ -190,7 +196,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
   // Data state
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
-  const [parsedWordDocument, setParsedWordDocument] = useState<ParsedWordDocument | null>(null)
+  const [isSavingImportDraft, setIsSavingImportDraft] = useState(false)
+  const [savedImportDocumentId, setSavedImportDocumentId] = useState<string | null>(null)
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false)
   const [documentForApproval, setDocumentForApproval] = useState<string | null>(null)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -201,9 +208,13 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [templateBeingEdited, setTemplateBeingEdited] = useState<DocumentTemplate | null>(null)
   const [trashSearchQuery, setTrashSearchQuery] = useState('')
   const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
-  const [pendingTrashDocument, setPendingTrashDocument] = useState<{ id: string; name: string } | null>(null)
+  const [pendingTrashDocuments, setPendingTrashDocuments] = useState<Array<{ id: string; name: string }>>([])
   const [isMovingToTrash, setIsMovingToTrash] = useState(false)
   const [isRestoringTrashedDocument, setIsRestoringTrashedDocument] = useState(false)
+  const [selectedTrashIds, setSelectedTrashIds] = useState<Set<string>>(new Set())
+  const [bulkDeleteTrashOpen, setBulkDeleteTrashOpen] = useState(false)
+  const [isBulkDeletingTrash, setIsBulkDeletingTrash] = useState(false)
+  const [isBulkRestoringTrash, setIsBulkRestoringTrash] = useState(false)
   /** Context chosen in create modal; used only to pick entities in the editor (not sent to API). */
   const [sessionEntityContext, setSessionEntityContext] = useState<string | null>(null)
   const templateEditorRef = useRef<PagedDocumentEditorRef>(null)
@@ -279,6 +290,86 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     activeSection,
     setActiveSection
   })
+  const handleTrashItemsChanged = useCallback(() => {
+    void refreshDocuments()
+  }, [refreshDocuments])
+  const trashList = useOfficeTrashList({
+    accessToken,
+    entityType: 'document',
+    searchQuery: trashSearchQuery,
+    enabled: currentView === 'list' && activeSection === 'trash',
+    defaultSortBy: 'trashedAt',
+    defaultSortOrder: 'desc',
+    onItemsChanged: handleTrashItemsChanged,
+    listControls: {
+      refreshLabel: '',
+      sortNameLabel: '',
+      sortTrashedOnLabel: '',
+      trashedOnColumnLabel: '',
+      toastRestoredLabel: t('trash-toast-restored'),
+      toastRestoreFailedLabel: t('trash-toast-restore-failed'),
+      toastDeletedLabel: t('trash-toast-deleted'),
+      toastDeleteFailedLabel: t('trash-toast-delete-failed')
+    }
+  })
+
+  const handleToggleTrashSelect = useCallback((id: string) => {
+    setSelectedTrashIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSelectAllTrash = useCallback(() => {
+    const allIds = trashList.sortedItems.map(i => i.id)
+    setSelectedTrashIds(prev => (prev.size === allIds.length && allIds.length > 0 ? new Set() : new Set(allIds)))
+  }, [trashList.sortedItems])
+
+  const handleBulkDeleteTrash = useCallback(async () => {
+    if (!accessToken || selectedTrashIds.size === 0) return
+    const toDelete = trashList.sortedItems.filter(item => selectedTrashIds.has(item.id))
+    setIsBulkDeletingTrash(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      for (const item of toDelete) {
+        await DriveApiService.deleteTrashedItem(item.type, item.id)
+      }
+      toast.success(`${toDelete.length} item${toDelete.length === 1 ? '' : 's'} deleted permanently`)
+      setSelectedTrashIds(new Set())
+      await trashList.refresh()
+      void refreshDocuments()
+    } catch (error) {
+      console.error('[DocumentAppsHub] Failed to bulk delete trash items:', error)
+      toast.error('Failed to delete some items permanently')
+    } finally {
+      setIsBulkDeletingTrash(false)
+      setBulkDeleteTrashOpen(false)
+    }
+  }, [accessToken, refreshDocuments, selectedTrashIds, trashList])
+
+  const handleBulkRestoreTrash = useCallback(async () => {
+    if (!accessToken || selectedTrashIds.size === 0) return
+    const toRestore = trashList.sortedItems.filter(item => selectedTrashIds.has(item.id))
+    setIsBulkRestoringTrash(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      await DriveApiService.restoreItems(toRestore.map(item => ({ entityType: item.type, entityId: item.id })))
+      toast.success(`${toRestore.length} item${toRestore.length === 1 ? '' : 's'} restored`)
+      setSelectedTrashIds(new Set())
+      await trashList.refresh()
+      void refreshDocuments()
+    } catch (error) {
+      console.error('[DocumentAppsHub] Failed to bulk restore trash items:', error)
+      toast.error('Failed to restore some items')
+    } finally {
+      setIsBulkRestoringTrash(false)
+    }
+  }, [accessToken, refreshDocuments, selectedTrashIds, trashList])
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
   useEffect(() => {
@@ -346,11 +437,66 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   })
 
   /**
-   * Handle Word file parsed from uploader
+   * Handle a parsed import (Word/ODF) by auto-creating a draft in the
+   * background while the user stays on the upload screen.
+   *
+   * The user then gets an explicit "Open document" action on the upload
+   * success card that navigates to the persisted editor. This way imports
+   * never require a manual save click, but the user retains control over
+   * when to leave the upload screen.
    */
-  const handleWordFileParsed = useCallback(async (parsed: ParsedWordDocument) => {
-    setParsedWordDocument(parsed)
+  const handleImportFileParsed = useCallback(
+    async (parsed: ParsedWordDocument, mimeType: string) => {
+      if (isSavingImportDraft) return
+      setIsSavingImportDraft(true)
+      setSavedImportDocumentId(null)
+      try {
+        const newDoc = await createDocument({
+          title: parsed.fileName.replace(/\.(docx?|odt|ott|doc)$/i, ''),
+          content: parsed.html,
+          formatting: parsed.formatting,
+          status: 'draft',
+          createdBy: currentUserId,
+          sourceFile: {
+            originalName: parsed.fileName,
+            fileSize: parsed.fileSize,
+            mimeType,
+            uploadedAt: new Date().toISOString()
+          }
+        })
+        if (newDoc) {
+          setSavedImportDocumentId(newDoc.id)
+        }
+      } finally {
+        setIsSavingImportDraft(false)
+      }
+    },
+    [createDocument, currentUserId, isSavingImportDraft]
+  )
+
+  const handleWordFileParsed = useCallback(
+    (parsed: ParsedWordDocument) =>
+      handleImportFileParsed(parsed, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+    [handleImportFileParsed]
+  )
+
+  const handleOdfFileParsed = useCallback(
+    (parsed: ParsedWordDocument) => handleImportFileParsed(parsed, 'application/vnd.oasis.opendocument.text'),
+    [handleImportFileParsed]
+  )
+
+  const handleOpenSavedImport = useCallback(async () => {
+    if (!savedImportDocumentId) return
+    const doc = await loadDocument(savedImportDocumentId)
+    if (!doc) return
+    setSelectedDocumentId(savedImportDocumentId)
     setCurrentView('editor')
+    updateUrl(savedImportDocumentId, 'editor')
+    setSavedImportDocumentId(null)
+  }, [loadDocument, savedImportDocumentId, updateUrl])
+
+  const handleResetImportDraft = useCallback(() => {
+    setSavedImportDocumentId(null)
   }, [])
 
   /**
@@ -436,43 +582,74 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    * Handle delete document
    */
   const handleDeleteDocument = useCallback(
-    (id: string, name?: string) => {
-      setPendingTrashDocument({
-        id,
-        name: name || t('title-untitled-document')
-      })
+    (ids: string | string[], names?: string[]) => {
+      const idList = Array.isArray(ids) ? ids : [ids]
+      const documentNames = new Map(documents.map(doc => [doc.id, doc.title || t('title-untitled-document')]))
+
+      setPendingTrashDocuments(
+        idList.map((id, index) => ({
+          id,
+          name: names?.[index] || documentNames.get(id) || t('title-untitled-document')
+        }))
+      )
       setTrashConfirmOpen(true)
     },
-    [t]
+    [documents, t]
   )
 
+  const handleBulkDeleteDocuments = useCallback(() => {
+    const selectedIds = Array.from(selectedDocuments)
+    if (selectedIds.length === 0) {
+      return
+    }
+
+    const selectedNames = selectedIds.map(
+      id => documents.find(doc => doc.id === id)?.title || t('title-untitled-document')
+    )
+
+    handleDeleteDocument(selectedIds, selectedNames)
+  }, [documents, handleDeleteDocument, selectedDocuments, t])
+
   const confirmMoveToTrash = useCallback(async () => {
-    if (!pendingTrashDocument) return
+    if (pendingTrashDocuments.length === 0) return
 
     setIsMovingToTrash(true)
+    const deletedDocumentIds: string[] = []
     try {
-      const success = await deleteDocument(pendingTrashDocument.id)
-      if (success && selectedDocumentId === pendingTrashDocument.id) {
-        setSelectedDocumentId(null)
-        setCurrentView('list')
-        updateUrl(null)
+      for (const pendingTrashDocument of pendingTrashDocuments) {
+        const success = await deleteDocument(pendingTrashDocument.id)
+
+        if (!success) {
+          continue
+        }
+
+        deletedDocumentIds.push(pendingTrashDocument.id)
+
+        if (selectedDocumentId === pendingTrashDocument.id) {
+          setSelectedDocumentId(null)
+          setCurrentView('list')
+          updateUrl(null)
+        }
       }
-      setSelectedDocuments(prev => {
-        const next = new Set(prev)
-        next.delete(pendingTrashDocument.id)
-        return next
-      })
+
+      if (deletedDocumentIds.length > 0) {
+        setSelectedDocuments(prev => {
+          const next = new Set(prev)
+          deletedDocumentIds.forEach(id => next.delete(id))
+          return next
+        })
+      }
     } finally {
       setIsMovingToTrash(false)
-      setPendingTrashDocument(null)
+      setPendingTrashDocuments([])
     }
-  }, [deleteDocument, pendingTrashDocument, selectedDocumentId, updateUrl])
+  }, [deleteDocument, pendingTrashDocuments, selectedDocumentId, updateUrl])
 
   const handleTrashConfirmOpenChange = useCallback(
     (open: boolean) => {
       setTrashConfirmOpen(open)
       if (!open && !isMovingToTrash) {
-        setPendingTrashDocument(null)
+        setPendingTrashDocuments([])
       }
     },
     [isMovingToTrash]
@@ -555,7 +732,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     clearCurrentDocument()
     resetLoadAttempt()
     setSelectedDocumentId(null)
-    setParsedWordDocument(null)
+    setSavedImportDocumentId(null)
     setCurrentView('list')
     updateUrl(null)
   }, [clearCurrentDocument, resetLoadAttempt, updateUrl])
@@ -564,7 +741,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     clearCurrentDocument()
     resetLoadAttempt()
     setSelectedDocumentId(null)
-    setParsedWordDocument(null)
+    setSavedImportDocumentId(null)
     setCurrentView('list')
     setActiveSection('my-documents')
     updateUrl(null, undefined, 'my-documents')
@@ -615,7 +792,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    * Start upload flow (Word)
    */
   const handleStartUpload = useCallback(() => {
-    setParsedWordDocument(null)
+    setSavedImportDocumentId(null)
     setCurrentView('upload')
   }, [])
 
@@ -630,7 +807,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    * Start ODF upload flow
    */
   const handleStartOdfUpload = useCallback(() => {
-    setParsedWordDocument(null)
+    setSavedImportDocumentId(null)
     setCurrentView('upload-odf')
   }, [])
 
@@ -798,8 +975,6 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           templateBeingEdited={templateBeingEdited}
           setTemplateBeingEdited={setTemplateBeingEdited}
           setSessionEntityContext={setSessionEntityContext}
-          parsedWordDocument={parsedWordDocument}
-          setParsedWordDocument={setParsedWordDocument}
           setSelectedDocumentId={setSelectedDocumentId}
           currentDocument={currentDocument}
           currentDocumentPermission={currentDocumentPermission ?? ''}
@@ -930,6 +1105,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               <WordUploader
                 onFileParsed={handleWordFileParsed}
                 onError={error => toast.error(error)}
+                isSavingDraft={isSavingImportDraft}
+                hasSavedDraft={!!savedImportDocumentId}
+                onOpenSavedDraft={handleOpenSavedImport}
+                onClearSavedDraft={handleResetImportDraft}
                 data-testid={`${testId}-uploader`}
               />
             </div>
@@ -984,8 +1163,12 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               </div>
 
               <OdfUploader
-                onFileParsed={handleWordFileParsed}
+                onFileParsed={handleOdfFileParsed}
                 onError={error => toast.error(error)}
+                isSavingDraft={isSavingImportDraft}
+                hasSavedDraft={!!savedImportDocumentId}
+                onOpenSavedDraft={handleOpenSavedImport}
+                onClearSavedDraft={handleResetImportDraft}
                 data-testid={`${testId}-odf-uploader`}
               />
             </div>
@@ -1010,43 +1193,178 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
         {currentView === 'list' && activeSection === 'trash' && (
           <>
-            <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5 gba:pb-4 gba:border-b gba:border-border/50">
-              <div className="gba:relative">
-                <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
-                <Input
-                  placeholder={t('documents-header-search-placeholder')}
-                  value={trashSearchQuery}
-                  onChange={e => setTrashSearchQuery(e.target.value)}
-                  className="gba:h-12 gba:pl-11 gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm"
-                  data-testid={`${testId}-trash-search`}
-                />
+            <div className="gba:flex-1 gba:overflow-auto">
+              <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5">
+                <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
+                  <div className="gba:relative">
+                    <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
+                    <Input
+                      placeholder={t('documents-header-search-placeholder')}
+                      value={trashSearchQuery}
+                      onChange={e => setTrashSearchQuery(e.target.value)}
+                      className="gba:pl-12 gba:pr-4 gba:h-12 gba:text-base gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm hover:gba:shadow-md hover:gba:bg-muted/70 hover:gba:border-border gba:transition-all gba:duration-200"
+                      data-testid={`${testId}-trash-search`}
+                    />
+                  </div>
+                  {selectedTrashIds.size > 0 ? (
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedTrashIds(new Set())}
+                        data-testid={`${testId}-trash-bulk-clear`}
+                      >
+                        <X className="gba:w-4 gba:h-4 gba:mr-1" />
+                        {t('header-selected-count', { count: selectedTrashIds.size })}
+                      </Button>
+                      <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          void handleBulkRestoreTrash()
+                        }}
+                        disabled={isBulkRestoringTrash || isBulkDeletingTrash}
+                        data-testid={`${testId}-trash-bulk-restore`}
+                      >
+                        <RotateCcw className="gba:w-4 gba:h-4 gba:mr-1" />
+                        {isBulkRestoringTrash ? t('trash-bulk-restoring') : t('trash-bulk-restore')}
+                      </Button>
+                      <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gba:text-destructive"
+                        onClick={() => setBulkDeleteTrashOpen(true)}
+                        disabled={isBulkRestoringTrash || isBulkDeletingTrash}
+                        data-testid={`${testId}-trash-bulk-delete`}
+                      >
+                        <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
+                        {t('trash-bulk-delete-permanently')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <OfficeTrashListToolbar
+                      listControls={{
+                        refreshLabel: t('header-refresh'),
+                        sortNameLabel: t('sort-name'),
+                        sortTrashedOnLabel: t('sort-trashed'),
+                        trashedOnColumnLabel: t('table-trashed'),
+                        defaultSortBy: 'trashedAt',
+                        defaultSortOrder: 'desc',
+                        deleteDialogTitle: t('trash-delete-dialog-title-single'),
+                        deleteDialogDescriptionFn: name => t('trash-delete-dialog-description-single', { name }),
+                        deleteDialogCancel: t('trash-delete-dialog-cancel'),
+                        deleteDialogConfirm: t('trash-delete-dialog-confirm'),
+                        deleteDialogDeleting: t('trash-delete-dialog-deleting'),
+                        restoreLabel: t('trash-action-restore'),
+                        restoringLabel: t('trash-action-restoring'),
+                        deleteLabel: t('trash-action-delete'),
+                        deletingLabel: t('trash-action-deleting')
+                      }}
+                      isLoading={trashList.isLoading}
+                      sortBy={trashList.sortBy}
+                      sortOrder={trashList.sortOrder}
+                      onRefresh={() => {
+                        void trashList.refresh()
+                      }}
+                      onSortChange={trashList.handleSortChange}
+                      onToggleSortOrder={trashList.toggleSortOrder}
+                      data-testid={`${testId}-trash-list`}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="gba:flex-1 gba:overflow-auto gba:p-6">
               <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
-                <OfficeTrashList
-                  accessToken={accessToken}
-                  entityType="document"
-                  emptyTitle={t('documents-empty-trash-title')}
-                  emptyDescription={t('documents-empty-trash-description')}
-                  layout="list"
-                  searchQuery={trashSearchQuery}
-                  listControls={{
-                    refreshLabel: t('header-refresh'),
-                    sortNameLabel: t('sort-name'),
-                    sortTrashedOnLabel: t('sort-trashed'),
-                    trashedOnColumnLabel: t('table-trashed'),
-                    defaultSortBy: 'trashedAt',
-                    defaultSortOrder: 'desc'
-                  }}
-                  onOpenItem={item => handleOpenTrashedDocument(item.id)}
-                  onItemsChanged={() => {
-                    void refreshDocuments()
-                  }}
-                  data-testid={`${testId}-trash-list`}
-                />
+                {trashList.isLoading ? (
+                  <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
+                    <Spinner size="lg" />
+                  </div>
+                ) : trashList.sortedItems.length === 0 ? (
+                  <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4">
+                    <div className="gba:w-24 gba:h-24 gba:rounded-3xl gba:bg-gradient-to-br gba:from-blue-500/20 gba:to-indigo-500/20 gba:flex gba:items-center gba:justify-center gba:mb-6">
+                      <FileText className="gba:w-12 gba:h-12 gba:text-blue-500" />
+                    </div>
+                    <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
+                      {t('documents-empty-trash-title')}
+                    </h3>
+                    <p className="gba:text-muted-foreground gba:text-center gba:max-w-md">
+                      {t('documents-empty-trash-description')}
+                    </p>
+                  </div>
+                ) : (
+                  <OfficeTrashListTable
+                    items={trashList.sortedItems}
+                    listControls={{
+                      refreshLabel: t('header-refresh'),
+                      sortNameLabel: t('sort-name'),
+                      sortTrashedOnLabel: t('sort-trashed'),
+                      trashedOnColumnLabel: t('table-trashed'),
+                      defaultSortBy: 'trashedAt',
+                      defaultSortOrder: 'desc',
+                      deleteDialogTitle: t('trash-delete-dialog-title-single'),
+                      deleteDialogDescriptionFn: name => t('trash-delete-dialog-description-single', { name }),
+                      deleteDialogCancel: t('trash-delete-dialog-cancel'),
+                      deleteDialogConfirm: t('trash-delete-dialog-confirm'),
+                      deleteDialogDeleting: t('trash-delete-dialog-deleting'),
+                      restoreLabel: t('trash-action-restore'),
+                      restoringLabel: t('trash-action-restoring'),
+                      deleteLabel: t('trash-action-delete'),
+                      deletingLabel: t('trash-action-deleting')
+                    }}
+                    sortBy={trashList.sortBy}
+                    actionKey={trashList.actionKey}
+                    deleteConfirmItem={trashList.deleteConfirmItem}
+                    onOpenItem={item => handleOpenTrashedDocument(item.id)}
+                    onSortChange={trashList.handleSortChange}
+                    onRestoreItem={item => {
+                      void trashList.handleRestore(item)
+                    }}
+                    onRequestDelete={trashList.requestDelete}
+                    onDeleteConfirmOpenChange={trashList.handleDeleteConfirmOpenChange}
+                    onConfirmDelete={() => {
+                      void trashList.confirmDelete()
+                    }}
+                    selectedIds={selectedTrashIds}
+                    onToggleSelect={handleToggleTrashSelect}
+                    onSelectAll={handleSelectAllTrash}
+                    renderIcon={() => (
+                      <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:bg-blue-500/10">
+                        <FileText className="gba:w-5 gba:h-5 gba:text-blue-600" />
+                      </div>
+                    )}
+                    data-testid={`${testId}-trash-list`}
+                  />
+                )}
               </div>
             </div>
+            <PermanentDeleteConfirmDialog
+              open={bulkDeleteTrashOpen}
+              itemNames={trashList.sortedItems.filter(item => selectedTrashIds.has(item.id)).map(item => item.name)}
+              title={
+                selectedTrashIds.size === 1
+                  ? t('trash-delete-dialog-title-single')
+                  : t('trash-delete-dialog-title-multiple', { count: selectedTrashIds.size })
+              }
+              description={
+                selectedTrashIds.size === 1
+                  ? t('trash-delete-dialog-description-single', {
+                      name: trashList.sortedItems.find(item => selectedTrashIds.has(item.id))?.name ?? ''
+                    })
+                  : t('trash-delete-dialog-description-multiple', { count: selectedTrashIds.size })
+              }
+              cancelLabel={t('trash-delete-dialog-cancel')}
+              confirmLabel={t('trash-delete-dialog-confirm')}
+              deletingLabel={t('trash-delete-dialog-deleting')}
+              onOpenChange={open => {
+                if (!isBulkDeletingTrash) setBulkDeleteTrashOpen(open)
+              }}
+              onConfirm={() => {
+                void handleBulkDeleteTrash()
+              }}
+              isDeleting={isBulkDeletingTrash}
+              data-testid={`${testId}-trash-bulk-delete-confirm`}
+            />
           </>
         )}
 
@@ -1071,62 +1389,89 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
                   {/* Actions row */}
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => refreshDocuments()}
-                      className="gba:gap-1.5 gba:h-7 gba:text-xs"
-                      data-testid={`${testId}-refresh`}
-                    >
-                      <RefreshCw className="gba:w-3.5 gba:h-3.5" />
-                      {t('header-refresh')}
-                    </Button>
+                    {selectedDocuments.size > 0 ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedDocuments(new Set())}
+                          data-testid={`${testId}-bulk-clear`}
+                        >
+                          <X className="gba:w-4 gba:h-4 gba:mr-1" />
+                          {t('header-selected-count', { count: selectedDocuments.size })}
+                        </Button>
+                        <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gba:text-destructive"
+                          onClick={handleBulkDeleteDocuments}
+                          data-testid={`${testId}-bulk-delete`}
+                        >
+                          <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
+                          {t('menu-delete')}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => refreshDocuments()}
+                          className="gba:gap-1.5 gba:h-7 gba:text-xs"
+                          data-testid={`${testId}-refresh`}
+                        >
+                          <RefreshCw className="gba:w-3.5 gba:h-3.5" />
+                          {t('header-refresh')}
+                        </Button>
 
-                    <div className="gba:ml-auto gba:flex gba:items-center gba:gap-1.5">
-                      {/* Sort controls */}
-                      <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:px-1 gba:py-0.5">
-                        <select
-                          value={sortBy}
-                          onChange={e => setSortBy(e.target.value as 'name' | 'modified' | 'created')}
-                          className="gba:text-xs gba:bg-transparent gba:border-0 gba:pr-1 gba:py-0.5 gba:text-muted-foreground gba:cursor-pointer focus:gba:outline-none"
-                          data-testid={`${testId}-sort-select`}
-                        >
-                          <option value="modified">{t('sort-modified')}</option>
-                          <option value="name">{t('sort-name')}</option>
-                          <option value="created">{t('sort-created')}</option>
-                        </select>
-                        <div className="gba:w-px gba:h-4 gba:bg-border/50" />
-                        <button
-                          onClick={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
-                          className="gba:p-1 gba:rounded hover:gba:bg-accent gba:text-muted-foreground gba:transition-colors"
-                          data-testid={`${testId}-sort-order`}
-                        >
-                          {sortOrder === 'asc' ? (
-                            <SortAsc className="gba:w-3.5 gba:h-3.5" />
-                          ) : (
-                            <SortDesc className="gba:w-3.5 gba:h-3.5" />
-                          )}
-                        </button>
-                      </div>
+                        <div className="gba:ml-auto gba:flex gba:items-center gba:gap-1.5">
+                          {/* Sort controls */}
+                          <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:px-1 gba:py-0.5">
+                            <select
+                              value={sortBy}
+                              onChange={e => setSortBy(e.target.value as 'name' | 'modified' | 'created')}
+                              className="gba:text-xs gba:bg-transparent gba:border-0 gba:pr-1 gba:py-0.5 gba:text-muted-foreground gba:cursor-pointer focus:gba:outline-none"
+                              data-testid={`${testId}-sort-select`}
+                            >
+                              <option value="modified">{t('sort-modified')}</option>
+                              <option value="name">{t('sort-name')}</option>
+                              <option value="created">{t('sort-created')}</option>
+                            </select>
+                            <div className="gba:w-px gba:h-4 gba:bg-border/50" />
+                            <button
+                              onClick={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+                              className="gba:p-1 gba:rounded hover:gba:bg-accent gba:text-muted-foreground gba:transition-colors"
+                              data-testid={`${testId}-sort-order`}
+                            >
+                              {sortOrder === 'asc' ? (
+                                <SortAsc className="gba:w-3.5 gba:h-3.5" />
+                              ) : (
+                                <SortDesc className="gba:w-3.5 gba:h-3.5" />
+                              )}
+                            </button>
+                          </div>
 
-                      {/* View mode toggle */}
-                      <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:p-0.5">
-                        <button
-                          onClick={() => setViewLayout('list')}
-                          className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'list' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
-                          data-testid={`${testId}-view-list`}
-                        >
-                          <List className="gba:w-3.5 gba:h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setViewLayout('grid')}
-                          className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'grid' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
-                          data-testid={`${testId}-view-grid`}
-                        >
-                          <LayoutGrid className="gba:w-3.5 gba:h-3.5" />
-                        </button>
-                      </div>
-                    </div>
+                          {/* View mode toggle */}
+                          <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:p-0.5">
+                            <button
+                              onClick={() => setViewLayout('list')}
+                              className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'list' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
+                              data-testid={`${testId}-view-list`}
+                            >
+                              <List className="gba:w-3.5 gba:h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setViewLayout('grid')}
+                              className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'grid' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
+                              data-testid={`${testId}-view-grid`}
+                            >
+                              <LayoutGrid className="gba:w-3.5 gba:h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1599,7 +1944,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       <DeleteConfirmDialog
         open={trashConfirmOpen}
         onOpenChange={handleTrashConfirmOpenChange}
-        itemNames={pendingTrashDocument ? [pendingTrashDocument.name] : []}
+        itemNames={pendingTrashDocuments.map(document => document.name)}
         onConfirm={() => {
           void confirmMoveToTrash()
         }}

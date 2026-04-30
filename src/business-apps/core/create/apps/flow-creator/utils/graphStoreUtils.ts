@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid'
-import { AssignmentMode, FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { AssignmentMode, FlowStepType } from '@/common/data/flow/types/flowTemplate'
 import type { FlowGraphEdge, FlowNodeType } from '@/common/components/flow/flow-viewer'
 import type {
   DecisionNodeConfig,

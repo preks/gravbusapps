@@ -4,6 +4,10 @@ import { ChartLineIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogSettings } from '@/common/components/common-relations/setting-pages/hooks/useCatalogSettings'
 import { CatalogTab } from '@/common/components/common-relations/setting-pages/components/CatalogTab'
+import {
+  getCatalogUsageCheckSpecs,
+  useCatalogDeleteAvailability
+} from '@/common/components/common-relations/setting-pages/hooks/useCatalogDeleteAvailability'
 
 type InvestmentSpecificTab = 'roles' | 'statuses' | 'stake-types'
 
@@ -33,6 +37,21 @@ const InvestmentSpecificDataPage: React.FC<InvestmentSpecificDataPageProps> = ({
   const roles = useCatalogSettings(context, 'InvestmentRole')
   const statuses = useCatalogSettings(context, 'InvestmentStatus')
   const stakeTypes = useCatalogSettings(context, 'InvestmentStakeType')
+  const getRoleDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Role',
+    getCatalogUsageCheckSpecs('InvestmentRole')
+  )
+  const getStatusDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Status',
+    getCatalogUsageCheckSpecs('InvestmentStatus')
+  )
+  const getStakeTypeDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Stake Type',
+    getCatalogUsageCheckSpecs('InvestmentStakeType')
+  )
 
   return (
     <PageLayout
@@ -57,13 +76,19 @@ const InvestmentSpecificDataPage: React.FC<InvestmentSpecificDataPageProps> = ({
         </TabsList>
 
         <TabsContent value="roles">
-          <CatalogTab entityName="Role" dataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Roles`} {...roles} />
+          <CatalogTab
+            entityName="Role"
+            dataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Roles`}
+            getDeleteAvailability={getRoleDeleteAvailability}
+            {...roles}
+          />
         </TabsContent>
 
         <TabsContent value="statuses">
           <CatalogTab
             entityName="Status"
             dataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Statuses`}
+            getDeleteAvailability={getStatusDeleteAvailability}
             {...statuses}
           />
         </TabsContent>
@@ -72,6 +97,7 @@ const InvestmentSpecificDataPage: React.FC<InvestmentSpecificDataPageProps> = ({
           <CatalogTab
             entityName="Stake Type"
             dataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}-StakeTypes`}
+            getDeleteAvailability={getStakeTypeDeleteAvailability}
             {...stakeTypes}
           />
         </TabsContent>

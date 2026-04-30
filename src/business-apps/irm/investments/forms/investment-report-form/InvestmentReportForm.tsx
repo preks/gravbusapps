@@ -29,6 +29,7 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
   additionalData
 }) => {
   // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
+  const { t } = useTranslation(translations)
 
   // Extract investmentReportId from additionalData
   const investmentReportId =
@@ -199,8 +200,8 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
 
   // Create dynamic schema based on formFieldsDefinition
   const dynamicSchema = useMemo(() => {
-    return createDynamicInvestmentSchema(formFieldsDefinition || undefined)
-  }, [formFieldsDefinition])
+    return createDynamicInvestmentSchema(formFieldsDefinition || undefined, t)
+  }, [formFieldsDefinition, t])
 
   // Create resolver dynamically based on schema
   const formResolver = useMemo(() => {
@@ -244,9 +245,6 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
     investmentId?: string
   }
   const isUpdate = Boolean(investmentReportId || investmentValues.id || investmentValues.investmentId)
-
-  // Translation hook
-  const { t } = useTranslation(translations)
 
   // Handle form submission - transform InvestmentFormValues back to InvestmentReport payload
   const handleSubmit = useCallback(

@@ -40,6 +40,7 @@ export interface InvestmentReport extends BaseEntity {
 
   // Report fields (from investment table)
   plannedExitDate?: string // ISO date string
+  initialInvestmentAmount?: number
   totalInvestmentAmount?: number
   investmentMarketValue?: number
   debtFinancingAmount?: number
@@ -47,6 +48,8 @@ export interface InvestmentReport extends BaseEntity {
   forecastedRevenueAmount?: number
   forecastedProfitAmount?: number
   stakePercentage?: number
+  securityQuantity?: number
+  timeWeightedPerformance?: number
 
   // Loan Fields
   loanRecipientName?: string
@@ -198,6 +201,7 @@ export const InvestmentReportFields = {
 
   // Report fields (from investment table)
   plannedExitDate: 'plannedExitDate',
+  initialInvestmentAmount: 'initialInvestmentAmount',
   totalInvestmentAmount: 'totalInvestmentAmount',
   investmentMarketValue: 'investmentMarketValue',
   debtFinancingAmount: 'debtFinancingAmount',
@@ -205,6 +209,8 @@ export const InvestmentReportFields = {
   forecastedRevenueAmount: 'forecastedRevenueAmount',
   forecastedProfitAmount: 'forecastedProfitAmount',
   stakePercentage: 'stakePercentage',
+  securityQuantity: 'securityQuantity',
+  timeWeightedPerformance: 'timeWeightedPerformance',
 
   // Loan Fields
   loanRecipientName: 'loanRecipientName',
@@ -263,6 +269,7 @@ export const InvestmentReportFormFields = {
 
   // Report fields (from investment table)
   plannedExitDate: 'plannedExitDate',
+  initialInvestmentAmount: 'initialInvestmentAmount',
   totalInvestmentAmount: 'totalInvestmentAmount',
   investmentMarketValue: 'investmentMarketValue',
   debtFinancingAmount: 'debtFinancingAmount',
@@ -270,6 +277,8 @@ export const InvestmentReportFormFields = {
   forecastedRevenueAmount: 'forecastedRevenueAmount',
   forecastedProfitAmount: 'forecastedProfitAmount',
   stakePercentage: 'stakePercentage',
+  securityQuantity: 'securityQuantity',
+  timeWeightedPerformance: 'timeWeightedPerformance',
 
   // Loan Fields
   loanRecipientName: 'loanRecipientName',
@@ -368,6 +377,13 @@ export const createInvestmentReportDescriptors = (
 
   // Report Amount Fields
   {
+    key: 'initialInvestmentAmount',
+    path: fields.initialInvestmentAmount,
+    searchPaths: [fields.initialInvestmentAmount],
+    sortPath: fields.initialInvestmentAmount,
+    type: 'number'
+  },
+  {
     key: 'totalInvestmentAmount',
     path: fields.totalInvestmentAmount,
     searchPaths: [fields.totalInvestmentAmount],
@@ -414,6 +430,20 @@ export const createInvestmentReportDescriptors = (
     path: fields.stakePercentage,
     searchPaths: [fields.stakePercentage],
     sortPath: fields.stakePercentage,
+    type: 'number'
+  },
+  {
+    key: 'securityQuantity',
+    path: fields.securityQuantity,
+    searchPaths: [fields.securityQuantity],
+    sortPath: fields.securityQuantity,
+    type: 'number'
+  },
+  {
+    key: 'timeWeightedPerformance',
+    path: fields.timeWeightedPerformance,
+    searchPaths: [fields.timeWeightedPerformance],
+    sortPath: fields.timeWeightedPerformance,
     type: 'number'
   },
 

@@ -12,7 +12,7 @@ import { SparkleIcon, CaretDownIcon, CaretUpIcon, UsersIcon, LightningIcon } fro
 import { Loader2 } from 'lucide-react'
 import { EmailSummarizeSuggestions } from './EmailSummarizeSuggestions'
 import { EmailApiService } from '../services/EmailApiService'
-import type { EmailMessage, ThreadSummaryResult } from '../types'
+import type { EmailAccount, EmailMessage, ThreadSummaryResult } from '../types'
 import { stableKeyPointKey } from '../utils/emailSummarizeSuggestionUtils'
 
 /** Cache key: threadId. Value: { summary, messageCount } */
@@ -23,6 +23,8 @@ interface EmailThreadSummaryProps {
   messageCount: number
   accessToken?: string
   primaryMessage?: EmailMessage
+  activeAccount?: EmailAccount | null
+  employeeId?: string
   initiatorUserId?: string
   onJumpToMessageIndex?: (index: number) => void
   'data-testid'?: string
@@ -33,6 +35,8 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
   messageCount,
   accessToken,
   primaryMessage,
+  activeAccount,
+  employeeId,
   initiatorUserId,
   onJumpToMessageIndex,
   'data-testid': testId = 'email-thread-summary'
@@ -209,7 +213,21 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
                     accessToken,
                     noSubjectLabel: t('reader-no-subject'),
                     threadId,
-                    initiatorUserId
+                    initiatorUserId,
+                    activeAccount,
+                    employeeId
+                  }
+                : undefined
+            }
+            crmRecordingContext={
+              accessToken && primaryMessage
+                ? {
+                    message: primaryMessage,
+                    accessToken,
+                    activeAccount,
+                    employeeId,
+                    aiSummary: summary.summary,
+                    threadId
                   }
                 : undefined
             }

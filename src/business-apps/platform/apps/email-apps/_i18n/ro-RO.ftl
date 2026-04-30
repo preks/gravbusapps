@@ -120,7 +120,6 @@ reader-ai-insights-hint = Faceți clic pentru a încărca
 reader-ai-insights-loading = Se pregătește rezumatul…
 reader-ai-insights-error = Nu s-a putut încărca rezumatul AI
 reader-ai-insights-retry = Încercați din nou
-reader-ai-insights-empty = Nu există rezumat sau sugestii pentru acest mesaj.
 
 composer-toast-no-recipient = Adăugați cel puțin un destinatar
 composer-toast-no-account = Selectați un cont
@@ -280,8 +279,6 @@ composer-toast-file-size-exceeded = „{ $name }" depășește limita de 10 MB p
 composer-toast-total-size-exceeded = Totalul atașamentelor depășește 25 MB
 composer-toast-file-read-failed = Nu s-a putut citi „{ $name }"
 crm-record-activity = Înregistrați ca activitate
-crm-summarizing-thread = Se rezumă conversația cu AI...
-crm-summarizing-email = Se rezumă e-mailul cu AI...
 crm-matches-for = Potriviri pentru
 crm-searching = Se caută în CRM...
 crm-no-records = Nu s-au găsit înregistrări CRM pentru această adresă
@@ -299,7 +296,6 @@ crm-record-manually = Înregistrați manual (alegeți entitatea în formular)
 
 # CRM booking (translated)
 crm-activity-recorded = Activitate înregistrată pentru { $name }
-crm-activity-recorded-desc = { $subject }
 crm-activity-recorded-failed = Nu s-a putut înregistra activitatea pentru { $name }
 crm-entity-account = Cont
 crm-entity-contact = Contact
@@ -415,6 +411,13 @@ email-suggestion-create-quick-task-missing-initiator = Contul tău nu a putut fi
 email-suggestion-create-quick-task-missing-assignee = Selectează cel puțin un responsabil.
 email-suggestion-create-quick-task-hint-no-initiator = Sarcinile necesită un utilizator autentificat. Încearcă din nou după ce aplicația s-a încărcat.
 email-suggestion-create-quick-task-submitting = Se creează…
+email-suggestion-create-link-record-title = Asociază cu o înregistrare CRM (opțional)
+email-suggestion-create-link-record-none = Nu asocia o înregistrare
+email-suggestion-create-link-record-selected = Selectat
+email-suggestion-create-link-record-select = Selectează
+email-suggestion-create-link-record-no-matches = Nicio potrivire pentru acest e-mail
+email-suggestion-create-link-record-show-more = Mai multe opțiuni
+email-suggestion-create-link-record-search-placeholder = Caută orice înregistrare
 
 # Pagination/Admin consent additions
 provider-admin-consent-help = Dacă utilizatorii văd „Aprobare admin necesară", un admin poate deschide acest link pentru consimțământ.

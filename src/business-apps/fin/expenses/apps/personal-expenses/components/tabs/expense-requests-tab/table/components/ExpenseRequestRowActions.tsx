@@ -28,7 +28,7 @@ export function ExpenseRequestRowActions({
   )
 
   const editAction =
-    record.status === 'CREATED' || record.status === 'REJECTED'
+    record.status === 'CREATED' || record.status === 'REJECTED' || record.status === 'PENDING'
       ? [
           {
             category: actionsCategory,

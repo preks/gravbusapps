@@ -81,7 +81,6 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
       isDeleted
     }
     
-    # Compensation band via employee position and job level
     EmployeePosition(
       where: {
         employeeId: {_eq: $employeeId}
@@ -90,17 +89,23 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
     ) {
       id
       employeeId
-      jobPositionId
+      siteLocationId
       jobPosition {
-        id
         name
-        jobLevelId
+        jobFunction {
+          jobFamily {
+            id
+          }
+        }
+        jobProfile {
+          jobFunction {
+            jobFamily {
+              id
+            }
+          }
+        }
         jobLevel {
           id
-          name
-          code
-          hierarchyOrder
-          compensationBandId
         }
       }
     }
@@ -170,29 +175,29 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
   }
 `
 
-/**
- * Query compensation band by ID.
- * Used as fallback where JobLevel does not expose a direct compensationBand relation.
- */
-export const GET_COMPENSATION_BAND_BY_ID = /*sql*/ `
-  query GetCompensationBandById($compensationBandId: uuid!) {
-    CompensationBand(
+export const GET_COMPENSATION_BAND_POLICY_FOR_EMPLOYEE = /*sql*/ `
+  query GetCompensationBandPolicyForEmployee($jobFamilyId: uuid!, $jobLevelId: uuid!, $geoZoneId: uuid!) {
+    CompensationBandPolicy(
       where: {
-        id: {_eq: $compensationBandId}
-        isDeleted: {_eq: false}
+        jobFamilyId: {_eq: $jobFamilyId}
+        jobLevelId: {_eq: $jobLevelId}
+        geoZoneId: {_eq: $geoZoneId}
       }
+      orderBy: [{priority: ASC}]
       limit: 1
     ) {
-      id
-      name
-      payGrade
-      minSalary
-      maxSalary
-      currencyRef
-      currency {
+      compensationBand {
         id
-        code
-        value
+        name
+        payGrade
+        minSalary
+        maxSalary
+        currencyRef
+        currency {
+          id
+          code
+          value
+        }
       }
     }
   }
