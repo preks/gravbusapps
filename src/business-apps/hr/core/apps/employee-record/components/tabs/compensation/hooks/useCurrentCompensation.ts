@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
-import { formatDate, getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import {
   GET_COMPENSATION_BAND_POLICY_FOR_EMPLOYEE,
   GET_EMPLOYEE_COMPENSATION_DATA
@@ -30,6 +30,14 @@ type SiteLocationResponse = SiteLocationResult[] | { data?: SiteLocationResult[]
 
 interface ActiveStructureResponse {
   structure?: { structureId?: string }
+}
+
+function formatGraphQLDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }
 
 function extractSiteLocations(response: SiteLocationResponse): SiteLocationResult[] {
@@ -145,8 +153,8 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       setLoading(true)
       setError(null)
 
-      // Get today's date in ISO format (YYYY-MM-DD) for server-side filtering
-      const today = formatDate(new Date(), 'date.ISO') || new Date().toISOString().split('T')[0]
+      // Get today's date in GraphQL date format (YYYY-MM-DD) for server-side filtering.
+      const today = formatGraphQLDate(new Date())
 
       // Fetch current compensation data from GraphQL
       // Server-side filtering: APPROVED + started salaries (up to 5 records)

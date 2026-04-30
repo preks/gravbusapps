@@ -11,12 +11,11 @@
 
 import type { EmailSummarizeSuggestion, EmailMessage } from '../types'
 
-export function buildSuggestionActivityContextData(
-  suggestion: EmailSummarizeSuggestion,
-  message: EmailMessage,
-  noSubjectLabel: string,
-  threadId?: string
-): Record<string, unknown> {
+/**
+ * Build a human-readable activity description from a suggestion's details/evidence/metadata.
+ * Falls back to the email body or snippet if none of those fields are present.
+ */
+export function buildSuggestionDescription(suggestion: EmailSummarizeSuggestion, message: EmailMessage): string {
   const meta =
     suggestion.metadata && Object.keys(suggestion.metadata).length > 0
       ? Object.entries(suggestion.metadata)
@@ -28,10 +27,19 @@ export function buildSuggestionActivityContextData(
     (p): p is string => typeof p === 'string' && p.length > 0
   )
 
+  if (descriptionParts.length > 0) return descriptionParts.join('\n\n')
+  return message.textBody || message.snippet || ''
+}
+
+export function buildSuggestionActivityContextData(
+  suggestion: EmailSummarizeSuggestion,
+  message: EmailMessage,
+  noSubjectLabel: string,
+  threadId?: string
+): Record<string, unknown> {
   return {
     title: suggestion.title || message.subject || noSubjectLabel,
-    description:
-      descriptionParts.length > 0 ? descriptionParts.join('\n\n') : message.textBody || message.snippet || '',
+    description: buildSuggestionDescription(suggestion, message),
     occurredAt: message.date,
     emailActivityTypeHint: 'EMAIL',
     source: 'email',
