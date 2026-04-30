@@ -1,4 +1,3 @@
-/* eslint-disable newwork-local/no-hardcoded-colors -- Scale markers require fixed role-distinct colors */
 import React, { useMemo, useState } from 'react'
 import {
   Card,
@@ -16,7 +15,7 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { Scale, AlertTriangle } from 'lucide-react'
+import { ScalesIcon as Scale, WarningIcon as AlertTriangle } from '@phosphor-icons/react'
 import type { TeamMemberEvaluation, EvaluationDimensionScore } from '../../hooks/useTeamEvaluations'
 import { employeeLabel, employeeInitials, avatarSrc } from '../../utils/heatmapHelpers'
 
@@ -108,21 +107,21 @@ const ScaleMarker: React.FC<{
         <div className="gba:absolute gba:inset-x-0 gba:top-1/2 gba:-translate-y-1/2 gba:h-px gba:bg-border/40" />
         {selfScore != null && (
           <div
-            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:-translate-x-1/2 gba:w-3 gba:h-3 gba:rounded-full gba:border-2 gba:border-[#3b82f6] gba:bg-background"
+            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:-translate-x-1/2 gba:h-3 gba:w-3 gba:rounded-full gba:border-2 gba:border-info gba:bg-background"
             style={{ left: `${toPercent(selfScore)}%` }}
             title={`Self: ${selfScore.toFixed(1)}`}
           />
         )}
         {peerScore != null && (
           <div
-            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:-translate-x-1/2 gba:w-3 gba:h-3 gba:rounded-full gba:bg-[#10b981]"
+            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:-translate-x-1/2 gba:h-3 gba:w-3 gba:rounded-full gba:bg-success"
             style={{ left: `${toPercent(peerScore)}%` }}
             title={`Peer: ${peerScore.toFixed(1)}`}
           />
         )}
         {managerScore != null && (
           <div
-            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:-translate-x-1/2 gba:w-2.5 gba:h-2.5 gba:rotate-45 gba:bg-[#f59e0b]"
+            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:-translate-x-1/2 gba:h-2.5 gba:w-2.5 gba:rotate-45 gba:bg-warning"
             style={{ left: `${toPercent(managerScore)}%` }}
             title={`Manager: ${managerScore.toFixed(1)}`}
           />
@@ -349,15 +348,15 @@ export const AlignmentComparison: React.FC<AlignmentComparisonProps> = ({
         {/* Legend */}
         <div className="gba:flex gba:items-center gba:gap-5 gba:mt-2.5 gba:text-[10px] gba:text-muted-foreground">
           <span className="gba:flex gba:items-center gba:gap-1.5">
-            <span className="gba:inline-block gba:w-2.5 gba:h-2.5 gba:rounded-full gba:border-2 gba:border-[#3b82f6] gba:bg-background" />
+            <span className="gba:inline-block gba:h-2.5 gba:w-2.5 gba:rounded-full gba:border-2 gba:border-info gba:bg-background" />
             <span>Self</span>
           </span>
           <span className="gba:flex gba:items-center gba:gap-1.5">
-            <span className="gba:inline-block gba:w-2.5 gba:h-2.5 gba:rounded-full gba:bg-[#10b981]" />
+            <span className="gba:inline-block gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-success" />
             <span>Peer</span>
           </span>
           <span className="gba:flex gba:items-center gba:gap-1.5">
-            <span className="gba:inline-block gba:w-2 gba:h-2 gba:rotate-45 gba:bg-[#f59e0b]" />
+            <span className="gba:inline-block gba:h-2 gba:w-2 gba:rotate-45 gba:bg-warning" />
             <span>Manager</span>
           </span>
           <span className="gba:opacity-60">Gap = max – min score spread</span>

@@ -31,6 +31,11 @@ search = Căutare
 # Common messages
 no_results = Nu s-au găsit rezultate
 no_data = Nu sunt date disponibile
+editor-list-bullets = Buline
+editor-list-numbering = Numerotare
+editor-list-none = Fără
+editor-list-outdent = Micșorează indentarea
+editor-list-indent = Indentare
 
 ## 1. TEXT SIMPLU
 welcome-title = Exemplu de Localizare

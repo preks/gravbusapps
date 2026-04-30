@@ -362,7 +362,7 @@ export class DriveApiService {
   }
 
   static async renameSpreadsheetApp(spreadsheetId: string, name: string): Promise<{ id: string; name: string }> {
-    return apiRequest<{ id: string; name: string }>(`/spreadsheets/${spreadsheetId}`, {
+    return apiRequest<{ id: string; name: string }>(`${SPREADSHEET_API_BASE_PATH}/${spreadsheetId}`, {
       method: 'PATCH',
       body: JSON.stringify({ name })
     })

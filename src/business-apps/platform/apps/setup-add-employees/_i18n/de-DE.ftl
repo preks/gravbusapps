@@ -36,6 +36,12 @@ msg-employee-created = Person angelegt.
 msg-password-set = Startpasswort wurde gesetzt.
 msg-password-user-pending = Person wurde angelegt, aber die Benutzer-ID für das Passwort war noch nicht verfügbar; Passwort in Keycloak setzen oder erneut versuchen.
 error-create-failed = Person konnte nicht angelegt werden
+action-checking-account = Wird geprüft…
+error-um-lookup = Es konnte nicht geprüft werden, ob bereits ein Benutzerkonto existiert. Bitte versuchen Sie es gleich erneut.
+dialog-existing-user-title = Benutzerkonto existiert bereits
+dialog-existing-user-body = In der Benutzerverwaltung gibt es bereits ein Konto, das zu dieser E-Mail passt (Anmelde-E-Mail oder bevorzugter Benutzername). Beim Anlegen wird dieses bestehende Anmeldekonto wiederverwendet. Möchten Sie fortfahren?
+dialog-existing-user-confirm = Person anlegen
+dialog-existing-user-cancel = Abbrechen
 
 edit-title = Person bearbeiten
 edit-subtitle = Abteilung, Jobtitel und Managerrolle aktualisieren. Änderungen werden über die Organigramm-Zuordnung gespeichert (ohne Genehmigungsaufgaben). Zum Setzen eines neuen Anmeldepassworts „Passwort zurücksetzen“ in der Liste verwenden.

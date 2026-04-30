@@ -1,4 +1,3 @@
-/* eslint-disable newwork-local/no-hardcoded-colors */
 import React from 'react'
 import {
   Card,
@@ -18,6 +17,13 @@ import {
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import type { TeamMemberPerformance, PerformanceGoal } from '../../hooks/useTeamPerformance'
 import { goalStackCategory } from '../../utils/managerPerformanceGoalMetrics'
+
+const GOALS_COLORS = {
+  onTrack: 'var(--nw-color-success-500)',
+  atRisk: 'var(--nw-color-warning-500)',
+  behindTarget: 'var(--nw-color-danger-500)',
+  achieved: 'var(--nw-color-primary-500)'
+} as const
 
 interface GoalsHealthProps {
   members: TeamMemberPerformance[]
@@ -116,10 +122,10 @@ export const GoalsHealth: React.FC<GoalsHealthProps> = ({
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" hide width={0} />
               <Tooltip />
-              <Bar dataKey="onTrack" stackId="goals" fill="#22c55e" name="On Track" />
-              <Bar dataKey="atRisk" stackId="goals" fill="#f59e0b" name="At Risk" />
-              <Bar dataKey="behindTarget" stackId="goals" fill="#ef4444" name="Behind Target" />
-              <Bar dataKey="achieved" stackId="goals" fill="#3b82f6" name="Achieved" />
+              <Bar dataKey="onTrack" stackId="goals" fill={GOALS_COLORS.onTrack} name="On Track" />
+              <Bar dataKey="atRisk" stackId="goals" fill={GOALS_COLORS.atRisk} name="At Risk" />
+              <Bar dataKey="behindTarget" stackId="goals" fill={GOALS_COLORS.behindTarget} name="Behind Target" />
+              <Bar dataKey="achieved" stackId="goals" fill={GOALS_COLORS.achieved} name="Achieved" />
             </BarChart>
           </ResponsiveContainer>
         </div>

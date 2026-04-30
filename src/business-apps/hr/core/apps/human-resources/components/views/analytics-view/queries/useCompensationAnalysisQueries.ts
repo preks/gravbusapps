@@ -164,7 +164,6 @@ const GET_GAP_EXPLANATION = (): string => {
         analysisDate
         scope
         jobLevelId
-        jobPositionId
         totalEmployees
         totalGapPct
         unexplainedPct

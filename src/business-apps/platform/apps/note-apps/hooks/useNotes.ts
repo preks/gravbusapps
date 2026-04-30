@@ -80,6 +80,15 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
 
   // Track last query for refresh
   const lastQueryRef = useRef<NoteQueryParams | undefined>(initialQuery)
+  const noteUpdateSequenceRef = useRef(new Map<string, number>())
+
+  const dedupeNoteSummaries = useCallback((items: NoteSummary[]): NoteSummary[] => {
+    const byId = new Map<string, NoteSummary>()
+    items.forEach(item => {
+      byId.set(item.id, item)
+    })
+    return Array.from(byId.values())
+  }, [])
 
   /**
    * Load notes list (paginated fetch, max 100 per request)
@@ -98,7 +107,7 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
 
         while (hasMore) {
           const result = await NoteApiService.listNotes({ ...params, limit: PAGE_SIZE, page })
-          allNotes = [...allNotes, ...result.items]
+          allNotes = dedupeNoteSummaries([...allNotes, ...result.items])
           hasMore = result.items.length === PAGE_SIZE
           page++
         }
@@ -112,7 +121,7 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
         setIsLoading(false)
       }
     },
-    [translate]
+    [dedupeNoteSummaries, translate]
   )
 
   /**
@@ -149,40 +158,43 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
   /**
    * Create a new note
    */
-  const createNote = useCallback(async (input: CreateNoteInput): Promise<Note | null> => {
-    try {
-      const note = await NoteApiService.createNote(input)
+  const createNote = useCallback(
+    async (input: CreateNoteInput): Promise<Note | null> => {
+      try {
+        const note = await NoteApiService.createNote(input)
 
-      // Add to list
-      const summary: NoteSummary = {
-        id: note.id,
-        title: note.title,
-        preview: note.content?.replace(/<[^>]*>/g, ' ').slice(0, 150),
-        tags: note.tags,
-        color: note.color,
-        icon: note.icon,
-        isPinned: note.isPinned,
-        isArchived: note.isArchived,
-        parentId: note.parentId,
-        position: note.position,
-        ownerId: note.ownerId,
-        spaceId: note.spaceId,
-        createdAt: note.createdAt,
-        updatedAt: note.updatedAt,
-        trashedAt: note.trashedAt,
-        permission: 'owner'
+        // Add to list
+        const summary: NoteSummary = {
+          id: note.id,
+          title: note.title,
+          preview: note.content?.replace(/<[^>]*>/g, ' ').slice(0, 150),
+          tags: note.tags,
+          color: note.color,
+          icon: note.icon,
+          isPinned: note.isPinned,
+          isArchived: note.isArchived,
+          parentId: note.parentId,
+          position: note.position,
+          ownerId: note.ownerId,
+          spaceId: note.spaceId,
+          createdAt: note.createdAt,
+          updatedAt: note.updatedAt,
+          trashedAt: note.trashedAt,
+          permission: 'owner'
+        }
+
+        setNotes(prev => dedupeNoteSummaries([summary, ...prev]))
+        setCurrentNote(note)
+        setCurrentNotePermission('owner')
+
+        return note
+      } catch (err) {
+        console.error('[useNotes] Failed to create note:', err)
+        return null
       }
-
-      setNotes(prev => [summary, ...prev])
-      setCurrentNote(note)
-      setCurrentNotePermission('owner')
-
-      return note
-    } catch (err) {
-      console.error('[useNotes] Failed to create note:', err)
-      return null
-    }
-  }, [])
+    },
+    [dedupeNoteSummaries]
+  )
 
   /**
    * Update a note
@@ -190,7 +202,12 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
   const updateNote = useCallback(
     async (id: string, updates: UpdateNoteInput): Promise<Note | null> => {
       try {
+        const nextSequence = (noteUpdateSequenceRef.current.get(id) || 0) + 1
+        noteUpdateSequenceRef.current.set(id, nextSequence)
         const note = await NoteApiService.updateNote(id, updates)
+        if ((noteUpdateSequenceRef.current.get(id) || 0) !== nextSequence) {
+          return note
+        }
 
         // Update in list
         setNotes(prev =>
@@ -253,36 +270,39 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
   /**
    * Duplicate a note
    */
-  const duplicateNote = useCallback(async (id: string): Promise<Note | null> => {
-    try {
-      const note = await NoteApiService.duplicateNote(id)
-      if (note) {
-        const summary: NoteSummary = {
-          id: note.id,
-          title: note.title,
-          preview: note.content?.replace(/<[^>]*>/g, ' ').slice(0, 150),
-          tags: note.tags,
-          color: note.color,
-          icon: note.icon,
-          isPinned: note.isPinned,
-          isArchived: note.isArchived,
-          parentId: note.parentId,
-          position: note.position,
-          ownerId: note.ownerId,
-          spaceId: note.spaceId,
-          createdAt: note.createdAt,
-          updatedAt: note.updatedAt,
-          trashedAt: note.trashedAt,
-          permission: 'owner'
+  const duplicateNote = useCallback(
+    async (id: string): Promise<Note | null> => {
+      try {
+        const note = await NoteApiService.duplicateNote(id)
+        if (note) {
+          const summary: NoteSummary = {
+            id: note.id,
+            title: note.title,
+            preview: note.content?.replace(/<[^>]*>/g, ' ').slice(0, 150),
+            tags: note.tags,
+            color: note.color,
+            icon: note.icon,
+            isPinned: note.isPinned,
+            isArchived: note.isArchived,
+            parentId: note.parentId,
+            position: note.position,
+            ownerId: note.ownerId,
+            spaceId: note.spaceId,
+            createdAt: note.createdAt,
+            updatedAt: note.updatedAt,
+            trashedAt: note.trashedAt,
+            permission: 'owner'
+          }
+          setNotes(prev => dedupeNoteSummaries([summary, ...prev]))
         }
-        setNotes(prev => [summary, ...prev])
+        return note
+      } catch (err) {
+        console.error('[useNotes] Failed to duplicate note:', err)
+        return null
       }
-      return note
-    } catch (err) {
-      console.error('[useNotes] Failed to duplicate note:', err)
-      return null
-    }
-  }, [])
+    },
+    [dedupeNoteSummaries]
+  )
 
   /**
    * Toggle pin status

@@ -3,6 +3,7 @@ import { PageLayout, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/n
 import { BuildingsIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogSettings } from '../hooks/useCatalogSettings'
+import { getCatalogUsageCheckSpecs, useCatalogDeleteAvailability } from '../hooks/useCatalogDeleteAvailability'
 import { CatalogTab } from '../components/CatalogTab'
 
 export interface AccountSettingsConfig {
@@ -32,6 +33,16 @@ export const AccountSettingsLayout: React.FC<AccountSettingsLayoutProps> = ({
   // Call hooks internally based on config
   const priorities = useCatalogSettings(context, config.priorityCatalog)
   const types = useCatalogSettings(context, config.typeCatalog)
+  const getPriorityDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Priority',
+    getCatalogUsageCheckSpecs(config.priorityCatalog)
+  )
+  const getTypeDeleteAvailability = useCatalogDeleteAvailability(
+    context.accessToken,
+    'Type',
+    getCatalogUsageCheckSpecs(config.typeCatalog)
+  )
 
   return (
     <PageLayout
@@ -49,11 +60,21 @@ export const AccountSettingsLayout: React.FC<AccountSettingsLayoutProps> = ({
         </TabsList>
 
         <TabsContent value="priorities">
-          <CatalogTab entityName="Priority" dataTestId={`${config.dataTestIdPrefix}-Priorities`} {...priorities} />
+          <CatalogTab
+            entityName="Priority"
+            dataTestId={`${config.dataTestIdPrefix}-Priorities`}
+            getDeleteAvailability={getPriorityDeleteAvailability}
+            {...priorities}
+          />
         </TabsContent>
 
         <TabsContent value="types">
-          <CatalogTab entityName="Type" dataTestId={`${config.dataTestIdPrefix}-Types`} {...types} />
+          <CatalogTab
+            entityName="Type"
+            dataTestId={`${config.dataTestIdPrefix}-Types`}
+            getDeleteAvailability={getTypeDeleteAvailability}
+            {...types}
+          />
         </TabsContent>
       </Tabs>
     </PageLayout>

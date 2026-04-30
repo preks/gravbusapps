@@ -8,11 +8,13 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
+import type { Socket } from 'socket.io-client'
 import type { Comment, CommentQueryOptions, CreateCommentInput } from '../types/versioning'
 
 export interface UseCommentsOptions {
   entityId: string
   entityType: 'document' | 'note' | 'spreadsheet_app'
+  socket?: Socket | null
   apiService?: {
     createComment: (id: string, comment: CreateCommentInput) => Promise<Comment | null>
     listComments: (id: string, options?: CommentQueryOptions) => Promise<Comment[]>
@@ -57,6 +59,7 @@ export interface UseCommentsReturn extends UseCommentsState, UseCommentsActions 
 export function useComments(options: UseCommentsOptions): UseCommentsReturn {
   const {
     entityId,
+    socket,
     apiService,
     autoRefreshInterval = 0, // Disabled by default - use WebSocket events
     onCommentCreated,
@@ -356,6 +359,28 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
       loadComments({ includeResolved: true, includeReplies: true })
     }
   }, [entityId, apiService, loadComments])
+
+  useEffect(() => {
+    if (!socket || !apiService || !entityId.trim()) {
+      return
+    }
+
+    const refreshComments = () => {
+      void loadComments({ includeResolved: true, includeReplies: true })
+    }
+
+    socket.on('comment:created', refreshComments)
+    socket.on('comment:updated', refreshComments)
+    socket.on('comment:resolved', refreshComments)
+    socket.on('comment:deleted', refreshComments)
+
+    return () => {
+      socket.off('comment:created', refreshComments)
+      socket.off('comment:updated', refreshComments)
+      socket.off('comment:resolved', refreshComments)
+      socket.off('comment:deleted', refreshComments)
+    }
+  }, [socket, apiService, entityId, loadComments])
 
   // Auto-refresh (disabled by default - use WebSocket events for real-time updates)
   useEffect(() => {

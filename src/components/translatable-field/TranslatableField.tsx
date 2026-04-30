@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import {
   cn,
   Label,
@@ -14,12 +14,7 @@ import {
   InputGroupButton
 } from '@newwork/nw-design-system'
 import { Languages } from 'lucide-react'
-import {
-  updateMainFieldTranslation,
-  updateTranslation,
-  changeDefaultLanguage,
-  removeTranslationLanguage
-} from './utils'
+import { updateTranslation, changeDefaultLanguage, removeTranslationLanguage } from './utils'
 import { TranslationWidget } from './TranslationWidget'
 
 export interface TranslatableFieldProps {
@@ -38,6 +33,19 @@ export interface TranslatableFieldProps {
   readonly 'data-testid'?: string
 }
 
+function hasDefaultTranslation(translations: Record<string, string>, defaultLanguage: string): boolean {
+  return Object.prototype.hasOwnProperty.call(translations, defaultLanguage)
+}
+
+function isPointerRelevantToPopover(e: MouseEvent, popoverContentRoot: HTMLDivElement | null): boolean {
+  if (!popoverContentRoot) {
+    return false
+  }
+  return e
+    .composedPath()
+    .some(n => n === popoverContentRoot || (n instanceof Node && popoverContentRoot.contains(n as Node)))
+}
+
 export function TranslatableField({
   label,
   value,
@@ -53,10 +61,26 @@ export function TranslatableField({
   variant = 'input',
   'data-testid': dataTestId
 }: TranslatableFieldProps) {
+  const [open, setOpen] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLDivElement>(null)
+  const lastFocusedInContentRef = useRef<HTMLElement | null>(null)
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      setOpen(nextOpen)
+      if (nextOpen && !hasDefaultTranslation(translations, defaultLanguage)) {
+        onTranslationsChange({ ...translations, [defaultLanguage]: value })
+      }
+    },
+    [value, defaultLanguage, translations, onTranslationsChange]
+  )
+
   const handleMainFieldChange = (newValue: string) => {
     onChange(newValue)
-    const newTranslations = updateMainFieldTranslation(newValue, defaultLanguage, translations)
-    onTranslationsChange(newTranslations)
+    if (hasDefaultTranslation(translations, defaultLanguage)) {
+      onTranslationsChange({ ...translations, [defaultLanguage]: newValue })
+    }
   }
 
   const handleTranslationChange = (langCode: string, translationValue: string) => {
@@ -69,7 +93,6 @@ export function TranslatableField({
 
   const handleDefaultLanguageChange = (newLanguage: string) => {
     if (!onDefaultLanguageChange) return
-
     const result = changeDefaultLanguage(newLanguage, value, defaultLanguage, translations)
     onChange(result.newMainValue)
     onTranslationsChange(result.newTranslations)
@@ -78,42 +101,34 @@ export function TranslatableField({
 
   const handleRemoveLanguage = (langToRemove: string) => {
     const newTranslations = removeTranslationLanguage(langToRemove, defaultLanguage, translations)
-    if (newTranslations !== null) {
-      onTranslationsChange(newTranslations)
-    }
+    if (newTranslations !== null) onTranslationsChange(newTranslations)
+  }
+
+  const handleClearTranslation = () => {
+    onTranslationsChange({})
+    setOpen(false)
   }
 
   const hasTranslations = Object.keys(translations).length > 0
-  const currentValue = value
-  const [open, setOpen] = useState(false)
-  const contentRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLDivElement>(null)
-  const lastFocusedInContentRef = useRef<HTMLElement | null>(null)
 
-  // Keep focus inside the popover when Radix or parent tries to move it to the inline value
   const handleFocusOutside = (e: { preventDefault(): void }) => {
     e.preventDefault()
     const active = document.activeElement as HTMLElement | null
     if (contentRef.current?.contains(active)) return
     const toRestore = lastFocusedInContentRef.current
-    if (toRestore?.offsetParent != null) {
-      requestAnimationFrame(() => toRestore.focus())
-    }
+    if (toRestore?.offsetParent != null) requestAnimationFrame(() => toRestore.focus())
   }
 
   const handleFocusInContent = () => {
     const active = document.activeElement as HTMLElement | null
-    if (active && contentRef.current?.contains(active)) {
-      lastFocusedInContentRef.current = active
-    }
+    if (active && contentRef.current?.contains(active)) lastFocusedInContentRef.current = active
   }
 
-  // Handle outside click ourselves so clicks inside inputs (e.g. Romanian) don't close the popover
   useEffect(() => {
     if (!open) return
     const handleMouseDown = (e: MouseEvent) => {
       const target = e.target as Node | null
-      if (contentRef.current?.contains(target)) {
+      if (isPointerRelevantToPopover(e, contentRef.current)) {
         if (target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/i.test(target.tagName)) {
           lastFocusedInContentRef.current = target
         }
@@ -122,13 +137,12 @@ export function TranslatableField({
       if (triggerRef.current?.contains(target)) return
       setOpen(false)
     }
-    document.addEventListener('mousedown', handleMouseDown, true)
-    return () => document.removeEventListener('mousedown', handleMouseDown, true)
+    document.addEventListener('mousedown', handleMouseDown, false)
+    return () => document.removeEventListener('mousedown', handleMouseDown, false)
   }, [open])
 
   return (
     <div className={label ? 'gba:space-y-2' : 'gba:space-y-0'} data-testid={dataTestId}>
-      {/* Label */}
       {label && (
         <Label className="gba:flex gba:items-center" data-testid={`${dataTestId}-Label`}>
           {label}
@@ -136,7 +150,6 @@ export function TranslatableField({
         </Label>
       )}
 
-      {/* Main Input/Textarea Field with Translation Icon */}
       <InputGroup
         className={cn(
           className,
@@ -150,7 +163,7 @@ export function TranslatableField({
       >
         {variant === 'textarea' ? (
           <InputGroupTextarea
-            value={currentValue}
+            value={value}
             onChange={e => handleMainFieldChange(e.target.value)}
             placeholder={placeholder}
             className={error ? 'gba:border-red-500' : ''}
@@ -159,7 +172,7 @@ export function TranslatableField({
           />
         ) : (
           <InputGroupInput
-            value={currentValue}
+            value={value}
             onChange={e => handleMainFieldChange(e.target.value)}
             placeholder={placeholder}
             className={error ? 'gba:border-red-500' : ''}
@@ -167,7 +180,7 @@ export function TranslatableField({
           />
         )}
         <InputGroupAddon align={variant === 'textarea' ? 'block-end' : 'inline-end'}>
-          <Popover open={open} onOpenChange={setOpen}>
+          <Popover open={open} onOpenChange={handleOpenChange}>
             <div ref={triggerRef} className="gba:inline-flex">
               <PopoverTrigger asChild>
                 <InputGroupButton
@@ -198,6 +211,7 @@ export function TranslatableField({
                   onTranslationChange={handleTranslationChange}
                   onDefaultLanguageChange={handleDefaultLanguageChange}
                   onRemoveLanguage={handleRemoveLanguage}
+                  onClearTranslation={handleClearTranslation}
                   onDefaultLanguageChangeProp={onDefaultLanguageChange}
                 />
               </div>
@@ -206,7 +220,6 @@ export function TranslatableField({
         </InputGroupAddon>
       </InputGroup>
 
-      {/* Error Message */}
       {error && (
         <p className="gba:text-sm gba:text-red-600" data-testid={`${dataTestId}-Error`}>
           {error}

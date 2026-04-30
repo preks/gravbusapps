@@ -93,8 +93,8 @@ const MODEL_KINDS_BY_PROVIDER: Record<UserSelectableLlmProvider, Record<ModelKin
   anthropic: {
     default: 'claude-sonnet-4-20250514',
     smart: 'claude-opus-4-1-20250805',
-    fast: 'claude-3-7-sonnet-20250219',
-    cheap: 'claude-3-5-haiku-20241022'
+    fast: 'claude-sonnet-4-5-20250929',
+    cheap: 'claude-haiku-4-5-20251001'
   }
 }
 
@@ -140,9 +140,9 @@ const PROVIDER_MODEL_IDS: Record<UserSelectableLlmProvider, ReadonlyArray<UserSe
   anthropic: [
     'claude-sonnet-4-20250514',
     'claude-opus-4-1-20250805',
-    'claude-3-7-sonnet-20250219',
+    'claude-sonnet-4-5-20250929',
     'claude-3-7-sonnet-latest',
-    'claude-3-5-haiku-20241022'
+    'claude-haiku-4-5-20251001'
   ]
 }
 

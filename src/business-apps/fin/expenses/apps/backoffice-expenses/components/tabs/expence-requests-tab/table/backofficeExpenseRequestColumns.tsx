@@ -5,7 +5,8 @@ import {
   createCurrencyColumn,
   createDateColumn,
   createFormatDate,
-  createStatusBadgeColumn
+  createStatusBadgeColumn,
+  expenseTableColumnHeader
 } from '../../../../common/columns/expenseColumnHelpers'
 import type { ExpenseData } from '../../../../types'
 import { formatCurrency } from '../../../../utils/currencyUtils'
@@ -52,6 +53,13 @@ function getRowCurrencyCode(row: ExpenseData): string {
   return extractCurrencyCode(row.currency?.code ?? '') ?? 'EUR'
 }
 
+/** Wider tracks so date headers (and values) are not clipped next to sort/pin controls. */
+const EXPENSE_REQUEST_DATE_COLUMN_WIDTH = {
+  size: 168,
+  minSize: 152,
+  maxSize: 240
+} as const
+
 /**
  * Data columns for the backoffice expense requests list (TanStack / DataTable).
  * Selection and row-action columns are composed in the table when wiring DataTable.
@@ -64,7 +72,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
     {
       id: 'employee',
       accessorFn: (row: ExpenseData) => row.employee,
-      header: t('header-employee'),
+      header: expenseTableColumnHeader(t('header-employee')),
       enableSorting: true,
       size: 200,
       minSize: 160,
@@ -74,7 +82,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
     {
       id: 'employeeCode',
       accessorFn: (row: ExpenseData) => row.employeeCode,
-      header: t('header-employee-code'),
+      header: expenseTableColumnHeader(t('header-employee-code')),
       enableSorting: true,
       size: 140,
       minSize: 100,
@@ -85,7 +93,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
     {
       id: 'sapNumber',
       accessorKey: 'sapNumber',
-      header: t('header-sap-number'),
+      header: expenseTableColumnHeader(t('header-sap-number')),
       enableSorting: false,
       size: 140,
       minSize: 100,
@@ -96,7 +104,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
     {
       id: 'requestNumber',
       accessorFn: (row: ExpenseData) => row.code,
-      header: t('header-request-number'),
+      header: expenseTableColumnHeader(t('header-request-number')),
       enableSorting: true,
       size: 140,
       minSize: 100,
@@ -106,18 +114,25 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
     {
       id: 'title',
       accessorFn: (row: ExpenseData) => row.title,
-      header: t('header-title'),
+      header: expenseTableColumnHeader(t('header-title')),
       enableSorting: true,
       size: 200,
       minSize: 160,
       maxSize: 320,
       cell: ({ row }) => renderTruncatedCell(row.original.title, `expense-request-title-${row.original.id}`, na)
     },
-    createDateColumn<ExpenseData>('startDate', t('header-start-date'), 'startDate', { formatDate }),
-    createDateColumn<ExpenseData>('endDate', t('header-end-date'), 'endDate', { formatDate }),
+    createDateColumn<ExpenseData>('startDate', t('header-start-date'), 'startDate', {
+      formatDate,
+      ...EXPENSE_REQUEST_DATE_COLUMN_WIDTH
+    }),
+    createDateColumn<ExpenseData>('endDate', t('header-end-date'), 'endDate', {
+      formatDate,
+      ...EXPENSE_REQUEST_DATE_COLUMN_WIDTH
+    }),
     createDateColumn<ExpenseData>('createdAt', t('header-creation-date'), row => row.creationDate, {
       formatDate,
-      sortDescFirst: true
+      sortDescFirst: true,
+      ...EXPENSE_REQUEST_DATE_COLUMN_WIDTH
     }),
     createStatusBadgeColumn<ExpenseData>(
       'status',
@@ -126,13 +141,16 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
       {
         getRowTestId: row => `expense-request-status-${row.id}`,
         cellWrapperClassName:
-          'gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap gba:w-full gba:flex gba:items-center'
+          'gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap gba:w-full gba:flex gba:items-center',
+        size: 200,
+        minSize: 180,
+        maxSize: 320
       }
     ),
     {
       id: 'totalRemainingAmount',
       accessorFn: (row: ExpenseData) => row.totalRemainingAmount,
-      header: t('header-remaining-amount'),
+      header: expenseTableColumnHeader(t('header-remaining-amount')),
       enableSorting: true,
       sortDescFirst: false,
       size: 150,

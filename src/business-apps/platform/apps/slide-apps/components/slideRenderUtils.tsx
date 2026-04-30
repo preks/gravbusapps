@@ -5,34 +5,22 @@ import React from 'react'
 import type { ShapeElement, GradientConfig } from './slideElements'
 import { gradientToCss, gradientToSvgAttrs } from './slideElements'
 
-export function sanitizeMediaUrl(url: string | undefined, allowedDataTypes: string[] = ['image/', 'video/']): string {
-  if (!url) return ''
-  const trimmed = url.trim()
-  if (
-    trimmed.startsWith('https://') ||
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('blob:') ||
-    trimmed.startsWith('/') ||
-    trimmed.startsWith('./')
-  ) {
-    return trimmed
-  }
-  for (const type of allowedDataTypes) {
-    if (trimmed.startsWith(`data:${type}`)) {
-      return trimmed
-    }
-  }
-  return ''
-}
-
 export function renderSvgGradientDefs(gradient: GradientConfig, id: string, viewBox = 100): React.ReactNode {
   const attrs = gradientToSvgAttrs(gradient, viewBox)
+  const getStopAttrs = (color: string): { stopColor: string; stopOpacity?: number } => {
+    const match = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([0-9.]+)\s*\)$/i.exec(color)
+    if (!match) return { stopColor: color }
+    return {
+      stopColor: `rgb(${match[1]}, ${match[2]}, ${match[3]})`,
+      stopOpacity: Number.parseFloat(match[4])
+    }
+  }
   if (attrs.type === 'radial') {
     return (
       <defs>
         <radialGradient id={id} cx={attrs.cx} cy={attrs.cy} r={attrs.r}>
           {attrs.stops.map((s, i) => (
-            <stop key={i} offset={s.offset} stopColor={s.stopColor} />
+            <stop key={i} offset={s.offset} {...getStopAttrs(s.stopColor)} />
           ))}
         </radialGradient>
       </defs>
@@ -42,7 +30,7 @@ export function renderSvgGradientDefs(gradient: GradientConfig, id: string, view
     <defs>
       <linearGradient id={id} x1={attrs.x1} y1={attrs.y1} x2={attrs.x2} y2={attrs.y2} gradientUnits="userSpaceOnUse">
         {attrs.stops.map((s, i) => (
-          <stop key={i} offset={s.offset} stopColor={s.stopColor} />
+          <stop key={i} offset={s.offset} {...getStopAttrs(s.stopColor)} />
         ))}
       </linearGradient>
     </defs>

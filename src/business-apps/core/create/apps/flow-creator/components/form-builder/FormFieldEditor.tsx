@@ -16,7 +16,7 @@ import {
   Switch
 } from '@newwork/nw-design-system'
 import { ChevronDown, ChevronUp, GripVertical, Trash2 } from 'lucide-react'
-import { InputType, type InputBlock, type InputOption } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { InputType, type InputBlock, type InputOption } from '@/common/data/flow/types/flowTemplate'
 import type { DesignerMode } from '../../types/studioTypes'
 import { FormFieldDefaultValueSection } from './FormFieldDefaultValueSection'
 import { NEUTRAL_SWITCH_CLASSNAME } from '../../utils/neutralSwitchClassName'

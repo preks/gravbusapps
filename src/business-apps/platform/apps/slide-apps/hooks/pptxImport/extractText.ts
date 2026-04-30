@@ -23,6 +23,7 @@ import {
   nextImportUid
 } from './ooxmlUtils'
 import { resolveTextBackgroundFromShape } from './shapeStyleResolver'
+import { normalizeNumberingStyle } from '../../utils/richTextLists'
 import type {
   InheritedLevelDefaults,
   InheritedLevelMap,
@@ -215,24 +216,45 @@ function parseBodyTextBoxLayout(
   return result
 }
 
-function parseBulletInfo(pPr: Element | undefined): { bulletType: OoxmlParagraph['bulletType']; bulletChar?: string } {
-  if (!pPr) return { bulletType: undefined }
+function parseListInfo(
+  pPr: Element | undefined
+): Pick<
+  OoxmlParagraph,
+  'bulletType' | 'bulletChar' | 'numberingStyle' | 'numberStartAt' | 'listLeftMargin' | 'listIndent'
+> {
+  if (!pPr) return {}
+
+  const listLeftMarginRaw = pPr.getAttribute('marL')
+  const listIndentRaw = pPr.getAttribute('indent')
+  const listLeftMargin = listLeftMarginRaw ? Number.parseInt(listLeftMarginRaw) : Number.NaN
+  const listIndent = listIndentRaw ? Number.parseInt(listIndentRaw) : Number.NaN
+  const geometry = {
+    listLeftMargin: Number.isFinite(listLeftMargin) ? emuToPixels(listLeftMargin) : undefined,
+    listIndent: Number.isFinite(listIndent) ? emuToPixels(listIndent) : undefined
+  }
 
   const buNone = getChild(pPr, 'a:buNone')
-  if (buNone) return { bulletType: 'none' }
+  if (buNone) return { bulletType: 'none', ...geometry }
 
   const buChar = getChild(pPr, 'a:buChar')
   if (buChar) {
     const char = buChar.getAttribute('char') || '•'
-    return { bulletType: 'bullet', bulletChar: char }
+    return { bulletType: 'bullet', bulletChar: char, ...geometry }
   }
 
   const buAutoNum = getChild(pPr, 'a:buAutoNum')
   if (buAutoNum) {
-    return { bulletType: 'number' }
+    const startAtRaw = buAutoNum.getAttribute('startAt')
+    const startAt = startAtRaw ? Number.parseInt(startAtRaw) : Number.NaN
+    return {
+      bulletType: 'number',
+      numberingStyle: normalizeNumberingStyle(buAutoNum.getAttribute('type')) ?? 'arabicPeriod',
+      numberStartAt: Number.isFinite(startAt) ? startAt : undefined,
+      ...geometry
+    }
   }
 
-  return { bulletType: undefined }
+  return geometry
 }
 
 /**
@@ -331,29 +353,38 @@ function parseParagraphs(txBody: Element, theme?: OoxmlTheme, inheritedLevels?: 
       if (!match) continue
       const level = Number.parseInt(match[1]) - 1
       const defRPr = getChild(child, 'a:defRPr')
-      if (!defRPr) continue
       const defaults: InheritedLevelDefaults = {}
-      const sz = defRPr.getAttribute('sz')
-      if (sz) {
-        const parsed = Number.parseInt(sz)
-        if (Number.isFinite(parsed)) defaults.fontSize = parsed
-      }
-      if (defRPr.getAttribute('b') === '1') defaults.bold = true
-      if (defRPr.getAttribute('i') === '1') defaults.italic = true
-      const capAttr = defRPr.getAttribute('cap')
-      if (capAttr) {
-        const lower = capAttr.toLowerCase()
-        if (lower === 'all' || lower === 'small' || lower === 'none') {
-          defaults.cap = lower as OoxmlCap
+      if (defRPr) {
+        const sz = defRPr.getAttribute('sz')
+        if (sz) {
+          const parsed = Number.parseInt(sz)
+          if (Number.isFinite(parsed)) defaults.fontSize = parsed
         }
+        if (defRPr.getAttribute('b') === '1') defaults.bold = true
+        if (defRPr.getAttribute('i') === '1') defaults.italic = true
+        const capAttr = defRPr.getAttribute('cap')
+        if (capAttr) {
+          const lower = capAttr.toLowerCase()
+          if (lower === 'all' || lower === 'small' || lower === 'none') {
+            defaults.cap = lower as OoxmlCap
+          }
+        }
+        const latin = getChild(defRPr, 'a:latin')
+        if (latin) {
+          const typeface = resolveTypeface(latin.getAttribute('typeface'), theme)
+          if (typeface) defaults.fontFamily = typeface
+        }
+        const lstStyleFill = resolveTextFillColor(defRPr, theme)
+        if (lstStyleFill) defaults.color = lstStyleFill
       }
-      const latin = getChild(defRPr, 'a:latin')
-      if (latin) {
-        const typeface = resolveTypeface(latin.getAttribute('typeface'), theme)
-        if (typeface) defaults.fontFamily = typeface
-      }
-      const lstStyleFill = resolveTextFillColor(defRPr, theme)
-      if (lstStyleFill) defaults.color = lstStyleFill
+      const listInfo = parseListInfo(child)
+      if (listInfo.bulletType) defaults.bulletType = listInfo.bulletType
+      if (listInfo.bulletChar) defaults.bulletChar = listInfo.bulletChar
+      if (listInfo.numberingStyle) defaults.numberingStyle = listInfo.numberingStyle
+      if (listInfo.numberStartAt !== undefined) defaults.numberStartAt = listInfo.numberStartAt
+      if (listInfo.listLeftMargin !== undefined) defaults.listLeftMargin = listInfo.listLeftMargin
+      if (listInfo.listIndent !== undefined) defaults.listIndent = listInfo.listIndent
+      if (Object.keys(defaults).length === 0) continue
       bodyLevelDefaults.set(level, defaults)
     }
   }
@@ -370,7 +401,13 @@ function parseParagraphs(txBody: Element, theme?: OoxmlTheme, inheritedLevels?: 
       color: d.color ?? existing.color,
       bold: d.bold ?? existing.bold,
       italic: d.italic ?? existing.italic,
-      cap: d.cap ?? existing.cap
+      cap: d.cap ?? existing.cap,
+      bulletType: d.bulletType ?? existing.bulletType,
+      bulletChar: d.bulletChar ?? existing.bulletChar,
+      numberingStyle: d.numberingStyle ?? existing.numberingStyle,
+      numberStartAt: d.numberStartAt ?? existing.numberStartAt,
+      listLeftMargin: d.listLeftMargin ?? existing.listLeftMargin,
+      listIndent: d.listIndent ?? existing.listIndent
     })
   }
 
@@ -406,7 +443,17 @@ function parseParagraphs(txBody: Element, theme?: OoxmlTheme, inheritedLevels?: 
     const paraBold = levelDefaults.bold
     const paraItalic = levelDefaults.italic
 
-    const { bulletType, bulletChar } = parseBulletInfo(pPr)
+    const explicitList = parseListInfo(pPr)
+    const bulletType = explicitList.bulletType ?? levelDefaults.bulletType
+    const bulletChar = bulletType === 'bullet' ? (explicitList.bulletChar ?? levelDefaults.bulletChar) : undefined
+    const numberingStyle =
+      bulletType === 'number'
+        ? (explicitList.numberingStyle ?? levelDefaults.numberingStyle ?? 'arabicPeriod')
+        : undefined
+    const numberStartAt =
+      bulletType === 'number' ? (explicitList.numberStartAt ?? levelDefaults.numberStartAt) : undefined
+    const listLeftMargin = explicitList.listLeftMargin ?? levelDefaults.listLeftMargin
+    const listIndent = explicitList.listIndent ?? levelDefaults.listIndent
 
     const lnSpcEl = pPr ? getChild(pPr, 'a:lnSpc') : undefined
     const spcBefEl = pPr ? getChild(pPr, 'a:spcBef') : undefined
@@ -443,6 +490,10 @@ function parseParagraphs(txBody: Element, theme?: OoxmlTheme, inheritedLevels?: 
       level,
       bulletType,
       bulletChar,
+      numberingStyle,
+      numberStartAt,
+      listLeftMargin,
+      listIndent,
       lineHeight,
       spaceBefore,
       spaceAfter,
@@ -499,6 +550,10 @@ function paragraphsToRich(
     if (typeof p.level === 'number') rich.indentLevel = p.level
     if (p.bulletType) rich.bulletType = p.bulletType
     if (p.bulletChar) rich.bulletChar = p.bulletChar
+    if (p.numberingStyle) rich.numberingStyle = p.numberingStyle
+    if (p.numberStartAt !== undefined) rich.numberStartAt = p.numberStartAt
+    if (p.listLeftMargin !== undefined) rich.listLeftMargin = p.listLeftMargin
+    if (p.listIndent !== undefined) rich.listIndent = p.listIndent
     if (p.lineHeight) rich.lineHeight = p.lineHeight
     if (p.spaceBefore) rich.spaceBefore = p.spaceBefore
     if (p.spaceAfter) rich.spaceAfter = p.spaceAfter
@@ -665,10 +720,18 @@ function estimateRequiredTextHeight(
   const innerWidth = Math.max(1, width - padding * 2)
   const lines = estimateWrappedLineCount(content, fontSize, innerWidth)
   if (lines === 0) return 0
+  const lineBoxHeight = fontSize * lineHeight
+  const halfLeading = Math.max(0, (lineBoxHeight - fontSize) / 2)
+  // Zero-inset PowerPoint text boxes often rely on the line box's descender
+  // room rather than explicit bottom padding. Browsers clip these boxes
+  // slightly earlier under `overflow: hidden`, so reserve a tiny bit of extra
+  // space when the existing bottom breathing room is under a typical
+  // descender depth (~0.25em).
+  const descenderSlack = Math.max(0, Math.ceil(fontSize * 0.25 - (padding + halfLeading)))
   // `lineHeight` is multiplicative (1.4 matches the editor's default for
   // imported text). The trailing padding is symmetric so the ascender of the
   // first line and the descender of the last line both breathe.
-  return Math.ceil(lines * fontSize * lineHeight + padding * 2)
+  return Math.ceil(lines * lineBoxHeight + padding * 2 + descenderSlack)
 }
 
 function buildTextAndLinks(
@@ -770,7 +833,8 @@ export function extractShapeInTextForAutoshave(
     lineHeight: 1.4,
     letterSpacing: 0,
     padding: bodyLayout.padding,
-    textTransform: formatting.textTransform
+    textTransform: formatting.textTransform,
+    allowOverflow: autofit.mode !== 'normal'
   }
 }
 

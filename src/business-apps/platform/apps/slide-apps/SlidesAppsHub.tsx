@@ -51,7 +51,8 @@ import {
   Upload,
   SortAsc,
   SortDesc,
-  X
+  X,
+  RotateCcw
   // Wand2 — re-enable when "Generate with AI" menu item is restored
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -59,7 +60,12 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
 import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
 import { DriveApiService } from '@/business-apps/core/office/apps/drive/services/DriveApiService'
-import { OfficeTrashList } from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import {
+  OfficeTrashListTable,
+  OfficeTrashListToolbar,
+  useOfficeTrashList
+} from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import { PermanentDeleteConfirmDialog } from '@/business-apps/platform/apps/shared/components/PermanentDeleteConfirmDialog'
 import { SlidesHero } from './components/SlidesHero'
 import type { SlideSection } from './components/SlidesHero'
 import { useSlides } from './hooks/useSlides'
@@ -80,7 +86,19 @@ import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 import type { SlideSummary } from './types'
 import type { ParsedPowerPointDocument } from './hooks/usePowerPointParser'
-import { compressSlideImages } from './hooks/pptxImport'
+import { normalizeImportedSlideMedia } from './hooks/pptxImport'
+import type { NormalizeImportedMediaProgress } from './hooks/pptxImport/normalizeImportedMedia'
+import type { PptxImportProgressState } from './hooks/pptxImport/importProgress'
+import {
+  createImageUploadImportProgress,
+  createPreparingImportProgress,
+  createVideoProcessingImportProgress,
+  ensureMonotonicImportProgress
+} from './hooks/pptxImport/importProgress'
+import {
+  createMediaFailurePlaceholderDataUrl,
+  DEFAULT_PPTX_MEDIA_UPLOAD_RETRY_COUNT
+} from './hooks/pptxImport/mediaHosting'
 import translations from './_i18n'
 
 export interface SlidesAppsHubProps extends BusinessAppContextProps {
@@ -153,6 +171,10 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const [viewLayout, setViewLayout] = useState<ViewMode>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [trashSearchQuery, setTrashSearchQuery] = useState('')
+  const [selectedTrashIds, setSelectedTrashIds] = useState<Set<string>>(new Set())
+  const [bulkDeleteTrashOpen, setBulkDeleteTrashOpen] = useState(false)
+  const [isBulkDeletingTrash, setIsBulkDeletingTrash] = useState(false)
+  const [isBulkRestoringTrash, setIsBulkRestoringTrash] = useState(false)
   const [activeSection, setActiveSection] = useState<SlideHubSidebarSection>('my-slides')
 
   // Clear space return URL if not opened from a space
@@ -179,6 +201,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [slideForManageShares, setSlideForManageShares] = useState<string | null>(null)
   const [showImportDialog, setShowImportDialog] = useState(false)
+  const [powerPointImportProgress, setPowerPointImportProgress] = useState<PptxImportProgressState | null>(null)
   const [showTemplateBrowserDialog, setShowTemplateBrowserDialog] = useState(false)
   const [showGenerateDialogChat, setShowGenerateDialogChat] = useState(false)
   const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
@@ -208,6 +231,86 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     clearCurrentSlide,
     refreshSlides
   } = useSlides(accessToken)
+
+  const trashList = useOfficeTrashList({
+    accessToken: accessToken ?? '',
+    entityType: 'slide',
+    searchQuery: trashSearchQuery,
+    enabled: currentView === 'list' && activeSection === 'trash',
+    defaultSortBy: 'trashedAt',
+    defaultSortOrder: 'desc',
+    onItemsChanged: () => {
+      void refreshSlides()
+    },
+    listControls: {
+      refreshLabel: '',
+      sortNameLabel: '',
+      sortTrashedOnLabel: '',
+      trashedOnColumnLabel: '',
+      toastRestoredLabel: t('trash-toast-restored'),
+      toastRestoreFailedLabel: t('trash-toast-restore-failed'),
+      toastDeletedLabel: t('trash-toast-deleted'),
+      toastDeleteFailedLabel: t('trash-toast-delete-failed')
+    }
+  })
+
+  const handleToggleTrashSelect = useCallback((id: string) => {
+    setSelectedTrashIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSelectAllTrash = useCallback(() => {
+    const allIds = trashList.sortedItems.map(i => i.id)
+    setSelectedTrashIds(prev => (prev.size === allIds.length && allIds.length > 0 ? new Set() : new Set(allIds)))
+  }, [trashList.sortedItems])
+
+  const handleBulkRestoreTrash = useCallback(async () => {
+    if (!accessToken || selectedTrashIds.size === 0) return
+    const toRestore = trashList.sortedItems.filter(item => selectedTrashIds.has(item.id))
+    setIsBulkRestoringTrash(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      await DriveApiService.restoreItems(toRestore.map(item => ({ entityType: item.type, entityId: item.id })))
+      toast.success(`${toRestore.length} item${toRestore.length === 1 ? '' : 's'} restored`)
+      setSelectedTrashIds(new Set())
+      await trashList.refresh()
+      void refreshSlides()
+    } catch (error) {
+      console.error('[SlidesAppsHub] Failed to bulk restore trash items:', error)
+      toast.error('Failed to restore some items')
+    } finally {
+      setIsBulkRestoringTrash(false)
+    }
+  }, [accessToken, refreshSlides, selectedTrashIds, trashList])
+
+  const handleBulkDeleteTrash = useCallback(async () => {
+    if (!accessToken || selectedTrashIds.size === 0) return
+    const toDelete = trashList.sortedItems.filter(item => selectedTrashIds.has(item.id))
+    setIsBulkDeletingTrash(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      for (const item of toDelete) {
+        await DriveApiService.deleteTrashedItem(item.type, item.id)
+      }
+      toast.success(`${toDelete.length} item${toDelete.length === 1 ? '' : 's'} deleted permanently`)
+      setSelectedTrashIds(new Set())
+      await trashList.refresh()
+      void refreshSlides()
+    } catch (error) {
+      console.error('[SlidesAppsHub] Failed to bulk delete trash items:', error)
+      toast.error('Failed to delete some items permanently')
+    } finally {
+      setIsBulkDeletingTrash(false)
+      setBulkDeleteTrashOpen(false)
+    }
+  }, [accessToken, refreshSlides, selectedTrashIds, trashList])
 
   const { favorites, setFavorites } = useSlidesHubFavorites()
   const { ownerInfoMap, sharedUsersMap, refreshSharedUsersForSlide } = useSlidesHubUserLookup({
@@ -248,6 +351,34 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     setActiveSection,
     onInitialLoadComplete: () => setInitialUrlProcessed(true)
   })
+
+  const updatePowerPointImportProgress = useCallback((nextProgress: PptxImportProgressState) => {
+    setPowerPointImportProgress(previousProgress => ensureMonotonicImportProgress(nextProgress, previousProgress))
+  }, [])
+
+  const resetPowerPointImportProgress = useCallback(() => {
+    setPowerPointImportProgress(null)
+  }, [])
+
+  const handleNormalizedMediaProgress = useCallback(
+    (progress: NormalizeImportedMediaProgress) => {
+      if (progress.phase === 'uploading-images') {
+        updatePowerPointImportProgress(createImageUploadImportProgress(progress.current, progress.total))
+        return
+      }
+
+      updatePowerPointImportProgress(createVideoProcessingImportProgress(progress.current, progress.total))
+    },
+    [updatePowerPointImportProgress]
+  )
+
+  const handleImportDialogOpenChange = useCallback(
+    (open: boolean) => {
+      setShowImportDialog(open)
+      if (!open) resetPowerPointImportProgress()
+    },
+    [resetPowerPointImportProgress]
+  )
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
   // Only run after initial URL processing is complete to avoid clearing slideId on refresh
@@ -520,11 +651,15 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const handlePowerPointImport = useCallback(
     async (parsedDoc: ParsedPowerPointDocument) => {
       try {
-        let decodeFailures = 0
-        let strippedForSize = 0
-        const uploadedSlides = await compressSlideImages(parsedDoc.slides, undefined, warning => {
-          if (warning.type === 'decode-failed') decodeFailures++
-          else if (warning.type === 'stripped-for-size') strippedForSize++
+        updatePowerPointImportProgress(createPreparingImportProgress())
+        const imageFailurePlaceholderDataUrl = createMediaFailurePlaceholderDataUrl({
+          title: t('import-image-upload-placeholder-title'),
+          subtitle: t('import-image-upload-placeholder-subtitle')
+        })
+        const normalizedMedia = await normalizeImportedSlideMedia(parsedDoc.slides, {
+          imageFailurePlaceholderDataUrl,
+          uploadRetryCount: DEFAULT_PPTX_MEDIA_UPLOAD_RETRY_COUNT,
+          onProgress: handleNormalizedMediaProgress
         })
 
         // Pre-flight: measure the final JSON payload. The document service
@@ -535,7 +670,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         // `toast-import-partial-too-large`. 10.5 MB gives headroom for the
         // title/wrapper fields added on top of the slide array.
         const contentJson = {
-          slides: uploadedSlides,
+          slides: normalizedMedia.slides,
           themeId: parsedDoc.themeId || 'corporate'
         }
         const payloadBytes = JSON.stringify(contentJson).length
@@ -543,17 +678,24 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         console.info(`[SlidesAppsHub] Import payload: ${payloadMb.toFixed(2)} MB, ${parsedDoc.slideCount} slides`)
         const exceedsBackendLimit = payloadBytes > 10 * 1024 * 1024
 
-        const result = await importSlide({
-          title: parsedDoc.fileName.replace('.pptx', ''),
-          contentJson
-        })
+        const result = await importSlide(
+          {
+            title: parsedDoc.fileName.replace('.pptx', ''),
+            contentJson
+          },
+          {
+            onProgress: updatePowerPointImportProgress
+          }
+        )
 
         if (!result) {
+          resetPowerPointImportProgress()
           toast.error(t('toast-import-failed'))
           return
         }
 
         setShowImportDialog(false)
+        resetPowerPointImportProgress()
         setSelectedSlideId(result.slide.id)
         setCurrentView('editor')
         updateUrl(result.slide.id, 'editor')
@@ -563,14 +705,27 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
 
         if (result.contentSaved) {
           toast.success(t('toast-imported-slides', { count: parsedDoc.slideCount }))
-          // Surface compression-time issues as non-blocking warnings so users
-          // can tell why an imported image might look off (decode failure) or
-          // missing (stripped for size), rather than seeing a silent blank.
-          if (strippedForSize > 0) {
-            toast.warning(t('parser-image-stripped-for-size'))
+          if (normalizedMedia.warnings.imageUploadFailures > 0) {
+            toast.warning(
+              t('parser-image-upload-failed', { count: String(normalizedMedia.warnings.imageUploadFailures) })
+            )
           }
-          if (decodeFailures > 0) {
-            toast.warning(t('parser-image-decode-failed', { slide: String(decodeFailures) }))
+          if (normalizedMedia.warnings.embeddedVideoUploadFailures > 0) {
+            toast.warning(
+              t('parser-video-upload-failed', { count: String(normalizedMedia.warnings.embeddedVideoUploadFailures) })
+            )
+          }
+          if (normalizedMedia.warnings.videoPreviewFailures > 0) {
+            toast.warning(
+              t('parser-video-preview-failed', { count: String(normalizedMedia.warnings.videoPreviewFailures) })
+            )
+          }
+          if (normalizedMedia.warnings.videoPreviewUploadFailures > 0) {
+            toast.warning(
+              t('parser-video-preview-upload-failed', {
+                count: String(normalizedMedia.warnings.videoPreviewUploadFailures)
+              })
+            )
           }
         } else if (exceedsBackendLimit) {
           toast.warning(t('toast-import-partial-too-large', { size: payloadMb.toFixed(1) }))
@@ -578,11 +733,19 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
           toast.warning(t('toast-import-partial'))
         }
       } catch (err) {
+        resetPowerPointImportProgress()
         console.error('[SlidesAppsHub] Import error:', err)
         toast.error(t('toast-import-failed'))
       }
     },
-    [importSlide, updateUrl, t]
+    [
+      handleNormalizedMediaProgress,
+      importSlide,
+      resetPowerPointImportProgress,
+      t,
+      updatePowerPointImportProgress,
+      updateUrl
+    ]
   )
 
   // Check if this is a cast receiver view (standalone page for external display)
@@ -719,53 +882,187 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
 
   if (currentView === 'list' && activeSection === 'trash') {
     return (
-      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
-        <SlidesHero
-          activeSection={activeSection as SlideSection}
-          onSectionChange={s => setActiveSection(s as SlideHubSidebarSection)}
-          newButton={heroNewButton}
-          t={t}
-          data-testid={`${testId}-hero`}
+      <>
+        <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+          <SlidesHero
+            activeSection={activeSection as SlideSection}
+            onSectionChange={s => setActiveSection(s as SlideHubSidebarSection)}
+            newButton={heroNewButton}
+            t={t}
+            data-testid={`${testId}-hero`}
+          />
+          <div className="gba:flex-1 gba:overflow-auto">
+            <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5">
+              <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
+                <div className="gba:relative">
+                  <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
+                  <Input
+                    placeholder={t('slides-header-search-placeholder')}
+                    value={trashSearchQuery}
+                    onChange={event => setTrashSearchQuery(event.target.value)}
+                    className="gba:pl-12 gba:pr-4 gba:h-12 gba:text-base gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm hover:gba:shadow-md hover:gba:bg-muted/70 hover:gba:border-border gba:transition-all gba:duration-200"
+                    data-testid={`${testId}-trash-search`}
+                  />
+                </div>
+                {selectedTrashIds.size > 0 ? (
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedTrashIds(new Set())}
+                      data-testid={`${testId}-trash-bulk-clear`}
+                    >
+                      <X className="gba:w-4 gba:h-4 gba:mr-1" />
+                      {t('header-selected-count', { count: selectedTrashIds.size })}
+                    </Button>
+                    <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        void handleBulkRestoreTrash()
+                      }}
+                      disabled={isBulkRestoringTrash || isBulkDeletingTrash}
+                      data-testid={`${testId}-trash-bulk-restore`}
+                    >
+                      <RotateCcw className="gba:w-4 gba:h-4 gba:mr-1" />
+                      {isBulkRestoringTrash ? t('trash-bulk-restoring') : t('trash-bulk-restore')}
+                    </Button>
+                    <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gba:text-destructive"
+                      onClick={() => setBulkDeleteTrashOpen(true)}
+                      disabled={isBulkRestoringTrash || isBulkDeletingTrash}
+                      data-testid={`${testId}-trash-bulk-delete`}
+                    >
+                      <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
+                      {t('trash-bulk-delete-permanently')}
+                    </Button>
+                  </div>
+                ) : (
+                  <OfficeTrashListToolbar
+                    listControls={{
+                      refreshLabel: t('slh-refresh'),
+                      sortNameLabel: t('sort-name'),
+                      sortTrashedOnLabel: t('sort-trashed'),
+                      trashedOnColumnLabel: t('table-trashed'),
+                      defaultSortBy: 'trashedAt',
+                      defaultSortOrder: 'desc',
+                      deleteDialogTitle: t('trash-delete-dialog-title-single'),
+                      deleteDialogDescriptionFn: name => t('trash-delete-dialog-description-single', { name }),
+                      deleteDialogCancel: t('trash-delete-dialog-cancel'),
+                      deleteDialogConfirm: t('trash-delete-dialog-confirm'),
+                      deleteDialogDeleting: t('trash-delete-dialog-deleting'),
+                      restoreLabel: t('trash-action-restore'),
+                      restoringLabel: t('trash-action-restoring'),
+                      deleteLabel: t('trash-action-delete'),
+                      deletingLabel: t('trash-action-deleting')
+                    }}
+                    isLoading={trashList.isLoading}
+                    sortBy={trashList.sortBy}
+                    sortOrder={trashList.sortOrder}
+                    onRefresh={() => {
+                      void trashList.refresh()
+                    }}
+                    onSortChange={trashList.handleSortChange}
+                    onToggleSortOrder={trashList.toggleSortOrder}
+                    data-testid={`${testId}-trash-list`}
+                  />
+                )}
+              </div>
+              {trashList.isLoading ? (
+                <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
+                  <Spinner size="lg" />
+                </div>
+              ) : trashList.sortedItems.length === 0 ? (
+                <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4">
+                  <div className="gba:w-24 gba:h-24 gba:rounded-3xl gba:bg-gradient-to-br gba:from-orange-500/20 gba:to-amber-500/20 gba:flex gba:items-center gba:justify-center gba:mb-6">
+                    <Presentation className="gba:w-12 gba:h-12 gba:text-orange-500" />
+                  </div>
+                  <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
+                    {t('slides-empty-trash-title')}
+                  </h3>
+                  <p className="gba:text-muted-foreground gba:text-center gba:max-w-md">
+                    {t('slides-empty-trash-description')}
+                  </p>
+                </div>
+              ) : (
+                <OfficeTrashListTable
+                  items={trashList.sortedItems}
+                  listControls={{
+                    refreshLabel: t('slh-refresh'),
+                    sortNameLabel: t('sort-name'),
+                    sortTrashedOnLabel: t('sort-trashed'),
+                    trashedOnColumnLabel: t('table-trashed'),
+                    defaultSortBy: 'trashedAt',
+                    defaultSortOrder: 'desc',
+                    deleteDialogTitle: t('trash-delete-dialog-title-single'),
+                    deleteDialogDescriptionFn: name => t('trash-delete-dialog-description-single', { name }),
+                    deleteDialogCancel: t('trash-delete-dialog-cancel'),
+                    deleteDialogConfirm: t('trash-delete-dialog-confirm'),
+                    deleteDialogDeleting: t('trash-delete-dialog-deleting'),
+                    restoreLabel: t('trash-action-restore'),
+                    restoringLabel: t('trash-action-restoring'),
+                    deleteLabel: t('trash-action-delete'),
+                    deletingLabel: t('trash-action-deleting')
+                  }}
+                  sortBy={trashList.sortBy}
+                  actionKey={trashList.actionKey}
+                  deleteConfirmItem={trashList.deleteConfirmItem}
+                  onOpenItem={item => handleOpenTrashedSlide(item.id)}
+                  onSortChange={trashList.handleSortChange}
+                  onRestoreItem={item => {
+                    void trashList.handleRestore(item)
+                  }}
+                  onRequestDelete={trashList.requestDelete}
+                  onDeleteConfirmOpenChange={trashList.handleDeleteConfirmOpenChange}
+                  onConfirmDelete={() => {
+                    void trashList.confirmDelete()
+                  }}
+                  selectedIds={selectedTrashIds}
+                  onToggleSelect={handleToggleTrashSelect}
+                  onSelectAll={handleSelectAllTrash}
+                  renderIcon={() => (
+                    <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:bg-orange-500/10">
+                      <Presentation className="gba:w-5 gba:h-5 gba:text-orange-600" />
+                    </div>
+                  )}
+                  data-testid={`${testId}-trash-list`}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+        <PermanentDeleteConfirmDialog
+          open={bulkDeleteTrashOpen}
+          itemNames={trashList.sortedItems.filter(item => selectedTrashIds.has(item.id)).map(item => item.name)}
+          title={
+            selectedTrashIds.size === 1
+              ? t('trash-delete-dialog-title-single')
+              : t('trash-delete-dialog-title-multiple', { count: selectedTrashIds.size })
+          }
+          description={
+            selectedTrashIds.size === 1
+              ? t('trash-delete-dialog-description-single', {
+                  name: trashList.sortedItems.find(item => selectedTrashIds.has(item.id))?.name ?? ''
+                })
+              : t('trash-delete-dialog-description-multiple', { count: selectedTrashIds.size })
+          }
+          cancelLabel={t('trash-delete-dialog-cancel')}
+          confirmLabel={t('trash-delete-dialog-confirm')}
+          deletingLabel={t('trash-delete-dialog-deleting')}
+          onOpenChange={open => {
+            if (!isBulkDeletingTrash) setBulkDeleteTrashOpen(open)
+          }}
+          onConfirm={() => {
+            void handleBulkDeleteTrash()
+          }}
+          isDeleting={isBulkDeletingTrash}
+          data-testid={`${testId}-trash-bulk-delete-confirm`}
         />
-        <main className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0 gba:overflow-hidden">
-          <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5 gba:pb-4 gba:border-b gba:border-border/50">
-            <div className="gba:relative">
-              <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
-              <Input
-                placeholder={t('slides-header-search-placeholder')}
-                value={trashSearchQuery}
-                onChange={event => setTrashSearchQuery(event.target.value)}
-                className="gba:h-12 gba:pl-11 gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm"
-                data-testid={`${testId}-trash-search`}
-              />
-            </div>
-          </div>
-          <div className="gba:flex-1 gba:overflow-auto gba:p-6">
-            <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
-              <OfficeTrashList
-                accessToken={accessToken ?? ''}
-                entityType="slide"
-                emptyTitle={t('slides-empty-trash-title')}
-                emptyDescription={t('slides-empty-trash-description')}
-                layout="list"
-                searchQuery={trashSearchQuery}
-                listControls={{
-                  refreshLabel: t('slh-refresh'),
-                  sortNameLabel: t('sort-name'),
-                  sortTrashedOnLabel: t('sort-trashed'),
-                  trashedOnColumnLabel: t('table-trashed'),
-                  defaultSortBy: 'trashedAt',
-                  defaultSortOrder: 'desc'
-                }}
-                onOpenItem={item => handleOpenTrashedSlide(item.id)}
-                onItemsChanged={() => {
-                  void refreshSlides()
-                }}
-              />
-            </div>
-          </div>
-        </main>
-      </div>
+      </>
     )
   }
 
@@ -1294,15 +1591,16 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
       )}
 
       {/* Import PowerPoint Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+      <Dialog open={showImportDialog} onOpenChange={handleImportDialogOpenChange}>
         <DialogContent className="gba:max-w-2xl">
           <PowerPointUploader
             onFileParsed={handlePowerPointImport}
-            onCancel={() => setShowImportDialog(false)}
+            onCancel={() => handleImportDialogOpenChange(false)}
             onError={err => {
               console.error('[SlidesAppsHub] Import error:', err)
               toast.error(t('toast-import-failed'))
             }}
+            importProgress={powerPointImportProgress}
             data-testid={`${testId}-import-uploader`}
           />
         </DialogContent>

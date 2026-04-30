@@ -11,12 +11,14 @@ import {
   parseSheetsAIFormulaResponse
 } from '../prompts/sheets-ai-formula'
 import { selectPreferredModel } from '../utils/aiModelSelection'
+import { withLanguageDirective } from '../utils/aiResponseLanguage'
 
 export interface UseSheetsAIFormulaParams {
   promptClient: PromptManagerClient
   columns: SpreadsheetColumn[]
   sheetData: Array<Record<string, unknown>>
   onApplyFormula: (columnName: string, formula: string) => Promise<boolean>
+  locale?: string
 }
 
 export interface UseSheetsAIFormulaResult {
@@ -63,7 +65,8 @@ export const useSheetsAIFormula = ({
   promptClient,
   columns,
   sheetData,
-  onApplyFormula
+  onApplyFormula,
+  locale
 }: UseSheetsAIFormulaParams): UseSheetsAIFormulaResult => {
   const [intent, setIntent] = useState('')
   const [selectedColumn, setSelectedColumn] = useState(columns[0]?.name ?? '')
@@ -97,7 +100,7 @@ export const useSheetsAIFormula = ({
 
       const formData = new FormData()
       formData.append('model_id', modelId)
-      formData.append('system_content', SHEETS_AI_FORMULA_SYSTEM_PROMPT)
+      formData.append('system_content', withLanguageDirective(SHEETS_AI_FORMULA_SYSTEM_PROMPT, locale))
       formData.append('user_content', buildSheetsAIFormulaUserPrompt(intent, columns, sheetData.slice(0, 80)))
       formData.append('model_settings', JSON.stringify({}))
 
@@ -119,7 +122,7 @@ export const useSheetsAIFormula = ({
     } finally {
       setIsGenerating(false)
     }
-  }, [columns, intent, promptClient, sheetData])
+  }, [columns, intent, locale, promptClient, sheetData])
 
   const applyFormula = useCallback(async (): Promise<boolean> => {
     if (!selectedColumn || !generatedFormula) return false

@@ -1855,6 +1855,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                       onValueChange={handleRecipientsValueChange}
                       onEmployeesChange={handleRecipientsEmployeesChange}
                       placeholder={t('wizard-search-employees-to-add')}
+                      searchPlaceholder={t('wizard-search-employees-input-placeholder')}
                       data-testid="bulk-collection-employee-select"
                     />
                   </CardContent>

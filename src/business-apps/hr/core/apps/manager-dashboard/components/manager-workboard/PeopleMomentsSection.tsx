@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
-import { Cake, Trophy } from 'lucide-react'
+import { Cake, Trophy } from '@phosphor-icons/react'
 
 interface Birthday {
   id: string

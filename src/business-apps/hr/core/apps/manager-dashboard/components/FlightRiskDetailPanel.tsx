@@ -23,23 +23,23 @@ import {
   TooltipTrigger
 } from '@newwork/nw-design-system'
 import {
-  TrendingDown,
-  TrendingUp,
-  Minus,
-  AlertTriangle,
-  User,
-  Target,
-  MessageSquare,
-  Heart,
-  DollarSign,
-  Clock,
-  Lightbulb,
-  ChevronDown,
-  ChevronUp,
-  AlertCircle,
-  CheckCircle,
-  Sparkles
-} from 'lucide-react'
+  TrendDownIcon as TrendingDown,
+  TrendUpIcon as TrendingUp,
+  MinusIcon as Minus,
+  WarningIcon as AlertTriangle,
+  UserIcon as User,
+  TargetIcon as Target,
+  ChatCircleDotsIcon as MessageSquare,
+  HeartIcon as Heart,
+  CurrencyDollarIcon as DollarSign,
+  ClockIcon as Clock,
+  LightbulbIcon as Lightbulb,
+  CaretDownIcon as ChevronDown,
+  CaretUpIcon as ChevronUp,
+  WarningCircleIcon as AlertCircle,
+  CheckCircleIcon as CheckCircle,
+  SparkleIcon as Sparkles
+} from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   FlightRiskSummary,

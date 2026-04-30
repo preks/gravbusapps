@@ -122,6 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onOpenSettings={onOpenSettings}
           onOpenScheduled={onOpenScheduled}
         />
+
       </div>
     </aside>
   )

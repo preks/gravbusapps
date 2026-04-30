@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react'
 import { Combobox, Label } from '@newwork/nw-design-system'
-import type { DataSource, InputBlock } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import type { DataSource, InputBlock } from '@/common/data/flow/types/flowTemplate'
 
 interface CatalogOption {
   identifier: string

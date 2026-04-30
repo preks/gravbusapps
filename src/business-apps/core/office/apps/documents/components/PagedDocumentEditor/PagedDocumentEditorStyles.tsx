@@ -1,11 +1,16 @@
+import React from 'react'
+
 export interface PagedDocumentEditorStylesProps {
   pageColor: string
   proseMinHeight: number
 }
 
-export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonly<PagedDocumentEditorStylesProps>) {
+export function PagedDocumentEditorStyles({
+  pageColor,
+  proseMinHeight
+}: Readonly<PagedDocumentEditorStylesProps>): React.JSX.Element {
   return (
-    <style>{`
+    <style>{String.raw`
       .document-editor-viewport {
         background-color: #f3f4f6;
       }
@@ -465,8 +470,11 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 40pt 0;
-        padding: 20pt 0;
+        margin: 0;
+        padding: 0;
+        height: 0;
+        min-height: 0;
+        overflow: visible;
         user-select: none;
         cursor: default;
       }
@@ -475,8 +483,10 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         position: absolute;
         left: 0;
         right: 0;
+        top: 50%;
         height: 0;
         border-top: 2px dashed #ccc;
+        transform: translateY(-50%);
       }
 
       .paged-document-editor .ProseMirror .page-break .page-break-label {
@@ -489,17 +499,27 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         letter-spacing: 1pt;
         border: 1pt solid #ddd;
         border-radius: 4pt;
+        transform: translateY(-50%);
       }
 
-      .paged-document-editor .ProseMirror p.is-editor-empty:first-child {
+      .paged-document-editor .ProseMirror .rm-page-break-spacer {
+        display: block;
+        width: 100%;
+        pointer-events: none;
+        user-select: none;
+      }
+
+      .paged-document-editor .ProseMirror p.is-editor-empty:first-child,
+      .paged-document-editor .ProseMirror p:has(> br.ProseMirror-trailingBreak:only-child) {
         min-height: 1em;
         cursor: text;
       }
 
-      .paged-document-editor .ProseMirror p.is-editor-empty:first-child::before {
-        content: '';
+      .paged-document-editor .ProseMirror p.is-editor-empty:first-child::before,
+      .paged-document-editor .ProseMirror p:has(> br.ProseMirror-trailingBreak:only-child)::before {
+        content: '\\00a0';
+        visibility: hidden;
         pointer-events: none;
-        height: 0;
       }
 
       /* Only style selection while the editor is focused. A global ::selection rule also paints
@@ -558,6 +578,10 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
 
         .paged-document-editor .ProseMirror .page-break .page-break-line,
         .paged-document-editor .ProseMirror .page-break .page-break-label {
+          display: none;
+        }
+
+        .paged-document-editor .ProseMirror .rm-page-break-spacer {
           display: none;
         }
       }

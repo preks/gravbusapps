@@ -1,4 +1,3 @@
-/* eslint-disable newwork-local/no-hardcoded-colors -- Recharts/Pie fills require fixed hex values per spec */
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Progress } from '@newwork/nw-design-system'
 import {
@@ -14,7 +13,7 @@ import {
   PieChart,
   Pie
 } from 'recharts'
-import { MessageSquare } from 'lucide-react'
+import { ChatCircleDotsIcon as MessageSquare } from '@phosphor-icons/react'
 import type { TeamMemberFeedback } from '../../hooks/useTeamFeedbackOverview'
 
 export interface FeedbackHealthProps {
@@ -25,6 +24,15 @@ export interface FeedbackHealthProps {
   totalGivenCount: number
   loading: boolean
 }
+
+const FEEDBACK_COLORS = {
+  muted: 'var(--nw-color-neutral-400)',
+  destructive: 'var(--nw-color-danger-500)',
+  warning: 'var(--nw-color-warning-500)',
+  success: 'var(--nw-color-success-500)',
+  primary: 'var(--nw-color-primary-500)',
+  info: 'var(--nw-color-info-500)'
+} as const
 
 const employeeLabel = (m: { firstName: string; lastName: string }): string => {
   const initial = m.lastName?.trim()?.charAt(0)
@@ -39,16 +47,16 @@ const daysSinceLastFeedback = (iso: string | null): number | null => {
 }
 
 const recencyBarFill = (days: number | null): string => {
-  if (days == null) return '#9ca3af'
-  if (days >= 30) return '#ef4444'
-  if (days >= 7) return '#eab308'
-  return '#22c55e'
+  if (days == null) return FEEDBACK_COLORS.muted
+  if (days >= 30) return FEEDBACK_COLORS.destructive
+  if (days >= 7) return FEEDBACK_COLORS.warning
+  return FEEDBACK_COLORS.success
 }
 
 const coverageProgressClass = (pct: number): string => {
-  if (pct >= 80) return '[&_[data-slot=progress-indicator]]:gba:bg-green-500'
-  if (pct >= 50) return '[&_[data-slot=progress-indicator]]:gba:bg-yellow-500'
-  return '[&_[data-slot=progress-indicator]]:gba:bg-red-500'
+  if (pct >= 80) return '[&_[data-slot=progress-indicator]]:gba:bg-success'
+  if (pct >= 50) return '[&_[data-slot=progress-indicator]]:gba:bg-warning'
+  return '[&_[data-slot=progress-indicator]]:gba:bg-destructive'
 }
 
 const recencyBarShape = (props: {
@@ -60,7 +68,7 @@ const recencyBarShape = (props: {
   payload?: { fill?: string }
 }) => {
   const { x = 0, y = 0, width = 0, height = 0, fill, payload } = props
-  const barFill = payload?.fill ?? fill ?? '#9ca3af'
+  const barFill = payload?.fill ?? fill ?? FEEDBACK_COLORS.muted
   return <rect x={x} y={y} width={width} height={height} fill={barFill} rx={4} ry={4} />
 }
 
@@ -141,8 +149,8 @@ export const FeedbackHealth: React.FC<FeedbackHealthProps> = ({
   const pieData =
     typedTotal > 0
       ? [
-          { name: 'Recognition', value: totalRecognition, fill: '#22c55e' },
-          { name: 'Developmental', value: totalDevelopmental, fill: '#3b82f6' }
+          { name: 'Recognition', value: totalRecognition, fill: FEEDBACK_COLORS.success },
+          { name: 'Developmental', value: totalDevelopmental, fill: FEEDBACK_COLORS.primary }
         ]
       : []
 
@@ -190,8 +198,8 @@ export const FeedbackHealth: React.FC<FeedbackHealthProps> = ({
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="received" fill="#3b82f6" name="Received" />
-              <Bar dataKey="given" fill="#10b981" name="Given" />
+              <Bar dataKey="received" fill={FEEDBACK_COLORS.info} name="Received" />
+              <Bar dataKey="given" fill={FEEDBACK_COLORS.success} name="Given" />
             </BarChart>
           </ResponsiveContainer>
         </section>

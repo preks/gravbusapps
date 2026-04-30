@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 
 export interface EditableState<T> {
   editedEntries: Map<string, Partial<T>>
@@ -109,16 +109,30 @@ export function useEditableState<T extends { id: string }>(entries: T[]): UseEdi
     }))
   }, [])
 
-  return {
-    state,
-    setState,
-    getFieldValue,
-    isFieldEdited,
-    hasEdits,
-    isDraft,
-    onFieldEdit,
-    onDiscardEntry,
-    setSaving,
-    clearAllEdits
-  }
+  return useMemo(
+    () => ({
+      state,
+      setState,
+      getFieldValue,
+      isFieldEdited,
+      hasEdits,
+      isDraft,
+      onFieldEdit,
+      onDiscardEntry,
+      setSaving,
+      clearAllEdits
+    }),
+    [
+      state,
+      setState,
+      getFieldValue,
+      isFieldEdited,
+      hasEdits,
+      isDraft,
+      onFieldEdit,
+      onDiscardEntry,
+      setSaving,
+      clearAllEdits
+    ]
+  )
 }

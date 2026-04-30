@@ -20,7 +20,7 @@ import {
 } from '@newwork/nw-design-system'
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued'
 import { TemplateComparison } from '../../types/comparison'
-import { FlowTemplate } from '@/business-apps/flow/apps/creator/types/template'
+import { FlowTemplate } from '@/common/data/flow/types/flowTemplate'
 import { FileJson, Code, Eye } from 'lucide-react'
 
 interface DiffViewerModalProps {

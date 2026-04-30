@@ -217,6 +217,23 @@ export interface RichTextRun {
 }
 
 export type RichParagraphBulletType = 'none' | 'bullet' | 'number'
+export type RichParagraphNumberingStyle =
+  | 'alphaLcParenBoth'
+  | 'alphaLcParenR'
+  | 'alphaLcPeriod'
+  | 'alphaUcParenBoth'
+  | 'alphaUcParenR'
+  | 'alphaUcPeriod'
+  | 'arabicParenBoth'
+  | 'arabicParenR'
+  | 'arabicPeriod'
+  | 'arabicPlain'
+  | 'romanLcParenBoth'
+  | 'romanLcParenR'
+  | 'romanLcPeriod'
+  | 'romanUcParenBoth'
+  | 'romanUcParenR'
+  | 'romanUcPeriod'
 
 export interface RichTextParagraph {
   runs: RichTextRun[]
@@ -224,6 +241,10 @@ export interface RichTextParagraph {
   indentLevel?: number
   bulletType?: RichParagraphBulletType
   bulletChar?: string
+  numberingStyle?: RichParagraphNumberingStyle
+  numberStartAt?: number
+  listLeftMargin?: number
+  listIndent?: number
   lineHeight?: number
   spaceBefore?: number
   spaceAfter?: number
@@ -310,6 +331,12 @@ export interface ShapeInText {
   letterSpacing: number
   textTransform?: RichTextTransform
   padding: number
+  /**
+   * PowerPoint can let shape text paint outside the geometry when shrink-to-fit
+   * is not active. Imported shapes carry this so renderers can avoid clipping
+   * descenders that PowerPoint visibly shows.
+   */
+  allowOverflow?: boolean
 }
 
 /**
@@ -579,6 +606,11 @@ export interface CodeElement extends SlideElement {
 export interface VideoElement extends SlideElement {
   type: 'video'
   src: string
+  sourceUrl?: string
+  embedUrl?: string
+  previewImageUrl?: string
+  videoKind?: 'file' | 'embed'
+  provider?: 'youtube'
   autoplay: boolean
   loop: boolean
   muted: boolean
@@ -848,6 +880,7 @@ export interface SlideBackground {
   overlay?: GradientConfig
   imageUrl?: string
   videoUrl?: string
+  videoPreviewImageUrl?: string
   videoMuted?: boolean
   videoLoop?: boolean
   brandPreset?: 'newwork-dark' | 'newwork-light' | string
@@ -1117,7 +1150,8 @@ export const createVideoElement = (src: string, partial?: Partial<VideoElement>)
   locked: false,
   zIndex: 1,
   src,
-  autoplay: true,
+  videoKind: 'file',
+  autoplay: false,
   loop: true,
   muted: true,
   objectFit: 'cover',
@@ -1414,7 +1448,7 @@ type StringSelectOption = {
   label: string
 }
 
-export const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 128]
+export const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96]
 
 export const CODE_LANGUAGES = [
   { value: 'javascript', label: 'JavaScript' },
@@ -1454,6 +1488,46 @@ export function getStringSelectOptions(
   return [{ value: trimmedValue, label: trimmedValue }, ...options]
 }
 
+function roundFontSizeForUi(value: number): number {
+  return Number(value.toFixed(2))
+}
+
+function isNearInteger(value: number, tolerance = 0.0001): boolean {
+  return Math.abs(value - Math.round(value)) <= tolerance
+}
+
+function snapLegacyPixelFontSizeToPreset(pointsValue: number, pixelValue: number): number {
+  if (!isNearInteger(pixelValue)) {
+    return pointsValue
+  }
+
+  const nearestPreset = FONT_SIZES.reduce((closest, candidate) => {
+    if (Math.abs(candidate - pointsValue) < Math.abs(closest - pointsValue)) {
+      return candidate
+    }
+
+    return closest
+  }, FONT_SIZES[0])
+
+  return Math.abs(nearestPreset - pointsValue) <= 0.26 ? nearestPreset : pointsValue
+}
+
+export function fontSizePixelsToPoints(fontSize?: number): number | undefined {
+  if (fontSize === undefined || fontSize === null || Number.isNaN(fontSize)) {
+    return undefined
+  }
+
+  return roundFontSizeForUi(snapLegacyPixelFontSizeToPreset(fontSize * 0.75, fontSize))
+}
+
+export function fontSizePointsToPixels(fontSize?: number): number | undefined {
+  if (fontSize === undefined || fontSize === null || Number.isNaN(fontSize)) {
+    return undefined
+  }
+
+  return Number((fontSize / 0.75).toFixed(4))
+}
+
 export function getNumericSelectOptions(options: readonly number[], activeValue?: number): number[] {
   if (activeValue === undefined || activeValue === null || Number.isNaN(activeValue)) {
     return [...options]
@@ -1469,7 +1543,7 @@ export function getFontFamilyOptions(activeFontFamily?: string): StringSelectOpt
 }
 
 export function getFontSizeOptions(activeFontSize?: number): number[] {
-  return getNumericSelectOptions(FONT_SIZES, activeFontSize)
+  return getNumericSelectOptions(FONT_SIZES, fontSizePixelsToPoints(activeFontSize))
 }
 
 export function getCodeLanguageOptions(activeLanguage?: string): StringSelectOption[] {

@@ -9,12 +9,14 @@ import {
   parseSheetsAIReviewResponse
 } from '../prompts/sheets-ai-review'
 import { selectPreferredModel } from '../utils/aiModelSelection'
+import { withLanguageDirective } from '../utils/aiResponseLanguage'
 
 interface UseSheetsAIReviewParams {
   promptClient: PromptManagerClient
   sheetName: string
   columns: SpreadsheetColumn[]
   sheetData: Array<Record<string, unknown>>
+  locale?: string
 }
 
 interface UseSheetsAIReviewResult {
@@ -75,7 +77,8 @@ export const useSheetsAIReview = ({
   promptClient,
   sheetName,
   columns,
-  sheetData
+  sheetData,
+  locale
 }: UseSheetsAIReviewParams): UseSheetsAIReviewResult => {
   const [review, setReview] = useState<SheetsAIReviewResponse | null>(null)
   const [lastReviewedAt, setLastReviewedAt] = useState<string | null>(null)
@@ -95,7 +98,7 @@ export const useSheetsAIReview = ({
 
       const formData = new FormData()
       formData.append('model_id', modelId)
-      formData.append('system_content', SHEETS_AI_REVIEW_SYSTEM_PROMPT)
+      formData.append('system_content', withLanguageDirective(SHEETS_AI_REVIEW_SYSTEM_PROMPT, locale))
       formData.append('user_content', buildSheetsAIReviewUserPrompt(sheetName, columns, sheetData))
       formData.append('model_settings', JSON.stringify({}))
 
@@ -112,7 +115,7 @@ export const useSheetsAIReview = ({
       setLastReviewedAt(new Date().toISOString())
       setIsRunning(false)
     }
-  }, [columns, fallback, promptClient, sheetData, sheetName])
+  }, [columns, fallback, locale, promptClient, sheetData, sheetName])
 
   return {
     review,

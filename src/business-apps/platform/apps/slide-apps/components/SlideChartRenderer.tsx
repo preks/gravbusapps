@@ -51,8 +51,9 @@ const CHART_COLORS = [
 export const SlideChartRenderer: React.FC<SlideChartRendererProps> = ({ element }) => {
   const { chartType, data, series, showLegend, showGrid, showTooltip, title, backgroundColor, borderRadius } = element
 
-  // Pie charts have animation disabled due to Recharts bugs (invisible chart, blinking labels)
-  const isAnimationActive = chartType !== 'pie'
+  // Recharts restarts line/pie animations whenever the slide canvas rerenders
+  // during selection, dragging, or property edits, which shows up as flicker.
+  const isAnimationActive = chartType !== 'line' && chartType !== 'pie'
 
   const chartConfig = useMemo(() => {
     const config: ChartConfig = {}

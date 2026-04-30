@@ -159,7 +159,8 @@ const fetchExpenseInsights = async (
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept-Language': getCurrentActiveUserLocale()
     },
     credentials: 'include',
     body: formBody
