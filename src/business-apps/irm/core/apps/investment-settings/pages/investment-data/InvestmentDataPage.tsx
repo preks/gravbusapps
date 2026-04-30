@@ -112,6 +112,7 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
     try {
       const updatedEntry = await saveConfiguration({
         selectedEntry,
+        selectedGroup,
         targetLevel,
         configuration,
         isInherited
@@ -121,6 +122,12 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
         setFormLayoutSaveError(null)
         const data = await fetchInvestmentCatalogData()
         setCatalogData(data)
+        const updatedGroup = selectedGroup
+          ? data.investmentGroups.find(group => group.id === selectedGroup.id)
+          : undefined
+        if (updatedGroup) {
+          setSelectedGroup(mapCatalogEntryToTyped(updatedGroup))
+        }
         setSelectedEntry(updatedEntry)
       }
     } catch (err) {
