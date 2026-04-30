@@ -9,10 +9,18 @@ export const GET_EMPLOYEE_ABSENCES = `
         EmployeeAbsence(where: $where, orderBy: $orderBy, limit: $limit, offset: $offset) {
             description
             id
+            version
+            businessKey
+            recordState
+            activeTo
+            additionalProperties
+            employeeId
             endDate
             startDate
             status
             typeRef
+            cutHalfDayStart
+            cutHalfDayEnd
             type {
                 id
                 value   
@@ -27,6 +35,14 @@ export const GET_EMPLOYEE_ABSENCES = `
             workingHours
             calendarDays
             effectiveDays
+            balance
+            reason
+            relative
+            attachment
+            approverId
+            approvalNote
+            substituteEmployeeId
+            employeeDocumentId
             createdAt
             employee {
                 id

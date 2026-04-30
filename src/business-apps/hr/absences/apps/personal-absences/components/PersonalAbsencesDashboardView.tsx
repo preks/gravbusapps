@@ -6,6 +6,8 @@ import { PendingRequestsCard } from './PendingRequestsCard'
 import { AbsenceHistoryCard } from './AbsenceHistoryCard'
 import { AbsenceRequestMenuButton } from './AbsenceRequestMenuButton'
 import translations from '../_i18n'
+import type { AbsenceRow } from '../types/personalAbsences'
+import type { CancelEmployeeAbsenceSnapshot } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
 
 type TFunction = (key: string) => string
 
@@ -40,6 +42,9 @@ interface PersonalAbsencesDashboardViewProps {
   embedded?: boolean
   canAddEntitlements?: boolean
   onAddEntitlement?: () => void
+  onCancelAbsence: (employeeAbsence: CancelEmployeeAbsenceSnapshot) => Promise<void>
+  cancellingAbsenceId: string | null
+  accessToken?: string
 }
 
 export function PersonalAbsencesDashboardView({
@@ -72,7 +77,10 @@ export function PersonalAbsencesDashboardView({
   t,
   embedded = false,
   canAddEntitlements = false,
-  onAddEntitlement
+  onAddEntitlement,
+  onCancelAbsence,
+  cancellingAbsenceId,
+  accessToken
 }: Readonly<PersonalAbsencesDashboardViewProps>) {
   const { t: tLocal } = useTranslation(translations)
 
@@ -123,7 +131,14 @@ export function PersonalAbsencesDashboardView({
           nextHoliday={nextHoliday}
           t={t}
         />
-        <PendingRequestsCard isLoading={isLoading} pendingRequests={pendingRequests} t={t} />
+        <PendingRequestsCard
+          isLoading={isLoading}
+          pendingRequests={pendingRequests as AbsenceRow[]}
+          t={t}
+          onCancelAbsence={onCancelAbsence}
+          cancellingAbsenceId={cancellingAbsenceId}
+          accessToken={accessToken}
+        />
       </div>
 
       <AbsenceHistoryCard
@@ -140,6 +155,9 @@ export function PersonalAbsencesDashboardView({
         paginatedAbsences={paginatedAbsences}
         totalPages={totalPages}
         t={t}
+        onCancelAbsence={onCancelAbsence}
+        cancellingAbsenceId={cancellingAbsenceId}
+        accessToken={accessToken}
       />
     </div>
   )
