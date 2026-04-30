@@ -527,6 +527,49 @@ describe('InlineRichTextEditor', () => {
     expect(onSelectionChange).toHaveBeenLastCalledWith({ start: 6, end: 6 })
   })
 
+  it('inserts a new paragraph after all live typed text when run metadata is stale', () => {
+    function Harness() {
+      const [element, setElement] = useState(
+        makeTextElement({
+          content: 'a',
+          paragraphs: [{ runs: [{ text: 'a' }] }]
+        })
+      )
+
+      return (
+        <>
+          <InlineRichTextEditor
+            element={element}
+            onTextChange={value => {
+              setElement(previous => replaceRichTextContent(previous, value))
+            }}
+            onSelectionChange={() => {}}
+            onFinishEditing={() => {}}
+          />
+          <div data-testid="editor-content">{element.content}</div>
+        </>
+      )
+    }
+
+    render(<Harness />)
+
+    const editor = screen.getByTestId('inline-rich-text-editor') as HTMLDivElement
+    const firstRun = editor.querySelector<HTMLElement>('[data-run-start]')
+    const firstTextNode = firstRun?.firstChild as Text
+
+    firstTextNode.textContent = 'asdsadsadas'
+
+    const typingRange = document.createRange()
+    typingRange.setStart(firstTextNode, 'asdsadsadas'.length)
+    typingRange.setEnd(firstTextNode, 'asdsadsadas'.length)
+    setDocumentSelection(typingRange)
+
+    fireEvent.input(editor)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(screen.getByTestId('editor-content').textContent).toBe('asdsadsadas\n')
+  })
+
   it('preserves all typed characters after pressing Enter into a new paragraph', () => {
     function Harness() {
       const [element, setElement] = useState(

@@ -267,9 +267,12 @@ function textOffsetFromBoundary(container: HTMLElement, node: Node, offset: numb
 
 function liveContentLength(container: HTMLElement): number {
   const paragraphs = Array.from(container.querySelectorAll<HTMLElement>('[data-paragraph-end]'))
-  const lastParagraph = paragraphs[paragraphs.length - 1]
-  const paragraphBounds = lastParagraph ? paragraphBoundsFromElement(lastParagraph) : null
-  if (paragraphBounds) return paragraphBounds.end
+  if (paragraphs.length > 0) {
+    return paragraphs.reduce((total, paragraph, index) => {
+      const lineBreakLength = index === 0 ? 0 : 1
+      return total + lineBreakLength + textLengthWithinEditorNode(paragraph)
+    }, 0)
+  }
 
   const runs = Array.from(container.querySelectorAll<HTMLElement>('[data-run-end]'))
   const lastRun = runs[runs.length - 1]

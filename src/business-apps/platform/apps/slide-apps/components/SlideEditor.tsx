@@ -928,7 +928,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const currentSlideRaw = slides[currentSlideIndex] || defaultSlide
-  const currentSlide = normalizeSlideData(currentSlideRaw, defaultSlide.id)
+  const currentSlide = normalizeSlideData(currentSlideRaw, defaultSlide.id, seededPlaceholderTexts)
 
   /** Allowed preview URL only (no DOMPurify). Actual `src` is set in layout effect so SAST does not flag `src={state}`. */
   const slideBackgroundVideoPreviewSrc = useMemo(() => {
