@@ -131,4 +131,84 @@ describe('useComments', () => {
       expect(result.current.unresolvedCount).toBe(1)
     })
   })
+
+  it('reloads the canonical thread after creating a reply', async () => {
+    const parentComment: Comment = {
+      id: 'comment-1',
+      entityId: 'whiteboard-1',
+      entityType: 'whiteboard',
+      type: 'selection',
+      content: 'Parent comment',
+      createdBy: 'user-1',
+      createdAt: '2026-04-29T16:00:00.000Z'
+    }
+    const replyComment: Comment = {
+      id: 'reply-1',
+      entityId: 'whiteboard-1',
+      entityType: 'whiteboard',
+      type: 'selection',
+      content: 'Reply comment',
+      createdBy: 'user-2',
+      createdAt: '2026-04-29T16:01:00.000Z',
+      parentId: 'comment-1'
+    }
+
+    const listComments = jest
+      .fn<Promise<Comment[]>, [string, unknown?]>()
+      .mockResolvedValueOnce([parentComment])
+      .mockResolvedValueOnce([
+        {
+          ...parentComment,
+          replies: [replyComment]
+        }
+      ])
+
+    const apiService = {
+      createComment: jest.fn(),
+      listComments,
+      updateComment: jest.fn(),
+      resolveComment: jest.fn(),
+      deleteComment: jest.fn(),
+      replyToComment: jest
+        .fn<Promise<Comment | null>, [string, string, string?, string?]>()
+        .mockResolvedValue(replyComment)
+    }
+
+    const { result } = renderHook(() =>
+      useComments({
+        entityId: 'whiteboard-1',
+        entityType: 'whiteboard',
+        apiService
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.comments).toEqual([parentComment])
+    })
+
+    await act(async () => {
+      await result.current.replyToComment('comment-1', 'Reply comment', 'Xmir Sali', 'https://example.com/avatar.png')
+    })
+
+    await waitFor(() => {
+      expect(apiService.replyToComment).toHaveBeenCalledWith(
+        'comment-1',
+        'Reply comment',
+        'Xmir Sali',
+        'https://example.com/avatar.png'
+      )
+      expect(listComments).toHaveBeenLastCalledWith('whiteboard-1', {
+        includeResolved: true,
+        includeReplies: true
+      })
+      expect(result.current.comments).toEqual([
+        expect.objectContaining({ id: 'comment-1' }),
+        expect.objectContaining({
+          id: 'reply-1',
+          parentId: 'comment-1',
+          content: 'Reply comment'
+        })
+      ])
+    })
+  })
 })

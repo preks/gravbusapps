@@ -64,6 +64,8 @@ export interface CommentPanelProps {
   messages?: CommentPanelMessages
   threadMessages?: CommentPanelThreadMessages
   editorMessages?: CommentPanelEditorMessages
+  disableCreateComment?: boolean
+  disabledCreateMessage?: string
   'data-testid'?: string
 }
 
@@ -89,6 +91,8 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   messages: messagesProp,
   threadMessages,
   editorMessages,
+  disableCreateComment = false,
+  disabledCreateMessage,
   'data-testid': testId = 'comment-panel'
 }) => {
   const { t } = useTranslation(sharedTranslations)
@@ -261,13 +265,22 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
 
       {/* New comment input - flex-shrink-0 keeps footer at bottom */}
       <div className="gba:flex-shrink-0 gba:p-2 gba:border-t gba:border-border/50 gba:bg-muted/20">
-        <CommentEditor
-          onSubmit={handleCreateComment}
-          isSubmitting={isCreating}
-          placeholder={messages.addPlaceholder}
-          messages={editorMessages}
-          data-testid="new-comment-editor"
-        />
+        {disableCreateComment ? (
+          <p
+            className="gba:text-xs gba:text-muted-foreground gba:px-1 gba:py-2"
+            data-testid="comment-panel-create-disabled"
+          >
+            {disabledCreateMessage || messages.noCommentsHint}
+          </p>
+        ) : (
+          <CommentEditor
+            onSubmit={handleCreateComment}
+            isSubmitting={isCreating}
+            placeholder={messages.addPlaceholder}
+            messages={editorMessages}
+            data-testid="new-comment-editor"
+          />
+        )}
       </div>
     </div>
   )

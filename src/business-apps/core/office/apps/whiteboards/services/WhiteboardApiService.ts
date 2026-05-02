@@ -1,4 +1,9 @@
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import type {
+  Comment,
+  CommentQueryOptions,
+  CreateCommentInput
+} from '@/business-apps/platform/apps/shared/types/versioning'
 import type { WhiteboardSummary, Whiteboard } from '../types'
 
 interface PaginatedResponse<T> {
@@ -7,6 +12,26 @@ interface PaginatedResponse<T> {
   page: number
   limit: number
   totalPages: number
+}
+
+export interface WhiteboardMetadataUpdate {
+  title?: string
+  description?: string
+  spaceId?: string
+  settings?: Record<string, unknown>
+  createVersion?: boolean
+}
+
+function parseWhiteboardAnchorPath(anchorPath: string | undefined): Comment['anchorData'] {
+  if (!anchorPath) {
+    return undefined
+  }
+
+  try {
+    return JSON.parse(anchorPath) as Comment['anchorData']
+  } catch {
+    return undefined
+  }
 }
 
 function parseJsonSafely<T>(rawText: string): T | null {
@@ -36,6 +61,34 @@ async function request<T>(path: string, accessToken: string, options?: RequestIn
   }
   const text = await response.text()
   return parseJsonSafely<T>(text) as T
+}
+
+function mapApiComment(rawComment: Record<string, unknown>, whiteboardId: string): Comment {
+  return {
+    id: rawComment.id as string,
+    entityId: whiteboardId,
+    entityType: 'whiteboard',
+    type: rawComment.type as Comment['type'],
+    content: rawComment.content as string,
+    createdBy: rawComment.createdBy as string,
+    createdByName: rawComment.createdByName as string | undefined,
+    createdByAvatar: rawComment.createdByAvatar as string | undefined,
+    createdAt: rawComment.createdAt as string,
+    updatedAt: rawComment.updatedAt as string | undefined,
+    resolvedAt: rawComment.resolvedAt as string | undefined,
+    resolvedBy: rawComment.resolvedBy as string | undefined,
+    selectionStart: rawComment.selectionStart as number | undefined,
+    selectionEnd: rawComment.selectionEnd as number | undefined,
+    selectedText: rawComment.selectedText as string | undefined,
+    anchorPath: rawComment.anchorPath as string | undefined,
+    anchorData: parseWhiteboardAnchorPath(rawComment.anchorPath as string | undefined),
+    cellReference: rawComment.cellReference as string | undefined,
+    sheetId: rawComment.sheetId as string | undefined,
+    parentId: rawComment.parentId as string | undefined,
+    replies: (rawComment.replies as Record<string, unknown>[] | undefined)?.map(reply =>
+      mapApiComment({ ...reply, parentId: reply.parentId ?? rawComment.id }, whiteboardId)
+    )
+  }
 }
 
 export const WhiteboardApiService = {
@@ -79,7 +132,7 @@ export const WhiteboardApiService = {
     })
   },
 
-  async update(accessToken: string, id: string, data: Partial<Whiteboard>): Promise<WhiteboardSummary> {
+  async update(accessToken: string, id: string, data: WhiteboardMetadataUpdate): Promise<WhiteboardSummary> {
     return request(`/whiteboards/${id}`, accessToken, {
       method: 'PATCH',
       body: JSON.stringify(data)
@@ -138,5 +191,95 @@ export const WhiteboardApiService = {
 
   async getSharedUsers(accessToken: string, id: string): Promise<unknown[]> {
     return request(`/sharing/whiteboard/${id}`, accessToken)
+  },
+
+  async createComment(accessToken: string, whiteboardId: string, input: CreateCommentInput): Promise<Comment | null> {
+    try {
+      const { anchorData, ...restInput } = input
+      const response = await request<Record<string, unknown>>(`/comments/whiteboard/${whiteboardId}`, accessToken, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...restInput,
+          ...(anchorData ? { anchorPath: JSON.stringify(anchorData) } : {})
+        })
+      })
+
+      return mapApiComment(response, whiteboardId)
+    } catch {
+      return null
+    }
+  },
+
+  async listComments(accessToken: string, whiteboardId: string, options?: CommentQueryOptions): Promise<Comment[]> {
+    try {
+      const params = new URLSearchParams()
+      if (options?.includeResolved) params.set('includeResolved', 'true')
+      if (options?.includeReplies) params.set('includeReplies', 'true')
+      if (options?.type) params.set('type', options.type)
+
+      const queryString = params.toString()
+      const response = await request<Record<string, unknown>[]>(
+        `/comments/whiteboard/${whiteboardId}${queryString ? `?${queryString}` : ''}`,
+        accessToken
+      )
+
+      return response.map(comment => mapApiComment(comment, whiteboardId))
+    } catch {
+      return []
+    }
+  },
+
+  async updateComment(accessToken: string, commentId: string, updates: Partial<Comment>): Promise<Comment | null> {
+    try {
+      const response = await request<Record<string, unknown>>(`/comments/${commentId}`, accessToken, {
+        method: 'PATCH',
+        body: JSON.stringify({ content: updates.content })
+      })
+
+      return mapApiComment(response, response.entityId as string)
+    } catch {
+      return null
+    }
+  },
+
+  async resolveComment(accessToken: string, commentId: string): Promise<boolean> {
+    try {
+      await request(`/comments/${commentId}/resolve`, accessToken, { method: 'PATCH' })
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  async deleteComment(accessToken: string, commentId: string): Promise<boolean> {
+    try {
+      await request(`/comments/${commentId}`, accessToken, { method: 'DELETE' })
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  async replyToComment(
+    accessToken: string,
+    commentId: string,
+    reply: string,
+    userName?: string,
+    userAvatar?: string
+  ): Promise<Comment | null> {
+    try {
+      const response = await request<Record<string, unknown>>(`/comments/${commentId}/reply`, accessToken, {
+        method: 'POST',
+        body: JSON.stringify({
+          content: reply,
+          ...(userName ? { createdByName: userName } : {}),
+          ...(userAvatar ? { createdByAvatar: userAvatar } : {})
+        })
+      })
+
+      return mapApiComment(response, response.entityId as string)
+    } catch {
+      return null
+    }
   }
 }
